@@ -175,10 +175,10 @@ export class GameSetupScene extends Phaser.Scene {
         startButton.setStyle({ color: "#44ff44", backgroundColor: "#222222" });
       });
       startButton.on("pointerdown", () => {
-        // Start with coin flip
-        this.scene.start("CoinFlipScene", {
-          team1: this.selectedTeam1,
-          team2: this.selectedTeam2,
+        // Start Setup Scene directly (Coin flip is now part of Setup)
+        this.scene.start("SetupScene", {
+          team1: this.selectedTeam1!,
+          team2: this.selectedTeam2!,
         });
       });
     }

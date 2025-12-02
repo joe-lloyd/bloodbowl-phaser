@@ -7,7 +7,7 @@ import { pixelToGrid } from "../utils/GridUtils";
 
 /**
  * Setup Scene - Drag and drop players onto the pitch
- * Sevens rules: Setup in your third of the pitch
+ * Includes Coin Flip to determine setup order
  */
 export class SetupScene extends Phaser.Scene {
   private team1!: Team;
@@ -21,29 +21,24 @@ export class SetupScene extends Phaser.Scene {
   private dugoutSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private placedPlayers: Set<string> = new Set();
 
-  private setupPhase: "kicking" | "receiving" = "kicking";
+  private setupPhase: "coinflip" | "kicking" | "receiving" = "coinflip";
   private confirmButton!: Phaser.GameObjects.Text;
   private instructionText!: Phaser.GameObjects.Text;
+
+  // Coin Flip UI
+  private coinFlipContainer!: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: "SetupScene" });
   }
 
-  init(data: {
-    team1: Team;
-    team2: Team;
-    kickingTeam: Team;
-    receivingTeam: Team;
-  }): void {
+  init(data: { team1: Team; team2: Team }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
-    this.kickingTeam = data.kickingTeam;
-    this.receivingTeam = data.receivingTeam;
-    this.currentSetupTeam = this.kickingTeam; // Kicking team sets up first
-    this.setupPhase = "kicking";
     this.placedPlayers.clear();
     this.playerSprites.clear();
     this.dugoutSprites.clear();
+    this.setupPhase = "coinflip";
   }
 
   create(): void {
@@ -60,15 +55,15 @@ export class SetupScene extends Phaser.Scene {
 
     this.pitch = new Pitch(this, pitchX, pitchY);
 
-    // Create dugouts for both teams
+    // Create dugouts for both teams (narrower: 150px)
     this.createDugout(this.team1, 20, pitchY, true);
-    this.createDugout(this.team2, width - 220, pitchY, false);
+    this.createDugout(this.team2, width - 170, pitchY, false);
 
     // Setup UI
     this.createUI(width);
 
-    // Highlight initial setup zone
-    this.updateSetupState();
+    // Start with Coin Flip
+    this.createCoinFlipOverlay(width, height);
   }
 
   private createUI(width: number): void {
@@ -83,7 +78,7 @@ export class SetupScene extends Phaser.Scene {
 
     // Instructions
     this.instructionText = this.add
-      .text(width / 2, 50, "", {
+      .text(width / 2, 50, "Waiting for Coin Flip...", {
         fontSize: "18px",
         color: "#ffffff",
       })
@@ -117,6 +112,125 @@ export class SetupScene extends Phaser.Scene {
     this.confirmButton.on("pointerdown", () => {
       this.confirmSetup();
     });
+  }
+
+  private createCoinFlipOverlay(width: number, height: number): void {
+    this.coinFlipContainer = this.add.container(0, 0);
+
+    // Dark overlay
+    const overlay = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.7)
+      .setOrigin(0);
+    overlay.setInteractive(); // Block clicks below
+    this.coinFlipContainer.add(overlay);
+
+    // Title
+    const title = this.add
+      .text(width / 2, height / 2 - 100, "COIN FLIP", {
+        fontSize: "48px",
+        color: "#ffff44",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.coinFlipContainer.add(title);
+
+    // Flip Button
+    const flipButton = this.add
+      .text(width / 2, height / 2, "FLIP COIN", {
+        fontSize: "32px",
+        color: "#44ff44",
+        backgroundColor: "#222222",
+        padding: { x: 30, y: 15 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.coinFlipContainer.add(flipButton);
+
+    flipButton.on("pointerdown", () => {
+      flipButton.destroy();
+      this.performCoinFlip(width, height);
+    });
+  }
+
+  private performCoinFlip(width: number, height: number): void {
+    const coin = this.add
+      .text(width / 2, height / 2, "🪙", { fontSize: "64px" })
+      .setOrigin(0.5);
+    this.coinFlipContainer.add(coin);
+
+    this.tweens.add({
+      targets: coin,
+      angle: 720,
+      duration: 1000,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        const team1Wins = Math.random() < 0.5;
+        const winner = team1Wins ? this.team1 : this.team2;
+        const loser = team1Wins ? this.team2 : this.team1;
+
+        coin.destroy();
+        this.showCoinFlipResult(width, height, winner, loser);
+      },
+    });
+  }
+
+  private showCoinFlipResult(
+    width: number,
+    height: number,
+    winner: Team,
+    loser: Team
+  ): void {
+    const resultText = this.add
+      .text(width / 2, height / 2 - 50, `${winner.name} wins the toss!`, {
+        fontSize: "32px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.coinFlipContainer.add(resultText);
+
+    // Choices
+    const kickButton = this.add
+      .text(width / 2 - 100, height / 2 + 50, "KICK", {
+        fontSize: "24px",
+        color: "#ffffff",
+        backgroundColor: "#4444ff",
+        padding: { x: 20, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    const receiveButton = this.add
+      .text(width / 2 + 100, height / 2 + 50, "RECEIVE", {
+        fontSize: "24px",
+        color: "#ffffff",
+        backgroundColor: "#ff4444",
+        padding: { x: 20, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.coinFlipContainer.add([kickButton, receiveButton]);
+
+    kickButton.on("pointerdown", () => {
+      this.kickingTeam = winner;
+      this.receivingTeam = loser;
+      this.startSetup();
+    });
+
+    receiveButton.on("pointerdown", () => {
+      this.kickingTeam = loser;
+      this.receivingTeam = winner;
+      this.startSetup();
+    });
+  }
+
+  private startSetup(): void {
+    this.coinFlipContainer.destroy();
+    this.currentSetupTeam = this.kickingTeam;
+    this.setupPhase = "kicking";
+    this.updateSetupState();
   }
 
   private updateSetupState(): void {
@@ -174,15 +288,15 @@ export class SetupScene extends Phaser.Scene {
     y: number,
     _isLeft: boolean
   ): void {
-    // Dugout background
-    this.add.rectangle(x, y, 200, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 200, 680, team.colors.primary, 0.2).setOrigin(0);
+    // Dugout background (narrower)
+    this.add.rectangle(x, y, 150, 680, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 150, 680, team.colors.primary, 0.2).setOrigin(0);
 
-    this.add.text(x + 10, y + 10, `${team.name} (${team.race})`, {
-      fontSize: "16px",
+    this.add.text(x + 10, y + 10, `${team.name}`, {
+      fontSize: "14px",
       color: "#ffffff",
       fontStyle: "bold",
-      wordWrap: { width: 180 },
+      wordWrap: { width: 130 },
     });
 
     // Create sprites for first 7 players
@@ -192,12 +306,19 @@ export class SetupScene extends Phaser.Scene {
     players.forEach((player) => {
       const sprite = this.createDugoutPlayer(
         player,
-        x + 100,
+        x + 75, // Centered in 150px width
         yOffset,
         team.colors.primary
       );
       this.dugoutSprites.set(player.id, sprite);
       yOffset += 60;
+    });
+
+    // Placeholder for Player Info Panel (under dugout)
+    // In a real implementation, we'd add a PlayerInfoPanel instance here
+    this.add.text(x + 10, y + 500, "Hover for Info", {
+      fontSize: "12px",
+      color: "#888",
     });
   }
 
@@ -210,7 +331,7 @@ export class SetupScene extends Phaser.Scene {
     const container = this.add.container(x, y);
     container.setData("originalX", x);
     container.setData("originalY", y);
-    container.setData("playerId", player.id); // Store player ID for easier lookup
+    container.setData("playerId", player.id);
 
     // Player circle
     const circle = this.add.circle(0, 0, 16, color);
@@ -234,10 +355,10 @@ export class SetupScene extends Phaser.Scene {
     container.setDepth(10);
 
     // Drag events
-    this.input.setDraggable(container); // Explicitly enable drag on input plugin
+    this.input.setDraggable(container);
 
     container.on("dragstart", () => {
-      container.setDepth(100); // Bring to front when dragging
+      container.setDepth(100);
     });
 
     container.on(
@@ -249,7 +370,7 @@ export class SetupScene extends Phaser.Scene {
     );
 
     container.on("dragend", () => {
-      container.setDepth(10); // Reset depth
+      container.setDepth(10);
       this.handlePlayerDrop(player, container);
     });
 

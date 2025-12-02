@@ -12,6 +12,8 @@ export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
   private team1!: Team;
   private team2!: Team;
+  private kickingTeam!: Team;
+  private receivingTeam!: Team;
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private playerInfoPanel!: PlayerInfoPanel;
 
@@ -22,11 +24,13 @@ export class GameScene extends Phaser.Scene {
   init(data: {
     team1: Team;
     team2: Team;
-    kickingTeam?: Team;
-    receivingTeam?: Team;
+    kickingTeam: Team;
+    receivingTeam: Team;
   }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
+    this.kickingTeam = data.kickingTeam;
+    this.receivingTeam = data.receivingTeam;
   }
 
   create(): void {
@@ -41,17 +45,17 @@ export class GameScene extends Phaser.Scene {
     const team2Color = this.team2.colors.primary;
 
     // Team 1 header (left side)
-    this.add.rectangle(20, 20, 250, 60, team1Color, 0.3).setOrigin(0);
+    this.add.rectangle(20, 20, 200, 60, team1Color, 0.3).setOrigin(0);
     this.add.text(30, 30, `${this.team1.name} (${this.team1.race})`, {
-      fontSize: "20px",
+      fontSize: "18px",
       color: "#ffffff",
       fontStyle: "bold",
     });
 
     // Team 2 header (right side)
-    this.add.rectangle(width - 270, 20, 250, 60, team2Color, 0.3).setOrigin(0);
-    this.add.text(width - 260, 30, `${this.team2.name} (${this.team2.race})`, {
-      fontSize: "20px",
+    this.add.rectangle(width - 220, 20, 200, 60, team2Color, 0.3).setOrigin(0);
+    this.add.text(width - 210, 30, `${this.team2.name} (${this.team2.race})`, {
+      fontSize: "18px",
       color: "#ffffff",
       fontStyle: "bold",
     });
@@ -63,24 +67,31 @@ export class GameScene extends Phaser.Scene {
 
     this.pitch = new Pitch(this, pitchX, pitchY);
 
-    // Player info panel (right side)
-    this.playerInfoPanel = new PlayerInfoPanel(this, width - 130, height / 2);
+    // Create dugouts (narrower: 150px)
+    this.createDugout(team1Color, 20, pitchY, this.team1, true);
+    this.createDugout(team2Color, width - 170, pitchY, this.team2, false);
+
+    // Place players from setup
+    this.placePlayersFromSetup();
+
+    // Player info panel (right side, under dugout for now or floating)
+    // User asked for "under the teams dugout for which team the player you hover"
+    // Since we have limited space, let's put a single panel that updates based on hover
+    // Position it in the bottom right corner for now, or maybe create two instances?
+    // Let's stick to one panel but position it better.
+    // Actually, let's put it under the right dugout as a default location
+    this.playerInfoPanel = new PlayerInfoPanel(this, width - 170, pitchY + 400);
 
     // Listen for player hover events
     this.events.on("showPlayerInfo", (player: Player) => {
+      // Move panel to the side of the player's team if possible?
+      // For now, just show it.
       this.playerInfoPanel.showPlayer(player);
     });
 
     this.events.on("hidePlayerInfo", () => {
       this.playerInfoPanel.hide();
     });
-
-    // Create dugouts
-    this.createDugout(team1Color, 20, pitchY, this.team1, true);
-    this.createDugout(team2Color, width - 220, pitchY, this.team2, false);
-
-    // Place players for testing (we'll do proper setup in Phase 12)
-    this.placeTestPlayers();
 
     // Back button
     this.createBackButton();
@@ -90,7 +101,7 @@ export class GameScene extends Phaser.Scene {
       .text(
         width / 2,
         height - 30,
-        "Phase 4.5: Setup Complete! (Turn order coming next)",
+        `Game Started! ${this.kickingTeam.name} kicks to ${this.receivingTeam.name}`,
         {
           fontSize: "16px",
           color: "#888888",
@@ -107,8 +118,8 @@ export class GameScene extends Phaser.Scene {
     _isLeft: boolean
   ): void {
     // Dugout background
-    this.add.rectangle(x, y, 200, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 200, 680, color, 0.2).setOrigin(0);
+    this.add.rectangle(x, y, 150, 680, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 150, 680, color, 0.2).setOrigin(0);
 
     // Title
     this.add.text(x + 10, y + 10, "DUGOUT", {
@@ -117,10 +128,13 @@ export class GameScene extends Phaser.Scene {
       fontStyle: "bold",
     });
 
-    // Show all players
+    // Show only players NOT on the pitch (Reserves/KO/Injured)
+    // For now, just check if they have a gridPosition
+    const dugoutPlayers = team.players.filter((p) => !p.gridPosition);
+
     let yOffset = y + 40;
-    team.players.forEach((player) => {
-      this.createDugoutPlayerDisplay(player, x + 100, yOffset, color);
+    dugoutPlayers.forEach((player) => {
+      this.createDugoutPlayerDisplay(player, x + 75, yOffset, color);
       yOffset += 60;
     });
   }
@@ -171,21 +185,29 @@ export class GameScene extends Phaser.Scene {
     return container;
   }
 
-  private placeTestPlayers(): void {
-    // Place Team 1 players (top half)
-    const team1Players = this.team1.players.slice(0, 7);
-    team1Players.forEach((player, index) => {
-      const gridX = 2 + index;
-      const gridY = 2;
-      this.placePlayer(player, gridX, gridY, this.team1.colors.primary);
+  private placePlayersFromSetup(): void {
+    // Place Team 1 players
+    this.team1.players.forEach((player) => {
+      if (player.gridPosition) {
+        this.placePlayer(
+          player,
+          player.gridPosition.x,
+          player.gridPosition.y,
+          this.team1.colors.primary
+        );
+      }
     });
 
-    // Place Team 2 players (bottom half)
-    const team2Players = this.team2.players.slice(0, 7);
-    team2Players.forEach((player, index) => {
-      const gridX = 2 + index;
-      const gridY = 14;
-      this.placePlayer(player, gridX, gridY, this.team2.colors.primary);
+    // Place Team 2 players
+    this.team2.players.forEach((player) => {
+      if (player.gridPosition) {
+        this.placePlayer(
+          player,
+          player.gridPosition.x,
+          player.gridPosition.y,
+          this.team2.colors.primary
+        );
+      }
     });
   }
 
@@ -199,7 +221,7 @@ export class GameScene extends Phaser.Scene {
     const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor);
     this.playerSprites.set(player.id, sprite);
 
-    // Update player's grid position
+    // Update player's grid position (redundant but safe)
     player.gridPosition = { x: gridX, y: gridY };
     player.status = PlayerStatus.ACTIVE;
   }
