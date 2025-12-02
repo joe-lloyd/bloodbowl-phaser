@@ -1,0 +1,157 @@
+import Phaser from "phaser";
+import { GameConfig } from "../config/GameConfig";
+import { gridToPixel } from "../utils/GridUtils";
+
+/**
+ * Pitch class - Renders the Blood Bowl pitch with 11x17 grid
+ */
+export class Pitch {
+  private scene: Phaser.Scene;
+  private container: Phaser.GameObjects.Container;
+  private width: number;
+  private height: number;
+  private squareSize: number;
+  private offsetX: number;
+  private offsetY: number;
+
+  constructor(scene: Phaser.Scene, x: number, y: number) {
+    this.scene = scene;
+    this.width = GameConfig.PITCH_WIDTH;
+    this.height = GameConfig.PITCH_HEIGHT;
+    this.squareSize = GameConfig.SQUARE_SIZE;
+    this.offsetX = x;
+    this.offsetY = y;
+
+    this.container = scene.add.container(x, y);
+    this.render();
+  }
+
+  private render(): void {
+    // Draw pitch background
+    const pitchWidth = this.width * this.squareSize;
+    const pitchHeight = this.height * this.squareSize;
+
+    const background = this.scene.add.rectangle(
+      pitchWidth / 2,
+      pitchHeight / 2,
+      pitchWidth,
+      pitchHeight,
+      GameConfig.COLORS.PITCH_GREEN
+    );
+    this.container.add(background);
+
+    // Draw grid lines
+    this.drawGrid();
+
+    // Draw end zones
+    this.drawEndZones();
+
+    // Draw center line
+    this.drawCenterLine();
+  }
+
+  private drawGrid(): void {
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(1, GameConfig.COLORS.PITCH_LINE, 0.3);
+
+    // Vertical lines
+    for (let x = 0; x <= this.width; x++) {
+      const pixelX = x * this.squareSize;
+      graphics.lineBetween(pixelX, 0, pixelX, this.height * this.squareSize);
+    }
+
+    // Horizontal lines
+    for (let y = 0; y <= this.height; y++) {
+      const pixelY = y * this.squareSize;
+      graphics.lineBetween(0, pixelY, this.width * this.squareSize, pixelY);
+    }
+
+    this.container.add(graphics);
+  }
+
+  private drawEndZones(): void {
+    const graphics = this.scene.add.graphics();
+
+    // Top end zone (Team 1)
+    graphics.fillStyle(0x4444ff, 0.2);
+    graphics.fillRect(0, 0, this.width * this.squareSize, this.squareSize);
+
+    // Bottom end zone (Team 2)
+    graphics.fillStyle(0xff4444, 0.2);
+    graphics.fillRect(
+      0,
+      (this.height - 1) * this.squareSize,
+      this.width * this.squareSize,
+      this.squareSize
+    );
+
+    this.container.add(graphics);
+  }
+
+  private drawCenterLine(): void {
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
+
+    const centerY = (this.height / 2) * this.squareSize;
+    graphics.lineBetween(0, centerY, this.width * this.squareSize, centerY);
+
+    this.container.add(graphics);
+  }
+
+  /**
+   * Highlight a square on the pitch
+   */
+  public highlightSquare(
+    gridX: number,
+    gridY: number,
+    color: number
+  ): Phaser.GameObjects.Rectangle {
+    const highlight = this.scene.add.rectangle(
+      gridX * this.squareSize + this.squareSize / 2,
+      gridY * this.squareSize + this.squareSize / 2,
+      this.squareSize - 4,
+      this.squareSize - 4,
+      color,
+      0.5
+    );
+    this.container.add(highlight);
+    return highlight;
+  }
+
+  /**
+   * Clear all highlights
+   */
+  public clearHighlights(): void {
+    // Remove all highlight rectangles
+    const children = this.container.getAll();
+    children.forEach((child) => {
+      if (
+        child instanceof Phaser.GameObjects.Rectangle &&
+        child.alpha === 0.5
+      ) {
+        child.destroy();
+      }
+    });
+  }
+
+  /**
+   * Get pixel position for a grid coordinate
+   */
+  public getPixelPosition(
+    gridX: number,
+    gridY: number
+  ): { x: number; y: number } {
+    const local = gridToPixel(gridX, gridY, this.squareSize);
+    return {
+      x: this.offsetX + local.x,
+      y: this.offsetY + local.y,
+    };
+  }
+
+  /**
+   * Get the container
+   */
+  public getContainer(): Phaser.GameObjects.Container {
+    return this.container;
+  }
+}
