@@ -3,15 +3,15 @@ import { loadTeams } from "../managers/TeamManager";
 import { Team } from "../types/Team";
 
 /**
- * Game Setup Scene - Select teams for Player 1 and Player 2
+ * Team Selection Scene - Select teams for Player 1 and Player 2
  */
-export class GameSetupScene extends Phaser.Scene {
+export class TeamSelectionScene extends Phaser.Scene {
   private teams: Team[] = [];
   private selectedTeam1: Team | null = null;
   private selectedTeam2: Team | null = null;
 
   constructor() {
-    super({ key: "GameSetupScene" });
+    super({ key: "TeamSelectionScene" });
   }
 
   create(): void {
@@ -23,7 +23,7 @@ export class GameSetupScene extends Phaser.Scene {
 
     // Title
     this.add
-      .text(width / 2, 40, "GAME SETUP", {
+      .text(width / 2, 40, "TEAM SELECTION", {
         fontSize: "36px",
         color: "#4444ff",
         fontStyle: "bold",

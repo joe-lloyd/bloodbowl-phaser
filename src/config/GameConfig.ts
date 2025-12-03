@@ -6,7 +6,7 @@
 export const GameConfig = {
   // Pitch dimensions (Sevens uses 11x17 grid)
   PITCH_WIDTH: 11,
-  PITCH_HEIGHT: 17,
+  PITCH_HEIGHT: 20,
   SQUARE_SIZE: 40, // pixels per square
 
   // Game structure

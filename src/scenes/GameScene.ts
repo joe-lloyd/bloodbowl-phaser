@@ -118,12 +118,12 @@ export class GameScene extends Phaser.Scene {
     _isLeft: boolean
   ): void {
     // Dugout background
-    this.add.rectangle(x, y, 150, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 150, 680, color, 0.2).setOrigin(0);
+    this.add.rectangle(x, y, 120, 680, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 120, 680, color, 0.2).setOrigin(0);
 
     // Title
     this.add.text(x + 10, y + 10, "DUGOUT", {
-      fontSize: "14px",
+      fontSize: "12px",
       color: "#ffffff",
       fontStyle: "bold",
     });
@@ -134,8 +134,8 @@ export class GameScene extends Phaser.Scene {
 
     let yOffset = y + 40;
     dugoutPlayers.forEach((player) => {
-      this.createDugoutPlayerDisplay(player, x + 75, yOffset, color);
-      yOffset += 60;
+      this.createDugoutPlayerDisplay(player, x + 60, yOffset, color);
+      yOffset += 45;
     });
   }
 
@@ -242,7 +242,7 @@ export class GameScene extends Phaser.Scene {
       backButton.setStyle({ color: "#ff4444", backgroundColor: "#222222" });
     });
     backButton.on("pointerdown", () => {
-      this.scene.start("GameSetupScene");
+      this.scene.start("TeamSelectionScene");
     });
   }
 }

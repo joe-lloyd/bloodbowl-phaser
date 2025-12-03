@@ -50,7 +50,7 @@ export class MenuScene extends Phaser.Scene {
       buttonY + buttonSpacing,
       "Play Game",
       "#4444ff",
-      () => this.scene.start("GameSetupScene")
+      () => this.scene.start("TeamSelectionScene")
     );
 
     // Version info

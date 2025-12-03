@@ -288,36 +288,36 @@ export class SetupScene extends Phaser.Scene {
     y: number,
     _isLeft: boolean
   ): void {
-    // Dugout background (narrower)
-    this.add.rectangle(x, y, 150, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 150, 680, team.colors.primary, 0.2).setOrigin(0);
+    // Dugout background (narrower: 120px)
+    this.add.rectangle(x, y, 120, 680, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 120, 680, team.colors.primary, 0.2).setOrigin(0);
 
     this.add.text(x + 10, y + 10, `${team.name}`, {
-      fontSize: "14px",
+      fontSize: "12px",
       color: "#ffffff",
       fontStyle: "bold",
-      wordWrap: { width: 130 },
+      wordWrap: { width: 100 },
     });
 
     // Create sprites for first 7 players
     const players = team.players.slice(0, 7);
-    let yOffset = y + 50;
+    let yOffset = y + 40;
 
     players.forEach((player) => {
       const sprite = this.createDugoutPlayer(
         player,
-        x + 75, // Centered in 150px width
+        x + 60, // Centered in 120px width
         yOffset,
         team.colors.primary
       );
       this.dugoutSprites.set(player.id, sprite);
-      yOffset += 60;
+      yOffset += 45; // Reduced spacing
     });
 
     // Placeholder for Player Info Panel (under dugout)
     // In a real implementation, we'd add a PlayerInfoPanel instance here
     this.add.text(x + 10, y + 500, "Hover for Info", {
-      fontSize: "12px",
+      fontSize: "10px",
       color: "#888",
     });
   }
@@ -328,53 +328,41 @@ export class SetupScene extends Phaser.Scene {
     y: number,
     color: number
   ): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    container.setData("originalX", x);
-    container.setData("originalY", y);
-    container.setData("playerId", player.id);
+    // Use PlayerSprite for consistent visuals
+    const sprite = new PlayerSprite(this, x, y, player, color);
 
-    // Player circle
-    const circle = this.add.circle(0, 0, 16, color);
-    circle.setStrokeStyle(2, 0xffffff);
-    container.add(circle);
-
-    // Player number
-    const numberText = this.add.text(0, 0, player.number.toString(), {
-      fontSize: "14px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    });
-    numberText.setOrigin(0.5);
-    container.add(numberText);
+    sprite.setData("originalX", x);
+    sprite.setData("originalY", y);
+    sprite.setData("playerId", player.id);
 
     // Make draggable
-    container.setSize(32, 32);
-    container.setInteractive({ draggable: true, useHandCursor: true });
+    sprite.setSize(32, 32);
+    sprite.setInteractive({ draggable: true, useHandCursor: true });
 
-    // Ensure container is on top
-    container.setDepth(10);
+    // Ensure sprite is on top
+    sprite.setDepth(10);
 
     // Drag events
-    this.input.setDraggable(container);
+    this.input.setDraggable(sprite);
 
-    container.on("dragstart", () => {
-      container.setDepth(100);
+    sprite.on("dragstart", () => {
+      sprite.setDepth(100);
     });
 
-    container.on(
+    sprite.on(
       "drag",
       (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
-        container.x = dragX;
-        container.y = dragY;
+        sprite.x = dragX;
+        sprite.y = dragY;
       }
     );
 
-    container.on("dragend", () => {
-      container.setDepth(10);
-      this.handlePlayerDrop(player, container);
+    sprite.on("dragend", () => {
+      sprite.setDepth(10);
+      this.handlePlayerDrop(player, sprite);
     });
 
-    return container;
+    return sprite;
   }
 
   private handlePlayerDrop(

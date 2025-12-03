@@ -6,7 +6,7 @@ import { Player } from "../types/Player";
  */
 export class PlayerSprite extends Phaser.GameObjects.Container {
   private player: Player;
-  private circle: Phaser.GameObjects.Arc;
+
   private numberText: Phaser.GameObjects.Text;
 
   constructor(
@@ -20,10 +20,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
     this.player = player;
 
-    // Create player circle
-    this.circle = scene.add.circle(0, 0, 16, teamColor);
-    this.circle.setStrokeStyle(2, 0xffffff);
-    this.add(this.circle);
+    // Create player shape based on position
+    this.createPlayerShape(scene, player.position, teamColor);
 
     // Create player number
     this.numberText = scene.add.text(0, 0, player.number.toString(), {
@@ -34,23 +32,70 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.numberText.setOrigin(0.5);
     this.add(this.numberText);
 
-    // Make interactive
-    this.setSize(32, 32);
-    this.setInteractive({ useHandCursor: true });
-
-    // Add hover effect
-    this.on("pointerover", () => {
-      this.circle.setScale(1.2);
-      scene.events.emit("showPlayerInfo", this.player);
-    });
-
-    this.on("pointerout", () => {
-      this.circle.setScale(1.0);
-      scene.events.emit("hidePlayerInfo");
-    });
-
     scene.add.existing(this);
   }
+
+  private createPlayerShape(
+    scene: Phaser.Scene,
+    position: string,
+    color: number
+  ): void {
+    // Shape Logic:
+    // Lineman: Circle
+    // Blitzer: Square
+    // Thrower: Triangle
+    // Catcher: Diamond (Rotated Square)
+    // Big Guy (Troll, Ogre, etc): Hexagon (Large Circle/Polygon)
+
+    // Normalize position string for checking
+    const pos = position.toLowerCase();
+
+    if (pos.includes("blitzer")) {
+      // Square
+      const rect = scene.add.rectangle(0, 0, 28, 28, color);
+      rect.setStrokeStyle(2, 0xffffff);
+      this.add(rect);
+      this.shape = rect;
+    } else if (pos.includes("thrower")) {
+      // Triangle
+      const triangle = scene.add.triangle(0, 0, 0, -14, 14, 14, -14, 14, color);
+      triangle.setStrokeStyle(2, 0xffffff);
+      triangle.setOrigin(0);
+      this.add(triangle);
+      this.shape = triangle;
+    } else if (pos.includes("catcher") || pos.includes("runner")) {
+      // Diamond
+      const rect = scene.add.rectangle(0, 0, 24, 24, color);
+      rect.setStrokeStyle(2, 0xffffff);
+      rect.setAngle(45);
+      this.add(rect);
+      this.shape = rect;
+    } else if (
+      pos.includes("troll") ||
+      pos.includes("ogre") ||
+      pos.includes("treeman")
+    ) {
+      // Big Guy - Hexagon (approximated by large circle for now, or polygon)
+      const hex = scene.add.polygon(
+        0,
+        0,
+        [-10, -16, 10, -16, 16, 0, 10, 16, -10, 16, -16, 0],
+        color
+      );
+      hex.setStrokeStyle(2, 0xffffff);
+      this.add(hex);
+      this.shape = hex;
+    } else {
+      // Default (Lineman) - Circle
+      const circle = scene.add.circle(0, 0, 16, color);
+      circle.setStrokeStyle(2, 0xffffff);
+      this.add(circle);
+      this.shape = circle;
+    }
+  }
+
+  // Helper to access the shape for effects
+  private shape!: Phaser.GameObjects.Shape | Phaser.GameObjects.Arc; // Arc is for Circle
 
   /**
    * Update player status visual (prone, stunned, etc.)
@@ -58,11 +103,11 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   public updateStatus(): void {
     switch (this.player.status) {
       case "Prone":
-        this.circle.setAlpha(0.6);
+        this.shape.setAlpha(0.6);
         this.setAngle(90); // Lay down
         break;
       case "Stunned":
-        this.circle.setAlpha(0.4);
+        this.shape.setAlpha(0.4);
         this.setAngle(90);
         break;
       case "KO":
@@ -71,7 +116,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         this.setVisible(false);
         break;
       default:
-        this.circle.setAlpha(1.0);
+        this.shape.setAlpha(1.0);
         this.setAngle(0);
         this.setVisible(true);
     }
@@ -81,14 +126,14 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * Highlight this player
    */
   public highlight(color: number): void {
-    this.circle.setStrokeStyle(3, color);
+    this.shape.setStrokeStyle(3, color);
   }
 
   /**
    * Remove highlight
    */
   public unhighlight(): void {
-    this.circle.setStrokeStyle(2, 0xffffff);
+    this.shape.setStrokeStyle(2, 0xffffff);
   }
 
   /**

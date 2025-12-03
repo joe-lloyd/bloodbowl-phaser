@@ -12,6 +12,20 @@ import * as TeamManager from "../managers/TeamManager";
 
 export class TeamBuilderScene extends Phaser.Scene {
   private team!: Team;
+  private selectedColor: number = 0xff0000;
+  private readonly TEAM_COLORS = [
+    0xff0000, // Red
+    0x0000ff, // Blue
+    0x00ff00, // Green
+    0xffff00, // Yellow
+    0xff00ff, // Magenta
+    0x00ffff, // Cyan
+    0xff8800, // Orange
+    0x8800ff, // Purple
+    0xffffff, // White
+    0x888888, // Grey
+  ];
+
   private selectedRace: TeamRace = TeamRace.HUMAN;
   private treasuryText!: Phaser.GameObjects.Text;
   private teamValueText!: Phaser.GameObjects.Text;
@@ -27,14 +41,16 @@ export class TeamBuilderScene extends Phaser.Scene {
     if (data.team) {
       this.team = data.team;
       this.selectedRace = this.team.race;
+      this.selectedColor = this.team.colors.primary;
     } else {
       // Create a default new team
       this.selectedRace = TeamRace.HUMAN;
+      this.selectedColor = 0xff0000;
       // Use a temporary name, user can change it
       this.team = createTeam(
         "New Team",
         this.selectedRace,
-        { primary: 0xff0000, secondary: 0xffffff },
+        { primary: this.selectedColor, secondary: 0xffffff },
         50000
       );
     }
@@ -58,6 +74,9 @@ export class TeamBuilderScene extends Phaser.Scene {
 
     // Race Selection
     this.createRaceSelection(50, 80);
+
+    // Color Selection
+    this.createColorSelection(50, 150);
 
     // Team Info
     this.createTeamInfoPanel(width - 350, 80);
@@ -102,6 +121,49 @@ export class TeamBuilderScene extends Phaser.Scene {
       xOffset += button.width + 20;
     });
   }
+
+  private createColorSelection(x: number, y: number): void {
+    this.add.text(x, y, "TEAM COLOR:", {
+      fontSize: "20px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    });
+
+    let xOffset = x + 130;
+    const yOffset = y + 10;
+
+    this.TEAM_COLORS.forEach((color) => {
+      const isSelected = this.selectedColor === color;
+
+      const circle = this.add.circle(xOffset, yOffset, 12, color);
+      circle.setStrokeStyle(
+        isSelected ? 3 : 1,
+        isSelected ? 0xffffff : 0x888888
+      );
+
+      circle.setInteractive({ useHandCursor: true });
+      circle.on("pointerdown", () => this.changeColor(color));
+
+      xOffset += 30;
+    });
+  }
+
+  private changeColor(color: number): void {
+    this.selectedColor = color;
+    this.team.colors.primary = color;
+
+    // Save immediately
+    TeamManager.saveTeams(
+      TeamManager.loadTeams().map((t: Team) =>
+        t.id === this.team.id ? this.team : t
+      )
+    );
+
+    // Refresh UI (re-render scene to update color selection highlight)
+    this.scene.restart({ team: this.team });
+  }
+
+  // ... (rest of the file)
 
   private createTeamInfoPanel(x: number, y: number): void {
     // Team Name Input
@@ -363,7 +425,7 @@ export class TeamBuilderScene extends Phaser.Scene {
     this.team = createTeam(
       this.team.name,
       race,
-      { primary: 0xff0000, secondary: 0xffffff },
+      { primary: this.selectedColor, secondary: 0xffffff },
       50000
     );
     this.updateUI();
