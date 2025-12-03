@@ -117,25 +117,70 @@ export class GameScene extends Phaser.Scene {
     team: Team,
     _isLeft: boolean
   ): void {
-    // Dugout background
-    this.add.rectangle(x, y, 120, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 120, 680, color, 0.2).setOrigin(0);
-
-    // Title
-    this.add.text(x + 10, y + 10, "DUGOUT", {
+    // Dugout Backgrounds
+    // Reserves (Top) - Height 400
+    this.add.rectangle(x, y, 120, 400, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 120, 400, color, 0.2).setOrigin(0);
+    this.add.text(x + 10, y + 10, "RESERVES", {
       fontSize: "12px",
-      color: "#ffffff",
+      color: "#fff",
       fontStyle: "bold",
     });
 
-    // Show only players NOT on the pitch (Reserves/KO/Injured)
-    // For now, just check if they have a gridPosition
-    const dugoutPlayers = team.players.filter((p) => !p.gridPosition);
+    // KO (Middle) - Height 120
+    const koY = y + 410;
+    this.add.rectangle(x, koY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, koY, 120, 120, 0xffaa00, 0.1).setOrigin(0);
+    this.add.text(x + 10, koY + 5, "KO", {
+      fontSize: "12px",
+      color: "#ffa",
+      fontStyle: "bold",
+    });
 
-    let yOffset = y + 40;
-    dugoutPlayers.forEach((player) => {
-      this.createDugoutPlayerDisplay(player, x + 60, yOffset, color);
-      yOffset += 45;
+    // Dead/Injured (Bottom) - Height 120
+    const deadY = koY + 130;
+    this.add.rectangle(x, deadY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, deadY, 120, 120, 0xff0000, 0.1).setOrigin(0);
+    this.add.text(x + 10, deadY + 5, "DEAD & INJURED", {
+      fontSize: "12px",
+      color: "#f88",
+      fontStyle: "bold",
+    });
+
+    // Filter players
+    const reserves = team.players.filter(
+      (p) =>
+        !p.gridPosition &&
+        p.status !== "KO" &&
+        p.status !== "Injured" &&
+        p.status !== "Dead"
+    );
+    const koPlayers = team.players.filter((p) => p.status === "KO");
+    const deadPlayers = team.players.filter(
+      (p) => p.status === "Injured" || p.status === "Dead"
+    );
+
+    // Render Groups
+    this.renderPlayerGroup(reserves, x, y + 30, color);
+    this.renderPlayerGroup(koPlayers, x, koY + 25, color);
+    this.renderPlayerGroup(deadPlayers, x, deadY + 25, color);
+  }
+
+  private renderPlayerGroup(
+    players: Player[],
+    startX: number,
+    startY: number,
+    color: number
+  ): void {
+    let yOffset = startY;
+    players.forEach((player, index) => {
+      const isCol2 = index % 2 !== 0;
+      const currentX = isCol2 ? startX + 90 : startX + 30;
+
+      if (index > 0 && index % 2 === 0) {
+        yOffset += 45;
+      }
+      this.createDugoutPlayerDisplay(player, currentX, yOffset, color);
     });
   }
 

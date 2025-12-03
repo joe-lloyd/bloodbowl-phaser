@@ -293,27 +293,81 @@ export class SetupScene extends Phaser.Scene {
     y: number,
     _isLeft: boolean
   ): void {
-    // Dugout background (narrower: 120px)
-    this.add.rectangle(x, y, 120, 680, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 120, 680, team.colors.primary, 0.2).setOrigin(0);
-
-    this.add.text(x + 10, y + 10, `${team.name}`, {
+    // Dugout Backgrounds
+    // Reserves (Top) - Height 400
+    this.add.rectangle(x, y, 120, 400, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, y, 120, 400, team.colors.primary, 0.2).setOrigin(0);
+    this.add.text(x + 10, y + 10, `${team.name} - Reserves`, {
       fontSize: "12px",
-      color: "#ffffff",
+      color: "#fff",
       fontStyle: "bold",
       wordWrap: { width: 100 },
     });
 
-    // Create sprites for ALL players (2 columns)
-    const players = team.players;
-    let yOffset = y + 40;
+    // KO (Middle) - Height 120
+    const koY = y + 410;
+    this.add.rectangle(x, koY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, koY, 120, 120, 0xffaa00, 0.1).setOrigin(0); // Orange tint
+    this.add.text(x + 10, koY + 5, "KO", {
+      fontSize: "12px",
+      color: "#ffa",
+      fontStyle: "bold",
+    });
 
+    // Dead/Injured (Bottom) - Height 120
+    const deadY = koY + 130;
+    this.add.rectangle(x, deadY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
+    this.add.rectangle(x, deadY, 120, 120, 0xff0000, 0.1).setOrigin(0); // Red tint
+    this.add.text(x + 10, deadY + 5, "Dead & Injured", {
+      fontSize: "12px",
+      color: "#f88",
+      fontStyle: "bold",
+    });
+
+    // Filter players
+    const reserves = team.players.filter(
+      (p) =>
+        !p.gridPosition &&
+        p.status !== "KO" &&
+        p.status !== "Injured" &&
+        p.status !== "Dead"
+    );
+    const koPlayers = team.players.filter((p) => p.status === "KO");
+    const deadPlayers = team.players.filter(
+      (p) => p.status === "Injured" || p.status === "Dead"
+    );
+
+    // Render Reserves (2 columns)
+    this.renderPlayerGroup(reserves, x, y + 30, true, team.colors.primary);
+
+    // Render KO (2 columns)
+    this.renderPlayerGroup(koPlayers, x, koY + 25, false, team.colors.primary);
+
+    // Render Dead/Injured (2 columns)
+    this.renderPlayerGroup(
+      deadPlayers,
+      x,
+      deadY + 25,
+      false,
+      team.colors.primary
+    );
+
+    // Formation Buttons
+    this.createFormationUI(team, x, y + 660);
+  }
+
+  private renderPlayerGroup(
+    players: Player[],
+    startX: number,
+    startY: number,
+    draggable: boolean,
+    color: number
+  ): void {
+    let yOffset = startY;
     players.forEach((player, index) => {
-      // Switch column every other player
       const isCol2 = index % 2 !== 0;
-      const currentX = isCol2 ? x + 90 : x + 30;
+      const currentX = isCol2 ? startX + 90 : startX + 30;
 
-      // Increment Y only after filling both columns (every 2 players)
       if (index > 0 && index % 2 === 0) {
         yOffset += 45;
       }
@@ -322,19 +376,11 @@ export class SetupScene extends Phaser.Scene {
         player,
         currentX,
         yOffset,
-        team.colors.primary
+        color,
+        draggable
       );
       this.dugoutSprites.set(player.id, sprite);
     });
-
-    // Placeholder for Player Info Panel (under dugout)
-    this.add.text(x + 10, y + 500, "Hover for Info", {
-      fontSize: "10px",
-      color: "#888",
-    });
-
-    // Formation Buttons
-    this.createFormationUI(team, x, y + 550);
   }
 
   private formationContainers: Map<string, Phaser.GameObjects.Container> =
@@ -475,7 +521,8 @@ export class SetupScene extends Phaser.Scene {
     player: Player,
     x: number,
     y: number,
-    color: number
+    color: number,
+    draggable: boolean
   ): Phaser.GameObjects.Container {
     // Use PlayerSprite for consistent visuals
     const sprite = new PlayerSprite(this, x, y, player, color);
@@ -486,13 +533,13 @@ export class SetupScene extends Phaser.Scene {
 
     // Make draggable
     sprite.setSize(32, 32);
-    sprite.setInteractive({ draggable: true, useHandCursor: true });
 
-    // Ensure sprite is on top
-    sprite.setDepth(10);
-
-    // Drag events
-    this.input.setDraggable(sprite);
+    if (draggable) {
+      sprite.setInteractive({ draggable: true, useHandCursor: true });
+      this.input.setDraggable(sprite);
+    } else {
+      sprite.setInteractive({ useHandCursor: true }); // Just for hover info
+    }
 
     sprite.on("dragstart", () => {
       sprite.setDepth(100);
