@@ -4,10 +4,10 @@
  */
 
 export const GameConfig = {
-  // Pitch dimensions (Sevens uses 11x17 grid)
-  PITCH_WIDTH: 11,
-  PITCH_HEIGHT: 20,
-  SQUARE_SIZE: 40, // pixels per square
+  // Pitch dimensions (Sevens rotated: 20 wide × 11 high - HORIZONTAL orientation)
+  PITCH_WIDTH: 20, // 20 columns (rotated from 11×20 vertical)
+  PITCH_HEIGHT: 11, // 11 rows
+  SQUARE_SIZE: 60, // Increased from 40 to 60 for HD
 
   // Game structure
   TURNS_PER_HALF: 6,
@@ -42,9 +42,9 @@ export const GameConfig = {
     HIGHLIGHT_SELECT: 0xffff44,
   },
 
-  // Canvas size
-  CANVAS_WIDTH: 1200,
-  CANVAS_HEIGHT: 900,
+  // Canvas size - optimized for widescreen with horizontal dugouts
+  CANVAS_WIDTH: 1920, // Full HD width
+  CANVAS_HEIGHT: 1080, // Full HD height
 } as const;
 
 export type GameConfigType = typeof GameConfig;

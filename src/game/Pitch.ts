@@ -3,7 +3,7 @@ import { GameConfig } from "../config/GameConfig";
 import { gridToPixel } from "../utils/GridUtils";
 
 /**
- * Pitch class - Renders the Blood Bowl pitch with 11x17 grid
+ * Pitch class - Renders the Blood Bowl pitch with 20x11 grid (horizontal orientation, HD)
  */
 export class Pitch {
   private scene: Phaser.Scene;
@@ -72,17 +72,17 @@ export class Pitch {
   private drawEndZones(): void {
     const graphics = this.scene.add.graphics();
 
-    // Top end zone (Team 1)
+    // Left end zone (Team 1)
     graphics.fillStyle(0x4444ff, 0.2);
-    graphics.fillRect(0, 0, this.width * this.squareSize, this.squareSize);
+    graphics.fillRect(0, 0, this.squareSize, this.height * this.squareSize);
 
-    // Bottom end zone (Team 2)
+    // Right end zone (Team 2)
     graphics.fillStyle(0xff4444, 0.2);
     graphics.fillRect(
+      (this.width - 1) * this.squareSize,
       0,
-      (this.height - 1) * this.squareSize,
-      this.width * this.squareSize,
-      this.squareSize
+      this.squareSize,
+      this.height * this.squareSize
     );
 
     this.container.add(graphics);
@@ -92,8 +92,9 @@ export class Pitch {
     const graphics = this.scene.add.graphics();
     graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
 
-    const centerY = (this.height / 2) * this.squareSize;
-    graphics.lineBetween(0, centerY, this.width * this.squareSize, centerY);
+    // Vertical center line (line of scrimmage)
+    const centerX = (this.width / 2) * this.squareSize;
+    graphics.lineBetween(centerX, 0, centerX, this.height * this.squareSize);
 
     this.container.add(graphics);
   }

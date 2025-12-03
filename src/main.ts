@@ -39,6 +39,16 @@ const config: Phaser.Types.Core.GameConfig = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: GameConfig.CANVAS_WIDTH,
+    height: GameConfig.CANVAS_HEIGHT,
+    min: {
+      width: 800,
+      height: 600,
+    },
+    max: {
+      width: 2560,
+      height: 1440,
+    },
   },
 };
 

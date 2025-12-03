@@ -4,6 +4,9 @@ import { PlayerSprite } from "../game/PlayerSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
+import { GameStateManager } from "../game/GameStateManager";
+import { GamePhase } from "../types/GameState";
+import { UIText, UIButton } from "../ui";
 
 /**
  * Game Scene - Main gameplay scene with pitch and players
@@ -16,6 +19,9 @@ export class GameScene extends Phaser.Scene {
   private receivingTeam!: Team;
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private playerInfoPanel!: PlayerInfoPanel;
+  private gameStateManager!: GameStateManager;
+  private turnText!: UIText;
+  private endTurnButton!: UIButton;
 
   constructor() {
     super({ key: "GameScene" });
@@ -26,11 +32,13 @@ export class GameScene extends Phaser.Scene {
     team2: Team;
     kickingTeam: Team;
     receivingTeam: Team;
+    gameStateManager: GameStateManager;
   }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
     this.kickingTeam = data.kickingTeam;
     this.receivingTeam = data.receivingTeam;
+    this.gameStateManager = data.gameStateManager;
   }
 
   create(): void {
@@ -38,7 +46,10 @@ export class GameScene extends Phaser.Scene {
     const height = this.cameras.main.height;
 
     // Background
-    this.add.rectangle(0, 0, width, height, 0x0a0a1e).setOrigin(0);
+    this.add
+      .rectangle(0, 0, width, height, 0x0a0a1e)
+      .setOrigin(0)
+      .setName("background");
 
     // Team names and colors
     const team1Color = this.team1.colors.primary;
@@ -46,33 +57,74 @@ export class GameScene extends Phaser.Scene {
 
     // Team 1 header (left side)
     this.add.rectangle(20, 20, 200, 60, team1Color, 0.3).setOrigin(0);
-    this.add.text(30, 30, `${this.team1.name} (${this.team1.race})`, {
-      fontSize: "18px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    });
+    UIText.createLabel(this, 30, 30, `${this.team1.name} (${this.team1.race})`);
 
     // Team 2 header (right side)
     this.add.rectangle(width - 220, 20, 200, 60, team2Color, 0.3).setOrigin(0);
-    this.add.text(width - 210, 30, `${this.team2.name} (${this.team2.race})`, {
-      fontSize: "18px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    });
+    UIText.createLabel(
+      this,
+      width - 210,
+      30,
+      `${this.team2.name} (${this.team2.race})`
+    );
 
-    // Create pitch (centered)
-    const pitchWidth = 11 * 40;
+    // Create pitch (horizontal: 20×11 grid, 60px cells = 1200×660px)
+    const pitchWidth = 20 * 60; // 1200px
+    const pitchHeight = 11 * 60; // 660px
     const pitchX = (width - pitchWidth) / 2;
-    const pitchY = 100;
+    const pitchY = 150; // Space at top for dugout
 
     this.pitch = new Pitch(this, pitchX, pitchY);
 
-    // Create dugouts (narrower: 150px)
-    this.createDugout(team1Color, 20, pitchY, this.team1, true);
-    this.createDugout(team2Color, width - 170, pitchY, this.team2, false);
+    // Create dugouts (top and bottom)
+    // Team 1 dugout: Above pitch
+    this.createDugout(team1Color, pitchX, 20, this.team1, true);
+    // Team 2 dugout: Below pitch
+    this.createDugout(
+      team2Color,
+      pitchX,
+      pitchY + pitchHeight + 20,
+      this.team2,
+      false
+    );
+
+    // Use existing State Manager
+    // this.gameStateManager = new GameStateManager(this.team1, this.team2);
+
+    // Listen for state changes
+    this.gameStateManager.on("stateChanged", (_state: any) => {
+      this.updateTurnUI();
+    });
+
+    this.gameStateManager.on("turnStarted", (turn: any) => {
+      // Reset player activations visually if needed
+      this.playerSprites.forEach((sprite) => sprite.setAlpha(1));
+      // Show notification
+      const teamName =
+        turn.teamId === this.team1.id ? this.team1.name : this.team2.name;
+      this.showTurnNotification(`Turn ${turn.turnNumber}: ${teamName}`);
+    });
 
     // Place players from setup
     this.placePlayersFromSetup();
+
+    // UI - Turn Info
+    this.turnText = new UIText(this, {
+      x: width / 2,
+      y: 30,
+      text: "Turn 0",
+      variant: "h4",
+      fontStyle: "bold",
+    });
+
+    // UI - End Turn Button
+    this.endTurnButton = new UIButton(this, {
+      x: width - 100,
+      y: height - 50,
+      text: "END TURN",
+      variant: "danger",
+      onClick: () => this.gameStateManager.endTurn(),
+    });
 
     // Player info panel (right side, under dugout for now or floating)
     // User asked for "under the teams dugout for which team the player you hover"
@@ -97,17 +149,112 @@ export class GameScene extends Phaser.Scene {
     this.createBackButton();
 
     // Info text
-    this.add
+    new UIText(this, {
+      x: width / 2,
+      y: height - 30,
+      text: `Game Started! ${this.kickingTeam.name} kicks to ${this.receivingTeam.name}`,
+      variant: "small",
+      color: "#888888",
+    });
+
+    // Background click to deselect
+    const bg = this.children.getByName("background");
+    if (bg) {
+      bg.setInteractive();
+      bg.on("pointerdown", () => this.deselectPlayer());
+    }
+
+    // Start Game
+    this.gameStateManager.startGame(this.kickingTeam.id);
+  }
+
+  private selectedPlayerId: string | null = null;
+
+  private showTurnNotification(message: string): void {
+    const text = this.add
       .text(
-        width / 2,
-        height - 30,
-        `Game Started! ${this.kickingTeam.name} kicks to ${this.receivingTeam.name}`,
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2,
+        message,
         {
-          fontSize: "16px",
-          color: "#888888",
+          fontSize: "48px",
+          color: "#ffff00",
+          stroke: "#000000",
+          strokeThickness: 4,
         }
       )
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(1000);
+
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      y: text.y - 50,
+      duration: 2000,
+      delay: 1000,
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  private updateTurnUI(): void {
+    const state = this.gameStateManager.getState();
+    const activeTeam =
+      state.activeTeamId === this.team1.id ? this.team1 : this.team2;
+    this.turnText.setText(`Turn ${state.turn.turnNumber}: ${activeTeam.name}`);
+    this.turnText.setColor(
+      activeTeam.colors.primary === 0xff4444 ? "#ff4444" : "#4444ff"
+    ); // Simple color check
+
+    // Update End Turn button visibility/color based on active team
+    this.endTurnButton.setVisible(state.phase === GamePhase.PLAY);
+  }
+
+  private selectPlayer(playerId: string): void {
+    const state = this.gameStateManager.getState();
+    const player = this.getPlayerById(playerId); // Need helper
+
+    if (!player) return;
+
+    // Only allow selection if it's this team's turn
+    if (state.activeTeamId !== player.teamId) {
+      // Maybe show "Not your turn" warning
+      console.log("Not your turn!");
+      return;
+    }
+
+    // Deselect previous
+    if (this.selectedPlayerId) {
+      const prevSprite = this.playerSprites.get(this.selectedPlayerId);
+      if (prevSprite) {
+        prevSprite.unhighlight();
+      }
+    }
+
+    this.selectedPlayerId = playerId;
+
+    // Highlight new
+    const newSprite = this.playerSprites.get(playerId);
+    if (newSprite) {
+      newSprite.highlight(0xffff00);
+    }
+  }
+
+  private getPlayerById(playerId: string): Player | undefined {
+    // Search both teams
+    return (
+      this.team1.players.find((p) => p.id === playerId) ||
+      this.team2.players.find((p) => p.id === playerId)
+    );
+  }
+
+  private deselectPlayer(): void {
+    if (this.selectedPlayerId) {
+      const prevSprite = this.playerSprites.get(this.selectedPlayerId);
+      if (prevSprite) {
+        prevSprite.unhighlight();
+      }
+      this.selectedPlayerId = null;
+    }
   }
 
   private createDugout(
@@ -121,31 +268,19 @@ export class GameScene extends Phaser.Scene {
     // Reserves (Top) - Height 400
     this.add.rectangle(x, y, 120, 400, 0x1a1a2e, 0.8).setOrigin(0);
     this.add.rectangle(x, y, 120, 400, color, 0.2).setOrigin(0);
-    this.add.text(x + 10, y + 10, "RESERVES", {
-      fontSize: "12px",
-      color: "#fff",
-      fontStyle: "bold",
-    });
+    UIText.createLabel(this, x + 10, y + 10, "RESERVES");
 
     // KO (Middle) - Height 120
     const koY = y + 410;
     this.add.rectangle(x, koY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
     this.add.rectangle(x, koY, 120, 120, 0xffaa00, 0.1).setOrigin(0);
-    this.add.text(x + 10, koY + 5, "KO", {
-      fontSize: "12px",
-      color: "#ffa",
-      fontStyle: "bold",
-    });
+    UIText.createLabel(this, x + 10, koY + 5, "KO", "#ffa");
 
     // Dead/Injured (Bottom) - Height 120
     const deadY = koY + 130;
     this.add.rectangle(x, deadY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
     this.add.rectangle(x, deadY, 120, 120, 0xff0000, 0.1).setOrigin(0);
-    this.add.text(x + 10, deadY + 5, "DEAD & INJURED", {
-      fontSize: "12px",
-      color: "#f88",
-      fontStyle: "bold",
-    });
+    UIText.createLabel(this, x + 10, deadY + 5, "DEAD & INJURED", "#f88");
 
     // Filter players
     const reserves = team.players.filter(
@@ -190,44 +325,30 @@ export class GameScene extends Phaser.Scene {
     y: number,
     teamColor: number
   ): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
+    // Use PlayerSprite for consistent visuals
+    const sprite = new PlayerSprite(this, x, y, player, teamColor);
+    sprite.setSize(32, 32);
+    sprite.setInteractive({ useHandCursor: true });
 
-    // Player circle
-    const circle = this.add.circle(0, 0, 16, teamColor);
-    circle.setStrokeStyle(2, 0xffffff);
-    container.add(circle);
-
-    // Player number
-    const numberText = this.add.text(0, 0, player.number.toString(), {
-      fontSize: "14px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    });
-    numberText.setOrigin(0.5);
-    container.add(numberText);
-
-    // Player name (small)
-    const nameText = this.add.text(25, -5, `#${player.number}`, {
-      fontSize: "12px",
-      color: "#aaaaaa",
-    });
-    container.add(nameText);
-
-    // Make interactive for hover
-    container.setSize(32, 32);
-    container.setInteractive({ useHandCursor: true });
-
-    container.on("pointerover", () => {
-      circle.setScale(1.2);
+    sprite.on("pointerover", () => {
       this.events.emit("showPlayerInfo", player);
     });
 
-    container.on("pointerout", () => {
-      circle.setScale(1.0);
+    sprite.on("pointerout", () => {
       this.events.emit("hidePlayerInfo");
     });
 
-    return container;
+    // No selection in dugout for GameScene yet, or maybe just info?
+    // User asked for "click a player we should also show a littl highlight"
+    // Let's allow highlighting dugout players too.
+    // But PlayerSprite in dugout is not in playerSprites map.
+    // We should probably add them to a map or just handle highlight locally on the sprite instance?
+    // But we need to deselect others.
+    // Let's skip dugout selection highlighting for GameScene for now to avoid complexity,
+    // or just do local highlight without global tracking (but that leaves multiple highlighted).
+    // Let's stick to tooltips for dugout in GameScene.
+
+    return sprite;
   }
 
   private placePlayersFromSetup(): void {
@@ -269,25 +390,29 @@ export class GameScene extends Phaser.Scene {
     // Update player's grid position (redundant but safe)
     player.gridPosition = { x: gridX, y: gridY };
     player.status = PlayerStatus.ACTIVE;
+
+    // Interaction
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on("pointerover", () => {
+      this.events.emit("showPlayerInfo", player);
+    });
+    sprite.on("pointerout", () => {
+      this.events.emit("hidePlayerInfo");
+    });
+    sprite.on("pointerdown", () => {
+      this.selectPlayer(player.id);
+    });
   }
 
   private createBackButton(): void {
-    const backButton = this.add.text(20, 20, "← Back", {
+    new UIButton(this, {
+      x: 20,
+      y: 20,
+      text: "← Back",
+      variant: "danger",
       fontSize: "18px",
-      color: "#ff4444",
-      backgroundColor: "#222222",
-      padding: { x: 10, y: 5 },
-    });
-
-    backButton.setInteractive({ useHandCursor: true });
-    backButton.on("pointerover", () => {
-      backButton.setStyle({ color: "#ffffff", backgroundColor: "#ff4444" });
-    });
-    backButton.on("pointerout", () => {
-      backButton.setStyle({ color: "#ff4444", backgroundColor: "#222222" });
-    });
-    backButton.on("pointerdown", () => {
-      this.scene.start("TeamSelectionScene");
+      onClick: () => this.scene.start("TeamSelectionScene"),
+      origin: { x: 0, y: 0 },
     });
   }
 }
