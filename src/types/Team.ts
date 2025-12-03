@@ -27,6 +27,14 @@ export interface TeamColors {
 }
 
 /**
+ * Team formation
+ */
+export interface Formation {
+  name: string;
+  positions: { playerId: string; x: number; y: number }[]; // x,y are grid coordinates relative to setup zone
+}
+
+/**
  * Team interface - represents a complete team roster
  */
 export interface Team {
@@ -39,6 +47,7 @@ export interface Team {
   // Roster
   players: Player[]; // All players on roster (max 11 for Sevens)
   maxRosterSize: number; // 11 for Sevens
+  formations: Formation[]; // Saved formations
 
   // Resources
   treasury: number; // Gold available
@@ -85,6 +94,7 @@ export function createTeam(
     colors,
     players: [],
     maxRosterSize: 11,
+    formations: [],
     treasury: 600000, // Sevens starting gold
     rerolls: 0,
     rerollCost,

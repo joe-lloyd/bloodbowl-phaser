@@ -259,6 +259,11 @@ export class SetupScene extends Phaser.Scene {
       }
     });
 
+    // Update Formation UI visibility
+    this.formationContainers.forEach((container, teamId) => {
+      container.setVisible(teamId === this.currentSetupTeam.id);
+    });
+
     this.updateConfirmButton();
   }
 
@@ -299,27 +304,171 @@ export class SetupScene extends Phaser.Scene {
       wordWrap: { width: 100 },
     });
 
-    // Create sprites for first 7 players
-    const players = team.players.slice(0, 7);
+    // Create sprites for ALL players (2 columns)
+    const players = team.players;
     let yOffset = y + 40;
 
-    players.forEach((player) => {
+    players.forEach((player, index) => {
+      // Switch column every other player
+      const isCol2 = index % 2 !== 0;
+      const currentX = isCol2 ? x + 90 : x + 30;
+
+      // Increment Y only after filling both columns (every 2 players)
+      if (index > 0 && index % 2 === 0) {
+        yOffset += 45;
+      }
+
       const sprite = this.createDugoutPlayer(
         player,
-        x + 60, // Centered in 120px width
+        currentX,
         yOffset,
         team.colors.primary
       );
       this.dugoutSprites.set(player.id, sprite);
-      yOffset += 45; // Reduced spacing
     });
 
     // Placeholder for Player Info Panel (under dugout)
-    // In a real implementation, we'd add a PlayerInfoPanel instance here
     this.add.text(x + 10, y + 500, "Hover for Info", {
       fontSize: "10px",
       color: "#888",
     });
+
+    // Formation Buttons
+    this.createFormationUI(team, x, y + 550);
+  }
+
+  private formationContainers: Map<string, Phaser.GameObjects.Container> =
+    new Map();
+
+  private createFormationUI(team: Team, x: number, y: number): void {
+    const container = this.add.container(x, y);
+    this.formationContainers.set(team.id, container);
+
+    // Save Button
+    const saveBtn = this.add.text(0, 0, "Save Setup", {
+      fontSize: "12px",
+      color: "#44ff44",
+      backgroundColor: "#222",
+    });
+    saveBtn.setInteractive({ useHandCursor: true });
+    saveBtn.on("pointerdown", () => this.saveFormation());
+    container.add(saveBtn);
+
+    // Default Button
+    const defaultBtn = this.add.text(0, 25, "Default", {
+      fontSize: "12px",
+      color: "#ffff44",
+      backgroundColor: "#222",
+    });
+    defaultBtn.setInteractive({ useHandCursor: true });
+    defaultBtn.on("pointerdown", () => this.loadDefaultFormation());
+    container.add(defaultBtn);
+
+    // Load Button (if any saved)
+    if (team.formations && team.formations.length > 0) {
+      const loadBtn = this.add.text(60, 0, "Load", {
+        fontSize: "12px",
+        color: "#4444ff",
+        backgroundColor: "#222",
+      });
+      loadBtn.setInteractive({ useHandCursor: true });
+      loadBtn.on("pointerdown", () => this.loadFormation(team.formations[0]));
+      container.add(loadBtn);
+    }
+
+    // Hide initially
+    container.setVisible(false);
+  }
+
+  private saveFormation(): void {
+    const positions: { playerId: string; x: number; y: number }[] = [];
+    this.placedPlayers.forEach((playerId) => {
+      const player = this.getPlayerById(playerId);
+      if (player && player.gridPosition) {
+        positions.push({
+          playerId: player.id,
+          x: player.gridPosition.x,
+          y: player.gridPosition.y,
+        });
+      }
+    });
+
+    if (positions.length === 0) {
+      alert("Place players first!");
+      return;
+    }
+
+    const formation = { name: "Custom Setup", positions };
+    // Overwrite existing for now or push
+    this.currentSetupTeam.formations = [formation];
+    alert("Setup Saved!");
+
+    // Refresh UI to show Load button
+    this.scene.restart({ team1: this.team1, team2: this.team2 }); // This resets everything though... maybe just refresh buttons?
+    // For now, simple alert is enough.
+  }
+
+  private loadDefaultFormation(): void {
+    // Clear current setup
+    this.clearSetup();
+
+    // Simple 3-4 setup
+    // 3 on LOS (Line of Scrimmage)
+    // 4 in Wide Zones / Backfield
+
+    const isTeam1 = this.currentSetupTeam.id === this.team1.id;
+    const losY = isTeam1 ? 5 : 11;
+    const backY = isTeam1 ? 2 : 14;
+
+    const players = this.currentSetupTeam.players.slice(0, 7);
+
+    // Place 3 on LOS
+    this.placePlayerAtGrid(players[0], 4, losY);
+    this.placePlayerAtGrid(players[1], 5, losY);
+    this.placePlayerAtGrid(players[2], 6, losY);
+
+    // Place 4 others
+    this.placePlayerAtGrid(players[3], 1, backY);
+    this.placePlayerAtGrid(players[4], 9, backY);
+    this.placePlayerAtGrid(players[5], 3, backY - (isTeam1 ? 1 : -1));
+    this.placePlayerAtGrid(players[6], 7, backY - (isTeam1 ? 1 : -1));
+  }
+
+  private loadFormation(formation: any): void {
+    this.clearSetup();
+    formation.positions.forEach((pos: any) => {
+      const player = this.getPlayerById(pos.playerId);
+      if (player) {
+        this.placePlayerAtGrid(player, pos.x, pos.y);
+      }
+    });
+  }
+
+  private clearSetup(): void {
+    this.placedPlayers.forEach((playerId) => {
+      const player = this.getPlayerById(playerId);
+      if (player) {
+        const sprite = this.dugoutSprites.get(playerId);
+        if (sprite) {
+          this.returnToDugout(sprite, player);
+        }
+      }
+    });
+    // Force immediate clear for logic (animations take time)
+    this.placedPlayers.clear();
+    this.updateConfirmButton();
+  }
+
+  private placePlayerAtGrid(player: Player, x: number, y: number): void {
+    const sprite = this.dugoutSprites.get(player.id);
+    if (sprite) {
+      const pixelPos = this.pitch.getPixelPosition(x, y);
+      sprite.x = pixelPos.x;
+      sprite.y = pixelPos.y;
+      player.gridPosition = { x, y };
+      this.placedPlayers.add(player.id);
+      this.updateConfirmButton();
+    }
   }
 
   private createDugoutPlayer(
@@ -379,6 +528,16 @@ export class SetupScene extends Phaser.Scene {
       // Check if square is occupied by ANY player
       const isOccupied = this.isSquareOccupied(gridPos.x, gridPos.y);
 
+      // Check pitch limit (max 7)
+      // If player is already placed (just moving them), don't count against limit
+      const isNewPlacement = !this.placedPlayers.has(player.id);
+      if (isNewPlacement && this.placedPlayers.size >= 7) {
+        // Reject
+        this.returnToDugout(sprite, player);
+        // Optional: Show warning text
+        return;
+      }
+
       if (!isOccupied) {
         // Snap to grid visually
         const pixelPos = this.pitch.getPixelPosition(gridPos.x, gridPos.y);
@@ -436,11 +595,11 @@ export class SetupScene extends Phaser.Scene {
 
   private updateConfirmButton(): void {
     // Check if current team has placed 7 players (or all available if < 7)
-    const currentTeamPlayers = this.currentSetupTeam.players.slice(0, 7);
-    const placedCount = currentTeamPlayers.filter((p) =>
-      this.placedPlayers.has(p.id)
-    ).length;
-    const requiredCount = Math.min(7, currentTeamPlayers.length);
+    // We now allow choosing ANY 7 players from the roster
+    const placedCount = this.placedPlayers.size;
+
+    // Max 7, or roster size if smaller
+    const requiredCount = Math.min(7, this.currentSetupTeam.players.length);
 
     this.confirmButton.setVisible(placedCount === requiredCount);
   }
