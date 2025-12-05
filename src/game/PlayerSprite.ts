@@ -32,6 +32,13 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.numberText.setOrigin(0.5);
     this.add(this.numberText);
 
+    this.setSize(32, 32);
+    this.setInteractive(
+      new Phaser.Geom.Rectangle(-16, -16, 32, 32),
+      Phaser.Geom.Rectangle.Contains
+    );
+    this.setDepth(10); // Ensure players are above dugouts
+
     scene.add.existing(this);
   }
 

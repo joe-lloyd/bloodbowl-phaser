@@ -152,8 +152,8 @@ export class TeamSelectionScene extends Phaser.Scene {
         // Initialize Core Services
         ServiceContainer.initialize(this.selectedTeam1!, this.selectedTeam2!);
 
-        // Start Setup Scene directly (Coin flip is now part of Setup)
-        this.scene.start("SetupScene", {
+        // Start Game Scene directly
+        this.scene.start("GameScene", {
           team1: this.selectedTeam1!,
           team2: this.selectedTeam2!,
         });

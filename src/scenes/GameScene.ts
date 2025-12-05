@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
+import { Dugout } from "../game/Dugout";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -9,9 +10,18 @@ import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
 import { GamePhase } from "../types/GameState";
 import { UIText, UIButton } from "../ui";
+import {
+  SetupValidator,
+  FormationManager,
+  CoinFlipController,
+  PlayerPlacementController,
+  SetupUIController,
+} from "../game/setup";
+import { pixelToGrid } from "../utils/GridUtils";
+import { MovementValidator } from "../domain/validators/MovementValidator";
 
 /**
- * Game Scene - Main gameplay scene with pitch and players
+ * Game Scene - Unified scene for Setup and Gameplay
  */
 export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
@@ -19,30 +29,44 @@ export class GameScene extends Phaser.Scene {
   private team2!: Team;
   private kickingTeam!: Team;
   private receivingTeam!: Team;
-  private playerSprites: Map<string, PlayerSprite> = new Map();
+
+  // UI Components
   private playerInfoPanel!: PlayerInfoPanel;
-  private gameService!: IGameService;
-  private eventBus!: IEventBus;
   private turnText!: UIText;
   private endTurnButton!: UIButton;
+  private dugouts: Map<string, Dugout> = new Map();
+
+  // Controllers (Setup Phase)
+  private validator!: SetupValidator;
+  private formationManager!: FormationManager;
+  private coinFlipController!: CoinFlipController;
+  private placementController!: PlayerPlacementController;
+  private setupUIController!: SetupUIController;
+
+  // Logic
+  private movementValidator!: MovementValidator;
+
+  // Services
+  private gameService!: IGameService;
+  private eventBus!: IEventBus;
+
+  // State
+  private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
+  private isSetupActive: boolean = false;
 
   constructor() {
     super({ key: "GameScene" });
   }
 
-  init(data: {
-    team1: Team;
-    team2: Team;
-    kickingTeam: Team;
-    receivingTeam: Team;
-  }): void {
+  init(data: { team1: Team; team2: Team }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
-    this.kickingTeam = data.kickingTeam;
-    this.receivingTeam = data.receivingTeam;
 
-    // Get services
+    // Default kicking/receiving (will be set by coinflip)
+    this.kickingTeam = this.team1;
+    this.receivingTeam = this.team2;
+
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
     this.eventBus = container.eventBus;
@@ -52,132 +76,294 @@ export class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Background
-    this.add
-      .rectangle(0, 0, width, height, 0x0a0a1e)
-      .setOrigin(0)
-      .setName("background");
+    // 1. Background (Interactive for deselect)
+    this.add.rectangle(0, 0, width, height, 0x0a0a1e).setOrigin(0).setInteractive().on('pointerdown', () => this.onBackgroundClick());
 
-    // Team names and colors
-    const team1Color = this.team1.colors.primary;
-    const team2Color = this.team2.colors.primary;
-
-    // Team 1 header (left side)
-    this.add.rectangle(20, 20, 200, 60, team1Color, 0.3).setOrigin(0);
-    UIText.createLabel(this, 30, 30, `${this.team1.name} (${this.team1.race})`);
-
-    // Team 2 header (right side)
-    this.add.rectangle(width - 220, 20, 200, 60, team2Color, 0.3).setOrigin(0);
-    UIText.createLabel(
-      this,
-      width - 210,
-      30,
-      `${this.team2.name} (${this.team2.race})`
-    );
-
-    // Create pitch (horizontal: 20×11 grid, 60px cells = 1200×660px)
-    const pitchWidth = 20 * 60; // 1200px
-    const pitchHeight = 11 * 60; // 660px
-    const pitchX = (width - pitchWidth) / 2;
-    const pitchY = 150; // Space at top for dugout
-
+    // 2. Initialize Core Game Objects
+    // Pitch centered
+    const pitchX = (width - 1200) / 2;
+    const pitchY = 180; // Leaving room for top dugout
     this.pitch = new Pitch(this, pitchX, pitchY);
 
-    // Create dugouts (top and bottom)
-    // Team 1 dugout: Above pitch
-    this.createDugout(team1Color, pitchX, 20, this.team1, true);
-    // Team 2 dugout: Below pitch
-    this.createDugout(
-      team2Color,
-      pitchX,
-      pitchY + pitchHeight + 20,
-      this.team2,
-      false
-    );
+    // Pitch interaction for Play Phase
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Simple check: if not dragging and setup not active
+      if (this.isSetupActive) return;
 
-    // Listen for state changes
-    this.eventBus.on("phaseChanged", () => this.updateTurnUI());
-    this.eventBus.on("turnEnded", () => this.updateTurnUI());
+      // Transform to pitch local
+      const pitchContainer = this.pitch.getContainer();
+      const localX = pointer.x - pitchContainer.x;
+      const localY = pointer.y - pitchContainer.y;
+
+      // Check pitch bounds (26 * 60 approx width, 15 * 60 height)
+      const pitchW = 26 * 60; // 1560
+      const pitchH = 15 * 60; // 900
+
+      if (localX >= 0 && localX <= pitchW && localY >= 0 && localY <= pitchH) {
+        const gridPos = pixelToGrid(localX, localY, 60);
+        this.onPitchClick(gridPos.x, gridPos.y);
+      }
+    });
+
+    // 3. Initialize Dugouts (Top and Bottom)
+    this.createDugouts(pitchX, pitchY);
+
+    // 4. Initialize UI Overlay
+    this.initializeUI(width, height);
+
+    // 5. Initialize Controllers
+    this.initializeControllers();
+    this.movementValidator = new MovementValidator();
+
+    // 6. Setup Event Listeners
+    this.setupEventListeners();
+
+    // 7. Start Logic based on Phase
+    const state = this.gameService.getState();
+    if (state.phase === GamePhase.SETUP) {
+      this.startSetupPhase();
+    } else {
+      this.startPlayPhase();
+    }
+  }
+
+  private createDugouts(pitchX: number, pitchY: number): void {
+    // Top Dugout (Team 1)
+    const topDugout = new Dugout(this, pitchX, 20, this.team1);
+    this.dugouts.set(this.team1.id, topDugout);
+
+    // Bottom Dugout (Team 2)
+    const bottomDugout = new Dugout(this, pitchX, pitchY + 660 + 20, this.team2); // Pitch height is ~900 (15x60)
+    this.dugouts.set(this.team2.id, bottomDugout);
+
+    // Wire up drags
+    [topDugout, bottomDugout].forEach(d => {
+      d.setDragCallbacks(
+        (id) => this.onDugoutDragStart(id),
+        (id, x, y) => this.onDugoutDragEnd(id, x, y)
+      );
+    });
+  }
+
+  private initializeUI(width: number, height: number): void {
+    // Turn Info (Top Center)
+    this.turnText = new UIText(this, {
+      x: width / 2,
+      y: 15,
+      text: "",
+      variant: "h4",
+      fontStyle: "bold"
+    });
+
+    // End Turn Button
+    this.endTurnButton = new UIButton(this, {
+      x: width - 120,
+      y: height - 60,
+      text: "END TURN",
+      variant: "danger",
+      onClick: () => this.gameService.endTurn()
+    });
+    this.endTurnButton.setVisible(false);
+
+    // Player Info Panel
+    this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
+  }
+
+  private initializeControllers(): void {
+    this.validator = new SetupValidator();
+    this.formationManager = new FormationManager();
+    this.setupUIController = new SetupUIController(this, this.pitch);
+    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
+
+    // Coinflip
+    this.coinFlipController = new CoinFlipController(this);
+    this.coinFlipController.on("coinFlipComplete", ({ kickingTeam, receivingTeam }: { kickingTeam: Team, receivingTeam: Team }) => {
+      this.kickingTeam = kickingTeam;
+      this.receivingTeam = receivingTeam;
+
+      // Update Game Service
+      this.gameService.startSetup(kickingTeam.id);
+
+      // Proceed to placement
+      this.startPlacement("kicking");
+    });
+  }
+
+  private startSetupPhase(): void {
+    this.isSetupActive = true;
+    this.endTurnButton.setVisible(false);
+    this.coinFlipController.show(this.team1, this.team2);
+  }
+
+  private startPlacement(phase: "kicking" | "receiving"): void {
+    const activeTeam = phase === "kicking" ? this.kickingTeam : this.receivingTeam;
+    const isTeam1 = activeTeam.id === this.team1.id;
+
+    this.setupUIController.createUI(this.cameras.main.width, {
+      onConfirm: () => this.confirmSetupStep(phase),
+      onDefault: () => {
+        const formation = this.formationManager.getDefaultFormation(isTeam1);
+        this.placementController.loadFormation(formation);
+        this.refreshDugouts();
+      },
+      onSave: () => {
+        const placements = this.placementController.getPlacements();
+        if (placements.length > 0) {
+          this.formationManager.saveFormation(activeTeam.id, placements, "Custom");
+          this.showTurnNotification("Formation Saved!");
+        }
+      },
+      onLoad: () => {
+        const formation = this.formationManager.loadFormation(activeTeam.id, "Custom");
+        if (formation) {
+          this.placementController.loadFormation(formation);
+          this.refreshDugouts();
+        } else {
+          this.showTurnNotification("No Saved Formation");
+        }
+      },
+      onClear: () => {
+        this.placementController.clearPlacements();
+        this.refreshDugouts();
+      }
+    });
+    this.setupUIController.updateForPhase(phase, activeTeam);
+    this.setupUIController.highlightSetupZone(isTeam1);
+
+    // Enable placement
+    const dugout = this.dugouts.get(activeTeam.id);
+    const sprites = dugout ? dugout.getSprites() : new Map();
+    this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
+  }
+
+  private confirmSetupStep(phase: "kicking" | "receiving"): void {
+    if (phase === "kicking") {
+      this.startPlacement("receiving");
+    } else {
+      // Finish setup
+      this.gameService.startKickoff();
+    }
+  }
+
+  // Event Listeners
+  private setupEventListeners(): void {
+    this.eventBus.on("phaseChanged", (phase: GamePhase) => {
+      if (phase === GamePhase.PLAY || phase === GamePhase.KICKOFF) {
+        this.startPlayPhase();
+      }
+    });
 
     this.eventBus.on("turnStarted", (turn: any) => {
       this.updateTurnUI();
-      // Reset player activations visually
-      this.playerSprites.forEach((sprite) => sprite.setAlpha(1));
-      // Show notification
-      const teamName =
-        turn.teamId === this.team1.id ? this.team1.name : this.team2.name;
-      this.showTurnNotification(`Turn ${turn.turnNumber}: ${teamName}`);
+      this.refreshDugouts();
+      this.showTurnNotification(`Turn ${turn.turnNumber}`);
     });
 
-    // Place players from setup
-    this.placePlayersFromSetup();
+    this.eventBus.on("turnEnded", () => this.updateTurnUI());
 
-    // UI - Turn Info
-    this.turnText = new UIText(this, {
-      x: width / 2,
-      y: 30,
-      text: "Turn 0",
-      variant: "h4",
-      fontStyle: "bold",
+    // Listen for placement changes to update game state and dugouts
+    this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
+      this.gameService.placePlayer(data.playerId, data.x, data.y);
+      this.refreshDugouts();
+      this.checkSetupCompleteness();
     });
 
-    // UI - End Turn Button
-    this.endTurnButton = new UIButton(this, {
-      x: width - 100,
-      y: height - 50,
-      text: "END TURN",
-      variant: "danger",
-      onClick: () => this.gameService.endTurn(),
+    this.placementController.on("playerRemoved", (playerId: string) => {
+      this.gameService.removePlayer(playerId);
+      this.refreshDugouts();
+      this.checkSetupCompleteness();
     });
 
-    // Player info panel
-    this.playerInfoPanel = new PlayerInfoPanel(this, width - 170, pitchY + 400);
+    // Gameplay events - Handled by Service events or refresh
+    this.eventBus.on("playerMoved", () => {
+      this.refreshDugouts(); // This updates sprite positions
+    });
+  }
 
-    // Listen for player hover events
-    this.events.on("showPlayerInfo", (player: Player) => {
-      this.playerInfoPanel.showPlayer(player);
+  private refreshDugouts(): void {
+    this.dugouts.forEach(d => d.refresh());
+    this.placePlayersOnPitch();
+  }
+
+  private startPlayPhase(): void {
+    this.isSetupActive = false;
+    this.setupUIController.destroy(); // Remove setup UI
+    this.pitch.clearHighlights(); // Clear setup zones
+    this.endTurnButton.setVisible(true);
+
+    // Ensure all players are placed
+    this.placePlayersOnPitch();
+
+    // Update basic UI
+    this.updateTurnUI();
+  }
+
+  private placePlayersOnPitch(): void {
+    // Get all players that have a grid position
+    const allPlayers = [...this.team1.players.filter(p => p.gridPosition), ...this.team2.players.filter(p => p.gridPosition)];
+
+    allPlayers.forEach(player => {
+      const pos = this.pitch.getPixelPosition(player.gridPosition!.x, player.gridPosition!.y);
+
+      if (this.playerSprites.has(player.id)) {
+        const sprite = this.playerSprites.get(player.id)!;
+        sprite.setPosition(pos.x, pos.y);
+        sprite.setVisible(true);
+        sprite.setDepth(10);
+      } else {
+        const teamColor = player.teamId === this.team1.id ? this.team1.colors.primary : this.team2.colors.primary;
+        const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor);
+        sprite.setDepth(10);
+        this.playerSprites.set(player.id, sprite);
+
+        // Add interactivity for Play phase (setup phase uses placementController)
+        sprite.setInteractive({ useHandCursor: true });
+        sprite.on('pointerdown', () => this.onPlayerClick(player));
+        sprite.on('pointerover', () => this.events.emit("showPlayerInfo", player));
+        sprite.on('pointerout', () => this.events.emit("hidePlayerInfo"));
+      }
     });
 
-    this.events.on("hidePlayerInfo", () => {
-      this.playerInfoPanel.hide();
+    // Hide any players that are in dugouts but still have visible pitch sprites
+    // (This handles moving from pitch back to dugout)
+    [...this.team1.players, ...this.team2.players].forEach(player => {
+      if (!player.gridPosition && this.playerSprites.has(player.id)) {
+        this.playerSprites.get(player.id)!.setVisible(false);
+      }
     });
 
-    // Back button
-    this.createBackButton();
+    this.checkSetupCompleteness();
+  }
 
-    // Info text
-    new UIText(this, {
-      x: width / 2,
-      y: height - 30,
-      text: `Game Started! ${this.kickingTeam.name} kicks to ${this.receivingTeam.name}`,
-      variant: "small",
-      color: "#888888",
-    });
+  private checkSetupCompleteness(): void {
+    if (!this.isSetupActive) return;
 
-    // Background click to deselect
-    const bg = this.children.getByName("background");
-    if (bg) {
-      bg.setInteractive();
-      bg.on("pointerdown", () => this.deselectPlayer());
-    }
+    const state = this.gameService.getState();
+    if (!state.activeTeamId) return;
 
-    // Start Game
-    this.gameService.startGame(this.kickingTeam.id);
+    const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
+    this.setupUIController.showConfirmButton(isComplete);
+  }
+
+  private updateTurnUI(): void {
+    const state = this.gameService.getState();
+    const activeTeam = (state.activeTeamId === this.team1.id) ? this.team1 : this.team2;
+    this.turnText.setText(`Turn ${state.turn.turnNumber}: ${activeTeam.name}`);
+    this.turnText.setColor(activeTeam.colors.primary === 0xff4444 ? "#ff4444" : "#4444ff");
   }
 
   private showTurnNotification(message: string): void {
-    const text = this.add
-      .text(
-        this.cameras.main.width / 2,
-        this.cameras.main.height / 2,
-        message,
-        {
-          fontSize: "48px",
-          color: "#ffff00",
-          stroke: "#000000",
-          strokeThickness: 4,
-        }
-      )
+    const text = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      message,
+      {
+        fontSize: "48px",
+        color: "#ffff00",
+        stroke: "#000000",
+        strokeThickness: 4,
+      }
+    )
       .setOrigin(0.5)
       .setDepth(1000);
 
@@ -191,213 +377,93 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private updateTurnUI(): void {
-    const state = this.gameService.getState();
-    const activeTeam =
-      state.activeTeamId === this.team1.id ? this.team1 : this.team2;
-    this.turnText.setText(`Turn ${state.turn.turnNumber}: ${activeTeam.name}`);
-    this.turnText.setColor(
-      activeTeam.colors.primary === 0xff4444 ? "#ff4444" : "#4444ff"
-    );
 
-    // Update End Turn button visibility/color based on active team
-    this.endTurnButton.setVisible(state.phase === GamePhase.PLAY);
-  }
-
-  private selectPlayer(playerId: string): void {
-    const state = this.gameService.getState();
-    const player = this.getPlayerById(playerId);
-
-    if (!player) return;
-
-    // Only allow selection if it's this team's turn
-    if (state.activeTeamId !== player.teamId) {
-      // Maybe show "Not your turn" warning
-      console.log("Not your turn!");
-      return;
+  // Interactivity
+  private onBackgroundClick(): void {
+    if (this.isSetupActive) {
+      this.placementController?.deselectPlayer();
+    } else {
+      this.deselectPlayer();
     }
-
-    // Deselect previous
-    if (this.selectedPlayerId) {
-      const prevSprite = this.playerSprites.get(this.selectedPlayerId);
-      if (prevSprite) {
-        prevSprite.unhighlight();
-      }
-    }
-
-    this.selectedPlayerId = playerId;
-
-    // Highlight new
-    const newSprite = this.playerSprites.get(playerId);
-    if (newSprite) {
-      newSprite.highlight(0xffff00);
-    }
-  }
-
-  private getPlayerById(playerId: string): Player | undefined {
-    // Search both teams
-    return (
-      this.team1.players.find((p) => p.id === playerId) ||
-      this.team2.players.find((p) => p.id === playerId)
-    );
+    this.pitch.clearHighlights();
   }
 
   private deselectPlayer(): void {
     if (this.selectedPlayerId) {
-      const prevSprite = this.playerSprites.get(this.selectedPlayerId);
-      if (prevSprite) {
-        prevSprite.unhighlight();
-      }
+      const sprite = this.playerSprites.get(this.selectedPlayerId);
+      if (sprite) sprite.unhighlight();
       this.selectedPlayerId = null;
+    }
+    this.pitch.clearHighlights();
+  }
+
+  private onDugoutDragStart(playerId: string): void {
+    if (this.isSetupActive) {
+      this.placementController.selectPlayer(playerId);
     }
   }
 
-  private createDugout(
-    color: number,
-    x: number,
-    y: number,
-    team: Team,
-    _isLeft: boolean
-  ): void {
-    // Dugout Backgrounds
-    // Reserves (Top) - Height 400
-    this.add.rectangle(x, y, 120, 400, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, y, 120, 400, color, 0.2).setOrigin(0);
-    UIText.createLabel(this, x + 10, y + 10, "RESERVES");
+  private onDugoutDragEnd(playerId: string, x: number, y: number): void {
+    // If we are in setup, check if dropped on pitch
+    if (this.isSetupActive) {
+      const pitchContainer = this.pitch.getContainer();
+      const localX = x - pitchContainer.x;
+      const localY = y - pitchContainer.y;
+      const gridPos = pixelToGrid(localX, localY, 60);
 
-    // KO (Middle) - Height 120
-    const koY = y + 410;
-    this.add.rectangle(x, koY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, koY, 120, 120, 0xffaa00, 0.1).setOrigin(0);
-    UIText.createLabel(this, x + 10, koY + 5, "KO", "#ffa");
-
-    // Dead/Injured (Bottom) - Height 120
-    const deadY = koY + 130;
-    this.add.rectangle(x, deadY, 120, 120, 0x1a1a2e, 0.8).setOrigin(0);
-    this.add.rectangle(x, deadY, 120, 120, 0xff0000, 0.1).setOrigin(0);
-    UIText.createLabel(this, x + 10, deadY + 5, "DEAD & INJURED", "#f88");
-
-    // Filter players
-    const reserves = team.players.filter(
-      (p) =>
-        !p.gridPosition &&
-        p.status !== "KO" &&
-        p.status !== "Injured" &&
-        p.status !== "Dead"
-    );
-    const koPlayers = team.players.filter((p) => p.status === "KO");
-    const deadPlayers = team.players.filter(
-      (p) => p.status === "Injured" || p.status === "Dead"
-    );
-
-    // Render Groups
-    this.renderPlayerGroup(reserves, x, y + 30, color);
-    this.renderPlayerGroup(koPlayers, x, koY + 25, color);
-    this.renderPlayerGroup(deadPlayers, x, deadY + 25, color);
+      this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
+    }
   }
 
-  private renderPlayerGroup(
-    players: Player[],
-    startX: number,
-    startY: number,
-    color: number
-  ): void {
-    let yOffset = startY;
-    players.forEach((player, index) => {
-      const isCol2 = index % 2 !== 0;
-      const currentX = isCol2 ? startX + 90 : startX + 30;
+  private onPlayerClick(player: Player): void {
+    if (this.isSetupActive) return;
 
-      if (index > 0 && index % 2 === 0) {
-        yOffset += 45;
+    const state = this.gameService.getState();
+    if (state.activeTeamId !== player.teamId) return;
+
+    this.deselectPlayer();
+    this.selectedPlayerId = player.id;
+
+    const sprite = this.playerSprites.get(player.id);
+    if (sprite) sprite.highlight(0xffff00);
+
+    const reachable = this.gameService.getAvailableMovements(player.id);
+    reachable.forEach(pos => {
+      this.pitch.highlightSquare(pos.x, pos.y, 0x00ff00);
+    });
+  }
+
+  private onPitchClick(x: number, y: number): void {
+    if (this.isSetupActive || !this.selectedPlayerId) return;
+
+    const team = (this.team1.players.find(p => p.id === this.selectedPlayerId)) ? this.team1 : this.team2;
+    const player = team.players.find(p => p.id === this.selectedPlayerId);
+
+    if (!player || !player.gridPosition) return;
+
+    // Calculate path (need opponents/teammates)
+    const opponents = (team.id === this.team1.id ? this.team2 : this.team1).players.filter(p => p.gridPosition);
+    const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
+
+    const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
+
+    if (result.valid) {
+      this.gameService.movePlayer(player.id, result.path)
+        .then(() => {
+          this.deselectPlayer();
+          this.refreshDugouts();
+        })
+        .catch(err => {
+          console.error("Move failed:", err);
+          this.showTurnNotification("Move Failed!");
+        });
+    } else {
+      // Check if it's the player's own square (deselect)
+      if (x === player.gridPosition.x && y === player.gridPosition.y) {
+        this.deselectPlayer();
+      } else {
+        console.log("Invalid move path");
       }
-      this.createDugoutPlayerDisplay(player, currentX, yOffset, color);
-    });
-  }
-
-  private createDugoutPlayerDisplay(
-    player: Player,
-    x: number,
-    y: number,
-    teamColor: number
-  ): Phaser.GameObjects.Container {
-    // Use PlayerSprite for consistent visuals
-    const sprite = new PlayerSprite(this, x, y, player, teamColor);
-    sprite.setSize(32, 32);
-    sprite.setInteractive({ useHandCursor: true });
-
-    sprite.on("pointerover", () => {
-      this.events.emit("showPlayerInfo", player);
-    });
-
-    sprite.on("pointerout", () => {
-      this.events.emit("hidePlayerInfo");
-    });
-
-    return sprite;
-  }
-
-  private placePlayersFromSetup(): void {
-    // Place Team 1 players
-    this.team1.players.forEach((player) => {
-      if (player.gridPosition) {
-        this.placePlayer(
-          player,
-          player.gridPosition.x,
-          player.gridPosition.y,
-          this.team1.colors.primary
-        );
-      }
-    });
-
-    // Place Team 2 players
-    this.team2.players.forEach((player) => {
-      if (player.gridPosition) {
-        this.placePlayer(
-          player,
-          player.gridPosition.x,
-          player.gridPosition.y,
-          this.team2.colors.primary
-        );
-      }
-    });
-  }
-
-  private placePlayer(
-    player: Player,
-    gridX: number,
-    gridY: number,
-    teamColor: number
-  ): void {
-    const pos = this.pitch.getPixelPosition(gridX, gridY);
-    const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor);
-    this.playerSprites.set(player.id, sprite);
-
-    // Update player's grid position (redundant but safe)
-    player.gridPosition = { x: gridX, y: gridY };
-    player.status = PlayerStatus.ACTIVE;
-
-    // Interaction
-    sprite.setInteractive({ useHandCursor: true });
-    sprite.on("pointerover", () => {
-      this.events.emit("showPlayerInfo", player);
-    });
-    sprite.on("pointerout", () => {
-      this.events.emit("hidePlayerInfo");
-    });
-    sprite.on("pointerdown", () => {
-      this.selectPlayer(player.id);
-    });
-  }
-
-  private createBackButton(): void {
-    new UIButton(this, {
-      x: 20,
-      y: 20,
-      text: "← Back",
-      variant: "danger",
-      fontSize: "18px",
-      onClick: () => this.scene.start("TeamSelectionScene"),
-      origin: { x: 0, y: 0 },
-    });
+    }
   }
 }

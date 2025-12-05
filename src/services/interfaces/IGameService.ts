@@ -36,7 +36,7 @@ export interface IGameService {
     /**
      * Start the setup phase
      */
-    startSetup(): void;
+    startSetup(startingTeamId?: string): void;
 
     /**
      * Place a player on the pitch during setup

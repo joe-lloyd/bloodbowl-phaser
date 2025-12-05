@@ -16,12 +16,18 @@ export class SetupUIController {
   private titleText!: UIText;
   private instructionText!: UIText;
   private confirmButton!: UIButton;
+  private defaultButton!: UIButton;
+  private saveButton!: UIButton;
+  private loadButton!: UIButton;
+  private clearButton!: UIButton;
 
-  // Layout constants - Compressed to fit 1080p
-  private readonly TITLE_Y = 40;
-  private readonly INSTRUCTION_Y = 70;
-  private readonly CONFIRM_Y = 100;
-  private readonly DUGOUT_START_Y = 140;
+  // Layout constants - Left Sidebar
+  private readonly SIDEBAR_X = 180;
+  private readonly TITLE_Y = 220;
+  private readonly INSTRUCTION_Y = 250;
+  private readonly CONFIRM_Y = 280;
+  private readonly CONTROLS_Y = 320;
+  private readonly DUGOUT_START_Y = 190; // Unused in this controller?
 
   constructor(scene: Phaser.Scene, pitch: Pitch) {
     this.scene = scene;
@@ -31,7 +37,16 @@ export class SetupUIController {
   /**
    * Create initial UI elements
    */
-  createUI(width: number, onConfirm: () => void): void {
+  createUI(
+    width: number,
+    callbacks: {
+      onConfirm: () => void;
+      onSave: () => void;
+      onLoad: () => void;
+      onClear: () => void;
+      onDefault: () => void;
+    }
+  ): void {
     // Title - positioned above dugouts
     this.titleText = new UIText(this.scene, {
       x: width / 2,
@@ -52,19 +67,79 @@ export class SetupUIController {
 
     // Confirm button (initially hidden)
     this.confirmButton = new UIButton(this.scene, {
-      x: width / 2,
+      x: this.SIDEBAR_X,
       y: this.CONFIRM_Y,
       text: "CONFIRM SETUP",
       variant: "primary",
-      onClick: onConfirm,
+      onClick: callbacks.onConfirm,
     });
     this.confirmButton.setVisible(false);
+
+    // Formation Controls (Vertical layout in sidebar)
+    const startX = this.SIDEBAR_X;
+    const btnHeight = 50;
+
+    this.defaultButton = new UIButton(this.scene, {
+      x: startX,
+      y: this.CONTROLS_Y,
+      text: "Default",
+      variant: "secondary",
+      fontSize: "16px",
+      onClick: callbacks.onDefault
+    });
+
+    this.saveButton = new UIButton(this.scene, {
+      x: startX,
+      y: this.CONTROLS_Y + btnHeight,
+      text: "Save",
+      variant: "secondary",
+      fontSize: "16px",
+      onClick: callbacks.onSave
+    });
+
+    this.loadButton = new UIButton(this.scene, {
+      x: startX,
+      y: this.CONTROLS_Y + btnHeight * 2,
+      text: "Load",
+      variant: "secondary",
+      fontSize: "16px",
+      onClick: callbacks.onLoad
+    });
+
+    this.clearButton = new UIButton(this.scene, {
+      x: startX,
+      y: this.CONTROLS_Y + btnHeight * 3,
+      text: "Clear",
+      variant: "danger",
+      fontSize: "16px",
+      onClick: callbacks.onClear
+    });
+
+    // Hide controls initially (until phase starts)
+    this.setControlsVisible(false);
+
+    // Set depth for all elements to ensure they are above everything
+    this.titleText.setDepth(50);
+    this.instructionText.setDepth(50);
+    this.confirmButton.setDepth(50);
+    this.defaultButton.setDepth(50);
+    this.saveButton.setDepth(50);
+    this.loadButton.setDepth(50);
+    this.clearButton.setDepth(50);
+  }
+
+  private setControlsVisible(visible: boolean): void {
+    this.defaultButton?.setVisible(visible);
+    this.saveButton?.setVisible(visible);
+    this.loadButton?.setVisible(visible);
+    this.clearButton?.setVisible(visible);
   }
 
   /**
    * Update UI for current setup phase
    */
   updateForPhase(phase: SetupPhase, team: Team): void {
+    this.setControlsVisible(true);
     if (phase === "kicking") {
       this.updateInstructions(
         `${team.name} (KICKING) - Place 7 players in your zone`,
@@ -145,5 +220,9 @@ export class SetupUIController {
     this.titleText?.destroy();
     this.instructionText?.destroy();
     this.confirmButton?.destroy();
+    this.defaultButton?.destroy();
+    this.saveButton?.destroy();
+    this.loadButton?.destroy();
+    this.clearButton?.destroy();
   }
 }

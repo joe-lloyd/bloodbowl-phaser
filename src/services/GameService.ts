@@ -79,8 +79,11 @@ export class GameService implements IGameService {
 
     // ===== Setup Phase =====
 
-    startSetup(): void {
+    startSetup(startingTeamId?: string): void {
         this.state.phase = GamePhase.SETUP;
+        if (startingTeamId) {
+            this.state.activeTeamId = startingTeamId;
+        }
         this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP });
     }
 

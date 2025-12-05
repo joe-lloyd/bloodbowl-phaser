@@ -5,7 +5,6 @@ import { MenuScene } from "./scenes/MenuScene";
 import { TeamManagementScene } from "./scenes/TeamManagementScene";
 import { TeamBuilderScene } from "./scenes/TeamBuilderScene";
 import { TeamSelectionScene } from "./scenes/TeamSelectScene";
-import { SetupScene } from "./scenes/SetupScene";
 import { GameScene } from "./scenes/GameScene";
 
 /**
@@ -26,7 +25,6 @@ const config: Phaser.Types.Core.GameConfig = {
     TeamManagementScene,
     TeamBuilderScene,
     TeamSelectionScene,
-    SetupScene,
     GameScene,
   ],
   physics: {

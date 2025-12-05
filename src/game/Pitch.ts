@@ -48,6 +48,9 @@ export class Pitch {
 
     // Draw center line
     this.drawCenterLine();
+
+    // Draw wide zones
+    this.drawWideZones();
   }
 
   private drawGrid(): void {
@@ -95,6 +98,24 @@ export class Pitch {
     // Vertical center line (line of scrimmage)
     const centerX = (this.width / 2) * this.squareSize;
     graphics.lineBetween(centerX, 0, centerX, this.height * this.squareSize);
+
+    this.container.add(graphics);
+  }
+
+  private drawWideZones(): void {
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
+
+    // Top Wide Zone line (separating row 1 and 2)
+    // Grid 0, 1 are top wide zone. Line should be at Y = 2 * SQUARE_SIZE
+    const topY = 2 * this.squareSize;
+    graphics.lineBetween(0, topY, this.width * this.squareSize, topY);
+
+    // Bottom Wide Zone line (separating row 8 and 9)
+    // Height is 11 (0-10). Bottom wide zone is 9, 10.
+    // Line should be at Y = 9 * SQUARE_SIZE 
+    const bottomY = (this.height - 2) * this.squareSize;
+    graphics.lineBetween(0, bottomY, this.width * this.squareSize, bottomY);
 
     this.container.add(graphics);
   }
