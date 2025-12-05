@@ -47,6 +47,9 @@ export class SetupUIController {
       onDefault: () => void;
     }
   ): void {
+    // Clean up any existing UI before creating new elements
+    this.destroy();
+
     // Title - positioned above dugouts
     this.titleText = new UIText(this.scene, {
       x: width / 2,

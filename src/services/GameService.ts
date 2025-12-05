@@ -237,11 +237,24 @@ export class GameService implements IGameService {
     }
 
     rollKickoff(): void {
-        const roll = Math.floor(Math.random() * 6) + 1;
-        let event = 'Nice Weather';
+        const d6 = () => Math.floor(Math.random() * 6) + 1;
+        const roll = d6() + d6();
+        let event = 'Changing Weather'; // Default 7
 
-        if (roll === 1) event = 'Get the Ref!';
-        if (roll === 6) event = 'Pitch Invasion!';
+        // Blood Bowl 2020 (Season 2) / Standard Table
+        switch (roll) {
+            case 2: event = 'Get the Ref!'; break;
+            case 3: event = 'Riot!'; break;
+            case 4: event = 'Perfect Defense'; break;
+            case 5: event = 'High Kick'; break;
+            case 6: event = 'Cheering Fans'; break;
+            case 7: event = 'Changing Weather'; break;
+            case 8: event = 'Brilliant Coaching'; break;
+            case 9: event = 'Quick Snap!'; break;
+            case 10: event = 'Blitz!'; break;
+            case 11: event = 'Throw a Rock'; break;
+            case 12: event = 'Pitch Invasion!'; break;
+        }
 
         this.eventBus.emit('kickoffResult', { roll, event });
 

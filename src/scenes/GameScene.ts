@@ -54,6 +54,7 @@ export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
   private isSetupActive: boolean = false;
+  private kickoffStep: 'SELECT_KICKER' | 'SELECT_TARGET' | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -306,6 +307,7 @@ export class GameScene extends Phaser.Scene {
 
   private startPlayPhase(): void {
     this.isSetupActive = false;
+    this.kickoffStep = null;
     this.setupUIController.destroy(); // Remove setup UI
     this.pitch.clearHighlights(); // Clear setup zones
     this.endTurnButton.setVisible(true);
@@ -315,6 +317,19 @@ export class GameScene extends Phaser.Scene {
 
     // Update basic UI
     this.updateTurnUI();
+  }
+
+  private startKickoffPhase(): void {
+    this.isSetupActive = false;
+    this.kickoffStep = 'SELECT_KICKER';
+    this.setupUIController.destroy();
+    this.pitch.clearHighlights();
+    this.endTurnButton.setVisible(false);
+
+    // Ensure players are visible and correct
+    this.placePlayersOnPitch();
+
+    this.showTurnNotification("Select Kicker");
   }
 
   private placePlayersOnPitch(): void {
@@ -437,6 +452,24 @@ export class GameScene extends Phaser.Scene {
   private onPlayerClick(player: Player): void {
     if (this.isSetupActive) return;
 
+    // Kickoff Phase Logic
+    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
+      if (this.kickoffStep !== 'SELECT_KICKER') return;
+      if (player.teamId !== this.kickingTeam.id) {
+        this.showTurnNotification("Select own player!");
+        return;
+      }
+
+      this.deselectPlayer();
+      this.selectedPlayerId = player.id;
+      const sprite = this.playerSprites.get(player.id);
+      if (sprite) sprite.highlight(0xffff00);
+
+      this.kickoffStep = 'SELECT_TARGET';
+      this.showTurnNotification("Select Target Square");
+      return;
+    }
+
     const state = this.gameService.getState();
     if (state.activeTeamId !== player.teamId) return;
 
@@ -481,7 +514,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPitchClick(x: number, y: number): void {
-    if (this.isSetupActive || !this.selectedPlayerId) return;
+    if (this.isSetupActive) return;
+
+    // Kickoff Phase Logic
+    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
+      if (this.kickoffStep === 'SELECT_TARGET' && this.selectedPlayerId) {
+        this.gameService.kickBall(this.selectedPlayerId, x, y);
+        this.kickoffStep = null;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    if (!this.selectedPlayerId) return;
 
     const team = (this.team1.players.find(p => p.id === this.selectedPlayerId)) ? this.team1 : this.team2;
     const player = team.players.find(p => p.id === this.selectedPlayerId);
