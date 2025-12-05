@@ -105,6 +105,12 @@ export class Dugout {
     private renderPlayerGrid(players: Player[], startX: number, startY: number, maxWidth: number): void {
         const size = 40; // 32px sprite + spacing
         const cols = Math.floor(maxWidth / size);
+        const playerIdsInGrid = new Set(players.map(p => p.id));
+
+        // Hide any sprites that are NOT in this section but tracked by dugout
+        // (This handles players moving out of this section or to pitch)
+        // Ideally we check all sprites, but here we can only check localized context?
+        // Better: In refresh(), hide ALL sprites first?
 
         players.forEach((player, index) => {
             const col = index % cols;
@@ -117,8 +123,11 @@ export class Dugout {
             if (this.playerSprites.has(player.id)) {
                 const sprite = this.playerSprites.get(player.id)!;
                 sprite.setPosition(px, py);
+                sprite.setVisible(true); // Ensure visible if in grid
                 if (!this.container.exists(sprite)) {
                     this.container.add(sprite);
+                } else {
+                    this.container.bringToTop(sprite);
                 }
             } else {
                 const sprite = this.createPlayerSprite(player, px, py);
@@ -172,6 +181,10 @@ export class Dugout {
                 child.destroy();
             }
         });
+
+        // Hide all sprites first; createLayout will reveal valid ones
+        this.playerSprites.forEach(sprite => sprite.setVisible(false));
+
         // Note: We are not destroying sprites, just re-layout
         this.createLayout();
     }

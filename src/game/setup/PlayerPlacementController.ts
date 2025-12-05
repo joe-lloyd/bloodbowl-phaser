@@ -5,6 +5,7 @@ import { SetupValidator } from "./SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../Pitch";
 import { pixelToGrid } from "../../utils/GridUtils";
+import { GameConfig } from "../../config/GameConfig";
 
 /**
  * PlayerPlacementController - Handles player placement via drag-and-drop or click-to-place
@@ -49,6 +50,34 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       if (player && player.teamId === team.id) {
         sprite.setInteractive({ draggable: true });
         sprite.setAlpha(1);
+
+        // Remove old listeners to prevent duplicates
+        sprite.off('dragend');
+
+        // Add drag end listener for snapping
+        sprite.on('dragend', (pointer: Phaser.Input.Pointer) => {
+          // Convert drop position to world coordinates (since sprite is in container)
+          // Actually, pointer.worldX/Y is what we want, or we use the sprite's world transform
+          // But the sprite is being dragged, so its x/y are updated relative to container.
+          // We need where the USER let go.
+
+          // 'dragend' event gives the pointer.
+          const worldX = pointer.worldX;
+          const worldY = pointer.worldY;
+
+          // Adjust for pitch position
+          const pitchContainer = this.pitch.getContainer();
+          const localX = worldX - pitchContainer.x;
+          const localY = worldY - pitchContainer.y;
+
+          const gridPos = pixelToGrid(localX, localY, GameConfig.SQUARE_SIZE);
+          this.placePlayer(playerId, gridPos.x, gridPos.y);
+
+          // Reset sprite position in dugout (visual only, will be refreshed by GameScene events)
+          sprite.x = 0;
+          sprite.y = 0;
+        });
+
       } else {
         sprite.disableInteractive();
         sprite.setAlpha(0.5);

@@ -248,8 +248,10 @@ export class GameScene extends Phaser.Scene {
   // Event Listeners
   private setupEventListeners(): void {
     this.eventBus.on("phaseChanged", (phase: GamePhase) => {
-      if (phase === GamePhase.PLAY || phase === GamePhase.KICKOFF) {
+      if (phase === GamePhase.PLAY) {
         this.startPlayPhase();
+      } else if (phase === GamePhase.KICKOFF) {
+        this.startKickoffPhase();
       }
     });
 
@@ -277,6 +279,23 @@ export class GameScene extends Phaser.Scene {
     // Gameplay events - Handled by Service events or refresh
     this.eventBus.on("playerMoved", () => {
       this.refreshDugouts(); // This updates sprite positions
+    });
+
+    this.eventBus.on("kickoffStarted", () => {
+      this.showTurnNotification("KICKOFF!");
+    });
+
+    this.eventBus.on("ballKicked", (data: any) => {
+      // Animate Ball
+      this.animateBallKick(data);
+    });
+
+    this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
+      this.showTurnNotification(`${data.roll}: ${data.event}`);
+    });
+
+    this.eventBus.on("readyToStart", () => {
+      this.gameService.startGame(this.kickingTeam.id);
     });
   }
 
@@ -430,6 +449,34 @@ export class GameScene extends Phaser.Scene {
     const reachable = this.gameService.getAvailableMovements(player.id);
     reachable.forEach(pos => {
       this.pitch.highlightSquare(pos.x, pos.y, 0x00ff00);
+    });
+  }
+
+  private animateBallKick(data: any): void {
+    const start = this.pitch.getPixelPosition(data.targetX, data.targetY); // Visual start (or player pos?)
+    // Actually ball starts from player, goes to target, then scatters to final
+    // But for now, let's just show it landing at final.
+    const final = this.pitch.getPixelPosition(data.finalX, data.finalY);
+
+    const ball = this.add.circle(start.x, start.y, 10, 0xffffff); // Simple ball
+    this.pitch.getContainer().add(ball); // Add to pitch container to match coords? 
+    // Wait, getPixelPosition returns WORLD coords relative to pitch container? 
+    // Pitch.getPixelPosition returns x/y relative to Pitch local space if used in `pitch.add`?
+    // Let's assume getPixelPosition returns relative to Pitch Container. 
+    // GameService emits grid coords. 
+
+    // Pitch.getPixelPosition implementation (from memory/context):
+    // return { x: gridX * size, y: gridY * size }; 
+    // So these are LOCAL to pitch.
+
+    ball.setPosition(start.x, start.y);
+
+    this.tweens.add({
+      targets: ball,
+      x: final.x,
+      y: final.y,
+      duration: 1000,
+      ease: 'Bounce',
     });
   }
 

@@ -193,8 +193,46 @@ export class GameService implements IGameService {
         this.state.phase = GamePhase.KICKOFF;
         this.eventBus.emit('kickoffStarted');
         this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF });
+    }
 
-        // Auto-roll after delay
+    kickBall(playerId: string, targetX: number, targetY: number): void {
+        if (this.state.phase !== GamePhase.KICKOFF) return;
+
+        // Simplify for now: Assume valid kicker (validation can be in UI or here)
+        // Roll Scatter
+        const direction = Math.floor(Math.random() * 8) + 1; // 1-8
+        const distance = Math.floor(Math.random() * 6) + 1; // 1-6
+
+        // Calculate offset based on direction (Standard BB scatter template)
+        // 1: TL, 2: T, 3: TR, 4: L, 5: R, 6: BL, 7: B, 8: BR
+        let dx = 0;
+        let dy = 0;
+
+        switch (direction) {
+            case 1: dx = -1; dy = -1; break;
+            case 2: dx = 0; dy = -1; break;
+            case 3: dx = 1; dy = -1; break;
+            case 4: dx = -1; dy = 0; break;
+            case 5: dx = 1; dy = 0; break;
+            case 6: dx = -1; dy = 1; break;
+            case 7: dx = 0; dy = 1; break;
+            case 8: dx = 1; dy = 1; break;
+        }
+
+        const finalX = targetX + (dx * distance);
+        const finalY = targetY + (dy * distance);
+
+        this.eventBus.emit('ballKicked', {
+            playerId,
+            targetX,
+            targetY,
+            direction,
+            distance,
+            finalX,
+            finalY
+        });
+
+        // Trigger event table
         setTimeout(() => this.rollKickoff(), 1000);
     }
 
@@ -396,7 +434,6 @@ export class GameService implements IGameService {
         const player = this.getPlayerById(playerId);
         if (!player) return;
 
-        const myTeam = (player.teamId === this.team1.id) ? this.team1 : this.team2;
         const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
         const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
 

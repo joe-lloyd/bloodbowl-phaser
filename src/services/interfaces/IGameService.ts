@@ -77,6 +77,11 @@ export interface IGameService {
      */
     rollKickoff(): void;
 
+    /**
+     * Perform the kickoff action (kick ball + scatter + event)
+     */
+    kickBall(playerId: string, targetX: number, targetY: number): void;
+
     // ===== Game Phase =====
 
     /**
