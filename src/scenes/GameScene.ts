@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
+import { DiceLog } from "../game/ui/DiceLog";
 import { Dugout } from "../game/Dugout";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
 
   // UI Components
   private playerInfoPanel!: PlayerInfoPanel;
+  private diceLog!: DiceLog;
   private turnText!: UIText;
   private endTurnButton!: UIButton;
   private dugouts: Map<string, Dugout> = new Map();
@@ -57,6 +59,8 @@ export class GameScene extends Phaser.Scene {
   private selectedPlayerId: string | null = null;
   private isSetupActive: boolean = false;
   private kickoffStep: 'SELECT_KICKER' | 'SELECT_TARGET' | null = null;
+  private pendingKickoffData: any = null;
+  private ballSprite: Phaser.GameObjects.Shape | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -178,6 +182,9 @@ export class GameScene extends Phaser.Scene {
 
     // Player Info Panel
     this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
+
+    // Dice Log
+    this.diceLog = new DiceLog(this, 10, height - 350);
   }
 
   private initializeControllers(): void {
@@ -315,12 +322,23 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.eventBus.on("ballKicked", (data: any) => {
-      // Animate Ball
-      this.animateBallKick(data);
+      // 1. Show Ball at Target immediately
+      this.placeBallVisual(data.targetX, data.targetY);
+
+      // Store scatter data for later animation
+      this.pendingKickoffData = data;
     });
 
     this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
+      // 2. Show Roll
       this.showTurnNotification(`${data.roll}: ${data.event}`);
+      this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
+
+      // 3. Animate Scatter (after delay or immediately)
+      if (this.pendingKickoffData) {
+        this.animateBallScatter(this.pendingKickoffData);
+        this.pendingKickoffData = null;
+      }
     });
 
     this.eventBus.on("readyToStart", () => {
@@ -482,29 +500,34 @@ export class GameScene extends Phaser.Scene {
     this.gameplayController.selectPlayer(player.id);
   }
 
-  private animateBallKick(data: any): void {
-    const start = this.pitch.getPixelPosition(data.targetX, data.targetY); // Visual start (or player pos?)
-    // Actually ball starts from player, goes to target, then scatters to final
-    // But for now, let's just show it landing at final.
-    const final = this.pitch.getPixelPosition(data.finalX, data.finalY);
+  private placeBallVisual(x: number, y: number): void {
+    if (this.ballSprite) this.ballSprite.destroy();
 
-    const ball = this.add.circle(start.x, start.y, 10, 0xffffff); // Simple ball
-    this.pitch.getContainer().add(ball); // Add to pitch container to match coords? 
-    // Wait, getPixelPosition returns WORLD coords relative to pitch container? 
-    // Pitch.getPixelPosition returns x/y relative to Pitch local space if used in `pitch.add`?
-    // Let's assume getPixelPosition returns relative to Pitch Container. 
-    // GameService emits grid coords. 
+    const pos = this.pitch.getPixelPosition(x, y);
+    // Use local coordinates for pitch container? 
+    // pitch.getPixelPosition returns WORLD coords currently? 
+    // Let's check pitch.ts... 
+    // Pitch.getPixelPosition adds offsetX/Y so it is WORLD.
+    // Pitch.add expects LOCAL?
+    // Wait, Pitch.ts `container.add(child)`. if child is at WORLD coords, it will be offset AGAIN by container x,y.
+    // So we must use LOCAL coords if adding to container.
+    // BUT `getPixelPosition` returns WORLD.
+    // So we should NOT add to pitch container if using getPixelPosition, OR convert.
+    // Easiest: Add to Scene directly (above pitch).
 
-    // Pitch.getPixelPosition implementation (from memory/context):
-    // return { x: gridX * size, y: gridY * size }; 
-    // So these are LOCAL to pitch.
+    this.ballSprite = this.add.circle(pos.x + 30, pos.y + 30, 10, 0xffffff); // Centered (30 is half of 60)
+    this.ballSprite.setDepth(20);
+  }
 
-    ball.setPosition(start.x, start.y);
+  private animateBallScatter(data: any): void {
+    if (!this.ballSprite) return;
+
+    const finalPos = this.pitch.getPixelPosition(data.finalX, data.finalY);
 
     this.tweens.add({
-      targets: ball,
-      x: final.x,
-      y: final.y,
+      targets: this.ballSprite,
+      x: finalPos.x + 30,
+      y: finalPos.y + 30,
       duration: 1000,
       ease: 'Bounce',
     });
@@ -546,6 +569,20 @@ export class GameScene extends Phaser.Scene {
         this.showTurnNotification("Select Target Square");
       }
     } else if (this.kickoffStep === 'SELECT_TARGET') {
+      // VALIDATE TARGET: Must be in opponent's half
+      // Pitch is 26 wide. Grid 0-25. Center line is between 12 and 13.
+      // Team 1 Start: 0-12? Team 2 Start: 13-25?
+      // Actually standard pitch is 26 squares wide. 13 squares per half.
+      // Team 1 (Left) usually owns 0-12. Team 2 (Right) owns 13-25.
+
+      const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
+      const validTarget = isTeam1Kicking ? (x >= 13) : (x < 13);
+
+      if (!validTarget) {
+        this.showTurnNotification("Must kick to opponent half!");
+        return;
+      }
+
       if (this.selectedPlayerId) {
         this.gameService.kickBall(this.selectedPlayerId, x, y);
         this.kickoffStep = null;

@@ -19,6 +19,7 @@ export class GameplayInteractionController {
     // State
     private selectedPlayerId: string | null = null;
     private lastHoverGrid: { x: number, y: number } | null = null;
+    private waypoints: { x: number, y: number }[] = [];
 
     constructor(
         scene: GameScene,
@@ -90,13 +91,41 @@ export class GameplayInteractionController {
 
         // PLAY PHASE
         if (playerAtSquare) {
-            // Select Player
-            this.selectPlayer(playerAtSquare.id);
+            // Clicking ANOTHER player?
+            if (playerAtSquare.id !== this.selectedPlayerId) {
+                this.selectPlayer(playerAtSquare.id);
+            } else {
+                // Clicking SELF?
+                // If we have waypoints planned, this might mean "Reset" or "Start". 
+                // If no waypoints, do nothing (already selected).
+                // User Requirement: "Confirm movement" logic. 
+                // Usually confirm is clicking the destination again or a button.
+                // Let's implement: Click Destination -> Adds Waypoint. Click SAME Destination AGAIN -> Confirm.
+            }
         } else if (this.selectedPlayerId) {
-            // Move Player
-            this.attemptMove(x, y);
+            // Empty Square Click
+            const player = this.gameService.getPlayerById(this.selectedPlayerId);
+            const state = this.gameService.getState();
+
+            // Only allow movement planning if active team
+            if (player && state.activeTeamId === player.teamId) {
+                // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
+                const lastPos = this.waypoints.length > 0
+                    ? this.waypoints[this.waypoints.length - 1]
+                    : player.gridPosition;
+
+                if (lastPos && lastPos.x === x && lastPos.y === y) {
+                    // CONFIRM MOVE
+                    this.executeMove();
+                } else {
+                    // ADD WAYPOINT
+                    this.addWaypoint(x, y);
+                }
+            } else {
+                this.deselectPlayer();
+            }
         } else {
-            this.deselectPlayer();
+            this.deselectPlayer(); // Clicking empty space with no selection
         }
     }
 
@@ -126,21 +155,46 @@ export class GameplayInteractionController {
 
         if (!player) return;
 
-        // Only select own team in Play phase (unless inspecting?)
-        // Let's allow selecting anyone to inspect, but only highlight movement for active team
+        // Interaction Check: Only active team's turn?
+        // User asked: "only the player in control can move their own pieces".
+        // Allow selection for inspection at any time, but movement only if active.
 
         this.deselectPlayer();
         this.selectedPlayerId = playerId;
 
-        // Visual highlight (via Scene or direct sprite access? Scene is better owner of sprites map)
+        const isOwnTurn = state.activeTeamId === player.teamId;
+
+        // Visual highlight
         this.scene.highlightPlayer(playerId);
 
-        // Show Movement Range if own turn
-        if (state.activeTeamId === player.teamId) {
+        // Show Movement Range & Tackle Zones if own turn
+        if (isOwnTurn) {
             const reachable = this.gameService.getAvailableMovements(playerId);
-            reachable.forEach(pos => {
-                this.pitch.highlightSquare(pos.x, pos.y, 0x00ff00);
+            // Show Overlay (Inverse of reachable)
+            this.pitch.drawRangeOverlay(reachable);
+
+            // Show Tackle Zones
+            // Get all opposing players with tackle zones (standing, not stunned/prone)
+            const opponents = this.getOpposingPlayers(player.teamId);
+            const tackleZones: { x: number, y: number }[] = [];
+
+            opponents.forEach(op => {
+                if (op.status === 'Active' && op.gridPosition) { // Assuming 'Active' implies standing
+                    // Add 8 squares around
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const tx = op.gridPosition.x + dx;
+                            const ty = op.gridPosition.y + dy;
+                            // Check bounds (0-25, 0-14)
+                            if (tx >= 0 && tx < 26 && ty >= 0 && ty < 15) {
+                                tackleZones.push({ x: tx, y: ty });
+                            }
+                        }
+                    }
+                }
             });
+            this.pitch.drawTackleZones(tackleZones);
         }
     }
 
@@ -149,66 +203,120 @@ export class GameplayInteractionController {
             this.scene.unhighlightPlayer(this.selectedPlayerId);
             this.selectedPlayerId = null;
         }
-        this.pitch.clearHighlights();
+        this.waypoints = [];
+        this.pitch.clearHighlights(); // Clears overlays too
         this.pitch.clearPath();
     }
 
-    private attemptMove(x: number, y: number): void {
+    private addWaypoint(x: number, y: number): void {
         if (!this.selectedPlayerId) return;
-
-        // Delegate to scene or service? Service handles move, but Scene handles finding path first
-        // Let's use the same logic as before, essentially moving it here.
-
         const player = this.gameService.getPlayerById(this.selectedPlayerId);
-        if (!player || !player.gridPosition) return;
+        if (!player) return;
 
-        // Own square check
-        if (player.gridPosition.x === x && player.gridPosition.y === y) {
-            this.deselectPlayer();
-            return;
-        }
+        // Path from LAST waypoint (or current) to NEW target
+        // We need to validate if this segment is possible (MA check pending? Or total MA check?)
+        // Total path cost check should be done.
 
-        const team1 = this.getSceneTeam1();
-        const team2 = this.getSceneTeam2();
-        const team = (player.teamId === team1.id) ? team1 : team2;
-        const opponentTeam = (player.teamId === team1.id) ? team2 : team1;
+        // Get Path for this segment
+        const startPos = this.waypoints.length > 0 ? this.waypoints[this.waypoints.length - 1] : player.gridPosition!;
 
-        const opponents = opponentTeam.players.filter(p => p.gridPosition);
-        const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
+        // Use pathfinder for this segment (smart pathing between clicks)
+        const team = (player.teamId === this.getSceneTeam1().id) ? this.getSceneTeam1() : this.getSceneTeam2();
+        const opponentTeam = (player.teamId === this.getSceneTeam1().id) ? this.getSceneTeam2() : this.getSceneTeam1();
 
-        const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
+        const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+        const teammates = team.players.filter((p: any) => p.gridPosition && p.id !== player.id);
+
+        // Treat previous waypoints as occupied? No, player moves through them.
+        // But we shouldn't pass through ourselves? We are at startPos. 
+
+        // Pathfinder needs a "mock" player at startPos? 
+        // MovementValidator uses player.gridPosition. 
+        // We can temporarily mock it or pass startPos to findPath (if supported).
+        // Current `findPath` uses player.gridPosition. 
+        // Let's modify `findPath` or create a temp object.
+        const mockPlayer = { ...player, gridPosition: startPos }; // Shallow copy with new pos
+
+        const result = this.movementValidator.findPath(mockPlayer as any, x, y, opponents, teammates);
 
         if (result.valid) {
-            this.gameService.movePlayer(player.id, result.path)
-                .then(() => {
-                    this.deselectPlayer();
-                    // Scene listens to 'playerMoved' to animate/refresh
-                })
-                .catch(err => {
-                    console.error("Move failed", err);
-                });
+            // Add path to waypoints (excluding start, including end)
+            // Result.path includes the steps.
+            // Check TOTAL path length limit (MA + 2)
+            const currentLen = this.waypoints.length;
+            const newLen = currentLen + result.path.length;
+            if (newLen <= player.stats.MA + 2) {
+                this.waypoints.push(...result.path);
+                this.drawCurrentPath();
+            } else {
+                console.warn("Path too long!");
+                // Feedback?
+            }
         }
+    }
+
+    private executeMove(): void {
+        if (!this.selectedPlayerId || this.waypoints.length === 0) return;
+
+        // We already have the full path in `this.waypoints`
+        // Validate one last time? 
+
+        this.gameService.movePlayer(this.selectedPlayerId, this.waypoints)
+            .then(() => {
+                this.deselectPlayer();
+            })
+            .catch(err => {
+                console.error("Move failed", err);
+                this.deselectPlayer();
+            });
+    }
+
+    private drawCurrentPath(): void {
+        if (!this.selectedPlayerId) return;
+
+        // We need to calculate rolls for the FULL path to visualize correctly
+        // Recalculate rolls based on full sequence
+        // This is a bit heavy but ensures correct visualization (dodge/gfi)
+
+        // TODO: Use a validator helper to "Analyze Path"
+        // For now, simple draw
+        this.pitch.drawMovementPath(this.waypoints, []); // Pass generic rolls for now or implement analyze
     }
 
     private drawPath(x: number, y: number): void {
         if (!this.selectedPlayerId) return;
         const player = this.gameService.getPlayerById(this.selectedPlayerId);
-        if (!player || !player.gridPosition) return;
+        if (!player) return;
 
-        // Reuse same logic for teams... should probably cache or helper this
-        const team1 = this.getSceneTeam1();
-        const team2 = this.getSceneTeam2();
-        const team = (player.teamId === team1.id) ? team1 : team2;
-        const opponentTeam = (player.teamId === team1.id) ? team2 : team1;
+        // Don't draw preview if not active team
+        const state = this.gameService.getState();
+        if (state.activeTeamId !== player.teamId) return;
 
-        const opponents = opponentTeam.players.filter(p => p.gridPosition);
-        const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
+        // Start from last waypoint
+        const startPos = this.waypoints.length > 0 ? this.waypoints[this.waypoints.length - 1] : player.gridPosition!;
 
-        const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
+        // Find path for segment
+        const team = (player.teamId === this.getSceneTeam1().id) ? this.getSceneTeam1() : this.getSceneTeam2();
+        const opponentTeam = (player.teamId === this.getSceneTeam1().id) ? this.getSceneTeam2() : this.getSceneTeam1();
+
+        const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+        const teammates = team.players.filter((p: any) => p.gridPosition && p.id !== player.id);
+
+        const mockPlayer = { ...player, gridPosition: startPos };
+        const result = this.movementValidator.findPath(mockPlayer as any, x, y, opponents, teammates);
+
         if (result.valid) {
-            this.pitch.drawMovementPath(result.path, result.rolls);
+            // Combine confirmed waypoints + preview path
+            const fullPath = [...this.waypoints, ...result.path];
+            // TODO: Get rolls for full path
+            this.pitch.drawMovementPath(fullPath, []);
         } else {
-            this.pitch.clearPath();
+            // Just draw existing waypoints if preview is invalid
+            if (this.waypoints.length > 0) {
+                this.pitch.drawMovementPath(this.waypoints, []);
+            } else {
+                this.pitch.clearPath();
+            }
         }
     }
 
@@ -234,4 +342,10 @@ export class GameplayInteractionController {
     // Helpers to access Scene data (temporary until full decouple)
     private getSceneTeam1() { return (this.scene as any).team1; }
     private getSceneTeam2() { return (this.scene as any).team2; }
+
+    private getOpposingPlayers(myTeamId: string): any[] {
+        const t1 = this.getSceneTeam1();
+        const t2 = this.getSceneTeam2();
+        return (myTeamId === t1.id) ? t2.players : t1.players;
+    }
 }

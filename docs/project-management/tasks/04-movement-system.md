@@ -21,7 +21,13 @@
 - [x] Movement paths visualized
 - [x] Smooth movement animation
 - [x] All movement rules tested
-- [ ] Movement causes turnover on failure (Part of Task 10)
+- [ ] Movement restricted to active team
+- [ ] Opposing tackle zones visible
+- [ ] Movement range overlay (dark mask)
+- [ ] Sprint/GFI distinct visualization
+- [ ] Path planning with waypoints
+- [ ] Connected path lines
+- [ ] Confirm move action
 
 ## 📋 Blood Bowl Movement Rules
 

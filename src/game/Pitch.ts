@@ -38,6 +38,8 @@ export class Pitch {
       pitchHeight,
       GameConfig.COLORS.PITCH_GREEN
     );
+    // Make background interactive to stop propagation to scene background (which deselects)
+    background.setInteractive();
     this.container.add(background);
 
     // Draw grid lines
@@ -162,71 +164,153 @@ export class Pitch {
     this.container.add(cursor);
   }
 
-  public clearHover(): void {
+  public clearHighlights(): void {
+    // Remove all highlight rectangles (old simple highlights)
     const children = this.container.getAll();
-    children.forEach(child => {
-      if (child.name === 'hover_cursor') {
+    children.forEach((child) => {
+      if (
+        child instanceof Phaser.GameObjects.Rectangle &&
+        child.alpha === 0.5 &&
+        !child.name // Don't delete special named layers yet unless specified
+      ) {
         child.destroy();
       }
     });
+
+    this.clearLayer('tackle_zone');
+    this.clearLayer('range_overlay');
   }
 
   /**
    * Draw movement path dots
    */
-  public drawMovementPath(path: { x: number; y: number }[], rolls: any[]): void {
-    // Clear previous dots (optionally separate container/group for dots? For now just add to container and clear with highlights)
-    // Actually, clearHighlights removes *rectangles* with alpha 0.5. 
-    // Let's rely on clearHighlights clearing everything if we tag them or manage them.
-    // Better: Add a separate method or reuse clearHighlights if we can distinguish.
-    // Implementation: Add circles to container.
+  /**
+   * Highlight opposing tackle zones
+   */
+  public drawTackleZones(zones: { x: number, y: number }[]): void {
+    this.clearLayer('tackle_zone');
+    zones.forEach(z => {
+      const local = gridToPixel(z.x, z.y, this.squareSize);
+      const rect = this.scene.add.rectangle(
+        local.x + this.squareSize / 2,
+        local.y + this.squareSize / 2,
+        this.squareSize,
+        this.squareSize,
+        0xff0000,
+        0.2
+      );
+      rect.setName('tackle_zone');
+      this.container.add(rect);
+    });
+  }
 
-    // We should probably clear previous path dots first.
+  /**
+   * Draw movement range overlay (darken unreachable squares)
+   */
+  public drawRangeOverlay(reachable: { x: number, y: number }[]): void {
+    this.clearLayer('range_overlay');
+    const graphics = this.scene.add.graphics();
+    graphics.fillStyle(0x000000, 0.5);
+    graphics.setName('range_overlay');
+
+    // Draw full pitch dark
+    graphics.fillRect(0, 0, this.width * this.squareSize, this.height * this.squareSize);
+
+    // Cut out reachable squares? Graphics doesn't support easy cutouts in this way without masks.
+    // Easiest way: Draw individual dark rectangles on UNREACHABLE squares or use a mask.
+    // Mask approach:
+    // Create a geometric mask from reachable squares? 
+    // Alternative: Just draw rectangles on squares NOT in reachable set.
+
+    // Optimization: Only draw 0.5 alpha black rects on squares that are NOT reachable.
+    // Iterate all grid squares.
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        if (!reachable.some(r => r.x === x && r.y === y)) {
+          // Unreachable
+          const local = gridToPixel(x, y, this.squareSize);
+          graphics.fillRect(local.x, local.y, this.squareSize, this.squareSize);
+        }
+      }
+    }
+    this.container.add(graphics);
+  }
+
+  /**
+   * Draw movement path with lines and centered dots
+   */
+  public drawMovementPath(path: { x: number; y: number }[], rolls: any[]): void {
     this.clearPath();
 
+    if (path.length === 0) return;
+
+    // Draw Lines
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(4, 0xffffff, 0.8);
+    graphics.setName('path_line');
+
+    // Start from first point (assuming path includes start or we need logic)
+    // Path usually is [step1, step2, step3]. We need start pos too? 
+    // Usually logic: Start -> Path[0] -> Path[1].
+    // Let's assume input path is fully connected points. 
+
+    // Draw lines between points
+    if (path.length > 1) {
+      graphics.beginPath();
+      const start = gridToPixel(path[0].x, path[0].y, this.squareSize);
+      graphics.moveTo(start.x + this.squareSize / 2, start.y + this.squareSize / 2);
+
+      for (let i = 1; i < path.length; i++) {
+        const p = gridToPixel(path[i].x, path[i].y, this.squareSize);
+        graphics.lineTo(p.x + this.squareSize / 2, p.y + this.squareSize / 2);
+      }
+      graphics.strokePath();
+    }
+    this.container.add(graphics);
+
+    // Draw Dots
     path.forEach((step, index) => {
-      // Use local coordinates
       const local = gridToPixel(step.x, step.y, this.squareSize);
-
       let color = 0xffffff; // Normal: White
+      let radius = 6;
 
-      // Check if this step required a roll
+      // Check rolls
       const roll = rolls.find(r => r.square.x === step.x && r.square.y === step.y);
 
       if (roll) {
-        if (roll.type === 'rush') color = 0xffff00; // Yellow for GFI
-        if (roll.type === 'dodge') color = 0xff0000; // Red for Dodge
+        if (roll.type === 'rush') {
+          color = 0xffff00; // Yellow for GFI
+          radius = 8;
+        }
+        if (roll.type === 'dodge') {
+          color = 0xff0000; // Red for Dodge
+          radius = 8;
+        }
       }
 
-      const dot = this.scene.add.circle(local.x + this.squareSize / 2, local.y + this.squareSize / 2, 6, color);
-      dot.setName('path_dot'); // Tag for cleanup
+      const dot = this.scene.add.circle(local.x + this.squareSize / 2, local.y + this.squareSize / 2, radius, color);
+      dot.setName('path_dot');
+      dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);
     });
   }
 
   public clearPath(): void {
+    this.clearLayer('path_dot');
+    this.clearLayer('path_line');
+  }
+
+  public clearLayer(name: string): void {
     const children = this.container.getAll();
     children.forEach(child => {
-      if (child.name === 'path_dot') {
+      if (child.name === name) {
         child.destroy();
       }
     });
   }
 
-  /**
-   * Clear all highlights
-   */
-  public clearHighlights(): void {
-    // Remove all highlight rectangles
-    const children = this.container.getAll();
-    children.forEach((child) => {
-      if (
-        child instanceof Phaser.GameObjects.Rectangle &&
-        child.alpha === 0.5
-      ) {
-        child.destroy();
-      }
-    });
+  public clearHover(): void {
+    this.clearLayer('hover_cursor');
   }
 
   /**
@@ -244,7 +328,7 @@ export class Pitch {
   }
 
   /**
-   * Get the container
+   * getContainer
    */
   public getContainer(): Phaser.GameObjects.Container {
     return this.container;
