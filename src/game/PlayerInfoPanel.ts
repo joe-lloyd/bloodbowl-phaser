@@ -53,7 +53,22 @@ export class PlayerInfoPanel extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  public showPlayer(player: Player): void {
+  public showPlayer(player: Player, context?: { teamSide: 'top' | 'bottom', x?: number, y?: number }): void {
+
+    // Dynamic Positioning
+    if (context) {
+      if (context.teamSide === 'top') {
+        // Position near Top Dugout (Right Side)
+        this.setPosition(1050, 100);
+      } else {
+        // Position near Bottom Dugout (Right Side)
+        this.setPosition(1050, 700);
+      }
+    } else {
+      // Default / Fallback
+      this.setPosition(1050, 400);
+    }
+
     this.nameText.setText(`#${player.number} ${player.name}`);
     this.positionText.setText(player.position);
 

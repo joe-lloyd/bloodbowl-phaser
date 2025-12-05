@@ -419,7 +419,7 @@ export class GameService implements IGameService {
         return false;
     }
 
-    private getPlayerById(playerId: string): Player | undefined {
+    public getPlayerById(playerId: string): Player | undefined {
         return (
             this.team1.players.find((p) => p.id === playerId) ||
             this.team2.players.find((p) => p.id === playerId)

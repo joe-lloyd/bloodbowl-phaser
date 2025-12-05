@@ -19,6 +19,7 @@ import {
 } from "../game/setup";
 import { pixelToGrid } from "../utils/GridUtils";
 import { MovementValidator } from "../domain/validators/MovementValidator";
+import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -45,6 +46,7 @@ export class GameScene extends Phaser.Scene {
 
   // Logic
   private movementValidator!: MovementValidator;
+  private gameplayController!: GameplayInteractionController;
 
   // Services
   private gameService!: IGameService;
@@ -87,47 +89,26 @@ export class GameScene extends Phaser.Scene {
     this.pitch = new Pitch(this, pitchX, pitchY);
 
     // Pitch interaction for Play Phase
+    // Pitch interaction
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Simple check: if not dragging and setup not active
-      if (this.isSetupActive) return;
+      if (this.isSetupActive) return; // Setup handled by PlacementController (managed internally or separate)
 
-      // Transform to pitch local
-      const pitchContainer = this.pitch.getContainer();
-      const localX = pointer.x - pitchContainer.x;
-      const localY = pointer.y - pitchContainer.y;
-
-      // Check pitch bounds (26 * 60 approx width, 15 * 60 height)
-      const pitchW = 26 * 60; // 1560
-      const pitchH = 15 * 60; // 900
-
-      if (localX >= 0 && localX <= pitchW && localY >= 0 && localY <= pitchH) {
-        const gridPos = pixelToGrid(localX, localY, 60);
-        this.onPitchClick(gridPos.x, gridPos.y);
-      }
+      // Delegate to Gameplay Controller
+      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isSetupActive || !this.selectedPlayerId) return;
-
-      // Visualizing path on hover
-      const pitchContainer = this.pitch.getContainer();
-      const localX = pointer.x - pitchContainer.x;
-      const localY = pointer.y - pitchContainer.y;
-
-      // Check bounds
-      const pitchW = 26 * 60;
-      const pitchH = 15 * 60;
-
-      if (localX >= 0 && localX <= pitchW && localY >= 0 && localY <= pitchH) {
-        const gridPos = pixelToGrid(localX, localY, 60);
-        this.onPitchHover(gridPos.x, gridPos.y);
-      } else {
-        this.pitch.clearPath(); // Clear if out of bounds
-      }
+      // Delegate
+      this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
     });
 
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
+
+
+
+    // 4. Initialize UI Overlay
+    this.initializeUI(width, height);
 
     // 4. Initialize UI Overlay
     this.initializeUI(width, height);
@@ -135,6 +116,15 @@ export class GameScene extends Phaser.Scene {
     // 5. Initialize Controllers
     this.initializeControllers();
     this.movementValidator = new MovementValidator();
+
+    // Gameplay Controller
+    this.gameplayController = new GameplayInteractionController(
+      this,
+      this.gameService,
+      this.pitch,
+      this.movementValidator,
+      this.playerInfoPanel
+    );
 
     // 6. Setup Event Listeners
     this.setupEventListeners();
@@ -489,38 +479,7 @@ export class GameScene extends Phaser.Scene {
 
   private onPlayerClick(player: Player): void {
     if (this.isSetupActive) return;
-
-    // Kickoff Phase Logic
-    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
-      if (this.kickoffStep !== 'SELECT_KICKER') return;
-      if (player.teamId !== this.kickingTeam.id) {
-        this.showTurnNotification("Select own player!");
-        return;
-      }
-
-      this.deselectPlayer();
-      this.selectedPlayerId = player.id;
-      const sprite = this.playerSprites.get(player.id);
-      if (sprite) sprite.highlight(0xffff00);
-
-      this.kickoffStep = 'SELECT_TARGET';
-      this.showTurnNotification("Select Target Square");
-      return;
-    }
-
-    const state = this.gameService.getState();
-    if (state.activeTeamId !== player.teamId) return;
-
-    this.deselectPlayer();
-    this.selectedPlayerId = player.id;
-
-    const sprite = this.playerSprites.get(player.id);
-    if (sprite) sprite.highlight(0xffff00);
-
-    const reachable = this.gameService.getAvailableMovements(player.id);
-    reachable.forEach(pos => {
-      this.pitch.highlightSquare(pos.x, pos.y, 0x00ff00);
-    });
+    this.gameplayController.selectPlayer(player.id);
   }
 
   private animateBallKick(data: any): void {
@@ -551,75 +510,48 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private onPitchClick(x: number, y: number): void {
-    if (this.isSetupActive) return;
 
-    // Kickoff Phase Logic
-    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
-      if (this.kickoffStep === 'SELECT_TARGET' && this.selectedPlayerId) {
-        this.gameService.kickBall(this.selectedPlayerId, x, y);
-        this.kickoffStep = null;
-        this.deselectPlayer();
-      }
-      return;
-    }
 
-    if (!this.selectedPlayerId) return;
 
-    const team = (this.team1.players.find(p => p.id === this.selectedPlayerId)) ? this.team1 : this.team2;
-    const player = team.players.find(p => p.id === this.selectedPlayerId);
 
-    if (!player || !player.gridPosition) return;
-
-    // Calculate path (need opponents/teammates)
-    const opponents = (team.id === this.team1.id ? this.team2 : this.team1).players.filter(p => p.gridPosition);
-    const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
-
-    const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
-
-    if (result.valid) {
-      this.gameService.movePlayer(player.id, result.path)
-        .then(() => {
-          this.deselectPlayer();
-          this.refreshDugouts();
-        })
-        .catch(err => {
-          console.error("Move failed:", err);
-          this.showTurnNotification("Move Failed!");
-        });
-    } else {
-      // Check if it's the player's own square (deselect)
-      if (x === player.gridPosition.x && y === player.gridPosition.y) {
-        this.deselectPlayer();
-      } else {
-        console.log("Invalid move path");
-      }
+  // Interaction Helpers matched to Controller expectations
+  public highlightPlayer(playerId: string): void {
+    const sprite = this.playerSprites.get(playerId);
+    if (sprite) {
+      sprite.highlight(0xffff00);
     }
   }
 
-  private onPitchHover(x: number, y: number): void {
-    if (!this.selectedPlayerId) return;
-
-    const team = (this.team1.players.find(p => p.id === this.selectedPlayerId)) ? this.team1 : this.team2;
-    const player = team.players.find(p => p.id === this.selectedPlayerId);
-    if (!player || !player.gridPosition) return;
-
-    // Don't calculate if hovering self
-    if (x === player.gridPosition.x && y === player.gridPosition.y) {
-      this.pitch.clearPath();
-      return;
+  public unhighlightPlayer(playerId: string): void {
+    const sprite = this.playerSprites.get(playerId);
+    if (sprite) {
+      sprite.unhighlight();
     }
+  }
 
-    const opponents = (team.id === this.team1.id ? this.team2 : this.team1).players.filter(p => p.gridPosition);
-    const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
+  public handleKickoffInteraction(x: number, y: number, playerAtSquare: any): void {
+    if (this.gameService.getPhase() !== GamePhase.KICKOFF) return;
 
-    // We use findPath to get the path
-    const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
+    if (this.kickoffStep === 'SELECT_KICKER') {
+      if (playerAtSquare) {
+        if (playerAtSquare.teamId !== this.kickingTeam.id) {
+          this.showTurnNotification("Select own player!");
+          return;
+        }
+        // Select kicker
+        this.selectedPlayerId = playerAtSquare.id;
+        this.highlightPlayer(playerAtSquare.id);
 
-    if (result.valid) {
-      this.pitch.drawMovementPath(result.path, result.rolls);
-    } else {
-      this.pitch.clearPath();
+        this.kickoffStep = 'SELECT_TARGET';
+        this.showTurnNotification("Select Target Square");
+      }
+    } else if (this.kickoffStep === 'SELECT_TARGET') {
+      if (this.selectedPlayerId) {
+        this.gameService.kickBall(this.selectedPlayerId, x, y);
+        this.kickoffStep = null;
+        this.gameplayController.deselectPlayer();
+        this.selectedPlayerId = null;
+      }
     }
   }
 }

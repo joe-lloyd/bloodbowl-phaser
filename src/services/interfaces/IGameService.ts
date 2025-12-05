@@ -150,4 +150,9 @@ export interface IGameService {
      * Move a player along a path
      */
     movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
+
+    /**
+     * Get a player by ID
+     */
+    getPlayerById(playerId: string): import('../../types/Player').Player | undefined;
 }

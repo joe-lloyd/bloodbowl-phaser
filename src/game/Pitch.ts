@@ -141,6 +141,37 @@ export class Pitch {
   }
 
   /**
+   * Highlight a square for hover cursor (transient)
+   */
+  public highlightHoverSquare(gridX: number, gridY: number): void {
+    this.clearHover(); // Only one at a time
+
+    // Use local coordinates for container
+    const local = gridToPixel(gridX, gridY, this.squareSize);
+
+    const cursor = this.scene.add.rectangle(
+      local.x,
+      local.y,
+      this.squareSize,
+      this.squareSize,
+      0xffffff,
+      0.0
+    );
+    cursor.setStrokeStyle(2, 0xffffff, 0.8);
+    cursor.setName('hover_cursor');
+    this.container.add(cursor);
+  }
+
+  public clearHover(): void {
+    const children = this.container.getAll();
+    children.forEach(child => {
+      if (child.name === 'hover_cursor') {
+        child.destroy();
+      }
+    });
+  }
+
+  /**
    * Draw movement path dots
    */
   public drawMovementPath(path: { x: number; y: number }[], rolls: any[]): void {
@@ -154,14 +185,12 @@ export class Pitch {
     this.clearPath();
 
     path.forEach((step, index) => {
-      const pos = this.getPixelPosition(step.x, step.y);
+      // Use local coordinates
+      const local = gridToPixel(step.x, step.y, this.squareSize);
 
       let color = 0xffffff; // Normal: White
 
       // Check if this step required a roll
-      // This logic mimics the Validator's roll generation roughly, or we pass pre-calculated logic?
-      // GameScene will pass 'rolls' from Validator result.
-      // We can check if 'rolls' contains an entry for this square.
       const roll = rolls.find(r => r.square.x === step.x && r.square.y === step.y);
 
       if (roll) {
@@ -169,7 +198,7 @@ export class Pitch {
         if (roll.type === 'dodge') color = 0xff0000; // Red for Dodge
       }
 
-      const dot = this.scene.add.circle(pos.x + this.squareSize / 2, pos.y + this.squareSize / 2, 6, color);
+      const dot = this.scene.add.circle(local.x + this.squareSize / 2, local.y + this.squareSize / 2, 6, color);
       dot.setName('path_dot'); // Tag for cleanup
       this.container.add(dot);
     });
