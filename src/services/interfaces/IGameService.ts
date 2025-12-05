@@ -110,6 +110,18 @@ export interface IGameService {
      */
     hasPlayerActed(playerId: string): boolean;
 
+    // ===== Action Methods =====
+
+    /**
+     * Attempt to block an opponent
+     */
+    blockPlayer(attackerId: string, defenderId: string): { success: boolean; result?: string };
+
+    /**
+     * Attempt to pass the ball
+     */
+    passBall(passerId: string, targetSquare: { x: number; y: number }): { success: boolean; result?: string };
+
     // ===== Score Management =====
 
     /**

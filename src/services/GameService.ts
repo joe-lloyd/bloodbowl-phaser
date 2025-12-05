@@ -10,6 +10,8 @@ import { IEventBus } from './EventBus.js';
 import { GameState, GamePhase, TurnData } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player } from '@/types/Player';
+import { MovementValidator } from '../domain/validators/MovementValidator.js';
+import { ActionValidator } from '../domain/validators/ActionValidator.js';
 
 export class GameService implements IGameService {
     private state: GameState;
@@ -19,6 +21,10 @@ export class GameService implements IGameService {
     private turnCounts: { [key: string]: number } = {};
     private placedPlayers: Map<string, { x: number; y: number }> = new Map();
     private setupReady: Set<string> = new Set();
+
+    // Validators
+    private movementValidator: MovementValidator = new MovementValidator();
+    private actionValidator: ActionValidator = new ActionValidator();
 
     constructor(
         private eventBus: IEventBus,
@@ -276,6 +282,42 @@ export class GameService implements IGameService {
 
     hasPlayerActed(playerId: string): boolean {
         return this.state.turn.activatedPlayerIds.has(playerId);
+    }
+
+    // ===== Action Methods =====
+
+    blockPlayer(attackerId: string, defenderId: string): { success: boolean; result?: string } {
+        if (this.state.phase !== GamePhase.PLAY) return { success: false, result: 'Not in Play phase' };
+
+        const attacker = this.getPlayerById(attackerId);
+        const defender = this.getPlayerById(defenderId);
+
+        if (!attacker || !defender) return { success: false, result: 'Player not found' };
+
+        // Validate action
+        const validation = this.actionValidator.validateAction('block', attacker, defender);
+        if (!validation.valid) {
+            return { success: false, result: validation.reason };
+        }
+
+        // TODO: Implement dice logic here using DiceService
+        // For now, return success
+        return { success: true, result: 'Block executed (Pseudo)' };
+    }
+
+    passBall(passerId: string, targetSquare: { x: number; y: number }): { success: boolean; result?: string } {
+        if (this.state.phase !== GamePhase.PLAY) return { success: false, result: 'Not in Play phase' };
+
+        const passer = this.getPlayerById(passerId);
+        if (!passer) return { success: false, result: 'Player not found' };
+
+        // Validate action
+        const validation = this.actionValidator.validateAction('pass', passer, targetSquare);
+        if (!validation.valid) {
+            return { success: false, result: validation.reason };
+        }
+
+        return { success: true, result: 'Pass executed (Pseudo)' };
     }
 
     // ===== Score Management =====

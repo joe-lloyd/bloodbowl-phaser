@@ -113,6 +113,7 @@ export class PlayerBuilder {
     private number: number;
     private name?: string;
     private status: PlayerStatus;
+    private id?: string;
     private gridPosition?: { x: number; y: number };
 
     constructor() {
@@ -174,11 +175,22 @@ export class PlayerBuilder {
         return this;
     }
 
+    withId(id: string): PlayerBuilder {
+        this.id = id;
+        return this;
+    }
+
     build(): Player {
         const player = createPlayer(this.template, this.teamId, this.number, this.name);
         player.status = this.status;
         if (this.gridPosition) {
             player.gridPosition = this.gridPosition;
+        }
+        if (this.gridPosition) {
+            player.gridPosition = this.gridPosition;
+        }
+        if (this.id) {
+            player.id = this.id;
         }
         return player;
     }

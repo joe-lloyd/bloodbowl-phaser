@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { loadTeams } from "../managers/TeamManager";
 import { Team } from "../types/Team";
 import { UIText, UIButton } from "../ui";
+import { ServiceContainer } from "../services/ServiceContainer";
 
 /**
  * Team Selection Scene - Select teams for Player 1 and Player 2
@@ -148,6 +149,9 @@ export class TeamSelectionScene extends Phaser.Scene {
       fontSize: "24px",
       disabled: !canStart,
       onClick: () => {
+        // Initialize Core Services
+        ServiceContainer.initialize(this.selectedTeam1!, this.selectedTeam2!);
+
         // Start Setup Scene directly (Coin flip is now part of Setup)
         this.scene.start("SetupScene", {
           team1: this.selectedTeam1!,
