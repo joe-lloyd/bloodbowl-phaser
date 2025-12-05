@@ -133,4 +133,16 @@ export interface IGameService {
      * Get the score for a team
      */
     getScore(teamId: string): number;
+
+    // ===== Movement =====
+
+    /**
+     * Get all reachable squares for a player
+     */
+    getAvailableMovements(playerId: string): { x: number; y: number }[];
+
+    /**
+     * Move a player along a path
+     */
+    movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
 }

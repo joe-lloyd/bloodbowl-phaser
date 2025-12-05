@@ -9,7 +9,7 @@ import { IGameService } from './interfaces/IGameService.js';
 import { IEventBus } from './EventBus.js';
 import { GameState, GamePhase, TurnData } from '@/types/GameState';
 import { Team } from '@/types/Team';
-import { Player } from '@/types/Player';
+import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../domain/validators/MovementValidator.js';
 import { ActionValidator } from '../domain/validators/ActionValidator.js';
 
@@ -371,4 +371,64 @@ export class GameService implements IGameService {
             this.team2.players.find((p) => p.id === playerId)
         );
     }
+
+    // ===== Movement Implementation =====
+
+    getAvailableMovements(playerId: string): { x: number; y: number }[] {
+        const player = this.getPlayerById(playerId);
+        if (!player || player.status !== PlayerStatus.ACTIVE) return [];
+
+        // Identify opponents and teammates
+        const myTeam = (player.teamId === this.team1.id) ? this.team1 : this.team2;
+        const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
+
+        // Filter active players for obstruction calculation
+        const teammates = myTeam.players.filter(p => p.id !== playerId && p.status === PlayerStatus.ACTIVE && p.gridPosition);
+        const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
+
+        return this.movementValidator.findReachableSquares(player, opponents, teammates);
+    }
+
+    async movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void> {
+        const player = this.getPlayerById(playerId);
+        if (!player) return;
+
+        const myTeam = (player.teamId === this.team1.id) ? this.team1 : this.team2;
+        const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
+        const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
+
+        // Validate path before moving
+        // Note: The UI usually generates valid paths using pathfinding, but we verify here.
+        const result = this.movementValidator.validatePath(player, [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents);
+
+        if (!result.valid) {
+            console.warn(`Invalid move attempted for player ${playerId}`);
+            return;
+        }
+
+        // Execute move step-by-step
+        // For now, simpler implementation: Move to end and consume MA/rolls events
+        // In full implementation, we would await dice rolls for dodges/gfi.
+
+        const finalSquare = path[path.length - 1];
+
+        // Update player position
+        player.gridPosition = finalSquare;
+
+        // Mark as acted if it was a GFI or if rule dictates (usually move doesn't end activation unless block follows)
+        // But for generic move action, it consumes activation in SEVENS/BB2020 if checks failed?
+        // If move successful, player is still selected?
+        // Usually 'Move Action' marks hasActed=true at end of turn/action?
+        // We'll set position. The Turn Controller manages 'hasActed'.
+
+        this.eventBus.emit('playerMoved', { playerId, from: result.path[0], to: finalSquare });
+
+        // Create roll events if any (mock for visuals)
+        for (const roll of result.rolls) {
+            // In real logic, we'd prompt user or roll dice.
+            // If failed, handle turnover (not implemented in Phase 4).
+            console.log(`Roll required: ${roll.type} target ${roll.target}`);
+        }
+    }
+
 }
