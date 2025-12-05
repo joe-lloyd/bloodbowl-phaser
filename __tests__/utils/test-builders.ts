@@ -47,6 +47,10 @@ export class TeamBuilder {
 
     withId(id: string): TeamBuilder {
         this.team.id = id;
+        // Update all existing players' teamIds to match
+        this.team.players.forEach(player => {
+            player.teamId = id;
+        });
         return this;
     }
 
@@ -54,7 +58,7 @@ export class TeamBuilder {
         this.team.players = [];
         for (let i = 0; i < count; i++) {
             const player = new PlayerBuilder()
-                .withTeamId(this.team.id)
+                .withTeamId(this.team.id) // Use current team ID
                 .withNumber(i + 1)
                 .build();
             this.team.players.push(player);

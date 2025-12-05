@@ -5,6 +5,10 @@ node_modules/
 dist/
 dist-ssr/
 
+# Test coverage
+coverage/
+.nyc_output/
+
 # Logs
 *.log
 npm-debug.log*

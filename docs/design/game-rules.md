@@ -7,7 +7,7 @@ This document provides a quick reference to Blood Bowl Sevens rules for develope
 ## Game Basics
 
 - **Players**: 7 per team (vs 11 in standard)
-- **Pitch**: 11x17 squares (vs 15x26 in standard)
+- **Pitch**: 11x20 squares (vs 15x26 in standard)
 - **Turns**: 6 per half (vs 8 in standard)
 - **Budget**: 600,000 gold (vs 1,000,000 in standard)
 - **Goal**: Score touchdowns by getting ball into opponent's end zone

@@ -87,6 +87,7 @@ graph TD
     C --> D
     D --> E[TeamSelectScene]
     E --> F[SetupScene]
+    B --> F
     F --> G[GameScene]
     G --> B
 ```

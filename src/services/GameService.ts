@@ -1,0 +1,324 @@
+/**
+ * GameService - Core game logic service
+ * 
+ * Pure TypeScript implementation with no Phaser dependencies.
+ * Manages game state, phase transitions, and turn management.
+ */
+
+import { IGameService } from './interfaces/IGameService.js';
+import { IEventBus } from './EventBus.js';
+import { GameState, GamePhase, TurnData } from '@/types/GameState';
+import { Team } from '@/types/Team';
+import { Player } from '@/types/Player';
+
+export class GameService implements IGameService {
+    private state: GameState;
+    private team1: Team;
+    private team2: Team;
+    private maxTurns: number = 6; // Sevens default
+    private turnCounts: { [key: string]: number } = {};
+    private placedPlayers: Map<string, { x: number; y: number }> = new Map();
+    private setupReady: Set<string> = new Set();
+
+    constructor(
+        private eventBus: IEventBus,
+        team1: Team,
+        team2: Team
+    ) {
+        this.team1 = team1;
+        this.team2 = team2;
+
+        this.turnCounts = {
+            [team1.id]: 0,
+            [team2.id]: 0,
+        };
+
+        this.state = {
+            phase: GamePhase.SETUP,
+            activeTeamId: null,
+            turn: {
+                teamId: '',
+                turnNumber: 0,
+                isHalf2: false,
+                activatedPlayerIds: new Set(),
+                hasBlitzed: false,
+                hasPassed: false,
+                hasHandedOff: false,
+                hasFouled: false,
+            },
+            score: {
+                [team1.id]: 0,
+                [team2.id]: 0,
+            },
+        };
+    }
+
+    // ===== State Queries =====
+
+    getState(): GameState {
+        return this.state;
+    }
+
+    getPhase(): GamePhase {
+        return this.state.phase;
+    }
+
+    getActiveTeamId(): string | null {
+        return this.state.activeTeamId;
+    }
+
+    getTurnNumber(teamId: string): number {
+        return this.turnCounts[teamId] || 0;
+    }
+
+    // ===== Setup Phase =====
+
+    startSetup(): void {
+        this.state.phase = GamePhase.SETUP;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP });
+    }
+
+    placePlayer(playerId: string, x: number, y: number): boolean {
+        if (this.state.phase !== GamePhase.SETUP) return false;
+
+        // Validate position
+        if (!this.isValidSetupPosition(playerId, x, y)) return false;
+
+        // Check if occupied by another player
+        if (this.isSquareOccupiedByOther(x, y, playerId)) return false;
+
+        // Check limit (7 players)
+        const player = this.getPlayerById(playerId);
+        if (!player) return false;
+
+        const teamId = player.teamId;
+        const teamPlacedCount = this.getPlacedCount(teamId);
+
+        // If moving existing player, don't count against limit
+        const isNewPlacement = !this.placedPlayers.has(playerId);
+        if (isNewPlacement && teamPlacedCount >= 7) return false;
+
+        this.placedPlayers.set(playerId, { x, y });
+        player.gridPosition = { x, y };
+
+        this.eventBus.emit('playerPlaced', { playerId, x, y });
+        return true;
+    }
+
+    removePlayer(playerId: string): void {
+        if (this.placedPlayers.has(playerId)) {
+            this.placedPlayers.delete(playerId);
+            const player = this.getPlayerById(playerId);
+            if (player) player.gridPosition = undefined;
+
+            this.eventBus.emit('playerRemoved', playerId);
+        }
+    }
+
+    swapPlayers(player1Id: string, player2Id: string): boolean {
+        if (this.state.phase !== GamePhase.SETUP) return false;
+
+        const pos1 = this.placedPlayers.get(player1Id);
+        const pos2 = this.placedPlayers.get(player2Id);
+
+        if (!pos1 && !pos2) return false;
+
+        // Update positions
+        if (pos1) {
+            if (pos2) {
+                // Both placed: Swap coordinates
+                this.placedPlayers.set(player1Id, pos2);
+                this.placedPlayers.set(player2Id, pos1);
+            } else {
+                // P1 placed, P2 in dugout: Move P2 to P1's spot, remove P1
+                this.placedPlayers.set(player2Id, pos1);
+                this.placedPlayers.delete(player1Id);
+            }
+        } else if (pos2) {
+            // P2 placed, P1 in dugout: Move P1 to P2's spot, remove P2
+            this.placedPlayers.set(player1Id, pos2);
+            this.placedPlayers.delete(player2Id);
+        }
+
+        // Sync player objects
+        const p1 = this.getPlayerById(player1Id);
+        const p2 = this.getPlayerById(player2Id);
+
+        if (p1) p1.gridPosition = this.placedPlayers.get(player1Id);
+        if (p2) p2.gridPosition = this.placedPlayers.get(player2Id);
+
+        this.eventBus.emit('playersSwapped', { player1Id, player2Id });
+        return true;
+    }
+
+    confirmSetup(teamId: string): void {
+        this.setupReady.add(teamId);
+
+        if (
+            this.setupReady.has(this.team1.id) &&
+            this.setupReady.has(this.team2.id)
+        ) {
+            // Both ready, proceed to Kickoff
+            this.startKickoff();
+        } else {
+            this.eventBus.emit('setupConfirmed', teamId);
+        }
+    }
+
+    isSetupComplete(teamId: string): boolean {
+        const placed = this.getPlacedCount(teamId);
+        const team = teamId === this.team1.id ? this.team1 : this.team2;
+
+        // Count only eligible players
+        const eligiblePlayers = team.players.filter(
+            (p) => p.status !== 'KO' && p.status !== 'Injured' && p.status !== 'Dead'
+        );
+        const available = Math.min(7, eligiblePlayers.length);
+
+        return placed === available;
+    }
+
+    // ===== Kickoff Phase =====
+
+    startKickoff(): void {
+        this.state.phase = GamePhase.KICKOFF;
+        this.eventBus.emit('kickoffStarted');
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF });
+    }
+
+    rollKickoff(): void {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        let event = 'Nice Weather';
+
+        if (roll === 1) event = 'Get the Ref!';
+        if (roll === 6) event = 'Pitch Invasion!';
+
+        this.eventBus.emit('kickoffResult', { roll, event });
+    }
+
+    // ===== Game Phase =====
+
+    startGame(kickingTeamId: string): void {
+        this.state.phase = GamePhase.PLAY;
+
+        const receivingTeamId =
+            kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
+
+        this.startTurn(receivingTeamId);
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.PLAY });
+    }
+
+    startTurn(teamId: string): void {
+        this.state.phase = GamePhase.PLAY;
+        this.state.activeTeamId = teamId;
+
+        // Increment turn count for this team
+        this.turnCounts[teamId] = (this.turnCounts[teamId] || 0) + 1;
+        const currentTurn = this.turnCounts[teamId];
+
+        this.state.turn = {
+            teamId: teamId,
+            turnNumber: currentTurn,
+            isHalf2: this.state.turn.isHalf2,
+            activatedPlayerIds: new Set(),
+            hasBlitzed: false,
+            hasPassed: false,
+            hasHandedOff: false,
+            hasFouled: false,
+        };
+
+        this.eventBus.emit('turnStarted', this.state.turn);
+    }
+
+    endTurn(): void {
+        const currentTeamId = this.state.activeTeamId;
+        if (!currentTeamId) return;
+
+        const nextTeamId =
+            currentTeamId === this.team1.id ? this.team2.id : this.team1.id;
+
+        // Check if next team has turns left
+        const nextTeamTurnCount = this.turnCounts[nextTeamId] || 0;
+
+        if (nextTeamTurnCount >= this.maxTurns) {
+            // If both teams finished max turns, end half
+            const currentTeamTurnCount = this.turnCounts[currentTeamId];
+            if (currentTeamTurnCount >= this.maxTurns) {
+                this.endHalf();
+                return;
+            }
+        }
+
+        this.startTurn(nextTeamId);
+    }
+
+    endHalf(): void {
+        this.state.phase = GamePhase.HALFTIME;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.HALFTIME });
+    }
+
+    playerAction(playerId: string): boolean {
+        if (this.state.phase !== GamePhase.PLAY) return false;
+        if (this.state.turn.activatedPlayerIds.has(playerId)) return false;
+
+        this.state.turn.activatedPlayerIds.add(playerId);
+        this.eventBus.emit('playerActivated', playerId);
+        return true;
+    }
+
+    hasPlayerActed(playerId: string): boolean {
+        return this.state.turn.activatedPlayerIds.has(playerId);
+    }
+
+    // ===== Score Management =====
+
+    addTouchdown(teamId: string): void {
+        this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
+        this.eventBus.emit('touchdown', { teamId, score: this.state.score[teamId] });
+    }
+
+    getScore(teamId: string): number {
+        return this.state.score[teamId] || 0;
+    }
+
+    // ===== Private Helper Methods =====
+
+    private getPlacedCount(teamId: string): number {
+        let count = 0;
+        this.placedPlayers.forEach((_pos, pid) => {
+            const p = this.getPlayerById(pid);
+            if (p && p.teamId === teamId) count++;
+        });
+        return count;
+    }
+
+    private isValidSetupPosition(playerId: string, x: number, y: number): boolean {
+        if (x < 0 || x >= 20 || y < 0 || y >= 11) return false;
+
+        const player = this.getPlayerById(playerId);
+        if (!player) return false;
+
+        // Team 1: Left side (x: 0-5), Team 2: Right side (x: 14-19)
+        if (player.teamId === this.team1.id) {
+            return x >= 0 && x <= 5;
+        } else {
+            return x >= 14 && x < 20;
+        }
+    }
+
+    private isSquareOccupiedByOther(x: number, y: number, playerId: string): boolean {
+        for (const [pid, pos] of this.placedPlayers.entries()) {
+            if (pid !== playerId && pos.x === x && pos.y === y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private getPlayerById(playerId: string): Player | undefined {
+        return (
+            this.team1.players.find((p) => p.id === playerId) ||
+            this.team2.players.find((p) => p.id === playerId)
+        );
+    }
+}
