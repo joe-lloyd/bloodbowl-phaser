@@ -184,6 +184,9 @@ export class GameService implements IGameService {
         this.state.phase = GamePhase.KICKOFF;
         this.eventBus.emit('kickoffStarted');
         this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF });
+
+        // Auto-roll after delay
+        setTimeout(() => this.rollKickoff(), 1000);
     }
 
     rollKickoff(): void {
@@ -194,6 +197,11 @@ export class GameService implements IGameService {
         if (roll === 6) event = 'Pitch Invasion!';
 
         this.eventBus.emit('kickoffResult', { roll, event });
+
+        // Proceed to game after delay
+        setTimeout(() => {
+            this.eventBus.emit('readyToStart');
+        }, 2000);
     }
 
     // ===== Game Phase =====

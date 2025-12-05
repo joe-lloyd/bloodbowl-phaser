@@ -4,7 +4,9 @@ import { PlayerSprite } from "../game/PlayerSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
-import { GameStateManager } from "../game/GameStateManager";
+import { ServiceContainer } from "../services/ServiceContainer";
+import { IGameService } from "../services/interfaces/IGameService";
+import { IEventBus } from "../services/EventBus";
 import { GamePhase } from "../types/GameState";
 import { UIText, UIButton } from "../ui";
 
@@ -19,9 +21,11 @@ export class GameScene extends Phaser.Scene {
   private receivingTeam!: Team;
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private playerInfoPanel!: PlayerInfoPanel;
-  private gameStateManager!: GameStateManager;
+  private gameService!: IGameService;
+  private eventBus!: IEventBus;
   private turnText!: UIText;
   private endTurnButton!: UIButton;
+  private selectedPlayerId: string | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -32,13 +36,16 @@ export class GameScene extends Phaser.Scene {
     team2: Team;
     kickingTeam: Team;
     receivingTeam: Team;
-    gameStateManager: GameStateManager;
   }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
     this.kickingTeam = data.kickingTeam;
     this.receivingTeam = data.receivingTeam;
-    this.gameStateManager = data.gameStateManager;
+
+    // Get services
+    const container = ServiceContainer.getInstance();
+    this.gameService = container.gameService;
+    this.eventBus = container.eventBus;
   }
 
   create(): void {
@@ -88,16 +95,13 @@ export class GameScene extends Phaser.Scene {
       false
     );
 
-    // Use existing State Manager
-    // this.gameStateManager = new GameStateManager(this.team1, this.team2);
-
     // Listen for state changes
-    this.gameStateManager.on("stateChanged", (_state: any) => {
-      this.updateTurnUI();
-    });
+    this.eventBus.on("phaseChanged", () => this.updateTurnUI());
+    this.eventBus.on("turnEnded", () => this.updateTurnUI());
 
-    this.gameStateManager.on("turnStarted", (turn: any) => {
-      // Reset player activations visually if needed
+    this.eventBus.on("turnStarted", (turn: any) => {
+      this.updateTurnUI();
+      // Reset player activations visually
       this.playerSprites.forEach((sprite) => sprite.setAlpha(1));
       // Show notification
       const teamName =
@@ -123,21 +127,14 @@ export class GameScene extends Phaser.Scene {
       y: height - 50,
       text: "END TURN",
       variant: "danger",
-      onClick: () => this.gameStateManager.endTurn(),
+      onClick: () => this.gameService.endTurn(),
     });
 
-    // Player info panel (right side, under dugout for now or floating)
-    // User asked for "under the teams dugout for which team the player you hover"
-    // Since we have limited space, let's put a single panel that updates based on hover
-    // Position it in the bottom right corner for now, or maybe create two instances?
-    // Let's stick to one panel but position it better.
-    // Actually, let's put it under the right dugout as a default location
+    // Player info panel
     this.playerInfoPanel = new PlayerInfoPanel(this, width - 170, pitchY + 400);
 
     // Listen for player hover events
     this.events.on("showPlayerInfo", (player: Player) => {
-      // Move panel to the side of the player's team if possible?
-      // For now, just show it.
       this.playerInfoPanel.showPlayer(player);
     });
 
@@ -165,10 +162,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Start Game
-    this.gameStateManager.startGame(this.kickingTeam.id);
+    this.gameService.startGame(this.kickingTeam.id);
   }
-
-  private selectedPlayerId: string | null = null;
 
   private showTurnNotification(message: string): void {
     const text = this.add
@@ -197,21 +192,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateTurnUI(): void {
-    const state = this.gameStateManager.getState();
+    const state = this.gameService.getState();
     const activeTeam =
       state.activeTeamId === this.team1.id ? this.team1 : this.team2;
     this.turnText.setText(`Turn ${state.turn.turnNumber}: ${activeTeam.name}`);
     this.turnText.setColor(
       activeTeam.colors.primary === 0xff4444 ? "#ff4444" : "#4444ff"
-    ); // Simple color check
+    );
 
     // Update End Turn button visibility/color based on active team
     this.endTurnButton.setVisible(state.phase === GamePhase.PLAY);
   }
 
   private selectPlayer(playerId: string): void {
-    const state = this.gameStateManager.getState();
-    const player = this.getPlayerById(playerId); // Need helper
+    const state = this.gameService.getState();
+    const player = this.getPlayerById(playerId);
 
     if (!player) return;
 
@@ -337,16 +332,6 @@ export class GameScene extends Phaser.Scene {
     sprite.on("pointerout", () => {
       this.events.emit("hidePlayerInfo");
     });
-
-    // No selection in dugout for GameScene yet, or maybe just info?
-    // User asked for "click a player we should also show a littl highlight"
-    // Let's allow highlighting dugout players too.
-    // But PlayerSprite in dugout is not in playerSprites map.
-    // We should probably add them to a map or just handle highlight locally on the sprite instance?
-    // But we need to deselect others.
-    // Let's skip dugout selection highlighting for GameScene for now to avoid complexity,
-    // or just do local highlight without global tracking (but that leaves multiple highlighted).
-    // Let's stick to tooltips for dugout in GameScene.
 
     return sprite;
   }

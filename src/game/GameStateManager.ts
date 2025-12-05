@@ -2,6 +2,10 @@ import Phaser from "phaser";
 import { GamePhase, GameState } from "../types/GameState";
 import { Team } from "../types/Team";
 
+/**
+ * GameStateManager - Central state management for the game
+ * @deprecated Use GameService and ServiceContainer instead. This class will be removed in future phases.
+ */
 export class GameStateManager extends Phaser.Events.EventEmitter {
   private state: GameState;
   private team1: Team;

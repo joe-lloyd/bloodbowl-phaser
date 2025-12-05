@@ -5,7 +5,6 @@ import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 import { pixelToGrid } from "../utils/GridUtils";
-import { GameStateManager } from "../game/GameStateManager";
 import { UIText, UIButton, UIOverlay } from "../ui";
 import {
   SetupValidator,
@@ -15,6 +14,9 @@ import {
   SetupUIController,
 } from "../game/setup";
 import { SetupPhase } from "../types/SetupTypes";
+import { ServiceContainer } from "../services/ServiceContainer";
+import { IGameService } from "../services/interfaces/IGameService";
+import { IEventBus } from "../services/EventBus";
 
 /**
  * Setup Scene - Refactored to use testable controllers
@@ -42,7 +44,8 @@ export class SetupScene extends Phaser.Scene {
 
   // State
   private setupPhase: SetupPhase = "coinflip";
-  private gameStateManager!: GameStateManager;
+  private gameService!: IGameService;
+  private eventBus!: IEventBus;
   private formationContainers: Map<string, Phaser.GameObjects.Container> =
     new Map();
 
@@ -60,7 +63,11 @@ export class SetupScene extends Phaser.Scene {
     // Initialize controllers
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.gameStateManager = new GameStateManager(this.team1, this.team2);
+
+    // Get services from container
+    const container = ServiceContainer.getInstance();
+    this.gameService = container.gameService;
+    this.eventBus = container.eventBus;
   }
 
   create(): void {
@@ -280,28 +287,27 @@ export class SetupScene extends Phaser.Scene {
 
   private proceedToKickoff(): void {
     // Transition to game
-    this.gameStateManager.startGame(this.kickingTeam.id);
+    this.gameService.startKickoff();
   }
 
   private setupGameStateEvents(): void {
-    this.gameStateManager.on("kickoffStarted", () => {
+    this.eventBus.on("kickoffStarted", () => {
       this.uiController.updateInstructions("KICKOFF!");
     });
 
-    this.gameStateManager.on(
+    this.eventBus.on(
       "kickoffResult",
       (data: { roll: number; event: string }) => {
         this.showKickoffResult(data.event);
       }
     );
 
-    this.gameStateManager.on("readyToStart", () => {
+    this.eventBus.on("readyToStart", () => {
       this.scene.start("GameScene", {
         team1: this.team1,
         team2: this.team2,
         kickingTeam: this.kickingTeam,
         receivingTeam: this.receivingTeam,
-        gameStateManager: this.gameStateManager,
       });
     });
   }

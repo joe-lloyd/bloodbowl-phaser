@@ -45,13 +45,20 @@ Refactor the core architecture to improve modularity, testability, and maintaina
 - [x] All tests passing (118 total across codebase)
 - [x] Event-driven architecture established
 
-### Phase 4-5: Remaining Work
+### Phase 4: Scene Refactoring ✅ COMPLETE
 
-- [ ] Refactor scenes to use GameService
+- [x] Refactor SetupScene to use GameService
+- [x] Refactor GameScene to use GameService
+- [x] Integrate ServiceContainer for dependency injection
+- [x] Deprecate GameStateManager
+- [x] Verify all 127 tests passing
+- [x] Ensure seamless transition between scenes
+
+### Phase 5: Next Steps
+
 - [ ] Extract validators into pure functions
-- [ ] Add dependency injection
-- [ ] Integrate services with existing code
-- [ ] Verify all features still work
+- [ ] Clean up deprecated code
+- [ ] Implement remaining game rules in GameService
 
 ## 📋 Proposed Architecture
 
