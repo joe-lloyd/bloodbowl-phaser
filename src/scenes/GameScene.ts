@@ -106,6 +106,26 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isSetupActive || !this.selectedPlayerId) return;
+
+      // Visualizing path on hover
+      const pitchContainer = this.pitch.getContainer();
+      const localX = pointer.x - pitchContainer.x;
+      const localY = pointer.y - pitchContainer.y;
+
+      // Check bounds
+      const pitchW = 26 * 60;
+      const pitchH = 15 * 60;
+
+      if (localX >= 0 && localX <= pitchW && localY >= 0 && localY <= pitchH) {
+        const gridPos = pixelToGrid(localX, localY, 60);
+        this.onPitchHover(gridPos.x, gridPos.y);
+      } else {
+        this.pitch.clearPath(); // Clear if out of bounds
+      }
+    });
+
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
 
@@ -248,7 +268,8 @@ export class GameScene extends Phaser.Scene {
 
   // Event Listeners
   private setupEventListeners(): void {
-    this.eventBus.on("phaseChanged", (phase: GamePhase) => {
+    this.eventBus.on("phaseChanged", (data: { phase: GamePhase }) => {
+      const { phase } = data;
       if (phase === GamePhase.PLAY) {
         this.startPlayPhase();
       } else if (phase === GamePhase.KICKOFF) {
@@ -278,8 +299,25 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Gameplay events - Handled by Service events or refresh
-    this.eventBus.on("playerMoved", () => {
-      this.refreshDugouts(); // This updates sprite positions
+    this.eventBus.on("playerMoved", (data: { playerId: string, from: any, to: any, path?: any[] }) => {
+      // Animate movement if path provided
+      if (data.path && data.path.length > 0) {
+        const sprite = this.playerSprites.get(data.playerId);
+        if (sprite) {
+          // Convert grid path to pixel path
+          const pixelPath = data.path.map(step => this.pitch.getPixelPosition(step.x, step.y));
+          sprite.animateMovement(pixelPath).then(() => {
+            this.refreshDugouts(); // Sync state after animation (or keep safe)
+            this.checkSetupCompleteness();
+          });
+        } else {
+          this.refreshDugouts();
+        }
+      } else {
+        this.refreshDugouts(); // This updates sprite positions instantly
+      }
+      this.pitch.clearPath(); // Clear dots
+      this.pitch.clearHighlights();
     });
 
     this.eventBus.on("kickoffStarted", () => {
@@ -556,6 +594,32 @@ export class GameScene extends Phaser.Scene {
       } else {
         console.log("Invalid move path");
       }
+    }
+  }
+
+  private onPitchHover(x: number, y: number): void {
+    if (!this.selectedPlayerId) return;
+
+    const team = (this.team1.players.find(p => p.id === this.selectedPlayerId)) ? this.team1 : this.team2;
+    const player = team.players.find(p => p.id === this.selectedPlayerId);
+    if (!player || !player.gridPosition) return;
+
+    // Don't calculate if hovering self
+    if (x === player.gridPosition.x && y === player.gridPosition.y) {
+      this.pitch.clearPath();
+      return;
+    }
+
+    const opponents = (team.id === this.team1.id ? this.team2 : this.team1).players.filter(p => p.gridPosition);
+    const teammates = team.players.filter(p => p.gridPosition && p.id !== player.id);
+
+    // We use findPath to get the path
+    const result = this.movementValidator.findPath(player, x, y, opponents, teammates);
+
+    if (result.valid) {
+      this.pitch.drawMovementPath(result.path, result.rolls);
+    } else {
+      this.pitch.clearPath();
     }
   }
 }

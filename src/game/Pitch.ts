@@ -141,6 +141,50 @@ export class Pitch {
   }
 
   /**
+   * Draw movement path dots
+   */
+  public drawMovementPath(path: { x: number; y: number }[], rolls: any[]): void {
+    // Clear previous dots (optionally separate container/group for dots? For now just add to container and clear with highlights)
+    // Actually, clearHighlights removes *rectangles* with alpha 0.5. 
+    // Let's rely on clearHighlights clearing everything if we tag them or manage them.
+    // Better: Add a separate method or reuse clearHighlights if we can distinguish.
+    // Implementation: Add circles to container.
+
+    // We should probably clear previous path dots first.
+    this.clearPath();
+
+    path.forEach((step, index) => {
+      const pos = this.getPixelPosition(step.x, step.y);
+
+      let color = 0xffffff; // Normal: White
+
+      // Check if this step required a roll
+      // This logic mimics the Validator's roll generation roughly, or we pass pre-calculated logic?
+      // GameScene will pass 'rolls' from Validator result.
+      // We can check if 'rolls' contains an entry for this square.
+      const roll = rolls.find(r => r.square.x === step.x && r.square.y === step.y);
+
+      if (roll) {
+        if (roll.type === 'rush') color = 0xffff00; // Yellow for GFI
+        if (roll.type === 'dodge') color = 0xff0000; // Red for Dodge
+      }
+
+      const dot = this.scene.add.circle(pos.x + this.squareSize / 2, pos.y + this.squareSize / 2, 6, color);
+      dot.setName('path_dot'); // Tag for cleanup
+      this.container.add(dot);
+    });
+  }
+
+  public clearPath(): void {
+    const children = this.container.getAll();
+    children.forEach(child => {
+      if (child.name === 'path_dot') {
+        child.destroy();
+      }
+    });
+  }
+
+  /**
    * Clear all highlights
    */
   public clearHighlights(): void {

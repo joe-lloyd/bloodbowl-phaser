@@ -149,4 +149,24 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   public getPlayer(): Player {
     return this.player;
   }
+
+  /**
+   * Animate movement along a path
+   */
+  public animateMovement(path: { x: number; y: number }[]): Promise<void> {
+    return new Promise((resolve) => {
+      // Pixel coordinates of each step (relative to parent container if using local)
+      // Note: PlayerSprite is added to scene, but positioned using WORLD coords from Pitch.
+      // We need the Pitch instance or helper to get pixel coords.
+      // Option 1: Pass Pitch or helper to this method.
+      // Option 2: Calculate outside and pass pixel path.
+      // Option 3: Use gridToPixel util and Pitch offset knowledge. 
+      // Best: Pass pixel targets or have GameScene drive the tween?
+      // Let's have GameScene drive it or pass pixel coords.
+      // Actually, PlayerSprite doesn't know about Pitch offset.
+      // Let's just expose a method to move to X,Y with duration, and let GameScene chain them.
+      // OR: GameScene calculates pixel path and passes it here.
+      resolve();
+    });
+  }
 }

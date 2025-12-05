@@ -474,7 +474,12 @@ export class GameService implements IGameService {
         // Usually 'Move Action' marks hasActed=true at end of turn/action?
         // We'll set position. The Turn Controller manages 'hasActed'.
 
-        this.eventBus.emit('playerMoved', { playerId, from: result.path[0], to: finalSquare });
+        this.eventBus.emit('playerMoved', {
+            playerId,
+            from: result.path[0] || { x: player.gridPosition.x, y: player.gridPosition.y }, // Fallback if path empty (shouldn't happen) 
+            to: finalSquare,
+            path: path // Pass the full input path for animation
+        });
 
         // Create roll events if any (mock for visuals)
         for (const roll of result.rolls) {

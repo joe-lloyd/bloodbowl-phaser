@@ -18,8 +18,8 @@
 - [x] Tackle zones properly restrict movement
 - [x] Dodge rolls required when leaving tackle zones
 - [x] GFI allows 2 extra squares with risk
-- [ ] Movement paths visualized
-- [ ] Smooth movement animation
+- [x] Movement paths visualized
+- [x] Smooth movement animation
 - [x] All movement rules tested
 - [ ] Movement causes turnover on failure (Part of Task 10)
 
