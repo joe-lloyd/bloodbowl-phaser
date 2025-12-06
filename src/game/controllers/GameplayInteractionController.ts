@@ -212,10 +212,6 @@ export class GameplayInteractionController {
         const player = this.gameService.getPlayerById(this.selectedPlayerId);
         if (!player) return;
 
-        // Path from LAST waypoint (or current) to NEW target
-        // We need to validate if this segment is possible (MA check pending? Or total MA check?)
-        // Total path cost check should be done.
-
         // Get Path for this segment
         const startPos = this.waypoints.length > 0 ? this.waypoints[this.waypoints.length - 1] : player.gridPosition!;
 
@@ -225,16 +221,7 @@ export class GameplayInteractionController {
 
         const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
         const teammates = team.players.filter((p: any) => p.gridPosition && p.id !== player.id);
-
-        // Treat previous waypoints as occupied? No, player moves through them.
-        // But we shouldn't pass through ourselves? We are at startPos. 
-
-        // Pathfinder needs a "mock" player at startPos? 
-        // MovementValidator uses player.gridPosition. 
-        // We can temporarily mock it or pass startPos to findPath (if supported).
-        // Current `findPath` uses player.gridPosition. 
-        // Let's modify `findPath` or create a temp object.
-        const mockPlayer = { ...player, gridPosition: startPos }; // Shallow copy with new pos
+        const mockPlayer = { ...player, gridPosition: startPos };
 
         const result = this.movementValidator.findPath(mockPlayer as any, x, y, opponents, teammates);
 

@@ -159,6 +159,8 @@ export class Pitch {
   public highlightHoverSquare(gridX: number, gridY: number): void {
     this.clearHover(); // Only one at a time
 
+    if (gridX > GameConfig.PITCH_WIDTH - 1 || gridY > GameConfig.PITCH_HEIGHT - 1) return;
+
     // Use local coordinates for container
     const local = gridToPixel(gridX, gridY, this.squareSize);
 
