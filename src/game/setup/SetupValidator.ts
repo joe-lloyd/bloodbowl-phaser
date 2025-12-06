@@ -31,9 +31,9 @@ export class SetupValidator {
 
     // Check X bounds (different for each team)
     if (isTeam1) {
-      return x >= 0 && x <= 5;
+      return x >= 0 && x <= 6;
     } else {
-      return x >= 14 && x < this.config.pitchWidth;
+      return x >= 13 && x < this.config.pitchWidth;
     }
   }
 
@@ -44,13 +44,13 @@ export class SetupValidator {
     if (isTeam1) {
       return {
         minX: 0,
-        maxX: 5,
+        maxX: 6,
         minY: 0,
         maxY: this.config.pitchHeight - 1,
       };
     } else {
       return {
-        minX: 14,
+        minX: 13,
         maxX: this.config.pitchWidth - 1,
         minY: 0,
         maxY: this.config.pitchHeight - 1,

@@ -115,8 +115,8 @@ describe("PlayerPlacementController", () => {
         });
 
         it("should fail placement if outside setup zone (Team 1)", () => {
-            // Setup zone for Team 1 is x: 0-5
-            const result = controller.placePlayer("p1", 6, 1);
+            // Setup zone for Team 1 is x: 0-6
+            const result = controller.placePlayer("p1", 7, 1);
 
             expect(result).toBe(false);
             expect(controller.getPlacedCount()).toBe(0);

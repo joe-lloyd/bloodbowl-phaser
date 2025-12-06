@@ -5,7 +5,6 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../Pitch";
 import { PlayerInfoPanel } from "../PlayerInfoPanel";
 import { MovementValidator } from "../../domain/validators/MovementValidator";
-import { PlayerSprite } from "../PlayerSprite";
 import { pixelToGrid } from "../../utils/GridUtils";
 import { GamePhase } from "../../types/GameState";
 

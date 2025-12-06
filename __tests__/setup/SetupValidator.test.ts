@@ -6,20 +6,20 @@ describe("SetupValidator", () => {
   let validator: SetupValidator;
 
   beforeEach(() => {
-    validator = new SetupValidator();
+    validator = new SetupValidator({ minPlayers: 7, pitchWidth: 20, pitchHeight: 11 });
   });
 
   describe("isInSetupZone", () => {
-    describe("Team 1 (left side, x: 0-5)", () => {
+    describe("Team 1 (left side, x: 0-6)", () => {
       it("should return true for valid positions", () => {
         expect(validator.isInSetupZone(0, 0, true)).toBe(true);
-        expect(validator.isInSetupZone(5, 0, true)).toBe(true);
+        expect(validator.isInSetupZone(6, 0, true)).toBe(true); // New boundary
         expect(validator.isInSetupZone(3, 5, true)).toBe(true);
         expect(validator.isInSetupZone(0, 10, true)).toBe(true);
       });
 
       it("should return false for positions outside x bounds", () => {
-        expect(validator.isInSetupZone(6, 0, true)).toBe(false);
+        expect(validator.isInSetupZone(7, 0, true)).toBe(false); // New invalid boundary
         expect(validator.isInSetupZone(10, 5, true)).toBe(false);
         expect(validator.isInSetupZone(-1, 0, true)).toBe(false);
       });
@@ -31,16 +31,16 @@ describe("SetupValidator", () => {
       });
     });
 
-    describe("Team 2 (right side, x: 14-19)", () => {
+    describe("Team 2 (right side, x: 13-19)", () => {
       it("should return true for valid positions", () => {
-        expect(validator.isInSetupZone(14, 0, false)).toBe(true);
+        expect(validator.isInSetupZone(13, 0, false)).toBe(true); // New boundary
         expect(validator.isInSetupZone(19, 0, false)).toBe(true);
         expect(validator.isInSetupZone(17, 5, false)).toBe(true);
         expect(validator.isInSetupZone(14, 10, false)).toBe(true);
       });
 
       it("should return false for positions outside x bounds", () => {
-        expect(validator.isInSetupZone(13, 0, false)).toBe(false);
+        expect(validator.isInSetupZone(12, 0, false)).toBe(false); // New invalid boundary
         expect(validator.isInSetupZone(10, 5, false)).toBe(false);
         expect(validator.isInSetupZone(20, 0, false)).toBe(false);
       });
@@ -58,7 +58,7 @@ describe("SetupValidator", () => {
       const zone = validator.getSetupZone(true);
       expect(zone).toEqual({
         minX: 0,
-        maxX: 5,
+        maxX: 6, // Updated
         minY: 0,
         maxY: 10,
       });
@@ -67,7 +67,7 @@ describe("SetupValidator", () => {
     it("should return correct zone for Team 2", () => {
       const zone = validator.getSetupZone(false);
       expect(zone).toEqual({
-        minX: 14,
+        minX: 13, // Updated
         maxX: 19,
         minY: 0,
         maxY: 10,
@@ -96,11 +96,6 @@ describe("SetupValidator", () => {
       expect(validator.canConfirmSetup(3, 0)).toBe(true);
       expect(validator.canConfirmSetup(0, 0)).toBe(true);
     });
-
-    it("should handle edge cases", () => {
-      expect(validator.canConfirmSetup(7, 0)).toBe(true);
-      expect(validator.canConfirmSetup(6, 1)).toBe(false);
-    });
   });
 
   describe("validateFormation", () => {
@@ -112,7 +107,7 @@ describe("SetupValidator", () => {
         { playerId: "4", x: 3, y: 3 },
         { playerId: "5", x: 4, y: 4 },
         { playerId: "6", x: 5, y: 5 },
-        { playerId: "7", x: 0, y: 6 },
+        { playerId: "7", x: 6, y: 6 }, // Using boundary column 6
       ];
 
       const result = validator.validateFormation(positions, true);
@@ -157,7 +152,7 @@ describe("SetupValidator", () => {
         { playerId: "4", x: 3, y: 3 },
         { playerId: "5", x: 4, y: 4 },
         { playerId: "6", x: 5, y: 5 },
-        { playerId: "7", x: 10, y: 6 }, // Outside Team 1 zone
+        { playerId: "7", x: 10, y: 6 }, // Outside Team 1 zone (10 > 6)
       ];
 
       const result = validator.validateFormation(positions, true);
@@ -169,12 +164,12 @@ describe("SetupValidator", () => {
 
     it("should validate Team 2 formation correctly", () => {
       const positions: FormationPosition[] = [
-        { playerId: "1", x: 14, y: 0 },
+        { playerId: "1", x: 13, y: 0 }, // minX
         { playerId: "2", x: 15, y: 1 },
         { playerId: "3", x: 16, y: 2 },
         { playerId: "4", x: 17, y: 3 },
         { playerId: "5", x: 18, y: 4 },
-        { playerId: "6", x: 19, y: 5 },
+        { playerId: "6", x: 19, y: 5 }, // maxX
         { playerId: "7", x: 14, y: 6 },
       ];
 

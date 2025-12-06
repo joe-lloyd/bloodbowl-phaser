@@ -48,8 +48,8 @@ export class Pitch {
     // Draw end zones
     this.drawEndZones();
 
-    // Draw center line
-    this.drawCenterLine();
+    // Draw field markings (Center and Setup lines)
+    this.drawFieldMarkings();
 
     // Draw wide zones
     this.drawWideZones();
@@ -93,13 +93,24 @@ export class Pitch {
     this.container.add(graphics);
   }
 
-  private drawCenterLine(): void {
+  private drawFieldMarkings(): void {
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
 
-    // Vertical center line (line of scrimmage)
+    // Line of Scrimmage (Center Line)
+    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
     const centerX = (this.width / 2) * this.squareSize;
     graphics.lineBetween(centerX, 0, centerX, this.height * this.squareSize);
+
+    // Setup Zone Lines (Separating Setup Zones from Neutral Zone)
+    // Left Setup Line (Between Col 6 and 7 -> X=7)
+    // Right Setup Line (Between Col 12 and 13 -> X=13)
+    graphics.lineStyle(4, GameConfig.COLORS.PITCH_LINE, 1.0); // Thicker line
+
+    const leftSetupX = 7 * this.squareSize;
+    graphics.lineBetween(leftSetupX, 0, leftSetupX, this.height * this.squareSize);
+
+    const rightSetupX = 13 * this.squareSize;
+    graphics.lineBetween(rightSetupX, 0, rightSetupX, this.height * this.squareSize);
 
     this.container.add(graphics);
   }

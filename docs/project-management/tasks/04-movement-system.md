@@ -21,13 +21,13 @@
 - [x] Movement paths visualized
 - [x] Smooth movement animation
 - [x] All movement rules tested
-- [ ] Movement restricted to active team
-- [ ] Opposing tackle zones visible
-- [ ] Movement range overlay (dark mask)
+- [x] Movement restricted to active team
+- [x] Opposing tackle zones visible
+- [x] Movement range overlay (dark mask)
 - [ ] Sprint/GFI distinct visualization
-- [ ] Path planning with waypoints
-- [ ] Connected path lines
-- [ ] Confirm move action
+- [x] Path planning with waypoints
+- [x] Connected path lines
+- [x] Confirm move action
 
 ## 📋 Blood Bowl Movement Rules
 

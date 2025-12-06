@@ -182,13 +182,13 @@ export class SetupUIController {
 
     // Horizontal orientation: Team 1 left (x: 0-5), Team 2 right (x: 14-19)
     if (isTeam1) {
-      for (let x = 0; x <= 5; x++) {
+      for (let x = 0; x <= 6; x++) {
         for (let y = 0; y < 11; y++) {
           this.pitch.highlightSquare(x, y, color);
         }
       }
     } else {
-      for (let x = 14; x < 20; x++) {
+      for (let x = 13; x < 20; x++) {
         for (let y = 0; y < 11; y++) {
           this.pitch.highlightSquare(x, y, color);
         }
