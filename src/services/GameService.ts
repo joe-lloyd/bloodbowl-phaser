@@ -299,6 +299,20 @@ export class GameService implements IGameService {
     startGame(kickingTeamId: string): void {
         this.state.phase = GamePhase.PLAY;
 
+        // Ensure all players on pitch are ACTIVE
+        const activatePlayers = (team: Team) => {
+            team.players.forEach(p => {
+                if (p.gridPosition) {
+                    p.status = PlayerStatus.ACTIVE;
+                } else if (!p.status) {
+                    p.status = PlayerStatus.RESERVE;
+                }
+            });
+        };
+
+        activatePlayers(this.team1);
+        activatePlayers(this.team2);
+
         const receivingTeamId =
             kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
 

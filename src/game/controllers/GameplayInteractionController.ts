@@ -272,7 +272,7 @@ export class GameplayInteractionController {
                 { x: player.gridPosition.x, y: player.gridPosition.y },
                 ...this.waypoints
             ];
-            this.pitch.drawMovementPath(fullPath, []);
+            this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
         }
     }
 
@@ -307,7 +307,7 @@ export class GameplayInteractionController {
                 ...result.path
             ];
             // TODO: Get rolls for full path
-            this.pitch.drawMovementPath(fullPath, []);
+            this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
         } else {
             // Just draw existing waypoints if preview is invalid
             if (this.waypoints.length > 0) {
@@ -315,7 +315,7 @@ export class GameplayInteractionController {
                     { x: player.gridPosition!.x, y: player.gridPosition!.y },
                     ...this.waypoints
                 ];
-                this.pitch.drawMovementPath(fullPath, []);
+                this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
             } else {
                 this.pitch.clearPath();
             }

@@ -37,8 +37,12 @@ export class MovementValidator {
             return this.invalidResult();
         }
 
-        // 2. Check if occupied by standing player
-        if (this.isOccupiedByStanding(targetX, targetY, [...opponents, ...teammates])) {
+        // 2. Check if occupied (Standing OR Prone)
+        // You cannot END a move on an occupied square.
+        // But you CAN move THROUGH a prone player (jumping).
+        // Since this is validation for the TARGET square, we must block all occupation.
+        if (this.isOccupiedByStanding(targetX, targetY, [...opponents, ...teammates]) ||
+            this.isOccupiedByProneOrStunned(targetX, targetY, [...opponents, ...teammates])) {
             return this.invalidResult();
         }
 
@@ -53,7 +57,7 @@ export class MovementValidator {
         }
 
         // 4. Calculate rolls and validation
-        return this.validatePath(player, path, opponents);
+        return this.validatePath(player, path, opponents, teammates);
     }
 
 
@@ -134,8 +138,20 @@ export class MovementValidator {
         const fScore: Map<string, number> = new Map();
 
         const startKey = `${start.x},${start.y}`;
-        gScore.set(startKey, 0);
-        stepsMap.set(startKey, 0);
+
+        // Stand Up Logic
+        let stepsInternal = 0;
+        if (player.status === PlayerStatus.PRONE) {
+            // Cost to stand up is 3, or full MA if MA < 3
+            stepsInternal = (player.stats.MA < 3) ? player.stats.MA : 3;
+        }
+
+        gScore.set(startKey, 0); // Cost to reach start is 0, regardless of state? Or should it be cost? 
+        // Let's keep gScore as "movement points spent".
+        // Actually, to prioritize "safe" paths, we want strict safety weights.
+        // Standing up doesn't affect safety of the path itself. 
+        // But it limits range.
+        stepsMap.set(startKey, stepsInternal);
         fScore.set(startKey, this.heuristic(start, end, start, end)); // Pass start/end for tie-breaker calc
 
         openSet.push(start);
@@ -172,19 +188,28 @@ export class MovementValidator {
                     continue;
                 }
 
+                let moveSteps = 1;
+                let baseWeight = 1;
+
+                // Jump Cost Check
+                if (this.isOccupiedByProneOrStunned(neighbor.x, neighbor.y, [...opponents, ...teammates])) {
+                    moveSteps = 2;
+                    baseWeight = 20; // Penalty to discourage jumping unless necessary
+                }
+
                 // --- WEIGHT CALCULATION ---
-                // Base cost = 1
+                // Base cost = 1 (or 20 for jump)
                 // Tackle Zone Penalty = 10 per TZ *on the target square*
                 // This makes the pathfinder avidly avoid TZs unless necessary.
                 const tackleZones = this.getTackleZones(neighbor.x, neighbor.y, opponents);
-                const stepCost = 1 + (tackleZones * 10);
+                const stepCost = baseWeight + (tackleZones * 10);
 
                 const tentativeGScore = (gScore.get(currentKey) || 0) + stepCost;
 
                 if (tentativeGScore < (gScore.get(neighborKey) || Infinity)) {
                     cameFrom.set(neighborKey, current);
                     gScore.set(neighborKey, tentativeGScore);
-                    stepsMap.set(neighborKey, currentSteps + 1);
+                    stepsMap.set(neighborKey, currentSteps + moveSteps);
 
                     // Add heuristic with tie-breaker
                     fScore.set(neighborKey, tentativeGScore + this.heuristic(neighbor, end, start, end));
@@ -199,32 +224,74 @@ export class MovementValidator {
         return [];
     }
 
-    public validatePath(player: Player, path: { x: number, y: number }[], opponents: Player[]): MovementResult {
+    public validatePath(player: Player, path: { x: number, y: number }[], opponents: Player[], teammates: Player[] = []): MovementResult {
         const rolls: MovementRoll[] = [];
         const ma = player.stats.MA;
         let valid = true;
 
+        // Stand Up Logic
+        let stepsAccumulator = 0;
+        if (player.status === PlayerStatus.PRONE) {
+            stepsAccumulator = (player.stats.MA < 3) ? player.stats.MA : 3;
+        }
+
         for (let i = 0; i < path.length - 1; i++) {
             const from = path[i];
             const to = path[i + 1];
-            const stepsTaken = i + 1;
 
-            const tackleZones = this.getTackleZones(from.x, from.y, opponents);
-            if (tackleZones > 0) {
-                const zonesInto = this.getTackleZones(to.x, to.y, opponents);
-                // Dodge: +1 modifier, -1 per enemy TZ on target
-                let dodgeMods = 1 - zonesInto;
+            let moveCost = 1;
+
+            // Jump Check
+            const isJump = this.isOccupiedByProneOrStunned(to.x, to.y, [...opponents, ...teammates]);
+            if (isJump) {
+                moveCost = 2;
+
+                // Jump Modifier: -1 per opp marking LEAVING or ENTERING (whichever is higher? Rule says "marking either... whichever is higher")
+                // Actually rule says: "-1 modifier for each opposition player marking either the leaving square or entering square (whichever is higher)."
+                // NOTE: Marking usually means adjacent.
+                // Leaving square: from. Entering square: to.
+                const zonesLeaving = this.getTackleZones(from.x, from.y, opponents);
+                const zonesEntering = this.getTackleZones(to.x, to.y, opponents);
+                const jumpMod = -Math.max(zonesLeaving, zonesEntering);
 
                 rolls.push({
-                    type: 'dodge',
+                    type: 'dodge', // Using 'dodge' type for AG checks for now
                     target: player.stats.AG,
-                    modifiers: dodgeMods,
+                    modifiers: jumpMod,
                     square: to
                 });
             }
 
-            if (stepsTaken > ma) {
-                if (stepsTaken > ma + 2) {
+            stepsAccumulator += moveCost;
+
+            // Dodge Logic (Only if NOT Jumping? Can you jump out of a tackle zone? Yes. But Jump REPLACES move?)
+            // Rule: "Jumping Over Players... Requires 2 MA and AG test."
+            // If you are dodging out, you are leaving a marked square.
+            // If you jump, do you Dodge AND Jump?
+            // "May perform any of the below... Dodge... Jumping Over..."
+            // Usually Jump replaces the move into the square. 
+            // If you are jumping OUT of a TZ, rules are tricky.
+            // Simplified: If Jumping, use Jump roll. If just moving and leaving TZ, use Dodge roll.
+            // If checking isJump is true, we added Jump roll. Should we skip Dodge?
+            // "Failure... Turnover".
+            // Let's assume Jump overrides Dodge for that specific movement if target is occupied.
+            // If target NOT occupied, it's a normal move (possibly Dodge).
+            if (!isJump) {
+                const tackleZones = this.getTackleZones(from.x, from.y, opponents);
+                if (tackleZones > 0) {
+                    const zonesInto = this.getTackleZones(to.x, to.y, opponents);
+                    let dodgeMods = 1 - zonesInto;
+                    rolls.push({
+                        type: 'dodge',
+                        target: player.stats.AG,
+                        modifiers: dodgeMods,
+                        square: to
+                    });
+                }
+            }
+
+            if (stepsAccumulator > ma) {
+                if (stepsAccumulator > ma + 2) {
                     valid = false;
                 }
                 rolls.push({
@@ -274,11 +341,25 @@ export class MovementValidator {
     }
 
     private isOccupiedByStanding(x: number, y: number, players: Player[]): boolean {
-        return players.some(p =>
+        const occupant = players.find(p =>
             p.gridPosition &&
             p.gridPosition.x === x &&
             p.gridPosition.y === y &&
             (p.status === PlayerStatus.ACTIVE)
+        );
+        if (occupant) {
+            // console.log(`Square ${x},${y} occupied by ${occupant.id} (${occupant.status})`);
+            return true;
+        }
+        return false;
+    }
+
+    private isOccupiedByProneOrStunned(x: number, y: number, players: Player[]): boolean {
+        return players.some(p =>
+            p.gridPosition &&
+            p.gridPosition.x === x &&
+            p.gridPosition.y === y &&
+            (p.status === PlayerStatus.PRONE || p.status === PlayerStatus.STUNNED)
         );
     }
 

@@ -28,6 +28,9 @@
 - [x] Path planning with waypoints
 - [x] Connected path lines
 - [x] Confirm move action
+- [ ] Sprint/GFI visualization (Yellow lines)
+- [ ] Stand Up mechanics (3 MA cost / 4+ roll)
+- [ ] Refined Dodge modifiers (-1 per marking player)
 
 ## 📋 Blood Bowl Movement Rules
 
@@ -44,6 +47,11 @@
 - Leaving a tackle zone requires a dodge roll
 - Multiple tackle zones don't stack (single dodge roll)
 - Prone players don't have tackle zones
+
+### Stand Up
+
+- Prone player may stand up by using 3 MA squares
+- Players with < 3 MA may stand up on 4+ roll (failure = remain prone)
 
 ### Dodge Rolls
 

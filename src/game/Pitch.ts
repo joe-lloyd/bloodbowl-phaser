@@ -252,32 +252,36 @@ export class Pitch {
   /**
    * Draw movement path with lines and centered dots
    */
-  public drawMovementPath(path: { x: number; y: number }[], rolls: any[]): void {
+  public drawMovementPath(path: { x: number; y: number }[], rolls: any[], ma: number = 6): void {
     this.clearPath();
 
     if (path.length === 0) return;
 
     // Draw Lines
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(4, 0xffffff, 0.8);
     graphics.setName('path_line');
 
-    // Start from first point (assuming path includes start or we need logic)
-    // Path usually is [step1, step2, step3]. We need start pos too? 
-    // Usually logic: Start -> Path[0] -> Path[1].
-    // Let's assume input path is fully connected points. 
-
-    // Draw lines between points
+    // Draw lines segment by segment to handle color changes
     if (path.length > 1) {
-      graphics.beginPath();
-      const start = gridToPixel(path[0].x, path[0].y, this.squareSize);
-      graphics.moveTo(start.x, start.y);
+      for (let i = 0; i < path.length - 1; i++) {
+        const from = gridToPixel(path[i].x, path[i].y, this.squareSize);
+        const to = gridToPixel(path[i + 1].x, path[i + 1].y, this.squareSize);
 
-      for (let i = 1; i < path.length; i++) {
-        const p = gridToPixel(path[i].x, path[i].y, this.squareSize);
-        graphics.lineTo(p.x, p.y);
+        // Steps taken SO FAR (including this new step)
+        // path[0] is start (step 0). path[1] is step 1.
+        // So step index is i+1.
+        const stepsTaken = i + 1;
+
+        // If stepsTaken > MA, it's a Rush (Yellow)
+        const isRush = stepsTaken > ma;
+        const color = isRush ? 0xffff00 : 0xffffff;
+
+        graphics.lineStyle(4, color, 0.8);
+        graphics.beginPath();
+        graphics.moveTo(from.x, from.y);
+        graphics.lineTo(to.x, to.y);
+        graphics.strokePath();
       }
-      graphics.strokePath();
     }
     this.container.add(graphics);
 
