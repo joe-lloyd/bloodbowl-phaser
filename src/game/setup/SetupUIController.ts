@@ -3,6 +3,7 @@ import { Team } from "../../types/Team";
 import { SetupPhase } from "../../types/SetupTypes";
 import { UIText, UIButton } from "../../ui";
 import { Pitch } from "../Pitch";
+import { IGameService } from "../../services/interfaces/IGameService";
 
 /**
  * SetupUIController - Manages setup UI state and layout
@@ -11,6 +12,7 @@ import { Pitch } from "../Pitch";
 export class SetupUIController {
   private scene: Phaser.Scene;
   private pitch: Pitch;
+  private gameService: IGameService;
 
   // UI Elements
   private titleText!: UIText;
@@ -29,9 +31,10 @@ export class SetupUIController {
   private readonly CONTROLS_Y = 320;
   private readonly DUGOUT_START_Y = 190; // Unused in this controller?
 
-  constructor(scene: Phaser.Scene, pitch: Pitch) {
+  constructor(scene: Phaser.Scene, pitch: Pitch, gameService: IGameService) {
     this.scene = scene;
     this.pitch = pitch;
+    this.gameService = gameService;
   }
 
   /**
@@ -176,22 +179,24 @@ export class SetupUIController {
   /**
    * Highlight setup zone on pitch
    */
-  highlightSetupZone(isTeam1: boolean): void {
+  /**
+   * Highlight setup zone on pitch
+   */
+  highlightSetupZone(): void {
     this.pitch.clearHighlights();
+
+    const activeTeamId = this.gameService.getActiveTeamId();
+    if (!activeTeamId) return;
+
+    const zone = this.gameService.getSetupZone(activeTeamId);
+    if (!zone) return;
+
+    const isTeam1 = zone.minX === 0;
     const color = isTeam1 ? 0x4444ff : 0xff4444;
 
-    // Horizontal orientation: Team 1 left (x: 0-5), Team 2 right (x: 14-19)
-    if (isTeam1) {
-      for (let x = 0; x <= 6; x++) {
-        for (let y = 0; y < 11; y++) {
-          this.pitch.highlightSquare(x, y, color);
-        }
-      }
-    } else {
-      for (let x = 13; x < 20; x++) {
-        for (let y = 0; y < 11; y++) {
-          this.pitch.highlightSquare(x, y, color);
-        }
+    for (let x = zone.minX; x <= zone.maxX; x++) {
+      for (let y = zone.minY; y <= zone.maxY; y++) {
+        this.pitch.highlightSquare(x, y, color);
       }
     }
   }

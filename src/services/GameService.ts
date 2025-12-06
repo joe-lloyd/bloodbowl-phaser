@@ -187,6 +187,25 @@ export class GameService implements IGameService {
         return placed === available;
     }
 
+    getSetupZone(teamId: string): import('../types/SetupTypes').SetupZone | undefined {
+        if (teamId === this.team1.id) {
+            return {
+                minX: 0,
+                maxX: 6,
+                minY: 0,
+                maxY: 10
+            };
+        } else if (teamId === this.team2.id) {
+            return {
+                minX: 13,
+                maxX: 19,
+                minY: 0,
+                maxY: 10
+            };
+        }
+        return undefined;
+    }
+
     // ===== Kickoff Phase =====
 
     startKickoff(): void {

@@ -190,7 +190,7 @@ export class GameScene extends Phaser.Scene {
   private initializeControllers(): void {
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.setupUIController = new SetupUIController(this, this.pitch);
+    this.setupUIController = new SetupUIController(this, this.pitch, this.gameService);
     this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
 
     // Coinflip
@@ -246,7 +246,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
     this.setupUIController.updateForPhase(phase, activeTeam);
-    this.setupUIController.highlightSetupZone(isTeam1);
+    this.setupUIController.highlightSetupZone();
 
     // Enable placement
     const dugout = this.dugouts.get(activeTeam.id);
@@ -255,7 +255,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private confirmSetupStep(phase: "kicking" | "receiving"): void {
+    this.setupUIController.clearHighlights();
+
     if (phase === "kicking") {
+      // Switch active team for setup
+      this.gameService.startSetup(this.receivingTeam.id);
       this.startPlacement("receiving");
     } else {
       // Finish setup

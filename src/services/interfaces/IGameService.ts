@@ -65,6 +65,11 @@ export interface IGameService {
      */
     isSetupComplete(teamId: string): boolean;
 
+    /**
+     * Get the setup zone boundaries for a team
+     */
+    getSetupZone(teamId: string): import('../../types/SetupTypes').SetupZone | undefined;
+
     // ===== Kickoff Phase =====
 
     /**
