@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
+import { BallSprite } from "../game/BallSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 import { DiceLog } from "../game/ui/DiceLog";
 import { Dugout } from "../game/Dugout";
@@ -10,7 +11,6 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
 import { GamePhase } from "../types/GameState";
-import { UIText, UIButton } from "../ui";
 import {
   SetupValidator,
   FormationManager,
@@ -21,7 +21,7 @@ import {
 import { pixelToGrid } from "../utils/GridUtils";
 import { MovementValidator } from "../domain/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
-import { GameConfig } from "@/config/GameConfig";
+import { UIButton, UIText } from "@/ui";
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -61,7 +61,7 @@ export class GameScene extends Phaser.Scene {
   private isSetupActive: boolean = false;
   private kickoffStep: 'SELECT_KICKER' | 'SELECT_TARGET' | null = null;
   private pendingKickoffData: any = null;
-  private ballSprite: Phaser.GameObjects.Shape | null = null;
+  private ballSprite: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -327,10 +327,55 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.eventBus.on("ballKicked", (data: any) => {
-      // 1. Show Ball at Target immediately
-      this.placeBallVisual(data.targetX, data.targetY);
+      console.log("ballKicked event received", data);
 
-      // Store scatter data for later animation
+      // 1. Find Kicker Position (Start of Arc)
+      let startX = data.targetX;
+      let startY = data.targetY;
+
+      // Try to find the kicker sprite
+      if (data.playerId && this.playerSprites.has(data.playerId)) {
+        // We have the sprite, but we need the GRID pos for placeBallVisual
+        const kickerPlayer = this.gameService.getPlayerById(data.playerId);
+        if (kickerPlayer && kickerPlayer.gridPosition) {
+          startX = kickerPlayer.gridPosition.x;
+          startY = kickerPlayer.gridPosition.y;
+        }
+      }
+
+      // 2. Spawn Ball at Kicker
+      this.placeBallVisual(startX, startY);
+
+      // 3. Animate Kick (Kicker -> Target)
+      const targetPos = this.pitch.getPixelPosition(data.targetX, data.targetY);
+
+      this.tweens.add({
+        targets: this.ballSprite,
+        x: targetPos.x,
+        y: targetPos.y,
+        duration: 800,
+        ease: 'Quad.easeOut',
+        // Optional: Add scale effect for "height"
+        onStart: () => {
+          this.ballSprite?.setScale(0.5);
+        },
+        yoyo: false,
+
+        // Using a second tween for scale arc (Up and Down)
+        // Simple hack: Just move Z/Scale
+      });
+
+      // Simulate Arc Height
+      this.tweens.add({
+        targets: this.ballSprite,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        duration: 400,
+        yoyo: true,
+        ease: 'Sine.easeOut'
+      });
+
+      // Store scatter data for later animation (Phase 2)
       this.pendingKickoffData = data;
     });
 
@@ -513,10 +558,9 @@ export class GameScene extends Phaser.Scene {
     if (this.ballSprite) this.ballSprite.destroy();
 
     const pos = this.pitch.getPixelPosition(x, y);
-
-    this.ballSprite = this.add.circle(pos.x, pos.y, 10, 0xffffff);
-    this.ballSprite.setDepth(20);
+    this.ballSprite = new BallSprite(this, pos.x, pos.y);
   }
+
 
   private animateBallScatter(data: any): void {
     if (!this.ballSprite) return;
