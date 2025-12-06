@@ -266,7 +266,14 @@ export class GameplayInteractionController {
 
         // TODO: Use a validator helper to "Analyze Path"
         // For now, simple draw
-        this.pitch.drawMovementPath(this.waypoints, []); // Pass generic rolls for now or implement analyze
+        const player = this.gameService.getPlayerById(this.selectedPlayerId);
+        if (player && player.gridPosition) {
+            const fullPath = [
+                { x: player.gridPosition.x, y: player.gridPosition.y },
+                ...this.waypoints
+            ];
+            this.pitch.drawMovementPath(fullPath, []);
+        }
     }
 
     private drawPath(x: number, y: number): void {
@@ -293,13 +300,22 @@ export class GameplayInteractionController {
 
         if (result.valid) {
             // Combine confirmed waypoints + preview path
-            const fullPath = [...this.waypoints, ...result.path];
+            // ALSO include the player's current position as the start of the visual path
+            const fullPath = [
+                { x: player.gridPosition!.x, y: player.gridPosition!.y },
+                ...this.waypoints,
+                ...result.path
+            ];
             // TODO: Get rolls for full path
             this.pitch.drawMovementPath(fullPath, []);
         } else {
             // Just draw existing waypoints if preview is invalid
             if (this.waypoints.length > 0) {
-                this.pitch.drawMovementPath(this.waypoints, []);
+                const fullPath = [
+                    { x: player.gridPosition!.x, y: player.gridPosition!.y },
+                    ...this.waypoints
+                ];
+                this.pitch.drawMovementPath(fullPath, []);
             } else {
                 this.pitch.clearPath();
             }

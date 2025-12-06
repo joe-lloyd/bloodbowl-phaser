@@ -271,11 +271,11 @@ export class Pitch {
     if (path.length > 1) {
       graphics.beginPath();
       const start = gridToPixel(path[0].x, path[0].y, this.squareSize);
-      graphics.moveTo(start.x + this.squareSize / 2, start.y + this.squareSize / 2);
+      graphics.moveTo(start.x, start.y);
 
       for (let i = 1; i < path.length; i++) {
         const p = gridToPixel(path[i].x, path[i].y, this.squareSize);
-        graphics.lineTo(p.x + this.squareSize / 2, p.y + this.squareSize / 2);
+        graphics.lineTo(p.x, p.y);
       }
       graphics.strokePath();
     }

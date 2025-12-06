@@ -569,7 +569,7 @@ export class GameScene extends Phaser.Scene {
       }
     } else if (this.kickoffStep === 'SELECT_TARGET') {
       const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
-      const validTarget = isTeam1Kicking ? (x >= 7) : (x < 7);
+      const validTarget = isTeam1Kicking ? (x >= 7) : (x <= 13);
 
       if (!validTarget) {
         this.showTurnNotification("Must kick to opponent half!");
