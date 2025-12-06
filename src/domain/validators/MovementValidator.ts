@@ -126,16 +126,24 @@ export class MovementValidator {
         const closedSet: Set<string> = new Set();
         const cameFrom: Map<string, { x: number, y: number }> = new Map();
 
+        // gScore now represents "Weighted Safety Cost", NOT just distance
         const gScore: Map<string, number> = new Map();
+        // stepsMap tracks actual movement steps (MA limit)
+        const stepsMap: Map<string, number> = new Map();
+
         const fScore: Map<string, number> = new Map();
 
         const startKey = `${start.x},${start.y}`;
         gScore.set(startKey, 0);
-        fScore.set(startKey, this.heuristic(start, end));
+        stepsMap.set(startKey, 0);
+        fScore.set(startKey, this.heuristic(start, end, start, end)); // Pass start/end for tie-breaker calc
 
         openSet.push(start);
 
+        const maxSteps = player.stats.MA + 2; // GFI limit
+
         while (openSet.length > 0) {
+            // Sort by fScore (lowest first)
             openSet.sort((a, b) => {
                 const fa = fScore.get(`${a.x},${a.y}`) || Infinity;
                 const fb = fScore.get(`${b.x},${b.y}`) || Infinity;
@@ -151,21 +159,35 @@ export class MovementValidator {
 
             closedSet.add(currentKey);
 
+            const currentSteps = stepsMap.get(currentKey) || 0;
+            if (currentSteps >= maxSteps) continue; // Stop exploring if max MA reached
+
             const neighbors = this.getNeighbors(current.x, current.y);
             for (const neighbor of neighbors) {
                 const neighborKey = `${neighbor.x},${neighbor.y}`;
                 if (closedSet.has(neighborKey)) continue;
 
+                // Occupation check
                 if (this.isOccupiedByStanding(neighbor.x, neighbor.y, [...opponents, ...teammates])) {
                     continue;
                 }
 
-                const tentativeGScore = (gScore.get(currentKey) || 0) + 1;
+                // --- WEIGHT CALCULATION ---
+                // Base cost = 1
+                // Tackle Zone Penalty = 10 per TZ *on the target square*
+                // This makes the pathfinder avidly avoid TZs unless necessary.
+                const tackleZones = this.getTackleZones(neighbor.x, neighbor.y, opponents);
+                const stepCost = 1 + (tackleZones * 10);
+
+                const tentativeGScore = (gScore.get(currentKey) || 0) + stepCost;
 
                 if (tentativeGScore < (gScore.get(neighborKey) || Infinity)) {
                     cameFrom.set(neighborKey, current);
                     gScore.set(neighborKey, tentativeGScore);
-                    fScore.set(neighborKey, tentativeGScore + this.heuristic(neighbor, end));
+                    stepsMap.set(neighborKey, currentSteps + 1);
+
+                    // Add heuristic with tie-breaker
+                    fScore.set(neighborKey, tentativeGScore + this.heuristic(neighbor, end, start, end));
 
                     if (!openSet.some(n => n.x === neighbor.x && n.y === neighbor.y)) {
                         openSet.push(neighbor);
@@ -260,8 +282,29 @@ export class MovementValidator {
         );
     }
 
-    private heuristic(a: { x: number, y: number }, b: { x: number, y: number }): number {
-        return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+    private heuristic(
+        node: { x: number, y: number },
+        end: { x: number, y: number },
+        pathStart: { x: number, y: number },
+        pathEnd: { x: number, y: number }
+    ): number {
+        // Base: Chebyshev distance (diagonal = 1)
+        const dXx = Math.abs(node.x - end.x);
+        const dYy = Math.abs(node.y - end.y);
+        const D = 1;
+        const D2 = 1;
+
+        const h = D * (dXx + dYy) + (D2 - 2 * D) * Math.min(dXx, dYy);
+
+        // Tie-Breaker: Nudge towards straight line
+        // Cross-product magnitude of vector (start->end) vs (start->node)
+        const dx1 = node.x - pathEnd.x;
+        const dy1 = node.y - pathEnd.y;
+        const dx2 = pathStart.x - pathEnd.x;
+        const dy2 = pathStart.y - pathEnd.y;
+        const cross = Math.abs(dx1 * dy2 - dx2 * dy1);
+
+        return h + (cross * 0.001);
     }
 
     private invalidResult(): MovementResult {

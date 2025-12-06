@@ -514,7 +514,7 @@ export class GameScene extends Phaser.Scene {
 
     const pos = this.pitch.getPixelPosition(x, y);
 
-    this.ballSprite = this.add.circle(pos.x, pos.y, 10, 0xffffff); // Centered (30 is half of 60)
+    this.ballSprite = this.add.circle(pos.x, pos.y, 10, 0xffffff);
     this.ballSprite.setDepth(20);
   }
 
