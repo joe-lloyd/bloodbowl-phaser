@@ -5,7 +5,7 @@ import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 import { DiceLog } from "../game/ui/DiceLog";
 import { Dugout } from "../game/Dugout";
 import { Team } from "../types/Team";
-import { Player, PlayerStatus } from "../types/Player";
+import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
@@ -21,6 +21,7 @@ import {
 import { pixelToGrid } from "../utils/GridUtils";
 import { MovementValidator } from "../domain/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
+import { GameConfig } from "@/config/GameConfig";
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -348,6 +349,10 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on("readyToStart", () => {
       this.gameService.startGame(this.kickingTeam.id);
     });
+
+    this.eventBus.on("diceRoll", (data: { type: string, value: number, result: any }) => {
+      this.diceLog.addLog(`${data.type}: ${data.result}`);
+    });
   }
 
   private refreshDugouts(): void {
@@ -508,18 +513,8 @@ export class GameScene extends Phaser.Scene {
     if (this.ballSprite) this.ballSprite.destroy();
 
     const pos = this.pitch.getPixelPosition(x, y);
-    // Use local coordinates for pitch container? 
-    // pitch.getPixelPosition returns WORLD coords currently? 
-    // Let's check pitch.ts... 
-    // Pitch.getPixelPosition adds offsetX/Y so it is WORLD.
-    // Pitch.add expects LOCAL?
-    // Wait, Pitch.ts `container.add(child)`. if child is at WORLD coords, it will be offset AGAIN by container x,y.
-    // So we must use LOCAL coords if adding to container.
-    // BUT `getPixelPosition` returns WORLD.
-    // So we should NOT add to pitch container if using getPixelPosition, OR convert.
-    // Easiest: Add to Scene directly (above pitch).
 
-    this.ballSprite = this.add.circle(pos.x + 30, pos.y + 30, 10, 0xffffff); // Centered (30 is half of 60)
+    this.ballSprite = this.add.circle(pos.x, pos.y, 10, 0xffffff); // Centered (30 is half of 60)
     this.ballSprite.setDepth(20);
   }
 
@@ -530,8 +525,8 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.ballSprite,
-      x: finalPos.x + 30,
-      y: finalPos.y + 30,
+      x: finalPos.x,
+      y: finalPos.y,
       duration: 1000,
       ease: 'Bounce',
     });
@@ -573,14 +568,8 @@ export class GameScene extends Phaser.Scene {
         this.showTurnNotification("Select Target Square");
       }
     } else if (this.kickoffStep === 'SELECT_TARGET') {
-      // VALIDATE TARGET: Must be in opponent's half
-      // Pitch is 26 wide. Grid 0-25. Center line is between 12 and 13.
-      // Team 1 Start: 0-12? Team 2 Start: 13-25?
-      // Actually standard pitch is 26 squares wide. 13 squares per half.
-      // Team 1 (Left) usually owns 0-12. Team 2 (Right) owns 13-25.
-
       const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
-      const validTarget = isTeam1Kicking ? (x >= 13) : (x < 13);
+      const validTarget = isTeam1Kicking ? (x >= 7) : (x < 7);
 
       if (!validTarget) {
         this.showTurnNotification("Must kick to opponent half!");

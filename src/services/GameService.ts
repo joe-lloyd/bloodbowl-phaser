@@ -7,7 +7,7 @@
 
 import { IGameService } from './interfaces/IGameService.js';
 import { IEventBus } from './EventBus.js';
-import { GameState, GamePhase, TurnData } from '@/types/GameState';
+import { GameState, GamePhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../domain/validators/MovementValidator.js';
@@ -218,9 +218,20 @@ export class GameService implements IGameService {
         if (this.state.phase !== GamePhase.KICKOFF) return;
 
         // Simplify for now: Assume valid kicker (validation can be in UI or here)
-        // Roll Scatter
+        // Roll Scatter and add it to the dice log
         const direction = Math.floor(Math.random() * 8) + 1; // 1-8
+        this.eventBus.emit('diceRoll', {
+            type: 'Scatter Direction',
+            value: direction,
+            result: direction
+        });
+
         const distance = Math.floor(Math.random() * 6) + 1; // 1-6
+        this.eventBus.emit('diceRoll', {
+            type: 'Scatter Distance',
+            value: distance,
+            result: distance
+        });
 
         // Calculate offset based on direction (Standard BB scatter template)
         // 1: TL, 2: T, 3: TR, 4: L, 5: R, 6: BL, 7: B, 8: BR

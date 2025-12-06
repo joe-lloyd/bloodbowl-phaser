@@ -299,7 +299,7 @@ export class Pitch {
         }
       }
 
-      const dot = this.scene.add.circle(local.x + this.squareSize / 2, local.y + this.squareSize / 2, radius, color);
+      const dot = this.scene.add.circle(local.x, local.y, radius, color);
       dot.setName('path_dot');
       dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);

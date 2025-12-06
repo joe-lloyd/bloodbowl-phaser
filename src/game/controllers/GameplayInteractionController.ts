@@ -320,11 +320,6 @@ export class GameplayInteractionController {
     }
 
     private handleKickoffClick(x: number, y: number, playerAtSquare: any): void {
-        // Need to know kickoff step. Scene currently holds it.
-        // Option: Move kickoff step state here OR expose it from Scene.
-        // Let's expose/manage via Scene for now or pass it in. 
-        // For cleaner refactor, let's suggest Scene delegates the specific Kickoff Step too?
-        // Let's call a method on Scene for now to keep migration simple
         this.scene.handleKickoffInteraction(x, y, playerAtSquare);
     }
 
