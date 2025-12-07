@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { TestOverlay } from './components/TestOverlay';
 import { MainMenu } from './components/MainMenu';
+import { TeamManagement } from './components/TeamManagement';
+import { TeamBuilder } from './components/TeamBuilder';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -15,6 +17,7 @@ interface AppProps {
  */
 export function App({ eventBus }: AppProps) {
     const [currentScene, setCurrentScene] = useState<string>('MenuScene');
+    const [sceneData, setSceneData] = useState<any>(null);
 
     // Listen for scene changes FROM Phaser
     useEventBus(eventBus, 'phaseChanged', (data) => {
@@ -24,8 +27,10 @@ export function App({ eventBus }: AppProps) {
 
     // Listen for scene change requests FROM React UI
     useEventBus(eventBus, 'ui:sceneChange', (data) => {
+        console.log('Scene change requested:', data);
         setCurrentScene(data.scene);
-        // The MenuScene listens to this event and handles the actual Phaser scene change
+        setSceneData(data.data || null);
+        // The scene listens to this event and handles the actual Phaser scene change
     });
 
     return (
@@ -33,6 +38,14 @@ export function App({ eventBus }: AppProps) {
             {/* Show appropriate UI based on current scene */}
             {currentScene === 'MenuScene' && (
                 <MainMenu eventBus={eventBus} />
+            )}
+
+            {currentScene === 'TeamManagementScene' && (
+                <TeamManagement eventBus={eventBus} />
+            )}
+
+            {currentScene === 'TeamBuilderScene' && (
+                <TeamBuilder eventBus={eventBus} teamId={sceneData?.teamId} />
             )}
 
             {/* Test overlay - can be shown on all scenes for debugging */}
