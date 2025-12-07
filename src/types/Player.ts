@@ -2,20 +2,7 @@
  * Player types and interfaces for Blood Bowl Sevens (2020 Rules)
  */
 
-import { Skill } from "./Skills";
-
-/**
- * Player position types
- */
-export enum PlayerPosition {
-  LINEMAN = "Lineman",
-  BLITZER = "Blitzer",
-  CATCHER = "Catcher",
-  THROWER = "Thrower",
-  BLOCKER = "Blocker",
-  RUNNER = "Runner",
-  // Add more positions as needed for different races
-}
+import { Skill, SkillCategory } from "./Skills";
 
 /**
  * Player status on the pitch
@@ -62,9 +49,10 @@ export interface PlayerStats {
 export interface Player {
   // Identity
   id: string;
-  name: string;
+  playerName: string;
+  positionName: string;
   number: number; // Jersey number (1-16)
-  position: PlayerPosition;
+  keywords: KeyWord[];
   teamId: string;
 
   // Stats
@@ -92,18 +80,47 @@ export interface Player {
 
   // Cost (for team building)
   cost: number;
+  teamValue: number;
 }
 
 /**
  * Player template for roster creation
  */
 export interface PlayerTemplate {
-  position: PlayerPosition;
+  positionName: string;
+  keywords: KeyWord[];
   cost: number;
   stats: PlayerStats;
   skills: Skill[];
-  maxAllowed?: number; // Max number of this position (e.g., 4 Blitzers)
+  maxAllowed?: number; // Max number of this position (e.g., 2 Blitzers)
+  primary: SkillCategory[];
+  secondary: SkillCategory[];
 }
+
+export enum RaceKeyWord {
+  HUMAN = "Human",
+  GOBLIN = "Goblin",
+  ORC = "Orc",
+  TROLL = "Troll",
+  ELF = "Elf",
+  DWARF = "Dwarf",
+}
+
+export enum PositionKeyWord {
+  LINEMAN = "Lineman",
+  BLITZER = "Blitzer",
+  CATCHER = "Catcher",
+  THROWER = "Thrower",
+  BLOCKER = "Blocker",
+  RUNNER = "Runner",
+}
+
+export enum TraitKeyWord {
+  BIG_GUY = "Big Guy",
+  UNDEAD = "Undead",
+}
+
+export type KeyWord = RaceKeyWord | PositionKeyWord | TraitKeyWord;
 
 /**
  * Helper function to create a new player
@@ -116,9 +133,10 @@ export function createPlayer(
 ): Player {
   return {
     id: `${teamId}-player-${number}`,
-    name: name || `${template.position} #${number}`,
+    playerName: name || `${template.positionName} #${number}`,
     number,
-    position: template.position,
+    positionName: template.positionName,
+    keywords: template.keywords,
     teamId,
     stats: { ...template.stats },
     baseStats: { ...template.stats },
@@ -129,6 +147,7 @@ export function createPlayer(
     injuries: [],
     hasActed: false,
     cost: template.cost,
+    teamValue: 0,
   };
 }
 

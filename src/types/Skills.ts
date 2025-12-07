@@ -11,6 +11,7 @@ export enum SkillCategory {
   STRENGTH = "Strength",
   PASSING = "Passing",
   MUTATION = "Mutation",
+  DEVIOUS = "Devious",
 }
 
 /**
@@ -24,6 +25,7 @@ export enum SkillType {
   TACKLE = "Tackle",
   STAND_FIRM = "Stand Firm",
   PRO = "Pro",
+  DAUNTLESS = "Dauntless",
 
   // Agility skills
   DODGE = "Dodge",
@@ -32,6 +34,7 @@ export enum SkillType {
   SURE_FEET = "Sure Feet",
   LEAP = "Leap",
   SIDESTEP = "Side Step",
+  ON_THE_BALL = "On The Ball",
 
   // Strength skills
   BREAK_TACKLE = "Break Tackle",
@@ -39,6 +42,8 @@ export enum SkillType {
   JUGGERNAUT = "Juggernaut",
   PILING_ON = "Piling On",
   THICK_SKULL = "Thick Skull",
+  DEFENSIVE = "Defensive",
+  BRAWLER = "Brawler",
 
   // Passing skills
   PASS = "Pass",
@@ -46,12 +51,24 @@ export enum SkillType {
   SAFE_THROW = "Safe Throw",
   SURE_HANDS = "Sure Hands",
   DUMP_OFF = "Dump-Off",
+  SAFE_PASS = "Safe Pass",
+  HIT_AND_RUN = "Hit and Run",
+  JUMP_UP = "Jump Up",
+  NERVES_OF_STEEL = "Nerves of Steel",
 
   // Special skills
   FRENZY = "Frenzy",
   DIRTY_PLAYER = "Dirty Player",
   STRIP_BALL = "Strip Ball",
   WRESTLE = "Wrestle",
+  RIGHT_STUFF = "Right Stuff",
+  STUNTY = "Stunty",
+  ALWAYS_HUNGRY = "Always Hungry",
+  REGENERATION = "Regeneration",
+  THROW_TEAMMATE = "Throw Teammate",
+  REALLY_STUPID = "Really Stupid",
+  STEADY_FOOTING = "Steady Footing",
+  PROJECTILE_VOMIT = "Projectile Vomit",
 }
 
 /**

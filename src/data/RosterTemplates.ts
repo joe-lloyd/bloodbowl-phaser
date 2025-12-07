@@ -3,182 +3,179 @@
  * Based on Blood Bowl 2020 rules
  */
 
-import { PlayerTemplate, PlayerPosition } from "../types/Player";
-import { TeamRace, TeamRoster } from "../types/Team";
-import { SkillType, getSkill } from "../types/Skills";
+import { RaceKeyWord, PositionKeyWord, TraitKeyWord, PlayerTemplate } from "../types/Player";
+import { League, TeamRoster, TeamSpecialRule, RosterName } from "../types/Team";
+import { SkillCategory, SkillType, getSkill } from "../types/Skills";
 
-/**
- * Human Team Roster
- */
-const HUMAN_ROSTER: TeamRoster = {
-  race: TeamRace.HUMAN,
-  rerollCost: 50000,
+const AMAZON_ROSTER: TeamRoster = {
+  rosterName: RosterName.AMAZON,
+  rerollCost: 60_000,
+  leagues: [League.LUSTRIAN_SUPERLEAGUE],
+  specialRules: [],
+  tier: 1,
+  apothecary: true,
   playerTemplates: [
     {
-      position: PlayerPosition.LINEMAN,
-      cost: 50000,
-      stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
-      skills: [],
+      positionName: "Eagle Warrior",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.HUMAN],
+      cost: 50_000,
+      stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
+      skills: [getSkill(SkillType.DODGE)],
       maxAllowed: 16,
+      primary: [SkillCategory.GENERAL],
+      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
     },
     {
-      position: PlayerPosition.THROWER,
-      cost: 80000,
-      stats: { MA: 6, ST: 3, AG: 3, PA: 2, AV: 9 },
-      skills: [getSkill(SkillType.PASS), getSkill(SkillType.SURE_HANDS)],
+      positionName: "Python Warrior",
+      keywords: [PositionKeyWord.THROWER, RaceKeyWord.HUMAN],
+      cost: 80_000,
+      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
+      skills: [getSkill(SkillType.DODGE), getSkill(SkillType.ON_THE_BALL), getSkill(SkillType.PASS), getSkill(SkillType.SAFE_PASS)],
       maxAllowed: 2,
+      primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
+      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
     },
     {
-      position: PlayerPosition.CATCHER,
-      cost: 70000,
-      stats: { MA: 8, ST: 2, AG: 2, PA: 5, AV: 8 },
-      skills: [getSkill(SkillType.CATCH), getSkill(SkillType.DODGE)],
-      maxAllowed: 4,
+      positionName: "Piranha Warrior",
+      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.HUMAN],
+      cost: 90_000,
+      stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 8 },
+      skills: [getSkill(SkillType.DODGE), getSkill(SkillType.HIT_AND_RUN), getSkill(SkillType.JUMP_UP)],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.STRENGTH],
     },
     {
-      position: PlayerPosition.BLITZER,
-      cost: 90000,
+      positionName: "Jaguar Warrior",
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.HUMAN],
+      cost: 110_000,
+      stats: { MA: 6, ST: 4, AG: 3, PA: 4, AV: 9 },
+      skills: [getSkill(SkillType.DEFENSIVE), getSkill(SkillType.DODGE)],
+      maxAllowed: 2,
+      primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY],
+    },
+  ],
+};
+
+/**
+ * Black Orc Team Roster
+ */
+const BLACK_ORC_ROSTER: TeamRoster = {
+  rosterName: RosterName.BLACK_ORC,
+  rerollCost: 60_000,
+  leagues: [League.BADLANDS_BRAWL],
+  specialRules: [TeamSpecialRule.BRAWLIN_BRUTES, TeamSpecialRule.BRIBERY_AND_CORRUPTION],
+  tier: 1,
+  apothecary: true,
+  playerTemplates: [
+    {
+      positionName: "Goblin Bruiser",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.GOBLIN],
+      cost: 45_000,
+      stats: { MA: 6, ST: 2, AG: 3, PA: 4, AV: 8 },
+      skills: [getSkill(SkillType.DODGE), getSkill(SkillType.RIGHT_STUFF), getSkill(SkillType.STUNTY), getSkill(SkillType.THICK_SKULL)],
+      maxAllowed: 16,
+      primary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+      secondary: [SkillCategory.GENERAL, SkillCategory.PASSING, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Black Orc",
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.ORC],
+      cost: 90_000,
+      stats: { MA: 4, ST: 4, AG: 4, PA: 5, AV: 10 },
+      skills: [getSkill(SkillType.BRAWLER), getSkill(SkillType.GRAB)],
+      maxAllowed: 6,
+      primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+    },
+    {
+      positionName: "Trained Troll",
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
+      cost: 115_000,
+      stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
+      skills: [getSkill(SkillType.ALWAYS_HUNGRY), getSkill(SkillType.MIGHTY_BLOW), getSkill(SkillType.PROJECTILE_VOMIT), getSkill(SkillType.REALLY_STUPID), getSkill(SkillType.REGENERATION), getSkill(SkillType.THROW_TEAMMATE)],
+      maxAllowed: 1,
+      primary: [SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL, SkillCategory.PASSING],
+    },
+  ],
+};
+
+/**
+ * Bretonian Team Roster
+ */
+const BRETONIAN_ROSTER: TeamRoster = {
+  rosterName: RosterName.BRETONIAN,
+  rerollCost: 60_000,
+  leagues: [League.OLD_WORLD_CLASSIC],
+  specialRules: [],
+  tier: 1,
+  apothecary: true,
+  playerTemplates: [
+    {
+      positionName: "Bretonian Squire",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.HUMAN],
+      cost: 50_000,
+      stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
+      skills: [getSkill(SkillType.WRESTLE)],
+      maxAllowed: 16,
+      primary: [SkillCategory.GENERAL],
+      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Bretonian Knight Catcher",
+      keywords: [PositionKeyWord.CATCHER, RaceKeyWord.HUMAN],
+      cost: 85_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 9 },
-      skills: [getSkill(SkillType.BLOCK)],
-      maxAllowed: 4,
+      skills: [getSkill(SkillType.CATCH), getSkill(SkillType.DAUNTLESS), getSkill(SkillType.NERVES_OF_STEEL)],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Bretonian Knight Thrower",
+      keywords: [PositionKeyWord.THROWER, RaceKeyWord.HUMAN],
+      cost: 80_000,
+      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 9 },
+      skills: [getSkill(SkillType.DAUNTLESS), getSkill(SkillType.NERVES_OF_STEEL), getSkill(SkillType.PASS), getSkill(SkillType.SAFE_PASS)],
+      maxAllowed: 2,
+      primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
+      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Grail Knight",
+      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.HUMAN],
+      cost: 95_000,
+      stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 10 },
+      skills: [getSkill(SkillType.BLOCK), getSkill(SkillType.DAUNTLESS), getSkill(SkillType.STEADY_FOOTING)],
+      maxAllowed: 2,
+      primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY],
     },
   ],
-};
+}
 
-/**
- * Orc Team Roster
- */
-const ORC_ROSTER: TeamRoster = {
-  race: TeamRace.ORC,
-  rerollCost: 60000,
-  playerTemplates: [
-    {
-      position: PlayerPosition.LINEMAN,
-      cost: 50000,
-      stats: { MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 },
-      skills: [],
-      maxAllowed: 16,
-    },
-    {
-      position: PlayerPosition.THROWER,
-      cost: 65000,
-      stats: { MA: 5, ST: 3, AG: 3, PA: 3, AV: 9 },
-      skills: [getSkill(SkillType.PASS), getSkill(SkillType.SURE_HANDS)],
-      maxAllowed: 2,
-    },
-    {
-      position: PlayerPosition.BLITZER,
-      cost: 80000,
-      stats: { MA: 6, ST: 3, AG: 3, PA: 5, AV: 10 },
-      skills: [getSkill(SkillType.BLOCK)],
-      maxAllowed: 4,
-    },
-    {
-      position: PlayerPosition.BLOCKER,
-      cost: 75000,
-      stats: { MA: 4, ST: 4, AG: 4, PA: 6, AV: 10 },
-      skills: [],
-      maxAllowed: 4,
-    },
-  ],
-};
-
-/**
- * Elf Team Roster
- */
-const ELF_ROSTER: TeamRoster = {
-  race: TeamRace.ELF,
-  rerollCost: 50000,
-  playerTemplates: [
-    {
-      position: PlayerPosition.LINEMAN,
-      cost: 60000,
-      stats: { MA: 6, ST: 3, AG: 2, PA: 4, AV: 8 },
-      skills: [],
-      maxAllowed: 16,
-    },
-    {
-      position: PlayerPosition.THROWER,
-      cost: 80000,
-      stats: { MA: 6, ST: 3, AG: 2, PA: 2, AV: 8 },
-      skills: [getSkill(SkillType.PASS)],
-      maxAllowed: 2,
-    },
-    {
-      position: PlayerPosition.CATCHER,
-      cost: 90000,
-      stats: { MA: 8, ST: 3, AG: 2, PA: 5, AV: 8 },
-      skills: [getSkill(SkillType.CATCH), getSkill(SkillType.DODGE)],
-      maxAllowed: 4,
-    },
-    {
-      position: PlayerPosition.BLITZER,
-      cost: 100000,
-      stats: { MA: 7, ST: 3, AG: 2, PA: 4, AV: 9 },
-      skills: [getSkill(SkillType.BLOCK), getSkill(SkillType.SIDESTEP)],
-      maxAllowed: 2,
-    },
-  ],
-};
-
-/**
- * Dwarf Team Roster
- */
-const DWARF_ROSTER: TeamRoster = {
-  race: TeamRace.DWARF,
-  rerollCost: 50000,
-  playerTemplates: [
-    {
-      position: PlayerPosition.LINEMAN,
-      cost: 70000,
-      stats: { MA: 4, ST: 3, AG: 4, PA: 5, AV: 10 },
-      skills: [
-        getSkill(SkillType.BLOCK),
-        getSkill(SkillType.TACKLE),
-        getSkill(SkillType.THICK_SKULL),
-      ],
-      maxAllowed: 16,
-    },
-    {
-      position: PlayerPosition.RUNNER,
-      cost: 85000,
-      stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
-      skills: [getSkill(SkillType.SURE_HANDS), getSkill(SkillType.THICK_SKULL)],
-      maxAllowed: 2,
-    },
-    {
-      position: PlayerPosition.BLITZER,
-      cost: 80000,
-      stats: { MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 },
-      skills: [getSkill(SkillType.BLOCK), getSkill(SkillType.THICK_SKULL)],
-      maxAllowed: 2,
-    },
-  ],
-};
 
 /**
  * Get roster template by race
  */
-export function getRosterByRace(race: TeamRace): TeamRoster {
-  switch (race) {
-    case TeamRace.HUMAN:
-      return HUMAN_ROSTER;
-    case TeamRace.ORC:
-      return ORC_ROSTER;
-    case TeamRace.ELF:
-      return ELF_ROSTER;
-    case TeamRace.DWARF:
-      return DWARF_ROSTER;
+export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
+  switch (rosterName) {
+    case RosterName.AMAZON:
+      return AMAZON_ROSTER;
+    case RosterName.BLACK_ORC:
+      return BLACK_ORC_ROSTER;
     default:
-      return HUMAN_ROSTER; // Default to humans
+      return AMAZON_ROSTER; // Default to Amazon
   }
 }
 
 /**
- * Get all available races
+ * Get all available roster names
  */
-export function getAvailableRaces(): TeamRace[] {
-  return [TeamRace.HUMAN, TeamRace.ORC, TeamRace.ELF, TeamRace.DWARF];
+export function getAvailableRosterNames(): RosterName[] {
+  return [RosterName.HUMAN, RosterName.ORC, RosterName.ELF, RosterName.DWARF];
 }
 
 /**
@@ -186,9 +183,9 @@ export function getAvailableRaces(): TeamRace[] {
  */
 export function getPlayerTemplate(
   roster: TeamRoster,
-  position: PlayerPosition
+  position: PositionKeyWord
 ): PlayerTemplate | undefined {
-  return roster.playerTemplates.find((t) => t.position === position);
+  return roster.playerTemplates.find((t) => t.positionName === position);
 }
 
 /**
@@ -196,7 +193,7 @@ export function getPlayerTemplate(
  */
 export function countPlayersByPosition(
   players: any[],
-  position: PlayerPosition
+  position: PositionKeyWord
 ): number {
   return players.filter((p) => p.position === position).length;
 }

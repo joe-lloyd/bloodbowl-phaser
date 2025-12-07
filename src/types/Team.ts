@@ -7,15 +7,51 @@ import { Player, PlayerTemplate } from "./Player";
 /**
  * Team races/types
  */
-export enum TeamRace {
-  HUMAN = "Human",
-  ORC = "Orc",
+export enum RosterName {
+  AMAZON = "Amazon",
+  BLACK_ORC = "Black Orc",
+  BRETONIAN = "Bretonian",
+  CHAOS_CHOSEN = "Chaos Chosen",
+  CHAOS_DWARF = "Chaos Dwarf",
+  CHAOS_RENEGADE = "Chaos Renegade",
+  DARK_ELF = "Dark Elf",
   DWARF = "Dwarf",
-  ELF = "Elf",
+  ELVEN_UNION = "Elven Union",
+  GNOME = "Gnome",
+  GOBLIN = "Goblin",
+  HALFLING = "Halfling",
+  HUMAN = "Human",
+  IMPERIAL_NOBILITY = "Imperial Nobility",
+  KHORNE = "Khorne",
+  LIZARDMEN = "Lizardmen",
+  NECROMANTIC_HORROR = "Necromantic Horror",
+  NORSE = "Norse",
+  NURGLE = "Nurgle",
+  OGRE = "Ogre",
+  OLD_WORLD_ALLIANCE = "Old World Alliance",
+  ORC = "Orc",
+  SHAMBLING_UNDEAD = "Shambiling Undead",
   SKAVEN = "Skaven",
-  UNDEAD = "Undead",
-  CHAOS = "Chaos",
-  // Add more races as needed
+  SNOTLING = "Snotling",
+  TOMB_KINGS = "Tomb Kings",
+  UNDERWORLD_DENIZENS = "Underworld Denizens",
+  VAMPIRE = "Vampire",
+  WOOD_ELF = "Wood Elf",
+}
+
+export enum League {
+  BADLANDS_BRAWL = "Badlands Brawl",
+  LUSTRIAN_SUPERLEAGUE = "Lustrian Superleague",
+  FAVoured_OF = "Favoured of",
+  ELVEN_KINGDOMS_LEAGUE = "Elven Kingdoms League",
+  OLD_WORLD_CLASSIC = "Old World Classic",
+  WORLDS_EDGE_SUPERLEAGUE = "Worlds Edge Superleague",
+}
+
+export enum TeamSpecialRule {
+  BRAWLIN_BRUTES = "Brawlin' Brutes",
+  BRIBERY_AND_CORRUPTION = "Bribery and Corruption",
+  TEAM_CAPTAIN = "Team Captain",
 }
 
 /**
@@ -41,7 +77,6 @@ export interface Team {
   // Identity
   id: string;
   name: string;
-  race: TeamRace;
   colors: TeamColors;
 
   // Roster
@@ -73,8 +108,12 @@ export interface Team {
  * Team roster template - defines what players a race can hire
  */
 export interface TeamRoster {
-  race: TeamRace;
+  rosterName: RosterName;
   rerollCost: number;
+  leagues: League[];
+  specialRules: TeamSpecialRule[];
+  tier: number;
+  apothecary: boolean;
   playerTemplates: PlayerTemplate[];
 }
 
@@ -83,14 +122,12 @@ export interface TeamRoster {
  */
 export function createTeam(
   name: string,
-  race: TeamRace,
   colors: TeamColors,
   rerollCost: number
 ): Team {
   return {
     id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name,
-    race,
     colors,
     players: [],
     maxRosterSize: 11,
