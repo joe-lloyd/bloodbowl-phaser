@@ -21,7 +21,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.player = player;
 
     // Create player shape based on position
-    this.createPlayerShape(scene, player.position, teamColor);
+    this.createPlayerShape(scene, player.positionName, teamColor);
 
     // Create player number
     this.numberText = scene.add.text(0, 0, player.number.toString(), {

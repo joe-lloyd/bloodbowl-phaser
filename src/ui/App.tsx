@@ -1,0 +1,43 @@
+import { useState } from 'react';
+import { TestOverlay } from './components/TestOverlay';
+import { MainMenu } from './components/MainMenu';
+import { EventBus } from '../services/EventBus';
+import { useEventBus } from './hooks/useEventBus';
+import './styles/global.css';
+
+interface AppProps {
+    eventBus: EventBus;
+}
+
+/**
+ * Root React component
+ * Manages which UI to show based on current scene
+ */
+export function App({ eventBus }: AppProps) {
+    const [currentScene, setCurrentScene] = useState<string>('MenuScene');
+
+    // Listen for scene changes FROM Phaser
+    useEventBus(eventBus, 'phaseChanged', (data) => {
+        // Could track game phase changes here if needed
+        console.log('Phase changed:', data.phase);
+    });
+
+    // Listen for scene change requests FROM React UI
+    useEventBus(eventBus, 'ui:sceneChange', (data) => {
+        setCurrentScene(data.scene);
+        // The MenuScene listens to this event and handles the actual Phaser scene change
+    });
+
+    return (
+        <>
+            {/* Show appropriate UI based on current scene */}
+            {currentScene === 'MenuScene' && (
+                <MainMenu eventBus={eventBus} />
+            )}
+
+            {/* Test overlay - can be shown on all scenes for debugging */}
+            {/* Remove this in production */}
+            {/* <TestOverlay eventBus={eventBus} /> */}
+        </>
+    );
+}

@@ -81,7 +81,7 @@ export class TeamManagementScene extends Phaser.Scene {
       this.add.text(
         width / 2 - 320,
         yOffset - 20,
-        `${team.name} (${team.race})`,
+        `${team.name} (${team.rosterName})`,
         {
           fontSize: "24px",
           color: "#ffffff",
@@ -92,7 +92,7 @@ export class TeamManagementScene extends Phaser.Scene {
       this.add.text(
         width / 2 - 320,
         yOffset + 10,
-        `${team.race} • ${team.players.length} players • ${this.formatGold(
+        `${team.rosterName} • ${team.players.length} players • ${this.formatGold(
           team.treasury
         )} treasury`,
         {

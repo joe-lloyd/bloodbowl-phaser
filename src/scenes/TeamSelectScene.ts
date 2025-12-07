@@ -118,7 +118,7 @@ export class TeamSelectionScene extends Phaser.Scene {
       new UIButton(this, {
         x,
         y: yOffset,
-        text: `${team.name} (${team.race})`,
+        text: `${team.name} (${team.rosterName})`,
         variant: isSelected ? "success" : "secondary",
         fontSize: "18px",
         onClick: () => {

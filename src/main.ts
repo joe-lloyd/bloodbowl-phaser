@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { GameConfig } from "./config/GameConfig";
 import { BootScene } from "./scenes/BootScene";
 import { MenuScene } from "./scenes/MenuScene";
@@ -6,6 +8,8 @@ import { TeamManagementScene } from "./scenes/TeamManagementScene";
 import { TeamBuilderScene } from "./scenes/TeamBuilderScene";
 import { TeamSelectionScene } from "./scenes/TeamSelectScene";
 import { GameScene } from "./scenes/GameScene";
+import { App } from "./ui/App";
+import { EventBus } from "./services/EventBus";
 
 /**
  * Main game configuration and initialization
@@ -50,10 +54,25 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-// Initialize the game
+// Create shared EventBus instance
+const eventBus = new EventBus();
+
+// Initialize Phaser game
 const game = new Phaser.Game(config);
 
-// Make game instance available globally for debugging
+// Initialize React UI
+const reactRoot = document.getElementById("react-root");
+if (reactRoot) {
+  const root = createRoot(reactRoot);
+  root.render(createElement(App, { eventBus }));
+  console.log("⚛️  React UI Overlay - Initialized!");
+} else {
+  console.error("React root element not found!");
+}
+
+// Make instances available globally for debugging
 (window as any).game = game;
+(window as any).eventBus = eventBus;
 
 console.log("🏈 Blood Bowl Sevens - Game Initialized!");
+console.log("📡 EventBus - Ready for Phaser ↔ React communication!");
