@@ -85,6 +85,54 @@ export interface Skill {
  * Skill definitions database
  */
 export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
+  [SkillType.SAFE_PASS]: {
+    type: SkillType.SAFE_PASS,
+    category: SkillCategory.PASSING,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.BRAWLER]: {
+    type: SkillType.BRAWLER,
+    category: SkillCategory.STRENGTH,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.JUGGERNAUT]: {
+    type: SkillType.JUGGERNAUT,
+    category: SkillCategory.STRENGTH,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.NERVES_OF_STEEL]: {
+    type: SkillType.NERVES_OF_STEEL,
+    category: SkillCategory.PASSING,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.JUMP_UP]: {
+    type: SkillType.JUMP_UP,
+    category: SkillCategory.PASSING,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.DEFENSIVE]: {
+    type: SkillType.DEFENSIVE,
+    category: SkillCategory.STRENGTH,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.HIT_AND_RUN]: {
+    type: SkillType.HIT_AND_RUN,
+    category: SkillCategory.DEVIOUS,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.ON_THE_BALL]: {
+    type: SkillType.ON_THE_BALL,
+    category: SkillCategory.AGILITY,
+    description: "placeholer",
+    providesReroll: true,
+  },
   [SkillType.BLOCK]: {
     type: SkillType.BLOCK,
     category: SkillCategory.GENERAL,
@@ -181,12 +229,6 @@ export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
     description: "Choose which square to push opponent to",
     providesReroll: false,
   },
-  [SkillType.JUGGERNAUT]: {
-    type: SkillType.JUGGERNAUT,
-    category: SkillCategory.STRENGTH,
-    description: "Ignore Stand Firm and Wrestle on blitz",
-    providesReroll: false,
-  },
   [SkillType.PILING_ON]: {
     type: SkillType.PILING_ON,
     category: SkillCategory.STRENGTH,
@@ -240,6 +282,60 @@ export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
     category: SkillCategory.GENERAL,
     description: "Both Down always applies",
     providesReroll: false,
+  },
+  [SkillType.RIGHT_STUFF]: {
+    type: SkillType.RIGHT_STUFF,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.STUNTY]: {
+    type: SkillType.STUNTY,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.ALWAYS_HUNGRY]: {
+    type: SkillType.ALWAYS_HUNGRY,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.REGENERATION]: {
+    type: SkillType.REGENERATION,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.THROW_TEAMMATE]: {
+    type: SkillType.THROW_TEAMMATE,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.REALLY_STUPID]: {
+    type: SkillType.REALLY_STUPID,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.STEADY_FOOTING]: {
+    type: SkillType.STEADY_FOOTING,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.PROJECTILE_VOMIT]: {
+    type: SkillType.PROJECTILE_VOMIT,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.DAUNTLESS]: {
+    type: SkillType.DAUNTLESS,
+    category: SkillCategory.GENERAL,
+    description: "placeholer",
+    providesReroll: true,
   },
 };
 

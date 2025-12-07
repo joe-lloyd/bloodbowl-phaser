@@ -166,6 +166,8 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
       return AMAZON_ROSTER;
     case RosterName.BLACK_ORC:
       return BLACK_ORC_ROSTER;
+    case RosterName.BRETONIAN:
+      return BRETONIAN_ROSTER;
     default:
       return AMAZON_ROSTER; // Default to Amazon
   }
@@ -175,7 +177,7 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
  * Get all available roster names
  */
 export function getAvailableRosterNames(): RosterName[] {
-  return [RosterName.HUMAN, RosterName.ORC, RosterName.ELF, RosterName.DWARF];
+  return [RosterName.AMAZON, RosterName.BLACK_ORC, RosterName.BRETONIAN];
 }
 
 /**

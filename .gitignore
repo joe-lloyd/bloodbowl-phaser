@@ -32,3 +32,6 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+
+# Documentation
+/docs/pdfs/*.pdf

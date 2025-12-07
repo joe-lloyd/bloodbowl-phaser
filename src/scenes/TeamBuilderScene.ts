@@ -1,14 +1,16 @@
 import Phaser from "phaser";
 import {
   Team,
-  TeamRace,
+  RosterName,
   createTeam,
   addPlayerToTeam,
   calculateTeamValue,
 } from "../types/Team";
-import { PlayerPosition, PlayerTemplate, createPlayer } from "../types/Player";
-import { getRosterByRace, getPlayerTemplate } from "../data/RosterTemplates";
+import { PlayerTemplate, createPlayer } from "../types/Player";
+import { getRosterByRosterName, getPlayerTemplate, getAvailableRosterNames } from "../data/RosterTemplates";
 import * as TeamManager from "../managers/TeamManager";
+import { UIButton } from "../ui/UIButton";
+import { UIText } from "../ui/UIText";
 
 export class TeamBuilderScene extends Phaser.Scene {
   private team!: Team;
@@ -26,12 +28,12 @@ export class TeamBuilderScene extends Phaser.Scene {
     0x888888, // Grey
   ];
 
-  private selectedRace: TeamRace = TeamRace.HUMAN;
-  private treasuryText!: Phaser.GameObjects.Text;
-  private teamValueText!: Phaser.GameObjects.Text;
+  private selectedRace: RosterName = RosterName.HUMAN;
+  private treasuryText!: UIText;
+  private teamValueText!: UIText;
   private rosterContainer!: Phaser.GameObjects.Container;
   private playerListContainer!: Phaser.GameObjects.Container;
-  private saveButton!: Phaser.GameObjects.Text;
+  private saveButton!: UIButton;
 
   constructor() {
     super({ key: "TeamBuilderScene" });
@@ -40,11 +42,11 @@ export class TeamBuilderScene extends Phaser.Scene {
   init(data: { team?: Team }): void {
     if (data.team) {
       this.team = data.team;
-      this.selectedRace = this.team.race;
+      this.selectedRace = this.team.rosterName;
       this.selectedColor = this.team.colors.primary;
     } else {
       // Create a default new team
-      this.selectedRace = TeamRace.HUMAN;
+      this.selectedRace = RosterName.AMAZON;
       this.selectedColor = 0xff0000;
       // Use a temporary name, user can change it
       this.team = createTeam(
@@ -64,13 +66,7 @@ export class TeamBuilderScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x1a1a2e).setOrigin(0);
 
     // Header
-    this.add
-      .text(width / 2, 30, "TEAM BUILDER", {
-        fontSize: "32px",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
+    UIText.createHeading(this, width / 2, 30, "TEAM BUILDER");
 
     // Race Selection
     this.createRaceSelection(50, 80);
@@ -94,39 +90,44 @@ export class TeamBuilderScene extends Phaser.Scene {
   }
 
   private createRaceSelection(x: number, y: number): void {
-    this.add.text(x, y, "SELECT RACE:", {
-      fontSize: "24px",
-      color: "#ffffff",
+    new UIText(this, {
+      x,
+      y,
+      text: "SELECT RACE:",
+      variant: "h4",
       fontStyle: "bold",
+      origin: { x: 0, y: 0 },
     });
 
-    const races = Object.values(TeamRace);
+    const races = getAvailableRosterNames();
     let xOffset = x;
     const yOffset = y + 40;
 
     races.forEach((race) => {
       const isSelected = this.selectedRace === race;
-      const color = isSelected ? "#44ff44" : "#aaaaaa";
 
-      const button = this.add.text(xOffset, yOffset, race, {
+      const button = new UIButton(this, {
+        x: xOffset,
+        y: yOffset,
+        text: race,
+        variant: isSelected ? "success" : "secondary",
         fontSize: "18px",
-        color: color,
-        backgroundColor: isSelected ? "#333333" : undefined,
-        padding: { x: 10, y: 5 },
+        origin: { x: 0, y: 0 },
+        onClick: () => this.changeRace(race),
       });
-
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.changeRace(race));
 
       xOffset += button.width + 20;
     });
   }
 
   private createColorSelection(x: number, y: number): void {
-    this.add.text(x, y, "TEAM COLOR:", {
-      fontSize: "20px",
-      color: "#ffffff",
+    new UIText(this, {
+      x,
+      y,
+      text: "TEAM COLOR:",
+      variant: "h5",
       fontStyle: "bold",
+      origin: { x: 0, y: 0 },
     });
 
     let xOffset = x + 130;
@@ -163,14 +164,15 @@ export class TeamBuilderScene extends Phaser.Scene {
     this.scene.restart({ team: this.team });
   }
 
-  // ... (rest of the file)
-
   private createTeamInfoPanel(x: number, y: number): void {
     // Team Name Input
-    this.add.text(x, y, "TEAM NAME", {
-      fontSize: "24px",
-      color: "#ffffff",
+    new UIText(this, {
+      x,
+      y,
+      text: "TEAM NAME",
+      variant: "h4",
       fontStyle: "bold",
+      origin: { x: 0, y: 0 },
     });
 
     // Team Name Input using DOM Element
@@ -196,60 +198,61 @@ export class TeamBuilderScene extends Phaser.Scene {
       }
     });
 
-    this.treasuryText = this.add.text(
+    this.treasuryText = new UIText(this, {
       x,
-      y + 90,
-      `Treasury: ${this.formatGold(this.team.treasury)}`,
-      {
-        fontSize: "18px",
-        color: "#44ff44",
-      }
-    );
+      y: y + 90,
+      text: `Treasury: ${this.formatGold(this.team.treasury)}`,
+      variant: "body",
+      color: "#44ff44",
+      origin: { x: 0, y: 0 },
+    });
 
-    this.teamValueText = this.add.text(
+    this.teamValueText = new UIText(this, {
       x,
-      y + 120,
-      `Team Value: ${this.formatGold(calculateTeamValue(this.team))}`,
-      {
-        fontSize: "18px",
-        color: "#ffffff",
-      }
-    );
+      y: y + 120,
+      text: `Team Value: ${this.formatGold(calculateTeamValue(this.team))}`,
+      variant: "body",
+      origin: { x: 0, y: 0 },
+    });
 
     // Rerolls
-    const rerollCost = getRosterByRace(this.team.race).rerollCost;
-    const rerollText = this.add.text(
+    const rerollCost = getRosterByRosterName(this.team.rosterName).rerollCost;
+    const rerollText = new UIText(this, {
       x,
-      y + 150,
-      `Rerolls: ${this.team.rerolls} (${this.formatGold(rerollCost)})`,
-      {
-        fontSize: "18px",
-        color: "#ffffff",
-      }
-    );
-
-    const buyRerollButton = this.add.text(x + 250, y + 150, "[+]", {
-      fontSize: "18px",
-      color: "#44ff44",
+      y: y + 150,
+      text: `Rerolls: ${this.team.rerolls} (${this.formatGold(rerollCost)})`,
+      variant: "body",
+      origin: { x: 0, y: 0 },
     });
-    buyRerollButton.setInteractive({ useHandCursor: true });
-    buyRerollButton.on("pointerdown", () => {
-      if (this.team.treasury >= rerollCost) {
-        this.team.treasury -= rerollCost;
-        this.team.rerolls++;
-        rerollText.setText(
-          `Rerolls: ${this.team.rerolls} (${this.formatGold(rerollCost)})`
-        );
-        this.updateUI();
-      }
+
+    new UIButton(this, {
+      x: x + 250,
+      y: y + 150,
+      text: "[+]",
+      variant: "success",
+      fontSize: "18px",
+      origin: { x: 0, y: 0 },
+      onClick: () => {
+        if (this.team.treasury >= rerollCost) {
+          this.team.treasury -= rerollCost;
+          this.team.rerolls++;
+          rerollText.setText(
+            `Rerolls: ${this.team.rerolls} (${this.formatGold(rerollCost)})`
+          );
+          this.updateUI();
+        }
+      },
     });
   }
 
   private createAvailablePlayersPanel(x: number, y: number): void {
-    this.add.text(x, y, "AVAILABLE PLAYERS", {
-      fontSize: "20px",
-      color: "#ffffff",
+    new UIText(this, {
+      x,
+      y,
+      text: "AVAILABLE PLAYERS",
+      variant: "h5",
       fontStyle: "bold",
+      origin: { x: 0, y: 0 },
     });
 
     this.playerListContainer = this.add.container(x, y + 40);
@@ -258,47 +261,101 @@ export class TeamBuilderScene extends Phaser.Scene {
   private updateAvailablePlayers(): void {
     this.playerListContainer.removeAll(true);
 
-    const roster = getRosterByRace(this.selectedRace);
+    const roster = getRosterByRosterName(this.selectedRace);
     let yOffset = 0;
 
     roster.playerTemplates.forEach((template: PlayerTemplate) => {
-      const bg = this.add.rectangle(0, yOffset, 400, 50, 0x2a2a3e).setOrigin(0);
+      const bg = this.add.rectangle(0, yOffset, 400, 140, 0x2a2a3e).setOrigin(0);
       bg.setStrokeStyle(1, 0x4444ff);
 
       const text = this.add.text(
         10,
         yOffset + 15,
-        `${template.position} - ${this.formatGold(template.cost)}`,
+        `${template.positionName} - ${this.formatGold(template.cost)}`,
         {
           fontSize: "16px",
           color: "#ffffff",
+          fontStyle: "bold",
+        }
+      );
+
+      const keywordsText = this.add.text(
+        10,
+        yOffset + 35,
+        `Keywords: ${template.keywords.join(", ")}`,
+        {
+          fontSize: "12px",
+          color: "#cccccc",
+        }
+      );
+
+      const skillNames = template.skills.map((s) => s.type).join(", ");
+      const skillsText = this.add.text(
+        10,
+        yOffset + 55,
+        `Skills: ${skillNames.length > 0 ? skillNames : "None"}`,
+        {
+          fontSize: "12px",
+          color: "#44ff44",
+          wordWrap: { width: 380 },
+        }
+      );
+
+      const primary = template.primary.join(", ");
+      const secondary = template.secondary.join(", ");
+      const categoriesText = this.add.text(
+        10,
+        yOffset + (skillsText.height + 60), // Dynamic positioning based on wrapped skills
+        `Primary: ${primary} | Secondary: ${secondary}`,
+        {
+          fontSize: "12px",
+          color: "#ffff44",
         }
       );
 
       const stats = `MA${template.stats.MA} ST${template.stats.ST} AG${template.stats.AG}+ PA${template.stats.PA}+ AV${template.stats.AV}+`;
-      const statsText = this.add.text(10, yOffset + 35, stats, {
-        fontSize: "12px",
-        color: "#aaaaaa",
-      });
+      const statsText = this.add.text(
+        10,
+        yOffset + (skillsText.height + 80),
+        stats,
+        {
+          fontSize: "14px",
+          color: "#ffffff",
+          fontStyle: "bold"
+        }
+      );
 
-      const hireBtn = this.add.text(350, yOffset + 15, "HIRE", {
+      const hireBtn = new UIButton(this, {
+        x: 350,
+        y: yOffset + 15,
+        text: "HIRE",
+        variant: "success",
         fontSize: "16px",
-        color: "#44ff44",
-        fontStyle: "bold",
+        origin: { x: 0, y: 0 },
+        onClick: () => this.hirePlayer(template.positionName),
       });
-      hireBtn.setInteractive({ useHandCursor: true });
-      hireBtn.on("pointerdown", () => this.hirePlayer(template.position));
 
-      this.playerListContainer.add([bg, text, statsText, hireBtn]);
-      yOffset += 60;
+      this.playerListContainer.add([
+        bg,
+        text,
+        keywordsText,
+        skillsText,
+        categoriesText,
+        statsText,
+        hireBtn,
+      ]);
+      yOffset += 150;
     });
   }
 
   private createCurrentRosterPanel(x: number, y: number): void {
-    this.add.text(x, y, "CURRENT ROSTER", {
-      fontSize: "20px",
-      color: "#ffffff",
+    new UIText(this, {
+      x,
+      y,
+      text: "CURRENT ROSTER",
+      variant: "h5",
       fontStyle: "bold",
+      origin: { x: 0, y: 0 },
     });
 
     this.rosterContainer = this.add.container(x, y + 40);
@@ -315,23 +372,25 @@ export class TeamBuilderScene extends Phaser.Scene {
       const text = this.add.text(
         10,
         yOffset + 10,
-        `#${player.number} ${player.position} (${player.name})`,
+        `#${player.number} ${player.positionName} (${player.name})`,
         {
           fontSize: "16px",
           color: "#ffffff",
         }
       );
 
-      const fireBtn = this.add.text(350, yOffset + 10, "X", {
+      const fireBtn = new UIButton(this, {
+        x: 350,
+        y: yOffset + 10,
+        text: "X",
+        variant: "danger",
         fontSize: "16px",
-        color: "#ff4444",
-        fontStyle: "bold",
-      });
-      fireBtn.setInteractive({ useHandCursor: true });
-      fireBtn.on("pointerdown", () => {
-        this.team.players.splice(index, 1);
-        this.team.treasury += Math.floor(player.cost); // Full refund for now
-        this.updateUI();
+        origin: { x: 0, y: 0 },
+        onClick: () => {
+          this.team.players.splice(index, 1);
+          this.team.treasury += Math.floor(player.cost); // Full refund for now
+          this.updateUI();
+        },
       });
 
       this.rosterContainer.add([bg, text, fireBtn]);
@@ -341,41 +400,42 @@ export class TeamBuilderScene extends Phaser.Scene {
 
   private createActionButtons(width: number, height: number): void {
     // Back Button
-    const backButton = this.add.text(50, height - 60, "← Back to Menu", {
-      fontSize: "20px",
-      color: "#ffffff",
-      backgroundColor: "#333333",
-      padding: { x: 15, y: 10 },
-    });
-    backButton.setInteractive({ useHandCursor: true });
-    backButton.on("pointerdown", () => {
-      this.scene.start("TeamManagementScene");
+    new UIButton(this, {
+      x: 50,
+      y: height - 60,
+      text: "← Back to Menu",
+      variant: "secondary",
+      origin: { x: 0, y: 0 },
+      onClick: () => {
+        this.scene.start("TeamManagementScene");
+      },
     });
 
     // Save & Continue Button
-    this.saveButton = this.add.text(width - 250, height - 60, "Save Team", {
-      fontSize: "20px",
-      color: "#aaaaaa",
-      backgroundColor: "#333333",
-      padding: { x: 15, y: 10 },
-    });
+    this.saveButton = new UIButton(this, {
+      x: width - 250,
+      y: height - 60,
+      text: "Save Team",
+      variant: "primary",
+      origin: { x: 0, y: 0 },
+      disabled: true,
+      onClick: () => {
+        if (this.team.players.length >= 7) {
+          // Save team
+          const teams = TeamManager.loadTeams();
+          const existingIndex = teams.findIndex(
+            (t: Team) => t.id === this.team.id
+          );
+          if (existingIndex >= 0) {
+            teams[existingIndex] = this.team;
+          } else {
+            teams.push(this.team);
+          }
+          TeamManager.saveTeams(teams);
 
-    this.saveButton.on("pointerdown", () => {
-      if (this.team.players.length >= 7) {
-        // Save team
-        const teams = TeamManager.loadTeams();
-        const existingIndex = teams.findIndex(
-          (t: Team) => t.id === this.team.id
-        );
-        if (existingIndex >= 0) {
-          teams[existingIndex] = this.team;
-        } else {
-          teams.push(this.team);
+          this.scene.start("TeamManagementScene");
         }
-        TeamManager.saveTeams(teams);
-
-        this.scene.start("TeamManagementScene");
-      }
+      },
     });
 
     this.updateSaveButtonState();
@@ -385,19 +445,11 @@ export class TeamBuilderScene extends Phaser.Scene {
     if (!this.saveButton) return;
 
     const canStart = this.team.players.length >= 7;
-    if (canStart) {
-      this.saveButton.setColor("#ffffff");
-      this.saveButton.setBackgroundColor("#44ff44");
-      this.saveButton.setInteractive({ useHandCursor: true });
-    } else {
-      this.saveButton.setColor("#aaaaaa");
-      this.saveButton.setBackgroundColor("#333333");
-      this.saveButton.disableInteractive();
-    }
+    this.saveButton.setDisabled(!canStart);
   }
 
-  private hirePlayer(position: PlayerPosition): void {
-    const roster = getRosterByRace(this.selectedRace);
+  private hirePlayer(position: string): void {
+    const roster = getRosterByRosterName(this.selectedRace);
     const template = getPlayerTemplate(roster, position);
 
     if (!template) return;
@@ -413,7 +465,7 @@ export class TeamBuilderScene extends Phaser.Scene {
     }
   }
 
-  private changeRace(race: TeamRace): void {
+  private changeRace(race: RosterName): void {
     if (this.team.players.length > 0) {
       if (!confirm("Changing race will clear your current roster. Continue?")) {
         return;

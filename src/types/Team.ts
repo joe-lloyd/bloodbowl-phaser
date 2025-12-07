@@ -77,6 +77,7 @@ export interface Team {
   // Identity
   id: string;
   name: string;
+  rosterName: RosterName;
   colors: TeamColors;
 
   // Roster
@@ -122,12 +123,14 @@ export interface TeamRoster {
  */
 export function createTeam(
   name: string,
+  rosterName: RosterName,
   colors: TeamColors,
   rerollCost: number
 ): Team {
   return {
     id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name,
+    rosterName,
     colors,
     players: [],
     maxRosterSize: 11,

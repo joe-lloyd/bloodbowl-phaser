@@ -3,9 +3,9 @@
  * Following the Builder pattern for easy, readable test setup
  */
 
-import { Team, TeamRace, TeamColors, createTeam } from '../../src/types/Team.js';
-import { Player, PlayerTemplate, PlayerPosition, PlayerStatus, PlayerStats, createPlayer } from '../../src/types/Player.js';
-import { GameState, GamePhase, TurnData } from '../../src/types/GameState.js';
+import { Team, createTeam } from '../../src/types/Team.js';
+import { Player, PlayerTemplate, PlayerStatus, PlayerStats, createPlayer } from '../../src/types/Player.js';
+import { GameState, GamePhase } from '../../src/types/GameState.js';
 
 /**
  * TeamBuilder - Fluent API for creating test teams
@@ -13,7 +13,6 @@ import { GameState, GamePhase, TurnData } from '../../src/types/GameState.js';
  * @example
  * const team = new TeamBuilder()
  *   .withName('Test Orcs')
- *   .withRace(TeamRace.ORC)
  *   .withPlayers(7)
  *   .build();
  */
@@ -24,7 +23,7 @@ export class TeamBuilder {
         // Start with default team
         this.team = createTeam(
             'Test Team',
-            TeamRace.HUMAN,
+
             { primary: 0x0000FF, secondary: 0xFFFFFF },
             50000
         );
@@ -32,11 +31,6 @@ export class TeamBuilder {
 
     withName(name: string): TeamBuilder {
         this.team.name = name;
-        return this;
-    }
-
-    withRace(race: TeamRace): TeamBuilder {
-        this.team.race = race;
         return this;
     }
 
@@ -119,8 +113,11 @@ export class PlayerBuilder {
     constructor() {
         // Default lineman template
         this.template = {
-            position: PlayerPosition.LINEMAN,
+            positionName: PlayerPosition.LINEMAN,
             cost: 50000,
+            keywords: [],
+            primary: [],
+            secondary: [],
             stats: {
                 MA: 6,
                 ST: 3,
@@ -136,7 +133,7 @@ export class PlayerBuilder {
     }
 
     withPosition(position: PlayerPosition): PlayerBuilder {
-        this.template.position = position;
+        this.template.positionName = position;
         return this;
     }
 
