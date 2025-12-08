@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { TestOverlay } from './components/TestOverlay';
-import { MainMenu } from './components/MainMenu';
-import { TeamManagement } from './components/TeamManagement';
-import { TeamBuilder } from './components/TeamBuilder';
-import { TeamSelect } from './components/TeamSelect';
+import { TestOverlay } from './components/pages/TestOverlay';
+import { MainMenu } from './components/pages/MainMenu';
+import { TeamManagement } from './components/pages/TeamManagement';
+import { TeamBuilder } from './components/pages/TeamBuilder';
+import { TeamSelect } from './components/pages/TeamSelect';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
