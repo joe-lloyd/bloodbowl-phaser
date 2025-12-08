@@ -1,16 +1,15 @@
 import Phaser from "phaser";
 import { loadTeams } from "../managers/TeamManager";
 import { Team } from "../types/Team";
-import { UIText, UIButton } from "../ui";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { EventBus } from "../services/EventBus";
 
 /**
- * Team Selection Scene - Select teams for Player 1 and Player 2
+ * Team Selection Scene
+ * UI now handled by React overlay
  */
 export class TeamSelectionScene extends Phaser.Scene {
-  private teams: Team[] = [];
-  private selectedTeam1: Team | null = null;
-  private selectedTeam2: Team | null = null;
+  private eventBus!: EventBus;
 
   constructor() {
     super({ key: "TeamSelectionScene" });
@@ -20,156 +19,39 @@ export class TeamSelectionScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
+    // Get EventBus from window
+    this.eventBus = (window as any).eventBus;
+
     // Background
     this.add.rectangle(0, 0, width, height, 0x1a1a2e).setOrigin(0);
 
-    // Title
-    new UIText(this, {
-      x: width / 2,
-      y: 40,
-      text: "TEAM SELECTION",
-      variant: "h2",
-      color: "#4444ff",
-      fontStyle: "bold",
+    // Listen for scene change events from React UI
+    this.eventBus.on('ui:sceneChange', (data: { scene: string; data?: any }) => {
+      this.scene.start(data.scene, data.data);
     });
 
-    // Game type
-    new UIText(this, {
-      x: width / 2,
-      y: 100,
-      text: "Friendly Sevens Match",
-      variant: "h4",
-    });
+    // Listen for start game event from React UI
+    this.eventBus.on('ui:startGame', (data: { team1: Team; team2: Team }) => {
+      console.log('TeamSelectionScene received ui:startGame event:', data);
 
-    // Load teams
-    this.teams = loadTeams();
+      // Initialize Core Services
+      ServiceContainer.initialize(data.team1, data.team2);
+      console.log('ServiceContainer initialized');
 
-    if (this.teams.length < 2) {
-      this.showInsufficientTeamsMessage(width, height);
-      return;
-    }
-
-    // Player 1 selection
-    this.createPlayerSelection(width / 2 - 250, 160, "Player 1", 1);
-
-    // VS text
-    new UIText(this, {
-      x: width / 2,
-      y: 350,
-      text: "VS",
-      variant: "h1",
-      color: "#ff4444",
-      fontStyle: "bold",
-    });
-
-    // Player 2 selection
-    this.createPlayerSelection(width / 2 + 250, 160, "Player 2", 2);
-
-    // Start game button (initially disabled)
-    this.createStartButton(width, height);
-
-    // Back button
-    this.createBackButton(width, height);
-  }
-
-  private showInsufficientTeamsMessage(width: number, height: number): void {
-    new UIText(this, {
-      x: width / 2,
-      y: height / 2 - 50,
-      text: "You need at least 2 teams to play!",
-      variant: "h4",
-      color: "#ff4444",
-    });
-
-    new UIText(this, {
-      x: width / 2,
-      y: height / 2 + 20,
-      text: "Go to Build Team to create teams first.",
-      variant: "h6",
-      color: "#aaaaaa",
-    });
-
-    this.createBackButton(width, height);
-  }
-
-  private createPlayerSelection(
-    x: number,
-    y: number,
-    label: string,
-    playerNum: number
-  ): void {
-    // Label
-    new UIText(this, {
-      x,
-      y,
-      text: label,
-      variant: "h4",
-      fontStyle: "bold",
-    });
-
-    // Team selection buttons
-    let yOffset = y + 50;
-
-    this.teams.forEach((team) => {
-      const isSelected =
-        (playerNum === 1 && this.selectedTeam1?.id === team.id) ||
-        (playerNum === 2 && this.selectedTeam2?.id === team.id);
-
-      new UIButton(this, {
-        x,
-        y: yOffset,
-        text: `${team.name} (${team.rosterName})`,
-        variant: isSelected ? "success" : "secondary",
-        fontSize: "18px",
-        onClick: () => {
-          if (playerNum === 1) {
-            this.selectedTeam1 = team;
-          } else {
-            this.selectedTeam2 = team;
-          }
-          this.scene.restart();
-        },
+      // Start Game Scene
+      console.log('Starting GameScene...');
+      this.scene.start("GameScene", {
+        team1: data.team1,
+        team2: data.team2,
       });
-
-      yOffset += 50;
     });
   }
 
-  private createStartButton(width: number, height: number): void {
-    const canStart =
-      this.selectedTeam1 !== null &&
-      this.selectedTeam2 !== null &&
-      this.selectedTeam1.id !== this.selectedTeam2.id;
-
-    new UIButton(this, {
-      x: width - 200,
-      y: height - 60,
-      text: "Start Game →",
-      variant: "success",
-      fontSize: "24px",
-      disabled: !canStart,
-      onClick: () => {
-        // Initialize Core Services
-        ServiceContainer.initialize(this.selectedTeam1!, this.selectedTeam2!);
-
-        // Start Game Scene directly
-        this.scene.start("GameScene", {
-          team1: this.selectedTeam1!,
-          team2: this.selectedTeam2!,
-        });
-      },
-    });
-  }
-
-  private createBackButton(_width: number, height: number): void {
-    new UIButton(this, {
-      x: 50,
-      y: height - 60,
-      text: "← Back to Menu",
-      variant: "danger",
-      fontSize: "20px",
-      onClick: () => this.scene.start("MenuScene"),
-      origin: { x: 0, y: 0.5 },
-    });
+  destroy(): void {
+    // Clean up event listeners
+    if (this.eventBus) {
+      this.eventBus.off('ui:sceneChange', () => { });
+      this.eventBus.off('ui:startGame', () => { });
+    }
   }
 }

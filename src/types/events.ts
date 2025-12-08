@@ -90,6 +90,9 @@ export interface UIEvents {
 
     // Navigation
     'ui:sceneChange': { scene: string; data?: any };
+
+    // Game Start
+    'ui:startGame': { team1: Team; team2: Team };
 }
 
 /**

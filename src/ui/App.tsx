@@ -3,6 +3,7 @@ import { TestOverlay } from './components/TestOverlay';
 import { MainMenu } from './components/MainMenu';
 import { TeamManagement } from './components/TeamManagement';
 import { TeamBuilder } from './components/TeamBuilder';
+import { TeamSelect } from './components/TeamSelect';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -33,6 +34,12 @@ export function App({ eventBus }: AppProps) {
         // The scene listens to this event and handles the actual Phaser scene change
     });
 
+    // Listen for game start - hide React UI
+    useEventBus(eventBus, 'ui:startGame', () => {
+        console.log('Game starting, hiding React UI');
+        setCurrentScene('GameScene'); // This will hide all React UI
+    });
+
     return (
         <>
             {/* Show appropriate UI based on current scene */}
@@ -47,6 +54,13 @@ export function App({ eventBus }: AppProps) {
             {currentScene === 'TeamBuilderScene' && (
                 <TeamBuilder eventBus={eventBus} teamId={sceneData?.teamId} />
             )}
+
+            {currentScene === 'TeamSelectionScene' && (
+                <TeamSelect eventBus={eventBus} />
+            )}
+
+            {/* GameScene - no React UI, just Phaser */}
+            {/* React UI is hidden when game is playing */}
 
             {/* Test overlay - can be shown on all scenes for debugging */}
             {/* Remove this in production */}
