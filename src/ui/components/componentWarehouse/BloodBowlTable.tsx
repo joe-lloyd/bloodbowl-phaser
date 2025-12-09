@@ -2,30 +2,41 @@ import React, { ReactNode } from 'react';
 import StarDecoration from './StarDecoration';
 import triangleIcon from '../../assets/triangle.svg';
 
-export const TableTitle = ({ children }: { children: ReactNode }) => {
+interface TableTitleProps {
+    children: ReactNode;
+    variant: 'red' | 'blue';
+}
+
+export const TableTitle = ({ children, variant }: TableTitleProps) => {
+    const borderColor = variant === 'red' ? 'border-bb-ink-blue' : 'border-bb-gold'; // Blue table contrast
+    const textColor = variant === 'red' ? 'text-bb-blood-red' : 'text-bb-ink-blue';
+    const triangleFilter = variant === 'blue' ? 'hue-rotate(200deg) brightness(0.5)' : ''; // Shift red to blue-ish
+
     return (
-        <div className="flex items-center justify-center mb-1 text-center border-b-[5px] border-bb-ink-blue pb-2 pt-2">
+        <div className={`flex items-center justify-center mb-1 text-center border-b-[5px] ${borderColor} pb-2 pt-2`}>
             {/* Left Triangle */}
             <div className="mr-5 h-8 flex items-center">
-                <img src={triangleIcon} alt="" className="h-full w-auto" />
+                <img src={triangleIcon} alt="" className="h-full w-auto" style={{ filter: triangleFilter }} />
             </div>
 
-            <h2 className="text-bb-blood-red font-heading font-bold text-2xl uppercase tracking-widest px-4">
+            <h2 className={`${textColor} font-heading font-bold text-2xl uppercase tracking-widest px-4`}>
                 {children}
             </h2>
 
             {/* Right Triangle (flipped) */}
             <div className="ml-5 h-8 flex items-center transform scale-x-[-1]">
-                <img src={triangleIcon} alt="" className="h-full w-auto" />
+                <img src={triangleIcon} alt="" className="h-full w-auto" style={{ filter: triangleFilter }} />
             </div>
         </div>
     );
 };
 
-export const TableFooter = () => {
+export const TableFooter = ({ variant }: { variant: 'red' | 'blue' }) => {
+    const borderColor = variant === 'red' ? 'border-bb-ink-blue' : 'border-bb-gold';
+
     return (
         <div className="relative mb-5 mt-4">
-            <div className="flex items-center justify-center border-t-[5px] border-bb-ink-blue pt-4">
+            <div className={`flex items-center justify-center border-t-[5px] ${borderColor} pt-4`}>
                 {/* Decorative Separator matching style */}
                 <div className="absolute top-[-5px] left-0 w-full flex justify-between px-12 pointer-events-none opacity-0">
                     {/* Placeholder for complex border if needed */}
@@ -41,12 +52,16 @@ interface BloodBowlTableProps {
     headers: string[];
     children: ReactNode;
     className?: string;
+    variant?: 'red' | 'blue';
 }
 
-export const BloodBowlTable = ({ title, headers, children, className = '' }: BloodBowlTableProps) => {
+export const BloodBowlTable = ({ title, headers, children, className = '', variant = 'red' }: BloodBowlTableProps) => {
+    const headerBg = variant === 'red' ? 'bg-bb-blood-red' : 'bg-[#1d3860]'; // User requested dark blue header
+    const headerText = 'text-bb-parchment';
+
     return (
         <div className={`w-full ${className}`}>
-            {title && <TableTitle>{title}</TableTitle>}
+            {title && <TableTitle variant={variant}>{title}</TableTitle>}
 
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
@@ -55,7 +70,7 @@ export const BloodBowlTable = ({ title, headers, children, className = '' }: Blo
                             {headers.map((header, index) => (
                                 <th
                                     key={index}
-                                    className="bg-bb-blood-red text-bb-parchment p-3 font-bold uppercase tracking-wider text-sm border-0"
+                                    className={`${headerBg} ${headerText} p-3 font-bold uppercase tracking-wider text-sm border-0`}
                                 >
                                     {header}
                                 </th>
@@ -68,13 +83,13 @@ export const BloodBowlTable = ({ title, headers, children, className = '' }: Blo
                 </table>
             </div>
 
-            <TableFooter />
+            <TableFooter variant={variant} />
         </div>
     );
 };
 
 export const TableRow = ({ children, className = '' }: { children: ReactNode, className?: string }) => (
-    <tr className={`even:bg-black/10 hover:bg-black/5 ${className}`}>
+    <tr className={`even:bg-black/5 hover:bg-black/10 ${className}`}>
         {children}
     </tr>
 );
