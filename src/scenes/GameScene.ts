@@ -162,6 +162,26 @@ export class GameScene extends Phaser.Scene {
 
 
 
+  private initializeControllers(): void {
+    this.validator = new SetupValidator();
+    this.formationManager = new FormationManager();
+    this.setupUIController = new SetupUIController(this, this.pitch, this.gameService);
+    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
+
+    // Coinflip
+    this.coinFlipController = new CoinFlipController(this);
+    this.coinFlipController.on("coinFlipComplete", ({ kickingTeam, receivingTeam }: { kickingTeam: Team, receivingTeam: Team }) => {
+      this.kickingTeam = kickingTeam;
+      this.receivingTeam = receivingTeam;
+
+      // Update Game Service
+      this.gameService.startSetup(kickingTeam.id);
+
+      // Proceed to placement
+      this.startPlacement("kicking");
+    });
+  }
+
   private startSetupPhase(): void {
     this.isSetupActive = true;
     this.coinFlipController.show(this.team1, this.team2);
