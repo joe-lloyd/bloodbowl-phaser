@@ -4,6 +4,7 @@ import { MainMenu } from './components/pages/MainMenu';
 import { TeamManagement } from './components/pages/TeamManagement';
 import { TeamBuilder } from './components/pages/TeamBuilder';
 import { TeamSelect } from './components/pages/TeamSelect';
+import { GameHUD } from './components/hud/GameHUD';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -59,8 +60,10 @@ export function App({ eventBus }: AppProps) {
                 <TeamSelect eventBus={eventBus} />
             )}
 
-            {/* GameScene - no React UI, just Phaser */}
-            {/* React UI is hidden when game is playing */}
+            {/* GameScene - React HUD overlay */}
+            {currentScene === 'GameScene' && (
+                <GameHUD eventBus={eventBus} />
+            )}
 
             {/* Test overlay - can be shown on all scenes for debugging */}
             {/* Remove this in production */}

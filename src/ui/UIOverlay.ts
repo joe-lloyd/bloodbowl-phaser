@@ -3,6 +3,7 @@ import { UITheme } from "./UITheme";
 
 /**
  * UIOverlay - Reusable modal overlay component for dialogs and popups
+ * @deprecated Use React components instead.
  */
 
 export interface UIOverlayConfig {
@@ -20,8 +21,8 @@ export class UIOverlay extends Phaser.GameObjects.Container {
     super(scene, 0, 0);
 
     const backgroundColor =
-      config.backgroundColor ?? UITheme.overlay.backgroundColor;
-    const opacity = config.opacity ?? UITheme.overlay.opacity;
+      config.backgroundColor ?? UITheme.overlay?.backgroundColor ?? 0x000000;
+    const opacity = config.opacity ?? UITheme.overlay?.opacity ?? 0.7;
 
     // Create dark overlay background
     this.background = scene.add.rectangle(

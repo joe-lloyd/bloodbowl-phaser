@@ -7,7 +7,7 @@ interface TableWrapperProps {
 
 export const TableWrapper = ({ children, className = '' }: TableWrapperProps) => {
   return (
-    <div className={`w-full overflow-x-auto border-l-4 border-r-4 border-blood-bowl-primary ${className}`}>
+    <div className={`w-full overflow-x-auto border-l-4 border-r-4 border-bb-ink-blue ${className}`}>
       {children}
     </div>
   );
@@ -15,7 +15,7 @@ export const TableWrapper = ({ children, className = '' }: TableWrapperProps) =>
 
 export const MainTable = ({ children, className = '' }: TableWrapperProps) => {
   return (
-    <table className={`w-full border-collapse bg-blood-bowl-light-blue border-none ${className}`}>
+    <table className={`w-full border-collapse bg-bb-warm-paper border border-bb-divider ${className}`}>
       {children}
     </table>
   );
@@ -23,7 +23,13 @@ export const MainTable = ({ children, className = '' }: TableWrapperProps) => {
 
 export const TableHeader = ({ children, className = '' }: TableWrapperProps) => {
   return (
-    <th className={`bg-blood-bowl-primary text-white p-2.5 font-bold border border-blood-bowl-primary ${className}`}>
+    <th className={`
+      bg-bb-ink-blue text-bb-parchment
+      p-2.5
+      font-heading font-semibold text-sm uppercase
+      border border-bb-divider
+      ${className}
+    `}>
       {children}
     </th>
   );
@@ -36,7 +42,12 @@ interface TableRowProps {
 
 export const TableRow = ({ children, className = '' }: TableRowProps) => {
   return (
-    <tr className={`even:bg-gray-50 hover:bg-blood-bowl-light-blue ${className}`}>
+    <tr className={`
+      even:bg-bb-parchment
+      hover:bg-bb-warm-paper hover:bg-opacity-70
+      transition-bb
+      ${className}
+    `}>
       {children}
     </tr>
   );
@@ -44,7 +55,13 @@ export const TableRow = ({ children, className = '' }: TableRowProps) => {
 
 export const TableCell = ({ children, className = '' }: TableWrapperProps) => {
   return (
-    <td className={`border border-blood-bowl-primary text-center p-2.5 ${className}`}>
+    <td className={`
+      border border-bb-divider
+      text-center p-2.5
+      font-body text-sm
+      text-bb-text-dark
+      ${className}
+    `}>
       {children}
     </td>
   );

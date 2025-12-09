@@ -21,7 +21,6 @@ import {
 import { pixelToGrid } from "../utils/GridUtils";
 import { MovementValidator } from "../domain/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
-import { UIButton, UIText } from "@/ui";
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -36,8 +35,7 @@ export class GameScene extends Phaser.Scene {
   // UI Components
   private playerInfoPanel!: PlayerInfoPanel;
   private diceLog!: DiceLog;
-  private turnText!: UIText;
-  private endTurnButton!: UIButton;
+
   private dugouts: Map<string, Dugout> = new Map();
 
   // Controllers (Setup Phase)
@@ -93,32 +91,23 @@ export class GameScene extends Phaser.Scene {
     const pitchY = 180; // Leaving room for top dugout
     this.pitch = new Pitch(this, pitchX, pitchY);
 
+    // Player Info Panel
+    this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
+
+    // Dice Log
+    this.diceLog = new DiceLog(this, 10, height - 350);
+
     // Pitch interaction for Play Phase
-    // Pitch interaction
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.isSetupActive) return; // Setup handled by PlacementController (managed internally or separate)
 
-      // Delegate to Gameplay Controller
-      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
-    });
-
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      // Delegate
-      this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
-    });
 
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
 
 
 
-    // 4. Initialize UI Overlay
-    this.initializeUI(width, height);
 
-    // 4. Initialize UI Overlay
-    this.initializeUI(width, height);
 
-    // 5. Initialize Controllers
+
     this.initializeControllers();
     this.movementValidator = new MovementValidator();
 
@@ -130,6 +119,16 @@ export class GameScene extends Phaser.Scene {
       this.movementValidator,
       this.playerInfoPanel
     );
+
+    // Pitch interaction (Now safe to attach)
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.isSetupActive) return;
+      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
+    });
 
     // 6. Setup Event Listeners
     this.setupEventListeners();
@@ -161,56 +160,10 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private initializeUI(width: number, height: number): void {
-    // Turn Info (Top Center)
-    this.turnText = new UIText(this, {
-      x: width / 2,
-      y: 15,
-      text: "",
-      variant: "h4",
-      fontStyle: "bold"
-    });
 
-    // End Turn Button
-    this.endTurnButton = new UIButton(this, {
-      x: width - 120,
-      y: height - 60,
-      text: "END TURN",
-      variant: "danger",
-      onClick: () => this.gameService.endTurn()
-    });
-    this.endTurnButton.setVisible(false);
-
-    // Player Info Panel
-    this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
-
-    // Dice Log
-    this.diceLog = new DiceLog(this, 10, height - 350);
-  }
-
-  private initializeControllers(): void {
-    this.validator = new SetupValidator();
-    this.formationManager = new FormationManager();
-    this.setupUIController = new SetupUIController(this, this.pitch, this.gameService);
-    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
-
-    // Coinflip
-    this.coinFlipController = new CoinFlipController(this);
-    this.coinFlipController.on("coinFlipComplete", ({ kickingTeam, receivingTeam }: { kickingTeam: Team, receivingTeam: Team }) => {
-      this.kickingTeam = kickingTeam;
-      this.receivingTeam = receivingTeam;
-
-      // Update Game Service
-      this.gameService.startSetup(kickingTeam.id);
-
-      // Proceed to placement
-      this.startPlacement("kicking");
-    });
-  }
 
   private startSetupPhase(): void {
     this.isSetupActive = true;
-    this.endTurnButton.setVisible(false);
     this.coinFlipController.show(this.team1, this.team2);
   }
 
@@ -229,7 +182,7 @@ export class GameScene extends Phaser.Scene {
         const placements = this.placementController.getPlacements();
         if (placements.length > 0) {
           this.formationManager.saveFormation(activeTeam.id, placements, "Custom");
-          this.showTurnNotification("Formation Saved!");
+          this.eventBus.emit('ui:notification', "Formation Saved!");
         }
       },
       onLoad: () => {
@@ -238,7 +191,7 @@ export class GameScene extends Phaser.Scene {
           this.placementController.loadFormation(formation);
           this.refreshDugouts();
         } else {
-          this.showTurnNotification("No Saved Formation");
+          this.eventBus.emit('ui:notification', "No Saved Formation");
         }
       },
       onClear: () => {
@@ -280,12 +233,14 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.eventBus.on("turnStarted", (turn: any) => {
-      this.updateTurnUI();
+      // React HUD handles UI update via this same event
       this.refreshDugouts();
-      this.showTurnNotification(`Turn ${turn.turnNumber}`);
+      this.eventBus.emit('ui:notification', `Turn ${turn.turnNumber}`);
     });
 
-    this.eventBus.on("turnEnded", () => this.updateTurnUI());
+    this.eventBus.on("turnEnded", () => {
+      // React UI handles this
+    });
 
     // Listen for placement changes to update game state and dugouts
     this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
@@ -323,7 +278,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.eventBus.on("kickoffStarted", () => {
-      this.showTurnNotification("KICKOFF!");
+      this.eventBus.emit('ui:notification', "KICKOFF!");
     });
 
     this.eventBus.on("ballKicked", (data: any) => {
@@ -381,7 +336,7 @@ export class GameScene extends Phaser.Scene {
 
     this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
       // 2. Show Roll
-      this.showTurnNotification(`${data.roll}: ${data.event}`);
+      this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
       this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
 
       // 3. Animate Scatter (after delay or immediately)
@@ -410,13 +365,13 @@ export class GameScene extends Phaser.Scene {
     this.kickoffStep = null;
     this.setupUIController.destroy(); // Remove setup UI
     this.pitch.clearHighlights(); // Clear setup zones
-    this.endTurnButton.setVisible(true);
+    this.setupUIController.destroy(); // Remove setup UI
+    this.pitch.clearHighlights(); // Clear setup zones
 
     // Ensure all players are placed
     this.placePlayersOnPitch();
 
-    // Update basic UI
-    this.updateTurnUI();
+
   }
 
   private startKickoffPhase(): void {
@@ -424,12 +379,11 @@ export class GameScene extends Phaser.Scene {
     this.kickoffStep = 'SELECT_KICKER';
     this.setupUIController.destroy();
     this.pitch.clearHighlights();
-    this.endTurnButton.setVisible(false);
 
     // Ensure players are visible and correct
     this.placePlayersOnPitch();
 
-    this.showTurnNotification("Select Kicker");
+    this.eventBus.emit('ui:notification', "Select Kicker");
   }
 
   private placePlayersOnPitch(): void {
@@ -479,37 +433,7 @@ export class GameScene extends Phaser.Scene {
     this.setupUIController.showConfirmButton(isComplete);
   }
 
-  private updateTurnUI(): void {
-    const state = this.gameService.getState();
-    const activeTeam = (state.activeTeamId === this.team1.id) ? this.team1 : this.team2;
-    this.turnText.setText(`Turn ${state.turn.turnNumber}: ${activeTeam.name}`);
-    this.turnText.setColor(activeTeam.colors.primary === 0xff4444 ? "#ff4444" : "#4444ff");
-  }
 
-  private showTurnNotification(message: string): void {
-    const text = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2,
-      message,
-      {
-        fontSize: "48px",
-        color: "#ffff00",
-        stroke: "#000000",
-        strokeThickness: 4,
-      }
-    )
-      .setOrigin(0.5)
-      .setDepth(1000);
-
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      y: text.y - 50,
-      duration: 2000,
-      delay: 1000,
-      onComplete: () => text.destroy(),
-    });
-  }
 
 
   // Interactivity
@@ -601,7 +525,7 @@ export class GameScene extends Phaser.Scene {
     if (this.kickoffStep === 'SELECT_KICKER') {
       if (playerAtSquare) {
         if (playerAtSquare.teamId !== this.kickingTeam.id) {
-          this.showTurnNotification("Select own player!");
+          this.eventBus.emit('ui:notification', "Select own player!");
           return;
         }
         // Select kicker
@@ -609,14 +533,14 @@ export class GameScene extends Phaser.Scene {
         this.highlightPlayer(playerAtSquare.id);
 
         this.kickoffStep = 'SELECT_TARGET';
-        this.showTurnNotification("Select Target Square");
+        this.eventBus.emit('ui:notification', "Select Target Square");
       }
     } else if (this.kickoffStep === 'SELECT_TARGET') {
       const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
       const validTarget = isTeam1Kicking ? (x >= 7) : (x <= 13);
 
       if (!validTarget) {
-        this.showTurnNotification("Must kick to opponent half!");
+        this.eventBus.emit('ui:notification', "Must kick to opponent half!");
         return;
       }
 

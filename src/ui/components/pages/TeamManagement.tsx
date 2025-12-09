@@ -50,40 +50,47 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
     };
 
     return (
-        <MinHeightContainer className="bg-blood-bowl-parchment">
+        <MinHeightContainer className="bg-bb-parchment">
             <Parchment $intensity="low" />
 
             <ContentContainer>
-                <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+                <div className="flex justify-between items-center mb-12 flex-wrap gap-6">
                     <Title>TEAM MANAGEMENT</Title>
-                    <Button onClick={handleCreateTeam}>
+                    <Button onClick={handleCreateTeam} className="text-xl">
                         + Create New Team
                     </Button>
                 </div>
 
                 {teams.length === 0 ? (
-                    <p className="text-gray-600 text-center italic py-10">No teams created yet</p>
+                    <p className="text-bb-muted-text text-center italic py-20 text-2xl font-body">No teams created yet</p>
                 ) : (
-                    <div className="flex flex-col gap-4 mb-8">
+                    <div className="flex flex-col gap-6 mb-12">
                         {teams.map((team) => (
                             <div
                                 key={team.id}
-                                className="bg-white/90 rounded-lg p-6 shadow-md flex justify-between items-center gap-8 transition-all hover:-translate-y-0.5 hover:shadow-lg md:flex-col md:items-start"
+                                className="
+                                    bg-bb-warm-paper border border-bb-divider rounded-xl p-10 
+                                    shadow-parchment-light 
+                                    flex justify-between items-center gap-10 
+                                    transition-bb duration-200 
+                                    hover:-translate-y-1 hover:shadow-lg 
+                                    md:flex-col md:items-start
+                                "
                             >
                                 <div className="flex-1">
-                                    <div className="text-xl font-bold text-blood-bowl-primary mb-2">
-                                        {team.name} ({team.rosterName})
+                                    <div className="text-3xl font-heading font-bold text-bb-blood-red mb-3">
+                                        {team.name}
                                     </div>
-                                    <div className="text-gray-600 text-sm">
+                                    <div className="text-bb-text-dark text-lg font-body">
                                         {team.rosterName} • {team.players.length} players • {formatGold(team.treasury)} treasury
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2.5 shrink-0 md:w-full">
-                                    <Button onClick={() => handleEditTeam(team.id)}>
-                                        Edit
+                                <div className="flex gap-4 shrink-0 md:w-full">
+                                    <Button onClick={() => handleEditTeam(team.id)} className="!my-0">
+                                        Edit Team
                                     </Button>
-                                    <DangerButton onClick={() => handleDeleteTeam(team.id)}>
+                                    <DangerButton onClick={() => handleDeleteTeam(team.id)} className="!my-0">
                                         Delete
                                     </DangerButton>
                                 </div>
@@ -92,7 +99,7 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
                     </div>
                 )}
 
-                <div className="mt-5">
+                <div className="mt-8">
                     <Button onClick={handleBack}>
                         ← Back to Menu
                     </Button>

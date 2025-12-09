@@ -19,9 +19,7 @@ const config: Phaser.Types.Core.GameConfig = {
   width: GameConfig.CANVAS_WIDTH,
   height: GameConfig.CANVAS_HEIGHT,
   parent: "game-container",
-  dom: {
-    createContainer: true,
-  },
+
   backgroundColor: "#1a1a2e",
   scene: [
     BootScene,
@@ -40,7 +38,7 @@ const config: Phaser.Types.Core.GameConfig = {
   },
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: GameConfig.CANVAS_WIDTH,
     height: GameConfig.CANVAS_HEIGHT,
     min: {

@@ -160,4 +160,9 @@ export interface IGameService {
      * Get a player by ID
      */
     getPlayerById(playerId: string): import('../../types/Player').Player | undefined;
+
+    /**
+     * Get a team by ID
+     */
+    getTeam(teamId: string): Team | undefined;
 }

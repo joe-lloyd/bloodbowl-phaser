@@ -3,6 +3,7 @@ import { UITheme, TextVariant } from "./UITheme";
 
 /**
  * UIText - Reusable text/label component with consistent typography
+ * @deprecated Use React components instead.
  */
 
 export interface UITextConfig {

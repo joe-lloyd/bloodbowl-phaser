@@ -1,150 +1,137 @@
 /**
- * UITheme - Central theme configuration for all UI elements
- * Ensures consistent styling across the entire game
+ * UITheme - Color palette and typography for Phaser UI elements
+ * Optimized for Blood Bowl 2025 styling
  */
 
 export const UITheme = {
-  // Color Palette
+  // Blood Bowl 2025 Color Palette
   colors: {
-    // Primary colors
-    primary: "#4444ff",
-    secondary: "#ff4444",
+    // Primary Colors
+    bloodRed: 0x8E1B1B,
+    deepCrimson: 0xB32020,
+    inkBlue: 0x1E3A5F,
 
-    // Status colors
-    success: "#44ff44",
-    danger: "#ff4444",
-    warning: "#ffaa00",
-    info: "#4444ff",
+    // Secondary Colors
+    parchment: 0xF3E9D2,
+    warmPaper: 0xE8DDC4,
 
-    // Neutral colors
-    background: "#1a1a2e",
-    backgroundDark: "#0a0a1e",
-    surface: "#222222",
-    border: "#444444",
+    // Accent Colors
+    gold: 0xD6B25E,
+    darkGold: 0xB59645,
+    pitchGreen: 0x556B2F,
 
-    // Text colors
-    textPrimary: "#ffffff",
-    textSecondary: "#aaaaaa",
-    textDisabled: "#666666",
+    // Utility Colors
+    textDark: 0x2A1F1A,
+    mutedText: 0x6B5E54,
+    divider: 0xC7B89A,
+    error: 0x9C1C1C,
+    success: 0x3E6B2F,
 
-    // Accent colors
-    accent: "#ffff44",
-    highlight: "#ffff00",
+    surface: 0xE8DDC4,
+    textDisabled: 0x6B5E54,
+
+    // Legacy/Mapped properties for compatibility
+    primary: 0x8E1B1B,
+    secondary: 0x1E3A5F,
+    textPrimary: 0x2A1F1A, // Dark text on parchment
+    textSecondary: 0x6B5E54,
+    background: 0xF3E9D2,
   },
 
-  // Typography
-  typography: {
-    // Font families
-    fontFamily: "Arial, sans-serif",
+  // String versions for CSS/HTML contexts
+  colorsHex: {
+    bloodRed: "#8E1B1B",
+    deepCrimson: "#B32020",
+    inkBlue: "#1E3A5F",
+    parchment: "#F3E9D2",
+    warmPaper: "#E8DDC4",
+    gold: "#D6B25E",
+    darkGold: "#B59645",
+    pitchGreen: "#556B2F",
+    textDark: "#2A1F1A",
+    mutedText: "#6B5E54",
+    divider: "#C7B89A",
+    error: "#9C1C1C",
+    success: "#3E6B2F",
+  },
 
-    // Font sizes
+  // Typography for Phaser Text Objects
+  typography: {
+    fontFamily: "Oswald, Impact, sans-serif",
     fontSize: {
       h1: "48px",
       h2: "36px",
-      h3: "32px",
-      h4: "24px",
-      h5: "20px",
-      h6: "18px",
+      h3: "24px",
+      h4: "20px",
       body: "16px",
       small: "14px",
       tiny: "12px",
       button: "20px",
       buttonLarge: "32px",
       buttonSmall: "11px",
-    },
+    }
   },
 
-  // Spacing
-  spacing: {
-    xs: 5,
-    sm: 10,
-    md: 15,
-    lg: 20,
-    xl: 30,
-  },
-
-  // Button styles
+  // Button Styles for Phaser UI Buttons
   button: {
     primary: {
-      color: "#44ff44",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#44ff44",
+      color: "#F3E9D2", // Parchment
+      backgroundColor: "#8E1B1B", // Blood Red
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#B32020", // Deep Crimson
       padding: { x: 20, y: 10 },
     },
     secondary: {
-      color: "#4444ff",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#4444ff",
+      color: "#F3E9D2",
+      backgroundColor: "#1E3A5F", // Ink Blue
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#2A4B75",
       padding: { x: 20, y: 10 },
     },
     danger: {
-      color: "#ff4444",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#ff4444",
+      color: "#F3E9D2",
+      backgroundColor: "#9C1C1C", // Error
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#8E1B1B",
       padding: { x: 20, y: 10 },
     },
     success: {
-      color: "#44ff44",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#44ff44",
+      color: "#F3E9D2",
+      backgroundColor: "#3E6B2F", // Success
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#556B2F",
       padding: { x: 20, y: 10 },
     },
     warning: {
-      color: "#ffaa00",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#ffaa00",
+      color: "#2A1F1A",
+      backgroundColor: "#D6B25E", // Gold
+      hoverColor: "#000000",
+      hoverBackgroundColor: "#B59645",
       padding: { x: 20, y: 10 },
     },
     large: {
-      color: "#44ff44",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#44ff44",
+      color: "#F3E9D2",
+      backgroundColor: "#8E1B1B",
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#B32020",
       padding: { x: 30, y: 15 },
     },
     small: {
-      color: "#44ff44",
-      backgroundColor: "#222222",
-      hoverColor: "#ffffff",
-      hoverBackgroundColor: "#44ff44",
+      color: "#F3E9D2",
+      backgroundColor: "#1E3A5F",
+      hoverColor: "#FFFFFF",
+      hoverBackgroundColor: "#2A4B75",
       padding: { x: 8, y: 4 },
     },
   },
 
-  // Panel styles
-  panel: {
-    backgroundColor: 0x1a1a2e,
-    borderColor: 0x444444,
-    opacity: 0.8,
-  },
-
-  // Overlay styles
+  // Overlay Styles
   overlay: {
     backgroundColor: 0x000000,
     opacity: 0.7,
   },
+
 } as const;
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "danger"
-  | "success"
-  | "warning"
-  | "large"
-  | "small";
-export type TextVariant =
-  | "h1"
-  | "h2"
-  | "h3"
-  | "h4"
-  | "h5"
-  | "h6"
-  | "body"
-  | "small"
-  | "tiny";
+export type ButtonVariant = keyof typeof UITheme.button;
+export type TextVariant = keyof typeof UITheme.typography.fontSize;

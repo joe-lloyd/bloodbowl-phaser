@@ -2,7 +2,8 @@ import Phaser from "phaser";
 import { UITheme } from "./UITheme";
 
 /**
- * UIPanel - Reusable panel/container component for grouping UI elements
+ * UIPanel - Reusable panel/container component with consistent styling
+ * @deprecated Use React components instead.
  */
 
 export interface UIPanelConfig {

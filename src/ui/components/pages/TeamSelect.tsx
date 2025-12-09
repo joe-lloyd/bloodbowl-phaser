@@ -7,7 +7,7 @@ import Parchment from '../componentWarehouse/Parchment';
 import ContentContainer from '../componentWarehouse/ContentContainer';
 import MinHeightContainer from '../componentWarehouse/MinHeightContainer';
 import { Button } from '../componentWarehouse/Button';
-import { Title } from '../componentWarehouse/Titles';
+import { Title, SectionTitle, Subtitle } from '../componentWarehouse/Titles';
 
 interface TeamSelectProps {
     eventBus: EventBus;
@@ -64,7 +64,7 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
 
     if (teams.length < 2) {
         return (
-            <MinHeightContainer className="bg-blood-bowl-parchment">
+            <MinHeightContainer className="bg-bb-parchment">
                 <Parchment $intensity="low" />
 
                 <ContentContainer>
@@ -72,11 +72,11 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
                         <Title>TEAM SELECTION</Title>
                     </div>
 
-                    <div className="text-center py-10 bg-white/90 rounded-lg my-5">
-                        <h3 className="text-blood-bowl-danger text-xl mb-4">
+                    <div className="text-center py-10 bg-bb-warm-paper border border-bb-divider rounded-lg my-5 shadow-parchment-light">
+                        <h3 className="text-bb-blood-red font-heading text-2xl uppercase mb-4">
                             You need at least 2 teams to play!
                         </h3>
-                        <p className="text-gray-600">
+                        <p className="text-bb-muted-text font-body text-lg">
                             Go to Build Team to create teams first.
                         </p>
                     </div>
@@ -92,57 +92,74 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
     }
 
     return (
-        <MinHeightContainer className="bg-blood-bowl-parchment">
+        <MinHeightContainer className="bg-bb-parchment">
             <Parchment $intensity="low" />
 
             <ContentContainer>
                 <div className="text-center mb-8">
                     <Title>TEAM SELECTION</Title>
-                    <div className="inline-block bg-blood-bowl-gold text-blood-bowl-primary px-4 py-2 rounded font-bold mt-2.5">
+                    <div className="inline-block bg-bb-ink-blue text-bb-gold border border-bb-gold px-6 py-2 rounded font-heading font-bold uppercase tracking-wide mt-2.5 shadow-md">
                         Friendly Sevens Match
                     </div>
                 </div>
 
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-10 items-start my-10 lg:grid-cols-1 lg:gap-8">
                     {/* Player 1 Selection */}
-                    <div className="bg-white/90 rounded-lg p-6 shadow-md">
-                        <h2 className="text-blood-bowl-primary text-2xl mb-5 text-center border-b-2 border-blood-bowl-primary pb-2.5">
-                            Player 1
-                        </h2>
+                    <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
+                        <div className="text-center mb-5">
+                            <SectionTitle>Player 1</SectionTitle>
+                        </div>
                         {teams.map((team) => (
                             <button
                                 key={team.id}
-                                className={`w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left text-base hover:bg-blood-bowl-primary-dark hover:translate-x-1 active:bg-blood-bowl-primary ${selectedTeam1?.id === team.id
-                                        ? 'bg-blood-bowl-primary-dark border-4 border-blood-bowl-gold'
-                                        : 'bg-blood-bowl-primary'
-                                    }`}
+                                className={`
+                                    w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left font-body text-lg
+                                    hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md
+                                    ${selectedTeam1?.id === team.id
+                                        ? 'bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md'
+                                        : 'bg-bb-blood-red'
+                                    }
+                                `}
                                 onClick={() => handleSelectTeam1(team)}
                             >
-                                {team.name} ({team.rosterName})
+                                <span className="font-heading font-bold uppercase">{team.name}</span>
+                                <span className="block text-sm opacity-90">{team.rosterName}</span>
                             </button>
                         ))}
                     </div>
 
                     {/* VS */}
-                    <div className="text-5xl font-bold text-blood-bowl-danger text-center self-center p-5 bg-white/90 rounded-full w-20 h-20 flex items-center justify-center shadow-lg lg:w-full lg:h-auto lg:rounded-lg">
+                    <div className="
+                        text-5xl font-heading font-bold font-italic text-bb-blood-red 
+                        text-center self-center 
+                        p-6 bg-bb-parchment border-4 border-bb-divider rounded-full 
+                        w-24 h-24 flex items-center justify-center 
+                        shadow-parchment
+                        lg:w-full lg:h-auto lg:rounded-lg lg:border-2
+                    ">
                         VS
                     </div>
 
                     {/* Player 2 Selection */}
-                    <div className="bg-white/90 rounded-lg p-6 shadow-md">
-                        <h2 className="text-blood-bowl-primary text-2xl mb-5 text-center border-b-2 border-blood-bowl-primary pb-2.5">
-                            Player 2
-                        </h2>
+                    <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
+                        <div className="text-center mb-5">
+                            <SectionTitle>Player 2</SectionTitle>
+                        </div>
                         {teams.map((team) => (
                             <button
                                 key={team.id}
-                                className={`w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left text-base hover:bg-blood-bowl-primary-dark hover:translate-x-1 active:bg-blood-bowl-primary ${selectedTeam2?.id === team.id
-                                        ? 'bg-blood-bowl-primary-dark border-4 border-blood-bowl-gold'
-                                        : 'bg-blood-bowl-primary'
-                                    }`}
+                                className={`
+                                    w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left font-body text-lg
+                                    hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md
+                                    ${selectedTeam2?.id === team.id
+                                        ? 'bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md'
+                                        : 'bg-bb-blood-red'
+                                    }
+                                `}
                                 onClick={() => handleSelectTeam2(team)}
                             >
-                                {team.name} ({team.rosterName})
+                                <span className="font-heading font-bold uppercase">{team.name}</span>
+                                <span className="block text-sm opacity-90">{team.rosterName}</span>
                             </button>
                         ))}
                     </div>

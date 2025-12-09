@@ -533,4 +533,9 @@ export class GameService implements IGameService {
         }
     }
 
+    public getTeam(teamId: string): Team | undefined {
+        if (this.team1.id === teamId) return this.team1;
+        if (this.team2.id === teamId) return this.team2;
+        return undefined;
+    }
 }

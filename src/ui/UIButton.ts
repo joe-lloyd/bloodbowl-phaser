@@ -3,6 +3,7 @@ import { UITheme, ButtonVariant } from "./UITheme";
 
 /**
  * UIButton - Reusable button component with consistent styling and hover effects
+ * @deprecated Use React components instead.
  */
 
 export interface UIButtonConfig {
@@ -23,8 +24,22 @@ export class UIButton extends Phaser.GameObjects.Text {
 
   constructor(scene: Phaser.Scene, config: UIButtonConfig) {
     const variant = config.variant || "primary";
-    const buttonStyle = UITheme.button[variant];
-    const fontSize = config.fontSize || UITheme.typography.fontSize.button;
+
+    // Safety check for UITheme.button
+    if (!UITheme.button) {
+      console.error("UITheme.button is undefined! Layout might be broken.");
+      console.log("UITheme keys:", Object.keys(UITheme));
+    }
+
+    const buttonStyle = UITheme.button?.[variant] || {
+      color: "#ffffff",
+      backgroundColor: "#000000",
+      padding: { x: 10, y: 5 },
+      hoverColor: "#ffffff",
+      hoverBackgroundColor: "#333333"
+    };
+
+    const fontSize = config.fontSize || UITheme.typography?.fontSize?.button || "16px";
 
     super(scene, config.x, config.y, config.text, {
       fontSize: fontSize,
@@ -58,7 +73,12 @@ export class UIButton extends Phaser.GameObjects.Text {
   private setupInteractivity(): void {
     this.setInteractive({ useHandCursor: true });
 
-    const buttonStyle = UITheme.button[this.variant];
+    const buttonStyle = UITheme.button?.[this.variant] || {
+      hoverColor: "#ffffff",
+      hoverBackgroundColor: "#333333",
+      color: "#ffffff",
+      backgroundColor: "#000000"
+    };
 
     this.on("pointerover", () => {
       if (!this.isDisabled) {

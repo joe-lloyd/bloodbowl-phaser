@@ -93,6 +93,9 @@ export interface UIEvents {
 
     // Game Start
     'ui:startGame': { team1: Team; team2: Team };
+
+    // Common UI
+    'ui:notification': string;
 }
 
 /**

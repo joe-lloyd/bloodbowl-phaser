@@ -1,5 +1,6 @@
 /**
- * Global CSS reset and base styles for React UI overlay
+ * Global CSS - Minimal setup for React UI overlay
+ * Use Tailwind classes for styling - this file is for exceptions only
  */
 
 @tailwind base;
@@ -23,7 +24,7 @@
   pointer-events: none;
   /* Allow clicks to pass through to Phaser canvas */
   z-index: 1000;
-  font-family: 'Arial', sans-serif;
+  font-family: 'Crimson Pro', Georgia, serif;
 }
 
 /* Enable pointer events only on interactive elements */
@@ -37,90 +38,10 @@
   pointer-events: auto;
 }
 
-/* CSS Variables - Theme */
-:root {
-  /* Colors */
-  --color-primary: #4444ff;
-  --color-secondary: #ff4444;
-  --color-success: #44ff44;
-  --color-danger: #ff4444;
-  --color-warning: #ffaa00;
-  --color-info: #4444ff;
-
-  /* Background */
-  --color-background: #1a1a2e;
-  --color-background-dark: #0a0a1e;
-  --color-surface: #222222;
-  --color-border: #444444;
-
-  /* Text */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #aaaaaa;
-  --color-text-disabled: #666666;
-
-  /* Spacing */
-  --spacing-xs: 5px;
-  --spacing-sm: 10px;
-  --spacing-md: 15px;
-  --spacing-lg: 20px;
-  --spacing-xl: 30px;
-
-  /* Typography */
-  --font-size-tiny: 12px;
-  --font-size-small: 14px;
-  --font-size-body: 16px;
-  --font-size-h6: 18px;
-  --font-size-h5: 20px;
-  --font-size-h4: 24px;
-  --font-size-h3: 32px;
-  --font-size-h2: 36px;
-  --font-size-h1: 48px;
-
-  /* Borders */
-  --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
-
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
-}
-
-/* Utility Classes */
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.gap-sm {
-  gap: var(--spacing-sm);
-}
-
-.gap-md {
-  gap: var(--spacing-md);
-}
-
-.gap-lg {
-  gap: var(--spacing-lg);
-}
-
-.text-primary {
-  color: var(--color-text-primary);
-}
-
-.text-secondary {
-  color: var(--color-text-secondary);
+/* Custom animation for Blood Bowl feel */
+@layer utilities {
+  .transition-bb {
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
 }

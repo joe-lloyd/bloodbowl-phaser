@@ -10,7 +10,7 @@ interface MinHeightContainerProps {
  */
 const MinHeightContainer = ({ children, className = '' }: MinHeightContainerProps) => {
   return (
-    <div className={`flex flex-col min-h-screen justify-between ${className}`}>
+    <div className={`flex flex-col min-h-screen justify-center ${className}`}>
       {children}
     </div>
   );

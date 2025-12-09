@@ -27,30 +27,30 @@ export function MainMenu({ eventBus }: MainMenuProps) {
     };
 
     return (
-        <MinHeightContainer className="bg-blood-bowl-parchment">
+        <MinHeightContainer className="bg-bb-parchment">
             <Parchment $intensity="high" />
 
             <ContentContainer>
-                <div className="flex flex-col items-center justify-center text-center py-10">
+                <div className="flex flex-col items-center justify-center text-center py-20">
                     {/* Title with decorative stars */}
-                    <div className="relative mb-5">
+                    <div className="relative mb-12">
                         <Stars />
-                        <Title>BLOOD BOWL SEVENS</Title>
+                        <Title className="text-7xl lg:text-6xl md:text-5xl">BLOOD BOWL SEVENS</Title>
                     </div>
 
-                    <p className="text-blood-bowl-danger text-xl italic my-2 mb-10">Fantasy Football Mayhem</p>
+                    <p className="text-bb-deep-crimson text-3xl font-body italic font-bold mb-16">Fantasy Football Mayhem</p>
 
-                    <div className="flex flex-col gap-4 min-w-[250px] mb-10">
-                        <Button onClick={handleBuildTeam}>
+                    <div className="flex flex-col gap-6 min-w-[300px] mb-16">
+                        <Button onClick={handleBuildTeam} className="text-2xl py-5">
                             Build Team
                         </Button>
 
-                        <Button onClick={handlePlayGame}>
+                        <Button onClick={handlePlayGame} className="text-2xl py-5">
                             Play Game
                         </Button>
                     </div>
 
-                    <div className="text-gray-600 text-sm mt-10">
+                    <div className="text-bb-muted-text text-lg mt-auto font-heading">
                         v0.1.0 - Phase 3.5 (React UI)
                     </div>
                 </div>
