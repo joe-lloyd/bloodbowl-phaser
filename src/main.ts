@@ -37,7 +37,7 @@ const config: Phaser.Types.Core.GameConfig = {
     },
   },
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.ENVELOP,
     autoCenter: Phaser.Scale.NO_CENTER,
     width: GameConfig.CANVAS_WIDTH,
     height: GameConfig.CANVAS_HEIGHT,

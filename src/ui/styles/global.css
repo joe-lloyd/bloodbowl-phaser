@@ -7,15 +7,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Reset */
-#react-root * {
+/* Root container for React UI */
+#react-root {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-/* Root container for React UI */
-#react-root {
   position: fixed;
   top: 0;
   left: 0;

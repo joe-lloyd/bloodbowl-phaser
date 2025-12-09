@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { EventBus } from '../../../services/EventBus';
 import { useEventEmit } from '../../hooks/useEventBus';
-import { Team } from '../../../types/Team';
+import { Team, calculateTeamValue } from '../../../types/Team';
 import { loadTeams, deleteTeam } from '../../../managers/TeamManager';
 import Parchment from '../componentWarehouse/Parchment';
 import ContentContainer from '../componentWarehouse/ContentContainer';
@@ -22,7 +22,6 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
     const emit = useEventEmit(eventBus);
 
     useEffect(() => {
-        // Load teams on mount
         setTeams(loadTeams());
     }, []);
 
@@ -37,7 +36,7 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
     const handleDeleteTeam = (teamId: string) => {
         if (confirm('Are you sure you want to delete this team?')) {
             deleteTeam(teamId);
-            setTeams(loadTeams()); // Reload teams
+            setTeams(loadTeams());
         }
     };
 
@@ -49,58 +48,97 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
         return `${(amount / 1000).toFixed(0)}k`;
     };
 
+    const numToHex = (num: number): string => {
+        return '#' + num.toString(16).padStart(6, '0');
+    };
+
     return (
-        <MinHeightContainer className="bg-bb-parchment">
+        <MinHeightContainer className="!justify-start pt-12 m-8">
             <Parchment $intensity="low" />
 
-            <ContentContainer>
-                <div className="flex justify-between items-center mb-12 flex-wrap gap-6">
-                    <Title>TEAM MANAGEMENT</Title>
-                    <Button onClick={handleCreateTeam} className="text-xl">
+            <ContentContainer className="">
+                <div className="flex justify-between items-center mb-10 flex-wrap gap-6">
+                    <div>
+                        <Title>TEAM MANAGEMENT</Title>
+                        <p className="text-bb-muted-text font-body mt-2">Manage your roster and prepare for the next match.</p>
+                    </div>
+                    <Button onClick={handleCreateTeam} className="px-10 py-5 text-2xl shadow-lg hover:shadow-xl">
                         + Create New Team
                     </Button>
                 </div>
 
                 {teams.length === 0 ? (
-                    <p className="text-bb-muted-text text-center italic py-20 text-2xl font-body">No teams created yet</p>
+                    <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-bb-divider rounded-xl bg-white/20">
+                        <p className="text-bb-muted-text text-center italic text-2xl font-body mb-6">No teams found in the archives.</p>
+                        <Button onClick={handleCreateTeam}>Draft First Team</Button>
+                    </div>
                 ) : (
-                    <div className="flex flex-col gap-6 mb-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
                         {teams.map((team) => (
                             <div
                                 key={team.id}
                                 className="
-                                    bg-bb-warm-paper border border-bb-divider rounded-xl p-10 
-                                    shadow-parchment-light 
-                                    flex justify-between items-center gap-10 
-                                    transition-bb duration-200 
-                                    hover:-translate-y-1 hover:shadow-lg 
-                                    md:flex-col md:items-start
+                                    relative overflow-hidden 
+                                    bg-bb-ink-blue rounded-xl 
+                                    border-2 border-bb-dark-gold
+                                    shadow-lg transition-all duration-200 
+                                    hover:shadow-2xl hover:scale-[1.01]
+                                    flex flex-col
                                 "
                             >
-                                <div className="flex-1">
-                                    <div className="text-3xl font-heading font-bold text-bb-blood-red mb-3">
-                                        {team.name}
-                                    </div>
-                                    <div className="text-bb-text-dark text-lg font-body">
-                                        {team.rosterName} • {team.players.length} players • {formatGold(team.treasury)} treasury
-                                    </div>
-                                </div>
+                                {/* Team Color Strip */}
+                                <div className="h-4 w-full border-b-2 border-bb-dark-gold" style={{ backgroundColor: numToHex(team.colors.primary) }} />
 
-                                <div className="flex gap-4 shrink-0 md:w-full">
-                                    <Button onClick={() => handleEditTeam(team.id)} className="!my-0">
-                                        Edit Team
-                                    </Button>
-                                    <DangerButton onClick={() => handleDeleteTeam(team.id)} className="!my-0">
-                                        Delete
-                                    </DangerButton>
+                                <div className="p-8 flex-1 flex flex-col">
+                                    <div className="mb-8">
+                                        <div className="font-heading font-bold text-sm uppercase text-bb-dark-gold tracking-widest mb-2 border-b border-bb-dark-gold/30 pb-2 inline-block">
+                                            {team.rosterName}
+                                        </div>
+                                        <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight truncate drop-shadow-md">
+                                            {team.name}
+                                        </h3>
+                                    </div>
+
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8 bg-black/20 p-6 rounded-lg border border-bb-dark-gold/30">
+                                        <div>
+                                            <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">Team Value</span>
+                                            <span className="font-heading text-2xl text-bb-parchment">{formatGold(calculateTeamValue(team))}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">Treasury</span>
+                                            <span className="font-heading text-2xl text-white">{formatGold(team.treasury)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">Roster</span>
+                                            <span className="font-heading text-2xl text-white">{team.players.length}/11</span>
+                                        </div>
+                                        <div>
+                                            <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">Record</span>
+                                            <span className="font-heading text-2xl text-white">{team.wins}-{team.draws}-{team.losses}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Spacer to push buttons down */}
+                                    <div className="flex-1"></div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-4 mt-2">
+                                        <Button onClick={() => handleEditTeam(team.id)} className="flex-1 py-4 text-xl">
+                                            Manage Team
+                                        </Button>
+                                        <DangerButton onClick={() => handleDeleteTeam(team.id)} className="px-6">
+                                            🗑️
+                                        </DangerButton>
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
 
-                <div className="mt-8">
-                    <Button onClick={handleBack}>
+                <div className="mt-8 border-t-2 border-bb-divider pt-8">
+                    <Button onClick={handleBack} className="!bg-bb-warm-paper !text-bb-ink-blue border-bb-ink-blue hover:!bg-bb-ink-blue hover:!text-white">
                         ← Back to Menu
                     </Button>
                 </div>

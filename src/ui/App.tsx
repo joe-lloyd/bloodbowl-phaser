@@ -5,6 +5,7 @@ import { TeamManagement } from './components/pages/TeamManagement';
 import { TeamBuilder } from './components/pages/TeamBuilder';
 import { TeamSelect } from './components/pages/TeamSelect';
 import { GameHUD } from './components/hud/GameHUD';
+import { AspectRatioLayout } from './components/componentWarehouse/AspectRatioLayout';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -35,15 +36,14 @@ export function App({ eventBus }: AppProps) {
         // The scene listens to this event and handles the actual Phaser scene change
     });
 
-    // Listen for game start - hide React UI
+    // Listen for game start
     useEventBus(eventBus, 'ui:startGame', () => {
         console.log('Game starting, hiding React UI');
-        setCurrentScene('GameScene'); // This will hide all React UI
+        setCurrentScene('GameScene');
     });
 
     return (
         <>
-            {/* Show appropriate UI based on current scene */}
             {currentScene === 'MenuScene' && (
                 <MainMenu eventBus={eventBus} />
             )}
@@ -60,14 +60,9 @@ export function App({ eventBus }: AppProps) {
                 <TeamSelect eventBus={eventBus} />
             )}
 
-            {/* GameScene - React HUD overlay */}
             {currentScene === 'GameScene' && (
                 <GameHUD eventBus={eventBus} />
             )}
-
-            {/* Test overlay - can be shown on all scenes for debugging */}
-            {/* Remove this in production */}
-            {/* <TestOverlay eventBus={eventBus} /> */}
         </>
     );
 }
