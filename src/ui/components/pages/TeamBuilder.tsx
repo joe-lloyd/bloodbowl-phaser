@@ -16,6 +16,7 @@ import ContentContainer from '../componentWarehouse/ContentContainer';
 import MinHeightContainer from '../componentWarehouse/MinHeightContainer';
 import { Button, DangerButton } from '../componentWarehouse/Button';
 import { Title, SectionTitle } from '../componentWarehouse/Titles';
+import { BloodBowlTable, TableRow, TableCell, CustomTableCell } from '../componentWarehouse/BloodBowlTable';
 
 interface TeamBuilderProps {
     eventBus: EventBus;
@@ -181,26 +182,26 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
     const canSave = team.players.length >= 7;
 
     return (
-        <MinHeightContainer className="bg-bb-parchment">
+        <MinHeightContainer className="bg-bb-parchment !justify-start pt-8 pb-12">
             <Parchment $intensity="low" />
 
-            <ContentContainer>
+            <ContentContainer className="max-w-7xl">
                 <div className="text-center mb-8">
                     <Title>TEAM BUILDER</Title>
                 </div>
 
-                <div className="grid grid-cols-2 gap-10 mb-10 lg:grid-cols-1">
-                    {/* Left Column */}
-                    <div>
+                <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-8 mb-10">
+                    {/* Left Column: Controls */}
+                    <div className="space-y-6">
                         {/* Race Selection */}
                         <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
                             <SectionTitle>Select Race</SectionTitle>
-                            <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2">
                                 {getAvailableRosterNames().map(race => (
                                     <button
                                         key={race}
                                         className={`
-                                            px-3 py-2 text-bb-parchment border-none cursor-pointer rounded text-sm font-heading uppercase
+                                            px-2 py-2 text-bb-parchment border-none cursor-pointer rounded text-xs font-heading uppercase
                                             transition-bb hover:bg-bb-blood-red hover:-translate-y-0.5
                                             ${selectedRace === race
                                                 ? 'bg-bb-blood-red border-2 border-bb-gold shadow-md'
@@ -216,14 +217,14 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                         </div>
 
                         {/* Color Selection */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider mt-5">
+                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
                             <SectionTitle>Team Color</SectionTitle>
                             <div className="flex gap-2 flex-wrap">
                                 {TEAM_COLORS.map(color => (
                                     <button
                                         key={color}
                                         className={`
-                                            w-10 h-10 rounded-full cursor-pointer transition-all hover:scale-110 hover:shadow-lg
+                                            w-8 h-8 rounded-full cursor-pointer transition-all hover:scale-110 hover:shadow-lg
                                             ${selectedColor === color
                                                 ? 'border-4 border-bb-gold shadow-md'
                                                 : 'border-2 border-bb-divider'
@@ -236,44 +237,9 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                             </div>
                         </div>
 
-                        {/* Available Players */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider mt-5">
-                            <SectionTitle>Available Players</SectionTitle>
-                            <div className="flex flex-col gap-2.5 max-h-[400px] overflow-y-auto pr-2">
-                                {roster.playerTemplates.map(template => (
-                                    <div
-                                        key={template.positionName}
-                                        className="bg-bb-parchment border border-bb-divider rounded p-3 flex justify-between items-center gap-2.5 transition-colors hover:bg-white"
-                                    >
-                                        <div className="flex-1">
-                                            <div className="font-bold font-heading text-bb-ink-blue mb-1 uppercase">
-                                                {template.positionName}
-                                            </div>
-                                            <div className="text-sm text-bb-muted-text font-body">
-                                                Cost: {formatGold(template.cost)}
-                                            </div>
-                                            <div className="text-sm text-bb-text-dark font-mono font-bold mt-1">
-                                                MA{template.stats.MA} ST{template.stats.ST} AG{template.stats.AG}+ PA{template.stats.PA}+ AV{template.stats.AV}+
-                                            </div>
-                                        </div>
-                                        <Button
-                                            className="!m-0 !px-4 !py-2 !text-base"
-                                            onClick={() => handleHirePlayer(template.positionName)}
-                                            disabled={team.treasury < template.cost}
-                                        >
-                                            HIRE
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column */}
-                    <div>
-                        {/* Team Info */}
+                        {/* Team Info Inputs */}
                         <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-                            <SectionTitle>Team Info</SectionTitle>
+                            <SectionTitle>Team Details</SectionTitle>
                             <input
                                 type="text"
                                 className="
@@ -286,72 +252,120 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                                 onChange={(e) => handleNameChange(e.target.value)}
                                 placeholder="Team Name"
                             />
-                            <div className="p-3 my-1 bg-bb-ink-blue text-bb-parchment rounded font-bold font-heading flex justify-between items-center">
-                                <span>Treasury:</span>
-                                <span>{formatGold(team.treasury)}</span>
-                            </div>
-                            <div className="p-3 my-1 bg-bb-parchment rounded text-bb-text-dark font-body border border-bb-divider flex justify-between items-center">
-                                <span>Team Value:</span>
-                                <span className="font-bold">{formatGold(calculateTeamValue(team))}</span>
-                            </div>
-                            <div className="p-3 my-1 bg-bb-parchment rounded text-bb-text-dark font-body border border-bb-divider flex justify-between items-center">
-                                <span>Rerolls: {team.rerolls} ({formatGold(roster.rerollCost)} each)</span>
-                                <Button
-                                    className="!m-0 !px-3 !py-1 !text-sm"
-                                    onClick={handleBuyReroll}
-                                    disabled={team.treasury < roster.rerollCost}
-                                >
-                                    +
-                                </Button>
+                            <div className="space-y-2">
+                                <div className="p-3 bg-bb-ink-blue text-bb-parchment rounded font-bold font-heading flex justify-between items-center text-sm">
+                                    <span>Treasury</span>
+                                    <span>{formatGold(team.treasury)}</span>
+                                </div>
+                                <div className="p-3 bg-bb-parchment rounded text-bb-text-dark font-body border border-bb-divider flex justify-between items-center text-sm">
+                                    <span>Team Value</span>
+                                    <span className="font-bold">{formatGold(calculateTeamValue(team))}</span>
+                                </div>
+                                <div className="p-3 bg-bb-parchment rounded text-bb-text-dark font-body border border-bb-divider flex justify-between items-center text-sm">
+                                    <span>Rerolls ({formatGold(roster.rerollCost)})</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-lg">{team.rerolls}</span>
+                                        <Button
+                                            className="!m-0 !px-2 !py-0 !h-6 !text-xs"
+                                            onClick={handleBuyReroll}
+                                            disabled={team.treasury < roster.rerollCost}
+                                        >
+                                            +
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Current Roster */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider mt-5">
-                            <SectionTitle>Current Roster ({team.players.length}/16)</SectionTitle>
-                            <div className="flex flex-col gap-2.5 max-h-[400px] overflow-y-auto pr-2">
-                                {team.players.length === 0 ? (
-                                    <div className="text-bb-muted-text text-center py-10 italic font-body">No players hired yet</div>
-                                ) : (
-                                    team.players.map(player => (
-                                        <div
-                                            key={player.id}
-                                            className="bg-bb-parchment border border-bb-divider rounded p-3 flex justify-between items-center gap-2.5 transition-colors hover:bg-white"
+                    {/* Right Column: Roster Table */}
+                    <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
+                        <BloodBowlTable
+                            title={team.name || "ROSTER"}
+                            headers={["#", "Position", "MA", "ST", "AG", "PA", "AV", "Cost", "Actions"]}
+                        >
+                            {/* Available Hires Section */}
+                            <TableRow className="bg-bb-parchment/50">
+                                <CustomTableCell colSpan={9} className="text-center text-bb-blood-red border-b border-bb-divider !py-4">
+                                    AVAILABLE HIRES
+                                </CustomTableCell>
+                            </TableRow>
+                            {roster.playerTemplates.map(template => (
+                                <TableRow key={`hire-${template.positionName}`}>
+                                    <TableCell>-</TableCell>
+                                    <CustomTableCell>{template.positionName}</CustomTableCell>
+                                    <TableCell>{template.stats.MA}</TableCell>
+                                    <TableCell>{template.stats.ST}</TableCell>
+                                    <TableCell>{template.stats.AG}+</TableCell>
+                                    <TableCell>{template.stats.PA}+</TableCell>
+                                    <TableCell>{template.stats.AV}+</TableCell>
+                                    <TableCell className="font-bold">{formatGold(template.cost)}</TableCell>
+                                    <TableCell>
+                                        <Button
+                                            className="!m-0 !px-3 !py-1 !text-xs w-full"
+                                            onClick={() => handleHirePlayer(template.positionName)}
+                                            disabled={team.treasury < template.cost}
                                         >
-                                            <div className="flex-1">
-                                                <div className="font-bold font-heading text-bb-ink-blue mb-1 uppercase">
-                                                    #{player.number} {player.positionName}
-                                                </div>
-                                                <div className="text-sm text-bb-text-dark font-mono font-bold">
-                                                    MA{player.stats.MA} ST{player.stats.ST} AG{player.stats.AG}+ PA{player.stats.PA}+ AV{player.stats.AV}+
-                                                </div>
-                                            </div>
+                                            HIRE
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+
+                            {/* Current Team Section */}
+                            <TableRow className="bg-bb-parchment/50">
+                                <CustomTableCell colSpan={9} className="text-center text-bb-ink-blue border-b border-bb-divider border-t !py-4">
+                                    CURRENT TEAM ({team.players.length}/11)
+                                </CustomTableCell>
+                            </TableRow>
+
+                            {team.players.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={9} className="text-center italic text-bb-muted-text py-8">
+                                        No players in roster. Hire players from above!
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                team.players.sort((a, b) => a.number - b.number).map(player => (
+                                    <TableRow key={player.id}>
+                                        <CustomTableCell>#{player.number}</CustomTableCell>
+                                        <CustomTableCell className="text-bb-ink-blue">{player.positionName}</CustomTableCell>
+                                        <TableCell>{player.stats.MA}</TableCell>
+                                        <TableCell>{player.stats.ST}</TableCell>
+                                        <TableCell>{player.stats.AG}+</TableCell>
+                                        <TableCell>{player.stats.PA}+</TableCell>
+                                        <TableCell>{player.stats.AV}+</TableCell>
+                                        <TableCell>{formatGold(player.cost)}</TableCell>
+                                        <TableCell>
                                             <DangerButton
-                                                className="!m-0 !px-4 !py-2 !text-base"
+                                                className="!m-0 !px-3 !py-1 !text-xs w-full"
                                                 onClick={() => handleFirePlayer(player.id)}
                                             >
                                                 FIRE
                                             </DangerButton>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </BloodBowlTable>
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-between gap-5 mt-8 md:flex-col">
-                    <Button onClick={handleBack}>
-                        ← Back to Team Management
+                {/* Footer Actions */}
+                <div className="fixed bottom-0 left-0 w-full p-4 bg-bb-warm-paper border-t border-bb-gold shadow-lg flex justify-between items-center z-50">
+                    <Button onClick={handleBack} className="!bg-bb-parchment !text-bb-text-dark border-bb-text-dark">
+                        Cancel
                     </Button>
-                    <Button
-                        onClick={handleSave}
-                        disabled={!canSave}
-                    >
+                    <div className="text-xl font-heading font-bold text-bb-blood-red">
+                        {team.players.length}/11 Players
+                    </div>
+                    <Button onClick={handleSave} disabled={!canSave} className="text-xl px-8 shadow-lg">
                         Save Team {!canSave && `(${7 - team.players.length} more needed)`}
                     </Button>
                 </div>
+
+                {/* Spacer for fixed footer */}
+                <div className="h-24"></div>
             </ContentContainer>
         </MinHeightContainer>
     );
