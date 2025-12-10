@@ -101,6 +101,12 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
     const handleHirePlayer = (positionName: string) => {
         if (!team) return;
 
+        // Check for max roster size first
+        if (team.players.length >= 11) {
+            alert('Roster full (max 11 players)! Fire someone to make room.');
+            return;
+        }
+
         const roster = getRosterByRosterName(selectedRace);
         const template = roster.playerTemplates.find(p => p.positionName === positionName);
 
@@ -110,7 +116,13 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
             return;
         }
 
-        const playerNumber = team.players.length + 1;
+        // Find the first available number between 1 and 11
+        const usedNumbers = new Set(team.players.map(p => p.number));
+        let playerNumber = 1;
+        while (usedNumbers.has(playerNumber) && playerNumber <= 11) {
+            playerNumber++;
+        }
+
         const player = createPlayer(template, team.id, playerNumber);
 
         if (addPlayerToTeam(team, player)) {
@@ -220,90 +232,15 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                     <Title>TEAM BUILDER</Title>
                 </div>
 
-                {/* 3 Column Layout */}
+                {/* 2 Column Layout - Hires & Team Sheet */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-24">
 
-                    {/* LEFT COLUMN: Controls (20%) */}
-                    <div className="lg:col-span-3 space-y-6">
-                        {/* Race Selection */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-                            <SectionTitle>Select Race</SectionTitle>
-                            <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2"> {/* Smaller buttons */}
-                                {getAvailableRosterNames().map(race => (
-                                    <button
-                                        key={race}
-                                        className={`
-                                            px-2 py-2 text-bb-parchment border-none cursor-pointer rounded text-[10px] font-heading uppercase
-                                            transition-bb hover:bg-bb-blood-red hover:-translate-y-0.5
-                                            ${selectedRace === race
-                                                ? 'bg-bb-blood-red border-2 border-bb-gold shadow-md'
-                                                : 'bg-bb-ink-blue'
-                                            }
-                                        `}
-                                        onClick={() => handleRaceChange(race)}
-                                    >
-                                        {race}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Color Selection */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-                            <SectionTitle>Team Color</SectionTitle>
-                            <div className="flex gap-2 flex-wrap">
-                                {TEAM_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        className={`
-                                            w-8 h-8 rounded-full cursor-pointer transition-all hover:scale-110 hover:shadow-lg
-                                            ${selectedColor === color
-                                                ? 'border-4 border-bb-gold shadow-md'
-                                                : 'border-2 border-bb-divider'
-                                            }
-                                        `}
-                                        style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                                        onClick={() => handleColorChange(color)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Basic Info */}
-                        <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-                            <SectionTitle>Team Details</SectionTitle>
-                            <input
-                                type="text"
-                                className="
-                                    w-full p-3 text-lg font-heading font-bold text-bb-blood-red
-                                    bg-bb-parchment border-2 border-bb-divider rounded mb-4 
-                                    focus:outline-none focus:border-bb-gold focus:shadow-md
-                                    placeholder-bb-muted-text
-                                "
-                                value={team.name}
-                                onChange={(e) => handleNameChange(e.target.value)}
-                                placeholder="Team Name"
-                            />
-                            {/* Stats Summary Panel */}
-                            <div className="space-y-2">
-                                <div className="p-2 bg-bb-ink-blue text-bb-parchment rounded font-bold font-heading flex justify-between items-center text-sm">
-                                    <span>Treasury</span>
-                                    <span>{formatGold(team.treasury)}</span>
-                                </div>
-                                <div className="p-2 bg-bb-parchment rounded text-bb-text-dark font-body border border-bb-divider flex justify-between items-center text-sm">
-                                    <span>Team Value</span>
-                                    <span className="font-bold">{formatGold(calculateTeamValue(team))}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* MIDDLE COLUMN: Available Hires (35%) */}
+                    {/* LEFT COLUMN: Available Hires (35%) */}
                     <div className="lg:col-span-4 space-y-6">
                         <div className="bg-bb-warm-paper rounded-lg p-4 shadow-parchment-light border border-bb-divider">
                             <BloodBowlTable
                                 title="AVAILABLE HIRES"
-                                headers={["Pos", "MA", "ST", "AG", "PA", "AV", "Skills", "Cost", "Action"]} /* Added Skills Header */
+                                headers={["Pos", "MA", "ST", "AG", "PA", "AV", "Skills", "Cost", "Action"]}
                                 variant="red"
                             >
                                 {roster.playerTemplates.map(template => (
@@ -314,7 +251,7 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                                         <TableCell className="text-xs text-center">{template.stats.AG}+</TableCell>
                                         <TableCell className="text-xs text-center">{template.stats.PA}+</TableCell>
                                         <TableCell className="text-xs text-center">{template.stats.AV}+</TableCell>
-                                        <TableCell className="text-[10px] italic max-w-[120px]" title={template.skills.map(s => s.type).join(', ')}>
+                                        <TableCell className="text-[10px] italic max-w-[120px] truncate" title={template.skills.map(s => s.type).join(', ')}>
                                             {template.skills.map(s => s.type).join(', ')}
                                         </TableCell>
                                         <TableCell className="font-bold text-xs">{formatGold(template.cost)}</TableCell>
@@ -334,99 +271,252 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                     </div>
 
 
-                    {/* RIGHT COLUMN: Current Team (45%) */}
-                    <div className="lg:col-span-5 space-y-6">
+                    {/* RIGHT COLUMN: Current Team Sheet (65%) */}
+                    <div className="lg:col-span-8 space-y-6">
                         {/* BLUE SECTION: Current Team */}
                         <div className="bg-[#e0f0ff] rounded-lg p-2 border-[3px] border-[#1d3860] shadow-lg">
+
+                            {/* Team Header / Base Info */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 mb-4 border-b-2 border-[#1d3860] bg-[#e0f0ff]">
+                                {/* Row 1 */}
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Team Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md"
+                                        value={team.name}
+                                        onChange={(e) => handleNameChange(e.target.value)}
+                                        placeholder="Enter Team Name"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Roster</label>
+                                    <select
+                                        className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md cursor-pointer"
+                                        value={selectedRace}
+                                        onChange={(e) => handleRaceChange(e.target.value as RosterName)}
+                                    >
+                                        {getAvailableRosterNames().map(race => (
+                                            <option key={race} value={race}>{race}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Row 2: Coach & Treasury Controls */}
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Coach</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md"
+                                        value={team.coachName || ''}
+                                        onChange={(e) => setTeam({ ...team, coachName: e.target.value })}
+                                        placeholder="Coach Name"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Starting Treasury</label>
+                                    <input
+                                        type="number"
+                                        step="10000"
+                                        className={`w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md ${team.players.length > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        value={team.startingTreasury}
+                                        disabled={team.players.length > 0}
+                                        onChange={(e) => {
+                                            const newVal = parseInt(e.target.value) || 0;
+                                            setTeam({
+                                                ...team,
+                                                startingTreasury: newVal,
+                                                treasury: newVal // synchronise current treasury as long as we are in drafting mode and no players bought
+                                            });
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Row 3: Colors & Current Treasury display */}
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Team Colors</label>
+                                    <div className="flex gap-2 flex-wrap bg-white p-2 border-2 border-[#1d3860] min-h-[42px]">
+                                        {TEAM_COLORS.map(color => (
+                                            <button
+                                                key={color}
+                                                className={`
+                                                    w-5 h-5 rounded-full cursor-pointer transition-all hover:scale-110
+                                                    ${selectedColor === color
+                                                        ? 'border-2 border-bb-gold shadow-md scale-110'
+                                                        : 'border border-gray-400'
+                                                    }
+                                                `}
+                                                style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                                                onClick={() => handleColorChange(color)}
+                                                title={`#${color.toString(16).padStart(6, '0')}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[#1d3860] font-bold text-xs uppercase">Current Gold</label>
+                                    <div className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] flex justify-between items-center">
+                                        <span>{formatGold(team.treasury)}</span>
+                                        <span className="text-xs text-gray-500 font-body">TV: {formatGold(calculateTeamValue(team))}</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <BloodBowlTable
                                 title={team.name.toUpperCase()}
-                                headers={["#", "Name", "Pos", "Stats", "Skills", "Cost", ""]}
+                                headers={[
+                                    { label: "#", width: "5%" },
+                                    { label: "Name", width: "25%" },
+                                    { label: "Pos", width: "15%" },
+                                    { label: "Stats", width: "15%" },
+                                    { label: "Skills", width: "25%" },
+                                    { label: "Cost", width: "12%" },
+                                    { label: "", width: "8%" } // Actions
+                                ]}
                                 variant="blue"
                             >
-                                {team.players.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="text-center italic text-bb-muted-text py-8">
-                                            No players hired.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    team.players.sort((a, b) => a.number - b.number).map(player => (
-                                        <TableRow key={player.id}>
-                                            <CustomTableCell className="text-xs">#{player.number}</CustomTableCell>
-                                            <TableCell className="text-xs font-bold text-[#1d3860]">{player.playerName}</TableCell>
-                                            <TableCell className="text-xs">{player.positionName}</TableCell>
-                                            <TableCell className="text-[10px] font-mono whitespace-nowrap">
-                                                {player.stats.MA} {player.stats.ST} {player.stats.AG}+ {player.stats.PA}+ {player.stats.AV}+
-                                            </TableCell>
-                                            <TableCell className="text-[10px] italic max-w-[100px] truncate" title={player.skills.map(s => s.type).join(', ')}>
-                                                {player.skills.map(s => s.type).join(', ')}
-                                            </TableCell>
-                                            <TableCell className="text-xs">{formatGold(player.cost)}</TableCell>
-                                            <TableCell>
-                                                <button
-                                                    className="text-red-600 hover:text-red-800 font-bold px-2"
-                                                    onClick={() => handleFirePlayer(player.id)}
-                                                    title="Fire Player"
-                                                >
-                                                    X
-                                                </button>
-                                            </TableCell>
+                                {Array.from({ length: 11 }).map((_, index) => {
+                                    const slotNumber = index + 1;
+                                    const player = team.players.find(p => p.number === slotNumber);
+
+                                    return (
+                                        <TableRow
+                                            key={slotNumber}
+                                            className={`h-12 ${player ? "cursor-move" : ""}`}
+                                            draggable={!!player}
+                                            onDragStart={(e) => {
+                                                if (player) {
+                                                    e.dataTransfer.setData('text/plain', slotNumber.toString());
+                                                    e.dataTransfer.effectAllowed = 'move';
+                                                }
+                                            }}
+                                            onDragEnter={(e) => e.preventDefault()}
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.dataTransfer.dropEffect = 'move';
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const sourceSlotString = e.dataTransfer.getData('text/plain');
+                                                const sourceSlot = parseInt(sourceSlotString);
+
+                                                if (isNaN(sourceSlot) || sourceSlot === slotNumber) return;
+
+                                                // Deep copy players for safe state mutation
+                                                const newPlayers = team.players.map(p => ({ ...p }));
+                                                const sourcePlayer = newPlayers.find(p => p.number === sourceSlot);
+                                                const targetPlayer = newPlayers.find(p => p.number === slotNumber);
+
+                                                if (sourcePlayer) {
+                                                    sourcePlayer.number = slotNumber;
+                                                    // Swap if target exists
+                                                    if (targetPlayer) {
+                                                        targetPlayer.number = sourceSlot;
+                                                    }
+
+                                                    setTeam({
+                                                        ...team,
+                                                        players: newPlayers
+                                                    });
+                                                }
+                                            }}
+                                        >
+                                            <CustomTableCell className="text-xs text-center text-[#1d3860]/50 select-none">
+                                                {slotNumber}
+                                            </CustomTableCell>
+
+                                            {player ? (
+                                                <>
+                                                    <TableCell className="text-xs font-bold text-[#1d3860]">{player.playerName}</TableCell>
+                                                    <TableCell className="text-xs">{player.positionName}</TableCell>
+                                                    <TableCell className="text-[10px] font-mono whitespace-nowrap">
+                                                        {player.stats.MA} {player.stats.ST} {player.stats.AG}+ {player.stats.PA}+ {player.stats.AV}+
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px] italic max-w-[200px] truncate" title={player.skills.map(s => s.type).join(', ')}>
+                                                        {player.skills.map(s => s.type).join(', ')}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">{formatGold(player.cost)}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <span
+                                                                className="text-[#1d3860] text-lg font-bold cursor-grab hover:text-bb-gold px-1 select-none"
+                                                                title="Drag to Reorder"
+                                                            >
+                                                                ≡
+                                                            </span>
+                                                            <button
+                                                                className="text-red-600 hover:text-red-800 font-bold px-1"
+                                                                onClick={() => handleFirePlayer(player.id)}
+                                                                title="Fire Player"
+                                                            >
+                                                                X
+                                                            </button>
+                                                        </div>
+                                                    </TableCell>
+                                                </>
+                                            ) : (
+                                                <TableCell colSpan={6} className="text-center italic text-[#1d3860]/30 text-xs py-3">
+                                                    Empty Slot
+                                                </TableCell>
+                                            )}
                                         </TableRow>
-                                    ))
-                                )}
+                                    );
+                                })}
                             </BloodBowlTable>
 
                             {/* Team Meta Controls (Blue Theme) */}
-                            <div className="grid grid-cols-2 gap-4 mt-4 p-4 border-t-2 border-[#1d3860]">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
                                 {/* Re-Rolls */}
-                                <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                                    <span className="text-xs font-bold text-[#1d3860]">Re-Rolls ({formatGold(roster.rerollCost)})</span>
-                                    <div className="flex items-center gap-2">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-[#1d3860] uppercase">Re-Rolls ({formatGold(roster.rerollCost)})</span>
+                                    <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
                                         <span className="font-bold text-[#1d3860]">{team.rerolls}</span>
                                         <Button className="!m-0 !px-2 !py-0 !h-5 !text-[10px] !bg-[#1d3860] !text-white" onClick={handleBuyReroll} disabled={team.treasury < roster.rerollCost}>+</Button>
                                     </div>
                                 </div>
                                 {/* Apothecary */}
-                                <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                                    <span className="text-xs font-bold text-[#1d3860]">Apothecary (50k)</span>
-                                    <div className="flex items-center gap-2">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-[#1d3860] uppercase">Apothecary (50k)</span>
+                                    <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860] h-[38px]">
+                                        <span className="text-xs text-[#1d3860]">{team.apothecary ? 'Yes' : 'No'}</span>
                                         <input
                                             type="checkbox"
                                             checked={team.apothecary}
                                             onChange={handleApothecaryToggle}
                                             disabled={!team.apothecary && team.treasury < 50000}
-                                            className="h-4 w-4"
+                                            className="h-4 w-4 accent-[#1d3860]"
                                         />
                                     </div>
                                 </div>
-                                {/* Dedicated Fans (Free for now/Input) */}
-                                <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                                    <span className="text-xs font-bold text-[#1d3860]">Dedicated Fans</span>
+                                {/* Dedicated Fans */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-[#1d3860] uppercase">Dedicated Fans</span>
                                     <input
                                         type="number"
                                         value={team.dedicatedFans}
                                         onChange={(e) => handleStatChange('dedicatedFans', parseInt(e.target.value))}
-                                        className="w-12 text-right text-xs border border-gray-300 rounded"
+                                        className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
                                     />
                                 </div>
-                                {/* Assistant Coaches */}
-                                <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                                    <span className="text-xs font-bold text-[#1d3860]">Asst. Coaches (10k)</span>
+                                {/* Asst Coaches */}
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-[#1d3860] uppercase">Asst. Coaches (10k)</span>
                                     <input
                                         type="number"
                                         value={team.coaches}
                                         onChange={(e) => handleStatChange('coaches', parseInt(e.target.value))}
-                                        className="w-12 text-right text-xs border border-gray-300 rounded"
+                                        className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
                                     />
                                 </div>
                                 {/* Cheerleaders */}
-                                <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                                    <span className="text-xs font-bold text-[#1d3860]">Cheerleaders (10k)</span>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-[#1d3860] uppercase">Cheerleaders (10k)</span>
                                     <input
                                         type="number"
                                         value={team.cheerleaders}
                                         onChange={(e) => handleStatChange('cheerleaders', parseInt(e.target.value))}
-                                        className="w-12 text-right text-xs border border-gray-300 rounded"
+                                        className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
                                     />
                                 </div>
                             </div>
@@ -450,6 +540,6 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                 {/* Spacer for fixed footer */}
                 <div className="h-24"></div>
             </ContentContainer>
-        </MinHeightContainer>
+        </MinHeightContainer >
     );
 }

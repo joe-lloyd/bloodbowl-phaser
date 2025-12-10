@@ -49,7 +49,7 @@ export const TableFooter = ({ variant }: { variant: 'red' | 'blue' }) => {
 
 interface BloodBowlTableProps {
     title?: string;
-    headers: string[];
+    headers: (string | { label: string; width?: string; className?: string })[];
     children: ReactNode;
     className?: string;
     variant?: 'red' | 'blue';
@@ -65,16 +65,27 @@ export const BloodBowlTable = ({ title, headers, children, className = '', varia
 
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
+                    <colgroup>
+                        {headers.map((header, index) => {
+                            const width = typeof header === 'object' ? header.width : undefined;
+                            return <col key={index} style={width ? { width } : undefined} />;
+                        })}
+                    </colgroup>
                     <thead>
                         <tr>
-                            {headers.map((header, index) => (
-                                <th
-                                    key={index}
-                                    className={`${headerBg} ${headerText} p-3 font-bold uppercase tracking-wider text-sm border-0`}
-                                >
-                                    {header}
-                                </th>
-                            ))}
+                            {headers.map((header, index) => {
+                                const label = typeof header === 'string' ? header : header.label;
+                                const customClass = typeof header === 'object' ? header.className : '';
+
+                                return (
+                                    <th
+                                        key={index}
+                                        className={`${headerBg} ${headerText} p-3 font-bold uppercase tracking-wider text-sm border-0 ${customClass}`}
+                                    >
+                                        {label}
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody className="font-body text-bb-text-dark">
@@ -88,20 +99,25 @@ export const BloodBowlTable = ({ title, headers, children, className = '', varia
     );
 };
 
-export const TableRow = ({ children, className = '' }: { children: ReactNode, className?: string }) => (
-    <tr className={`even:bg-black/5 hover:bg-black/10 ${className}`}>
+interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+    children: ReactNode;
+    className?: string;
+}
+
+export const TableRow = ({ children, className = '', ...props }: TableRowProps) => (
+    <tr className={`even:bg-black/5 hover:bg-black/10 transition-colors ${className}`} {...props}>
         {children}
     </tr>
 );
 
 export const TableCell = ({ children, className = '', colSpan }: { children: ReactNode, className?: string, colSpan?: number }) => (
-    <td className={`p-3 border-0 ${className}`} colSpan={colSpan}>
+    <td className={`p-3 border-0 truncate ${className}`} colSpan={colSpan}>
         {children}
     </td>
 );
 
 export const CustomTableCell = ({ children, className = '', colSpan }: { children: ReactNode, className?: string, colSpan?: number }) => (
-    <td className={`p-3 border-0 font-bold ${className}`} colSpan={colSpan}>
+    <td className={`p-3 border-0 font-bold truncate ${className}`} colSpan={colSpan}>
         {children}
     </td>
 );

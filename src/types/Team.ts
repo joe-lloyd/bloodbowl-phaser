@@ -77,6 +77,7 @@ export interface Team {
   // Identity
   id: string;
   name: string;
+  coachName?: string; // Name of the coach (user)
   rosterName: RosterName;
   colors: TeamColors;
 
@@ -86,7 +87,8 @@ export interface Team {
   formations: Formation[]; // Saved formations
 
   // Resources
-  treasury: number; // Gold available
+  treasury: number; // Current Gold available
+  startingTreasury: number; // Initial Treasury (usually 600k for Sevens)
   rerolls: number; // Team re-rolls purchased
   rerollCost: number; // Cost per re-roll (race-specific)
 
@@ -125,17 +127,20 @@ export function createTeam(
   name: string,
   rosterName: RosterName,
   colors: TeamColors,
-  rerollCost: number
+  rerollCost: number,
+  startingTreasury: number = 600000
 ): Team {
   return {
     id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name,
+    coachName: '',
     rosterName,
     colors,
     players: [],
     maxRosterSize: 11,
     formations: [],
-    treasury: 600000, // Sevens starting gold
+    treasury: startingTreasury, // Sevens starting gold
+    startingTreasury,
     rerolls: 0,
     rerollCost,
     apothecary: false,
