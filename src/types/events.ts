@@ -94,6 +94,17 @@ export interface UIEvents {
     // Game Start
     'ui:startGame': { team1: Team; team2: Team };
 
+    // Coin Flip
+    'ui:startCoinFlip': { team1: Team; team2: Team };
+    'ui:coinFlipComplete': { kickingTeam: Team; receivingTeam: Team };
+    'ui:requestCoinFlipState': void;
+
+    // Setup Controls
+    'ui:showSetupControls': { phase: 'kicking' | 'receiving', activeTeam: { id: string, name: string } };
+    'ui:hideSetupControls': void;
+    'ui:setupcomplete': boolean;
+    'ui:setupAction': { action: string };
+
     // Common UI
     'ui:notification': string;
 }

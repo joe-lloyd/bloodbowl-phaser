@@ -14,9 +14,10 @@ import * as TeamManager from '../../../managers/TeamManager';
 import Parchment from '../componentWarehouse/Parchment';
 import ContentContainer from '../componentWarehouse/ContentContainer';
 import MinHeightContainer from '../componentWarehouse/MinHeightContainer';
-import { Button, DangerButton } from '../componentWarehouse/Button';
-import { Title, SectionTitle } from '../componentWarehouse/Titles';
-import { BloodBowlTable, TableRow, TableCell, CustomTableCell } from '../componentWarehouse/BloodBowlTable';
+import { Button } from '../componentWarehouse/Button';
+import { Title } from '../componentWarehouse/Titles';
+import { AvailableHires } from '../TeamBuilder/AvailableHires';
+import { TeamRoster } from '../TeamBuilder/TeamRoster';
 
 interface TeamBuilderProps {
     eventBus: EventBus;
@@ -141,6 +142,28 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
         setTeam({ ...team });
     };
 
+    const handleReorderPlayers = (sourceSlot: number, targetSlot: number) => {
+        if (!team) return;
+
+        // Deep copy players for safe state mutation
+        const newPlayers = team.players.map(p => ({ ...p }));
+        const sourcePlayer = newPlayers.find(p => p.number === sourceSlot);
+        const targetPlayer = newPlayers.find(p => p.number === targetSlot);
+
+        if (sourcePlayer) {
+            sourcePlayer.number = targetSlot;
+            // Swap if target exists
+            if (targetPlayer) {
+                targetPlayer.number = sourceSlot;
+            }
+
+            setTeam({
+                ...team,
+                players: newPlayers
+            });
+        }
+    };
+
     const handleBuyReroll = () => {
         if (!team) return;
 
@@ -224,50 +247,24 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
     const canSave = team.players.length >= 7;
 
     return (
-        <MinHeightContainer className="bg-bb-parchment !justify-start pt-8 pb-12">
+        <MinHeightContainer className="bg-bb-parchment !justify-start pb-12 mb-26">
             <Parchment $intensity="low" />
 
-            <ContentContainer className="!px-4">
+            <ContentContainer className="!px-4 !pb-26">
                 <div className="text-center mb-8">
                     <Title>TEAM BUILDER</Title>
                 </div>
 
                 {/* 2 Column Layout - Hires & Team Sheet */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-24">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-26">
 
                     {/* LEFT COLUMN: Available Hires (35%) */}
                     <div className="lg:col-span-4 space-y-6">
-                        <div className="bg-bb-warm-paper rounded-lg p-4 shadow-parchment-light border border-bb-divider">
-                            <BloodBowlTable
-                                title="AVAILABLE HIRES"
-                                headers={["Pos", "MA", "ST", "AG", "PA", "AV", "Skills", "Cost", "Action"]}
-                                variant="red"
-                            >
-                                {roster.playerTemplates.map(template => (
-                                    <TableRow key={`hire-${template.positionName}`}>
-                                        <CustomTableCell className="text-xs">{template.positionName}</CustomTableCell>
-                                        <TableCell className="text-xs text-center">{template.stats.MA}</TableCell>
-                                        <TableCell className="text-xs text-center">{template.stats.ST}</TableCell>
-                                        <TableCell className="text-xs text-center">{template.stats.AG}+</TableCell>
-                                        <TableCell className="text-xs text-center">{template.stats.PA}+</TableCell>
-                                        <TableCell className="text-xs text-center">{template.stats.AV}+</TableCell>
-                                        <TableCell className="text-[10px] italic max-w-[120px] truncate" title={template.skills.map(s => s.type).join(', ')}>
-                                            {template.skills.map(s => s.type).join(', ')}
-                                        </TableCell>
-                                        <TableCell className="font-bold text-xs">{formatGold(template.cost)}</TableCell>
-                                        <TableCell>
-                                            <Button
-                                                className="!m-0 !px-2 !py-1 !text-[10px] w-full"
-                                                onClick={() => handleHirePlayer(template.positionName)}
-                                                disabled={team.treasury < template.cost}
-                                            >
-                                                HIRE
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </BloodBowlTable>
-                        </div>
+                        <AvailableHires
+                            roster={roster}
+                            treasury={team.treasury}
+                            onHirePlayer={handleHirePlayer}
+                        />
                     </div>
 
 
@@ -363,107 +360,11 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                                 </div>
                             </div>
 
-                            <BloodBowlTable
-                                title={team.name.toUpperCase()}
-                                headers={[
-                                    { label: "#", width: "5%" },
-                                    { label: "Name", width: "25%" },
-                                    { label: "Pos", width: "15%" },
-                                    { label: "Stats", width: "15%" },
-                                    { label: "Skills", width: "25%" },
-                                    { label: "Cost", width: "12%" },
-                                    { label: "", width: "8%" } // Actions
-                                ]}
-                                variant="blue"
-                            >
-                                {Array.from({ length: 11 }).map((_, index) => {
-                                    const slotNumber = index + 1;
-                                    const player = team.players.find(p => p.number === slotNumber);
-
-                                    return (
-                                        <TableRow
-                                            key={slotNumber}
-                                            className={`h-12 ${player ? "cursor-move" : ""}`}
-                                            draggable={!!player}
-                                            onDragStart={(e) => {
-                                                if (player) {
-                                                    e.dataTransfer.setData('text/plain', slotNumber.toString());
-                                                    e.dataTransfer.effectAllowed = 'move';
-                                                }
-                                            }}
-                                            onDragEnter={(e) => e.preventDefault()}
-                                            onDragOver={(e) => {
-                                                e.preventDefault();
-                                                e.dataTransfer.dropEffect = 'move';
-                                            }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                const sourceSlotString = e.dataTransfer.getData('text/plain');
-                                                const sourceSlot = parseInt(sourceSlotString);
-
-                                                if (isNaN(sourceSlot) || sourceSlot === slotNumber) return;
-
-                                                // Deep copy players for safe state mutation
-                                                const newPlayers = team.players.map(p => ({ ...p }));
-                                                const sourcePlayer = newPlayers.find(p => p.number === sourceSlot);
-                                                const targetPlayer = newPlayers.find(p => p.number === slotNumber);
-
-                                                if (sourcePlayer) {
-                                                    sourcePlayer.number = slotNumber;
-                                                    // Swap if target exists
-                                                    if (targetPlayer) {
-                                                        targetPlayer.number = sourceSlot;
-                                                    }
-
-                                                    setTeam({
-                                                        ...team,
-                                                        players: newPlayers
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            <CustomTableCell className="text-xs text-center text-[#1d3860]/50 select-none">
-                                                {slotNumber}
-                                            </CustomTableCell>
-
-                                            {player ? (
-                                                <>
-                                                    <TableCell className="text-xs font-bold text-[#1d3860]">{player.playerName}</TableCell>
-                                                    <TableCell className="text-xs">{player.positionName}</TableCell>
-                                                    <TableCell className="text-[10px] font-mono whitespace-nowrap">
-                                                        {player.stats.MA} {player.stats.ST} {player.stats.AG}+ {player.stats.PA}+ {player.stats.AV}+
-                                                    </TableCell>
-                                                    <TableCell className="text-[10px] italic max-w-[200px] truncate" title={player.skills.map(s => s.type).join(', ')}>
-                                                        {player.skills.map(s => s.type).join(', ')}
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">{formatGold(player.cost)}</TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            <span
-                                                                className="text-[#1d3860] text-lg font-bold cursor-grab hover:text-bb-gold px-1 select-none"
-                                                                title="Drag to Reorder"
-                                                            >
-                                                                ≡
-                                                            </span>
-                                                            <button
-                                                                className="text-red-600 hover:text-red-800 font-bold px-1"
-                                                                onClick={() => handleFirePlayer(player.id)}
-                                                                title="Fire Player"
-                                                            >
-                                                                X
-                                                            </button>
-                                                        </div>
-                                                    </TableCell>
-                                                </>
-                                            ) : (
-                                                <TableCell colSpan={6} className="text-center italic text-[#1d3860]/30 text-xs py-3">
-                                                    Empty Slot
-                                                </TableCell>
-                                            )}
-                                        </TableRow>
-                                    );
-                                })}
-                            </BloodBowlTable>
+                            <TeamRoster
+                                team={team}
+                                onFirePlayer={handleFirePlayer}
+                                onReorderPlayers={handleReorderPlayers}
+                            />
 
                             {/* Team Meta Controls (Blue Theme) */}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
@@ -538,7 +439,7 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
                 </div>
 
                 {/* Spacer for fixed footer */}
-                <div className="h-24"></div>
+                <div className="h-40"></div>
             </ContentContainer>
         </MinHeightContainer >
     );

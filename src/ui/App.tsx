@@ -42,8 +42,10 @@ export function App({ eventBus }: AppProps) {
         setCurrentScene('GameScene');
     });
 
+    const isInGame = currentScene === 'GameScene';
+
     return (
-        <>
+        <div className={`w-full h-full ${isInGame ? 'pointer-events-none' : 'pointer-events-auto'}`}>
             {currentScene === 'MenuScene' && (
                 <MainMenu eventBus={eventBus} />
             )}
@@ -60,9 +62,9 @@ export function App({ eventBus }: AppProps) {
                 <TeamSelect eventBus={eventBus} />
             )}
 
-            {currentScene === 'GameScene' && (
+            {isInGame && (
                 <GameHUD eventBus={eventBus} />
             )}
-        </>
+        </div>
     );
 }

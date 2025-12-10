@@ -35,7 +35,7 @@ export class TeamSelectionScene extends Phaser.Scene {
       console.log('TeamSelectionScene received ui:startGame event:', data);
 
       // Initialize Core Services
-      ServiceContainer.initialize(data.team1, data.team2);
+      ServiceContainer.initialize(this.eventBus, data.team1, data.team2);
       console.log('ServiceContainer initialized');
 
       // Start Game Scene

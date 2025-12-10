@@ -7,6 +7,9 @@ import { EndTurnButton } from './EndTurnButton';
 import { NotificationFeed } from './NotificationFeed';
 import { GamePhase } from '../../../types/GameState';
 
+import { CoinFlipOverlay } from './CoinFlipOverlay';
+import { SetupControls } from './SetupControls';
+
 interface GameHUDProps {
     eventBus: EventBus;
 }
@@ -97,6 +100,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
                     isTeam1Active={turnData.isTeam1Active}
                 />
             </div>
+
+            {/* Overlays */}
+            <CoinFlipOverlay eventBus={eventBus} />
+            <SetupControls eventBus={eventBus} />
 
             {/* Middle: Notifications Overlay */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

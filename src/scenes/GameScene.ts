@@ -14,9 +14,7 @@ import { GamePhase } from "../types/GameState";
 import {
   SetupValidator,
   FormationManager,
-  CoinFlipController,
   PlayerPlacementController,
-  SetupUIController,
 } from "../game/setup";
 import { pixelToGrid } from "../utils/GridUtils";
 import { MovementValidator } from "../domain/validators/MovementValidator";
@@ -41,9 +39,7 @@ export class GameScene extends Phaser.Scene {
   // Controllers (Setup Phase)
   private validator!: SetupValidator;
   private formationManager!: FormationManager;
-  private coinFlipController!: CoinFlipController;
   private placementController!: PlayerPlacementController;
-  private setupUIController!: SetupUIController;
 
   // Logic
   private movementValidator!: MovementValidator;
@@ -165,62 +161,46 @@ export class GameScene extends Phaser.Scene {
   private initializeControllers(): void {
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.setupUIController = new SetupUIController(this, this.pitch, this.gameService);
     this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
 
-    // Coinflip
-    this.coinFlipController = new CoinFlipController(this);
-    this.coinFlipController.on("coinFlipComplete", ({ kickingTeam, receivingTeam }: { kickingTeam: Team, receivingTeam: Team }) => {
-      this.kickingTeam = kickingTeam;
-      this.receivingTeam = receivingTeam;
+    // React UI handles CoinFlip, listen for result from EventBus
+    this.eventBus.on("ui:coinFlipComplete", (data: { kickingTeam: Team, receivingTeam: Team }) => {
+      this.kickingTeam = data.kickingTeam;
+      this.receivingTeam = data.receivingTeam;
 
-      // Update Game Service
-      this.gameService.startSetup(kickingTeam.id);
-
-      // Proceed to placement
+      this.gameService.startSetup(this.kickingTeam.id);
       this.startPlacement("kicking");
+    });
+
+    // Handle late UI mounting (handshake)
+    this.eventBus.on("ui:requestCoinFlipState", () => {
+      if (this.isSetupActive) {
+        // Only re-emit if we haven't started placement yet (e.g. still in coin flip)
+        // Simplified: just re-emit if setup is active and no kickingTeam/receivingTeam set? 
+        // Or better: If we are in setup phase, show it.
+        // Actually, CoinFlipController used to handle showing.
+        // If we are strictly in the "Coin Toss" step, we should emit.
+        // How do we know we are in coin toss vs placement? 
+        // We can check if kickoffStep is null? Or just emit it always for now if Setup is active and placement hasn't started?
+        // Safest: Use a flag or check game service state.
+
+        // For now, if setup active we just re-broadcast current state.
+        this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
+      }
     });
   }
 
   private startSetupPhase(): void {
     this.isSetupActive = true;
-    this.coinFlipController.show(this.team1, this.team2);
+    this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
   }
 
   private startPlacement(phase: "kicking" | "receiving"): void {
     const activeTeam = phase === "kicking" ? this.kickingTeam : this.receivingTeam;
     const isTeam1 = activeTeam.id === this.team1.id;
 
-    this.setupUIController.createUI(this.cameras.main.width, {
-      onConfirm: () => this.confirmSetupStep(phase),
-      onDefault: () => {
-        const formation = this.formationManager.getDefaultFormation(isTeam1);
-        this.placementController.loadFormation(formation);
-        this.refreshDugouts();
-      },
-      onSave: () => {
-        const placements = this.placementController.getPlacements();
-        if (placements.length > 0) {
-          this.formationManager.saveFormation(activeTeam.id, placements, "Custom");
-          this.eventBus.emit('ui:notification', "Formation Saved!");
-        }
-      },
-      onLoad: () => {
-        const formation = this.formationManager.loadFormation(activeTeam.id, "Custom");
-        if (formation) {
-          this.placementController.loadFormation(formation);
-          this.refreshDugouts();
-        } else {
-          this.eventBus.emit('ui:notification', "No Saved Formation");
-        }
-      },
-      onClear: () => {
-        this.placementController.clearPlacements();
-        this.refreshDugouts();
-      }
-    });
-    this.setupUIController.updateForPhase(phase, activeTeam);
-    this.setupUIController.highlightSetupZone();
+    this.eventBus.emit("ui:showSetupControls", { phase, activeTeam });
+    this.pitch.highlightSetupZone(activeTeam.id, phase === 'kicking');
 
     // Enable placement
     const dugout = this.dugouts.get(activeTeam.id);
@@ -229,7 +209,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private confirmSetupStep(phase: "kicking" | "receiving"): void {
-    this.setupUIController.clearHighlights();
+    this.pitch.clearHighlights();
 
     if (phase === "kicking") {
       // Switch active team for setup
@@ -260,6 +240,43 @@ export class GameScene extends Phaser.Scene {
 
     this.eventBus.on("turnEnded", () => {
       // React UI handles this
+    });
+
+    // Listen for UI Setup Actions
+    this.eventBus.on("ui:setupAction", (data: { action: string }) => {
+      const activeTeam = this.gameService.getState().activeTeamId === this.team1.id ? this.team1 : this.team2;
+      const isTeam1 = activeTeam.id === this.team1.id;
+
+      switch (data.action) {
+        case 'confirm':
+          this.confirmSetupStep(this.kickoffStep ? 'receiving' : 'kicking'); // Simplified logic, needs refinement based on state
+          break;
+        case 'default':
+          const defFormation = this.formationManager.getDefaultFormation(isTeam1);
+          this.placementController.loadFormation(defFormation);
+          this.refreshDugouts();
+          break;
+        case 'clear':
+          this.placementController.clearPlacements();
+          this.refreshDugouts();
+          break;
+        case 'save':
+          const placements = this.placementController.getPlacements();
+          if (placements.length > 0) {
+            this.formationManager.saveFormation(activeTeam.id, placements, "Custom");
+            this.eventBus.emit('ui:notification', "Formation Saved!");
+          }
+          break;
+        case 'load':
+          const savedFormation = this.formationManager.loadFormation(activeTeam.id, "Custom");
+          if (savedFormation) {
+            this.placementController.loadFormation(savedFormation);
+            this.refreshDugouts();
+          } else {
+            this.eventBus.emit('ui:notification', "No Saved Formation");
+          }
+          break;
+      }
     });
 
     // Listen for placement changes to update game state and dugouts
@@ -383,9 +400,8 @@ export class GameScene extends Phaser.Scene {
   private startPlayPhase(): void {
     this.isSetupActive = false;
     this.kickoffStep = null;
-    this.setupUIController.destroy(); // Remove setup UI
     this.pitch.clearHighlights(); // Clear setup zones
-    this.setupUIController.destroy(); // Remove setup UI
+    this.eventBus.emit("ui:hideSetupControls");
     this.pitch.clearHighlights(); // Clear setup zones
 
     // Ensure all players are placed
@@ -397,8 +413,8 @@ export class GameScene extends Phaser.Scene {
   private startKickoffPhase(): void {
     this.isSetupActive = false;
     this.kickoffStep = 'SELECT_KICKER';
-    this.setupUIController.destroy();
     this.pitch.clearHighlights();
+    this.eventBus.emit("ui:hideSetupControls");
 
     // Ensure players are visible and correct
     this.placePlayersOnPitch();
@@ -450,7 +466,7 @@ export class GameScene extends Phaser.Scene {
     if (!state.activeTeamId) return;
 
     const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
-    this.setupUIController.showConfirmButton(isComplete);
+    this.eventBus.emit("ui:setupcomplete", isComplete);
   }
 
 

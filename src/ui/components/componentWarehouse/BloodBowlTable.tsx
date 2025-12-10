@@ -110,14 +110,18 @@ export const TableRow = ({ children, className = '', ...props }: TableRowProps) 
     </tr>
 );
 
-export const TableCell = ({ children, className = '', colSpan }: { children: ReactNode, className?: string, colSpan?: number }) => (
-    <td className={`p-3 border-0 truncate ${className}`} colSpan={colSpan}>
+interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
+    children: ReactNode;
+}
+
+export const TableCell = ({ children, className = '', ...props }: TableCellProps) => (
+    <td className={`p-3 border-0 truncate ${className}`} {...props}>
         {children}
     </td>
 );
 
-export const CustomTableCell = ({ children, className = '', colSpan }: { children: ReactNode, className?: string, colSpan?: number }) => (
-    <td className={`p-3 border-0 font-bold truncate ${className}`} colSpan={colSpan}>
+export const CustomTableCell = ({ children, className = '', ...props }: TableCellProps) => (
+    <td className={`p-3 border-0 font-bold truncate ${className}`} {...props}>
         {children}
     </td>
 );

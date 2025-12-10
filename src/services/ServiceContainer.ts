@@ -5,7 +5,7 @@
  * Uses singleton pattern to ensure single source of truth for game state.
  */
 
-import { EventBus, IEventBus } from './EventBus.js';
+import { IEventBus } from './EventBus.js';
 import { GameService } from './GameService.js';
 import { IGameService } from './interfaces/IGameService.js';
 import { Team } from '@/types/Team';
@@ -16,9 +16,9 @@ export class ServiceContainer {
     public readonly eventBus: IEventBus;
     public readonly gameService: IGameService;
 
-    private constructor(team1: Team, team2: Team) {
-        // Create EventBus first
-        this.eventBus = new EventBus();
+    private constructor(eventBus: IEventBus, team1: Team, team2: Team) {
+        // Use shared EventBus
+        this.eventBus = eventBus;
 
         // Create GameService with EventBus and teams
         this.gameService = new GameService(this.eventBus, team1, team2);
@@ -28,8 +28,8 @@ export class ServiceContainer {
      * Initialize the service container with teams
      * Must be called before getInstance()
      */
-    static initialize(team1: Team, team2: Team): ServiceContainer {
-        ServiceContainer.instance = new ServiceContainer(team1, team2);
+    static initialize(eventBus: IEventBus, team1: Team, team2: Team): ServiceContainer {
+        ServiceContainer.instance = new ServiceContainer(eventBus, team1, team2);
         return ServiceContainer.instance;
     }
 

@@ -103,7 +103,7 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-10 items-start my-10 lg:grid-cols-1 lg:gap-8">
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-10 items-start my-10">
                     {/* Player 1 Selection */}
                     <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
                         <div className="text-center mb-5">
@@ -135,7 +135,6 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
                         p-6 bg-bb-parchment border-4 border-bb-divider rounded-full 
                         w-24 h-24 flex items-center justify-center 
                         shadow-parchment
-                        lg:w-full lg:h-auto lg:rounded-lg lg:border-2
                     ">
                         VS
                     </div>
@@ -165,7 +164,7 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
                     </div>
                 </div>
 
-                <div className="flex justify-between gap-5 mt-8 md:flex-col">
+                <div className="flex justify-between gap-5 mt-8">
                     <Button onClick={handleBack}>
                         ← Back to Menu
                     </Button>

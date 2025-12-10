@@ -53,7 +53,7 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
     };
 
     return (
-        <MinHeightContainer className="!justify-start pt-12 m-8">
+        <MinHeightContainer className="!justify-start">
             <Parchment $intensity="low" />
 
             <ContentContainer className="">
