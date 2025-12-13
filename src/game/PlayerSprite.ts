@@ -90,6 +90,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         color
       );
       hex.setStrokeStyle(2, 0xffffff);
+      hex.setOrigin(0);
       this.add(hex);
       this.shape = hex;
     } else {
