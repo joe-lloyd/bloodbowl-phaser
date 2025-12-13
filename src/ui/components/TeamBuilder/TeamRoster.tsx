@@ -64,7 +64,7 @@ export function TeamRoster({ team, onFirePlayer, onReorderPlayers }: TeamRosterP
                                 <TableCell className="text-[10px] font-mono whitespace-nowrap">
                                     {player.stats.MA} {player.stats.ST} {player.stats.AG}+ {player.stats.PA}+ {player.stats.AV}+
                                 </TableCell>
-                                <TableCell className="text-[10px] italic max-w-[200px] truncate" title={player.skills.map(s => s.type).join(', ')}>
+                                <TableCell className="text-[10px] italic max-w-[200px]" title={player.skills.map(s => s.type).join(', ')}>
                                     {player.skills.map(s => s.type).join(', ')}
                                 </TableCell>
                                 <TableCell className="text-xs">{formatGold(player.cost)}</TableCell>

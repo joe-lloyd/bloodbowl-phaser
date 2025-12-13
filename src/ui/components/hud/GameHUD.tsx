@@ -68,6 +68,28 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
 
     useEventBus(eventBus, 'phaseChanged', (data) => {
         setShowEndTurn(data.phase === GamePhase.PLAY);
+        // Refresh state on phase change to ensure active team is correct
+        const container = ServiceContainer.getInstance();
+        const state = container.gameService.getState();
+        const activeTeam = container.gameService.getTeam(state.activeTeamId || '');
+        if (activeTeam) {
+            setTurnData(prev => ({
+                ...prev,
+                activeTeamName: activeTeam.name,
+                isTeam1Active: state.activeTeamId === 'team1' || state.activeTeamId === container.gameService.getTeam('team1')?.id
+            }));
+        }
+    });
+
+    useEventBus(eventBus, 'ui:showSetupControls', (data: any) => {
+        // Explicitly update active team when setup controls show
+        if (data.activeTeam) {
+            setTurnData(prev => ({
+                ...prev,
+                activeTeamName: data.activeTeam.name,
+                isTeam1Active: true // Simplified, or check ID
+            }));
+        }
     });
 
     useEventBus(eventBus, 'ui:notification', (msg) => {

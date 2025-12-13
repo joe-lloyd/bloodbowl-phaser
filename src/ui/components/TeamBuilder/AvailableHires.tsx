@@ -26,7 +26,7 @@ export function AvailableHires({ roster, treasury, onHirePlayer }: AvailableHire
                         <TableCell className="text-xs text-center">{template.stats.AG}+</TableCell>
                         <TableCell className="text-xs text-center">{template.stats.PA}+</TableCell>
                         <TableCell className="text-xs text-center">{template.stats.AV}+</TableCell>
-                        <TableCell className="text-[10px] italic max-w-[120px] truncate" title={template.skills.map(s => s.type).join(', ')}>
+                        <TableCell className="text-[10px] italic max-w-[120px]" title={template.skills.map(s => s.type).join(', ')}>
                             {template.skills.map(s => s.type).join(', ')}
                         </TableCell>
                         <TableCell className="font-bold text-xs">{formatGold(template.cost)}</TableCell>

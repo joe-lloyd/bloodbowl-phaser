@@ -94,7 +94,7 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
                                         <div className="font-heading font-bold text-sm uppercase text-bb-dark-gold tracking-widest mb-2 border-b border-bb-dark-gold/30 pb-2 inline-block">
                                             {team.rosterName}
                                         </div>
-                                        <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight truncate drop-shadow-md">
+                                        <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight drop-shadow-md">
                                             {team.name}
                                         </h3>
                                     </div>

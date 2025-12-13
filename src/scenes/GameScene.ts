@@ -10,7 +10,7 @@ import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
-import { GamePhase } from "../types/GameState";
+import { GamePhase, SubPhase } from "../types/GameState";
 import {
   SetupValidator,
   FormationManager,
@@ -53,7 +53,6 @@ export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
   private isSetupActive: boolean = false;
-  private kickoffStep: 'SELECT_KICKER' | 'SELECT_TARGET' | null = null;
   private pendingKickoffData: any = null;
   private ballSprite: Phaser.GameObjects.Container | null = null;
 
@@ -99,11 +98,6 @@ export class GameScene extends Phaser.Scene {
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
 
-
-
-
-
-
     this.initializeControllers();
     this.movementValidator = new MovementValidator();
 
@@ -117,12 +111,22 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Pitch interaction (Now safe to attach)
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.isSetupActive) return;
-      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
-    });
-
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isSetupActive) {
+        // Direct Pitch Highlight for Setup
+        const pitchContainer = this.pitch.getContainer();
+        const localX = pointer.x - pitchContainer.x;
+        const localY = pointer.y - pitchContainer.y;
+
+        // Simple bounds check (0-26, 0-15) - hardcoded for now, or use Pitch dims
+        if (localX >= 0 && localX <= 26 * 60 && localY >= 0 && localY <= 15 * 60) {
+          const gridPos = pixelToGrid(localX, localY, 60);
+          this.pitch.highlightHoverSquare(gridPos.x, gridPos.y);
+        } else {
+          this.pitch.clearHover();
+        }
+        return;
+      }
       this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
     });
 
@@ -161,7 +165,7 @@ export class GameScene extends Phaser.Scene {
   private initializeControllers(): void {
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
+    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator, this.gameService);
 
     // React UI handles CoinFlip, listen for result from EventBus
     this.eventBus.on("ui:coinFlipComplete", (data: { kickingTeam: Team, receivingTeam: Team }) => {
@@ -169,7 +173,7 @@ export class GameScene extends Phaser.Scene {
       this.receivingTeam = data.receivingTeam;
 
       this.gameService.startSetup(this.kickingTeam.id);
-      this.startPlacement("kicking");
+      this.startPlacement(SubPhase.SETUP_KICKING);
     });
 
     // Handle late UI mounting (handshake)
@@ -195,12 +199,15 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
   }
 
-  private startPlacement(phase: "kicking" | "receiving"): void {
-    const activeTeam = phase === "kicking" ? this.kickingTeam : this.receivingTeam;
+  private startPlacement(subPhase: SubPhase): void {
+    const isKicking = subPhase === SubPhase.SETUP_KICKING;
+    const activeTeam = isKicking ? this.kickingTeam : this.receivingTeam;
     const isTeam1 = activeTeam.id === this.team1.id;
 
-    this.eventBus.emit("ui:showSetupControls", { phase, activeTeam });
-    this.pitch.highlightSetupZone(activeTeam.id, phase === 'kicking');
+    this.eventBus.emit("ui:showSetupControls", { subPhase, activeTeam });
+
+    // Pitch expects: highlightSetupZone(isLeft: boolean)
+    this.pitch.highlightSetupZone(isTeam1);
 
     // Enable placement
     const dugout = this.dugouts.get(activeTeam.id);
@@ -208,27 +215,24 @@ export class GameScene extends Phaser.Scene {
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
   }
 
-  private confirmSetupStep(phase: "kicking" | "receiving"): void {
-    this.pitch.clearHighlights();
-
-    if (phase === "kicking") {
-      // Switch active team for setup
-      this.gameService.startSetup(this.receivingTeam.id);
-      this.startPlacement("receiving");
-    } else {
-      // Finish setup
-      this.gameService.startKickoff();
-    }
-  }
-
   // Event Listeners
   private setupEventListeners(): void {
-    this.eventBus.on("phaseChanged", (data: { phase: GamePhase }) => {
-      const { phase } = data;
-      if (phase === GamePhase.PLAY) {
+    this.eventBus.on("phaseChanged", (data: { phase: GamePhase, subPhase?: SubPhase, activeTeamId?: string }) => {
+      const { phase, subPhase } = data;
+
+      if (phase === GamePhase.SETUP) {
+        if (subPhase === SubPhase.SETUP_KICKING) {
+          this.startPlacement(SubPhase.SETUP_KICKING);
+        } else if (subPhase === SubPhase.SETUP_RECEIVING) {
+          this.startPlacement(SubPhase.SETUP_RECEIVING);
+        } else if (subPhase === SubPhase.COIN_FLIP) {
+          this.isSetupActive = true;
+          this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
+        }
+      } else if (phase === GamePhase.PLAY) {
         this.startPlayPhase();
       } else if (phase === GamePhase.KICKOFF) {
-        this.startKickoffPhase();
+        this.startKickoffPhase(subPhase);
       }
     });
 
@@ -244,12 +248,14 @@ export class GameScene extends Phaser.Scene {
 
     // Listen for UI Setup Actions
     this.eventBus.on("ui:setupAction", (data: { action: string }) => {
-      const activeTeam = this.gameService.getState().activeTeamId === this.team1.id ? this.team1 : this.team2;
+      const state = this.gameService.getState();
+      const activeTeamId = state.activeTeamId || this.team1.id;
+      const activeTeam = activeTeamId === this.team1.id ? this.team1 : this.team2;
       const isTeam1 = activeTeam.id === this.team1.id;
 
       switch (data.action) {
         case 'confirm':
-          this.confirmSetupStep(this.kickoffStep ? 'receiving' : 'kicking'); // Simplified logic, needs refinement based on state
+          this.gameService.confirmSetup(activeTeam.id);
           break;
         case 'default':
           const defFormation = this.formationManager.getDefaultFormation(isTeam1);
@@ -399,27 +405,27 @@ export class GameScene extends Phaser.Scene {
 
   private startPlayPhase(): void {
     this.isSetupActive = false;
-    this.kickoffStep = null;
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit("ui:hideSetupControls");
-    this.pitch.clearHighlights(); // Clear setup zones
 
     // Ensure all players are placed
     this.placePlayersOnPitch();
-
-
   }
 
-  private startKickoffPhase(): void {
+  private startKickoffPhase(subPhase?: SubPhase): void {
     this.isSetupActive = false;
-    this.kickoffStep = 'SELECT_KICKER';
     this.pitch.clearHighlights();
     this.eventBus.emit("ui:hideSetupControls");
 
     // Ensure players are visible and correct
     this.placePlayersOnPitch();
 
-    this.eventBus.emit('ui:notification', "Select Kicker");
+    // Logic based on subphase
+    if (subPhase === SubPhase.SELECT_KICKER) {
+      this.eventBus.emit('ui:notification', "Select Kicker");
+    } else if (subPhase === SubPhase.SELECT_KICK_TARGET) {
+      this.eventBus.emit('ui:notification', "Select Target Square");
+    }
   }
 
   private placePlayersOnPitch(): void {
@@ -558,7 +564,9 @@ export class GameScene extends Phaser.Scene {
   public handleKickoffInteraction(x: number, y: number, playerAtSquare: any): void {
     if (this.gameService.getPhase() !== GamePhase.KICKOFF) return;
 
-    if (this.kickoffStep === 'SELECT_KICKER') {
+    const subPhase = this.gameService.getSubPhase();
+
+    if (subPhase === SubPhase.SELECT_KICKER) {
       if (playerAtSquare) {
         if (playerAtSquare.teamId !== this.kickingTeam.id) {
           this.eventBus.emit('ui:notification', "Select own player!");
@@ -568,10 +576,11 @@ export class GameScene extends Phaser.Scene {
         this.selectedPlayerId = playerAtSquare.id;
         this.highlightPlayer(playerAtSquare.id);
 
-        this.kickoffStep = 'SELECT_TARGET';
-        this.eventBus.emit('ui:notification', "Select Target Square");
+        if (this.selectedPlayerId) {
+          this.gameService.selectKicker(this.selectedPlayerId);
+        }
       }
-    } else if (this.kickoffStep === 'SELECT_TARGET') {
+    } else if (subPhase === SubPhase.SELECT_KICK_TARGET) {
       const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
       const validTarget = isTeam1Kicking ? (x >= 7) : (x <= 13);
 
@@ -582,7 +591,6 @@ export class GameScene extends Phaser.Scene {
 
       if (this.selectedPlayerId) {
         this.gameService.kickBall(this.selectedPlayerId, x, y);
-        this.kickoffStep = null;
         this.gameplayController.deselectPlayer();
         this.selectedPlayerId = null;
       }

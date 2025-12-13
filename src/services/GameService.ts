@@ -7,7 +7,7 @@
 
 import { IGameService } from './interfaces/IGameService.js';
 import { IEventBus } from './EventBus.js';
-import { GameState, GamePhase } from '@/types/GameState';
+import { GameState, GamePhase, SubPhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../domain/validators/MovementValidator.js';
@@ -21,6 +21,7 @@ export class GameService implements IGameService {
     private turnCounts: { [key: string]: number } = {};
     private placedPlayers: Map<string, { x: number; y: number }> = new Map();
     private setupReady: Set<string> = new Set();
+    private driveKickingTeamId: string | null = null;
 
     // Validators
     private movementValidator: MovementValidator = new MovementValidator();
@@ -41,6 +42,7 @@ export class GameService implements IGameService {
 
         this.state = {
             phase: GamePhase.SETUP,
+            subPhase: SubPhase.WEATHER, // Start with Weather
             activeTeamId: null,
             turn: {
                 teamId: '',
@@ -69,6 +71,10 @@ export class GameService implements IGameService {
         return this.state.phase;
     }
 
+    getSubPhase(): SubPhase | undefined {
+        return this.state.subPhase;
+    }
+
     getActiveTeamId(): string | null {
         return this.state.activeTeamId;
     }
@@ -81,10 +87,17 @@ export class GameService implements IGameService {
 
     startSetup(startingTeamId?: string): void {
         this.state.phase = GamePhase.SETUP;
+
+        // If startingTeamId provided, jump to kicking setup
         if (startingTeamId) {
+            this.state.subPhase = SubPhase.SETUP_KICKING;
             this.state.activeTeamId = startingTeamId;
+        } else {
+            // Otherwise start at beginning sequence
+            this.state.subPhase = SubPhase.WEATHER;
         }
-        this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP });
+
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: this.state.subPhase });
     }
 
     placePlayer(playerId: string, x: number, y: number): boolean {
@@ -163,14 +176,40 @@ export class GameService implements IGameService {
     confirmSetup(teamId: string): void {
         this.setupReady.add(teamId);
 
-        if (
-            this.setupReady.has(this.team1.id) &&
-            this.setupReady.has(this.team2.id)
-        ) {
-            // Both ready, proceed to Kickoff
-            this.startKickoff();
+        // Setup Logic Flow:
+        // 1. Kicking Team confirms -> Switch to Receiving Team
+        // 2. Receiving Team confirms -> Proceed to Kickoff
+
+        // We need to know who is kicking/receiving.
+        // If we trust `state.subPhase`
+
+        if (this.state.subPhase === SubPhase.SETUP_KICKING) {
+            if (teamId === this.state.activeTeamId) {
+                // Kicking team done. Switch to Receiving.
+                // Assuming activeTeamId is currently Kicking Team.
+                const receivingTeamId = (teamId === this.team1.id) ? this.team2.id : this.team1.id;
+
+                this.state.subPhase = SubPhase.SETUP_RECEIVING;
+                this.state.activeTeamId = receivingTeamId;
+
+                this.eventBus.emit('phaseChanged', {
+                    phase: GamePhase.SETUP,
+                    subPhase: SubPhase.SETUP_RECEIVING,
+                    activeTeamId: receivingTeamId
+                });
+            }
+        } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
+            if (teamId === this.state.activeTeamId) {
+                // Receiving team done. Proceed to Kickoff.
+                this.startKickoff();
+            }
         } else {
-            this.eventBus.emit('setupConfirmed', teamId);
+            // Fallback for old/undefined behavior or if simultaneous setup
+            if (this.setupReady.has(this.team1.id) && this.setupReady.has(this.team2.id)) {
+                this.startKickoff();
+            } else {
+                this.eventBus.emit('setupConfirmed', teamId);
+            }
         }
     }
 
@@ -210,12 +249,24 @@ export class GameService implements IGameService {
 
     startKickoff(): void {
         this.state.phase = GamePhase.KICKOFF;
+        this.state.subPhase = SubPhase.SELECT_KICKER;
         this.eventBus.emit('kickoffStarted');
-        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF });
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.SELECT_KICKER });
+    }
+
+    selectKicker(playerId: string): void {
+        if (this.state.phase === GamePhase.KICKOFF && this.state.subPhase === SubPhase.SELECT_KICKER) {
+            this.state.subPhase = SubPhase.SELECT_KICK_TARGET;
+            this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.SELECT_KICK_TARGET });
+        }
     }
 
     kickBall(playerId: string, targetX: number, targetY: number): void {
         if (this.state.phase !== GamePhase.KICKOFF) return;
+
+        // Transition to ROLL_KICK_OFF (Visually, ball is in air, but we determine result)
+        this.state.subPhase = SubPhase.ROLL_KICKOFF;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.ROLL_KICKOFF });
 
         // Simplify for now: Assume valid kicker (validation can be in UI or here)
         // Roll Scatter and add it to the dice log
@@ -267,6 +318,9 @@ export class GameService implements IGameService {
     }
 
     rollKickoff(): void {
+        this.state.subPhase = SubPhase.RESOLVE_KICKOFF;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.RESOLVE_KICKOFF });
+
         const d6 = () => Math.floor(Math.random() * 6) + 1;
         const roll = d6() + d6();
         let event = 'Changing Weather'; // Default 7
@@ -288,16 +342,49 @@ export class GameService implements IGameService {
 
         this.eventBus.emit('kickoffResult', { roll, event });
 
-        // Proceed to game after delay
+        // Proceed to Ball Placement phase after delay
+        setTimeout(() => {
+            this.state.subPhase = SubPhase.PLACE_BALL;
+            this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.PLACE_BALL });
+            this.resolveBallPlacement();
+        }, 2000);
+    }
+
+    resolveBallPlacement(): void {
+        // Here we would handle ball scatter results, bounce, pickup etc.
+        // For now, assume ball lands and we start game.
+        // Eventually this will be interactive or complex.
+
         setTimeout(() => {
             this.eventBus.emit('readyToStart');
-        }, 2000);
+        }, 1000);
+    }
+
+    // ===== Sub-Phase Helpers =====
+
+    setWeather(weather: number): void {
+        // TODO: Store weather
+        this.state.subPhase = SubPhase.COIN_FLIP;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: SubPhase.COIN_FLIP });
+    }
+
+    setCoinFlipWinner(winningTeamId: string): void {
+        // Trigger Setup Kicking
+        this.startSetup(winningTeamId);
     }
 
     // ===== Game Phase =====
 
     startGame(kickingTeamId: string): void {
         this.state.phase = GamePhase.PLAY;
+        this.driveKickingTeamId = kickingTeamId;
+
+        // Determine who goes first (Receiving team)
+        const receivingTeamId = kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
+
+        // SubPhase depends on who is active.
+        this.state.subPhase = SubPhase.TURN_RECEIVING;
+        this.state.activeTeamId = receivingTeamId;
 
         // Ensure all players on pitch are ACTIVE
         const activatePlayers = (team: Team) => {
@@ -313,16 +400,22 @@ export class GameService implements IGameService {
         activatePlayers(this.team1);
         activatePlayers(this.team2);
 
-        const receivingTeamId =
-            kickingTeamId === this.team1.id ? this.team2.id : this.team1.id;
-
         this.startTurn(receivingTeamId);
-        this.eventBus.emit('phaseChanged', { phase: GamePhase.PLAY });
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.PLAY, subPhase: this.state.subPhase });
     }
 
     startTurn(teamId: string): void {
         this.state.phase = GamePhase.PLAY;
         this.state.activeTeamId = teamId;
+
+        if (this.driveKickingTeamId) {
+            this.state.subPhase = (teamId === this.driveKickingTeamId)
+                ? SubPhase.TURN_KICKING
+                : SubPhase.TURN_RECEIVING;
+        }
+
+        // Emit phase changed for sub-phase update
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.PLAY, subPhase: this.state.subPhase });
 
         // Increment turn count for this team
         this.turnCounts[teamId] = (this.turnCounts[teamId] || 0) + 1;
@@ -422,7 +515,57 @@ export class GameService implements IGameService {
 
     addTouchdown(teamId: string): void {
         this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
+
+        this.state.phase = GamePhase.TOUCHDOWN;
+        this.state.subPhase = SubPhase.SCORING;
+
         this.eventBus.emit('touchdown', { teamId, score: this.state.score[teamId] });
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.TOUCHDOWN, subPhase: SubPhase.SCORING });
+
+        // Auto-proceed to End Drive after delay? Or wait for UI?
+        // Let's providing a method to proceed
+        setTimeout(() => this.startEndDriveSequence(), 2000);
+    }
+
+    startEndDriveSequence(): void {
+        // End of Drive
+        // 1. Recover KO
+        this.state.subPhase = SubPhase.RECOVER_KO;
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.TOUCHDOWN, subPhase: SubPhase.RECOVER_KO });
+
+        // Auto-resolve KO for now (or placeholder)
+        this.recoverKO();
+    }
+
+    recoverKO(): void {
+        // TODO: Roll for each KO player
+        // For now, just skip to Secret Weapons or Reset
+        setTimeout(() => {
+            this.state.subPhase = SubPhase.SECRET_WEAPONS;
+            this.eventBus.emit('phaseChanged', { phase: GamePhase.TOUCHDOWN, subPhase: SubPhase.SECRET_WEAPONS });
+
+            // Done with drive, new kick off
+            setTimeout(() => {
+                this.resetForKickoff();
+            }, 1000);
+        }, 1000);
+    }
+
+    resetForKickoff(): void {
+        // Prepare for new drive
+        // Swap kicking/receiving roles? Usually receiving team now kicks.
+        // The team that SCORED kicks off next.
+        // Assuming we know who scored from 'activeTeamId' or pass it.
+        // Actually Touchdown event has it.
+
+        // Let's assume the ACTIVE team scored (usually true).
+        const scoringTeamId = this.state.activeTeamId;
+        if (scoringTeamId) {
+            this.startSetup(scoringTeamId); // Scorer kicks off
+        } else {
+            // Fallback
+            this.startSetup(this.driveKickingTeamId || this.team1.id);
+        }
     }
 
     getScore(teamId: string): number {

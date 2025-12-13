@@ -1,3 +1,27 @@
+export enum SubPhase {
+  // SETUP Sub-Phases
+  WEATHER = "WEATHER",
+  COIN_FLIP = "COIN_FLIP",
+  SETUP_KICKING = "SETUP_KICKING",
+  SETUP_RECEIVING = "SETUP_RECEIVING",
+
+  // KICKOFF Sub-Phases
+  SELECT_KICKER = "SELECT_KICKER",
+  SELECT_KICK_TARGET = "SELECT_KICK_TARGET",
+  ROLL_KICKOFF = "ROLL_KICKOFF",
+  RESOLVE_KICKOFF = "RESOLVE_KICKOFF",
+  PLACE_BALL = "PLACE_BALL",
+
+  // PLAY Sub-Phases
+  TURN_RECEIVING = "TURN_RECEIVING",
+  TURN_KICKING = "TURN_KICKING",
+
+  // END OF DRIVE Sub-Phases
+  SCORING = "SCORING",
+  RECOVER_KO = "RECOVER_KO",
+  SECRET_WEAPONS = "SECRET_WEAPONS"
+}
+
 export enum GamePhase {
   SETUP = "SETUP",
   KICKOFF = "KICKOFF",
@@ -20,6 +44,7 @@ export interface TurnData {
 
 export interface GameState {
   phase: GamePhase;
+  subPhase?: SubPhase; // New sub-phase tracker
   activeTeamId: string | null;
   turn: TurnData;
   score: { [teamId: string]: number };

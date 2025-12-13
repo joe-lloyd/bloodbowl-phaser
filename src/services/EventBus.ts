@@ -5,34 +5,40 @@
  * from business logic, making services pure TypeScript and easily testable.
  */
 
+import { AllEvents } from '../types/events';
+
+// Alias AllEvents to GameEventMap for backward compatibility/clarity in this file if needed
+// or just use AllEvents directly. I will use GameEventMap alias to minimize changes to interface below.
+export type GameEventMap = AllEvents;
+
 export interface IEventBus {
     /**
      * Emit an event with optional data
      * @param event - Event name
      * @param data - Optional data to pass to listeners
      */
-    emit(event: string, data?: any): void;
+    emit<K extends keyof GameEventMap>(event: K, data?: GameEventMap[K]): void;
 
     /**
      * Register a listener for an event
      * @param event - Event name
      * @param callback - Function to call when event is emitted
      */
-    on(event: string, callback: (data?: any) => void): void;
+    on<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void;
 
     /**
      * Remove a listener for an event
      * @param event - Event name
      * @param callback - Function to remove
      */
-    off(event: string, callback: (data?: any) => void): void;
+    off<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void;
 
     /**
      * Register a one-time listener for an event
      * @param event - Event name
      * @param callback - Function to call once when event is emitted
      */
-    once(event: string, callback: (data?: any) => void): void;
+    once<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void;
 
     /**
      * Remove all listeners for an event (or all events if no event specified)
@@ -55,75 +61,66 @@ export class EventBus implements IEventBus {
     private listeners: Map<string, Set<(data?: any) => void>> = new Map();
     private onceListeners: Map<string, Set<(data?: any) => void>> = new Map();
 
-    emit(event: string, data?: any): void {
+    emit<K extends keyof GameEventMap>(event: K, data?: GameEventMap[K]): void {
         // Call regular listeners
-        const eventListeners = this.listeners.get(event);
+        const eventListeners = this.listeners.get(event as string);
         if (eventListeners) {
             eventListeners.forEach((callback) => {
                 try {
                     callback(data);
                 } catch (error) {
-                    // Log error but don't stop other callbacks
-                    console.error(`Error in event listener for "${event}":`, error);
+                    console.error(`Error in event listener for "${event as string}":`, error);
                 }
             });
         }
 
         // Call and remove once listeners
-        const onceListeners = this.onceListeners.get(event);
+        const onceListeners = this.onceListeners.get(event as string);
         if (onceListeners) {
             onceListeners.forEach((callback) => {
                 try {
                     callback(data);
                 } catch (error) {
-                    console.error(`Error in once listener for "${event}":`, error);
+                    console.error(`Error in once listener for "${event as string}":`, error);
                 }
             });
             // Clear once listeners after calling
-            this.onceListeners.delete(event);
+            this.onceListeners.delete(event as string);
         }
     }
 
-    on(event: string, callback: (data?: any) => void): void {
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, new Set());
+    on<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void {
+        if (!this.listeners.has(event as string)) {
+            this.listeners.set(event as string, new Set());
         }
-        this.listeners.get(event)!.add(callback);
+        this.listeners.get(event as string)!.add(callback as (data?: any) => void);
     }
 
-    off(event: string, callback: (data?: any) => void): void {
-        const eventListeners = this.listeners.get(event);
+    off<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void {
+        const eventListeners = this.listeners.get(event as string);
         if (eventListeners) {
-            eventListeners.delete(callback);
-
-            // Clean up empty sets
+            eventListeners.delete(callback as any);
             if (eventListeners.size === 0) {
-                this.listeners.delete(event);
+                this.listeners.delete(event as string);
             }
         }
 
-        // Also check once listeners
-        const onceListeners = this.onceListeners.get(event);
+        const onceListeners = this.onceListeners.get(event as string);
         if (onceListeners) {
-            onceListeners.delete(callback);
-
+            onceListeners.delete(callback as any);
             if (onceListeners.size === 0) {
-                this.onceListeners.delete(event);
+                this.onceListeners.delete(event as string);
             }
         }
     }
 
-    once(event: string, callback: (data?: any) => void): void {
-        if (!this.onceListeners.has(event)) {
-            this.onceListeners.set(event, new Set());
+    once<K extends keyof GameEventMap>(event: K, callback: (data: GameEventMap[K]) => void): void {
+        if (!this.onceListeners.has(event as string)) {
+            this.onceListeners.set(event as string, new Set());
         }
-        this.onceListeners.get(event)!.add(callback);
+        this.onceListeners.get(event as string)!.add(callback as (data?: any) => void);
     }
 
-    /**
-     * Remove all listeners for an event (or all events if no event specified)
-     * Useful for cleanup
-     */
     removeAllListeners(event?: string): void {
         if (event) {
             this.listeners.delete(event);
@@ -134,10 +131,6 @@ export class EventBus implements IEventBus {
         }
     }
 
-    /**
-     * Get count of listeners for an event
-     * Useful for debugging
-     */
     listenerCount(event: string): number {
         const regular = this.listeners.get(event)?.size || 0;
         const once = this.onceListeners.get(event)?.size || 0;

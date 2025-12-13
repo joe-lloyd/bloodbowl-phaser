@@ -1,14 +1,4 @@
 import Phaser from "phaser";
-import {
-  Team,
-  RosterName,
-  createTeam,
-  addPlayerToTeam,
-  calculateTeamValue,
-} from "../types/Team";
-import { PlayerTemplate, createPlayer } from "../types/Player";
-import { getRosterByRosterName, getPlayerTemplate, getAvailableRosterNames } from "../data/RosterTemplates";
-import * as TeamManager from "../managers/TeamManager";
 import { EventBus } from "../services/EventBus";
 
 /**

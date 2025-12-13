@@ -195,8 +195,44 @@ export class Pitch {
   }
 
   /**
-   * Draw movement path dots
+   * Highlight setup zone
    */
+  public highlightSetupZone(isLeft: boolean): void {
+    this.clearLayer('setup_zone_highlight');
+
+    // Bounds: Left (0-6), Right (13-19)
+    const minX = isLeft ? 0 : 13;
+    const maxX = isLeft ? 6 : 19;
+    const widthGrid = maxX - minX + 1;
+
+    const x = minX * this.squareSize;
+    const y = 0;
+    const width = widthGrid * this.squareSize;
+    const height = this.height * this.squareSize;
+
+    const rect = this.scene.add.rectangle(
+      x + width / 2,
+      y + height / 2,
+      width,
+      height,
+      0x00ff00,
+      0.15
+    );
+    rect.setName('setup_zone_highlight');
+    rect.setStrokeStyle(2, 0x00ff00, 0.5);
+    this.container.add(rect);
+
+    // Pulsing animation
+    this.scene.tweens.add({
+      targets: rect,
+      alpha: { from: 0.15, to: 0.05 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+  }
+
   /**
    * Highlight opposing tackle zones
    */

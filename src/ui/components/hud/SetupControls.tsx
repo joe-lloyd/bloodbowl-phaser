@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { EventBus } from '../../../services/EventBus';
 import { useEventBus } from '../../hooks/useEventBus';
 import { Button, DangerButton } from '../componentWarehouse/Button';
+import { SubPhase } from '../../../types/GameState';
 
 interface SetupControlsProps {
     eventBus: EventBus;
@@ -11,11 +12,11 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [activeTeam, setActiveTeam] = useState<{ id: string, name: string } | null>(null);
-    const [phase, setPhase] = useState<'kicking' | 'receiving'>('kicking');
+    const [subPhase, setSubPhase] = useState<SubPhase>(SubPhase.SETUP_KICKING);
 
     useEventBus(eventBus, 'ui:showSetupControls', (data) => {
         setIsVisible(true);
-        setPhase(data.phase);
+        setSubPhase(data.subPhase);
         setActiveTeam(data.activeTeam);
         setIsComplete(false);
     });
@@ -41,7 +42,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
                 <div className="font-heading text-bb-ink-blue text-sm uppercase">Setup Phase</div>
                 <div className="text-xl font-bold text-bb-blood-red">{activeTeam?.name}</div>
                 <div className="text-xs text-bb-muted-text mt-1">
-                    {phase === 'kicking' ? 'Set up Defense' : 'Set up Offense'}
+                    {subPhase === SubPhase.SETUP_KICKING ? 'Set up Defense' : 'Set up Offense'}
                 </div>
             </div>
 

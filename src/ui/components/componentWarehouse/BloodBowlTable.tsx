@@ -13,7 +13,7 @@ export const TableTitle = ({ children, variant }: TableTitleProps) => {
     const triangleFilter = variant === 'blue' ? 'hue-rotate(200deg) brightness(0.5)' : ''; // Shift red to blue-ish
 
     return (
-        <div className={`flex items-center justify-center mb-1 text-center border-b-[5px] ${borderColor} pb-2 pt-2`}>
+        <div className={`flex items-center justify-center text-center border-b-[5px] ${borderColor} pt-2`}>
             {/* Left Triangle */}
             <div className="mr-5 h-8 flex items-center">
                 <img src={triangleIcon} alt="" className="h-full w-auto" style={{ filter: triangleFilter }} />
@@ -35,7 +35,7 @@ export const TableFooter = ({ variant }: { variant: 'red' | 'blue' }) => {
     const borderColor = variant === 'red' ? 'border-bb-ink-blue' : 'border-bb-gold';
 
     return (
-        <div className="relative mb-5 mt-4">
+        <div className="relative mb-5">
             <div className={`flex items-center justify-center border-t-[5px] ${borderColor} pt-4`}>
                 {/* Decorative Separator matching style */}
                 <div className="absolute top-[-5px] left-0 w-full flex justify-between px-12 pointer-events-none opacity-0">
@@ -115,13 +115,13 @@ interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
 }
 
 export const TableCell = ({ children, className = '', ...props }: TableCellProps) => (
-    <td className={`p-3 border-0 truncate ${className}`} {...props}>
+    <td className={`p-3 border-0 ${className}`} {...props}>
         {children}
     </td>
 );
 
 export const CustomTableCell = ({ children, className = '', ...props }: TableCellProps) => (
-    <td className={`p-3 border-0 font-bold truncate ${className}`} {...props}>
+    <td className={`p-3 border-0 font-bold ${className}`} {...props}>
         {children}
     </td>
 );

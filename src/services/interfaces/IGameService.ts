@@ -5,8 +5,10 @@
  * It's pure TypeScript with no Phaser dependencies, making it fully testable.
  */
 
-import { GameState, GamePhase } from '@/types/GameState';
+import { IEventBus } from '../EventBus.js';
+import { GameState, GamePhase, SubPhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
+import { Player } from '@/types/Player';
 
 export interface IGameService {
     // ===== State Queries =====
@@ -22,6 +24,11 @@ export interface IGameService {
     getPhase(): GamePhase;
 
     /**
+     * Get the current sub-phase
+     */
+    getSubPhase(): SubPhase | undefined;
+
+    /**
      * Get the ID of the currently active team
      */
     getActiveTeamId(): string | null;
@@ -30,6 +37,16 @@ export interface IGameService {
      * Get the current turn number for a team
      */
     getTurnNumber(teamId: string): number;
+
+    /**
+     * Get a team by ID
+     */
+    getTeam(teamId: string): Team | undefined;
+
+    /**
+     * Get a player by ID
+     */
+    getPlayerById(playerId: string): Player | undefined;
 
     // ===== Setup Phase =====
 
@@ -76,6 +93,11 @@ export interface IGameService {
      * Start the kickoff phase
      */
     startKickoff(): void;
+
+    /**
+     * Select a player to be the kicker
+     */
+    selectKicker(playerId: string): void;
 
     /**
      * Roll for kickoff event
@@ -155,14 +177,4 @@ export interface IGameService {
      * Move a player along a path
      */
     movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
-
-    /**
-     * Get a player by ID
-     */
-    getPlayerById(playerId: string): import('../../types/Player').Player | undefined;
-
-    /**
-     * Get a team by ID
-     */
-    getTeam(teamId: string): Team | undefined;
 }

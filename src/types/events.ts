@@ -5,7 +5,7 @@
  * and React UI components via the EventBus.
  */
 
-import { GamePhase, GameState } from './GameState';
+import { GamePhase, GameState, SubPhase } from './GameState';
 import { Team } from './Team';
 import { Player } from './Player';
 
@@ -15,7 +15,11 @@ import { Player } from './Player';
  */
 export interface GameEvents {
     // Phase Management
-    'phaseChanged': { phase: GamePhase };
+    'phaseChanged': {
+        phase: GamePhase;
+        subPhase?: SubPhase;
+        activeTeamId?: string;
+    };
     'setupConfirmed': string; // teamId
     'kickoffStarted': void;
     'readyToStart': void;
@@ -24,7 +28,7 @@ export interface GameEvents {
     'turnStarted': {
         teamId: string;
         turnNumber: number;
-        isHalf2: boolean;
+        isHalf2?: boolean; // Optional if not always present
     };
     'turnEnded': { teamId: string };
 
@@ -36,7 +40,7 @@ export interface GameEvents {
         playerId: string;
         from: { x: number; y: number };
         to: { x: number; y: number };
-        path: { x: number; y: number }[];
+        path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
     };
     'playerActivated': string; // playerId
     'playerSelected': { playerId: string };
@@ -49,10 +53,10 @@ export interface GameEvents {
         playerId: string;
         targetX: number;
         targetY: number;
-        direction: number;
-        distance: number;
-        finalX: number;
-        finalY: number;
+        direction?: number;
+        distance?: number;
+        finalX?: number;
+        finalY?: number;
     };
     'kickoffResult': { roll: number; event: string };
 
@@ -60,7 +64,7 @@ export interface GameEvents {
     'diceRoll': {
         type: string;
         value: number;
-        result: number;
+        result: any; // Changed to any to support complex results if needed, or number
     };
 }
 
@@ -100,13 +104,17 @@ export interface UIEvents {
     'ui:requestCoinFlipState': void;
 
     // Setup Controls
-    'ui:showSetupControls': { phase: 'kicking' | 'receiving', activeTeam: { id: string, name: string } };
+    'ui:showSetupControls': {
+        subPhase: SubPhase;
+        activeTeam: { id: string, name: string }
+    };
     'ui:hideSetupControls': void;
     'ui:setupcomplete': boolean;
     'ui:setupAction': { action: string };
 
     // Common UI
     'ui:notification': string;
+    'ui:gameLog': string;
 }
 
 /**
