@@ -8,6 +8,7 @@
 import { IEventBus } from './EventBus.js';
 import { GameService } from './GameService.js';
 import { IGameService } from './interfaces/IGameService.js';
+import { SoundManager } from './SoundManager.js';
 import { Team } from '@/types/Team';
 
 export class ServiceContainer {
@@ -15,12 +16,14 @@ export class ServiceContainer {
 
     public readonly eventBus: IEventBus;
     public readonly gameService: IGameService;
+    public readonly soundManager: SoundManager;
 
     private constructor(eventBus: IEventBus, team1: Team, team2: Team) {
         // Use shared EventBus
         this.eventBus = eventBus;
 
-        // Create GameService with EventBus and teams
+        // Create Services
+        this.soundManager = new SoundManager();
         this.gameService = new GameService(this.eventBus, team1, team2);
     }
 

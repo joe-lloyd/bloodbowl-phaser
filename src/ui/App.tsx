@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { TestOverlay } from './components/pages/TestOverlay';
 import { MainMenu } from './components/pages/MainMenu';
 import { TeamManagement } from './components/pages/TeamManagement';
 import { TeamBuilder } from './components/pages/TeamBuilder';
 import { TeamSelect } from './components/pages/TeamSelect';
 import { GameHUD } from './components/hud/GameHUD';
-import { AspectRatioLayout } from './components/componentWarehouse/AspectRatioLayout';
+import { SoundTest } from './components/pages/SoundTest';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -19,7 +18,12 @@ interface AppProps {
  * Manages which UI to show based on current scene
  */
 export function App({ eventBus }: AppProps) {
-    const [currentScene, setCurrentScene] = useState<string>('MenuScene');
+    const [currentScene, setCurrentScene] = useState<string>(() => {
+        if (window.location.hash === '#sound-test') {
+            return 'SoundTestScene';
+        }
+        return 'MenuScene';
+    });
     const [sceneData, setSceneData] = useState<any>(null);
 
     // Listen for scene changes FROM Phaser
@@ -48,6 +52,10 @@ export function App({ eventBus }: AppProps) {
         <div className={`w-full h-full ${isInGame ? 'pointer-events-none' : 'pointer-events-auto'}`}>
             {currentScene === 'MenuScene' && (
                 <MainMenu eventBus={eventBus} />
+            )}
+
+            {currentScene === 'SoundTestScene' && (
+                <SoundTest eventBus={eventBus} />
             )}
 
             {currentScene === 'TeamManagementScene' && (

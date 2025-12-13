@@ -78,7 +78,17 @@ export class GameScene extends Phaser.Scene {
     const height = this.cameras.main.height;
 
     // 1. Background (Interactive for deselect)
+    // 1. Background (Interactive for deselect)
     this.add.rectangle(0, 0, width, height, 0x0a0a1e).setOrigin(0).setInteractive().on('pointerdown', () => this.onBackgroundClick());
+
+    // Audio
+    // try {
+    //   const container = ServiceContainer.getInstance();
+    //   container.soundManager.init();
+    //   container.soundManager.playOpeningTheme();
+    // } catch (err) {
+    //   console.warn('Audio Init Failed', err);
+    // }
 
     // 2. Initialize Core Game Objects
     // Pitch centered

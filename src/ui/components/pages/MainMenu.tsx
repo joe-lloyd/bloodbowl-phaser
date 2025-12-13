@@ -48,6 +48,11 @@ export function MainMenu({ eventBus }: MainMenuProps) {
                         <Button onClick={handlePlayGame} className="text-2xl py-5">
                             Play Game
                         </Button>
+
+                        <Button onClick={() => emit('ui:sceneChange', { scene: 'SoundTestScene' })}
+                            className="text-xl py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500">
+                            🔊 Sound Test
+                        </Button>
                     </div>
 
                     <div className="text-bb-muted-text text-lg mt-auto font-heading">

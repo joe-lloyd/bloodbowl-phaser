@@ -16,7 +16,7 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
     phase
 }) => {
     // If we are in KICKOFF phase, show "KICKOFF" instead of Turn Number
-    const showKickoff = phase === GamePhase.KICKOFF;
+    const showKickoff = phase === GamePhase.KICKOFF
 
     return (
         <div className="flex flex-col items-center pointer-events-none select-none">

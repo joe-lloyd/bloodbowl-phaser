@@ -12,6 +12,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@strudel/core": "^1.2.5",
+    "@strudel/web": "^1.2.6",
     "phaser": "^3.80.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
