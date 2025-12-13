@@ -10,6 +10,8 @@ import { GamePhase } from '../../../types/GameState';
 import { CoinFlipOverlay } from './CoinFlipOverlay';
 import { SetupControls } from './SetupControls';
 
+import { DiceLog } from './DiceLog';
+
 interface GameHUDProps {
     eventBus: EventBus;
 }
@@ -129,6 +131,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
             {/* Overlays */}
             <CoinFlipOverlay eventBus={eventBus} />
             <SetupControls eventBus={eventBus} />
+
+            {/* Dice Log (Bottom Left) */}
+            <DiceLog eventBus={eventBus} />
 
             {/* Middle: Notifications Overlay */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

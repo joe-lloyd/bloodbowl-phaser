@@ -3,7 +3,7 @@ import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
 import { BallSprite } from "../game/BallSprite";
 import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
-import { DiceLog } from "../game/ui/DiceLog";
+// import { DiceLog } from "../game/ui/DiceLog"; // Removed
 import { Dugout } from "../game/Dugout";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
 
   // UI Components
   private playerInfoPanel!: PlayerInfoPanel;
-  private diceLog!: DiceLog;
+  // private diceLog!: DiceLog;
 
   private dugouts: Map<string, Dugout> = new Map();
 
@@ -90,7 +90,8 @@ export class GameScene extends Phaser.Scene {
     this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
 
     // Dice Log
-    this.diceLog = new DiceLog(this, 10, height - 350);
+    // Dice Log - Moved to React
+    // this.diceLog = new DiceLog(this, 10, height - 350);
 
     // Pitch interaction for Play Phase
 
@@ -384,7 +385,8 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
       // 2. Show Roll
       this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
-      this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
+      this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
+      // this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
 
       // 3. Animate Scatter (after delay or immediately)
       if (this.pendingKickoffData) {
@@ -397,9 +399,10 @@ export class GameScene extends Phaser.Scene {
       this.gameService.startGame(this.kickingTeam.id);
     });
 
-    this.eventBus.on("diceRoll", (data: { type: string, value: number, result: any }) => {
-      this.diceLog.addLog(`${data.type}: ${data.result}`);
-    });
+    // DiceLog listener removed (Handled by React UI now)
+    // this.eventBus.on("diceRoll", (data: { type: string, value: number, result: any }) => {
+    //   this.diceLog.addLog(`${data.type}: ${data.result}`);
+    // });
   }
 
   private refreshDugouts(): void {

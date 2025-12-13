@@ -92,12 +92,21 @@ export class GameService implements IGameService {
         if (startingTeamId) {
             this.state.subPhase = SubPhase.SETUP_KICKING;
             this.state.activeTeamId = startingTeamId;
+            this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: this.state.subPhase });
         } else {
             // Otherwise start at beginning sequence
             this.state.subPhase = SubPhase.WEATHER;
-        }
+            this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: SubPhase.WEATHER });
 
-        this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: this.state.subPhase });
+            // Perform Weather Roll
+            this.rollWeather();
+
+            // Proceed to Coin Flip after a short delay
+            setTimeout(() => {
+                this.state.subPhase = SubPhase.COIN_FLIP;
+                this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: SubPhase.COIN_FLIP });
+            }, 2000);
+        }
     }
 
     placePlayer(playerId: string, x: number, y: number): boolean {
@@ -273,16 +282,22 @@ export class GameService implements IGameService {
         // Roll Scatter and add it to the dice log
         const direction = Math.floor(Math.random() * 8) + 1; // 1-8
         this.eventBus.emit('diceRoll', {
-            type: 'Scatter Direction',
+            rollType: 'Kickoff Scatter',
+            diceType: 'd8',
             value: direction,
-            result: direction
+            total: direction,
+            description: `Scatter Direction: ${direction}`,
+            passed: true
         });
 
         const distance = Math.floor(Math.random() * 6) + 1; // 1-6
         this.eventBus.emit('diceRoll', {
-            type: 'Scatter Distance',
+            rollType: 'Kickoff Scatter',
+            diceType: 'd6',
             value: distance,
-            result: distance
+            total: distance,
+            description: `Scatter Distance: ${distance}`,
+            passed: true
         });
 
         // Calculate offset based on direction (Standard BB scatter template)
@@ -323,7 +338,9 @@ export class GameService implements IGameService {
         this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.RESOLVE_KICKOFF });
 
         const d6 = () => Math.floor(Math.random() * 6) + 1;
-        const roll = d6() + d6();
+        const d1 = d6();
+        const d2 = d6();
+        const roll = d1 + d2;
         let event = 'Changing Weather'; // Default 7
 
         // Blood Bowl 2020 (Season 2) / Standard Table
@@ -340,6 +357,15 @@ export class GameService implements IGameService {
             case 11: event = 'Throw a Rock'; break;
             case 12: event = 'Pitch Invasion!'; break;
         }
+
+        this.eventBus.emit('diceRoll', {
+            rollType: 'Kickoff Event',
+            diceType: '2d6',
+            value: [d1, d2],
+            total: roll,
+            description: `Kickoff Result: ${event}`,
+            passed: true
+        });
 
         this.eventBus.emit('kickoffResult', { roll, event });
 
@@ -367,6 +393,37 @@ export class GameService implements IGameService {
         // TODO: Store weather
         this.state.subPhase = SubPhase.COIN_FLIP;
         this.eventBus.emit('phaseChanged', { phase: GamePhase.SETUP, subPhase: SubPhase.COIN_FLIP });
+    }
+
+    rollWeather(): void {
+        const d6 = () => Math.floor(Math.random() * 6) + 1;
+        const d1 = d6();
+        const d2 = d6();
+        const roll = d1 + d2;
+        let weather = 'Nice';
+
+        switch (roll) {
+            case 2: weather = 'Sweltering Heat'; break;
+            case 3: weather = 'Very Sunny'; break;
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10: weather = 'Nice'; break;
+            case 11: weather = 'Pouring Rain'; break;
+            case 12: weather = 'Blizzard'; break;
+        }
+
+        this.eventBus.emit('diceRoll', {
+            rollType: 'Weather',
+            diceType: '2d6',
+            value: [d1, d2],
+            total: roll,
+            description: `Weather Result: ${weather}`,
+            passed: true
+        });
     }
 
     setCoinFlipWinner(winningTeamId: string): void {

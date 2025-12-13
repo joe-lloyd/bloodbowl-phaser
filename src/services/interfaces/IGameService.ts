@@ -109,6 +109,11 @@ export interface IGameService {
      */
     kickBall(playerId: string, targetX: number, targetY: number): void;
 
+    /**
+     * Roll for weather event
+     */
+    rollWeather(): void;
+
     // ===== Game Phase =====
 
     /**
