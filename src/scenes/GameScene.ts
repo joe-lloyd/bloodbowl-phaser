@@ -130,6 +130,10 @@ export class GameScene extends Phaser.Scene {
       this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
     });
 
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
+    });
+
     // 6. Setup Event Listeners
     this.setupEventListeners();
 
@@ -421,10 +425,8 @@ export class GameScene extends Phaser.Scene {
     this.placePlayersOnPitch();
 
     // Logic based on subphase
-    if (subPhase === SubPhase.SELECT_KICKER) {
-      this.eventBus.emit('ui:notification', "Select Kicker");
-    } else if (subPhase === SubPhase.SELECT_KICK_TARGET) {
-      this.eventBus.emit('ui:notification', "Select Target Square");
+    if (subPhase === SubPhase.SETUP_KICKOFF) {
+      this.eventBus.emit('ui:notification', "Select Kicker & Target");
     }
   }
 
@@ -542,10 +544,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-
-
-
-
   // Interaction Helpers matched to Controller expectations
   public highlightPlayer(playerId: string): void {
     const sprite = this.playerSprites.get(playerId);
@@ -566,33 +564,49 @@ export class GameScene extends Phaser.Scene {
 
     const subPhase = this.gameService.getSubPhase();
 
-    if (subPhase === SubPhase.SELECT_KICKER) {
+    if (subPhase === SubPhase.SETUP_KICKOFF) {
+      // If clicking on a player
       if (playerAtSquare) {
-        if (playerAtSquare.teamId !== this.kickingTeam.id) {
-          this.eventBus.emit('ui:notification', "Select own player!");
+        // If own player -> Select/Switch Kicker
+        if (playerAtSquare.teamId === this.kickingTeam.id) {
+          // Unhighlight previous if exists
+          if (this.selectedPlayerId && this.selectedPlayerId !== playerAtSquare.id) {
+            this.unhighlightPlayer(this.selectedPlayerId);
+          }
+
+          this.selectedPlayerId = playerAtSquare.id;
+          this.highlightPlayer(playerAtSquare.id);
+          this.gameService.selectKicker(playerAtSquare.id);
+          this.eventBus.emit('ui:notification', "Kicker Selected! Now choose target.");
           return;
         }
-        // Select kicker
-        this.selectedPlayerId = playerAtSquare.id;
-        this.highlightPlayer(playerAtSquare.id);
-
-        if (this.selectedPlayerId) {
-          this.gameService.selectKicker(this.selectedPlayerId);
-        }
       }
-    } else if (subPhase === SubPhase.SELECT_KICK_TARGET) {
-      const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
-      const validTarget = isTeam1Kicking ? (x >= 7) : (x <= 13);
 
-      if (!validTarget) {
-        this.eventBus.emit('ui:notification', "Must kick to opponent half!");
+      // If clicking on a square (Target)
+      // Validate Target (Must be opponent half?)
+      // Blood Bowl rules: Kickoff target can be anywhere? 
+      // Actually usually you kick to opponent. 
+      // Let's assume standard opponent half check for now to guide user.
+      const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
+      // Pitch width 20, minus the end zones its 18, this number is diveded by 3
+      // so that means team one setup is 1-7, no mans land is 8-13, team two setup is 14-20
+      const isOpponentHalf = isTeam1Kicking ? (x >= 7) : (x <= 13);
+
+      if (!isOpponentHalf) {
+        // If they clicked an empty square in their own half, maybe deselect?
+        // Or just ignore/warn.
+        if (this.selectedPlayerId) {
+          this.eventBus.emit('ui:notification', "Kick to opponent's half!");
+        }
         return;
       }
 
+      // If we have a selected kicker and clicked opponent half -> KICK!
       if (this.selectedPlayerId) {
         this.gameService.kickBall(this.selectedPlayerId, x, y);
-        this.gameplayController.deselectPlayer();
-        this.selectedPlayerId = null;
+        this.selectedPlayerId = null; // Clear selection after kick
+      } else {
+        this.eventBus.emit('ui:notification', "Select a Kicker first!");
       }
     }
   }

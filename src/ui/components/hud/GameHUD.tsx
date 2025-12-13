@@ -19,7 +19,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
     const [turnData, setTurnData] = useState({
         turnNumber: 1,
         activeTeamName: 'Loading...',
-        isTeam1Active: true
+        isTeam1Active: true,
+        phase: GamePhase.SETUP // Default phase
     });
     const [notifications, setNotifications] = useState<{ id: number, text: string }[]>([]);
     const [showEndTurn, setShowEndTurn] = useState(false);
@@ -38,7 +39,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
                     setTurnData({
                         turnNumber: state.turn.turnNumber,
                         activeTeamName: activeTeam.name,
-                        isTeam1Active: activeTeamId === (team1?.id || 'team1') // Roughly correct for now
+                        isTeam1Active: activeTeamId === (team1?.id || 'team1'), // Roughly correct for now
+                        phase: state.phase
                     });
                 }
 
@@ -53,22 +55,23 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
     // Listeners
     useEventBus(eventBus, 'turnStarted', (data) => {
         const container = ServiceContainer.getInstance();
-        // data has teamId acting as activeTeamId
         const activeTeam = container.gameService.getTeam(data.teamId);
 
         if (activeTeam) {
-            setTurnData({
+            setTurnData(prev => ({
+                ...prev,
                 turnNumber: data.turnNumber,
                 activeTeamName: activeTeam.name,
-                isTeam1Active: data.teamId === container.gameService.getActiveTeamId() // Not quite reliable, but ok
-            });
+                isTeam1Active: data.teamId === container.gameService.getActiveTeamId()
+            }));
             addNotification(`Turn ${data.turnNumber}: ${activeTeam.name}`);
         }
     });
 
     useEventBus(eventBus, 'phaseChanged', (data) => {
         setShowEndTurn(data.phase === GamePhase.PLAY);
-        // Refresh state on phase change to ensure active team is correct
+
+        // Refresh state on phase change
         const container = ServiceContainer.getInstance();
         const state = container.gameService.getState();
         const activeTeam = container.gameService.getTeam(state.activeTeamId || '');
@@ -76,18 +79,18 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
             setTurnData(prev => ({
                 ...prev,
                 activeTeamName: activeTeam.name,
-                isTeam1Active: state.activeTeamId === 'team1' || state.activeTeamId === container.gameService.getTeam('team1')?.id
+                isTeam1Active: state.activeTeamId === 'team1' || state.activeTeamId === container.gameService.getTeam('team1')?.id,
+                phase: data.phase
             }));
         }
     });
 
     useEventBus(eventBus, 'ui:showSetupControls', (data: any) => {
-        // Explicitly update active team when setup controls show
         if (data.activeTeam) {
             setTurnData(prev => ({
                 ...prev,
                 activeTeamName: data.activeTeam.name,
-                isTeam1Active: true // Simplified, or check ID
+                isTeam1Active: true // Simplified
             }));
         }
     });
@@ -101,7 +104,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
         const id = Date.now();
         setNotifications(prev => [...prev, { id, text }]);
 
-        // Auto remove
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== id));
         }, 3000);
@@ -120,6 +122,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
                     turnNumber={turnData.turnNumber}
                     activeTeamName={turnData.activeTeamName}
                     isTeam1Active={turnData.isTeam1Active}
+                    phase={turnData.phase}
                 />
             </div>
 

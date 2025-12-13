@@ -249,15 +249,16 @@ export class GameService implements IGameService {
 
     startKickoff(): void {
         this.state.phase = GamePhase.KICKOFF;
-        this.state.subPhase = SubPhase.SELECT_KICKER;
+        this.state.subPhase = SubPhase.SETUP_KICKOFF;
         this.eventBus.emit('kickoffStarted');
-        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.SELECT_KICKER });
+        this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.SETUP_KICKOFF });
     }
 
     selectKicker(playerId: string): void {
-        if (this.state.phase === GamePhase.KICKOFF && this.state.subPhase === SubPhase.SELECT_KICKER) {
-            this.state.subPhase = SubPhase.SELECT_KICK_TARGET;
-            this.eventBus.emit('phaseChanged', { phase: GamePhase.KICKOFF, subPhase: SubPhase.SELECT_KICK_TARGET });
+        // Just emit selection, no phase change needed.
+        // Logic for "Target Selection" is now just part of the same phase.
+        if (this.state.phase === GamePhase.KICKOFF) {
+            this.eventBus.emit('playerSelected', { playerId });
         }
     }
 
