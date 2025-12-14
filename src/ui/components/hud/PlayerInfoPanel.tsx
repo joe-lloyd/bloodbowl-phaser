@@ -61,7 +61,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({ eventBus }) =>
             <div
                 key={player.id}
                 className="absolute z-50 pointer-events-none transition-all duration-200"
-                style={{ ...positionStyle, width: '240px' }}
+                style={{ ...positionStyle, width: '17%' }}
             >
                 <div className={`bg-[#2a2a3e]/95 border-2 ${borderColor} rounded-lg p-3 shadow-lg text-white`}>
                     {/* Header */}
