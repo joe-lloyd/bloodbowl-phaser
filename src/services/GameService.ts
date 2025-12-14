@@ -692,11 +692,13 @@ export class GameService implements IGameService {
         const player = this.getPlayerById(playerId);
         if (!player) return;
 
+        // Mark as activated IMMEDIATELY upon committing to move
+        this.playerAction(playerId);
+
         const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
         const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
 
         // Validate path before moving
-        // Note: The UI usually generates valid paths using pathfinding, but we verify here.
         const result = this.movementValidator.validatePath(player, [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents);
 
         if (!result.valid) {
@@ -704,34 +706,97 @@ export class GameService implements IGameService {
             return;
         }
 
-        // Execute move step-by-step
-        // For now, simpler implementation: Move to end and consume MA/rolls events
-        // In full implementation, we would await dice rolls for dodges/gfi.
+        // Execute move step-by-step with Roll Logic
+        let currentPos = player.gridPosition!;
+        const completedPath: { x: number; y: number }[] = [];
+        let failed = false;
 
-        const finalSquare = path[path.length - 1];
+        // MA includes base MA. Sprint starts after that.
+        // We know total path cost from validator, but let's iterate.
+        // NOTE: Path from UI is usually just Waypoints. We need the FULL grid path for step-by-step accounting?
+        // Actually `GameInteractionController` passes `waypoints` which are key nodes.
+        // If we want detailed GFI checks, we need the *expanded* path to count steps accurately.
+        // The validator returns `result.path` which IS the Expanded Step-by-Step Path (if we passed expanded input?)
+        // Wait, Validator `validatePath` expects a step-by-step path.
+        // If `movePlayer` receives waypoints, we might need to reconstruct the full path first.
+        // But `GameplayInteractionController` calls `findPath` which returns steps.
+        // `GameplayInteractionController.addWaypoint` pushes `result.path` (steps). 
+        // So `this.waypoints` IS the full step-by-step path. Good.
+        // `path` argument here is the full step list.
+
+        let stepsTaken = 0;
+
+        // Handle Stand Up cost if Prone
+        if (player.status === PlayerStatus.PRONE) {
+            stepsTaken += (player.stats.MA < 3) ? player.stats.MA : 3;
+            player.status = PlayerStatus.ACTIVE; // Stand up automatically
+            this.eventBus.emit('playerStatusChanged', player);
+        }
+
+        for (const step of path) {
+            if (failed) break;
+
+            stepsTaken++;
+
+            // Check for GFI
+            if (stepsTaken > player.stats.MA) {
+                // Determine Roll Target (usually 2+)
+                // Modifiers? Blizzard = -1? 
+                let target = 2;
+
+                // Roll
+                const roll = Math.floor(Math.random() * 6) + 1;
+                const success = roll >= target;
+
+                this.eventBus.emit('diceRoll', {
+                    rollType: 'Rush (GFI)',
+                    diceType: 'd6',
+                    value: roll,
+                    total: roll,
+                    description: `Rush Roll (Target ${target}+): ${success ? 'Success' : 'FAILURE'}`,
+                    passed: success
+                });
+
+                if (!success) {
+                    failed = true;
+                    // Trip!
+                    // 1. Move to square? Or fail INTO square? 
+                    // Rules: "If a player Falls Over... place them Prone in the square they were entering."
+                    currentPos = step;
+                    player.gridPosition = currentPos;
+
+                    // 2. Armor Roll / Injury (TODO)
+                    // 3. Turnover
+
+                    console.log("GFI FAILED! Player trips.");
+                    player.status = PlayerStatus.PRONE; // Simplified Knockdown
+                    this.eventBus.emit('playerStatusChanged', player);
+                    this.eventBus.emit('turnover', { teamId: player.teamId });
+
+                    // Stop processing path
+                    // Emit move event for partial path
+                    completedPath.push(step);
+                } else {
+                    currentPos = step;
+                    completedPath.push(step);
+                }
+            } else {
+                // Normal Move (No Dodge logic implementation yet in this block, assumed handled or safe)
+                // TODO: Implement Dodge rolls here similarly
+                currentPos = step;
+                completedPath.push(step);
+            }
+        }
 
         // Update player position
-        player.gridPosition = finalSquare;
-
-        // Mark as acted if it was a GFI or if rule dictates (usually move doesn't end activation unless block follows)
-        // But for generic move action, it consumes activation in SEVENS/BB2020 if checks failed?
-        // If move successful, player is still selected?
-        // Usually 'Move Action' marks hasActed=true at end of turn/action?
-        // We'll set position. The Turn Controller manages 'hasActed'.
+        player.gridPosition = currentPos;
 
         this.eventBus.emit('playerMoved', {
             playerId,
-            from: result.path[0] || { x: player.gridPosition.x, y: player.gridPosition.y }, // Fallback if path empty (shouldn't happen) 
-            to: finalSquare,
-            path: path // Pass the full input path for animation
+            from: result.path[0] || { x: player.gridPosition.x, y: player.gridPosition.y },
+            to: currentPos,
+            path: completedPath
         });
-
-        // Create roll events if any (mock for visuals)
-        for (const roll of result.rolls) {
-            // In real logic, we'd prompt user or roll dice.
-            // If failed, handle turnover (not implemented in Phase 4).
-            console.log(`Roll required: ${roll.type} target ${roll.target}`);
-        }
     }
 
     public getTeam(teamId: string): Team | undefined {

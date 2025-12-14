@@ -7,10 +7,12 @@ import { PlayerInfoPanel } from "../PlayerInfoPanel";
 import { MovementValidator } from "../../domain/validators/MovementValidator";
 import { pixelToGrid } from "../../utils/GridUtils";
 import { GamePhase } from "../../types/GameState";
+import { IEventBus } from "../../services/EventBus";
 
 export class GameplayInteractionController {
     private scene: GameScene;
     private gameService: IGameService;
+    private eventBus: IEventBus;
     private pitch: Pitch;
     private movementValidator: MovementValidator;
     private playerInfoPanel: PlayerInfoPanel;
@@ -19,19 +21,27 @@ export class GameplayInteractionController {
     private selectedPlayerId: string | null = null;
     private lastHoverGrid: { x: number, y: number } | null = null;
     private waypoints: { x: number, y: number }[] = [];
+    private pendingMove: { playerId: string, path: { x: number, y: number }[] } | null = null;
 
     constructor(
         scene: GameScene,
         gameService: IGameService,
+        eventBus: IEventBus,
         pitch: Pitch,
         movementValidator: MovementValidator,
         playerInfoPanel: PlayerInfoPanel
     ) {
         this.scene = scene;
         this.gameService = gameService;
+        this.eventBus = eventBus;
         this.pitch = pitch;
         this.movementValidator = movementValidator;
         this.playerInfoPanel = playerInfoPanel;
+
+        this.playerInfoPanel = playerInfoPanel;
+
+        // Listen for confirmation
+        this.eventBus.on('ui:confirmationResult', this.onConfirmationResult);
     }
 
     public handlePointerDown(pointer: Phaser.Input.Pointer, isSetupActive: boolean): void {
@@ -244,18 +254,66 @@ export class GameplayInteractionController {
     private executeMove(): void {
         if (!this.selectedPlayerId || this.waypoints.length === 0) return;
 
-        // We already have the full path in `this.waypoints`
-        // Validate one last time? 
+        const player = this.gameService.getPlayerById(this.selectedPlayerId);
+        if (!player) return;
 
-        this.gameService.movePlayer(this.selectedPlayerId, this.waypoints)
+        const totalSteps = this.waypoints.length;
+        const ma = player.stats.MA;
+
+        if (totalSteps > ma) {
+            const extraSteps = totalSteps - ma;
+
+            this.pendingMove = {
+                playerId: this.selectedPlayerId,
+                path: [...this.waypoints]
+            };
+
+            this.eventBus.emit('ui:requestConfirmation', {
+                actionId: 'sprint-confirm',
+                title: 'Sprint Required! (GFI)',
+                message: `This move goes ${extraSteps} square(s) beyond MA.\n` +
+                    `You must roll a 2+ for each extra square.\n` +
+                    `Rolling a 1 causes a Fall & Turnover.\n\n` +
+                    `Do you want to Sprint?`,
+                confirmLabel: 'Sprint!',
+                cancelLabel: 'Cancel',
+                risky: true
+            });
+            return;
+        }
+
+        // Normal Move (No Sprint)
+        this.finalizeMove(this.selectedPlayerId, this.waypoints);
+    }
+
+    private finalizeMove(playerId: string, path: { x: number, y: number }[]): void {
+        this.gameService.movePlayer(playerId, path)
             .then(() => {
                 this.deselectPlayer();
+                this.pendingMove = null;
             })
             .catch(err => {
                 console.error("Move failed", err);
                 this.deselectPlayer();
+                this.pendingMove = null;
             });
     }
+
+    public destroy(): void {
+        // Cleanup listeners
+        this.eventBus.off('ui:confirmationResult', this.onConfirmationResult);
+    }
+
+    private onConfirmationResult = (data: { confirmed: boolean, actionId: string }) => {
+        if (data.actionId === 'sprint-confirm') {
+            if (data.confirmed && this.pendingMove) {
+                this.finalizeMove(this.pendingMove.playerId, this.pendingMove.path);
+            } else {
+                // Canceled
+                this.pendingMove = null;
+            }
+        }
+    };
 
     private drawCurrentPath(): void {
         if (!this.selectedPlayerId) return;

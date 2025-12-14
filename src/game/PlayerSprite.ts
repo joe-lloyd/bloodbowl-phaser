@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { Player } from "../types/Player";
+import { Player } from "../types/Player";
+
 
 /**
  * PlayerSprite - Visual representation of a player on the pitch
@@ -154,20 +156,54 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /**
    * Animate movement along a path
    */
-  public animateMovement(path: { x: number; y: number }[]): Promise<void> {
+  public async animateMovement(path: { x: number; y: number }[]): Promise<void> {
+    if (path.length === 0) return;
+
+    // Remove unused import if not already removed in previous step (I will remove it in a separate block if strictly needed, but I can do it here if I replace the top too. I'll stick to the method for now).
+
     return new Promise((resolve) => {
-      // Pixel coordinates of each step (relative to parent container if using local)
-      // Note: PlayerSprite is added to scene, but positioned using WORLD coords from Pitch.
-      // We need the Pitch instance or helper to get pixel coords.
-      // Option 1: Pass Pitch or helper to this method.
-      // Option 2: Calculate outside and pass pixel path.
-      // Option 3: Use gridToPixel util and Pitch offset knowledge. 
-      // Best: Pass pixel targets or have GameScene drive the tween?
-      // Let's have GameScene drive it or pass pixel coords.
-      // Actually, PlayerSprite doesn't know about Pitch offset.
-      // Let's just expose a method to move to X,Y with duration, and let GameScene chain them.
-      // OR: GameScene calculates pixel path and passes it here.
-      resolve();
+      // 1. Start "Jogging" Bob (Tweening the internal shape up/down)
+      const bobTween = this.scene.tweens.add({
+        targets: this.shape,
+        y: '-=4', // Bob up slightly
+        duration: 90, // Fast bob
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // slightly tilt forward for "running" pose
+      this.shape.setAngle(5);
+
+      // Map path steps to tween configurations
+      const tweenConfigs = path.map(step => {
+        return {
+          x: step.x,
+          y: step.y,
+          duration: 180, // Much faster (was 300)
+          ease: 'Linear' // Linear path, but bob adds the organic feel
+        };
+      });
+
+      // Use modern Phaser 3 chain
+      this.scene.tweens.chain({
+        targets: this,
+        tweens: tweenConfigs,
+        onComplete: () => {
+          // Stop Bobbing
+          bobTween.stop();
+
+          // Reset Pose
+          this.scene.tweens.add({
+            targets: this.shape,
+            y: 0,
+            angle: 0,
+            duration: 150
+          });
+
+          resolve();
+        }
+      });
     });
   }
 }

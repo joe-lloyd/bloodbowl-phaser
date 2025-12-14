@@ -56,6 +56,9 @@ export class GameScene extends Phaser.Scene {
   private pendingKickoffData: any = null;
   private ballSprite: Phaser.GameObjects.Container | null = null;
 
+  // Store handlers for cleanup
+  private eventHandlers: Map<string, Function> = new Map();
+
   constructor() {
     super({ key: "GameScene" });
   }
@@ -116,6 +119,7 @@ export class GameScene extends Phaser.Scene {
     this.gameplayController = new GameplayInteractionController(
       this,
       this.gameService,
+      this.eventBus,
       this.pitch,
       this.movementValidator,
       this.playerInfoPanel
@@ -154,6 +158,22 @@ export class GameScene extends Phaser.Scene {
       this.startSetupPhase();
     } else {
       this.startPlayPhase();
+    }
+
+    // Cleanup on scene shutdown
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
+    this.events.on(Phaser.Scenes.Events.DESTROY, this.shutdown, this);
+  }
+
+  private shutdown(): void {
+    // Remove all listeners attached by this scene
+    this.eventHandlers.forEach((handler, event) => {
+      this.eventBus.off(event, handler as any);
+    });
+    this.eventHandlers.clear();
+
+    if (this.gameplayController) {
+      this.gameplayController.destroy();
     }
   }
 
@@ -232,7 +252,7 @@ export class GameScene extends Phaser.Scene {
 
   // Event Listeners
   private setupEventListeners(): void {
-    this.eventBus.on("phaseChanged", (data: { phase: GamePhase, subPhase?: SubPhase, activeTeamId?: string }) => {
+    const onPhaseChanged = (data: { phase: GamePhase, subPhase?: SubPhase, activeTeamId?: string }) => {
       const { phase, subPhase } = data;
 
       if (phase === GamePhase.SETUP) {
@@ -249,7 +269,9 @@ export class GameScene extends Phaser.Scene {
       } else if (phase === GamePhase.KICKOFF) {
         this.startKickoffPhase(subPhase);
       }
-    });
+    };
+    this.eventBus.on("phaseChanged", onPhaseChanged);
+    this.eventHandlers.set("phaseChanged", onPhaseChanged);
 
     this.eventBus.on("turnStarted", (turn: any) => {
       // React HUD handles UI update via this same event
@@ -394,7 +416,6 @@ export class GameScene extends Phaser.Scene {
 
     this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
       // 2. Show Roll
-      this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
       this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
       // this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
 

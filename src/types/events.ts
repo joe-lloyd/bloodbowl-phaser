@@ -44,6 +44,8 @@ export interface GameEvents {
     };
     'playerActivated': string; // playerId
     'playerSelected': { playerId: string };
+    'playerStatusChanged': Player;
+    'turnover': { teamId: string };
 
     // Scoring
     'touchdown': { teamId: string; score: number };
@@ -119,6 +121,20 @@ export interface UIEvents {
     // Common UI
     'ui:notification': string;
     'ui:gameLog': string;
+
+    // Confirmation
+    'ui:requestConfirmation': {
+        actionId: string;
+        title: string;
+        message: string;
+        confirmLabel?: string;
+        cancelLabel?: string;
+        risky?: boolean;
+    };
+    'ui:confirmationResult': {
+        confirmed: boolean;
+        actionId: string;
+    };
 }
 
 /**
