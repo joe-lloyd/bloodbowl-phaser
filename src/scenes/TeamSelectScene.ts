@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { loadTeams } from "../managers/TeamManager";
 import { Team } from "../types/Team";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { EventBus } from "../services/EventBus";

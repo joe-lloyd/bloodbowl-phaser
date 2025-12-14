@@ -2,7 +2,7 @@
  * Team Manager - handles team creation and persistence
  */
 
-import { Team, createTeam, TeamRace, TeamColors } from "../types/Team";
+import { Team, createTeam, RosterName, TeamColors } from "../../types/Team";
 
 const STORAGE_KEY = "bloodbowl_teams";
 
@@ -70,11 +70,11 @@ export function getTeamById(teamId: string): Team | undefined {
  */
 export function createNewTeam(
   name: string,
-  race: TeamRace,
+  rosterName: RosterName,
   colors: TeamColors,
   rerollCost: number
 ): Team {
-  const team = createTeam(name, race, colors, rerollCost);
+  const team = createTeam(name, rosterName, colors, rerollCost);
   saveTeam(team);
   return team;
 }

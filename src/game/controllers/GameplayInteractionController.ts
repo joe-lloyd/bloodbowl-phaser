@@ -2,9 +2,9 @@
 import Phaser from "phaser";
 import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { Pitch } from "../Pitch";
-import { MovementValidator } from "../../domain/validators/MovementValidator";
-import { pixelToGrid } from "../../utils/GridUtils";
+import { Pitch } from "../elements/Pitch";
+import { MovementValidator } from "../validators/MovementValidator";
+import { pixelToGrid } from "../elements/GridUtils";
 import { GamePhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";

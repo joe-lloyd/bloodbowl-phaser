@@ -10,7 +10,7 @@ import {
 } from '../../../types/Team';
 import { createPlayer } from '../../../types/Player';
 import { getRosterByRosterName, getAvailableRosterNames } from '../../../data/RosterTemplates';
-import * as TeamManager from '../../../managers/TeamManager';
+import * as TeamManager from '../../../game/managers/TeamManager';
 import Parchment from '../componentWarehouse/Parchment';
 import ContentContainer from '../componentWarehouse/ContentContainer';
 import MinHeightContainer from '../componentWarehouse/MinHeightContainer';

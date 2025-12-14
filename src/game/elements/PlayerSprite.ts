@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Player } from "../types/Player";
+import { Player } from "../../types/Player";
 
 
 

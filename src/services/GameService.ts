@@ -10,8 +10,8 @@ import { IEventBus } from './EventBus.js';
 import { GameState, GamePhase, SubPhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
-import { MovementValidator } from '../domain/validators/MovementValidator.js';
-import { ActionValidator } from '../domain/validators/ActionValidator.js';
+import { MovementValidator } from '../game/validators/MovementValidator.js';
+import { ActionValidator } from '../game/validators/ActionValidator.js';
 import { Scenario } from '@/types/Scenario';
 
 

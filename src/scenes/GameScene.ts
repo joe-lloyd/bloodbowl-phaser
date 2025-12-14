@@ -1,9 +1,8 @@
 import Phaser from "phaser";
-import { Pitch } from "../game/Pitch";
-import { PlayerSprite } from "../game/PlayerSprite";
-import { BallSprite } from "../game/BallSprite";
-// import { DiceLog } from "../game/ui/DiceLog"; // Removed
-import { Dugout } from "../game/Dugout";
+import { Pitch } from "../game/elements/Pitch";
+import { PlayerSprite } from "../game/elements/PlayerSprite";
+import { BallSprite } from "../game/elements/BallSprite";
+import { Dugout } from "../game/elements/Dugout";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -12,14 +11,19 @@ import { IEventBus } from "../services/EventBus";
 import { GamePhase, SubPhase } from "../types/GameState";
 import {
   SetupValidator,
+} from "../game/validators/SetupValidator";
+import {
   FormationManager,
+} from "../game/managers/FormationManager";
+import {
   PlayerPlacementController,
-} from "../game/setup";
-import { pixelToGrid } from "../utils/GridUtils";
-import { MovementValidator } from "../domain/validators/MovementValidator";
+} from "../game/controllers/PlayerPlacementController";
+import { pixelToGrid } from "../game/elements/GridUtils";
+import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 
 /**
+ * Game Scene - Unified scene for Setup and Gameplay
  * Game Scene - Unified scene for Setup and Gameplay
  */
 export class GameScene extends Phaser.Scene {
@@ -201,7 +205,7 @@ export class GameScene extends Phaser.Scene {
   private initializeControllers(): void {
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator, this.gameService);
+    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
 
     // React UI handles CoinFlip, listen for result from EventBus
     this.eventBus.on("ui:coinFlipComplete", (data: { kickingTeam: Team, receivingTeam: Team }) => {

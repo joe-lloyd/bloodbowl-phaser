@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { EventBus } from '../../../services/EventBus';
 import { useEventEmit } from '../../hooks/useEventBus';
 import { Team, calculateTeamValue } from '../../../types/Team';
-import { loadTeams, deleteTeam } from '../../../managers/TeamManager';
+import { loadTeams, deleteTeam } from '../../../game/managers/TeamManager';
 import Parchment from '../componentWarehouse/Parchment';
 import ContentContainer from '../componentWarehouse/ContentContainer';
 import MinHeightContainer from '../componentWarehouse/MinHeightContainer';

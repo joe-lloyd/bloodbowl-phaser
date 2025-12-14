@@ -1,11 +1,9 @@
 import { GameScene } from "./GameScene";
 import { SCENARIOS } from "../data/scenarios";
-import { TestTeamFactory } from "../game/setup/TestTeamFactory";
+import { TestTeamFactory } from "../game/controllers/TestTeamFactory";
 import { RosterName } from "../types/Team";
 import { Team } from "../types/Team";
 import { ServiceContainer } from "../services/ServiceContainer";
-
-
 
 export class SandboxScene extends GameScene {
     constructor() {

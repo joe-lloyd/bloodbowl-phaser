@@ -1,10 +1,10 @@
 import Phaser from "phaser";
 import { Team } from "../../types/Team";
 import { Player } from "../../types/Player";
-import { SetupValidator } from "./SetupValidator";
+import { SetupValidator } from "../validators/SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
-import { Pitch } from "../Pitch";
-import { pixelToGrid } from "../../utils/GridUtils";
+import { Pitch } from "../elements/Pitch";
+import { pixelToGrid } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
 
 /**

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
-import { GameConfig } from "../config/GameConfig";
-import { gridToPixel } from "../utils/GridUtils";
+import { GameConfig } from "../../config/GameConfig";
+import { gridToPixel } from "./GridUtils";
 
 /**
  * Pitch class - Renders the Blood Bowl pitch with 20x11 grid (horizontal orientation, HD)

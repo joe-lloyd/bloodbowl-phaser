@@ -1,8 +1,8 @@
 import Phaser from "phaser";
-import { Team } from "../types/Team";
-import { Player, PlayerStatus } from "../types/Player";
+import { Team } from "../../types/Team";
+import { Player, PlayerStatus } from "../../types/Player";
 import { PlayerSprite } from "./PlayerSprite";
-import { UIText } from "../ui";
+import { UIText } from "../../ui";
 
 export class Dugout {
     private scene: Phaser.Scene;
