@@ -149,6 +149,11 @@ export class GameScene extends Phaser.Scene {
       this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
     });
 
+    // Global Key Inputs
+    this.input.keyboard?.on('keydown-ESC', () => {
+      this.onBackgroundClick();
+    });
+
     // 6. Setup Event Listeners
     this.setupEventListeners();
 
@@ -519,7 +524,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isSetupActive) {
       this.placementController?.deselectPlayer();
     } else {
-      this.deselectPlayer();
+      // Delegate to controller to ensure state (waypoints, selection) is cleared
+      this.gameplayController?.deselectPlayer();
     }
     this.pitch.clearHighlights();
   }

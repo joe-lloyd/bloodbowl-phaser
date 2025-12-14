@@ -673,7 +673,7 @@ export class GameService implements IGameService {
 
     // ===== Movement Implementation =====
 
-    getAvailableMovements(playerId: string): { x: number; y: number }[] {
+    getAvailableMovements(playerId: string): { x: number; y: number; cost?: number }[] {
         const player = this.getPlayerById(playerId);
         if (!player || player.status !== PlayerStatus.ACTIVE) return [];
 

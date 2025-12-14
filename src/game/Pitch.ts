@@ -192,6 +192,7 @@ export class Pitch {
 
     this.clearLayer('tackle_zone');
     this.clearLayer('range_overlay');
+    this.clearLayer('sprint_risk');
   }
 
   /**
@@ -241,14 +242,34 @@ export class Pitch {
     zones.forEach(z => {
       const local = gridToPixel(z.x, z.y, this.squareSize);
       const rect = this.scene.add.rectangle(
-        local.x + this.squareSize / 2,
-        local.y + this.squareSize / 2,
+        local.x,
+        local.y,
         this.squareSize,
         this.squareSize,
         0xff0000,
         0.2
       );
       rect.setName('tackle_zone');
+      this.container.add(rect);
+    });
+  }
+
+  /**
+   * Draw Sprint Risk squares (GFI)
+   */
+  public drawSprintRisks(risks: { x: number, y: number }[]): void {
+    this.clearLayer('sprint_risk');
+    risks.forEach(risk => {
+      const local = gridToPixel(risk.x, risk.y, this.squareSize);
+      const rect = this.scene.add.rectangle(
+        local.x,
+        local.y,
+        this.squareSize,
+        this.squareSize,
+        0xffff00, // Yellow
+        0.3 // Light transparency
+      );
+      rect.setName('sprint_risk');
       this.container.add(rect);
     });
   }
@@ -263,8 +284,7 @@ export class Pitch {
     graphics.setName('range_overlay');
 
     // Draw full pitch dark
-    graphics.fillRect(0, 0, this.width * this.squareSize, this.height * this.squareSize);
-
+    // graphics.fillRect(0, 0, this.width * this.squareSize, this.height * this.squareSize);
     // Cut out reachable squares? Graphics doesn't support easy cutouts in this way without masks.
     // Easiest way: Draw individual dark rectangles on UNREACHABLE squares or use a mask.
     // Mask approach:
@@ -278,7 +298,13 @@ export class Pitch {
         if (!reachable.some(r => r.x === x && r.y === y)) {
           // Unreachable
           const local = gridToPixel(x, y, this.squareSize);
-          graphics.fillRect(local.x, local.y, this.squareSize, this.squareSize);
+          // graphics.fillRect uses Top-Left, but gridToPixel returns Center
+          graphics.fillRect(
+            local.x - this.squareSize / 2,
+            local.y - this.squareSize / 2,
+            this.squareSize,
+            this.squareSize
+          );
         }
       }
     }

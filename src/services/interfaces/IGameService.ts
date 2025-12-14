@@ -176,7 +176,7 @@ export interface IGameService {
     /**
      * Get all reachable squares for a player
      */
-    getAvailableMovements(playerId: string): { x: number; y: number }[];
+    getAvailableMovements(playerId: string): { x: number; y: number; cost?: number }[];
 
     /**
      * Move a player along a path

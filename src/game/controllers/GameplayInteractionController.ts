@@ -179,8 +179,25 @@ export class GameplayInteractionController {
         // Show Movement Range & Tackle Zones if own turn
         if (isOwnTurn) {
             const reachable = this.gameService.getAvailableMovements(playerId);
-            // Show Overlay (Inverse of reachable)
+            const ma = player.stats.MA;
+
+            // Separate into Safe (<= MA) and Sprint (> MA)
+            const safeMoves: { x: number, y: number }[] = [];
+            const sprintMoves: { x: number, y: number }[] = [];
+
+            reachable.forEach(move => {
+                if (move.cost !== undefined && move.cost > ma) {
+                    sprintMoves.push(move);
+                }
+                // All are "reachable" for the overlay to NOT be dark
+                safeMoves.push(move);
+            });
+
+            // Show Overlay (Inverse of ALL reachable)
             this.pitch.drawRangeOverlay(reachable);
+
+            // Show Sprint Risks
+            this.pitch.drawSprintRisks(sprintMoves);
 
             // Show Tackle Zones
             // Get all opposing players with tackle zones (standing, not stunned/prone)

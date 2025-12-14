@@ -1,4 +1,5 @@
 import { Player, PlayerStatus } from '@/types/Player';
+import { GameConfig } from '@/config/GameConfig';
 
 export interface MovementResult {
     valid: boolean;
@@ -15,8 +16,8 @@ export interface MovementRoll {
 }
 
 export class MovementValidator {
-    private readonly WIDTH = 26;
-    private readonly HEIGHT = 15;
+    private readonly WIDTH = GameConfig.PITCH_WIDTH;
+    private readonly HEIGHT = GameConfig.PITCH_HEIGHT;
 
     /**
      * Find the optimal path for a player to a target square
@@ -68,10 +69,10 @@ export class MovementValidator {
         player: Player,
         opponents: Player[],
         teammates: Player[]
-    ): { x: number, y: number }[] {
+    ): { x: number, y: number, cost: number }[] {
         if (!player.gridPosition) return [];
 
-        const reachable: { x: number, y: number }[] = [];
+        const reachable: { x: number, y: number, cost: number }[] = [];
         const start = player.gridPosition;
         const maxMovement = player.stats.MA + 2;
 
@@ -84,7 +85,7 @@ export class MovementValidator {
 
             // Add to reachable if not start
             if (current.cost > 0) {
-                reachable.push({ x: current.x, y: current.y });
+                reachable.push({ x: current.x, y: current.y, cost: current.cost });
             }
 
             if (current.cost >= maxMovement) continue;
