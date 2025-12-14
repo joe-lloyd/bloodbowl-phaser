@@ -5,6 +5,5 @@
 
 export { SetupValidator } from "./SetupValidator";
 export { FormationManager } from "./FormationManager";
-export { CoinFlipController } from "./CoinFlipController";
 export { PlayerPlacementController } from "./PlayerPlacementController";
 export { SetupUIController } from "./SetupUIController";
