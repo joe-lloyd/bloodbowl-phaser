@@ -53,6 +53,11 @@ export function MainMenu({ eventBus }: MainMenuProps) {
                             className="text-xl py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500">
                             🔊 Sound Test
                         </Button>
+
+                        <Button onClick={() => emit('ui:sceneChange', { scene: 'SandboxScene' })}
+                            className="text-xl py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800">
+                            🛠️ Sandbox Mode
+                        </Button>
                     </div>
 
                     <div className="text-bb-muted-text text-lg mt-auto font-heading">

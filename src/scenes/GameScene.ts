@@ -25,10 +25,10 @@ import { GameplayInteractionController } from "../game/controllers/GameplayInter
  */
 export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
-  private team1!: Team;
-  private team2!: Team;
-  private kickingTeam!: Team;
-  private receivingTeam!: Team;
+  public team1!: Team;
+  public team2!: Team;
+  public kickingTeam!: Team;
+  public receivingTeam!: Team;
 
   // UI Components
   private playerInfoPanel!: PlayerInfoPanel;
@@ -46,8 +46,8 @@ export class GameScene extends Phaser.Scene {
   private gameplayController!: GameplayInteractionController;
 
   // Services
-  private gameService!: IGameService;
-  private eventBus!: IEventBus;
+  protected gameService!: IGameService;
+  protected eventBus!: IEventBus;
 
   // State
   private playerSprites: Map<string, PlayerSprite> = new Map();
@@ -59,8 +59,8 @@ export class GameScene extends Phaser.Scene {
   // Store handlers for cleanup
   private eventHandlers: Map<string, Function> = new Map();
 
-  constructor() {
-    super({ key: "GameScene" });
+  constructor(key: string = "GameScene") {
+    super({ key });
   }
 
   init(data: { team1: Team; team2: Team }): void {
@@ -234,7 +234,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private startSetupPhase(): void {
+  protected startSetupPhase(): void {
     this.isSetupActive = true;
     this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
   }
@@ -278,18 +278,22 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on("phaseChanged", onPhaseChanged);
     this.eventHandlers.set("phaseChanged", onPhaseChanged);
 
-    this.eventBus.on("turnStarted", (turn: any) => {
+    const onTurnStarted = (turn: any) => {
       // React HUD handles UI update via this same event
       this.refreshDugouts();
       this.eventBus.emit('ui:notification', `Turn ${turn.turnNumber}`);
-    });
+    };
+    this.eventHandlers.set("turnStarted", onTurnStarted);
+    this.eventBus.on("turnStarted", onTurnStarted);
 
-    this.eventBus.on("turnEnded", () => {
+    const onTurnEnded = () => {
       // React UI handles this
-    });
+    };
+    this.eventHandlers.set("turnEnded", onTurnEnded);
+    this.eventBus.on("turnEnded", onTurnEnded);
 
     // Listen for UI Setup Actions
-    this.eventBus.on("ui:setupAction", (data: { action: string }) => {
+    const onSetupAction = (data: { action: string }) => {
       const state = this.gameService.getState();
       const activeTeamId = state.activeTeamId || this.team1.id;
       const activeTeam = activeTeamId === this.team1.id ? this.team1 : this.team2;
@@ -325,7 +329,9 @@ export class GameScene extends Phaser.Scene {
           }
           break;
       }
-    });
+    };
+    this.eventHandlers.set("ui:setupAction", onSetupAction);
+    this.eventBus.on("ui:setupAction", onSetupAction);
 
     // Listen for placement changes to update game state and dugouts
     this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
@@ -341,7 +347,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Gameplay events - Handled by Service events or refresh
-    this.eventBus.on("playerMoved", (data: { playerId: string, from: any, to: any, path?: any[] }) => {
+    const onPlayerMoved = (data: { playerId: string, from: any, to: any, path?: any[] }) => {
       // Animate movement if path provided
       if (data.path && data.path.length > 0) {
         const sprite = this.playerSprites.get(data.playerId);
@@ -360,13 +366,17 @@ export class GameScene extends Phaser.Scene {
       }
       this.pitch.clearPath(); // Clear dots
       this.pitch.clearHighlights();
-    });
+    };
+    this.eventHandlers.set("playerMoved", onPlayerMoved);
+    this.eventBus.on("playerMoved", onPlayerMoved);
 
-    this.eventBus.on("kickoffStarted", () => {
+    const onKickoffStarted = () => {
       this.eventBus.emit('ui:notification', "KICKOFF!");
-    });
+    };
+    this.eventHandlers.set("kickoffStarted", onKickoffStarted);
+    this.eventBus.on("kickoffStarted", onKickoffStarted);
 
-    this.eventBus.on("ballKicked", (data: any) => {
+    const onBallKicked = (data: any) => {
       console.log("ballKicked event received", data);
 
       // 1. Find Kicker Position (Start of Arc)
@@ -417,9 +427,11 @@ export class GameScene extends Phaser.Scene {
 
       // Store scatter data for later animation (Phase 2)
       this.pendingKickoffData = data;
-    });
+    };
+    this.eventHandlers.set("ballKicked", onBallKicked);
+    this.eventBus.on("ballKicked", onBallKicked);
 
-    this.eventBus.on("kickoffResult", (data: { roll: number, event: string }) => {
+    const onKickoffResult = (data: { roll: number, event: string }) => {
       // 2. Show Roll
       this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
       // this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
@@ -429,19 +441,25 @@ export class GameScene extends Phaser.Scene {
         this.animateBallScatter(this.pendingKickoffData);
         this.pendingKickoffData = null;
       }
-    });
+    };
+    this.eventHandlers.set("kickoffResult", onKickoffResult);
+    this.eventBus.on("kickoffResult", onKickoffResult);
 
-    this.eventBus.on("readyToStart", () => {
+    const onReadyToStart = () => {
       this.gameService.startGame(this.kickingTeam.id);
-    });
+    };
+    this.eventHandlers.set("readyToStart", onReadyToStart);
+    this.eventBus.on("readyToStart", onReadyToStart);
 
     // DiceLog listener removed (Handled by React UI now)
     // this.eventBus.on("diceRoll", (data: { type: string, value: number, result: any }) => {
     //   this.diceLog.addLog(`${data.type}: ${data.result}`);
     // });
+
+    // Sandbox / Scenario Events are now handled in SandboxScene
   }
 
-  private refreshDugouts(): void {
+  protected refreshDugouts(): void {
     this.dugouts.forEach(d => d.refresh());
     this.placePlayersOnPitch();
   }
@@ -469,7 +487,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private placePlayersOnPitch(): void {
+  protected placePlayersOnPitch(): void {
+
     // Get all players that have a grid position
     const allPlayers = [...this.team1.players.filter(p => p.gridPosition), ...this.team2.players.filter(p => p.gridPosition)];
 
@@ -562,7 +581,7 @@ export class GameScene extends Phaser.Scene {
     this.gameplayController.selectPlayer(player.id);
   }
 
-  private placeBallVisual(x: number, y: number): void {
+  protected placeBallVisual(x: number, y: number): void {
     if (this.ballSprite) this.ballSprite.destroy();
 
     const pos = this.pitch.getPixelPosition(x, y);

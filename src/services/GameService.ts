@@ -12,6 +12,8 @@ import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../domain/validators/MovementValidator.js';
 import { ActionValidator } from '../domain/validators/ActionValidator.js';
+import { Scenario } from '@/types/Scenario';
+
 
 export class GameService implements IGameService {
     private state: GameState;
@@ -632,7 +634,96 @@ export class GameService implements IGameService {
 
     // ===== Private Helper Methods =====
 
+    // ===== Sandbox / Scenario Methods =====
+
+    loadScenario(scenario: Scenario): void {
+        this.resetInternalState();
+
+        // Set Phase
+        this.state.phase = scenario.setup.phase;
+        this.state.subPhase = scenario.setup.subPhase;
+        // Force active team
+        this.state.activeTeamId = scenario.setup.activeTeam === 'team1' ? this.team1.id : this.team2.id;
+
+        // Setup internal trackers for phases
+        if (scenario.setup.activeTeam === 'team1') {
+            this.state.turn.teamId = this.team1.id;
+        } else {
+            this.state.turn.teamId = this.team2.id;
+        }
+
+        this.eventBus.emit('phaseChanged', { phase: this.state.phase, subPhase: this.state.subPhase });
+
+        // Reset all players to Reserve
+        const resetTeam = (team: Team) => {
+            team.players.forEach(p => {
+                p.status = PlayerStatus.RESERVE;
+                p.gridPosition = undefined;
+                p.hasActed = false;
+            });
+            // Also clear internal placement map
+            this.placedPlayers = new Map();
+        };
+        resetTeam(this.team1);
+        resetTeam(this.team2);
+
+        // Apply Placements
+        scenario.setup.team1Placements.forEach(p => {
+            const player = this.team1.players[p.playerIndex];
+            if (player) {
+                // Direct set, bypassing validation (Sandbox Mode)
+                player.gridPosition = { x: p.x, y: p.y };
+                player.status = p.status || PlayerStatus.ACTIVE;
+                this.placedPlayers.set(player.id, { x: p.x, y: p.y });
+                this.eventBus.emit('playerPlaced', { playerId: player.id, x: p.x, y: p.y });
+            }
+        });
+
+        scenario.setup.team2Placements.forEach(p => {
+            const player = this.team2.players[p.playerIndex];
+            if (player) {
+                player.gridPosition = { x: p.x, y: p.y };
+                player.status = p.status || PlayerStatus.ACTIVE;
+                this.placedPlayers.set(player.id, { x: p.x, y: p.y });
+                this.eventBus.emit('playerPlaced', { playerId: player.id, x: p.x, y: p.y });
+            }
+        });
+
+        // Ball Position
+        if (scenario.setup.ballPosition) {
+            this.eventBus.emit('ballPlaced', scenario.setup.ballPosition);
+        }
+
+        this.eventBus.emit('refreshBoard');
+    }
+
+    private resetInternalState(): void {
+        this.turnCounts = {
+            [this.team1.id]: 0,
+            [this.team2.id]: 0,
+        };
+        this.state.score = {
+            [this.team1.id]: 0,
+            [this.team2.id]: 0,
+        };
+        this.placedPlayers.clear();
+        this.setupReady.clear();
+        this.driveKickingTeamId = null;
+        // Reset turn data
+        this.state.turn = {
+            teamId: '',
+            turnNumber: 0,
+            isHalf2: false,
+            activatedPlayerIds: new Set(),
+            hasBlitzed: false,
+            hasPassed: false,
+            hasHandedOff: false,
+            hasFouled: false,
+        };
+    }
+
     private getPlacedCount(teamId: string): number {
+
         let count = 0;
         this.placedPlayers.forEach((_pos, pid) => {
             const p = this.getPlayerById(pid);

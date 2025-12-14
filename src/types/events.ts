@@ -72,6 +72,11 @@ export interface GameEvents {
         description: string;  // Text outcome e.g. "Nice Weather", "Scatter"
         passed?: boolean;     // For tests (Armor, Agility, Dodge)
     };
+
+    // Sandbox
+    'gameStateRestored': GameState;
+    'refreshBoard': void;
+    'ballPlaced': { x: number; y: number };
 }
 
 /**
@@ -100,6 +105,7 @@ export interface UIEvents {
 
     // Navigation
     'ui:sceneChange': { scene: string; data?: any };
+    'ui:loadScenario': { scenarioId: string };
 
     // Game Start
     'ui:startGame': { team1: Team; team2: Team };

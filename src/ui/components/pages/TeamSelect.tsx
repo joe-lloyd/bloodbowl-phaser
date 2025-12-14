@@ -11,13 +11,14 @@ import { Title, SectionTitle, Subtitle } from '../componentWarehouse/Titles';
 
 interface TeamSelectProps {
     eventBus: EventBus;
+    mode?: 'sandbox' | 'standard';
 }
 
 /**
  * Team Selection Component
  * Select teams for Player 1 and Player 2 before starting a game
  */
-export function TeamSelect({ eventBus }: TeamSelectProps) {
+export function TeamSelect({ eventBus, mode }: TeamSelectProps) {
     const [teams, setTeams] = useState<Team[]>([]);
     const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
     const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
@@ -45,6 +46,20 @@ export function TeamSelect({ eventBus }: TeamSelectProps) {
 
         // Emit event to start the game
         // The Phaser scene will handle ServiceContainer initialization
+        const targetScene = (mode === 'sandbox') ? 'SandboxScene' : 'GameScene';
+
+        // Emit sceneChange to trigger Phaser scene switch
+        emit('ui:sceneChange', {
+            scene: targetScene,
+            data: {
+                team1: selectedTeam1,
+                team2: selectedTeam2,
+            }
+        });
+
+        // Emit startGame for other listeners (ServiceContainer init handles this via GameScene init? No, GameScene init does it)
+        // But App.tsx listens to ui:startGame to hide UI? 
+        // App.tsx also listens to ui:sceneChange.
         emit('ui:startGame', {
             team1: selectedTeam1,
             team2: selectedTeam2,

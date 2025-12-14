@@ -23,8 +23,8 @@ export class MenuScene extends Phaser.Scene {
     this.add.rectangle(0, 0, width, height, 0x1a1a2e).setOrigin(0);
 
     // Listen for scene change events from React UI
-    this.eventBus.on('ui:sceneChange', (data: { scene: string }) => {
-      this.scene.start(data.scene);
+    this.eventBus.on('ui:sceneChange', (data: { scene: string; data?: any }) => {
+      this.scene.start(data.scene, data.data || {});
     });
 
   }

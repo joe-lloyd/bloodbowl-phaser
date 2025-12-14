@@ -8,6 +8,7 @@ import { MovementValidator } from "../../domain/validators/MovementValidator";
 import { pixelToGrid } from "../../utils/GridUtils";
 import { GamePhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
+import { Player } from "@/types";
 
 export class GameplayInteractionController {
     private scene: GameScene;
@@ -50,6 +51,9 @@ export class GameplayInteractionController {
         const { valid, gridX, gridY } = this.getGridFromPointer(pointer);
         if (valid) {
             this.onSquareClicked(gridX, gridY);
+        } else {
+            // Clicked outside pitch -> Deselect
+            this.deselectPlayer();
         }
     }
 
@@ -401,19 +405,17 @@ export class GameplayInteractionController {
         this.scene.handleKickoffInteraction(x, y, playerAtSquare);
     }
 
-    private getPlayerAt(x: number, y: number): any { // Return Player
-        // Helper to find player at grid X,Y
-        // Using GameScene's teams...
+    private getPlayerAt(x: number, y: number): Player | null {
         const t1 = this.getSceneTeam1();
         const t2 = this.getSceneTeam2();
+        const players = [...t1.players, ...t2.players];
 
-        return t1.players.find(p => p.gridPosition?.x === x && p.gridPosition?.y === y) ||
-            t2.players.find(p => p.gridPosition?.x === x && p.gridPosition?.y === y);
+        return players.find(p => p.gridPosition?.x === x && p.gridPosition?.y === y) || null;
     }
 
     // Helpers to access Scene data (temporary until full decouple)
-    private getSceneTeam1() { return (this.scene as any).team1; }
-    private getSceneTeam2() { return (this.scene as any).team2; }
+    private getSceneTeam1() { return this.scene.team1; }
+    private getSceneTeam2() { return this.scene.team2; }
 
     private getOpposingPlayers(myTeamId: string): any[] {
         const t1 = this.getSceneTeam1();

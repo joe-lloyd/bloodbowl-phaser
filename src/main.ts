@@ -8,6 +8,8 @@ import { TeamManagementScene } from "./scenes/TeamManagementScene";
 import { TeamBuilderScene } from "./scenes/TeamBuilderScene";
 import { TeamSelectionScene } from "./scenes/TeamSelectScene";
 import { GameScene } from "./scenes/GameScene";
+import { SandboxScene } from "./scenes/SandboxScene";
+
 import { App } from "./ui/App";
 import { EventBus } from "./services/EventBus";
 
@@ -28,7 +30,9 @@ const config: Phaser.Types.Core.GameConfig = {
     TeamBuilderScene,
     TeamSelectionScene,
     GameScene,
+    SandboxScene,
   ],
+
   physics: {
     default: "arcade",
     arcade: {

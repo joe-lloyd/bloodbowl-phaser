@@ -5,6 +5,7 @@ import { TeamBuilder } from './components/pages/TeamBuilder';
 import { TeamSelect } from './components/pages/TeamSelect';
 import { GameHUD } from './components/hud/GameHUD';
 import { SoundTest } from './components/pages/SoundTest';
+import { SandboxOverlay } from './components/hud/SandboxOverlay';
 import { EventBus } from '../services/EventBus';
 import { useEventBus } from './hooks/useEventBus';
 import './styles/global.css';
@@ -67,11 +68,14 @@ export function App({ eventBus }: AppProps) {
             )}
 
             {currentScene === 'TeamSelectionScene' && (
-                <TeamSelect eventBus={eventBus} />
+                <TeamSelect eventBus={eventBus} mode={sceneData?.mode} />
             )}
 
-            {isInGame && (
-                <GameHUD eventBus={eventBus} />
+            {(isInGame || currentScene === 'SandboxScene') && (
+                <>
+                    <GameHUD eventBus={eventBus} />
+                    {currentScene === 'SandboxScene' && <SandboxOverlay eventBus={eventBus} />}
+                </>
             )}
         </div>
     );
