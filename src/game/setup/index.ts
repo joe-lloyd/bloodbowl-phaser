@@ -6,4 +6,3 @@
 export { SetupValidator } from "./SetupValidator";
 export { FormationManager } from "./FormationManager";
 export { PlayerPlacementController } from "./PlayerPlacementController";
-export { SetupUIController } from "./SetupUIController";
