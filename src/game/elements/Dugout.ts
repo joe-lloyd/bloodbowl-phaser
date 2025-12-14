@@ -137,7 +137,7 @@ export class Dugout {
     }
 
     private createPlayerSprite(player: Player, x: number, y: number): Phaser.GameObjects.Container {
-        const sprite = new PlayerSprite(this.scene, x, y, player, this.team.colors.primary);
+        const sprite = new PlayerSprite(this.scene, x, y, player, this.team.colors.primary, this.team.rosterName);
         sprite.setSize(32, 32);
 
         // Setup interactions

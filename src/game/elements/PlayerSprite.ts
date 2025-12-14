@@ -10,17 +10,21 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private player: Player;
 
   private numberText: Phaser.GameObjects.Text;
+  private rosterName: string;
+  private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     player: Player,
-    teamColor: number
+    teamColor: number,
+    rosterName: string
   ) {
     super(scene, x, y);
 
     this.player = player;
+    this.rosterName = rosterName;
 
     // Create player shape based on position
     this.createPlayerShape(scene, player.positionName, teamColor);
@@ -41,6 +45,13 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     );
     this.setDepth(10); // Ensure players are above dugouts
 
+    // Create Selection Ring (Hidden by default)
+    // Slightly larger than player
+    this.selectionRing = scene.add.circle(0, 0, 20);
+    this.selectionRing.setStrokeStyle(3, 0xffff00);
+    this.selectionRing.setVisible(false);
+    this.add(this.selectionRing);
+
     scene.add.existing(this);
   }
 
@@ -49,15 +60,49 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     position: string,
     color: number
   ): void {
-    // Shape Logic:
+    const pos = position.toLowerCase();
+
+    // 1. Try Dynamic Asset Lookup
+    // Key: asset_[roster]_[position]
+    // Normalize: lowercase, spaces -> dashes
+    const rosterKey = this.rosterName.toLowerCase().replace(/\s+/g, '-');
+    const posKey = pos.replace(/\s+/g, '-');
+    const assetKey = `asset_${rosterKey}_${posKey}`;
+
+    // console.log(`Checking Asset: ${assetKey}`);
+
+    let texture = assetKey;
+    if (!scene.textures.exists(texture)) {
+      // Try plural folder name? (black-orc -> black-orcs)
+      // This is a naive check but covers common cases like "Black Orc" -> "black-orcs"
+      const pluralKey = `asset_${rosterKey}s_${posKey}`;
+      if (scene.textures.exists(pluralKey)) {
+        texture = pluralKey;
+      }
+    }
+
+    if (scene.textures.exists(texture)) {
+      // Render Sprite ONLY (No base shape)
+      const sprite = scene.add.sprite(0, -5, texture);
+
+      const maxHeight = 40; // Max height for sprite
+      const scale = maxHeight / sprite.height;
+      sprite.setScale(Math.min(scale, 1));
+
+      this.add(sprite);
+      this.shape = sprite as any;
+
+      // Ensure number is on top
+      this.bringToTop(this.numberText);
+      return;
+    }
+
+    // 2. Fallback: Shape Logic
     // Lineman: Circle
     // Blitzer: Square
     // Thrower: Triangle
     // Catcher: Diamond (Rotated Square)
     // Big Guy (Troll, Ogre, etc): Hexagon (Large Circle/Polygon)
-
-    // Normalize position string for checking
-    const pos = position.toLowerCase();
 
     if (pos.includes("blitzer")) {
       // Square
@@ -147,14 +192,19 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * Highlight this player
    */
   public highlight(color: number): void {
-    this.shape.setStrokeStyle(3, color);
+    if (this.selectionRing) {
+      this.selectionRing.setStrokeStyle(3, color);
+      this.selectionRing.setVisible(true);
+    }
   }
 
   /**
    * Remove highlight
    */
   public unhighlight(): void {
-    this.shape.setStrokeStyle(2, 0xffffff);
+    if (this.selectionRing) {
+      this.selectionRing.setVisible(false);
+    }
   }
 
   /**

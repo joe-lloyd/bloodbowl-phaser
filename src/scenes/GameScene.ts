@@ -22,6 +22,10 @@ import { pixelToGrid } from "../game/elements/GridUtils";
 import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 
+// Assets
+// Dynamic loading via import.meta.glob
+const assetFiles = import.meta.glob('../data/assets/**/*.{png,jpg,gif}', { eager: true, as: 'url' });
+
 /**
  * Game Scene - Unified scene for Setup and Gameplay
  * Game Scene - Unified scene for Setup and Gameplay
@@ -76,6 +80,32 @@ export class GameScene extends Phaser.Scene {
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
     this.eventBus = container.eventBus;
+  }
+
+  preload(): void {
+    // Dynamic Asset Loading
+    // Key format: "asset_[roster]_[position]" (normalized to kebab-case)
+    for (const path in assetFiles) {
+      const url = assetFiles[path];
+
+      // Parse Path: ../data/assets/[roster]/[filename]
+      const parts = path.split('/');
+      const filename = parts.pop();
+      const folder = parts.pop(); // Roster name (folder)
+
+      if (folder && filename) {
+        const nameIdx = filename.lastIndexOf('.');
+        const name = nameIdx !== -1 ? filename.substring(0, nameIdx) : filename;
+
+        // Normalize: lowercase, replace spaces with dashes (though folder usually has dashes)
+        const rosterKey = folder.toLowerCase().replace(/\s+/g, '-');
+        const posKey = name.toLowerCase().replace(/\s+/g, '-');
+
+        const key = `asset_${rosterKey}_${posKey}`;
+        // console.log(`Loading Asset: ${key} -> ${path}`);
+        this.load.image(key, url);
+      }
+    }
   }
 
   create(): void {
@@ -517,8 +547,10 @@ export class GameScene extends Phaser.Scene {
         sprite.setVisible(true);
         sprite.setDepth(10);
       } else {
-        const teamColor = player.teamId === this.team1.id ? this.team1.colors.primary : this.team2.colors.primary;
-        const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor);
+        const team = player.teamId === this.team1.id ? this.team1 : this.team2;
+        const teamColor = team.colors.primary;
+        // Pass rosterName for asset lookup
+        const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor, team.rosterName);
         sprite.setDepth(10);
         this.playerSprites.set(player.id, sprite);
 
