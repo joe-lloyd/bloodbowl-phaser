@@ -133,6 +133,17 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Set activated visual state (greyscale/dimmed)
+   */
+  public setActivated(activated: boolean): void {
+    if (activated) {
+      this.shape.setAlpha(0.5); // Dim the player
+    } else {
+      this.shape.setAlpha(1.0); // Reset
+    }
+  }
+
+  /**
    * Highlight this player
    */
   public highlight(color: number): void {

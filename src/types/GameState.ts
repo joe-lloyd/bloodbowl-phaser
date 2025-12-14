@@ -39,12 +39,16 @@ export interface TurnData {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  movementUsed: Map<string, number>;
 }
+
+
+export type TurnState = TurnData;
 
 export interface GameState {
   phase: GamePhase;
-  subPhase?: SubPhase; // New sub-phase tracker
+  subPhase?: SubPhase;
   activeTeamId: string | null;
   turn: TurnData;
-  score: { [teamId: string]: number };
+  score: { [key: string]: number };
 }

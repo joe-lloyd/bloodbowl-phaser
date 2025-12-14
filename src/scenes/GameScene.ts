@@ -164,6 +164,22 @@ export class GameScene extends Phaser.Scene {
       this.startPlayPhase();
     }
 
+    this.eventBus.on('playerActivated', (playerId: string) => {
+      const sprite = this.playerSprites.get(playerId);
+      if (sprite) {
+        sprite.setActivated(true);
+      }
+    });
+
+    this.eventBus.on('turnStarted', (turnData: any) => {
+      // Reset all sprites
+      this.playerSprites.forEach(sprite => sprite.setActivated(false));
+      // Reset selection
+      this.gameplayController.deselectPlayer();
+      // Show Turn notification
+      // this.eventBus.emit('ui:notification', `Turn ${turnData.turnNumber} started!`);
+    });
+
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
     this.events.on(Phaser.Scenes.Events.DESTROY, this.shutdown, this);

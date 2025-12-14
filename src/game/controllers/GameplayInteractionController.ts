@@ -113,8 +113,8 @@ export class GameplayInteractionController {
             const player = this.gameService.getPlayerById(this.selectedPlayerId);
             const state = this.gameService.getState();
 
-            // Only allow movement planning if active team
-            if (player && state.activeTeamId === player.teamId) {
+            // Only allow movement planning if active team and player can activate
+            if (player && state.activeTeamId === player.teamId && this.gameService.canActivate(player.id)) {
                 // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
                 const lastPos = this.waypoints.length > 0
                     ? this.waypoints[this.waypoints.length - 1]
@@ -164,6 +164,20 @@ export class GameplayInteractionController {
         // Interaction Check: Only active team's turn?
         // User asked: "only the player in control can move their own pieces".
         // Allow selection for inspection at any time, but movement only if active.
+        const canActivate = this.gameService.canActivate(playerId);
+
+        // Check for previous incomplete activation
+        // If another player was partially moved, we must finish them before selecting a new one.
+        // Or, more strictly: selecting a NEW player implies ending the previous player's turn if they moved.
+        if (this.selectedPlayerId && this.selectedPlayerId !== playerId) {
+            const prevUsed = this.gameService.getMovementUsed(this.selectedPlayerId);
+            const prevActed = this.gameService.hasPlayerActed(this.selectedPlayerId);
+
+            // If they used movement but aren't marked as acted rigid, mark them now.
+            if (prevUsed > 0 && !prevActed) {
+                this.gameService.finishActivation(this.selectedPlayerId);
+            }
+        }
 
         this.deselectPlayer();
         this.selectedPlayerId = playerId;
@@ -176,17 +190,20 @@ export class GameplayInteractionController {
         // UI Selection Event
         this.eventBus.emit('playerSelected', { player });
 
-        // Show Movement Range & Tackle Zones if own turn
-        if (isOwnTurn) {
+        // Show Movement Range & Tackle Zones if own turn AND can activate
+        if (isOwnTurn && canActivate) {
             const reachable = this.gameService.getAvailableMovements(playerId);
-            const ma = player.stats.MA;
 
-            // Separate into Safe (<= MA) and Sprint (> MA)
+            // Calculate remaining SAFE MA (for overlay coloring)
+            const used = this.gameService.getMovementUsed(playerId);
+            const remainingSafeMA = Math.max(0, player.stats.MA - used);
+
+            // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
             const safeMoves: { x: number, y: number }[] = [];
             const sprintMoves: { x: number, y: number }[] = [];
 
             reachable.forEach(move => {
-                if (move.cost !== undefined && move.cost > ma) {
+                if (move.cost !== undefined && move.cost > remainingSafeMA) {
                     sprintMoves.push(move);
                 }
                 // All are "reachable" for the overlay to NOT be dark
@@ -258,14 +275,20 @@ export class GameplayInteractionController {
         if (result.valid) {
             // Add path to waypoints (excluding start, including end)
             // Result.path includes the steps.
-            // Check TOTAL path length limit (MA + 2)
+
+            // Check TOTAL path length limit (Remaining MA + 2)
+            const used = this.gameService.getMovementUsed(player.id);
+            const totalAllowance = player.stats.MA + 2;
+            const remainingAllowance = Math.max(0, totalAllowance - used);
+
             const currentLen = this.waypoints.length;
             const newLen = currentLen + result.path.length;
-            if (newLen <= player.stats.MA + 2) {
+
+            if (newLen <= remainingAllowance) {
                 this.waypoints.push(...result.path);
                 this.drawCurrentPath();
             } else {
-                console.warn("Path too long!");
+                console.warn("Path too long!", { newLen, remainingAllowance, used });
                 // Feedback?
             }
         }
@@ -278,10 +301,15 @@ export class GameplayInteractionController {
         if (!player) return;
 
         const totalSteps = this.waypoints.length;
+        const used = this.gameService.getMovementUsed(player.id);
         const ma = player.stats.MA;
+        const remainingSafeMA = Math.max(0, ma - used); // MA remaining before GFI
 
-        if (totalSteps > ma) {
-            const extraSteps = totalSteps - ma;
+        // Check if this move requires GFI (Sprint)
+        // If we have 0 safe MA left, ALL steps are sprints.
+        // steps > remainingSafeMA
+        if (totalSteps > remainingSafeMA) {
+            const extraSteps = totalSteps - remainingSafeMA;
 
             this.pendingMove = {
                 playerId: this.selectedPlayerId,
@@ -309,7 +337,37 @@ export class GameplayInteractionController {
     private finalizeMove(playerId: string, path: { x: number, y: number }[]): void {
         this.gameService.movePlayer(playerId, path)
             .then(() => {
-                this.deselectPlayer();
+                // Do NOT auto-finish activation here.
+                // Allow partial moves. GameService will auto-finish if MA+2 is used.
+                // this.gameService.finishActivation(playerId);
+
+                // Do NOT deselect if still active.
+                // If activation NOT finished, keep selected?
+                // How do we know from here?
+                // Check canActivate? canActivate is TRUE until finished.
+
+
+
+                // If we used all movement, it should be finished.
+                // If GameService finished it, we should deselect.
+                // Listener for 'playerActivated' handles visual update, but DESELECTION?
+
+                // If player is still legally active/selected, we keep them selected for next move.
+                // If we deselect, user has to re-select. That's annoying for partial moves.
+
+                // If player IS activated, deselect.
+                if (this.gameService.hasPlayerActed(playerId)) {
+                    this.deselectPlayer();
+                } else {
+                    // Keep selected, clear waypoints so they can plot next "leg"
+                    this.waypoints = [];
+                    this.pitch.clearPath();
+
+                    // REFRESH SELECTION logic to update the Range Overlay
+                    // calling selectPlayer again will re-fetch available movements (which now include used)
+                    this.selectPlayer(playerId);
+                }
+
                 this.pendingMove = null;
             })
             .catch(err => {

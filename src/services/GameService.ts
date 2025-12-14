@@ -12,6 +12,7 @@ import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../game/validators/MovementValidator.js';
 import { ActionValidator } from '../game/validators/ActionValidator.js';
+import { ActivationValidator } from '../game/validators/ActivationValidator.js';
 import { Scenario } from '@/types/Scenario';
 
 
@@ -28,6 +29,7 @@ export class GameService implements IGameService {
     // Validators
     private movementValidator: MovementValidator = new MovementValidator();
     private actionValidator: ActionValidator = new ActionValidator();
+    private activationValidator: ActivationValidator = new ActivationValidator();
 
     constructor(
         private eventBus: IEventBus,
@@ -55,6 +57,7 @@ export class GameService implements IGameService {
                 hasPassed: false,
                 hasHandedOff: false,
                 hasFouled: false,
+                movementUsed: new Map(),
             },
             score: {
                 [team1.id]: 0,
@@ -269,7 +272,10 @@ export class GameService implements IGameService {
         // Just emit selection, no phase change needed.
         // Logic for "Target Selection" is now just part of the same phase.
         if (this.state.phase === GamePhase.KICKOFF) {
-            this.eventBus.emit('playerSelected', { playerId });
+            const player = this.getPlayerById(playerId);
+            if (player) {
+                this.eventBus.emit('playerSelected', { player });
+            }
         }
     }
 
@@ -490,6 +496,7 @@ export class GameService implements IGameService {
             hasPassed: false,
             hasHandedOff: false,
             hasFouled: false,
+            movementUsed: new Map(),
         };
 
         this.eventBus.emit('turnStarted', this.state.turn);
@@ -522,12 +529,46 @@ export class GameService implements IGameService {
         this.eventBus.emit('phaseChanged', { phase: GamePhase.HALFTIME });
     }
 
-    playerAction(playerId: string): boolean {
-        if (this.state.phase !== GamePhase.PLAY) return false;
-        if (this.state.turn.activatedPlayerIds.has(playerId)) return false;
+    finishActivation(playerId: string): void {
+        if (this.state.phase !== GamePhase.PLAY) return;
 
-        this.state.turn.activatedPlayerIds.add(playerId);
-        this.eventBus.emit('playerActivated', playerId);
+        // Mark as used
+        if (!this.state.turn.activatedPlayerIds.has(playerId)) {
+            this.state.turn.activatedPlayerIds.add(playerId);
+            this.eventBus.emit('playerActivated', playerId); // UI updates visuals (greyscale)
+        }
+
+        // Check if any actions remain
+        const activeTeam = (this.state.activeTeamId === this.team1.id) ? this.team1 : this.team2;
+        const hasActions = this.activationValidator.hasAvailablePlayers(activeTeam, this.state.turn);
+
+        console.log(`[GameService] Activation Finished for ${playerId}. Remaining Actions? ${hasActions}`);
+
+        if (!hasActions) {
+            console.log('[GameService] No actions remaining. Ending Turn.');
+            setTimeout(() => this.endTurn(), 500);
+        }
+    }
+
+    canActivate(playerId: string): boolean {
+        const player = this.getPlayerById(playerId);
+        if (!player) return false;
+        return this.activationValidator.canActivate(player, this.state.turn);
+    }
+
+
+
+    // Legacy / simple wrapper
+    playerAction(playerId: string): boolean {
+        // This serves as "Start Action" now
+        if (!this.canActivate(playerId)) return false;
+        // We don't mark as activated HERE for movement start, 
+        // because we might cancel? 
+        // Actually, user said: "if a player finishes a block of its full sprint movement we can automatically finish the players activation."
+        // So we mark it "Used" at the END of the action.
+
+        // HOWEVER, we need to prevent selecting OTHERS while one is acting?
+        // That's UI Controller logic.
         return true;
     }
 
@@ -719,6 +760,7 @@ export class GameService implements IGameService {
             hasPassed: false,
             hasHandedOff: false,
             hasFouled: false,
+            movementUsed: new Map(),
         };
     }
 
@@ -764,56 +806,98 @@ export class GameService implements IGameService {
 
     // ===== Movement Implementation =====
 
+    getMovementUsed(playerId: string): number {
+        return this.state.turn.movementUsed.get(playerId) || 0;
+    }
+
     getAvailableMovements(playerId: string): { x: number; y: number; cost?: number }[] {
         const player = this.getPlayerById(playerId);
-        if (!player || player.status !== PlayerStatus.ACTIVE) return [];
+        // Only active team
+        if (!player || player.teamId !== this.state.activeTeamId) return [];
 
-        // Identify opponents and teammates
-        const myTeam = (player.teamId === this.team1.id) ? this.team1 : this.team2;
-        const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
+        // Subtract already used movement
+        const used = this.getMovementUsed(playerId);
+        const ma = player.stats.MA;
+        const remainingMA = Math.max(0, ma - used); // MA remaining
+        // Total range = MA + 2 (Sprint) - Used
+        // But the validator needs "Move Allowance" to calc costs?
+        // Actually, the validator usually takes 'MA' and returns reachable.
+        // We can pass a "modified MA" or just filter results?
+        // Better: The validator calculates cost from START position.
+        // We are moving from CURRENT position.
+        // So we pass the full MA, but we cap the result based on (MA + 2 - used).
 
-        // Filter active players for obstruction calculation
-        const teammates = myTeam.players.filter(p => p.id !== playerId && p.status === PlayerStatus.ACTIVE && p.gridPosition);
-        const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
+        // If we have 0 remaining allowance (sprinted out), return empty?
+        if (used >= ma + 2) return [];
 
-        return this.movementValidator.findReachableSquares(player, opponents, teammates);
+        // For correct GFI calc, we need to know how much we ALREADY moved.
+        // But for pathfinding from CURRENT square, we treat it as a fresh move with REDUCED allowance.
+        // Pass 'remainingMA' as the MA to the validator?
+        // Validator logic:
+        // Cost > MA = Sprint.
+        // So if we pass remainingMA, any move > remainingMA will be flagged as GFI.
+        // That is correct behavior!
+
+        const team = (player.teamId === this.team1.id) ? this.team1 : this.team2;
+        const opponentTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
+
+        const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+        const teammates = team.players.filter((p: any) => p.gridPosition && p.id !== player.id);
+
+        // We use a temporary player object with modified stats for validation?
+        // Or just let validator use 'MA' and we filter?
+        // Validator signature: findReachableArea(player, opponents, teammates)
+        // It reads player.stats.MA.
+
+        // Let's create a proxy player
+        const proxyPlayer = {
+            ...player,
+            stats: {
+                ...player.stats,
+                MA: remainingMA
+            }
+        };
+
+        // Note: If used > MA, remainingMA is 0. 
+        // We still have 2 Sprint squares (if not used).
+        // If used = MA, we have 2 squares allowed.
+        // If used = MA + 1, we have 1 square allowed.
+
+        // Actually, validator likely treats MA as "Safe Move". 
+        // If remainingMA is 0, EVERYTHING is a GFI.
+
+        return this.movementValidator.findReachableSquares(proxyPlayer as Player, opponents, teammates);
     }
+
 
     async movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void> {
         const player = this.getPlayerById(playerId);
-        if (!player) return;
+        if (!player) return Promise.reject('Player not found!');
 
-        // Mark as activated IMMEDIATELY upon committing to move
-        this.playerAction(playerId);
+        // Mark as activated IMMEDIATELY upon committing to move?
+        // NO. User wants partial activations.
+        // We track "Acting Player" state implicitly by them being selected and having taken an action?
+        // Or we just update movementUsed.
+
+        // Standard Blood Bowl: Once you start a Move Action, you are committed.
+        // You cannot switch to another player until this one ends.
+        // So we strictly don't need to "Mark Activated" yet, but we are "In Action".
 
         const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
         const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
 
-        // Validate path before moving
+        // Validate path before moving (Safety check)
         const result = this.movementValidator.validatePath(player, [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents);
 
         if (!result.valid) {
             console.warn(`Invalid move attempted for player ${playerId}`);
-            return;
+            return Promise.reject('Invalid Move');
         }
 
         // Execute move step-by-step with Roll Logic
         let currentPos = player.gridPosition!;
         const completedPath: { x: number; y: number }[] = [];
         let failed = false;
-
-        // MA includes base MA. Sprint starts after that.
-        // We know total path cost from validator, but let's iterate.
-        // NOTE: Path from UI is usually just Waypoints. We need the FULL grid path for step-by-step accounting?
-        // Actually `GameInteractionController` passes `waypoints` which are key nodes.
-        // If we want detailed GFI checks, we need the *expanded* path to count steps accurately.
-        // The validator returns `result.path` which IS the Expanded Step-by-Step Path (if we passed expanded input?)
-        // Wait, Validator `validatePath` expects a step-by-step path.
-        // If `movePlayer` receives waypoints, we might need to reconstruct the full path first.
-        // But `GameplayInteractionController` calls `findPath` which returns steps.
-        // `GameplayInteractionController.addWaypoint` pushes `result.path` (steps). 
-        // So `this.waypoints` IS the full step-by-step path. Good.
-        // `path` argument here is the full step list.
 
         let stepsTaken = 0;
 
@@ -824,15 +908,18 @@ export class GameService implements IGameService {
             this.eventBus.emit('playerStatusChanged', player);
         }
 
+        // Calculate Steps + Previous Usage
+        const preUsed = this.getMovementUsed(playerId);
+
         for (const step of path) {
             if (failed) break;
 
             stepsTaken++;
+            const totalUsed = preUsed + stepsTaken;
 
             // Check for GFI
-            if (stepsTaken > player.stats.MA) {
+            if (totalUsed > player.stats.MA) {
                 // Determine Roll Target (usually 2+)
-                // Modifiers? Blizzard = -1? 
                 let target = 2;
 
                 // Roll
@@ -851,29 +938,27 @@ export class GameService implements IGameService {
                 if (!success) {
                     failed = true;
                     // Trip!
-                    // 1. Move to square? Or fail INTO square? 
-                    // Rules: "If a player Falls Over... place them Prone in the square they were entering."
                     currentPos = step;
                     player.gridPosition = currentPos;
-
-                    // 2. Armor Roll / Injury (TODO)
-                    // 3. Turnover
 
                     console.log("GFI FAILED! Player trips.");
                     player.status = PlayerStatus.PRONE; // Simplified Knockdown
                     this.eventBus.emit('playerStatusChanged', player);
                     this.eventBus.emit('turnover', { teamId: player.teamId });
 
-                    // Stop processing path
-                    // Emit move event for partial path
                     completedPath.push(step);
+
+                    // Force End Activation on Turnover
+                    this.finishActivation(playerId);
+                    // Also End Turn? Turnovers usually end turns.
+                    // finishActivation doesn't necessarily end turn unless no players left?
+                    // Turnover logic should trigger endTurn immediately usually.
+                    // For now, let's just mark activation used.
                 } else {
                     currentPos = step;
                     completedPath.push(step);
                 }
             } else {
-                // Normal Move (No Dodge logic implementation yet in this block, assumed handled or safe)
-                // TODO: Implement Dodge rolls here similarly
                 currentPos = step;
                 completedPath.push(step);
             }
@@ -881,6 +966,7 @@ export class GameService implements IGameService {
 
         // Update player position
         player.gridPosition = currentPos;
+        this.state.turn.movementUsed.set(playerId, preUsed + stepsTaken);
 
         this.eventBus.emit('playerMoved', {
             playerId,
@@ -888,6 +974,16 @@ export class GameService implements IGameService {
             to: currentPos,
             path: completedPath
         });
+
+        // Auto-finish if exhausted (MA + 2)
+        const finalUsed = preUsed + stepsTaken;
+        if (finalUsed >= player.stats.MA + 2) {
+            this.finishActivation(playerId);
+        }
+
+        // If Failed GFI, we already finished activation and maybe turnover.
+
+        return Promise.resolve();
     }
 
     public getTeam(teamId: string): Team | undefined {

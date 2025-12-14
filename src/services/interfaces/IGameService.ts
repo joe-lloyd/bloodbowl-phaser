@@ -147,6 +147,21 @@ export interface IGameService {
      */
     hasPlayerActed(playerId: string): boolean;
 
+    /**
+     * Get the movement used by a player this turn
+     */
+    getMovementUsed(playerId: string): number;
+
+    /**
+     * Mark a player's activation as finished
+     */
+    finishActivation(playerId: string): void;
+
+    /**
+     * Check if a player can be activated/selected for action
+     */
+    canActivate(playerId: string): boolean;
+
     // ===== Action Methods =====
 
     /**
