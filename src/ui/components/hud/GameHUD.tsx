@@ -12,6 +12,7 @@ import { SetupControls } from './SetupControls';
 import { ConfirmationModal } from './ConfirmationModal';
 
 import { DiceLog } from './DiceLog';
+import { PlayerInfoPanel } from './PlayerInfoPanel';
 
 interface GameHUDProps {
     eventBus: EventBus;
@@ -136,6 +137,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
 
             {/* Dice Log (Bottom Left) */}
             <DiceLog eventBus={eventBus} />
+
+            {/* Player Info Panel (Bottom Right) */}
+            <PlayerInfoPanel eventBus={eventBus} />
 
             {/* Middle: Notifications Overlay */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

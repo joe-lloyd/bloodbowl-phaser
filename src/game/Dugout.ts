@@ -105,7 +105,6 @@ export class Dugout {
     private renderPlayerGrid(players: Player[], startX: number, startY: number, maxWidth: number): void {
         const size = 40; // 32px sprite + spacing
         const cols = Math.floor(maxWidth / size);
-        const playerIdsInGrid = new Set(players.map(p => p.id));
 
         // Hide any sprites that are NOT in this section but tracked by dugout
         // (This handles players moving out of this section or to pitch)
@@ -145,6 +144,14 @@ export class Dugout {
         // Note: Interaction (hitArea) is set in PlayerSprite constructor
         sprite.input!.cursor = 'pointer'; // Ensure hand cursor
         this.scene.input.setDraggable(sprite);
+
+        // Hover events for Info Panel
+        sprite.on('pointerover', () => {
+            (this.scene as any).eventBus?.emit('ui:showPlayerInfo', player);
+        });
+        sprite.on('pointerout', () => {
+            (this.scene as any).eventBus?.emit('ui:hidePlayerInfo');
+        });
 
         sprite.on("dragstart", () => {
             // Bring container to top

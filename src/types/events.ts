@@ -43,7 +43,7 @@ export interface GameEvents {
         path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
     };
     'playerActivated': string; // playerId
-    'playerSelected': { playerId: string };
+    'playerSelected': { player: Player | null };
     'playerStatusChanged': Player;
     'turnover': { teamId: string };
 
@@ -141,6 +141,10 @@ export interface UIEvents {
         confirmed: boolean;
         actionId: string;
     };
+
+    // Player Info
+    'ui:showPlayerInfo': Player;
+    'ui:hidePlayerInfo': void;
 }
 
 /**

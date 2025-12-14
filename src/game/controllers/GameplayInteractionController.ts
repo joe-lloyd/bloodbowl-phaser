@@ -3,7 +3,6 @@ import Phaser from "phaser";
 import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../Pitch";
-import { PlayerInfoPanel } from "../PlayerInfoPanel";
 import { MovementValidator } from "../../domain/validators/MovementValidator";
 import { pixelToGrid } from "../../utils/GridUtils";
 import { GamePhase } from "../../types/GameState";
@@ -16,7 +15,6 @@ export class GameplayInteractionController {
     private eventBus: IEventBus;
     private pitch: Pitch;
     private movementValidator: MovementValidator;
-    private playerInfoPanel: PlayerInfoPanel;
 
     // State
     private selectedPlayerId: string | null = null;
@@ -29,17 +27,13 @@ export class GameplayInteractionController {
         gameService: IGameService,
         eventBus: IEventBus,
         pitch: Pitch,
-        movementValidator: MovementValidator,
-        playerInfoPanel: PlayerInfoPanel
+        movementValidator: MovementValidator
     ) {
         this.scene = scene;
         this.gameService = gameService;
         this.eventBus = eventBus;
         this.pitch = pitch;
         this.movementValidator = movementValidator;
-        this.playerInfoPanel = playerInfoPanel;
-
-        this.playerInfoPanel = playerInfoPanel;
 
         // Listen for confirmation
         this.eventBus.on('ui:confirmationResult', this.onConfirmationResult);
@@ -68,14 +62,13 @@ export class GameplayInteractionController {
                 this.onSquareHovered(gridX, gridY);
             }
         } else {
-            if (this.lastHoverGrid) {
-                this.lastHoverGrid = null;
-                this.pitch.clearHover();
-                this.pitch.clearPath();
-                this.playerInfoPanel.hide();
-            }
+            this.lastHoverGrid = null;
+            this.pitch.clearHover();
+            this.pitch.clearPath();
+            this.eventBus.emit('ui:hidePlayerInfo');
         }
     }
+
 
     private getGridFromPointer(pointer: Phaser.Input.Pointer): { valid: boolean, gridX: number, gridY: number } {
         const pitchContainer = this.pitch.getContainer();
@@ -149,9 +142,9 @@ export class GameplayInteractionController {
         // 2. Player Info
         const player = this.getPlayerAt(x, y);
         if (player) {
-            this.playerInfoPanel.showPlayer(player);
+            this.eventBus.emit('ui:showPlayerInfo', player);
         } else {
-            this.playerInfoPanel.hide();
+            this.eventBus.emit('ui:hidePlayerInfo');
         }
 
         // 3. Movement Path
@@ -179,6 +172,9 @@ export class GameplayInteractionController {
 
         // Visual highlight
         this.scene.highlightPlayer(playerId);
+
+        // UI Selection Event
+        this.eventBus.emit('playerSelected', { player });
 
         // Show Movement Range & Tackle Zones if own turn
         if (isOwnTurn) {
@@ -236,6 +232,9 @@ export class GameplayInteractionController {
         this.waypoints = [];
         this.pitch.clearHighlights(); // Clears overlays too
         this.pitch.clearPath();
+
+        // Notify UI
+        this.eventBus.emit('playerSelected', { player: null }); // OR add explicit deselect event
     }
 
     private addWaypoint(x: number, y: number): void {
@@ -423,3 +422,4 @@ export class GameplayInteractionController {
         return (myTeamId === t1.id) ? t2.players : t1.players;
     }
 }
+

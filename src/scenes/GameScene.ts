@@ -2,7 +2,6 @@ import Phaser from "phaser";
 import { Pitch } from "../game/Pitch";
 import { PlayerSprite } from "../game/PlayerSprite";
 import { BallSprite } from "../game/BallSprite";
-import { PlayerInfoPanel } from "../game/PlayerInfoPanel";
 // import { DiceLog } from "../game/ui/DiceLog"; // Removed
 import { Dugout } from "../game/Dugout";
 import { Team } from "../types/Team";
@@ -31,7 +30,6 @@ export class GameScene extends Phaser.Scene {
   public receivingTeam!: Team;
 
   // UI Components
-  private playerInfoPanel!: PlayerInfoPanel;
   // private diceLog!: DiceLog;
 
   private dugouts: Map<string, Dugout> = new Map();
@@ -99,9 +97,6 @@ export class GameScene extends Phaser.Scene {
     const pitchY = 180; // Leaving room for top dugout
     this.pitch = new Pitch(this, pitchX, pitchY);
 
-    // Player Info Panel
-    this.playerInfoPanel = new PlayerInfoPanel(this, width - 220, height - 300);
-
     // Dice Log
     // Dice Log - Moved to React
     // this.diceLog = new DiceLog(this, 10, height - 350);
@@ -116,13 +111,13 @@ export class GameScene extends Phaser.Scene {
     this.movementValidator = new MovementValidator();
 
     // Gameplay Controller
+    // Gameplay Controller
     this.gameplayController = new GameplayInteractionController(
       this,
       this.gameService,
       this.eventBus,
       this.pitch,
-      this.movementValidator,
-      this.playerInfoPanel
+      this.movementValidator
     );
 
     // Pitch interaction (Now safe to attach)
@@ -177,6 +172,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.eventHandlers.clear();
 
+    // Controller cleanup if needed
     if (this.gameplayController) {
       this.gameplayController.destroy();
     }
@@ -509,8 +505,6 @@ export class GameScene extends Phaser.Scene {
         // Add interactivity for Play phase (setup phase uses placementController)
         sprite.setInteractive({ useHandCursor: true });
         sprite.on('pointerdown', () => this.onPlayerClick(player));
-        sprite.on('pointerover', () => this.events.emit("showPlayerInfo", player));
-        sprite.on('pointerout', () => this.events.emit("hidePlayerInfo"));
       }
     });
 
