@@ -13,6 +13,7 @@ import { Player, PlayerStatus } from '@/types/Player';
 import { MovementValidator } from '../game/validators/MovementValidator.js';
 import { ActionValidator } from '../game/validators/ActionValidator.js';
 import { ActivationValidator } from '../game/validators/ActivationValidator.js';
+import { BlockValidator } from '../game/validators/BlockValidator.js';
 import { Scenario } from '@/types/Scenario';
 
 
@@ -30,6 +31,7 @@ export class GameService implements IGameService {
     private movementValidator: MovementValidator = new MovementValidator();
     private actionValidator: ActionValidator = new ActionValidator();
     private activationValidator: ActivationValidator = new ActivationValidator();
+    private blockValidator: BlockValidator = new BlockValidator();
 
     constructor(
         private eventBus: IEventBus,
@@ -577,6 +579,25 @@ export class GameService implements IGameService {
     }
 
     // ===== Action Methods =====
+
+    previewBlock(attackerId: string, defenderId: string): void {
+        const attacker = this.getPlayerById(attackerId);
+        const defender = this.getPlayerById(defenderId);
+
+        if (!attacker || !defender) {
+            console.error("Player not found for block");
+            return;
+        }
+
+        const allPlayers = [...this.team1.players, ...this.team2.players];
+        const analysis = this.blockValidator.analyzeBlock(attacker, defender, allPlayers);
+
+        this.eventBus.emit('ui:blockDialog', {
+            attackerId,
+            defenderId,
+            analysis
+        });
+    }
 
     blockPlayer(attackerId: string, defenderId: string): { success: boolean; result?: string } {
         if (this.state.phase !== GamePhase.PLAY) return { success: false, result: 'Not in Play phase' };

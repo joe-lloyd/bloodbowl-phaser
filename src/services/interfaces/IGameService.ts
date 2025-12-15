@@ -165,6 +165,11 @@ export interface IGameService {
     // ===== Action Methods =====
 
     /**
+     * Preview a block action (emits UI event)
+     */
+    previewBlock(attackerId: string, defenderId: string): void;
+
+    /**
      * Attempt to block an opponent
      */
     blockPlayer(attackerId: string, defenderId: string): { success: boolean; result?: string };

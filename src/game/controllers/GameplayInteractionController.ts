@@ -99,14 +99,37 @@ export class GameplayInteractionController {
         if (playerAtSquare) {
             // Clicking ANOTHER player?
             if (playerAtSquare.id !== this.selectedPlayerId) {
+
+                // BLOCK CHECK
+                // If we have a selected player who is Active, Adjacent, and an Enemy -> BLOCK PREVIEW
+                if (this.selectedPlayerId) {
+                    const selectedPlayer = this.gameService.getPlayerById(this.selectedPlayerId);
+                    const state = this.gameService.getState();
+
+                    if (selectedPlayer &&
+                        state.activeTeamId === selectedPlayer.teamId &&
+                        this.gameService.canActivate(selectedPlayer.id) &&
+                        selectedPlayer.teamId !== playerAtSquare.teamId
+                    ) {
+                        // Check Adjacency
+                        const dx = Math.abs((selectedPlayer.gridPosition?.x || 0) - x);
+                        const dy = Math.abs((selectedPlayer.gridPosition?.y || 0) - y);
+
+                        if (dx <= 1 && dy <= 1) {
+                            // IT'S A BLOCK!
+                            // Trigger Block Preview
+                            this.gameService.previewBlock(selectedPlayer.id, playerAtSquare.id);
+                            return;
+                        }
+                    }
+                }
+
+                // If not a block, select them (inspection)
                 this.selectPlayer(playerAtSquare.id);
+
             } else {
                 // Clicking SELF?
-                // If we have waypoints planned, this might mean "Reset" or "Start". 
-                // If no waypoints, do nothing (already selected).
-                // User Requirement: "Confirm movement" logic. 
-                // Usually confirm is clicking the destination again or a button.
-                // Let's implement: Click Destination -> Adds Waypoint. Click SAME Destination AGAIN -> Confirm.
+                // Confirm logic (unchanged)
             }
         } else if (this.selectedPlayerId) {
             // Empty Square Click

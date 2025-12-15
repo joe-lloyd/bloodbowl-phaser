@@ -20,6 +20,15 @@ export enum ActionType {
 /**
  * Block dice results
  */
+export interface BlockAnalysis {
+  diceCount: number; // 1, 2, or 3
+  isUphill: boolean; // If true, Defender chooses result (Red Dice)
+  attackerST: number;
+  defenderST: number;
+  attackerAssists: Player[];
+  defenderAssists: Player[];
+}
+
 export enum BlockResult {
   ATTACKER_DOWN = "Attacker Down",
   BOTH_DOWN = "Both Down",

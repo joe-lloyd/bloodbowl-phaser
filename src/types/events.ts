@@ -145,6 +145,13 @@ export interface UIEvents {
     // Player Info
     'ui:showPlayerInfo': Player;
     'ui:hidePlayerInfo': void;
+
+    // Block
+    'ui:blockDialog': {
+        attackerId: string;
+        defenderId: string;
+        analysis: import('./Actions').BlockAnalysis;
+    };
 }
 
 /**

@@ -13,6 +13,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 
 import { DiceLog } from './DiceLog';
 import { PlayerInfoPanel } from './PlayerInfoPanel';
+import { BlockDiceDialog } from './BlockDiceDialog';
 
 interface GameHUDProps {
     eventBus: EventBus;
@@ -134,6 +135,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
             <CoinFlipOverlay eventBus={eventBus} />
             <SetupControls eventBus={eventBus} />
             <ConfirmationModal eventBus={eventBus} />
+            <BlockDiceDialog eventBus={eventBus} />
 
             {/* Dice Log (Bottom Left) */}
             <DiceLog eventBus={eventBus} />
