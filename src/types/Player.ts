@@ -98,12 +98,15 @@ export interface PlayerTemplate {
 }
 
 export enum RaceKeyWord {
+  BEASTMAN = "Beastman",
   HUMAN = "Human",
   GOBLIN = "Goblin",
   ORC = "Orc",
   TROLL = "Troll",
   ELF = "Elf",
   DWARF = "Dwarf",
+  OGRE = "Ogre",
+  MINOTAUR = "Minotaur",
 }
 
 export enum PositionKeyWord {

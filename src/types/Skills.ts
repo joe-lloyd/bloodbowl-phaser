@@ -44,6 +44,7 @@ export enum SkillType {
   THICK_SKULL = "Thick Skull",
   DEFENSIVE = "Defensive",
   BRAWLER = "Brawler",
+  ARM_BAR = "Arm Bar",
 
   // Passing skills
   PASS = "Pass",
@@ -55,6 +56,9 @@ export enum SkillType {
   HIT_AND_RUN = "Hit and Run",
   JUMP_UP = "Jump Up",
   NERVES_OF_STEEL = "Nerves of Steel",
+
+  // Mutation skills
+  HORNS = "Horns",
 
   // Special skills
   FRENZY = "Frenzy",
@@ -69,6 +73,9 @@ export enum SkillType {
   REALLY_STUPID = "Really Stupid",
   STEADY_FOOTING = "Steady Footing",
   PROJECTILE_VOMIT = "Projectile Vomit",
+  LONER_4 = "Loner 4+",
+  BONE_HEAD = "Bone Head",
+  UNCHANNELLED_FURY = "Unchained Fury",
 }
 
 /**
@@ -91,6 +98,18 @@ export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
     description: "placeholer",
     providesReroll: true,
   },
+  [SkillType.LONER_4]: {
+    type: SkillType.LONER_4,
+    category: SkillCategory.PASSING,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.BONE_HEAD]: {
+    type: SkillType.BONE_HEAD,
+    category: SkillCategory.MUTATION,
+    description: "placeholer",
+    providesReroll: true,
+  },
   [SkillType.BRAWLER]: {
     type: SkillType.BRAWLER,
     category: SkillCategory.STRENGTH,
@@ -106,6 +125,12 @@ export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
   [SkillType.NERVES_OF_STEEL]: {
     type: SkillType.NERVES_OF_STEEL,
     category: SkillCategory.PASSING,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.ARM_BAR]: {
+    type: SkillType.ARM_BAR,
+    category: SkillCategory.STRENGTH,
     description: "placeholer",
     providesReroll: true,
   },
@@ -174,6 +199,18 @@ export const SKILL_DEFINITIONS: Record<SkillType, Skill> = {
     category: SkillCategory.GENERAL,
     description: "+1 to armor and injury rolls",
     providesReroll: false,
+  },
+  [SkillType.UNCHANNELLED_FURY]: {
+    type: SkillType.UNCHANNELLED_FURY,
+    category: SkillCategory.MUTATION,
+    description: "placeholer",
+    providesReroll: true,
+  },
+  [SkillType.HORNS]: {
+    type: SkillType.HORNS,
+    category: SkillCategory.MUTATION,
+    description: "placeholer",
+    providesReroll: true,
   },
   [SkillType.TACKLE]: {
     type: SkillType.TACKLE,

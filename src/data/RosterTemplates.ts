@@ -4,7 +4,7 @@
  */
 
 import { RaceKeyWord, PositionKeyWord, TraitKeyWord, PlayerTemplate } from "../types/Player";
-import { League, TeamRoster, TeamSpecialRule, RosterName } from "../types/Team";
+import { League, TeamRoster, TeamSpecialRule, RosterName, AdditionalRule } from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
 
 const AMAZON_ROSTER: TeamRoster = {
@@ -12,6 +12,7 @@ const AMAZON_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.LUSTRIAN_SUPERLEAGUE],
   specialRules: [],
+  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -65,6 +66,7 @@ const BLACK_ORC_ROSTER: TeamRoster = {
   rosterName: RosterName.BLACK_ORC,
   rerollCost: 60_000,
   leagues: [League.BADLANDS_BRAWL],
+  additionalRules: [],
   specialRules: [TeamSpecialRule.BRAWLIN_BRUTES, TeamSpecialRule.BRIBERY_AND_CORRUPTION],
   tier: 1,
   apothecary: true,
@@ -110,6 +112,7 @@ const BRETONIAN_ROSTER: TeamRoster = {
   rerollCost: 60_000,
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
+  additionalRules: [],
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -157,6 +160,68 @@ const BRETONIAN_ROSTER: TeamRoster = {
 }
 
 
+const CHAOS_CHOSEN_ROSTER: TeamRoster = {
+  rosterName: RosterName.CHAOS_CHOSEN,
+  rerollCost: 50_000,
+  leagues: [League.CHAOS_CLASH],
+  specialRules: [TeamSpecialRule.FAVOURED_OF],
+  additionalRules: [AdditionalRule.FAVOURED_OF, AdditionalRule.ONLY_ALLOWED_ONE_BIG_GUY],
+  tier: 1,
+  apothecary: true,
+  playerTemplates: [
+    {
+      positionName: "Beastmen",
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.BEASTMAN],
+      cost: 55_000,
+      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 9 },
+      skills: [getSkill(SkillType.HORNS), getSkill(SkillType.THICK_SKULL)],
+      maxAllowed: 16,
+      primary: [SkillCategory.GENERAL, SkillCategory.MUTATION],
+      secondary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS, SkillCategory.PASSING, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Chaos Chosen",
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.HUMAN],
+      cost: 100_000,
+      stats: { MA: 5, ST: 4, AG: 5, PA: 5, AV: 10 },
+      skills: [getSkill(SkillType.ARM_BAR)],
+      maxAllowed: 4,
+      primary: [SkillCategory.GENERAL, SkillCategory.MUTATION, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
+    },
+    {
+      positionName: "Chaos Troll",
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.TROLL],
+      cost: 115_000,
+      stats: { MA: 4, ST: 5, AG: 5, PA: 5, AV: 10 },
+      skills: [getSkill(SkillType.ALWAYS_HUNGRY), getSkill(SkillType.LONER_4), getSkill(SkillType.MIGHTY_BLOW), getSkill(SkillType.PROJECTILE_VOMIT), getSkill(SkillType.REALLY_STUPID), getSkill(SkillType.REGENERATION), getSkill(SkillType.THROW_TEAMMATE)],
+      maxAllowed: 1,
+      primary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL, SkillCategory.PASSING],
+    },
+    {
+      positionName: "Chaos Ogre",
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.OGRE],
+      cost: 140_000,
+      stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
+      skills: [getSkill(SkillType.BONE_HEAD), getSkill(SkillType.LONER_4), getSkill(SkillType.MIGHTY_BLOW), getSkill(SkillType.THICK_SKULL), getSkill(SkillType.THROW_TEAMMATE)],
+      maxAllowed: 1,
+      primary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+    },
+    {
+      positionName: "Minotaur",
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.MINOTAUR],
+      cost: 150_000,
+      stats: { MA: 5, ST: 5, AG: 4, PA: 6, AV: 9 },
+      skills: [getSkill(SkillType.FRENZY), getSkill(SkillType.HORNS), getSkill(SkillType.LONER_4), getSkill(SkillType.MIGHTY_BLOW), getSkill(SkillType.THICK_SKULL), getSkill(SkillType.UNCHANNELLED_FURY)],
+      maxAllowed: 1,
+      primary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL, SkillCategory.PASSING],
+    },
+  ],
+}
+
 /**
  * Get roster template by race
  */
@@ -168,8 +233,10 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
       return BLACK_ORC_ROSTER;
     case RosterName.BRETONIAN:
       return BRETONIAN_ROSTER;
+    case RosterName.CHAOS_CHOSEN:
+      return CHAOS_CHOSEN_ROSTER;
     default:
-      return AMAZON_ROSTER; // Default to Amazon
+      throw new Error(`Invalid roster name: ${rosterName}`);
   }
 }
 
@@ -177,7 +244,7 @@ export function getRosterByRosterName(rosterName: RosterName): TeamRoster {
  * Get all available roster names
  */
 export function getAvailableRosterNames(): RosterName[] {
-  return [RosterName.AMAZON, RosterName.BLACK_ORC, RosterName.BRETONIAN];
+  return [RosterName.AMAZON, RosterName.BLACK_ORC, RosterName.BRETONIAN, RosterName.CHAOS_CHOSEN];
 }
 
 /**

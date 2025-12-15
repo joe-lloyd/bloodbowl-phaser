@@ -41,8 +41,8 @@ export enum RosterName {
 
 export enum League {
   BADLANDS_BRAWL = "Badlands Brawl",
+  CHAOS_CLASH = "Chaos Clash",
   LUSTRIAN_SUPERLEAGUE = "Lustrian Superleague",
-  FAVoured_OF = "Favoured of",
   ELVEN_KINGDOMS_LEAGUE = "Elven Kingdoms League",
   OLD_WORLD_CLASSIC = "Old World Classic",
   WORLDS_EDGE_SUPERLEAGUE = "Worlds Edge Superleague",
@@ -52,6 +52,12 @@ export enum TeamSpecialRule {
   BRAWLIN_BRUTES = "Brawlin' Brutes",
   BRIBERY_AND_CORRUPTION = "Bribery and Corruption",
   TEAM_CAPTAIN = "Team Captain",
+  FAVOURED_OF = "Favoured of",
+}
+
+export enum AdditionalRule {
+  FAVOURED_OF = "Favoured of",
+  ONLY_ALLOWED_ONE_BIG_GUY = "Only allowed one Big Guy",
 }
 
 /**
@@ -115,6 +121,7 @@ export interface TeamRoster {
   rerollCost: number;
   leagues: League[];
   specialRules: TeamSpecialRule[];
+  additionalRules: AdditionalRule[];
   tier: number;
   apothecary: boolean;
   playerTemplates: PlayerTemplate[];

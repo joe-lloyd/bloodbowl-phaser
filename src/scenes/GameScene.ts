@@ -24,7 +24,7 @@ import { GameplayInteractionController } from "../game/controllers/GameplayInter
 
 // Assets
 // Dynamic loading via import.meta.glob
-const assetFiles = import.meta.glob('../data/assets/**/*.{png,jpg,gif}', { eager: true, as: 'url' });
+const assetFiles = import.meta.glob('../data/assets/**/*.{png,jpg,gif}', { eager: true, query: '?url', import: 'default' });
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -103,7 +103,7 @@ export class GameScene extends Phaser.Scene {
 
         const key = `asset_${rosterKey}_${posKey}`;
         // console.log(`Loading Asset: ${key} -> ${path}`);
-        this.load.image(key, url);
+        this.load.image(key, url as string);
       }
     }
   }
