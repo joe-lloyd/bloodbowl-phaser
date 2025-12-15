@@ -57,10 +57,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
     };
 
     const handleSelectResult = (result: string) => {
-        eventBus.emit('ui:notification', `Result Selected: ${result}`);
-
-        // TODO: Call service to apply result
-        // gameService.applyBlockResult(data.attackerId, data.defenderId, result);
+        // Emit result to GameService
+        eventBus.emit('ui:blockResultSelected', {
+            attackerId: data.attackerId,
+            defenderId: data.defenderId,
+            result
+        });
 
         setIsOpen(false);
     };

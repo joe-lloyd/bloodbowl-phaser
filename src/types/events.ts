@@ -137,10 +137,22 @@ export interface UIEvents {
         cancelLabel?: string;
         risky?: boolean;
     };
+
+
     'ui:confirmationResult': {
         confirmed: boolean;
         actionId: string;
     };
+
+    // Block
+    'ui:blockResultSelected': {
+        attackerId: string;
+        defenderId: string;
+        result: string;
+    };
+
+    // Turnover Visuals
+    'ui:turnover': { teamId: string; reason: string };
 
     // Player Info
     'ui:showPlayerInfo': Player;

@@ -143,6 +143,12 @@ export interface IGameService {
     playerAction(playerId: string): boolean;
 
     /**
+     * Trigger a turnover
+     * Ends the turn after a delay
+     */
+    triggerTurnover(reason: string): void;
+
+    /**
      * Check if a player has acted this turn
      */
     hasPlayerActed(playerId: string): boolean;

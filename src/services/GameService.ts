@@ -599,6 +599,20 @@ export class GameService implements IGameService {
         });
     }
 
+    triggerTurnover(reason: string): void {
+        console.log(`[GameService] TURNOVER! Reason: ${reason}`);
+
+        // 1. Emit Visualization Event
+        this.eventBus.emit('ui:turnover', { teamId: this.state.activeTeamId || '', reason });
+        this.eventBus.emit('turnover', { teamId: this.state.activeTeamId || '' });
+
+        // 2. Clear any pending states (e.g. movement paths) - Optional, UI should handle
+        // 3. Wait for animation/display
+        setTimeout(() => {
+            this.endTurn();
+        }, 3000); // 3 seconds to show BIG text
+    }
+
     blockPlayer(attackerId: string, defenderId: string): { success: boolean; result?: string } {
         if (this.state.phase !== GamePhase.PLAY) return { success: false, result: 'Not in Play phase' };
 
@@ -965,16 +979,14 @@ export class GameService implements IGameService {
                     console.log("GFI FAILED! Player trips.");
                     player.status = PlayerStatus.PRONE; // Simplified Knockdown
                     this.eventBus.emit('playerStatusChanged', player);
-                    this.eventBus.emit('turnover', { teamId: player.teamId });
+
+                    // Use Centralized Turnover with visual
+                    this.triggerTurnover("Failed GFI");
 
                     completedPath.push(step);
 
-                    // Force End Activation on Turnover
-                    this.finishActivation(playerId);
-                    // Also End Turn? Turnovers usually end turns.
-                    // finishActivation doesn't necessarily end turn unless no players left?
-                    // Turnover logic should trigger endTurn immediately usually.
-                    // For now, let's just mark activation used.
+                    // Stop processing movement
+                    break;
                 } else {
                     currentPos = step;
                     completedPath.push(step);
