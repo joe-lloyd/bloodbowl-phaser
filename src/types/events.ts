@@ -62,7 +62,13 @@ export interface GameEvents {
         finalY: number;
     };
     'kickoffResult': { roll: number; event: string };
-    'ballPickup': { playerId: string; success: boolean; roll: number; target: number };
+    'ballPickup': {
+        playerId: string;
+        success: boolean;
+        roll: number;
+        target: number;
+    };
+    'weatherChanged': string;
 
     // Game Flow
     'diceRoll': {
