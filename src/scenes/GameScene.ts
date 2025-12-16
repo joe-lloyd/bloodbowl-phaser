@@ -372,9 +372,10 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // Delegate to orchestrator
+  // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
   public startSetupPhase(): void {
-    this.orchestrator.startSetupPhase();
+    this.isSetupActive = true;
+    this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
   }
 
   // Delegate to orchestrator

@@ -1,10 +1,10 @@
 import { GameScene } from "./GameScene";
-import { SCENARIOS } from "../data/scenarios";
 import { TestTeamFactory } from "../game/controllers/TestTeamFactory";
 import { RosterName } from "../types/Team";
 import { Team } from "../types/Team";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { ScenarioLoader } from "../services/ScenarioLoader";
+import { SCENARIOS } from "../data/scenarios";
 
 export class SandboxScene extends GameScene {
     constructor() {
@@ -90,21 +90,11 @@ export class SandboxScene extends GameScene {
         }
     }
 
-    // Override standard setup to load the default scenario
+    // Override standard setup to skip coin flip in sandbox mode
     public startSetupPhase(): void {
-        const defaultScenario = SCENARIOS.find(s => s.id === 'basic-scrimmage');
-        if (defaultScenario) {
-            // Add small delay to ensure everything is ready
-            this.time.delayedCall(100, () => {
-                const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
-                loader.load(defaultScenario);
-
-                // Refresh GameService reference as it has been re-instantiated
-                const container = ServiceContainer.getInstance();
-                this.gameService = container.gameService;
-
-                this.eventBus.emit('ui:notification', "Sandbox Mode Started");
-            });
-        }
+        // In sandbox mode, skip the coin flip and just wait for user to load a scenario
+        // Don't auto-load any scenario - let user choose via UI
+        this.isSetupActive = false; // Don't show setup controls
+        this.eventBus.emit('ui:notification', "Sandbox Mode - Load a scenario to begin");
     }
 }

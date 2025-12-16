@@ -199,13 +199,11 @@ export class SceneOrchestrator {
 
     /**
      * Start the setup phase (coin flip)
+     * Delegates to scene to allow overrides (e.g., SandboxScene skips coin flip)
      */
     public startSetupPhase(): void {
-        this.scene.isSetupActive = true;
-        this.eventBus.emit("ui:startCoinFlip", {
-            team1: this.scene.team1,
-            team2: this.scene.team2
-        });
+        // Call scene's startSetupPhase to allow overrides
+        this.scene.startSetupPhase();
     }
 
     /**
