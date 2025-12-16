@@ -44,13 +44,14 @@ export class ScenarioLoader {
         });
 
         // 2. Construct GameState
+        // For Sandbox mode, we want to skip setup and go straight to Turn 1
         const initialState: GameState = {
             phase: scenario.setup.phase,
             subPhase: scenario.setup.subPhase,
             activeTeamId: scenario.setup.activeTeam === 'team1' ? this.team1.id : this.team2.id,
             turn: {
                 teamId: scenario.setup.activeTeam === 'team1' ? this.team1.id : this.team2.id,
-                turnNumber: 0,
+                turnNumber: 1, // Start at Turn 1 for immediate play
                 isHalf2: false,
                 activatedPlayerIds: new Set(),
                 hasBlitzed: false,
@@ -71,8 +72,23 @@ export class ScenarioLoader {
         ServiceContainer.reset();
         ServiceContainer.initialize(this.eventBus, this.team1, this.team2, initialState);
 
-        // 4. Trigger UI Refresh
+        // 4. Trigger UI Refresh and Turn Start
         this.eventBus.emit('gameStateRestored', initialState);
+
+        // Emit phase change to update UI
+        this.eventBus.emit('phaseChanged', {
+            phase: initialState.phase,
+            subPhase: initialState.subPhase,
+            activeTeamId: initialState.activeTeamId
+        });
+
+        // Emit turn started to initialize turn state in UI
+        this.eventBus.emit('turnStarted', {
+            teamId: initialState.turn.teamId,
+            turnNumber: initialState.turn.turnNumber,
+            isHalf2: initialState.turn.isHalf2
+        });
+
         this.eventBus.emit('refreshBoard');
 
         // Emit placements for UI

@@ -47,7 +47,7 @@ export function App({ eventBus }: AppProps) {
         setCurrentScene('GameScene');
     });
 
-    const isInGame = currentScene === 'GameScene';
+    const isInGame = currentScene === 'GameScene' || currentScene === 'SandboxScene';
 
     return (
         <div className={`w-full h-full ${isInGame ? 'pointer-events-none' : 'pointer-events-auto'}`}>
