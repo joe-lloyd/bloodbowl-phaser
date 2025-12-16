@@ -51,4 +51,6 @@ export interface GameState {
   activeTeamId: string | null;
   turn: TurnData;
   score: { [key: string]: number };
+  weather: string; // "Nice", "Pouring Rain", etc.
+  ballPosition: { x: number, y: number } | null;
 }

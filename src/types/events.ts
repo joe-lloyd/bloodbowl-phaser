@@ -50,19 +50,21 @@ export interface GameEvents {
     // Scoring
     'touchdown': { teamId: string; score: number };
 
-    // Ball & Kickoff
+    // Ball
+    'ballPlaced': { x: number; y: number };
     'ballKicked': {
         playerId: string;
         targetX: number;
         targetY: number;
-        direction?: number;
-        distance?: number;
-        finalX?: number;
-        finalY?: number;
+        direction: number;
+        distance: number;
+        finalX: number;
+        finalY: number;
     };
     'kickoffResult': { roll: number; event: string };
+    'ballPickup': { playerId: string; success: boolean; roll: number; target: number };
 
-    // Dice
+    // Game Flow
     'diceRoll': {
         rollType: string;     // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
         diceType: string;     // e.g. "2d6", "d6", "Block"
@@ -76,7 +78,6 @@ export interface GameEvents {
     // Sandbox
     'gameStateRestored': GameState;
     'refreshBoard': void;
-    'ballPlaced': { x: number; y: number };
 }
 
 /**

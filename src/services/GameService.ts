@@ -65,6 +65,8 @@ export class GameService implements IGameService {
                 [team1.id]: 0,
                 [team2.id]: 0,
             },
+            weather: 'Nice',
+            ballPosition: null
         };
     }
 
@@ -328,6 +330,9 @@ export class GameService implements IGameService {
 
         const finalX = targetX + (dx * distance);
         const finalY = targetY + (dy * distance);
+
+        // Update Game State!
+        this.state.ballPosition = { x: finalX, y: finalY };
 
         this.eventBus.emit('ballKicked', {
             playerId,
@@ -767,6 +772,7 @@ export class GameService implements IGameService {
 
         // Ball Position
         if (scenario.setup.ballPosition) {
+            this.state.ballPosition = scenario.setup.ballPosition;
             this.eventBus.emit('ballPlaced', scenario.setup.ballPosition);
         }
 
@@ -909,15 +915,6 @@ export class GameService implements IGameService {
         const player = this.getPlayerById(playerId);
         if (!player) return Promise.reject('Player not found!');
 
-        // Mark as activated IMMEDIATELY upon committing to move?
-        // NO. User wants partial activations.
-        // We track "Acting Player" state implicitly by them being selected and having taken an action?
-        // Or we just update movementUsed.
-
-        // Standard Blood Bowl: Once you start a Move Action, you are committed.
-        // You cannot switch to another player until this one ends.
-        // So we strictly don't need to "Mark Activated" yet, but we are "In Action".
-
         const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
         const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
 
@@ -945,6 +942,14 @@ export class GameService implements IGameService {
 
         // Calculate Steps + Previous Usage
         const preUsed = this.getMovementUsed(playerId);
+
+        // Check if starting with ball
+        let holdingBall = false;
+        if (this.state.ballPosition && player.gridPosition &&
+            this.state.ballPosition.x === player.gridPosition.x &&
+            this.state.ballPosition.y === player.gridPosition.y) {
+            holdingBall = true;
+        }
 
         for (const step of path) {
             if (failed) break;
@@ -984,16 +989,34 @@ export class GameService implements IGameService {
                     this.triggerTurnover("Failed GFI");
 
                     completedPath.push(step);
-
-                    // Stop processing movement
                     break;
-                } else {
-                    currentPos = step;
-                    completedPath.push(step);
                 }
-            } else {
-                currentPos = step;
-                completedPath.push(step);
+            }
+
+            // Move successful so far
+            currentPos = step;
+            completedPath.push(step);
+
+            // Check for ball pickup (if not already holding)
+            if (!holdingBall && this.state.ballPosition &&
+                currentPos.x === this.state.ballPosition.x &&
+                currentPos.y === this.state.ballPosition.y) {
+
+                // Attempt Pickup
+                const pickupSuccess = this.attemptPickup(player, currentPos);
+                if (pickupSuccess) {
+                    holdingBall = true;
+                } else {
+                    failed = true;
+                    // Pickup Failed -> Turnover (triggered inside attemptPickup)
+                    break;
+                }
+            }
+
+            // Move ball if holding
+            if (holdingBall) {
+                this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
+                this.eventBus.emit('ballPlaced', { x: currentPos.x, y: currentPos.y });
             }
         }
 
@@ -1014,9 +1037,61 @@ export class GameService implements IGameService {
             this.finishActivation(playerId);
         }
 
-        // If Failed GFI, we already finished activation and maybe turnover.
-
         return Promise.resolve();
+    }
+
+    attemptPickup(player: Player, position: { x: number, y: number }): boolean {
+        // 1. Calculate Target (AG)
+        // AG 3 means 3+ to succeed.
+        let target = player.stats.AG;
+
+        // 2. Modifiers
+        // -1 per Enemy Tackle Zone on the ball square
+        const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
+        let standingEnemies = 0;
+        oppTeam.players.forEach(p => {
+            if (p.status === PlayerStatus.ACTIVE && p.gridPosition) {
+                const dx = Math.abs(p.gridPosition.x - position.x);
+                const dy = Math.abs(p.gridPosition.y - position.y);
+                if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) {
+                    standingEnemies++;
+                }
+            }
+        });
+
+        // Modifier applied to the ROLL
+        const modifier = -standingEnemies;
+
+        // 3. Roll
+        const d6 = Math.floor(Math.random() * 6) + 1;
+        const finalRoll = d6 + modifier;
+        const success = (d6 !== 1) && (d6 === 6 || finalRoll >= target);
+
+        console.log(`[Pickup] AG: ${target}+, Mod: ${modifier}, Roll: ${d6}, Final: ${finalRoll} -> ${success ? "SUCCESS" : "FAIL"}`);
+
+        this.eventBus.emit('diceRoll', {
+            rollType: 'Agility (Pickup)',
+            diceType: 'd6',
+            value: d6,
+            total: finalRoll,
+            description: `Pickup Roll (Target ${target}+): ${success ? 'Success' : 'FAILURE'} (Mod: ${modifier})`,
+            passed: success
+        });
+
+        this.eventBus.emit('ballPickup', {
+            playerId: player.id,
+            success,
+            roll: d6,
+            target
+        });
+
+        if (!success) {
+            console.log("PICKUP FAILED -> TURNOVER");
+            this.triggerTurnover("Failed Pickup");
+            return false;
+        }
+
+        return true;
     }
 
     public getTeam(teamId: string): Team | undefined {
@@ -1025,3 +1100,4 @@ export class GameService implements IGameService {
         return undefined;
     }
 }
+
