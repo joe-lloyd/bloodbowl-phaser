@@ -12,7 +12,6 @@ import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { ActionValidator } from '../game/validators/ActionValidator.js';
 import { ActivationValidator } from '../game/validators/ActivationValidator.js';
-import { Scenario } from '@/types/Scenario';
 
 
 import { SetupManager } from './logic/SetupManager';
@@ -42,12 +41,13 @@ export class GameService implements IGameService {
     constructor(
         private eventBus: IEventBus,
         team1: Team,
-        team2: Team
+        team2: Team,
+        initialState?: GameState
     ) {
         this.team1 = team1;
         this.team2 = team2;
 
-        this.state = {
+        this.state = initialState || {
             phase: GamePhase.SETUP,
             subPhase: SubPhase.WEATHER, // Start with Weather
             activeTeamId: null,
@@ -69,6 +69,13 @@ export class GameService implements IGameService {
             weather: 'Nice',
             ballPosition: null
         };
+
+        // If starting a fresh game (no initial state), ensure teams are clean
+        // This prevents dirty state from previous sessions (e.g. Sandbox) leaking in
+        if (!initialState) {
+            SetupManager.sanitizeTeam(team1);
+            SetupManager.sanitizeTeam(team2);
+        }
 
         // Initialize Managers
         this.weatherService = new WeatherService(eventBus, this.state);
@@ -325,99 +332,7 @@ export class GameService implements IGameService {
     }
 
     // ===== Private Helper Methods =====
-
-    // ===== Sandbox / Scenario Methods =====
-
-    loadScenario(scenario: Scenario): void {
-        this.resetInternalState();
-
-        // Set Phase
-        this.state.phase = scenario.setup.phase;
-        this.state.subPhase = scenario.setup.subPhase;
-        // Force active team
-        this.state.activeTeamId = scenario.setup.activeTeam === 'team1' ? this.team1.id : this.team2.id;
-
-        // Setup internal trackers for phases
-        if (scenario.setup.activeTeam === 'team1') {
-            this.state.turn.teamId = this.team1.id;
-        } else {
-            this.state.turn.teamId = this.team2.id;
-        }
-
-        this.eventBus.emit('phaseChanged', { phase: this.state.phase, subPhase: this.state.subPhase });
-
-        // Reset all players to Reserve
-        const resetTeam = (team: Team) => {
-            team.players.forEach(p => {
-                p.status = PlayerStatus.RESERVE;
-                p.gridPosition = undefined;
-                p.hasActed = false;
-            });
-            // SetupManager reset handles placedPlayers
-            this.setupManager.reset();
-        };
-        resetTeam(this.team1);
-        resetTeam(this.team2);
-
-        // Apply Placements
-        scenario.setup.team1Placements.forEach(p => {
-            const player = this.team1.players[p.playerIndex];
-            if (player) {
-                // Direct set via Manager (we might need a forced method in Manager or just placePlayer?)
-                // placePlayer validates... Sandbox should maybe force.
-                // For now, let's use placePlayer but we must trick valid phase?
-                // Or expose a 'forcePlace' in Manager.
-                // Actually SetupManager has setPlacedPlayer for this.
-                player.gridPosition = { x: p.x, y: p.y };
-                player.status = p.status || PlayerStatus.ACTIVE;
-                this.setupManager.setPlacedPlayer(player.id, p.x, p.y);
-                this.eventBus.emit('playerPlaced', { playerId: player.id, x: p.x, y: p.y });
-            }
-        });
-
-        scenario.setup.team2Placements.forEach(p => {
-            const player = this.team2.players[p.playerIndex];
-            if (player) {
-                player.gridPosition = { x: p.x, y: p.y };
-                player.status = p.status || PlayerStatus.ACTIVE;
-                this.setupManager.setPlacedPlayer(player.id, p.x, p.y);
-                this.eventBus.emit('playerPlaced', { playerId: player.id, x: p.x, y: p.y });
-            }
-        });
-
-        // Ball Position
-        if (scenario.setup.ballPosition) {
-            this.state.ballPosition = scenario.setup.ballPosition;
-            this.eventBus.emit('ballPlaced', scenario.setup.ballPosition);
-        }
-
-        this.eventBus.emit('refreshBoard');
-    }
-
-    private resetInternalState(): void {
-        this.turnManager.reset();
-        this.setupManager.reset();
-
-        this.state.score = {
-            [this.team1.id]: 0,
-            [this.team2.id]: 0,
-        };
-
-        // Reset turn data
-        this.state.turn = {
-            teamId: '',
-            turnNumber: 0,
-            isHalf2: false,
-            activatedPlayerIds: new Set(),
-            hasBlitzed: false,
-            hasPassed: false,
-            hasHandedOff: false,
-            hasFouled: false,
-            movementUsed: new Map(),
-        };
-    }
-    // Helpers moved to Managers
-
+    // Scenario loading delegated to ScenarioLoader service
 
     public getPlayerById(playerId: string): Player | undefined {
         return (

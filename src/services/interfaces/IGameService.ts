@@ -206,8 +206,5 @@ export interface IGameService {
      */
     movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
 
-    /**
-     * Load a scenario (Sandbox Mode)
-     */
-    loadScenario(scenario: import('../../types/Scenario').Scenario): void;
+
 }

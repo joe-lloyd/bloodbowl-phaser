@@ -4,6 +4,7 @@ import { TestTeamFactory } from "../game/controllers/TestTeamFactory";
 import { RosterName } from "../types/Team";
 import { Team } from "../types/Team";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { ScenarioLoader } from "../services/ScenarioLoader";
 
 export class SandboxScene extends GameScene {
     constructor() {
@@ -17,7 +18,6 @@ export class SandboxScene extends GameScene {
             ServiceContainer.initialize((window as any).eventBus, data.team1, data.team2);
             super.init(data as { team1: Team; team2: Team });
         } else {
-            console.log("Sandbox: No teams provided. Generating Default Test Teams.");
             const team1 = TestTeamFactory.createTestTeam(RosterName.AMAZON, "Test Amazon", 0x4169E1);
             const team2 = TestTeamFactory.createTestTeam(RosterName.BLACK_ORC, "Test Black Orcs", 0xDC143C);
 
@@ -45,7 +45,12 @@ export class SandboxScene extends GameScene {
         this.loadScenarioHandler = (data: { scenarioId: string }) => {
             const scenario = SCENARIOS.find(s => s.id === data.scenarioId);
             if (scenario) {
-                this.gameService.loadScenario(scenario);
+                const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
+                loader.load(scenario);
+
+                // Refresh GameScene state (Controllers, Sprites, Services)
+                this.reloadState();
+
                 this.eventBus.emit('ui:notification', `Loaded Scenario: ${scenario.name}`);
             }
         };
@@ -80,12 +85,17 @@ export class SandboxScene extends GameScene {
 
     // Override standard setup to load the default scenario
     protected startSetupPhase(): void {
-        console.log("Sandbox Mode: Skipping Setup, Loading Default Scenario...");
         const defaultScenario = SCENARIOS.find(s => s.id === 'basic-scrimmage');
         if (defaultScenario) {
             // Add small delay to ensure everything is ready
             this.time.delayedCall(100, () => {
-                this.gameService.loadScenario(defaultScenario);
+                const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
+                loader.load(defaultScenario);
+
+                // Refresh GameService reference as it has been re-instantiated
+                const container = ServiceContainer.getInstance();
+                this.gameService = container.gameService;
+
                 this.eventBus.emit('ui:notification', "Sandbox Mode Started");
             });
         }

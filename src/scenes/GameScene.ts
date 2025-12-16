@@ -65,6 +65,46 @@ export class GameScene extends Phaser.Scene {
   // Store handlers for cleanup
   private eventHandlers: Map<string, Function> = new Map();
 
+  /**
+   * Reload state from ServiceContainer (e.g. after Scenario Load)
+   */
+  public reloadState(): void {
+    const container = ServiceContainer.getInstance();
+    this.gameService = container.gameService;
+    this.eventBus = container.eventBus;
+
+    // Update Teams
+    const state = this.gameService.getState();
+    // We need to re-fetch teams from the service/container or re-pass them?
+    // ServiceContainer DOES NOT hold teams publicly, but GameService does.
+    // We should expose teams on GameService or Container?
+    // GameService has them private. let's assume reuse of init data OR passed data.
+    // BUT ScenarioLoader modified the teams passed to it.
+    // Since SandboxScene holds the team references, they are mutated in place. 
+    // So team1/team2 references might be valid, but we need to re-bind controllers.
+
+    // Cleanup old sprites
+    this.playerSprites.forEach(s => s.destroy());
+    this.playerSprites.clear();
+
+    if (this.ballSprite) {
+      this.ballSprite.destroy();
+      this.ballSprite = null;
+    }
+
+    // Re-initialize Controllers
+    if (this.gameplayController) this.gameplayController.destroy();
+    this.initializeControllers();
+
+    // Clear Pitch Highlights
+    this.pitch.clearHighlights();
+    this.pitch.clearHover();
+    this.pitch.clearPath();
+
+    // Refresh Display
+    this.refreshDugouts();
+  }
+
   constructor(key: string = "GameScene") {
     super({ key });
   }
@@ -225,6 +265,43 @@ export class GameScene extends Phaser.Scene {
     // Controller cleanup if needed
     if (this.gameplayController) {
       this.gameplayController.destroy();
+    }
+
+    // CRITICAL: Destroy all visual elements to prevent leaks between scenes
+    // Destroy player sprites
+    this.playerSprites.forEach(sprite => sprite.destroy());
+    this.playerSprites.clear();
+
+    // Destroy ball sprite
+    if (this.ballSprite) {
+      this.ballSprite.destroy();
+      this.ballSprite = null;
+    }
+
+    // Destroy dugouts (if they exist)
+    if (this.dugouts) {
+      this.dugouts.forEach(dugout => {
+        // Dugout is a Phaser Container, use destroy method
+        if (dugout && typeof dugout.destroy === 'function') {
+          dugout.destroy();
+        }
+      });
+      this.dugouts.clear();
+    }
+
+    // Destroy pitch (if it exists)
+    if (this.pitch) {
+      // Pitch is a custom class with a container, destroy the container
+      const container = this.pitch.getContainer();
+      if (container && typeof container.destroy === 'function') {
+        container.destroy();
+      }
+    }
+
+    // Clear placement controller
+    if (this.placementController) {
+      // PlacementController might not have a destroy method, just null it
+      this.placementController = null as any;
     }
   }
 

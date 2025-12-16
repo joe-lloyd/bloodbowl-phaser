@@ -19,7 +19,31 @@ export class SetupManager {
         private callbacks: {
             onKickoffRequested: () => void
         }
-    ) { }
+    ) {
+        // Sync placedPlayers from initial team state (for Scenario loading)
+        this.syncPlacedPlayers(team1);
+        this.syncPlacedPlayers(team2);
+    }
+
+    private syncPlacedPlayers(team: Team): void {
+        team.players.forEach(p => {
+            if (p.gridPosition) {
+                this.placedPlayers.set(p.id, { x: p.gridPosition.x, y: p.gridPosition.y });
+            }
+        });
+    }
+
+    /**
+     * Static utility: Sanitize team state - clear positions and reset status
+     * Used when starting a fresh game to prevent state leaks
+     */
+    public static sanitizeTeam(team: Team): void {
+        team.players.forEach(player => {
+            player.gridPosition = undefined;
+            player.status = PlayerStatus.RESERVE;
+            player.hasActed = false;
+        });
+    }
 
     public startSetup(startingTeamId?: string): void {
         this.state.phase = GamePhase.SETUP;

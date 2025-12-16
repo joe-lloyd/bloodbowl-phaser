@@ -31,14 +31,22 @@ export class TeamSelectionScene extends Phaser.Scene {
 
     // Listen for start game event from React UI
     this.eventBus.on('ui:startGame', (data: { team1: Team; team2: Team }) => {
-      console.log('TeamSelectionScene received ui:startGame event:', data);
+      // CRITICAL: Stop any running game scenes to prevent state leaks
+      // This ensures SandboxScene or previous GameScene instances are fully cleaned up
+      if (this.scene.isActive('SandboxScene')) {
+        this.scene.stop('SandboxScene');
+      }
+      if (this.scene.isActive('GameScene')) {
+        this.scene.stop('GameScene');
+      }
 
-      // Initialize Core Services
+      // Reset ServiceContainer to ensure clean state
+      ServiceContainer.reset();
+
+      // Initialize Core Services with fresh state
       ServiceContainer.initialize(this.eventBus, data.team1, data.team2);
-      console.log('ServiceContainer initialized');
 
       // Start Game Scene
-      console.log('Starting GameScene...');
       this.scene.start("GameScene", {
         team1: data.team1,
         team2: data.team2,
