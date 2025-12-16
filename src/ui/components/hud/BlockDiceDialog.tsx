@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EventBus } from '../../../services/EventBus';
 import { BlockAnalysis } from '../../../types/Actions';
+import { BlockResult, BlockRollData } from '../../../services/BlockResolutionService';
 
 interface BlockDiceDialogProps {
     eventBus: EventBus;
@@ -15,20 +16,27 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
     } | null>(null);
 
     const [isRolling, setIsRolling] = useState(false);
-    const [results, setResults] = useState<string[] | null>(null); // e.g., ['POW', 'PUSH']
+    const [rollData, setRollData] = useState<BlockRollData | null>(null);
 
     useEffect(() => {
         const onOpen = (payload: any) => {
             setData(payload);
-            setResults(null);
+            setRollData(null);
             setIsRolling(false);
             setIsOpen(true);
         };
 
+        const onDiceRolled = (payload: BlockRollData) => {
+            setRollData(payload);
+            setIsRolling(false);
+        };
+
         eventBus.on('ui:blockDialog', onOpen);
+        eventBus.on('blockDiceRolled', onDiceRolled);
 
         return () => {
             eventBus.off('ui:blockDialog', onOpen);
+            eventBus.off('blockDiceRolled', onDiceRolled);
         };
     }, [eventBus]);
 
@@ -39,24 +47,17 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
 
     const handleRoll = () => {
         setIsRolling(true);
-        setTimeout(() => {
-            // Mock Dice Roll
-            const newResults: string[] = [];
 
-            // Dice Faces: skull, both_down, push, push, stumble, pow
-            const faces = ['SKULL', 'BOTH_DOWN', 'PUSH', 'PUSH', 'STUMBLE', 'POW'];
-
-            for (let i = 0; i < diceCount; i++) {
-                const roll = Math.floor(Math.random() * 6);
-                newResults.push(faces[roll]);
-            }
-
-            setResults(newResults);
-            setIsRolling(false);
-        }, 800);
+        // Emit event to roll dice (GameService will handle it)
+        eventBus.emit('ui:rollBlockDice', {
+            attackerId: data.attackerId,
+            defenderId: data.defenderId,
+            numDice: diceCount,
+            isAttackerChoice: !isUphill
+        });
     };
 
-    const handleSelectResult = (result: string) => {
+    const handleSelectResult = (result: BlockResult) => {
         // Emit result to GameService
         eventBus.emit('ui:blockResultSelected', {
             attackerId: data.attackerId,
@@ -71,16 +72,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
         setIsOpen(false);
     };
 
-    // Helper to determine who chooses
-    // Standard: Attacker chooses
-    // Uphill: Defender chooses
-    // Logic: If result is chosen by Active Player (User), we enable buttons if it's NOT Uphill.
-    // If it IS Uphill, the AI (Defender) chooses... but for Hotseat, User chooses for Defender.
-    // So we always allow choice for now.
-
     return (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
-            <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[400px] text-white shadow-2xl">
+            <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
                 <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
                     BLOCK!
                 </h2>
@@ -109,22 +103,47 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
                 </div>
 
                 {/* Dice Results Area */}
-                {results ? (
-                    <div className="flex justify-center gap-4 mb-6">
-                        {results.map((res, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleSelectResult(res)}
-                                className="w-20 h-20 bg-slate-100 text-slate-900 font-bold rounded flex items-center justify-center hover:bg-yellow-400 hover:scale-110 transition-transform shadow-lg border-2 border-slate-400"
-                            >
-                                {res}
-                            </button>
-                        ))}
+                {rollData ? (
+                    <div className="mb-6">
+                        <div className="flex justify-center gap-4 mb-4">
+                            {rollData.results.map((result, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSelectResult(result)}
+                                    className="group relative hover:scale-110 transition-transform"
+                                    title={result.label}
+                                >
+                                    <img
+                                        src={result.icon}
+                                        alt={result.label}
+                                        className="w-20 h-20 rounded shadow-lg border-2 border-slate-400 group-hover:border-yellow-400 transition-colors"
+                                    />
+                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {result.label}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="text-center text-sm text-yellow-400 mt-8">
+                            Click a die to select result
+                        </div>
                     </div>
                 ) : (
                     <div className="flex justify-center mb-6 h-20 items-center">
                         {isRolling ? (
-                            <span className="animate-pulse text-yellow-500 font-bold text-xl">ROLLING...</span>
+                            <div className="flex gap-2">
+                                {Array.from({ length: diceCount }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="w-16 h-16 bg-slate-700 rounded border border-yellow-500 animate-spin"
+                                        style={{ animationDelay: `${i * 100}ms`, animationDuration: '600ms' }}
+                                    >
+                                        <div className="w-full h-full flex items-center justify-center text-yellow-400 font-bold">
+                                            ?
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex gap-2 opacity-50">
                                 {Array.from({ length: diceCount }).map((_, i) => (
@@ -143,7 +162,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) =>
                     >
                         Cancel
                     </button>
-                    {!results && (
+                    {!rollData && (
                         <button
                             onClick={handleRoll}
                             disabled={isRolling}

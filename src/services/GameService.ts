@@ -247,6 +247,18 @@ export class GameService implements IGameService {
         this.blockManager.previewBlock(attackerId, defenderId);
     }
 
+    rollBlockDice(attackerId: string, defenderId: string, numDice: number, isAttackerChoice: boolean): void {
+        this.blockManager.rollBlockDice(attackerId, defenderId, numDice, isAttackerChoice);
+    }
+
+    resolveBlock(attackerId: string, defenderId: string, result: any): void {
+        this.blockManager.resolveBlock(attackerId, defenderId, result);
+    }
+
+    executePush(defenderId: string, direction: { x: number; y: number }, resultType: string, followUp: boolean): void {
+        this.blockManager.executePush(defenderId, direction, resultType, followUp);
+    }
+
     triggerTurnover(reason: string): void {
         this.turnManager.checkTurnover(reason);
     }

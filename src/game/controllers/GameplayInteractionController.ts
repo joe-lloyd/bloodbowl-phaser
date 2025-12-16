@@ -22,6 +22,12 @@ export class GameplayInteractionController {
     private waypoints: { x: number, y: number }[] = [];
     private pendingMove: { playerId: string, path: { x: number, y: number }[] } | null = null;
 
+    // Push direction selection state
+    private pushSelectionActive: boolean = false;
+    private pushValidDirections: { x: number; y: number }[] = [];
+    private pushDefenderId: string = '';
+    private pushResultType: string = '';
+
     constructor(
         scene: GameScene,
         gameService: IGameService,
@@ -37,6 +43,11 @@ export class GameplayInteractionController {
 
         // Listen for confirmation
         this.eventBus.on('ui:confirmationResult', this.onConfirmationResult);
+
+        // Listen for push direction selection request
+        this.eventBus.on('ui:selectPushDirection', (data: any) => {
+            this.startPushDirectionSelection(data);
+        });
     }
 
     public handlePointerDown(pointer: Phaser.Input.Pointer, isSetupActive: boolean): void {
@@ -86,6 +97,11 @@ export class GameplayInteractionController {
     }
 
     private onSquareClicked(x: number, y: number): void {
+        // Check if we're selecting a push direction first
+        if (this.handlePushDirectionClick(x, y)) {
+            return; // Push direction was selected, done
+        }
+
         const phase = this.gameService.getPhase();
         const playerAtSquare = this.getPlayerAt(x, y);
 
@@ -544,6 +560,48 @@ export class GameplayInteractionController {
         const t1 = this.getSceneTeam1();
         const t2 = this.getSceneTeam2();
         return (myTeamId === t1.id) ? t2.players : t1.players;
+    }
+
+    /**
+     * Start push direction selection mode
+     */
+    private startPushDirectionSelection(data: any): void {
+        this.pushSelectionActive = true;
+        this.pushValidDirections = data.validDirections || [];
+        this.pushDefenderId = data.defenderId;
+        this.pushResultType = data.resultType || '';
+
+        // Highlight the valid push squares
+        this.pitch.clearHighlights();
+        this.pushValidDirections.forEach(dir => {
+            this.pitch.highlightSquare(dir.x, dir.y, 0xFFFF00); // Yellow highlight
+        });
+    }
+
+    /**
+     * Handle click on a push direction square
+     */
+    private handlePushDirectionClick(x: number, y: number): boolean {
+        if (!this.pushSelectionActive) return false;
+
+        // Check if clicked square is a valid push direction
+        const isValid = this.pushValidDirections.some(dir => dir.x === x && dir.y === y);
+
+        if (isValid) {
+            // Execute the push
+            this.gameService.executePush(this.pushDefenderId, { x, y }, this.pushResultType, false);
+
+            // Clear push selection state
+            this.pushSelectionActive = false;
+            this.pushValidDirections = [];
+            this.pushDefenderId = '';
+            this.pushResultType = '';
+            this.pitch.clearHighlights();
+
+            return true;
+        }
+
+        return false;
     }
 }
 

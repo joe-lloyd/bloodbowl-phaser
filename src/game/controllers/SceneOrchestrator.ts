@@ -195,6 +195,27 @@ export class SceneOrchestrator {
         };
         this.eventHandlers.set('kickoffStarted', onKickoffStarted);
         this.eventBus.on('kickoffStarted', onKickoffStarted);
+
+        // Block dice rolling
+        const onRollBlockDice = (data: { attackerId: string, defenderId: string, numDice: number, isAttackerChoice: boolean }) => {
+            this.gameService.rollBlockDice(data.attackerId, data.defenderId, data.numDice, data.isAttackerChoice);
+        };
+        this.eventHandlers.set('ui:rollBlockDice', onRollBlockDice);
+        this.eventBus.on('ui:rollBlockDice', onRollBlockDice);
+
+        // Block result selection
+        const onBlockResultSelected = (data: { attackerId: string, defenderId: string, result: any }) => {
+            this.gameService.resolveBlock(data.attackerId, data.defenderId, data.result);
+        };
+        this.eventHandlers.set('ui:blockResultSelected', onBlockResultSelected);
+        this.eventBus.on('ui:blockResultSelected', onBlockResultSelected);
+
+        // Push direction selection
+        const onSelectPushDirection = (data: { defenderId: string, direction: { x: number, y: number }, resultType: string, followUp: boolean }) => {
+            this.gameService.executePush(data.defenderId, data.direction, data.resultType, data.followUp);
+        };
+        this.eventHandlers.set('ui:selectPushDirection', onSelectPushDirection);
+        this.eventBus.on('ui:selectPushDirection', onSelectPushDirection);
     }
 
     /**
