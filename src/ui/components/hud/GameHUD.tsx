@@ -28,7 +28,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
         isTeam1Active: true,
         phase: GamePhase.SETUP // Default phase
     });
-    const [notifications, setNotifications] = useState<{ id: number, text: string }[]>([]);
+    const [notifications, setNotifications] = useState<{ id: string, text: string }[]>([]);
     const [showEndTurn, setShowEndTurn] = useState(false);
 
     // Initial State Load
@@ -49,56 +49,48 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
                         phase: state.phase
                     });
                 }
-
-                // Show end turn button if in Play phase
-                setShowEndTurn(state.phase === GamePhase.PLAY);
             }
         } catch (e) {
-            console.warn("GameService not ready yet");
+            console.error('GameService not ready yet');
         }
     }, []);
 
-    // Listeners
-    useEventBus(eventBus, 'turnStarted', (data) => {
-        const container = ServiceContainer.getInstance();
-        const activeTeam = container.gameService.getTeam(data.teamId);
-
-        if (activeTeam) {
-            setTurnData(prev => ({
-                ...prev,
-                turnNumber: data.turnNumber,
-                activeTeamName: activeTeam.name,
-                isTeam1Active: data.teamId === container.gameService.getActiveTeamId()
-            }));
-            addNotification(`Turn ${data.turnNumber}: ${activeTeam.name}`);
-        }
-    });
-
+    // Phase change listener
     useEventBus(eventBus, 'phaseChanged', (data) => {
-        setShowEndTurn(data.phase === GamePhase.PLAY);
+        setTurnData(prev => ({ ...prev, phase: data.phase }));
+    });
 
-        // Refresh state on phase change
+    // Turn started listener
+    useEventBus(eventBus, 'turnStarted', (turn) => {
         const container = ServiceContainer.getInstance();
-        const state = container.gameService.getState();
-        const activeTeam = container.gameService.getTeam(state.activeTeamId || '');
+        const activeTeam = container.gameService.getTeam(turn.teamId);
+
         if (activeTeam) {
-            setTurnData(prev => ({
-                ...prev,
+            setTurnData({
+                turnNumber: turn.turnNumber,
                 activeTeamName: activeTeam.name,
-                isTeam1Active: state.activeTeamId === 'team1' || state.activeTeamId === container.gameService.getTeam('team1')?.id,
-                phase: data.phase
-            }));
+                isTeam1Active: turn.teamId === 'team1', // Simplified - assumes team IDs are 'team1' and 'team2'
+                phase: container.gameService.getState().phase
+            });
         }
     });
 
-    useEventBus(eventBus, 'ui:showSetupControls', (data: any) => {
-        if (data.activeTeam) {
-            setTurnData(prev => ({
-                ...prev,
-                activeTeamName: data.activeTeam.name,
-                isTeam1Active: true // Simplified
-            }));
-        }
+    // Show end turn button when player moves
+    useEventBus(eventBus, 'playerMoved', () => {
+        setShowEndTurn(true);
+    });
+
+    // Hide end turn button when turn ends
+    useEventBus(eventBus, 'turnEnded', () => {
+        setShowEndTurn(false);
+    });
+
+    // Kickoff started listener
+    useEventBus(eventBus, 'kickoffStarted', () => {
+        setTurnData(prev => ({
+            ...prev,
+            phase: GamePhase.KICKOFF
+        }));
     });
 
     useEventBus(eventBus, 'ui:notification', (msg) => {
@@ -107,8 +99,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
 
     // Helper to add notification
     const addNotification = (text: string) => {
-        const id = Date.now();
-        setNotifications(prev => [...prev, { id, text }]);
+        const id = `${text}-${Date.now()}`;
+        setNotifications(prev => {
+            if (prev.some(n => n.id === id)) {
+                return prev;
+            }
+            return [...prev, { id, text }];
+        });
 
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== id));

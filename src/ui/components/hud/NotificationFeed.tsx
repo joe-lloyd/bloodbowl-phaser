@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface NotificationMessage {
-    id: number;
+    id: string;
     text: string;
     type?: 'info' | 'success' | 'warning' | 'error';
 }

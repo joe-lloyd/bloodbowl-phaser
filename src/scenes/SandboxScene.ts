@@ -62,6 +62,13 @@ export class SandboxScene extends GameScene {
         };
         this.eventBus.on('refreshBoard', this.refreshBoardHandler as any);
 
+        // Sandbox-specific: Allow unlimited player movement for testing
+        // Clear activation status after each move so players can be moved multiple times
+        this.eventBus.on('playerMoved', () => {
+            const state = this.gameService.getState();
+            state.turn.activatedPlayerIds.clear();
+        });
+
         this.ballPlacedHandler = (pos: { x: number, y: number }) => {
             this.placeBallVisual(pos.x, pos.y);
         };
@@ -84,7 +91,7 @@ export class SandboxScene extends GameScene {
     }
 
     // Override standard setup to load the default scenario
-    protected startSetupPhase(): void {
+    public startSetupPhase(): void {
         const defaultScenario = SCENARIOS.find(s => s.id === 'basic-scrimmage');
         if (defaultScenario) {
             // Add small delay to ensure everything is ready

@@ -21,6 +21,7 @@ import {
 import { pixelToGrid } from "../game/elements/GridUtils";
 import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
+import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 
 // Assets
 // Dynamic loading via import.meta.glob
@@ -46,6 +47,7 @@ export class GameScene extends Phaser.Scene {
   private validator!: SetupValidator;
   private formationManager!: FormationManager;
   private placementController!: PlayerPlacementController;
+  protected orchestrator!: SceneOrchestrator;
 
   // Logic
   private movementValidator!: MovementValidator;
@@ -181,7 +183,6 @@ export class GameScene extends Phaser.Scene {
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
 
-    this.initializeControllers();
     this.movementValidator = new MovementValidator();
 
     // Gameplay Controller
@@ -223,16 +224,17 @@ export class GameScene extends Phaser.Scene {
       this.onBackgroundClick();
     });
 
-    // 6. Setup Event Listeners
-    this.setupEventListeners();
+    this.initializeControllers();
 
-    // 7. Start Logic based on Phase
-    const state = this.gameService.getState();
-    if (state.phase === GamePhase.SETUP) {
-      this.startSetupPhase();
-    } else {
-      this.startPlayPhase();
-    }
+    // 6. Setup Orchestrator for game flow (AFTER controllers are ready)
+    this.orchestrator = new SceneOrchestrator(
+      this,
+      this.gameService,
+      this.eventBus
+    );
+    this.orchestrator.setupEventListeners();
+    this.setupSceneSpecificListeners(); // Setup-specific events
+    this.orchestrator.initialize();
 
     this.eventBus.on('playerActivated', (playerId: string) => {
       const sprite = this.playerSprites.get(playerId);
@@ -330,15 +332,6 @@ export class GameScene extends Phaser.Scene {
     this.formationManager = new FormationManager();
     this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
 
-    // React UI handles CoinFlip, listen for result from EventBus
-    this.eventBus.on("ui:coinFlipComplete", (data: { kickingTeam: Team, receivingTeam: Team }) => {
-      this.kickingTeam = data.kickingTeam;
-      this.receivingTeam = data.receivingTeam;
-
-      this.gameService.startSetup(this.kickingTeam.id);
-      this.startPlacement(SubPhase.SETUP_KICKING);
-    });
-
     // Handle late UI mounting (handshake)
     this.eventBus.on("ui:requestCoinFlipState", () => {
       if (this.isSetupActive) {
@@ -357,12 +350,12 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  protected startSetupPhase(): void {
+  public startSetupPhase(): void {
     this.isSetupActive = true;
     this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
   }
 
-  private startPlacement(subPhase: SubPhase): void {
+  public startPlacement(subPhase: SubPhase): void {
     const isKicking = subPhase === SubPhase.SETUP_KICKING;
     const activeTeam = isKicking ? this.kickingTeam : this.receivingTeam;
     const isTeam1 = activeTeam.id === this.team1.id;
@@ -378,43 +371,9 @@ export class GameScene extends Phaser.Scene {
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
   }
 
-  // Event Listeners
-  private setupEventListeners(): void {
-    const onPhaseChanged = (data: { phase: GamePhase, subPhase?: SubPhase, activeTeamId?: string }) => {
-      const { phase, subPhase } = data;
 
-      if (phase === GamePhase.SETUP) {
-        if (subPhase === SubPhase.SETUP_KICKING) {
-          this.startPlacement(SubPhase.SETUP_KICKING);
-        } else if (subPhase === SubPhase.SETUP_RECEIVING) {
-          this.startPlacement(SubPhase.SETUP_RECEIVING);
-        } else if (subPhase === SubPhase.COIN_FLIP) {
-          this.isSetupActive = true;
-          this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
-        }
-      } else if (phase === GamePhase.PLAY) {
-        this.startPlayPhase();
-      } else if (phase === GamePhase.KICKOFF) {
-        this.startKickoffPhase(subPhase);
-      }
-    };
-    this.eventBus.on("phaseChanged", onPhaseChanged);
-    this.eventHandlers.set("phaseChanged", onPhaseChanged);
-
-    const onTurnStarted = (turn: any) => {
-      // React HUD handles UI update via this same event
-      this.refreshDugouts();
-      this.eventBus.emit('ui:notification', `Turn ${turn.turnNumber}`);
-    };
-    this.eventHandlers.set("turnStarted", onTurnStarted);
-    this.eventBus.on("turnStarted", onTurnStarted);
-
-    const onTurnEnded = () => {
-      // React UI handles this
-    };
-    this.eventHandlers.set("turnEnded", onTurnEnded);
-    this.eventBus.on("turnEnded", onTurnEnded);
-
+  // Setup-specific event listeners (not handled by orchestrator)
+  private setupSceneSpecificListeners(): void {
     // Listen for UI Setup Actions
     const onSetupAction = (data: { action: string }) => {
       const state = this.gameService.getState();
@@ -456,7 +415,7 @@ export class GameScene extends Phaser.Scene {
     this.eventHandlers.set("ui:setupAction", onSetupAction);
     this.eventBus.on("ui:setupAction", onSetupAction);
 
-    // Listen for placement changes to update game state and dugouts
+    // Listen for placement changes
     this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
       this.gameService.placePlayer(data.playerId, data.x, data.y);
       this.refreshDugouts();
@@ -469,46 +428,12 @@ export class GameScene extends Phaser.Scene {
       this.checkSetupCompleteness();
     });
 
-    // Gameplay events - Handled by Service events or refresh
-    const onPlayerMoved = (data: { playerId: string, from: any, to: any, path?: any[] }) => {
-      // Animate movement if path provided
-      if (data.path && data.path.length > 0) {
-        const sprite = this.playerSprites.get(data.playerId);
-        if (sprite) {
-          // Convert grid path to pixel path
-          const pixelPath = data.path.map(step => this.pitch.getPixelPosition(step.x, step.y));
-          sprite.animateMovement(pixelPath).then(() => {
-            this.refreshDugouts(); // Sync state after animation (or keep safe)
-            this.checkSetupCompleteness();
-          });
-        } else {
-          this.refreshDugouts();
-        }
-      } else {
-        this.refreshDugouts(); // This updates sprite positions instantly
-      }
-      this.pitch.clearPath(); // Clear dots
-      this.pitch.clearHighlights();
-    };
-    this.eventHandlers.set("playerMoved", onPlayerMoved);
-    this.eventBus.on("playerMoved", onPlayerMoved);
-
-    const onKickoffStarted = () => {
-      this.eventBus.emit('ui:notification', "KICKOFF!");
-    };
-    this.eventHandlers.set("kickoffStarted", onKickoffStarted);
-    this.eventBus.on("kickoffStarted", onKickoffStarted);
-
+    // Kickoff-specific events
     const onBallKicked = (data: any) => {
-      console.log("ballKicked event received", data);
-
-      // 1. Find Kicker Position (Start of Arc)
       let startX = data.targetX;
       let startY = data.targetY;
 
-      // Try to find the kicker sprite
       if (data.playerId && this.playerSprites.has(data.playerId)) {
-        // We have the sprite, but we need the GRID pos for placeBallVisual
         const kickerPlayer = this.gameService.getPlayerById(data.playerId);
         if (kickerPlayer && kickerPlayer.gridPosition) {
           startX = kickerPlayer.gridPosition.x;
@@ -516,10 +441,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // 2. Spawn Ball at Kicker
       this.placeBallVisual(startX, startY);
-
-      // 3. Animate Kick (Kicker -> Target)
       const targetPos = this.pitch.getPixelPosition(data.targetX, data.targetY);
 
       this.tweens.add({
@@ -528,17 +450,12 @@ export class GameScene extends Phaser.Scene {
         y: targetPos.y,
         duration: 800,
         ease: 'Quad.easeOut',
-        // Optional: Add scale effect for "height"
         onStart: () => {
           this.ballSprite?.setScale(0.5);
         },
         yoyo: false,
-
-        // Using a second tween for scale arc (Up and Down)
-        // Simple hack: Just move Z/Scale
       });
 
-      // Simulate Arc Height
       this.tweens.add({
         targets: this.ballSprite,
         scaleX: 1.5,
@@ -548,18 +465,13 @@ export class GameScene extends Phaser.Scene {
         ease: 'Sine.easeOut'
       });
 
-      // Store scatter data for later animation (Phase 2)
       this.pendingKickoffData = data;
     };
     this.eventHandlers.set("ballKicked", onBallKicked);
     this.eventBus.on("ballKicked", onBallKicked);
 
     const onKickoffResult = (data: { roll: number, event: string }) => {
-      // 2. Show Roll
       this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
-      // this.diceLog.addLog(`Kickoff Table: ${data.roll} (${data.event})`);
-
-      // 3. Animate Scatter (after delay or immediately)
       if (this.pendingKickoffData) {
         this.animateBallScatter(this.pendingKickoffData);
         this.pendingKickoffData = null;
@@ -573,21 +485,14 @@ export class GameScene extends Phaser.Scene {
     };
     this.eventHandlers.set("readyToStart", onReadyToStart);
     this.eventBus.on("readyToStart", onReadyToStart);
-
-    // DiceLog listener removed (Handled by React UI now)
-    // this.eventBus.on("diceRoll", (data: { type: string, value: number, result: any }) => {
-    //   this.diceLog.addLog(`${data.type}: ${data.result}`);
-    // });
-
-    // Sandbox / Scenario Events are now handled in SandboxScene
   }
 
-  protected refreshDugouts(): void {
+  public refreshDugouts(): void {
     this.dugouts.forEach(d => d.refresh());
     this.placePlayersOnPitch();
   }
 
-  private startPlayPhase(): void {
+  public startPlayPhase(): void {
     this.isSetupActive = false;
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit("ui:hideSetupControls");
@@ -596,7 +501,7 @@ export class GameScene extends Phaser.Scene {
     this.placePlayersOnPitch();
   }
 
-  private startKickoffPhase(subPhase?: SubPhase): void {
+  public startKickoffPhase(subPhase?: SubPhase): void {
     this.isSetupActive = false;
     this.pitch.clearHighlights();
     this.eventBus.emit("ui:hideSetupControls");
