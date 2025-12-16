@@ -5,7 +5,7 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
 import { pixelToGrid } from "../elements/GridUtils";
-import { GamePhase } from "../../types/GameState";
+import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";
 
@@ -482,7 +482,50 @@ export class GameplayInteractionController {
     }
 
     private handleKickoffClick(x: number, y: number, playerAtSquare: any): void {
-        this.scene.handleKickoffInteraction(x, y, playerAtSquare);
+        const subPhase = this.gameService.getSubPhase();
+
+        if (subPhase === SubPhase.SETUP_KICKOFF) {
+            // If clicking on a player
+            if (playerAtSquare) {
+                // If own player -> Select/Switch Kicker
+                const kickingTeam = this.scene.kickingTeam;
+                if (playerAtSquare.teamId === kickingTeam.id) {
+                    // Unhighlight previous if exists
+                    if (this.selectedPlayerId && this.selectedPlayerId !== playerAtSquare.id) {
+                        this.scene.unhighlightPlayer(this.selectedPlayerId);
+                    }
+
+                    this.selectedPlayerId = playerAtSquare.id;
+                    this.scene.highlightPlayer(playerAtSquare.id);
+                    this.gameService.selectKicker(playerAtSquare.id);
+                    this.eventBus.emit('ui:notification', "Kicker Selected! Now choose target.");
+                    return;
+                }
+            }
+
+            // If clicking on a square (Target)
+            // Validate Target (Must be opponent half)
+            const isTeam1Kicking = this.scene.kickingTeam.id === this.scene.team1.id;
+            // Pitch width 20, minus the end zones its 18, divided by 3
+            // team one setup is 1-7, no mans land is 8-13, team two setup is 14-20
+            const isOpponentHalf = isTeam1Kicking ? (x >= 7) : (x <= 13);
+
+            if (!isOpponentHalf) {
+                // If they clicked an empty square in their own half
+                if (this.selectedPlayerId) {
+                    this.eventBus.emit('ui:notification', "Kick to opponent's half!");
+                }
+                return;
+            }
+
+            // If we have a selected kicker and clicked opponent half -> KICK!
+            if (this.selectedPlayerId) {
+                this.gameService.kickBall(this.selectedPlayerId, x, y);
+                this.selectedPlayerId = null; // Clear selection after kick
+            } else {
+                this.eventBus.emit('ui:notification', "Select a Kicker first!");
+            }
+        }
     }
 
     private getPlayerAt(x: number, y: number): Player | null {
@@ -503,4 +546,5 @@ export class GameplayInteractionController {
         return (myTeamId === t1.id) ? t2.players : t1.players;
     }
 }
+
 

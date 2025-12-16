@@ -60,7 +60,7 @@ export class GameScene extends Phaser.Scene {
   // State
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
-  private isSetupActive: boolean = false;
+  public isSetupActive: boolean = false;
   private pendingKickoffData: any = null;
   private ballSprite: Phaser.GameObjects.Container | null = null;
 
@@ -94,9 +94,31 @@ export class GameScene extends Phaser.Scene {
       this.ballSprite = null;
     }
 
-    // Re-initialize Controllers
+    // Destroy old controllers
     if (this.gameplayController) this.gameplayController.destroy();
+    if (this.orchestrator) this.orchestrator.destroy();
+
+    // Re-initialize Controllers with NEW service references
     this.initializeControllers();
+
+    // Reinitialize GameplayController with new service reference
+    this.gameplayController = new GameplayInteractionController(
+      this,
+      this.gameService,  // NEW reference
+      this.eventBus,
+      this.pitch,
+      this.movementValidator
+    );
+
+    // Reinitialize Orchestrator with new service reference
+    this.orchestrator = new SceneOrchestrator(
+      this,
+      this.gameService,  // NEW reference
+      this.eventBus
+    );
+    this.orchestrator.setupEventListeners();
+    this.setupSceneSpecificListeners(); // Re-setup scene-specific listeners
+    this.orchestrator.initialize();
 
     // Clear Pitch Highlights
     this.pitch.clearHighlights();
@@ -350,72 +372,33 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // Delegate to orchestrator
   public startSetupPhase(): void {
-    this.isSetupActive = true;
-    this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
+    this.orchestrator.startSetupPhase();
   }
 
+  // Delegate to orchestrator
   public startPlacement(subPhase: SubPhase): void {
-    const isKicking = subPhase === SubPhase.SETUP_KICKING;
-    const activeTeam = isKicking ? this.kickingTeam : this.receivingTeam;
-    const isTeam1 = activeTeam.id === this.team1.id;
+    this.orchestrator.startPlacement(subPhase);
+  }
 
-    this.eventBus.emit("ui:showSetupControls", { subPhase, activeTeam });
-
-    // Pitch expects: highlightSetupZone(isLeft: boolean)
+  // Visual helper methods called by orchestrator
+  public highlightSetupZone(isTeam1: boolean): void {
     this.pitch.highlightSetupZone(isTeam1);
+  }
 
-    // Enable placement
+  public enablePlacement(activeTeam: Team, isTeam1: boolean): void {
     const dugout = this.dugouts.get(activeTeam.id);
     const sprites = dugout ? dugout.getSprites() : new Map();
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
   }
 
 
-  // Setup-specific event listeners (not handled by orchestrator)
+  // Setup-specific event listeners (placement controller events only)
+  // All game flow logic has been moved to SceneOrchestrator
   private setupSceneSpecificListeners(): void {
-    // Listen for UI Setup Actions
-    const onSetupAction = (data: { action: string }) => {
-      const state = this.gameService.getState();
-      const activeTeamId = state.activeTeamId || this.team1.id;
-      const activeTeam = activeTeamId === this.team1.id ? this.team1 : this.team2;
-      const isTeam1 = activeTeam.id === this.team1.id;
-
-      switch (data.action) {
-        case 'confirm':
-          this.gameService.confirmSetup(activeTeam.id);
-          break;
-        case 'default':
-          const defFormation = this.formationManager.getDefaultFormation(isTeam1);
-          this.placementController.loadFormation(defFormation);
-          this.refreshDugouts();
-          break;
-        case 'clear':
-          this.placementController.clearPlacements();
-          this.refreshDugouts();
-          break;
-        case 'save':
-          const placements = this.placementController.getPlacements();
-          if (placements.length > 0) {
-            this.formationManager.saveFormation(activeTeam.id, placements, "Custom");
-            this.eventBus.emit('ui:notification', "Formation Saved!");
-          }
-          break;
-        case 'load':
-          const savedFormation = this.formationManager.loadFormation(activeTeam.id, "Custom");
-          if (savedFormation) {
-            this.placementController.loadFormation(savedFormation);
-            this.refreshDugouts();
-          } else {
-            this.eventBus.emit('ui:notification', "No Saved Formation");
-          }
-          break;
-      }
-    };
-    this.eventHandlers.set("ui:setupAction", onSetupAction);
-    this.eventBus.on("ui:setupAction", onSetupAction);
-
-    // Listen for placement changes
+    // Listen for placement changes from the placement controller
+    // These are scene-specific because they directly interact with the controller
     this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
       this.gameService.placePlayer(data.playerId, data.x, data.y);
       this.refreshDugouts();
@@ -427,64 +410,6 @@ export class GameScene extends Phaser.Scene {
       this.refreshDugouts();
       this.checkSetupCompleteness();
     });
-
-    // Kickoff-specific events
-    const onBallKicked = (data: any) => {
-      let startX = data.targetX;
-      let startY = data.targetY;
-
-      if (data.playerId && this.playerSprites.has(data.playerId)) {
-        const kickerPlayer = this.gameService.getPlayerById(data.playerId);
-        if (kickerPlayer && kickerPlayer.gridPosition) {
-          startX = kickerPlayer.gridPosition.x;
-          startY = kickerPlayer.gridPosition.y;
-        }
-      }
-
-      this.placeBallVisual(startX, startY);
-      const targetPos = this.pitch.getPixelPosition(data.targetX, data.targetY);
-
-      this.tweens.add({
-        targets: this.ballSprite,
-        x: targetPos.x,
-        y: targetPos.y,
-        duration: 800,
-        ease: 'Quad.easeOut',
-        onStart: () => {
-          this.ballSprite?.setScale(0.5);
-        },
-        yoyo: false,
-      });
-
-      this.tweens.add({
-        targets: this.ballSprite,
-        scaleX: 1.5,
-        scaleY: 1.5,
-        duration: 400,
-        yoyo: true,
-        ease: 'Sine.easeOut'
-      });
-
-      this.pendingKickoffData = data;
-    };
-    this.eventHandlers.set("ballKicked", onBallKicked);
-    this.eventBus.on("ballKicked", onBallKicked);
-
-    const onKickoffResult = (data: { roll: number, event: string }) => {
-      this.eventBus.emit('ui:notification', `${data.roll}: ${data.event}`);
-      if (this.pendingKickoffData) {
-        this.animateBallScatter(this.pendingKickoffData);
-        this.pendingKickoffData = null;
-      }
-    };
-    this.eventHandlers.set("kickoffResult", onKickoffResult);
-    this.eventBus.on("kickoffResult", onKickoffResult);
-
-    const onReadyToStart = () => {
-      this.gameService.startGame(this.kickingTeam.id);
-    };
-    this.eventHandlers.set("readyToStart", onReadyToStart);
-    this.eventBus.on("readyToStart", onReadyToStart);
   }
 
   public refreshDugouts(): void {
@@ -553,14 +478,9 @@ export class GameScene extends Phaser.Scene {
     this.checkSetupCompleteness();
   }
 
+  // Delegate to orchestrator
   private checkSetupCompleteness(): void {
-    if (!this.isSetupActive) return;
-
-    const state = this.gameService.getState();
-    if (!state.activeTeamId) return;
-
-    const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
-    this.eventBus.emit("ui:setupcomplete", isComplete);
+    this.orchestrator.checkSetupCompleteness();
   }
 
 
@@ -646,55 +566,4 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  public handleKickoffInteraction(x: number, y: number, playerAtSquare: any): void {
-    if (this.gameService.getPhase() !== GamePhase.KICKOFF) return;
-
-    const subPhase = this.gameService.getSubPhase();
-
-    if (subPhase === SubPhase.SETUP_KICKOFF) {
-      // If clicking on a player
-      if (playerAtSquare) {
-        // If own player -> Select/Switch Kicker
-        if (playerAtSquare.teamId === this.kickingTeam.id) {
-          // Unhighlight previous if exists
-          if (this.selectedPlayerId && this.selectedPlayerId !== playerAtSquare.id) {
-            this.unhighlightPlayer(this.selectedPlayerId);
-          }
-
-          this.selectedPlayerId = playerAtSquare.id;
-          this.highlightPlayer(playerAtSquare.id);
-          this.gameService.selectKicker(playerAtSquare.id);
-          this.eventBus.emit('ui:notification', "Kicker Selected! Now choose target.");
-          return;
-        }
-      }
-
-      // If clicking on a square (Target)
-      // Validate Target (Must be opponent half?)
-      // Blood Bowl rules: Kickoff target can be anywhere? 
-      // Actually usually you kick to opponent. 
-      // Let's assume standard opponent half check for now to guide user.
-      const isTeam1Kicking = this.kickingTeam.id === this.team1.id;
-      // Pitch width 20, minus the end zones its 18, this number is diveded by 3
-      // so that means team one setup is 1-7, no mans land is 8-13, team two setup is 14-20
-      const isOpponentHalf = isTeam1Kicking ? (x >= 7) : (x <= 13);
-
-      if (!isOpponentHalf) {
-        // If they clicked an empty square in their own half, maybe deselect?
-        // Or just ignore/warn.
-        if (this.selectedPlayerId) {
-          this.eventBus.emit('ui:notification', "Kick to opponent's half!");
-        }
-        return;
-      }
-
-      // If we have a selected kicker and clicked opponent half -> KICK!
-      if (this.selectedPlayerId) {
-        this.gameService.kickBall(this.selectedPlayerId, x, y);
-        this.selectedPlayerId = null; // Clear selection after kick
-      } else {
-        this.eventBus.emit('ui:notification', "Select a Kicker first!");
-      }
-    }
-  }
 }
