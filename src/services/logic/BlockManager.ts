@@ -60,6 +60,8 @@ export class BlockManager {
      * Resolve block with selected result
      */
     public resolveBlock(attackerId: string, defenderId: string, result: BlockResult): void {
+        console.log('[BlockManager] resolveBlock called with result:', result.type);
+
         const attacker = this.getPlayerById(attackerId);
         const defender = this.getPlayerById(defenderId);
 
@@ -80,7 +82,13 @@ export class BlockManager {
             case 'pow-dodge':
                 // Emit event for push direction selection
                 const pushData = this.createPushData(attacker, defender, result.type);
-                this.eventBus.emit('ui:selectPushDirection', pushData);
+                // Add resultType and attackerId to the data for the UI
+                console.log('[BlockManager] Emitting ui:selectPushDirection');
+                this.eventBus.emit('ui:selectPushDirection', {
+                    ...pushData,
+                    resultType: result.type,
+                    attackerId: attackerId
+                });
                 break;
         }
     }
@@ -88,26 +96,15 @@ export class BlockManager {
     /**
      * Execute push with direction
      */
-    public executePush(defenderId: string, direction: { x: number; y: number }, resultType: string, followUp: boolean): void {
+    public executePush(attackerId: string, defenderId: string, direction: { x: number; y: number }, resultType: string, followUp: boolean): void {
         const defender = this.getPlayerById(defenderId);
         if (!defender) return;
 
-        // Save old position
+        // Save old position BEFORE moving
         const oldPosition = defender.gridPosition ? { ...defender.gridPosition } : null;
 
-        // Move defender to new position
+        // NOW move defender to new position
         defender.gridPosition = direction;
-
-        // Emit playerMoved event with correct data
-        // Path should only include the destination for a push
-        const path = oldPosition ? [oldPosition, direction] : [direction];
-
-        this.eventBus.emit('playerMoved', {
-            playerId: defenderId,
-            from: oldPosition || direction,
-            to: direction,
-            path: path.filter(p => p && p.x !== undefined && p.y !== undefined)
-        });
 
         // Handle knockdown for POW results
         if (resultType === 'pow' || resultType === 'pow-dodge') {
@@ -116,7 +113,22 @@ export class BlockManager {
             this.eventBus.emit('armorRolled', armorResult);
         }
 
-        // TODO: Handle follow-up if requested
+        // Prepare path and follow-up data
+        const path = oldPosition ? [oldPosition, direction] : [direction];
+        const shouldPromptFollowUp = !followUp && oldPosition && (resultType === 'pow' || resultType === 'pow-dodge' || resultType === 'push');
+
+        // Emit single playerMoved event with path and optional follow-up data
+        this.eventBus.emit('playerMoved', {
+            playerId: defenderId,
+            from: oldPosition || direction,
+            to: direction,
+            path: path.filter(p => p && p.x !== undefined && p.y !== undefined),
+            // Include follow-up data to be triggered after animation completes
+            followUpData: shouldPromptFollowUp ? {
+                attackerId: attackerId,
+                targetSquare: oldPosition
+            } : undefined
+        });
     }
 
     /**

@@ -166,7 +166,7 @@ export class SceneOrchestrator {
         this.eventBus.on('turnStarted', onTurnStarted);
 
         // Player movement
-        const onPlayerMoved = (data: { playerId: string, from: any, to: any, path?: any[] }) => {
+        const onPlayerMoved = (data: { playerId: string, from: any, to: any, path?: any[], followUpData?: { attackerId: string, targetSquare: { x: number; y: number } } }) => {
             if (data.path && data.path.length > 0) {
                 const sprite = this.scene['playerSprites'].get(data.playerId);
                 if (sprite) {
@@ -176,12 +176,26 @@ export class SceneOrchestrator {
                     sprite.animateMovement(pixelPath).then(() => {
                         this.scene.refreshDugouts();
                         this.scene['checkSetupCompleteness']();
+
+                        // Emit follow-up prompt after animation completes
+                        if (data.followUpData) {
+                            console.log('[SceneOrchestrator] Animation complete, showing follow-up prompt');
+                            this.eventBus.emit('ui:followUpPrompt', data.followUpData);
+                        }
                     });
                 } else {
                     this.scene.refreshDugouts();
+                    // No sprite, no animation - show follow-up immediately if present
+                    if (data.followUpData) {
+                        this.eventBus.emit('ui:followUpPrompt', data.followUpData);
+                    }
                 }
             } else {
                 this.scene.refreshDugouts();
+                // No path, no animation - show follow-up immediately if present
+                if (data.followUpData) {
+                    this.eventBus.emit('ui:followUpPrompt', data.followUpData);
+                }
             }
             this.scene['pitch'].clearPath();
             this.scene['pitch'].clearHighlights();
@@ -210,12 +224,17 @@ export class SceneOrchestrator {
         this.eventHandlers.set('ui:blockResultSelected', onBlockResultSelected);
         this.eventBus.on('ui:blockResultSelected', onBlockResultSelected);
 
-        // Push direction selection
-        const onSelectPushDirection = (data: { defenderId: string, direction: { x: number, y: number }, resultType: string, followUp: boolean }) => {
-            this.gameService.executePush(data.defenderId, data.direction, data.resultType, data.followUp);
+        // Follow-up response
+        const onFollowUpResponse = (data: { attackerId: string, followUp: boolean, targetSquare?: { x: number; y: number } }) => {
+            if (data.followUp && data.targetSquare) {
+                // Move attacker to the defender's old square
+                this.gameService.movePlayer(data.attackerId, [data.targetSquare]);
+            }
+            // End the attacker's activation
+            this.gameService.finishActivation(data.attackerId);
         };
-        this.eventHandlers.set('ui:selectPushDirection', onSelectPushDirection);
-        this.eventBus.on('ui:selectPushDirection', onSelectPushDirection);
+        this.eventHandlers.set('ui:followUpResponse', onFollowUpResponse);
+        this.eventBus.on('ui:followUpResponse', onFollowUpResponse);
     }
 
     /**

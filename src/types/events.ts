@@ -41,11 +41,35 @@ export interface GameEvents {
         from: { x: number; y: number };
         to: { x: number; y: number };
         path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
+        followUpData?: { // Optional follow-up data for blocks
+            attackerId: string;
+            targetSquare: { x: number; y: number };
+        };
     };
     'playerActivated': string; // playerId
     'playerSelected': { player: Player | null };
     'playerStatusChanged': Player;
     'turnover': { teamId: string };
+
+    // Block Events
+    'blockDiceRolled': {
+        attackerId: string;
+        defenderId: string;
+        numDice: number;
+        isAttackerChoice: boolean;
+        results: any[]; // BlockResult[]
+    };
+
+    'armorRolled': {
+        playerId: string;
+        roll: number;
+        armor: number;
+        broken: boolean;
+    };
+
+    'playerKnockedDown': {
+        playerId: string;
+    };
 
     // Scoring
     'touchdown': { teamId: string; score: number };
@@ -170,6 +194,38 @@ export interface UIEvents {
         attackerId: string;
         defenderId: string;
         analysis: import('./Actions').BlockAnalysis;
+    };
+
+    'ui:rollBlockDice': {
+        attackerId: string;
+        defenderId: string;
+        numDice: number;
+        isAttackerChoice: boolean;
+    };
+
+    'ui:selectPushDirection': {
+        defenderId: string;
+        attackerId: string;
+        validDirections: { x: number; y: number }[];
+        canFollowUp: boolean;
+        resultType?: string;
+    };
+
+    'ui:pushDirectionSelected': {
+        defenderId: string;
+        direction: { x: number; y: number };
+        canFollowUp: boolean;
+    };
+
+    'ui:followUpPrompt': {
+        attackerId: string;
+        targetSquare: { x: number; y: number };
+    };
+
+    'ui:followUpResponse': {
+        attackerId: string;
+        followUp: boolean;
+        targetSquare?: { x: number; y: number };
     };
 }
 

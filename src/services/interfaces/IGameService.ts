@@ -206,5 +206,26 @@ export interface IGameService {
      */
     movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
 
+    // ===== Block Actions =====
+
+    /**
+     * Preview a block action
+     */
+    previewBlock(attackerId: string, defenderId: string): void;
+
+    /**
+     * Roll block dice
+     */
+    rollBlockDice(attackerId: string, defenderId: string, numDice: number, isAttackerChoice: boolean): void;
+
+    /**
+     * Resolve a block with the selected result
+     */
+    resolveBlock(attackerId: string, defenderId: string, result: any): void;
+
+    /**
+     * Execute a push in a specific direction
+     */
+    executePush(attackerId: string, defenderId: string, direction: { x: number; y: number }, resultType: string, followUp: boolean): void;
 
 }

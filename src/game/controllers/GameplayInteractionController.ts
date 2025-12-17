@@ -26,7 +26,9 @@ export class GameplayInteractionController {
     private pushSelectionActive: boolean = false;
     private pushValidDirections: { x: number; y: number }[] = [];
     private pushDefenderId: string = '';
+    private pushAttackerId: string = ''; // Track attacker ID
     private pushResultType: string = '';
+    private pushHighlights: Phaser.GameObjects.Rectangle[] = []; // Store highlight references
 
     constructor(
         scene: GameScene,
@@ -133,6 +135,8 @@ export class GameplayInteractionController {
 
                         if (dx <= 1 && dy <= 1) {
                             // IT'S A BLOCK!
+                            // Deselect player to clear movement path/highlights
+                            this.deselectPlayer();
                             // Trigger Block Preview
                             this.gameService.previewBlock(selectedPlayer.id, playerAtSquare.id);
                             return;
@@ -566,15 +570,25 @@ export class GameplayInteractionController {
      * Start push direction selection mode
      */
     private startPushDirectionSelection(data: any): void {
+        console.log('[Push Selection] Starting with data:', data);
+
         this.pushSelectionActive = true;
         this.pushValidDirections = data.validDirections || [];
         this.pushDefenderId = data.defenderId;
+        this.pushAttackerId = data.attackerId || ''; // Store attacker ID
         this.pushResultType = data.resultType || '';
 
-        // Highlight the valid push squares
+        // Clear any existing highlights first
+        this.clearPushHighlights();
         this.pitch.clearHighlights();
+        this.pitch.clearPath();
+
+        // Highlight the valid push squares and store references
+        this.pushHighlights = [];
         this.pushValidDirections.forEach(dir => {
-            this.pitch.highlightSquare(dir.x, dir.y, 0xFFFF00); // Yellow highlight
+            console.log('[Push Selection] Highlighting square:', dir);
+            const highlight = this.pitch.highlightSquare(dir.x, dir.y, 0xFFFF00); // Yellow highlight
+            this.pushHighlights.push(highlight);
         });
     }
 
@@ -584,25 +598,50 @@ export class GameplayInteractionController {
     private handlePushDirectionClick(x: number, y: number): boolean {
         if (!this.pushSelectionActive) return false;
 
+        console.log('[Push Selection] Click at:', x, y);
+
         // Check if clicked square is a valid push direction
         const isValid = this.pushValidDirections.some(dir => dir.x === x && dir.y === y);
 
         if (isValid) {
-            // Execute the push
-            this.gameService.executePush(this.pushDefenderId, { x, y }, this.pushResultType, false);
+            console.log('[Push Selection] Valid square clicked, executing push');
+
+            // Execute the push with attacker ID
+            this.gameService.executePush(this.pushAttackerId, this.pushDefenderId, { x, y }, this.pushResultType, false);
 
             // Clear push selection state
             this.pushSelectionActive = false;
             this.pushValidDirections = [];
             this.pushDefenderId = '';
+            this.pushAttackerId = ''; // Clear attacker ID
             this.pushResultType = '';
+
+            // Explicitly destroy the highlight rectangles
+            this.clearPushHighlights();
+
+            // Also clear general highlights and paths
             this.pitch.clearHighlights();
+            this.pitch.clearPath();
+
+            console.log('[Push Selection] Cleared highlights and paths');
 
             return true;
         }
 
+        console.log('[Push Selection] Invalid square clicked');
         return false;
     }
+
+    /**
+     * Clear push direction highlights
+     */
+    private clearPushHighlights(): void {
+        this.pushHighlights.forEach(highlight => {
+            // Only destroy if it still exists and hasn't been destroyed
+            if (highlight && highlight.scene) {
+                highlight.destroy();
+            }
+        });
+        this.pushHighlights = [];
+    }
 }
-
-

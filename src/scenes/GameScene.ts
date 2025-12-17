@@ -207,16 +207,6 @@ export class GameScene extends Phaser.Scene {
 
     this.movementValidator = new MovementValidator();
 
-    // Gameplay Controller
-    // Gameplay Controller
-    this.gameplayController = new GameplayInteractionController(
-      this,
-      this.gameService,
-      this.eventBus,
-      this.pitch,
-      this.movementValidator
-    );
-
     // Pitch interaction (Now safe to attach)
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.isSetupActive) {
