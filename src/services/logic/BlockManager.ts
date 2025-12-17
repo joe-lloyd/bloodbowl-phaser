@@ -45,6 +45,16 @@ export class BlockManager {
     public rollBlockDice(attackerId: string, defenderId: string, numDice: number, isAttackerChoice: boolean): void {
         const results = BlockResolutionService.rollBlockDice(numDice);
 
+        // Emit to dice log
+        this.eventBus.emit('diceRoll', {
+            rollType: 'Block',
+            diceType: `${numDice}D Block`,
+            teamId: attackerId.split('-')[0], // Extract team ID
+            value: results.map((r: any) => r.type),
+            total: results.length,
+            description: `Rolled ${numDice} block ${numDice === 1 ? 'die' : 'dice'}`
+        });
+
         const rollData: BlockRollData = {
             attackerId,
             defenderId,
