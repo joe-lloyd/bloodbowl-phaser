@@ -30,25 +30,69 @@ export class MovementManager {
 
         const used = this.getMovementUsed(playerId);
         const ma = player.stats.MA;
-        const remainingMA = Math.max(0, ma - used);
 
         if (used >= ma + 2) return [];
 
         const team = (player.teamId === this.team1.id) ? this.team1 : this.team2;
         const opponentTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
 
-        const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+        // Prone players don't have tackle zones
+        const opponents = opponentTeam.players.filter((p: any) =>
+            p.gridPosition && p.status === PlayerStatus.ACTIVE
+        );
         const teammates = team.players.filter((p: any) => p.gridPosition && p.id !== player.id);
+
+        // If prone, reduce effective MA by stand-up cost so validator finds correct range
+        let effectiveMA = ma - used;
+        if (player.status === PlayerStatus.PRONE) {
+            const standUpCost = Math.min(3, ma);
+            effectiveMA = Math.max(0, effectiveMA - standUpCost);
+        } else {
+            effectiveMA = ma - used;
+        }
 
         const proxyPlayer = {
             ...player,
             stats: {
                 ...player.stats,
-                MA: remainingMA
+                MA: effectiveMA
             }
         };
 
         return this.movementValidator.findReachableSquares(proxyPlayer as Player, opponents, teammates);
+    }
+
+    /**
+     * Stand up a prone player (double-click action)
+     */
+    public async standUp(playerId: string): Promise<void> {
+        const player = this.getPlayerById(playerId);
+        if (!player || player.status !== PlayerStatus.PRONE) {
+            return Promise.reject('Player is not prone');
+        }
+
+        const used = this.getMovementUsed(playerId);
+        const standUpCost = Math.min(3, player.stats.MA);
+
+        // Check if player has enough MA to stand
+        if (used + standUpCost > player.stats.MA + 2) {
+            return Promise.reject('Not enough movement to stand up');
+        }
+
+        // Stand up
+        player.status = PlayerStatus.ACTIVE;
+        this.state.turn.movementUsed.set(playerId, used + standUpCost);
+
+        // Emit events
+        this.eventBus.emit('playerStoodUp', { playerId, cost: standUpCost });
+        this.eventBus.emit('playerStatusChanged', { playerId, status: PlayerStatus.ACTIVE });
+
+        // Auto-finish if exhausted
+        if (used + standUpCost >= player.stats.MA + 2) {
+            this.callbacks.onActivationFinished(playerId);
+        }
+
+        return Promise.resolve();
     }
 
     public async movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void> {
@@ -56,7 +100,10 @@ export class MovementManager {
         if (!player) return Promise.reject('Player not found!');
 
         const oppTeam = (player.teamId === this.team1.id) ? this.team2 : this.team1;
-        const opponents = oppTeam.players.filter(p => p.status === PlayerStatus.ACTIVE && p.gridPosition);
+        // Only standing players project tackle zones
+        const opponents = oppTeam.players.filter(p =>
+            p.status === PlayerStatus.ACTIVE && p.gridPosition
+        );
 
         // Validate
         const result = this.movementValidator.validatePath(player, [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path], opponents);
@@ -69,15 +116,17 @@ export class MovementManager {
         const completedPath: { x: number; y: number }[] = [];
         let failed = false;
         let stepsTaken = 0;
-
-        // Stand Up
-        if (player.status === PlayerStatus.PRONE) {
-            stepsTaken += (player.stats.MA < 3) ? player.stats.MA : 3;
-            player.status = PlayerStatus.ACTIVE;
-            this.eventBus.emit('playerStatusChanged', player);
-        }
-
         const preUsed = this.getMovementUsed(playerId);
+        const wasProne = player.status === PlayerStatus.PRONE;
+
+        // Stand up if prone (costs 3 MA or all MA if less)
+        if (wasProne) {
+            const standUpCost = Math.min(3, player.stats.MA);
+            stepsTaken += standUpCost;
+            player.status = PlayerStatus.ACTIVE;
+            this.eventBus.emit('playerStoodUp', { playerId, cost: standUpCost });
+            this.eventBus.emit('playerStatusChanged', { playerId, status: PlayerStatus.ACTIVE });
+        }
 
         // Check if starting with ball
         let holdingBall = false;
@@ -115,7 +164,8 @@ export class MovementManager {
 
                     console.log("GFI FAILED! Player trips.");
                     player.status = PlayerStatus.PRONE;
-                    this.eventBus.emit('playerStatusChanged', player);
+                    this.eventBus.emit('playerKnockedDown', { playerId });
+                    this.eventBus.emit('playerStatusChanged', { playerId, status: PlayerStatus.PRONE });
 
                     this.callbacks.onTurnover("Failed GFI");
                     completedPath.push(step);

@@ -246,7 +246,14 @@ export class GameplayInteractionController {
             const reachable = this.gameService.getAvailableMovements(playerId);
 
             // Calculate remaining SAFE MA (for overlay coloring)
-            const used = this.gameService.getMovementUsed(playerId);
+            let used = this.gameService.getMovementUsed(playerId);
+
+            // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
+            if (player.status === 'Prone') {
+                const standUpCost = Math.min(3, player.stats.MA);
+                used += standUpCost;
+            }
+
             const remainingSafeMA = Math.max(0, player.stats.MA - used);
 
             // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
