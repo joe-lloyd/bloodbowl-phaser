@@ -197,8 +197,16 @@ export class SceneOrchestrator {
                     this.eventBus.emit('ui:followUpPrompt', data.followUpData);
                 }
             }
-            this.scene['pitch'].clearPath();
-            this.scene['pitch'].clearHighlights();
+
+            // Clear all highlights using the GameplayInteractionController's method
+            // This ensures controller-managed highlights (push, etc.) are cleared before pitch highlights
+            if (this.scene['gameplayController']) {
+                this.scene['gameplayController'].clearAllInteractionHighlights();
+            } else {
+                // Fallback for scenes without gameplayController
+                this.scene['pitch'].clearPath();
+                this.scene['pitch'].clearHighlights();
+            }
         };
         this.eventHandlers.set('playerMoved', onPlayerMoved);
         this.eventBus.on('playerMoved', onPlayerMoved);

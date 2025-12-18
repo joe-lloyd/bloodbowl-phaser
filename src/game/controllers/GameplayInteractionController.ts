@@ -8,6 +8,7 @@ import { pixelToGrid } from "../elements/GridUtils";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";
+import { HighlightManager } from "../managers/HighlightManager";
 
 export class GameplayInteractionController {
     private scene: GameScene;
@@ -15,6 +16,7 @@ export class GameplayInteractionController {
     private eventBus: IEventBus;
     private pitch: Pitch;
     private movementValidator: MovementValidator;
+    private highlightManager: HighlightManager;
 
     // State
     private selectedPlayerId: string | null = null;
@@ -28,7 +30,9 @@ export class GameplayInteractionController {
     private pushDefenderId: string = '';
     private pushAttackerId: string = ''; // Track attacker ID
     private pushResultType: string = '';
-    private pushHighlights: Phaser.GameObjects.Rectangle[] = []; // Store highlight references
+
+    // Store handler references for cleanup
+    private pushDirectionHandler: (data: any) => void;
 
     constructor(
         scene: GameScene,
@@ -42,14 +46,18 @@ export class GameplayInteractionController {
         this.eventBus = eventBus;
         this.pitch = pitch;
         this.movementValidator = movementValidator;
+        this.highlightManager = new HighlightManager(pitch);
+
+        // Store handler reference for cleanup
+        this.pushDirectionHandler = (data: any) => {
+            this.startPushDirectionSelection(data);
+        };
 
         // Listen for confirmation
         this.eventBus.on('ui:confirmationResult', this.onConfirmationResult);
 
         // Listen for push direction selection request
-        this.eventBus.on('ui:selectPushDirection', (data: any) => {
-            this.startPushDirectionSelection(data);
-        });
+        this.eventBus.on('ui:selectPushDirection', this.pushDirectionHandler);
     }
 
     public handlePointerDown(pointer: Phaser.Input.Pointer, isSetupActive: boolean): void {
@@ -290,8 +298,7 @@ export class GameplayInteractionController {
             this.selectedPlayerId = null;
         }
         this.waypoints = [];
-        this.pitch.clearHighlights(); // Clears overlays too
-        this.pitch.clearPath();
+        this.clearAllInteractionHighlights();
 
         // Notify UI
         this.eventBus.emit('playerSelected', { player: null }); // OR add explicit deselect event
@@ -423,6 +430,12 @@ export class GameplayInteractionController {
     public destroy(): void {
         // Cleanup listeners
         this.eventBus.off('ui:confirmationResult', this.onConfirmationResult);
+        this.eventBus.off('ui:selectPushDirection', this.pushDirectionHandler);
+
+        // Cleanup highlight manager
+        if (this.highlightManager) {
+            this.highlightManager.destroy();
+        }
     }
 
     private onConfirmationResult = (data: { confirmed: boolean, actionId: string }) => {
@@ -579,16 +592,12 @@ export class GameplayInteractionController {
         this.pushResultType = data.resultType || '';
 
         // Clear any existing highlights first
-        this.clearPushHighlights();
-        this.pitch.clearHighlights();
-        this.pitch.clearPath();
+        this.clearAllInteractionHighlights();
 
-        // Highlight the valid push squares and store references
-        this.pushHighlights = [];
+        // Highlight the valid push squares using HighlightManager
         this.pushValidDirections.forEach(dir => {
             console.log('[Push Selection] Highlighting square:', dir);
-            const highlight = this.pitch.highlightSquare(dir.x, dir.y, 0xFFFF00); // Yellow highlight
-            this.pushHighlights.push(highlight);
+            this.highlightManager.addPushHighlight(dir.x, dir.y, 0xFFFF00);
         });
     }
 
@@ -616,12 +625,8 @@ export class GameplayInteractionController {
             this.pushAttackerId = ''; // Clear attacker ID
             this.pushResultType = '';
 
-            // Explicitly destroy the highlight rectangles
-            this.clearPushHighlights();
-
-            // Also clear general highlights and paths
-            this.pitch.clearHighlights();
-            this.pitch.clearPath();
+            // Clear all interaction highlights
+            this.clearAllInteractionHighlights();
 
             console.log('[Push Selection] Cleared highlights and paths');
 
@@ -633,15 +638,11 @@ export class GameplayInteractionController {
     }
 
     /**
-     * Clear push direction highlights
+     * Clear all interaction-managed highlights (push, selection, etc.)
+     * Also clears pitch-managed highlights for comprehensive cleanup
      */
-    private clearPushHighlights(): void {
-        this.pushHighlights.forEach(highlight => {
-            // Only destroy if it still exists and hasn't been destroyed
-            if (highlight && highlight.scene) {
-                highlight.destroy();
-            }
-        });
-        this.pushHighlights = [];
+    public clearAllInteractionHighlights(): void {
+        // Clear all highlights managed by HighlightManager
+        this.highlightManager.clearAllHighlights();
     }
 }

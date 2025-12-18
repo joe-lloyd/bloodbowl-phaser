@@ -1,10 +1,10 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
-import { BlockValidator } from '../../game/validators/BlockValidator';
-import { ActionValidator } from '../../game/validators/ActionValidator';
-import { BlockResolutionService, BlockResult, BlockRollData, PushData, ArmorResult } from '../BlockResolutionService';
+import { BlockValidator } from '../validators/BlockValidator';
+import { ActionValidator } from '../validators/ActionValidator';
+import { BlockResolutionService, BlockResult, BlockRollData, PushData, ArmorResult } from '../../services/BlockResolutionService';
 
 export class BlockManager {
     private blockValidator: BlockValidator = new BlockValidator();

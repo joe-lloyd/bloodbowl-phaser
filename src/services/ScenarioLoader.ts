@@ -4,7 +4,7 @@ import { Scenario } from '@/types/Scenario';
 import { Team } from '@/types/Team';
 import { GameState } from '@/types/GameState';
 import { PlayerStatus } from '@/types/Player';
-import { SetupManager } from './logic/SetupManager';
+import { SetupManager } from '../game/managers/SetupManager';
 
 export class ScenarioLoader {
     constructor(

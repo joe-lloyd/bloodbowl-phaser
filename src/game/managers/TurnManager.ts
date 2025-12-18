@@ -1,8 +1,8 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState, GamePhase, SubPhase, TurnData } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { PlayerStatus } from '@/types/Player';
-import { ActivationValidator } from '../../game/validators/ActivationValidator';
+import { ActivationValidator } from '../validators/ActivationValidator';
 
 export class TurnManager {
     private maxTurns: number = 6; // Sevens default

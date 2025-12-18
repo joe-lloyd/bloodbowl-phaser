@@ -1,8 +1,8 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
-import { MovementValidator } from '../../game/validators/MovementValidator';
+import { MovementValidator } from '../validators/MovementValidator';
 import { BallManager } from './BallManager';
 
 export class MovementManager {

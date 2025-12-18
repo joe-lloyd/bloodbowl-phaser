@@ -35,6 +35,7 @@ export class SandboxScene extends GameScene {
     private loadScenarioHandler: Function | null = null;
     private refreshBoardHandler: Function | null = null;
     private ballPlacedHandler: Function | null = null;
+    private playerMovedHandler: Function | null = null;
 
 
     create(): void {
@@ -64,10 +65,11 @@ export class SandboxScene extends GameScene {
 
         // Sandbox-specific: Allow unlimited player movement for testing
         // Clear activation status after each move so players can be moved multiple times
-        this.eventBus.on('playerMoved', () => {
+        this.playerMovedHandler = () => {
             const state = this.gameService.getState();
             state.turn.activatedPlayerIds.clear();
-        });
+        };
+        this.eventBus.on('playerMoved', this.playerMovedHandler as any);
 
         this.ballPlacedHandler = (pos: { x: number, y: number }) => {
             this.placeBallVisual(pos.x, pos.y);
@@ -83,6 +85,10 @@ export class SandboxScene extends GameScene {
         if (this.refreshBoardHandler) {
             this.eventBus.off('refreshBoard', this.refreshBoardHandler as any);
             this.refreshBoardHandler = null;
+        }
+        if (this.playerMovedHandler) {
+            this.eventBus.off('playerMoved', this.playerMovedHandler as any);
+            this.playerMovedHandler = null;
         }
         if (this.ballPlacedHandler) {
             this.eventBus.off('ballPlaced', this.ballPlacedHandler as any);

@@ -1,9 +1,9 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState, GamePhase, SubPhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 
-import { WeatherService } from './WeatherService';
+import { WeatherManager } from './WeatherManager';
 
 export class BallManager {
     constructor(
@@ -11,7 +11,7 @@ export class BallManager {
         private state: GameState,
         private team1: Team,
         private team2: Team,
-        private weatherService: WeatherService,
+        private weatherService: WeatherManager,
         private callbacks: {
             onTurnover: (reason: string) => void,
             onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void,

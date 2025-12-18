@@ -490,11 +490,11 @@ export class GameScene extends Phaser.Scene {
   private onBackgroundClick(): void {
     if (this.isSetupActive) {
       this.placementController?.deselectPlayer();
+      this.pitch.clearHighlights();
     } else {
       // Delegate to controller to ensure state (waypoints, selection) is cleared
       this.gameplayController?.deselectPlayer();
     }
-    this.pitch.clearHighlights();
   }
 
   private deselectPlayer(): void {
@@ -503,7 +503,21 @@ export class GameScene extends Phaser.Scene {
       if (sprite) sprite.unhighlight();
       this.selectedPlayerId = null;
     }
-    this.pitch.clearHighlights();
+    this.clearAllHighlights();
+  }
+
+  /**
+   * Clear all highlights - delegates to controller for proper cleanup order
+   */
+  public clearAllHighlights(): void {
+    if (this.gameplayController) {
+      this.gameplayController.clearAllInteractionHighlights();
+    } else {
+      // Fallback if controller not initialized yet
+      this.pitch.clearHighlights();
+      this.pitch.clearPath();
+      this.pitch.clearHover();
+    }
   }
 
   private onDugoutDragStart(playerId: string): void {

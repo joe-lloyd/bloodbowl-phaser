@@ -1,10 +1,10 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState, GamePhase, SubPhase } from '@/types/GameState';
 import { Team } from '@/types/Team';
 import { Player, PlayerStatus } from '@/types/Player';
 import { SetupZone } from '@/types/SetupTypes';
 
-import { WeatherService } from './WeatherService';
+import { WeatherManager } from './WeatherManager';
 
 export class SetupManager {
     private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -15,7 +15,7 @@ export class SetupManager {
         private state: GameState,
         private team1: Team,
         private team2: Team,
-        private weatherService: WeatherService,
+        private weatherService: WeatherManager,
         private callbacks: {
             onKickoffRequested: () => void
         }

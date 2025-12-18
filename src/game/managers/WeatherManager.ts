@@ -1,7 +1,7 @@
-import { IEventBus } from '../EventBus';
+import { IEventBus } from '../../services/EventBus';
 import { GameState } from '@/types/GameState';
 
-export class WeatherService {
+export class WeatherManager {
     constructor(
         private eventBus: IEventBus,
         private state: GameState

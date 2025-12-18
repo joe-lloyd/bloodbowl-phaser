@@ -13,13 +13,12 @@ import { Player, PlayerStatus } from '@/types/Player';
 import { ActionValidator } from '../game/validators/ActionValidator.js';
 import { ActivationValidator } from '../game/validators/ActivationValidator.js';
 
-
-import { SetupManager } from './logic/SetupManager';
-import { TurnManager } from './logic/TurnManager';
-import { BallManager } from './logic/BallManager';
-import { MovementManager } from './logic/MovementManager';
-import { BlockManager } from './logic/BlockManager';
-import { WeatherService } from './logic/WeatherService';
+import { SetupManager } from '../game/managers/SetupManager';
+import { TurnManager } from '../game/managers/TurnManager';
+import { BallManager } from '../game/managers/BallManager';
+import { MovementManager } from '../game/managers/MovementManager';
+import { BlockManager } from '../game/managers/BlockManager';
+import { WeatherManager } from '../game/managers/WeatherManager';
 
 export class GameService implements IGameService {
     private state: GameState;
@@ -32,7 +31,7 @@ export class GameService implements IGameService {
     private ballManager: BallManager;
     private movementManager: MovementManager;
     private blockManager: BlockManager;
-    private weatherService: WeatherService;
+    private weatherService: WeatherManager;
 
     // Validators
     private activationValidator: ActivationValidator = new ActivationValidator();
@@ -78,7 +77,7 @@ export class GameService implements IGameService {
         }
 
         // Initialize Managers
-        this.weatherService = new WeatherService(eventBus, this.state);
+        this.weatherService = new WeatherManager(eventBus, this.state);
 
         this.setupManager = new SetupManager(eventBus, this.state, team1, team2, this.weatherService, {
             onKickoffRequested: () => this.startKickoff()
