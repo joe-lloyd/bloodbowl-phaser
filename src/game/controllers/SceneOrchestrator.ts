@@ -243,6 +243,16 @@ export class SceneOrchestrator {
         };
         this.eventHandlers.set('ui:followUpResponse', onFollowUpResponse);
         this.eventBus.on('ui:followUpResponse', onFollowUpResponse);
+
+        // Player knocked down - update visual status
+        const onPlayerKnockedDown = (data: { playerId: string }) => {
+            const sprite = this.scene['playerSprites'].get(data.playerId);
+            if (sprite) {
+                sprite.updateStatus();
+            }
+        };
+        this.eventHandlers.set('playerKnockedDown', onPlayerKnockedDown);
+        this.eventBus.on('playerKnockedDown', onPlayerKnockedDown);
     }
 
     /**
