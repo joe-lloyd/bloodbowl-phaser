@@ -39,6 +39,7 @@ export enum GameEventNames {
   BlockDiceRolled = "blockDiceRolled",
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
+  PlayerStoodUp = "playerStoodUp",
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
@@ -162,6 +163,11 @@ export interface GameEvents {
   [GameEventNames.PlayerKnockedDown]: {
     playerId: string;
     // ... details?
+  };
+
+  [GameEventNames.PlayerStoodUp]: {
+    playerId: string;
+    cost: number;
   };
 
   // Scoring

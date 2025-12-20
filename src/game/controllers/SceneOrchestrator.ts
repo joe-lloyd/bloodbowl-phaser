@@ -48,10 +48,13 @@ export class SceneOrchestrator {
     }) => {
       this.scene.kickingTeam = data.kickingTeam;
       this.scene.receivingTeam = data.receivingTeam;
-            this.gameService.startSetup(data.kickingTeam.id);
-        };
-        this.eventHandlers.set(GameEventNames.UI_CoinFlipComplete, onCoinFlipComplete);
-        this.eventBus.on(GameEventNames.UI_CoinFlipComplete, onCoinFlipComplete);
+      this.gameService.startSetup(data.kickingTeam.id);
+    };
+    this.eventHandlers.set(
+      GameEventNames.UI_CoinFlipComplete,
+      onCoinFlipComplete
+    );
+    this.eventBus.on(GameEventNames.UI_CoinFlipComplete, onCoinFlipComplete);
 
     // Setup actions (confirm, randomize, clear, save, load)
     const onSetupAction = (data: { action: string }) => {
@@ -80,23 +83,36 @@ export class SceneOrchestrator {
         case "save":
           const placements = this.scene["placementController"].getPlacements();
           if (placements.length > 0) {
-                    this.scene['formationManager'].saveFormation(activeTeam.id, placements, "Custom");
-                        this.eventBus.emit(GameEventNames.UI_Notification, "Formation Saved!");
-                    }
-                    break;
-                case 'load':
-                    const savedFormation = this.scene['formationManager'].loadFormation(activeTeam.id, "Custom");
-                    if (savedFormation) {
-                        this.scene['placementController'].loadFormation(savedFormation);
-                        this.scene.refreshDugouts();
-                    } else {
-                        this.eventBus.emit(GameEventNames.UI_Notification, "No Saved Formation");
-                    }
-                    break;
-            }
-        };
-        this.eventHandlers.set(GameEventNames.UI_SetupAction, onSetupAction);
-        this.eventBus.on(GameEventNames.UI_SetupAction, onSetupAction);
+            this.scene["formationManager"].saveFormation(
+              activeTeam.id,
+              placements,
+              "Custom"
+            );
+            this.eventBus.emit(
+              GameEventNames.UI_Notification,
+              "Formation Saved!"
+            );
+          }
+          break;
+        case "load":
+          const savedFormation = this.scene["formationManager"].loadFormation(
+            activeTeam.id,
+            "Custom"
+          );
+          if (savedFormation) {
+            this.scene["placementController"].loadFormation(savedFormation);
+            this.scene.refreshDugouts();
+          } else {
+            this.eventBus.emit(
+              GameEventNames.UI_Notification,
+              "No Saved Formation"
+            );
+          }
+          break;
+      }
+    };
+    this.eventHandlers.set(GameEventNames.UI_SetupAction, onSetupAction);
+    this.eventBus.on(GameEventNames.UI_SetupAction, onSetupAction);
 
     // Kickoff: Ball kicked animation
     const onBallKicked = (data: any) => {
@@ -136,43 +152,56 @@ export class SceneOrchestrator {
         duration: 400,
         yoyo: true,
         ease: "Sine.easeOut",
-            this.scene['pendingKickoffData'] = data;
-        };
-        this.eventHandlers.set(GameEventNames.BallKicked, onBallKicked);
-        this.eventBus.on(GameEventNames.BallKicked, onBallKicked);
+        onComplete: () => {
+          this.scene["pendingKickoffData"] = data;
+        },
+      });
+    };
+    this.eventHandlers.set(GameEventNames.BallKicked, onBallKicked);
+    this.eventBus.on(GameEventNames.BallKicked, onBallKicked);
 
-        // Kickoff result notification
-        const onKickoffResult = (data: { roll: number, event: string }) => {
-            this.eventBus.emit(GameEventNames.UI_Notification, `${data.roll}: ${data.event}`);
-            if (this.scene['pendingKickoffData']) {
-                this.scene['animateBallScatter'](this.scene['pendingKickoffData']);
-                this.scene['pendingKickoffData'] = null;
-            }
-        };
-        this.eventHandlers.set(GameEventNames.KickoffResult, onKickoffResult);
-        this.eventBus.on(GameEventNames.KickoffResult, onKickoffResult);
+    // Kickoff result notification
+    const onKickoffResult = (data: { roll: number; event: string }) => {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${data.roll}: ${data.event}`
+      );
+      if (this.scene["pendingKickoffData"]) {
+        this.scene["animateBallScatter"](this.scene["pendingKickoffData"]);
+        this.scene["pendingKickoffData"] = null;
+      }
+    };
+    this.eventHandlers.set(GameEventNames.KickoffResult, onKickoffResult);
+    this.eventBus.on(GameEventNames.KickoffResult, onKickoffResult);
 
-        // Ready to start (transition from kickoff to play)
-        const onReadyToStart = () => {
-            this.gameService.startGame(this.scene.kickingTeam.id);
-        };
-        this.eventHandlers.set(GameEventNames.ReadyToStart, onReadyToStart);
-        this.eventBus.on(GameEventNames.ReadyToStart, onReadyToStart);
+    // Ready to start (transition from kickoff to play)
+    const onReadyToStart = () => {
+      this.gameService.startGame(this.scene.kickingTeam.id);
+    };
+    this.eventHandlers.set(GameEventNames.ReadyToStart, onReadyToStart);
+    this.eventBus.on(GameEventNames.ReadyToStart, onReadyToStart);
 
-        // Phase change handling
-        const onPhaseChanged = (data: { phase: GamePhase, subPhase?: SubPhase, activeTeamId?: string }) => {
-            this.handlePhaseChange(data.phase, data.subPhase);
-        };
-        this.eventHandlers.set(GameEventNames.PhaseChanged, onPhaseChanged);
-        this.eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
+    // Phase change handling
+    const onPhaseChanged = (data: {
+      phase: GamePhase;
+      subPhase?: SubPhase;
+      activeTeamId?: string;
+    }) => {
+      this.handlePhaseChange(data.phase, data.subPhase);
+    };
+    this.eventHandlers.set(GameEventNames.PhaseChanged, onPhaseChanged);
+    this.eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
 
-        // Turn management
-        const onTurnStarted = (turn: any) => {
-            this.scene.refreshDugouts();
-            this.eventBus.emit(GameEventNames.UI_Notification, `Turn ${turn.turnNumber}`);
-        };
-        this.eventHandlers.set(GameEventNames.TurnStarted, onTurnStarted);
-        this.eventBus.on(GameEventNames.TurnStarted, onTurnStarted);
+    // Turn management
+    const onTurnStarted = (turn: any) => {
+      this.scene.refreshDugouts();
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Turn ${turn.turnNumber}`
+      );
+    };
+    this.eventHandlers.set(GameEventNames.TurnStarted, onTurnStarted);
+    this.eventBus.on(GameEventNames.TurnStarted, onTurnStarted);
 
     // Player movement
     const onPlayerMoved = (data: {
@@ -195,92 +224,137 @@ export class SceneOrchestrator {
             this.scene.refreshDugouts();
             this.scene["checkSetupCompleteness"]();
 
-                        // Emit follow-up prompt after animation completes
-                        if (data.followUpData) {
-                            console.log('[SceneOrchestrator] Animation complete, showing follow-up prompt');
-                            this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, data.followUpData);
-                        }
-                    });
-                } else {
-                    this.scene.refreshDugouts();
-                    // No sprite, no animation - show follow-up immediately if present
-                    if (data.followUpData) {
-                        this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, data.followUpData);
-                    }
-                }
-            } else {
-                this.scene.refreshDugouts();
-                // No path, no animation - show follow-up immediately if present
-                if (data.followUpData) {
-                    this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, data.followUpData);
-                }
+            // Emit follow-up prompt after animation completes
+            if (data.followUpData) {
+              console.log(
+                "[SceneOrchestrator] Animation complete, showing follow-up prompt"
+              );
+              this.eventBus.emit(
+                GameEventNames.UI_FollowUpPrompt,
+                data.followUpData
+              );
             }
+          });
+        } else {
+          this.scene.refreshDugouts();
+          // No sprite, no animation - show follow-up immediately if present
+          if (data.followUpData) {
+            this.eventBus.emit(
+              GameEventNames.UI_FollowUpPrompt,
+              data.followUpData
+            );
+          }
+        }
+      } else {
+        this.scene.refreshDugouts();
+        // No path, no animation - show follow-up immediately if present
+        if (data.followUpData) {
+          this.eventBus.emit(
+            GameEventNames.UI_FollowUpPrompt,
+            data.followUpData
+          );
+        }
+      }
 
-            // Clear all highlights using the GameplayInteractionController's method
-            // This ensures controller-managed highlights (push, etc.) are cleared before pitch highlights
-            if (this.scene['gameplayController']) {
-                this.scene['gameplayController'].clearAllInteractionHighlights();
-            } else {
-                // Fallback for scenes without gameplayController
-                this.scene['pitch'].clearPath();
-                this.scene['pitch'].clearHighlights();
-            }
-        };
-        this.eventHandlers.set(GameEventNames.PlayerMoved, onPlayerMoved);
-        this.eventBus.on(GameEventNames.PlayerMoved, onPlayerMoved);
+      // Clear all highlights using the GameplayInteractionController's method
+      // This ensures controller-managed highlights (push, etc.) are cleared before pitch highlights
+      if (this.scene["gameplayController"]) {
+        this.scene["gameplayController"].clearAllInteractionHighlights();
+      } else {
+        // Fallback for scenes without gameplayController
+        this.scene["pitch"].clearPath();
+        this.scene["pitch"].clearHighlights();
+      }
+    };
+    this.eventHandlers.set(GameEventNames.PlayerMoved, onPlayerMoved);
+    this.eventBus.on(GameEventNames.PlayerMoved, onPlayerMoved);
 
-        // Kickoff events
-        const onKickoffStarted = () => {
-            this.eventBus.emit(GameEventNames.UI_Notification, "KICKOFF!");
-        };
-        this.eventHandlers.set(GameEventNames.KickoffStarted, onKickoffStarted);
-        this.eventBus.on(GameEventNames.KickoffStarted, onKickoffStarted);
+    // Kickoff events
+    const onKickoffStarted = () => {
+      this.eventBus.emit(GameEventNames.UI_Notification, "KICKOFF!");
+    };
+    this.eventHandlers.set(GameEventNames.KickoffStarted, onKickoffStarted);
+    this.eventBus.on(GameEventNames.KickoffStarted, onKickoffStarted);
 
-        // Block dice rolling
-        const onRollBlockDice = (data: { attackerId: string, defenderId: string, numDice: number, isAttackerChoice: boolean }) => {
-            this.gameService.rollBlockDice(data.attackerId, data.defenderId, data.numDice, data.isAttackerChoice);
-        };
-        this.eventHandlers.set(GameEventNames.UI_RollBlockDice, onRollBlockDice);
-        this.eventBus.on(GameEventNames.UI_RollBlockDice, onRollBlockDice);
+    // Block dice rolling
+    const onRollBlockDice = (data: {
+      attackerId: string;
+      defenderId: string;
+      numDice: number;
+      isAttackerChoice: boolean;
+    }) => {
+      this.gameService.rollBlockDice(
+        data.attackerId,
+        data.defenderId,
+        data.numDice,
+        data.isAttackerChoice
+      );
+    };
+    this.eventHandlers.set(GameEventNames.UI_RollBlockDice, onRollBlockDice);
+    this.eventBus.on(GameEventNames.UI_RollBlockDice, onRollBlockDice);
 
-        // Block result selection
-        const onBlockResultSelected = (data: { attackerId: string, defenderId: string, result: any }) => {
-            this.gameService.resolveBlock(data.attackerId, data.defenderId, data.result);
-        };
-        this.eventHandlers.set(GameEventNames.UI_BlockResultSelected, onBlockResultSelected);
-        this.eventBus.on(GameEventNames.UI_BlockResultSelected, onBlockResultSelected);
+    // Block result selection
+    const onBlockResultSelected = (data: {
+      attackerId: string;
+      defenderId: string;
+      result: any;
+    }) => {
+      this.gameService.resolveBlock(
+        data.attackerId,
+        data.defenderId,
+        data.result
+      );
+    };
+    this.eventHandlers.set(
+      GameEventNames.UI_BlockResultSelected,
+      onBlockResultSelected
+    );
+    this.eventBus.on(
+      GameEventNames.UI_BlockResultSelected,
+      onBlockResultSelected
+    );
 
-        // Follow-up response
-        const onFollowUpResponse = (data: { attackerId: string, followUp: boolean, targetSquare?: { x: number; y: number } }) => {
-            if (data.followUp && data.targetSquare) {
-                // Move attacker to the defender's old square
-                this.gameService.movePlayer(data.attackerId, [data.targetSquare]);
-            }
-            // End the attacker's activation
-            this.gameService.finishActivation(data.attackerId);
-        };
-        this.eventHandlers.set(GameEventNames.UI_FollowUpResponse, onFollowUpResponse);
-        this.eventBus.on(GameEventNames.UI_FollowUpResponse, onFollowUpResponse);
+    // Follow-up response
+    const onFollowUpResponse = (data: {
+      attackerId: string;
+      followUp: boolean;
+      targetSquare?: { x: number; y: number };
+    }) => {
+      if (data.followUp && data.targetSquare) {
+        // Move attacker to the defender's old square
+        this.gameService.movePlayer(data.attackerId, [data.targetSquare]);
+      }
+      // End the attacker's activation
+      this.gameService.finishActivation(data.attackerId);
+    };
+    this.eventHandlers.set(
+      GameEventNames.UI_FollowUpResponse,
+      onFollowUpResponse
+    );
+    this.eventBus.on(GameEventNames.UI_FollowUpResponse, onFollowUpResponse);
 
-        // Player knocked down - update visual status
-        const onPlayerKnockedDown = (data: { playerId: string }) => {
-            const sprite = this.scene['playerSprites'].get(data.playerId);
-            if (sprite) {
-                sprite.updateStatus();
-            }
-        };
-        this.eventHandlers.set(GameEventNames.PlayerKnockedDown, onPlayerKnockedDown);
-        this.eventBus.on(GameEventNames.PlayerKnockedDown, onPlayerKnockedDown);
+    // Player knocked down - update visual status
+    const onPlayerKnockedDown = (data: { playerId: string }) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (sprite) {
+        sprite.updateStatus();
+      }
+    };
+    this.eventHandlers.set(
+      GameEventNames.PlayerKnockedDown,
+      onPlayerKnockedDown
+    );
+    this.eventBus.on(GameEventNames.PlayerKnockedDown, onPlayerKnockedDown);
 
-        // Player stood up - update visual status
-        const onPlayerStoodUp = (data: { playerId: string; cost: number }) => {
-            const sprite = this.scene['playerSprites'].get(data.playerId);
-            if (sprite) {
-                sprite.updateStatus();
-            }
-        };
-        this.eventHandlers.set(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
-        this.eventBus.on(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
+    // Player stood up - update visual status
+    const onPlayerStoodUp = (data: { playerId: string; cost: number }) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (sprite) {
+        sprite.updateStatus();
+      }
+    };
+    this.eventHandlers.set(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
+    this.eventBus.on(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
   }
 
   /**
@@ -297,10 +371,15 @@ export class SceneOrchestrator {
    */
   public startPlacement(subPhase: SubPhase): void {
     const isKicking = subPhase === SubPhase.SETUP_KICKING;
-        const activeTeam = isKicking ? this.scene.kickingTeam : this.scene.receivingTeam;
-        const isTeam1 = activeTeam.id === this.scene.team1.id;
+    const activeTeam = isKicking
+      ? this.scene.kickingTeam
+      : this.scene.receivingTeam;
+    const isTeam1 = activeTeam.id === this.scene.team1.id;
 
-        this.eventBus.emit(GameEventNames.UI_ShowSetupControls, { subPhase, activeTeam });
+    this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
+      subPhase,
+      activeTeam,
+    });
 
     // Tell scene to highlight setup zone (visual only)
     this.scene.highlightSetupZone(isTeam1);
@@ -317,8 +396,8 @@ export class SceneOrchestrator {
     const state = this.gameService.getState();
     if (!state.activeTeamId) return;
 
-        const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
-        this.eventBus.emit(GameEventNames.UI_SetupComplete, isComplete);
+    const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
+    this.eventBus.emit(GameEventNames.UI_SetupComplete, isComplete);
   }
 
   /**
