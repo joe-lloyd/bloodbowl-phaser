@@ -179,7 +179,6 @@ export class GameplayInteractionController {
       // Clicking ANOTHER player?
       if (playerAtSquare.id !== this.selectedPlayerId) {
         // BLOCK CHECK
-        // If we have a selected player who is Active, Adjacent, and an Enemy -> BLOCK PREVIEW
         if (this.selectedPlayerId) {
           const selectedPlayer = this.gameService.getPlayerById(
             this.selectedPlayerId
@@ -198,6 +197,21 @@ export class GameplayInteractionController {
 
             if (dx <= 1 && dy <= 1) {
               // IT'S A BLOCK!
+
+              // Implicit Action Declaration
+              const currentAction = state.activePlayer?.action;
+              if (!currentAction) {
+                // If no action declared, implicitly declare BLOCK
+                this.gameService.declareAction(selectedPlayer.id, "block");
+              } else if (currentAction === "move") {
+                // Cannot block if Move declared (unless Blitz, handled below)
+                this.eventBus.emit(
+                  "ui:notification",
+                  "Cannot Block during Move action (need Blitz)"
+                );
+                return;
+              }
+
               // Deselect player to clear movement path/highlights
               this.deselectPlayer();
               // Trigger Block Preview
@@ -227,6 +241,19 @@ export class GameplayInteractionController {
         state.activeTeamId === player.teamId &&
         this.gameService.canActivate(player.id)
       ) {
+        // Implicit Action Declaration
+        const currentAction = state.activePlayer?.action;
+        if (!currentAction) {
+          // If no action declared, implicitly declare MOVE
+          this.gameService.declareAction(player.id, "move");
+        } else if (currentAction === "block") {
+          this.eventBus.emit(
+            "ui:notification",
+            "Cannot Move during Block action"
+          );
+          return;
+        }
+
         // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
         const lastPos =
           this.waypoints.length > 0

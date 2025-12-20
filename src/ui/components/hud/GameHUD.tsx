@@ -38,7 +38,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
     { id: string; text: string }[]
   >([]);
   const [queue, setQueue] = useState<{ id: string; text: string }[]>([]);
-  const [showEndTurn, setShowEndTurn] = useState(false);
 
   // Initial State Load
   useEffect(() => {
@@ -205,7 +204,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
 
       {/* Bottom Bar: End Turn Button */}
       <div className="flex justify-end w-full pb-4 pr-4 pointer-events-auto">
-        {showEndTurn && <EndTurnButton onClick={handleEndTurn} />}
+        {turnData.phase === GamePhase.PLAY && (
+          <EndTurnButton onClick={handleEndTurn} />
+        )}
       </div>
     </div>
   );

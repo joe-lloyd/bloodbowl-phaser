@@ -123,24 +123,6 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col overflow-y-auto max-h-[50vh] scrollbar-thin scrollbar-thumb-bb-gold">
         {/* Actions Grid */}
         <div className="space-y-1">
-          {/* Basic Actions */}
-          {canMove && (
-            <ActionButton
-              action="move"
-              label="MOVE"
-              sub="MA + Sprint"
-              color="green"
-            />
-          )}
-          {canBlock && (
-            <ActionButton
-              action="block"
-              label="BLOCK"
-              sub="Adjacent"
-              color="red"
-            />
-          )}
-
           {/* Special Turn Actions */}
           <ActionButton
             action="blitz"
