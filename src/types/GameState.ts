@@ -18,7 +18,7 @@ export enum SubPhase {
   // END OF DRIVE Sub-Phases
   SCORING = "SCORING",
   RECOVER_KO = "RECOVER_KO",
-  SECRET_WEAPONS = "SECRET_WEAPONS"
+  SECRET_WEAPONS = "SECRET_WEAPONS",
 }
 
 export enum GamePhase {
@@ -42,7 +42,6 @@ export interface TurnData {
   movementUsed: Map<string, number>;
 }
 
-
 export type TurnState = TurnData;
 
 export interface GameState {
@@ -52,5 +51,9 @@ export interface GameState {
   turn: TurnData;
   score: { [key: string]: number };
   weather: string; // "Nice", "Pouring Rain", etc.
-  ballPosition: { x: number, y: number } | null;
+  ballPosition: { x: number; y: number } | null;
+  activePlayer: {
+    id: string;
+    action: string | null; // ActionType
+  } | null;
 }

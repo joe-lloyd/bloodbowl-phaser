@@ -11,6 +11,7 @@ import { CoinFlipOverlay } from "./CoinFlipOverlay";
 import { SetupControls } from "./SetupControls";
 import { ConfirmationModal } from "./ConfirmationModal";
 
+import { PlayerActionMenu } from "./PlayerActionMenu";
 import { DiceLog } from "./DiceLog";
 import { PlayerInfoPanel } from "./PlayerInfoPanel";
 import { BlockDiceDialog } from "./BlockDiceDialog";
@@ -27,7 +28,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
     turnNumber: 1,
     activeTeamName: "Loading...",
     isTeam1Active: true,
-    phase: GamePhase.SETUP, // Default phase
+    phase: GamePhase.SETUP,
+    hasBlitzed: false,
+    hasPassed: false,
+    hasHandedOff: false,
+    hasFouled: false,
   });
   const [notifications, setNotifications] = useState<
     { id: string; text: string }[]
@@ -50,8 +55,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
           setTurnData({
             turnNumber: state.turn.turnNumber,
             activeTeamName: activeTeam.name,
-            isTeam1Active: activeTeamId === (team1?.id || "team1"), // Roughly correct for now
+            isTeam1Active: activeTeamId === (team1?.id || "team1"),
             phase: state.phase,
+            hasBlitzed: state.turn.hasBlitzed,
+            hasPassed: state.turn.hasPassed,
+            hasHandedOff: state.turn.hasHandedOff,
+            hasFouled: state.turn.hasFouled,
           });
         }
       }
@@ -71,23 +80,30 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
     if (activeTeam) {
+      // Fetch fresh state to get reset flags
+      const state = container.gameService.getState();
       setTurnData({
         turnNumber: turn.turnNumber,
         activeTeamName: activeTeam.name,
-        isTeam1Active: turn.teamId === "team1", // Simplified - assumes team IDs are 'team1' and 'team2'
-        phase: container.gameService.getState().phase,
+        isTeam1Active: turn.teamId === "team1",
+        phase: state.phase,
+        hasBlitzed: state.turn.hasBlitzed,
+        hasPassed: state.turn.hasPassed,
+        hasHandedOff: state.turn.hasHandedOff,
+        hasFouled: state.turn.hasFouled,
       });
     }
   });
 
-  // Show end turn button when player moves
-  useEventBus(eventBus, "playerMoved", () => {
-    setShowEndTurn(true);
-  });
-
-  // Hide end turn button when turn ends
-  useEventBus(eventBus, "turnEnded", () => {
-    setShowEndTurn(false);
+  // Turn Data Updated listener (from PlayerActionManager)
+  useEventBus(eventBus, "turnDataUpdated", (updatedTurn: any) => {
+    setTurnData((prev) => ({
+      ...prev,
+      hasBlitzed: updatedTurn.hasBlitzed,
+      hasPassed: updatedTurn.hasPassed,
+      hasHandedOff: updatedTurn.hasHandedOff,
+      hasFouled: updatedTurn.hasFouled,
+    }));
   });
 
   // Kickoff started listener
@@ -161,6 +177,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
       <BlockDiceDialog eventBus={eventBus} />
       <FollowUpDialog eventBus={eventBus} />
       <TurnoverOverlay eventBus={eventBus} />
+
+      {/* Player Action Menu (Above Dice Log) */}
+      <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
 
       {/* Dice Log (Bottom Left) */}
       <DiceLog eventBus={eventBus} />

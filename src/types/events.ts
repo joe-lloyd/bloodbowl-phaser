@@ -1,113 +1,114 @@
 /**
  * Event Types for the Game
- * 
+ *
  * Type-safe event definitions for communication between Phaser game logic
  * and React UI components via the EventBus.
  */
 
-import { GamePhase, GameState, SubPhase } from './GameState';
-import { Team } from './Team';
-import { Player } from './Player';
+import { GamePhase, GameState, SubPhase } from "./GameState";
+import { Team } from "./Team";
+import { Player } from "./Player";
 
 /**
  * Game Events - Emitted by GameService/Phaser
  * React components subscribe to these to update UI
  */
 export interface GameEvents {
-    // Phase Management
-    'phaseChanged': {
-        phase: GamePhase;
-        subPhase?: SubPhase;
-        activeTeamId?: string;
-    };
-    'setupConfirmed': string; // teamId
-    'kickoffStarted': void;
-    'readyToStart': void;
+  // Phase Management
+  phaseChanged: {
+    phase: GamePhase;
+    subPhase?: SubPhase;
+    activeTeamId?: string;
+  };
+  setupConfirmed: string; // teamId
+  kickoffStarted: void;
+  readyToStart: void;
 
-    // Turn Management
-    'turnStarted': {
-        teamId: string;
-        turnNumber: number;
-        isHalf2?: boolean; // Optional if not always present
-    };
-    'turnEnded': { teamId: string };
+  // Turn Management
+  turnStarted: {
+    teamId: string;
+    turnNumber: number;
+    isHalf2?: boolean; // Optional if not always present
+  };
+  turnEnded: { teamId: string };
 
-    // Player Actions
-    'playerPlaced': { playerId: string; x: number; y: number };
-    'playerRemoved': string; // playerId
-    'playersSwapped': { player1Id: string; player2Id: string };
-    'playerMoved': {
-        playerId: string;
-        from: { x: number; y: number };
-        to: { x: number; y: number };
-        path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
-        followUpData?: { // Optional follow-up data for blocks
-            attackerId: string;
-            targetSquare: { x: number; y: number };
-        };
+  // Player Actions
+  playerPlaced: { playerId: string; x: number; y: number };
+  playerRemoved: string; // playerId
+  playersSwapped: { player1Id: string; player2Id: string };
+  playerMoved: {
+    playerId: string;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    path?: { x: number; y: number }[]; // Optional depending on usage, but GameService seems to emit it?
+    followUpData?: {
+      // Optional follow-up data for blocks
+      attackerId: string;
+      targetSquare: { x: number; y: number };
     };
-    'playerActivated': string; // playerId
-    'playerSelected': { player: Player | null };
-    'playerStatusChanged': Player;
-    'turnover': { teamId: string };
+  };
+  playerActivated: string; // playerId
+  playerSelected: { player: Player | null };
+  playerStatusChanged: Player;
+  turnover: { teamId: string };
 
-    // Block Events
-    'blockDiceRolled': {
-        attackerId: string;
-        defenderId: string;
-        numDice: number;
-        isAttackerChoice: boolean;
-        results: any[]; // BlockResult[]
-    };
+  // Block Events
+  blockDiceRolled: {
+    attackerId: string;
+    defenderId: string;
+    numDice: number;
+    isAttackerChoice: boolean;
+    results: any[]; // BlockResult[]
+  };
 
-    'armorRolled': {
-        playerId: string;
-        roll: number;
-        armor: number;
-        broken: boolean;
-    };
+  armorRolled: {
+    playerId: string;
+    roll: number;
+    armor: number;
+    broken: boolean;
+  };
 
-    'playerKnockedDown': {
-        playerId: string;
-    };
+  playerKnockedDown: {
+    playerId: string;
+  };
 
-    // Scoring
-    'touchdown': { teamId: string; score: number };
+  // Scoring
+  touchdown: { teamId: string; score: number };
 
-    // Ball
-    'ballPlaced': { x: number; y: number };
-    'ballKicked': {
-        playerId: string;
-        targetX: number;
-        targetY: number;
-        direction: number;
-        distance: number;
-        finalX: number;
-        finalY: number;
-    };
-    'kickoffResult': { roll: number; event: string };
-    'ballPickup': {
-        playerId: string;
-        success: boolean;
-        roll: number;
-        target: number;
-    };
-    'weatherChanged': string;
+  // Ball
+  ballPlaced: { x: number; y: number };
+  ballKicked: {
+    playerId: string;
+    targetX: number;
+    targetY: number;
+    direction: number;
+    distance: number;
+    finalX: number;
+    finalY: number;
+  };
+  kickoffResult: { roll: number; event: string };
+  ballPickup: {
+    playerId: string;
+    success: boolean;
+    roll: number;
+    target: number;
+  };
+  weatherChanged: string;
 
-    // Game Flow
-    'diceRoll': {
-        rollType: string;     // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
-        diceType: string;     // e.g. "2d6", "d6", "Block"
-        teamId?: string;      // The team performing the roll (for coloring)
-        value: number | number[]; // Raw dice result(s)
-        total: number;        // Sum or relevant total
-        description: string;  // Text outcome e.g. "Nice Weather", "Scatter"
-        passed?: boolean;     // For tests (Armor, Agility, Dodge)
-    };
+  // Game Flow
+  diceRoll: {
+    rollType: string; // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
+    diceType: string; // e.g. "2d6", "d6", "Block"
+    teamId?: string; // The team performing the roll (for coloring)
+    value: number | number[]; // Raw dice result(s)
+    total: number; // Sum or relevant total
+    description: string; // Text outcome e.g. "Nice Weather", "Scatter"
+    passed?: boolean; // For tests (Armor, Agility, Dodge)
+  };
 
-    // Sandbox
-    'gameStateRestored': GameState;
-    'refreshBoard': void;
+  // Sandbox
+  gameStateRestored: GameState;
+  refreshBoard: void;
 }
 
 /**
@@ -115,127 +116,126 @@ export interface GameEvents {
  * GameService/Phaser subscribes to these to handle user actions
  */
 export interface UIEvents {
-    // Team Builder
-    'ui:playerHired': { position: string };
-    'ui:playerFired': { playerId: string };
-    'ui:teamSaved': { team: Team };
-    'ui:teamNameChanged': { name: string };
-    'ui:teamColorChanged': { primary: number; secondary: number };
-    'ui:rerollPurchased': void;
+  // Team Builder
+  "ui:playerHired": { position: string };
+  "ui:playerFired": { playerId: string };
+  "ui:teamSaved": { team: Team };
+  "ui:teamNameChanged": { name: string };
+  "ui:teamColorChanged": { primary: number; secondary: number };
+  "ui:rerollPurchased": void;
 
-    // Game Actions
-    'ui:actionSelected': { action: ActionType; playerId: string };
-    'ui:confirmAction': { actionId: string };
-    'ui:cancelAction': void;
-    'ui:endTurn': void;
+  // Game Actions
+  "ui:actionSelected": { action: ActionType; playerId: string };
+  "ui:confirmAction": { actionId: string };
+  "ui:cancelAction": void;
+  "ui:endTurn": void;
 
-    // Setup
-    'ui:placePlayer': { playerId: string; x: number; y: number };
-    'ui:removePlayer': { playerId: string };
-    'ui:confirmSetup': void;
+  // Setup
+  "ui:placePlayer": { playerId: string; x: number; y: number };
+  "ui:removePlayer": { playerId: string };
+  "ui:confirmSetup": void;
 
-    // Navigation
-    'ui:sceneChange': { scene: string; data?: any };
-    'ui:loadScenario': { scenarioId: string };
+  // Navigation
+  "ui:sceneChange": { scene: string; data?: any };
+  "ui:loadScenario": { scenarioId: string };
 
-    // Game Start
-    'ui:startGame': { team1: Team; team2: Team };
+  // Game Start
+  "ui:startGame": { team1: Team; team2: Team };
 
-    // Coin Flip
-    'ui:startCoinFlip': { team1: Team; team2: Team };
-    'ui:coinFlipComplete': { kickingTeam: Team; receivingTeam: Team };
-    'ui:requestCoinFlipState': void;
+  // Coin Flip
+  "ui:startCoinFlip": { team1: Team; team2: Team };
+  "ui:coinFlipComplete": { kickingTeam: Team; receivingTeam: Team };
+  "ui:requestCoinFlipState": void;
 
-    // Setup Controls
-    'ui:showSetupControls': {
-        subPhase: SubPhase;
-        activeTeam: { id: string, name: string }
-    };
-    'ui:hideSetupControls': void;
-    'ui:setupcomplete': boolean;
-    'ui:setupAction': { action: string };
+  // Setup Controls
+  "ui:showSetupControls": {
+    subPhase: SubPhase;
+    activeTeam: { id: string; name: string };
+  };
+  "ui:hideSetupControls": void;
+  "ui:setupcomplete": boolean;
+  "ui:setupAction": { action: string };
 
-    // Common UI
-    'ui:notification': string;
-    'ui:gameLog': string;
+  // Common UI
+  "ui:notification": string;
+  "ui:gameLog": string;
 
-    // Confirmation
-    'ui:requestConfirmation': {
-        actionId: string;
-        title: string;
-        message: string;
-        confirmLabel?: string;
-        cancelLabel?: string;
-        risky?: boolean;
-    };
+  // Confirmation
+  "ui:requestConfirmation": {
+    actionId: string;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    risky?: boolean;
+  };
 
+  "ui:confirmationResult": {
+    confirmed: boolean;
+    actionId: string;
+  };
 
-    'ui:confirmationResult': {
-        confirmed: boolean;
-        actionId: string;
-    };
+  // Block
+  "ui:blockResultSelected": {
+    attackerId: string;
+    defenderId: string;
+    result: string;
+  };
 
-    // Block
-    'ui:blockResultSelected': {
-        attackerId: string;
-        defenderId: string;
-        result: string;
-    };
+  // Turnover Visuals
+  "ui:turnover": { teamId: string; reason: string };
 
-    // Turnover Visuals
-    'ui:turnover': { teamId: string; reason: string };
+  // Player Info
+  "ui:showPlayerInfo": Player;
+  "ui:hidePlayerInfo": void;
 
-    // Player Info
-    'ui:showPlayerInfo': Player;
-    'ui:hidePlayerInfo': void;
+  // Block
+  "ui:blockDialog": {
+    attackerId: string;
+    defenderId: string;
+    analysis: import("./Actions").BlockAnalysis;
+  };
 
-    // Block
-    'ui:blockDialog': {
-        attackerId: string;
-        defenderId: string;
-        analysis: import('./Actions').BlockAnalysis;
-    };
+  "ui:rollBlockDice": {
+    attackerId: string;
+    defenderId: string;
+    numDice: number;
+    isAttackerChoice: boolean;
+  };
 
-    'ui:rollBlockDice': {
-        attackerId: string;
-        defenderId: string;
-        numDice: number;
-        isAttackerChoice: boolean;
-    };
+  "ui:selectPushDirection": {
+    defenderId: string;
+    attackerId: string;
+    validDirections: { x: number; y: number }[];
+    canFollowUp: boolean;
+    resultType?: string;
+  };
 
-    'ui:selectPushDirection': {
-        defenderId: string;
-        attackerId: string;
-        validDirections: { x: number; y: number }[];
-        canFollowUp: boolean;
-        resultType?: string;
-    };
+  "ui:pushDirectionSelected": {
+    defenderId: string;
+    direction: { x: number; y: number };
+    canFollowUp: boolean;
+  };
 
-    'ui:pushDirectionSelected': {
-        defenderId: string;
-        direction: { x: number; y: number };
-        canFollowUp: boolean;
-    };
+  "ui:followUpPrompt": {
+    attackerId: string;
+    targetSquare: { x: number; y: number };
+  };
 
-    'ui:followUpPrompt': {
-        attackerId: string;
-        targetSquare: { x: number; y: number };
-    };
-
-    'ui:followUpResponse': {
-        attackerId: string;
-        followUp: boolean;
-        targetSquare?: { x: number; y: number };
-    };
+  "ui:followUpResponse": {
+    attackerId: string;
+    followUp: boolean;
+    targetSquare?: { x: number; y: number };
+  };
 }
 
 /**
  * State Update Events - For synchronizing state
  */
 export interface StateEvents {
-    'team:updated': { team: Team };
-    'game:stateChanged': { state: GameState };
-    'player:updated': { player: Player };
+  "team:updated": { team: Team };
+  "game:stateChanged": { state: GameState };
+  "player:updated": { player: Player };
 }
 
 /**
@@ -247,17 +247,21 @@ export type AllEvents = GameEvents & UIEvents & StateEvents;
  * Action types available in the game
  */
 export type ActionType =
-    | 'move'
-    | 'block'
-    | 'blitz'
-    | 'pass'
-    | 'handoff'
-    | 'foul'
-    | 'standUp';
+  | "move"
+  | "block"
+  | "blitz"
+  | "pass"
+  | "handoff"
+  | "foul"
+  | "standUp"
+  | "throwTeamMate"
+  | "secureBall"
+  | "special"
+  | "forgoe";
 
 /**
  * Helper type for event handlers
  */
 export type EventHandler<K extends keyof AllEvents> = (
-    data: AllEvents[K]
+  data: AllEvents[K]
 ) => void;
