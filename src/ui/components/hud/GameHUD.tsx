@@ -42,31 +42,42 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
 
   // Initial State Load
   useEffect(() => {
-    try {
-      const container = ServiceContainer.getInstance();
-      const state = container.gameService.getState();
-      if (state) {
-        const activeTeamId = state.activeTeamId || "";
-        const activeTeam = container.gameService.getTeam(activeTeamId);
-        const team1 =
-          container.gameService.getTeam(state.turn.teamId) || activeTeam;
-
-        if (activeTeam) {
-          setTurnData({
-            turnNumber: state.turn.turnNumber,
-            activeTeamName: activeTeam.name,
-            isTeam1Active: activeTeamId === (team1?.id || "team1"),
-            phase: state.phase,
-            hasBlitzed: state.turn.hasBlitzed,
-            hasPassed: state.turn.hasPassed,
-            hasHandedOff: state.turn.hasHandedOff,
-            hasFouled: state.turn.hasFouled,
-          });
+    const initHUD = () => {
+      try {
+        if (!ServiceContainer.isInitialized()) {
+          console.log("Waiting for ServiceContainer...");
+          setTimeout(initHUD, 100);
+          return;
         }
+
+        const container = ServiceContainer.getInstance();
+        const state = container.gameService.getState();
+        if (state) {
+          const activeTeamId = state.activeTeamId || "";
+          const activeTeam = container.gameService.getTeam(activeTeamId);
+          const team1 =
+            container.gameService.getTeam(state.turn.teamId) || activeTeam;
+
+          if (activeTeam) {
+            setTurnData({
+              turnNumber: state.turn.turnNumber,
+              activeTeamName: activeTeam.name,
+              isTeam1Active: activeTeamId === (team1?.id || "team1"),
+              phase: state.phase,
+              hasBlitzed: state.turn.hasBlitzed,
+              hasPassed: state.turn.hasPassed,
+              hasHandedOff: state.turn.hasHandedOff,
+              hasFouled: state.turn.hasFouled,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("GameService not ready yet, retrying...", e);
+        setTimeout(initHUD, 200);
       }
-    } catch (e) {
-      console.error("GameService not ready yet");
-    }
+    };
+
+    initHUD();
   }, []);
 
   // Phase change listener

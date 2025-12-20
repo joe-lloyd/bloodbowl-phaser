@@ -92,7 +92,22 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   return (
     <div
       className="absolute bottom-[25%] left-4 w-[18%] max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
-      onClick={(e) => e.stopPropagation()}
+      style={{ pointerEvents: "auto", zIndex: 9999 }}
+      onClick={(e) => {
+        console.log("[PlayerActionMenu] Container Clicked");
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+      }}
+      onPointerDown={(e) => {
+        console.log("[PlayerActionMenu] Container PointerDown");
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+      }}
+      onMouseDown={(e) => {
+        console.log("[PlayerActionMenu] Container MouseDown");
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md">

@@ -9,15 +9,9 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
 import { GamePhase, SubPhase } from "../types/GameState";
-import {
-  SetupValidator,
-} from "../game/validators/SetupValidator";
-import {
-  FormationManager,
-} from "../game/managers/FormationManager";
-import {
-  PlayerPlacementController,
-} from "../game/controllers/PlayerPlacementController";
+import { SetupValidator } from "../game/validators/SetupValidator";
+import { FormationManager } from "../game/managers/FormationManager";
+import { PlayerPlacementController } from "../game/controllers/PlayerPlacementController";
 import { pixelToGrid } from "../game/elements/GridUtils";
 import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
@@ -25,7 +19,11 @@ import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 
 // Assets
 // Dynamic loading via import.meta.glob
-const assetFiles = import.meta.glob('../data/assets/**/*.{png,jpg,gif}', { eager: true, query: '?url', import: 'default' });
+const assetFiles = import.meta.glob("../data/assets/**/*.{png,jpg,gif}", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
 /**
  * Game Scene - Unified scene for Setup and Gameplay
@@ -82,11 +80,11 @@ export class GameScene extends Phaser.Scene {
     // We should expose teams on GameService or Container?
     // GameService has them private. let's assume reuse of init data OR passed data.
     // BUT ScenarioLoader modified the teams passed to it.
-    // Since SandboxScene holds the team references, they are mutated in place. 
+    // Since SandboxScene holds the team references, they are mutated in place.
     // So team1/team2 references might be valid, but we need to re-bind controllers.
 
     // Cleanup old sprites
-    this.playerSprites.forEach(s => s.destroy());
+    this.playerSprites.forEach((s) => s.destroy());
     this.playerSprites.clear();
 
     if (this.ballSprite) {
@@ -104,7 +102,7 @@ export class GameScene extends Phaser.Scene {
     // Reinitialize GameplayController with new service reference
     this.gameplayController = new GameplayInteractionController(
       this,
-      this.gameService,  // NEW reference
+      this.gameService, // NEW reference
       this.eventBus,
       this.pitch,
       this.movementValidator
@@ -113,7 +111,7 @@ export class GameScene extends Phaser.Scene {
     // Reinitialize Orchestrator with new service reference
     this.orchestrator = new SceneOrchestrator(
       this,
-      this.gameService,  // NEW reference
+      this.gameService, // NEW reference
       this.eventBus
     );
     this.orchestrator.setupEventListeners();
@@ -153,17 +151,17 @@ export class GameScene extends Phaser.Scene {
       const url = assetFiles[path];
 
       // Parse Path: ../data/assets/[roster]/[filename]
-      const parts = path.split('/');
+      const parts = path.split("/");
       const filename = parts.pop();
       const folder = parts.pop(); // Roster name (folder)
 
       if (folder && filename) {
-        const nameIdx = filename.lastIndexOf('.');
+        const nameIdx = filename.lastIndexOf(".");
         const name = nameIdx !== -1 ? filename.substring(0, nameIdx) : filename;
 
         // Normalize: lowercase, replace spaces with dashes (though folder usually has dashes)
-        const rosterKey = folder.toLowerCase().replace(/\s+/g, '-');
-        const posKey = name.toLowerCase().replace(/\s+/g, '-');
+        const rosterKey = folder.toLowerCase().replace(/\s+/g, "-");
+        const posKey = name.toLowerCase().replace(/\s+/g, "-");
 
         const key = `asset_${rosterKey}_${posKey}`;
         // console.log(`Loading Asset: ${key} -> ${path}`);
@@ -178,7 +176,11 @@ export class GameScene extends Phaser.Scene {
 
     // 1. Background (Interactive for deselect)
     // 1. Background (Interactive for deselect)
-    this.add.rectangle(0, 0, width, height, 0x0a0a1e).setOrigin(0).setInteractive().on('pointerdown', () => this.onBackgroundClick());
+    this.add
+      .rectangle(0, 0, width, height, 0x0a0a1e)
+      .setOrigin(0)
+      .setInteractive()
+      .on("pointerdown", () => this.onBackgroundClick());
 
     // Audio
     // try {
@@ -201,7 +203,6 @@ export class GameScene extends Phaser.Scene {
 
     // Pitch interaction for Play Phase
 
-
     // 3. Initialize Dugouts (Top and Bottom)
     this.createDugouts(pitchX, pitchY);
 
@@ -217,7 +218,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Pitch interaction (Now safe to attach)
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (this.isSetupActive) {
         // Direct Pitch Highlight for Setup
         const pitchContainer = this.pitch.getContainer();
@@ -225,7 +226,12 @@ export class GameScene extends Phaser.Scene {
         const localY = pointer.y - pitchContainer.y;
 
         // Simple bounds check (0-26, 0-15) - hardcoded for now, or use Pitch dims
-        if (localX >= 0 && localX <= 26 * 60 && localY >= 0 && localY <= 15 * 60) {
+        if (
+          localX >= 0 &&
+          localX <= 26 * 60 &&
+          localY >= 0 &&
+          localY <= 15 * 60
+        ) {
           const gridPos = pixelToGrid(localX, localY, 60);
           this.pitch.highlightHoverSquare(gridPos.x, gridPos.y);
         } else {
@@ -236,12 +242,12 @@ export class GameScene extends Phaser.Scene {
       this.gameplayController.handlePointerMove(pointer, this.isSetupActive);
     });
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
     });
 
     // Global Key Inputs
-    this.input.keyboard?.on('keydown-ESC', () => {
+    this.input.keyboard?.on("keydown-ESC", () => {
       this.onBackgroundClick();
     });
 
@@ -257,16 +263,16 @@ export class GameScene extends Phaser.Scene {
     this.setupSceneSpecificListeners(); // Setup-specific events
     this.orchestrator.initialize();
 
-    this.eventBus.on('playerActivated', (playerId: string) => {
+    this.eventBus.on("playerActivated", (playerId: string) => {
       const sprite = this.playerSprites.get(playerId);
       if (sprite) {
         sprite.setActivated(true);
       }
     });
 
-    this.eventBus.on('turnStarted', (turnData: any) => {
+    this.eventBus.on("turnStarted", (turnData: any) => {
       // Reset all sprites
-      this.playerSprites.forEach(sprite => sprite.setActivated(false));
+      this.playerSprites.forEach((sprite) => sprite.setActivated(false));
       // Reset selection
       this.gameplayController.deselectPlayer();
       // Show Turn notification
@@ -292,7 +298,7 @@ export class GameScene extends Phaser.Scene {
 
     // CRITICAL: Destroy all visual elements to prevent leaks between scenes
     // Destroy player sprites
-    this.playerSprites.forEach(sprite => sprite.destroy());
+    this.playerSprites.forEach((sprite) => sprite.destroy());
     this.playerSprites.clear();
 
     // Destroy ball sprite
@@ -303,9 +309,9 @@ export class GameScene extends Phaser.Scene {
 
     // Destroy dugouts (if they exist)
     if (this.dugouts) {
-      this.dugouts.forEach(dugout => {
+      this.dugouts.forEach((dugout) => {
         // Dugout is a Phaser Container, use destroy method
-        if (dugout && typeof dugout.destroy === 'function') {
+        if (dugout && typeof dugout.destroy === "function") {
           dugout.destroy();
         }
       });
@@ -316,7 +322,7 @@ export class GameScene extends Phaser.Scene {
     if (this.pitch) {
       // Pitch is a custom class with a container, destroy the container
       const container = this.pitch.getContainer();
-      if (container && typeof container.destroy === 'function') {
+      if (container && typeof container.destroy === "function") {
         container.destroy();
       }
     }
@@ -334,11 +340,16 @@ export class GameScene extends Phaser.Scene {
     this.dugouts.set(this.team1.id, topDugout);
 
     // Bottom Dugout (Team 2)
-    const bottomDugout = new Dugout(this, pitchX, pitchY + 660 + 20, this.team2); // Pitch height is ~900 (15x60)
+    const bottomDugout = new Dugout(
+      this,
+      pitchX,
+      pitchY + 660 + 20,
+      this.team2
+    ); // Pitch height is ~900 (15x60)
     this.dugouts.set(this.team2.id, bottomDugout);
 
     // Wire up drags
-    [topDugout, bottomDugout].forEach(d => {
+    [topDugout, bottomDugout].forEach((d) => {
       d.setDragCallbacks(
         (id) => this.onDugoutDragStart(id),
         (id, x, y) => this.onDugoutDragEnd(id, x, y)
@@ -346,27 +357,32 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-
-
   private initializeControllers(): void {
     this.validator = new SetupValidator();
     this.formationManager = new FormationManager();
-    this.placementController = new PlayerPlacementController(this, this.pitch, this.validator);
+    this.placementController = new PlayerPlacementController(
+      this,
+      this.pitch,
+      this.validator
+    );
 
     // Handle late UI mounting (handshake)
     this.eventBus.on("ui:requestCoinFlipState", () => {
       if (this.isSetupActive) {
         // Only re-emit if we haven't started placement yet (e.g. still in coin flip)
-        // Simplified: just re-emit if setup is active and no kickingTeam/receivingTeam set? 
+        // Simplified: just re-emit if setup is active and no kickingTeam/receivingTeam set?
         // Or better: If we are in setup phase, show it.
         // Actually, CoinFlipController used to handle showing.
         // If we are strictly in the "Coin Toss" step, we should emit.
-        // How do we know we are in coin toss vs placement? 
+        // How do we know we are in coin toss vs placement?
         // We can check if kickoffStep is null? Or just emit it always for now if Setup is active and placement hasn't started?
         // Safest: Use a flag or check game service state.
 
         // For now, if setup active we just re-broadcast current state.
-        this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
+        this.eventBus.emit("ui:startCoinFlip", {
+          team1: this.team1,
+          team2: this.team2,
+        });
       }
     });
   }
@@ -374,7 +390,10 @@ export class GameScene extends Phaser.Scene {
   // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
   public startSetupPhase(): void {
     this.isSetupActive = true;
-    this.eventBus.emit("ui:startCoinFlip", { team1: this.team1, team2: this.team2 });
+    this.eventBus.emit("ui:startCoinFlip", {
+      team1: this.team1,
+      team2: this.team2,
+    });
   }
 
   // Delegate to orchestrator
@@ -393,17 +412,19 @@ export class GameScene extends Phaser.Scene {
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
   }
 
-
   // Setup-specific event listeners (placement controller events only)
   // All game flow logic has been moved to SceneOrchestrator
   private setupSceneSpecificListeners(): void {
     // Listen for placement changes from the placement controller
     // These are scene-specific because they directly interact with the controller
-    this.placementController.on("playerPlaced", (data: { playerId: string, x: number, y: number }) => {
-      this.gameService.placePlayer(data.playerId, data.x, data.y);
-      this.refreshDugouts();
-      this.checkSetupCompleteness();
-    });
+    this.placementController.on(
+      "playerPlaced",
+      (data: { playerId: string; x: number; y: number }) => {
+        this.gameService.placePlayer(data.playerId, data.x, data.y);
+        this.refreshDugouts();
+        this.checkSetupCompleteness();
+      }
+    );
 
     this.placementController.on("playerRemoved", (playerId: string) => {
       this.gameService.removePlayer(playerId);
@@ -413,7 +434,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public refreshDugouts(): void {
-    this.dugouts.forEach(d => d.refresh());
+    this.dugouts.forEach((d) => d.refresh());
     this.placePlayersOnPitch();
   }
 
@@ -436,17 +457,22 @@ export class GameScene extends Phaser.Scene {
 
     // Logic based on subphase
     if (subPhase === SubPhase.SETUP_KICKOFF) {
-      this.eventBus.emit('ui:notification', "Select Kicker & Target");
+      this.eventBus.emit("ui:notification", "Select Kicker & Target");
     }
   }
 
   protected placePlayersOnPitch(): void {
-
     // Get all players that have a grid position
-    const allPlayers = [...this.team1.players.filter(p => p.gridPosition), ...this.team2.players.filter(p => p.gridPosition)];
+    const allPlayers = [
+      ...this.team1.players.filter((p) => p.gridPosition),
+      ...this.team2.players.filter((p) => p.gridPosition),
+    ];
 
-    allPlayers.forEach(player => {
-      const pos = this.pitch.getPixelPosition(player.gridPosition!.x, player.gridPosition!.y);
+    allPlayers.forEach((player) => {
+      const pos = this.pitch.getPixelPosition(
+        player.gridPosition!.x,
+        player.gridPosition!.y
+      );
 
       if (this.playerSprites.has(player.id)) {
         const sprite = this.playerSprites.get(player.id)!;
@@ -457,19 +483,26 @@ export class GameScene extends Phaser.Scene {
         const team = player.teamId === this.team1.id ? this.team1 : this.team2;
         const teamColor = team.colors.primary;
         // Pass rosterName for asset lookup
-        const sprite = new PlayerSprite(this, pos.x, pos.y, player, teamColor, team.rosterName);
+        const sprite = new PlayerSprite(
+          this,
+          pos.x,
+          pos.y,
+          player,
+          teamColor,
+          team.rosterName
+        );
         sprite.setDepth(10);
         this.playerSprites.set(player.id, sprite);
 
         // Add interactivity for Play phase (setup phase uses placementController)
         sprite.setInteractive({ useHandCursor: true });
-        sprite.on('pointerdown', () => this.onPlayerClick(player));
+        sprite.on("pointerdown", () => this.onPlayerClick(player));
       }
     });
 
     // Hide any players that are in dugouts but still have visible pitch sprites
     // (This handles moving from pitch back to dugout)
-    [...this.team1.players, ...this.team2.players].forEach(player => {
+    [...this.team1.players, ...this.team2.players].forEach((player) => {
       if (!player.gridPosition && this.playerSprites.has(player.id)) {
         this.playerSprites.get(player.id)!.setVisible(false);
       }
@@ -483,11 +516,9 @@ export class GameScene extends Phaser.Scene {
     this.orchestrator.checkSetupCompleteness();
   }
 
-
-
-
   // Interactivity
   private onBackgroundClick(): void {
+    console.log("[GameScene] Background Clicked");
     if (this.isSetupActive) {
       this.placementController?.deselectPlayer();
       this.pitch.clearHighlights();
@@ -550,7 +581,6 @@ export class GameScene extends Phaser.Scene {
     this.ballSprite = new BallSprite(this, pos.x, pos.y);
   }
 
-
   private animateBallScatter(data: any): void {
     if (!this.ballSprite) return;
 
@@ -561,7 +591,7 @@ export class GameScene extends Phaser.Scene {
       x: finalPos.x,
       y: finalPos.y,
       duration: 1000,
-      ease: 'Bounce',
+      ease: "Bounce",
     });
   }
 
@@ -579,5 +609,4 @@ export class GameScene extends Phaser.Scene {
       sprite.unhighlight();
     }
   }
-
 }
