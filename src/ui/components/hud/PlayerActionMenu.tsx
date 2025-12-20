@@ -26,6 +26,9 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
   if (!selectedPlayer) return null;
 
+  // Only show menu for active team's players
+  if (selectedPlayer.teamId !== turnData.activeTeamId) return null;
+
   const handleAction = (action: ActionType) => {
     if (selectedPlayer) {
       eventBus.emit("ui:actionSelected", {

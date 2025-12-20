@@ -27,6 +27,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
   const [turnData, setTurnData] = useState({
     turnNumber: 1,
     activeTeamName: "Loading...",
+    activeTeamId: "",
     isTeam1Active: true,
     phase: GamePhase.SETUP,
     hasBlitzed: false,
@@ -61,6 +62,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
             setTurnData({
               turnNumber: state.turn.turnNumber,
               activeTeamName: activeTeam.name,
+              activeTeamId: activeTeam.id,
               isTeam1Active: activeTeamId === (team1?.id || "team1"),
               phase: state.phase,
               hasBlitzed: state.turn.hasBlitzed,
@@ -95,6 +97,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
       setTurnData({
         turnNumber: turn.turnNumber,
         activeTeamName: activeTeam.name,
+        activeTeamId: activeTeam.id,
         isTeam1Active: turn.teamId === "team1",
         phase: state.phase,
         hasBlitzed: state.turn.hasBlitzed,
