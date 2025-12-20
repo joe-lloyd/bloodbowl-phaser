@@ -7,6 +7,7 @@ import { pixelToGrid } from "../elements/GridUtils";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";
+import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 
 export class GameplayInteractionController {
@@ -56,13 +57,19 @@ export class GameplayInteractionController {
     };
 
     // Listen for confirmation
-    this.eventBus.on("ui:confirmationResult", this.onConfirmationResult);
+    this.eventBus.on(
+      GameEventNames.UI_ConfirmationResult,
+      this.onConfirmationResult
+    );
 
     // Listen for push direction selection request
-    this.eventBus.on("ui:selectPushDirection", this.pushDirectionHandler);
+    this.eventBus.on(
+      GameEventNames.UI_SelectPushDirection,
+      this.pushDirectionHandler
+    );
 
     // Listen for player actions (Blitz, Stand Up)
-    this.eventBus.on("ui:actionSelected", this.onActionSelected);
+    this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
   }
 
   private onActionSelected = async (data: {
@@ -76,7 +83,10 @@ export class GameplayInteractionController {
         this.selectPlayer(data.playerId);
       } catch (err) {
         console.error("Stand Up failed:", err);
-        this.eventBus.emit("ui:notification", `Cannot Stand Up: ${err}`);
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot Stand Up: ${err}`
+        );
       }
       return;
     }
@@ -94,7 +104,7 @@ export class GameplayInteractionController {
       this.selectPlayer(data.playerId);
     } else {
       this.eventBus.emit(
-        "ui:notification",
+        GameEventNames.UI_Notification,
         `Cannot declare ${data.action} (Already used?)`
       );
     }
@@ -136,7 +146,7 @@ export class GameplayInteractionController {
       this.lastHoverGrid = null;
       this.pitch.clearHover();
       this.pitch.clearPath();
-      this.eventBus.emit("ui:hidePlayerInfo");
+      this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     }
   }
 
@@ -206,7 +216,7 @@ export class GameplayInteractionController {
               } else if (currentAction === "move") {
                 // Cannot block if Move declared (unless Blitz, handled below)
                 this.eventBus.emit(
-                  "ui:notification",
+                  GameEventNames.UI_Notification,
                   "Cannot Block during Move action (need Blitz)"
                 );
                 return;
@@ -248,7 +258,7 @@ export class GameplayInteractionController {
           this.gameService.declareAction(player.id, "move");
         } else if (currentAction === "block") {
           this.eventBus.emit(
-            "ui:notification",
+            GameEventNames.UI_Notification,
             "Cannot Move during Block action"
           );
           return;
@@ -282,9 +292,9 @@ export class GameplayInteractionController {
     // 2. Player Info
     const player = this.getPlayerAt(x, y);
     if (player) {
-      this.eventBus.emit("ui:showPlayerInfo", player);
+      this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
     } else {
-      this.eventBus.emit("ui:hidePlayerInfo");
+      this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     }
 
     // 3. Movement Path
@@ -328,7 +338,7 @@ export class GameplayInteractionController {
     this.scene.highlightPlayer(playerId);
 
     // UI Selection Event
-    this.eventBus.emit("playerSelected", { player });
+    this.eventBus.emit(GameEventNames.PlayerSelected, { player });
 
     // Show Movement Range & Tackle Zones if own turn AND can activate
     if (isOwnTurn && canActivate) {
@@ -398,7 +408,7 @@ export class GameplayInteractionController {
     this.clearAllInteractionHighlights();
 
     // Notify UI
-    this.eventBus.emit("playerSelected", { player: null }); // OR add explicit deselect event
+    this.eventBus.emit(GameEventNames.PlayerSelected, { player: null }); // OR add explicit deselect event
   }
 
   private addWaypoint(x: number, y: number): void {
@@ -480,7 +490,7 @@ export class GameplayInteractionController {
         path: [...this.waypoints],
       };
 
-      this.eventBus.emit("ui:requestConfirmation", {
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId: "sprint-confirm",
         title: "Sprint Required! (GFI)",
         message:
@@ -546,9 +556,15 @@ export class GameplayInteractionController {
 
   public destroy(): void {
     // Cleanup listeners
-    this.eventBus.off("ui:confirmationResult", this.onConfirmationResult);
-    this.eventBus.off("ui:selectPushDirection", this.pushDirectionHandler);
-    this.eventBus.off("ui:actionSelected", this.onActionSelected);
+    this.eventBus.off(
+      GameEventNames.UI_ConfirmationResult,
+      this.onConfirmationResult
+    );
+    this.eventBus.off(
+      GameEventNames.UI_SelectPushDirection,
+      this.pushDirectionHandler
+    );
+    this.eventBus.off(GameEventNames.UI_ActionSelected, this.onActionSelected);
 
     // Cleanup highlight manager
     if (this.highlightManager) {
@@ -673,7 +689,7 @@ export class GameplayInteractionController {
           this.scene.highlightPlayer(playerAtSquare.id);
           this.gameService.selectKicker(playerAtSquare.id);
           this.eventBus.emit(
-            "ui:notification",
+            GameEventNames.UI_Notification,
             "Kicker Selected! Now choose target."
           );
           return;
@@ -690,7 +706,10 @@ export class GameplayInteractionController {
       if (!isOpponentHalf) {
         // If they clicked an empty square in their own half
         if (this.selectedPlayerId) {
-          this.eventBus.emit("ui:notification", "Kick to opponent's half!");
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Kick to opponent's half!"
+          );
         }
         return;
       }
@@ -700,7 +719,10 @@ export class GameplayInteractionController {
         this.gameService.kickBall(this.selectedPlayerId, x, y);
         this.selectedPlayerId = null; // Clear selection after kick
       } else {
-        this.eventBus.emit("ui:notification", "Select a Kicker first!");
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Select a Kicker first!"
+        );
       }
     }
   }

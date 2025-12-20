@@ -1,6 +1,6 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
-import { ActionType } from "@/types/events";
+import { ActionType, GameEventNames } from "@/types/events";
 import { Player, PlayerStatus } from "@/types/Player";
 
 export class PlayerActionManager {
@@ -26,7 +26,7 @@ export class PlayerActionManager {
 
     // Emit Event
     this.eventBus.emit(
-      "ui:notification",
+      GameEventNames.UI_Notification,
       `Action Declared: ${action.toUpperCase()}`
     );
     // We might want a specific event for "Action Declared" to update UI
@@ -96,7 +96,13 @@ export class PlayerActionManager {
         turn.hasPassed = true; // Consumes pass?
         break;
     }
-    this.eventBus.emit("turnDataUpdated", turn);
+    // Emit event to update UI
+    this.eventBus.emit(GameEventNames.TurnDataUpdated, {
+      hasBlitzed: this.state.turn.hasBlitzed,
+      hasPassed: this.state.turn.hasPassed,
+      hasHandedOff: this.state.turn.hasHandedOff,
+      hasFouled: this.state.turn.hasFouled,
+    });
   }
 
   public getActionDescription(action: ActionType): string {

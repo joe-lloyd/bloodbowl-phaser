@@ -8,6 +8,91 @@
 import { GamePhase, GameState, SubPhase } from "./GameState";
 import { Team } from "./Team";
 import { Player } from "./Player";
+import { BlockResult } from "./Actions";
+
+/**
+ * Game Events - Emitted by GameService/Phaser
+ * React components subscribe to these to update UI
+ */
+/**
+ * Event Names Enum for Autocompletion
+ */
+export enum GameEventNames {
+  // Game Events
+  PhaseChanged = "phaseChanged",
+  SetupConfirmed = "setupConfirmed",
+  KickoffStarted = "kickoffStarted",
+  ReadyToStart = "readyToStart",
+  TurnStarted = "turnStarted",
+  TurnEnded = "turnEnded",
+  TurnDataUpdated = "turnDataUpdated", // New event
+  PlayerPlaced = "playerPlaced",
+  PlayerRemoved = "playerRemoved",
+  PlayersSwapped = "playersSwapped",
+  PlayerMoved = "playerMoved",
+  PlayerActivated = "playerActivated",
+  PlayerSelected = "playerSelected",
+  PlayerDeselected = "playerDeselected",
+  PlacementInvalid = "placementInvalid",
+  PlayerStatusChanged = "playerStatusChanged",
+  Turnover = "turnover",
+  BlockDiceRolled = "blockDiceRolled",
+  ArmorRolled = "armorRolled",
+  PlayerKnockedDown = "playerKnockedDown",
+  Touchdown = "touchdown",
+  BallPlaced = "ballPlaced",
+  BallKicked = "ballKicked",
+  KickoffResult = "kickoffResult",
+  BallPickup = "ballPickup",
+  WeatherChanged = "weatherChanged",
+  DiceRoll = "diceRoll",
+  GameStateRestored = "gameStateRestored",
+  RefreshBoard = "refreshBoard",
+
+  // UI Events
+  UI_PlayerHired = "ui:playerHired",
+  UI_PlayerFired = "ui:playerFired",
+  UI_TeamSaved = "ui:teamSaved",
+  UI_TeamNameChanged = "ui:teamNameChanged",
+  UI_TeamColorChanged = "ui:teamColorChanged",
+  UI_RerollPurchased = "ui:rerollPurchased",
+  UI_ActionSelected = "ui:actionSelected",
+  UI_ConfirmAction = "ui:confirmAction",
+  UI_CancelAction = "ui:cancelAction",
+  UI_EndTurn = "ui:endTurn",
+  UI_PlacePlayer = "ui:placePlayer",
+  UI_RemovePlayer = "ui:removePlayer",
+  UI_ConfirmSetup = "ui:confirmSetup",
+  UI_SceneChange = "ui:sceneChange",
+  UI_LoadScenario = "ui:loadScenario",
+  UI_StartGame = "ui:startGame",
+  UI_StartCoinFlip = "ui:startCoinFlip",
+  UI_CoinFlipComplete = "ui:coinFlipComplete",
+  UI_RequestCoinFlipState = "ui:requestCoinFlipState",
+  UI_ShowSetupControls = "ui:showSetupControls",
+  UI_HideSetupControls = "ui:hideSetupControls",
+  UI_SetupComplete = "ui:setupcomplete",
+  UI_SetupAction = "ui:setupAction",
+  UI_Notification = "ui:notification",
+  UI_GameLog = "ui:gameLog",
+  UI_RequestConfirmation = "ui:requestConfirmation",
+  UI_ConfirmationResult = "ui:confirmationResult",
+  UI_BlockResultSelected = "ui:blockResultSelected",
+  UI_Turnover = "ui:turnover",
+  UI_ShowPlayerInfo = "ui:showPlayerInfo",
+  UI_HidePlayerInfo = "ui:hidePlayerInfo",
+  UI_BlockDialog = "ui:blockDialog",
+  UI_RollBlockDice = "ui:rollBlockDice",
+  UI_SelectPushDirection = "ui:selectPushDirection",
+  UI_PushDirectionSelected = "ui:pushDirectionSelected",
+  UI_FollowUpPrompt = "ui:followUpPrompt",
+  UI_FollowUpResponse = "ui:followUpResponse",
+
+  // State Events
+  TeamUpdated = "team:updated",
+  GameStateChanged = "game:stateChanged",
+  PlayerUpdated = "player:updated",
+}
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -15,28 +100,34 @@ import { Player } from "./Player";
  */
 export interface GameEvents {
   // Phase Management
-  phaseChanged: {
+  [GameEventNames.PhaseChanged]: {
     phase: GamePhase;
     subPhase?: SubPhase;
     activeTeamId?: string;
   };
-  setupConfirmed: string; // teamId
-  kickoffStarted: void;
-  readyToStart: void;
+  [GameEventNames.SetupConfirmed]: string; // teamId
+  [GameEventNames.KickoffStarted]: void;
+  [GameEventNames.ReadyToStart]: void;
 
   // Turn Management
-  turnStarted: {
+  [GameEventNames.TurnStarted]: {
     teamId: string;
     turnNumber: number;
     isHalf2?: boolean; // Optional if not always present
   };
-  turnEnded: { teamId: string };
+  [GameEventNames.TurnEnded]: { teamId: string };
+  [GameEventNames.TurnDataUpdated]: {
+    hasBlitzed: boolean;
+    hasPassed: boolean;
+    hasHandedOff: boolean;
+    hasFouled: boolean;
+  };
 
   // Player Actions
-  playerPlaced: { playerId: string; x: number; y: number };
-  playerRemoved: string; // playerId
-  playersSwapped: { player1Id: string; player2Id: string };
-  playerMoved: {
+  [GameEventNames.PlayerPlaced]: { playerId: string; x: number; y: number };
+  [GameEventNames.PlayerRemoved]: string; // playerId
+  [GameEventNames.PlayersSwapped]: { player1Id: string; player2Id: string };
+  [GameEventNames.PlayerMoved]: {
     playerId: string;
     from: { x: number; y: number };
     to: { x: number; y: number };
@@ -47,13 +138,13 @@ export interface GameEvents {
       targetSquare: { x: number; y: number };
     };
   };
-  playerActivated: string; // playerId
-  playerSelected: { player: Player | null };
-  playerStatusChanged: Player;
-  turnover: { teamId: string };
+  [GameEventNames.PlayerActivated]: string; // playerId
+  [GameEventNames.PlayerSelected]: { player: Player | null };
+  [GameEventNames.PlayerStatusChanged]: Player;
+  [GameEventNames.Turnover]: { teamId: string };
 
   // Block Events
-  blockDiceRolled: {
+  [GameEventNames.BlockDiceRolled]: {
     attackerId: string;
     defenderId: string;
     numDice: number;
@@ -61,23 +152,24 @@ export interface GameEvents {
     results: any[]; // BlockResult[]
   };
 
-  armorRolled: {
+  [GameEventNames.ArmorRolled]: {
     playerId: string;
     roll: number;
     armor: number;
     broken: boolean;
   };
 
-  playerKnockedDown: {
+  [GameEventNames.PlayerKnockedDown]: {
     playerId: string;
+    // ... details?
   };
 
   // Scoring
-  touchdown: { teamId: string; score: number };
+  [GameEventNames.Touchdown]: { teamId: string; score: number };
 
   // Ball
-  ballPlaced: { x: number; y: number };
-  ballKicked: {
+  [GameEventNames.BallPlaced]: { x: number; y: number };
+  [GameEventNames.BallKicked]: {
     playerId: string;
     targetX: number;
     targetY: number;
@@ -86,17 +178,17 @@ export interface GameEvents {
     finalX: number;
     finalY: number;
   };
-  kickoffResult: { roll: number; event: string };
-  ballPickup: {
+  [GameEventNames.KickoffResult]: { roll: number; event: string };
+  [GameEventNames.BallPickup]: {
     playerId: string;
     success: boolean;
     roll: number;
     target: number;
   };
-  weatherChanged: string;
+  [GameEventNames.WeatherChanged]: string;
 
   // Game Flow
-  diceRoll: {
+  [GameEventNames.DiceRoll]: {
     rollType: string; // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
     diceType: string; // e.g. "2d6", "d6", "Block"
     teamId?: string; // The team performing the roll (for coloring)
@@ -107,8 +199,8 @@ export interface GameEvents {
   };
 
   // Sandbox
-  gameStateRestored: GameState;
-  refreshBoard: void;
+  [GameEventNames.GameStateRestored]: GameState;
+  [GameEventNames.RefreshBoard]: void;
 }
 
 /**
@@ -117,51 +209,54 @@ export interface GameEvents {
  */
 export interface UIEvents {
   // Team Builder
-  "ui:playerHired": { position: string };
-  "ui:playerFired": { playerId: string };
-  "ui:teamSaved": { team: Team };
-  "ui:teamNameChanged": { name: string };
-  "ui:teamColorChanged": { primary: number; secondary: number };
-  "ui:rerollPurchased": void;
+  [GameEventNames.UI_PlayerHired]: { position: string };
+  [GameEventNames.UI_PlayerFired]: { playerId: string };
+  [GameEventNames.UI_TeamSaved]: { team: Team };
+  [GameEventNames.UI_TeamNameChanged]: { name: string };
+  [GameEventNames.UI_TeamColorChanged]: { primary: number; secondary: number };
+  [GameEventNames.UI_RerollPurchased]: void;
 
   // Game Actions
-  "ui:actionSelected": { action: ActionType; playerId: string };
-  "ui:confirmAction": { actionId: string };
-  "ui:cancelAction": void;
-  "ui:endTurn": void;
+  [GameEventNames.UI_ActionSelected]: { action: ActionType; playerId: string };
+  [GameEventNames.UI_ConfirmAction]: { actionId: string };
+  [GameEventNames.UI_CancelAction]: void;
+  [GameEventNames.UI_EndTurn]: void;
 
   // Setup
-  "ui:placePlayer": { playerId: string; x: number; y: number };
-  "ui:removePlayer": { playerId: string };
-  "ui:confirmSetup": void;
+  [GameEventNames.UI_PlacePlayer]: { playerId: string; x: number; y: number };
+  [GameEventNames.UI_RemovePlayer]: { playerId: string };
+  [GameEventNames.UI_ConfirmSetup]: void;
 
   // Navigation
-  "ui:sceneChange": { scene: string; data?: any };
-  "ui:loadScenario": { scenarioId: string };
+  [GameEventNames.UI_SceneChange]: { scene: string; data?: any };
+  [GameEventNames.UI_LoadScenario]: { scenarioId: string };
 
   // Game Start
-  "ui:startGame": { team1: Team; team2: Team };
+  [GameEventNames.UI_StartGame]: { team1: Team; team2: Team };
 
   // Coin Flip
-  "ui:startCoinFlip": { team1: Team; team2: Team };
-  "ui:coinFlipComplete": { kickingTeam: Team; receivingTeam: Team };
-  "ui:requestCoinFlipState": void;
+  [GameEventNames.UI_StartCoinFlip]: { team1: Team; team2: Team };
+  [GameEventNames.UI_CoinFlipComplete]: {
+    kickingTeam: Team;
+    receivingTeam: Team;
+  };
+  [GameEventNames.UI_RequestCoinFlipState]: void;
 
   // Setup Controls
-  "ui:showSetupControls": {
+  [GameEventNames.UI_ShowSetupControls]: {
     subPhase: SubPhase;
     activeTeam: { id: string; name: string };
   };
-  "ui:hideSetupControls": void;
-  "ui:setupcomplete": boolean;
-  "ui:setupAction": { action: string };
+  [GameEventNames.UI_HideSetupControls]: void;
+  [GameEventNames.UI_SetupComplete]: boolean;
+  [GameEventNames.UI_SetupAction]: { action: string };
 
   // Common UI
-  "ui:notification": string;
-  "ui:gameLog": string;
+  [GameEventNames.UI_Notification]: string;
+  [GameEventNames.UI_GameLog]: string;
 
   // Confirmation
-  "ui:requestConfirmation": {
+  [GameEventNames.UI_RequestConfirmation]: {
     actionId: string;
     title: string;
     message: string;
@@ -170,40 +265,40 @@ export interface UIEvents {
     risky?: boolean;
   };
 
-  "ui:confirmationResult": {
+  [GameEventNames.UI_ConfirmationResult]: {
     confirmed: boolean;
     actionId: string;
   };
 
   // Block
-  "ui:blockResultSelected": {
+  [GameEventNames.UI_BlockResultSelected]: {
     attackerId: string;
     defenderId: string;
-    result: string;
+    result: BlockResult;
   };
 
   // Turnover Visuals
-  "ui:turnover": { teamId: string; reason: string };
+  [GameEventNames.UI_Turnover]: { teamId: string; reason: string };
 
   // Player Info
-  "ui:showPlayerInfo": Player;
-  "ui:hidePlayerInfo": void;
+  [GameEventNames.UI_ShowPlayerInfo]: Player;
+  [GameEventNames.UI_HidePlayerInfo]: void;
 
   // Block
-  "ui:blockDialog": {
+  [GameEventNames.UI_BlockDialog]: {
     attackerId: string;
     defenderId: string;
     analysis: import("./Actions").BlockAnalysis;
   };
 
-  "ui:rollBlockDice": {
+  [GameEventNames.UI_RollBlockDice]: {
     attackerId: string;
     defenderId: string;
     numDice: number;
     isAttackerChoice: boolean;
   };
 
-  "ui:selectPushDirection": {
+  [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;
     attackerId: string;
     validDirections: { x: number; y: number }[];
@@ -211,18 +306,18 @@ export interface UIEvents {
     resultType?: string;
   };
 
-  "ui:pushDirectionSelected": {
+  [GameEventNames.UI_PushDirectionSelected]: {
     defenderId: string;
     direction: { x: number; y: number };
     canFollowUp: boolean;
   };
 
-  "ui:followUpPrompt": {
+  [GameEventNames.UI_FollowUpPrompt]: {
     attackerId: string;
     targetSquare: { x: number; y: number };
   };
 
-  "ui:followUpResponse": {
+  [GameEventNames.UI_FollowUpResponse]: {
     attackerId: string;
     followUp: boolean;
     targetSquare?: { x: number; y: number };
@@ -233,9 +328,9 @@ export interface UIEvents {
  * State Update Events - For synchronizing state
  */
 export interface StateEvents {
-  "team:updated": { team: Team };
-  "game:stateChanged": { state: GameState };
-  "player:updated": { player: Player };
+  [GameEventNames.TeamUpdated]: { team: Team };
+  [GameEventNames.GameStateChanged]: { state: GameState };
+  [GameEventNames.PlayerUpdated]: { player: Player };
 }
 
 /**

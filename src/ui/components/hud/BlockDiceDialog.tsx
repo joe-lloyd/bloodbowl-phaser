@@ -1,178 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { EventBus } from '../../../services/EventBus';
-import { BlockAnalysis } from '../../../types/Actions';
-import { BlockResult, BlockRollData } from '../../../services/BlockResolutionService';
+import React, { useState, useEffect } from "react";
+import { EventBus } from "../../../services/EventBus";
+import { BlockAnalysis } from "../../../types/Actions";
+import {
+  BlockResult,
+  BlockRollData,
+} from "../../../services/BlockResolutionService";
+import { GameEventNames } from "@/types/events";
 
 interface BlockDiceDialogProps {
-    eventBus: EventBus;
+  eventBus: EventBus;
 }
 
-export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({ eventBus }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [data, setData] = useState<{
-        attackerId: string;
-        defenderId: string;
-        analysis: BlockAnalysis;
-    } | null>(null);
+export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
+  eventBus,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [data, setData] = useState<{
+    attackerId: string;
+    defenderId: string;
+    analysis: BlockAnalysis;
+  } | null>(null);
 
-    const [isRolling, setIsRolling] = useState(false);
-    const [rollData, setRollData] = useState<BlockRollData | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+  const [rollData, setRollData] = useState<BlockRollData | null>(null);
 
-    useEffect(() => {
-        const onOpen = (payload: any) => {
-            setData(payload);
-            setRollData(null);
-            setIsRolling(false);
-            setIsOpen(true);
-        };
-
-        const onDiceRolled = (payload: BlockRollData) => {
-            setRollData(payload);
-            setIsRolling(false);
-        };
-
-        eventBus.on('ui:blockDialog', onOpen);
-        eventBus.on('blockDiceRolled', onDiceRolled);
-
-        return () => {
-            eventBus.off('ui:blockDialog', onOpen);
-            eventBus.off('blockDiceRolled', onDiceRolled);
-        };
-    }, [eventBus]);
-
-    if (!isOpen || !data) return null;
-
-    const { analysis } = data;
-    const { diceCount, isUphill, attackerST, defenderST } = analysis;
-
-    const handleRoll = () => {
-        setIsRolling(true);
-
-        // Emit event to roll dice (GameService will handle it)
-        eventBus.emit('ui:rollBlockDice', {
-            attackerId: data.attackerId,
-            defenderId: data.defenderId,
-            numDice: diceCount,
-            isAttackerChoice: !isUphill
-        });
+  useEffect(() => {
+    const onOpen = (payload: any) => {
+      setData(payload);
+      setRollData(null);
+      setIsRolling(false);
+      setIsOpen(true);
     };
 
-    const handleSelectResult = (result: BlockResult) => {
-        // Emit result to GameService
-        eventBus.emit('ui:blockResultSelected', {
-            attackerId: data.attackerId,
-            defenderId: data.defenderId,
-            result
-        });
-
-        setIsOpen(false);
+    const onDiceRolled = (payload: BlockRollData) => {
+      setRollData(payload);
+      setIsRolling(false);
     };
 
-    const handleCancel = () => {
-        setIsOpen(false);
+    eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
+    eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
+
+    return () => {
+      eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
+      eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
     };
+  }, [eventBus]);
 
-    return (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
-            <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
-                <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-                    BLOCK!
-                </h2>
+  if (!isOpen || !data) return null;
 
-                {/* Stats Comparison */}
-                <div className="flex justify-between items-center mb-6 bg-slate-800 p-3 rounded">
-                    <div className="text-center">
-                        <div className="text-xs text-slate-400">ATTACKER</div>
-                        <div className="text-2xl font-bold text-green-400">{attackerST}</div>
-                    </div>
-                    <div className="text-yellow-600 font-bold text-xl">VS</div>
-                    <div className="text-center">
-                        <div className="text-xs text-slate-400">DEFENDER</div>
-                        <div className="text-2xl font-bold text-red-400">{defenderST}</div>
-                    </div>
-                </div>
+  const { analysis } = data;
+  const { diceCount, isUphill, attackerST, defenderST } = analysis;
 
-                {/* Dice Info */}
-                <div className="text-center mb-6">
-                    <div className="text-lg font-bold">
-                        {diceCount} DICE {isUphill ? <span className="text-red-500">(UPHILL)</span> : ""}
-                    </div>
-                    <div className="text-sm text-slate-400 italic">
-                        {isUphill ? "Defender Chooses" : "Attacker Chooses"}
-                    </div>
-                </div>
+  const handleRoll = () => {
+    setIsRolling(true);
 
-                {/* Dice Results Area */}
-                {rollData ? (
-                    <div className="mb-6">
-                        <div className="flex justify-center gap-4 mb-4">
-                            {rollData.results.map((result, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleSelectResult(result)}
-                                    className="group relative hover:scale-110 transition-transform"
-                                    title={result.label}
-                                >
-                                    <img
-                                        src={result.icon}
-                                        alt={result.label}
-                                        className="w-20 h-20 rounded shadow-lg border-2 border-slate-400 group-hover:border-yellow-400 transition-colors"
-                                    />
-                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {result.label}
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                        <div className="text-center text-sm text-yellow-400 mt-8">
-                            Click a die to select result
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex justify-center mb-6 h-20 items-center">
-                        {isRolling ? (
-                            <div className="flex gap-2">
-                                {Array.from({ length: diceCount }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="w-16 h-16 bg-slate-700 rounded border border-yellow-500 animate-spin"
-                                        style={{ animationDelay: `${i * 100}ms`, animationDuration: '600ms' }}
-                                    >
-                                        <div className="w-full h-full flex items-center justify-center text-yellow-400 font-bold">
-                                            ?
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex gap-2 opacity-50">
-                                {Array.from({ length: diceCount }).map((_, i) => (
-                                    <div key={i} className="w-16 h-16 bg-slate-700/50 rounded border border-slate-600"></div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+    // Emit event to roll dice (GameService will handle it)
+    eventBus.emit(GameEventNames.UI_RollBlockDice, {
+      attackerId: data.attackerId,
+      defenderId: data.defenderId,
+      numDice: diceCount,
+      isAttackerChoice: !isUphill,
+    });
+  };
 
-                {/* Actions */}
-                <div className="flex justify-between">
-                    <button
-                        onClick={handleCancel}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    {!rollData && (
-                        <button
-                            onClick={handleRoll}
-                            disabled={isRolling}
-                            className="px-8 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            ROLL DICE
-                        </button>
-                    )}
-                </div>
+  const handleSelectResult = (result: BlockResult) => {
+    // Emit result to GameService
+    eventBus.emit(GameEventNames.UI_BlockResultSelected, {
+      attackerId: data.attackerId,
+      defenderId: data.defenderId,
+      result,
+    });
+
+    setIsOpen(false);
+  };
+
+  const handleCancel = () => {
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
+        <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
+          BLOCK!
+        </h2>
+
+        {/* Stats Comparison */}
+        <div className="flex justify-between items-center mb-6 bg-slate-800 p-3 rounded">
+          <div className="text-center">
+            <div className="text-xs text-slate-400">ATTACKER</div>
+            <div className="text-2xl font-bold text-green-400">
+              {attackerST}
             </div>
+          </div>
+          <div className="text-yellow-600 font-bold text-xl">VS</div>
+          <div className="text-center">
+            <div className="text-xs text-slate-400">DEFENDER</div>
+            <div className="text-2xl font-bold text-red-400">{defenderST}</div>
+          </div>
         </div>
-    );
+
+        {/* Dice Info */}
+        <div className="text-center mb-6">
+          <div className="text-lg font-bold">
+            {diceCount} DICE{" "}
+            {isUphill ? <span className="text-red-500">(UPHILL)</span> : ""}
+          </div>
+          <div className="text-sm text-slate-400 italic">
+            {isUphill ? "Defender Chooses" : "Attacker Chooses"}
+          </div>
+        </div>
+
+        {/* Dice Results Area */}
+        {rollData ? (
+          <div className="mb-6">
+            <div className="flex justify-center gap-4 mb-4">
+              {rollData.results.map((result, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectResult(result)}
+                  className="group relative hover:scale-110 transition-transform"
+                  title={result.label}
+                >
+                  <img
+                    src={result.icon}
+                    alt={result.label}
+                    className="w-20 h-20 rounded shadow-lg border-2 border-slate-400 group-hover:border-yellow-400 transition-colors"
+                  />
+                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    {result.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="text-center text-sm text-yellow-400 mt-8">
+              Click a die to select result
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center mb-6 h-20 items-center">
+            {isRolling ? (
+              <div className="flex gap-2">
+                {Array.from({ length: diceCount }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-16 h-16 bg-slate-700 rounded border border-yellow-500 animate-spin"
+                    style={{
+                      animationDelay: `${i * 100}ms`,
+                      animationDuration: "600ms",
+                    }}
+                  >
+                    <div className="w-full h-full flex items-center justify-center text-yellow-400 font-bold">
+                      ?
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex gap-2 opacity-50">
+                {Array.from({ length: diceCount }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-16 h-16 bg-slate-700/50 rounded border border-slate-600"
+                  ></div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-between">
+          <button
+            onClick={handleCancel}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"
+          >
+            Cancel
+          </button>
+          {!rollData && (
+            <button
+              onClick={handleRoll}
+              disabled={isRolling}
+              className="px-8 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ROLL DICE
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };

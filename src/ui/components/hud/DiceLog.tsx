@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
+import { GameEventNames } from "../../../types/events";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -21,7 +22,7 @@ interface RollEntry {
 export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [logs, setLogs] = useState<RollEntry[]>([]);
 
-  useEventBus(eventBus, "diceRoll", (data) => {
+  useEventBus(eventBus, GameEventNames.DiceRoll, (data) => {
     const newEntry: RollEntry = {
       id: Date.now() + Math.random(),
       ...data,

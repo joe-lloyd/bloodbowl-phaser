@@ -6,6 +6,7 @@ import { TurnIndicator } from "./TurnIndicator";
 import { EndTurnButton } from "./EndTurnButton";
 import { NotificationFeed } from "./NotificationFeed";
 import { GamePhase } from "../../../types/GameState";
+import { GameEventNames } from "../../../types/events";
 
 import { CoinFlipOverlay } from "./CoinFlipOverlay";
 import { SetupControls } from "./SetupControls";
@@ -82,12 +83,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
   }, []);
 
   // Phase change listener
-  useEventBus(eventBus, "phaseChanged", (data) => {
+  useEventBus(eventBus, GameEventNames.PhaseChanged, (data) => {
     setTurnData((prev) => ({ ...prev, phase: data.phase }));
   });
 
   // Turn started listener
-  useEventBus(eventBus, "turnStarted", (turn) => {
+  useEventBus(eventBus, GameEventNames.TurnStarted, (turn) => {
     const container = ServiceContainer.getInstance();
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
@@ -109,7 +110,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
   });
 
   // Turn Data Updated listener (from PlayerActionManager)
-  useEventBus(eventBus, "turnDataUpdated", (updatedTurn: any) => {
+  useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn: any) => {
     setTurnData((prev) => ({
       ...prev,
       hasBlitzed: updatedTurn.hasBlitzed,
@@ -120,14 +121,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
   });
 
   // Kickoff started listener
-  useEventBus(eventBus, "kickoffStarted", () => {
+  useEventBus(eventBus, GameEventNames.KickoffStarted, () => {
     setTurnData((prev) => ({
       ...prev,
       phase: GamePhase.KICKOFF,
     }));
   });
 
-  useEventBus(eventBus, "ui:notification", (msg) => {
+  useEventBus(eventBus, GameEventNames.UI_Notification, (msg) => {
     addNotification(msg);
   });
 

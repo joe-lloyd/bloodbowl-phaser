@@ -8,6 +8,7 @@
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
+import { ActionType, GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import { ActionValidator } from "../game/validators/ActionValidator.js";
@@ -97,7 +98,7 @@ export class GameService implements IGameService {
 
     this.turnManager = new TurnManager(eventBus, this.state, team1, team2, {
       onPhaseChanged: (phase, subPhase) => {
-        this.eventBus.emit("phaseChanged", { phase, subPhase });
+        this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase });
       },
     });
 
@@ -110,8 +111,9 @@ export class GameService implements IGameService {
       {
         onTurnover: (reason) => this.triggerTurnover(reason),
         onPhaseChange: (phase, subPhase) =>
-          this.eventBus.emit("phaseChanged", { phase, subPhase }),
-        onBallPlaced: (x, y) => this.eventBus.emit("ballPlaced", { x, y }),
+          this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
+        onBallPlaced: (x, y) =>
+          this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
       }
     );
 
@@ -191,8 +193,8 @@ export class GameService implements IGameService {
   startKickoff(): void {
     this.state.phase = GamePhase.KICKOFF;
     this.state.subPhase = SubPhase.SETUP_KICKOFF;
-    this.eventBus.emit("kickoffStarted");
-    this.eventBus.emit("phaseChanged", {
+    this.eventBus.emit(GameEventNames.KickoffStarted);
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.KICKOFF,
       subPhase: SubPhase.SETUP_KICKOFF,
     });
@@ -204,7 +206,7 @@ export class GameService implements IGameService {
     if (this.state.phase === GamePhase.KICKOFF) {
       const player = this.getPlayerById(playerId);
       if (player) {
-        this.eventBus.emit("playerSelected", { player });
+        this.eventBus.emit(GameEventNames.PlayerSelected, { player });
       }
     }
   }
@@ -226,7 +228,7 @@ export class GameService implements IGameService {
   setWeather(weather: number): void {
     this.weatherService.rollWeather();
     this.state.subPhase = SubPhase.COIN_FLIP;
-    this.eventBus.emit("phaseChanged", {
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.SETUP,
       subPhase: SubPhase.COIN_FLIP,
     });
@@ -357,11 +359,11 @@ export class GameService implements IGameService {
     this.state.phase = GamePhase.TOUCHDOWN;
     this.state.subPhase = SubPhase.SCORING;
 
-    this.eventBus.emit("touchdown", {
+    this.eventBus.emit(GameEventNames.Touchdown, {
       teamId,
       score: this.state.score[teamId],
     });
-    this.eventBus.emit("phaseChanged", {
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.TOUCHDOWN,
       subPhase: SubPhase.SCORING,
     });
@@ -375,7 +377,7 @@ export class GameService implements IGameService {
     // End of Drive
     // 1. Recover KO
     this.state.subPhase = SubPhase.RECOVER_KO;
-    this.eventBus.emit("phaseChanged", {
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.TOUCHDOWN,
       subPhase: SubPhase.RECOVER_KO,
     });
@@ -389,7 +391,7 @@ export class GameService implements IGameService {
     // For now, just skip to Secret Weapons or Reset
     setTimeout(() => {
       this.state.subPhase = SubPhase.SECRET_WEAPONS;
-      this.eventBus.emit("phaseChanged", {
+      this.eventBus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.TOUCHDOWN,
         subPhase: SubPhase.SECRET_WEAPONS,
       });

@@ -9,6 +9,7 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
 import { GamePhase, SubPhase } from "../types/GameState";
+import { GameEventNames } from "../types/events";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PlayerPlacementController } from "../game/controllers/PlayerPlacementController";
@@ -263,21 +264,40 @@ export class GameScene extends Phaser.Scene {
     this.setupSceneSpecificListeners(); // Setup-specific events
     this.orchestrator.initialize();
 
-    this.eventBus.on("playerActivated", (playerId: string) => {
+    this.eventBus.on(GameEventNames.PlayerActivated, (playerId: string) => {
       const sprite = this.playerSprites.get(playerId);
       if (sprite) {
         sprite.setActivated(true);
       }
     });
 
-    this.eventBus.on("turnStarted", (turnData: any) => {
+    this.eventBus.on(GameEventNames.TurnStarted, (turnData: any) => {
       // Reset all sprites
       this.playerSprites.forEach((sprite) => sprite.setActivated(false));
       // Reset selection
       this.gameplayController.deselectPlayer();
       // Show Turn notification
-      // this.eventBus.emit('ui:notification', `Turn ${turnData.turnNumber} started!`);
+      // this.eventBus.emit(GameEventNames.UI_Notification, `Turn ${turnData.turnNumber} started!`);
     });
+
+    // Listen for state updates
+    this.eventBus.on(GameEventNames.PlayerMoved, this.handlePlayerMoved);
+    this.eventBus.on(GameEventNames.PlayerPlaced, this.handlePlayerPlaced);
+    this.eventBus.on(GameEventNames.BallKicked, this.handleBallKicked);
+    this.eventBus.on(GameEventNames.PhaseChanged, this.handlePhaseChanged);
+    this.eventBus.on(GameEventNames.TurnStarted, this.handleTurnStarted);
+
+    // Listen for UI events
+    this.eventBus.on(GameEventNames.UI_PlacePlayer, this.handleUIPlacePlayer);
+    this.eventBus.on(GameEventNames.UI_StartCoinFlip, this.handleStartCoinFlip);
+    this.eventBus.on(
+      GameEventNames.UI_CoinFlipComplete,
+      this.handleCoinFlipComplete
+    );
+    this.eventBus.on(GameEventNames.UI_SetupComplete, this.handleSetupComplete);
+
+    // Initial State Sync
+    this.syncState();
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
@@ -367,7 +387,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Handle late UI mounting (handshake)
-    this.eventBus.on("ui:requestCoinFlipState", () => {
+    this.eventBus.on(GameEventNames.UI_RequestCoinFlipState, () => {
       if (this.isSetupActive) {
         // Only re-emit if we haven't started placement yet (e.g. still in coin flip)
         // Simplified: just re-emit if setup is active and no kickingTeam/receivingTeam set?
@@ -379,7 +399,7 @@ export class GameScene extends Phaser.Scene {
         // Safest: Use a flag or check game service state.
 
         // For now, if setup active we just re-broadcast current state.
-        this.eventBus.emit("ui:startCoinFlip", {
+        this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.team1,
           team2: this.team2,
         });
@@ -390,7 +410,7 @@ export class GameScene extends Phaser.Scene {
   // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
   public startSetupPhase(): void {
     this.isSetupActive = true;
-    this.eventBus.emit("ui:startCoinFlip", {
+    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
       team1: this.team1,
       team2: this.team2,
     });
@@ -418,7 +438,7 @@ export class GameScene extends Phaser.Scene {
     // Listen for placement changes from the placement controller
     // These are scene-specific because they directly interact with the controller
     this.placementController.on(
-      "playerPlaced",
+      GameEventNames.PlayerPlaced,
       (data: { playerId: string; x: number; y: number }) => {
         this.gameService.placePlayer(data.playerId, data.x, data.y);
         this.refreshDugouts();
@@ -426,11 +446,14 @@ export class GameScene extends Phaser.Scene {
       }
     );
 
-    this.placementController.on("playerRemoved", (playerId: string) => {
-      this.gameService.removePlayer(playerId);
-      this.refreshDugouts();
-      this.checkSetupCompleteness();
-    });
+    this.placementController.on(
+      GameEventNames.PlayerRemoved,
+      (playerId: string) => {
+        this.gameService.removePlayer(playerId);
+        this.refreshDugouts();
+        this.checkSetupCompleteness();
+      }
+    );
   }
 
   public refreshDugouts(): void {
@@ -441,7 +464,7 @@ export class GameScene extends Phaser.Scene {
   public startPlayPhase(): void {
     this.isSetupActive = false;
     this.pitch.clearHighlights(); // Clear setup zones
-    this.eventBus.emit("ui:hideSetupControls");
+    this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
     // Ensure all players are placed
     this.placePlayersOnPitch();
@@ -450,14 +473,17 @@ export class GameScene extends Phaser.Scene {
   public startKickoffPhase(subPhase?: SubPhase): void {
     this.isSetupActive = false;
     this.pitch.clearHighlights();
-    this.eventBus.emit("ui:hideSetupControls");
+    this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
     // Ensure players are visible and correct
     this.placePlayersOnPitch();
 
     // Logic based on subphase
     if (subPhase === SubPhase.SETUP_KICKOFF) {
-      this.eventBus.emit("ui:notification", "Select Kicker & Target");
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Select Kicker & Target"
+      );
     }
   }
 

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Player, PlayerStatus } from "../../../types/Player";
-import { ActionType } from "../../../types/events";
+import { ActionType, GameEventNames } from "../../../types/events";
 
 interface PlayerActionMenuProps {
   eventBus: EventBus;
@@ -16,11 +16,11 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
   // Listen for player selection
-  useEventBus(eventBus, "playerSelected", (data) => {
+  useEventBus(eventBus, GameEventNames.PlayerSelected, (data) => {
     setSelectedPlayer(data.player);
   });
 
-  useEventBus(eventBus, "turnStarted", () => {
+  useEventBus(eventBus, GameEventNames.TurnStarted, () => {
     setSelectedPlayer(null);
   });
 
@@ -31,7 +31,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
   const handleAction = (action: ActionType) => {
     if (selectedPlayer) {
-      eventBus.emit("ui:actionSelected", {
+      eventBus.emit(GameEventNames.UI_ActionSelected, {
         action,
         playerId: selectedPlayer.id,
       });

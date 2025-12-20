@@ -6,6 +6,7 @@ import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
 import { pixelToGrid } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
+import { GameEventNames } from "../../types/events";
 
 /**
  * PlayerPlacementController - Handles player placement via drag-and-drop or click-to-place
@@ -52,10 +53,10 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
         sprite.setAlpha(1);
 
         // Remove old listeners to prevent duplicates
-        sprite.off('dragend');
+        sprite.off("dragend");
 
         // Add drag end listener for snapping
-        sprite.on('dragend', (pointer: Phaser.Input.Pointer) => {
+        sprite.on("dragend", (pointer: Phaser.Input.Pointer) => {
           // Convert drop position to world coordinates (since sprite is in container)
           // Actually, pointer.worldX/Y is what we want, or we use the sprite's world transform
           // But the sprite is being dragged, so its x/y are updated relative to container.
@@ -77,7 +78,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           sprite.x = 0;
           sprite.y = 0;
         });
-
       } else {
         sprite.disableInteractive();
         sprite.setAlpha(0.5);
@@ -112,11 +112,11 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     // Deselect previous
     if (this.selectedPlayerId) {
-      this.emit("playerDeselected", this.selectedPlayerId);
+      this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
     }
 
     this.selectedPlayerId = playerId;
-    this.emit("playerSelected", playerId);
+    this.emit(GameEventNames.PlayerSelected, playerId);
   }
 
   /**
@@ -124,7 +124,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
    */
   deselectPlayer(): void {
     if (this.selectedPlayerId) {
-      this.emit("playerDeselected", this.selectedPlayerId);
+      this.emit(GameEventNames.PlayerDeselected, this.selectedPlayerId);
       this.selectedPlayerId = null;
     }
   }
@@ -138,7 +138,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     // Validate position is in setup zone
     if (!this.validator.isInSetupZone(gridX, gridY, this.isTeam1)) {
-      this.emit("placementInvalid", {
+      this.emit(GameEventNames.PlacementInvalid, {
         playerId,
         x: gridX,
         y: gridY,
@@ -153,7 +153,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     );
 
     if (occupied) {
-      this.emit("placementInvalid", {
+      this.emit(GameEventNames.PlacementInvalid, {
         playerId,
         x: gridX,
         y: gridY,
@@ -164,13 +164,13 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     // Remove player from previous position if placed
     if (this.placedPlayers.has(playerId)) {
-      this.emit("playerRemoved", playerId);
+      this.emit(GameEventNames.PlayerRemoved, playerId);
     }
 
     // Place player
     this.placedPlayers.set(playerId, { playerId, x: gridX, y: gridY });
 
-    this.emit("playerPlaced", {
+    this.emit(GameEventNames.PlayerPlaced, {
       playerId,
       x: gridX,
       y: gridY,
@@ -185,7 +185,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   removePlayer(playerId: string): void {
     if (this.placedPlayers.has(playerId)) {
       this.placedPlayers.delete(playerId);
-      this.emit("playerRemoved", playerId);
+      this.emit(GameEventNames.PlayerRemoved, playerId);
     }
   }
 
@@ -197,7 +197,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     this.placedPlayers.clear();
 
     playerIds.forEach((playerId) => {
-      this.emit("playerRemoved", playerId);
+      this.emit(GameEventNames.PlayerRemoved, playerId);
     });
   }
 
