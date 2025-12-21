@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { Pitch } from "../game/elements/Pitch";
+import { GameConfig } from "../config/GameConfig";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
@@ -192,9 +193,9 @@ export class GameScene extends Phaser.Scene {
     // }
 
     // 2. Initialize Core Game Objects
-    // Pitch centered
-    const pitchX = (width - 1200) / 2;
-    const pitchY = 180; // Leaving room for top dugout
+    // Pitch centered horizontally, with fixed top margin
+    const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
+    const pitchY = GameConfig.TOP_UI_HEIGHT;
     this.pitch = new Pitch(this, pitchX, pitchY);
 
     // Dice Log
@@ -336,16 +337,19 @@ export class GameScene extends Phaser.Scene {
 
   private createDugouts(pitchX: number, pitchY: number): void {
     // Top Dugout (Team 1)
-    const topDugout = new Dugout(this, pitchX, 20, this.team1);
+    // Placed at the very top of the canvas (y=0)
+    // Dugout height is ~150px. Pitch starts at TOP_UI_HEIGHT (160px).
+    const topDugoutY = 0;
+    const topDugout = new Dugout(this, pitchX, topDugoutY, this.team1);
     this.dugouts.set(this.team1.id, topDugout);
 
     // Bottom Dugout (Team 2)
-    const bottomDugout = new Dugout(
-      this,
-      pitchX,
-      pitchY + 660 + 20,
-      this.team2
-    ); // Pitch height is ~900 (15x60)
+    // Placed below Pitch.
+    // Pitch ends at pitchY + PITCH_PIXEL_HEIGHT.
+    // Add 10px padding.
+    const bottomDugoutY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT + 10;
+
+    const bottomDugout = new Dugout(this, pitchX, bottomDugoutY, this.team2);
     this.dugouts.set(this.team2.id, bottomDugout);
 
     // Wire up drags

@@ -17,7 +17,7 @@ import { EventBus } from "./services/EventBus";
  * Main game configuration and initialization
  */
 const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
+  type: Phaser.CANVAS,
   width: GameConfig.CANVAS_WIDTH,
   height: GameConfig.CANVAS_HEIGHT,
   parent: "game-container",
@@ -41,18 +41,11 @@ const config: Phaser.Types.Core.GameConfig = {
     },
   },
   scale: {
-    mode: Phaser.Scale.ENVELOP,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.NO_CENTER,
     width: GameConfig.CANVAS_WIDTH,
     height: GameConfig.CANVAS_HEIGHT,
-    min: {
-      width: 800,
-      height: 600,
-    },
-    max: {
-      width: 2560,
-      height: 1440,
-    },
+    // Removed min/max to allow full scaling within container
   },
 };
 

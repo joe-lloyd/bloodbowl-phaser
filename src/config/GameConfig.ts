@@ -3,11 +3,38 @@
  * Contains all game constants and rules
  */
 
+// Pitch dimensions (Sevens rotated: 20 wide × 11 high - HORIZONTAL orientation)
+const PITCH_WIDTH = 20; // 20 columns
+const PITCH_HEIGHT = 11; // 11 rows
+const SQUARE_SIZE = 60; // Grid square size in pixels
+
+const PITCH_PIXEL_WIDTH = PITCH_WIDTH * SQUARE_SIZE; // 1200
+const PITCH_PIXEL_HEIGHT = PITCH_HEIGHT * SQUARE_SIZE; // 660
+
+const PADDING_X = 20; // Reduced padding
+const TOP_UI_HEIGHT = 160; // 150px Dugout + 10px Padding
+const BOTTOM_UI_HEIGHT = 160; // 10px Padding + 150px Dugout
+
+const CANVAS_WIDTH = PITCH_PIXEL_WIDTH + PADDING_X; // 1300
+const CANVAS_HEIGHT = PITCH_PIXEL_HEIGHT + TOP_UI_HEIGHT + BOTTOM_UI_HEIGHT; // 1000
+
 export const GameConfig = {
-  // Pitch dimensions (Sevens rotated: 20 wide × 11 high - HORIZONTAL orientation)
-  PITCH_WIDTH: 20, // 20 columns (rotated from 11×20 vertical)
-  PITCH_HEIGHT: 11, // 11 rows
-  SQUARE_SIZE: 60, // Increased from 40 to 60 for HD
+  // Grid Dimensions
+  PITCH_WIDTH,
+  PITCH_HEIGHT,
+  SQUARE_SIZE,
+
+  // Pixel Dimensions (Derived)
+  PITCH_PIXEL_WIDTH,
+  PITCH_PIXEL_HEIGHT,
+
+  // Canvas Dimensions (Derived)
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+
+  // UI Layout Constants
+  TOP_UI_HEIGHT,
+  BOTTOM_UI_HEIGHT,
 
   // Game structure
   TURNS_PER_HALF: 6,
@@ -41,10 +68,6 @@ export const GameConfig = {
     HIGHLIGHT_BLOCK: 0xff8844,
     HIGHLIGHT_SELECT: 0xffff44,
   },
-
-  // Canvas size - optimized for widescreen with horizontal dugouts
-  CANVAS_WIDTH: 1920, // Full HD width
-  CANVAS_HEIGHT: 1080, // Full HD height
 } as const;
 
 export type GameConfigType = typeof GameConfig;
