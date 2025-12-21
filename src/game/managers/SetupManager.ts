@@ -68,11 +68,7 @@ export class SetupManager {
         subPhase: SubPhase.WEATHER,
       });
 
-      // Perform Weather Roll (Delegated to TurnManager/GameService? Or handled here?)
-      // We'll trigger it via event or return signal?
-      // For now, let's assume GameService handles the Weather Roll orchestration or we expose a helper.
-      // Actually, Weather is Setup.
-      // Weather Service handles the roll
+      // @TODO: Consider moveing the weather roll to GameService
       this.weatherService.rollWeather();
 
       // Proceed to Coin Flip after a short delay
@@ -85,8 +81,6 @@ export class SetupManager {
       }, 2000);
     }
   }
-
-  // Weather moved to Service
 
   public placePlayer(playerId: string, x: number, y: number): boolean {
     if (this.state.phase !== GamePhase.SETUP) return false;

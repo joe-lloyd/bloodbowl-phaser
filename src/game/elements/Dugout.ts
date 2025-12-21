@@ -2,18 +2,20 @@ import Phaser from "phaser";
 import { Team } from "../../types/Team";
 import { Player, PlayerStatus } from "../../types/Player";
 import { PlayerSprite } from "./PlayerSprite";
-import { UIText } from "../../ui";
 import { GameEventNames } from "../../types/events";
+import { GameConfig } from "../../config/GameConfig";
 
-export class Dugout {
-  private scene: Phaser.Scene;
-  private container: Phaser.GameObjects.Container;
+export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
-  private width: number;
-  private height: number;
+  private dugoutHeight: number;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private onPlayerDragStart?: (playerId: string) => void;
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
+
+  // Grid configuration
+  private readonly GRID_COLS = 6;
+  private readonly GRID_ROWS = 2;
+  private readonly SQUARE_SIZE = GameConfig.SQUARE_SIZE;
 
   constructor(
     scene: Phaser.Scene,
@@ -21,57 +23,65 @@ export class Dugout {
     y: number,
     team: Team,
     width: number = 1200,
-    height: number = 150
+    height: number = 150 // Increased default height to fit 2 rows of 60px + padding
   ) {
+    super(scene, x, y);
     this.scene = scene;
     this.team = team;
-    this.width = width;
-    this.height = height;
+    this.dugoutHeight = height;
 
-    this.container = scene.add.container(x, y);
-    this.container.setDepth(0); // Ensure it's behind other UI/players
+    this.setDepth(0); // Ensure it's behind other UI/players
+    this.scene.add.existing(this);
     this.createLayout();
   }
 
   private createLayout(): void {
-    const sectionHeight = this.height;
+    const sectionHeight = this.dugoutHeight;
 
-    // Calculate section widths
-    const reservesWidth = this.width * 0.6;
-    const koWidth = this.width * 0.2;
-    const deadWidth = this.width * 0.2;
+    // Grid Configuration
+    // Reserves: 6x2
+    // KO: 5x2
+    // Casualties: 5x2
 
-    // 1. Reserves Section (Left)
+    const reservesCols = 6;
+    const koCols = 5;
+    const deadCols = 5;
+
+    const reservesWidth = reservesCols * this.SQUARE_SIZE + 20; // + padding
+    const koWidth = koCols * this.SQUARE_SIZE + 20;
+    const deadWidth = deadCols * this.SQUARE_SIZE + 20;
+
+    // 1. Reserves Section (Left) - 6x2 Grid
     this.createSection(
       0,
       0,
       reservesWidth,
       sectionHeight,
-      "RESERVES",
       this.team.colors.primary,
-      this.getPlayersByStatus("Reserves")
+      this.getPlayersByStatus("Reserves"),
+      reservesCols
     );
 
-    // 2. KO Section (Middle)
+    // 2. KO Section (Middle) - 5x2 Grid
     this.createSection(
       reservesWidth,
       0,
       koWidth,
       sectionHeight,
-      "KO",
       0xffaa00,
-      this.getPlayersByStatus("KO")
+      this.getPlayersByStatus("KO"),
+      koCols
     );
 
-    // 3. Dead/Injured Section (Right)
+    // 3. Dead/Injured Section (Right) - 5x2 Grid
     this.createSection(
       reservesWidth + koWidth,
       0,
       deadWidth,
       sectionHeight,
-      "CASUALTIES",
       0xff0000,
-      this.getPlayersByStatus("Dead")
+      this.getPlayersByStatus("Dead"),
+      deadCols
     );
   }
 
@@ -80,9 +90,9 @@ export class Dugout {
     y: number,
     w: number,
     h: number,
-    label: string,
     color: number,
-    players: Player[]
+    players: Player[],
+    cols: number
   ): void {
     // Background
     const bg = this.scene.add.rectangle(x, y, w, h, 0x1a1a2e, 0.8).setOrigin(0);
@@ -92,52 +102,64 @@ export class Dugout {
     const border = this.scene.add.rectangle(x, y, w, h, color, 0).setOrigin(0);
     border.setStrokeStyle(2, color, 0.5);
 
-    this.container.add([bg, tint, border]);
+    this.add([bg, tint, border]);
 
-    // Label
-    const text = UIText.createLabel(this.scene, x + 10, y + 5, label);
-    text.setScale(0.8);
-    this.container.add(text);
+    // Draw Grid
+    const gridOffsetX = 10;
+    const gridOffsetY = 15; // Centered vertically in the 150px height (approx)
+
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(1, 0xffffff, 0.2);
+    graphics.fillStyle(0x000000, 0.3);
+
+    for (let row = 0; row < this.GRID_ROWS; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gx = x + gridOffsetX + col * this.SQUARE_SIZE;
+        const gy = y + gridOffsetY + row * this.SQUARE_SIZE;
+
+        // Draw square background & outline
+        graphics.fillRect(gx, gy, this.SQUARE_SIZE, this.SQUARE_SIZE);
+        graphics.strokeRect(gx, gy, this.SQUARE_SIZE, this.SQUARE_SIZE);
+      }
+    }
+    this.add(graphics);
 
     // Render Players in Grid
-    this.renderPlayerGrid(players, x + 10, y + 35, w - 20);
+    this.renderPlayerGrid(players, x + gridOffsetX, y + gridOffsetY, cols);
   }
 
   private renderPlayerGrid(
     players: Player[],
     startX: number,
     startY: number,
-    maxWidth: number
+    cols: number
   ): void {
-    const size = 40; // 32px sprite + spacing
-    const cols = Math.floor(maxWidth / size);
-
-    // Hide any sprites that are NOT in this section but tracked by dugout
-    // (This handles players moving out of this section or to pitch)
-    // Ideally we check all sprites, but here we can only check localized context?
-    // Better: In refresh(), hide ALL sprites first?
+    const size = this.SQUARE_SIZE;
 
     players.forEach((player, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
 
-      const px = startX + col * size;
-      const py = startY + row * size;
+      // Center the player in the square
+      const offset = size / 2;
+
+      const px = startX + col * size + offset;
+      const py = startY + row * size + offset;
 
       // Check if sprite already exists to preserve state/input
       if (this.playerSprites.has(player.id)) {
         const sprite = this.playerSprites.get(player.id)!;
         sprite.setPosition(px, py);
         sprite.setVisible(true); // Ensure visible if in grid
-        if (!this.container.exists(sprite)) {
-          this.container.add(sprite);
+        if (!this.exists(sprite)) {
+          this.add(sprite);
         } else {
-          this.container.bringToTop(sprite);
+          this.bringToTop(sprite);
         }
       } else {
         const sprite = this.createPlayerSprite(player, px, py);
         this.playerSprites.set(player.id, sprite);
-        this.container.add(sprite);
+        this.add(sprite);
       }
     });
   }
@@ -155,10 +177,10 @@ export class Dugout {
       this.team.colors.primary,
       this.team.rosterName
     );
-    sprite.setSize(32, 32);
+    // Scale sprite to fit in grid if needed, but PlayerSprite usually handles its own size
+    // sprite.setSize(32, 32);
 
     // Setup interactions
-    // Note: Interaction (hitArea) is set in PlayerSprite constructor
     sprite.input!.cursor = "pointer"; // Ensure hand cursor
     this.scene.input.setDraggable(sprite);
 
@@ -175,7 +197,7 @@ export class Dugout {
 
     sprite.on("dragstart", () => {
       // Bring container to top
-      this.container.setDepth(100);
+      this.setDepth(100);
       this.onPlayerDragStart?.(player.id);
     });
 
@@ -188,7 +210,7 @@ export class Dugout {
     );
 
     sprite.on("dragend", () => {
-      this.container.setDepth(1);
+      this.setDepth(0); // Reset depth
       // Helper to get world position
       const matrix = sprite.getWorldTransformMatrix();
       this.onPlayerDragEnd?.(player.id, matrix.tx, matrix.ty);
@@ -206,21 +228,20 @@ export class Dugout {
   }
 
   public refresh(): void {
-    this.container.list.forEach((child) => {
-      if (!(child instanceof PlayerSprite)) {
-        child.destroy();
-      }
-    });
-
     // Hide all sprites first; createLayout will reveal valid ones
     this.playerSprites.forEach((sprite) => sprite.setVisible(false));
 
-    // Note: We are not destroying sprites, just re-layout
-    this.createLayout();
-  }
+    // Clear all children except sprites (to rebuild layout/backgrounds)
+    // We want to keep sprites to preserve their state/listeners
+    const sprites = Array.from(this.playerSprites.values());
 
-  public getContainer(): Phaser.GameObjects.Container {
-    return this.container;
+    // Remove everything that is NOT a player sprite
+    this.list
+      .filter((child) => !sprites.includes(child as any))
+      .forEach((child) => child.destroy());
+
+    // Re-create layout (backgrounds, grids, text)
+    this.createLayout();
   }
 
   public getSprites(): Map<string, Phaser.GameObjects.Container> {
@@ -235,7 +256,6 @@ export class Dugout {
           p.status === PlayerStatus.INJURED || p.status === PlayerStatus.DEAD
         );
       // Reserves = No grid position and Active/Reserve status
-      // Note: Use string literal for status until we update player data to start with enum
       return (
         !p.gridPosition &&
         (p.status === PlayerStatus.ACTIVE ||

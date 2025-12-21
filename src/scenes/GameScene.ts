@@ -8,7 +8,7 @@ import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { SubPhase } from "../types/GameState";
 import { GameEventNames } from "../types/events";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { FormationManager } from "../game/managers/FormationManager";
@@ -60,11 +60,10 @@ export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
-  private pendingKickoffData: any = null;
   private ballSprite: Phaser.GameObjects.Container | null = null;
 
   // Store handlers for cleanup
-  private eventHandlers: Map<string, Function> = new Map();
+  private eventHandlers: Map<GameEventNames, Function> = new Map();
 
   /**
    * Reload state from ServiceContainer (e.g. after Scenario Load)
@@ -279,25 +278,6 @@ export class GameScene extends Phaser.Scene {
       // Show Turn notification
       // this.eventBus.emit(GameEventNames.UI_Notification, `Turn ${turnData.turnNumber} started!`);
     });
-
-    // Listen for state updates
-    this.eventBus.on(GameEventNames.PlayerMoved, this.handlePlayerMoved);
-    this.eventBus.on(GameEventNames.PlayerPlaced, this.handlePlayerPlaced);
-    this.eventBus.on(GameEventNames.BallKicked, this.handleBallKicked);
-    this.eventBus.on(GameEventNames.PhaseChanged, this.handlePhaseChanged);
-    this.eventBus.on(GameEventNames.TurnStarted, this.handleTurnStarted);
-
-    // Listen for UI events
-    this.eventBus.on(GameEventNames.UI_PlacePlayer, this.handleUIPlacePlayer);
-    this.eventBus.on(GameEventNames.UI_StartCoinFlip, this.handleStartCoinFlip);
-    this.eventBus.on(
-      GameEventNames.UI_CoinFlipComplete,
-      this.handleCoinFlipComplete
-    );
-    this.eventBus.on(GameEventNames.UI_SetupComplete, this.handleSetupComplete);
-
-    // Initial State Sync
-    this.syncState();
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
