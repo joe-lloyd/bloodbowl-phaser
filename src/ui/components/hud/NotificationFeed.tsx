@@ -18,15 +18,12 @@ export const NotificationFeed: React.FC<NotificationFeedProps> = ({
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className="
-                        animate-bounce-in
-                        px-6 py-2
-                        bg-bb-parchment bg-opacity-75
-                        border-2 border-bb-gold
-                        text-bb-blood-red font-heading font-bold text-2xl uppercase tracking-widest
-                        shadow-parchment
-                        transform
-                    "
+          className={`
+                px-8 py-2
+                font-heading font-bold text-3xl text-white uppercase tracking-wider
+                shadow-lg bg-bb-blood-red
+                border-y-2 border-bb-gold
+            `}
         >
           {msg.text}
         </div>

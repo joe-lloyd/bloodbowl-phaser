@@ -13,7 +13,6 @@ export class Dugout extends Phaser.GameObjects.Container {
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
 
   // Grid configuration
-  private readonly GRID_COLS = 6;
   private readonly GRID_ROWS = 2;
   private readonly SQUARE_SIZE = GameConfig.SQUARE_SIZE;
 
@@ -22,7 +21,6 @@ export class Dugout extends Phaser.GameObjects.Container {
     x: number,
     y: number,
     team: Team,
-    width: number = 1200,
     height: number = 150 // Increased default height to fit 2 rows of 60px + padding
   ) {
     super(scene, x, y);
@@ -180,6 +178,14 @@ export class Dugout extends Phaser.GameObjects.Container {
     // Scale sprite to fit in grid if needed, but PlayerSprite usually handles its own size
     // sprite.setSize(32, 32);
 
+    // Override size and hit area to match grid square for easier clicking
+    sprite.setSize(this.SQUARE_SIZE, this.SQUARE_SIZE);
+    sprite.removeInteractive(); // Remove existing to ensure clean state
+    sprite.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, this.SQUARE_SIZE, this.SQUARE_SIZE),
+      Phaser.Geom.Rectangle.Contains
+    );
+
     // Setup interactions
     sprite.input!.cursor = "pointer"; // Ensure hand cursor
     this.scene.input.setDraggable(sprite);
@@ -214,6 +220,10 @@ export class Dugout extends Phaser.GameObjects.Container {
       // Helper to get world position
       const matrix = sprite.getWorldTransformMatrix();
       this.onPlayerDragEnd?.(player.id, matrix.tx, matrix.ty);
+
+      // Snap back to grid (refresh layout)
+      // This ensures if the drop was invalid (not on pitch), the player returns to their slot
+      this.refresh();
     });
 
     return sprite;

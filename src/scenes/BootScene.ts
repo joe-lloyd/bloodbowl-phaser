@@ -18,17 +18,6 @@ export class BootScene extends Phaser.Scene {
     progressBox.fillStyle(0x222222, 0.8);
     progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
 
-    const loadingText = this.add.text(
-      width / 2,
-      height / 2 - 50,
-      "Loading...",
-      {
-        fontSize: "20px",
-        color: "#ffffff",
-      }
-    );
-    loadingText.setOrigin(0.5, 0.5);
-
     this.load.on("progress", (value: number) => {
       progressBar.clear();
       progressBar.fillStyle(0xffffff, 1);
@@ -38,7 +27,6 @@ export class BootScene extends Phaser.Scene {
     this.load.on("complete", () => {
       progressBar.destroy();
       progressBox.destroy();
-      loadingText.destroy();
     });
 
     // Future: Load assets here
