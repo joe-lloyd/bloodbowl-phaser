@@ -140,6 +140,15 @@ export class GameScene extends Phaser.Scene {
     this.kickingTeam = this.team1;
     this.receivingTeam = this.team2;
 
+    // Ensure ServiceContainer is initialized
+    if (!ServiceContainer.isInitialized()) {
+      ServiceContainer.initialize(
+        (window as any).eventBus,
+        this.team1,
+        this.team2
+      );
+    }
+
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
     this.eventBus = container.eventBus;

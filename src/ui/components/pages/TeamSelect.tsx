@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { useEventEmit } from "../../hooks/useEventBus";
-import { GameEventNames } from "../../../types/events";
+import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import Parchment from "../componentWarehouse/Parchment";
@@ -11,19 +9,18 @@ import { Button } from "../componentWarehouse/Button";
 import { Title, SectionTitle } from "../componentWarehouse/Titles";
 
 interface TeamSelectProps {
-  eventBus: EventBus;
-  mode?: "sandbox" | "standard";
+  mode?: "sandbox" | "standard" | "play";
 }
 
 /**
  * Team Selection Component
  * Select teams for Player 1 and Player 2 before starting a game
  */
-export function TeamSelect({ eventBus, mode }: TeamSelectProps) {
+export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
-  const emit = useEventEmit(eventBus);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setTeams(loadTeams());
@@ -54,32 +51,18 @@ export function TeamSelect({ eventBus, mode }: TeamSelectProps) {
       selectedTeam2.name
     );
 
-    // Emit event to start the game
-    // The Phaser scene will handle ServiceContainer initialization
-    const targetScene = mode === "sandbox" ? "SandboxScene" : "GameScene";
-
-    // Emit sceneChange to trigger Phaser scene switch
-    emit(GameEventNames.UI_SceneChange, {
-      scene: targetScene,
-      data: {
+    // Navigate to game page with team data
+    const targetRoute = mode === "sandbox" ? "/sand-box" : "/play";
+    navigate(targetRoute, {
+      state: {
         team1: selectedTeam1,
         team2: selectedTeam2,
       },
     });
-
-    // Emit startGame for other listeners (ServiceContainer init handles this via GameScene init? No, GameScene init does it)
-    // But App.tsx listens to ui:startGame to hide UI?
-    // App.tsx also listens to ui:sceneChange.
-    emit(GameEventNames.UI_StartGame, {
-      team1: selectedTeam1,
-      team2: selectedTeam2,
-    });
-
-    console.log("Emitted ui:startGame event");
   };
 
   const handleBack = () => {
-    emit(GameEventNames.UI_SceneChange, { scene: "MenuScene" });
+    navigate("/");
   };
 
   const canStart =

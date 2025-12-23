@@ -34,7 +34,14 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Move to menu scene
-    this.scene.start("MenuScene");
+    // Notify UI that Phaser is ready
+    const eventBus = (window as any).eventBus;
+    if (eventBus) {
+      eventBus.emit("phaser:ready");
+      console.log("Phaser BootScene: Assets loaded, waiting for UI command...");
+    }
+
+    // Optional: Add a subtle background animation or effect here while waiting
+    // For now, just a static color or the last frame of the loading bar
   }
 }
