@@ -115,7 +115,7 @@ export class SceneOrchestrator {
     this.eventBus.on(GameEventNames.UI_SetupAction, onSetupAction);
 
     // Kickoff: Ball kicked animation
-    const onBallKicked = (data: any) => {
+    const onBallKicked = async (data: any) => {
       let startX = data.targetX;
       let startY = data.targetY;
 
@@ -133,10 +133,38 @@ export class SceneOrchestrator {
         data.targetY
       );
 
+      // Store kick data immediately for scatter animation later
+      this.scene["pendingKickoffData"] = data;
+      console.log("🏈 Set pendingKickoffData immediately:", data);
+
+      // Camera tracking: zoom to kicker first
+      const kickerSprite = this.scene["playerSprites"].get(data.playerId);
+      const ballSprite = this.scene["ballSprite"];
+
+      if (kickerSprite && ballSprite && this.scene["cameraController"]) {
+        const kickerPos = { x: kickerSprite.x, y: kickerSprite.y };
+        console.log("🎥 Starting camera sequence for kickoff");
+
+        // Zoom to kicker, then track ball
+        await this.scene["cameraController"].trackObjectWithPreZoom(
+          kickerPos,
+          ballSprite,
+          2.2, // Pre-zoom (kicker)
+          2.5, // Track zoom (ball)
+          500 // Pre-zoom duration
+        );
+      }
+
+      // Use FINAL scatter position for animation (scatter already calculated)
+      const finalTargetPos = this.scene["pitch"].getPixelPosition(
+        data.finalX,
+        data.finalY
+      );
+
       this.scene.tweens.add({
         targets: this.scene["ballSprite"],
-        x: targetPos.x,
-        y: targetPos.y,
+        x: finalTargetPos.x,
+        y: finalTargetPos.y,
         duration: 800,
         ease: "Quad.easeOut",
         onStart: () => {
@@ -152,9 +180,6 @@ export class SceneOrchestrator {
         duration: 400,
         yoyo: true,
         ease: "Sine.easeOut",
-        onComplete: () => {
-          this.scene["pendingKickoffData"] = data;
-        },
       });
     };
     this.eventHandlers.set(GameEventNames.BallKicked, onBallKicked);
@@ -162,12 +187,22 @@ export class SceneOrchestrator {
 
     // Kickoff result notification
     const onKickoffResult = (data: { roll: number; event: string }) => {
+      console.log("🎲 KickoffResult event received:", data);
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `${data.roll}: ${data.event}`
       );
+      console.log("🏈 pendingKickoffData:", this.scene["pendingKickoffData"]);
       if (this.scene["pendingKickoffData"]) {
-        this.scene["animateBallScatter"](this.scene["pendingKickoffData"]);
+        console.log("🏈 Scatter already applied in initial animation");
+        // Scatter was already applied - ball is at final position
+        // Just reset camera
+        if (this.scene["cameraController"]) {
+          this.scene.time.delayedCall(500, () => {
+            console.log("🎥 Resetting camera after kickoff");
+            this.scene["cameraController"].reset(1000);
+          });
+        }
         this.scene["pendingKickoffData"] = null;
       }
     };

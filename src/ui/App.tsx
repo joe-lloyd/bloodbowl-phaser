@@ -20,7 +20,7 @@ export function App({ eventBus }: AppProps) {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainMenu eventBus={eventBus} />} />
+        <Route path="/" element={<MainMenu />} />
         <Route
           path="/build-team"
           element={<TeamManagement eventBus={eventBus} />}
@@ -29,10 +29,7 @@ export function App({ eventBus }: AppProps) {
           path="/build-team/new-team"
           element={<TeamBuilder eventBus={eventBus} />}
         />
-        <Route
-          path="/select-team"
-          element={<TeamSelect eventBus={eventBus} mode="play" />}
-        />
+        <Route path="/select-team" element={<TeamSelect mode="play" />} />
         <Route
           path="/play"
           element={<GamePage eventBus={eventBus} mode="normal" />}
