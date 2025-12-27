@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { useEventEmit } from "../../hooks/useEventBus";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Team,
   RosterName,
@@ -22,10 +21,7 @@ import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
 
-interface TeamBuilderProps {
-  eventBus: EventBus;
-  teamId?: string;
-}
+interface TeamBuilderProps {}
 
 const TEAM_COLORS = [
   0x8e1b1b, // Blood Red
@@ -40,13 +36,14 @@ const TEAM_COLORS = [
   0x000000, // Black
 ];
 
-export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
+export function TeamBuilder({}: TeamBuilderProps) {
   const [team, setTeam] = useState<Team | null>(null);
   const [selectedRace, setSelectedRace] = useState<RosterName>(
     RosterName.AMAZON
   );
   const [selectedColor, setSelectedColor] = useState<number>(0x8e1b1b);
-  const emit = useEventEmit(eventBus);
+  const navigate = useNavigate();
+  const { teamId } = useParams<{ teamId: string }>();
 
   useEffect(() => {
     // Load existing team or create new one
@@ -200,11 +197,11 @@ export function TeamBuilder({ eventBus, teamId }: TeamBuilderProps) {
     }
 
     TeamManager.saveTeams(teams);
-    emit("ui:sceneChange", { scene: "TeamManagementScene" });
+    navigate("/build-team");
   };
 
   const handleBack = () => {
-    emit("ui:sceneChange", { scene: "TeamManagementScene" });
+    navigate("/build-team");
   };
 
   // Handlers for Meta fields

@@ -25,10 +25,8 @@ export function App({ eventBus }: AppProps) {
           path="/build-team"
           element={<TeamManagement eventBus={eventBus} />}
         />
-        <Route
-          path="/build-team/new-team"
-          element={<TeamBuilder eventBus={eventBus} />}
-        />
+        <Route path="/build-team/new-team" element={<TeamBuilder />} />
+        <Route path="/build-team/:teamId" element={<TeamBuilder />} />
         <Route path="/select-team" element={<TeamSelect mode="play" />} />
         <Route
           path="/play"

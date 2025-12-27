@@ -7,12 +7,16 @@ import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button, DangerButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
+import { EventBus } from "@/services";
 
+interface TeamManagementProps {
+  eventBus: EventBus;
+}
 /**
  * Team Management Component
  * Lists all teams with create/edit/delete functionality
  */
-export function TeamManagement() {
+export function TeamManagement({ eventBus }: TeamManagementProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const navigate = useNavigate();
 
