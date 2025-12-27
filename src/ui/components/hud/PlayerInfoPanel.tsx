@@ -41,34 +41,13 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   // 3. If NO Selected, Hovered is shown normally (Bottom Right 1).
 
   const renderPanel = (player: Player, isComparison: boolean) => {
-    // Offset comparison panel vertically
-    const bottomOffset = isComparison ? "220px" : "1rem";
-    // If NO selected player, the hovered player sits at bottom (1rem).
-    // If Selected player exists, it sits at 1rem. Comparison sits above it.
-
-    let positionStyle: React.CSSProperties = { bottom: "1rem", right: "1rem" };
-
-    if (selectedPlayer) {
-      if (player.id === selectedPlayer.id) {
-        // The Selected Panel
-        positionStyle = { bottom: "1rem", right: "1rem" };
-      } else {
-        // The Comparison Panel (Hovered)
-        positionStyle = { bottom: "16rem", right: "1rem" }; // adjust height based on panel size (~200px?)
-      }
-    } else {
-      // Just Hovered, no selection
-      positionStyle = { bottom: "1rem", right: "1rem" };
-    }
-
     const borderColor = isComparison ? "border-yellow-400" : "border-white";
     const titleColor = isComparison ? "text-yellow-400" : "text-white";
 
     return (
       <div
         key={player.id}
-        className="absolute z-50 pointer-events-none transition-all duration-200"
-        style={{ ...positionStyle, width: "17%" }}
+        className="w-full pointer-events-none transition-all duration-200 mb-4"
       >
         <div
           className={`bg-[#2a2a3e]/95 border-2 ${borderColor} rounded-lg p-3 shadow-lg text-white`}
@@ -138,11 +117,11 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   );
 
   return (
-    <>
+    <div className="w-full flex flex-col-reverse items-end">
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&
         renderPanel(hoveredPlayer, true)}
-    </>
+    </div>
   );
 };

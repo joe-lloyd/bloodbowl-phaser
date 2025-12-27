@@ -94,7 +94,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
   return (
     <div
-      className="absolute bottom-[25%] left-4 w-[18%] max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
+      className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={(e) => {
         console.log("[PlayerActionMenu] Container Clicked");

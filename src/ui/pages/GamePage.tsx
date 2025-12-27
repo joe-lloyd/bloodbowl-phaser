@@ -7,7 +7,6 @@ import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD } from "../components/hud/GameHUD";
-import { SandboxOverlay } from "../components/hud/SandboxOverlay";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 
@@ -97,10 +96,7 @@ export function GamePage({ eventBus, mode = "normal" }: GamePageProps) {
       <div id="game-container" className="w-full h-full" />
 
       {/* Game HUD overlay */}
-      <GameHUD eventBus={eventBus} />
-
-      {/* Sandbox-specific overlay */}
-      {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
+      <GameHUD eventBus={eventBus} mode={mode} />
     </div>
   );
 }

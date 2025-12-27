@@ -79,3 +79,17 @@
   justify-content: center;
   align-items: center;
 }
+
+/* HUD Grid Layout */
+.grid-hud {
+  display: grid;
+  grid-template-columns: 18% 1fr 18%; /* Left sidebar | Pitch | Right sidebar */
+  grid-template-rows: 1fr; /* Single row - full height */
+  grid-template-areas: "left pitch right";
+}
+
+.grid-area-left { grid-area: left; }
+.grid-area-right { grid-area: right; }
+.grid-area-pitch { grid-area: pitch; }
+
+

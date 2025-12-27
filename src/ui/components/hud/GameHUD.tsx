@@ -18,12 +18,18 @@ import { PlayerInfoPanel } from "./PlayerInfoPanel";
 import { BlockDiceDialog } from "./BlockDiceDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
+import { HUDLayout } from "./HUDLayout";
+import { SandboxOverlay } from "./SandboxOverlay";
 
 interface GameHUDProps {
   eventBus: EventBus;
+  mode?: "normal" | "sandbox";
 }
 
-export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
+export const GameHUD: React.FC<GameHUDProps> = ({
+  eventBus,
+  mode = "normal",
+}) => {
   // State
   const [turnData, setTurnData] = useState({
     turnNumber: 1,
@@ -173,45 +179,52 @@ export const GameHUD: React.FC<GameHUDProps> = ({ eventBus }) => {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-50">
-      {/* Top Bar: Turn Indicator */}
-      <div className="flex justify-center w-full">
-        <TurnIndicator
-          turnNumber={turnData.turnNumber}
-          activeTeamName={turnData.activeTeamName}
-          isTeam1Active={turnData.isTeam1Active}
-          phase={turnData.phase}
-        />
-      </div>
+    <HUDLayout
+      left={
+        <>
+          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          <DiceLog eventBus={eventBus} />
+        </>
+      }
+      right={
+        <>
+          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
+          <PlayerInfoPanel eventBus={eventBus} />
+        </>
+      }
+      overlays={
+        <>
+          {/* Turn Indicator - Top Center */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-50">
+            <TurnIndicator
+              turnNumber={turnData.turnNumber}
+              activeTeamName={turnData.activeTeamName}
+              isTeam1Active={turnData.isTeam1Active}
+              phase={turnData.phase}
+            />
+          </div>
 
-      {/* Overlays */}
-      <CoinFlipOverlay eventBus={eventBus} />
-      <SetupControls eventBus={eventBus} />
-      <ConfirmationModal eventBus={eventBus} />
-      <BlockDiceDialog eventBus={eventBus} />
-      <FollowUpDialog eventBus={eventBus} />
-      <TurnoverOverlay eventBus={eventBus} />
+          {/* End Turn Button - Bottom Right */}
+          {turnData.phase === GamePhase.PLAY && (
+            <div className="absolute bottom-4 right-4 pointer-events-auto z-50">
+              <EndTurnButton onClick={handleEndTurn} />
+            </div>
+          )}
 
-      {/* Player Action Menu (Above Dice Log) */}
-      <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          {/* Full-screen overlays */}
+          <CoinFlipOverlay eventBus={eventBus} />
+          <SetupControls eventBus={eventBus} />
+          <ConfirmationModal eventBus={eventBus} />
+          <BlockDiceDialog eventBus={eventBus} />
+          <FollowUpDialog eventBus={eventBus} />
+          <TurnoverOverlay eventBus={eventBus} />
 
-      {/* Dice Log (Bottom Left) */}
-      <DiceLog eventBus={eventBus} />
-
-      {/* Player Info Panel (Bottom Right) */}
-      <PlayerInfoPanel eventBus={eventBus} />
-
-      {/* Middle: Notifications Overlay - Moved up */}
-      <div className="absolute inset-0 flex items-start justify-center pointer-events-none pt-32">
-        <NotificationFeed messages={notifications} />
-      </div>
-
-      {/* Bottom Bar: End Turn Button */}
-      <div className="flex justify-end w-full pb-4 pr-4 pointer-events-auto">
-        {turnData.phase === GamePhase.PLAY && (
-          <EndTurnButton onClick={handleEndTurn} />
-        )}
-      </div>
-    </div>
+          {/* Notification overlay */}
+          <div className="absolute inset-0 flex items-start justify-center pointer-events-none pt-32 z-50">
+            <NotificationFeed messages={notifications} />
+          </div>
+        </>
+      }
+    />
   );
 };

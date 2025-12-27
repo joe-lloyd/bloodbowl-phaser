@@ -56,7 +56,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   };
 
   return (
-    <div className="absolute bottom-4 left-4 w-[17%] h-1/2 flex flex-col pointer-events-auto">
+    <div className="w-full h-full max-h-[50vh] flex flex-col pointer-events-auto">
       {/* Header */}
       <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md z-10">
         <span className="font-heading text-bb-gold text-lg">DICE LOG</span>
