@@ -197,6 +197,15 @@ export class MovementManager {
             status: PlayerStatus.PRONE,
           });
 
+          // Update ball position if holding ball
+          if (holdingBall) {
+            this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
+            this.eventBus.emit(GameEventNames.BallPlaced, {
+              x: currentPos.x,
+              y: currentPos.y,
+            });
+          }
+
           this.callbacks.onTurnover("Failed Dodge");
           completedPath.push(step);
           break;
@@ -235,6 +244,15 @@ export class MovementManager {
             playerId,
             status: PlayerStatus.PRONE,
           });
+
+          // Update ball position if holding ball
+          if (holdingBall) {
+            this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
+            this.eventBus.emit(GameEventNames.BallPlaced, {
+              x: currentPos.x,
+              y: currentPos.y,
+            });
+          }
 
           this.callbacks.onTurnover("Failed GFI");
           completedPath.push(step);

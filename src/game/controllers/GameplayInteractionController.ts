@@ -211,9 +211,14 @@ export class GameplayInteractionController {
               // IT'S A BLOCK!
 
               // Implicit Action Declaration
-              const currentAction = state.activePlayer?.action;
+              // Only check current action if it's for THIS player
+              const currentAction =
+                state.activePlayer?.id === selectedPlayer.id
+                  ? state.activePlayer?.action
+                  : undefined;
+
               if (!currentAction) {
-                // If no action declared, implicitly declare BLOCK
+                // If no action declared for this player, implicitly declare BLOCK
                 this.gameService.declareAction(selectedPlayer.id, "block");
               } else if (currentAction === "move") {
                 // Cannot block if Move declared (unless Blitz, handled below)
@@ -254,9 +259,14 @@ export class GameplayInteractionController {
         this.gameService.canActivate(player.id)
       ) {
         // Implicit Action Declaration
-        const currentAction = state.activePlayer?.action;
+        // Only check current action if it's for THIS player
+        const currentAction =
+          state.activePlayer?.id === player.id
+            ? state.activePlayer?.action
+            : undefined;
+
         if (!currentAction) {
-          // If no action declared, implicitly declare MOVE
+          // If no action declared for this player, implicitly declare MOVE
           this.gameService.declareAction(player.id, "move");
         } else if (currentAction === "block") {
           this.eventBus.emit(
