@@ -5,9 +5,11 @@ import { Player, PlayerStatus } from "@/types/Player";
 import { MovementValidator } from "../validators/MovementValidator";
 import { BallManager } from "./BallManager";
 import { GameEventNames } from "../../types/events";
+import { DodgeController } from "../controllers/DodgeController";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
+  private dodgeController: DodgeController;
 
   constructor(
     private eventBus: IEventBus,
@@ -19,7 +21,9 @@ export class MovementManager {
       onTurnover: (reason: string) => void;
       onActivationFinished: (playerId: string) => void;
     }
-  ) {}
+  ) {
+    this.dodgeController = new DodgeController(eventBus);
+  }
 
   public getMovementUsed(playerId: string): number {
     return this.state.turn.movementUsed.get(playerId) || 0;
@@ -170,6 +174,34 @@ export class MovementManager {
 
     for (const step of path) {
       if (failed) break;
+
+      // Check for dodge requirement BEFORE moving
+      if (this.dodgeController.isDodgeRequired(currentPos, opponents)) {
+        const dodgeResult = this.dodgeController.attemptDodge(
+          player,
+          currentPos,
+          step,
+          opponents
+        );
+
+        if (!dodgeResult.success) {
+          failed = true;
+          currentPos = step;
+          player.gridPosition = currentPos;
+
+          console.log("DODGE FAILED! Player falls.");
+          player.status = PlayerStatus.PRONE;
+          this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
+            playerId,
+            status: PlayerStatus.PRONE,
+          });
+
+          this.callbacks.onTurnover("Failed Dodge");
+          completedPath.push(step);
+          break;
+        }
+      }
 
       stepsTaken++;
       const totalUsed = preUsed + stepsTaken;

@@ -107,10 +107,20 @@ export class Pitch {
     graphics.lineStyle(4, GameConfig.COLORS.PITCH_LINE, 1.0); // Thicker line
 
     const leftSetupX = 7 * this.squareSize;
-    graphics.lineBetween(leftSetupX, 0, leftSetupX, this.height * this.squareSize);
+    graphics.lineBetween(
+      leftSetupX,
+      0,
+      leftSetupX,
+      this.height * this.squareSize
+    );
 
     const rightSetupX = 13 * this.squareSize;
-    graphics.lineBetween(rightSetupX, 0, rightSetupX, this.height * this.squareSize);
+    graphics.lineBetween(
+      rightSetupX,
+      0,
+      rightSetupX,
+      this.height * this.squareSize
+    );
 
     this.container.add(graphics);
   }
@@ -126,7 +136,7 @@ export class Pitch {
 
     // Bottom Wide Zone line (separating row 8 and 9)
     // Height is 11 (0-10). Bottom wide zone is 9, 10.
-    // Line should be at Y = 9 * SQUARE_SIZE 
+    // Line should be at Y = 9 * SQUARE_SIZE
     const bottomY = (this.height - 2) * this.squareSize;
     graphics.lineBetween(0, bottomY, this.width * this.squareSize, bottomY);
 
@@ -159,7 +169,11 @@ export class Pitch {
   public highlightHoverSquare(gridX: number, gridY: number): void {
     this.clearHover(); // Only one at a time
 
-    if (gridX > GameConfig.PITCH_WIDTH - 1 || gridY > GameConfig.PITCH_HEIGHT - 1) return;
+    if (
+      gridX > GameConfig.PITCH_WIDTH - 1 ||
+      gridY > GameConfig.PITCH_HEIGHT - 1
+    )
+      return;
 
     // Use local coordinates for container
     const local = gridToPixel(gridX, gridY, this.squareSize);
@@ -173,7 +187,7 @@ export class Pitch {
       0.0
     );
     cursor.setStrokeStyle(2, 0xffffff, 0.8);
-    cursor.setName('hover_cursor');
+    cursor.setName("hover_cursor");
     this.container.add(cursor);
   }
 
@@ -190,16 +204,17 @@ export class Pitch {
       }
     });
 
-    this.clearLayer('tackle_zone');
-    this.clearLayer('range_overlay');
-    this.clearLayer('sprint_risk');
+    this.clearLayer("tackle_zone");
+    this.clearLayer("range_overlay");
+    this.clearLayer("sprint_risk");
+    this.clearLayer("dodge_risk");
   }
 
   /**
    * Highlight setup zone
    */
   public highlightSetupZone(isLeft: boolean): void {
-    this.clearLayer('setup_zone_highlight');
+    this.clearLayer("setup_zone_highlight");
 
     // Bounds: Left (0-6), Right (13-19)
     const minX = isLeft ? 0 : 13;
@@ -219,7 +234,7 @@ export class Pitch {
       0x00ff00,
       0.15
     );
-    rect.setName('setup_zone_highlight');
+    rect.setName("setup_zone_highlight");
     rect.setStrokeStyle(2, 0x00ff00, 0.5);
     this.container.add(rect);
 
@@ -230,16 +245,16 @@ export class Pitch {
       duration: 1500,
       yoyo: true,
       repeat: -1,
-      ease: 'Sine.easeInOut'
+      ease: "Sine.easeInOut",
     });
   }
 
   /**
    * Highlight opposing tackle zones
    */
-  public drawTackleZones(zones: { x: number, y: number }[]): void {
-    this.clearLayer('tackle_zone');
-    zones.forEach(z => {
+  public drawTackleZones(zones: { x: number; y: number }[]): void {
+    this.clearLayer("tackle_zone");
+    zones.forEach((z) => {
       const local = gridToPixel(z.x, z.y, this.squareSize);
       const rect = this.scene.add.rectangle(
         local.x,
@@ -249,7 +264,7 @@ export class Pitch {
         0xff0000,
         0.2
       );
-      rect.setName('tackle_zone');
+      rect.setName("tackle_zone");
       this.container.add(rect);
     });
   }
@@ -257,9 +272,9 @@ export class Pitch {
   /**
    * Draw Sprint Risk squares (GFI)
    */
-  public drawSprintRisks(risks: { x: number, y: number }[]): void {
-    this.clearLayer('sprint_risk');
-    risks.forEach(risk => {
+  public drawSprintRisks(risks: { x: number; y: number }[]): void {
+    this.clearLayer("sprint_risk");
+    risks.forEach((risk) => {
       const local = gridToPixel(risk.x, risk.y, this.squareSize);
       const rect = this.scene.add.rectangle(
         local.x,
@@ -269,33 +284,75 @@ export class Pitch {
         0xffff00, // Yellow
         0.3 // Light transparency
       );
-      rect.setName('sprint_risk');
+      rect.setName("sprint_risk");
       this.container.add(rect);
+    });
+  }
+
+  /**
+   * Draw Dodge Risk squares
+   */
+  public drawDodgeRisks(
+    risks: { x: number; y: number; modifiers: number }[]
+  ): void {
+    this.clearLayer("dodge_risk");
+    risks.forEach(({ x, y, modifiers }) => {
+      const local = gridToPixel(x, y, this.squareSize);
+
+      // Orange rectangle for dodge risk
+      const rect = this.scene.add.rectangle(
+        local.x,
+        local.y,
+        this.squareSize - 4,
+        this.squareSize - 4,
+        0xff6600, // Orange
+        0.3
+      );
+      rect.setStrokeStyle(2, 0xff6600);
+      rect.setName("dodge_risk");
+      this.container.add(rect);
+
+      // Add modifier text
+      const text = this.scene.add.text(
+        local.x,
+        local.y,
+        `${modifiers >= 0 ? "+" : ""}${modifiers}`,
+        {
+          fontSize: "14px",
+          color: "#ff6600",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 2,
+        }
+      );
+      text.setOrigin(0.5);
+      text.setName("dodge_risk");
+      this.container.add(text);
     });
   }
 
   /**
    * Draw movement range overlay (darken unreachable squares)
    */
-  public drawRangeOverlay(reachable: { x: number, y: number }[]): void {
-    this.clearLayer('range_overlay');
+  public drawRangeOverlay(reachable: { x: number; y: number }[]): void {
+    this.clearLayer("range_overlay");
     const graphics = this.scene.add.graphics();
     graphics.fillStyle(0x000000, 0.5);
-    graphics.setName('range_overlay');
+    graphics.setName("range_overlay");
 
     // Draw full pitch dark
     // graphics.fillRect(0, 0, this.width * this.squareSize, this.height * this.squareSize);
     // Cut out reachable squares? Graphics doesn't support easy cutouts in this way without masks.
     // Easiest way: Draw individual dark rectangles on UNREACHABLE squares or use a mask.
     // Mask approach:
-    // Create a geometric mask from reachable squares? 
+    // Create a geometric mask from reachable squares?
     // Alternative: Just draw rectangles on squares NOT in reachable set.
 
     // Optimization: Only draw 0.5 alpha black rects on squares that are NOT reachable.
     // Iterate all grid squares.
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        if (!reachable.some(r => r.x === x && r.y === y)) {
+        if (!reachable.some((r) => r.x === x && r.y === y)) {
           // Unreachable
           const local = gridToPixel(x, y, this.squareSize);
           // graphics.fillRect uses Top-Left, but gridToPixel returns Center
@@ -314,14 +371,18 @@ export class Pitch {
   /**
    * Draw movement path with lines and centered dots
    */
-  public drawMovementPath(path: { x: number; y: number }[], rolls: any[], ma: number = 6): void {
+  public drawMovementPath(
+    path: { x: number; y: number }[],
+    rolls: any[],
+    ma: number = 6
+  ): void {
     this.clearPath();
 
     if (path.length === 0) return;
 
     // Draw Lines
     const graphics = this.scene.add.graphics();
-    graphics.setName('path_line');
+    graphics.setName("path_line");
 
     // Draw lines segment by segment to handle color changes
     if (path.length > 1) {
@@ -354,34 +415,36 @@ export class Pitch {
       let radius = 6;
 
       // Check rolls
-      const roll = rolls.find(r => r.square.x === step.x && r.square.y === step.y);
+      const roll = rolls.find(
+        (r) => r.square.x === step.x && r.square.y === step.y
+      );
 
       if (roll) {
-        if (roll.type === 'rush') {
+        if (roll.type === "rush") {
           color = 0xffff00; // Yellow for GFI
           radius = 8;
         }
-        if (roll.type === 'dodge') {
+        if (roll.type === "dodge") {
           color = 0xff0000; // Red for Dodge
           radius = 8;
         }
       }
 
       const dot = this.scene.add.circle(local.x, local.y, radius, color);
-      dot.setName('path_dot');
+      dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);
     });
   }
 
   public clearPath(): void {
-    this.clearLayer('path_dot');
-    this.clearLayer('path_line');
+    this.clearLayer("path_dot");
+    this.clearLayer("path_line");
   }
 
   public clearLayer(name: string): void {
     const children = this.container.getAll();
-    children.forEach(child => {
+    children.forEach((child) => {
       if (child.name === name) {
         child.destroy();
       }
@@ -389,7 +452,7 @@ export class Pitch {
   }
 
   public clearHover(): void {
-    this.clearLayer('hover_cursor');
+    this.clearLayer("hover_cursor");
   }
 
   /**

@@ -36,6 +36,8 @@ export class GameplayInteractionController {
 
   // Store handler references for cleanup
   private pushDirectionHandler: (data: any) => void;
+  private pendingDodgeSquares: { x: number; y: number; modifiers: number }[] =
+    [];
 
   constructor(
     scene: GameScene,
@@ -474,16 +476,26 @@ export class GameplayInteractionController {
     const player = this.gameService.getPlayerById(this.selectedPlayerId);
     if (!player) return;
 
-    const totalSteps = this.waypoints.length;
-    const used = this.gameService.getMovementUsed(player.id);
-    const ma = player.stats.MA;
-    const remainingSafeMA = Math.max(0, ma - used); // MA remaining before GFI
+    // Check for dodge requirements
+    const fullPath = [
+      { x: player.gridPosition!.x, y: player.gridPosition!.y },
+      ...this.waypoints,
+    ];
 
-    // Check if this move requires GFI (Sprint)
-    // If we have 0 safe MA left, ALL steps are sprints.
-    // steps > remainingSafeMA
-    if (totalSteps > remainingSafeMA) {
-      const extraSteps = totalSteps - remainingSafeMA;
+    const opponents = this.getOpposingPlayers(player.teamId).filter(
+      (p: any) => p.gridPosition && p.status === "Active"
+    );
+
+    const dodgeAnalysis = this.movementValidator.analyzePath(
+      player as any,
+      fullPath,
+      opponents
+    );
+
+    if (dodgeAnalysis.requiresDodge) {
+      const dodgeSquares = dodgeAnalysis.dodgeSquares;
+      const worstModifier = Math.min(...dodgeSquares.map((d) => d.modifiers));
+      const dodgeCount = dodgeSquares.length;
 
       this.pendingMove = {
         playerId: this.selectedPlayerId,
@@ -491,22 +503,24 @@ export class GameplayInteractionController {
       };
 
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId: "sprint-confirm",
-        title: "Sprint Required! (GFI)",
+        actionId: "dodge-confirm",
+        title: "Dodge Required!",
         message:
-          `This move goes ${extraSteps} square(s) beyond MA.\n` +
-          `You must roll a 2+ for each extra square.\n` +
-          `Rolling a 1 causes a Fall & Turnover.\n\n` +
-          `Do you want to Sprint?`,
-        confirmLabel: "Sprint!",
+          `This move requires ${dodgeCount} dodge roll${
+            dodgeCount > 1 ? "s" : ""
+          }.\n` +
+          `Target: ${player.stats.AG}+ (Worst modifier: ${worstModifier})\n` +
+          `Failing a dodge causes a Fall & Turnover.\n\n` +
+          `Do you want to attempt the dodge?`,
+        confirmLabel: "Dodge!",
         cancelLabel: "Cancel",
         risky: true,
       });
       return;
     }
 
-    // Normal Move (No Sprint)
-    this.finalizeMove(this.selectedPlayerId, this.waypoints);
+    // No dodge required, check for sprint
+    this.checkSprintOrFinalize(this.selectedPlayerId, this.waypoints);
   }
 
   private finalizeMove(
@@ -576,6 +590,20 @@ export class GameplayInteractionController {
     confirmed: boolean;
     actionId: string;
   }) => {
+    // Handle dodge confirmation
+    if (data.actionId === "dodge-confirm") {
+      if (data.confirmed && this.pendingMove) {
+        // Continue to sprint check or finalize
+        this.checkSprintOrFinalize(
+          this.pendingMove.playerId,
+          this.pendingMove.path
+        );
+      } else {
+        this.pendingMove = null;
+      }
+      return;
+    }
+
     if (data.actionId === "sprint-confirm") {
       if (data.confirmed && this.pendingMove) {
         this.finalizeMove(this.pendingMove.playerId, this.pendingMove.path);
@@ -585,6 +613,41 @@ export class GameplayInteractionController {
       }
     }
   };
+
+  // Extract sprint check logic
+  private checkSprintOrFinalize(
+    playerId: string,
+    path: { x: number; y: number }[]
+  ): void {
+    const player = this.gameService.getPlayerById(playerId);
+    if (!player) return;
+
+    const totalSteps = path.length;
+    const used = this.gameService.getMovementUsed(player.id);
+    const ma = player.stats.MA;
+    const remainingSafeMA = Math.max(0, ma - used);
+
+    if (totalSteps > remainingSafeMA) {
+      const extraSteps = totalSteps - remainingSafeMA;
+
+      this.pendingMove = { playerId, path };
+
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId: "sprint-confirm",
+        title: "Sprint Required! (GFI)",
+        message:
+          `This move goes ${extraSteps} square(s) beyond MA.\n` +
+          `You must roll a 2+ for each extra square.\n` +
+          `Rolling a 1 causes a Fall & Turnover.\n\n` +
+          `Do you want to Sprint?`,
+        confirmLabel: "Sprint!",
+        cancelLabel: "Cancel",
+        risky: true,
+      });
+    } else {
+      this.finalizeMove(playerId, path);
+    }
+  }
 
   private drawCurrentPath(): void {
     if (!this.selectedPlayerId) return;
