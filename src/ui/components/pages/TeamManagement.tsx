@@ -21,11 +21,11 @@ export function TeamManagement() {
   }, []);
 
   const handleCreateTeam = () => {
-    navigate("/team-builder");
+    navigate("/build-team/new-team");
   };
 
   const handleEditTeam = (teamId: string) => {
-    navigate(`/team-builder?teamId=${teamId}`);
+    navigate(`/build-team/${teamId}`);
   };
 
   const handleDeleteTeam = (teamId: string) => {
