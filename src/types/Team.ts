@@ -20,6 +20,7 @@ export enum RosterName {
   GNOME = "Gnome",
   GOBLIN = "Goblin",
   HALFLING = "Halfling",
+  HIGH_ELF = "High Elf",
   HUMAN = "Human",
   IMPERIAL_NOBILITY = "Imperial Nobility",
   KHORNE = "Khorne",
@@ -46,6 +47,10 @@ export enum League {
   ELVEN_KINGDOMS_LEAGUE = "Elven Kingdoms League",
   OLD_WORLD_CLASSIC = "Old World Classic",
   WORLDS_EDGE_SUPERLEAGUE = "Worlds Edge Superleague",
+  SYLVANIAN_SPOTLIGHT = "Sylvanian Spotlight",
+  UNDERWORLD_CHALLENGE = "Underworld Challenge",
+  HALFLING_THIMBLE_CUP = "Halfling Thimble Cup",
+  WOODLAND_LEAGUE = "Woodland League",
 }
 
 export enum TeamSpecialRule {
@@ -53,11 +58,22 @@ export enum TeamSpecialRule {
   BRIBERY_AND_CORRUPTION = "Bribery and Corruption",
   TEAM_CAPTAIN = "Team Captain",
   FAVOURED_OF = "Favoured of",
+  MASTERS_OF_UNDEATH = "Masters of Undeath",
+  FAVOURED_OF_NURGLE = "Favoured of Nurgle",
+  FAVOURED_OF_KHORNE = "Favoured of Khorne",
+  FAVOURED_OF_HASHUT = "Favoured of Hashut",
+  LOW_COST_LINEMEN = "Low Cost Linemen",
+  SWARMING = "Swarming",
 }
 
 export enum AdditionalRule {
   FAVOURED_OF = "Favoured of",
   ONLY_ALLOWED_ONE_BIG_GUY = "Only allowed one Big Guy",
+  PICK_FAVOURED_OF_CHAOS_UNDIVIDED = "Pick: Favoured of Chaos Undivided",
+  PICK_FAVOURED_OF_KHORNE = "Pick: Favoured of Khorne",
+  PICK_FAVOURED_OF_NURGLE = "Pick: Favoured of Nurgle",
+  PICK_FAVOURED_OF_SLAANESH = "Pick: Favoured of Slaanesh",
+  PICK_FAVOURED_OF_TZEENTCH = "Pick: Favoured of Tzeentch",
 }
 
 /**
@@ -140,7 +156,7 @@ export function createTeam(
   return {
     id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     name,
-    coachName: '',
+    coachName: "",
     rosterName,
     colors,
     players: [],

@@ -98,15 +98,34 @@ export interface PlayerTemplate {
 }
 
 export enum RaceKeyWord {
+  ANIMAL = "Animal",
   BEASTMAN = "Beastman",
-  HUMAN = "Human",
-  GOBLIN = "Goblin",
-  ORC = "Orc",
-  TROLL = "Troll",
-  ELF = "Elf",
   DWARF = "Dwarf",
-  OGRE = "Ogre",
+  ELF = "Elf",
+  GNOME = "Gnome",
+  GOBLIN = "Goblin",
+  HALFLING = "Halfling",
+  HUMAN = "Human",
+  KHORNGOR = "Khorngor",
+  KROXIGOR = "Kroxigor",
+  LIZARDMAN = "Lizardman",
   MINOTAUR = "Minotaur",
+  MUMMY = "Mummy",
+  NORSE = "Norse",
+  OGRE = "Ogre",
+  ORC = "Orc",
+  SAURUS = "Saurus",
+  SKAVEN = "Skaven",
+  SKELETON = "Skeleton",
+  SKINK = "Skink",
+  SNOTLING = "Snotling",
+  TREEMAN = "Treeman",
+  TROLL = "Troll",
+  UNDEAD = "Undead",
+  VAMPIRE = "Vampire",
+  WEREWOLF = "Werewolf",
+  WIGHT = "Wight",
+  ZOMBIE = "Zombie",
 }
 
 export enum PositionKeyWord {
@@ -116,6 +135,7 @@ export enum PositionKeyWord {
   THROWER = "Thrower",
   BLOCKER = "Blocker",
   RUNNER = "Runner",
+  SPECIAL = "Special",
 }
 
 export enum TraitKeyWord {

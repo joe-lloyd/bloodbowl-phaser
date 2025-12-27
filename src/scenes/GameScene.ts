@@ -310,33 +310,38 @@ export class GameScene extends Phaser.Scene {
       // this.eventBus.emit(GameEventNames.UI_Notification, `Turn ${turnData.turnNumber} started!`);
     });
 
-    // Camera tracking for ball kicks
-    this.eventBus.on(GameEventNames.BallKicked, async (data: any) => {
-      if (this.ballSprite) {
-        // Get kicker position for pre-zoom
-        const kickerSprite = this.playerSprites.get(data.playerId);
-        if (kickerSprite) {
-          const kickerPos = { x: kickerSprite.x, y: kickerSprite.y };
+    // Camera event listeners
+    this.eventBus.on(
+      GameEventNames.Camera_TrackBall,
+      async (data: { ballSprite: any; animationDuration: number }) => {
+        console.log("🎥 Camera_TrackBall event received", data);
+        if (this.cameraController && data.ballSprite) {
+          // First, smoothly pan to the ball position
+          const ballPos = { x: data.ballSprite.x, y: data.ballSprite.y };
+          await this.cameraController.panTo(ballPos.x, ballPos.y, 500);
 
-          // Zoom to kicker, then track ball
-          await this.cameraController.trackObjectWithPreZoom(
-            kickerPos,
-            this.ballSprite,
-            1.8, // Pre-zoom (kicker)
-            1.5, // Track zoom (ball)
-            600 // Pre-zoom duration
-          );
-        } else {
-          // Fallback: just track the ball
-          this.cameraController.trackObject(this.ballSprite, 1.5, 1000);
+          // Then zoom in and start tracking
+          await this.cameraController.zoomTo(2.5, 400);
+          this.cameraController.trackObject(data.ballSprite, 2.5, 0);
+
+          // Schedule camera reset after animation completes
+          this.time.delayedCall(data.animationDuration + 500, () => {
+            console.log("🎥 Ball animation complete, resetting camera");
+            this.cameraController.reset(1000);
+          });
         }
-
-        // Reset camera when ball lands (after scatter animation)
-        this.time.delayedCall(data.distance * 100 + 500, () => {
-          this.cameraController.reset(800);
-        });
       }
-    });
+    );
+
+    this.eventBus.on(
+      GameEventNames.Camera_Reset,
+      (data: { duration?: number }) => {
+        console.log("🎥 Camera_Reset event received", data);
+        if (this.cameraController) {
+          this.cameraController.reset(data.duration || 800);
+        }
+      }
+    );
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
@@ -652,46 +657,6 @@ export class GameScene extends Phaser.Scene {
 
     const pos = this.pitch.getPixelPosition(x, y);
     this.ballSprite = new BallSprite(this, pos.x, pos.y);
-  }
-
-  private animateBallScatter(data: any): void {
-    console.log("🏈 animateBallScatter called with data:", data);
-    if (!this.ballSprite) return;
-
-    const finalPos = this.pitch.getPixelPosition(data.finalX, data.finalY);
-
-    // Calculate distance for animation duration
-    const dx = finalPos.x - this.ballSprite.x;
-    const dy = finalPos.y - this.ballSprite.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const duration = Math.max(800, distance * 2); // Scale duration with distance
-
-    // Single smooth animation to final position
-    this.tweens.add({
-      targets: this.ballSprite,
-      x: finalPos.x,
-      y: finalPos.y,
-      duration: duration,
-      ease: "Cubic.easeOut",
-      onComplete: () => {
-        // Reset camera when ball lands
-        console.log("🎥 Ball landed, resetting camera");
-        if (this.cameraController) {
-          this.cameraController.reset(1000);
-        }
-      },
-    });
-
-    // Add bouncing scale effect during flight
-    this.tweens.add({
-      targets: this.ballSprite,
-      scaleX: 1.4,
-      scaleY: 1.4,
-      duration: duration / 3,
-      yoyo: true,
-      repeat: 2,
-      ease: "Sine.easeInOut",
-    });
   }
 
   // Interaction Helpers matched to Controller expectations

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { EventBus } from "../../../services/EventBus";
-import { useEventEmit } from "../../hooks/useEventBus";
+import { useNavigate } from "react-router-dom";
 import { Team, calculateTeamValue } from "../../../types/Team";
 import { loadTeams, deleteTeam } from "../../../game/managers/TeamManager";
 import Parchment from "../componentWarehouse/Parchment";
@@ -8,33 +7,25 @@ import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button, DangerButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
-import { GameEventNames } from "@/types/events";
-
-interface TeamManagementProps {
-  eventBus: EventBus;
-}
 
 /**
  * Team Management Component
  * Lists all teams with create/edit/delete functionality
  */
-export function TeamManagement({ eventBus }: TeamManagementProps) {
+export function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const emit = useEventEmit(eventBus);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setTeams(loadTeams());
   }, []);
 
   const handleCreateTeam = () => {
-    emit(GameEventNames.UI_SceneChange, { scene: "TeamBuilderScene" });
+    navigate("/team-builder");
   };
 
   const handleEditTeam = (teamId: string) => {
-    emit(GameEventNames.UI_SceneChange, {
-      scene: "TeamBuilderScene",
-      data: { teamId },
-    });
+    navigate(`/team-builder?teamId=${teamId}`);
   };
 
   const handleDeleteTeam = (teamId: string) => {
@@ -45,7 +36,7 @@ export function TeamManagement({ eventBus }: TeamManagementProps) {
   };
 
   const handleBack = () => {
-    emit(GameEventNames.UI_SceneChange, { scene: "MenuScene" });
+    navigate("/");
   };
 
   const formatGold = (amount: number): string => {

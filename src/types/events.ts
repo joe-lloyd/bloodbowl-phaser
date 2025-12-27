@@ -50,6 +50,10 @@ export enum GameEventNames {
   GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
 
+  // Camera Events
+  Camera_TrackBall = "camera:trackBall",
+  Camera_Reset = "camera:reset",
+
   // UI Events
   UI_PlayerHired = "ui:playerHired",
   UI_PlayerFired = "ui:playerFired",
@@ -207,6 +211,15 @@ export interface GameEvents {
   // Sandbox
   [GameEventNames.GameStateRestored]: GameState;
   [GameEventNames.RefreshBoard]: void;
+
+  // Camera
+  [GameEventNames.Camera_TrackBall]: {
+    ballSprite: any; // Phaser.GameObjects.Container
+    animationDuration: number; // How long to track the ball
+  };
+  [GameEventNames.Camera_Reset]: {
+    duration?: number; // Optional reset duration
+  };
 }
 
 /**

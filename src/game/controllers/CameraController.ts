@@ -173,13 +173,15 @@ export class CameraController {
   /**
    * Track object with pre-zoom (zoom in before tracking starts)
    * Useful for kickoff - zoom to kicker, then track ball
+   * @param trackDuration - Optional duration to keep tracking (waits for animation to complete)
    */
   public async trackObjectWithPreZoom(
     preZoomTarget: { x: number; y: number },
     trackObject: Phaser.GameObjects.GameObject,
     preZoom: number = 2.2,
     trackZoom: number = 2.5,
-    preZoomDuration: number = 500
+    preZoomDuration: number = 500,
+    trackDuration?: number
   ): Promise<void> {
     // First, zoom to the pre-zoom target (e.g., kicker)
     await this.panTo(preZoomTarget.x, preZoomTarget.y, preZoomDuration);
@@ -192,6 +194,13 @@ export class CameraController {
 
     // Then start tracking the object with even more zoom
     this.trackObject(trackObject, trackZoom, 400);
+
+    // If trackDuration specified, wait for the animation to complete
+    if (trackDuration) {
+      await new Promise((resolve) =>
+        this.scene.time.delayedCall(trackDuration, () => resolve(null))
+      );
+    }
   }
 
   /**

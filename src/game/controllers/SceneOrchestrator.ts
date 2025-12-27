@@ -128,30 +128,25 @@ export class SceneOrchestrator {
       }
 
       this.scene["placeBallVisual"](startX, startY);
-      const targetPos = this.scene["pitch"].getPixelPosition(
-        data.targetX,
-        data.targetY
-      );
 
       // Store kick data immediately for scatter animation later
       this.scene["pendingKickoffData"] = data;
       console.log("🏈 Set pendingKickoffData immediately:", data);
 
-      // Camera tracking: zoom to kicker first
-      const kickerSprite = this.scene["playerSprites"].get(data.playerId);
       const ballSprite = this.scene["ballSprite"];
+      const ballAnimDuration = 800; // Ball animation duration
 
-      if (kickerSprite && ballSprite && this.scene["cameraController"]) {
-        const kickerPos = { x: kickerSprite.x, y: kickerSprite.y };
-        console.log("🎥 Starting camera sequence for kickoff");
-
-        // Zoom to kicker, then track ball
-        await this.scene["cameraController"].trackObjectWithPreZoom(
-          kickerPos,
+      if (ballSprite) {
+        // Emit camera event to start tracking the ball
+        console.log("🎥 Emitting Camera_TrackBall event");
+        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
           ballSprite,
-          2.2, // Pre-zoom (kicker)
-          2.5, // Track zoom (ball)
-          500 // Pre-zoom duration
+          animationDuration: ballAnimDuration,
+        });
+
+        // Wait for camera to pan (500ms) and zoom (400ms) before animating ball
+        await new Promise((resolve) =>
+          this.scene.time.delayedCall(1000, () => resolve(null))
         );
       }
 
@@ -165,7 +160,7 @@ export class SceneOrchestrator {
         targets: this.scene["ballSprite"],
         x: finalTargetPos.x,
         y: finalTargetPos.y,
-        duration: 800,
+        duration: ballAnimDuration,
         ease: "Quad.easeOut",
         onStart: () => {
           this.scene["ballSprite"]?.setScale(0.5);
@@ -196,13 +191,11 @@ export class SceneOrchestrator {
       if (this.scene["pendingKickoffData"]) {
         console.log("🏈 Scatter already applied in initial animation");
         // Scatter was already applied - ball is at final position
-        // Just reset camera
-        if (this.scene["cameraController"]) {
-          this.scene.time.delayedCall(500, () => {
-            console.log("🎥 Resetting camera after kickoff");
-            this.scene["cameraController"].reset(1000);
-          });
-        }
+        // Emit camera reset event after a short delay
+        this.scene.time.delayedCall(500, () => {
+          console.log("🎥 Emitting Camera_Reset event");
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
+        });
         this.scene["pendingKickoffData"] = null;
       }
     };
