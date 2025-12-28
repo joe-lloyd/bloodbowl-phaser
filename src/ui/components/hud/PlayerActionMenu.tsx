@@ -97,17 +97,14 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={(e) => {
-        console.log("[PlayerActionMenu] Container Clicked");
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
       }}
       onPointerDown={(e) => {
-        console.log("[PlayerActionMenu] Container PointerDown");
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
       }}
       onMouseDown={(e) => {
-        console.log("[PlayerActionMenu] Container MouseDown");
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
       }}

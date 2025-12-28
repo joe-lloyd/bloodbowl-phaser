@@ -57,15 +57,22 @@ export class SandboxScene extends GameScene {
     this.loadScenarioHandler = (data: { scenarioId: string }) => {
       const scenario = SCENARIOS.find((s) => s.id === data.scenarioId);
       if (scenario) {
+        // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
+        // This prevents duplicate balls when loading multiple scenarios
+        if (this.ballSprite) {
+          this.ballSprite.destroy();
+          this.ballSprite = null;
+        }
+
         const loader = new ScenarioLoader(
           this.eventBus,
           this.team1,
           this.team2
         );
-        loader.load(scenario);
 
-        // Refresh GameScene state (Controllers, Sprites, Services)
-        this.reloadState();
+        loader.load(scenario);
+        this.reloadState(false);
+        this.placePlayersOnPitch();
 
         this.eventBus.emit(
           GameEventNames.UI_Notification,
@@ -97,11 +104,6 @@ export class SandboxScene extends GameScene {
       GameEventNames.PlayerMoved,
       this.playerMovedHandler as any
     );
-
-    this.ballPlacedHandler = (pos: { x: number; y: number }) => {
-      this.placeBallVisual(pos.x, pos.y);
-    };
-    this.eventBus.on(GameEventNames.BallPlaced, this.ballPlacedHandler as any);
   }
 
   private cleanupSandbox(): void {
@@ -126,13 +128,7 @@ export class SandboxScene extends GameScene {
       );
       this.playerMovedHandler = null;
     }
-    if (this.ballPlacedHandler) {
-      this.eventBus.off(
-        GameEventNames.BallPlaced,
-        this.ballPlacedHandler as any
-      );
-      this.ballPlacedHandler = null;
-    }
+    // ballPlacedHandler removed - no longer needed
   }
 
   // Override standard setup to skip coin flip in sandbox mode

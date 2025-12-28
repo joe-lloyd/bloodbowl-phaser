@@ -50,6 +50,17 @@ export enum GameEventNames {
   GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
 
+  // Pass/Catch Events
+  PassDeclared = "passDeclared",
+  PassAttempted = "passAttempted",
+  PassCompleted = "passCompleted",
+  PassFumbled = "passFumbled",
+  PassIntercepted = "passIntercepted",
+  CatchAttempted = "catchAttempted",
+  CatchSucceeded = "catchSucceeded",
+  CatchFailed = "catchFailed",
+  BallScattered = "ballScattered",
+
   // Camera Events
   Camera_TrackBall = "camera:trackBall",
   Camera_Reset = "camera:reset",
@@ -196,6 +207,54 @@ export interface GameEvents {
     target: number;
   };
   [GameEventNames.WeatherChanged]: string;
+
+  // Pass/Catch Events
+  [GameEventNames.PassDeclared]: {
+    playerId: string;
+    targetX: number;
+    targetY: number;
+  };
+  [GameEventNames.PassAttempted]: {
+    playerId: string;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    passType: string;
+    accurate: boolean;
+    finalPosition: { x: number; y: number };
+  };
+  [GameEventNames.PassCompleted]: {
+    playerId: string;
+    catcherId: string;
+    position: { x: number; y: number };
+  };
+  [GameEventNames.PassFumbled]: {
+    playerId: string;
+    position: { x: number; y: number };
+    bouncePosition: { x: number; y: number };
+  };
+  [GameEventNames.PassIntercepted]: {
+    passerId: string;
+    interceptorId: string;
+    position: { x: number; y: number };
+  };
+  [GameEventNames.CatchAttempted]: {
+    playerId: string;
+    position: { x: number; y: number };
+  };
+  [GameEventNames.CatchSucceeded]: {
+    playerId: string;
+    position: { x: number; y: number };
+  };
+  [GameEventNames.CatchFailed]: {
+    playerId: string;
+    position: { x: number; y: number };
+    reason: string;
+  };
+  [GameEventNames.BallScattered]: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    reason: string;
+  };
 
   // Game Flow
   [GameEventNames.DiceRoll]: {

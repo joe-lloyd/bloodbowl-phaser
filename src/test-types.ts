@@ -37,18 +37,12 @@ const team1 = createTeam(
   50000
 );
 
-console.log("Team created:", team1.name);
-console.log("Starting treasury:", team1.treasury);
-
 // Test creating and adding players
 const player1 = createPlayer(linemanTemplate, team1.id, 1, "Bob the Blocker");
 const player2 = createPlayer(linemanTemplate, team1.id, 2, "Jim the Jammer");
 
 addPlayerToTeam(team1, player1);
 addPlayerToTeam(team1, player2);
-
-console.log("Players on roster:", team1.players.length);
-console.log("Treasury after purchases:", team1.treasury);
 
 // Test team value calculation
 const teamValue = calculateTeamValue(team1);

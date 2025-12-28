@@ -40,18 +40,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       !selectedTeam2 ||
       selectedTeam1.id === selectedTeam2.id
     ) {
-      console.log("Cannot start game - invalid team selection");
       return;
     }
-
-    console.log(
-      "Starting game with teams:",
-      selectedTeam1.name,
-      "vs",
-      selectedTeam2.name
-    );
-
-    // Navigate to game page with team data
     const targetRoute = mode === "sandbox" ? "/sand-box" : "/play";
     navigate(targetRoute, {
       state: {

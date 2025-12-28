@@ -131,14 +131,12 @@ export class SceneOrchestrator {
 
       // Store kick data immediately for scatter animation later
       this.scene["pendingKickoffData"] = data;
-      console.log("🏈 Set pendingKickoffData immediately:", data);
 
       const ballSprite = this.scene["ballSprite"];
       const ballAnimDuration = 800; // Ball animation duration
 
       if (ballSprite) {
         // Emit camera event to start tracking the ball
-        console.log("🎥 Emitting Camera_TrackBall event");
         this.eventBus.emit(GameEventNames.Camera_TrackBall, {
           ballSprite,
           animationDuration: ballAnimDuration,
@@ -182,18 +180,14 @@ export class SceneOrchestrator {
 
     // Kickoff result notification
     const onKickoffResult = (data: { roll: number; event: string }) => {
-      console.log("🎲 KickoffResult event received:", data);
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `${data.roll}: ${data.event}`
       );
-      console.log("🏈 pendingKickoffData:", this.scene["pendingKickoffData"]);
       if (this.scene["pendingKickoffData"]) {
-        console.log("🏈 Scatter already applied in initial animation");
         // Scatter was already applied - ball is at final position
         // Emit camera reset event after a short delay
         this.scene.time.delayedCall(500, () => {
-          console.log("🎥 Emitting Camera_Reset event");
           this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
         });
         this.scene["pendingKickoffData"] = null;
@@ -254,9 +248,6 @@ export class SceneOrchestrator {
 
             // Emit follow-up prompt after animation completes
             if (data.followUpData) {
-              console.log(
-                "[SceneOrchestrator] Animation complete, showing follow-up prompt"
-              );
               this.eventBus.emit(
                 GameEventNames.UI_FollowUpPrompt,
                 data.followUpData
@@ -383,6 +374,13 @@ export class SceneOrchestrator {
     };
     this.eventHandlers.set(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
     this.eventBus.on(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
+
+    // Ball placement - create ball sprite when ball is placed
+    const onBallPlaced = (data: { x: number; y: number }) => {
+      this.scene["placeBallVisual"](data.x, data.y);
+    };
+    this.eventHandlers.set(GameEventNames.BallPlaced, onBallPlaced);
+    this.eventBus.on(GameEventNames.BallPlaced, onBallPlaced);
   }
 
   /**

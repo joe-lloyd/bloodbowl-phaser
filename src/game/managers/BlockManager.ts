@@ -90,8 +90,6 @@ export class BlockManager {
     defenderId: string,
     result: BlockResult
   ): void {
-    console.log("[BlockManager] resolveBlock called with result:", result.type);
-
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
 
@@ -113,7 +111,6 @@ export class BlockManager {
         // Emit event for push direction selection
         const pushData = this.createPushData(attacker, defender, result.type);
         // Add resultType and attackerId to the data for the UI
-        console.log("[BlockManager] Emitting ui:selectPushDirection");
         this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
           ...pushData,
           resultType: result.type,

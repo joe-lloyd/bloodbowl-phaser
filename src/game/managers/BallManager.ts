@@ -218,7 +218,6 @@ export class BallManager {
     });
 
     if (!success) {
-      console.log("PICKUP FAILED -> TURNOVER");
       this.callbacks.onTurnover("Failed Pickup");
       return false;
     }

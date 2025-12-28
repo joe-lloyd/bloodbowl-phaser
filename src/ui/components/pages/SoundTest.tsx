@@ -11,9 +11,6 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   // Helper to get manager (auto-initializing with dummy data if needed)
   const getSoundManager = () => {
     if (!ServiceContainer.isInitialized()) {
-      console.log(
-        "SoundTest: Container not initialized, creating dummy context..."
-      );
       // Create minimal explicit dummy teams to satisfy GameService requirements
       const dummyTeam1 = {
         id: "sound-test-1",

@@ -72,26 +72,30 @@ export class GameScene extends Phaser.Scene {
   /**
    * Reload state from ServiceContainer (e.g. after Scenario Load)
    */
-  public reloadState(): void {
+  public reloadState(clearPlayerPositions: boolean = true): void {
     const container = ServiceContainer.getInstance();
     this.gameService = container.gameService;
     this.eventBus = container.eventBus;
 
     // Update Teams
     const state = this.gameService.getState();
-    // We need to re-fetch teams from the service/container or re-pass them?
-    // ServiceContainer DOES NOT hold teams publicly, but GameService does.
-    // We should expose teams on GameService or Container?
-    // GameService has them private. let's assume reuse of init data OR passed data.
-    // BUT ScenarioLoader modified the teams passed to it.
-    // Since SandboxScene holds the team references, they are mutated in place.
-    // So team1/team2 references might be valid, but we need to re-bind controllers.
 
-    // Cleanup old sprites
     this.playerSprites.forEach((s) => s.destroy());
     this.playerSprites.clear();
 
-    if (this.ballSprite) {
+    // CRITICAL: Clear player grid positions from previous scenario
+    if (clearPlayerPositions) {
+      this.team1.players.forEach((p) => {
+        p.gridPosition = undefined;
+      });
+      this.team2.players.forEach((p) => {
+        p.gridPosition = undefined;
+      });
+    }
+
+    // DON'T destroy ball sprite if we just loaded a scenario (it was just created)
+    // Only destroy it when clearing for a fresh scenario load
+    if (clearPlayerPositions && this.ballSprite) {
       this.ballSprite.destroy();
       this.ballSprite = null;
     }
@@ -177,7 +181,6 @@ export class GameScene extends Phaser.Scene {
         const posKey = name.toLowerCase().replace(/\s+/g, "-");
 
         const key = `asset_${rosterKey}_${posKey}`;
-        // console.log(`Loading Asset: ${key} -> ${path}`);
         this.load.image(key, url as string);
       }
     }
@@ -314,7 +317,6 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on(
       GameEventNames.Camera_TrackBall,
       async (data: { ballSprite: any; animationDuration: number }) => {
-        console.log("🎥 Camera_TrackBall event received", data);
         if (this.cameraController && data.ballSprite) {
           // First, smoothly pan to the ball position
           const ballPos = { x: data.ballSprite.x, y: data.ballSprite.y };
@@ -326,7 +328,6 @@ export class GameScene extends Phaser.Scene {
 
           // Schedule camera reset after animation completes
           this.time.delayedCall(data.animationDuration + 500, () => {
-            console.log("🎥 Ball animation complete, resetting camera");
             this.cameraController.reset(1000);
           });
         }
@@ -336,7 +337,6 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on(
       GameEventNames.Camera_Reset,
       (data: { duration?: number }) => {
-        console.log("🎥 Camera_Reset event received", data);
         if (this.cameraController) {
           this.cameraController.reset(data.duration || 800);
         }
@@ -557,6 +557,12 @@ export class GameScene extends Phaser.Scene {
         sprite.setPosition(pos.x, pos.y);
         sprite.setVisible(true);
         sprite.setDepth(10);
+
+        // CRITICAL: Reattach click handler in case it was lost
+        // This fixes the issue where handlers aren't attached on first scenario load
+        sprite.removeAllListeners("pointerdown");
+        sprite.setInteractive({ useHandCursor: true });
+        sprite.on("pointerdown", () => this.onPlayerClick(player));
       } else {
         const team = player.teamId === this.team1.id ? this.team1 : this.team2;
         const teamColor = team.colors.primary;
@@ -586,6 +592,9 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // Ball is now in scene root with depth 100, so it automatically renders above players (depth 10)
+    // No need to manually bring to top
+
     this.checkSetupCompleteness();
   }
 
@@ -596,7 +605,6 @@ export class GameScene extends Phaser.Scene {
 
   // Interactivity
   private onBackgroundClick(): void {
-    console.log("[GameScene] Background Clicked");
     if (this.isSetupActive) {
       this.placementController?.deselectPlayer();
       this.pitch.clearHighlights();
@@ -653,10 +661,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected placeBallVisual(x: number, y: number): void {
-    if (this.ballSprite) this.ballSprite.destroy();
+    if (this.ballSprite) {
+      this.ballSprite.destroy();
+    }
 
+    // Use WORLD coordinates (same as players) since ball will be in scene root
     const pos = this.pitch.getPixelPosition(x, y);
+
     this.ballSprite = new BallSprite(this, pos.x, pos.y);
+
+    // CRITICAL: Add ball to SCENE ROOT (not pitch container)
+    // This puts it in the same rendering context as players
+    // Players are at depth 10, so ball at depth 100 will render on top
+    this.ballSprite.setDepth(100);
   }
 
   // Interaction Helpers matched to Controller expectations

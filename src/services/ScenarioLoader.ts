@@ -43,13 +43,13 @@ export class ScenarioLoader {
       }
     });
 
-    // 2. Construct GameState
-    // For Sandbox mode, we want to skip setup and go straight to Turn 1
+    const activeTeamId =
+      scenario.setup.activeTeam === "team1" ? this.team1.id : this.team2.id;
+
     const initialState: GameState = {
       phase: scenario.setup.phase,
       subPhase: scenario.setup.subPhase,
-      activeTeamId:
-        scenario.setup.activeTeam === "team1" ? this.team1.id : this.team2.id,
+      activeTeamId: activeTeamId,
       turn: {
         teamId:
           scenario.setup.activeTeam === "team1" ? this.team1.id : this.team2.id,
@@ -92,10 +92,19 @@ export class ScenarioLoader {
     });
 
     // Emit turn started to initialize turn state in UI
+    // This is CRITICAL for allowing the active team to take actions
     this.eventBus.emit(GameEventNames.TurnStarted, {
       teamId: initialState.turn.teamId,
       turnNumber: initialState.turn.turnNumber,
       isHalf2: initialState.turn.isHalf2,
+    });
+
+    // Emit turn data to update action availability
+    this.eventBus.emit(GameEventNames.TurnDataUpdated, {
+      hasBlitzed: initialState.turn.hasBlitzed,
+      hasPassed: initialState.turn.hasPassed,
+      hasHandedOff: initialState.turn.hasHandedOff,
+      hasFouled: initialState.turn.hasFouled,
     });
 
     this.eventBus.emit(GameEventNames.RefreshBoard);

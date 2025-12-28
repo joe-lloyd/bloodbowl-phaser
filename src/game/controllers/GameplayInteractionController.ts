@@ -829,8 +829,6 @@ export class GameplayInteractionController {
    * Start push direction selection mode
    */
   private startPushDirectionSelection(data: any): void {
-    console.log("[Push Selection] Starting with data:", data);
-
     this.pushSelectionActive = true;
     this.pushValidDirections = data.validDirections || [];
     this.pushDefenderId = data.defenderId;
@@ -842,7 +840,6 @@ export class GameplayInteractionController {
 
     // Highlight the valid push squares using HighlightManager
     this.pushValidDirections.forEach((dir) => {
-      console.log("[Push Selection] Highlighting square:", dir);
       this.highlightManager.addPushHighlight(dir.x, dir.y, 0xffff00);
     });
   }
@@ -853,17 +850,11 @@ export class GameplayInteractionController {
   private handlePushDirectionClick(x: number, y: number): boolean {
     if (!this.pushSelectionActive) return false;
 
-    console.log("[Push Selection] Click at:", x, y);
-
-    // Check if clicked square is a valid push direction
     const isValid = this.pushValidDirections.some(
       (dir) => dir.x === x && dir.y === y
     );
 
     if (isValid) {
-      console.log("[Push Selection] Valid square clicked, executing push");
-
-      // Execute the push with attacker ID
       this.gameService.executePush(
         this.pushAttackerId,
         this.pushDefenderId,
@@ -872,22 +863,16 @@ export class GameplayInteractionController {
         false
       );
 
-      // Clear push selection state
       this.pushSelectionActive = false;
       this.pushValidDirections = [];
       this.pushDefenderId = "";
-      this.pushAttackerId = ""; // Clear attacker ID
+      this.pushAttackerId = "";
       this.pushResultType = "";
 
-      // Clear all interaction highlights
       this.clearAllInteractionHighlights();
-
-      console.log("[Push Selection] Cleared highlights and paths");
 
       return true;
     }
-
-    console.log("[Push Selection] Invalid square clicked");
     return false;
   }
 

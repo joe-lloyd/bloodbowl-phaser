@@ -188,8 +188,6 @@ export class MovementManager {
           failed = true;
           currentPos = step;
           player.gridPosition = currentPos;
-
-          console.log("DODGE FAILED! Player falls.");
           player.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
@@ -236,8 +234,6 @@ export class MovementManager {
           failed = true;
           currentPos = step;
           player.gridPosition = currentPos;
-
-          console.log("GFI FAILED! Player trips.");
           player.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, {

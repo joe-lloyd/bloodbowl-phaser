@@ -6,9 +6,6 @@
 export { UITheme } from "./UITheme";
 export type { ButtonVariant, TextVariant } from "./UITheme";
 
-export { UIButton } from "./UIButton";
-export type { UIButtonConfig } from "./UIButton";
-
 export { UIText } from "./UIText";
 export type { UITextConfig } from "./UIText";
 

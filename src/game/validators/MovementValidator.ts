@@ -405,7 +405,6 @@ export class MovementValidator {
         p.status === PlayerStatus.ACTIVE
     );
     if (occupant) {
-      // console.log(`Square ${x},${y} occupied by ${occupant.id} (${occupant.status})`);
       return true;
     }
     return false;

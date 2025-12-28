@@ -52,7 +52,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     const initHUD = () => {
       try {
         if (!ServiceContainer.isInitialized()) {
-          console.log("Waiting for ServiceContainer...");
           setTimeout(initHUD, 100);
           return;
         }

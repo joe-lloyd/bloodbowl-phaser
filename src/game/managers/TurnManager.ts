@@ -130,20 +130,12 @@ export class TurnManager {
       this.state.turn
     );
 
-    console.log(
-      `[TurnManager] Activation Finished for ${playerId}. Remaining: ${hasActions}`
-    );
-
     if (!hasActions) {
-      console.log("[TurnManager] No actions remaining. Ending Turn.");
       setTimeout(() => this.endTurn(), 500);
     }
   }
 
   public checkTurnover(reason: string): void {
-    console.log(`[TurnManager] TURNOVER! Reason: ${reason}`);
-
-    // 1. Emit Visualization Event
     this.eventBus.emit(GameEventNames.UI_Turnover, {
       teamId: this.state.activeTeamId || "",
       reason,
@@ -152,7 +144,6 @@ export class TurnManager {
       teamId: this.state.activeTeamId || "",
     });
 
-    // 2. Wait for animation/display
     setTimeout(() => {
       this.endTurn();
     }, 3000);

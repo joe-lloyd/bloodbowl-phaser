@@ -1,8 +1,6 @@
 import Phaser from "phaser";
 import { Player } from "../../types/Player";
 
-
-
 /**
  * PlayerSprite - Visual representation of a player on the pitch
  */
@@ -65,11 +63,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     // 1. Try Dynamic Asset Lookup
     // Key: asset_[roster]_[position]
     // Normalize: lowercase, spaces -> dashes
-    const rosterKey = this.rosterName.toLowerCase().replace(/\s+/g, '-');
-    const posKey = pos.replace(/\s+/g, '-');
+    const rosterKey = this.rosterName.toLowerCase().replace(/\s+/g, "-");
+    const posKey = pos.replace(/\s+/g, "-");
     const assetKey = `asset_${rosterKey}_${posKey}`;
-
-    // console.log(`Checking Asset: ${assetKey}`);
 
     let texture = assetKey;
     if (!scene.textures.exists(texture)) {
@@ -217,7 +213,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /**
    * Animate movement along a path
    */
-  public async animateMovement(path: { x: number; y: number }[]): Promise<void> {
+  public async animateMovement(
+    path: { x: number; y: number }[]
+  ): Promise<void> {
     if (path.length === 0) return;
 
     // Remove unused import if not already removed in previous step (I will remove it in a separate block if strictly needed, but I can do it here if I replace the top too. I'll stick to the method for now).
@@ -226,23 +224,23 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       // 1. Start "Jogging" Bob (Tweening the internal shape up/down)
       const bobTween = this.scene.tweens.add({
         targets: this.shape,
-        y: '-=4', // Bob up slightly
+        y: "-=4", // Bob up slightly
         duration: 90, // Fast bob
         yoyo: true,
         repeat: -1,
-        ease: 'Sine.easeInOut'
+        ease: "Sine.easeInOut",
       });
 
       // slightly tilt forward for "running" pose
       this.shape.setAngle(5);
 
       // Map path steps to tween configurations
-      const tweenConfigs = path.map(step => {
+      const tweenConfigs = path.map((step) => {
         return {
           x: step.x,
           y: step.y,
           duration: 180, // Much faster (was 300)
-          ease: 'Linear' // Linear path, but bob adds the organic feel
+          ease: "Linear", // Linear path, but bob adds the organic feel
         };
       });
 
@@ -259,11 +257,11 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
             targets: this.shape,
             y: 0,
             angle: 0,
-            duration: 150
+            duration: 150,
           });
 
           resolve();
-        }
+        },
       });
     });
   }

@@ -22,6 +22,8 @@ import { BlockManager } from "../game/managers/BlockManager";
 import { WeatherManager } from "../game/managers/WeatherManager";
 
 import { PlayerActionManager } from "../game/managers/PlayerActionManager";
+import { ThrowController } from "../game/controllers/ThrowController";
+import { CatchController } from "../game/controllers/CatchController";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -36,6 +38,8 @@ export class GameService implements IGameService {
   private blockManager: BlockManager;
   private weatherService: WeatherManager;
   private playerActionManager: PlayerActionManager;
+  private throwController: ThrowController;
+  private catchController: CatchController;
 
   // Validators
   private activationValidator: ActivationValidator = new ActivationValidator();
@@ -84,6 +88,8 @@ export class GameService implements IGameService {
     // Initialize Managers
     this.weatherService = new WeatherManager(eventBus, this.state);
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
+    this.throwController = new ThrowController(eventBus);
+    this.catchController = new CatchController(eventBus);
 
     this.setupManager = new SetupManager(
       eventBus,
@@ -328,27 +334,203 @@ export class GameService implements IGameService {
     return this.blockManager.blockPlayer(attackerId, defenderId);
   }
 
-  passBall(
+  /**
+   * Execute a pass action
+   */
+  async throwBall(
     passerId: string,
-    targetSquare: { x: number; y: number }
-  ): { success: boolean; result?: string } {
+    targetX: number,
+    targetY: number
+  ): Promise<{ success: boolean; result?: string }> {
     if (this.state.phase !== GamePhase.PLAY)
       return { success: false, result: "Not in Play phase" };
 
     const passer = this.getPlayerById(passerId);
-    if (!passer) return { success: false, result: "Player not found" };
-
-    // Validate action
-    const validation = this.actionValidator.validateAction(
-      "pass",
-      passer,
-      targetSquare
-    );
-    if (!validation.valid) {
-      return { success: false, result: validation.reason };
+    if (!passer || !passer.gridPosition) {
+      return { success: false, result: "Player not found or not on pitch" };
     }
 
-    return { success: true, result: "Pass executed (Pseudo)" };
+    // Check if player has the ball
+    const hasBall =
+      this.state.ballPosition &&
+      this.state.ballPosition.x === passer.gridPosition.x &&
+      this.state.ballPosition.y === passer.gridPosition.y;
+
+    if (!hasBall) {
+      return { success: false, result: "Player does not have the ball" };
+    }
+
+    // Count marking opponents
+    const opponentTeam =
+      passer.teamId === this.team1.id ? this.team2 : this.team1;
+    const markingOpponents = this.catchController.countMarkingOpponents(
+      passer.gridPosition,
+      opponentTeam.players
+    );
+
+    // Emit pass declared event
+    this.eventBus.emit(GameEventNames.PassDeclared, {
+      playerId: passerId,
+      targetX,
+      targetY,
+    });
+
+    // Attempt the pass
+    const passResult = this.throwController.attemptPass(
+      passer,
+      passer.gridPosition,
+      { x: targetX, y: targetY },
+      markingOpponents
+    );
+
+    // Handle fumbled pass
+    if (passResult.fumbled) {
+      this.state.ballPosition = passResult.finalPosition;
+      this.triggerTurnover("Fumbled Pass");
+      return { success: false, result: "Pass fumbled" };
+    }
+
+    // Check for interceptions if pass was not fumbled
+    if (passResult.success) {
+      const interceptors = this.throwController.checkInterceptions(
+        passer.gridPosition,
+        { x: targetX, y: targetY },
+        opponentTeam.players,
+        passResult.accurate
+      );
+
+      // If there are potential interceptors, check if one succeeds
+      for (const interceptor of interceptors) {
+        const interceptingPlayer = this.getPlayerById(interceptor.playerId);
+        if (!interceptingPlayer || !interceptingPlayer.gridPosition) continue;
+
+        const markingPasser = this.catchController.countMarkingOpponents(
+          interceptingPlayer.gridPosition,
+          passer.teamId === this.team1.id
+            ? this.team1.players
+            : this.team2.players
+        );
+
+        const intercepted = this.throwController.attemptInterception(
+          interceptingPlayer,
+          interceptor.modifier,
+          markingPasser
+        );
+
+        if (intercepted) {
+          // Interception successful!
+          this.state.ballPosition = interceptingPlayer.gridPosition;
+          this.eventBus.emit(GameEventNames.PassIntercepted, {
+            passerId: passerId,
+            interceptorId: interceptor.playerId,
+            position: interceptingPlayer.gridPosition,
+          });
+          this.triggerTurnover("Pass Intercepted");
+          return { success: false, result: "Pass intercepted" };
+        }
+      }
+    }
+
+    // Ball lands at final position
+    this.state.ballPosition = passResult.finalPosition;
+
+    // Check if there's a player at the landing position
+    const receivingPlayer = this.getPlayerAtPosition(passResult.finalPosition);
+
+    if (receivingPlayer) {
+      // Attempt catch
+      const isBounce = !passResult.accurate;
+      const markingOpponents = this.catchController.countMarkingOpponents(
+        passResult.finalPosition,
+        receivingPlayer.teamId === this.team1.id
+          ? this.team2.players
+          : this.team1.players
+      );
+
+      this.eventBus.emit(GameEventNames.CatchAttempted, {
+        playerId: receivingPlayer.id,
+        position: passResult.finalPosition,
+      });
+
+      const catchResult = this.catchController.attemptCatch(
+        receivingPlayer,
+        passResult.finalPosition,
+        isBounce,
+        false, // Not a throw-in
+        markingOpponents
+      );
+
+      if (catchResult.success) {
+        // Catch successful!
+        this.eventBus.emit(GameEventNames.PassCompleted, {
+          playerId: passerId,
+          catcherId: receivingPlayer.id,
+          position: passResult.finalPosition,
+        });
+        return { success: true, result: "Pass completed" };
+      } else {
+        // Catch failed, ball bounces
+        const bouncePosition = this.catchController.handleFailedCatch(
+          passResult.finalPosition
+        );
+        this.state.ballPosition = bouncePosition;
+
+        // Check if active team player caught the bounce
+        const bounceReceiver = this.getPlayerAtPosition(bouncePosition);
+        if (!bounceReceiver || bounceReceiver.teamId !== passer.teamId) {
+          this.triggerTurnover("Failed Catch");
+        }
+
+        return { success: false, result: "Catch failed" };
+      }
+    }
+
+    // No player at landing position, ball is on the ground
+    // If it's the active team's turn and ball is not secured, it's a turnover
+    if (passResult.finalPosition) {
+      const ballPlayer = this.getPlayerAtPosition(passResult.finalPosition);
+      if (!ballPlayer || ballPlayer.teamId !== passer.teamId) {
+        this.triggerTurnover("Ball not secured");
+      }
+    }
+
+    return { success: true, result: "Pass completed (ball on ground)" };
+  }
+
+  /**
+   * Get player at a specific position
+   */
+  private getPlayerAtPosition(position: {
+    x: number;
+    y: number;
+  }): Player | undefined {
+    return (
+      this.team1.players.find(
+        (p) =>
+          p.gridPosition &&
+          p.gridPosition.x === position.x &&
+          p.gridPosition.y === position.y &&
+          p.status === PlayerStatus.ACTIVE
+      ) ||
+      this.team2.players.find(
+        (p) =>
+          p.gridPosition &&
+          p.gridPosition.x === position.x &&
+          p.gridPosition.y === position.y &&
+          p.status === PlayerStatus.ACTIVE
+      )
+    );
+  }
+
+  passBall(
+    passerId: string,
+    targetSquare: { x: number; y: number }
+  ): { success: boolean; result?: string } {
+    // Legacy method - redirect to throwBall
+    // Note: This is async but returning sync for backwards compatibility
+    // Consider refactoring callers to use throwBall directly
+    this.throwBall(passerId, targetSquare.x, targetSquare.y);
+    return { success: true, result: "Pass initiated" };
   }
 
   // ===== Score Management =====
