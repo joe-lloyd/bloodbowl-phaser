@@ -585,7 +585,28 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
       ],
     },
     {
-      positionName: "Minotaur",
+      // @TODO check stats
+      positionName: "Renegade Rat Ogre",
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.RAT_OGRE],
+      cost: 140_000,
+      stats: { MA: 6, ST: 5, AG: 4, PA: 5, AV: 10 },
+      skills: [
+        getSkill(SkillType.ANIMAL_SAVAGERY),
+        getSkill(SkillType.LONER_4),
+        getSkill(SkillType.MIGHTY_BLOW),
+        getSkill(SkillType.THICK_SKULL),
+        getSkill(SkillType.THROW_TEAMMATE),
+      ],
+      maxAllowed: 1,
+      primary: [SkillCategory.STRENGTH],
+      secondary: [
+        SkillCategory.AGILITY,
+        SkillCategory.GENERAL,
+        SkillCategory.MUTATION,
+      ],
+    },
+    {
+      positionName: "Renegade Minotaur",
       keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.MINOTAUR],
       cost: 150_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 6, AV: 9 },

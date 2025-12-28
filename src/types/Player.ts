@@ -126,6 +126,7 @@ export enum RaceKeyWord {
   WEREWOLF = "Werewolf",
   WIGHT = "Wight",
   ZOMBIE = "Zombie",
+  RAT_OGRE = "Rat Ogre",
 }
 
 export enum PositionKeyWord {
