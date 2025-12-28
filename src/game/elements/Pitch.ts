@@ -456,6 +456,103 @@ export class Pitch {
   }
 
   /**
+   * Draw pass zones with different colors for each range type
+   */
+  public drawPassZones(
+    from: { x: number; y: number },
+    ranges: Map<string, { x: number; y: number }[]>
+  ): void {
+    this.clearLayer("pass_zone");
+
+    // Color mapping for each pass type
+    const colors: Record<string, { color: number; alpha: number }> = {
+      "Quick Pass": { color: 0x00ff00, alpha: 0.15 }, // Green
+      "Short Pass": { color: 0xffff00, alpha: 0.15 }, // Yellow
+      "Long Pass": { color: 0xff8800, alpha: 0.15 }, // Orange
+      "Long Bomb": { color: 0xff0000, alpha: 0.15 }, // Red
+    };
+
+    // Draw each range zone
+    ranges.forEach((squares, passType) => {
+      const colorConfig = colors[passType];
+      if (!colorConfig) return;
+
+      squares.forEach((square) => {
+        const local = gridToPixel(square.x, square.y, this.squareSize);
+        const rect = this.scene.add.rectangle(
+          local.x,
+          local.y,
+          this.squareSize,
+          this.squareSize,
+          colorConfig.color,
+          colorConfig.alpha
+        );
+        rect.setName("pass_zone");
+        this.container.add(rect);
+      });
+    });
+  }
+
+  /**
+   * Draw a line showing pass trajectory from player to target
+   */
+  public drawPassLine(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    passType: string
+  ): void {
+    this.clearLayer("pass_line");
+
+    const fromPixel = gridToPixel(from.x, from.y, this.squareSize);
+    const toPixel = gridToPixel(to.x, to.y, this.squareSize);
+
+    // Color based on pass type
+    const colors: Record<string, number> = {
+      "Quick Pass": 0x00ff00,
+      "Short Pass": 0xffff00,
+      "Long Pass": 0xff8800,
+      "Long Bomb": 0xff0000,
+    };
+
+    const color = colors[passType] || 0xffffff;
+
+    const graphics = this.scene.add.graphics();
+    graphics.setName("pass_line");
+    graphics.lineStyle(3, color, 0.8);
+    graphics.beginPath();
+    graphics.moveTo(fromPixel.x, fromPixel.y);
+    graphics.lineTo(toPixel.x, toPixel.y);
+    graphics.strokePath();
+
+    // Add arrow at the end
+    const angle = Math.atan2(toPixel.y - fromPixel.y, toPixel.x - fromPixel.x);
+    const arrowSize = 10;
+    graphics.fillStyle(color, 0.8);
+    graphics.beginPath();
+    graphics.moveTo(toPixel.x, toPixel.y);
+    graphics.lineTo(
+      toPixel.x - arrowSize * Math.cos(angle - Math.PI / 6),
+      toPixel.y - arrowSize * Math.sin(angle - Math.PI / 6)
+    );
+    graphics.lineTo(
+      toPixel.x - arrowSize * Math.cos(angle + Math.PI / 6),
+      toPixel.y - arrowSize * Math.sin(angle + Math.PI / 6)
+    );
+    graphics.closePath();
+    graphics.fillPath();
+
+    this.container.add(graphics);
+  }
+
+  /**
+   * Clear pass visualization
+   */
+  public clearPassVisualization(): void {
+    this.clearLayer("pass_zone");
+    this.clearLayer("pass_line");
+  }
+
+  /**
    * Get pixel position for a grid coordinate
    */
   public getPixelPosition(

@@ -61,6 +61,11 @@ export enum GameEventNames {
   CatchFailed = "catchFailed",
   BallScattered = "ballScattered",
 
+  // Action Mode Events
+  ActionModeChanged = "game:actionModeChanged",
+  PlayerMovedInAction = "game:playerMovedInAction",
+  PassZoneHovered = "game:passZoneHovered",
+
   // Camera Events
   Camera_TrackBall = "camera:trackBall",
   Camera_Reset = "camera:reset",
@@ -254,6 +259,22 @@ export interface GameEvents {
     from: { x: number; y: number };
     to: { x: number; y: number };
     reason: string;
+  };
+
+  // Action Mode Events
+  [GameEventNames.ActionModeChanged]: {
+    playerId: string;
+    action: ActionType;
+    autoSelectMove: boolean;
+  };
+  [GameEventNames.PlayerMovedInAction]: {
+    playerId: string;
+    canPass: boolean;
+  };
+  [GameEventNames.PassZoneHovered]: {
+    playerId: string;
+    targetSquare: { x: number; y: number };
+    passType: string; // PassType from ThrowController
   };
 
   // Game Flow

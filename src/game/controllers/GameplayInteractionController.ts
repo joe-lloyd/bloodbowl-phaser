@@ -9,6 +9,7 @@ import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
+import { ThrowController } from "./ThrowController";
 
 export class GameplayInteractionController {
   private scene: GameScene;
@@ -39,6 +40,11 @@ export class GameplayInteractionController {
   private pendingDodgeSquares: { x: number; y: number; modifiers: number }[] =
     [];
 
+  // Pass mode state
+  private currentActionMode: import("@/types/events").ActionType | null = null;
+  private hasMovedInAction: boolean = false;
+  private throwController: ThrowController;
+
   constructor(
     scene: GameScene,
     gameService: IGameService,
@@ -52,6 +58,7 @@ export class GameplayInteractionController {
     this.pitch = pitch;
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
+    this.throwController = new ThrowController(eventBus);
 
     // Store handler reference for cleanup
     this.pushDirectionHandler = (data: any) => {
@@ -102,9 +109,27 @@ export class GameplayInteractionController {
     // Mode-Setting Actions (Blitz, Pass, Move, etc.)
     const success = this.gameService.declareAction(data.playerId, data.action);
     if (success) {
-      // Refresh selection to update UI/Overlays based on new mode
-      this.selectPlayer(data.playerId);
+      // Set action mode state
+      this.currentActionMode = data.action;
+      this.hasMovedInAction = false;
+
+      console.log("Action declared successfully:", data.action);
+
+      // Emit ActionModeChanged event for UI
+      if (data.action === "pass") {
+        console.log("Emitting ActionModeChanged event for pass action");
+        this.eventBus.emit(GameEventNames.ActionModeChanged, {
+          playerId: data.playerId,
+          action: data.action,
+          autoSelectMove: true,
+        });
+      }
+
+      // Don't call selectPlayer here - it causes PlayerSelected event
+      // which resets the action mode we just set!
+      // The player is already selected, no need to refresh
     } else {
+      console.log("Failed to declare action:", data.action);
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `Cannot declare ${data.action} (Already used?)`
@@ -311,9 +336,36 @@ export class GameplayInteractionController {
 
     // 3. Movement Path
     if (this.selectedPlayerId && !player) {
-      this.drawPath(x, y);
+      // Check if in pass mode
+      if (this.currentActionMode === "pass") {
+        const selectedPlayer = this.gameService.getPlayerById(
+          this.selectedPlayerId
+        );
+        if (selectedPlayer && selectedPlayer.gridPosition) {
+          // Draw pass zones
+          const ranges = this.throwController.getAllRanges(
+            selectedPlayer.gridPosition
+          );
+          this.pitch.drawPassZones(selectedPlayer.gridPosition, ranges);
+
+          // Draw pass line to cursor
+          const passRange = this.throwController.measureRange(
+            selectedPlayer.gridPosition,
+            { x, y }
+          );
+          this.pitch.drawPassLine(
+            selectedPlayer.gridPosition,
+            { x, y },
+            passRange.type
+          );
+        }
+      } else {
+        // Normal movement path
+        this.drawPath(x, y);
+      }
     } else {
       this.pitch.clearPath();
+      this.pitch.clearPassVisualization();
     }
   }
 
@@ -354,38 +406,41 @@ export class GameplayInteractionController {
 
     // Show Movement Range & Tackle Zones if own turn AND can activate
     if (isOwnTurn && canActivate) {
-      const reachable = this.gameService.getAvailableMovements(playerId);
+      // Only show movement range if NOT in pass mode
+      if (this.currentActionMode !== "pass") {
+        const reachable = this.gameService.getAvailableMovements(playerId);
 
-      // Calculate remaining SAFE MA (for overlay coloring)
-      let used = this.gameService.getMovementUsed(playerId);
+        // Calculate remaining SAFE MA (for overlay coloring)
+        let used = this.gameService.getMovementUsed(playerId);
 
-      // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
-      if (player.status === "Prone") {
-        const standUpCost = Math.min(3, player.stats.MA);
-        used += standUpCost;
+        // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
+        if (player.status === "Prone") {
+          const standUpCost = Math.min(3, player.stats.MA);
+          used += standUpCost;
+        }
+
+        const remainingSafeMA = Math.max(0, player.stats.MA - used);
+
+        // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
+        const safeMoves: { x: number; y: number }[] = [];
+        const sprintMoves: { x: number; y: number }[] = [];
+
+        reachable.forEach((move) => {
+          if (move.cost !== undefined && move.cost > remainingSafeMA) {
+            sprintMoves.push(move);
+          }
+          // All are "reachable" for the overlay to NOT be dark
+          safeMoves.push(move);
+        });
+
+        // Show Overlay (Inverse of ALL reachable)
+        this.pitch.drawRangeOverlay(reachable);
+
+        // Show Sprint Risks
+        this.pitch.drawSprintRisks(sprintMoves);
       }
 
-      const remainingSafeMA = Math.max(0, player.stats.MA - used);
-
-      // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
-      const safeMoves: { x: number; y: number }[] = [];
-      const sprintMoves: { x: number; y: number }[] = [];
-
-      reachable.forEach((move) => {
-        if (move.cost !== undefined && move.cost > remainingSafeMA) {
-          sprintMoves.push(move);
-        }
-        // All are "reachable" for the overlay to NOT be dark
-        safeMoves.push(move);
-      });
-
-      // Show Overlay (Inverse of ALL reachable)
-      this.pitch.drawRangeOverlay(reachable);
-
-      // Show Sprint Risks
-      this.pitch.drawSprintRisks(sprintMoves);
-
-      // Show Tackle Zones
+      // Show Tackle Zones (always show these, even in pass mode)
       // Get all opposing players with tackle zones (standing, not stunned/prone)
       const opponents = this.getOpposingPlayers(player.teamId);
       const tackleZones: { x: number; y: number }[] = [];
@@ -418,6 +473,11 @@ export class GameplayInteractionController {
     }
     this.waypoints = [];
     this.clearAllInteractionHighlights();
+
+    // Reset action mode state
+    this.currentActionMode = null;
+    this.hasMovedInAction = false;
+    this.pitch.clearPassVisualization();
 
     // Notify UI
     this.eventBus.emit(GameEventNames.PlayerSelected, { player: null }); // OR add explicit deselect event
@@ -563,6 +623,15 @@ export class GameplayInteractionController {
           // Keep selected, clear waypoints so they can plot next "leg"
           this.waypoints = [];
           this.pitch.clearPath();
+
+          // Track that player has moved in this action
+          if (this.currentActionMode === "pass" && !this.hasMovedInAction) {
+            this.hasMovedInAction = true;
+            this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
+              playerId,
+              canPass: true,
+            });
+          }
 
           // REFRESH SELECTION logic to update the Range Overlay
           // calling selectPlayer again will re-fetch available movements (which now include used)
