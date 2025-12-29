@@ -2,7 +2,7 @@
  * Player test fixtures - Pre-configured players for testing
  */
 
-import { Player, PlayerPosition, PlayerStatus } from '../../src/types/Player.js';
+import { Player, PositionKeyWord, PlayerStatus } from '../../src/types/Player.js';
 import { PlayerBuilder } from '../utils/test-builders';
 
 /**
@@ -20,7 +20,7 @@ export function createLineman(teamId: string = 'test-team', number: number = 1):
     return new PlayerBuilder()
         .withTeamId(teamId)
         .withNumber(number)
-        .withPosition(PlayerPosition.LINEMAN)
+        .withPosition(PositionKeyWord.LINEMAN)
         .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
         .withCost(50000)
         .build();
@@ -33,7 +33,7 @@ export function createBlitzer(teamId: string = 'test-team', number: number = 1):
     return new PlayerBuilder()
         .withTeamId(teamId)
         .withNumber(number)
-        .withPosition(PlayerPosition.BLITZER)
+        .withPosition(PositionKeyWord.BLITZER)
         .withStats({ MA: 7, ST: 3, AG: 3, PA: 4, AV: 9 })
         .withCost(85000)
         .build();
@@ -46,7 +46,7 @@ export function createCatcher(teamId: string = 'test-team', number: number = 1):
     return new PlayerBuilder()
         .withTeamId(teamId)
         .withNumber(number)
-        .withPosition(PlayerPosition.CATCHER)
+        .withPosition(PositionKeyWord.CATCHER)
         .withStats({ MA: 8, ST: 2, AG: 2, PA: 5, AV: 8 })
         .withCost(65000)
         .build();
@@ -59,7 +59,7 @@ export function createThrower(teamId: string = 'test-team', number: number = 1):
     return new PlayerBuilder()
         .withTeamId(teamId)
         .withNumber(number)
-        .withPosition(PlayerPosition.THROWER)
+        .withPosition(PositionKeyWord.THROWER)
         .withStats({ MA: 6, ST: 3, AG: 3, PA: 2, AV: 9 })
         .withCost(80000)
         .build();

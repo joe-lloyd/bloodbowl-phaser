@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { SetupValidator } from "../../src/game/setup/SetupValidator";
+import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { FormationPosition } from "../../src/types/SetupTypes";
 
 describe("SetupValidator", () => {
   let validator: SetupValidator;
 
   beforeEach(() => {
-    validator = new SetupValidator({ minPlayers: 7, pitchWidth: 20, pitchHeight: 11 });
+    validator = new SetupValidator({
+      minPlayers: 7,
+      pitchWidth: 20,
+      pitchHeight: 11,
+    });
   });
 
   describe("isInSetupZone", () => {

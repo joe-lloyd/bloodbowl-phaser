@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { FormationManager } from "../../src/game/setup/FormationManager";
+import { FormationManager } from "../../src/game/managers/FormationManager";
 import { FormationPosition } from "../../src/types/SetupTypes";
 
 describe("FormationManager", () => {
