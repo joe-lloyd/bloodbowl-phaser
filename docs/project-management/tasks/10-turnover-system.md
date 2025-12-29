@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🔴 High  
 **Phase**: 3 - Advanced Gameplay  
-**Dependencies**: [Task 04](./04-movement-system.md), [Task 05](./05-blocking-system.md), [Task 06](./06-ball-mechanics.md)  
+**Dependencies**: [Task 04](./04-movement-system.md), [Task 05](./05-blocking-system.md), [Task 06](./06-ball-mechanics.md)
 
 ## 📝 Description
 

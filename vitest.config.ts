@@ -16,14 +16,14 @@ export default defineConfig({
         "**/*.spec.ts",
         "__tests__/mocks/",
         "__tests__/utils/",
-        "__tests__/fixtures/"
+        "__tests__/fixtures/",
       ],
       thresholds: {
         lines: 80,
         functions: 80,
         branches: 80,
-        statements: 80
-      }
+        statements: 80,
+      },
     },
   },
   resolve: {

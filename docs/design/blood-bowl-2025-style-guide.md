@@ -2,10 +2,10 @@
 
 > **Design pillars**
 >
-> * Bold, readable, print-inspired
-> * Sports broadcast + grim fantasy
-> * High contrast, strong hierarchy
-> * Everything should feel *official* and a bit brutal
+> - Bold, readable, print-inspired
+> - Sports broadcast + grim fantasy
+> - High contrast, strong hierarchy
+> - Everything should feel _official_ and a bit brutal
 
 ---
 
@@ -50,9 +50,9 @@ Success         #3E6B2F
 
 ✅ **Rules**
 
-* Never pure white → always parchment.
-* Avoid gradients except for header bands.
-* Red is reserved for *importance* (not decoration).
+- Never pure white → always parchment.
+- Avoid gradients except for header bands.
+- Red is reserved for _importance_ (not decoration).
 
 ---
 
@@ -60,9 +60,9 @@ Success         #3E6B2F
 
 #### Primary Typeface (Headings)
 
-* **Industry / Graduate / Oswald (web-safe alt)**
-* All caps preferred
-* Heavy weight, tight tracking
+- **Industry / Graduate / Oswald (web-safe alt)**
+- All caps preferred
+- Heavy weight, tight tracking
 
 ```txt
 H1: 32–40px / 800 / ALL CAPS
@@ -72,8 +72,8 @@ H3: 18–20px / 700
 
 #### Body Typeface
 
-* **Crimson Pro / Libre Baskerville / Georgia**
-* Bookish, readable, tabletop vibe
+- **Crimson Pro / Libre Baskerville / Georgia**
+- Bookish, readable, tabletop vibe
 
 ```txt
 Body: 16px / 400 / line-height 1.6
@@ -83,8 +83,8 @@ Helper text: 13px / italic optional
 
 #### Tables & Stats
 
-* **Inter / Roboto Mono**
-* Numbers must align cleanly
+- **Inter / Roboto Mono**
+- Numbers must align cleanly
 
 ```txt
 Table headers: 14px / 600
@@ -95,23 +95,23 @@ Table cells:   14px / 400
 
 ### 🧱 Iconography & Visual Style
 
-* **Style:** Flat + engraved (no outlines, no neon)
-* Inspiration: carved stone, stamped metal
-* Prefer **monochrome SVG icons**
-* Use gold or dark red fills
+- **Style:** Flat + engraved (no outlines, no neon)
+- Inspiration: carved stone, stamped metal
+- Prefer **monochrome SVG icons**
+- Use gold or dark red fills
 
 ✅ Good:
 
-* Dice icons
-* Shields
-* Stars
-* Whistles, skulls, boots
+- Dice icons
+- Shields
+- Stars
+- Whistles, skulls, boots
 
 ❌ Bad:
 
-* Rounded material icons
-* Line-only icons
-* Emojis in UI (content is fine)
+- Rounded material icons
+- Line-only icons
+- Emojis in UI (content is fine)
 
 ---
 
@@ -121,18 +121,18 @@ Table cells:   14px / 400
 
 **Desktop**
 
-* Max width: non, its a game lets scale the ui and use the space
-* 12-column grid
-* 24px gutters
+- Max width: non, its a game lets scale the ui and use the space
+- 12-column grid
+- 24px gutters
 
 **Tablet**
 
-* 8 columns
+- 8 columns
 
 **Mobile**
 
-* Single column
-* Sticky top nav strongly recommended
+- Single column
+- Sticky top nav strongly recommended
 
 ---
 
@@ -157,15 +157,15 @@ xxl = 64px
 
 #### Cards / Panels
 
-* Background: `Warm Paper`
-* Border: `1px solid Divider Brown`
-* Optional top accent bar in `Ink Blue` or `Blood Red`
+- Background: `Warm Paper`
+- Border: `1px solid Divider Brown`
+- Optional top accent bar in `Ink Blue` or `Blood Red`
 
 #### Section Blocks (rulebook-style)
 
-* Title with underline
-* Slight inset padding
-* Can include tone box (greyed parchment)
+- Title with underline
+- Slight inset padding
+- Can include tone box (greyed parchment)
 
 ---
 
@@ -183,9 +183,9 @@ Border: Dark Gold
 
 States:
 
-* Hover → Deep Crimson
-* Active → Dark Gold shadow inset
-* Disabled → Muted Red + low contrast text
+- Hover → Deep Crimson
+- Active → Dark Gold shadow inset
+- Disabled → Muted Red + low contrast text
 
 #### Secondary Button
 
@@ -200,22 +200,22 @@ Text: Parchment
 
 ### 🧾 Inputs
 
-* BG: `Parchment`
-* Border: `Divider Brown`
-* Focus: `Gold Accent` outline
+- BG: `Parchment`
+- Border: `Divider Brown`
+- Focus: `Gold Accent` outline
 
 Checkboxes & toggles:
 
-* Square or shield-shaped
-* Clear checked vs unchecked contrast
+- Square or shield-shaped
+- Clear checked vs unchecked contrast
 
 ---
 
 ### 🧭 Navigation
 
-* **Top bar** in Ink Blue
-* Section tabs styled like rulebook headers
-* Breadcrumbs with `>` separators
+- **Top bar** in Ink Blue
+- Section tabs styled like rulebook headers
+- Breadcrumbs with `>` separators
 
 ✅ Navigation text = ALL CAPS
 
@@ -225,20 +225,20 @@ Checkboxes & toggles:
 
 #### Alerts
 
-* Error: Blood Red panel + icon
-* Info: Ink Blue panel
-* Success: Pitch Green
+- Error: Blood Red panel + icon
+- Info: Ink Blue panel
+- Success: Pitch Green
 
 #### Tooltips
 
-* Dark parchment
-* Small serif text
-* Slight delay (300ms)
+- Dark parchment
+- Small serif text
+- Slight delay (300ms)
 
 #### Loading
 
-* Dice roll / spinning star motif
-* Avoid generic spinners
+- Dice roll / spinning star motif
+- Avoid generic spinners
 
 ---
 
@@ -246,11 +246,10 @@ Checkboxes & toggles:
 
 ### 🧠 States & Feedback
 
-* Everything clickable must:
-
-  * Change color
-  * Change cursor
-  * Have hover + active
+- Everything clickable must:
+  - Change color
+  - Change cursor
+  - Have hover + active
 
 No silent interactions. Ever.
 
@@ -258,7 +257,7 @@ No silent interactions. Ever.
 
 ### 🎥 Animation
 
-* Fast, snappy, minimal
+- Fast, snappy, minimal
 
 ```txt
 Duration: 120–200ms
@@ -267,17 +266,17 @@ Easing: cubic-bezier(0.2, 0.8, 0.2, 1)
 
 Use for:
 
-* Dropdowns
-* Tab switches
-* Dice roll reveals 😏
+- Dropdowns
+- Tab switches
+- Dice roll reveals 😏
 
 ---
 
 ### 🏈 Game-Specific UI
 
-* Team rosters = tables first, cards second
-* Stats always left-aligned vertically
-* Icons reinforce rules, never replace text
+- Team rosters = tables first, cards second
+- Stats always left-aligned vertically
+- Icons reinforce rules, never replace text
 
 HUD philosophy:
 
@@ -289,9 +288,9 @@ HUD philosophy:
 
 ### 🖋 Writing Style
 
-* Clear, rules-focused
-* Short sentences
-* Active voice
+- Clear, rules-focused
+- Short sentences
+- Active voice
 
 ✅ Good:
 
@@ -315,15 +314,17 @@ We use **Tailwind CSS** with a custom configuration that matches the Blood Bowl 
 
 **Colors**: prefixed with `bb-` (e.g., `bg-bb-blood-red`, `text-bb-ink-blue`)
 **Fonts**:
-* Headings: `font-heading` (Oswald)
-* Body: `font-body` (Crimson Pro)
+
+- Headings: `font-heading` (Oswald)
+- Body: `font-body` (Crimson Pro)
 
 **Spacing**: 8px-based scale (`xs`, `sm`, `md`, `lg`, `xl`, `xxl`)
 
 **Shadows**:
-* `shadow-parchment`: Deep, ambient shadow for full-screen parchment
-* `shadow-parchment-light`: lighter shadow for cards/panels
-* `shadow-chunky`: Hard edge shadow for active states
+
+- `shadow-parchment`: Deep, ambient shadow for full-screen parchment
+- `shadow-parchment-light`: lighter shadow for cards/panels
+- `shadow-chunky`: Hard edge shadow for active states
 
 **Transitions**: `transition-bb` uses the custom cubic-bezier easing.
 
@@ -331,8 +332,7 @@ We use **Tailwind CSS** with a custom configuration that matches the Blood Bowl 
 
 ### 📱 Responsive & Touch
 
-* Touch targets ≥ 44px
-* Tables:
-
-  * Horizontal scroll on mobile
-  * Sticky first column
+- Touch targets ≥ 44px
+- Tables:
+  - Horizontal scroll on mobile
+  - Sticky first column

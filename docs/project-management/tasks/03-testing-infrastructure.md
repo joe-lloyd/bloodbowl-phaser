@@ -3,7 +3,7 @@
 **Status**: ✅ COMPLETE  
 **Priority**: 🔴 High  
 **Phase**: 1 - Foundation & Refactoring  
-**Dependencies**: [Task 01](./01-project-structure.md)  
+**Dependencies**: [Task 01](./01-project-structure.md)
 
 ## 📝 Description
 
@@ -156,15 +156,15 @@ class MockScene {
 #### Unit Tests (Fast, Isolated)
 
 ```typescript
-describe('GameStateManager', () => {
-  it('should initialize with correct phase', () => {
+describe("GameStateManager", () => {
+  it("should initialize with correct phase", () => {
     const manager = new GameStateManager(team1, team2);
     expect(manager.getState().phase).toBe(GamePhase.SETUP);
   });
 
-  it('should validate player placement', () => {
+  it("should validate player placement", () => {
     const manager = new GameStateManager(team1, team2);
-    const result = manager.placePlayer('player1', 5, 5);
+    const result = manager.placePlayer("player1", 5, 5);
     expect(result).toBe(true);
   });
 });
@@ -173,14 +173,14 @@ describe('GameStateManager', () => {
 #### Integration Tests (Component Interaction)
 
 ```typescript
-describe('Setup Phase Flow', () => {
-  it('should complete setup and transition to kickoff', () => {
+describe("Setup Phase Flow", () => {
+  it("should complete setup and transition to kickoff", () => {
     const game = setupTestGame();
     game.placeAllPlayers(team1);
     game.placeAllPlayers(team2);
     game.confirmSetup(team1.id);
     game.confirmSetup(team2.id);
-    
+
     expect(game.getState().phase).toBe(GamePhase.KICKOFF);
   });
 });
@@ -189,15 +189,15 @@ describe('Setup Phase Flow', () => {
 #### E2E Tests (Full Scenarios)
 
 ```typescript
-describe('Complete Game Flow', () => {
-  it('should play through a full turn', async () => {
+describe("Complete Game Flow", () => {
+  it("should play through a full turn", async () => {
     const game = await startNewGame();
     await game.completeSetup();
     await game.performKickoff();
-    await game.selectPlayer('player1');
+    await game.selectPlayer("player1");
     await game.movePlayer(8, 8);
     await game.endTurn();
-    
+
     expect(game.getCurrentTurn()).toBe(2);
   });
 });
@@ -208,14 +208,14 @@ describe('Complete Game Flow', () => {
 ### Arrange-Act-Assert (AAA)
 
 ```typescript
-it('should end turn when player falls', () => {
+it("should end turn when player falls", () => {
   // Arrange
   const game = new GameStateManager(team1, team2);
   game.startTurn(team1.id);
-  
+
   // Act
-  const result = game.playerFalls('player1');
-  
+  const result = game.playerFalls("player1");
+
   // Assert
   expect(result.turnover).toBe(true);
   expect(game.getState().activeTeamId).not.toBe(team1.id);
@@ -226,7 +226,7 @@ it('should end turn when player falls', () => {
 
 ```typescript
 const team = new TeamBuilder()
-  .withName('Orcland Raiders')
+  .withName("Orcland Raiders")
   .withRoster(OrcRoster)
   .withPlayers(11)
   .build();
@@ -235,7 +235,7 @@ const team = new TeamBuilder()
 ### Snapshot Testing
 
 ```typescript
-it('should render player info correctly', () => {
+it("should render player info correctly", () => {
   const panel = createPlayerInfoPanel(player);
   expect(panel.toJSON()).toMatchSnapshot();
 });
@@ -249,17 +249,12 @@ it('should render player info correctly', () => {
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./tests/setup/vitest-setup.ts'],
+    environment: "jsdom",
+    setupFiles: ["./tests/setup/vitest-setup.ts"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        '__tests__/',
-        '**/*.d.ts',
-        '**/*.config.*',
-      ],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: ["node_modules/", "__tests__/", "**/*.d.ts", "**/*.config.*"],
       thresholds: {
         lines: 80,
         functions: 80,

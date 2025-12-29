@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
 interface ButtonProps {
   children: ReactNode;
@@ -7,7 +7,12 @@ interface ButtonProps {
   className?: string;
 }
 
-export const Button = ({ children, onClick, disabled, className = '' }: ButtonProps) => {
+export const Button = ({
+  children,
+  onClick,
+  disabled,
+  className = "",
+}: ButtonProps) => {
   return (
     <button
       className={`
@@ -32,7 +37,12 @@ export const Button = ({ children, onClick, disabled, className = '' }: ButtonPr
   );
 };
 
-export const DangerButton = ({ children, onClick, disabled, className = '' }: ButtonProps) => {
+export const DangerButton = ({
+  children,
+  onClick,
+  disabled,
+  className = "",
+}: ButtonProps) => {
   return (
     <button
       className={`
@@ -57,7 +67,12 @@ export const DangerButton = ({ children, onClick, disabled, className = '' }: Bu
   );
 };
 
-export const SecondaryButton = ({ children, onClick, disabled, className = '' }: ButtonProps) => {
+export const SecondaryButton = ({
+  children,
+  onClick,
+  disabled,
+  className = "",
+}: ButtonProps) => {
   return (
     <button
       className={`
@@ -82,7 +97,11 @@ export const SecondaryButton = ({ children, onClick, disabled, className = '' }:
   );
 };
 
-export const RemoveButton = ({ children, onClick, className = '' }: ButtonProps) => {
+export const RemoveButton = ({
+  children,
+  onClick,
+  className = "",
+}: ButtonProps) => {
   return (
     <button
       className={`
@@ -103,7 +122,11 @@ export const RemoveButton = ({ children, onClick, className = '' }: ButtonProps)
   );
 };
 
-export const InlineLink = ({ children, onClick, className = '' }: ButtonProps) => {
+export const InlineLink = ({
+  children,
+  onClick,
+  className = "",
+}: ButtonProps) => {
   return (
     <span
       className={`

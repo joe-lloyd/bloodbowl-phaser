@@ -88,8 +88,12 @@
   grid-template-areas: "left pitch right";
 }
 
-.grid-area-left { grid-area: left; }
-.grid-area-right { grid-area: right; }
-.grid-area-pitch { grid-area: pitch; }
-
-
+.grid-area-left {
+  grid-area: left;
+}
+.grid-area-right {
+  grid-area: right;
+}
+.grid-area-pitch {
+  grid-area: pitch;
+}

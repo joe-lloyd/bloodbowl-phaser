@@ -22,14 +22,14 @@ This document provides a quick reference to Blood Bowl Sevens rules for develope
 
 ## Player Actions
 
-| Action | Description | Limit |
-|--------|-------------|-------|
-| **Move** | Walk up to MA squares | Once per player |
-| **Block** | Hit adjacent opponent | Once per player |
-| **Blitz** | Move + 1 block | Once per team |
-| **Pass** | Throw ball | Once per team |
-| **Hand-off** | Give ball to adjacent player | Once per team |
-| **Foul** | Kick downed opponent | Once per team |
+| Action       | Description                  | Limit           |
+| ------------ | ---------------------------- | --------------- |
+| **Move**     | Walk up to MA squares        | Once per player |
+| **Block**    | Hit adjacent opponent        | Once per player |
+| **Blitz**    | Move + 1 block               | Once per team   |
+| **Pass**     | Throw ball                   | Once per team   |
+| **Hand-off** | Give ball to adjacent player | Once per team   |
+| **Foul**     | Kick downed opponent         | Once per team   |
 
 ## Movement
 
@@ -57,6 +57,7 @@ This document provides a quick reference to Blood Bowl Sevens rules for develope
 ## Turnovers
 
 Turn ends immediately if:
+
 - Player falls (dodge, GFI, etc.)
 - Failed pickup
 - Failed pass
@@ -83,6 +84,7 @@ Turn ends immediately if:
 ## Dice Rolls
 
 Most actions use 2D6 vs target number:
+
 - **AG 1+**: 6+
 - **AG 2+**: 5+
 - **AG 3+**: 4+
@@ -109,6 +111,7 @@ Modifiers apply (tackle zones, range, etc.)
 ## Implementation Notes
 
 ### Critical Rules to Implement
+
 1. ✅ Setup validation (7 players, own half)
 2. ✅ Turn management (6 turns per half)
 3. ⏳ Movement with tackle zones
@@ -119,6 +122,7 @@ Modifiers apply (tackle zones, range, etc.)
 8. ⏳ Dice rolling with modifiers
 
 ### Rule Simplifications (Optional)
+
 - Skip kickoff events initially
 - Simplified injury system
 - Basic skills only

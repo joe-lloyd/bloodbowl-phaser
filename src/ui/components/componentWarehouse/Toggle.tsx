@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface ToggleProps {
   label: string;
@@ -28,7 +28,8 @@ const Toggle: React.FC<ToggleProps> = ({ label, checked, onChange }) => {
             }}
           />
           {/* Square/shield-shaped toggle */}
-          <div className="
+          <div
+            className="
             relative inline-flex items-center justify-center
             w-12 h-12
             bg-bb-warm-paper
@@ -37,7 +38,8 @@ const Toggle: React.FC<ToggleProps> = ({ label, checked, onChange }) => {
             transition-bb
             peer-checked:bg-bb-gold peer-checked:border-bb-dark-gold
             hover:shadow-md
-          ">
+          "
+          >
             {/* Checkmark when checked */}
             {isChecked && (
               <svg

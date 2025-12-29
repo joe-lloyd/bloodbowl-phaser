@@ -7,35 +7,35 @@ export const UITheme = {
   // Blood Bowl 2025 Color Palette
   colors: {
     // Primary Colors
-    bloodRed: 0x8E1B1B,
-    deepCrimson: 0xB32020,
-    inkBlue: 0x1E3A5F,
+    bloodRed: 0x8e1b1b,
+    deepCrimson: 0xb32020,
+    inkBlue: 0x1e3a5f,
 
     // Secondary Colors
-    parchment: 0xF3E9D2,
-    warmPaper: 0xE8DDC4,
+    parchment: 0xf3e9d2,
+    warmPaper: 0xe8ddc4,
 
     // Accent Colors
-    gold: 0xD6B25E,
-    darkGold: 0xB59645,
-    pitchGreen: 0x556B2F,
+    gold: 0xd6b25e,
+    darkGold: 0xb59645,
+    pitchGreen: 0x556b2f,
 
     // Utility Colors
-    textDark: 0x2A1F1A,
-    mutedText: 0x6B5E54,
-    divider: 0xC7B89A,
-    error: 0x9C1C1C,
-    success: 0x3E6B2F,
+    textDark: 0x2a1f1a,
+    mutedText: 0x6b5e54,
+    divider: 0xc7b89a,
+    error: 0x9c1c1c,
+    success: 0x3e6b2f,
 
-    surface: 0xE8DDC4,
-    textDisabled: 0x6B5E54,
+    surface: 0xe8ddc4,
+    textDisabled: 0x6b5e54,
 
     // Legacy/Mapped properties for compatibility
-    primary: 0x8E1B1B,
-    secondary: 0x1E3A5F,
-    textPrimary: 0x2A1F1A, // Dark text on parchment
-    textSecondary: 0x6B5E54,
-    background: 0xF3E9D2,
+    primary: 0x8e1b1b,
+    secondary: 0x1e3a5f,
+    textPrimary: 0x2a1f1a, // Dark text on parchment
+    textSecondary: 0x6b5e54,
+    background: 0xf3e9d2,
   },
 
   // String versions for CSS/HTML contexts
@@ -69,7 +69,7 @@ export const UITheme = {
       button: "20px",
       buttonLarge: "32px",
       buttonSmall: "11px",
-    }
+    },
   },
 
   // Button Styles for Phaser UI Buttons
@@ -130,7 +130,6 @@ export const UITheme = {
     backgroundColor: 0x000000,
     opacity: 0.7,
   },
-
 } as const;
 
 export type ButtonVariant = keyof typeof UITheme.button;

@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟢 Low  
 **Phase**: 5 - Polish & Features  
-**Dependencies**: [Task 02](./02-architecture-refactoring.md)  
+**Dependencies**: [Task 02](./02-architecture-refactoring.md)
 
 ## 📝 Description
 

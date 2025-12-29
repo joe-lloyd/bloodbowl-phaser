@@ -73,11 +73,11 @@
 
 ```typescript
 interface IMovementService {
-  getValidMoves(playerId: string): GridPosition[]
-  moveTo(playerId: string, position: GridPosition): MoveResult
-  calculatePath(from: GridPosition, to: GridPosition): GridPosition[]
-  getTackleZones(position: GridPosition): Player[]
-  requiresDodge(from: GridPosition, to: GridPosition): boolean
+  getValidMoves(playerId: string): GridPosition[];
+  moveTo(playerId: string, position: GridPosition): MoveResult;
+  calculatePath(from: GridPosition, to: GridPosition): GridPosition[];
+  getTackleZones(position: GridPosition): Player[];
+  requiresDodge(from: GridPosition, to: GridPosition): boolean;
 }
 ```
 
@@ -85,15 +85,15 @@ interface IMovementService {
 
 ```typescript
 interface MovementValidator {
-  canMoveTo(player: Player, position: GridPosition): boolean
-  getMovementCost(from: GridPosition, to: GridPosition): number
-  isPathClear(path: GridPosition[]): boolean
+  canMoveTo(player: Player, position: GridPosition): boolean;
+  getMovementCost(from: GridPosition, to: GridPosition): number;
+  isPathClear(path: GridPosition[]): boolean;
 }
 ```
 
 ### Pathfinding
 
-- Use A* algorithm for optimal paths
+- Use A\* algorithm for optimal paths
 - Consider tackle zones in cost calculation
 - Highlight valid movement squares
 - Show movement cost per square
@@ -124,7 +124,7 @@ interface MovementValidator {
 ## 🔗 References
 
 - [Blood Bowl Rules - Movement](../../CORE_CONCEPT.md)
-- [A* Pathfinding Algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm)
+- [A\* Pathfinding Algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm)
 
 ## 🔄 Updates
 

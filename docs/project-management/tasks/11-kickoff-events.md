@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟢 Low  
 **Phase**: 3 - Advanced Gameplay  
-**Dependencies**: [Task 06](./06-ball-mechanics.md)  
+**Dependencies**: [Task 06](./06-ball-mechanics.md)
 
 ## 📝 Description
 

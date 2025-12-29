@@ -95,22 +95,26 @@ graph TD
 ### Scene Responsibilities
 
 #### BootScene
+
 - Initialize Phaser
 - Load initial assets
 - Transition to MenuScene
 
 #### MenuScene
+
 - Display main menu
 - Navigate to team management or new game
 - Show game options
 
 #### TeamManagementScene
+
 - View existing teams
 - Edit teams
 - Delete teams
 - Navigate to team builder
 
 #### TeamBuilderScene
+
 - Create new team
 - Select roster
 - Buy players
@@ -118,12 +122,14 @@ graph TD
 - Validate team budget
 
 #### TeamSelectScene
+
 - Select team 1
 - Select team 2
 - Confirm selections
 - Proceed to setup
 
 #### SetupScene
+
 - Coin flip for kickoff
 - Place players on pitch
 - Validate formations
@@ -131,6 +137,7 @@ graph TD
 - Transition to game
 
 #### GameScene
+
 - Display pitch and players
 - Handle player selection
 - Manage turns
@@ -143,6 +150,7 @@ graph TD
 ### GameStateManager
 
 **Responsibilities**:
+
 - Track game phase (SETUP, KICKOFF, PLAY, etc.)
 - Manage turn order
 - Track active team
@@ -152,80 +160,85 @@ graph TD
 - Track turn counts and limits
 
 **Key Methods**:
+
 ```typescript
 class GameStateManager {
-  placePlayer(playerId: string, x: number, y: number): boolean
-  swapPlayers(player1Id: string, player2Id: string): boolean
-  confirmSetup(teamId: string): void
-  startGame(kickingTeamId: string): void
-  startTurn(teamId: string): void
-  endTurn(): void
-  playerAction(playerId: string): boolean
-  getState(): GameState
+  placePlayer(playerId: string, x: number, y: number): boolean;
+  swapPlayers(player1Id: string, player2Id: string): boolean;
+  confirmSetup(teamId: string): void;
+  startGame(kickingTeamId: string): void;
+  startTurn(teamId: string): void;
+  endTurn(): void;
+  playerAction(playerId: string): boolean;
+  getState(): GameState;
 }
 ```
 
 **State Structure**:
+
 ```typescript
 interface GameState {
-  phase: GamePhase
-  activeTeamId: string | null
-  turn: TurnData
-  score: { [teamId: string]: number }
+  phase: GamePhase;
+  activeTeamId: string | null;
+  turn: TurnData;
+  score: { [teamId: string]: number };
 }
 
 interface TurnData {
-  teamId: string
-  turnNumber: number
-  isHalf2: boolean
-  activatedPlayerIds: Set<string>
-  hasBlitzed: boolean
-  hasPassed: boolean
-  hasHandedOff: boolean
-  hasFouled: boolean
+  teamId: string;
+  turnNumber: number;
+  isHalf2: boolean;
+  activatedPlayerIds: Set<string>;
+  hasBlitzed: boolean;
+  hasPassed: boolean;
+  hasHandedOff: boolean;
+  hasFouled: boolean;
 }
 ```
 
 ### Team Management
 
 **Team Structure**:
+
 ```typescript
 interface Team {
-  id: string
-  name: string
-  roster: RosterTemplate
-  players: Player[]
-  reRolls: number
-  treasury: number
-  color: number
+  id: string;
+  name: string;
+  roster: RosterTemplate;
+  players: Player[];
+  reRolls: number;
+  treasury: number;
+  color: number;
 }
 ```
 
 **Player Structure**:
+
 ```typescript
 interface Player {
-  id: string
-  name: string
-  position: string
-  number: number
-  stats: PlayerStats
-  skills: Skill[]
-  status: PlayerStatus
-  gridPosition?: { x: number; y: number }
+  id: string;
+  name: string;
+  position: string;
+  number: number;
+  stats: PlayerStats;
+  skills: Skill[];
+  status: PlayerStatus;
+  gridPosition?: { x: number; y: number };
 }
 
 interface PlayerStats {
-  MA: number  // Movement Allowance
-  ST: number  // Strength
-  AG: number  // Agility
-  PA: number  // Passing
-  AV: number  // Armor Value
+  MA: number; // Movement Allowance
+  ST: number; // Strength
+  AG: number; // Agility
+  PA: number; // Passing
+  AV: number; // Armor Value
 }
 ```
 
 ### Setup Phase
 
 **Setup Controllers**:
+
 1. **CoinFlipController**: Determines which team kicks off
 2. **FormationManager**: Manages pre-defined formations
 3. **PlayerPlacementController**: Handles drag-and-drop placement
@@ -233,6 +246,7 @@ interface PlayerStats {
 5. **SetupValidator**: Validates setup rules
 
 **Setup Rules**:
+
 - 7 players must be placed (Blood Bowl Sevens)
 - Players must be in own half
 - Valid grid positions only
@@ -250,12 +264,13 @@ interface PlayerStats {
 **UITheme**: Centralized color and style definitions
 
 ### Theme System
+
 ```typescript
 class UITheme {
-  static PRIMARY_COLOR = 0x4a90e2
-  static SECONDARY_COLOR = 0x50c878
-  static BACKGROUND_COLOR = 0x1a1a2e
-  static TEXT_COLOR = 0xffffff
+  static PRIMARY_COLOR = 0x4a90e2;
+  static SECONDARY_COLOR = 0x50c878;
+  static BACKGROUND_COLOR = 0x1a1a2e;
+  static TEXT_COLOR = 0xffffff;
   // ... more theme constants
 }
 ```
@@ -265,17 +280,19 @@ class UITheme {
 ### GridUtils
 
 Converts between screen coordinates and grid coordinates:
+
 ```typescript
 class GridUtils {
-  static screenToGrid(x: number, y: number): { gridX: number; gridY: number }
-  static gridToScreen(gridX: number, gridY: number): { x: number; y: number }
-  static isValidGridPosition(gridX: number, gridY: number): boolean
+  static screenToGrid(x: number, y: number): { gridX: number; gridY: number };
+  static gridToScreen(gridX: number, gridY: number): { x: number; y: number };
+  static isValidGridPosition(gridX: number, gridY: number): boolean;
 }
 ```
 
 ## 📊 Data Flow
 
 ### Player Placement Flow
+
 ```
 User clicks player in dugout
   ↓
@@ -295,6 +312,7 @@ Render player on pitch
 ```
 
 ### Turn Management Flow
+
 ```
 GameStateManager.startTurn()
   ↓
@@ -322,11 +340,13 @@ Switch to other team
 ## 🧪 Testing Strategy
 
 ### Current Test Setup
+
 - **Framework**: Vitest
 - **Environment**: jsdom
 - **Coverage**: Basic setup tests exist
 
 ### Test Structure
+
 ```
 __tests__/
 ├── setup/
@@ -338,6 +358,7 @@ __tests__/
 ## 🔮 Future Architecture (Planned)
 
 ### Service Layer (Task 02)
+
 ```
 src/services/
 ├── GameService.ts
@@ -348,6 +369,7 @@ src/services/
 ```
 
 ### Domain Layer (Task 02)
+
 ```
 src/domain/
 ├── models/
@@ -358,6 +380,7 @@ src/domain/
 ## 📝 Design Decisions
 
 ### Why Phaser?
+
 - Mature game framework
 - Good TypeScript support
 - Built-in scene management
@@ -365,12 +388,14 @@ src/domain/
 - Active community
 
 ### Why Vitest?
+
 - Fast test execution
 - Great TypeScript support
 - Compatible with Vite build system
 - Modern testing features
 
 ### Current Limitations
+
 1. **Tight coupling**: Scenes contain too much business logic
 2. **Hard to test**: Phaser dependencies make unit testing difficult
 3. **No event system**: Components communicate directly
@@ -378,6 +403,7 @@ src/domain/
 5. **No persistence**: No save/load functionality yet
 
 ### Planned Improvements
+
 See [Task 02: Architecture Refactoring](../project-management/tasks/02-architecture-refactoring.md)
 
 ## 🔗 Related Documentation

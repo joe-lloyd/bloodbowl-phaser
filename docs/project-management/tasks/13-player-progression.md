@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟢 Low  
 **Phase**: 4 - Team Management  
-**Dependencies**: [Task 08](./08-skills-system.md)  
+**Dependencies**: [Task 08](./08-skills-system.md)
 
 ## 📝 Description
 

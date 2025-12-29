@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟡 Medium  
 **Phase**: 4 - Team Management  
-**Dependencies**: [Task 02](./02-architecture-refactoring.md)  
+**Dependencies**: [Task 02](./02-architecture-refactoring.md)
 
 ## 📝 Description
 

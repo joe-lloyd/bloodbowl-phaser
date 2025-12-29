@@ -18,7 +18,11 @@ export function createTestTeam(
   name: string = "Test Team",
   race: RosterName = RosterName.HUMAN
 ): Team {
-  return new TeamBuilder().withName(name).withRosterName(race).withPlayers(7).build();
+  return new TeamBuilder()
+    .withName(name)
+    .withRosterName(race)
+    .withPlayers(7)
+    .build();
 }
 
 /**

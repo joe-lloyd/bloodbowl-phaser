@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
 interface MinHeightContainerProps {
   children: ReactNode;
@@ -8,9 +8,14 @@ interface MinHeightContainerProps {
 /**
  * 47.5px is the height of the app bar
  */
-const MinHeightContainer = ({ children, className = '' }: MinHeightContainerProps) => {
+const MinHeightContainer = ({
+  children,
+  className = "",
+}: MinHeightContainerProps) => {
   return (
-    <div className={`flex flex-col h-screen justify-center pointer-events-auto overflow-y-auto ${className}`}>
+    <div
+      className={`flex flex-col h-screen justify-center pointer-events-auto overflow-y-auto ${className}`}
+    >
       {children}
     </div>
   );

@@ -4,8 +4,14 @@ import { PlayerBuilder } from "../../utils/test-builders";
 
 describe("ActionValidator", () => {
   let validator: ActionValidator;
-  const attacker = new PlayerBuilder().withId("atk").withGridPosition(5, 5).build();
-  const defender = new PlayerBuilder().withId("def").withGridPosition(6, 5).build();
+  const attacker = new PlayerBuilder()
+    .withId("atk")
+    .withGridPosition(5, 5)
+    .build();
+  const defender = new PlayerBuilder()
+    .withId("def")
+    .withGridPosition(6, 5)
+    .build();
 
   beforeEach(() => {
     validator = new ActionValidator();

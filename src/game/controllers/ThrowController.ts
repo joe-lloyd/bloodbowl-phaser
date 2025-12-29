@@ -223,8 +223,8 @@ export class ThrowController {
         accuracyTest.fumbled
           ? "FUMBLED"
           : accuracyTest.accurate
-          ? "Accurate"
-          : "Inaccurate"
+            ? "Accurate"
+            : "Inaccurate"
       }`,
       passed: accuracyTest.accurate,
     });

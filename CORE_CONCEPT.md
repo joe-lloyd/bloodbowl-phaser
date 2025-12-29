@@ -2,10 +2,10 @@
 
 ## 1. Game Basics
 
-* 2 players, each controls a fantasy football team.
-* Played on a pitch of 15x26 squares.
-* Goal: score touchdowns by getting the ball into the opponent’s end zone.
-* Matches last **16 turns total** (8 per half, per team).
+- 2 players, each controls a fantasy football team.
+- Played on a pitch of 15x26 squares.
+- Goal: score touchdowns by getting the ball into the opponent’s end zone.
+- Matches last **16 turns total** (8 per half, per team).
 
 ---
 
@@ -15,14 +15,13 @@ You take **one full turn**, then opponent takes one turn, repeat.
 
 ### Your turn ends when
 
-* You voluntarily finish it
-* A turnover happens:
-
-  * Player falls over
-  * Failed pick-up
-  * Failed pass/catch
-  * Failed hand-off
-  * Touchdown (resets next drive)
+- You voluntarily finish it
+- A turnover happens:
+  - Player falls over
+  - Failed pick-up
+  - Failed pass/catch
+  - Failed hand-off
+  - Touchdown (resets next drive)
 
 ---
 
@@ -45,27 +44,27 @@ Each player model can take **1 Action per turn**:
 
 ### Blocks
 
-* Roll **Block dice** (1–3 dice, depends on strength advantage)
-* Results include:
+- Roll **Block dice** (1–3 dice, depends on strength advantage)
+- Results include:
+  - **Attacker Down**, **Both Down**, **Push**, **Pow (Knockdown)**, **Defender Stumbles**
 
-  * **Attacker Down**, **Both Down**, **Push**, **Pow (Knockdown)**, **Defender Stumbles**
-* Armor (AV) roll follows a knockdown to see if they get injured.
+- Armor (AV) roll follows a knockdown to see if they get injured.
 
 ### Ball Play
 
-* Pick-up, catch, pass, hand-off all use **AG (Agility)** rolls.
-* Passing distance modifies roll: Quick, Short, Long, Bomb.
+- Pick-up, catch, pass, hand-off all use **AG (Agility)** rolls.
+- Passing distance modifies roll: Quick, Short, Long, Bomb.
 
 ### Skills
 
 Players start with permanent skills like:
 
-* **Dodge**, **Block**, **Sure Hands**, **Pass**, etc.
+- **Dodge**, **Block**, **Sure Hands**, **Pass**, etc.
 
 Re-rolls:
 
-* **Team Re-Rolls**: global, limited per half.
-* **Skill Re-Rolls**: built-in, only for that action (e.g., Dodge skill re-rolls dodges).
+- **Team Re-Rolls**: global, limited per half.
+- **Skill Re-Rolls**: built-in, only for that action (e.g., Dodge skill re-rolls dodges).
 
 ---
 
@@ -82,21 +81,20 @@ Re-rolls:
 
 ## 1. Roster Creation
 
-* You get **1,000,000 gold** to build a team.
-* Buy:
-
-  * Players (positionals + linemen)
-  * Team Re-Rolls
-  * Staff: Coaches, Cheerleaders
-  * Apothecary (save an injured player **once per game**)
-  * Dedicated Fans
-  * (Optional) inducements if underdog
+- You get **1,000,000 gold** to build a team.
+- Buy:
+  - Players (positionals + linemen)
+  - Team Re-Rolls
+  - Staff: Coaches, Cheerleaders
+  - Apothecary (save an injured player **once per game**)
+  - Dedicated Fans
+  - (Optional) inducements if underdog
 
 ### Common structure
 
-* 11 players minimum (16 max)
-* 2–4 positionals, rest linemen
-* 2–3 re-rolls usually ideal
+- 11 players minimum (16 max)
+- 2–4 positionals, rest linemen
+- 2–3 re-rolls usually ideal
 
 ### Example buys
 
@@ -129,9 +127,9 @@ League bonus SPP may apply.
 
 When reaching thresholds (6, 16, 31, 51, 76 SPP) you can:
 
-* Roll a random skill from categories available to that position
-* Or take a **Primary skill** of choice (or Secondary for double cost)
-* Or roll a **stat increase** if offered (Movement, Strength, Agility, Armor)
+- Roll a random skill from categories available to that position
+- Or take a **Primary skill** of choice (or Secondary for double cost)
+- Or roll a **stat increase** if offered (Movement, Strength, Agility, Armor)
 
 ---
 
@@ -152,21 +150,21 @@ After game sequence:
 
 ## 1. League Structure
 
-* Matches scheduled across a season.
-* Your team persists between games.
+- Matches scheduled across a season.
+- Your team persists between games.
 
 ### Key elements
 
-* **Treasury** (gold you save or spend)
-* **Team Value (TV)** grows as players level and you hire stuff.
-* **Injuries** can be permanent.
-* **Name players**, track stats, build legends.
+- **Treasury** (gold you save or spend)
+- **Team Value (TV)** grows as players level and you hire stuff.
+- **Injuries** can be permanent.
+- **Name players**, track stats, build legends.
 
 ## 2. Inducements (Underdog bonuses)
 
 If your TV < opponent TV, you may spend the gap on:
 
-* Bribes, star players, extra apothecaries, special play cards, etc.
+- Bribes, star players, extra apothecaries, special play cards, etc.
 
 ---
 
@@ -191,11 +189,11 @@ If your TV < opponent TV, you may spend the gap on:
 
 ## 2. 7s Turn Order & Actions
 
-* Turn order is the same: 1 team turn each, alternating.
-* Actions per player are the same:
+- Turn order is the same: 1 team turn each, alternating.
+- Actions per player are the same:
+  - Move, Block, Blitz, Pass, Hand-off, Foul
 
-  * Move, Block, Blitz, Pass, Hand-off, Foul
-* **Turnovers** also work the same.
+- **Turnovers** also work the same.
 
 ---
 
@@ -203,17 +201,17 @@ If your TV < opponent TV, you may spend the gap on:
 
 ## 1. Team creation rules
 
-* **600k gold**
-* **11 players max** on roster
-* Must field **exactly 7**
-* Team re-rolls and staff are cheaper at creation **BUT grow in cost later** like standard.
+- **600k gold**
+- **11 players max** on roster
+- Must field **exactly 7**
+- Team re-rolls and staff are cheaper at creation **BUT grow in cost later** like standard.
 
 ## 2. Typical optimal 7s build
 
-* 7 core players
-* 2–3 bench linemen (cheap)
-* 1–2 re-rolls (you can’t afford 3 usually)
-* Apothecary is optional, often skipped early leagues due to low gold.
+- 7 core players
+- 2–3 bench linemen (cheap)
+- 1–2 re-rolls (you can’t afford 3 usually)
+- Apothecary is optional, often skipped early leagues due to low gold.
 
 ---
 
@@ -221,12 +219,12 @@ If your TV < opponent TV, you may spend the gap on:
 
 ## 1. Earning SPP is the same
 
-* TD 3 | CAS 2 | Completion 1 | MVP 4
+- TD 3 | CAS 2 | Completion 1 | MVP 4
 
 ## 2. Level ups are more random
 
-* Cannot choose skills freely like Standard.
-* Usually roll **random primary skills** unless league allows house options.
+- Cannot choose skills freely like Standard.
+- Usually roll **random primary skills** unless league allows house options.
 
 ## 3. Post-game sequence is the same
 
@@ -243,12 +241,12 @@ If your TV < opponent TV, you may spend the gap on:
 
 ## 1. League roster cap & escalation
 
-* Rosters smaller, games faster.
-* TV escalates slower.
-* Underdog inducements exist but budget is tiny so star players are rare.
+- Rosters smaller, games faster.
+- TV escalates slower.
+- Underdog inducements exist but budget is tiny so star players are rare.
 
 ## 2. Meta differences
 
-* More passing plays (due to open pitch)
-* Positionals matter more (each player is ~14% of roster)
-* Fouls are stronger (less players means removals hit harder)
+- More passing plays (due to open pitch)
+- Positionals matter more (each player is ~14% of roster)
+- Fouls are stronger (less players means removals hit harder)

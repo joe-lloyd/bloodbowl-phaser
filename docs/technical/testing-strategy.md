@@ -11,7 +11,7 @@ This document outlines the testing strategy for the Blood Bowl Phaser.js project
        /  \      E2E Tests (Few)
       /____\     - Full game scenarios
      /      \    - Critical user paths
-    /        \   
+    /        \
    /__________\  Integration Tests (Some)
   /            \ - Component interactions
  /              \- State transitions
@@ -25,15 +25,18 @@ This document outlines the testing strategy for the Blood Bowl Phaser.js project
 ## 🧪 Test Types
 
 ### Unit Tests
+
 **Purpose**: Test individual functions and classes in isolation
 
 **Characteristics**:
+
 - Fast (< 1ms per test)
 - No dependencies on Phaser
 - No file I/O or network
 - Deterministic
 
 **What to Test**:
+
 - Validators (SetupValidator, ActionValidator)
 - Utilities (GridUtils)
 - Pure business logic
@@ -41,15 +44,16 @@ This document outlines the testing strategy for the Blood Bowl Phaser.js project
 - Type guards
 
 **Example**:
+
 ```typescript
-describe('GridUtils', () => {
-  describe('screenToGrid', () => {
-    it('should convert screen coordinates to grid coordinates', () => {
+describe("GridUtils", () => {
+  describe("screenToGrid", () => {
+    it("should convert screen coordinates to grid coordinates", () => {
       const result = GridUtils.screenToGrid(100, 100);
       expect(result).toEqual({ gridX: 2, gridY: 2 });
     });
 
-    it('should handle negative coordinates', () => {
+    it("should handle negative coordinates", () => {
       const result = GridUtils.screenToGrid(-50, -50);
       expect(result).toEqual({ gridX: -1, gridY: -1 });
     });
@@ -58,34 +62,38 @@ describe('GridUtils', () => {
 ```
 
 ### Integration Tests
+
 **Purpose**: Test how components work together
 
 **Characteristics**:
+
 - Moderate speed (< 100ms per test)
 - May use mocked Phaser
 - Test multiple components
 - Test state transitions
 
 **What to Test**:
+
 - GameStateManager with validators
 - Scene transitions
 - Service interactions (after refactoring)
 - Event flow
 
 **Example**:
+
 ```typescript
-describe('Setup Phase Integration', () => {
+describe("Setup Phase Integration", () => {
   let gameState: GameStateManager;
   let team1: Team;
   let team2: Team;
 
   beforeEach(() => {
-    team1 = createTestTeam('Team 1');
-    team2 = createTestTeam('Team 2');
+    team1 = createTestTeam("Team 1");
+    team2 = createTestTeam("Team 2");
     gameState = new GameStateManager(team1, team2);
   });
 
-  it('should complete setup when both teams place all players', () => {
+  it("should complete setup when both teams place all players", () => {
     // Place 7 players for team 1
     for (let i = 0; i < 7; i++) {
       gameState.placePlayer(team1.players[i].id, i, 5);
@@ -105,35 +113,39 @@ describe('Setup Phase Integration', () => {
 ```
 
 ### End-to-End Tests
+
 **Purpose**: Test complete user workflows
 
 **Characteristics**:
+
 - Slower (< 1s per test)
 - Test full scenarios
 - May use real Phaser (headless)
 - Test critical paths
 
 **What to Test**:
+
 - Complete game setup
 - Full turn execution
 - Touchdown scoring
 - Game completion
 
 **Example**:
+
 ```typescript
-describe('Complete Game Flow', () => {
-  it('should play through setup to first turn', async () => {
+describe("Complete Game Flow", () => {
+  it("should play through setup to first turn", async () => {
     const game = await createTestGame();
-    
+
     // Setup phase
     await game.selectTeams(team1, team2);
     await game.performCoinFlip();
     await game.placeAllPlayers();
     await game.confirmSetup();
-    
+
     // Kickoff
     await game.performKickoff();
-    
+
     // First turn
     expect(game.getPhase()).toBe(GamePhase.PLAY);
     expect(game.getCurrentTurn()).toBe(1);
@@ -144,17 +156,20 @@ describe('Complete Game Flow', () => {
 ## 🛠️ Testing Tools
 
 ### Vitest
+
 - Primary test runner
 - Fast, modern, TypeScript-first
 - Built-in coverage
 - Watch mode for TDD
 
 ### jsdom
+
 - Browser environment simulation
 - DOM manipulation testing
 - Event handling
 
 ### Custom Test Utilities
+
 - Test builders (TeamBuilder, PlayerBuilder)
 - Custom matchers
 - Phaser mocks
@@ -163,6 +178,7 @@ describe('Complete Game Flow', () => {
 ## 📋 Test Organization
 
 ### File Naming
+
 ```
 src/utils/GridUtils.ts
 __tests__/unit/utils/GridUtils.test.ts
@@ -172,14 +188,15 @@ __tests__/integration/game/GameStateManager.test.ts
 ```
 
 ### Test Structure (AAA Pattern)
+
 ```typescript
-it('should do something', () => {
+it("should do something", () => {
   // Arrange - Set up test data
   const input = createTestInput();
-  
+
   // Act - Execute the code under test
   const result = functionUnderTest(input);
-  
+
   // Assert - Verify the result
   expect(result).toBe(expected);
 });
@@ -188,12 +205,14 @@ it('should do something', () => {
 ## 🎯 Coverage Targets
 
 ### Overall Coverage
+
 - **Statements**: 80%+
 - **Branches**: 75%+
 - **Functions**: 80%+
 - **Lines**: 80%+
 
 ### Per-Component Targets
+
 - **Services**: 90%+ (after refactoring)
 - **Validators**: 95%+
 - **Utilities**: 90%+
@@ -203,6 +222,7 @@ it('should do something', () => {
 ## 🔧 Mocking Strategy
 
 ### Phaser Mocking
+
 ```typescript
 // Mock Phaser scene
 class MockScene {
@@ -211,11 +231,11 @@ class MockScene {
     text: vi.fn(),
     container: vi.fn(),
   };
-  
+
   make = {
     graphics: vi.fn(),
   };
-  
+
   scene = {
     start: vi.fn(),
     stop: vi.fn(),
@@ -224,6 +244,7 @@ class MockScene {
 ```
 
 ### Service Mocking (Future)
+
 ```typescript
 const mockGameService: IGameService = {
   startGame: vi.fn(),
@@ -236,6 +257,7 @@ const mockGameService: IGameService = {
 ## 🏗️ Test Fixtures
 
 ### Team Fixtures
+
 ```typescript
 export const createTestTeam = (name: string): Team => ({
   id: `team-${Date.now()}`,
@@ -249,11 +271,12 @@ export const createTestTeam = (name: string): Team => ({
 ```
 
 ### Player Fixtures
+
 ```typescript
 export const createTestPlayer = (overrides?: Partial<Player>): Player => ({
   id: `player-${Date.now()}`,
-  name: 'Test Player',
-  position: 'Lineman',
+  name: "Test Player",
+  position: "Lineman",
   number: 1,
   stats: { MA: 5, ST: 3, AG: 3, PA: 4, AV: 9 },
   skills: [],
@@ -263,6 +286,7 @@ export const createTestPlayer = (overrides?: Partial<Player>): Player => ({
 ```
 
 ### Game State Fixtures
+
 ```typescript
 export const createTestGameState = (
   phase: GamePhase = GamePhase.SETUP
@@ -270,7 +294,7 @@ export const createTestGameState = (
   phase,
   activeTeamId: null,
   turn: {
-    teamId: '',
+    teamId: "",
     turnNumber: 1,
     isHalf2: false,
     activatedPlayerIds: new Set(),
@@ -286,6 +310,7 @@ export const createTestGameState = (
 ## 🚀 Running Tests
 
 ### Commands
+
 ```bash
 # Run all tests
 npm test
@@ -307,6 +332,7 @@ npm test -- --grep "setup"
 ```
 
 ### CI/CD Integration
+
 ```yaml
 # .github/workflows/test.yml
 name: Tests
@@ -325,6 +351,7 @@ jobs:
 ## ✅ Testing Checklist
 
 Before merging code, ensure:
+
 - [ ] All tests pass
 - [ ] New code has tests
 - [ ] Coverage targets met
@@ -336,6 +363,7 @@ Before merging code, ensure:
 ## 📚 Best Practices
 
 ### DO
+
 ✅ Write tests first (TDD when possible)
 ✅ Keep tests simple and focused
 ✅ Use descriptive test names
@@ -345,6 +373,7 @@ Before merging code, ensure:
 ✅ Keep tests fast
 
 ### DON'T
+
 ❌ Test implementation details
 ❌ Write brittle tests
 ❌ Use real Phaser in unit tests

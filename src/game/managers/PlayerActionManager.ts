@@ -4,7 +4,10 @@ import { ActionType, GameEventNames } from "@/types/events";
 import { Player, PlayerStatus } from "@/types/Player";
 
 export class PlayerActionManager {
-  constructor(private eventBus: IEventBus, private state: GameState) {}
+  constructor(
+    private eventBus: IEventBus,
+    private state: GameState
+  ) {}
 
   /**
    * Attempt to declare an action for a player

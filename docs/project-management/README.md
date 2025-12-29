@@ -7,6 +7,7 @@ This directory contains the project management documentation for the Blood Bowl 
 ## 🎯 Project Vision
 
 Create a high-quality, modular Blood Bowl Sevens game with:
+
 - **Modularity**: Clean separation of concerns with reusable components
 - **Testability**: Comprehensive test coverage for all game logic
 - **Maintainability**: Clear documentation and well-structured code
@@ -15,6 +16,7 @@ Create a high-quality, modular Blood Bowl Sevens game with:
 ## 📊 Current Status
 
 ### ✅ Completed Features
+
 - Basic game setup and scene management
 - Team builder and team selection
 - Player placement and setup phase
@@ -24,6 +26,7 @@ Create a high-quality, modular Blood Bowl Sevens game with:
 - Pitch rendering and grid system
 
 ### 🚧 In Progress
+
 - Refactoring for modularity and testability
 - Comprehensive test coverage
 - Technical documentation
@@ -31,34 +34,40 @@ Create a high-quality, modular Blood Bowl Sevens game with:
 ## 🗺️ Roadmap
 
 ### Phase 1: Foundation & Refactoring (Current)
+
 1. [Project Structure & Documentation](./tasks/01-project-structure.md) - **IN PROGRESS**
 2. [Core Architecture Refactoring](./tasks/02-architecture-refactoring.md)
 3. [Testing Infrastructure](./tasks/03-testing-infrastructure.md)
 
 ### Phase 2: Core Gameplay Mechanics
+
 4. [Movement System](./tasks/04-movement-system.md)
 5. [Blocking System](./tasks/05-blocking-system.md)
 6. [Ball Mechanics](./tasks/06-ball-mechanics.md)
 7. [Action System](./tasks/07-action-system.md)
 
 ### Phase 3: Advanced Gameplay
+
 8. [Skills System](./tasks/08-skills-system.md)
 9. [Dice Rolling & Probability](./tasks/09-dice-system.md)
 10. [Turnover System](./tasks/10-turnover-system.md)
 11. [Kickoff Events](./tasks/11-kickoff-events.md)
 
 ### Phase 4: Team Management
+
 12. [Roster Management](./tasks/12-roster-management.md)
 13. [Player Progression](./tasks/13-player-progression.md)
 14. [Injury System](./tasks/14-injury-system.md)
 
 ### Phase 5: Polish & Features
+
 15. [AI Opponent](./tasks/15-ai-opponent.md)
 16. [Replay System](./tasks/16-replay-system.md)
 17. [Statistics & Analytics](./tasks/17-statistics.md)
 18. [UI/UX Improvements](./tasks/18-ui-ux-improvements.md)
 
 ### Phase 6: Multiplayer & Deployment
+
 19. [Multiplayer Support](./tasks/19-multiplayer.md)
 20. [Deployment & Distribution](./tasks/20-deployment.md)
 
@@ -96,6 +105,7 @@ docs/
 ## 📝 Task File Format
 
 Each task file contains:
+
 - **Status**: Not Started / In Progress / Completed / Blocked
 - **Priority**: High / Medium / Low
 - **Dependencies**: What must be completed first

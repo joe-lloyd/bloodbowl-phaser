@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟡 Medium  
 **Phase**: 4 - Team Management  
-**Dependencies**: [Task 05](./05-blocking-system.md)  
+**Dependencies**: [Task 05](./05-blocking-system.md)
 
 ## 📝 Description
 

@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟢 Low  
 **Phase**: 6 - Multiplayer & Deployment  
-**Dependencies**: All features complete  
+**Dependencies**: All features complete
 
 ## 📝 Description
 

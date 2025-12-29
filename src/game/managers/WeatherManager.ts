@@ -3,7 +3,10 @@ import { GameState } from "@/types/GameState";
 import { GameEventNames } from "../../types/events";
 
 export class WeatherManager {
-  constructor(private eventBus: IEventBus, private state: GameState) {}
+  constructor(
+    private eventBus: IEventBus,
+    private state: GameState
+  ) {}
 
   public rollWeather(): string {
     const d6 = () => Math.floor(Math.random() * 6) + 1;

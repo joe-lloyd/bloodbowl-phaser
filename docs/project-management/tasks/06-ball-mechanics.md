@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🔴 High  
 **Phase**: 2 - Core Gameplay Mechanics  
-**Dependencies**: [Task 04](./04-movement-system.md)  
+**Dependencies**: [Task 04](./04-movement-system.md)
 
 ## 📝 Description
 
@@ -33,12 +33,14 @@ Implement complete ball mechanics including pickup, passing, catching, scatterin
 ## 📋 Blood Bowl Ball Rules
 
 ### Pickup
+
 - Requires AG roll (2D6 ≥ target)
 - Modified by tackle zones (-1 per zone)
 - Sure Hands skill allows re-roll
 - Failure causes turnover and scatter
 
 ### Passing
+
 - Range modifiers:
   - Quick (≤ 3 squares): +1
   - Short (4-6 squares): 0
@@ -49,12 +51,14 @@ Implement complete ball mechanics including pickup, passing, catching, scatterin
 - Fumble: scatters 3 times
 
 ### Catching
+
 - Requires AG roll
 - Modified by tackle zones
 - Catch skill allows re-roll
 - Failure causes scatter and turnover
 
 ### Scatter
+
 - Roll D8 for direction
 - Roll D6 for distance (if applicable)
 - Ball bounces if hits player
@@ -63,21 +67,23 @@ Implement complete ball mechanics including pickup, passing, catching, scatterin
 ## 🔧 Implementation Details
 
 ### BallService
+
 ```typescript
 interface IBallService {
-  pickup(playerId: string): PickupResult
-  pass(playerId: string, target: GridPosition): PassResult
-  catch(playerId: string): CatchResult
-  handoff(fromId: string, toId: string): HandoffResult
-  scatter(): ScatterResult
-  getBallPosition(): GridPosition
-  getBallCarrier(): Player | null
+  pickup(playerId: string): PickupResult;
+  pass(playerId: string, target: GridPosition): PassResult;
+  catch(playerId: string): CatchResult;
+  handoff(fromId: string, toId: string): HandoffResult;
+  scatter(): ScatterResult;
+  getBallPosition(): GridPosition;
+  getBallCarrier(): Player | null;
 }
 ```
 
 ## 🧪 Testing Requirements
 
 ### Unit Tests
+
 - [ ] Pickup mechanics
 - [ ] Pass range calculation
 - [ ] Catch mechanics
@@ -85,6 +91,7 @@ interface IBallService {
 - [ ] Hand-off validation
 
 ### Integration Tests
+
 - [ ] Full passing sequence
 - [ ] Failed catch causing scatter
 - [ ] Pickup from ground

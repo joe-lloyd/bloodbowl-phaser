@@ -1,13 +1,14 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
 interface ParchmentProps {
-  $intensity?: 'low' | 'high';
+  $intensity?: "low" | "high";
   children?: ReactNode;
 }
 
-const Parchment = ({ $intensity = 'high' }: ParchmentProps) => {
-  const shadowClass = $intensity === 'low' ? 'shadow-parchment-light' : 'shadow-parchment';
-  const positionClass = $intensity === 'low' ? 'absolute' : 'fixed';
+const Parchment = ({ $intensity = "high" }: ParchmentProps) => {
+  const shadowClass =
+    $intensity === "low" ? "shadow-parchment-light" : "shadow-parchment";
+  const positionClass = $intensity === "low" ? "absolute" : "fixed";
 
   return (
     <div
@@ -42,10 +43,9 @@ const Parchment = ({ $intensity = 'high' }: ParchmentProps) => {
             transparent 50%
           )
         `,
-        backgroundBlendMode: 'multiply'
+        backgroundBlendMode: "multiply",
       }}
-    >
-    </div>
+    ></div>
   );
 };
 

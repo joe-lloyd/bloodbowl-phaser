@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟡 Medium  
 **Phase**: 2 - Core Gameplay Mechanics  
-**Dependencies**: [Task 04](./04-movement-system.md), [Task 05](./05-blocking-system.md), [Task 06](./06-ball-mechanics.md)  
+**Dependencies**: [Task 04](./04-movement-system.md), [Task 05](./05-blocking-system.md), [Task 06](./06-ball-mechanics.md)
 
 ## 📝 Description
 
@@ -30,12 +30,14 @@ Implement the complete action system including blitz, foul, and special actions 
 ## 📋 Blood Bowl Action Rules
 
 ### Blitz
+
 - One per team per turn
 - Player can move and make one block during movement
 - Block can occur at any point in movement
 - Movement continues after block if player still standing
 
 ### Foul
+
 - One per team per turn
 - Target must be prone (down)
 - Roll armor + 1 for each assist

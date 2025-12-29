@@ -25,12 +25,12 @@ We use **Vitest** for all testing (Unit, Integration) and it is configured to mi
 If you need to test a Scene or GameObject dependent class, use the mocks from `mocks/phaser-mocks.ts`.
 
 ```typescript
-import { MockScene } from '../mocks/phaser-mocks';
+import { MockScene } from "../mocks/phaser-mocks";
 
-it('should add sprite', () => {
-    const scene = new MockScene();
-    const sprite = scene.add.sprite(0, 0, 'tex');
-    expect(sprite).toBeDefined();
+it("should add sprite", () => {
+  const scene = new MockScene();
+  const sprite = scene.add.sprite(0, 0, "tex");
+  expect(sprite).toBeDefined();
 });
 ```
 
@@ -39,7 +39,7 @@ it('should add sprite', () => {
 Use builders to create consistent test data.
 
 ```typescript
-import { TeamBuilder } from '../utils/test-builders';
+import { TeamBuilder } from "../utils/test-builders";
 
 const team = new TeamBuilder().withRace(TeamRace.ORC).build();
 ```
@@ -49,7 +49,7 @@ const team = new TeamBuilder().withRace(TeamRace.ORC).build();
 Use helper utilities execution.
 
 ```typescript
-import { wait, flushPromises } from '../utils/test-helpers';
+import { wait, flushPromises } from "../utils/test-helpers";
 
 await wait(100);
 ```

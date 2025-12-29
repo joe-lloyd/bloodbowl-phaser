@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🔴 High  
 **Phase**: 4 - Infrastructure  
-**Dependencies**: None (Can run in parallel with other tasks)  
+**Dependencies**: None (Can run in parallel with other tasks)
 
 ## 📝 Description
 
@@ -159,25 +159,22 @@ src/
 ```typescript
 // Event payload type definitions
 interface GameEvents {
-  'team:updated': { team: Team };
-  'player:selected': { playerId: string };
-  'game:stateChanged': { phase: GamePhase };
-  'ui:playerHired': { position: string };
-  'ui:actionSelected': { action: ActionType; playerId: string };
+  "team:updated": { team: Team };
+  "player:selected": { playerId: string };
+  "game:stateChanged": { phase: GamePhase };
+  "ui:playerHired": { position: string };
+  "ui:actionSelected": { action: ActionType; playerId: string };
 }
 
 // Type-safe event bus
 class GameEventBus {
-  emit<K extends keyof GameEvents>(
-    event: K,
-    data: GameEvents[K]
-  ): void;
-  
+  emit<K extends keyof GameEvents>(event: K, data: GameEvents[K]): void;
+
   on<K extends keyof GameEvents>(
     event: K,
     handler: (data: GameEvents[K]) => void
   ): void;
-  
+
   off<K extends keyof GameEvents>(
     event: K,
     handler: (data: GameEvents[K]) => void
@@ -202,15 +199,15 @@ export function useEventBus<K extends keyof GameEvents>(
 // Usage in component
 function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
-  
+
   useEventBus('team:updated', (data) => {
     setTeam(data.team);
   });
-  
+
   const hirePlayer = (position: string) => {
     eventBus.emit('ui:playerHired', { position });
   };
-  
+
   return <div>{/* UI */}</div>;
 }
 ```

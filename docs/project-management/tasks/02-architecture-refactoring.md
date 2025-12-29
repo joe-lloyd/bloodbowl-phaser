@@ -3,7 +3,7 @@
 **Status**: ✅ COMPLETE  
 **Priority**: 🔴 High  
 **Phase**: 1 - Foundation & Refactoring  
-**Dependencies**: [Task 01](./01-project-structure.md)  
+**Dependencies**: [Task 01](./01-project-structure.md)
 
 ## 📝 Description
 
@@ -175,7 +175,7 @@ class GameScene extends Phaser.Scene {
     private teamService: ITeamService,
     private eventBus: IEventBus
   ) {
-    super('GameScene');
+    super("GameScene");
   }
 }
 ```
@@ -184,10 +184,10 @@ class GameScene extends Phaser.Scene {
 
 ```typescript
 // Publisher
-eventBus.emit('player:selected', { playerId: '123' });
+eventBus.emit("player:selected", { playerId: "123" });
 
 // Subscriber
-eventBus.on('player:selected', (data) => {
+eventBus.on("player:selected", (data) => {
   this.updatePlayerInfo(data.playerId);
 });
 ```

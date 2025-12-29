@@ -23,7 +23,7 @@ The controller should expose methods for specific Blood Bowl ball physics:
 
 - **`scatter()`**: Moves ball 1 square in random d8 direction. Used for inaccurate passes or failed pickups.
 - **`bounce()`**: Similar to scatter, but happens when ball hits ground.
-  - *Chain Reaction*: If it bounces onto a player -> Attempt Catch. If fail -> Bounce again.
+  - _Chain Reaction_: If it bounces onto a player -> Attempt Catch. If fail -> Bounce again.
 
 #### B. Passing
 
@@ -56,23 +56,23 @@ The controller should emit granular events for the UI to animate:
 
 ```typescript
 interface BallState {
-    position: { x: number, y: number };
-    holderId: string | null;
-    status: 'GROUND' | 'AIR' | 'HELD';
+  position: { x: number; y: number };
+  holderId: string | null;
+  status: "GROUND" | "AIR" | "HELD";
 }
 
 class BallManager {
-    constructor(private eventBus: EventBus) {}
+  constructor(private eventBus: EventBus) {}
 
-    // Actions
-    public pickup(player: Player): boolean; // The logic we just wrote
-    public drop(position: {x, y}): void;   // Place on ground
-    public scatter(from: {x, y}): {x, y};  // Random d8
-    public throwIn(lastSquare: {x, y}): {x, y}; // 2d6 template
-    
-    // Queries
-    public getHolder(): string | null;
-    public isAt(x: number, y: number): boolean;
+  // Actions
+  public pickup(player: Player): boolean; // The logic we just wrote
+  public drop(position: { x; y }): void; // Place on ground
+  public scatter(from: { x; y }): { x; y }; // Random d8
+  public throwIn(lastSquare: { x; y }): { x; y }; // 2d6 template
+
+  // Queries
+  public getHolder(): string | null;
+  public isAt(x: number, y: number): boolean;
 }
 ```
 

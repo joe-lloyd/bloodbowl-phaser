@@ -18,7 +18,7 @@ graph TD
     E -->|Teams Selected| F[SetupScene]
     F -->|Setup Complete| G[GameScene]
     G -->|Back to Menu| B
-    
+
     style A fill:#e1f5ff
     style B fill:#fff4e1
     style C fill:#ffe1f5
@@ -31,9 +31,11 @@ graph TD
 ## Scene Details
 
 ### BootScene
+
 **Purpose**: Initial game loading and setup
 
 **Responsibilities**:
+
 - Initialize Phaser
 - Load initial assets
 - Set up global configurations
@@ -42,6 +44,7 @@ graph TD
 **Data Passed**: None
 
 **Lifecycle**:
+
 ```typescript
 create() {
   // Load assets
@@ -53,15 +56,18 @@ create() {
 ---
 
 ### MenuScene
+
 **Purpose**: Main menu and navigation hub
 
 **Responsibilities**:
+
 - Display game title and options
 - Navigate to team management
 - Start quick match
 - Show settings (future)
 
 **UI Elements**:
+
 - Title text
 - "New Game" button → TeamSelectScene
 - "Manage Teams" button → TeamManagementScene
@@ -73,29 +79,35 @@ create() {
 ---
 
 ### TeamManagementScene
+
 **Purpose**: View and manage existing teams
 
 **Responsibilities**:
+
 - List all saved teams
 - Edit existing teams
 - Delete teams
 - Navigate to team builder
 
 **UI Elements**:
+
 - Team list
 - Edit buttons
 - Delete buttons
 - "Create New Team" button
 
 **Data Passed**:
+
 - To TeamBuilderScene: `{ team: Team }` (for editing)
 
 ---
 
 ### TeamBuilderScene
+
 **Purpose**: Create or edit a team
 
 **Responsibilities**:
+
 - Select roster type
 - Buy players
 - Purchase re-rolls
@@ -104,6 +116,7 @@ create() {
 - Save team
 
 **UI Elements**:
+
 - Roster selection
 - Player purchase UI
 - Budget display
@@ -111,12 +124,15 @@ create() {
 - Save/Cancel buttons
 
 **Data Received**:
+
 - `{ team?: Team }` (if editing existing team)
 
 **Data Passed**:
+
 - Back to TeamManagementScene: Updated team saved
 
 **Validation**:
+
 - Must have 7-11 players
 - Cannot exceed 600k budget
 - Valid roster selection
@@ -124,9 +140,11 @@ create() {
 ---
 
 ### TeamSelectScene
+
 **Purpose**: Select two teams for a match
 
 **Responsibilities**:
+
 - Display available teams
 - Select team 1
 - Select team 2
@@ -134,20 +152,24 @@ create() {
 - Proceed to setup
 
 **UI Elements**:
+
 - Team 1 selection dropdown
 - Team 2 selection dropdown
 - Team preview panels
 - "Start Match" button
 
 **Data Passed**:
+
 - To SetupScene: `{ team1: Team, team2: Team }`
 
 ---
 
 ### SetupScene
+
 **Purpose**: Pre-game setup and player placement
 
 **Responsibilities**:
+
 - Perform coin flip for kickoff
 - Allow player placement
 - Validate formations
@@ -155,6 +177,7 @@ create() {
 - Transition to game
 
 **UI Elements**:
+
 - Pitch grid
 - Player dugouts
 - Formation selector
@@ -162,10 +185,12 @@ create() {
 - Placement indicators
 
 **Data Received**:
+
 - `{ team1: Team, team2: Team }`
 
 **Data Passed**:
-- To GameScene: 
+
+- To GameScene:
   ```typescript
   {
     team1: Team,
@@ -177,6 +202,7 @@ create() {
   ```
 
 **Setup Flow**:
+
 1. Coin flip determines kicking team
 2. Receiving team places players first
 3. Kicking team places players
@@ -186,9 +212,11 @@ create() {
 ---
 
 ### GameScene
+
 **Purpose**: Main gameplay
 
 **Responsibilities**:
+
 - Display pitch and players
 - Handle player selection
 - Manage turns
@@ -198,6 +226,7 @@ create() {
 - Handle game end
 
 **UI Elements**:
+
 - Pitch with grid
 - Player sprites
 - Turn indicator
@@ -207,6 +236,7 @@ create() {
 - End turn button
 
 **Data Received**:
+
 ```typescript
 {
   team1: Team,
@@ -218,6 +248,7 @@ create() {
 ```
 
 **Game Loop**:
+
 1. Display initial setup
 2. Perform kickoff
 3. Start first turn
@@ -232,18 +263,20 @@ create() {
 ## Scene Communication
 
 ### Starting a Scene
+
 ```typescript
 // Simple start
-this.scene.start('MenuScene');
+this.scene.start("MenuScene");
 
 // Start with data
-this.scene.start('SetupScene', {
+this.scene.start("SetupScene", {
   team1: selectedTeam1,
-  team2: selectedTeam2
+  team2: selectedTeam2,
 });
 ```
 
 ### Receiving Data
+
 ```typescript
 class SetupScene extends Phaser.Scene {
   init(data: { team1: Team; team2: Team }) {
@@ -254,9 +287,10 @@ class SetupScene extends Phaser.Scene {
 ```
 
 ### Stopping Scenes
+
 ```typescript
 // Stop current scene and start new one
-this.scene.start('GameScene', data);
+this.scene.start("GameScene", data);
 
 // Stop without starting new scene
 this.scene.stop();
@@ -275,12 +309,12 @@ class ExampleScene extends Phaser.Scene {
 
   // 2. Load assets (if needed)
   preload() {
-    this.load.image('sprite', 'path/to/sprite.png');
+    this.load.image("sprite", "path/to/sprite.png");
   }
 
   // 3. Create scene objects
   create() {
-    this.add.text(100, 100, 'Hello');
+    this.add.text(100, 100, "Hello");
   }
 
   // 4. Update every frame (if needed)
@@ -298,6 +332,7 @@ class ExampleScene extends Phaser.Scene {
 ## Best Practices
 
 ### DO
+
 ✅ Pass only necessary data between scenes
 ✅ Clean up event listeners in `shutdown()`
 ✅ Validate data in `init()`
@@ -305,6 +340,7 @@ class ExampleScene extends Phaser.Scene {
 ✅ Use GameStateManager for game logic
 
 ### DON'T
+
 ❌ Store game state in scenes
 ❌ Create circular scene dependencies
 ❌ Pass entire game state between scenes
@@ -314,6 +350,7 @@ class ExampleScene extends Phaser.Scene {
 ## Future Improvements
 
 ### Planned Enhancements
+
 1. **Scene Manager Service**: Centralized scene navigation
 2. **Scene Transitions**: Fade in/out effects
 3. **Loading Screens**: Show progress for asset loading

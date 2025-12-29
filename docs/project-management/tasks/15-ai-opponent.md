@@ -3,7 +3,7 @@
 **Status**: 📋 NOT STARTED  
 **Priority**: 🟡 Medium  
 **Phase**: 5 - Polish & Features  
-**Dependencies**: All core gameplay tasks  
+**Dependencies**: All core gameplay tasks
 
 ## 📝 Description
 
