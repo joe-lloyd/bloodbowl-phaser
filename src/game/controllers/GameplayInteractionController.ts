@@ -9,7 +9,7 @@ import { IEventBus } from "../../services/EventBus";
 import { Player } from "@/types";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
-import { ThrowController } from "./ThrowController";
+import { PassController } from "./PassController";
 
 export class GameplayInteractionController {
   private scene: GameScene;
@@ -42,8 +42,10 @@ export class GameplayInteractionController {
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
+  private currentStepId: string | null = null;
+  private actionSteps: { id: string; label: string }[] = [];
   private hasMovedInAction: boolean = false;
-  private throwController: ThrowController;
+  private passController: PassController;
 
   constructor(
     scene: GameScene,
@@ -58,7 +60,7 @@ export class GameplayInteractionController {
     this.pitch = pitch;
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
-    this.throwController = new ThrowController(eventBus);
+    this.passController = new PassController(eventBus);
 
     // Store handler reference for cleanup
     this.pushDirectionHandler = (data) => {
@@ -79,7 +81,32 @@ export class GameplayInteractionController {
 
     // Listen for player actions (Blitz, Stand Up)
     this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
+    this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
   }
+
+  private onStepSelected = (data: { stepId: string }) => {
+    // Validate step exists in current sequence
+    const stepExists = this.actionSteps.some((s) => s.id === data.stepId);
+    if (!stepExists) {
+      console.warn("Invalid step selected:", data.stepId);
+      return;
+    }
+
+    this.currentStepId = data.stepId;
+    console.log(`Switched action step to: ${data.stepId}`);
+
+    // Force refresh of hover state to update visualization
+    if (this.lastHoverGrid) {
+      this.onSquareHovered(this.lastHoverGrid.x, this.lastHoverGrid.y);
+    } else {
+      // Clear visuals if no hover
+      this.pitch.clearPassVisualization();
+      this.pitch.clearPath();
+      if (data.stepId === "move" && this.selectedPlayerId) {
+        this.selectPlayer(this.selectedPlayerId); // Re-draw move overlay
+      }
+    }
+  };
 
   private onActionSelected = async (data: {
     action: import("@/types/events").ActionType;
@@ -113,17 +140,68 @@ export class GameplayInteractionController {
       this.currentActionMode = data.action;
       this.hasMovedInAction = false;
 
-      console.log("Action declared successfully:", data.action);
+      // Define steps based on action
+      this.actionSteps = [];
+      const defaultStep = "move";
 
-      // Emit ActionModeChanged event for UI
-      if (data.action === "pass") {
-        console.log("Emitting ActionModeChanged event for pass action");
-        this.eventBus.emit(GameEventNames.ActionModeChanged, {
-          playerId: data.playerId,
-          action: data.action,
-          autoSelectMove: true,
-        });
+      switch (data.action) {
+        case "pass":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "pass", label: "Pass" },
+          ];
+          break;
+        case "blitz":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "block", label: "Block" },
+          ];
+          break;
+        case "handoff":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "handoff", label: "Handoff" },
+          ];
+          break;
+        case "foul":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "foul", label: "Foul" },
+          ];
+          break;
+        case "throwTeamMate":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "ttm", label: "Throw Team Mate" },
+          ];
+          break;
+        // Secure Ball logic? Usually automatic, but stepper requested.
+        case "secureBall":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "secure", label: "Secure Ball" },
+          ];
+          break;
+        default:
+          // Single step actions (Move)
+          this.actionSteps = [{ id: "move", label: "Move" }];
+          break;
       }
+
+      this.currentStepId = defaultStep;
+
+      // Emit Step Info
+      this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+        steps: this.actionSteps,
+        currentStepId: this.currentStepId,
+      });
+
+      // Emit ActionModeChanged event for UI (Legacy?)
+      this.eventBus.emit(GameEventNames.ActionModeChanged, {
+        playerId: data.playerId,
+        action: data.action,
+        autoSelectMove: true,
+      });
 
       // Don't call selectPlayer here - it causes PlayerSelected event
       // which resets the action mode we just set!
@@ -208,6 +286,23 @@ export class GameplayInteractionController {
     // KICKOFF PHASE
     if (phase === GamePhase.KICKOFF) {
       this.handleKickoffClick(x, y, playerAtSquare);
+      return;
+    }
+
+    // PASS Execution (if in pass aiming mode)
+    if (
+      this.currentActionMode === "pass" &&
+      this.currentStepId === "pass" &&
+      this.selectedPlayerId
+    ) {
+      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
+        // Clicked self while passing -> Cancel / Switch back to move?
+        // Or just ignore. Let's ignore for now.
+        return;
+      }
+
+      // Execute Pass
+      this.gameService.throwBall(this.selectedPlayerId, x, y);
       return;
     }
 
@@ -336,20 +431,20 @@ export class GameplayInteractionController {
 
     // 3. Movement Path
     if (this.selectedPlayerId && !player) {
-      // Check if in pass mode
-      if (this.currentActionMode === "pass") {
+      // Check if in pass mode AND pass step
+      if (this.currentActionMode === "pass" && this.currentStepId === "pass") {
         const selectedPlayer = this.gameService.getPlayerById(
           this.selectedPlayerId
         );
         if (selectedPlayer && selectedPlayer.gridPosition) {
           // Draw pass zones
-          const ranges = this.throwController.getAllRanges(
+          const ranges = this.passController.getAllRanges(
             selectedPlayer.gridPosition
           );
           this.pitch.drawPassZones(selectedPlayer.gridPosition, ranges);
 
           // Draw pass line to cursor
-          const passRange = this.throwController.measureRange(
+          const passRange = this.passController.measureRange(
             selectedPlayer.gridPosition,
             { x, y }
           );
@@ -360,7 +455,8 @@ export class GameplayInteractionController {
           );
         }
       } else {
-        // Normal movement path
+        // Normal movement path (Move mode or default)
+        // Only draw if NOT in pass sub-action
         this.drawPath(x, y);
       }
     } else {
@@ -476,6 +572,8 @@ export class GameplayInteractionController {
 
     // Reset action mode state
     this.currentActionMode = null;
+    this.currentStepId = null;
+    this.actionSteps = [];
     this.hasMovedInAction = false;
     this.pitch.clearPassVisualization();
 
@@ -658,6 +756,7 @@ export class GameplayInteractionController {
       this.pushDirectionHandler
     );
     this.eventBus.off(GameEventNames.UI_ActionSelected, this.onActionSelected);
+    this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
 
     // Cleanup highlight manager
     if (this.highlightManager) {

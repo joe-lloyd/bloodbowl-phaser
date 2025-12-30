@@ -108,6 +108,8 @@ export enum GameEventNames {
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
   UI_FollowUpResponse = "ui:followUpResponse",
+  UI_UpdateActionSteps = "ui:updateActionSteps",
+  UI_StepSelected = "ui:stepSelected",
 
   // State Events
   TeamUpdated = "team:updated",
@@ -226,6 +228,7 @@ export interface GameEvents {
     passType: string;
     accurate: boolean;
     finalPosition: { x: number; y: number };
+    scatterPath?: { x: number; y: number }[];
   };
   [GameEventNames.PassCompleted]: {
     playerId: string;
@@ -274,7 +277,7 @@ export interface GameEvents {
   [GameEventNames.PassZoneHovered]: {
     playerId: string;
     targetSquare: { x: number; y: number };
-    passType: string; // PassType from ThrowController
+    passType: string; // PassType from PassController
   };
 
   // Game Flow
@@ -420,6 +423,15 @@ export interface UIEvents {
     attackerId: string;
     followUp: boolean;
     targetSquare?: { x: number; y: number };
+  };
+
+  [GameEventNames.UI_UpdateActionSteps]: {
+    currentStepId: string;
+    steps: { id: string; label: string }[];
+  };
+
+  [GameEventNames.UI_StepSelected]: {
+    stepId: string;
   };
 }
 

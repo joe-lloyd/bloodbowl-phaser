@@ -31,34 +31,6 @@ export class SceneOrchestrator {
 
   // ... (keeping structure)
 
-  private handleEvent(eventName: string, data?): void {
-    const callback = this.eventHandlers.get(eventName);
-    if (callback) {
-      callback(data);
-    }
-
-    switch (eventName) {
-      case GameEventNames.TurnStarted: {
-        // const turnData = data as { teamId: string; turnNumber: number };
-        // console.log(turnData);
-        this.scene.events.emit("score-update");
-        break;
-      }
-
-      case GameEventNames.Touchdown: {
-        const teamId = data as string;
-        this.gameService.addTouchdown(teamId);
-        break;
-      }
-
-      case GameEventNames.KickoffResult: {
-        const result = data as string;
-        console.log(result);
-        break;
-      }
-    }
-  }
-
   /**
    * Setup all event listeners for game flow
    */
@@ -403,6 +375,106 @@ export class SceneOrchestrator {
     };
     this.eventHandlers.set(GameEventNames.BallPlaced, onBallPlaced);
     this.eventBus.on(GameEventNames.BallPlaced, onBallPlaced);
+
+    // Pass Animation
+    const onPassAttempted = async (data: {
+      playerId: string;
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      passType: string;
+      accurate: boolean;
+      finalPosition: { x: number; y: number };
+      scatterPath?: { x: number; y: number }[];
+    }) => {
+      this.scene["placeBallVisual"](data.from.x, data.from.y);
+      const ballSprite = this.scene["ballSprite"];
+
+      if (!ballSprite) return;
+
+      // 2. Camera tracking
+      const passDuration = 800; // Base duration for flight
+      this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+        ballSprite,
+        animationDuration: passDuration + (data.scatterPath?.length || 0) * 300,
+      });
+
+      // 3. Animate Path
+      const path = data.scatterPath || [data.finalPosition];
+
+      let currentDelay = 0;
+
+      // Initial throw to first target (or only target)
+      const firstTarget = path[0];
+      const p1 = this.scene["pitch"].getPixelPosition(
+        firstTarget.x,
+        firstTarget.y
+      );
+
+      this.scene.tweens.add({
+        targets: ballSprite,
+        x: p1.x,
+        y: p1.y,
+        duration: passDuration,
+        ease: "Quad.easeInOut",
+        delay: currentDelay,
+        onStart: () => {
+          // Scale up for arc effect
+          this.scene.tweens.add({
+            targets: ballSprite,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            duration: passDuration / 2,
+            yoyo: true,
+            ease: "Sine.easeOut",
+          });
+        },
+      });
+
+      currentDelay += passDuration;
+
+      // Subsequent scatters
+      for (let i = 1; i < path.length; i++) {
+        const step = path[i];
+        const p = this.scene["pitch"].getPixelPosition(step.x, step.y);
+
+        this.scene.tweens.add({
+          targets: ballSprite,
+          x: p.x,
+          y: p.y,
+          duration: 300,
+          ease: "Bounce.easeOut",
+          delay: currentDelay,
+        });
+
+        currentDelay += 300;
+      }
+    };
+    this.eventHandlers.set(GameEventNames.PassAttempted, onPassAttempted);
+    this.eventBus.on(GameEventNames.PassAttempted, onPassAttempted);
+
+    // Fumble/Bounce Animation
+    const onPassFumbled = (data: {
+      playerId: string;
+      position: { x: number; y: number };
+      bouncePosition: { x: number; y: number };
+    }) => {
+      const ballSprite = this.scene["ballSprite"];
+      if (ballSprite) {
+        const target = this.scene["pitch"].getPixelPosition(
+          data.bouncePosition.x,
+          data.bouncePosition.y
+        );
+        this.scene.tweens.add({
+          targets: ballSprite,
+          x: target.x,
+          y: target.y,
+          duration: 400,
+          ease: "Bounce.easeOut",
+        });
+      }
+    };
+    this.eventHandlers.set(GameEventNames.PassFumbled, onPassFumbled);
+    this.eventBus.on(GameEventNames.PassFumbled, onPassFumbled);
   }
 
   /**

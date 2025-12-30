@@ -24,6 +24,8 @@ const mockPitch = {
   clearHighlights: vi.fn(),
   clearHover: vi.fn(),
   clearPassVisualization: vi.fn(),
+  drawPassZones: vi.fn(),
+  drawPassLine: vi.fn(),
 };
 
 const mockMovementValidator = {
@@ -57,6 +59,7 @@ const mockGameService = {
   selectKicker: vi.fn(),
   kickBall: vi.fn(),
   executePush: vi.fn(),
+  throwBall: vi.fn(),
 };
 
 describe("GameplayInteractionController", () => {
@@ -186,6 +189,98 @@ describe("GameplayInteractionController", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockScene.unhighlightPlayer).toHaveBeenCalled(); // Deselects after move
+    });
+  });
+
+  describe("Pass Action Stepper Logic", () => {
+    beforeEach(async () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.declareAction.mockReturnValue(true);
+
+      // Simulate generic Action Selected flow
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "pass",
+        playerId: "p1",
+      });
+    });
+
+    it("should initialize stepper sequence for Pass action", () => {
+      // Check event emission
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:updateActionSteps",
+        expect.objectContaining({
+          currentStepId: "move",
+          steps: [
+            { id: "move", label: "Move" },
+            { id: "pass", label: "Pass" },
+          ],
+        })
+      );
+    });
+
+    it("should default to 'move' step when Pass action is declared", () => {
+      // By default, we should be able to move
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+      });
+
+      controller.onSquareClicked(6, 5); // Add waypoint
+      expect(mockPitch.drawMovementPath).toHaveBeenCalled();
+      expect(mockGameService.throwBall).not.toHaveBeenCalled();
+    });
+
+    it("should switch to 'pass' step and show pass visuals", () => {
+      // Switch step
+      (controller as any).onStepSelected({ stepId: "pass" });
+
+      // Hovering should now trigger pass visualization
+      controller.onSquareHovered(7, 5);
+      expect(mockPitch.drawPassZones).toHaveBeenCalled();
+      expect(mockPitch.drawPassLine).toHaveBeenCalled();
+      expect(mockPitch.drawMovementPath).not.toHaveBeenCalled();
+    });
+
+    it("should execute throw when clicking in 'pass' step", () => {
+      // Switch to pass
+      (controller as any).onStepSelected({ stepId: "pass" });
+
+      // Click target
+      controller.onSquareClicked(10, 5);
+      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5);
+    });
+
+    it("should switch back to 'move' and allow movement", () => {
+      // Switch to pass then back to move
+      (controller as any).onStepSelected({ stepId: "pass" });
+      (controller as any).onStepSelected({ stepId: "move" });
+
+      // Click to move
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+      });
+      controller.onSquareClicked(6, 5);
+      expect(mockPitch.drawMovementPath).toHaveBeenCalled();
+      expect(mockGameService.throwBall).not.toHaveBeenCalled();
+    });
+
+    it("should ignore invalid steps", () => {
+      // Try to switch to invalid step
+      (controller as any).onStepSelected({ stepId: "invalid_step" });
+
+      // Should remain in 'move'
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+      });
+      controller.onSquareClicked(6, 5);
+      expect(mockPitch.drawMovementPath).toHaveBeenCalled();
     });
   });
 });

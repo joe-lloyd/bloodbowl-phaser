@@ -22,7 +22,7 @@ import { BlockManager } from "../game/managers/BlockManager";
 import { WeatherManager } from "../game/managers/WeatherManager";
 
 import { PlayerActionManager } from "../game/managers/PlayerActionManager";
-import { ThrowController } from "../game/controllers/ThrowController";
+import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
 
 export class GameService implements IGameService {
@@ -38,7 +38,7 @@ export class GameService implements IGameService {
   private blockManager: BlockManager;
   private weatherService: WeatherManager;
   private playerActionManager: PlayerActionManager;
-  private throwController: ThrowController;
+  private passController: PassController;
   private catchController: CatchController;
 
   // Validators
@@ -88,7 +88,7 @@ export class GameService implements IGameService {
     // Initialize Managers
     this.weatherService = new WeatherManager(eventBus, this.state);
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
-    this.throwController = new ThrowController(eventBus);
+    this.passController = new PassController(eventBus);
     this.catchController = new CatchController(eventBus);
 
     this.setupManager = new SetupManager(
@@ -342,6 +342,9 @@ export class GameService implements IGameService {
   /**
    * Execute a pass action
    */
+  /**
+   * Execute a pass action
+   */
   async throwBall(
     passerId: string,
     targetX: number,
@@ -365,7 +368,7 @@ export class GameService implements IGameService {
       return { success: false, result: "Player does not have the ball" };
     }
 
-    // Count marking opponents
+    // Count marking opponents for pass
     const opponentTeam =
       passer.teamId === this.team1.id ? this.team2 : this.team1;
     const markingOpponents = this.catchController.countMarkingOpponents(
@@ -380,8 +383,8 @@ export class GameService implements IGameService {
       targetY,
     });
 
-    // Attempt the pass
-    const passResult = this.throwController.attemptPass(
+    // --- 1. ATTEMPT PASS ---
+    const passResult = this.passController.attemptPass(
       passer,
       passer.gridPosition,
       { x: targetX, y: targetY },
@@ -395,57 +398,62 @@ export class GameService implements IGameService {
       return { success: false, result: "Pass fumbled" };
     }
 
-    // Check for interceptions if pass was not fumbled
-    if (passResult.success) {
-      const interceptors = this.throwController.checkInterceptions(
-        passer.gridPosition,
-        { x: targetX, y: targetY },
-        opponentTeam.players,
-        passResult.accurate
+    // --- 2. INTERCEPTIONS ---
+    // Only check interception if pass was successful (not fumbled)
+    // Note: Inaccurate passes can still be intercepted along the path to the scatter point?
+    // Rules say interceptors are checked on the path to the TARGET square.
+    // If intercepted, ball stops there.
+
+    const interceptors = this.passController.checkInterceptions(
+      passer.gridPosition,
+      { x: targetX, y: targetY },
+      opponentTeam.players,
+      passResult.accurate
+    );
+
+    for (const interceptor of interceptors) {
+      const interceptingPlayer = this.getPlayerById(interceptor.playerId);
+      if (!interceptingPlayer || !interceptingPlayer.gridPosition) continue;
+
+      const markingPasser = this.catchController.countMarkingOpponents(
+        interceptingPlayer.gridPosition,
+        passer.teamId === this.team1.id
+          ? this.team1.players
+          : this.team2.players
       );
 
-      // If there are potential interceptors, check if one succeeds
-      for (const interceptor of interceptors) {
-        const interceptingPlayer = this.getPlayerById(interceptor.playerId);
-        if (!interceptingPlayer || !interceptingPlayer.gridPosition) continue;
+      const intercepted = this.passController.attemptInterception(
+        interceptingPlayer,
+        interceptor.modifier,
+        markingPasser
+      );
 
-        const markingPasser = this.catchController.countMarkingOpponents(
-          interceptingPlayer.gridPosition,
-          passer.teamId === this.team1.id
-            ? this.team1.players
-            : this.team2.players
-        );
-
-        const intercepted = this.throwController.attemptInterception(
-          interceptingPlayer,
-          interceptor.modifier,
-          markingPasser
-        );
-
-        if (intercepted) {
-          // Interception successful!
-          this.state.ballPosition = interceptingPlayer.gridPosition;
-          this.eventBus.emit(GameEventNames.PassIntercepted, {
-            passerId: passerId,
-            interceptorId: interceptor.playerId,
-            position: interceptingPlayer.gridPosition,
-          });
-          this.triggerTurnover("Pass Intercepted");
-          return { success: false, result: "Pass intercepted" };
-        }
+      if (intercepted) {
+        this.state.ballPosition = interceptingPlayer.gridPosition;
+        this.eventBus.emit(GameEventNames.PassIntercepted, {
+          passerId: passerId,
+          interceptorId: interceptor.playerId,
+          position: interceptingPlayer.gridPosition,
+        });
+        this.triggerTurnover("Pass Intercepted");
+        return { success: false, result: "Pass intercepted" };
       }
     }
 
-    // Ball lands at final position
+    // --- 3. BALL LANDING & CATCH ---
+    // If not intercepted, ball travels to final position (scattered or accurate)
+
+    // Wait for animations? Ideally we return here and handle rest in callback, but
+    // for now we update state immediately and events drive visuals.
+
     this.state.ballPosition = passResult.finalPosition;
 
-    // Check if there's a player at the landing position
+    // Check for player at landing position
     const receivingPlayer = this.getPlayerAtPosition(passResult.finalPosition);
 
     if (receivingPlayer) {
-      // Attempt catch
-      const isBounce = !passResult.accurate;
-      const markingOpponents = this.catchController.countMarkingOpponents(
+      // --- 4. CATCH ATTEMPT ---
+      const markingCatch = this.catchController.countMarkingOpponents(
         passResult.finalPosition,
         receivingPlayer.teamId === this.team1.id
           ? this.team2.players
@@ -457,49 +465,62 @@ export class GameService implements IGameService {
         position: passResult.finalPosition,
       });
 
-      const catchResult = this.catchController.attemptCatch(
+      const catchResult = this.passController.attemptCatch(
         receivingPlayer,
-        passResult.finalPosition,
-        isBounce,
-        false, // Not a throw-in
-        markingOpponents
+        passResult.accurate, // +1 modifier if accurate
+        markingCatch
       );
 
       if (catchResult.success) {
-        // Catch successful!
+        // SUCCESS
         this.eventBus.emit(GameEventNames.PassCompleted, {
           playerId: passerId,
           catcherId: receivingPlayer.id,
           position: passResult.finalPosition,
         });
-        return { success: true, result: "Pass completed" };
-      } else {
-        // Catch failed, ball bounces
-        const bouncePosition = this.catchController.handleFailedCatch(
-          passResult.finalPosition
-        );
-        this.state.ballPosition = bouncePosition;
 
-        // Check if active team player caught the bounce
-        const bounceReceiver = this.getPlayerAtPosition(bouncePosition);
-        if (!bounceReceiver || bounceReceiver.teamId !== passer.teamId) {
-          this.triggerTurnover("Failed Catch");
+        // If caught by opponent (not interception, but failed catch scatter logic? No, accurate pass catch)
+        // If accurate pass caught by teammate -> Success.
+        // If inaccurate pass scatters to opponent and they catch it -> Turnover?
+        if (receivingPlayer.teamId !== passer.teamId) {
+          this.triggerTurnover("Ball Caught by Opponent");
         }
 
+        return { success: true, result: "Pass completed" };
+      } else {
+        // --- 5. FAILED CATCH -> BOUNCE ---
+        const bouncePos = this.passController.bounceBall(
+          passResult.finalPosition
+        );
+        this.state.ballPosition = bouncePos;
+
+        this.eventBus.emit(GameEventNames.PassFumbled, {
+          // Reusing event or new 'BallBounce'?
+          playerId: receivingPlayer.id,
+          position: passResult.finalPosition,
+          bouncePosition: bouncePos,
+        });
+
+        // Check bounce catch
+        const bounceReceiver = this.getPlayerAtPosition(bouncePos);
+        if (bounceReceiver) {
+          // Attempt catch on bounce? Usually requires another roll.
+          // Simplified: If lands on player, they auto-catch for now or just turnover if active team dropped it.
+          // PROPER RULES: Bounce catch is same as catch but no accurate bonus.
+          // Logic: "if the catch is failed then it beomes a turnover" - User
+          // So we won't implement recursive bounce catches yet.
+        }
+
+        // Turnover if passed by active team and not caught by active team
+        this.triggerTurnover("Failed Catch");
         return { success: false, result: "Catch failed" };
       }
     }
 
-    // No player at landing position, ball is on the ground
-    // If it's the active team's turn and ball is not secured, it's a turnover
-    if (passResult.finalPosition) {
-      const ballPlayer = this.getPlayerAtPosition(passResult.finalPosition);
-      if (!ballPlayer || ballPlayer.teamId !== passer.teamId) {
-        this.triggerTurnover("Ball not secured");
-      }
-    }
-
-    return { success: true, result: "Pass completed (ball on ground)" };
+    // --- 6. BALL ON GROUND ---
+    // No player at final position
+    this.triggerTurnover("Ball not caught");
+    return { success: false, result: "Pass Incomplete" };
   }
 
   /**

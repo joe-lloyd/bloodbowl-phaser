@@ -4,60 +4,52 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { ActionType, GameEventNames } from "../../../types/events";
+import { ActionStepper } from "./ActionStepper";
 
 interface PlayerActionMenuProps {
   eventBus: EventBus;
   turnData; // Typed as TurnData in real code
 }
 
-type ActionMode = "default" | "pass" | "blitz";
-type PassSubMode = "move" | "pass";
-
 export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   eventBus,
   turnData,
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [actionMode, setActionMode] = useState<ActionMode>("default");
-  const [passSubMode, setPassSubMode] = useState<PassSubMode>("move");
-  const [hasMovedInAction, setHasMovedInAction] = useState(false);
+
+  // Stepper State
+  const [actionSteps, setActionSteps] = useState<
+    { id: string; label: string }[]
+  >([]);
+  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
 
   // Listen for player selection
   useEventBus(eventBus, GameEventNames.PlayerSelected, (data) => {
     // Only reset action mode if selecting a different player or deselecting
     if (data.player?.id !== selectedPlayer?.id) {
       console.log("Player selection changed, resetting action mode");
-      setActionMode("default");
-      setHasMovedInAction(false);
+      setActionSteps([]);
+      setCurrentStepId(null);
     }
     setSelectedPlayer(data.player);
   });
 
-  // Listen for action mode changes
-  useEventBus(eventBus, GameEventNames.ActionModeChanged, (data) => {
-    console.log("ActionModeChanged event received:", data);
-    if (data.action === "pass") {
-      console.log("Switching to pass mode");
-      setActionMode("pass");
-      setHasMovedInAction(false);
-      if (data.autoSelectMove) {
-        setPassSubMode("move");
-      }
-    } else if (data.action === "blitz") {
-      setActionMode("blitz");
+  // Listen for action steps update (New Stepper Model)
+  useEventBus(eventBus, GameEventNames.UI_UpdateActionSteps, (data) => {
+    console.log("UI_UpdateActionSteps:", data);
+    if (data.steps && data.steps.length > 0) {
+      setActionSteps(data.steps);
+      setCurrentStepId(data.currentStepId);
+    } else {
+      setActionSteps([]);
+      setCurrentStepId(null);
     }
-  });
-
-  // Listen for player movement in action
-  useEventBus(eventBus, GameEventNames.PlayerMovedInAction, (data) => {
-    console.log("PlayerMovedInAction event received:", data);
-    setHasMovedInAction(true);
   });
 
   useEventBus(eventBus, GameEventNames.TurnStarted, () => {
     setSelectedPlayer(null);
-    setActionMode("default");
-    setHasMovedInAction(false);
+    setActionSteps([]);
+    setCurrentStepId(null);
   });
 
   if (!selectedPlayer) return null;
@@ -71,36 +63,6 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         action,
         playerId: selectedPlayer.id,
       });
-    }
-  };
-
-  const handleBackToDefault = () => {
-    setActionMode("default");
-    setHasMovedInAction(false);
-    setPassSubMode("move");
-
-    // Cancel the declared action so it can be used again
-    if (selectedPlayer) {
-      // We need to emit an event to cancel the action
-      // For now, just deselect and reselect to reset state
-      eventBus.emit(GameEventNames.PlayerSelected, { player: null });
-      setTimeout(() => {
-        eventBus.emit(GameEventNames.PlayerSelected, {
-          player: selectedPlayer,
-        });
-      }, 10);
-    }
-  };
-
-  const handlePassSubMode = (mode: PassSubMode) => {
-    setPassSubMode(mode);
-    if (mode === "pass") {
-      // When clicking pass button, we're ready to select target
-      // The actual pass will happen when they click a square
-      console.log("Pass mode activated - select target square");
-    } else {
-      // Switch to move mode - just update UI state
-      // Movement is handled by clicking on squares
     }
   };
 
@@ -252,43 +214,17 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         </span>
       </div>
 
-      {/* Menu Body - Scrollable */}
-      <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col overflow-y-auto max-h-[50vh] scrollbar-thin scrollbar-thumb-bb-gold">
-        {/* Pass Action Mode */}
-        {actionMode === "pass" && (
-          <div className="space-y-1">
-            {/* Back button - only show if hasn't moved yet */}
-            {!hasMovedInAction && (
-              <ActionButton
-                label="← BACK"
-                sub="Cancel"
-                color="gray"
-                onClick={handleBackToDefault}
-              />
-            )}
-
-            {/* Move button */}
-            <ActionButton
-              label="MOVE"
-              sub={passSubMode === "move" ? "Active" : ""}
-              disabled={false}
-              color={passSubMode === "move" ? "green" : "blue"}
-              onClick={() => setPassSubMode("move")}
-            />
-
-            {/* Pass button - can be clicked anytime */}
-            <ActionButton
-              label="PASS"
-              sub={passSubMode === "pass" ? "Active" : ""}
-              disabled={false}
-              color={passSubMode === "pass" ? "green" : "yellow"}
-              onClick={() => handlePassSubMode("pass")}
-            />
-          </div>
-        )}
-
-        {/* Default Actions Grid */}
-        {actionMode === "default" && (
+      {/* Menu Body */}
+      {actionSteps.length > 0 ? (
+        // SHOW STEPPER UI
+        <ActionStepper
+          steps={actionSteps}
+          currentStepId={currentStepId || ""}
+          eventBus={eventBus}
+        />
+      ) : (
+        // SHOW DEFAULT ACTION MENU
+        <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col overflow-y-auto max-h-[50vh] scrollbar-thin scrollbar-thumb-bb-gold">
           <div className="space-y-1">
             {/* Special Turn Actions */}
             <ActionButton
@@ -347,8 +283,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
               color="gray"
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

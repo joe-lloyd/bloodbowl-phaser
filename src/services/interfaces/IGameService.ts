@@ -180,6 +180,12 @@ export interface IGameService {
     defenderId: string
   ): { success: boolean; result?: string };
 
+  throwBall(
+    passerId: string,
+    targetX: number,
+    targetY: number
+  ): Promise<{ success: boolean; result?: string }>;
+
   /**
    * Attempt to pass the ball
    */
