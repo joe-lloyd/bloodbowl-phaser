@@ -46,22 +46,7 @@ vi.mock("phaser", () => {
         Graphics: class {},
         Text: class {},
       },
-      Scene: class {
-        sys = { settings: { data: {} } };
-        add = {
-          container: vi.fn(),
-          sprite: vi.fn(),
-          text: vi.fn(),
-          rectangle: vi.fn(),
-          graphics: vi.fn(),
-        };
-        make = {
-          graphics: vi.fn(),
-          text: vi.fn(),
-        };
-        events = { on: vi.fn(), emit: vi.fn() };
-        cameras = { main: { width: 800, height: 600 } };
-      },
+      Scene: class {},
     },
   };
 });
