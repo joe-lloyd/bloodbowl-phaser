@@ -53,6 +53,7 @@ export class ActionValidator {
     target: { x: number; y: number }
   ): ActionResult {
     // Range check would go here
+    console.log(actor, target);
     return { valid: true };
   }
 }

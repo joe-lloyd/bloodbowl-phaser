@@ -36,7 +36,7 @@ export class GameplayInteractionController {
   private pushResultType: string = "";
 
   // Store handler references for cleanup
-  private pushDirectionHandler: (data: any) => void;
+  private pushDirectionHandler: (data) => void;
   private pendingDodgeSquares: { x: number; y: number; modifiers: number }[] =
     [];
 
@@ -61,7 +61,7 @@ export class GameplayInteractionController {
     this.throwController = new ThrowController(eventBus);
 
     // Store handler reference for cleanup
-    this.pushDirectionHandler = (data: any) => {
+    this.pushDirectionHandler = (data) => {
       this.startPushDirectionSelection(data);
     };
 
@@ -504,14 +504,14 @@ export class GameplayInteractionController {
         ? this.getSceneTeam2()
         : this.getSceneTeam1();
 
-    const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
     const teammates = team.players.filter(
-      (p: any) => p.gridPosition && p.id !== player.id
+      (p) => p.gridPosition && p.id !== player.id
     );
     const mockPlayer = { ...player, gridPosition: startPos };
 
     const result = this.movementValidator.findPath(
-      mockPlayer as any,
+      mockPlayer,
       x,
       y,
       opponents,
@@ -553,11 +553,11 @@ export class GameplayInteractionController {
     ];
 
     const opponents = this.getOpposingPlayers(player.teamId).filter(
-      (p: any) => p.gridPosition && p.status === "Active"
+      (p) => p.gridPosition && p.status === "Active"
     );
 
     const dodgeAnalysis = this.movementValidator.analyzePath(
-      player as any,
+      player,
       fullPath,
       opponents
     );
@@ -772,14 +772,14 @@ export class GameplayInteractionController {
         ? this.getSceneTeam2()
         : this.getSceneTeam1();
 
-    const opponents = opponentTeam.players.filter((p: any) => p.gridPosition);
+    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
     const teammates = team.players.filter(
-      (p: any) => p.gridPosition && p.id !== player.id
+      (p) => p.gridPosition && p.id !== player.id
     );
 
     const mockPlayer = { ...player, gridPosition: startPos };
     const result = this.movementValidator.findPath(
-      mockPlayer as any,
+      mockPlayer,
       x,
       y,
       opponents,
@@ -810,7 +810,7 @@ export class GameplayInteractionController {
     }
   }
 
-  private handleKickoffClick(x: number, y: number, playerAtSquare: any): void {
+  private handleKickoffClick(x: number, y: number, playerAtSquare): void {
     const subPhase = this.gameService.getSubPhase();
 
     if (subPhase === SubPhase.SETUP_KICKOFF) {
@@ -888,7 +888,9 @@ export class GameplayInteractionController {
     return this.scene.team2;
   }
 
-  private getOpposingPlayers(myTeamId: string): any[] {
+  private getOpposingPlayers(
+    myTeamId: string
+  ): import("../../types/Player").Player[] {
     const t1 = this.getSceneTeam1();
     const t2 = this.getSceneTeam2();
     return myTeamId === t1.id ? t2.players : t1.players;
@@ -897,7 +899,7 @@ export class GameplayInteractionController {
   /**
    * Start push direction selection mode
    */
-  private startPushDirectionSelection(data: any): void {
+  private startPushDirectionSelection(data): void {
     this.pushSelectionActive = true;
     this.pushValidDirections = data.validDirections || [];
     this.pushDefenderId = data.defenderId;

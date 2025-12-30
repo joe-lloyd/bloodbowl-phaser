@@ -4,11 +4,7 @@
  */
 
 import { Team, RosterName } from "../../src/types/Team.js";
-import {
-  Player,
-  PositionKeyWord,
-  PlayerStatus,
-} from "../../src/types/Player.js";
+import { PositionKeyWord, PlayerStatus } from "../../src/types/Player.js";
 import { TeamBuilder, PlayerBuilder } from "../utils/test-builders";
 
 /**

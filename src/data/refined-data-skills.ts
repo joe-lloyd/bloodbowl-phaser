@@ -231,9 +231,6 @@ const skillsAgain = {
   HATRED: 110,
   STEADY_FOOTING: 113,
   SABOTEUR: 114,
-  ANIMOSITY_ALL: 620,
-  ANIMOSITY_UNDERWORLD_GOBLIN: 623,
-  DIRTY_PLAYER_2: 151,
 };
 
 const skillAndCategory = {

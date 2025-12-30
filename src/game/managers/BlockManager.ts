@@ -66,7 +66,7 @@ export class BlockManager {
       rollType: "Block",
       diceType: `${numDice}D Block`,
       teamId: attackerId.split("-")[0], // Extract team ID
-      value: results.map((r: any) => r.type),
+      value: results.map((r) => r.type),
       total: results.length,
       description: `Rolled ${numDice} block ${numDice === 1 ? "die" : "dice"}`,
     });
@@ -107,7 +107,7 @@ export class BlockManager {
         break;
       case "push":
       case "pow":
-      case "pow-dodge":
+      case "pow-dodge": {
         // Emit event for push direction selection
         const pushData = this.createPushData(attacker, defender, result.type);
         // Add resultType and attackerId to the data for the UI
@@ -117,6 +117,7 @@ export class BlockManager {
           attackerId: attackerId,
         });
         break;
+      }
     }
   }
 
@@ -232,7 +233,7 @@ export class BlockManager {
     return {
       defenderId: defender.id,
       validDirections,
-      canFollowUp: BlockResolutionService.allowsFollowUp(resultType as any),
+      canFollowUp: BlockResolutionService.allowsFollowUp(resultType),
       willFollowUp: false,
     };
   }

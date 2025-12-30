@@ -18,23 +18,45 @@ interface SceneOrchestratorConfig {
 }
 
 export class SceneOrchestrator {
-  private scene: GameScene;
-  private gameService: IGameService;
-  private eventBus: IEventBus;
-  private config: SceneOrchestratorConfig;
-
-  private eventHandlers: Map<string, Function> = new Map();
+  private eventHandlers: Map<string, (data?: any) => void> = new Map();
 
   constructor(
-    scene: GameScene,
-    gameService: IGameService,
-    eventBus: IEventBus,
-    config: SceneOrchestratorConfig = {}
+    private scene: GameScene,
+    private gameService: IGameService,
+    private eventBus: IEventBus,
+    private config: SceneOrchestratorConfig = {}
   ) {
-    this.scene = scene;
-    this.gameService = gameService;
-    this.eventBus = eventBus;
-    this.config = config;
+    this.setupEventListeners();
+  }
+
+  // ... (keeping structure)
+
+  private handleEvent(eventName: string, data?): void {
+    const callback = this.eventHandlers.get(eventName);
+    if (callback) {
+      callback(data);
+    }
+
+    switch (eventName) {
+      case GameEventNames.TurnStarted: {
+        // const turnData = data as { teamId: string; turnNumber: number };
+        // console.log(turnData);
+        this.scene.events.emit("score-update");
+        break;
+      }
+
+      case GameEventNames.Touchdown: {
+        const teamId = data as string;
+        this.gameService.addTouchdown(teamId);
+        break;
+      }
+
+      case GameEventNames.KickoffResult: {
+        const result = data as string;
+        console.log(result);
+        break;
+      }
+    }
   }
 
   /**
@@ -42,10 +64,7 @@ export class SceneOrchestrator {
    */
   public setupEventListeners(): void {
     // Coin flip handling
-    const onCoinFlipComplete = (data: {
-      kickingTeam: any;
-      receivingTeam: any;
-    }) => {
+    const onCoinFlipComplete = (data: { kickingTeam; receivingTeam }) => {
       this.scene.kickingTeam = data.kickingTeam;
       this.scene.receivingTeam = data.receivingTeam;
       this.gameService.startSetup(data.kickingTeam.id);
@@ -70,17 +89,18 @@ export class SceneOrchestrator {
         case "confirm":
           this.gameService.confirmSetup(activeTeam.id);
           break;
-        case "default":
+        case "default": {
           const defFormation =
             this.scene["formationManager"].getDefaultFormation(isTeam1);
           this.scene["placementController"].loadFormation(defFormation);
           this.scene.refreshDugouts();
           break;
+        }
         case "clear":
           this.scene["placementController"].clearPlacements();
           this.scene.refreshDugouts();
           break;
-        case "save":
+        case "save": {
           const placements = this.scene["placementController"].getPlacements();
           if (placements.length > 0) {
             this.scene["formationManager"].saveFormation(
@@ -94,7 +114,8 @@ export class SceneOrchestrator {
             );
           }
           break;
-        case "load":
+        }
+        case "load": {
           const savedFormation = this.scene["formationManager"].loadFormation(
             activeTeam.id,
             "Custom"
@@ -109,13 +130,14 @@ export class SceneOrchestrator {
             );
           }
           break;
+        }
       }
     };
     this.eventHandlers.set(GameEventNames.UI_SetupAction, onSetupAction);
     this.eventBus.on(GameEventNames.UI_SetupAction, onSetupAction);
 
     // Kickoff: Ball kicked animation
-    const onBallKicked = async (data: any) => {
+    const onBallKicked = async (data) => {
       let startX = data.targetX;
       let startY = data.targetY;
 
@@ -215,7 +237,7 @@ export class SceneOrchestrator {
     this.eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
 
     // Turn management
-    const onTurnStarted = (turn: any) => {
+    const onTurnStarted = (turn) => {
       this.scene.refreshDugouts();
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -228,9 +250,9 @@ export class SceneOrchestrator {
     // Player movement
     const onPlayerMoved = (data: {
       playerId: string;
-      from: any;
-      to: any;
-      path?: any[];
+      from;
+      to;
+      path?: { x: number; y: number }[];
       followUpData?: {
         attackerId: string;
         targetSquare: { x: number; y: number };
@@ -239,7 +261,7 @@ export class SceneOrchestrator {
       if (data.path && data.path.length > 0) {
         const sprite = this.scene["playerSprites"].get(data.playerId);
         if (sprite) {
-          const pixelPath = data.path.map((step: any) =>
+          const pixelPath = data.path.map((step) =>
             this.scene["pitch"].getPixelPosition(step.x, step.y)
           );
           sprite.animateMovement(pixelPath).then(() => {
@@ -316,7 +338,7 @@ export class SceneOrchestrator {
     const onBlockResultSelected = (data: {
       attackerId: string;
       defenderId: string;
-      result: any;
+      result;
     }) => {
       this.gameService.resolveBlock(
         data.attackerId,
@@ -400,6 +422,11 @@ export class SceneOrchestrator {
     const activeTeam = isKicking
       ? this.scene.kickingTeam
       : this.scene.receivingTeam;
+
+    if (!activeTeam) {
+      return;
+    }
+
     const isTeam1 = activeTeam.id === this.scene.team1.id;
 
     this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
@@ -469,7 +496,7 @@ export class SceneOrchestrator {
    */
   public destroy(): void {
     this.eventHandlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler as any);
+      this.eventBus.off(event, handler);
     });
     this.eventHandlers.clear();
   }

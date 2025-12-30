@@ -5,7 +5,7 @@ import { GameState, GamePhase } from "../../../src/types/GameState";
 
 describe("WeatherManager", () => {
   let manager: WeatherManager;
-  let mockEventBus: any;
+  let mockEventBus;
   let mockState: GameState;
 
   beforeEach(() => {

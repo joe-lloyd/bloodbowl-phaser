@@ -158,14 +158,18 @@ export class SetupManager {
         // Kicking team done. Switch to Receiving.
         const receivingTeamId =
           teamId === this.team1.id ? this.team2.id : this.team1.id;
-        this.state.subPhase = SubPhase.SETUP_RECEIVING;
-        this.state.activeTeamId = receivingTeamId;
 
-        this.eventBus.emit(GameEventNames.PhaseChanged, {
-          phase: GamePhase.SETUP,
-          subPhase: SubPhase.SETUP_RECEIVING,
-          activeTeamId: receivingTeamId,
-        });
+        // Use timeout to ensure UI updates and previous events clear
+        setTimeout(() => {
+          this.state.subPhase = SubPhase.SETUP_RECEIVING;
+          this.state.activeTeamId = receivingTeamId;
+
+          this.eventBus.emit(GameEventNames.PhaseChanged, {
+            phase: GamePhase.SETUP,
+            subPhase: SubPhase.SETUP_RECEIVING,
+            activeTeamId: receivingTeamId,
+          });
+        }, 100);
       }
     } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
       if (teamId === this.state.activeTeamId) {

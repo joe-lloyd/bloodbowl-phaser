@@ -37,6 +37,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.add(this.numberText);
 
     this.setSize(32, 32);
+    this.setSize(32, 32);
+    // Standard small hit area for pitch selection (32x32 centered)
     this.setInteractive(
       new Phaser.Geom.Rectangle(-16, -16, 32, 32),
       Phaser.Geom.Rectangle.Contains
@@ -86,7 +88,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       sprite.setScale(Math.min(scale, 1));
 
       this.add(sprite);
-      this.shape = sprite as any;
+      this.shape = sprite;
 
       // Ensure number is on top
       this.bringToTop(this.numberText);

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Team, calculateTeamValue } from "../../../types/Team";
-import { Player } from "../../../types/Player";
 import {
   loadTeams,
   deleteTeam,
@@ -13,7 +12,6 @@ import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button, DangerButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
-import { EventBus } from "@/services";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -22,9 +20,9 @@ const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
   import: "default",
 });
 
-interface TeamManagementProps {
-  eventBus: EventBus;
-}
+// interface TeamManagementProps {
+//   eventBus: EventBus;
+// }
 
 /**
  * Get player sprite image URL from assets
@@ -64,7 +62,7 @@ function getPlayerSpriteUrl(
  * Team Management Component
  * Lists all teams with create/edit/delete functionality
  */
-export function TeamManagement({ eventBus }: TeamManagementProps) {
+export function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
   const navigate = useNavigate();
 

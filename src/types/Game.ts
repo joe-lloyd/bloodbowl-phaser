@@ -107,7 +107,7 @@ export interface GameAction {
   type: GameActionType;
   playerId: string;
   timestamp: number;
-  data: any; // Action-specific data
+  data; // Action-specific data
 }
 
 /**

@@ -64,10 +64,10 @@ export class GameScene extends Phaser.Scene {
   private selectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
   private ballSprite: Phaser.GameObjects.Container | null = null;
-  private pendingKickoffData: any = null; // Stores kick data for scatter animation
+  private pendingKickoffData = null; // Stores kick data for scatter animation
 
   // Store handlers for cleanup
-  private eventHandlers: Map<GameEventNames, Function> = new Map();
+  private eventHandlers: Map<GameEventNames, () => void> = new Map();
 
   /**
    * Reload state from ServiceContainer (e.g. after Scenario Load)
@@ -78,7 +78,6 @@ export class GameScene extends Phaser.Scene {
     this.eventBus = container.eventBus;
 
     // Update Teams
-    const state = this.gameService.getState();
 
     this.playerSprites.forEach((s) => s.destroy());
     this.playerSprites.clear();
@@ -149,11 +148,7 @@ export class GameScene extends Phaser.Scene {
 
     // Ensure ServiceContainer is initialized
     if (!ServiceContainer.isInitialized()) {
-      ServiceContainer.initialize(
-        (window as any).eventBus,
-        this.team1,
-        this.team2
-      );
+      ServiceContainer.initialize(window.eventBus, this.team1, this.team2);
     }
 
     const container = ServiceContainer.getInstance();
@@ -220,6 +215,11 @@ export class GameScene extends Phaser.Scene {
     // Pitch interaction for Play Phase
 
     // 3. Initialize Dugouts (Top and Bottom)
+    console.log(`[GameScene] Screen Dims: ${width}x${height}`);
+    console.log(
+      `[GameScene] Pitch Y: ${pitchY}, Pitch Height: ${GameConfig.PITCH_PIXEL_HEIGHT}`
+    );
+
     this.createDugouts(pitchX, pitchY);
 
     this.movementValidator = new MovementValidator();
@@ -259,6 +259,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      console.log(
+        `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
+      );
       this.gameplayController.handlePointerDown(pointer, this.isSetupActive);
     });
 
@@ -304,7 +307,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.eventBus.on(GameEventNames.TurnStarted, (turnData: any) => {
+    this.eventBus.on(GameEventNames.TurnStarted, () => {
       // Reset all sprites
       this.playerSprites.forEach((sprite) => sprite.setActivated(false));
       // Reset selection
@@ -316,7 +319,7 @@ export class GameScene extends Phaser.Scene {
     // Camera event listeners
     this.eventBus.on(
       GameEventNames.Camera_TrackBall,
-      async (data: { ballSprite: any; animationDuration: number }) => {
+      async (data: { ballSprite; animationDuration: number }) => {
         if (this.cameraController && data.ballSprite) {
           // First, smoothly pan to the ball position
           const ballPos = { x: data.ballSprite.x, y: data.ballSprite.y };
@@ -351,7 +354,7 @@ export class GameScene extends Phaser.Scene {
   private shutdown(): void {
     // Remove all listeners attached by this scene
     this.eventHandlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler as any);
+      this.eventBus.off(event, handler);
     });
     this.eventHandlers.clear();
 
@@ -399,7 +402,7 @@ export class GameScene extends Phaser.Scene {
     // Clear placement controller
     if (this.placementController) {
       // PlacementController might not have a destroy method, just null it
-      this.placementController = null as any;
+      this.placementController = null;
     }
   }
 
@@ -409,6 +412,7 @@ export class GameScene extends Phaser.Scene {
     // Dugout height is ~150px. Pitch starts at TOP_UI_HEIGHT (160px).
     const topDugoutY = 0;
     const topDugout = new Dugout(this, pitchX, topDugoutY, this.team1);
+    topDugout.setDepth(10);
     this.dugouts.set(this.team1.id, topDugout);
 
     // Bottom Dugout (Team 2)
@@ -418,6 +422,7 @@ export class GameScene extends Phaser.Scene {
     const bottomDugoutY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT + 10;
 
     const bottomDugout = new Dugout(this, pitchX, bottomDugoutY, this.team2);
+    bottomDugout.setDepth(10); // Ensure dugout container is above background
     this.dugouts.set(this.team2.id, bottomDugout);
 
     // Wire up drags

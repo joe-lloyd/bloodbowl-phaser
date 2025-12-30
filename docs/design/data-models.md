@@ -184,7 +184,7 @@ interface Action {
   timestamp: number;
 
   // Action-specific data
-  data?: any;
+  data?;
 }
 
 enum ActionType {
@@ -295,7 +295,7 @@ interface ActionResult {
 interface ActionEffect {
   type: string;
   target: string;
-  data: any;
+  data;
 }
 ```
 

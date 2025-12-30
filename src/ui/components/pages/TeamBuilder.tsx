@@ -21,7 +21,7 @@ import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
 
-interface TeamBuilderProps {}
+// interface TeamBuilderProps {}
 
 const TEAM_COLORS = [
   0x8e1b1b, // Blood Red
@@ -36,7 +36,7 @@ const TEAM_COLORS = [
   0x000000, // Black
 ];
 
-export function TeamBuilder({}: TeamBuilderProps) {
+export function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
   const [selectedRace, setSelectedRace] = useState<RosterName>(
     RosterName.AMAZON

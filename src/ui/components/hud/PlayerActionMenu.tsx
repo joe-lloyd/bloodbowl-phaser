@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -6,7 +7,7 @@ import { ActionType, GameEventNames } from "../../../types/events";
 
 interface PlayerActionMenuProps {
   eventBus: EventBus;
-  turnData: any; // Typed as TurnData in real code
+  turnData; // Typed as TurnData in real code
 }
 
 type ActionMode = "default" | "pass" | "blitz";
@@ -113,7 +114,6 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const canPass = canMove && !turnData.hasPassed;
   const canHandoff = canMove && !turnData.hasHandedOff;
   const canFoul = canMove && !turnData.hasFouled;
-  const canBlock = canMove; // Adjacent check?
   const canStandUp = isProne && !hasActed && !isStunned;
 
   // Render Helper with proper color handling
@@ -124,7 +124,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     disabled,
     color = "blue",
     onClick,
-  }: any) => {
+  }) => {
     // Define color schemes with proper values
     const colorSchemes: Record<
       string,

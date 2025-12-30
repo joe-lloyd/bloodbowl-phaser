@@ -191,6 +191,7 @@ create() {
 **Data Passed**:
 
 - To GameScene:
+
   ```typescript
   {
     team1: Team,
@@ -303,7 +304,7 @@ Each Phaser scene has these lifecycle methods:
 ```typescript
 class ExampleScene extends Phaser.Scene {
   // 1. Receive data from previous scene
-  init(data: any) {
+  init(data) {
     this.data = data;
   }
 

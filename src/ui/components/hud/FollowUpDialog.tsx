@@ -62,7 +62,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
         </h2>
 
         <p className="text-center text-slate-300 mb-6">
-          Do you want to follow up into the defender's square?
+          Do you want to follow up into the defender&apos;s square?
         </p>
 
         <div className="flex gap-4 justify-center">

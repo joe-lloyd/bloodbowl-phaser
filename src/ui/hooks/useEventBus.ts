@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { EventBus } from "../../services/EventBus";
+import { IEventBus } from "../../services/EventBus";
 import type { AllEvents } from "../../types/events";
 
 /**
@@ -16,7 +16,7 @@ import type { AllEvents } from "../../types/events";
  * ```
  */
 export function useEventBus<K extends keyof AllEvents>(
-  eventBus: EventBus,
+  eventBus: IEventBus,
   event: K,
   handler: (data: AllEvents[K]) => void
 ): void {
@@ -55,7 +55,7 @@ export function useEventBus<K extends keyof AllEvents>(
  * }
  * ```
  */
-export function useEventEmit(eventBus: EventBus) {
+export function useEventEmit(eventBus: IEventBus) {
   return useCallback(
     <K extends keyof AllEvents>(event: K, data: AllEvents[K]) => {
       eventBus.emit(event, data);

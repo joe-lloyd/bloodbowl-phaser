@@ -3,8 +3,7 @@ import { PlayerPlacementController } from "../../src/game/controllers/PlayerPlac
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { Pitch } from "../../src/game/elements/Pitch";
 import { Team, RosterName } from "../../src/types/Team";
-import { Player, PositionKeyWord } from "../../src/types/Player";
-import { GameConfig } from "../../src/config/GameConfig";
+import { PositionKeyWord } from "../../src/types/Player";
 
 // Mock Pitch
 const mockPitch = {
@@ -54,7 +53,7 @@ describe("PlayerPlacementController", () => {
           baseStats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
           spp: 0,
           level: 1,
-          status: "Reserve" as any,
+          status: "Reserve",
           injuries: [],
           hasActed: false,
           cost: 50000,
@@ -72,7 +71,7 @@ describe("PlayerPlacementController", () => {
           baseStats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
           spp: 0,
           level: 1,
-          status: "Reserve" as any,
+          status: "Reserve",
           injuries: [],
           hasActed: false,
           cost: 50000,

@@ -8,13 +8,18 @@ import { GameEventNames } from "../../../src/types/events";
 
 describe("DodgeController", () => {
   let controller: DodgeController;
-  let mockEventBus: any;
+  let mockEventBus;
   let player: Player;
   let opponents: Player[];
 
   beforeEach(() => {
     mockEventBus = {
       emit: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      once: vi.fn(),
+      removeAllListeners: vi.fn(),
+      listenerCount: vi.fn().mockReturnValue(0),
     };
 
     controller = new DodgeController(mockEventBus);

@@ -46,10 +46,10 @@ export class MovementManager {
 
     // Prone players don't have tackle zones
     const opponents = opponentTeam.players.filter(
-      (p: any) => p.gridPosition && p.status === PlayerStatus.ACTIVE
+      (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
     );
     const teammates = team.players.filter(
-      (p: any) => p.gridPosition && p.id !== player.id
+      (p) => p.gridPosition && p.id !== player.id
     );
 
     // If prone, reduce effective MA by stand-up cost so validator finds correct range
@@ -102,10 +102,7 @@ export class MovementManager {
       playerId,
       cost: standUpCost,
     });
-    this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
-      playerId,
-      status: PlayerStatus.ACTIVE,
-    });
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
     // Auto-finish if exhausted
     if (used + standUpCost >= player.stats.MA + 2) {
@@ -155,10 +152,7 @@ export class MovementManager {
         playerId,
         cost: standUpCost,
       });
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
-        playerId,
-        status: PlayerStatus.ACTIVE,
-      });
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     }
 
     // Check if starting with ball
@@ -215,7 +209,7 @@ export class MovementManager {
 
       // Check for GFI
       if (totalUsed > player.stats.MA) {
-        let target = 2; // Always 2+ for GFI
+        const target = 2; // Rush is always 2+
         const roll = Math.floor(Math.random() * 6) + 1;
         const success = roll >= target;
 

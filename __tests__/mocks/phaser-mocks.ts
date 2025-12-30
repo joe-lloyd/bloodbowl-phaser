@@ -8,9 +8,9 @@ export class MockGameObject implements Partial<Phaser.GameObjects.GameObject> {
   active: boolean = true;
   alpha: number = 1;
   scene: Phaser.Scene;
-  input: any = { enabled: false };
+  input = { enabled: false };
 
-  constructor(scene: any, x: number = 0, y: number = 0) {
+  constructor(scene, x: number = 0, y: number = 0) {
     this.scene = scene;
     this.x = x;
     this.y = y;
@@ -44,9 +44,9 @@ export class MockSprite
   extends MockGameObject
   implements Partial<Phaser.GameObjects.Sprite>
 {
-  texture: Phaser.Textures.Texture | any;
+  texture: Phaser.Textures.Texture;
 
-  constructor(scene: any, x: number, y: number, texture: string) {
+  constructor(scene, x: number, y: number, texture: string) {
     super(scene, x, y);
     this.texture = { key: texture };
   }
@@ -61,9 +61,9 @@ export class MockText
   implements Partial<Phaser.GameObjects.Text>
 {
   text: string;
-  style: Phaser.Types.GameObjects.Text.TextStyle | any;
+  style: Phaser.Types.GameObjects.Text.TextStyle;
 
-  constructor(scene: any, x: number, y: number, text: string, style: any) {
+  constructor(scene, x: number, y: number, text: string, style) {
     super(scene, x, y);
     this.text = text;
     this.style = style || {};
@@ -96,7 +96,7 @@ export class MockContainer
   extends MockGameObject
   implements Partial<Phaser.GameObjects.Container>
 {
-  list: any[] = [];
+  list: Phaser.GameObjects.GameObject[] = [];
 
   add = vi.fn().mockImplementation((child) => {
     if (Array.isArray(child)) {
@@ -116,18 +116,18 @@ export class MockContainer
 }
 
 export class MockScene implements Partial<Phaser.Scene> {
-  sys: any;
-  events: any;
-  input: any;
-  tweens: any;
-  cameras: any;
-  children: any;
+  sys;
+  events;
+  input;
+  tweens;
+  cameras;
+  children;
   // Helper to access factory methods which are usually on 'add' or 'make' property,
   // but in tests we often access scene.add.sprite directly.
   // We implement the 'add' property to match Phaser's Scene factory.
-  add: any;
-  make: any;
-  data: any;
+  add;
+  make;
+  data;
 
   constructor() {
     this.sys = {
@@ -209,13 +209,13 @@ export class MockScene implements Partial<Phaser.Scene> {
       container: vi.fn(
         (x, y) => new MockContainer(this as unknown as Phaser.Scene, x, y)
       ),
-      existing: vi.fn((obj: any) => obj),
+      existing: vi.fn((obj) => obj),
     };
 
     this.make = {
       graphics: vi.fn(() => new MockGraphics(this as unknown as Phaser.Scene)),
       text: vi.fn(
-        (config: any) =>
+        (config) =>
           new MockText(
             this as unknown as Phaser.Scene,
             config.x,

@@ -7,7 +7,7 @@ import { GameEventNames } from "../../../src/types/events";
 
 describe("BlockManager", () => {
   let manager: BlockManager;
-  let mockEventBus: any;
+  let mockEventBus;
   let mockState: GameState;
   let mockTeam1: Team;
   let mockTeam2: Team;

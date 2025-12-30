@@ -5,10 +5,10 @@
  * It's pure TypeScript with no Phaser dependencies, making it fully testable.
  */
 
-import { IEventBus } from "../EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { Player } from "@/types/Player";
+import { BlockResult } from "../BlockResolutionService";
 
 export interface IGameService {
   // ===== State Queries =====
@@ -247,7 +247,11 @@ export interface IGameService {
   /**
    * Resolve a block with the selected result
    */
-  resolveBlock(attackerId: string, defenderId: string, result: any): void;
+  resolveBlock(
+    attackerId: string,
+    defenderId: string,
+    result: BlockResult
+  ): void;
 
   /**
    * Execute a push in a specific direction

@@ -11,8 +11,8 @@ interface TurnIndicatorProps {
 
 export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   turnNumber,
-  activeTeamName,
-  isTeam1Active,
+  // activeTeamName,
+  // isTeam1Active,
   phase,
 }) => {
   // If we are in KICKOFF phase, show "KICKOFF" instead of Turn Number

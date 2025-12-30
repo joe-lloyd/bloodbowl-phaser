@@ -177,7 +177,7 @@ export class BallManager {
     position: { x: number; y: number }
   ): boolean {
     // 1. Calculate Target (AG)
-    let target = player.stats.AG;
+    const target = player.stats.AG;
 
     // 2. Modifiers (-1 per Enemy Tackle Zone)
     const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;

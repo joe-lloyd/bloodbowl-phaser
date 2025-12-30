@@ -1,7 +1,11 @@
 import React from "react";
 import starIcon from "../../assets/star.svg";
 
-const StarIcon = ({ className = "w-5 h-5" }) => (
+interface StarIconProps {
+  className?: string;
+}
+
+const StarIcon: React.FC<StarIconProps> = ({ className = "w-5 h-5" }) => (
   <img src={starIcon} alt="Star" className={className} />
 );
 

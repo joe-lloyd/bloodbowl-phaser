@@ -1,7 +1,6 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { ActionType, GameEventNames } from "@/types/events";
-import { Player, PlayerStatus } from "@/types/Player";
 
 export class PlayerActionManager {
   constructor(

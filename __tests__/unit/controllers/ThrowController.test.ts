@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  ThrowController,
-  PassType,
-  PassRange,
-  PassResult,
-} from "../../../src/game/controllers/ThrowController";
+import { ThrowController } from "../../../src/game/controllers/ThrowController";
 import { Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("ThrowController", () => {
   let controller: ThrowController;
-  let mockEventBus: any;
+  let mockEventBus;
   let player: Player;
 
   beforeEach(() => {
@@ -35,7 +30,7 @@ describe("ThrowController", () => {
       const from = { x: 5, y: 5 };
       const to = { x: 8, y: 7 };
 
-      const distance = (controller as any).calculateDistance(from, to);
+      const distance = controller.calculateDistance(from, to);
       expect(distance).toBe(3); // max(3, 2) = 3
     });
 
@@ -43,7 +38,7 @@ describe("ThrowController", () => {
       const from = { x: 5, y: 5 };
       const to = { x: 5, y: 10 };
 
-      const distance = (controller as any).calculateDistance(from, to);
+      const distance = controller.calculateDistance(from, to);
       expect(distance).toBe(5);
     });
 
@@ -51,7 +46,7 @@ describe("ThrowController", () => {
       const from = { x: 5, y: 5 };
       const to = { x: 12, y: 5 };
 
-      const distance = (controller as any).calculateDistance(from, to);
+      const distance = controller.calculateDistance(from, to);
       expect(distance).toBe(7);
     });
   });
@@ -103,10 +98,7 @@ describe("ThrowController", () => {
         maxDistance: 6,
       };
 
-      const modifiers = (controller as any).calculatePassModifiers(
-        passRange,
-        0
-      );
+      const modifiers = controller.calculatePassModifiers(passRange, 0);
       expect(modifiers).toBe(-1);
     });
 
@@ -118,10 +110,7 @@ describe("ThrowController", () => {
         maxDistance: 3,
       };
 
-      const modifiers = (controller as any).calculatePassModifiers(
-        passRange,
-        2
-      );
+      const modifiers = controller.calculatePassModifiers(passRange, 2);
       expect(modifiers).toBe(-2);
     });
 
@@ -133,10 +122,7 @@ describe("ThrowController", () => {
         maxDistance: 10,
       };
 
-      const modifiers = (controller as any).calculatePassModifiers(
-        passRange,
-        1
-      );
+      const modifiers = controller.calculatePassModifiers(passRange, 1);
       expect(modifiers).toBe(-3); // -2 range, -1 marking
     });
   });
@@ -285,7 +271,7 @@ describe("ThrowController", () => {
     it("should scatter in random direction", () => {
       vi.spyOn(Math, "random").mockReturnValue(0); // Direction 1
 
-      const result = (controller as any).scatterBall({ x: 10, y: 5 });
+      const result = controller.scatterBall({ x: 10, y: 5 });
 
       expect(result).toBeDefined();
       expect(result.x).toBeGreaterThanOrEqual(0);
@@ -293,7 +279,7 @@ describe("ThrowController", () => {
     });
 
     it("should keep ball within pitch bounds", () => {
-      const result = (controller as any).scatterBall({ x: 0, y: 0 });
+      const result = controller.scatterBall({ x: 0, y: 0 });
 
       expect(result.x).toBeGreaterThanOrEqual(0);
       expect(result.x).toBeLessThanOrEqual(25);
@@ -302,7 +288,7 @@ describe("ThrowController", () => {
     });
 
     it("should emit scatter event", () => {
-      (controller as any).scatterBall({ x: 10, y: 5 });
+      controller.scatterBall({ x: 10, y: 5 });
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.DiceRoll,

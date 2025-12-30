@@ -25,7 +25,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
 
   useEffect(() => {
-    const onOpen = (payload: any) => {
+    const onOpen = (payload) => {
       setData(payload);
       setRollData(null);
       setIsRolling(false);

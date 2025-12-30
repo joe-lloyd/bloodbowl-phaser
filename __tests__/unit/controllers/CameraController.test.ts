@@ -3,9 +3,9 @@ import { CameraController } from "../../../src/game/controllers/CameraController
 
 describe("CameraController", () => {
   let controller: CameraController;
-  let mockScene: any;
-  let mockCamera: any;
-  let mockTweens: any;
+  let mockScene;
+  let mockCamera;
+  let mockTweens;
 
   beforeEach(() => {
     // Mock camera
@@ -107,7 +107,7 @@ describe("CameraController", () => {
     it("should start following an object", () => {
       const mockObject = { x: 100, y: 100 };
 
-      controller.trackObject(mockObject as any, 2.0, 800);
+      controller.trackObject(mockObject, 2.0, 800);
 
       expect(mockCamera.startFollow).toHaveBeenCalledWith(
         mockObject,
@@ -122,7 +122,7 @@ describe("CameraController", () => {
     it("should use default zoom if not provided", () => {
       const mockObject = { x: 100, y: 100 };
 
-      controller.trackObject(mockObject as any);
+      controller.trackObject(mockObject);
 
       expect(mockTweens.add).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -135,8 +135,8 @@ describe("CameraController", () => {
       const mockObject1 = { x: 100, y: 100 };
       const mockObject2 = { x: 200, y: 200 };
 
-      controller.trackObject(mockObject1 as any);
-      controller.trackObject(mockObject2 as any);
+      controller.trackObject(mockObject1);
+      controller.trackObject(mockObject2);
 
       expect(mockCamera.startFollow).toHaveBeenCalledTimes(2);
     });
@@ -145,7 +145,7 @@ describe("CameraController", () => {
   describe("Camera Reset", () => {
     it("should stop tracking and return to default view", async () => {
       const mockObject = { x: 100, y: 100 };
-      controller.trackObject(mockObject as any);
+      controller.trackObject(mockObject);
 
       await controller.reset(800);
 
@@ -220,7 +220,7 @@ describe("CameraController", () => {
 
       await controller.trackObjectWithPreZoom(
         preZoomTarget,
-        trackObject as any,
+        trackObject,
         2.2,
         2.5,
         500
@@ -242,7 +242,7 @@ describe("CameraController", () => {
 
       await controller.trackObjectWithPreZoom(
         preZoomTarget,
-        trackObject as any,
+        trackObject,
         2.2,
         2.5,
         500,
@@ -256,7 +256,7 @@ describe("CameraController", () => {
   describe("Cleanup", () => {
     it("should stop tracking and clean up on destroy", () => {
       const mockObject = { x: 100, y: 100 };
-      controller.trackObject(mockObject as any);
+      controller.trackObject(mockObject);
 
       controller.destroy();
 

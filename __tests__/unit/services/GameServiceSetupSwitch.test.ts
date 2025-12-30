@@ -20,13 +20,13 @@ describe("GameService Setup Flow", () => {
       name: "Team 1",
       players: [],
       colors: { primary: 0x0000ff, secondary: 0xffffff },
-    } as any;
+    };
     team2 = {
       id: "team2",
       name: "Team 2",
       players: [],
       colors: { primary: 0xff0000, secondary: 0x000000 },
-    } as any;
+    };
 
     gameService = new GameService(eventBus, team1, team2);
   });

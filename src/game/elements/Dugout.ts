@@ -41,6 +41,8 @@ export class Dugout extends Phaser.GameObjects.Container {
     // KO: 5x2
     // Casualties: 5x2
 
+    // console.log(`[Dugout] createLayout for team ${this.team.id}. Players: ${this.team.players.length}`);
+
     const reservesCols = 6;
     const koCols = 5;
     const deadCols = 5;
@@ -180,9 +182,20 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // Override size and hit area to match grid square for easier clicking
     sprite.setSize(this.SQUARE_SIZE, this.SQUARE_SIZE);
-    sprite.removeInteractive(); // Remove existing to ensure clean state
+
+    // CRITICAL: We initially disable interaction so the Controller can manage it cleanly
+    // The Controller will call setInteractive({ draggable: true }) on the sprites it wants.
+    // If we set it here, we might just confuse things or have conflicting hit areas.
+    // However, for HOVER events (info panel), we need it to be interactive.
+
+    // Let's set a base HitArea but NOT draggable here.
     sprite.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, this.SQUARE_SIZE, this.SQUARE_SIZE),
+      new Phaser.Geom.Rectangle(
+        -this.SQUARE_SIZE / 2,
+        -this.SQUARE_SIZE / 2,
+        this.SQUARE_SIZE,
+        this.SQUARE_SIZE
+      ),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -192,12 +205,14 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // Hover events for Info Panel
     sprite.on("pointerover", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.scene as any).eventBus?.emit(
         GameEventNames.UI_ShowPlayerInfo,
         player
       );
     });
     sprite.on("pointerout", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.scene as any).eventBus?.emit("ui:hidePlayerInfo");
     });
 
@@ -210,6 +225,7 @@ export class Dugout extends Phaser.GameObjects.Container {
     sprite.on(
       "drag",
       (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+        // console.log(`[Dugout] Dragging ${player.id}: ${dragX},${dragY}`);
         sprite.x = dragX;
         sprite.y = dragY;
       }
@@ -247,7 +263,9 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // Remove everything that is NOT a player sprite
     this.list
-      .filter((child) => !sprites.includes(child as any))
+      .filter(
+        (child) => !sprites.includes(child as Phaser.GameObjects.Container)
+      )
       .forEach((child) => child.destroy());
 
     // Re-create layout (backgrounds, grids, text)
@@ -255,6 +273,7 @@ export class Dugout extends Phaser.GameObjects.Container {
   }
 
   public getSprites(): Map<string, Phaser.GameObjects.Container> {
+    // console.log(`[Dugout] getSprites for team ${this.team.id}: ${this.playerSprites.size} sprites`);
     return this.playerSprites;
   }
 

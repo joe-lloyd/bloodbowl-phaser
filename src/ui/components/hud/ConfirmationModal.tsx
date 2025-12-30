@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
@@ -21,13 +21,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 }) => {
   const [data, setData] = useState<ConfirmationData | null>(null);
 
-  useEventBus(
-    eventBus,
-    GameEventNames.UI_RequestConfirmation,
-    (payload: any) => {
-      setData(payload);
-    }
-  );
+  useEventBus(eventBus, GameEventNames.UI_RequestConfirmation, (payload) => {
+    setData(payload);
+  });
 
   const handleConfirm = () => {
     if (!data) return;

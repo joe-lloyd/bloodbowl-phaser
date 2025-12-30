@@ -16,11 +16,7 @@ export class SandboxScene extends GameScene {
     // If teams are passed, use them. Otherwise generate Mock Teams.
     if (data && data.team1 && data.team2) {
       // Need to initialize ServiceContainer before GameScene uses it
-      ServiceContainer.initialize(
-        (window as any).eventBus,
-        data.team1,
-        data.team2
-      );
+      ServiceContainer.initialize(window.eventBus, data.team1, data.team2);
       super.init(data as { team1: Team; team2: Team });
     } else {
       const team1 = TestTeamFactory.createTestTeam(
@@ -35,7 +31,7 @@ export class SandboxScene extends GameScene {
       );
 
       // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
-      ServiceContainer.initialize((window as any).eventBus, team1, team2);
+      ServiceContainer.initialize(window.eventBus, team1, team2);
 
       super.init({ team1, team2 });
     }
@@ -45,10 +41,18 @@ export class SandboxScene extends GameScene {
     this.events.on(Phaser.Scenes.Events.DESTROY, this.cleanupSandbox, this);
   }
 
-  private loadScenarioHandler: Function | null = null;
-  private refreshBoardHandler: Function | null = null;
-  private ballPlacedHandler: Function | null = null;
-  private playerMovedHandler: Function | null = null;
+  private loadScenarioHandler: ((data: { scenarioId: string }) => void) | null =
+    null;
+  private refreshBoardHandler: ((data: { scenarioId: string }) => void) | null =
+    null;
+  private onComplete: () => void;
+  private onFail: (error: Error) => void;
+  private onProgress: (progress: number) => void;
+  private onFileProgress: (file) => void;
+  private ballPlacedHandler: ((data: { scenarioId: string }) => void) | null =
+    null;
+  private playerMovedHandler: ((data: { scenarioId: string }) => void) | null =
+    null;
 
   create(): void {
     super.create();
@@ -81,18 +85,12 @@ export class SandboxScene extends GameScene {
       }
     };
 
-    this.eventBus.on(
-      GameEventNames.UI_LoadScenario,
-      this.loadScenarioHandler as any
-    );
+    this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
 
     this.refreshBoardHandler = () => {
       this.refreshDugouts();
     };
-    this.eventBus.on(
-      GameEventNames.RefreshBoard,
-      this.refreshBoardHandler as any
-    );
+    this.eventBus.on(GameEventNames.RefreshBoard, this.refreshBoardHandler);
 
     // Sandbox-specific: Allow unlimited player movement for testing
     // Clear activation status after each move so players can be moved multiple times
@@ -100,32 +98,23 @@ export class SandboxScene extends GameScene {
       const state = this.gameService.getState();
       state.turn.activatedPlayerIds.clear();
     };
-    this.eventBus.on(
-      GameEventNames.PlayerMoved,
-      this.playerMovedHandler as any
-    );
+    this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
   }
 
   private cleanupSandbox(): void {
     if (this.loadScenarioHandler) {
       this.eventBus.off(
         GameEventNames.UI_LoadScenario,
-        this.loadScenarioHandler as any
+        this.loadScenarioHandler
       );
       this.loadScenarioHandler = null;
     }
     if (this.refreshBoardHandler) {
-      this.eventBus.off(
-        GameEventNames.RefreshBoard,
-        this.refreshBoardHandler as any
-      );
+      this.eventBus.off(GameEventNames.RefreshBoard, this.refreshBoardHandler);
       this.refreshBoardHandler = null;
     }
     if (this.playerMovedHandler) {
-      this.eventBus.off(
-        GameEventNames.PlayerMoved,
-        this.playerMovedHandler as any
-      );
+      this.eventBus.off(GameEventNames.PlayerMoved, this.playerMovedHandler);
       this.playerMovedHandler = null;
     }
     // ballPlacedHandler removed - no longer needed

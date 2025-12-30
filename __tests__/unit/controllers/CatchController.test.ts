@@ -1,14 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  CatchController,
-  CatchResult,
-} from "../../../src/game/controllers/CatchController";
+import { CatchController } from "../../../src/game/controllers/CatchController";
 import { Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("CatchController", () => {
   let controller: CatchController;
-  let mockEventBus: any;
+  let mockEventBus;
   let player: Player;
 
   beforeEach(() => {
@@ -31,38 +28,22 @@ describe("CatchController", () => {
 
   describe("Catch Modifiers", () => {
     it("should apply -1 modifier for bounce", () => {
-      const modifiers = (controller as any).calculateCatchModifiers(
-        true,
-        false,
-        0
-      );
+      const modifiers = controller.calculateCatchModifiers(true, false, 0);
       expect(modifiers).toBe(-1);
     });
 
     it("should apply -1 modifier for throw-in", () => {
-      const modifiers = (controller as any).calculateCatchModifiers(
-        false,
-        true,
-        0
-      );
+      const modifiers = controller.calculateCatchModifiers(false, true, 0);
       expect(modifiers).toBe(-1);
     });
 
     it("should apply -1 per marking opponent", () => {
-      const modifiers = (controller as any).calculateCatchModifiers(
-        false,
-        false,
-        2
-      );
+      const modifiers = controller.calculateCatchModifiers(false, false, 2);
       expect(modifiers).toBe(-2);
     });
 
     it("should stack modifiers correctly", () => {
-      const modifiers = (controller as any).calculateCatchModifiers(
-        true,
-        false,
-        2
-      );
+      const modifiers = controller.calculateCatchModifiers(true, false, 2);
       expect(modifiers).toBe(-3); // -1 bounce, -2 marking
     });
   });

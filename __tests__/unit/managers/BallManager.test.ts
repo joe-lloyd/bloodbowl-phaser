@@ -8,12 +8,12 @@ import { GameEventNames } from "../../../src/types/events";
 
 describe("BallManager", () => {
   let manager: BallManager;
-  let mockEventBus: any;
+  let mockEventBus;
   let mockState: GameState;
   let mockTeam1: Team;
   let mockTeam2: Team;
   let mockWeatherManager: WeatherManager;
-  let mockCallbacks: any;
+  let mockCallbacks;
 
   beforeEach(() => {
     mockEventBus = {
@@ -54,7 +54,7 @@ describe("BallManager", () => {
 
     mockWeatherManager = {
       rollWeather: vi.fn(),
-    } as any;
+    };
 
     mockCallbacks = {
       onTurnover: vi.fn(),

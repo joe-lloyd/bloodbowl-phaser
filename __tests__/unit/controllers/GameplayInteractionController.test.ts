@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust path if needed
-import { IGameService } from "../../../src/services/interfaces/IGameService";
 
 // Mock dependencies
 const mockScene = {
@@ -30,11 +29,6 @@ const mockPitch = {
 const mockMovementValidator = {
   findPath: vi.fn(),
   analyzePath: vi.fn().mockReturnValue({ requiresDodge: false }),
-};
-
-const mockPlayerInfoPanel = {
-  showPlayer: vi.fn(),
-  hide: vi.fn(),
 };
 
 const mockEventBus = {
@@ -90,23 +84,23 @@ describe("GameplayInteractionController", () => {
     vi.clearAllMocks();
 
     // Setup default scene mock for teams (as the controller accesses them directly in a temporary hack)
-    (mockScene as any).team1 = {
+    mockScene.team1 = {
       id: team1Id,
       players: [player1],
       colors: { primary: 0xff0000 },
     };
-    (mockScene as any).team2 = {
+    mockScene.team2 = {
       id: team2Id,
       players: [player2],
       colors: { primary: 0x0000ff },
     };
 
     controller = new GameplayInteractionController(
-      mockScene as any,
-      mockGameService as any,
-      mockEventBus as any,
-      mockPitch as any,
-      mockMovementValidator as any
+      mockScene,
+      mockGameService,
+      mockEventBus,
+      mockPitch,
+      mockMovementValidator
     );
   });
 
@@ -163,7 +157,7 @@ describe("GameplayInteractionController", () => {
       });
 
       // Simulate Click
-      (controller as any).onSquareClicked(targetX, targetY);
+      controller.onSquareClicked(targetX, targetY);
 
       // Expect findPath called
       expect(mockMovementValidator.findPath).toHaveBeenCalled();
@@ -179,10 +173,10 @@ describe("GameplayInteractionController", () => {
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
-      (controller as any).onSquareClicked(6, 5); // Add
+      controller.onSquareClicked(6, 5); // Add
 
       // 2. Click Same Spot (Confirm)
-      (controller as any).onSquareClicked(6, 5); // Confirm
+      controller.onSquareClicked(6, 5); // Confirm
 
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },

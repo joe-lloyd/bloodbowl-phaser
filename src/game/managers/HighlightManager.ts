@@ -22,7 +22,7 @@ export enum HighlightType {
 interface TrackedHighlight {
   type: HighlightType;
   rectangle: Phaser.GameObjects.Rectangle;
-  metadata?: any;
+  metadata?;
 }
 
 export class HighlightManager {
@@ -45,7 +45,7 @@ export class HighlightManager {
     gridX: number,
     gridY: number,
     color: number = 0xffff00,
-    metadata?: any
+    metadata?
   ): Phaser.GameObjects.Rectangle {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
@@ -65,7 +65,7 @@ export class HighlightManager {
     gridX: number,
     gridY: number,
     color: number = 0x00ff00,
-    metadata?: any
+    metadata?
   ): Phaser.GameObjects.Rectangle {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
@@ -85,7 +85,7 @@ export class HighlightManager {
     gridX: number,
     gridY: number,
     color: number = 0xffffff,
-    metadata?: any
+    metadata?
   ): Phaser.GameObjects.Rectangle {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
@@ -105,7 +105,7 @@ export class HighlightManager {
     gridX: number,
     gridY: number,
     color: number,
-    metadata?: any
+    metadata?
   ): Phaser.GameObjects.Rectangle {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 

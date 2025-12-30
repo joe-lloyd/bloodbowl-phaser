@@ -8,8 +8,8 @@ import { GamePhase } from "../../../src/types/GameState.js";
 describe("GameService", () => {
   let gameService: IGameService;
   let eventBus: EventBus;
-  let team1: any;
-  let team2: any;
+  let team1;
+  let team2;
 
   beforeEach(() => {
     eventBus = new EventBus();
@@ -325,7 +325,7 @@ describe("GameService", () => {
       let phaseChanged = false;
       let newPhase: GamePhase | null = null;
 
-      eventBus.on("phaseChanged", (data: any) => {
+      eventBus.on("phaseChanged", (data) => {
         phaseChanged = true;
         newPhase = data.phase;
       });
@@ -338,9 +338,9 @@ describe("GameService", () => {
 
     it("should emit playerPlaced event when player is placed", () => {
       let playerPlaced = false;
-      let placedData: any = null;
+      let placedData = null;
 
-      eventBus.on("playerPlaced", (data: any) => {
+      eventBus.on("playerPlaced", (data) => {
         playerPlaced = true;
         placedData = data;
       });
@@ -373,9 +373,9 @@ describe("GameService", () => {
 
     it("should emit turnStarted event when turn starts", () => {
       let turnStarted = false;
-      let turnData: any = null;
+      let turnData = null;
 
-      eventBus.on("turnStarted", (data: any) => {
+      eventBus.on("turnStarted", (data) => {
         turnStarted = true;
         turnData = data;
       });
@@ -409,9 +409,9 @@ describe("GameService", () => {
 
     it("should emit touchdown event when touchdown is scored", () => {
       let touchdownScored = false;
-      let touchdownData: any = null;
+      let touchdownData = null;
 
-      eventBus.on("touchdown", (data: any) => {
+      eventBus.on("touchdown", (data) => {
         touchdownScored = true;
         touchdownData = data;
       });

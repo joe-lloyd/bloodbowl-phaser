@@ -62,7 +62,7 @@ export function GamePage({ eventBus, mode = "normal" }: GamePageProps) {
     gameRef.current = game;
 
     // Make game available globally for debugging
-    (window as any).game = game;
+    window.game = game;
 
     // Wait for boot, then start appropriate scene
     game.events.once("ready", () => {
@@ -82,7 +82,7 @@ export function GamePage({ eventBus, mode = "normal" }: GamePageProps) {
       if (gameRef.current) {
         gameRef.current.destroy(true);
         gameRef.current = null;
-        (window as any).game = null;
+        window.game = null;
 
         // Reset ServiceContainer
         ServiceContainer.reset();

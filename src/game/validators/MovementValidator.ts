@@ -329,7 +329,7 @@ export class MovementValidator {
         const tackleZones = this.getTackleZones(from.x, from.y, opponents);
         if (tackleZones > 0) {
           const zonesInto = this.getTackleZones(to.x, to.y, opponents);
-          let dodgeMods = zonesInto === 0 ? 0 : -zonesInto; // Avoid -0
+          const dodgeMods = zonesInto === 0 ? 0 : -zonesInto; // Avoid -0
           rolls.push({
             type: "dodge",
             target: player.stats.AG,

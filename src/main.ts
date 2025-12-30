@@ -23,7 +23,7 @@ if (reactRoot) {
 }
 
 // Make EventBus available globally for debugging
-(window as any).eventBus = eventBus;
+window.eventBus = eventBus;
 
 console.log("🏈 Blood Bowl Sevens - Ready!");
 console.log("📡 EventBus - Ready for communication!");

@@ -35,7 +35,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     // Notify UI that Phaser is ready
-    const eventBus = (window as any).eventBus;
+    const eventBus = window.eventBus;
     if (eventBus) {
       eventBus.emit("phaser:ready");
       console.log("Phaser BootScene: Assets loaded, waiting for UI command...");

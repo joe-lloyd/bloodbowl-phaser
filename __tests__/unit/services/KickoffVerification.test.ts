@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { GameService } from "../../../src/services/GameService.js";
 import { IGameService } from "../../../src/services/interfaces/IGameService.js";
 import { EventBus } from "../../../src/services/EventBus.js";
@@ -8,8 +8,8 @@ import { GamePhase } from "../../../src/types/GameState.js";
 describe("Kickoff Verification", () => {
   let gameService: IGameService;
   let eventBus: EventBus;
-  let team1: any;
-  let team2: any;
+  let team1;
+  let team2;
 
   beforeEach(() => {
     eventBus = new EventBus();

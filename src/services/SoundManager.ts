@@ -8,7 +8,7 @@ import {
 export class SoundManager {
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
-  private currentCycle: any = null;
+  private currentCycle = null;
 
   constructor() {
     console.log("SoundManager created.");
@@ -94,7 +94,7 @@ export class SoundManager {
     // Placeholder for ambient
   }
 
-  public playSFX(type: "dice" | "kick" | "whistle"): void {
+  public playSFX(_type: "dice" | "kick" | "whistle"): void {
     // Placeholder for SFX
   }
 

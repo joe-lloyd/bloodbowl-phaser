@@ -43,7 +43,7 @@ describe("GameService Movement Integration", () => {
       weather: "Nice",
       ballPosition: null,
       activePlayer: null,
-    } as any; // Cast as any or partial GameState if needed, or better use GameStateBuilder if available
+    }; // Cast or partial GameState if needed, or better use GameStateBuilder if available
 
     gameService = new GameService(eventBus, team1, team2, initialState);
   });

@@ -373,7 +373,7 @@ export class Pitch {
    */
   public drawMovementPath(
     path: { x: number; y: number }[],
-    rolls: any[],
+    rolls: { type: string; target: number; roll: number; result: string }[],
     ma: number = 6
   ): void {
     this.clearPath();
@@ -409,7 +409,7 @@ export class Pitch {
     this.container.add(graphics);
 
     // Draw Dots
-    path.forEach((step, index) => {
+    path.forEach((step, _index) => {
       const local = gridToPixel(step.x, step.y, this.squareSize);
       let color = 0xffffff; // Normal: White
       let radius = 6;

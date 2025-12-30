@@ -4,8 +4,8 @@ import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 
 describe("ServiceContainer", () => {
-  let team1: any;
-  let team2: any;
+  let team1;
+  let team2;
 
   beforeEach(() => {
     team1 = new TeamBuilder()
@@ -85,11 +85,11 @@ describe("ServiceContainer", () => {
       const container = ServiceContainer.getInstance();
       let eventFired = false;
 
-      (container.eventBus as any).on("test", () => {
+      container.eventBus.on("test", () => {
         eventFired = true;
       });
 
-      (container.eventBus as any).emit("test");
+      container.eventBus.emit("test");
 
       expect(eventFired).toBe(true);
     });

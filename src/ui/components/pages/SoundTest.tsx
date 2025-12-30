@@ -18,14 +18,14 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
         roster: [],
         colors: { primary: 0xff0000, secondary: 0xffffff },
         players: [],
-      } as any;
+      };
       const dummyTeam2 = {
         id: "sound-test-2",
         name: "Audio Two",
         roster: [],
         colors: { primary: 0x0000ff, secondary: 0xffffff },
         players: [],
-      } as any;
+      };
 
       ServiceContainer.initialize(eventBus, dummyTeam1, dummyTeam2);
     }

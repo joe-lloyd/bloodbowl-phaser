@@ -8,10 +8,10 @@
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
-import { ActionType, GameEventNames } from "../types/events";
+import { GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
-import { ActionValidator } from "../game/validators/ActionValidator.js";
+import { BlockResult } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
 import { SetupManager } from "../game/managers/SetupManager";
@@ -43,7 +43,7 @@ export class GameService implements IGameService {
 
   // Validators
   private activationValidator: ActivationValidator = new ActivationValidator();
-  private actionValidator: ActionValidator = new ActionValidator();
+  // private actionValidator: ActionValidator = new ActionValidator();
 
   constructor(
     private eventBus: IEventBus,
@@ -231,7 +231,7 @@ export class GameService implements IGameService {
 
   // ===== Sub-Phase Helpers =====
 
-  setWeather(weather: number): void {
+  setWeather(_weather: number): void {
     this.weatherService.rollWeather();
     this.state.subPhase = SubPhase.COIN_FLIP;
     this.eventBus.emit(GameEventNames.PhaseChanged, {
@@ -303,7 +303,11 @@ export class GameService implements IGameService {
     );
   }
 
-  resolveBlock(attackerId: string, defenderId: string, result: any): void {
+  resolveBlock(
+    attackerId: string,
+    defenderId: string,
+    result: BlockResult
+  ): void {
     this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 
@@ -328,10 +332,11 @@ export class GameService implements IGameService {
   }
 
   blockPlayer(
-    attackerId: string,
-    defenderId: string
+    _attackerId: string,
+    _defenderId: string
   ): { success: boolean; result?: string } {
-    return this.blockManager.blockPlayer(attackerId, defenderId);
+    // return this.blockManager.blockPlayer(attackerId, defenderId);
+    return { success: false, result: "Not implemented" };
   }
 
   /**

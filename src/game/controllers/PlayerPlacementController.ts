@@ -13,7 +13,6 @@ import { GameEventNames } from "../../types/events";
  * Emits events when players are placed/removed
  */
 export class PlayerPlacementController extends Phaser.Events.EventEmitter {
-  private scene: Phaser.Scene;
   private validator: SetupValidator;
   private pitch: Pitch;
 
@@ -25,7 +24,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
   constructor(scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
     super();
-    this.scene = scene;
+    // this.scene = scene;
     this.pitch = pitch;
     this.validator = validator;
   }
@@ -45,18 +44,35 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     // Clear internal tracking for new team (but don't emit events - sprites stay on pitch)
     this.placedPlayers.clear();
 
+    console.log(
+      `[PlayerPlacementController] enablePlacement: team=${team.id}, isTeam1=${isTeam1}, spriteCount=${dugoutSprites.size}`
+    );
+
     // Enable dragging for current team's players
     this.dugoutSprites.forEach((sprite, playerId) => {
       const player = this.getPlayerById(playerId);
+
       if (player && player.teamId === team.id) {
+        // console.log(`[PlayerPlacementController] Enabling sprite for player ${playerId}`);
         sprite.setInteractive({ draggable: true });
         sprite.setAlpha(1);
 
         // Remove old listeners to prevent duplicates
         sprite.off("dragend");
+        sprite.off("dragstart"); // Ensure we don't duplicate our debug listener
+
+        sprite.on("dragstart", () => {
+          console.log(
+            `[PlayerPlacementController] dragstart on ${playerId} (Team ${player.teamId})`
+          );
+        });
 
         // Add drag end listener for snapping
         sprite.on("dragend", (pointer: Phaser.Input.Pointer) => {
+          console.log(
+            `[PlayerPlacementController] dragend on ${playerId}. World: ${pointer.worldX}, ${pointer.worldY}`
+          );
+
           // Convert drop position to world coordinates (since sprite is in container)
           // Actually, pointer.worldX/Y is what we want, or we use the sprite's world transform
           // But the sprite is being dragged, so its x/y are updated relative to container.
@@ -79,6 +95,15 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           sprite.y = 0;
         });
       } else {
+        if (!player)
+          console.warn(
+            `[PlayerPlacementController] Player not found for sprite ${playerId}`
+          );
+        else if (player.teamId !== team.id)
+          console.warn(
+            `[PlayerPlacementController] Team mismatch for player ${playerId}: ${player.teamId} vs ${team.id}`
+          );
+
         sprite.disableInteractive();
         sprite.setAlpha(0.5);
       }
@@ -96,6 +121,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     this.dugoutSprites.forEach((sprite) => {
       sprite.disableInteractive();
       sprite.setAlpha(0.5);
+      sprite.setDepth(1); // Reset to standard low depth
     });
   }
 
@@ -138,6 +164,9 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     // Validate position is in setup zone
     if (!this.validator.isInSetupZone(gridX, gridY, this.isTeam1)) {
+      console.warn(
+        `[PlayerPlacementController] Invalid Placement for ${playerId} at ${gridX},${gridY}. Team1=${this.isTeam1}. OUTSIDE ZONE.`
+      );
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
         x: gridX,

@@ -2,16 +2,15 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TurnManager } from "../../../src/game/managers/TurnManager";
 import { GameState, GamePhase, SubPhase } from "../../../src/types/GameState";
 import { Team } from "../../../src/types/Team";
-import { PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
 describe("TurnManager", () => {
   let manager: TurnManager;
-  let mockEventBus: any;
+  let mockEventBus;
   let mockState: GameState;
   let mockTeam1: Team;
   let mockTeam2: Team;
-  let mockCallbacks: any;
+  let mockCallbacks;
 
   beforeEach(() => {
     mockEventBus = {

@@ -115,7 +115,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   });
 
   // Turn Data Updated listener (from PlayerActionManager)
-  useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn: any) => {
+  useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn) => {
     setTurnData((prev) => ({
       ...prev,
       hasBlitzed: updatedTurn.hasBlitzed,
@@ -155,7 +155,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   // Helper to add notification
   const addNotification = (text: string) => {
-    const id = `${text}-${Date.now()}`;
+    // START FIX: Use random string to ensure uniqueness even if text/time matches
+    const id = `${text}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // END FIX
 
     setNotifications((prev) => {
       if (prev.length < 3) {

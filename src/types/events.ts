@@ -170,7 +170,7 @@ export interface GameEvents {
     defenderId: string;
     numDice: number;
     isAttackerChoice: boolean;
-    results: any[]; // BlockResult[]
+    results: BlockResult[];
   };
 
   [GameEventNames.ArmorRolled]: {
@@ -294,7 +294,7 @@ export interface GameEvents {
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {
-    ballSprite: any; // Phaser.GameObjects.Container
+    ballSprite; // Phaser.GameObjects.Container
     animationDuration: number; // How long to track the ball
   };
   [GameEventNames.Camera_Reset]: {
@@ -327,7 +327,7 @@ export interface UIEvents {
   [GameEventNames.UI_ConfirmSetup]: void;
 
   // Navigation
-  [GameEventNames.UI_SceneChange]: { scene: string; data?: any };
+  [GameEventNames.UI_SceneChange]: { scene: string; data? };
   [GameEventNames.UI_LoadScenario]: { scenarioId: string };
 
   // Game Start
