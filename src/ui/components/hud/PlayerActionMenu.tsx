@@ -22,6 +22,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     { id: string; label: string }[]
   >([]);
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
+  const [hasMovedInAction, setHasMovedInAction] = useState(false);
 
   // Listen for player selection
   useEventBus(eventBus, GameEventNames.PlayerSelected, (data) => {
@@ -30,6 +31,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       console.log("Player selection changed, resetting action mode");
       setActionSteps([]);
       setCurrentStepId(null);
+      setHasMovedInAction(false);
     }
     setSelectedPlayer(data.player);
   });
@@ -43,7 +45,12 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     } else {
       setActionSteps([]);
       setCurrentStepId(null);
+      setHasMovedInAction(false);
     }
+  });
+
+  useEventBus(eventBus, GameEventNames.PlayerMovedInAction, () => {
+    setHasMovedInAction(true);
   });
 
   useEventBus(eventBus, GameEventNames.TurnStarted, () => {
@@ -221,6 +228,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
           steps={actionSteps}
           currentStepId={currentStepId || ""}
           eventBus={eventBus}
+          hasMovedInAction={hasMovedInAction}
         />
       ) : (
         // SHOW DEFAULT ACTION MENU

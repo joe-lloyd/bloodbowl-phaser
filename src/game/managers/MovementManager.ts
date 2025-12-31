@@ -184,10 +184,7 @@ export class MovementManager {
           player.gridPosition = currentPos;
           player.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
-            playerId,
-            status: PlayerStatus.PRONE,
-          });
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
           // Update ball position if holding ball
           if (holdingBall) {
@@ -230,10 +227,7 @@ export class MovementManager {
           player.gridPosition = currentPos;
           player.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, {
-            playerId,
-            status: PlayerStatus.PRONE,
-          });
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
           // Update ball position if holding ball
           if (holdingBall) {
@@ -297,9 +291,38 @@ export class MovementManager {
       path: completedPath,
     });
 
-    // Auto-finish if exhausted
+    // Auto-finish if exhausted check
     if (preUsed + stepsTaken >= player.stats.MA + 2) {
-      this.callbacks.onActivationFinished(playerId);
+      // Check if we should keep activation open for secondary actions (Pass, Blitz, etc.)
+      const activePlayer = this.state.activePlayer;
+      const currentAction =
+        activePlayer?.id === playerId ? activePlayer.action : "move";
+
+      // If action is Move, we are done.
+      // If action is Pass/Blitz/Handoff/Foul, we might still need to perform that action.
+      // We check if the specific action has been performed (flags in turn state).
+      let shouldFinish = true;
+
+      if (currentAction === "pass") {
+        shouldFinish = false;
+      } else if (currentAction === "blitz" && !this.state.turn.hasBlitzed) {
+        // Blitz allows block.
+        // Optimization: If movement is truly exhausted (MA+2), they likely can't block (costs 1 MA).
+        // But for safety/clarity, we can leave it open or check if they can afford a block.
+        // For now, let's keep the hasBlitzed check (if they haven't blocked, maybe they want to TRY, let UI fail them)
+        // Actually, if they moved max, they can't block.
+        // But existing logic handles block cost check.
+        // Let's stick to the user request about PASS primarily.
+        shouldFinish = false;
+      } else if (currentAction === "handoff") {
+        shouldFinish = false;
+      } else if (currentAction === "foul") {
+        shouldFinish = false;
+      }
+
+      if (shouldFinish) {
+        this.callbacks.onActivationFinished(playerId);
+      }
     }
 
     return Promise.resolve();

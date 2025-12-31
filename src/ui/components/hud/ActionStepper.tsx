@@ -23,12 +23,14 @@ interface ActionStepperProps {
   steps: { id: string; label: string }[];
   currentStepId: string;
   eventBus: EventBus;
+  hasMovedInAction: boolean;
 }
 
 export const ActionStepper: React.FC<ActionStepperProps> = ({
   steps,
   currentStepId,
   eventBus,
+  hasMovedInAction,
 }) => {
   const handleStepClick = (stepId: string) => {
     eventBus.emit(GameEventNames.UI_StepSelected, { stepId });
@@ -102,16 +104,30 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
         })}
       </div>
 
-      {/* Cancel Action Button */}
-      <div className="pt-2 mt-2 border-t border-bb-divider">
+      {/* Control Buttons */}
+      <div className="pt-2 mt-2 border-t border-bb-divider flex flex-col gap-1">
+        {/* Back / Cancel - Only if NOT MOVED */}
+        {!hasMovedInAction && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              eventBus.emit(GameEventNames.UI_CancelAction);
+            }}
+            className="w-full py-2 px-3 text-xs font-heading font-bold uppercase tracking-widest text-bb-muted-text hover:bg-bb-parchment hover:text-bb-text-dark border border-transparent hover:border-bb-divider rounded-sm transition-colors"
+          >
+            ← Back
+          </button>
+        )}
+
+        {/* End Activation - Always available */}
         <button
           onClick={(e) => {
             e.stopPropagation();
-            eventBus.emit(GameEventNames.PlayerSelected, { player: null });
+            eventBus.emit(GameEventNames.UI_EndActivation);
           }}
           className="w-full py-2 px-3 text-xs font-heading font-bold uppercase tracking-widest text-bb-blood-red hover:bg-bb-blood-red hover:text-bb-parchment border border-transparent hover:border-bb-dark-gold rounded-sm transition-colors"
         >
-          Cancel Action
+          End Activation
         </button>
       </div>
     </div>

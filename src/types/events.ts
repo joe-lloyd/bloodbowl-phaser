@@ -80,6 +80,7 @@ export enum GameEventNames {
   UI_ActionSelected = "ui:actionSelected",
   UI_ConfirmAction = "ui:confirmAction",
   UI_CancelAction = "ui:cancelAction",
+  UI_EndActivation = "ui:endActivation",
   UI_EndTurn = "ui:endTurn",
   UI_PlacePlayer = "ui:placePlayer",
   UI_RemovePlayer = "ui:removePlayer",
@@ -322,6 +323,7 @@ export interface UIEvents {
   [GameEventNames.UI_ActionSelected]: { action: ActionType; playerId: string };
   [GameEventNames.UI_ConfirmAction]: { actionId: string };
   [GameEventNames.UI_CancelAction]: void;
+  [GameEventNames.UI_EndActivation]: void;
   [GameEventNames.UI_EndTurn]: void;
 
   // Setup

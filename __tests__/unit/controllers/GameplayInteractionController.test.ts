@@ -164,7 +164,7 @@ describe("GameplayInteractionController", () => {
       });
 
       // Simulate Click
-      controller.onSquareClicked(targetX, targetY);
+      (controller as any).onSquareClicked(targetX, targetY);
 
       // Expect findPath called
       expect(mockMovementValidator.findPath).toHaveBeenCalled();
@@ -173,17 +173,20 @@ describe("GameplayInteractionController", () => {
       expect(mockPitch.drawMovementPath).toHaveBeenCalled();
     });
 
-    it("should execute move when clicking the last waypoint", async () => {
+    it("should execute move and deselect if player has acted", async () => {
+      // Mock hasPlayerActed to true (turn ended for player)
+      mockGameService.hasPlayerActed.mockReturnValue(true);
+
       // 1. Add Waypoint
       mockMovementValidator.findPath.mockReturnValue({
         valid: true,
         path: [{ x: 6, y: 5 }],
         rolls: [],
       });
-      controller.onSquareClicked(6, 5); // Add
+      (controller as any).onSquareClicked(6, 5); // Add
 
       // 2. Click Same Spot (Confirm)
-      controller.onSquareClicked(6, 5); // Confirm
+      (controller as any).onSquareClicked(6, 5); // Confirm
 
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
@@ -193,6 +196,32 @@ describe("GameplayInteractionController", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockScene.unhighlightPlayer).toHaveBeenCalled(); // Deselects after move
+    });
+
+    it("should execute move and KEEP player selected if player has NOT acted (partial move)", async () => {
+      // Mock hasPlayerActed to false (partial move)
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+
+      // 1. Add Waypoint
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5); // Add
+
+      // 2. Click Same Spot (Confirm)
+      (controller as any).onSquareClicked(6, 5); // Confirm
+
+      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+        { x: 6, y: 5 },
+      ]);
+
+      // Wait for promise chain resolution
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled(); // Should NOT deselect
+      expect(mockScene.highlightPlayer).toHaveBeenCalled(); // Should refresh highlight
     });
   });
 
@@ -234,7 +263,7 @@ describe("GameplayInteractionController", () => {
         path: [{ x: 6, y: 5 }],
       });
 
-      controller.onSquareClicked(6, 5); // Add waypoint
+      (controller as any).onSquareClicked(6, 5); // Addwaypoint
       expect(mockPitch.drawMovementPath).toHaveBeenCalled();
       expect(mockGameService.throwBall).not.toHaveBeenCalled();
     });
@@ -244,7 +273,7 @@ describe("GameplayInteractionController", () => {
       (controller as any).onStepSelected({ stepId: "pass" });
 
       // Hovering should now trigger pass visualization
-      controller.onSquareHovered(7, 5);
+      (controller as any).onSquareHovered(7, 5);
       expect(mockPitch.drawPassZones).toHaveBeenCalled();
       expect(mockPitch.drawPassLine).toHaveBeenCalled();
       expect(mockPitch.drawMovementPath).not.toHaveBeenCalled();
@@ -255,7 +284,7 @@ describe("GameplayInteractionController", () => {
       (controller as any).onStepSelected({ stepId: "pass" });
 
       // Click target
-      controller.onSquareClicked(10, 5);
+      (controller as any).onSquareClicked(10, 5);
       expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5);
     });
 
@@ -269,22 +298,48 @@ describe("GameplayInteractionController", () => {
         valid: true,
         path: [{ x: 6, y: 5 }],
       });
-      controller.onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
       expect(mockPitch.drawMovementPath).toHaveBeenCalled();
       expect(mockGameService.throwBall).not.toHaveBeenCalled();
     });
 
-    it("should ignore invalid steps", () => {
-      // Try to switch to invalid step
-      (controller as any).onStepSelected({ stepId: "invalid_step" });
+    it("should switch to 'block' step", () => {
+      // Setup Blitz Mode
+      (controller as any).actionSteps = [
+        { id: "move", label: "Move" },
+        { id: "block", label: "Block" },
+      ];
+      (controller as any).currentActionMode = "blitz";
 
-      // Should remain in 'move'
-      mockMovementValidator.findPath.mockReturnValue({
-        valid: true,
-        path: [{ x: 6, y: 5 }],
+      // Switch
+      (controller as any).onStepSelected({ stepId: "block" });
+      expect(controller["currentStepId"]).toBe("block");
+    });
+
+    it("should execute block when clicking opponent in 'block' step", () => {
+      (controller as any).selectedPlayerId = "p1";
+      (controller as any).currentActionMode = "blitz";
+      (controller as any).currentStepId = "block";
+
+      // Mock Player At Square (Opponent)
+      const mockOpponent = { id: "p2", teamId: "team2" };
+      mockGameService.getPlayerById.mockImplementation((id) => {
+        if (id === "p1") return { id: "p1", teamId: "team1", stats: { MA: 6 } };
+        if (id === "p2") return mockOpponent;
+        return null;
       });
-      controller.onSquareClicked(6, 5);
-      expect(mockPitch.drawMovementPath).toHaveBeenCalled();
+      // Mock getPlayerAt helper via prototype or just ensure logic uses getPlayerById/Grid
+      // The controller uses private getPlayerAt(x,y). We need to mock that response.
+      // Since it's private and hard to mock directly without refactoring,
+      // we can mock getPlayerById AND we rely on the fact that existing logic calls getPlayerAt.
+      // Actually, onSquareClicked calls getPlayerAt.
+      // Let's assume we can mock `controller.getPlayerAt` if we cast to any.
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue(mockOpponent);
+
+      (controller as any).onSquareClicked(10, 10);
+
+      expect(mockGameService.previewBlock).toHaveBeenCalledWith("p1", "p2");
+      expect(mockScene.unhighlightPlayer).toHaveBeenCalled();
     });
   });
 
@@ -310,6 +365,16 @@ describe("GameplayInteractionController", () => {
 
     it("should select player normally if not in Pass Mode", () => {
       controller["currentActionMode"] = null;
+
+      // Mock player with stats for refreshPlayerVisualization
+      mockGameService.getPlayerById.mockReturnValue({
+        id: "p1",
+        teamId: "team1",
+        stats: { MA: 6, ST: 3, AG: 3, AV: 8 },
+        status: "Active",
+      });
+      mockGameService.canActivate.mockReturnValue(true);
+      mockGameService.getState.mockReturnValue({ activeTeamId: "team1" });
 
       const spy = vi.spyOn(controller, "selectPlayer");
 

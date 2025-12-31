@@ -47,6 +47,9 @@ export class GameplayInteractionController {
   private hasMovedInAction: boolean = false;
   private passController: PassController;
 
+  // Interaction Lock
+  private isBusy: boolean = false;
+
   constructor(
     scene: GameScene,
     gameService: IGameService,
@@ -82,7 +85,54 @@ export class GameplayInteractionController {
     // Listen for player actions (Blitz, Stand Up)
     this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
+    this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
+    this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
   }
+
+  private onEndActivation = () => {
+    if (this.selectedPlayerId) {
+      this.gameService.finishActivation(this.selectedPlayerId);
+      this.deselectPlayer();
+    }
+  };
+
+  private onCancelAction = () => {
+    if (!this.selectedPlayerId) return;
+
+    // If we have already moved, we cannot fully cancel the action to select another player
+    // effectively, we can only "End Activation" or continue.
+    // BUT the requirement says: "if the player misclicked it they should be able to exit by pressing the back button"
+    // AND "if a player moves then they can no longer go back to the context menu"
+
+    if (this.hasMovedInAction) {
+      // If moved, Back might just deselect current step or do nothing?
+      // The requirement says "can no longer go back to the context menu".
+      // So maybe Back is disabled in UI?
+      // If UI emits this, let's treat it as deselecting ONLY if we haven't moved?
+      console.warn("Cannot cancel action after moving");
+      return;
+    }
+
+    // Determine what to go back to.
+    // If we are in an Action (like Pass) and haven't moved, "Back" should probably cancel the Action Mode
+    // and return to "Just Selected" state (Action Menu open).
+
+    // Reset Action Mode but keep player selected
+    this.currentActionMode = null;
+    this.currentStepId = null;
+    this.actionSteps = [];
+    this.pitch.clearPassVisualization();
+
+    // Notify UI to show default menu again
+    // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
+    const player = this.gameService.getPlayerById(this.selectedPlayerId);
+    if (player) {
+      this.eventBus.emit(GameEventNames.PlayerSelected, { player });
+
+      // Also need to refresh visuals (ranges might have been hidden/changed)
+      this.refreshPlayerVisualization(this.selectedPlayerId);
+    }
+  };
 
   private onStepSelected = (data: { stepId: string }) => {
     // Validate step exists in current sequence
@@ -103,7 +153,8 @@ export class GameplayInteractionController {
       this.pitch.clearPassVisualization();
       this.pitch.clearPath();
       if (data.stepId === "move" && this.selectedPlayerId) {
-        this.selectPlayer(this.selectedPlayerId); // Re-draw move overlay
+        // FIX: Don't call selectPlayer, just refresh visuals
+        this.refreshPlayerVisualization(this.selectedPlayerId);
       }
     }
   };
@@ -206,6 +257,9 @@ export class GameplayInteractionController {
       // Don't call selectPlayer here - it causes PlayerSelected event
       // which resets the action mode we just set!
       // The player is already selected, no need to refresh
+
+      // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
+      this.refreshPlayerVisualization(data.playerId);
     } else {
       console.log("Failed to declare action:", data.action);
       this.eventBus.emit(
@@ -275,6 +329,8 @@ export class GameplayInteractionController {
   }
 
   private async onSquareClicked(x: number, y: number): Promise<void> {
+    if (this.isBusy) return;
+
     // Check if we're selecting a push direction first
     if (this.handlePushDirectionClick(x, y)) {
       return; // Push direction was selected, done
@@ -296,17 +352,39 @@ export class GameplayInteractionController {
       this.selectedPlayerId
     ) {
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
-        // Clicked self while passing -> Cancel / Switch back to move?
-        // Or just ignore. Let's ignore for now.
         return;
       }
-
-      // Execute Pass (Await animation sequence)
-      await this.gameService.throwBall(this.selectedPlayerId, x, y);
-
-      // Clear pass mode and selection
-      this.deselectPlayer();
+      this.isBusy = true;
+      try {
+        await this.gameService.throwBall(this.selectedPlayerId, x, y);
+      } finally {
+        this.isBusy = false;
+        this.deselectPlayer();
+      }
       return;
+    }
+
+    // BLITZ Execution (Block Step)
+    if (
+      this.currentActionMode === "blitz" &&
+      this.currentStepId === "block" &&
+      this.selectedPlayerId
+    ) {
+      if (playerAtSquare && playerAtSquare.id !== this.selectedPlayerId) {
+        // Initiate Block
+        this.isBusy = true;
+        // Don't wait for preview? Preview is sync usually?
+        // Actually previewBlock just emits an event for UI to show dialog.
+        // It doesn't need a lock usually, but deselectPlayer does cleanup.
+        this.gameService.previewBlock(this.selectedPlayerId, playerAtSquare.id);
+
+        this.deselectPlayer();
+        this.isBusy = false;
+        return;
+      } else if (!playerAtSquare) {
+        // Clicked empty space in Block mode?
+        // ...
+      }
     }
 
     // PLAY PHASE
@@ -496,24 +574,15 @@ export class GameplayInteractionController {
   }
 
   public selectPlayer(playerId: string): void {
-    const state = this.gameService.getState();
     const player = this.gameService.getPlayerById(playerId);
 
     if (!player) return;
 
-    // Interaction Check: Only active team's turn?
-    // User asked: "only the player in control can move their own pieces".
-    // Allow selection for inspection at any time, but movement only if active.
-    const canActivate = this.gameService.canActivate(playerId);
-
     // Check for previous incomplete activation
-    // If another player was partially moved, we must finish them before selecting a new one.
-    // Or, more strictly: selecting a NEW player implies ending the previous player's turn if they moved.
     if (this.selectedPlayerId && this.selectedPlayerId !== playerId) {
       const prevUsed = this.gameService.getMovementUsed(this.selectedPlayerId);
       const prevActed = this.gameService.hasPlayerActed(this.selectedPlayerId);
 
-      // If they used movement but aren't marked as acted rigid, mark them now.
       if (prevUsed > 0 && !prevActed) {
         this.gameService.finishActivation(this.selectedPlayerId);
       }
@@ -522,18 +591,27 @@ export class GameplayInteractionController {
     this.deselectPlayer();
     this.selectedPlayerId = playerId;
 
-    const isOwnTurn = state.activeTeamId === player.teamId;
-
     // Visual highlight
     this.scene.highlightPlayer(playerId);
 
     // UI Selection Event
     this.eventBus.emit(GameEventNames.PlayerSelected, { player });
 
-    // Show Movement Range & Tackle Zones if own turn AND can activate
+    this.refreshPlayerVisualization(playerId);
+  }
+
+  private refreshPlayerVisualization(playerId: string): void {
+    const state = this.gameService.getState();
+    const player = this.gameService.getPlayerById(playerId);
+    if (!player) return;
+
+    const canActivate = this.gameService.canActivate(playerId);
+    const isOwnTurn = state.activeTeamId === player.teamId;
+
     if (isOwnTurn && canActivate) {
-      // Only show movement range if NOT in pass mode
-      if (this.currentActionMode !== "pass") {
+      // Show Movement Range
+      // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode
+      if (this.currentActionMode !== "pass" || this.currentStepId === "move") {
         const reachable = this.gameService.getAvailableMovements(playerId);
 
         // Calculate remaining SAFE MA (for overlay coloring)
@@ -564,10 +642,13 @@ export class GameplayInteractionController {
 
         // Show Sprint Risks
         this.pitch.drawSprintRisks(sprintMoves);
+      } else {
+        // If in Pass Step (aiming), maybe don't show movement range?
+        // Or keep it? Original code hid it. Let's hide it for clarity when aiming pass.
+        // But tackle zones should stay.
       }
 
-      // Show Tackle Zones (always show these, even in pass mode)
-      // Get all opposing players with tackle zones (standing, not stunned/prone)
+      // Show Tackle Zones (always show these)
       const opponents = this.getOpposingPlayers(player.teamId);
       const tackleZones: { x: number; y: number }[] = [];
 
@@ -762,8 +843,8 @@ export class GameplayInteractionController {
           }
 
           // REFRESH SELECTION logic to update the Range Overlay
-          // calling selectPlayer again will re-fetch available movements (which now include used)
-          this.selectPlayer(playerId);
+          // calling selectPlayer would reset the action mode, so we use refresh
+          this.refreshPlayerVisualization(playerId);
         }
 
         this.pendingMove = null;
@@ -787,6 +868,8 @@ export class GameplayInteractionController {
     );
     this.eventBus.off(GameEventNames.UI_ActionSelected, this.onActionSelected);
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
+    this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
+    this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
 
     // Cleanup highlight manager
     if (this.highlightManager) {
