@@ -87,9 +87,6 @@ export class GameService implements IGameService {
 
     // Initialize Managers
     this.weatherService = new WeatherManager(eventBus, this.state);
-    this.playerActionManager = new PlayerActionManager(eventBus, this.state);
-    this.passController = new PassController(eventBus);
-    this.catchController = new CatchController(eventBus);
 
     this.setupManager = new SetupManager(
       eventBus,
@@ -103,9 +100,8 @@ export class GameService implements IGameService {
     );
 
     this.turnManager = new TurnManager(eventBus, this.state, team1, team2, {
-      onPhaseChanged: (phase, subPhase) => {
-        this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase });
-      },
+      onPhaseChanged: (phase, subPhase) =>
+        this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
     });
 
     this.ballManager = new BallManager(
@@ -122,6 +118,14 @@ export class GameService implements IGameService {
           this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
       }
     );
+
+    this.playerActionManager = new PlayerActionManager(eventBus, this.state);
+    // Inject centralized movement controller into PassController
+    this.passController = new PassController(
+      eventBus,
+      this.ballManager.movementController
+    );
+    this.catchController = new CatchController(eventBus);
 
     this.movementManager = new MovementManager(
       eventBus,
@@ -156,6 +160,9 @@ export class GameService implements IGameService {
 
   getActiveTeamId(): string | null {
     return this.state.activeTeamId;
+  }
+  public getPassController(): PassController {
+    return this.passController;
   }
 
   getTurnNumber(teamId: string): number {
@@ -217,8 +224,13 @@ export class GameService implements IGameService {
     }
   }
 
-  kickBall(playerId: string, targetX: number, targetY: number): void {
-    this.ballManager.kickBall(playerId, targetX, targetY);
+  kickBall(
+    isTeam1Kicking: boolean,
+    playerId: string,
+    targetX: number,
+    targetY: number
+  ): void {
+    this.ballManager.kickBall(isTeam1Kicking, playerId, targetX, targetY);
   }
 
   rollKickoff(): void {
@@ -377,11 +389,15 @@ export class GameService implements IGameService {
     );
 
     // Emit pass declared event
+    // SceneOrchestrator should listen to this and Zoom In on Passer
     this.eventBus.emit(GameEventNames.PassDeclared, {
       playerId: passerId,
       targetX,
       targetY,
     });
+
+    // Wait for camera zoom/pan (Simulating the user looking at the passer)
+    await this.delay(800);
 
     // --- 1. ATTEMPT PASS ---
     const passResult = this.passController.attemptPass(
@@ -394,22 +410,25 @@ export class GameService implements IGameService {
     // Handle fumbled pass
     if (passResult.fumbled) {
       this.state.ballPosition = passResult.finalPosition;
+      await this.delay(1000); // Wait for fumble animation
+
+      this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
       this.triggerTurnover("Fumbled Pass");
       return { success: false, result: "Pass fumbled" };
     }
 
     // --- 2. INTERCEPTIONS ---
-    // Only check interception if pass was successful (not fumbled)
-    // Note: Inaccurate passes can still be intercepted along the path to the scatter point?
-    // Rules say interceptors are checked on the path to the TARGET square.
-    // If intercepted, ball stops there.
-
     const interceptors = this.passController.checkInterceptions(
       passer.gridPosition,
       { x: targetX, y: targetY },
       opponentTeam.players,
       passResult.accurate
     );
+
+    if (interceptors.length > 0) {
+      // Small pause before checking interceptions
+      await this.delay(500);
+    }
 
     for (const interceptor of interceptors) {
       const interceptingPlayer = this.getPlayerById(interceptor.playerId);
@@ -435,16 +454,24 @@ export class GameService implements IGameService {
           interceptorId: interceptor.playerId,
           position: interceptingPlayer.gridPosition,
         });
+        await this.delay(1000); // Wait for interception animation
+
+        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
         this.triggerTurnover("Pass Intercepted");
         return { success: false, result: "Pass intercepted" };
       }
     }
 
     // --- 3. BALL LANDING & CATCH ---
-    // If not intercepted, ball travels to final position (scattered or accurate)
 
-    // Wait for animations? Ideally we return here and handle rest in callback, but
-    // for now we update state immediately and events drive visuals.
+    // Calculate flight time based on scatter or direct
+    // For Inaccurate pass, logic now implies direct flight visual (even if 3 D8s rolled logic-wise)
+    // passResult.scatterPath might exist, but we might visualize it fast or direct.
+    // If PassController was updated to emit direct path for visual, flightDuration calculation here
+    // depends on what SceneOrchestrator does.
+    // Assuming SceneOrchestrator plays one long arc for direct flight.
+    const flightDuration = 1000;
+    await this.delay(flightDuration);
 
     this.state.ballPosition = passResult.finalPosition;
 
@@ -453,6 +480,8 @@ export class GameService implements IGameService {
 
     if (receivingPlayer) {
       // --- 4. CATCH ATTEMPT ---
+      await this.delay(300); // Brief pause before catch attempt
+
       const markingCatch = this.catchController.countMarkingOpponents(
         passResult.finalPosition,
         receivingPlayer.teamId === this.team1.id
@@ -471,6 +500,8 @@ export class GameService implements IGameService {
         markingCatch
       );
 
+      await this.delay(500); // Wait for roll result visualization
+
       if (catchResult.success) {
         // SUCCESS
         this.eventBus.emit(GameEventNames.PassCompleted, {
@@ -479,11 +510,15 @@ export class GameService implements IGameService {
           position: passResult.finalPosition,
         });
 
-        // If caught by opponent (not interception, but failed catch scatter logic? No, accurate pass catch)
-        // If accurate pass caught by teammate -> Success.
-        // If inaccurate pass scatters to opponent and they catch it -> Turnover?
         if (receivingPlayer.teamId !== passer.teamId) {
+          await this.delay(1000);
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
           this.triggerTurnover("Ball Caught by Opponent");
+        } else {
+          // Success! Passer finished.
+          this.finishActivation(passerId);
+          await this.delay(500);
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
         }
 
         return { success: true, result: "Pass completed" };
@@ -495,32 +530,44 @@ export class GameService implements IGameService {
         this.state.ballPosition = bouncePos;
 
         this.eventBus.emit(GameEventNames.PassFumbled, {
-          // Reusing event or new 'BallBounce'?
           playerId: receivingPlayer.id,
           position: passResult.finalPosition,
           bouncePosition: bouncePos,
         });
 
-        // Check bounce catch
-        const bounceReceiver = this.getPlayerAtPosition(bouncePos);
-        if (bounceReceiver) {
-          // Attempt catch on bounce? Usually requires another roll.
-          // Simplified: If lands on player, they auto-catch for now or just turnover if active team dropped it.
-          // PROPER RULES: Bounce catch is same as catch but no accurate bonus.
-          // Logic: "if the catch is failed then it beomes a turnover" - User
-          // So we won't implement recursive bounce catches yet.
-        }
+        await this.delay(800); // Wait for bounce
 
-        // Turnover if passed by active team and not caught by active team
+        // Check bounce catch (placeholder)
+        // ...
+
+        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
         this.triggerTurnover("Failed Catch");
         return { success: false, result: "Catch failed" };
       }
     }
 
-    // --- 6. BALL ON GROUND ---
-    // No player at final position
+    // --- 6. BALL ON GROUND (Empty Square) ---
+    // Ball lands in empty square -> One final bounce
+    const bouncePos = this.passController.bounceBall(passResult.finalPosition);
+    this.state.ballPosition = bouncePos;
+
+    // Reuse PassFumbled handling for bounce visual
+    // We pass passerId as the source of "fumble" (inaccurate pass)
+    this.eventBus.emit(GameEventNames.PassFumbled, {
+      playerId: passerId,
+      position: passResult.finalPosition,
+      bouncePosition: bouncePos,
+    });
+
+    await this.delay(800); // Wait for bounce animation
+
+    this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
     this.triggerTurnover("Ball not caught");
     return { success: false, result: "Pass Incomplete" };
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

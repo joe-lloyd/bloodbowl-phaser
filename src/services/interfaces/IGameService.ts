@@ -48,6 +48,11 @@ export interface IGameService {
    */
   getPlayerById(playerId: string): Player | undefined;
 
+  /**
+   * Get the PassController instance
+   */
+  getPassController(): import("../../game/controllers/PassController").PassController;
+
   // ===== Setup Phase =====
 
   /**
@@ -109,7 +114,12 @@ export interface IGameService {
   /**
    * Perform the kickoff action (kick ball + scatter + event)
    */
-  kickBall(playerId: string, targetX: number, targetY: number): void;
+  kickBall(
+    isTeam1Kicking: boolean,
+    playerId: string,
+    targetX: number,
+    targetY: number
+  ): void;
 
   // ===== Game Phase =====
 

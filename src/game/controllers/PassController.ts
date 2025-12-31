@@ -1,6 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
+import { BallMovementController } from "./BallMovementController";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
 
@@ -46,7 +47,10 @@ export class PassController {
     { type: "Long Bomb", modifier: -3, minDistance: 11, maxDistance: 999 },
   ];
 
-  constructor(private eventBus: IEventBus) {}
+  constructor(
+    private eventBus: IEventBus,
+    private movementController: BallMovementController
+  ) {}
 
   /**
    * Calculate the distance between two grid positions
@@ -116,76 +120,27 @@ export class PassController {
   }
 
   /**
-   * Scatter the ball (d8 direction)
+   * Scatter the ball (Delegated to Movement Controller)
    */
   public scatterBall(
     position: { x: number; y: number },
-    emitEvent: boolean = true
+    _emitEvent: boolean = true // Argument deprecated but kept for signature comp if needed
   ): { x: number; y: number } {
-    const direction = Math.floor(Math.random() * 8) + 1;
-    let dx = 0;
-    let dy = 0;
-
-    switch (direction) {
-      case 1:
-        dx = -1;
-        dy = -1;
-        break;
-      case 2:
-        dx = 0;
-        dy = -1;
-        break;
-      case 3:
-        dx = 1;
-        dy = -1;
-        break;
-      case 4:
-        dx = -1;
-        dy = 0;
-        break;
-      case 5:
-        dx = 1;
-        dy = 0;
-        break;
-      case 6:
-        dx = -1;
-        dy = 1;
-        break;
-      case 7:
-        dx = 0;
-        dy = 1;
-        break;
-      case 8:
-        dx = 1;
-        dy = 1;
-        break;
-    }
-
-    if (emitEvent) {
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Pass Scatter",
-        diceType: "d8",
-        value: direction,
-        total: direction,
-        description: `Scatter Direction: ${direction}`,
-        passed: true,
-      });
-    }
-
-    return {
-      x: Math.max(0, Math.min(25, position.x + dx)),
-      y: Math.max(0, Math.min(14, position.y + dy)),
-    };
+    // Note: MovementController.scatter returns a PATH (3 steps).
+    // Internal loose scatter usually implies 1 step (like bounce).
+    // If we want 1 step scatter we use bounce logic or expose step in controller.
+    // For legacy support let's assume this means "Bounce/Scatter 1 square"
+    return this.movementController!.bounce(position);
   }
 
   /**
-   * Bounce the ball (same logic as scatter, just semantic difference)
+   * Bounce the ball (Delegated)
    */
   public bounceBall(position: { x: number; y: number }): {
     x: number;
     y: number;
   } {
-    return this.scatterBall(position, true);
+    return this.movementController!.bounce(position);
   }
 
   /**
@@ -252,14 +207,10 @@ export class PassController {
         bouncePosition: finalPosition,
       });
     } else if (!accuracyTest.accurate) {
-      // Inaccurate: Scatter 3 times
-      let currentPos = { ...to };
-      scatterPath = [to];
-      for (let i = 0; i < 3; i++) {
-        currentPos = this.scatterBall(currentPos, false);
-        scatterPath.push(currentPos);
-      }
-      finalPosition = currentPos;
+      // Inaccurate: Scatter 3 times (Batched)
+      const path = this.movementController!.scatter(to);
+      scatterPath = [to, ...path];
+      finalPosition = path[path.length - 1];
 
       this.eventBus.emit(GameEventNames.PassAttempted, {
         playerId: player.id,
@@ -268,7 +219,7 @@ export class PassController {
         passType: passRange.type,
         accurate: false,
         finalPosition,
-        scatterPath,
+        // scatterPath omitted to enforce direct flight visual per user request
       });
     } else {
       // Accurate

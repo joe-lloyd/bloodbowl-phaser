@@ -376,6 +376,20 @@ export class SceneOrchestrator {
     this.eventHandlers.set(GameEventNames.BallPlaced, onBallPlaced);
     this.eventBus.on(GameEventNames.BallPlaced, onBallPlaced);
 
+    // Pass Declared - Camera Track Passer
+    const onPassDeclared = (data: { playerId: string }) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (sprite) {
+        // Zoom to passer
+        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+          ballSprite: sprite,
+          animationDuration: 800,
+        });
+      }
+    };
+    this.eventHandlers.set(GameEventNames.PassDeclared, onPassDeclared);
+    this.eventBus.on(GameEventNames.PassDeclared, onPassDeclared);
+
     // Pass Animation
     const onPassAttempted = async (data: {
       playerId: string;

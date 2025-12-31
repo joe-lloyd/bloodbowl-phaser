@@ -329,10 +329,8 @@ export class GameScene extends Phaser.Scene {
           await this.cameraController.zoomTo(2.5, 400);
           this.cameraController.trackObject(data.ballSprite, 2.5, 0);
 
-          // Schedule camera reset after animation completes
-          this.time.delayedCall(data.animationDuration + 500, () => {
-            this.cameraController.reset(1000);
-          });
+          // Auto-reset removed to allow manual control via Camera_Reset events
+          // and support chained animations (e.g. Pass Declared -> Pass Flight -> Bounce)
         }
       }
     );

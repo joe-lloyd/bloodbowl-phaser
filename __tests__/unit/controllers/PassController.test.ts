@@ -7,9 +7,12 @@ import {
 import { Player, PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
 
+import { BallMovementController } from "../../../src/game/controllers/BallMovementController";
+
 describe("PassController", () => {
   let controller: PassController;
   let mockEventBus;
+  let mockMovementController;
   let player: Player;
 
   beforeEach(() => {
@@ -17,7 +20,13 @@ describe("PassController", () => {
       emit: vi.fn(),
     };
 
-    controller = new PassController(mockEventBus);
+    mockMovementController = {
+      scatter: vi.fn().mockReturnValue([{ x: 0, y: 0 }]),
+      bounce: vi.fn(),
+      deviate: vi.fn(),
+    } as unknown as BallMovementController;
+
+    controller = new PassController(mockEventBus, mockMovementController);
 
     player = {
       id: "player1",
@@ -229,11 +238,17 @@ describe("PassController", () => {
     });
 
     it("should scatter ball for inaccurate pass", () => {
-      // Mock for pass roll (2) and scatter direction/distance
+      // Mock accurate test failure
       const randomMock = vi.spyOn(Math, "random");
       randomMock.mockReturnValueOnce(1 / 6); // Roll 2, inaccurate for PA 3+
-      randomMock.mockReturnValueOnce(0.5); // Scatter direction
-      randomMock.mockReturnValueOnce(0.5); // Scatter distance
+
+      // Mock scatter result
+      const scatterPath = [
+        { x: 6, y: 6 },
+        { x: 7, y: 7 },
+        { x: 8, y: 8 },
+      ];
+      mockMovementController.scatter.mockReturnValue(scatterPath);
 
       const result = controller.attemptPass(
         player,
@@ -245,7 +260,8 @@ describe("PassController", () => {
       expect(result.accurate).toBe(false);
       expect(result.fumbled).toBe(false);
       // Ball should scatter, so final position is defined
-      expect(result.finalPosition).toBeDefined();
+      expect(result.finalPosition).toEqual({ x: 8, y: 8 });
+      expect(mockMovementController.scatter).toHaveBeenCalled();
     });
 
     it("should scatter from thrower for fumbled pass", () => {
@@ -275,39 +291,6 @@ describe("PassController", () => {
         expect.objectContaining({
           rollType: "Pass",
           diceType: "d6",
-        })
-      );
-    });
-  });
-
-  describe("Scatter Ball", () => {
-    it("should scatter in random direction", () => {
-      vi.spyOn(Math, "random").mockReturnValue(0); // Direction 1
-
-      const result = (controller as any).scatterBall({ x: 10, y: 5 });
-
-      expect(result).toBeDefined();
-      expect(result.x).toBeGreaterThanOrEqual(0);
-      expect(result.y).toBeGreaterThanOrEqual(0);
-    });
-
-    it("should keep ball within pitch bounds", () => {
-      const result = (controller as any).scatterBall({ x: 0, y: 0 });
-
-      expect(result.x).toBeGreaterThanOrEqual(0);
-      expect(result.x).toBeLessThanOrEqual(25);
-      expect(result.y).toBeGreaterThanOrEqual(0);
-      expect(result.y).toBeLessThanOrEqual(14);
-    });
-
-    it("should emit scatter event", () => {
-      (controller as any).scatterBall({ x: 10, y: 5 });
-
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.DiceRoll,
-        expect.objectContaining({
-          rollType: "Pass Scatter",
-          diceType: "d8",
         })
       );
     });

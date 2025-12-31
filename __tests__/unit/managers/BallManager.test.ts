@@ -83,12 +83,12 @@ describe("BallManager", () => {
     });
 
     it("should roll scatter direction and distance", () => {
-      manager.kickBall("p1", 10, 5);
+      manager.kickBall(true, "p1", 10, 5);
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.DiceRoll,
         expect.objectContaining({
-          rollType: "Kickoff Scatter",
+          rollType: "Kickoff Deviate Direction",
           diceType: "d8",
         })
       );
@@ -96,7 +96,7 @@ describe("BallManager", () => {
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.DiceRoll,
         expect.objectContaining({
-          rollType: "Kickoff Scatter",
+          rollType: "Kickoff Deviate Distance",
           diceType: "d6",
         })
       );
@@ -111,7 +111,7 @@ describe("BallManager", () => {
     });
 
     it("should emit BallKicked event", () => {
-      manager.kickBall("p1", 10, 5);
+      manager.kickBall(true, "p1", 10, 5);
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.BallKicked,
@@ -119,6 +119,7 @@ describe("BallManager", () => {
           playerId: "p1",
           targetX: 10,
           targetY: 5,
+          finalX: expect.any(Number),
         })
       );
     });
@@ -205,10 +206,13 @@ describe("BallManager", () => {
       // Team2 player is adjacent (tackle zone)
       const result = manager.attemptPickup(player, { x: 5, y: 5 });
 
+      // Expect failure due to modifier (Roll 3 needs 3+, but -1 makes it effective 2)
+      expect(result).toBe(false);
+
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.DiceRoll,
         expect.objectContaining({
-          description: expect.stringContaining("Mod: -1"),
+          rollType: "Agility (Pickup)",
         })
       );
     });

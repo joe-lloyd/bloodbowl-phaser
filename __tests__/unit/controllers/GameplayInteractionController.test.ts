@@ -60,6 +60,10 @@ const mockGameService = {
   kickBall: vi.fn(),
   executePush: vi.fn(),
   throwBall: vi.fn(),
+  getPassController: vi.fn().mockReturnValue({
+    getAllRanges: vi.fn().mockReturnValue(new Map()),
+    measureRange: vi.fn().mockReturnValue({ type: "Quick Pass", modifier: 0 }),
+  }),
 };
 
 describe("GameplayInteractionController", () => {
@@ -281,6 +285,37 @@ describe("GameplayInteractionController", () => {
       });
       controller.onSquareClicked(6, 5);
       expect(mockPitch.drawMovementPath).toHaveBeenCalled();
+    });
+  });
+
+  describe("Player Click Handling", () => {
+    it("should redirect to onSquareClicked if in Pass Mode and clicking a player", () => {
+      controller["currentActionMode"] = "pass";
+      controller["currentStepId"] = "pass";
+
+      const mockPlayer = {
+        id: "p2",
+        gridPosition: { x: 5, y: 5 },
+        teamId: "t2",
+      };
+      (controller as any).scene.team1.players = [];
+      (controller as any).scene.team2.players = [mockPlayer];
+
+      const spy = vi.spyOn(controller as any, "onSquareClicked");
+
+      controller.handlePlayerClick("p2");
+
+      expect(spy).toHaveBeenCalledWith(5, 5);
+    });
+
+    it("should select player normally if not in Pass Mode", () => {
+      controller["currentActionMode"] = null;
+
+      const spy = vi.spyOn(controller, "selectPlayer");
+
+      controller.handlePlayerClick("p1");
+
+      expect(spy).toHaveBeenCalledWith("p1");
     });
   });
 });

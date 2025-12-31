@@ -60,7 +60,7 @@ export class GameplayInteractionController {
     this.pitch = pitch;
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
-    this.passController = new PassController(eventBus);
+    this.passController = gameService.getPassController();
 
     // Store handler reference for cleanup
     this.pushDirectionHandler = (data) => {
@@ -274,7 +274,7 @@ export class GameplayInteractionController {
     return { valid: false, gridX: -1, gridY: -1 };
   }
 
-  private onSquareClicked(x: number, y: number): void {
+  private async onSquareClicked(x: number, y: number): Promise<void> {
     // Check if we're selecting a push direction first
     if (this.handlePushDirectionClick(x, y)) {
       return; // Push direction was selected, done
@@ -301,8 +301,11 @@ export class GameplayInteractionController {
         return;
       }
 
-      // Execute Pass
-      this.gameService.throwBall(this.selectedPlayerId, x, y);
+      // Execute Pass (Await animation sequence)
+      await this.gameService.throwBall(this.selectedPlayerId, x, y);
+
+      // Clear pass mode and selection
+      this.deselectPlayer();
       return;
     }
 
@@ -429,10 +432,15 @@ export class GameplayInteractionController {
       this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     }
 
-    // 3. Movement Path
-    if (this.selectedPlayerId && !player) {
-      // Check if in pass mode AND pass step
-      if (this.currentActionMode === "pass" && this.currentStepId === "pass") {
+    // 3. Visualization
+    if (this.selectedPlayerId) {
+      const isPassMode =
+        this.currentActionMode === "pass" && this.currentStepId === "pass";
+
+      if (isPassMode) {
+        // PASS MODE: Visualize even if hovering a player
+        this.pitch.clearPath(); // Ensure movement path is gone
+
         const selectedPlayer = this.gameService.getPlayerById(
           this.selectedPlayerId
         );
@@ -455,14 +463,36 @@ export class GameplayInteractionController {
           );
         }
       } else {
-        // Normal movement path (Move mode or default)
-        // Only draw if NOT in pass sub-action
-        this.drawPath(x, y);
+        // MOVE MODE: Only visualize if NOT hovering a player
+        this.pitch.clearPassVisualization();
+
+        if (!player) {
+          this.drawPath(x, y);
+        } else {
+          this.pitch.clearPath();
+        }
       }
     } else {
       this.pitch.clearPath();
       this.pitch.clearPassVisualization();
     }
+  }
+
+  public handlePlayerClick(playerId: string): void {
+    // If in Pass Mode (target selection step), clicking a player should target their square
+    if (this.currentActionMode === "pass" && this.currentStepId === "pass") {
+      const p1 = this.scene.team1.players.find((p) => p.id === playerId);
+      const p2 = this.scene.team2.players.find((p) => p.id === playerId);
+      const player = p1 || p2;
+
+      if (player && player.gridPosition) {
+        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
+        return; // Do not select the player
+      }
+    }
+
+    // Default: Select the player (or toggle selection)
+    this.selectPlayer(playerId);
   }
 
   public selectPlayer(playerId: string): void {
@@ -957,7 +987,7 @@ export class GameplayInteractionController {
 
       // If we have a selected kicker and clicked opponent half -> KICK!
       if (this.selectedPlayerId) {
-        this.gameService.kickBall(this.selectedPlayerId, x, y);
+        this.gameService.kickBall(isTeam1Kicking, this.selectedPlayerId, x, y);
         this.selectedPlayerId = null; // Clear selection after kick
       } else {
         this.eventBus.emit(

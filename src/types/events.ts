@@ -285,7 +285,7 @@ export interface GameEvents {
     rollType: string; // e.g. "Weather", "Kickoff", "Armor Break", "Agility"
     diceType: string; // e.g. "2d6", "d6", "Block"
     teamId?: string; // The team performing the roll (for coloring)
-    value: number | number[]; // Raw dice result(s)
+    value: number | number[] | string | string[]; // Raw dice result(s)
     total: number; // Sum or relevant total
     description: string; // Text outcome e.g. "Nice Weather", "Scatter"
     passed?: boolean; // For tests (Armor, Agility, Dodge)
