@@ -63,7 +63,7 @@ export class GameScene extends Phaser.Scene {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
-  private ballSprite: Phaser.GameObjects.Container | null = null;
+  protected ballSprite: Phaser.GameObjects.Container | null = null;
   private pendingKickoffData = null; // Stores kick data for scatter animation
 
   // Store handlers for cleanup

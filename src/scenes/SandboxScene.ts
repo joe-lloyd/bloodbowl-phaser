@@ -16,7 +16,11 @@ export class SandboxScene extends GameScene {
     // If teams are passed, use them. Otherwise generate Mock Teams.
     if (data && data.team1 && data.team2) {
       // Need to initialize ServiceContainer before GameScene uses it
-      ServiceContainer.initialize(window.eventBus, data.team1, data.team2);
+      ServiceContainer.initialize(
+        (window as any).eventBus,
+        data.team1,
+        data.team2
+      );
       super.init(data as { team1: Team; team2: Team });
     } else {
       const team1 = TestTeamFactory.createTestTeam(
@@ -31,7 +35,7 @@ export class SandboxScene extends GameScene {
       );
 
       // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
-      ServiceContainer.initialize(window.eventBus, team1, team2);
+      ServiceContainer.initialize((window as any).eventBus, team1, team2);
 
       super.init({ team1, team2 });
     }
@@ -43,46 +47,15 @@ export class SandboxScene extends GameScene {
 
   private loadScenarioHandler: ((data: { scenarioId: string }) => void) | null =
     null;
-  private refreshBoardHandler: ((data: { scenarioId: string }) => void) | null =
-    null;
-  private onComplete: () => void;
-  private onFail: (error: Error) => void;
-  private onProgress: (progress: number) => void;
-  private onFileProgress: (file) => void;
-  private ballPlacedHandler: ((data: { scenarioId: string }) => void) | null =
-    null;
-  private playerMovedHandler: ((data: { scenarioId: string }) => void) | null =
-    null;
+  private refreshBoardHandler: (() => void) | null = null;
+  private playerMovedHandler: (() => void) | null = null;
 
   create(): void {
     super.create();
 
     // Add sandbox specific listeners
     this.loadScenarioHandler = (data: { scenarioId: string }) => {
-      const scenario = SCENARIOS.find((s) => s.id === data.scenarioId);
-      if (scenario) {
-        // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
-        // This prevents duplicate balls when loading multiple scenarios
-        if (this.ballSprite) {
-          this.ballSprite.destroy();
-          this.ballSprite = null;
-        }
-
-        const loader = new ScenarioLoader(
-          this.eventBus,
-          this.team1,
-          this.team2
-        );
-
-        loader.load(scenario);
-        this.reloadState(false);
-        this.placePlayersOnPitch();
-
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `Loaded Scenario: ${scenario.name}`
-        );
-      }
+      this.loadScenario(data.scenarioId);
     };
 
     this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
@@ -99,6 +72,50 @@ export class SandboxScene extends GameScene {
       state.turn.activatedPlayerIds.clear();
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
+
+    // Check for scenario query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const scenarioId = urlParams.get("scenario");
+    if (scenarioId) {
+      // Delay slightly to ensure everything is ready
+      this.time.delayedCall(100, () => {
+        this.loadScenario(scenarioId);
+      });
+    }
+  }
+
+  private loadScenario(scenarioId: string): void {
+    const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+    if (scenario) {
+      // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
+      // This prevents duplicate balls when loading multiple scenarios
+      if (this.ballSprite) {
+        this.ballSprite.destroy();
+        this.ballSprite = null;
+      }
+
+      const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
+
+      loader.load(scenario);
+      this.reloadState(false);
+      this.placePlayersOnPitch();
+
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Loaded Scenario: ${scenario.name}`
+      );
+
+      // Update URL with scenario ID
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set("scenario", scenarioId);
+      window.history.pushState({ path: newUrl.href }, "", newUrl.href);
+    } else {
+      console.warn(`Scenario not found: ${scenarioId}`);
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Scenario not found: ${scenarioId}`
+      );
+    }
   }
 
   private cleanupSandbox(): void {
