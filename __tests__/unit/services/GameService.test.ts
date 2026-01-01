@@ -27,6 +27,9 @@ describe("GameService", () => {
       .build();
 
     gameService = new GameService(eventBus, team1, team2);
+
+    // Fix: Transition to SETUP phase explicitly, as default might be SANDBOX_IDLE
+    gameService.startSetup();
   });
 
   describe("Initialization", () => {

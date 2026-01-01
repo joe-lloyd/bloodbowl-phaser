@@ -341,6 +341,18 @@ describe("GameplayInteractionController", () => {
       expect(mockGameService.previewBlock).toHaveBeenCalledWith("p1", "p2");
       expect(mockScene.unhighlightPlayer).toHaveBeenCalled();
     });
+
+    it("should prevent double execution if busy (e.g. throwing)", async () => {
+      // simulate Pass Mode
+      controller["currentActionMode"] = "pass";
+      controller["currentStepId"] = "pass";
+      controller["selectedPlayerId"] = "p1";
+      controller["isBusy"] = true; // Simulating busy state
+
+      await (controller as any).onSquareClicked(10, 10);
+
+      expect(mockGameService.throwBall).not.toHaveBeenCalled();
+    });
   });
 
   describe("Player Click Handling", () => {

@@ -24,6 +24,10 @@ import { WeatherManager } from "../game/managers/WeatherManager";
 import { PlayerActionManager } from "../game/managers/PlayerActionManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
+import { DiceController } from "../game/controllers/DiceController";
+
+import { GameFlowManager } from "@/game/core/GameFlowManager";
+import { PassOperation } from "@/game/operations/PassOperation";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -40,10 +44,13 @@ export class GameService implements IGameService {
   private playerActionManager: PlayerActionManager;
   private passController: PassController;
   private catchController: CatchController;
+  public diceController: DiceController;
+
+  // Game Flow Manager
+  public flowManager: GameFlowManager;
 
   // Validators
   private activationValidator: ActivationValidator = new ActivationValidator();
-  // private actionValidator: ActionValidator = new ActionValidator();
 
   constructor(
     private eventBus: IEventBus,
@@ -55,8 +62,8 @@ export class GameService implements IGameService {
     this.team2 = team2;
 
     this.state = initialState || {
-      phase: GamePhase.SETUP,
-      subPhase: SubPhase.WEATHER, // Start with Weather
+      phase: GamePhase.SANDBOX_IDLE,
+      subPhase: undefined, // No subphase in Idle
       activeTeamId: null,
       turn: {
         teamId: "",
@@ -79,11 +86,18 @@ export class GameService implements IGameService {
     };
 
     // If starting a fresh game (no initial state), ensure teams are clean
-    // This prevents dirty state from previous sessions (e.g. Sandbox) leaking in
     if (!initialState) {
       SetupManager.sanitizeTeam(team1);
       SetupManager.sanitizeTeam(team2);
     }
+
+    // Initialize Flow Manager (Pass 'this' as context)
+    this.flowManager = new GameFlowManager({
+      gameService: this,
+      eventBus: eventBus,
+    });
+    // Recursive injection if needed or access via gameService in context
+    (this.flowManager as any).context.flowManager = this.flowManager;
 
     // Initialize Managers
     this.weatherService = new WeatherManager(eventBus, this.state);
@@ -120,12 +134,13 @@ export class GameService implements IGameService {
     );
 
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
-    // Inject centralized movement controller into PassController
+
     this.passController = new PassController(
       eventBus,
       this.ballManager.movementController
     );
-    this.catchController = new CatchController(eventBus);
+    this.diceController = new DiceController(eventBus);
+    this.catchController = new CatchController(eventBus, this.diceController);
 
     this.movementManager = new MovementManager(
       eventBus,
@@ -163,6 +178,13 @@ export class GameService implements IGameService {
   }
   public getPassController(): PassController {
     return this.passController;
+  }
+  public getCatchController(): CatchController {
+    return this.catchController;
+  }
+
+  public getDiceController(): DiceController {
+    return this.diceController;
   }
 
   getTurnNumber(teamId: string): number {
@@ -214,8 +236,6 @@ export class GameService implements IGameService {
   }
 
   selectKicker(playerId: string): void {
-    // Just emit selection, no phase change needed.
-    // Logic for "Target Selection" is now just part of the same phase.
     if (this.state.phase === GamePhase.KICKOFF) {
       const player = this.getPlayerById(playerId);
       if (player) {
@@ -254,11 +274,8 @@ export class GameService implements IGameService {
 
   // ===== Turn Management =====
   setCoinFlipWinner(winningTeamId: string): void {
-    // Trigger Setup Kicking
     this.startSetup(winningTeamId);
   }
-
-  // ===== Game Phase =====
 
   startGame(kickingTeamId: string): void {
     this.turnManager.startGame(kickingTeamId);
@@ -286,7 +303,6 @@ export class GameService implements IGameService {
     return this.activationValidator.canActivate(player, this.state.turn);
   }
 
-  // Legacy / simple wrapper
   playerAction(playerId: string): boolean {
     return this.canActivate(playerId);
   }
@@ -347,223 +363,54 @@ export class GameService implements IGameService {
     _attackerId: string,
     _defenderId: string
   ): { success: boolean; result?: string } {
-    // return this.blockManager.blockPlayer(attackerId, defenderId);
     return { success: false, result: "Not implemented" };
   }
 
   /**
-   * Execute a pass action
-   */
-  /**
-   * Execute a pass action
+   * Start Pass Action (Replaces throwBall)
+   * Queues a PassOperation in the FlowManager.
    */
   async throwBall(
     passerId: string,
     targetX: number,
     targetY: number
   ): Promise<{ success: boolean; result?: string }> {
-    if (this.state.phase !== GamePhase.PLAY)
-      return { success: false, result: "Not in Play phase" };
+    // NOTE: Signature kept async for compatibility, but it resolves immediately
+    // while the operation runs in background/flow.
 
+    if (this.state.phase !== GamePhase.PLAY) {
+      return { success: false, result: "Not in play phase" };
+    }
+
+    console.log(
+      `[GameService] Starting Pass Action: ${passerId} -> ${targetX},${targetY}`
+    );
+
+    // 1. Validation (Keep basic checks here or move to op?)
+    // Basic checks for "Can I start this op?"
     const passer = this.getPlayerById(passerId);
     if (!passer || !passer.gridPosition) {
-      return { success: false, result: "Player not found or not on pitch" };
+      return { success: false, result: "Player not found" };
     }
 
-    // Check if player has the ball
-    const hasBall =
-      this.state.ballPosition &&
-      this.state.ballPosition.x === passer.gridPosition.x &&
-      this.state.ballPosition.y === passer.gridPosition.y;
-
+    const hasBall = this.ballManager.hasBall(passerId); // Use ball manager!
     if (!hasBall) {
-      return { success: false, result: "Player does not have the ball" };
-    }
-
-    // Count marking opponents for pass
-    const opponentTeam =
-      passer.teamId === this.team1.id ? this.team2 : this.team1;
-    const markingOpponents = this.catchController.countMarkingOpponents(
-      passer.gridPosition,
-      opponentTeam.players
-    );
-
-    // Emit pass declared event
-    // SceneOrchestrator should listen to this and Zoom In on Passer
-    this.eventBus.emit(GameEventNames.PassDeclared, {
-      playerId: passerId,
-      targetX,
-      targetY,
-    });
-
-    // Wait for camera zoom/pan (Simulating the user looking at the passer)
-    await this.delay(800);
-
-    // --- 1. ATTEMPT PASS ---
-    const passResult = this.passController.attemptPass(
-      passer,
-      passer.gridPosition,
-      { x: targetX, y: targetY },
-      markingOpponents
-    );
-
-    // Handle fumbled pass
-    if (passResult.fumbled) {
-      this.state.ballPosition = passResult.finalPosition;
-      await this.delay(1000); // Wait for fumble animation
-
-      this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-      this.triggerTurnover("Fumbled Pass");
-      return { success: false, result: "Pass fumbled" };
-    }
-
-    // --- 2. INTERCEPTIONS ---
-    const interceptors = this.passController.checkInterceptions(
-      passer.gridPosition,
-      { x: targetX, y: targetY },
-      opponentTeam.players,
-      passResult.accurate
-    );
-
-    if (interceptors.length > 0) {
-      // Small pause before checking interceptions
-      await this.delay(500);
-    }
-
-    for (const interceptor of interceptors) {
-      const interceptingPlayer = this.getPlayerById(interceptor.playerId);
-      if (!interceptingPlayer || !interceptingPlayer.gridPosition) continue;
-
-      const markingPasser = this.catchController.countMarkingOpponents(
-        interceptingPlayer.gridPosition,
-        passer.teamId === this.team1.id
-          ? this.team1.players
-          : this.team2.players
-      );
-
-      const intercepted = this.passController.attemptInterception(
-        interceptingPlayer,
-        interceptor.modifier,
-        markingPasser
-      );
-
-      if (intercepted) {
-        this.state.ballPosition = interceptingPlayer.gridPosition;
-        this.eventBus.emit(GameEventNames.PassIntercepted, {
-          passerId: passerId,
-          interceptorId: interceptor.playerId,
-          position: interceptingPlayer.gridPosition,
-        });
-        await this.delay(1000); // Wait for interception animation
-
-        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-        this.triggerTurnover("Pass Intercepted");
-        return { success: false, result: "Pass intercepted" };
+      // Fallback check
+      const ballPos = this.state.ballPosition;
+      if (
+        !ballPos ||
+        ballPos.x !== passer.gridPosition.x ||
+        ballPos.y !== passer.gridPosition.y
+      ) {
+        return { success: false, result: "Player does not have ball" };
       }
     }
 
-    // --- 3. BALL LANDING & CATCH ---
+    // 2. Queue Operation
+    this.flowManager.add(new PassOperation(passerId, targetX, targetY));
 
-    // Calculate flight time based on scatter or direct
-    // For Inaccurate pass, logic now implies direct flight visual (even if 3 D8s rolled logic-wise)
-    // passResult.scatterPath might exist, but we might visualize it fast or direct.
-    // If PassController was updated to emit direct path for visual, flightDuration calculation here
-    // depends on what SceneOrchestrator does.
-    // Assuming SceneOrchestrator plays one long arc for direct flight.
-    const flightDuration = 1000;
-    await this.delay(flightDuration);
-
-    this.state.ballPosition = passResult.finalPosition;
-
-    // Check for player at landing position
-    const receivingPlayer = this.getPlayerAtPosition(passResult.finalPosition);
-
-    if (receivingPlayer) {
-      // --- 4. CATCH ATTEMPT ---
-      await this.delay(300); // Brief pause before catch attempt
-
-      const markingCatch = this.catchController.countMarkingOpponents(
-        passResult.finalPosition,
-        receivingPlayer.teamId === this.team1.id
-          ? this.team2.players
-          : this.team1.players
-      );
-
-      this.eventBus.emit(GameEventNames.CatchAttempted, {
-        playerId: receivingPlayer.id,
-        position: passResult.finalPosition,
-      });
-
-      const catchResult = this.passController.attemptCatch(
-        receivingPlayer,
-        passResult.accurate, // +1 modifier if accurate
-        markingCatch
-      );
-
-      await this.delay(500); // Wait for roll result visualization
-
-      if (catchResult.success) {
-        // SUCCESS
-        this.eventBus.emit(GameEventNames.PassCompleted, {
-          playerId: passerId,
-          catcherId: receivingPlayer.id,
-          position: passResult.finalPosition,
-        });
-
-        if (receivingPlayer.teamId !== passer.teamId) {
-          await this.delay(1000);
-          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-          this.triggerTurnover("Ball Caught by Opponent");
-        } else {
-          // Success! Passer finished.
-          this.finishActivation(passerId);
-          await this.delay(500);
-          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-        }
-
-        return { success: true, result: "Pass completed" };
-      } else {
-        // --- 5. FAILED CATCH -> BOUNCE ---
-        const bouncePos = this.passController.bounceBall(
-          passResult.finalPosition
-        );
-        this.state.ballPosition = bouncePos;
-
-        this.eventBus.emit(GameEventNames.PassFumbled, {
-          playerId: receivingPlayer.id,
-          position: passResult.finalPosition,
-          bouncePosition: bouncePos,
-        });
-
-        await this.delay(800); // Wait for bounce
-
-        // Check bounce catch (placeholder)
-        // ...
-
-        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-        this.triggerTurnover("Failed Catch");
-        return { success: false, result: "Catch failed" };
-      }
-    }
-
-    // --- 6. BALL ON GROUND (Empty Square) ---
-    // Ball lands in empty square -> One final bounce
-    const bouncePos = this.passController.bounceBall(passResult.finalPosition);
-    this.state.ballPosition = bouncePos;
-
-    // Reuse PassFumbled handling for bounce visual
-    // We pass passerId as the source of "fumble" (inaccurate pass)
-    this.eventBus.emit(GameEventNames.PassFumbled, {
-      playerId: passerId,
-      position: passResult.finalPosition,
-      bouncePosition: bouncePos,
-    });
-
-    await this.delay(800); // Wait for bounce animation
-
-    this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-    this.triggerTurnover("Ball not caught");
-    return { success: false, result: "Pass Incomplete" };
+    // 3. Return success (The flow takes over)
+    return { success: true, result: "Pass Started" };
   }
 
   private delay(ms: number): Promise<void> {
@@ -573,37 +420,42 @@ export class GameService implements IGameService {
   /**
    * Get player at a specific position
    */
-  private getPlayerAtPosition(position: {
-    x: number;
-    y: number;
-  }): Player | undefined {
+  public getPlayerAt(x: number, y: number): Player | undefined {
+    // Public now for Context access
     return (
       this.team1.players.find(
         (p) =>
           p.gridPosition &&
-          p.gridPosition.x === position.x &&
-          p.gridPosition.y === position.y &&
+          p.gridPosition.x === x &&
+          p.gridPosition.y === y &&
           p.status === PlayerStatus.ACTIVE
       ) ||
       this.team2.players.find(
         (p) =>
           p.gridPosition &&
-          p.gridPosition.x === position.x &&
-          p.gridPosition.y === position.y &&
+          p.gridPosition.x === x &&
+          p.gridPosition.y === y &&
           p.status === PlayerStatus.ACTIVE
       )
     );
+  }
+
+  // Public helper for context
+  public getOpponents(teamId: string): Player[] {
+    return teamId === this.team1.id ? this.team2.players : this.team1.players;
   }
 
   passBall(
     passerId: string,
     targetSquare: { x: number; y: number }
   ): { success: boolean; result?: string } {
-    // Legacy method - redirect to throwBall
-    // Note: This is async but returning sync for backwards compatibility
-    // Consider refactoring callers to use throwBall directly
     this.throwBall(passerId, targetSquare.x, targetSquare.y);
     return { success: true, result: "Pass initiated" };
+  }
+
+  setBallPosition(x: number, y: number): void {
+    this.state.ballPosition = { x, y };
+    this.eventBus.emit(GameEventNames.BallPlaced, { x, y });
   }
 
   // ===== Score Management =====
@@ -623,27 +475,19 @@ export class GameService implements IGameService {
       subPhase: SubPhase.SCORING,
     });
 
-    // Auto-proceed to End Drive after delay? Or wait for UI?
-    // Let's providing a method to proceed
     setTimeout(() => this.startEndDriveSequence(), 2000);
   }
 
   startEndDriveSequence(): void {
-    // End of Drive
-    // 1. Recover KO
     this.state.subPhase = SubPhase.RECOVER_KO;
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.TOUCHDOWN,
       subPhase: SubPhase.RECOVER_KO,
     });
-
-    // Auto-resolve KO for now (or placeholder)
     this.recoverKO();
   }
 
   recoverKO(): void {
-    // TODO: Roll for each KO player
-    // For now, just skip to Secret Weapons or Reset
     setTimeout(() => {
       this.state.subPhase = SubPhase.SECRET_WEAPONS;
       this.eventBus.emit(GameEventNames.PhaseChanged, {
@@ -651,7 +495,6 @@ export class GameService implements IGameService {
         subPhase: SubPhase.SECRET_WEAPONS,
       });
 
-      // Done with drive, new kick off
       setTimeout(() => {
         this.resetForKickoff();
       }, 1000);
@@ -659,18 +502,10 @@ export class GameService implements IGameService {
   }
 
   resetForKickoff(): void {
-    // Prepare for new drive
-    // Swap kicking/receiving roles? Usually receiving team now kicks.
-    // The team that SCORED kicks off next.
-    // Assuming we know who scored from 'activeTeamId' or pass it.
-    // Actually Touchdown event has it.
-
-    // Let's assume the ACTIVE team scored (usually true).
     const scoringTeamId = this.state.activeTeamId;
     if (scoringTeamId) {
-      this.startSetup(scoringTeamId); // Scorer kicks off
+      this.startSetup(scoringTeamId);
     } else {
-      // Fallback
       this.startSetup(
         this.turnManager.getDriveKickingTeamId() || this.team1.id
       );
@@ -680,9 +515,6 @@ export class GameService implements IGameService {
   getScore(teamId: string): number {
     return this.state.score[teamId] || 0;
   }
-
-  // ===== Private Helper Methods =====
-  // Scenario loading delegated to ScenarioLoader service
 
   public getPlayerById(playerId: string): Player | undefined {
     return (

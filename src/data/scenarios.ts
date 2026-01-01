@@ -224,4 +224,28 @@ export const SCENARIOS: Scenario[] = [
       ballPosition: { x: 10, y: 7 }, // Ball at thrower's position
     },
   },
+  {
+    id: "setup-intro",
+    name: "Setup: Intro",
+    description: "Start at the game introduction screen",
+    setup: {
+      team1Placements: [],
+      team2Placements: [],
+      activeTeam: "team1",
+      phase: GamePhase.SETUP,
+      subPhase: SubPhase.INTRO,
+    },
+  },
+  {
+    id: "setup-coinflip",
+    name: "Setup: Coin Flip",
+    description: "Start at the coin flip sequence",
+    setup: {
+      team1Placements: [],
+      team2Placements: [],
+      activeTeam: "team1",
+      phase: GamePhase.SETUP,
+      subPhase: SubPhase.COIN_FLIP,
+    },
+  },
 ];

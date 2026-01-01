@@ -162,4 +162,39 @@ export class DiceController {
 
     return results;
   }
+  /**
+   * Roll a generic Skill Check (D6 + Modifiers vs Target)
+   * Handles natural 1 (fail) and natural 6 (success)
+   */
+  public rollSkillCheck(
+    reason: string,
+    target: number,
+    modifier: number,
+    playerName?: string
+  ): { success: boolean; roll: number; effectiveTotal: number } {
+    const roll = Math.floor(Math.random() * 6) + 1;
+    let success = false;
+    const effectiveTotal = roll + modifier;
+
+    if (roll === 6)
+      success = true; // Natural 6 always succeeds
+    else if (roll === 1)
+      success = false; // Natural 1 always fails
+    else success = effectiveTotal >= target;
+
+    const modString = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+
+    this.eventBus.emit(GameEventNames.DiceRoll, {
+      rollType: "Skill Check",
+      diceType: "d6",
+      value: roll,
+      total: effectiveTotal,
+      description: `${reason}${
+        playerName ? ` (${playerName})` : ""
+      }: ${success ? "SUCCESS" : "FAILED"} (Rolled ${roll}${modString} vs ${target}+)`,
+      passed: success,
+    });
+
+    return { success, roll, effectiveTotal };
+  }
 }

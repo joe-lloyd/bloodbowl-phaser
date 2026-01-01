@@ -89,6 +89,7 @@ export enum GameEventNames {
   UI_LoadScenario = "ui:loadScenario",
   UI_StartGame = "ui:startGame",
   UI_StartCoinFlip = "ui:startCoinFlip",
+  UI_ShowCoinFlip = "ui:showCoinFlip",
   UI_CoinFlipComplete = "ui:coinFlipComplete",
   UI_RequestCoinFlipState = "ui:requestCoinFlipState",
   UI_ShowSetupControls = "ui:showSetupControls",
@@ -340,6 +341,7 @@ export interface UIEvents {
 
   // Coin Flip
   [GameEventNames.UI_StartCoinFlip]: { team1: Team; team2: Team };
+  [GameEventNames.UI_ShowCoinFlip]: void;
   [GameEventNames.UI_CoinFlipComplete]: {
     kickingTeam: Team;
     receivingTeam: Team;

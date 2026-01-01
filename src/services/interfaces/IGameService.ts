@@ -13,6 +13,8 @@ import { BlockResult } from "../BlockResolutionService";
 export interface IGameService {
   // ===== State Queries =====
 
+  setWeather(weather: number): void;
+
   /**
    * Get the current game state
    */
@@ -52,6 +54,16 @@ export interface IGameService {
    * Get the PassController instance
    */
   getPassController(): import("../../game/controllers/PassController").PassController;
+
+  /**
+   * Get the CatchController instance
+   */
+  getCatchController(): import("../../game/controllers/CatchController").CatchController;
+
+  /**
+   * Get the DiceController instance
+   */
+  getDiceController(): import("../../game/controllers/DiceController").DiceController;
 
   // ===== Setup Phase =====
 
@@ -279,4 +291,14 @@ export interface IGameService {
     resultType: string,
     followUp: boolean
   ): void;
+
+  /**
+   * Get player at specific grid coordinates
+   */
+  getPlayerAt(x: number, y: number): Player | undefined;
+
+  /**
+   * Get opposing team's players
+   */
+  getOpponents(teamId: string): Player[];
 }

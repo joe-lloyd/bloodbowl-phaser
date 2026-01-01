@@ -560,12 +560,6 @@ export class GameScene extends Phaser.Scene {
         sprite.setPosition(pos.x, pos.y);
         sprite.setVisible(true);
         sprite.setDepth(10);
-
-        // CRITICAL: Reattach click handler in case it was lost
-        // This fixes the issue where handlers aren't attached on first scenario load
-        sprite.removeAllListeners("pointerdown");
-        sprite.setInteractive({ useHandCursor: true });
-        sprite.on("pointerdown", () => this.onPlayerClick(player));
       } else {
         const team = player.teamId === this.team1.id ? this.team1 : this.team2;
         const teamColor = team.colors.primary;
@@ -580,10 +574,6 @@ export class GameScene extends Phaser.Scene {
         );
         sprite.setDepth(10);
         this.playerSprites.set(player.id, sprite);
-
-        // Add interactivity for Play phase (setup phase uses placementController)
-        sprite.setInteractive({ useHandCursor: true });
-        sprite.on("pointerdown", () => this.onPlayerClick(player));
       }
     });
 

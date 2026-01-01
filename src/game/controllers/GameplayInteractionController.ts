@@ -346,11 +346,18 @@ export class GameplayInteractionController {
     }
 
     // PASS Execution (if in pass aiming mode)
+    if (this.currentActionMode === "pass") {
+      console.log(
+        `[Interaction] onSquareClicked: Pass Mode Detected. Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
+      );
+    }
+
     if (
       this.currentActionMode === "pass" &&
       this.currentStepId === "pass" &&
       this.selectedPlayerId
     ) {
+      console.log("[Interaction] Attempting Pass Execution...");
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
       }
@@ -443,6 +450,20 @@ export class GameplayInteractionController {
         }
 
         // If not a block, select them (inspection)
+        // BUGFIX: If we are in "pass" mode, we SHOULD NOT select another player.
+        // We passed the 'Pass Execution' block above, implying either wrong step or something,
+        // but we should not abandon the pass action just by clicking a player.
+        if (this.currentActionMode === "pass") {
+          console.warn(
+            "[Interaction] Clicked player while in Pass Mode (but not in Pass Execution block). Ignoring to prevent selection change."
+          );
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Finish your Pass Action first!"
+          );
+          return;
+        }
+
         this.selectPlayer(playerAtSquare.id);
       } else {
         // Clicking SELF?
@@ -557,19 +578,50 @@ export class GameplayInteractionController {
   }
 
   public handlePlayerClick(playerId: string): void {
-    // If in Pass Mode (target selection step), clicking a player should target their square
+    console.log(
+      `[Interaction] handlePlayerClick: ${playerId}. Mode: ${this.currentActionMode}, Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
+    );
+
+    // CRITICAL FIX: If in Pass Mode (Aiming Step), clicking a player MUST BE TREATED AS A TARGET CLICK.
+    // absolutely NO selection changes allowed.
     if (this.currentActionMode === "pass" && this.currentStepId === "pass") {
       const p1 = this.scene.team1.players.find((p) => p.id === playerId);
       const p2 = this.scene.team2.players.find((p) => p.id === playerId);
       const player = p1 || p2;
 
       if (player && player.gridPosition) {
+        console.log(
+          `[Interaction] Target player clicked at ${player.gridPosition.x},${player.gridPosition.y}. Triggering Pass onSquareClicked.`
+        );
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
-        return; // Do not select the player
+        return; // EXIT IMMEDIATELY - DO NOT SELECT PLAYER
       }
     }
 
+    // Pass Mode Check 2: If we are in Pass Mode but maybe logic above failed,
+    // we STILL should not select another player if we are mid-action.
+    // However, if we click OURSELVES, that's fine (ignored below).
+    // If we click Teammate? In pass mode, that's a pass to them.
+    // So the block above should cover it.
+
+    // NEW BLOCK: If we are already selected and clicked ourselves, do nothing (don't re-trigger select)
+    if (this.selectedPlayerId === playerId) {
+      console.log(
+        "[Interaction] Clicked self, ignoring re-selection to preserve state."
+      );
+      return;
+    }
+
+    // Safety for other actions (Blitz/block etc) -> If busy or in middle of action step that aims
+    if (this.currentActionMode && this.currentStepId !== "move") {
+      // If we are in 'block' step, clicking player handles block in onSquareClicked usually,
+      // but handlePlayerClick comes from visual layer.
+      // We should redirect to onSquareClicked for consistency?
+      // For now, only strict on Pass as requested.
+    }
+
     // Default: Select the player (or toggle selection)
+    console.log("[Interaction] Defaulting to selection change.");
     this.selectPlayer(playerId);
   }
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { KickoffController } from "../../../src/game/controllers/KickoffController";
-import { GameEventNames } from "../../../src/types/events";
 
 describe("KickoffController", () => {
   let controller: KickoffController;

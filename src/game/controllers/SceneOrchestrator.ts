@@ -3,21 +3,31 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { IEventBus } from "../../services/EventBus";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { GameEventNames } from "../../types/events";
+import { PhaseHandler } from "./handlers/PhaseHandler";
+import { SetupPhaseHandler } from "./handlers/SetupPhaseHandler";
+import { PlayPhaseHandler } from "./handlers/PlayPhaseHandler";
+import { KickoffPhaseHandler } from "./handlers/KickoffPhaseHandler";
 
 /**
- * SceneOrchestrator - Manages game flow and phase transitions
+ * SceneOrchestrator - Manages Phase Transitions and Delegates Logic
  *
- * Extracted from GameScene to separate view logic from game flow logic.
- * Handles event coordination, phase transitions, and delegates to appropriate controllers.
+ * Responsibility:
+ * - Listen for Global Phase Changes.
+ * - Load/Unload the appropriate PhaseHandler.
+ * - Manage High-Level Scene Lifecycles.
+ *
+ * DOES NOT:
+ * - Implement specific phase logic (Placement, Passing, etc.) -> Delegated to Handler.
  */
 
 interface SceneOrchestratorConfig {
-  skipCoinFlip?: boolean; // For scenarios that start mid-game
-  startingPhase?: GamePhase; // Override starting phase
-  startingSubPhase?: SubPhase; // Override starting subphase
+  skipCoinFlip?: boolean;
+  startingPhase?: GamePhase;
+  startingSubPhase?: SubPhase;
 }
 
 export class SceneOrchestrator {
+  private currentHandler: PhaseHandler | null = null;
   private eventHandlers: Map<string, (data?: any) => void> = new Map();
 
   constructor(
@@ -26,523 +36,87 @@ export class SceneOrchestrator {
     private eventBus: IEventBus,
     private config: SceneOrchestratorConfig = {}
   ) {
-    this.setupEventListeners();
+    this.setupGlobalListeners();
   }
 
-  // ... (keeping structure)
-
-  /**
-   * Setup all event listeners for game flow
-   */
-  public setupEventListeners(): void {
-    // Coin flip handling
-    const onCoinFlipComplete = (data: { kickingTeam; receivingTeam }) => {
-      this.scene.kickingTeam = data.kickingTeam;
-      this.scene.receivingTeam = data.receivingTeam;
-      this.gameService.startSetup(data.kickingTeam.id);
-    };
-    this.eventHandlers.set(
-      GameEventNames.UI_CoinFlipComplete,
-      onCoinFlipComplete
-    );
-    this.eventBus.on(GameEventNames.UI_CoinFlipComplete, onCoinFlipComplete);
-
-    // Setup actions (confirm, randomize, clear, save, load)
-    const onSetupAction = (data: { action: string }) => {
-      const state = this.gameService.getState();
-      const activeTeamId = state.activeTeamId || this.scene.team1.id;
-      const activeTeam =
-        activeTeamId === this.scene.team1.id
-          ? this.scene.team1
-          : this.scene.team2;
-      const isTeam1 = activeTeam.id === this.scene.team1.id;
-
-      switch (data.action) {
-        case "confirm":
-          this.gameService.confirmSetup(activeTeam.id);
-          break;
-        case "default": {
-          const defFormation =
-            this.scene["formationManager"].getDefaultFormation(isTeam1);
-          this.scene["placementController"].loadFormation(defFormation);
-          this.scene.refreshDugouts();
-          break;
-        }
-        case "clear":
-          this.scene["placementController"].clearPlacements();
-          this.scene.refreshDugouts();
-          break;
-        case "save": {
-          const placements = this.scene["placementController"].getPlacements();
-          if (placements.length > 0) {
-            this.scene["formationManager"].saveFormation(
-              activeTeam.id,
-              placements,
-              "Custom"
-            );
-            this.eventBus.emit(
-              GameEventNames.UI_Notification,
-              "Formation Saved!"
-            );
-          }
-          break;
-        }
-        case "load": {
-          const savedFormation = this.scene["formationManager"].loadFormation(
-            activeTeam.id,
-            "Custom"
-          );
-          if (savedFormation) {
-            this.scene["placementController"].loadFormation(savedFormation);
-            this.scene.refreshDugouts();
-          } else {
-            this.eventBus.emit(
-              GameEventNames.UI_Notification,
-              "No Saved Formation"
-            );
-          }
-          break;
-        }
-      }
-    };
-    this.eventHandlers.set(GameEventNames.UI_SetupAction, onSetupAction);
-    this.eventBus.on(GameEventNames.UI_SetupAction, onSetupAction);
-
-    // Kickoff: Ball kicked animation
-    const onBallKicked = async (data) => {
-      let startX = data.targetX;
-      let startY = data.targetY;
-
-      if (data.playerId && this.scene["playerSprites"].has(data.playerId)) {
-        const kickerPlayer = this.gameService.getPlayerById(data.playerId);
-        if (kickerPlayer && kickerPlayer.gridPosition) {
-          startX = kickerPlayer.gridPosition.x;
-          startY = kickerPlayer.gridPosition.y;
-        }
-      }
-
-      this.scene["placeBallVisual"](startX, startY);
-
-      // Store kick data immediately for scatter animation later
-      this.scene["pendingKickoffData"] = data;
-
-      const ballSprite = this.scene["ballSprite"];
-      const ballAnimDuration = 800; // Ball animation duration
-
-      if (ballSprite) {
-        // Emit camera event to start tracking the ball
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite,
-          animationDuration: ballAnimDuration,
-        });
-
-        // Wait for camera to pan (500ms) and zoom (400ms) before animating ball
-        await new Promise((resolve) =>
-          this.scene.time.delayedCall(1000, () => resolve(null))
-        );
-      }
-
-      // Use FINAL scatter position for animation (scatter already calculated)
-      const finalTargetPos = this.scene["pitch"].getPixelPosition(
-        data.finalX,
-        data.finalY
-      );
-
-      this.scene.tweens.add({
-        targets: this.scene["ballSprite"],
-        x: finalTargetPos.x,
-        y: finalTargetPos.y,
-        duration: ballAnimDuration,
-        ease: "Quad.easeOut",
-        onStart: () => {
-          this.scene["ballSprite"]?.setScale(0.5);
-        },
-        yoyo: false,
-      });
-
-      this.scene.tweens.add({
-        targets: this.scene["ballSprite"],
-        scaleX: 1.5,
-        scaleY: 1.5,
-        duration: 400,
-        yoyo: true,
-        ease: "Sine.easeOut",
-      });
-    };
-    this.eventHandlers.set(GameEventNames.BallKicked, onBallKicked);
-    this.eventBus.on(GameEventNames.BallKicked, onBallKicked);
-
-    // Kickoff result notification
-    const onKickoffResult = (data: { roll: number; event: string }) => {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `${data.roll}: ${data.event}`
-      );
-      if (this.scene["pendingKickoffData"]) {
-        // Scatter was already applied - ball is at final position
-        // Emit camera reset event after a short delay
-        this.scene.time.delayedCall(500, () => {
-          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-        });
-        this.scene["pendingKickoffData"] = null;
-      }
-    };
-    this.eventHandlers.set(GameEventNames.KickoffResult, onKickoffResult);
-    this.eventBus.on(GameEventNames.KickoffResult, onKickoffResult);
-
-    // Ready to start (transition from kickoff to play)
-    const onReadyToStart = () => {
-      this.gameService.startGame(this.scene.kickingTeam.id);
-    };
-    this.eventHandlers.set(GameEventNames.ReadyToStart, onReadyToStart);
-    this.eventBus.on(GameEventNames.ReadyToStart, onReadyToStart);
-
-    // Phase change handling
+  private setupGlobalListeners(): void {
+    // Phase Change Listener (Always Active)
     const onPhaseChanged = (data: {
       phase: GamePhase;
       subPhase?: SubPhase;
-      activeTeamId?: string;
     }) => {
       this.handlePhaseChange(data.phase, data.subPhase);
     };
-    this.eventHandlers.set(GameEventNames.PhaseChanged, onPhaseChanged);
     this.eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
-
-    // Turn management
-    const onTurnStarted = (turn) => {
-      this.scene.refreshDugouts();
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Turn ${turn.turnNumber}`
-      );
-    };
-    this.eventHandlers.set(GameEventNames.TurnStarted, onTurnStarted);
-    this.eventBus.on(GameEventNames.TurnStarted, onTurnStarted);
-
-    // Player movement
-    const onPlayerMoved = (data: {
-      playerId: string;
-      from;
-      to;
-      path?: { x: number; y: number }[];
-      followUpData?: {
-        attackerId: string;
-        targetSquare: { x: number; y: number };
-      };
-    }) => {
-      if (data.path && data.path.length > 0) {
-        const sprite = this.scene["playerSprites"].get(data.playerId);
-        if (sprite) {
-          const pixelPath = data.path.map((step) =>
-            this.scene["pitch"].getPixelPosition(step.x, step.y)
-          );
-          sprite.animateMovement(pixelPath).then(() => {
-            this.scene.refreshDugouts();
-            this.scene["checkSetupCompleteness"]();
-
-            // Emit follow-up prompt after animation completes
-            if (data.followUpData) {
-              this.eventBus.emit(
-                GameEventNames.UI_FollowUpPrompt,
-                data.followUpData
-              );
-            }
-          });
-        } else {
-          this.scene.refreshDugouts();
-          // No sprite, no animation - show follow-up immediately if present
-          if (data.followUpData) {
-            this.eventBus.emit(
-              GameEventNames.UI_FollowUpPrompt,
-              data.followUpData
-            );
-          }
-        }
-      } else {
-        this.scene.refreshDugouts();
-        // No path, no animation - show follow-up immediately if present
-        if (data.followUpData) {
-          this.eventBus.emit(
-            GameEventNames.UI_FollowUpPrompt,
-            data.followUpData
-          );
-        }
-      }
-
-      // Clear all highlights using the GameplayInteractionController's method
-      // This ensures controller-managed highlights (push, etc.) are cleared before pitch highlights
-      if (this.scene["gameplayController"]) {
-        this.scene["gameplayController"].clearAllInteractionHighlights();
-      } else {
-        // Fallback for scenes without gameplayController
-        this.scene["pitch"].clearPath();
-        this.scene["pitch"].clearHighlights();
-      }
-    };
-    this.eventHandlers.set(GameEventNames.PlayerMoved, onPlayerMoved);
-    this.eventBus.on(GameEventNames.PlayerMoved, onPlayerMoved);
-
-    // Kickoff events
-    const onKickoffStarted = () => {
-      this.eventBus.emit(GameEventNames.UI_Notification, "KICKOFF!");
-    };
-    this.eventHandlers.set(GameEventNames.KickoffStarted, onKickoffStarted);
-    this.eventBus.on(GameEventNames.KickoffStarted, onKickoffStarted);
-
-    // Block dice rolling
-    const onRollBlockDice = (data: {
-      attackerId: string;
-      defenderId: string;
-      numDice: number;
-      isAttackerChoice: boolean;
-    }) => {
-      this.gameService.rollBlockDice(
-        data.attackerId,
-        data.defenderId,
-        data.numDice,
-        data.isAttackerChoice
-      );
-    };
-    this.eventHandlers.set(GameEventNames.UI_RollBlockDice, onRollBlockDice);
-    this.eventBus.on(GameEventNames.UI_RollBlockDice, onRollBlockDice);
-
-    // Block result selection
-    const onBlockResultSelected = (data: {
-      attackerId: string;
-      defenderId: string;
-      result;
-    }) => {
-      this.gameService.resolveBlock(
-        data.attackerId,
-        data.defenderId,
-        data.result
-      );
-    };
-    this.eventHandlers.set(
-      GameEventNames.UI_BlockResultSelected,
-      onBlockResultSelected
-    );
-    this.eventBus.on(
-      GameEventNames.UI_BlockResultSelected,
-      onBlockResultSelected
-    );
-
-    // Follow-up response
-    const onFollowUpResponse = (data: {
-      attackerId: string;
-      followUp: boolean;
-      targetSquare?: { x: number; y: number };
-    }) => {
-      if (data.followUp && data.targetSquare) {
-        // Move attacker to the defender's old square
-        this.gameService.movePlayer(data.attackerId, [data.targetSquare]);
-      }
-      // End the attacker's activation
-      this.gameService.finishActivation(data.attackerId);
-    };
-    this.eventHandlers.set(
-      GameEventNames.UI_FollowUpResponse,
-      onFollowUpResponse
-    );
-    this.eventBus.on(GameEventNames.UI_FollowUpResponse, onFollowUpResponse);
-
-    // Player knocked down - update visual status
-    const onPlayerKnockedDown = (data: { playerId: string }) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) {
-        sprite.updateStatus();
-      }
-    };
-    this.eventHandlers.set(
-      GameEventNames.PlayerKnockedDown,
-      onPlayerKnockedDown
-    );
-    this.eventBus.on(GameEventNames.PlayerKnockedDown, onPlayerKnockedDown);
-
-    // Player stood up - update visual status
-    const onPlayerStoodUp = (data: { playerId: string; cost: number }) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) {
-        sprite.updateStatus();
-      }
-    };
-    this.eventHandlers.set(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
-    this.eventBus.on(GameEventNames.PlayerStoodUp, onPlayerStoodUp);
-
-    // Ball placement - create ball sprite when ball is placed
-    const onBallPlaced = (data: { x: number; y: number }) => {
-      this.scene["placeBallVisual"](data.x, data.y);
-    };
-    this.eventHandlers.set(GameEventNames.BallPlaced, onBallPlaced);
-    this.eventBus.on(GameEventNames.BallPlaced, onBallPlaced);
-
-    // Pass Declared - Camera Track Passer
-    const onPassDeclared = (data: { playerId: string }) => {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) {
-        // Zoom to passer
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite: sprite,
-          animationDuration: 800,
-        });
-      }
-    };
-    this.eventHandlers.set(GameEventNames.PassDeclared, onPassDeclared);
-    this.eventBus.on(GameEventNames.PassDeclared, onPassDeclared);
-
-    // Pass Animation
-    const onPassAttempted = async (data: {
-      playerId: string;
-      from: { x: number; y: number };
-      to: { x: number; y: number };
-      passType: string;
-      accurate: boolean;
-      finalPosition: { x: number; y: number };
-      scatterPath?: { x: number; y: number }[];
-    }) => {
-      this.scene["placeBallVisual"](data.from.x, data.from.y);
-      const ballSprite = this.scene["ballSprite"];
-
-      if (!ballSprite) return;
-
-      // 2. Camera tracking
-      const passDuration = 800; // Base duration for flight
-      this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-        ballSprite,
-        animationDuration: passDuration + (data.scatterPath?.length || 0) * 300,
-      });
-
-      // 3. Animate Path
-      const path = data.scatterPath || [data.finalPosition];
-
-      let currentDelay = 0;
-
-      // Initial throw to first target (or only target)
-      const firstTarget = path[0];
-      const p1 = this.scene["pitch"].getPixelPosition(
-        firstTarget.x,
-        firstTarget.y
-      );
-
-      this.scene.tweens.add({
-        targets: ballSprite,
-        x: p1.x,
-        y: p1.y,
-        duration: passDuration,
-        ease: "Quad.easeInOut",
-        delay: currentDelay,
-        onStart: () => {
-          // Scale up for arc effect
-          this.scene.tweens.add({
-            targets: ballSprite,
-            scaleX: 1.5,
-            scaleY: 1.5,
-            duration: passDuration / 2,
-            yoyo: true,
-            ease: "Sine.easeOut",
-          });
-        },
-      });
-
-      currentDelay += passDuration;
-
-      // Subsequent scatters
-      for (let i = 1; i < path.length; i++) {
-        const step = path[i];
-        const p = this.scene["pitch"].getPixelPosition(step.x, step.y);
-
-        this.scene.tweens.add({
-          targets: ballSprite,
-          x: p.x,
-          y: p.y,
-          duration: 300,
-          ease: "Bounce.easeOut",
-          delay: currentDelay,
-        });
-
-        currentDelay += 300;
-      }
-    };
-    this.eventHandlers.set(GameEventNames.PassAttempted, onPassAttempted);
-    this.eventBus.on(GameEventNames.PassAttempted, onPassAttempted);
-
-    // Fumble/Bounce Animation
-    const onPassFumbled = (data: {
-      playerId: string;
-      position: { x: number; y: number };
-      bouncePosition: { x: number; y: number };
-    }) => {
-      const ballSprite = this.scene["ballSprite"];
-      if (ballSprite) {
-        const target = this.scene["pitch"].getPixelPosition(
-          data.bouncePosition.x,
-          data.bouncePosition.y
-        );
-        this.scene.tweens.add({
-          targets: ballSprite,
-          x: target.x,
-          y: target.y,
-          duration: 400,
-          ease: "Bounce.easeOut",
-        });
-      }
-    };
-    this.eventHandlers.set(GameEventNames.PassFumbled, onPassFumbled);
-    this.eventBus.on(GameEventNames.PassFumbled, onPassFumbled);
+    this.eventHandlers.set(GameEventNames.PhaseChanged, onPhaseChanged);
   }
 
-  /**
-   * Start the setup phase (coin flip)
-   * Delegates to scene to allow overrides (e.g., SandboxScene skips coin flip)
-   */
-  public startSetupPhase(): void {
-    // Call scene's startSetupPhase to allow overrides
-    this.scene.startSetupPhase();
-  }
+  public initialize(): void {
+    const state = this.gameService.getState();
 
-  /**
-   * Start placement for a specific team
-   */
-  public startPlacement(subPhase: SubPhase): void {
-    const isKicking = subPhase === SubPhase.SETUP_KICKING;
-    const activeTeam = isKicking
-      ? this.scene.kickingTeam
-      : this.scene.receivingTeam;
+    // Determine starting phase
+    let phase = state.phase;
+    let subPhase = state.subPhase;
 
-    if (!activeTeam) {
-      return;
+    if (this.config.startingPhase) {
+      phase = this.config.startingPhase;
+      subPhase = this.config.startingSubPhase;
+    } else if (phase === undefined) {
+      phase = GamePhase.SETUP; // Default
     }
 
-    const isTeam1 = activeTeam.id === this.scene.team1.id;
-
-    this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
-      subPhase,
-      activeTeam,
-    });
-
-    // Tell scene to highlight setup zone (visual only)
-    this.scene.highlightSetupZone(isTeam1);
-
-    // Tell scene to enable placement (wiring controllers)
-    this.scene.enablePlacement(activeTeam, isTeam1);
+    this.handlePhaseChange(phase, subPhase);
   }
 
-  /**
-   * Check if setup is complete and emit UI event
-   */
-  public checkSetupCompleteness(): void {
-    if (!this.scene.isSetupActive) return;
-    const state = this.gameService.getState();
-    if (!state.activeTeamId) return;
-
-    const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
-    this.eventBus.emit(GameEventNames.UI_SetupComplete, isComplete);
-  }
-
-  /**
-   * Handle phase transitions
-   */
   private handlePhaseChange(phase: GamePhase, subPhase?: SubPhase): void {
+    console.log(`[Orchestrator] Switching to Phase: ${phase}`);
+
+    // 1. Exit current phase
+    if (this.currentHandler) {
+      this.currentHandler.exit();
+      this.currentHandler = null;
+    }
+
+    // 2. Instantiate new handler
+    switch (phase) {
+      case GamePhase.SETUP:
+        this.currentHandler = new SetupPhaseHandler(
+          this.scene,
+          this.gameService,
+          this.eventBus
+        );
+        break;
+      case GamePhase.PLAY:
+        this.currentHandler = new PlayPhaseHandler(
+          this.scene,
+          this.gameService,
+          this.eventBus
+        );
+        break;
+      case GamePhase.KICKOFF:
+        this.currentHandler = new KickoffPhaseHandler(
+          this.scene,
+          this.gameService,
+          this.eventBus
+        );
+        break;
+      case GamePhase.SANDBOX_IDLE:
+        console.log(
+          "[Orchestrator] Game in Idle Mode. Waiting for Scenario..."
+        );
+        this.currentHandler = null;
+        break;
+      default:
+        console.warn(`[Orchestrator] No handler for phase: ${phase}`);
+        break;
+    }
+
+    // 3. Enter new phase
+    if (this.currentHandler) {
+      this.currentHandler.enter();
+    }
+
+    // Legacy mapping for direct control if needed
     if (phase === GamePhase.SETUP) {
       if (subPhase === SubPhase.SETUP_KICKING) {
         this.startPlacement(SubPhase.SETUP_KICKING);
@@ -551,36 +125,58 @@ export class SceneOrchestrator {
       } else if (subPhase === SubPhase.COIN_FLIP) {
         this.startSetupPhase();
       }
-    } else if (phase === GamePhase.PLAY) {
-      this.scene["startPlayPhase"]();
-    } else if (phase === GamePhase.KICKOFF) {
-      this.scene["startKickoffPhase"](subPhase);
     }
   }
 
   /**
-   * Initialize the game based on current state
+   * Start placement - Exposed for Scene/Tests to manually trigger if needed
+   * (Though ideally this is triggered by Phase Events now)
    */
-  public initialize(): void {
+  public startPlacement(subPhase: SubPhase): void {
+    // Delegate to scene directly if handler doesn't cover it?
+    // Or move this logic INTO SetupPhaseHandler entirely?
+    // For backward compatibility, we can keep using Scene methods for now
+    // but managed by the handler?
+
+    // Let's call the Scene methods directly as the 'Handler' would.
+    const isKicking = subPhase === SubPhase.SETUP_KICKING;
+    const activeTeam = isKicking
+      ? this.scene.kickingTeam
+      : this.scene.receivingTeam;
+    if (!activeTeam) return;
+
+    const isTeam1 = activeTeam.id === this.scene.team1.id;
+
+    this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
+      subPhase,
+      activeTeam,
+    });
+
+    this.scene.highlightSetupZone(isTeam1);
+    this.scene.enablePlacement(activeTeam, isTeam1);
+  }
+
+  public startSetupPhase(): void {
+    this.scene.startSetupPhase();
+  }
+
+  public checkSetupCompleteness(): void {
+    // Helper proxy
+    if (!this.scene.isSetupActive) return;
     const state = this.gameService.getState();
-
-    if (this.config.startingPhase) {
-      // Scenario mode - start at specific phase
-      this.handlePhaseChange(
-        this.config.startingPhase,
-        this.config.startingSubPhase
-      );
-    } else if (state.phase === GamePhase.SETUP) {
-      this.startSetupPhase();
-    } else {
-      this.scene["startPlayPhase"]();
-    }
+    if (!state.activeTeamId) return;
+    const isComplete = this.gameService.isSetupComplete(state.activeTeamId);
+    this.eventBus.emit(GameEventNames.UI_SetupComplete, isComplete);
   }
 
-  /**
-   * Cleanup event listeners
-   */
+  public setupEventListeners(): void {
+    // Deprecated - kept empty for interface compatibility if any
+  }
+
   public destroy(): void {
+    if (this.currentHandler) {
+      this.currentHandler.exit();
+    }
     this.eventHandlers.forEach((handler, event) => {
       this.eventBus.off(event, handler);
     });

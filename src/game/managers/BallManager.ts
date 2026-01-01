@@ -151,4 +151,25 @@ export class BallManager {
 
     return true;
   }
+
+  public hasBall(playerId: string): boolean {
+    // We don't have direct access to players list here trivially unless we search teams
+    // But we usually call this from GameService which passes player ID.
+    // Actually, checking if a player has the ball requires checking their position vs ball position.
+    // We need to find the player first.
+
+    // Optimization: If we trust the caller to check valid player, we just need coordinates.
+    // But we only have ID.
+    const p1 = this.team1.players.find((p) => p.id === playerId);
+    const p2 = this.team2.players.find((p) => p.id === playerId);
+    const player = p1 || p2;
+
+    if (!player || !player.gridPosition || !this.state.ballPosition)
+      return false;
+
+    return (
+      player.gridPosition.x === this.state.ballPosition.x &&
+      player.gridPosition.y === this.state.ballPosition.y
+    );
+  }
 }

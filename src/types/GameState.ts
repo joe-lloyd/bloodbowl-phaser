@@ -1,5 +1,6 @@
 export enum SubPhase {
   // SETUP Sub-Phases
+  INTRO = "INTRO",
   WEATHER = "WEATHER",
   COIN_FLIP = "COIN_FLIP",
   SETUP_KICKING = "SETUP_KICKING",
@@ -22,6 +23,7 @@ export enum SubPhase {
 }
 
 export enum GamePhase {
+  SANDBOX_IDLE = "SANDBOX_IDLE",
   SETUP = "SETUP",
   KICKOFF = "KICKOFF",
   PLAY = "PLAY",

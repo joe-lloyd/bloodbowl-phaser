@@ -38,11 +38,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
     this.setSize(32, 32);
     this.setSize(32, 32);
-    // Standard small hit area for pitch selection (32x32 centered)
-    this.setInteractive(
-      new Phaser.Geom.Rectangle(-16, -16, 32, 32),
-      Phaser.Geom.Rectangle.Contains
-    );
+    // Players are NOT interactive directly; we rely on grid clicks.
+    // this.setInteractive(...) REMOVED
     this.setDepth(10); // Ensure players are above dugouts
 
     // Create Selection Ring (Hidden by default)

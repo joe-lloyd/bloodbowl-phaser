@@ -2,6 +2,8 @@ import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 
+import { DiceController } from "./DiceController";
+
 export interface CatchResult {
   success: boolean;
   roll: number;
@@ -19,15 +21,21 @@ export interface CatchResult {
  * - Auto-failing for Prone/Stunned/Distracted players
  */
 export class CatchController {
-  constructor(private eventBus: IEventBus) {}
+  constructor(
+    private eventBus: IEventBus,
+    private diceController: DiceController
+  ) {}
 
   /**
    * Calculate catch modifiers based on circumstances
    */
-  private calculateCatchModifiers(
-    isBounce: boolean,
-    isThrowIn: boolean,
-    markingOpponents: number
+  public calculateModifiers(
+    player: Player,
+    position: { x: number; y: number },
+    opponents: Player[],
+    isBounce: boolean = false,
+    isThrowIn: boolean = false,
+    manualMarkingCount: number = 0
   ): number {
     let modifier = 0;
 
@@ -36,7 +44,14 @@ export class CatchController {
     }
 
     // -1 per opponent marking the catcher
-    modifier -= markingOpponents;
+    const marking =
+      opponents.length > 0
+        ? this.countMarkingOpponents(position, opponents)
+        : manualMarkingCount;
+    modifier -= marking;
+
+    // +1 for Accurate Pass (if not bounce/throw-in)
+    // For now assuming caller handles accurate pass modifier or we add param.
 
     return modifier;
   }
@@ -87,78 +102,25 @@ export class CatchController {
     }
 
     const target = player.stats.AG;
-    const modifiers = this.calculateCatchModifiers(
+
+    const modifiers = this.calculateModifiers(
+      player,
+      position,
+      [], // Empty opponents list -> uses manual count
       isBounce,
       isThrowIn,
-      markingOpponents
+      markingOpponents // Pass the count directly
     );
-    const roll = Math.floor(Math.random() * 6) + 1;
 
-    // Natural 6 always succeeds
-    if (roll === 6) {
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Catch",
-        diceType: "d6",
-        value: roll,
-        total: roll,
-        description: `Catch (${player.playerName}): SUCCESS (Natural 6)`,
-        passed: true,
-      });
+    // Use centralized Dice Roll
+    const result = this.diceController.rollSkillCheck(
+      "Catch",
+      target,
+      modifiers,
+      player.playerName
+    );
 
-      this.eventBus.emit(GameEventNames.CatchSucceeded, {
-        playerId: player.id,
-        position,
-      });
-
-      return {
-        success: true,
-        roll,
-        target,
-        modifiers,
-      };
-    }
-
-    // Natural 1 always fails
-    if (roll === 1) {
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Catch",
-        diceType: "d6",
-        value: roll,
-        total: roll,
-        description: `Catch (${player.playerName}): FAILED (Natural 1)`,
-        passed: false,
-      });
-
-      this.eventBus.emit(GameEventNames.CatchFailed, {
-        playerId: player.id,
-        position,
-        reason: "Natural 1",
-      });
-
-      return {
-        success: false,
-        roll,
-        target,
-        modifiers,
-      };
-    }
-
-    // Check if roll + modifiers >= target
-    const effectiveRoll = roll + modifiers;
-    const success = effectiveRoll >= target;
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Catch",
-      diceType: "d6",
-      value: roll,
-      total: effectiveRoll,
-      description: `Catch (${player.playerName}, Target ${target}+, Modifier ${
-        modifiers >= 0 ? "+" : ""
-      }${modifiers}): ${success ? "SUCCESS" : "FAILED"}`,
-      passed: success,
-    });
-
-    if (success) {
+    if (result.success) {
       this.eventBus.emit(GameEventNames.CatchSucceeded, {
         playerId: player.id,
         position,
@@ -172,82 +134,11 @@ export class CatchController {
     }
 
     return {
-      success,
-      roll,
+      success: result.success,
+      roll: result.roll,
       target,
       modifiers,
     };
-  }
-
-  /**
-   * Handle a failed catch - ball bounces
-   */
-  public handleFailedCatch(position: { x: number; y: number }): {
-    x: number;
-    y: number;
-  } {
-    // Ball bounces in a random direction
-    const direction = Math.floor(Math.random() * 8) + 1;
-
-    let dx = 0;
-    let dy = 0;
-
-    switch (direction) {
-      case 1:
-        dx = -1;
-        dy = -1;
-        break;
-      case 2:
-        dx = 0;
-        dy = -1;
-        break;
-      case 3:
-        dx = 1;
-        dy = -1;
-        break;
-      case 4:
-        dx = -1;
-        dy = 0;
-        break;
-      case 5:
-        dx = 1;
-        dy = 0;
-        break;
-      case 6:
-        dx = -1;
-        dy = 1;
-        break;
-      case 7:
-        dx = 0;
-        dy = 1;
-        break;
-      case 8:
-        dx = 1;
-        dy = 1;
-        break;
-    }
-
-    const bouncePosition = {
-      x: Math.max(0, Math.min(25, position.x + dx)),
-      y: Math.max(0, Math.min(14, position.y + dy)),
-    };
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Bounce",
-      diceType: "d8",
-      value: direction,
-      total: direction,
-      description: `Ball Bounce Direction: ${direction}`,
-      passed: true,
-    });
-
-    this.eventBus.emit(GameEventNames.BallScattered, {
-      from: position,
-      to: bouncePosition,
-      reason: "Failed catch",
-    });
-
-    return bouncePosition;
   }
 
   /**

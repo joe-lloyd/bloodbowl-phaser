@@ -27,6 +27,12 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   // Listen for player selection
   useEventBus(eventBus, GameEventNames.PlayerSelected, (data) => {
     // Only reset action mode if selecting a different player or deselecting
+    // AND if the new player is NOT the same as the current one
+    if (data.player && data.player.id === selectedPlayer?.id) {
+      // Re-selection of same player - do NOT reset stepper
+      return;
+    }
+
     if (data.player?.id !== selectedPlayer?.id) {
       console.log("Player selection changed, resetting action mode");
       setActionSteps([]);
