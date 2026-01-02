@@ -181,19 +181,19 @@ describe("FormationManager", () => {
       expect(formation).toHaveLength(7);
     });
 
-    it("should place Team 1 players on left side (x: 0-5)", () => {
+    it("should place Team 1 players on left side (x: 0-6)", () => {
       const formation = manager.getDefaultFormation(true);
       formation.forEach((pos) => {
         expect(pos.x).toBeGreaterThanOrEqual(0);
-        expect(pos.x).toBeLessThanOrEqual(5);
+        expect(pos.x).toBeLessThanOrEqual(6);
       });
     });
 
-    it("should place Team 2 players on right side (x: 14-19)", () => {
+    it("should place Team 2 players on right side (x: 13-16)", () => {
       const formation = manager.getDefaultFormation(false);
       formation.forEach((pos) => {
-        expect(pos.x).toBeGreaterThanOrEqual(14);
-        expect(pos.x).toBeLessThanOrEqual(19);
+        expect(pos.x).toBeGreaterThanOrEqual(13);
+        expect(pos.x).toBeLessThanOrEqual(16);
       });
     });
 

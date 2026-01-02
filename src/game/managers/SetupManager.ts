@@ -229,11 +229,11 @@ export class SetupManager {
     const player = this.getPlayerById(playerId);
     if (!player) return false;
 
-    // Team 1: Left side (x: 0-5), Team 2: Right side (x: 14-19)
+    // Team 1: Left side (x: 0-6), Team 2: Right side (x: 13-19)
     if (player.teamId === this.team1.id) {
-      return x >= 0 && x <= 5;
+      return x >= 0 && x <= 6;
     } else {
-      return x >= 14 && x < 20;
+      return x >= 13 && x < 20;
     }
   }
 

@@ -20,8 +20,8 @@ export class SetupValidator {
 
   /**
    * Check if a position is within the setup zone for a team
-   * Team 1 (left): x: 0-5, y: 0-10
-   * Team 2 (right): x: 14-19, y: 0-10
+   * Team 1 (left): x: 0-6, y: 0-10
+   * Team 2 (right): x: 13-19, y: 0-10
    */
   isInSetupZone(x: number, y: number, isTeam1: boolean): boolean {
     // Check Y bounds (same for both teams)

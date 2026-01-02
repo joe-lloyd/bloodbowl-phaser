@@ -81,8 +81,8 @@ export class FormationManager {
    * Simple 3-4 setup: 3 on line of scrimmage, 4 in backfield
    */
   getDefaultFormation(isTeam1: boolean): FormationPosition[] {
-    const losX = isTeam1 ? 5 : 14; // Line of scrimmage
-    const backX = isTeam1 ? 2 : 17; // Backfield
+    const losX = isTeam1 ? 6 : 13; // Line of scrimmage
+    const backX = isTeam1 ? 3 : 16; // Backfield
 
     return [
       // 3 on LOS (vertical line, spread across y-axis)
@@ -91,7 +91,7 @@ export class FormationManager {
       { playerId: "2", x: losX, y: 6 }, // Bottom
 
       // 4 in backfield/wide zones
-      { playerId: "3", x: backX, y: 5 }, // Center back
+      { playerId: "3", x: losX, y: 5 }, // Center back
       { playerId: "4", x: backX, y: 1 }, // Top wide
       { playerId: "5", x: backX, y: 9 }, // Bottom wide
       { playerId: "6", x: losX - (isTeam1 ? 1 : -1), y: 5 }, // Support

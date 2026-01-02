@@ -22,7 +22,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   private dugoutSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private placedPlayers: Map<string, FormationPosition> = new Map();
 
-  constructor(scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
+  constructor(_scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
     super();
     // this.scene = scene;
     this.pitch = pitch;
@@ -164,9 +164,6 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     // Validate position is in setup zone
     if (!this.validator.isInSetupZone(gridX, gridY, this.isTeam1)) {
-      console.warn(
-        `[PlayerPlacementController] Invalid Placement for ${playerId} at ${gridX},${gridY}. Team1=${this.isTeam1}. OUTSIDE ZONE.`
-      );
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
         x: gridX,

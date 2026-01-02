@@ -4,6 +4,8 @@ import { IGameService } from "../../../services/interfaces/IGameService";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames, GameEvents } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
+import { PlayerPlacementController } from "../PlayerPlacementController";
+import { FormationManager } from "@/game/managers/FormationManager";
 
 /**
  * SetupPhaseHandler
@@ -115,8 +117,10 @@ export class SetupPhaseHandler implements PhaseHandler {
         this.gameService.confirmSetup(activeTeam.id);
         break;
       case "default": {
-        const formationManager: any = this.scene["formationManager"]; // Access managed by scene
-        const placementController: any = this.scene["placementController"];
+        const formationManager: FormationManager =
+          this.scene["formationManager"]; // Access managed by scene
+        const placementController: PlayerPlacementController =
+          this.scene["placementController"];
 
         if (formationManager && placementController) {
           const defFormation = formationManager.getDefaultFormation(isTeam1);
