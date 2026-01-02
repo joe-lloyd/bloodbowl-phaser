@@ -99,6 +99,7 @@ export class SceneOrchestrator {
           this.gameService,
           this.eventBus
         );
+        this.scene.startKickoffPhase(subPhase);
         break;
       case GamePhase.SANDBOX_IDLE:
         console.log(

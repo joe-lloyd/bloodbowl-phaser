@@ -239,11 +239,11 @@ export class GameService implements IGameService {
 
   startKickoff(): void {
     this.state.phase = GamePhase.KICKOFF;
-    this.state.subPhase = SubPhase.SETUP_KICKOFF;
+    this.state.subPhase = SubPhase.ROLL_KICKOFF;
     this.eventBus.emit(GameEventNames.KickoffStarted);
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.KICKOFF,
-      subPhase: SubPhase.SETUP_KICKOFF,
+      subPhase: SubPhase.ROLL_KICKOFF,
     });
   }
 

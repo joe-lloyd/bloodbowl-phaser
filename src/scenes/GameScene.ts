@@ -546,7 +546,7 @@ export class GameScene extends Phaser.Scene {
     this.placePlayersOnPitch();
 
     // Logic based on subphase
-    if (subPhase === SubPhase.SETUP_KICKOFF) {
+    if (subPhase === SubPhase.ROLL_KICKOFF) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         "Select Kicker & Target"

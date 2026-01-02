@@ -1081,7 +1081,7 @@ export class GameplayInteractionController {
   private handleKickoffClick(x: number, y: number, playerAtSquare): void {
     const subPhase = this.gameService.getSubPhase();
 
-    if (subPhase === SubPhase.SETUP_KICKOFF) {
+    if (subPhase === SubPhase.ROLL_KICKOFF) {
       // If clicking on a player
       if (playerAtSquare) {
         // If own player -> Select/Switch Kicker
