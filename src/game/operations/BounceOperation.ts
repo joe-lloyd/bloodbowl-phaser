@@ -65,8 +65,7 @@ export class BounceOperation extends GameOperation {
     }
 
     // 4. Update Ball Position
-    // gameService.setBallPosition(newX, newY); // Needs helper
-    // For now we update state directly if possible or assume logic follows
+    gameService.setBallPosition(newX, newY);
 
     // 5. Landing Conflict?
     const playerAtSquare = gameService.getPlayerAt(newX, newY);

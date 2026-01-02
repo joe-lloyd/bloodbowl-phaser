@@ -138,6 +138,7 @@ export class BallManager {
 
       const bouncePos = this.movementController.bounce(position);
       this.state.ballPosition = bouncePos;
+      this.callbacks.onBallPlaced(bouncePos.x, bouncePos.y);
 
       this.eventBus.emit(GameEventNames.BallScattered, {
         from: position,

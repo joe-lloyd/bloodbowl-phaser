@@ -141,6 +141,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       }) => {
         const ballSprite = this.scene["ballSprite"];
         if (ballSprite) {
+          this.scene["placeBallVisual"](data.position.x, data.position.y);
           const target = this.scene["pitch"].getPixelPosition(
             data.bouncePosition.x,
             data.bouncePosition.y

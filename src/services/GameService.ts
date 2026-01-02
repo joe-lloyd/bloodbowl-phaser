@@ -199,6 +199,10 @@ export class GameService implements IGameService {
     return this.diceController;
   }
 
+  public getFlowContext(): any {
+    return (this.flowManager as any).context;
+  }
+
   getTurnNumber(teamId: string): number {
     return this.turnManager.getTurnNumber(teamId);
   }
@@ -551,7 +555,8 @@ export class GameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
-    return this.movementManager.movePlayer(playerId, path);
+    const context = this.getFlowContext();
+    return this.movementManager.movePlayer(playerId, path, context);
   }
 
   async standUp(playerId: string): Promise<void> {

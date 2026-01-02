@@ -13,6 +13,8 @@ import { Player } from "@/types/Player";
 export class AgilityTestOperation extends GameOperation {
   public readonly name = "AgilityTestOperation";
   public success: boolean = false; // Store result for caller inspection
+  public roll: number = 0;
+  public effectiveTotal: number = 0;
 
   constructor(
     private playerId: string,
@@ -55,6 +57,8 @@ export class AgilityTestOperation extends GameOperation {
       );
 
     this.success = result.success;
+    this.roll = result.roll;
+    this.effectiveTotal = result.effectiveTotal;
 
     // We don't trigger "Turnover" or next steps here.
     // The CALLER (e.g. CatchOperation) should check `this.success` and decide what to do.

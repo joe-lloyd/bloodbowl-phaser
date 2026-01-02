@@ -77,7 +77,7 @@ export const SCENARIOS: Scenario[] = [
       ],
       activeTeam: "team1",
       phase: GamePhase.KICKOFF,
-      subPhase: SubPhase.SETUP_KICKOFF,
+      subPhase: SubPhase.ROLL_KICKOFF,
     },
   },
   {

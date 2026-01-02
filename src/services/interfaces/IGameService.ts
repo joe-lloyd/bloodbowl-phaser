@@ -132,6 +132,7 @@ export interface IGameService {
     targetX: number,
     targetY: number
   ): void;
+  setBallPosition(x: number, y: number): void;
 
   // ===== Game Phase =====
 
@@ -301,4 +302,5 @@ export interface IGameService {
    * Get opposing team's players
    */
   getOpponents(teamId: string): Player[];
+  getFlowContext(): any;
 }

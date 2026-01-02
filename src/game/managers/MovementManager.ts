@@ -6,6 +6,9 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { BallManager } from "./BallManager";
 import { GameEventNames } from "../../types/events";
 import { DodgeController } from "../controllers/DodgeController";
+import { PickupOperation } from "../operations/PickupOperation";
+import { BounceOperation } from "../operations/BounceOperation";
+import { IGameService } from "@/services/interfaces/IGameService";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -114,10 +117,14 @@ export class MovementManager {
 
   public async movePlayer(
     playerId: string,
-    path: { x: number; y: number }[]
+    path: { x: number; y: number }[],
+    context?: any
   ): Promise<void> {
     const player = this.getPlayerById(playerId);
     if (!player) return Promise.reject("Player not found!");
+
+    const gameService = context?.gameService as IGameService;
+    const flowManager = context?.flowManager;
 
     const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
     // Only standing players project tackle zones
@@ -187,12 +194,9 @@ export class MovementManager {
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
           // Update ball position if holding ball
-          if (holdingBall) {
-            this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
-            this.eventBus.emit(GameEventNames.BallPlaced, {
-              x: currentPos.x,
-              y: currentPos.y,
-            });
+          if (holdingBall && flowManager) {
+            gameService.setBallPosition(currentPos.x, currentPos.y);
+            flowManager.add(new BounceOperation(currentPos), true);
           }
 
           this.callbacks.onTurnover("Failed Dodge");
@@ -230,12 +234,9 @@ export class MovementManager {
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
           // Update ball position if holding ball
-          if (holdingBall) {
-            this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
-            this.eventBus.emit(GameEventNames.BallPlaced, {
-              x: currentPos.x,
-              y: currentPos.y,
-            });
+          if (holdingBall && flowManager) {
+            gameService.setBallPosition(currentPos.x, currentPos.y);
+            flowManager.add(new BounceOperation(currentPos), true);
           }
 
           this.callbacks.onTurnover("Failed GFI");
@@ -246,6 +247,7 @@ export class MovementManager {
 
       // Move
       currentPos = step;
+      player.gridPosition = currentPos;
       completedPath.push(step);
 
       // Pickup Attempt
@@ -255,15 +257,32 @@ export class MovementManager {
         currentPos.x === this.state.ballPosition.x &&
         currentPos.y === this.state.ballPosition.y
       ) {
-        const pickupSuccess = this.ballManager.attemptPickup(
-          player,
-          currentPos
-        );
-        if (pickupSuccess) {
-          holdingBall = true;
+        if (context) {
+          const pickupOp = new PickupOperation(playerId);
+          await pickupOp.execute(context);
+
+          // Re-check state if they got the ball
+          // PickupOperation updates state via gameService.setBallPosition
+          holdingBall =
+            this.state.ballPosition?.x === currentPos.x &&
+            this.state.ballPosition?.y === currentPos.y;
+
+          if (!holdingBall) {
+            failed = true;
+            break;
+          }
         } else {
-          failed = true;
-          break; // Turnover handled in BallManager
+          // Fallback to old behavior if no context (should not happen in real app)
+          const pickupSuccess = this.ballManager.attemptPickup(
+            player,
+            currentPos
+          );
+          if (pickupSuccess) {
+            holdingBall = true;
+          } else {
+            failed = true;
+            break;
+          }
         }
       }
 
