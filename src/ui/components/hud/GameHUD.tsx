@@ -183,6 +183,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     <HUDLayout
       left={
         <>
+          <SetupControls eventBus={eventBus} />
           <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
           <DiceLog eventBus={eventBus} />
         </>
@@ -214,7 +215,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
-          <SetupControls eventBus={eventBus} />
           <ConfirmationModal eventBus={eventBus} />
           <BlockDiceDialog eventBus={eventBus} />
           <FollowUpDialog eventBus={eventBus} />

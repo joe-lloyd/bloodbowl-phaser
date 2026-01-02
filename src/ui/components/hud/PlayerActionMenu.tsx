@@ -55,8 +55,32 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     }
   });
 
-  useEventBus(eventBus, GameEventNames.PlayerMovedInAction, () => {
-    setHasMovedInAction(true);
+  // Determine initial movement state on selection
+  React.useEffect(() => {
+    if (selectedPlayer && turnData) {
+      const movementUsed =
+        turnData.movementUsed instanceof Map
+          ? turnData.movementUsed.get(selectedPlayer.id)
+          : turnData.movementUsed?.[selectedPlayer.id] || 0;
+
+      // Check if player has moved THIS turn (and is still active)
+      // Note: Prone players standing up counts as movement used, but standing up usually ends in activation
+      // or allows a blitz? Actually standing up costs 3 MA.
+      // If we just stood up, we haven't "moved squares" per se, but we used MA.
+      // Usage says "stop them doing anything else ... apart from end activation".
+      // So if movementUsed > 0, we treat it as moved.
+      if (movementUsed > 0 && !selectedPlayer.hasActed) {
+        setHasMovedInAction(true);
+      } else {
+        setHasMovedInAction(false);
+      }
+    }
+  }, [selectedPlayer, turnData]);
+
+  useEventBus(eventBus, GameEventNames.PlayerMovedInAction, (data) => {
+    if (selectedPlayer && data.playerId === selectedPlayer.id) {
+      setHasMovedInAction(true);
+    }
   });
 
   useEventBus(eventBus, GameEventNames.TurnStarted, () => {
@@ -245,28 +269,28 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
               action="blitz"
               label="BLITZ"
               sub="1/Turn"
-              disabled={!canBlitz}
+              disabled={!canBlitz || hasMovedInAction}
               color="red"
             />
             <ActionButton
               action="pass"
               label="PASS"
               sub="1/Turn"
-              disabled={!canPass}
+              disabled={!canPass || hasMovedInAction}
               color="yellow"
             />
             <ActionButton
               action="handoff"
               label="HAND-OFF"
               sub="1/Turn"
-              disabled={!canHandoff}
+              disabled={!canHandoff || hasMovedInAction}
               color="yellow"
             />
             <ActionButton
               action="foul"
               label="FOUL"
               sub="1/Turn"
-              disabled={!canFoul}
+              disabled={!canFoul || hasMovedInAction}
               color="purple"
             />
 

@@ -41,6 +41,40 @@ export class GameService implements IGameService {
   private movementManager: MovementManager;
   private blockManager: BlockManager;
   private weatherService: WeatherManager;
+
+  /**
+   * Factory method to create a default initial state
+   */
+  public static createInitialState(
+    team1: Team,
+    team2: Team,
+    startingPhase: GamePhase = GamePhase.SANDBOX_IDLE,
+    startingSubPhase?: SubPhase
+  ): GameState {
+    return {
+      phase: startingPhase,
+      subPhase: startingSubPhase,
+      activeTeamId: null,
+      turn: {
+        teamId: "",
+        turnNumber: 0,
+        isHalf2: false,
+        activatedPlayerIds: new Set(),
+        hasBlitzed: false,
+        hasPassed: false,
+        hasHandedOff: false,
+        hasFouled: false,
+        movementUsed: new Map(),
+      },
+      score: {
+        [team1.id]: 0,
+        [team2.id]: 0,
+      },
+      weather: "Nice",
+      ballPosition: null, // Ball not placed yet
+      activePlayer: null,
+    };
+  }
   private playerActionManager: PlayerActionManager;
   private passController: PassController;
   private catchController: CatchController;
@@ -61,29 +95,7 @@ export class GameService implements IGameService {
     this.team1 = team1;
     this.team2 = team2;
 
-    this.state = initialState || {
-      phase: GamePhase.SANDBOX_IDLE,
-      subPhase: undefined, // No subphase in Idle
-      activeTeamId: null,
-      turn: {
-        teamId: "",
-        turnNumber: 0,
-        isHalf2: false,
-        activatedPlayerIds: new Set(),
-        hasBlitzed: false,
-        hasPassed: false,
-        hasHandedOff: false,
-        hasFouled: false,
-        movementUsed: new Map(),
-      },
-      score: {
-        [team1.id]: 0,
-        [team2.id]: 0,
-      },
-      weather: "Nice",
-      ballPosition: null,
-      activePlayer: null,
-    };
+    this.state = initialState || GameService.createInitialState(team1, team2);
 
     // If starting a fresh game (no initial state), ensure teams are clean
     if (!initialState) {

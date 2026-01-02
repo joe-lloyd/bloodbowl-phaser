@@ -7,9 +7,10 @@ import { Dugout } from "../game/elements/Dugout";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
 import { IEventBus } from "../services/EventBus";
-import { SubPhase } from "../types/GameState";
+import { SubPhase, GamePhase } from "../types/GameState";
 import { GameEventNames } from "../types/events";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { FormationManager } from "../game/managers/FormationManager";
@@ -148,7 +149,18 @@ export class GameScene extends Phaser.Scene {
 
     // Ensure ServiceContainer is initialized
     if (!ServiceContainer.isInitialized()) {
-      ServiceContainer.initialize(window.eventBus, this.team1, this.team2);
+      const initialState = GameService.createInitialState(
+        this.team1,
+        this.team2,
+        GamePhase.SETUP,
+        SubPhase.INTRO
+      );
+      ServiceContainer.initialize(
+        window.eventBus,
+        this.team1,
+        this.team2,
+        initialState
+      );
     }
 
     const container = ServiceContainer.getInstance();

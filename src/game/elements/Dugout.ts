@@ -293,4 +293,18 @@ export class Dugout extends Phaser.GameObjects.Container {
       );
     });
   }
+
+  /**
+   * Play celebration animation for all players in dugout
+   */
+  public async animateCelebration(): Promise<void> {
+    const promises: Promise<void>[] = [];
+    this.playerSprites.forEach((sprite) => {
+      // Cast to PlayerSprite to access specific method
+      if (sprite instanceof PlayerSprite) {
+        promises.push(sprite.playCelebrateAnimation());
+      }
+    });
+    await Promise.all(promises);
+  }
 }

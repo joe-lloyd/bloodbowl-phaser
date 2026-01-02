@@ -145,7 +145,10 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   // Helper to access the shape for effects
-  private shape!: Phaser.GameObjects.Shape | Phaser.GameObjects.Arc; // Arc is for Circle
+  private shape!:
+    | Phaser.GameObjects.Shape
+    | Phaser.GameObjects.Arc
+    | Phaser.GameObjects.Sprite; // Arc is for Circle
 
   /**
    * Update player status visual (prone, stunned, etc.)
@@ -261,6 +264,34 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
           resolve();
         },
+      });
+    });
+  }
+
+  /**
+   * Play celebration animation (jumping up and down)
+   * Returns a Promise that resolves when the animation is complete.
+   */
+  public playCelebrateAnimation(): Promise<void> {
+    return new Promise((resolve) => {
+      // Add random delay for "chaos"
+      const startDelay = Math.random() * 500;
+      const duration = 100 + Math.random() * 50; // Randomize speed slightly
+
+      this.scene.time.delayedCall(startDelay, () => {
+        this.scene.tweens.add({
+          targets: this.shape,
+          y: "-=10", // Jump higher than jog
+          duration: duration,
+          yoyo: true,
+          repeat: 3, // Jump 3 times
+          ease: "Sine.easeInOut",
+          onComplete: () => {
+            // Ensure reset
+            this.shape.y = 0;
+            resolve();
+          },
+        });
       });
     });
   }

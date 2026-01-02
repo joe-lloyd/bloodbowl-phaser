@@ -26,6 +26,7 @@ const mockPitch = {
   clearPassVisualization: vi.fn(),
   drawPassZones: vi.fn(),
   drawPassLine: vi.fn(),
+  clearLayer: vi.fn(),
 };
 
 const mockMovementValidator = {

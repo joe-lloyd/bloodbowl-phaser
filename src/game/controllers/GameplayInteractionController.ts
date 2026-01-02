@@ -145,17 +145,19 @@ export class GameplayInteractionController {
     this.currentStepId = data.stepId;
     console.log(`Switched action step to: ${data.stepId}`);
 
-    // Force refresh of hover state to update visualization
+    // 1. Refresh static visuals (range overlay, tackle zones) for the new step
+    if (this.selectedPlayerId) {
+      this.refreshPlayerVisualization(this.selectedPlayerId);
+    }
+
+    // 2. Refresh dynamic visuals (cursor, path, pass lines)
     if (this.lastHoverGrid) {
       this.onSquareHovered(this.lastHoverGrid.x, this.lastHoverGrid.y);
     } else {
-      // Clear visuals if no hover
+      // Clear dynamic visuals if no hover (path, cursor)
+      // Static visuals already handled above
       this.pitch.clearPassVisualization();
       this.pitch.clearPath();
-      if (data.stepId === "move" && this.selectedPlayerId) {
-        // FIX: Don't call selectPlayer, just refresh visuals
-        this.refreshPlayerVisualization(this.selectedPlayerId);
-      }
     }
   };
 
@@ -695,9 +697,9 @@ export class GameplayInteractionController {
         // Show Sprint Risks
         this.pitch.drawSprintRisks(sprintMoves);
       } else {
-        // If in Pass Step (aiming), maybe don't show movement range?
-        // Or keep it? Original code hid it. Let's hide it for clarity when aiming pass.
-        // But tackle zones should stay.
+        // If in Pass Step (aiming), clear the movement overlays to reduce clutter
+        this.pitch.clearLayer("range_overlay");
+        this.pitch.clearLayer("sprint_risk");
       }
 
       // Show Tackle Zones (always show these)
@@ -861,6 +863,9 @@ export class GameplayInteractionController {
     this.gameService
       .movePlayer(playerId, path)
       .then(() => {
+        this.hasMovedInAction = true;
+        this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
+
         // Do NOT auto-finish activation here.
         // Allow partial moves. GameService will auto-finish if MA+2 is used.
         // this.gameService.finishActivation(playerId);
@@ -890,7 +895,6 @@ export class GameplayInteractionController {
             this.hasMovedInAction = true;
             this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
               playerId,
-              canPass: true,
             });
           }
 

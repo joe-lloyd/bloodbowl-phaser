@@ -2,7 +2,7 @@ import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
 import { IEventBus } from "../../../services/EventBus";
-import { GameEventNames } from "../../../types/events";
+import { GameEventNames, GameEvents } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
 
 /**
@@ -15,6 +15,7 @@ import { SubPhase } from "../../../types/GameState";
  */
 export class SetupPhaseHandler implements PhaseHandler {
   private handlers: Map<string, (data: any) => void> = new Map();
+  private isIntroSequence = false;
 
   constructor(
     private scene: GameScene,
@@ -31,23 +32,17 @@ export class SetupPhaseHandler implements PhaseHandler {
     console.log(`[SetupPhaseHandler] Current SubPhase: ${subPhase}`);
 
     if (subPhase === SubPhase.INTRO) {
-      // 1. Intro -> Show Teams
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Welcome to Blood Bowl!"
-      );
-      // Auto-advance to Weather after delay (demonstration)
-      setTimeout(() => {
-        this.gameService.setWeather(0); // Trigger Roll
-      }, 3000);
+      this.runIntroSequence();
     } else if (subPhase === SubPhase.WEATHER) {
-      // 2. Weather -> Coin Flip
-      // Assuming weather is already rolled/set if we enter here?
-      // Or we trigger roll?
-      // Let's just prompt Coin Flip if weather is done.
-      this.eventBus.emit(GameEventNames.UI_ShowCoinFlip);
+      // Weather handled by intro or direct state
     } else if (subPhase === SubPhase.COIN_FLIP) {
-      this.eventBus.emit(GameEventNames.UI_ShowCoinFlip);
+      // Only show if NOT in the middle of intro (intro will show it after delay)
+      if (!this.isIntroSequence) {
+        this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
+          team1: this.scene.team1,
+          team2: this.scene.team2,
+        });
+      }
     } else if (
       subPhase === SubPhase.SETUP_KICKING ||
       subPhase === SubPhase.SETUP_RECEIVING
@@ -77,21 +72,25 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private setupListeners(): void {
     // Coin Flip
-    this.register(GameEventNames.UI_CoinFlipComplete, (data) => {
-      this.scene.kickingTeam = data.kickingTeam;
-      this.scene.receivingTeam = data.receivingTeam;
-      this.gameService.startSetup(data.kickingTeam.id);
-    });
+    this.register(
+      GameEventNames.UI_CoinFlipComplete as keyof GameEvents,
+      (data) => {
+        this.scene.kickingTeam = data.kickingTeam;
+        this.scene.receivingTeam = data.receivingTeam;
+        this.gameService.startSetup(data.kickingTeam.id);
+      }
+    );
 
     // Setup Actions
-    this.register(GameEventNames.UI_SetupAction, (data) =>
+    this.register(GameEventNames.UI_SetupAction as keyof GameEvents, (data) =>
       this.handleSetupAction(data)
     );
   }
 
   private register(event: string, handler: (data: any) => void): void {
     this.handlers.set(event, handler);
-    this.eventBus.on(event, handler);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.eventBus.on(event as any, handler);
   }
 
   private removeListeners(): void {
@@ -132,5 +131,62 @@ export class SetupPhaseHandler implements PhaseHandler {
         break;
       // Save/Load omitted for brevity, logic remains same (move here if needed)
     }
+  }
+
+  private async runIntroSequence(): Promise<void> {
+    this.isIntroSequence = true;
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+
+    // 0. Initial Delay
+    await delay(500);
+
+    // 1. Team 1 Intro
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `${this.scene.team1.name}` // Team 1 Name
+    );
+
+    // Find Team 1 Dugout and animate
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dugout1 = (this.scene as any).dugouts.get(this.scene.team1.id);
+    if (dugout1) {
+      await dugout1.animateCelebration();
+    }
+    await delay(500); // Wait after animation
+
+    // 2. Team 2 Intro
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `${this.scene.team2.name}` // Team 2 Name
+    );
+
+    // Find Team 2 Dugout and animate
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dugout2 = (this.scene as any).dugouts.get(this.scene.team2.id);
+    if (dugout2) {
+      await dugout2.animateCelebration();
+    }
+    await delay(500); // Wait after animation
+
+    // 3. Weather
+    this.eventBus.emit(GameEventNames.UI_Notification, "Rolling Weather...");
+    await delay(500);
+
+    // Trigger Logic
+    this.gameService.setWeather(0); // 0 = Roll
+    const weather = this.gameService.getState().weather;
+
+    this.eventBus.emit(GameEventNames.UI_Notification, `Weather: ${weather}`);
+    // Wait for user to read
+    await delay(500);
+
+    // 4. Transition to Coin Flip
+    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
+      team1: this.scene.team1,
+      team2: this.scene.team2,
+    });
+
+    this.isIntroSequence = false;
   }
 }

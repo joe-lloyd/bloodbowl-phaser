@@ -4,23 +4,18 @@ import { GamePhase } from "../../../types/GameState";
 
 interface TurnIndicatorProps {
   turnNumber: number;
-  activeTeamName: string;
-  isTeam1Active: boolean;
   phase?: GamePhase;
 }
 
 export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   turnNumber,
-  // activeTeamName,
-  // isTeam1Active,
   phase,
 }) => {
-  // If we are in KICKOFF phase, show "KICKOFF" instead of Turn Number
   const showKickoff = phase === GamePhase.KICKOFF;
+  const showSetup = phase === GamePhase.SETUP;
 
   return (
     <div className="flex flex-col items-center pointer-events-none select-none">
-      {/* Turn Counter Pill */}
       <div
         className={`
                 mb-2 px-6 py-1
@@ -34,7 +29,7 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
                 shadow-chunky
             `}
       >
-        {showKickoff ? "KICKOFF" : `TURN ${turnNumber}`}
+        {showKickoff ? "KICKOFF" : showSetup ? "SETUP" : `TURN ${turnNumber}`}
       </div>
     </div>
   );

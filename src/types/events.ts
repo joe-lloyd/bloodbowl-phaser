@@ -274,7 +274,6 @@ export interface GameEvents {
   };
   [GameEventNames.PlayerMovedInAction]: {
     playerId: string;
-    canPass: boolean;
   };
   [GameEventNames.PassZoneHovered]: {
     playerId: string;

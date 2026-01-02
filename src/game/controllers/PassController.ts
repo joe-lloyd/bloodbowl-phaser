@@ -200,11 +200,13 @@ export class PassController {
     let scatterPath: { x: number; y: number }[] | undefined;
 
     if (accuracyTest.fumbled) {
-      finalPosition = this.scatterBall(from);
+      // Fumbled: Ball stays in passer's square initially, then BounceOperation handles the bounce.
+      // We do NOT scatter here to avoid double-rolling.
+      finalPosition = { ...from };
       this.eventBus.emit(GameEventNames.PassFumbled, {
         playerId: player.id,
         position: from,
-        bouncePosition: finalPosition,
+        bouncePosition: finalPosition, // Same as from, bounce happens next
       });
     } else if (!accuracyTest.accurate) {
       // Inaccurate: Scatter 3 times (Batched)

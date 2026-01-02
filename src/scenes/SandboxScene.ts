@@ -1,8 +1,11 @@
 import { GameScene } from "./GameScene";
+import { GamePhase } from "../types/GameState";
 import { TestTeamFactory } from "../game/controllers/TestTeamFactory";
 import { RosterName } from "../types/Team";
 import { Team } from "../types/Team";
+
 import { ServiceContainer } from "../services/ServiceContainer";
+import { GameService } from "../services/GameService";
 import { ScenarioLoader } from "../services/ScenarioLoader";
 import { SCENARIOS } from "../data/scenarios";
 import { GameEventNames } from "@/types/events";
@@ -16,10 +19,16 @@ export class SandboxScene extends GameScene {
     // If teams are passed, use them. Otherwise generate Mock Teams.
     if (data && data.team1 && data.team2) {
       // Need to initialize ServiceContainer before GameScene uses it
+      const initialState = GameService.createInitialState(
+        data.team1,
+        data.team2,
+        GamePhase.SANDBOX_IDLE
+      );
       ServiceContainer.initialize(
         (window as any).eventBus,
         data.team1,
-        data.team2
+        data.team2,
+        initialState
       );
       super.init(data as { team1: Team; team2: Team });
     } else {
@@ -35,7 +44,17 @@ export class SandboxScene extends GameScene {
       );
 
       // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
-      ServiceContainer.initialize((window as any).eventBus, team1, team2);
+      const initialState = GameService.createInitialState(
+        team1,
+        team2,
+        GamePhase.SANDBOX_IDLE
+      );
+      ServiceContainer.initialize(
+        (window as any).eventBus,
+        team1,
+        team2,
+        initialState
+      );
 
       super.init({ team1, team2 });
     }
