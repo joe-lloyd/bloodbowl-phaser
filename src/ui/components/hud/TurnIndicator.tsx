@@ -3,14 +3,18 @@ import React from "react";
 import { GamePhase } from "../../../types/GameState";
 
 interface TurnIndicatorProps {
-  turnNumber: number;
-  phase?: GamePhase;
+  turnNumber: number | null;
+  phase: GamePhase;
 }
 
 export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   turnNumber,
   phase,
 }) => {
+  if (!turnNumber) {
+    return null;
+  }
+
   const showKickoff = phase === GamePhase.KICKOFF;
   const showSetup = phase === GamePhase.SETUP;
 

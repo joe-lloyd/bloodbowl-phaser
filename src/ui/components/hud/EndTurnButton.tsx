@@ -1,14 +1,20 @@
+import { GamePhase } from "@/types/GameState";
 import React from "react";
 
 interface EndTurnButtonProps {
   onClick: () => void;
   disabled?: boolean;
+  phase: GamePhase;
 }
 
 export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   onClick,
   disabled,
+  phase,
 }) => {
+  if (phase !== GamePhase.PLAY) {
+    return null;
+  }
   return (
     <button
       onClick={onClick}

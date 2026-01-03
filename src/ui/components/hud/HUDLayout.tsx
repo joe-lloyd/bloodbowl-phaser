@@ -27,12 +27,12 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
       {/* Grid container */}
       <div className="grid-hud h-full w-full p-4 gap-4">
         {/* Left sidebar */}
-        <div className="grid-area-left flex flex-col gap-4 items-start justify-end">
+        <div className="grid-area-left flex flex-col gap-4 items-start">
           {left}
         </div>
 
         {/* Right sidebar */}
-        <div className="grid-area-right flex flex-col gap-4 items-end justify-start">
+        <div className="grid-area-right flex flex-col gap-4 items-end">
           {right}
         </div>
       </div>

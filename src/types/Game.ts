@@ -6,17 +6,6 @@ import { Team } from "./Team";
 import { Player } from "./Player";
 
 /**
- * Game phase
- */
-export enum GamePhase {
-  SETUP = "Setup", // Pre-game team setup
-  KICKOFF = "Kickoff", // Kick-off phase
-  PLAYING = "Playing", // Active play
-  HALFTIME = "Halftime", // Between halves
-  POSTGAME = "Postgame", // Game over
-}
-
-/**
  * Which half of the game
  */
 export enum GameHalf {

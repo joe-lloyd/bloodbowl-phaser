@@ -26,28 +26,39 @@ interface GameHUDProps {
   mode?: "normal" | "sandbox";
 }
 
+interface TurnData {
+  turnNumber: number | null;
+  activeTeamName: string | null;
+  activeTeamId: string | null;
+  isTeam1Active: boolean | null;
+  phase: GamePhase;
+  hasBlitzed: boolean | null;
+  hasPassed: boolean | null;
+  hasHandedOff: boolean | null;
+  hasFouled: boolean | null;
+}
+
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
 }) => {
-  // State
-  const [turnData, setTurnData] = useState({
-    turnNumber: 1,
-    activeTeamName: "Loading...",
-    activeTeamId: "",
-    isTeam1Active: true,
-    phase: GamePhase.SETUP,
-    hasBlitzed: false,
-    hasPassed: false,
-    hasHandedOff: false,
-    hasFouled: false,
+  const [turnData, setTurnData] = useState<TurnData>({
+    turnNumber: null,
+    activeTeamName: null,
+    activeTeamId: null,
+    isTeam1Active: null,
+    phase: mode === "normal" ? GamePhase.SETUP : GamePhase.SANDBOX_IDLE,
+    hasBlitzed: null,
+    hasPassed: null,
+    hasHandedOff: null,
+    hasFouled: null,
   });
+
   const [notifications, setNotifications] = useState<
     { id: string; text: string }[]
   >([]);
   const [queue, setQueue] = useState<{ id: string; text: string }[]>([]);
 
-  // Initial State Load
   useEffect(() => {
     const initHUD = () => {
       try {
@@ -59,8 +70,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         const container = ServiceContainer.getInstance();
         const state = container.gameService.getState();
         if (state) {
-          const activeTeamId = state.activeTeamId || "";
-          const activeTeam = container.gameService.getTeam(activeTeamId);
+          const activeTeamId = state.activeTeamId;
+          const activeTeam =
+            activeTeamId !== null
+              ? container.gameService.getTeam(activeTeamId)
+              : null;
           const team1 =
             container.gameService.getTeam(state.turn.teamId) || activeTeam;
 
@@ -69,7 +83,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               turnNumber: state.turn.turnNumber,
               activeTeamName: activeTeam.name,
               activeTeamId: activeTeam.id,
-              isTeam1Active: activeTeamId === (team1?.id || "team1"),
+              isTeam1Active: activeTeamId === team1?.id,
               phase: state.phase,
               hasBlitzed: state.turn.hasBlitzed,
               hasPassed: state.turn.hasPassed,
@@ -143,31 +157,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       const [next, ...rest] = queue;
       setQueue(rest);
 
-      // Add the next one to notifications
       setNotifications((prev) => [...prev, next]);
 
-      // Set removal timer
       setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== next.id));
       }, 3000);
     }
   }, [notifications.length, queue]);
 
-  // Helper to add notification
   const addNotification = (text: string) => {
-    // START FIX: Use random string to ensure uniqueness even if text/time matches
-    const id = `${text}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    // END FIX
+    const id = `${text}-${Date.now()}`;
 
     setNotifications((prev) => {
       if (prev.length < 3) {
-        // If we have space, show immediately
         setTimeout(() => {
           setNotifications((current) => current.filter((n) => n.id !== id));
         }, 3000);
         return [...prev, { id, text }];
       } else {
-        // Otherwise add to queue
         setQueue((q) => [...q, { id, text }]);
         return prev;
       }
@@ -182,11 +189,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   return (
     <HUDLayout
       left={
-        <>
-          <SetupControls eventBus={eventBus} />
-          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+        <div className="flex flex-1 flex-col space-between w-full">
+          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
+          <div className="flex flex-1 flex-col gap-4 w-full">
+            <SetupControls eventBus={eventBus} />
+            <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          </div>
           <DiceLog eventBus={eventBus} />
-        </>
+        </div>
       }
       right={
         <>
@@ -200,18 +210,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-50">
             <TurnIndicator
               turnNumber={turnData.turnNumber}
-              activeTeamName={turnData.activeTeamName}
-              isTeam1Active={turnData.isTeam1Active}
               phase={turnData.phase}
             />
           </div>
-
-          {/* End Turn Button - Bottom Right */}
-          {turnData.phase === GamePhase.PLAY && (
-            <div className="absolute bottom-4 right-4 pointer-events-auto z-50">
-              <EndTurnButton onClick={handleEndTurn} />
-            </div>
-          )}
 
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
