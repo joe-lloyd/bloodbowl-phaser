@@ -9,9 +9,9 @@ import {
   BlockResult,
   BlockRollData,
   PushData,
-  ArmorResult,
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
+import { ArmourOperation } from "../operations/ArmourOperation.js";
 
 export class BlockManager {
   private blockValidator: BlockValidator = new BlockValidator();
@@ -24,6 +24,7 @@ export class BlockManager {
     private team2: Team,
     private callbacks: {
       onTurnover: (reason: string) => void;
+      getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
     }
   ) {}
 
@@ -145,8 +146,12 @@ export class BlockManager {
     // Handle knockdown for POW results
     if (resultType === "pow" || resultType === "pow-dodge") {
       this.knockDownPlayer(defender);
-      const armorResult = this.rollArmor(defender);
-      this.eventBus.emit(GameEventNames.ArmorRolled, armorResult);
+
+      // Trigger Armour Operation via FlowManager
+      const flowManager = this.callbacks.getFlowManager?.();
+      if (flowManager) {
+        flowManager.add(new ArmourOperation(defenderId), true);
+      }
     }
 
     // Prepare path and follow-up data
@@ -179,8 +184,12 @@ export class BlockManager {
    */
   private handleSkull(attacker: Player): void {
     this.knockDownPlayer(attacker);
-    const armorResult = this.rollArmor(attacker);
-    this.eventBus.emit(GameEventNames.ArmorRolled, armorResult);
+
+    const flowManager = this.callbacks.getFlowManager?.();
+    if (flowManager) {
+      flowManager.add(new ArmourOperation(attacker.id), true);
+    }
+
     this.callbacks.onTurnover("Attacker Down (Skull)");
   }
 
@@ -191,11 +200,13 @@ export class BlockManager {
     this.knockDownPlayer(attacker);
     this.knockDownPlayer(defender);
 
-    const attackerArmor = this.rollArmor(attacker);
-    const defenderArmor = this.rollArmor(defender);
-
-    this.eventBus.emit(GameEventNames.ArmorRolled, attackerArmor);
-    this.eventBus.emit(GameEventNames.ArmorRolled, defenderArmor);
+    const flowManager = this.callbacks.getFlowManager?.();
+    if (flowManager) {
+      // Add both to queue (next: true means they get processed in order they were added to front?)
+      // unshift(defender), then unshift(attacker) -> attacker runs FIRST.
+      flowManager.add(new ArmourOperation(defender.id), true);
+      flowManager.add(new ArmourOperation(attacker.id), true);
+    }
 
     this.callbacks.onTurnover("Both Down");
   }
@@ -208,13 +219,6 @@ export class BlockManager {
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: player.id,
     });
-  }
-
-  /**
-   * Roll armor for a player
-   */
-  private rollArmor(player: Player): ArmorResult {
-    return BlockResolutionService.rollArmor(player);
   }
 
   /**

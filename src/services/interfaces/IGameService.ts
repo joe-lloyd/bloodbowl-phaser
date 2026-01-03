@@ -65,6 +65,16 @@ export interface IGameService {
    */
   getDiceController(): import("../../game/controllers/DiceController").DiceController;
 
+  /**
+   * Get the ArmourController instance
+   */
+  getArmourController(): import("../../game/controllers/ArmourController").ArmourController;
+
+  /**
+   * Get the InjuryController instance
+   */
+  getInjuryController(): import("../../game/controllers/InjuryController").InjuryController;
+
   // ===== Setup Phase =====
 
   /**

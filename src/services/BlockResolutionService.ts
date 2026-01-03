@@ -214,7 +214,7 @@ export class BlockResolutionService {
     const roll =
       Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1; // 2d6
     const armor = player.stats.AV;
-    const broken = roll > armor;
+    const broken = roll >= armor;
 
     return {
       playerId: player.id,

@@ -25,6 +25,8 @@ import { PlayerActionManager } from "../game/managers/PlayerActionManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
 import { DiceController } from "../game/controllers/DiceController";
+import { ArmourController } from "../game/controllers/ArmourController";
+import { InjuryController } from "../game/controllers/InjuryController";
 
 import { GameFlowManager } from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
@@ -79,6 +81,8 @@ export class GameService implements IGameService {
   private passController: PassController;
   private catchController: CatchController;
   public diceController: DiceController;
+  private armourController: ArmourController;
+  private injuryController: InjuryController;
 
   // Game Flow Manager
   public flowManager: GameFlowManager;
@@ -153,6 +157,8 @@ export class GameService implements IGameService {
     );
     this.diceController = new DiceController(eventBus);
     this.catchController = new CatchController(eventBus, this.diceController);
+    this.armourController = new ArmourController();
+    this.injuryController = new InjuryController();
 
     this.movementManager = new MovementManager(
       eventBus,
@@ -168,6 +174,7 @@ export class GameService implements IGameService {
 
     this.blockManager = new BlockManager(eventBus, this.state, team1, team2, {
       onTurnover: (reason) => this.triggerTurnover(reason),
+      getFlowManager: () => this.flowManager,
     });
   }
 
@@ -197,6 +204,14 @@ export class GameService implements IGameService {
 
   public getDiceController(): DiceController {
     return this.diceController;
+  }
+
+  public getArmourController(): ArmourController {
+    return this.armourController;
+  }
+
+  public getInjuryController(): InjuryController {
+    return this.injuryController;
   }
 
   public getFlowContext(): any {

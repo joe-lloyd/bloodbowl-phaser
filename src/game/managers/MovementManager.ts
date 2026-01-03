@@ -8,6 +8,7 @@ import { GameEventNames } from "../../types/events";
 import { DodgeController } from "../controllers/DodgeController";
 import { PickupOperation } from "../operations/PickupOperation";
 import { BounceOperation } from "../operations/BounceOperation";
+import { ArmourOperation } from "../operations/ArmourOperation";
 import { IGameService } from "@/services/interfaces/IGameService";
 
 export class MovementManager {
@@ -199,6 +200,11 @@ export class MovementManager {
             flowManager.add(new BounceOperation(currentPos), true);
           }
 
+          // Trigger Armour Roll
+          if (flowManager) {
+            flowManager.add(new ArmourOperation(playerId), true);
+          }
+
           this.callbacks.onTurnover("Failed Dodge");
           completedPath.push(step);
           break;
@@ -237,6 +243,11 @@ export class MovementManager {
           if (holdingBall && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
+          }
+
+          // Trigger Armour Roll
+          if (flowManager) {
+            flowManager.add(new ArmourOperation(playerId), true);
           }
 
           this.callbacks.onTurnover("Failed GFI");

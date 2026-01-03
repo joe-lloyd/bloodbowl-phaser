@@ -33,13 +33,13 @@ export class SandboxScene extends GameScene {
       super.init(data as { team1: Team; team2: Team });
     } else {
       const team1 = TestTeamFactory.createTestTeam(
-        RosterName.AMAZON,
-        "Test Amazon",
+        RosterName.BLACK_ORC,
+        "Test Black Orcs 1",
         0x4169e1
       );
       const team2 = TestTeamFactory.createTestTeam(
         RosterName.BLACK_ORC,
-        "Test Black Orcs",
+        "Test Black Orcs 2",
         0xdc143c
       );
 

@@ -248,4 +248,21 @@ export const SCENARIOS: Scenario[] = [
       subPhase: SubPhase.COIN_FLIP,
     },
   },
+  {
+    id: "block-injury-test",
+    name: "Block & Injury Test",
+    description:
+      "Big Guy (Black Orc) vs Small Guy (Goblin) for testing injury logic",
+    setup: {
+      team1Placements: [
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Goblin Bruiser (Defender)
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Black Orc (Attacker)
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+    },
+  },
 ];
