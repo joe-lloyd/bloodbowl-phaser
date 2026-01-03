@@ -288,4 +288,165 @@ export const SCENARIOS: Scenario[] = [
       team2Roster: RosterName.OGRE,
     },
   },
+  // =========================================================================
+  // SEEDED SCENARIOS - Deterministic outcomes for testing
+  // =========================================================================
+  {
+    id: "block-injury-stun",
+    name: "Block → Stun (Seeded)",
+    description: "POW → Armor Break → Stunned (deterministic)",
+    seed: 10,
+    expectedOutcome: "Defender will be stunned",
+    setup: {
+      team1Placements: [
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Goblin Bruiser (Defender)
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE }, // Black Orc (Attacker)
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "block-injury-ko",
+    name: "Block → KO (Seeded)",
+    description: "POW → Armor Break → Knocked Out (deterministic)",
+    seed: 69,
+    expectedOutcome: "Defender will be knocked out",
+    setup: {
+      team1Placements: [
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "block-injury-casualty",
+    name: "Block → Casualty (Seeded)",
+    description: "POW → Armor Break → Casualty (deterministic)",
+    seed: 102,
+    expectedOutcome: "Defender will suffer a casualty",
+    setup: {
+      team1Placements: [
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "block-injury-death",
+    name: "Block → Death (Seeded)",
+    description: "POW → Armor Break → DEAD! (deterministic)",
+    seed: 323,
+    expectedOutcome: "Defender will DIE (casualty 15-16)",
+    setup: {
+      team1Placements: [
+        { playerIndex: 3, x: 10, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "pass-success-seeded",
+    name: "Pass → Success (Seeded)",
+    description: "Perfect pass and catch (deterministic)",
+    seed: 776,
+    expectedOutcome: "Pass and catch will both succeed",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 7 },
+    },
+  },
+  {
+    id: "pass-fumble-seeded",
+    name: "Pass → Fumble (Seeded)",
+    description: "Failed pass attempt (deterministic)",
+    seed: 181,
+    expectedOutcome: "Thrower will fumble the pass",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 7 },
+    },
+  },
+  {
+    id: "pickup-success-seeded",
+    name: "Pickup → Success (Seeded)",
+    description: "Successful ball pickup (deterministic)",
+    seed: 6,
+    expectedOutcome: "Player will pick up the ball",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 7 },
+    },
+  },
+  {
+    id: "pickup-fumble-seeded",
+    name: "Pickup → Fumble (Seeded)",
+    description: "Failed pickup attempt (deterministic)",
+    seed: 1,
+    expectedOutcome: "Player will fumble the pickup",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 7 },
+    },
+  },
 ];

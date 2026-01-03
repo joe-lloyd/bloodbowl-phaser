@@ -26,4 +26,6 @@ export interface Scenario {
   name: string;
   description: string;
   setup: ScenarioSetup;
+  seed?: number; // Optional RNG seed for deterministic outcomes
+  expectedOutcome?: string; // Optional description of what this seed produces
 }

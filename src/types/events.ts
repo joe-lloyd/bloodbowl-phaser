@@ -98,6 +98,7 @@ export enum GameEventNames {
   UI_SetupAction = "ui:setupAction",
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
+  ScenarioLoaded = "scenarioLoaded", // New event for scenario seed info
   UI_RequestConfirmation = "ui:requestConfirmation",
   UI_ConfirmationResult = "ui:confirmationResult",
   UI_BlockResultSelected = "ui:blockResultSelected",
@@ -297,6 +298,11 @@ export interface GameEvents {
   // Sandbox
   [GameEventNames.GameStateRestored]: GameState;
   [GameEventNames.RefreshBoard]: void;
+  [GameEventNames.ScenarioLoaded]: {
+    name: string;
+    seed?: number;
+    expectedOutcome?: string;
+  };
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {

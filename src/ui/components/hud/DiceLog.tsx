@@ -43,7 +43,8 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
 
   // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
-    if (!teamId) return "bg-gray-700 border-gray-500";
+    if (!teamId || typeof teamId !== "string")
+      return "bg-gray-700 border-gray-500";
     // Simple toggle for now, ideally get from Team Data
     if (teamId.includes("team1")) return "bg-red-900/80 border-red-500"; // Team 1 Red
     if (teamId.includes("team2")) return "bg-blue-900/80 border-blue-500"; // Team 2 Blue

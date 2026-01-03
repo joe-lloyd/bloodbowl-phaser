@@ -156,6 +156,15 @@ export class SandboxScene extends GameScene {
         `Loaded Scenario: ${scenario.name}`
       );
 
+      // Emit scenario info for UI display
+      if (scenario.seed !== undefined || scenario.expectedOutcome) {
+        this.eventBus.emit(GameEventNames.ScenarioLoaded, {
+          name: scenario.name,
+          seed: scenario.seed,
+          expectedOutcome: scenario.expectedOutcome,
+        });
+      }
+
       // Update URL with scenario ID
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set("scenario", scenarioId);

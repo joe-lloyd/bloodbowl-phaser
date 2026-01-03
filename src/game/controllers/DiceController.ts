@@ -96,7 +96,8 @@ export class DiceController {
   }
 
   /**
-   * Roll a D8
+   * Roll a D8 (8-sided die)
+   * Used for scatter/bounce directions
    */
   public rollD8(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(8);
@@ -110,6 +111,28 @@ export class DiceController {
       teamId,
     });
     return roll;
+  }
+
+  /**
+   * Roll multiple D8 dice
+   * Used for scatter paths (3x d8)
+   */
+  public rollMultipleD8(
+    reason: string,
+    count: number,
+    teamId?: string
+  ): number[] {
+    const rolls = this.rng.rollMultipleDice(count, 8);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: `${count}d8`,
+      value: rolls,
+      total: rolls.reduce((sum, v) => sum + v, 0),
+      description: `${reason}: ${rolls.join(", ")}`,
+      resultState: "none",
+      teamId,
+    });
+    return rolls;
   }
 
   /**

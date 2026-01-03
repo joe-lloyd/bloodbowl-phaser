@@ -72,13 +72,28 @@ export class ScenarioLoader {
         : null,
     };
 
-    // 3. Re-Mount ServiceContainer
+    // 3. Re-Mount ServiceContainer with optional scenario seed
     ServiceContainer.reset();
+
+    // If scenario has a seed, use it for deterministic outcomes
+    const seed = scenario.seed;
+    if (seed !== undefined) {
+      console.log(
+        `[ScenarioLoader] Loading scenario with deterministic seed: ${seed}`
+      );
+      if (scenario.expectedOutcome) {
+        console.log(
+          `[ScenarioLoader] Expected outcome: ${scenario.expectedOutcome}`
+        );
+      }
+    }
+
     ServiceContainer.initialize(
       this.eventBus,
       this.team1,
       this.team2,
-      initialState
+      initialState,
+      seed
     );
 
     // 4. Trigger UI Refresh and Turn Start

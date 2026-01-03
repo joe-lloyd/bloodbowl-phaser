@@ -28,7 +28,8 @@ export class ServiceContainer {
     eventBus: IEventBus,
     team1: Team,
     team2: Team,
-    initialState?: GameState
+    initialState?: GameState,
+    seed?: number
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
@@ -37,8 +38,10 @@ export class ServiceContainer {
     this.soundManager = new SoundManager();
 
     // Deterministic RNG initialization
-    const seed = Date.now();
-    this.rngService = new RNGService(seed);
+    // Use provided seed if available, otherwise use timestamp
+    const rngSeed = seed !== undefined ? seed : Date.now();
+    console.log(`[ServiceContainer] Initializing RNG with seed: ${rngSeed}`);
+    this.rngService = new RNGService(rngSeed);
     this.blockResolutionService = new BlockResolutionService(this.rngService);
 
     this.gameService = new GameService(
@@ -54,18 +57,21 @@ export class ServiceContainer {
   /**
    * Initialize the service container with teams
    * Must be called before getInstance()
+   * @param seed Optional RNG seed for deterministic outcomes (used in scenarios)
    */
   static initialize(
     eventBus: IEventBus,
     team1: Team,
     team2: Team,
-    initialState?: GameState
+    initialState?: GameState,
+    seed?: number
   ): ServiceContainer {
     ServiceContainer.instance = new ServiceContainer(
       eventBus,
       team1,
       team2,
-      initialState
+      initialState,
+      seed
     );
     return ServiceContainer.instance;
   }
