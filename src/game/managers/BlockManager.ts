@@ -3,25 +3,27 @@ import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import { BlockValidator } from "../validators/BlockValidator";
-import { ActionValidator } from "../validators/ActionValidator";
 import {
   BlockResolutionService,
   BlockResult,
+  BlockResultType,
   BlockRollData,
   PushData,
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
+import { DiceController } from "../controllers/DiceController";
 
 export class BlockManager {
   private blockValidator: BlockValidator = new BlockValidator();
-  private actionValidator: ActionValidator = new ActionValidator();
 
   constructor(
     private eventBus: IEventBus,
-    private state: GameState,
+    _state: GameState,
     private team1: Team,
     private team2: Team,
+    private blockResolutionService: BlockResolutionService,
+    private diceController: DiceController,
     private callbacks: {
       onTurnover: (reason: string) => void;
       getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
@@ -60,17 +62,8 @@ export class BlockManager {
     numDice: number,
     isAttackerChoice: boolean
   ): void {
-    const results = BlockResolutionService.rollBlockDice(numDice);
-
-    // Emit to dice log
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Block",
-      diceType: `${numDice}D Block`,
-      teamId: attackerId.split("-")[0], // Extract team ID
-      value: results.map((r) => r.type),
-      total: results.length,
-      description: `Rolled ${numDice} block ${numDice === 1 ? "die" : "dice"}`,
-    });
+    const teamId = attackerId.split("-")[0];
+    const results = this.diceController.rollBlockDice(numDice, teamId);
 
     const rollData: BlockRollData = {
       attackerId,
@@ -168,7 +161,10 @@ export class BlockManager {
       playerId: defenderId,
       from: oldPosition || direction,
       to: direction,
-      path: path.filter((p) => p && p.x !== undefined && p.y !== undefined),
+      path: path.filter(
+        (p): p is { x: number; y: number } =>
+          p !== null && p.x !== undefined && p.y !== undefined
+      ),
       // Include follow-up data to be triggered after animation completes
       followUpData: shouldPromptFollowUp
         ? {
@@ -221,15 +217,12 @@ export class BlockManager {
     });
   }
 
-  /**
-   * Create push data for UI selection
-   */
   private createPushData(
     attacker: Player,
     defender: Player,
-    resultType: string
+    resultType: BlockResultType
   ): PushData {
-    const validDirections = BlockResolutionService.getValidPushDirections(
+    const validDirections = this.blockResolutionService.getValidPushDirections(
       attacker.gridPosition!,
       defender.gridPosition!
     );
@@ -237,7 +230,7 @@ export class BlockManager {
     return {
       defenderId: defender.id,
       validDirections,
-      canFollowUp: BlockResolutionService.allowsFollowUp(resultType),
+      canFollowUp: this.blockResolutionService.allowsFollowUp(resultType),
       willFollowUp: false,
     };
   }

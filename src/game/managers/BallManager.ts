@@ -18,7 +18,6 @@ import { DiceController } from "../controllers/DiceController";
  * It orchestrates high-level sequences but delegates specific rule calculations to controllers.
  */
 export class BallManager {
-  private diceController: DiceController; // private or public? PassController needs movementController.
   public movementController: BallMovementController; // Public so GameService can inject it into PassController
   public kickoffController: KickoffController;
   public pickupController: PickupController;
@@ -29,14 +28,13 @@ export class BallManager {
     private team1: Team,
     private team2: Team,
     weatherService: WeatherManager,
+    private diceController: DiceController,
     private callbacks: {
       onTurnover: (reason: string) => void;
       onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
       onBallPlaced: (x: number, y: number) => void;
     }
   ) {
-    this.diceController = new DiceController(eventBus);
-
     // Instantiate controllers with DiceController
     this.movementController = new BallMovementController(this.diceController);
     this.kickoffController = new KickoffController(
@@ -85,7 +83,7 @@ export class BallManager {
     });
 
     // 5. Chain to Event Table
-    setTimeout(() => this.rollKickoff(), 1000);
+    setTimeout(() => this.rollKickoff(), 500);
   }
 
   public rollKickoff(): void {
@@ -97,13 +95,13 @@ export class BallManager {
     setTimeout(() => {
       this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
       this.resolveBallPlacement();
-    }, 2000);
+    }, 1000);
   }
 
   public resolveBallPlacement(): void {
     setTimeout(() => {
       this.eventBus.emit(GameEventNames.ReadyToStart);
-    }, 1000);
+    }, 200);
   }
 
   // --- PICKUP ORCHESTRATION ---

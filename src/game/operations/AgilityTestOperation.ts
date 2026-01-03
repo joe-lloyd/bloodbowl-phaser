@@ -1,7 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { Player } from "@/types/Player";
 
 /**
  * AgilityTestOperation
@@ -42,9 +41,6 @@ export class AgilityTestOperation extends GameOperation {
       GameEventNames.UI_Notification,
       `${info}: ${this.targetNumber}+ (Mod: ${modString})`
     );
-
-    // Suspense delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // Execute Roll via DiceController
     const result = gameService

@@ -16,13 +16,13 @@ export interface FlowContext {
   gameService: import("@/services/interfaces/IGameService").IGameService;
   eventBus: import("@/services/EventBus").IEventBus;
   flowManager: GameFlowManager;
-  [key: string]: any; // Allow for dynamic context data (use with caution)
+  [key: string]: unknown; // Allow for dynamic context data (use with caution)
 }
 
 export class GameFlowManager {
   private queue: GameOperation[] = [];
   private isProcessing: boolean = false;
-  private context: FlowContext;
+  public readonly context: FlowContext;
 
   constructor(context: Omit<FlowContext, "flowManager">) {
     this.context = context as FlowContext;

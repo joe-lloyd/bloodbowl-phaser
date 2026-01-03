@@ -12,12 +12,17 @@ import { SoundManager } from "./SoundManager.js";
 import { Team } from "@/types/Team";
 import { GameState } from "@/types/GameState";
 
+import { RNGService, IRNGService } from "./rng/RNGService.js";
+import { BlockResolutionService } from "./BlockResolutionService.js";
+
 export class ServiceContainer {
   private static instance: ServiceContainer | null = null;
 
   public readonly eventBus: IEventBus;
   public readonly gameService: IGameService;
   public readonly soundManager: SoundManager;
+  public readonly rngService: IRNGService;
+  public readonly blockResolutionService: BlockResolutionService;
 
   private constructor(
     eventBus: IEventBus,
@@ -30,10 +35,18 @@ export class ServiceContainer {
 
     // Create Services
     this.soundManager = new SoundManager();
+
+    // Deterministic RNG initialization
+    const seed = Date.now();
+    this.rngService = new RNGService(seed);
+    this.blockResolutionService = new BlockResolutionService(this.rngService);
+
     this.gameService = new GameService(
       this.eventBus,
       team1,
       team2,
+      this.rngService,
+      this.blockResolutionService,
       initialState
     );
   }

@@ -1,4 +1,5 @@
 import { Player } from "../types";
+import { IRNGService } from "./rng/RNGService";
 
 /**
  * Block dice result types
@@ -66,15 +67,17 @@ export class BlockResolutionService {
     "pow-dodge",
   ];
 
+  constructor(private rng: IRNGService) {}
+
   /**
    * Roll block dice
    */
-  public static rollBlockDice(numDice: number): BlockResult[] {
+  public rollBlockDice(numDice: number): BlockResult[] {
     const results: BlockResult[] = [];
 
     for (let i = 0; i < numDice; i++) {
-      const roll = Math.floor(Math.random() * 6);
-      const type = this.BLOCK_DICE_FACES[roll];
+      const roll = this.rng.rollDie(6);
+      const type = BlockResolutionService.BLOCK_DICE_FACES[roll - 1]; // roll is 1-indexed from RNG
       results.push(this.createBlockResult(type));
     }
 
@@ -82,9 +85,24 @@ export class BlockResolutionService {
   }
 
   /**
+   * Map a 1-6 D6 roll to a block result (static helper for DiceService)
+   */
+  public static mapRollToResult(roll: number): BlockResult {
+    const type = this.BLOCK_DICE_FACES[roll - 1];
+    return this.staticCreateBlockResult(type);
+  }
+
+  /**
    * Create a block result object
    */
-  private static createBlockResult(type: BlockResultType): BlockResult {
+  private createBlockResult(type: BlockResultType): BlockResult {
+    return BlockResolutionService.staticCreateBlockResult(type);
+  }
+
+  /**
+   * Static version of createBlockResult for use in mapRollToResult
+   */
+  private static staticCreateBlockResult(type: BlockResultType): BlockResult {
     const iconMap: Record<BlockResultType, string> = {
       "both-down": "/assets/dice/block_dice_both_down_1765911752228.png",
       skull: "/assets/dice/block_dice_skull_1765911765691.png",
@@ -111,7 +129,7 @@ export class BlockResolutionService {
   /**
    * Select the best/worst result based on who has choice
    */
-  public static selectBlockResult(
+  public selectBlockResult(
     results: BlockResult[],
     isAttackerChoice: boolean
   ): BlockResult {
@@ -144,7 +162,7 @@ export class BlockResolutionService {
   /**
    * Get valid push directions (3 squares behind defender)
    */
-  public static getValidPushDirections(
+  public getValidPushDirections(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number }
   ): { x: number; y: number }[] {
@@ -210,9 +228,10 @@ export class BlockResolutionService {
   /**
    * Roll armor
    */
-  public static rollArmor(player: Player): ArmorResult {
-    const roll =
-      Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1; // 2d6
+  public rollArmor(player: Player): ArmorResult {
+    const d1 = this.rng.rollDie(6);
+    const d2 = this.rng.rollDie(6);
+    const roll = d1 + d2;
     const armor = player.stats.AV;
     const broken = roll >= armor;
 
@@ -227,21 +246,21 @@ export class BlockResolutionService {
   /**
    * Determine if a result causes turnover
    */
-  public static causesTornover(resultType: BlockResultType): boolean {
+  public causesTornover(resultType: BlockResultType): boolean {
     return resultType === "skull" || resultType === "both-down";
   }
 
   /**
    * Determine if a result causes knockdown
    */
-  public static causesKnockdown(resultType: BlockResultType): boolean {
+  public causesKnockdown(resultType: BlockResultType): boolean {
     return resultType === "pow" || resultType === "pow-dodge";
   }
 
   /**
    * Determine if a result allows follow-up
    */
-  public static allowsFollowUp(resultType: BlockResultType): boolean {
+  public allowsFollowUp(resultType: BlockResultType): boolean {
     return (
       resultType === "pow" ||
       resultType === "pow-dodge" ||

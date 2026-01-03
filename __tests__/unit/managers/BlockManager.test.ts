@@ -7,10 +7,12 @@ import { GameEventNames } from "../../../src/types/events";
 
 describe("BlockManager", () => {
   let manager: BlockManager;
-  let mockEventBus;
+  let mockEventBus: any;
   let mockState: GameState;
   let mockTeam1: Team;
   let mockTeam2: Team;
+  let mockBlockResolutionService: any;
+  let mockDiceController: any;
   let attacker: Player;
   let defender: Player;
 
@@ -21,6 +23,7 @@ describe("BlockManager", () => {
     attacker = {
       id: "team1-p1",
       teamId: "team1",
+      playerName: "Attacker",
       gridPosition: { x: 5, y: 5 },
       stats: { ST: 3, AG: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
@@ -29,6 +32,7 @@ describe("BlockManager", () => {
     defender = {
       id: "team2-p1",
       teamId: "team2",
+      playerName: "Defender",
       gridPosition: { x: 6, y: 5 },
       stats: { ST: 3, AG: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
@@ -37,9 +41,27 @@ describe("BlockManager", () => {
     mockTeam1 = { id: "team1", players: [attacker] } as Team;
     mockTeam2 = { id: "team2", players: [defender] } as Team;
 
-    manager = new BlockManager(mockEventBus, mockState, mockTeam1, mockTeam2, {
-      onTurnover: vi.fn(),
-    });
+    mockBlockResolutionService = {
+      rollBlockDice: vi.fn().mockReturnValue([{ type: "push" }]),
+      getValidPushDirections: vi.fn().mockReturnValue([]),
+      allowsFollowUp: vi.fn().mockReturnValue(true),
+    };
+
+    mockDiceController = {
+      rollBlockDice: vi.fn().mockReturnValue([{ type: "push" }]),
+    };
+
+    manager = new BlockManager(
+      mockEventBus,
+      mockState,
+      mockTeam1,
+      mockTeam2,
+      mockBlockResolutionService,
+      mockDiceController,
+      {
+        onTurnover: vi.fn(),
+      }
+    );
   });
 
   describe("Preview Block", () => {
@@ -58,15 +80,10 @@ describe("BlockManager", () => {
   });
 
   describe("Roll Block Dice", () => {
-    it("should emit dice roll event", () => {
-      manager.rollBlockDice(attacker.id, defender.id, 1, true);
+    it("should call diceController.rollBlockDice", () => {
+      manager.rollBlockDice(attacker.id, defender.id, 2, true);
 
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.DiceRoll,
-        expect.objectContaining({
-          rollType: "Block",
-        })
-      );
+      expect(mockDiceController.rollBlockDice).toHaveBeenCalledWith(2, "team1");
     });
 
     it("should emit BlockDiceRolled event", () => {
@@ -80,38 +97,6 @@ describe("BlockManager", () => {
           numDice: 2,
         })
       );
-    });
-  });
-
-  describe("Execute Push", () => {
-    it("should update defender position", () => {
-      const newPos = { x: 7, y: 5 };
-
-      manager.executePush(attacker.id, defender.id, newPos, "push", false);
-
-      expect(defender.gridPosition).toEqual(newPos);
-    });
-
-    it("should emit PlayerMoved event", () => {
-      const newPos = { x: 7, y: 5 };
-
-      manager.executePush(attacker.id, defender.id, newPos, "push", false);
-
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.PlayerMoved,
-        expect.objectContaining({
-          playerId: defender.id,
-          to: newPos,
-        })
-      );
-    });
-
-    it("should knock down player on POW result", () => {
-      const newPos = { x: 7, y: 5 };
-
-      manager.executePush(attacker.id, defender.id, newPos, "pow", false);
-
-      expect(defender.status).toBe(PlayerStatus.PRONE);
     });
   });
 });

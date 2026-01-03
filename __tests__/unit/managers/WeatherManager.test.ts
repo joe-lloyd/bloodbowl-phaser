@@ -5,8 +5,9 @@ import { GameState, GamePhase } from "../../../src/types/GameState";
 
 describe("WeatherManager", () => {
   let manager: WeatherManager;
-  let mockEventBus;
+  let mockEventBus: any;
   let mockState: GameState;
+  let mockDiceController: any;
 
   beforeEach(() => {
     mockEventBus = { emit: vi.fn() };
@@ -14,20 +15,17 @@ describe("WeatherManager", () => {
       weather: undefined,
       phase: GamePhase.SETUP,
     } as GameState;
-    manager = new WeatherManager(mockEventBus, mockState);
+    mockDiceController = {
+      roll2D6: vi.fn().mockReturnValue(7),
+    };
+    manager = new WeatherManager(mockEventBus, mockState, mockDiceController);
   });
 
   describe("Roll Weather", () => {
-    it("should roll 2d6 for weather", () => {
+    it("should roll 2d6 for weather via DiceController", () => {
       manager.rollWeather();
 
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.DiceRoll,
-        expect.objectContaining({
-          rollType: "Weather",
-          diceType: "2d6",
-        })
-      );
+      expect(mockDiceController.roll2D6).toHaveBeenCalledWith("Weather");
     });
 
     it("should emit WeatherChanged event", () => {

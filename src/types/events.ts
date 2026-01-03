@@ -8,7 +8,7 @@
 import { GamePhase, GameState, SubPhase } from "./GameState";
 import { Team } from "./Team";
 import { Player } from "./Player";
-import { BlockResult } from "./Actions";
+import { BlockResult } from "../services/BlockResolutionService";
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -289,7 +289,9 @@ export interface GameEvents {
     value: number | number[] | string | string[]; // Raw dice result(s)
     total: number; // Sum or relevant total
     description: string; // Text outcome e.g. "Nice Weather", "Scatter"
-    passed?: boolean; // For tests (Armor, Agility, Dodge)
+    resultState?: "none" | "success" | "failure" | "fumble"; // For tests (Armor, Agility, Dodge, Pass)
+    seed?: number; // For deterministic replay tracking
+    context?: Record<string, unknown>; // Additional metadata
   };
 
   // Sandbox
@@ -298,7 +300,7 @@ export interface GameEvents {
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {
-    ballSprite; // Phaser.GameObjects.Container
+    ballSprite: unknown; // Phaser.GameObjects.Container
     animationDuration: number; // How long to track the ball
   };
   [GameEventNames.Camera_Reset]: {
@@ -332,7 +334,10 @@ export interface UIEvents {
   [GameEventNames.UI_ConfirmSetup]: void;
 
   // Navigation
-  [GameEventNames.UI_SceneChange]: { scene: string; data? };
+  [GameEventNames.UI_SceneChange]: {
+    scene: string;
+    data?: Record<string, unknown>;
+  };
   [GameEventNames.UI_LoadScenario]: { scenarioId: string };
 
   // Game Start

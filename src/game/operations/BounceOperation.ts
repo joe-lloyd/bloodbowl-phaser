@@ -48,7 +48,7 @@ export class BounceOperation extends GameOperation {
       bouncePosition: { x: newX, y: newY },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for bounce anim
+    await new Promise((resolve) => setTimeout(resolve, 200)); // Wait for bounce anim
 
     // 3. Validation
     // Check constraints (Out of bounds?)

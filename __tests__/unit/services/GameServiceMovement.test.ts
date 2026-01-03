@@ -45,15 +45,34 @@ describe("GameService Movement Integration", () => {
       activePlayer: null,
     }; // Cast or partial GameState if needed, or better use GameStateBuilder if available
 
-    gameService = new GameService(eventBus, team1, team2, initialState);
+    const mockRngService = {
+      rollDie: vi.fn().mockReturnValue(1),
+      rollMultipleDice: vi
+        .fn()
+        .mockImplementation((count) => Array(count).fill(1)),
+      getSeed: vi.fn().mockReturnValue(12345),
+    };
+
+    const mockBlockService = {
+      rollBlockDice: vi.fn().mockReturnValue([]),
+    } as any;
+
+    gameService = new GameService(
+      eventBus,
+      team1,
+      team2,
+      mockRngService as any,
+      mockBlockService,
+      initialState as any
+    );
   });
 
   it("should calculate available movements for a player", () => {
     const moves = gameService.getAvailableMovements("p1");
     expect(moves.length).toBeGreaterThan(0);
     // Movements include cost property, so use .some() to check
-    expect(moves.some((m) => m.x === 6 && m.y === 5)).toBe(true); // Adjacent
-    expect(moves.some((m) => m.x === 8 && m.y === 5)).toBe(true); // 3 steps
+    expect(moves.some((m: any) => m.x === 6 && m.y === 5)).toBe(true); // Adjacent
+    expect(moves.some((m: any) => m.x === 8 && m.y === 5)).toBe(true); // 3 steps
   });
 
   it("should move a player and emit event", async () => {
@@ -62,7 +81,9 @@ describe("GameService Movement Integration", () => {
 
     await gameService.movePlayer("p1", path);
 
-    const p1 = gameService["team1"].players.find((p) => p.id === "p1");
+    const p1 = gameService
+      .getTeam("t1")
+      ?.players.find((p: any) => p.id === "p1");
     expect(p1?.gridPosition).toEqual({ x: 6, y: 5 });
     expect(emitSpy).toHaveBeenCalledWith(
       "playerMoved",

@@ -8,25 +8,28 @@ interface DiceLogProps {
 }
 
 interface RollEntry {
-  id: number;
+  id: string;
   rollType: string;
   diceType: string;
   teamId?: string;
-  value: number | number[];
+  value: number | number[] | string | string[];
   total: number;
   description: string;
-  passed?: boolean;
+  resultState?: "none" | "success" | "failure" | "fumble";
   timestamp: number;
 }
 
 export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [logs, setLogs] = useState<RollEntry[]>([]);
+  const counterRef = React.useRef(0);
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (data) => {
+    const timestamp = Date.now();
+    counterRef.current += 1;
     const newEntry: RollEntry = {
-      id: Date.now() + Math.random(),
+      id: `${timestamp}-${counterRef.current}`,
       ...data,
-      timestamp: Date.now(),
+      timestamp,
     };
 
     setLogs((prev) => {
@@ -38,15 +41,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   });
 
-  // Formatting helper
-  const formatValue = (roll: RollEntry) => {
-    if (Array.isArray(roll.value)) {
-      return `[${roll.value.join(", ")}]`;
-    }
-    return `${roll.value}`;
-  };
-
-  // Color helper
+  // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
     if (!teamId) return "bg-gray-700 border-gray-500";
     // Simple toggle for now, ideally get from Team Data
@@ -79,45 +74,40 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
               className={`
                                 relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
                                 ${getTeamColorClass(log.teamId)}
+                                ${
+                                  log.resultState === "success"
+                                    ? "!border-green-500 !bg-green-900/20"
+                                    : log.resultState === "failure"
+                                      ? "!border-red-500 !bg-red-900/20"
+                                      : log.resultState === "fumble"
+                                        ? "!border-orange-500 !bg-orange-900/20"
+                                        : "!border-gray-500 !bg-gray-900/20"
+                                }
                             `}
             >
               <div className="p-2">
-                {/* Header Row: Type & Dice */}
+                {/* Header Row: Type & Dice + Value */}
                 <div className="flex justify-between items-center text-xs text-gray-300 mb-1">
                   <span className="font-bold uppercase tracking-wide text-bb-parchment">
                     {log.rollType}
                   </span>
-                  <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
-                    {log.diceType}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
+                      {log.diceType}
+                    </span>
+                    <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
+                      {Array.isArray(log.value)
+                        ? `[${log.value.join(", ")}]`
+                        : log.value}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Result Row */}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-white">
+                {/* Result Row - Full Width Description */}
+                <div className="flex justify-between items-start">
+                  <span className="text-sm font-medium text-white/90 leading-snug">
                     {log.description}
                   </span>
-
-                  {/* Pass/Fail Badge */}
-                  {log.passed !== undefined && (
-                    <span
-                      className={`
-                                            ml-2 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded
-                                            ${
-                                              log.passed
-                                                ? "bg-green-600 text-green-100"
-                                                : "bg-red-600 text-red-100"
-                                            }
-                                        `}
-                    >
-                      {log.passed ? "PASS" : "FAIL"}
-                    </span>
-                  )}
-                </div>
-
-                {/* Value Row */}
-                <div className="text-xs text-right mt-1 font-mono text-bb-gold">
-                  {formatValue(log)}
                 </div>
               </div>
             </div>

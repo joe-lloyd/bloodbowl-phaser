@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService.js";
 import { IGameService } from "../../../src/services/interfaces/IGameService.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
+import { GameEventNames } from "../../../src/types/events.js";
 
 describe("Kickoff Verification", () => {
   let gameService: IGameService;
@@ -23,7 +24,25 @@ describe("Kickoff Verification", () => {
       .withName("T2")
       .withPlayers(7)
       .build();
-    gameService = new GameService(eventBus, team1, team2);
+    const mockRngService = {
+      rollDie: vi.fn().mockReturnValue(1),
+      rollMultipleDice: vi
+        .fn()
+        .mockImplementation((count) => Array(count).fill(1)),
+      getSeed: vi.fn().mockReturnValue(12345),
+    };
+
+    const mockBlockService = {
+      rollBlockDice: vi.fn().mockReturnValue([]),
+    } as any;
+
+    gameService = new GameService(
+      eventBus,
+      team1,
+      team2,
+      mockRngService as any,
+      mockBlockService
+    );
 
     // Fast forward to Kickoff
     gameService.startSetup();
@@ -47,7 +66,7 @@ describe("Kickoff Verification", () => {
 
   it("should roll 2D6 (2-12) for kickoff result", () =>
     new Promise<void>((done) => {
-      eventBus.on("kickoffResult", (data: { roll: number; event: string }) => {
+      eventBus.on(GameEventNames.KickoffResult, (data: any) => {
         expect(data.roll).toBeGreaterThanOrEqual(2);
         expect(data.roll).toBeLessThanOrEqual(12);
         expect(typeof data.event).toBe("string");
@@ -65,7 +84,7 @@ describe("Kickoff Verification", () => {
       // Let's just run it multiple times to catch errors?
       // No, let's just rely on the range check.
 
-      eventBus.on("kickoffResult", (data) => {
+      eventBus.on(GameEventNames.KickoffResult, (data: any) => {
         console.log(`Rolled ${data.roll}: ${data.event}`);
         done();
       });

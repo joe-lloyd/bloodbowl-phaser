@@ -28,7 +28,11 @@ interface SceneOrchestratorConfig {
 
 export class SceneOrchestrator {
   private currentHandler: PhaseHandler | null = null;
-  private eventHandlers: Map<string, (data?: any) => void> = new Map();
+  private currentPhase: GamePhase | null = null;
+  private eventHandlers: Map<
+    keyof import("../../types/events").AllEvents,
+    (data?: unknown) => void
+  > = new Map();
 
   constructor(
     private scene: GameScene,
@@ -69,52 +73,55 @@ export class SceneOrchestrator {
   }
 
   private handlePhaseChange(phase: GamePhase, subPhase?: SubPhase): void {
-    console.log(`[Orchestrator] Switching to Phase: ${phase}`);
+    // 2. Instantiate new handler ONLY if phase actually changed
+    if (!this.currentHandler || this.currentPhase !== phase) {
+      this.currentPhase = phase;
 
-    // 1. Exit current phase
-    if (this.currentHandler) {
-      this.currentHandler.exit();
-      this.currentHandler = null;
-    }
-
-    // 2. Instantiate new handler
-    switch (phase) {
-      case GamePhase.SETUP:
-        this.currentHandler = new SetupPhaseHandler(
-          this.scene,
-          this.gameService,
-          this.eventBus
-        );
-        break;
-      case GamePhase.PLAY:
-        this.currentHandler = new PlayPhaseHandler(
-          this.scene,
-          this.gameService,
-          this.eventBus
-        );
-        break;
-      case GamePhase.KICKOFF:
-        this.currentHandler = new KickoffPhaseHandler(
-          this.scene,
-          this.gameService,
-          this.eventBus
-        );
-        this.scene.startKickoffPhase(subPhase);
-        break;
-      case GamePhase.SANDBOX_IDLE:
-        console.log(
-          "[Orchestrator] Game in Idle Mode. Waiting for Scenario..."
-        );
+      // Exit current phase
+      if (this.currentHandler) {
+        this.currentHandler.exit();
         this.currentHandler = null;
-        break;
-      default:
-        console.warn(`[Orchestrator] No handler for phase: ${phase}`);
-        break;
+      }
+
+      switch (phase) {
+        case GamePhase.SETUP:
+          this.currentHandler = new SetupPhaseHandler(
+            this.scene,
+            this.gameService,
+            this.eventBus
+          );
+          break;
+        case GamePhase.PLAY:
+          this.currentHandler = new PlayPhaseHandler(
+            this.scene,
+            this.gameService,
+            this.eventBus
+          );
+          break;
+        case GamePhase.KICKOFF:
+          this.currentHandler = new KickoffPhaseHandler(
+            this.scene,
+            this.gameService,
+            this.eventBus
+          );
+          this.scene.startKickoffPhase(subPhase);
+          break;
+        case GamePhase.SANDBOX_IDLE:
+          console.log(
+            "[Orchestrator] Game in Idle Mode. Waiting for Scenario..."
+          );
+          this.currentHandler = null;
+          break;
+        default:
+          console.warn(`[Orchestrator] No handler for phase: ${phase}`);
+          break;
+      }
     }
 
     // 3. Enter new phase
-    if (this.currentHandler) {
+    if (this.currentHandler && !(this.currentHandler as any).isEntered) {
       this.currentHandler.enter();
+      (this.currentHandler as any).isEntered = true;
     }
 
     // Legacy mapping for direct control if needed
@@ -179,7 +186,7 @@ export class SceneOrchestrator {
       this.currentHandler.exit();
     }
     this.eventHandlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler);
+      this.eventBus.off(event, handler as any);
     });
     this.eventHandlers.clear();
   }

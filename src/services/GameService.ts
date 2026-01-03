@@ -10,8 +10,8 @@ import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
-import { BlockResult } from "./BlockResolutionService";
+import { Player } from "@/types/Player";
+import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
 import { SetupManager } from "../game/managers/SetupManager";
@@ -32,6 +32,7 @@ import { GameFlowManager } from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
+import { IRNGService } from "./rng/RNGService.js";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -98,6 +99,8 @@ export class GameService implements IGameService {
     private eventBus: IEventBus,
     team1: Team,
     team2: Team,
+    rngService: IRNGService,
+    blockResolutionService: BlockResolutionService,
     initialState?: GameState
   ) {
     this.team1 = team1;
@@ -111,16 +114,21 @@ export class GameService implements IGameService {
       SetupManager.sanitizeTeam(team2);
     }
 
+    // Initialize Dice Controller first
+    this.diceController = new DiceController(eventBus, rngService);
+
     // Initialize Flow Manager (Pass 'this' as context)
     this.flowManager = new GameFlowManager({
       gameService: this,
       eventBus: eventBus,
     });
-    // Recursive injection if needed or access via gameService in context
-    (this.flowManager as any).context.flowManager = this.flowManager;
 
     // Initialize Managers
-    this.weatherService = new WeatherManager(eventBus, this.state);
+    this.weatherService = new WeatherManager(
+      eventBus,
+      this.state,
+      this.diceController
+    );
 
     this.setupManager = new SetupManager(
       eventBus,
@@ -144,6 +152,7 @@ export class GameService implements IGameService {
       team1,
       team2,
       this.weatherService,
+      this.diceController,
       {
         onTurnover: (reason) => this.triggerTurnover(reason),
         onPhaseChange: (phase, subPhase) =>
@@ -157,9 +166,9 @@ export class GameService implements IGameService {
 
     this.passController = new PassController(
       eventBus,
-      this.ballManager.movementController
+      this.ballManager.movementController,
+      this.diceController
     );
-    this.diceController = new DiceController(eventBus);
     this.catchController = new CatchController(eventBus, this.diceController);
     this.armourController = new ArmourController();
     this.injuryController = new InjuryController();
@@ -170,17 +179,26 @@ export class GameService implements IGameService {
       this.state,
       team1,
       team2,
-      this.ballManager,
+      this.diceController,
       {
-        onTurnover: (reason) => this.triggerTurnover(reason),
-        onActivationFinished: (playerId) => this.finishActivation(playerId),
+        onTurnover: (reason: string) => this.triggerTurnover(reason),
+        onActivationFinished: (playerId: string) =>
+          this.finishActivation(playerId),
       }
     );
 
-    this.blockManager = new BlockManager(eventBus, this.state, team1, team2, {
-      onTurnover: (reason) => this.triggerTurnover(reason),
-      getFlowManager: () => this.flowManager,
-    });
+    this.blockManager = new BlockManager(
+      eventBus,
+      this.state,
+      team1,
+      team2,
+      blockResolutionService,
+      this.diceController,
+      {
+        onTurnover: (reason) => this.triggerTurnover(reason),
+        getFlowManager: () => this.flowManager,
+      }
+    );
   }
 
   // ===== State Queries =====
@@ -224,7 +242,7 @@ export class GameService implements IGameService {
   }
 
   public getFlowContext(): import("@/game/core/GameFlowManager").FlowContext {
-    return (this.flowManager as any).context;
+    return this.flowManager.context;
   }
 
   getTurnNumber(teamId: string): number {
@@ -453,9 +471,7 @@ export class GameService implements IGameService {
     return { success: true, result: "Pass Started" };
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
+  // No changes needed here, just removing the section below
 
   /**
    * Get player at a specific position

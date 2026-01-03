@@ -2,6 +2,7 @@ import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { BallMovementController } from "./BallMovementController";
+import { DiceController } from "./DiceController";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
 
@@ -30,16 +31,7 @@ export interface InterceptionAttempt {
   modifier: number;
 }
 
-/**
- * PassController - Handles Blood Bowl pass actions
- *
- * Implements the pass action process:
- * 1. Measure Range
- * 2. Test for Accuracy
- * 3. Resolve Pass Action (Scatter/Bounce/Catch)
- */
 export class PassController {
-  // Pass range definitions based on Blood Bowl rulebook
   private static readonly PASS_RANGES: PassRange[] = [
     { type: "Quick Pass", modifier: 0, minDistance: 0, maxDistance: 3 },
     { type: "Short Pass", modifier: -1, minDistance: 4, maxDistance: 6 },
@@ -49,12 +41,10 @@ export class PassController {
 
   constructor(
     private eventBus: IEventBus,
-    private movementController: BallMovementController
+    private movementController: BallMovementController,
+    private diceController: DiceController
   ) {}
 
-  /**
-   * Calculate the distance between two grid positions
-   */
   private calculateDistance(
     from: { x: number; y: number },
     to: { x: number; y: number }
@@ -64,9 +54,6 @@ export class PassController {
     return Math.max(dx, dy);
   }
 
-  /**
-   * Measure the range and determine pass type
-   */
   public measureRange(
     from: { x: number; y: number },
     to: { x: number; y: number }
@@ -98,44 +85,34 @@ export class PassController {
   ): { success: boolean; accurate: boolean; fumbled: boolean; roll: number } {
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
-    const roll = Math.floor(Math.random() * 6) + 1;
 
-    if (roll === 6) {
-      return { success: true, accurate: true, fumbled: false, roll };
-    }
-    if (roll === 1) {
-      return { success: false, accurate: false, fumbled: true, roll };
-    }
+    // Use DiceController for the roll
+    const check = this.diceController.rollSkillCheck(
+      "Pass",
+      target,
+      modifiers,
+      player.playerName
+    );
+    const roll = check.roll;
 
-    const effectiveRoll = roll + modifiers;
-    const accurate = effectiveRoll >= target;
-    const fumbled = effectiveRoll <= 1;
+    // Fumble on natural 1 or modified <= 1
+    const fumbled = roll === 1 || (roll !== 6 && roll + modifiers <= 1);
 
     return {
-      success: accurate || fumbled === false,
-      accurate,
+      success: check.success || !fumbled,
+      accurate: check.success,
       fumbled,
       roll,
     };
   }
 
-  /**
-   * Scatter the ball (Delegated to Movement Controller)
-   */
-  public scatterBall(
-    position: { x: number; y: number },
-    _emitEvent: boolean = true // Argument deprecated but kept for signature comp if needed
-  ): { x: number; y: number } {
-    // Note: MovementController.scatter returns a PATH (3 steps).
-    // Internal loose scatter usually implies 1 step (like bounce).
-    // If we want 1 step scatter we use bounce logic or expose step in controller.
-    // For legacy support let's assume this means "Bounce/Scatter 1 square"
+  public scatterBall(position: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
     return this.movementController!.bounce(position);
   }
 
-  /**
-   * Bounce the ball (Delegated)
-   */
   public bounceBall(position: { x: number; y: number }): {
     x: number;
     y: number;
@@ -143,31 +120,21 @@ export class PassController {
     return this.movementController!.bounce(position);
   }
 
-  /**
-   * Attempt to catch the ball
-   */
   public attemptCatch(
     player: Player,
     isAccuratePass: boolean,
     markingOpponents: number
   ): { success: boolean; roll: number } {
     const target = player.stats.AG;
-    let modifier = isAccuratePass ? 1 : 0;
-    modifier -= markingOpponents;
+    const modifier = (isAccuratePass ? 1 : 0) - markingOpponents;
+    const check = this.diceController.rollSkillCheck(
+      "Catch",
+      target,
+      modifier,
+      player.playerName
+    );
 
-    const roll = Math.floor(Math.random() * 6) + 1;
-    const success = roll === 6 || (roll !== 1 && roll + modifier >= target);
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Agility (Catch)",
-      diceType: "d6",
-      value: roll,
-      total: roll + modifier,
-      description: `Catch (Target ${target}+, Mod ${modifier}): ${success ? "SUCCESS" : "FAIL"}`,
-      passed: success,
-    });
-
-    return { success, roll };
+    return { success: check.success, roll: check.roll };
   }
 
   public attemptPass(
@@ -181,35 +148,17 @@ export class PassController {
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Pass",
-      diceType: "d6",
-      value: accuracyTest.roll,
-      total: accuracyTest.roll + modifiers,
-      description: `${passRange.type} (Target ${target}+, Modifier ${modifiers >= 0 ? "+" : ""}${modifiers}): ${
-        accuracyTest.fumbled
-          ? "FUMBLED"
-          : accuracyTest.accurate
-            ? "Accurate"
-            : "Inaccurate"
-      }`,
-      passed: accuracyTest.accurate,
-    });
-
     let finalPosition = { ...to };
     let scatterPath: { x: number; y: number }[] | undefined;
 
     if (accuracyTest.fumbled) {
-      // Fumbled: Ball stays in passer's square initially, then BounceOperation handles the bounce.
-      // We do NOT scatter here to avoid double-rolling.
       finalPosition = { ...from };
       this.eventBus.emit(GameEventNames.PassFumbled, {
         playerId: player.id,
         position: from,
-        bouncePosition: finalPosition, // Same as from, bounce happens next
+        bouncePosition: finalPosition,
       });
     } else if (!accuracyTest.accurate) {
-      // Inaccurate: Scatter 3 times (Batched)
       const path = this.movementController!.scatter(to);
       scatterPath = [to, ...path];
       finalPosition = path[path.length - 1];
@@ -221,10 +170,8 @@ export class PassController {
         passType: passRange.type,
         accurate: false,
         finalPosition,
-        // scatterPath omitted to enforce direct flight visual per user request
       });
     } else {
-      // Accurate
       this.eventBus.emit(GameEventNames.PassAttempted, {
         playerId: player.id,
         from,
@@ -283,33 +230,14 @@ export class PassController {
   ): boolean {
     const target = player.stats.AG;
     const totalModifier = modifier - markingOpponents;
-    const roll = Math.floor(Math.random() * 6) + 1;
+    const check = this.diceController.rollSkillCheck(
+      "Interception",
+      target,
+      totalModifier,
+      player.playerName
+    );
 
-    if (roll === 6) {
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Interception",
-        diceType: "d6",
-        value: roll,
-        total: roll,
-        description: `Interception (Target ${target}+): SUCCESS (Natural 6)`,
-        passed: true,
-      });
-      return true;
-    }
-
-    const effectiveRoll = roll + totalModifier;
-    const success = effectiveRoll >= target;
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Interception",
-      diceType: "d6",
-      value: roll,
-      total: effectiveRoll,
-      description: `Interception (Target ${target}+, Mod ${totalModifier}): ${success ? "SUCCESS" : "Failed"}`,
-      passed: success,
-    });
-
-    return success;
+    return check.success;
   }
 
   public getSquaresInRange(

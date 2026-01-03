@@ -44,6 +44,7 @@ export interface IGameService {
     targetX: number,
     targetY: number
   ): void;
+  rollKickoff(): void;
 
   // Game Actions
   startGame(kickingTeamId: string): void;

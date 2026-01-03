@@ -4,175 +4,164 @@ import {
   BlockResolutionService,
   BlockResult,
 } from "../../services/BlockResolutionService";
+import { IRNGService } from "../../services/rng/RNGService";
 
+/**
+ * DiceController
+ *
+ * Orchestrates dice rolls, handles game-specific roll logic (skill checks, block dice mapping),
+ * and emits events for logging and UI.
+ */
 export class DiceController {
-  constructor(private eventBus: IEventBus) {}
+  constructor(
+    private eventBus: IEventBus,
+    private rng: IRNGService
+  ) {}
+
+  /**
+   * Internal helper to emit DiceRoll events
+   */
+  private emitDiceRoll(data: {
+    rollType: string;
+    diceType: string;
+    value: number | number[] | string | string[];
+    total: number;
+    description: string;
+    resultState?: "none" | "success" | "failure" | "fumble";
+    teamId?: string;
+    context?: Record<string, unknown>;
+  }) {
+    this.eventBus.emit(GameEventNames.DiceRoll, {
+      ...data,
+      seed: this.rng.getSeed(),
+      resultState: data.resultState || "none",
+    });
+  }
 
   /**
    * Roll a D6
-   * @param reason Description of the roll (e.g., "Agility Check", "Go For It")
-   * @param count Number of dice to roll (default 1)
    */
-  public rollD6(reason: string): number;
-  public rollD6(reason: string, count: number): number[];
-  public rollD6(reason: string, count: number = 1): number | number[] {
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i++) {
-      rolls.push(Math.floor(Math.random() * 6) + 1);
-    }
+  public rollD6(reason: string, teamId?: string): number {
+    const roll = this.rng.rollDie(6);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: "1d6",
+      value: roll,
+      total: roll,
+      description: `${reason}: ${roll}`,
+      resultState: "none",
+      teamId,
+    });
+    return roll;
+  }
 
-    if (count === 1) {
-      const roll = rolls[0];
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: "d6",
-        value: roll,
-        total: roll,
-        description: `${reason}: ${roll}`,
-        passed: true,
-      });
-      return roll;
-    } else {
-      const total = rolls.reduce((a, b) => a + b, 0);
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: `${count}d6`,
-        value: rolls,
-        total: total,
-        description: `${reason}: [${rolls.join(", ")}]`,
-        passed: true,
-      });
-      return rolls;
-    }
+  /**
+   * Roll multiple D6
+   */
+  public rollMultipleD6(
+    reason: string,
+    count: number,
+    teamId?: string
+  ): number[] {
+    const rolls = this.rng.rollMultipleDice(count, 6);
+    const total = rolls.reduce((sum, v) => sum + v, 0);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: `${count}d6`,
+      value: rolls,
+      total,
+      description: `${reason}: ${rolls.join(", ")} (Total: ${total})`,
+      resultState: "none",
+      teamId,
+    });
+    return rolls;
   }
 
   /**
    * Roll 2D6 (sum)
-   * @param reason Description of the roll (e.g., "Armor Roll", "Injury Roll")
    */
-  public roll2D6(reason: string): number {
-    const d1 = Math.floor(Math.random() * 6) + 1;
-    const d2 = Math.floor(Math.random() * 6) + 1;
-    const total = d1 + d2;
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
+  public roll2D6(reason: string, teamId?: string): number {
+    const rolls = this.rng.rollMultipleDice(2, 6);
+    const total = rolls[0] + rolls[1];
+    this.emitDiceRoll({
       rollType: reason,
       diceType: "2d6",
-      value: [d1, d2],
-      total: total,
-      description: `${reason}: ${total} (${d1} + ${d2})`,
-      passed: true,
+      value: rolls,
+      total,
+      description: `${reason}: ${rolls.join(" + ")} = ${total}`,
+      resultState: "none",
+      teamId,
     });
-
     return total;
   }
 
   /**
    * Roll a D8
-   * @param reason Description of the roll (e.g., "Scatter", "Deviation")
-   * @param count Number of dice to roll (default 1)
    */
-  public rollD8(reason: string): number;
-  public rollD8(reason: string, count: number): number[];
-  public rollD8(reason: string, count: number = 1): number | number[] {
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i++) {
-      rolls.push(Math.floor(Math.random() * 8) + 1);
-    }
-
-    if (count === 1) {
-      const roll = rolls[0];
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: "d8",
-        value: roll,
-        total: roll,
-        description: `${reason}: ${roll}`,
-        passed: true,
-      });
-      return roll;
-    } else {
-      const total = rolls.reduce((a, b) => a + b, 0);
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: `${count}d8`,
-        value: rolls,
-        total: total,
-        description: `${reason}: [${rolls.join(", ")}]`,
-        passed: true,
-      });
-      return rolls;
-    }
+  public rollD8(reason: string, teamId?: string): number {
+    const roll = this.rng.rollDie(8);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: "1d8",
+      value: roll,
+      total: roll,
+      description: `${reason}: ${roll}`,
+      resultState: "none",
+      teamId,
+    });
+    return roll;
   }
 
   /**
    * Roll a D16
-   * @param reason Description of the roll (e.g., "MVP")
-   * @param count Number of dice to roll (default 1)
    */
-  public rollD16(reason: string): number;
-  public rollD16(reason: string, count: number): number[];
-  public rollD16(reason: string, count: number = 1): number | number[] {
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i++) {
-      rolls.push(Math.floor(Math.random() * 16) + 1);
-    }
-
-    if (count === 1) {
-      const roll = rolls[0];
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: "d16",
-        value: roll,
-        total: roll,
-        description: `${reason}: ${roll}`,
-        passed: true,
-      });
-      return roll;
-    } else {
-      const total = rolls.reduce((a, b) => a + b, 0);
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: reason,
-        diceType: `${count}d16`,
-        value: rolls,
-        total: total,
-        description: `${reason}: [${rolls.join(", ")}]`,
-        passed: true,
-      });
-      return rolls;
-    }
+  public rollD16(reason: string, teamId?: string): number {
+    const roll = this.rng.rollDie(16);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: "1d16",
+      value: roll,
+      total: roll,
+      description: `${reason}: ${roll}`,
+      resultState: "none",
+      teamId,
+    });
+    return roll;
   }
 
   /**
    * Roll Block Dice
-   * @param numDice Number of dice to roll (1, 2, or 3)
-   * @param teamId Team ID rolling the dice
    */
-  public rollBlockDice(numDice: number, teamId: string): BlockResult[] {
-    const results = BlockResolutionService.rollBlockDice(numDice);
+  public rollBlockDice(numDice: number, teamId?: string): BlockResult[] {
+    const rawRolls = this.rng.rollMultipleDice(numDice, 6);
+    const results = rawRolls.map((r) =>
+      BlockResolutionService.mapRollToResult(r)
+    );
 
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Block",
+    this.emitDiceRoll({
+      rollType: "Block Roll",
       diceType: `${numDice}D Block`,
-      teamId: teamId.split("-")[0],
-      value: results.map((r) => r.type), // Cast to any to bypass number[] constraint for now
-      total: results.length,
-      description: `Rolled ${numDice} block ${numDice === 1 ? "die" : "dice"}`,
+      value: results.map((r) => r.type),
+      total: numDice,
+      description: `Rolled ${numDice} block dice: ${results.map((r) => r.type).join(", ")}`,
+      resultState: "none",
+      teamId,
     });
 
     return results;
   }
+
   /**
-   * Roll a generic Skill Check (D6 + Modifiers vs Target)
-   * Handles natural 1 (fail) and natural 6 (success)
+   * Roll a Skill Check (D6 + Modifiers vs Target)
    */
   public rollSkillCheck(
     reason: string,
     target: number,
     modifier: number,
-    playerName?: string
+    playerName?: string,
+    teamId?: string
   ): { success: boolean; roll: number; effectiveTotal: number } {
-    const roll = Math.floor(Math.random() * 6) + 1;
+    const roll = this.rng.rollDie(6);
     let success = false;
     const effectiveTotal = roll + modifier;
 
@@ -182,19 +171,67 @@ export class DiceController {
       success = false; // Natural 1 always fails
     else success = effectiveTotal >= target;
 
-    const modString = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-
-    this.eventBus.emit(GameEventNames.DiceRoll, {
-      rollType: "Skill Check",
-      diceType: "d6",
+    const fullReason = playerName ? `${reason} (${playerName})` : reason;
+    this.emitDiceRoll({
+      rollType: fullReason,
+      diceType: "1d6",
       value: roll,
       total: effectiveTotal,
-      description: `${reason}${
-        playerName ? ` (${playerName})` : ""
-      }: ${success ? "SUCCESS" : "FAILED"} (Rolled ${roll}${modString} vs ${target}+)`,
-      passed: success,
+      description: `${fullReason}: ${roll} ${modifier >= 0 ? "+" : ""}${modifier} = ${effectiveTotal} (Target: ${target}+)`,
+      resultState: success ? "success" : "failure",
+      teamId,
     });
 
     return { success, roll, effectiveTotal };
+  }
+
+  /**
+   * Roll Armor Check
+   */
+  public rollArmorCheck(
+    target: number,
+    playerName?: string,
+    teamId?: string
+  ): { broken: boolean; roll: number; rolls: number[] } {
+    const rolls = this.rng.rollMultipleDice(2, 6);
+    const total = rolls[0] + rolls[1];
+    const broken = total >= target;
+
+    const label = playerName ? `${playerName} Armor Check` : "Armor Check";
+    this.emitDiceRoll({
+      rollType: "Armor Check",
+      diceType: "2d6",
+      value: rolls,
+      total,
+      description: `${label}: ${rolls[0]}+${rolls[1]} = ${total} (AV: ${target})`,
+      resultState: broken ? "success" : "failure",
+      teamId,
+    });
+
+    return { broken, roll: total, rolls };
+  }
+
+  /**
+   * Roll Injury Roll
+   */
+  public rollInjury(
+    playerName?: string,
+    teamId?: string
+  ): { total: number; rolls: number[] } {
+    const rolls = this.rng.rollMultipleDice(2, 6);
+    const total = rolls[0] + rolls[1];
+
+    const label = playerName ? `${playerName} Injury` : "Injury Roll";
+    this.emitDiceRoll({
+      rollType: "Injury Roll",
+      diceType: "2d6",
+      value: rolls,
+      total,
+      description: `${label}: ${rolls[0]}+${rolls[1]} = ${total}`,
+      resultState: "none",
+      teamId,
+    });
+
+    return { total, rolls };
   }
 }

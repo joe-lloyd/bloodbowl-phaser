@@ -78,26 +78,33 @@ export class FoulOperation extends GameOperation {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // 2. Armour Roll
-    const armourRolls = diceController.rollD6("Foul Armour", 2);
-    const armourResult = foulController.resolveArmourRoll(
+    const armorResultRaw = diceController.rollArmorCheck(
+      target.stats.AV - analysis.modifier,
+      target.playerName,
+      fouler.teamId
+    );
+    const armorResult = foulController.resolveArmourRoll(
       target,
-      armourRolls,
+      armorResultRaw.rolls,
       analysis.modifier
     );
 
-    let spotted = armourResult.isNaturalDouble;
+    let spotted = armorResult.isNaturalDouble;
 
-    if (armourResult.broken) {
+    if (armorResult.broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       // 3. Injury Roll
-      const injuryRolls = diceController.rollD6("Foul Injury", 2);
-      if (injuryRolls[0] === injuryRolls[1]) {
+      const injuryResultRaw = diceController.rollInjury(
+        target.playerName,
+        fouler.teamId
+      );
+      if (injuryResultRaw.rolls[0] === injuryResultRaw.rolls[1]) {
         spotted = true;
       }
 
-      const injuryTotal = injuryRolls[0] + injuryRolls[1];
+      const injuryTotal = injuryResultRaw.total;
       const injuryController = gameService.getInjuryController();
       const result = injuryController.getInjuryResult(target, injuryTotal);
 

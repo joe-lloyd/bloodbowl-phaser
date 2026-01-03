@@ -1206,8 +1206,18 @@ export class GameplayInteractionController {
 
       // If we have a selected kicker and clicked opponent half -> KICK!
       if (this.selectedPlayerId) {
-        this.gameService.kickBall(isTeam1Kicking, this.selectedPlayerId, x, y);
-        this.selectedPlayerId = null; // Clear selection after kick
+        this.isBusy = true;
+        try {
+          this.gameService.kickBall(
+            isTeam1Kicking,
+            this.selectedPlayerId,
+            x,
+            y
+          );
+          this.selectedPlayerId = null; // Clear selection after kick
+        } finally {
+          this.isBusy = false;
+        }
       } else {
         this.eventBus.emit(
           GameEventNames.UI_Notification,
@@ -1247,7 +1257,12 @@ export class GameplayInteractionController {
   /**
    * Start push direction selection mode
    */
-  private startPushDirectionSelection(data): void {
+  private startPushDirectionSelection(data: {
+    validDirections: { x: number; y: number }[];
+    defenderId: string;
+    attackerId?: string;
+    resultType?: string;
+  }): void {
     this.pushSelectionActive = true;
     this.pushValidDirections = data.validDirections || [];
     this.pushDefenderId = data.defenderId;
