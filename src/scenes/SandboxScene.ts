@@ -106,6 +106,35 @@ export class SandboxScene extends GameScene {
   private loadScenario(scenarioId: string): void {
     const scenario = SCENARIOS.find((s) => s.id === scenarioId);
     if (scenario) {
+      // 1. Handle Team/Roster changes if specified
+      if (
+        scenario.setup.team1Roster &&
+        scenario.setup.team1Roster !== this.team1.rosterName
+      ) {
+        console.log(
+          `[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`
+        );
+        this.team1 = TestTeamFactory.createTestTeam(
+          scenario.setup.team1Roster,
+          `Test ${scenario.setup.team1Roster} 1`,
+          0x4169e1
+        );
+      }
+
+      if (
+        scenario.setup.team2Roster &&
+        scenario.setup.team2Roster !== this.team2.rosterName
+      ) {
+        console.log(
+          `[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`
+        );
+        this.team2 = TestTeamFactory.createTestTeam(
+          scenario.setup.team2Roster,
+          `Test ${scenario.setup.team2Roster} 2`,
+          0xdc143c
+        );
+      }
+
       // CRITICAL: Destroy old ball sprite BEFORE loading new scenario
       // This prevents duplicate balls when loading multiple scenarios
       if (this.ballSprite) {
@@ -113,9 +142,12 @@ export class SandboxScene extends GameScene {
         this.ballSprite = null;
       }
 
+      // 2. Load Scenario Logic
       const loader = new ScenarioLoader(this.eventBus, this.team1, this.team2);
-
       loader.load(scenario);
+
+      // 3. Refresh Scene State
+      // reloadState(false) is safe here as ScenarioLoader already called ServiceContainer.initialize
       this.reloadState(false);
       this.placePlayersOnPitch();
 

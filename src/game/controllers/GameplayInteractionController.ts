@@ -6,7 +6,7 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { pixelToGrid } from "../elements/GridUtils";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
-import { Player } from "@/types";
+import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { PassController } from "./PassController";
@@ -36,9 +36,7 @@ export class GameplayInteractionController {
   private pushResultType: string = "";
 
   // Store handler references for cleanup
-  private pushDirectionHandler: (data) => void;
-  private pendingDodgeSquares: { x: number; y: number; modifiers: number }[] =
-    [];
+  private pushDirectionHandler: (data: any) => void;
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
@@ -373,6 +371,37 @@ export class GameplayInteractionController {
       return;
     }
 
+    // FOUL Execution
+    if (
+      this.currentActionMode === "foul" &&
+      this.currentStepId === "foul" &&
+      this.selectedPlayerId
+    ) {
+      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
+        return;
+      }
+
+      if (
+        playerAtSquare &&
+        (playerAtSquare.status === PlayerStatus.PRONE ||
+          playerAtSquare.status === PlayerStatus.STUNNED)
+      ) {
+        this.isBusy = true;
+        try {
+          await this.gameService.foulPlayer(this.selectedPlayerId, x, y);
+        } finally {
+          this.isBusy = false;
+          this.deselectPlayer();
+        }
+      } else {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Target must be Prone or Stunned!"
+        );
+      }
+      return;
+    }
+
     // BLITZ Execution (Block Step)
     if (
       this.currentActionMode === "blitz" &&
@@ -563,6 +592,45 @@ export class GameplayInteractionController {
             passRange.type
           );
         }
+      } else if (
+        this.currentActionMode === "foul" &&
+        this.currentStepId === "foul"
+      ) {
+        // FOUL MODE: Highlight valid targets
+        this.pitch.clearPath();
+        const selectedPlayer = this.gameService.getPlayerById(
+          this.selectedPlayerId
+        );
+        if (selectedPlayer && selectedPlayer.gridPosition) {
+          const opponents = this.gameService.getOpponents(
+            selectedPlayer.teamId
+          );
+          const adjOpponents = opponents.filter((p) => {
+            if (!p.gridPosition) return false;
+            const dx = Math.abs(
+              p.gridPosition.x - selectedPlayer.gridPosition!.x
+            );
+            const dy = Math.abs(
+              p.gridPosition.y - selectedPlayer.gridPosition!.y
+            );
+            return (
+              dx <= 1 &&
+              dy <= 1 &&
+              (p.status === PlayerStatus.PRONE ||
+                p.status === PlayerStatus.STUNNED)
+            );
+          });
+
+          adjOpponents.forEach((p) => {
+            if (p.gridPosition) {
+              this.pitch.highlightSquare(
+                p.gridPosition.x,
+                p.gridPosition.y,
+                0xff0000
+              );
+            }
+          });
+        }
       } else {
         // MOVE MODE: Only visualize if NOT hovering a player
         this.pitch.clearPassVisualization();
@@ -597,6 +665,14 @@ export class GameplayInteractionController {
         );
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
         return; // EXIT IMMEDIATELY - DO NOT SELECT PLAYER
+      }
+    }
+
+    if (this.currentActionMode === "foul" && this.currentStepId === "foul") {
+      const player = this.gameService.getPlayerById(playerId);
+      if (player && player.gridPosition) {
+        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
+        return;
       }
     }
 
@@ -1078,7 +1154,11 @@ export class GameplayInteractionController {
     }
   }
 
-  private handleKickoffClick(x: number, y: number, playerAtSquare): void {
+  private handleKickoffClick(
+    x: number,
+    y: number,
+    playerAtSquare: Player | null
+  ): void {
     const subPhase = this.gameService.getSubPhase();
 
     if (subPhase === SubPhase.ROLL_KICKOFF) {

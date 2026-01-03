@@ -30,6 +30,8 @@ import { InjuryController } from "../game/controllers/InjuryController";
 
 import { GameFlowManager } from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
+import { FoulController } from "@/game/controllers/FoulController";
+import { FoulOperation } from "@/game/operations/FoulOperation";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -75,6 +77,7 @@ export class GameService implements IGameService {
       weather: "Nice",
       ballPosition: null, // Ball not placed yet
       activePlayer: null,
+      coachesEjected: [],
     };
   }
   private playerActionManager: PlayerActionManager;
@@ -83,6 +86,7 @@ export class GameService implements IGameService {
   public diceController: DiceController;
   private armourController: ArmourController;
   private injuryController: InjuryController;
+  private foulController: FoulController;
 
   // Game Flow Manager
   public flowManager: GameFlowManager;
@@ -159,6 +163,7 @@ export class GameService implements IGameService {
     this.catchController = new CatchController(eventBus, this.diceController);
     this.armourController = new ArmourController();
     this.injuryController = new InjuryController();
+    this.foulController = new FoulController();
 
     this.movementManager = new MovementManager(
       eventBus,
@@ -214,7 +219,11 @@ export class GameService implements IGameService {
     return this.injuryController;
   }
 
-  public getFlowContext(): any {
+  public getFoulController(): FoulController {
+    return this.foulController;
+  }
+
+  public getFlowContext(): import("@/game/core/GameFlowManager").FlowContext {
     return (this.flowManager as any).context;
   }
 
@@ -456,17 +465,11 @@ export class GameService implements IGameService {
     return (
       this.team1.players.find(
         (p) =>
-          p.gridPosition &&
-          p.gridPosition.x === x &&
-          p.gridPosition.y === y &&
-          p.status === PlayerStatus.ACTIVE
+          p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
       ) ||
       this.team2.players.find(
         (p) =>
-          p.gridPosition &&
-          p.gridPosition.x === x &&
-          p.gridPosition.y === y &&
-          p.status === PlayerStatus.ACTIVE
+          p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
       )
     );
   }
@@ -593,5 +596,22 @@ export class GameService implements IGameService {
     if (this.team1.id === teamId) return this.team1;
     if (this.team2.id === teamId) return this.team2;
     return undefined;
+  }
+
+  public async foulPlayer(
+    foulerId: string,
+    targetX: number,
+    targetY: number
+  ): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) {
+      return;
+    }
+
+    const fouler = this.getPlayerById(foulerId);
+    if (!fouler || !fouler.gridPosition) {
+      return;
+    }
+
+    this.flowManager.add(new FoulOperation(foulerId, targetX, targetY));
   }
 }

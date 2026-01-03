@@ -1,6 +1,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
+import { PlayerStatus } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 
@@ -22,6 +23,14 @@ export class CatchOperation extends GameOperation {
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player || !player.gridPosition) return;
+
+    if (player.status !== PlayerStatus.ACTIVE) {
+      console.log(
+        `[CatchOperation] Player ${player.playerName} is ${player.status} and cannot catch. Bouncing.`
+      );
+      flowManager.add(new BounceOperation(player.gridPosition), true);
+      return;
+    }
 
     console.log(
       `[CatchOperation] Player ${player.playerName} attempting catch...`

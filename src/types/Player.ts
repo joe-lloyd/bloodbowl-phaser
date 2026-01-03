@@ -15,6 +15,7 @@ export enum PlayerStatus {
   INJURED = "Injured", // Badly hurt, in casualty box
   DEAD = "Dead", // Removed from roster permanently
   RESERVE = "Reserve", // In dugout, not on pitch
+  REMOVED = "Removed", // Sent off or otherwise removed from game
 }
 
 /**

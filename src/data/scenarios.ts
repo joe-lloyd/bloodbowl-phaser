@@ -1,6 +1,7 @@
 import { Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
+import { RosterName } from "../types/Team";
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -263,6 +264,28 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team2",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "foul-test",
+    name: "Foul Test",
+    description: "Test 'move then foul' flow with assists",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.ACTIVE }, // Fouler
+        { playerIndex: 1, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // Offensive Assister
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE }, // Target (Prone)
+        { playerIndex: 1, x: 10, y: 4, status: PlayerStatus.ACTIVE }, // Defensive Assister (marks Fouler at 9,5)
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.IMPERIAL_NOBILITY,
+      team2Roster: RosterName.OGRE,
     },
   },
 ];

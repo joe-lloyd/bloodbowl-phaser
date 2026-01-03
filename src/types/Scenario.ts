@@ -1,5 +1,6 @@
 import { GamePhase, SubPhase } from "./GameState";
 import { PlayerStatus } from "./Player";
+import { RosterName } from "./Team";
 
 export interface PlayerPlacement {
   playerIndex: number; // Index in the team.players array
@@ -16,6 +17,8 @@ export interface ScenarioSetup {
   turn?: number;
   phase: GamePhase;
   subPhase: SubPhase;
+  team1Roster?: RosterName;
+  team2Roster?: RosterName;
 }
 
 export interface Scenario {

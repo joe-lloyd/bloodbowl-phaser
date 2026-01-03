@@ -12,13 +12,21 @@ import { GameOperation } from "./GameOperation";
  * DOES NOT:
  * - Know about specific valid game rules (that's the Operation's job).
  */
+export interface FlowContext {
+  gameService: import("@/services/interfaces/IGameService").IGameService;
+  eventBus: import("@/services/EventBus").IEventBus;
+  flowManager: GameFlowManager;
+  [key: string]: any; // Allow for dynamic context data (use with caution)
+}
+
 export class GameFlowManager {
   private queue: GameOperation[] = [];
   private isProcessing: boolean = false;
-  private context: any;
+  private context: FlowContext;
 
-  constructor(context: any) {
-    this.context = context;
+  constructor(context: Omit<FlowContext, "flowManager">) {
+    this.context = context as FlowContext;
+    this.context.flowManager = this;
   }
 
   /**

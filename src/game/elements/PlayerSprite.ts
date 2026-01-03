@@ -49,6 +49,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.selectionRing.setVisible(false);
     this.add(this.selectionRing);
 
+    // CRITICAL: Initialize status visuals
+    this.updateStatus();
+
     scene.add.existing(this);
   }
 

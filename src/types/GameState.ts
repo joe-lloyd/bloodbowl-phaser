@@ -58,4 +58,5 @@ export interface GameState {
     id: string;
     action: string | null; // ActionType
   } | null;
+  coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
 }
