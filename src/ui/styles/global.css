@@ -60,8 +60,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #000;
-  /* Ensure game canvas stays within this column */
   overflow: hidden;
 }
 
