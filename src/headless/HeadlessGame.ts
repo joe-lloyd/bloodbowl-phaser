@@ -372,7 +372,11 @@ export class HeadlessGame {
 
         const actions: ActionType[] = [];
         if (p.status === PlayerStatus.PRONE) {
-          actions.push("standUp");
+          // Standing up only costs movement, so every movement-based action
+          // stays available to a prone player. Only plain Block is not.
+          actions.push("standUp", "move");
+          if (!state.turn.hasBlitzed) actions.push("blitz");
+          if (!state.turn.hasFouled) actions.push("foul");
         } else if (p.status === PlayerStatus.ACTIVE) {
           actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");

@@ -41,6 +41,8 @@ import {
 } from "@/game/operations/EndDriveOperations";
 import { isInEndZone } from "@/game/elements/GridUtils";
 import { GameConfig } from "@/config/GameConfig";
+import { BounceOperation } from "@/game/operations/BounceOperation";
+import { ArmourOperation } from "@/game/operations/ArmourOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { IRNGService } from "./rng/RNGService.js";
@@ -182,6 +184,7 @@ export class GameService implements IGameService {
           this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
         onBallPlaced: (x, y) =>
           this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
+        getFlowManager: () => this.flowManager,
       },
       this.delay
     );
@@ -406,6 +409,53 @@ export class GameService implements IGameService {
     numDice: number,
     isAttackerChoice: boolean
   ): void {
+    // The block at the end of a Blitz costs 1 movement. If that point is
+    // beyond MA it's a Rush (GFI): roll it BEFORE the block — on a failure
+    // the blitzer falls over in front of their target and no block happens.
+    if (
+      this.state.activePlayer?.action === "blitz" &&
+      this.state.activePlayer.id === attackerId
+    ) {
+      const attacker = this.getPlayerById(attackerId);
+      if (attacker) {
+        const used = this.state.turn.movementUsed.get(attackerId) || 0;
+        const newUsed = used + 1;
+        if (newUsed > attacker.stats.MA + 2) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "No movement left to make the Blitz block!"
+          );
+          return;
+        }
+        this.state.turn.movementUsed.set(attackerId, newUsed);
+
+        if (newUsed > attacker.stats.MA) {
+          const check = this.diceController.rollSkillCheck(
+            "Rush (GFI)",
+            2,
+            0,
+            attacker.playerName
+          );
+          if (!check.success) {
+            attacker.status = PlayerStatus.PRONE;
+            this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
+              playerId: attackerId,
+            });
+            this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
+            if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
+              this.flowManager.add(
+                new BounceOperation(attacker.gridPosition),
+                true
+              );
+            }
+            this.flowManager.add(new ArmourOperation(attackerId), true);
+            this.triggerTurnover("Failed GFI on Blitz block");
+            return;
+          }
+        }
+      }
+    }
+
     this.blockManager.rollBlockDice(
       attackerId,
       defenderId,
@@ -582,6 +632,16 @@ export class GameService implements IGameService {
     this.setupManager.resetForNewDrive();
     this.state.ballPosition = null;
     this.state.activePlayer = null;
+
+    // Activation state must not leak into the next drive's setup — stale
+    // activatedPlayerIds left players "already gone" and blocked setup
+    this.state.turn.activatedPlayerIds.clear();
+    this.state.turn.movementUsed.clear();
+    this.state.turn.hasBlitzed = false;
+    this.state.turn.hasPassed = false;
+    this.state.turn.hasHandedOff = false;
+    this.state.turn.hasFouled = false;
+
     this.eventBus.emit(GameEventNames.RefreshBoard);
   }
 
@@ -684,6 +744,11 @@ export class GameService implements IGameService {
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
     return this.ballManager.attemptPickup(player, position);
+  }
+
+  /** Throw-in from the square where the ball left the pitch (p.73). */
+  throwInBall(from: { x: number; y: number }): void {
+    this.ballManager.throwIn(from);
   }
 
   public getTeam(teamId: string): Team | undefined {

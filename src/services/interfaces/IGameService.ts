@@ -87,6 +87,7 @@ export interface IGameService {
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
+  throwInBall(from: { x: number; y: number }): void;
   triggerTurnover(reason: string): void;
 
   // Scoring / end of drive

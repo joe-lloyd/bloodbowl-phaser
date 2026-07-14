@@ -78,9 +78,13 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           // But the sprite is being dragged, so its x/y are updated relative to container.
           // We need where the USER let go.
 
-          // 'dragend' event gives the pointer.
-          const worldX = pointer.worldX;
-          const worldY = pointer.worldY;
+          // Use the SPRITE's world center, not the pointer: the sprite keeps
+          // the grab offset while dragging, so dropping by pointer position
+          // could land a different cell than the one the visual sits on.
+          void pointer;
+          const matrix = sprite.getWorldTransformMatrix();
+          const worldX = matrix.tx;
+          const worldY = matrix.ty;
 
           // Adjust for pitch position
           const pitchContainer = this.pitch.getContainer();

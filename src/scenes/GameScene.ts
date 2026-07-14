@@ -432,7 +432,15 @@ export class GameScene extends Phaser.Scene {
     // Add 10px padding.
     const bottomDugoutY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT + 10;
 
-    const bottomDugout = new Dugout(this, pitchX, bottomDugoutY, this.team2);
+    // Team 2 plays the right side: mirror so reserves sit on the right
+    const bottomDugout = new Dugout(
+      this,
+      pitchX,
+      bottomDugoutY,
+      this.team2,
+      150,
+      true
+    );
     bottomDugout.setDepth(10); // Ensure dugout container is above background
     this.dugouts.set(this.team2.id, bottomDugout);
 
@@ -473,7 +481,22 @@ export class GameScene extends Phaser.Scene {
         this.ballSprite.destroy();
         this.ballSprite = null;
       }
+      // New drive: nobody is "activated" and turn borders reset
+      this.playerSprites.forEach((sprite) => {
+        sprite.setActivated(false);
+        sprite.setTeamTurnBorder(false);
+      });
       this.refreshDugouts();
+    });
+
+    // Touchdown celebration: the scoring team's players on the pitch jump
+    this.eventBus.on(GameEventNames.Touchdown, (data) => {
+      this.playerSprites.forEach((sprite) => {
+        const p = sprite.getPlayer();
+        if (p.teamId === data.teamId && p.gridPosition) {
+          sprite.playCelebrateAnimation();
+        }
+      });
     });
 
     this.eventBus.on(GameEventNames.KORecoveryRolled, (data) => {
@@ -511,6 +534,64 @@ export class GameScene extends Phaser.Scene {
     const dugout = this.dugouts.get(activeTeam.id);
     const sprites = dugout ? dugout.getSprites() : new Map();
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
+
+    // Placed players stay movable until setup is confirmed
+    this.repositionTeam = activeTeam;
+    this.applyPitchRepositioning();
+  }
+
+  /**
+   * During setup, already-placed players of the active team can be dragged
+   * to a new square (or rearranged after loading a premade formation).
+   * Cleared when setup ends.
+   */
+  private repositionTeam: Team | null = null;
+
+  private applyPitchRepositioning(): void {
+    const team = this.repositionTeam;
+    this.playerSprites.forEach((sprite) => {
+      const player = sprite.getPlayer();
+      sprite.off("dragstart");
+      sprite.off("drag");
+      sprite.off("dragend");
+      if (!team || player.teamId !== team.id || !this.isSetupActive) {
+        sprite.disableInteractive();
+        return;
+      }
+
+      sprite.setInteractive(
+        new Phaser.Geom.Rectangle(-30, -30, 60, 60),
+        Phaser.Geom.Rectangle.Contains
+      );
+      this.input.setDraggable(sprite);
+
+      sprite.on("dragstart", () => sprite.setDepth(100));
+      sprite.on(
+        "drag",
+        (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+          sprite.setPosition(dragX, dragY);
+        }
+      );
+      sprite.on("dragend", () => {
+        sprite.setDepth(10);
+        const matrix = sprite.getWorldTransformMatrix();
+        const pitchContainer = this.pitch.getContainer();
+        const grid = pixelToGrid(
+          matrix.tx - pitchContainer.x,
+          matrix.ty - pitchContainer.y,
+          GameConfig.SQUARE_SIZE
+        );
+        const moved = this.placementController.placePlayer(
+          player.id,
+          grid.x,
+          grid.y
+        );
+        if (!moved) {
+          // Invalid drop: snap back to the current placement
+          this.placePlayersOnPitch();
+        }
+      });
+    });
   }
 
   // Setup-specific event listeners (placement controller events only)
@@ -544,6 +625,8 @@ export class GameScene extends Phaser.Scene {
 
   public startPlayPhase(): void {
     this.isSetupActive = false;
+    this.repositionTeam = null;
+    this.applyPitchRepositioning(); // strip setup drag handlers
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
@@ -553,6 +636,8 @@ export class GameScene extends Phaser.Scene {
 
   public startKickoffPhase(subPhase?: SubPhase): void {
     this.isSetupActive = false;
+    this.repositionTeam = null;
+    this.applyPitchRepositioning(); // strip setup drag handlers
     this.pitch.clearHighlights();
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
@@ -610,6 +695,11 @@ export class GameScene extends Phaser.Scene {
         this.playerSprites.get(player.id)!.setVisible(false);
       }
     });
+
+    // Newly created sprites during setup need the reposition drag handlers
+    if (this.isSetupActive && this.repositionTeam) {
+      this.applyPitchRepositioning();
+    }
 
     // Ball is now in scene root with depth 100, so it automatically renders above players (depth 10)
     // No need to manually bring to top

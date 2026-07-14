@@ -8,10 +8,11 @@ import {
   BlockResult,
   BlockResultType,
   BlockRollData,
-  PushData,
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
+import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
+import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 
 export class BlockManager {
@@ -102,21 +103,65 @@ export class BlockManager {
       case "push":
       case "pow":
       case "pow-dodge": {
-        // Emit event for push direction selection
-        const pushData = this.createPushData(attacker, defender, result.type);
-        // Add resultType and attackerId to the data for the UI
-        this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
-          ...pushData,
+        // Start a (possibly chained) push: the chain is decided link by
+        // link, applied only once fully chosen (rulebook p.55)
+        this.chain = {
+          attackerId,
           resultType: result.type,
-          attackerId: attackerId,
-        });
+          links: [],
+        };
+        this.requestPushDecision(attacker.gridPosition!, defender);
         break;
       }
     }
   }
 
+  /** Pending chain-push state between push-direction decisions */
+  private chain: {
+    attackerId: string;
+    resultType: BlockResultType;
+    links: {
+      playerId: string;
+      from: { x: number; y: number };
+      to: { x: number; y: number } | null; // null = pushed into the crowd
+    }[];
+  } | null = null;
+
+  private requestPushDecision(
+    pusherPos: { x: number; y: number },
+    pushed: Player
+  ): void {
+    const { options, tier } = this.blockResolutionService.getPushOptions(
+      pusherPos,
+      pushed.gridPosition!,
+      (x, y) => this.getPlayerAt(x, y) !== undefined
+    );
+
+    this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
+      defenderId: pushed.id,
+      validDirections: options,
+      canFollowUp: this.blockResolutionService.allowsFollowUp(
+        this.chain!.resultType
+      ),
+      willFollowUp: false,
+      resultType: this.chain!.resultType,
+      attackerId: this.chain!.attackerId, // chooser is always the blocker
+      pushTier: tier,
+    });
+  }
+
+  private getPlayerAt(x: number, y: number): Player | undefined {
+    return [...this.team1.players, ...this.team2.players].find(
+      (p) =>
+        p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
+    );
+  }
+
   /**
-   * Execute push with direction
+   * Record the chosen push direction for the currently awaited player.
+   * Occupied target: the occupant is pushed onward (chain, rulebook p.55).
+   * Off-pitch target: pushed into the crowd. Otherwise the chain is
+   * complete and all links apply, innermost first.
    */
   public executePush(
     attackerId: string,
@@ -126,59 +171,109 @@ export class BlockManager {
     followUp: boolean
   ): void {
     const defender = this.getPlayerById(defenderId);
-    if (!defender) return;
+    if (!defender || !defender.gridPosition) return;
 
-    // Save old position BEFORE moving
-    const oldPosition = defender.gridPosition
-      ? { ...defender.gridPosition }
-      : null;
+    if (!this.chain) {
+      // Direct call without resolveBlock (tests/tools): start a chain now
+      this.chain = {
+        attackerId,
+        resultType: resultType as BlockResultType,
+        links: [],
+      };
+    }
 
-    // NOW move defender to new position
-    defender.gridPosition = direction;
+    const from = { ...defender.gridPosition };
+    const onPitch =
+      direction.x >= 0 &&
+      direction.x < GameConfig.PITCH_WIDTH &&
+      direction.y >= 0 &&
+      direction.y < GameConfig.PITCH_HEIGHT;
 
-    // Handle knockdown for POW results
-    if (resultType === "pow" || resultType === "pow-dodge") {
-      this.knockDownPlayer(defender);
+    if (!onPitch) {
+      // Pushed into the crowd: chain ends at this link
+      this.chain.links.push({ playerId: defenderId, from, to: null });
+      this.applyChain(followUp);
+      return;
+    }
 
-      // Trigger Armour Operation via FlowManager
-      const flowManager = this.callbacks.getFlowManager?.();
-      if (flowManager) {
-        flowManager.add(new ArmourOperation(defenderId), true);
+    this.chain.links.push({ playerId: defenderId, from, to: direction });
+
+    const occupant = this.getPlayerAt(direction.x, direction.y);
+    if (occupant && occupant.id !== defenderId) {
+      // Chain push: the occupant is pushed as if by the incoming player;
+      // the blocking coach keeps choosing directions
+      this.requestPushDecision(from, occupant);
+      return;
+    }
+
+    this.applyChain(followUp);
+  }
+
+  /** Apply all chain links innermost-first, then knockdown/follow-up. */
+  private applyChain(followUp: boolean): void {
+    if (!this.chain) return;
+    const { attackerId, resultType, links } = this.chain;
+    this.chain = null;
+
+    const flowManager = this.callbacks.getFlowManager?.();
+
+    for (let i = links.length - 1; i >= 0; i--) {
+      const link = links[i];
+      const player = this.getPlayerById(link.playerId);
+      if (!player) continue;
+
+      if (link.to === null) {
+        // Crowd surf: off the pitch; injury without armour, ball throw-in
+        // and turnover handled by the operation
+        player.gridPosition = undefined;
+        this.eventBus.emit(GameEventNames.PlayerPushedIntoCrowd, {
+          playerId: link.playerId,
+          exitSquare: link.from,
+        });
+        if (flowManager) {
+          flowManager.add(
+            new CrowdInjuryOperation(link.playerId, link.from),
+            true
+          );
+        }
+        continue;
+      }
+
+      player.gridPosition = { ...link.to };
+
+      const isOriginalDefender = i === 0;
+      this.eventBus.emit(GameEventNames.PlayerMoved, {
+        playerId: link.playerId,
+        from: link.from,
+        to: link.to,
+        path: [link.from, link.to],
+        followUpData:
+          isOriginalDefender && !followUp
+            ? { attackerId, targetSquare: link.from }
+            : undefined,
+      });
+
+      // A standing carrier pushed into their scoring end zone still scores
+      if (resultType === "push") {
+        flowManager?.context.gameService.checkForTouchdown(link.playerId);
       }
     }
 
-    // Prepare path and follow-up data
-    const path = oldPosition ? [oldPosition, direction] : [direction];
-    const shouldPromptFollowUp =
-      !followUp &&
-      oldPosition &&
-      (resultType === "pow" ||
-        resultType === "pow-dodge" ||
-        resultType === "push");
-
-    // A standing carrier pushed into their scoring end zone still scores
-    if (resultType === "push") {
-      const flowManager = this.callbacks.getFlowManager?.();
-      flowManager?.context.gameService.checkForTouchdown(defenderId);
+    // Knockdown applies only to the original defender on POW results
+    const first = links[0];
+    if (
+      first &&
+      first.to !== null &&
+      (resultType === "pow" || resultType === "pow-dodge")
+    ) {
+      const defender = this.getPlayerById(first.playerId);
+      if (defender) {
+        this.knockDownPlayer(defender);
+        if (flowManager) {
+          flowManager.add(new ArmourOperation(first.playerId), true);
+        }
+      }
     }
-
-    // Emit single playerMoved event with path and optional follow-up data
-    this.eventBus.emit(GameEventNames.PlayerMoved, {
-      playerId: defenderId,
-      from: oldPosition || direction,
-      to: direction,
-      path: path.filter(
-        (p): p is { x: number; y: number } =>
-          p !== null && p.x !== undefined && p.y !== undefined
-      ),
-      // Include follow-up data to be triggered after animation completes
-      followUpData: shouldPromptFollowUp
-        ? {
-            attackerId: attackerId,
-            targetSquare: oldPosition,
-          }
-        : undefined,
-    });
   }
 
   /**
@@ -221,24 +316,6 @@ export class BlockManager {
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: player.id,
     });
-  }
-
-  private createPushData(
-    attacker: Player,
-    defender: Player,
-    resultType: BlockResultType
-  ): PushData {
-    const validDirections = this.blockResolutionService.getValidPushDirections(
-      attacker.gridPosition!,
-      defender.gridPosition!
-    );
-
-    return {
-      defenderId: defender.id,
-      validDirections,
-      canFollowUp: this.blockResolutionService.allowsFollowUp(resultType),
-      willFollowUp: false,
-    };
   }
 
   private getPlayerById(playerId: string): Player | undefined {

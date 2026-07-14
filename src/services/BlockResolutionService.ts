@@ -1,5 +1,6 @@
 import { Player } from "../types";
 import { IRNGService } from "./rng/RNGService";
+import { GameConfig } from "../config/GameConfig";
 
 /**
  * Block dice result types
@@ -220,9 +221,71 @@ export class BlockResolutionService {
     }
 
     // Filter out invalid positions (out of bounds)
-    return directions.filter(
-      (pos) => pos.x >= 0 && pos.x < 26 && pos.y >= 0 && pos.y < 15
+    return directions.filter((pos) => this.isOnPitch(pos));
+  }
+
+  private isOnPitch(pos: { x: number; y: number }): boolean {
+    return (
+      pos.x >= 0 &&
+      pos.x < GameConfig.PITCH_WIDTH &&
+      pos.y >= 0 &&
+      pos.y < GameConfig.PITCH_HEIGHT
     );
+  }
+
+  /**
+   * Tiered push options per the rulebook (p.55): unoccupied squares when any
+   * exist; occupied squares only when forced (chain push); the crowd only
+   * when no on-pitch square exists at all (off-pitch coordinates returned so
+   * the {x,y} decision shape survives).
+   */
+  public getPushOptions(
+    attackerPos: { x: number; y: number },
+    defenderPos: { x: number; y: number },
+    isOccupied: (x: number, y: number) => boolean
+  ): {
+    options: { x: number; y: number }[];
+    tier: "open" | "chain" | "crowd";
+  } {
+    const candidates = this.getValidPushDirections(attackerPos, defenderPos);
+    // getValidPushDirections filters to on-pitch; recompute raw candidates
+    // to know whether off-pitch exits exist
+    const dx = Math.sign(defenderPos.x - attackerPos.x);
+    const dy = Math.sign(defenderPos.y - attackerPos.y);
+    const raw: { x: number; y: number }[] = [];
+    if (dx !== 0 && dy !== 0) {
+      raw.push(
+        { x: defenderPos.x + dx, y: defenderPos.y + dy },
+        { x: defenderPos.x + dx, y: defenderPos.y },
+        { x: defenderPos.x, y: defenderPos.y + dy }
+      );
+    } else if (dx !== 0) {
+      raw.push(
+        { x: defenderPos.x + dx, y: defenderPos.y },
+        { x: defenderPos.x + dx, y: defenderPos.y + 1 },
+        { x: defenderPos.x + dx, y: defenderPos.y - 1 }
+      );
+    } else {
+      raw.push(
+        { x: defenderPos.x, y: defenderPos.y + dy },
+        { x: defenderPos.x + 1, y: defenderPos.y + dy },
+        { x: defenderPos.x - 1, y: defenderPos.y + dy }
+      );
+    }
+
+    const unoccupied = candidates.filter((p) => !isOccupied(p.x, p.y));
+    if (unoccupied.length > 0) return { options: unoccupied, tier: "open" };
+
+    // No unoccupied square: at a sideline/end zone the crowd takes the
+    // player (p.55 — crowd precedes chaining when off-pitch exits exist)
+    const offPitch = raw.filter((p) => !this.isOnPitch(p));
+    if (offPitch.length > 0) return { options: offPitch, tier: "crowd" };
+
+    // Fully boxed in on-pitch: chain push into an occupied square
+    return {
+      options: candidates.filter((p) => isOccupied(p.x, p.y)),
+      tier: "chain",
+    };
   }
 
   /**

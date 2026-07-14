@@ -5,6 +5,40 @@ import { RosterName } from "../types/Team";
 
 export const SCENARIOS: Scenario[] = [
   {
+    id: "chain-push",
+    name: "Chain Push Test",
+    description: "Defender's push squares are all occupied - block to chain",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5 }, // block target
+        { playerIndex: 1, x: 11, y: 4 }, // all three push squares occupied
+        { playerIndex: 2, x: 11, y: 5 },
+        { playerIndex: 3, x: 11, y: 6 },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+    },
+  },
+  {
+    id: "crowd-surf",
+    name: "Crowd Surf Test",
+    description: "Sideline defender with blocked push squares - block to surf",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 0 }],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 0 }, // block target on the sideline
+        { playerIndex: 1, x: 11, y: 0 }, // both on-pitch push squares occupied
+        { playerIndex: 2, x: 11, y: 1 },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 0 }, // target carries the ball: throw-in test
+    },
+  },
+  {
     id: "debug-empty",
     name: "Empty Pitch",
     description: "Clear pitch with no players placed",

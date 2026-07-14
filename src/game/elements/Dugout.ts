@@ -7,6 +7,7 @@ import { GameConfig } from "../../config/GameConfig";
 
 export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
+  private mirrored: boolean = false;
   private dugoutHeight: number;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private onPlayerDragStart?: (playerId: string) => void;
@@ -21,12 +22,14 @@ export class Dugout extends Phaser.GameObjects.Container {
     x: number,
     y: number,
     team: Team,
-    height: number = 150 // Increased default height to fit 2 rows of 60px + padding
+    height: number = 150, // Increased default height to fit 2 rows of 60px + padding
+    mirrored: boolean = false // Right-side team: reserves section on the right
   ) {
     super(scene, x, y);
     this.scene = scene;
     this.team = team;
     this.dugoutHeight = height;
+    this.mirrored = mirrored;
 
     this.setDepth(0); // Ensure it's behind other UI/players
     this.scene.add.existing(this);
@@ -51,9 +54,15 @@ export class Dugout extends Phaser.GameObjects.Container {
     const koWidth = koCols * this.SQUARE_SIZE + 20;
     const deadWidth = deadCols * this.SQUARE_SIZE + 20;
 
-    // 1. Reserves Section (Left) - 6x2 Grid
+    // Section order mirrors for the right-side team so the reserves
+    // (team-colored) section always sits on the side of the pitch you play
+    const reservesX = this.mirrored ? deadWidth + koWidth : 0;
+    const koX = this.mirrored ? deadWidth : reservesWidth;
+    const deadX = this.mirrored ? 0 : reservesWidth + koWidth;
+
+    // 1. Reserves Section - 6x2 Grid
     this.createSection(
-      0,
+      reservesX,
       0,
       reservesWidth,
       sectionHeight,
@@ -64,7 +73,7 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // 2. KO Section (Middle) - 5x2 Grid
     this.createSection(
-      reservesWidth,
+      koX,
       0,
       koWidth,
       sectionHeight,
@@ -73,9 +82,9 @@ export class Dugout extends Phaser.GameObjects.Container {
       koCols
     );
 
-    // 3. Dead/Injured Section (Right) - 5x2 Grid
+    // 3. Dead/Injured Section - 5x2 Grid
     this.createSection(
-      reservesWidth + koWidth,
+      deadX,
       0,
       deadWidth,
       sectionHeight,

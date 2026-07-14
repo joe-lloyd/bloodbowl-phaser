@@ -108,12 +108,16 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const hasActed = selectedPlayer.hasActed;
 
   // Action Availability Logic
-  const canMove = !hasActed && !isProne && !isStunned;
-  const canBlitz = canMove && !turnData.hasBlitzed;
-  const canPass = canMove && !turnData.hasPassed;
-  const canHandoff = canMove && !turnData.hasHandedOff;
-  const canFoul = canMove && !turnData.hasFouled;
-  const canStandUp = isProne && !hasActed && !isStunned;
+  // Prone players may declare any movement-based action — standing up just
+  // costs movement (3), so Move/Blitz/Pass/Hand-off/Foul all stay available.
+  // Only a plain Block is impossible while prone (that's what Blitz is for).
+  const canAct = !hasActed && !isStunned;
+  const canMove = canAct;
+  const canBlitz = canAct && !turnData.hasBlitzed;
+  const canPass = canAct && !turnData.hasPassed;
+  const canHandoff = canAct && !turnData.hasHandedOff;
+  const canFoul = canAct && !turnData.hasFouled;
+  const canStandUp = isProne && canAct;
 
   // Render Helper with proper color handling
   const ActionButton = ({

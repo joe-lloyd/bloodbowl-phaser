@@ -9,6 +9,8 @@ import { KickoffController } from "../controllers/KickoffController";
 import { PickupController } from "../controllers/PickupController";
 import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
+import { GameConfig } from "../../config/GameConfig";
+import { CatchOperation } from "../operations/CatchOperation";
 
 /**
  * BallManager
@@ -33,6 +35,7 @@ export class BallManager {
       onTurnover: (reason: string) => void;
       onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
       onBallPlaced: (x: number, y: number) => void;
+      getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
     },
     private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
       new Promise((resolve) => setTimeout(resolve, ms))
@@ -104,6 +107,77 @@ export class BallManager {
     this.delay(200).then(() => {
       this.eventBus.emit(GameEventNames.ReadyToStart);
     });
+  }
+
+  /**
+   * Throw-in (rulebook p.73): the crowd throws the ball back from the last
+   * square it occupied. D6 picks one of the three infield directions from
+   * the exit edge; the ball travels 2D6 squares (exit square counts as the
+   * first). Leaves the pitch again → repeat. Lands occupied → catch attempt;
+   * lands empty → ball rests there.
+   */
+  public throwIn(from: { x: number; y: number }): void {
+    const maxX = GameConfig.PITCH_WIDTH - 1;
+    const maxY = GameConfig.PITCH_HEIGHT - 1;
+
+    // Infield directions for the edge the ball left from
+    let dirs: { x: number; y: number }[];
+    if (from.x <= 0) dirs = [{ x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 }];
+    else if (from.x >= maxX)
+      dirs = [{ x: -1, y: -1 }, { x: -1, y: 0 }, { x: -1, y: 1 }];
+    else if (from.y <= 0)
+      dirs = [{ x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
+    else dirs = [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }];
+
+    const directionRoll = this.diceController.rollD6("Throw-in Direction");
+    const dir = dirs[Math.floor((directionRoll - 1) / 2)];
+
+    const distance =
+      this.diceController.rollD6("Throw-in Distance") +
+      this.diceController.rollD6("Throw-in Distance");
+
+    // Exit square counts as the first square travelled
+    const landing = {
+      x: from.x + dir.x * (distance - 1),
+      y: from.y + dir.y * (distance - 1),
+    };
+
+    if (
+      landing.x < 0 ||
+      landing.x > maxX ||
+      landing.y < 0 ||
+      landing.y > maxY
+    ) {
+      // Left the pitch again: repeat from the last on-pitch square along dir
+      const steps = distance - 1;
+      let lastIn = { ...from };
+      for (let s = 1; s <= steps; s++) {
+        const p = { x: from.x + dir.x * s, y: from.y + dir.y * s };
+        if (p.x < 0 || p.x > maxX || p.y < 0 || p.y > maxY) break;
+        lastIn = p;
+      }
+      this.eventBus.emit(GameEventNames.UI_Notification, "Thrown out again!");
+      this.throwIn(lastIn);
+      return;
+    }
+
+    this.state.ballPosition = { x: landing.x, y: landing.y };
+    this.eventBus.emit(GameEventNames.BallThrownIn, {
+      from,
+      to: landing,
+      distance,
+    });
+    this.eventBus.emit(GameEventNames.BallPlaced, landing);
+
+    const occupant = [...this.team1.players, ...this.team2.players].find(
+      (p) =>
+        p.gridPosition &&
+        p.gridPosition.x === landing.x &&
+        p.gridPosition.y === landing.y
+    );
+    if (occupant) {
+      this.callbacks.getFlowManager?.()?.add(new CatchOperation(occupant.id), true);
+    }
   }
 
   // --- PICKUP ORCHESTRATION ---

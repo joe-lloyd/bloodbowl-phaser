@@ -3,6 +3,7 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnIndicator } from "./TurnIndicator";
+import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
 import { NotificationFeed } from "./NotificationFeed";
 import { GamePhase } from "../../../types/GameState";
@@ -189,7 +190,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   return (
     <HUDLayout
       left={
-        <div className="flex flex-1 flex-col space-between w-full">
+        <div className="flex flex-1 flex-col space-between w-full gap-4">
+          <ScoreBoard eventBus={eventBus} />
           <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
           <div className="flex flex-1 flex-col gap-4 w-full">
             <SetupControls eventBus={eventBus} />

@@ -45,6 +45,8 @@ export enum GameEventNames {
   BallKicked = "ballKicked",
   KickoffResult = "kickoffResult",
   KORecoveryRolled = "koRecoveryRolled",
+  PlayerPushedIntoCrowd = "playerPushedIntoCrowd",
+  BallThrownIn = "ballThrownIn",
   DriveEnded = "driveEnded",
   BallPickup = "ballPickup",
   WeatherChanged = "weatherChanged",
@@ -205,6 +207,15 @@ export interface GameEvents {
     playerId: string;
     roll: number;
     recovered: boolean;
+  };
+  [GameEventNames.PlayerPushedIntoCrowd]: {
+    playerId: string;
+    exitSquare: { x: number; y: number };
+  };
+  [GameEventNames.BallThrownIn]: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+    distance: number;
   };
   [GameEventNames.DriveEnded]: {
     reason: "touchdown" | "halftime";
