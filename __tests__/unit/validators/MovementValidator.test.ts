@@ -211,4 +211,48 @@ describe("MovementValidator", () => {
       expect(squares).toContainEqual({ x: 7, y: 5, cost: 2 });
     });
   });
+
+  describe("Tackle zone fallback pathing", () => {
+    it("still finds a path when every route passes through tackle zones", () => {
+      // Wall of opponents across the pitch at x=7 with a single gap at y=5,
+      // whose flanks put tackle zones on the gap: any path to x=9 must
+      // enter a TZ. The safe-detour search alone would exhaust the step
+      // budget and return nothing.
+      for (let y = 0; y <= 10; y++) {
+        if (y === 5) continue;
+        opponents.push(
+          new PlayerBuilder()
+            .withId(`wall-${y}`)
+            .withStatus(PlayerStatus.ACTIVE)
+            .withGridPosition(7, y)
+            .build()
+        );
+      }
+
+      const result = validator.findPath(player, 9, 5, opponents, teammates);
+
+      expect(result.valid).toBe(true);
+      expect(result.path.length).toBeGreaterThan(0);
+      expect(result.path[result.path.length - 1]).toEqual({ x: 9, y: 5 });
+      // The route necessarily crosses a tackle zone, so a dodge is rolled
+      expect(result.rolls.some((r) => r.type === "dodge")).toBe(true);
+    });
+
+    it("prefers the tackle-zone-free route when one exists in range", () => {
+      // Single opponent adjacent to the straight line; a short detour avoids
+      // its tackle zone entirely
+      opponents.push(
+        new PlayerBuilder()
+          .withId("lurker")
+          .withStatus(PlayerStatus.ACTIVE)
+          .withGridPosition(7, 4)
+          .build()
+      );
+
+      const result = validator.findPath(player, 9, 5, opponents, teammates);
+
+      expect(result.valid).toBe(true);
+      expect(result.rolls.filter((r) => r.type === "dodge")).toHaveLength(0);
+    });
+  });
 });

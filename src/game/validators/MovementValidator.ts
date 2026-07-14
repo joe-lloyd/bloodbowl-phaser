@@ -55,17 +55,31 @@ export class MovementValidator {
       return this.invalidResult();
     }
 
-    // 3. A* Pathfinding
+    // 3. A* Pathfinding — safe route first; if avoiding tackle zones makes
+    // the target unreachable within the step budget, take the direct route
+    // through them (dodging is the player's choice to risk)
     const startNode = { x: player.gridPosition.x, y: player.gridPosition.y };
     const endNode = { x: targetX, y: targetY };
 
-    const path = this.calculateAStarPath(
+    let path = this.calculateAStarPath(
       startNode,
       endNode,
       player,
       opponents,
-      teammates
+      teammates,
+      "safe"
     );
+
+    if (path.length === 0) {
+      path = this.calculateAStarPath(
+        startNode,
+        endNode,
+        player,
+        opponents,
+        teammates,
+        "direct"
+      );
+    }
 
     if (path.length === 0) {
       return this.invalidResult();
@@ -143,12 +157,20 @@ export class MovementValidator {
     return count;
   }
 
+  /**
+   * @param mode "safe" prefers tackle-zone-free detours (pretty preview
+   * path); "direct" minimizes steps with TZs only as a tiebreak. The safe
+   * weighting can exhaust the MA+2 step budget on detours and find nothing —
+   * callers should fall back to "direct" so any step-reachable square always
+   * gets a path (the player may choose to dodge).
+   */
   private calculateAStarPath(
     start: { x: number; y: number },
     end: { x: number; y: number },
     player: Player,
     opponents: Player[],
-    teammates: Player[]
+    teammates: Player[],
+    mode: "safe" | "direct" = "safe"
   ): { x: number; y: number }[] {
     const openSet: { x: number; y: number }[] = [];
     const closedSet: Set<string> = new Set();
@@ -232,15 +254,19 @@ export class MovementValidator {
         }
 
         // --- WEIGHT CALCULATION ---
-        // Base cost = 1 (or 20 for jump)
-        // Tackle Zone Penalty = 10 per TZ *on the target square*
-        // This makes the pathfinder avidly avoid TZs unless necessary.
+        // safe: base 1 (20 for jump) + 10 per TZ on the target square, so
+        //       the pathfinder detours around tackle zones when it can.
+        // direct: steps dominate, TZ count only breaks ties — guarantees a
+        //         path to anything reachable within MA+2 steps.
         const tackleZones = this.getTackleZones(
           neighbor.x,
           neighbor.y,
           opponents
         );
-        const stepCost = baseWeight + tackleZones * 10;
+        const stepCost =
+          mode === "safe"
+            ? baseWeight + tackleZones * 10
+            : moveSteps * 100 + tackleZones;
 
         const tentativeGScore = (gScore.get(currentKey) || 0) + stepCost;
 

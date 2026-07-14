@@ -10,7 +10,7 @@ import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
-import { Player } from "@/types/Player";
+import { Player, PlayerStatus } from "@/types/Player";
 import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
@@ -34,6 +34,11 @@ import {
   realTimeDelay,
 } from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
+import {
+  ClearPitchOperation,
+  KORecoveryOperation,
+  StartNextDriveOperation,
+} from "@/game/operations/EndDriveOperations";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { IRNGService } from "./rng/RNGService.js";
@@ -157,7 +162,7 @@ export class GameService implements IGameService {
         onPhaseChanged: (phase, subPhase) =>
           this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
         onHalfEnded: (secondHalfKickingTeamId) =>
-          this.delay(1000).then(() => this.startSetup(secondHalfKickingTeamId)),
+          this.endDrive("halftime", secondHalfKickingTeamId),
       },
       this.delay
     );
@@ -432,7 +437,16 @@ export class GameService implements IGameService {
   }
 
   triggerTurnover(reason: string): void {
-    this.turnManager.checkTurnover(reason);
+    // Only the first turnover of a resolution latches; later failures in the
+    // same chain (bounce → dropped catch → …) are absorbed by it.
+    if (!this.turnManager.checkTurnover(reason)) return;
+
+    // Let the reaction chain fully settle (ball at rest, armour/injury rolls
+    // done), give the turnover banner its moment, then end the turn once.
+    this.flowManager
+      .whenIdle()
+      .then(() => this.delay(3000))
+      .then(() => this.turnManager.completeTurnover());
   }
 
   blockPlayer(
@@ -543,41 +557,65 @@ export class GameService implements IGameService {
       subPhase: SubPhase.SCORING,
     });
 
-    this.delay(2000).then(() => this.startEndDriveSequence());
+    // Rulebook: the team that scored becomes the kicking team next drive
+    this.delay(2000).then(() => this.endDrive("touchdown", teamId));
   }
 
-  startEndDriveSequence(): void {
-    this.state.subPhase = SubPhase.RECOVER_KO;
-    this.eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.TOUCHDOWN,
-      subPhase: SubPhase.RECOVER_KO,
+  /**
+   * End of Drive Sequence (rulebook p.83): clear the pitch to the dugouts,
+   * roll KO recovery, then restart with the given kicking team — no coin
+   * flip after drive one. Runs as operations so the UI can pace each stage.
+   */
+  endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void {
+    this.flowManager.add(new ClearPitchOperation(reason, nextKickingTeamId));
+    this.flowManager.add(new KORecoveryOperation());
+    this.flowManager.add(new StartNextDriveOperation(nextKickingTeamId));
+  }
+
+  /**
+   * Clear all drive state: players to dugouts (KO/Injured stay out),
+   * placement bookkeeping reset, ball off the pitch.
+   */
+  resetDriveState(): void {
+    this.setupManager.resetForNewDrive();
+    this.state.ballPosition = null;
+    this.state.activePlayer = null;
+    this.eventBus.emit(GameEventNames.RefreshBoard);
+  }
+
+  /**
+   * Roll KO recovery for every knocked-out player (D6, 4+ recovers to
+   * Reserves). Emits one KORecoveryRolled event per player.
+   */
+  rollKORecovery(): void {
+    [this.team1, this.team2].forEach((team) => {
+      team.players
+        .filter((p) => p.status === PlayerStatus.KO)
+        .forEach((player) => {
+          const roll = this.diceController.rollD6("KO Recovery");
+          const recovered = roll >= 4;
+          if (recovered) {
+            player.status = PlayerStatus.RESERVE;
+          }
+          this.eventBus.emit(GameEventNames.KORecoveryRolled, {
+            playerId: player.id,
+            roll,
+            recovered,
+          });
+        });
     });
-    this.recoverKO();
   }
 
-  recoverKO(): void {
-    this.delay(1000).then(() => {
-      this.state.subPhase = SubPhase.SECRET_WEAPONS;
-      this.eventBus.emit(GameEventNames.PhaseChanged, {
-        phase: GamePhase.TOUCHDOWN,
-        subPhase: SubPhase.SECRET_WEAPONS,
-      });
-
-      this.delay(1000).then(() => {
-        this.resetForKickoff();
-      });
-    });
-  }
-
-  resetForKickoff(): void {
-    const scoringTeamId = this.state.activeTeamId;
-    if (scoringTeamId) {
-      this.startSetup(scoringTeamId);
-    } else {
-      this.startSetup(
-        this.turnManager.getDriveKickingTeamId() || this.team1.id
-      );
-    }
+  /**
+   * Coin flip is only legal before the first drive of the match — never once
+   * a kickoff has happened, a turn has been played, or a score exists
+   * (scenario-started games count as underway).
+   */
+  canCoinFlip(): boolean {
+    if (this.turnManager.hasGameStarted()) return false;
+    if (this.state.turn.turnNumber > 0) return false;
+    if (Object.values(this.state.score).some((s) => s > 0)) return false;
+    return true;
   }
 
   getScore(teamId: string): number {

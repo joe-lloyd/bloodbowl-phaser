@@ -89,6 +89,12 @@ export interface IGameService {
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   triggerTurnover(reason: string): void;
 
+  // End of drive
+  endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void;
+  resetDriveState(): void;
+  rollKORecovery(): void;
+  canCoinFlip(): boolean;
+
   // State Queries & Helpers
   getPlayerById(playerId: string): Player | undefined;
   getPlayerAt(x: number, y: number): Player | undefined;

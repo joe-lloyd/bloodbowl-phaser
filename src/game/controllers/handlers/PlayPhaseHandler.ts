@@ -166,6 +166,20 @@ export class PlayPhaseHandler implements PhaseHandler {
         const pixelPath = data.path.map((step: any) =>
           this.scene["pitch"].getPixelPosition(step.x, step.y)
         );
+
+        // If the mover carries the ball, walk it along with them instead of
+        // letting the BallPlaced teleport leave it at the destination
+        const ballPos = this.gameService.getState().ballPosition;
+        const dest = data.path[data.path.length - 1];
+        if (
+          ballPos &&
+          data.from &&
+          ballPos.x === dest.x &&
+          ballPos.y === dest.y
+        ) {
+          this.scene.animateBallAlong(data.from, data.path);
+        }
+
         sprite.animateMovement(pixelPath).then(() => {
           this.scene.refreshDugouts();
           // Check follow up

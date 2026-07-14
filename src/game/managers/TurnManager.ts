@@ -10,6 +10,7 @@ export class TurnManager {
   private turnCounts: { [key: string]: number } = {};
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
+  private turnoverInProgress: boolean = false;
   private activationValidator: ActivationValidator = new ActivationValidator();
 
   constructor(
@@ -64,6 +65,8 @@ export class TurnManager {
   public startTurn(teamId: string): void {
     this.state.phase = GamePhase.PLAY;
     this.state.activeTeamId = teamId;
+    // A fresh turn always clears any stale turnover latch
+    this.turnoverInProgress = false;
 
     if (this.driveKickingTeamId) {
       this.state.subPhase =
@@ -161,7 +164,24 @@ export class TurnManager {
     }
   }
 
-  public checkTurnover(reason: string): void {
+  /**
+   * Latch a turnover. Only the FIRST turnover during a resolution counts —
+   * secondary failures while the ball settles (a bounce hitting a player who
+   * drops it, etc.) must not stack extra end-of-turn calls, or the turn
+   * flips twice and hands play straight back to the offending team.
+   *
+   * Returns true if this call latched the turnover (caller schedules the
+   * actual turn end via completeTurnover once the ball is at rest).
+   */
+  public checkTurnover(reason: string): boolean {
+    if (this.turnoverInProgress) {
+      console.log(
+        `[TurnManager] Turnover already latched; ignoring: ${reason}`
+      );
+      return false;
+    }
+    this.turnoverInProgress = true;
+
     this.eventBus.emit(GameEventNames.UI_Turnover, {
       teamId: this.state.activeTeamId || "",
       reason,
@@ -169,10 +189,17 @@ export class TurnManager {
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
     });
+    return true;
+  }
 
-    this.delay(3000).then(() => {
-      this.endTurn();
-    });
+  /**
+   * Finish a latched turnover: ends the turn exactly once. No-op if the
+   * turn already ended some other way (e.g. the coach pressed End Turn).
+   */
+  public completeTurnover(): void {
+    if (!this.turnoverInProgress) return;
+    this.turnoverInProgress = false;
+    this.endTurn();
   }
 
   // Helpers
@@ -186,6 +213,11 @@ export class TurnManager {
       [this.team2.id]: 0,
     };
     this.driveKickingTeamId = null;
+  }
+
+  /** True once the first drive has kicked off — the coin flip window is over. */
+  public hasGameStarted(): boolean {
+    return this.firstHalfKickingTeamId !== null;
   }
 
   public getDriveKickingTeamId(): string | null {

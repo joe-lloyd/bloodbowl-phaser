@@ -36,6 +36,7 @@ export interface FlowContext {
 export class GameFlowManager {
   private queue: GameOperation[] = [];
   private isProcessing: boolean = false;
+  private idleResolvers: (() => void)[] = [];
   public readonly context: FlowContext;
 
   constructor(
@@ -67,6 +68,18 @@ export class GameFlowManager {
     this.queue = [];
   }
 
+  /**
+   * Resolves once the queue has fully drained (the current reaction chain —
+   * bounces, catches, armour rolls — has come to rest). Resolves immediately
+   * when nothing is running.
+   */
+  public whenIdle(): Promise<void> {
+    if (!this.isProcessing && this.queue.length === 0) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => this.idleResolvers.push(resolve));
+  }
+
   private async process(): Promise<void> {
     if (this.isProcessing) return;
     if (this.queue.length === 0) return;
@@ -91,5 +104,9 @@ export class GameFlowManager {
     }
 
     this.isProcessing = false;
+
+    const resolvers = this.idleResolvers;
+    this.idleResolvers = [];
+    resolvers.forEach((resolve) => resolve());
   }
 }

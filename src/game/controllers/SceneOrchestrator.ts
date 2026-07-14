@@ -147,11 +147,29 @@ export class SceneOrchestrator {
     // but managed by the handler?
 
     // Let's call the Scene methods directly as the 'Handler' would.
+    // Derive the active team from live game state — scene.kickingTeam is
+    // only the coin-flip result and goes stale once later drives swap the
+    // kicking team (scorer kicks, halves swap).
     const isKicking = subPhase === SubPhase.SETUP_KICKING;
-    const activeTeam = isKicking
-      ? this.scene.kickingTeam
-      : this.scene.receivingTeam;
+    const activeTeamId = this.gameService.getActiveTeamId();
+    const activeTeam =
+      activeTeamId === this.scene.team1.id
+        ? this.scene.team1
+        : activeTeamId === this.scene.team2.id
+          ? this.scene.team2
+          : null;
     if (!activeTeam) return;
+
+    // Keep the scene's drive bookkeeping current for downstream users
+    // (KickoffPhaseHandler reads scene.kickingTeam at kickoff)
+    if (isKicking) {
+      const otherTeam =
+        activeTeam.id === this.scene.team1.id
+          ? this.scene.team2
+          : this.scene.team1;
+      this.scene.kickingTeam = activeTeam;
+      this.scene.receivingTeam = otherTeam;
+    }
 
     const isTeam1 = activeTeam.id === this.scene.team1.id;
 

@@ -319,13 +319,14 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.eventBus.on(GameEventNames.TurnStarted, () => {
-      // Reset all sprites
-      this.playerSprites.forEach((sprite) => sprite.setActivated(false));
+    this.eventBus.on(GameEventNames.TurnStarted, (turnData) => {
+      // Reset all sprites and mark the active team with square borders
+      this.playerSprites.forEach((sprite) => {
+        sprite.setActivated(false);
+        sprite.setTeamTurnBorder(sprite.getPlayer().teamId === turnData.teamId);
+      });
       // Reset selection
       this.gameplayController.deselectPlayer();
-      // Show Turn notification
-      // this.eventBus.emit(GameEventNames.UI_Notification, `Turn ${turnData.turnNumber} started!`);
     });
 
     // Camera event listeners
@@ -453,24 +454,37 @@ export class GameScene extends Phaser.Scene {
       this.validator
     );
 
-    // Handle late UI mounting (handshake)
+    // Handle late UI mounting (handshake).
+    // The coin flip only exists before the first drive — later drives set
+    // the kicking team automatically, so never re-show the overlay then.
     this.eventBus.on(GameEventNames.UI_RequestCoinFlipState, () => {
-      if (this.isSetupActive) {
-        // Only re-emit if we haven't started placement yet (e.g. still in coin flip)
-        // Simplified: just re-emit if setup is active and no kickingTeam/receivingTeam set?
-        // Or better: If we are in setup phase, show it.
-        // Actually, CoinFlipController used to handle showing.
-        // If we are strictly in the "Coin Toss" step, we should emit.
-        // How do we know we are in coin toss vs placement?
-        // We can check if kickoffStep is null? Or just emit it always for now if Setup is active and placement hasn't started?
-        // Safest: Use a flag or check game service state.
-
-        // For now, if setup active we just re-broadcast current state.
+      if (this.isSetupActive && this.gameService.canCoinFlip()) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.team1,
           team2: this.team2,
         });
       }
+    });
+
+    // End-of-drive: clear the ball visual and refresh dugouts/pitch when the
+    // engine resets drive state, and surface KO recovery results.
+    this.eventBus.on(GameEventNames.RefreshBoard, () => {
+      if (this.ballSprite) {
+        this.ballSprite.destroy();
+        this.ballSprite = null;
+      }
+      this.refreshDugouts();
+    });
+
+    this.eventBus.on(GameEventNames.KORecoveryRolled, (data) => {
+      const player = this.gameService.getPlayerById(data.playerId);
+      const name = player?.playerName ?? data.playerId;
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        data.recovered
+          ? `${name} shakes it off and returns to the reserves! (rolled ${data.roll})`
+          : `${name} is still out cold. (rolled ${data.roll})`
+      );
     });
   }
 
@@ -663,6 +677,32 @@ export class GameScene extends Phaser.Scene {
   private onPlayerClick(player: Player): void {
     if (this.isSetupActive) return;
     this.gameplayController.selectPlayer(player.id);
+  }
+
+  /**
+   * Animate the ball along a grid path in lockstep with a carrying player's
+   * movement animation (same 180ms linear steps as PlayerSprite). Without
+   * this the BallPlaced events teleport the ball to the destination before
+   * the player sprite even starts walking.
+   */
+  public animateBallAlong(
+    from: { x: number; y: number },
+    path: { x: number; y: number }[]
+  ): void {
+    if (!this.ballSprite || path.length === 0) return;
+
+    const startPx = this.pitch.getPixelPosition(from.x, from.y);
+    this.ballSprite.setPosition(startPx.x, startPx.y);
+
+    const tweenConfigs = path.map((step) => {
+      const px = this.pitch.getPixelPosition(step.x, step.y);
+      return { x: px.x, y: px.y, duration: 180, ease: "Linear" };
+    });
+
+    this.tweens.chain({
+      targets: this.ballSprite,
+      tweens: tweenConfigs,
+    });
   }
 
   protected placeBallVisual(x: number, y: number): void {

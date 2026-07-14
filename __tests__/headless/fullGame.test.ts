@@ -20,6 +20,7 @@ async function playFullMatch(seed: number): Promise<{
   let commandCount = 0;
   let sawHalftime = false;
   let kickingTeamId: string | null = null;
+  let driveCount = 0;
 
   const run = async (command: unknown) => {
     commandCount++;
@@ -52,6 +53,16 @@ async function playFullMatch(seed: number): Promise<{
       ) {
         if (snap.subPhase === SubPhase.SETUP_KICKING) {
           kickingTeamId = snap.activeTeamId;
+          driveCount++;
+          if (driveCount > 1) {
+            // Drive reset must have cleared the pitch and the ball,
+            // and later drives never re-run the coin flip
+            const everyone = snap.teams.flatMap((t) => t.players);
+            expect(everyone.every((p) => p.position === null)).toBe(true);
+            expect(snap.ballPosition).toBeNull();
+            const flip = await run({ type: "coin-flip" });
+            expect(flip.ok).toBe(false);
+          }
         }
         const teamId = snap.activeTeamId!;
         await placeTeam(game, run, snap, teamId);

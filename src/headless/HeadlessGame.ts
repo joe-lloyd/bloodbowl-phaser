@@ -60,7 +60,6 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "choose-follow-up": "follow-up",
 };
 
-
 export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
   private eventLog: EmittedEvent[] = [];
@@ -135,6 +134,9 @@ export class HeadlessGame {
       case "coin-flip": {
         // Coin flip lives UI-side in the browser; headless resolves it with
         // the seeded RNG so it stays deterministic and replayable.
+        if (!gs.canCoinFlip()) {
+          throw new Error("coin-flip-only-before-first-drive");
+        }
         const roll = this.ctx.rng.rollDie(2);
         const kickingTeam = roll === 1 ? this.ctx.team1 : this.ctx.team2;
         this.eventLog.push({

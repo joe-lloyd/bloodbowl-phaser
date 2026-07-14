@@ -8,6 +8,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private player: Player;
 
   private numberText: Phaser.GameObjects.Text;
+  private teamTurnBorder!: Phaser.GameObjects.Rectangle;
+  private teamTurnBorderVisible: boolean = false;
   private rosterName: string;
   private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
 
@@ -43,11 +45,19 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.setDepth(10); // Ensure players are above dugouts
 
     // Create Selection Ring (Hidden by default)
-    // Slightly larger than player
+    // Slightly larger than player; double-thick so selection reads over the
+    // team-turn square borders
     this.selectionRing = scene.add.circle(0, 0, 20);
-    this.selectionRing.setStrokeStyle(3, 0xffff00);
+    this.selectionRing.setStrokeStyle(6, 0xffff00);
     this.selectionRing.setVisible(false);
     this.add(this.selectionRing);
+
+    // Square border shown for every player of the active team; color keyed
+    // to status (white standing, yellow prone, orange stunned)
+    this.teamTurnBorder = scene.add.rectangle(0, 0, 56, 56);
+    this.teamTurnBorder.setStrokeStyle(3, 0xffffff);
+    this.teamTurnBorder.setVisible(false);
+    this.add(this.teamTurnBorder);
 
     // CRITICAL: Initialize status visuals
     this.updateStatus();
@@ -176,6 +186,34 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         this.setAngle(0);
         this.setVisible(true);
     }
+    this.refreshTeamTurnBorder();
+  }
+
+  /**
+   * Show/hide the active-team square border. Color reflects status:
+   * standing = white, prone (down) = yellow, stunned = orange. Opacity
+   * (setActivated) continues to show who has already gone.
+   */
+  public setTeamTurnBorder(visible: boolean): void {
+    this.teamTurnBorderVisible = visible;
+    this.refreshTeamTurnBorder();
+  }
+
+  private refreshTeamTurnBorder(): void {
+    if (!this.teamTurnBorder) return;
+
+    const color =
+      this.player.status === "Stunned"
+        ? 0xffa500 // orange
+        : this.player.status === "Prone"
+          ? 0xffff00 // yellow
+          : 0xffffff; // standing
+
+    this.teamTurnBorder.setStrokeStyle(3, color);
+    // Border rotates with the container when a player is laid down; counter
+    // the container angle so the square stays axis-aligned on the grid
+    this.teamTurnBorder.setAngle(-this.angle);
+    this.teamTurnBorder.setVisible(this.teamTurnBorderVisible);
   }
 
   /**
