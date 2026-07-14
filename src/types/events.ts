@@ -44,6 +44,8 @@ export enum GameEventNames {
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
   KickoffResult = "kickoffResult",
+  KORecoveryRolled = "koRecoveryRolled",
+  DriveEnded = "driveEnded",
   BallPickup = "ballPickup",
   WeatherChanged = "weatherChanged",
   DiceRoll = "diceRoll",
@@ -197,6 +199,17 @@ export interface GameEvents {
 
   // Scoring
   [GameEventNames.Touchdown]: { teamId: string; score: number };
+
+  // End of drive
+  [GameEventNames.KORecoveryRolled]: {
+    playerId: string;
+    roll: number;
+    recovered: boolean;
+  };
+  [GameEventNames.DriveEnded]: {
+    reason: "touchdown" | "halftime";
+    nextKickingTeamId: string | null;
+  };
 
   // Ball
   [GameEventNames.BallPlaced]: { x: number; y: number };

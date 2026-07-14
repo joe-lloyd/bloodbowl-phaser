@@ -265,6 +265,30 @@ export class SetupManager {
     this.setupReady.clear();
   }
 
+  /**
+   * End-of-drive pitch clear: every player returns to the dugout.
+   * Standing/prone/stunned players go to Reserves; KO'd players stay in the
+   * KO box (until recovery is rolled); injured/dead/removed stay out.
+   */
+  public resetForNewDrive(): void {
+    this.placedPlayers.clear();
+    this.setupReady.clear();
+
+    [this.team1, this.team2].forEach((team) => {
+      team.players.forEach((player) => {
+        player.gridPosition = undefined;
+        player.hasActed = false;
+        if (
+          player.status === PlayerStatus.ACTIVE ||
+          player.status === PlayerStatus.PRONE ||
+          player.status === PlayerStatus.STUNNED
+        ) {
+          player.status = PlayerStatus.RESERVE;
+        }
+      });
+    });
+  }
+
   public setPlacedPlayer(playerId: string, x: number, y: number): void {
     this.placedPlayers.set(playerId, { x, y });
   }

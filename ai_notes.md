@@ -1,0 +1,5 @@
+- [ ] found a bug where when a failed action causes a turnover and then the ball rolls into another failed action it makes the other team instanmtly suffer a turnover as well even if its the same team, to be clear we need to mark that a turnover has happened resolve everything else until the ball is at rest and then begin the other teams turn so that mulltiple turnovers from one action is not a thing that can happen.
+- [ ] when moving a plyer we get the little best path line, but when hovering a square that is further than a nice path the path still refulese to go through takle zones, we need to allow the path to always be shown as far as the player can sprint
+- [ ] when a player has picked up the ball it should travel with his/her model and not just instantly telport to the end square
+- [ ] when a player trys to pick up the ball on square 3 but is moving all the way to square 5 and they fail to pick up the ball the rest of the movement should stop because a turnover means that the player does not get to finish the rest of their movement.
+- [ ] 
