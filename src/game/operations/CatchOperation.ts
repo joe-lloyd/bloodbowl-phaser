@@ -72,6 +72,9 @@ export class CatchOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Catch Successful!");
 
       this.handleSuccess(gameService, player);
+
+      // Catching in the scoring end zone is an immediate touchdown
+      gameService.checkForTouchdown(this.playerId);
     } else {
       // CATCH FAIL -> BOUNCE
       eventBus.emit(GameEventNames.UI_Notification, "Catch Failed!");

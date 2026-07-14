@@ -73,6 +73,9 @@ export class PickupOperation extends GameOperation {
         roll: agilityTest.roll,
         target: player.stats.AG,
       });
+
+      // Picking the ball up while standing in the scoring end zone is a TD
+      gameService.checkForTouchdown(this.playerId);
     } else {
       // PICKUP FAIL
       eventBus.emit(GameEventNames.UI_Notification, "Pickup Failed!");

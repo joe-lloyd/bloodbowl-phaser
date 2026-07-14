@@ -122,6 +122,59 @@ describe("drive reset", () => {
     expect(flip.reason).toContain("coin-flip-only-before-first-drive");
   });
 
+  it("scores a touchdown on a catch made in the end zone", async () => {
+    const catchScenario: Scenario = {
+      id: "td-catch",
+      name: "TD catch",
+      description: "receiver standing in the end zone catches a pass",
+      setup: {
+        team1Placements: [
+          { playerIndex: 0, x: 15, y: 5 }, // thrower with ball
+          { playerIndex: 1, x: 19, y: 5 }, // receiver in the end zone
+        ],
+        team2Placements: [{ playerIndex: 0, x: 10, y: 9 }],
+        activeTeam: "team1",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 15, y: 5 },
+      },
+    };
+
+    let scored = false;
+    for (let seed = 1; seed <= 60 && !scored; seed++) {
+      const game = new HeadlessGame({ scenario: catchScenario, seed });
+      const thrower = game.snapshot().teams[0].players[0];
+
+      await game.execute({
+        type: "declare-action",
+        playerId: thrower.id,
+        action: "pass",
+      });
+      const response = await game.execute({
+        type: "pass",
+        playerId: thrower.id,
+        x: 19,
+        y: 5,
+      });
+      if (!response.ok) continue;
+
+      const caught = response.events.some(
+        (e) =>
+          e.name === GameEventNames.UI_Notification &&
+          e.data === "Catch Successful!"
+      );
+      if (!caught) continue;
+
+      scored = true;
+      expect(
+        response.events.some((e) => e.name === GameEventNames.Touchdown)
+      ).toBe(true);
+      expect(response.snapshot.score[game.snapshot().teams[0].id]).toBe(1);
+      expect(response.snapshot.phase).toBe(GamePhase.SETUP);
+    }
+    expect(scored).toBe(true);
+  });
+
   it("halftime swaps the kicking team, resets turns, and clears the pitch", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 5 });
     const [team1Id, team2Id] = game.snapshot().teams.map((t) => t.id);

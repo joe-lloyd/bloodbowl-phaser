@@ -52,6 +52,18 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
       // Determine winner
       const isTeam1 = Math.random() < 0.5;
       const winningTeam = isTeam1 ? teams.team1 : teams.team2;
+
+      // A coin is technically a d2 — log it with the rest of the dice
+      eventBus.emit(GameEventNames.DiceRoll, {
+        rollType: "Coin Toss",
+        diceType: "1d2",
+        value: isTeam1 ? 1 : 2,
+        total: isTeam1 ? 1 : 2,
+        description: `Coin Toss: ${winningTeam.name} wins`,
+        resultState: "none",
+        teamId: winningTeam.id,
+      });
+
       setWinner(winningTeam);
       setStep("RESULT");
       setRotation(0);

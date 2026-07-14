@@ -39,6 +39,8 @@ import {
   KORecoveryOperation,
   StartNextDriveOperation,
 } from "@/game/operations/EndDriveOperations";
+import { isInEndZone } from "@/game/elements/GridUtils";
+import { GameConfig } from "@/config/GameConfig";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { IRNGService } from "./rng/RNGService.js";
@@ -611,6 +613,26 @@ export class GameService implements IGameService {
    * a kickoff has happened, a turn has been played, or a score exists
    * (scenario-started games count as underway).
    */
+  /**
+   * Score a touchdown if the player is standing in the end zone they score
+   * in while holding the ball. Called after any event that can put a
+   * ball-carrier there: movement steps, pickups, catches, pushes.
+   */
+  checkForTouchdown(playerId: string): boolean {
+    if (this.state.phase !== GamePhase.PLAY) return false;
+    const player = this.getPlayerById(playerId);
+    if (!player || !player.gridPosition) return false;
+    if (player.status !== PlayerStatus.ACTIVE) return false;
+    if (!this.ballManager.hasBall(playerId)) return false;
+
+    const side = player.teamId === this.team1.id ? 1 : 2;
+    if (!isInEndZone(player.gridPosition, GameConfig.PITCH_WIDTH, side)) {
+      return false;
+    }
+    this.addTouchdown(player.teamId);
+    return true;
+  }
+
   canCoinFlip(): boolean {
     if (this.turnManager.hasGameStarted()) return false;
     if (this.state.turn.turnNumber > 0) return false;

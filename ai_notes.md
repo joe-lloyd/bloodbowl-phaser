@@ -13,9 +13,15 @@
     - and we still use the opacity to show which players have gone or not 
       — `PlayerSprite` gained a status-colored square border (white standing / yellow prone / orange stunned) toggled per team on `TurnStarted`; selection ring thickness doubled (3→6); activated-opacity untouched.
 - [ ] we need to implement the push rules for pushing tinto the crowed & for pushing into other players, the chain push rules
-- [ ] the coin toll result should also appear in the dice log, technically a coin is a d2
+- [x] FIXED (2026-07-14): the coin toll result should also appear in the dice log, technically a coin is a d2
+      — Both the browser CoinFlipOverlay and the headless coin-flip command now emit a DiceRoll event (`1d2`, "Coin Toss") that DiceLog picks up.
 - [ ] when setting up the team on the board i should be able to change them around until i confirm setup, for example i can press a premade setup and then i can drag them around, right now after they are placed they are locked into place
 - [ ] wghen dragging players onto thew pitch the drag area is off center, the 0,0 of the dugoiut appears to be the center of the draggable areathey should just be one to one with the grid
 - [ ] when kicking or reciving the dugout should be on the side you playing for example if you are on the left side of the pitch the purple side of the dugout should be on the left, if you are on the right side we should flip it found and put the purple on the right 
-- [ ] the active teams white boparder is a little too much can we make it a bit more subtle
-- [ ] touchdowns still dont get scored when the ball reaches the endzone and is in position of a player on the oposing side to the touchdown side, make sure we do a touch down and then go back and setup again for the next round 
+- [x] FIXED (2026-07-14, verify in browser): the active teams white boparder is a little too much can we make it a bit more subtle
+      — Standing border is now 2px white at 35% opacity; prone/stunned stay vivid (yellow/orange at 90%).
+- [x] FIXED (2026-07-14): touchdowns still dont get scored when the ball reaches the endzone and is in position of a player on the oposing side to the touchdown side, make sure we do a touch down and then go back and setup again for the next round
+      — TD detection only fired on movement steps. Added central `GameService.checkForTouchdown` called after pickups, catches, and pushes too, so any standing carrier in their scoring end zone scores and the drive resets. New test: catch in the end zone scores + returns to SETUP.
+- [ ] blitz should not be blocked when a player is downed since thy can sopend the move to get up and also finish their move and block at the end of the move for a blitz. same goes fro anything really, foul, pass etc, all the down does is cost movement meaning if you wanna block you must blitz since it costs movement. amke sure we have access to this in the menu 
+- [ ] okay so the touch down happens but we need some celebration there should also be a score somehwere and a turn tracker as well as reroll trackers annd bribes , we sshould amke a nice ui for this so that we have it displayed at all times 
+- [ ] theres a bug with setting up again after a touch down, any player that was activated stays activated meaning i cannot finish the setup, let make sure that the turn is ended so all the players are no longer activated after a touch down 

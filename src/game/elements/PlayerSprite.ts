@@ -202,14 +202,14 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private refreshTeamTurnBorder(): void {
     if (!this.teamTurnBorder) return;
 
-    const color =
-      this.player.status === "Stunned"
-        ? 0xffa500 // orange
-        : this.player.status === "Prone"
-          ? 0xffff00 // yellow
-          : 0xffffff; // standing
-
-    this.teamTurnBorder.setStrokeStyle(3, color);
+    // Standing players get a deliberately subtle marker; status colors pop
+    if (this.player.status === "Stunned") {
+      this.teamTurnBorder.setStrokeStyle(3, 0xffa500, 0.9); // orange
+    } else if (this.player.status === "Prone") {
+      this.teamTurnBorder.setStrokeStyle(3, 0xffff00, 0.9); // yellow
+    } else {
+      this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.35); // standing
+    }
     // Border rotates with the container when a player is laid down; counter
     // the container angle so the square stays axis-aligned on the grid
     this.teamTurnBorder.setAngle(-this.angle);

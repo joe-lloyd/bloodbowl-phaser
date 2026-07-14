@@ -156,6 +156,12 @@ export class BlockManager {
         resultType === "pow-dodge" ||
         resultType === "push");
 
+    // A standing carrier pushed into their scoring end zone still scores
+    if (resultType === "push") {
+      const flowManager = this.callbacks.getFlowManager?.();
+      flowManager?.context.gameService.checkForTouchdown(defenderId);
+    }
+
     // Emit single playerMoved event with path and optional follow-up data
     this.eventBus.emit(GameEventNames.PlayerMoved, {
       playerId: defenderId,

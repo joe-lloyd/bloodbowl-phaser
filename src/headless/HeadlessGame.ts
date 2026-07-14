@@ -143,6 +143,16 @@ export class HeadlessGame {
           name: "headless:coinFlip",
           data: { kickingTeamId: kickingTeam.id },
         });
+        // A coin is a d2 — log it like every other roll
+        this.ctx.eventBus.emit(GameEventNames.DiceRoll, {
+          rollType: "Coin Toss",
+          diceType: "1d2",
+          value: roll,
+          total: roll,
+          description: `Coin Toss: ${kickingTeam.name} kicks`,
+          resultState: "none",
+          teamId: kickingTeam.id,
+        });
         this.kickingTeamId = kickingTeam.id;
         gs.startSetup(kickingTeam.id);
         break;

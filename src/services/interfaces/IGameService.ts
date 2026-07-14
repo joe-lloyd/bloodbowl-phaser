@@ -89,7 +89,8 @@ export interface IGameService {
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   triggerTurnover(reason: string): void;
 
-  // End of drive
+  // Scoring / end of drive
+  checkForTouchdown(playerId: string): boolean;
   endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void;
   resetDriveState(): void;
   rollKORecovery(): void;
