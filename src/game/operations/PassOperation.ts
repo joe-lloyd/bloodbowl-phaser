@@ -70,7 +70,7 @@ export class PassOperation extends GameOperation {
 
     // 3. Wait for Animation (Simulated)
     // Ideally we listen for "BallAnimationComplete" or just wait fixed time
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await context.delay(1500);
 
     // 4. Handle Outcome
     if (result.fumbled) {

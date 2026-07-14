@@ -54,6 +54,6 @@ export class ArgueTheCallOperation extends GameOperation {
       (context as any).argueSucceeded = false;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await context.delay(800);
   }
 }

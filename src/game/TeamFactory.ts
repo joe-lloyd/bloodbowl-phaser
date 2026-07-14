@@ -1,13 +1,8 @@
-import {
-  Team,
-  createTeam,
-  addPlayerToTeam,
-  RosterName,
-} from "../../types/Team";
-import { createPlayer } from "../../types/Player";
-import { getRosterByRosterName } from "../../data/RosterTemplates";
+import { Team, createTeam, addPlayerToTeam, RosterName } from "../types/Team";
+import { createPlayer } from "../types/Player";
+import { getRosterByRosterName } from "../data/RosterTemplates";
 
-export class TestTeamFactory {
+export class TeamFactory {
   static createTestTeam(
     rosterName: RosterName,
     teamName: string,

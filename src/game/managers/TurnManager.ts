@@ -9,6 +9,7 @@ export class TurnManager {
   private maxTurns: number = 6; // Sevens default
   private turnCounts: { [key: string]: number } = {};
   private driveKickingTeamId: string | null = null;
+  private firstHalfKickingTeamId: string | null = null;
   private activationValidator: ActivationValidator = new ActivationValidator();
 
   constructor(
@@ -18,7 +19,11 @@ export class TurnManager {
     private team2: Team,
     private callbacks: {
       onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
-    }
+      /** Fired at halftime with the team kicking off the second half */
+      onHalfEnded?: (secondHalfKickingTeamId: string) => void;
+    },
+    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
   ) {
     this.turnCounts[team1.id] = 0;
     this.turnCounts[team2.id] = 0;
@@ -27,6 +32,9 @@ export class TurnManager {
   public startGame(kickingTeamId: string): void {
     this.state.phase = GamePhase.PLAY;
     this.driveKickingTeamId = kickingTeamId;
+    if (!this.firstHalfKickingTeamId) {
+      this.firstHalfKickingTeamId = kickingTeamId;
+    }
 
     // Determine who goes first (Receiving team)
     const receivingTeamId =
@@ -109,8 +117,26 @@ export class TurnManager {
   }
 
   public endHalf(): void {
-    this.state.phase = GamePhase.HALFTIME;
-    this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
+    if (!this.state.turn.isHalf2) {
+      // Halftime: swap kickoff (first-half receiver kicks), reset turn
+      // counts, and run a fresh setup for the second half.
+      this.state.turn.isHalf2 = true;
+      this.turnCounts[this.team1.id] = 0;
+      this.turnCounts[this.team2.id] = 0;
+
+      this.state.phase = GamePhase.HALFTIME;
+      this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
+
+      const secondHalfKicker =
+        this.firstHalfKickingTeamId === this.team1.id
+          ? this.team2.id
+          : this.team1.id;
+      this.callbacks.onHalfEnded?.(secondHalfKicker);
+    } else {
+      this.state.phase = GamePhase.GAME_OVER;
+      this.state.activeTeamId = null;
+      this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
+    }
   }
 
   public finishActivation(playerId: string): void {
@@ -131,7 +157,7 @@ export class TurnManager {
     );
 
     if (!hasActions) {
-      setTimeout(() => this.endTurn(), 500);
+      this.delay(500).then(() => this.endTurn());
     }
   }
 
@@ -144,9 +170,9 @@ export class TurnManager {
       teamId: this.state.activeTeamId || "",
     });
 
-    setTimeout(() => {
+    this.delay(3000).then(() => {
       this.endTurn();
-    }, 3000);
+    });
   }
 
   // Helpers

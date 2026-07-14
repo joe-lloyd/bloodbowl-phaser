@@ -10,6 +10,8 @@ import { BounceOperation } from "../operations/BounceOperation";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { IGameService } from "@/services/interfaces/IGameService";
 import { DiceController } from "../controllers/DiceController";
+import { isInEndZone } from "../elements/GridUtils";
+import { GameConfig } from "../../config/GameConfig";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -24,6 +26,7 @@ export class MovementManager {
     private callbacks: {
       onTurnover: (reason: string) => void;
       onActivationFinished: (playerId: string) => void;
+      onTouchdown?: (teamId: string) => void;
     }
   ) {
     this.dodgeController = new DodgeController(diceController);
@@ -108,7 +111,7 @@ export class MovementManager {
   public async movePlayer(
     playerId: string,
     path: { x: number; y: number }[],
-    context?: any
+    context?: import("../core/GameFlowManager").FlowContext
   ): Promise<void> {
     const player = this.getPlayerById(playerId);
     if (!player) return Promise.reject("Player not found!");
@@ -257,6 +260,20 @@ export class MovementManager {
           x: currentPos.x,
           y: currentPos.y,
         });
+
+        const side = player.teamId === this.team1.id ? 1 : 2;
+        if (isInEndZone(currentPos, GameConfig.PITCH_WIDTH, side)) {
+          player.gridPosition = currentPos;
+          this.state.turn.movementUsed.set(playerId, preUsed + stepsTaken);
+          this.eventBus.emit(GameEventNames.PlayerMoved, {
+            playerId,
+            from: result.path[0] || currentPos,
+            to: currentPos,
+            path: completedPath,
+          });
+          this.callbacks.onTouchdown?.(player.teamId);
+          return Promise.resolve();
+        }
       }
     }
 

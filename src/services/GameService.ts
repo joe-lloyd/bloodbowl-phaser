@@ -28,7 +28,11 @@ import { DiceController } from "../game/controllers/DiceController";
 import { ArmourController } from "../game/controllers/ArmourController";
 import { InjuryController } from "../game/controllers/InjuryController";
 
-import { GameFlowManager } from "@/game/core/GameFlowManager";
+import {
+  GameFlowManager,
+  DelayProvider,
+  realTimeDelay,
+} from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
@@ -101,7 +105,8 @@ export class GameService implements IGameService {
     team2: Team,
     rngService: IRNGService,
     blockResolutionService: BlockResolutionService,
-    initialState?: GameState
+    initialState?: GameState,
+    private delay: DelayProvider = realTimeDelay
   ) {
     this.team1 = team1;
     this.team2 = team2;
@@ -121,6 +126,7 @@ export class GameService implements IGameService {
     this.flowManager = new GameFlowManager({
       gameService: this,
       eventBus: eventBus,
+      delay: this.delay,
     });
 
     // Initialize Managers
@@ -138,13 +144,23 @@ export class GameService implements IGameService {
       this.weatherService,
       {
         onKickoffRequested: () => this.startKickoff(),
-      }
+      },
+      this.delay
     );
 
-    this.turnManager = new TurnManager(eventBus, this.state, team1, team2, {
-      onPhaseChanged: (phase, subPhase) =>
-        this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
-    });
+    this.turnManager = new TurnManager(
+      eventBus,
+      this.state,
+      team1,
+      team2,
+      {
+        onPhaseChanged: (phase, subPhase) =>
+          this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
+        onHalfEnded: (secondHalfKickingTeamId) =>
+          this.delay(1000).then(() => this.startSetup(secondHalfKickingTeamId)),
+      },
+      this.delay
+    );
 
     this.ballManager = new BallManager(
       eventBus,
@@ -159,7 +175,8 @@ export class GameService implements IGameService {
           this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
         onBallPlaced: (x, y) =>
           this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
-      }
+      },
+      this.delay
     );
 
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
@@ -184,6 +201,7 @@ export class GameService implements IGameService {
         onTurnover: (reason: string) => this.triggerTurnover(reason),
         onActivationFinished: (playerId: string) =>
           this.finishActivation(playerId),
+        onTouchdown: (teamId: string) => this.addTouchdown(teamId),
       }
     );
 
@@ -525,7 +543,7 @@ export class GameService implements IGameService {
       subPhase: SubPhase.SCORING,
     });
 
-    setTimeout(() => this.startEndDriveSequence(), 2000);
+    this.delay(2000).then(() => this.startEndDriveSequence());
   }
 
   startEndDriveSequence(): void {
@@ -538,17 +556,17 @@ export class GameService implements IGameService {
   }
 
   recoverKO(): void {
-    setTimeout(() => {
+    this.delay(1000).then(() => {
       this.state.subPhase = SubPhase.SECRET_WEAPONS;
       this.eventBus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.TOUCHDOWN,
         subPhase: SubPhase.SECRET_WEAPONS,
       });
 
-      setTimeout(() => {
+      this.delay(1000).then(() => {
         this.resetForKickoff();
-      }, 1000);
-    }, 1000);
+      });
+    });
   }
 
   resetForKickoff(): void {

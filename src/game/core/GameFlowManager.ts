@@ -12,10 +12,24 @@ import { GameOperation } from "./GameOperation";
  * DOES NOT:
  * - Know about specific valid game rules (that's the Operation's job).
  */
+/**
+ * DelayProvider - Injectable pacing strategy.
+ *
+ * Browser: real timers so animations can play out.
+ * Headless: resolves immediately so games run at full speed.
+ */
+export type DelayProvider = (ms: number) => Promise<void>;
+
+export const realTimeDelay: DelayProvider = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export const noDelay: DelayProvider = () => Promise.resolve();
+
 export interface FlowContext {
   gameService: import("@/services/interfaces/IGameService").IGameService;
   eventBus: import("@/services/EventBus").IEventBus;
   flowManager: GameFlowManager;
+  delay: DelayProvider;
   [key: string]: unknown; // Allow for dynamic context data (use with caution)
 }
 
@@ -24,9 +38,14 @@ export class GameFlowManager {
   private isProcessing: boolean = false;
   public readonly context: FlowContext;
 
-  constructor(context: Omit<FlowContext, "flowManager">) {
+  constructor(
+    context: Omit<FlowContext, "flowManager" | "delay"> & {
+      delay?: DelayProvider;
+    }
+  ) {
     this.context = context as FlowContext;
     this.context.flowManager = this;
+    this.context.delay = context.delay ?? realTimeDelay;
   }
 
   /**

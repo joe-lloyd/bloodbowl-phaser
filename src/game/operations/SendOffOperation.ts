@@ -35,7 +35,7 @@ export class SendOffOperation extends GameOperation {
       GameEventNames.UI_Notification,
       `REFEREE SPOTTED IT! ${player.playerName} is being sent off!`
     );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await context.delay(1000);
 
     const state = gameService.getState();
     const canArgue = !state.coachesEjected.includes(player.teamId);

@@ -33,7 +33,9 @@ export class BallManager {
       onTurnover: (reason: string) => void;
       onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
       onBallPlaced: (x: number, y: number) => void;
-    }
+    },
+    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
   ) {
     // Instantiate controllers with DiceController
     this.movementController = new BallMovementController(this.diceController);
@@ -83,7 +85,7 @@ export class BallManager {
     });
 
     // 5. Chain to Event Table
-    setTimeout(() => this.rollKickoff(), 500);
+    this.delay(500).then(() => this.rollKickoff());
   }
 
   public rollKickoff(): void {
@@ -92,16 +94,16 @@ export class BallManager {
     // Delegate to Controller
     this.kickoffController.rollKickoffEvent();
 
-    setTimeout(() => {
+    this.delay(1000).then(() => {
       this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
       this.resolveBallPlacement();
-    }, 1000);
+    });
   }
 
   public resolveBallPlacement(): void {
-    setTimeout(() => {
+    this.delay(200).then(() => {
       this.eventBus.emit(GameEventNames.ReadyToStart);
-    }, 200);
+    });
   }
 
   // --- PICKUP ORCHESTRATION ---

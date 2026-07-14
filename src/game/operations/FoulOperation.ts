@@ -75,7 +75,7 @@ export class FoulOperation extends GameOperation {
       `Assists: +${analysis.offensiveAssists.length} Offensive, -${analysis.defensiveAssists.length} Defensive. Mod: ${analysis.modifier >= 0 ? "+" : ""}${analysis.modifier}`
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await context.delay(1000);
 
     // 2. Armour Roll
     const armorResultRaw = diceController.rollArmorCheck(
@@ -93,7 +93,7 @@ export class FoulOperation extends GameOperation {
 
     if (armorResult.broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await context.delay(800);
 
       // 3. Injury Roll
       const injuryResultRaw = diceController.rollInjury(
@@ -127,7 +127,7 @@ export class FoulOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await context.delay(1000);
 
     // 4. Handle spotted / send-off
     if (spotted) {

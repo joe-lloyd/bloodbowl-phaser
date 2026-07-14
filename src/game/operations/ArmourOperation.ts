@@ -32,7 +32,7 @@ export class ArmourOperation extends GameOperation {
     );
 
     // Suspense delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await context.delay(800);
 
     // 1. Roll 2D6 via DiceController
     const roll = gameService
@@ -46,7 +46,7 @@ export class ArmourOperation extends GameOperation {
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await context.delay(600);
 
       // 3. Trigger Injury Operation
       flowManager.add(new InjuryOperation(this.playerId), true);

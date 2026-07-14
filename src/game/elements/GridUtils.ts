@@ -89,16 +89,14 @@ export function isInBounds(
 }
 
 /**
- * Check if position is in end zone
+ * Check if a position is the end zone the given team scores in.
+ * Horizontal pitch orientation: team 1 defends x=0 and scores at x=width-1,
+ * team 2 the reverse.
  */
 export function isInEndZone(
   pos: GridPosition,
-  height: number,
-  teamSide: 1 | 2
+  width: number,
+  scoringTeamSide: 1 | 2
 ): boolean {
-  if (teamSide === 1) {
-    return pos.y === 0; // Top end zone
-  } else {
-    return pos.y === height - 1; // Bottom end zone
-  }
+  return scoringTeamSide === 1 ? pos.x === width - 1 : pos.x === 0;
 }

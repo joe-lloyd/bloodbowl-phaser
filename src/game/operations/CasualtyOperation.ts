@@ -33,7 +33,7 @@ export class CasualtyOperation extends GameOperation {
     );
 
     // Suspense delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await context.delay(800);
 
     // 1. Roll D16 via DiceController
     const roll = gameService

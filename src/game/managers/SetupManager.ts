@@ -19,7 +19,9 @@ export class SetupManager {
     private weatherService: WeatherManager,
     private callbacks: {
       onKickoffRequested: () => void;
-    }
+    },
+    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
   ) {
     // Sync placedPlayers from initial team state (for Scenario loading)
     this.syncPlacedPlayers(team1);
@@ -72,13 +74,13 @@ export class SetupManager {
       this.weatherService.rollWeather();
 
       // Proceed to Coin Flip after a short delay
-      setTimeout(() => {
+      this.delay(2000).then(() => {
         this.state.subPhase = SubPhase.COIN_FLIP;
         this.eventBus.emit(GameEventNames.PhaseChanged, {
           phase: GamePhase.SETUP,
           subPhase: SubPhase.COIN_FLIP,
         });
-      }, 2000);
+      });
     }
   }
 
@@ -159,8 +161,8 @@ export class SetupManager {
         const receivingTeamId =
           teamId === this.team1.id ? this.team2.id : this.team1.id;
 
-        // Use timeout to ensure UI updates and previous events clear
-        setTimeout(() => {
+        // Use a delay to ensure UI updates and previous events clear
+        this.delay(100).then(() => {
           this.state.subPhase = SubPhase.SETUP_RECEIVING;
           this.state.activeTeamId = receivingTeamId;
 
@@ -169,7 +171,7 @@ export class SetupManager {
             subPhase: SubPhase.SETUP_RECEIVING,
             activeTeamId: receivingTeamId,
           });
-        }, 100);
+        });
       }
     } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
       if (teamId === this.state.activeTeamId) {

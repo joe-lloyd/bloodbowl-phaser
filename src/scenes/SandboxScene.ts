@@ -1,6 +1,6 @@
 import { GameScene } from "./GameScene";
 import { GamePhase } from "../types/GameState";
-import { TestTeamFactory } from "../game/controllers/TestTeamFactory";
+import { TeamFactory } from "../game/TeamFactory";
 import { RosterName } from "../types/Team";
 import { Team } from "../types/Team";
 
@@ -32,12 +32,12 @@ export class SandboxScene extends GameScene {
       );
       super.init(data as { team1: Team; team2: Team });
     } else {
-      const team1 = TestTeamFactory.createTestTeam(
+      const team1 = TeamFactory.createTestTeam(
         RosterName.BLACK_ORC,
         "Test Black Orcs 1",
         0x4169e1
       );
-      const team2 = TestTeamFactory.createTestTeam(
+      const team2 = TeamFactory.createTestTeam(
         RosterName.BLACK_ORC,
         "Test Black Orcs 2",
         0xdc143c
@@ -114,7 +114,7 @@ export class SandboxScene extends GameScene {
         console.log(
           `[Sandbox] Swapping Team 1 to ${scenario.setup.team1Roster}`
         );
-        this.team1 = TestTeamFactory.createTestTeam(
+        this.team1 = TeamFactory.createTestTeam(
           scenario.setup.team1Roster,
           `Test ${scenario.setup.team1Roster} 1`,
           0x4169e1
@@ -128,7 +128,7 @@ export class SandboxScene extends GameScene {
         console.log(
           `[Sandbox] Swapping Team 2 to ${scenario.setup.team2Roster}`
         );
-        this.team2 = TestTeamFactory.createTestTeam(
+        this.team2 = TeamFactory.createTestTeam(
           scenario.setup.team2Roster,
           `Test ${scenario.setup.team2Roster} 2`,
           0xdc143c

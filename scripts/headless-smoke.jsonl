@@ -1,0 +1,9 @@
+# Known-good regression script for the headless CLI.
+# Run: pnpm headless --scenario basic-scrimmage --seed 42 --script scripts/headless-smoke.jsonl
+# Relies on the stable ids the headless factory assigns to generated teams.
+{"type":"state"}
+{"type":"legal-actions"}
+{"type":"declare-action","playerId":"team1-player-2","action":"move"}
+{"type":"move","playerId":"team1-player-2","path":[{"x":8,"y":4}]}
+{"type":"end-turn"}
+{"type":"state"}
