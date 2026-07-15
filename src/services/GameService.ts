@@ -347,6 +347,15 @@ export class GameService implements IGameService {
     this.ballManager.resolveBallPlacement();
   }
 
+  /** Touchback: receiving coach hands the ball to one of their players. */
+  awardTouchback(playerId: string): boolean {
+    return this.ballManager.awardTouchback(playerId);
+  }
+
+  isTouchbackPending(): boolean {
+    return this.ballManager.isTouchbackPending();
+  }
+
   // ===== Sub-Phase Helpers =====
 
   setWeather(_weather: number): void {
@@ -409,6 +418,17 @@ export class GameService implements IGameService {
     numDice: number,
     isAttackerChoice: boolean
   ): void {
+    // A player that is down or stunned can never throw a block
+    const blocker = this.getPlayerById(attackerId);
+    if (!blocker || blocker.status !== PlayerStatus.ACTIVE) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "A prone or stunned player cannot block!"
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return;
+    }
+
     // The block at the end of a Blitz costs 1 movement. If that point is
     // beyond MA it's a Rush (GFI): roll it BEFORE the block — on a failure
     // the blitzer falls over in front of their target and no block happens.
@@ -425,6 +445,7 @@ export class GameService implements IGameService {
             GameEventNames.UI_Notification,
             "No movement left to make the Blitz block!"
           );
+          this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
           return;
         }
         this.state.turn.movementUsed.set(attackerId, newUsed);
@@ -449,6 +470,8 @@ export class GameService implements IGameService {
               );
             }
             this.flowManager.add(new ArmourOperation(attackerId), true);
+            // The block never happens — release any dialog waiting on dice
+            this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
             this.triggerTurnover("Failed GFI on Blitz block");
             return;
           }
@@ -486,6 +509,44 @@ export class GameService implements IGameService {
       resultType,
       followUp
     );
+  }
+
+  /**
+   * Follow-up into the square the pushed player vacated. This move is FREE:
+   * no movement cost, no dodge, no rush — a Blitz already paid its movement
+   * (and rolled any Rush) before the block.
+   */
+  public followUpPush(
+    attackerId: string,
+    targetSquare: { x: number; y: number }
+  ): void {
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker || !attacker.gridPosition) return;
+
+    const from = { ...attacker.gridPosition };
+    attacker.gridPosition = { ...targetSquare };
+
+    // A carrier keeps the ball while following up
+    const carriedBall =
+      this.state.ballPosition &&
+      this.state.ballPosition.x === from.x &&
+      this.state.ballPosition.y === from.y;
+    if (carriedBall) {
+      this.state.ballPosition = { ...targetSquare };
+      this.eventBus.emit(GameEventNames.BallPlaced, { ...targetSquare });
+    }
+
+    this.eventBus.emit(GameEventNames.PlayerMoved, {
+      playerId: attackerId,
+      from,
+      to: { ...targetSquare },
+      path: [from, { ...targetSquare }],
+      ballFrom: carriedBall ? from : undefined,
+      ballPath: carriedBall ? [from, { ...targetSquare }] : undefined,
+      ballJoinStep: 0,
+    });
+
+    this.checkForTouchdown(attackerId);
   }
 
   triggerTurnover(reason: string): void {
@@ -739,6 +800,18 @@ export class GameService implements IGameService {
     playerId: string,
     action: import("@/types/events").ActionType
   ): boolean {
+    // Must be activatable at all: active team, on-pitch, standing or prone,
+    // and not already activated this turn (stunned recovery marks players
+    // as activated). The browser checks this before calling; the headless
+    // protocol relies on this guard.
+    if (!this.canActivate(playerId)) return false;
+
+    // A player who is down cannot plain-Block: standing up costs movement,
+    // so a hit after rising is what Blitz is for
+    if (action === "block") {
+      const player = this.getPlayerById(playerId);
+      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+    }
     return this.playerActionManager.declareAction(playerId, action);
   }
 

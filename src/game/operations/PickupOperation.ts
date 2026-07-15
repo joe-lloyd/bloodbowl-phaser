@@ -17,6 +17,12 @@ import { AgilityTestOperation } from "./AgilityTestOperation";
 export class PickupOperation extends GameOperation {
   public readonly name = "PickupOperation";
 
+  /** Set by execute(). Callers must read this rather than re-checking the
+   * ball position: on a failure the bounce runs asynchronously in the flow
+   * queue, so the ball may still sit on the pickup square when execute()
+   * resolves. */
+  public success: boolean = false;
+
   constructor(private playerId: string) {
     super();
   }
@@ -58,6 +64,7 @@ export class PickupOperation extends GameOperation {
     );
 
     await agilityTest.execute(context);
+    this.success = agilityTest.success;
 
     if (agilityTest.success) {
       // PICKUP SUCCESS

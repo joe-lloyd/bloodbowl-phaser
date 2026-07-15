@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EventBus } from "../../../services/EventBus";
-import { useEventEmit } from "../../hooks/useEventBus";
+import { useEventBus, useEventEmit } from "../../hooks/useEventBus";
 import { SCENARIOS } from "../../../data/scenarios";
 import { Button } from "../componentWarehouse/Button";
 import { GameEventNames } from "@/types/events";
@@ -12,6 +13,15 @@ interface SandboxOverlayProps {
 export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   const emit = useEventEmit(eventBus);
   const navigate = useNavigate();
+  const [scenarioInfo, setScenarioInfo] = useState<{
+    name: string;
+    seed?: number;
+    expectedOutcome?: string;
+  } | null>(null);
+
+  useEventBus(eventBus, GameEventNames.ScenarioLoaded, (data) => {
+    setScenarioInfo(data);
+  });
 
   const handleScenarioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const scenarioId = e.target.value;
@@ -40,6 +50,19 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             </option>
           ))}
         </select>
+
+        {scenarioInfo && (
+          <div className="text-xs bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1 font-mono text-bb-text">
+            <div>
+              Seed: <span className="font-bold">{scenarioInfo.seed ?? "—"}</span>
+            </div>
+            {scenarioInfo.expectedOutcome && (
+              <div className="italic text-bb-text/80">
+                {scenarioInfo.expectedOutcome}
+              </div>
+            )}
+          </div>
+        )}
 
         <Button
           onClick={() => navigate("/")}

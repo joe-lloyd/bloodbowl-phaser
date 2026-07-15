@@ -6,10 +6,15 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 interface TeamRow {
   id: string;
   name: string;
+  roster: string;
+  color: string;
   score: number;
   turn: number;
   rerolls: number;
 }
+
+const hexColor = (color: number) =>
+  `#${color.toString(16).padStart(6, "0")}`;
 
 /**
  * Sidebar match tracker: score, per-team turn (of 6), half, and re-rolls.
@@ -35,6 +40,8 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
         teams.map((team) => ({
           id: team.id,
           name: team.name,
+          roster: team.rosterName,
+          color: hexColor(team.colors.primary),
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
           rerolls: team.rerolls,
@@ -83,14 +90,24 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
           >
             {/* Name + score line */}
             <div className="flex items-center justify-between">
-              <span
-                className={`truncate text-sm ${
-                  row.id === activeTeamId
-                    ? "font-bold text-white"
-                    : "text-white/70"
-                }`}
-              >
-                {row.name}
+              <span className="flex items-center gap-2 min-w-0">
+                <span
+                  className="h-3 w-3 rounded-sm border border-white/40 shrink-0"
+                  style={{ backgroundColor: row.color }}
+                />
+                <span
+                  className={`truncate text-sm ${
+                    row.id === activeTeamId
+                      ? "font-bold text-white"
+                      : "text-white/70"
+                  }`}
+                >
+                  {row.name}
+                  <span className="text-white/40 font-normal">
+                    {" "}
+                    ({row.roster})
+                  </span>
+                </span>
               </span>
               <span className="font-heading text-2xl text-bb-gold ml-3">
                 {row.score}

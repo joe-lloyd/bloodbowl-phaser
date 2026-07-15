@@ -45,6 +45,7 @@ export enum GameEventNames {
   BallKicked = "ballKicked",
   KickoffResult = "kickoffResult",
   KORecoveryRolled = "koRecoveryRolled",
+  TouchbackAwarded = "touchbackAwarded",
   PlayerPushedIntoCrowd = "playerPushedIntoCrowd",
   BallThrownIn = "ballThrownIn",
   DriveEnded = "driveEnded",
@@ -100,6 +101,7 @@ export enum GameEventNames {
   UI_HideSetupControls = "ui:hideSetupControls",
   UI_SetupComplete = "ui:setupcomplete",
   UI_SetupAction = "ui:setupAction",
+  UI_FormationsUpdated = "ui:formationsUpdated",
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
   ScenarioLoaded = "scenarioLoaded", // New event for scenario seed info
@@ -111,6 +113,7 @@ export enum GameEventNames {
   UI_HidePlayerInfo = "ui:hidePlayerInfo",
   UI_BlockDialog = "ui:blockDialog",
   UI_RollBlockDice = "ui:rollBlockDice",
+  UI_BlockRollCancelled = "ui:blockRollCancelled",
   UI_SelectPushDirection = "ui:selectPushDirection",
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
@@ -167,6 +170,13 @@ export interface GameEvents {
       attackerId: string;
       targetSquare: { x: number; y: number };
     };
+    /** Where the ball visual starts when the mover carries it (their start
+     * square, or the pickup square for a mid-path pickup) */
+    ballFrom?: { x: number; y: number };
+    /** Squares the ball travels with the carrier (tail of `path`) */
+    ballPath?: { x: number; y: number }[];
+    /** Player steps walked before the ball joins (0 = carried from start) */
+    ballJoinStep?: number;
   };
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };
@@ -212,6 +222,9 @@ export interface GameEvents {
     playerId: string;
     exitSquare: { x: number; y: number };
   };
+  /** Kickoff landed out of bounds / in the kicking half: the receiving
+   * coach hands the ball to any of their players on the pitch (p.71). */
+  [GameEventNames.TouchbackAwarded]: { teamId: string };
   [GameEventNames.BallThrownIn]: {
     from: { x: number; y: number };
     to: { x: number; y: number };
@@ -389,7 +402,11 @@ export interface UIEvents {
   };
   [GameEventNames.UI_HideSetupControls]: void;
   [GameEventNames.UI_SetupComplete]: boolean;
-  [GameEventNames.UI_SetupAction]: { action: string };
+  [GameEventNames.UI_SetupAction]: { action: string; name?: string };
+  /** The formations pickable for the team currently setting up */
+  [GameEventNames.UI_FormationsUpdated]: {
+    formations: { name: string; builtIn: boolean }[];
+  };
 
   // Common UI
   [GameEventNames.UI_Notification]: string;
@@ -437,6 +454,10 @@ export interface UIEvents {
     numDice: number;
     isAttackerChoice: boolean;
   };
+
+  /** The requested block roll will not happen (illegal, no movement left,
+   * rush declined/failed) — dialogs waiting on dice must close. */
+  [GameEventNames.UI_BlockRollCancelled]: void;
 
   [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;

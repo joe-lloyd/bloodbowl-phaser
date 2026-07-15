@@ -38,6 +38,7 @@ export type HeadlessCommand =
   | { type: "choose-block-result"; index: number }
   | { type: "choose-push-direction"; x: number; y: number }
   | { type: "choose-follow-up"; followUp: boolean }
+  | { type: "touchback"; playerId: string }
   // Queries (never mutate state)
   | { type: "state" }
   | { type: "legal-actions"; playerId?: string };
@@ -63,6 +64,11 @@ export type PendingDecision =
       type: "follow-up";
       attackerId: string;
       targetSquare: GridPosition;
+    }
+  | {
+      /** Kick went out / short: receiving coach picks who takes the ball */
+      type: "touchback";
+      teamId: string;
     };
 
 export interface EmittedEvent {

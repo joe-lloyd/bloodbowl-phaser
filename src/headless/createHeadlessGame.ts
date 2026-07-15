@@ -62,17 +62,21 @@ export function createHeadlessGame(
 ): HeadlessGameContext {
   const seed = options.seed ?? options.scenario?.seed ?? Date.now();
 
+  // A scenario may pin specific rosters (as the browser sandbox does);
+  // explicit options still win over the scenario's choice
   const roster = options.defaultRoster ?? RosterName.HUMAN;
+  const team1Roster = options.scenario?.setup.team1Roster ?? roster;
+  const team2Roster = options.scenario?.setup.team2Roster ?? roster;
   const team1 =
     options.team1 ??
     stabilizeIds(
-      TeamFactory.createTestTeam(roster, "Home Team", 0xcc0000),
+      TeamFactory.createTestTeam(team1Roster, "Home Team", 0xcc0000),
       "team1"
     );
   const team2 =
     options.team2 ??
     stabilizeIds(
-      TeamFactory.createTestTeam(roster, "Away Team", 0x0000cc),
+      TeamFactory.createTestTeam(team2Roster, "Away Team", 0x0000cc),
       "team2"
     );
 

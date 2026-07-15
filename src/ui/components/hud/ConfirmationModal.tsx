@@ -25,28 +25,36 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     setData(payload);
   });
 
+  // Clear BEFORE emitting: the result handler can synchronously request the
+  // next confirmation (dodge -> sprint), and a trailing setData(null) would
+  // wipe that fresh dialog
   const handleConfirm = () => {
     if (!data) return;
+    const actionId = data.actionId;
+    setData(null);
     eventBus.emit(GameEventNames.UI_ConfirmationResult, {
       confirmed: true,
-      actionId: data.actionId,
+      actionId,
     });
-    setData(null);
   };
 
   const handleCancel = () => {
     if (!data) return;
+    const actionId = data.actionId;
+    setData(null);
     eventBus.emit(GameEventNames.UI_ConfirmationResult, {
       confirmed: false,
-      actionId: data.actionId,
+      actionId,
     });
-    setData(null);
   };
 
   if (!data) return null;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+    // z-[150]: a confirmation must always sit ABOVE the block/follow-up
+    // dialogs (z-[100]) — the blitz "Rush Required!" prompt fires while the
+    // block dialog is open and was unreachable behind it
+    <div className="absolute inset-0 z-[150] flex items-center justify-center bg-black/50 pointer-events-auto">
       <div
         className={`
                 w-96 p-6 rounded-lg shadow-xl border-2 

@@ -87,7 +87,27 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
+
+    // Leaving PLAY (touchdown, drive end, halftime) must fully reset the
+    // interaction state — a lingering selection/action menu/overlay broke
+    // setting up the next drive
+    this.eventBus.on(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
   }
+
+  private onPhaseChangedReset = (data: { phase: GamePhase }) => {
+    if (data.phase === GamePhase.PLAY) {
+      return;
+    }
+    this.pendingMove = null;
+    this.pushSelectionActive = false;
+    this.pushValidDirections = [];
+    this.pushDefenderId = "";
+    this.pushAttackerId = "";
+    this.pushResultType = "";
+    this.isBusy = false;
+    this.deselectPlayer();
+    this.pitch.clearHover();
+  };
 
   private onEndActivation = () => {
     if (this.selectedPlayerId) {
@@ -139,6 +159,31 @@ export class GameplayInteractionController {
     const stepExists = this.actionSteps.some((s) => s.id === data.stepId);
     if (!stepExists) {
       console.warn("Invalid step selected:", data.stepId);
+      return;
+    }
+
+    // Stand Up executes immediately and hands over to the move step
+    if (data.stepId === "standup" && this.selectedPlayerId) {
+      const playerId = this.selectedPlayerId;
+      this.gameService
+        .standUp(playerId)
+        .then(() => {
+          this.actionSteps = this.actionSteps.filter(
+            (s) => s.id !== "standup"
+          );
+          this.currentStepId = "move";
+          this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+            steps: this.actionSteps,
+            currentStepId: this.currentStepId,
+          });
+          this.refreshPlayerVisualization(playerId);
+        })
+        .catch((err) => {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            `Cannot Stand Up: ${err}`
+          );
+        });
       return;
     }
 
@@ -241,7 +286,14 @@ export class GameplayInteractionController {
           break;
       }
 
-      this.currentStepId = defaultStep;
+      // A prone player stands up first — same activation, costs movement
+      const declarer = this.gameService.getPlayerById(data.playerId);
+      if (declarer?.status === PlayerStatus.PRONE) {
+        this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
+        this.currentStepId = "standup";
+      } else {
+        this.currentStepId = defaultStep;
+      }
 
       // Emit Step Info
       this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
@@ -363,6 +415,19 @@ export class GameplayInteractionController {
       return;
     }
 
+    // TOUCHBACK: the receiving coach must hand the ball to one of their
+    // players before anything else happens
+    if (this.gameService.isTouchbackPending()) {
+      if (playerAtSquare && this.gameService.awardTouchback(playerAtSquare.id)) {
+        return;
+      }
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Touchback: select one of your standing players to take the ball."
+      );
+      return;
+    }
+
     // PASS Execution (if in pass aiming mode)
     if (this.currentActionMode === "pass") {
       console.log(
@@ -475,8 +540,15 @@ export class GameplayInteractionController {
                   : undefined;
 
               if (!currentAction) {
-                // If no action declared for this player, implicitly declare BLOCK
-                this.gameService.declareAction(selectedPlayer.id, "block");
+                // If no action declared for this player, implicitly declare
+                // BLOCK — refused e.g. for a prone/stunned blocker
+                if (!this.gameService.declareAction(selectedPlayer.id, "block")) {
+                  this.eventBus.emit(
+                    GameEventNames.UI_Notification,
+                    "This player cannot Block (down players must Blitz)."
+                  );
+                  return;
+                }
               } else if (currentAction === "move") {
                 // Cannot block if Move declared (unless Blitz, handled below)
                 this.eventBus.emit(
@@ -774,8 +846,6 @@ export class GameplayInteractionController {
       // Show Movement Range
       // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode
       if (this.currentActionMode !== "pass" || this.currentStepId === "move") {
-        const reachable = this.gameService.getAvailableMovements(playerId);
-
         // Calculate remaining SAFE MA (for overlay coloring)
         let used = this.gameService.getMovementUsed(playerId);
 
@@ -783,6 +853,37 @@ export class GameplayInteractionController {
         if (player.status === "Prone") {
           const standUpCost = Math.min(3, player.stats.MA);
           used += standUpCost;
+        }
+
+        // With waypoints planned, draw the range as if the player already
+        // stood on the last node with the spent squares deducted
+        let reachable: { x: number; y: number; cost?: number }[];
+        if (this.waypoints.length > 0) {
+          const lastNode = this.waypoints[this.waypoints.length - 1];
+          const team =
+            player.teamId === this.getSceneTeam1().id
+              ? this.getSceneTeam1()
+              : this.getSceneTeam2();
+          const opponentTeam =
+            player.teamId === this.getSceneTeam1().id
+              ? this.getSceneTeam2()
+              : this.getSceneTeam1();
+          const remainingAllowance = Math.max(
+            0,
+            player.stats.MA + 2 - used - this.waypoints.length
+          );
+          reachable = this.movementValidator
+            .findReachableSquares(
+              { ...player, gridPosition: { ...lastNode } },
+              opponentTeam.players.filter((p) => p.gridPosition),
+              team.players.filter(
+                (p) => p.gridPosition && p.id !== player.id
+              )
+            )
+            .filter((m) => m.cost <= remainingAllowance);
+          used += this.waypoints.length;
+        } else {
+          reachable = this.gameService.getAvailableMovements(playerId);
         }
 
         const remainingSafeMA = Math.max(0, player.stats.MA - used);
@@ -836,12 +937,19 @@ export class GameplayInteractionController {
   }
 
   public deselectPlayer(): void {
+    // A push direction is a mandatory decision: Escape/background clicks
+    // must not wipe the pending push highlights mid-block
+    if (this.pushSelectionActive) return;
+
     if (this.selectedPlayerId) {
       this.scene.unhighlightPlayer(this.selectedPlayerId);
       this.selectedPlayerId = null;
     }
     this.waypoints = [];
     this.clearAllInteractionHighlights();
+    // Also drop the pitch-layer visuals (range/sprint/tackle overlays, path)
+    this.pitch.clearHighlights();
+    this.pitch.clearPath();
 
     // Reset action mode state
     this.currentActionMode = null;
@@ -904,6 +1012,8 @@ export class GameplayInteractionController {
       if (newLen <= remainingAllowance) {
         this.waypoints.push(...result.path);
         this.drawCurrentPath();
+        // Range/sprint overlays now measure from the last node
+        this.refreshPlayerVisualization(player.id);
       } else {
         console.warn("Path too long!", { newLen, remainingAllowance, used });
         // Feedback?
@@ -1034,6 +1144,7 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
 
     // Cleanup highlight manager
     if (this.highlightManager) {

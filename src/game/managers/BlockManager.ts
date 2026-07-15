@@ -19,19 +19,26 @@ import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 
 /**
- * Ends the blocker's activation after a crowd surf resolves. Queued behind
- * the crowd injury so the throw-in/bounce chain settles before a possible
- * auto end-turn.
+ * Offers the blocker the follow-up into the square their crowd-surfed
+ * victim vacated. Queued at the BACK of the flow so the crowd injury and
+ * throw-in chain fully settle (ball at rest) before the prompt; the
+ * blocker's activation then ends with the follow-up reply, never before.
  */
-class FinishActivationOperation extends GameOperation {
-  public readonly name = "FinishActivation";
+class CrowdSurfFollowUpOperation extends GameOperation {
+  public readonly name = "CrowdSurfFollowUp";
 
-  constructor(private playerId: string) {
+  constructor(
+    private attackerId: string,
+    private targetSquare: { x: number; y: number }
+  ) {
     super();
   }
 
   async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.playerId);
+    context.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+      attackerId: this.attackerId,
+      targetSquare: this.targetSquare,
+    });
   }
 }
 
@@ -280,6 +287,9 @@ export class BlockManager {
         from: link.from,
         to: link.to,
         path: [link.from, link.to],
+        ballFrom: carriedBall ? link.from : undefined,
+        ballPath: carriedBall ? [link.from, link.to] : undefined,
+        ballJoinStep: 0,
         followUpData:
           isOriginalDefender && !followUp
             ? { attackerId, targetSquare: link.from }
@@ -299,13 +309,11 @@ export class BlockManager {
     // Knockdown applies only to the original defender on POW results
     const first = links[0];
     if (first && first.to === null) {
-      // Defender surfed: no follow-up decision is offered (follow-up onto
-      // the vacated square is a future refinement), so the attacker's
-      // activation ends instead of via the follow-up reply. Queued at the
-      // BACK so the crowd injury + throw-in settle first — finishing the
-      // last activation can auto-end the turn, and the ball must be at
-      // rest before the turn changes
-      flowManager?.add(new FinishActivationOperation(attackerId));
+      // Defender surfed: the blocker is still offered the follow-up into
+      // the vacated square. Queued at the BACK so the crowd injury +
+      // throw-in settle first — the ball must be at rest and the follow-up
+      // answered before the activation (and possibly the turn) ends
+      flowManager?.add(new CrowdSurfFollowUpOperation(attackerId, first.from));
       return;
     }
     if (

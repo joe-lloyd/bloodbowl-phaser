@@ -94,7 +94,26 @@ export class TurnManager {
       movementUsed: new Map(),
     };
 
+    // Stunned players recover at the start of their team's turn: they roll
+    // face-up (Prone) but have missed their action — counted as already
+    // activated for this turn (rulebook p.32).
+    const activeTeam = teamId === this.team1.id ? this.team1 : this.team2;
+    const recovered = activeTeam.players.filter(
+      (p) => p.status === PlayerStatus.STUNNED && p.gridPosition
+    );
+    recovered.forEach((player) => {
+      player.status = PlayerStatus.PRONE;
+      this.state.turn.activatedPlayerIds.add(player.id);
+    });
+
     this.eventBus.emit(GameEventNames.TurnStarted, this.state.turn as TurnData);
+
+    // Emitted AFTER TurnStarted: its listeners reset all activation visuals,
+    // which would wipe the recovered players' "already activated" marker
+    recovered.forEach((player) => {
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      this.eventBus.emit(GameEventNames.PlayerActivated, player.id);
+    });
   }
 
   public endTurn(): void {

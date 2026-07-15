@@ -17,12 +17,29 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
     name: string;
   } | null>(null);
   const [subPhase, setSubPhase] = useState<SubPhase>(SubPhase.SETUP_KICKING);
+  const [formations, setFormations] = useState<
+    { name: string; builtIn: boolean }[]
+  >([]);
+  const [selectedFormation, setSelectedFormation] = useState("");
+  const [saveName, setSaveName] = useState("");
 
   useEventBus(eventBus, GameEventNames.UI_ShowSetupControls, (data) => {
     setIsVisible(true);
     setSubPhase(data.subPhase);
     setActiveTeam(data.activeTeam);
     setIsComplete(false);
+    setSaveName("");
+    // Fetch this team's pickable formations (presets + their saved ones)
+    eventBus.emit(GameEventNames.UI_SetupAction, { action: "list" });
+  });
+
+  useEventBus(eventBus, GameEventNames.UI_FormationsUpdated, (data) => {
+    setFormations(data.formations);
+    setSelectedFormation((current) =>
+      data.formations.some((f) => f.name === current)
+        ? current
+        : (data.formations[0]?.name ?? "")
+    );
   });
 
   useEventBus(eventBus, GameEventNames.UI_HideSetupControls, () => {
@@ -37,9 +54,11 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
     }
   );
 
-  const handleAction = (action: string) => {
-    eventBus.emit(GameEventNames.UI_SetupAction, { action });
+  const handleAction = (action: string, name?: string) => {
+    eventBus.emit(GameEventNames.UI_SetupAction, { action, name });
   };
+
+  const selected = formations.find((f) => f.name === selectedFormation);
 
   const SetupActionButton = ({
     action,
@@ -164,16 +183,73 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
 
       {/* Body */}
       <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col gap-1">
-        <SetupActionButton
-          action="default"
-          label="DEFAULT"
-          sub="Formation"
-          color="blue"
-        />
+        {/* Formations: presets + this team's saved layouts */}
+        <select
+          value={selectedFormation}
+          onChange={(e) => setSelectedFormation(e.target.value)}
+          className="w-full px-2 py-1.5 text-sm bg-white border-2 border-bb-gold rounded font-heading text-bb-text cursor-pointer pointer-events-auto"
+        >
+          <optgroup label="Presets">
+            {formations
+              .filter((f) => f.builtIn)
+              .map((f) => (
+                <option key={f.name} value={f.name}>
+                  {f.name}
+                </option>
+              ))}
+          </optgroup>
+          {formations.some((f) => !f.builtIn) && (
+            <optgroup label="Saved">
+              {formations
+                .filter((f) => !f.builtIn)
+                .map((f) => (
+                  <option key={f.name} value={f.name}>
+                    {f.name}
+                  </option>
+                ))}
+            </optgroup>
+          )}
+        </select>
 
         <div className="flex gap-1">
-          <SetupActionButton action="save" label="SAVE" color="yellow" />
-          <SetupActionButton action="load" label="LOAD" color="yellow" />
+          <SetupActionButton
+            action="load"
+            label="LOAD"
+            color="blue"
+            disabled={!selectedFormation}
+            onClick={() => handleAction("load", selectedFormation)}
+          />
+          <SetupActionButton
+            action="delete"
+            label="DELETE"
+            color="red"
+            disabled={!selected || selected.builtIn}
+            onClick={() => handleAction("delete", selectedFormation)}
+          />
+        </div>
+
+        <div className="flex gap-1 items-stretch">
+          <input
+            type="text"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            placeholder="Formation name…"
+            maxLength={24}
+            className="flex-1 min-w-0 px-2 text-sm bg-white border-2 border-bb-gold rounded text-bb-text pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="w-24">
+            <SetupActionButton
+              action="save"
+              label="SAVE"
+              color="yellow"
+              disabled={saveName.trim().length === 0}
+              onClick={() => {
+                handleAction("save", saveName.trim());
+                setSaveName("");
+              }}
+            />
+          </div>
         </div>
 
         <div className="h-px bg-bb-ink-blue/20 my-1 mx-2"></div>

@@ -423,13 +423,15 @@ export const SCENARIOS: Scenario[] = [
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 10, y: 7 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
     id: "pass-fumble-seeded",
     name: "Pass → Fumble (Seeded)",
     description: "Failed pass attempt (deterministic)",
-    seed: 181,
+    seed: 7,
     expectedOutcome: "Thrower will fumble the pass",
     setup: {
       team1Placements: [
@@ -443,6 +445,8 @@ export const SCENARIOS: Scenario[] = [
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 10, y: 7 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
@@ -462,13 +466,15 @@ export const SCENARIOS: Scenario[] = [
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 10, y: 7 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {
     id: "pickup-fumble-seeded",
     name: "Pickup → Fumble (Seeded)",
     description: "Failed pickup attempt (deterministic)",
-    seed: 1,
+    seed: 7,
     expectedOutcome: "Player will fumble the pickup",
     setup: {
       team1Placements: [
@@ -481,6 +487,142 @@ export const SCENARIOS: Scenario[] = [
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 10, y: 7 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "double-turnover-seeded",
+    name: "Double Turnover Chain (Seeded)",
+    description:
+      "Move onto the ball: the pickup fails, the bounce hits a teammate who " +
+      "drops it. Only ONE turnover may happen (the latch absorbs the second).",
+    seed: 8,
+    expectedOutcome:
+      "Failed pickup → bounce → teammate drops it → exactly one turnover",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE }, // mover
+        // Teammates ring the ball square so the bounce lands on one of them
+        { playerIndex: 1, x: 9, y: 6, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 10, y: 6, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 11, y: 6, status: PlayerStatus.ACTIVE },
+        { playerIndex: 4, x: 11, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 5, x: 9, y: 8, status: PlayerStatus.ACTIVE },
+        { playerIndex: 6, x: 10, y: 8, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 15, y: 2, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 7 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "blitz-test",
+    name: "Blitz Test",
+    description:
+      "Regular blitz: declare Blitz, move up to the defender and block. " +
+      "Rush prompts appear only past MA.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // blitzer
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // target
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "blitz-rush-fail-seeded",
+    name: "Blitz → Failed Rush (Seeded)",
+    description:
+      "Blitz with the defender exactly MA+1 away: move all 6 squares, then " +
+      "block. The block costs the 7th movement point → Rush roll fails.",
+    seed: 7,
+    expectedOutcome:
+      "Rush (GFI) before the block fails: blitzer falls, turnover, no block dice",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // blitzer, MA 6
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 17, y: 7, status: PlayerStatus.ACTIVE }, // target
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "blocked-carrier-seeded",
+    name: "Block the Carrier → No Turnover (Seeded)",
+    description:
+      "Team 2 blocks team 1's ball carrier with a POW: the carrier drops " +
+      "the ball, but that is NOT a turnover — team 2 keeps playing.",
+    seed: 2,
+    expectedOutcome:
+      "POW → carrier down, ball bounces loose, blocker's team keeps the turn",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.ACTIVE }, // carrier
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // blocker
+        { playerIndex: 1, x: 16, y: 8, status: PlayerStatus.ACTIVE }, // keeps the turn alive
+      ],
+      activeTeam: "team2",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 10, y: 5 },
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "touchback-test",
+    name: "Kickoff → Touchback (Seeded)",
+    description:
+      "Kick aimed at the receiving corner deviates out of bounds: the " +
+      "receiving coach hands the ball to any of their players.",
+    seed: 4,
+    expectedOutcome:
+      "Ball goes out → Touchback → receiving coach picks the ball carrier",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 6, y: 2, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 5, y: 3, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 4, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 6, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 4, x: 5, y: 6, status: PlayerStatus.ACTIVE },
+        { playerIndex: 5, x: 4, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 6, x: 6, y: 8, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 13, y: 2, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 14, y: 3, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 15, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 13, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 4, x: 14, y: 6, status: PlayerStatus.ACTIVE },
+        { playerIndex: 5, x: 15, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 6, x: 13, y: 8, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.KICKOFF,
+      subPhase: SubPhase.ROLL_KICKOFF,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
 ];

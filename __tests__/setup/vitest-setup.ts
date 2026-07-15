@@ -39,6 +39,17 @@ vi.mock("phaser", () => {
           once = vi.fn();
         },
       },
+      Geom: {
+        Rectangle: class {
+          static Contains = vi.fn();
+          constructor(
+            public x: number,
+            public y: number,
+            public width: number,
+            public height: number
+          ) {}
+        },
+      },
       GameObjects: {
         Container: class {},
         Sprite: class {},

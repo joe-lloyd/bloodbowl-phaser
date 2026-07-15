@@ -32,6 +32,7 @@ const mockPitch = {
 const mockMovementValidator = {
   findPath: vi.fn(),
   analyzePath: vi.fn().mockReturnValue({ requiresDodge: false }),
+  findReachableSquares: vi.fn().mockReturnValue([]),
 };
 
 const mockEventBus = {
@@ -61,6 +62,8 @@ const mockGameService = {
   kickBall: vi.fn(),
   executePush: vi.fn(),
   throwBall: vi.fn(),
+  isTouchbackPending: vi.fn().mockReturnValue(false),
+  awardTouchback: vi.fn(),
   getPassController: vi.fn().mockReturnValue({
     getAllRanges: vi.fn().mockReturnValue(new Map()),
     measureRange: vi.fn().mockReturnValue({ type: "Quick Pass", modifier: 0 }),

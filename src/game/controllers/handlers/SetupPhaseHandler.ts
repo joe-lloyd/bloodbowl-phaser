@@ -102,7 +102,7 @@ export class SetupPhaseHandler implements PhaseHandler {
     this.handlers.clear();
   }
 
-  private handleSetupAction(data: { action: string }): void {
+  private handleSetupAction(data: { action: string; name?: string }): void {
     const state = this.gameService.getState();
     const activeTeamId = state.activeTeamId || this.scene.team1.id;
     const activeTeam =
@@ -110,31 +110,115 @@ export class SetupPhaseHandler implements PhaseHandler {
         ? this.scene.team1
         : this.scene.team2;
     const isTeam1 = activeTeam.id === this.scene.team1.id;
+    const formationManager: FormationManager = this.scene["formationManager"];
+    const placementController: PlayerPlacementController =
+      this.scene["placementController"];
+    const key = this.formationKey(activeTeam, isTeam1);
 
-    // Logic extracted from original SceneOrchestrator
     switch (data.action) {
       case "confirm":
         this.gameService.confirmSetup(activeTeam.id);
         break;
-      case "default": {
-        const formationManager: FormationManager =
-          this.scene["formationManager"]; // Access managed by scene
-        const placementController: PlayerPlacementController =
-          this.scene["placementController"];
-
-        if (formationManager && placementController) {
-          const defFormation = formationManager.getDefaultFormation(isTeam1);
-          placementController.loadFormation(defFormation);
-          this.scene.refreshDugouts();
+      case "clear":
+        placementController?.clearPlacements();
+        this.scene.refreshDugouts();
+        break;
+      case "list":
+        this.emitFormationList(key, isTeam1);
+        break;
+      case "save": {
+        const name = data.name?.trim();
+        if (!name) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Give the formation a name first."
+          );
+          break;
+        }
+        if (formationManager.isBuiltIn(name)) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            `"${name}" is a built-in formation — pick another name.`
+          );
+          break;
+        }
+        // Read positions straight off the team so anything on the pitch is
+        // captured, stored by roster index so the layout survives new team
+        // instances (next drive, next match)
+        const positions = activeTeam.players.flatMap((player, index) =>
+          player.gridPosition
+            ? [
+                {
+                  playerId: String(index),
+                  x: player.gridPosition.x,
+                  y: player.gridPosition.y,
+                },
+              ]
+            : []
+        );
+        if (positions.length === 0) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Place some players before saving a formation."
+          );
+          break;
+        }
+        formationManager.saveFormation(key, positions, name);
+        this.emitFormationList(key, isTeam1);
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Formation "${name}" saved!`
+        );
+        break;
+      }
+      case "default": // legacy alias for the first built-in preset
+      case "load": {
+        const name = data.name ?? "Balanced";
+        const positions = formationManager.getFormation(key, name, isTeam1);
+        if (!positions || positions.length === 0) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            `No formation named "${name}" for this team.`
+          );
+          break;
+        }
+        placementController?.loadFormation(positions);
+        this.scene.refreshDugouts();
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Formation "${name}" loaded!`
+        );
+        break;
+      }
+      case "delete": {
+        const name = data.name;
+        if (!name || formationManager.isBuiltIn(name)) break;
+        if (formationManager.deleteFormation(key, name)) {
+          this.emitFormationList(key, isTeam1);
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            `Formation "${name}" deleted.`
+          );
         }
         break;
       }
-      case "clear":
-        this.scene["placementController"]?.clearPlacements();
-        this.scene.refreshDugouts();
-        break;
-      // Save/Load omitted for brevity, logic remains same (move here if needed)
     }
+  }
+
+  private emitFormationList(key: string, isTeam1: boolean): void {
+    const formationManager: FormationManager = this.scene["formationManager"];
+    this.eventBus.emit(GameEventNames.UI_FormationsUpdated, {
+      formations: formationManager.listAllFormations(key, isTeam1),
+    });
+  }
+
+  /** Formations are keyed by roster and pitch side, not by the (per-match)
+   * team id, so saved layouts survive across games. */
+  private formationKey(
+    team: { rosterName?: string; name: string },
+    isTeam1: boolean
+  ): string {
+    return `${team.rosterName ?? team.name}:${isTeam1 ? "left" : "right"}`;
   }
 
   private async runIntroSequence(): Promise<void> {

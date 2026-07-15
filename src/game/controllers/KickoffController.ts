@@ -90,10 +90,10 @@ export class KickoffController {
     });
 
     const isOffPitch =
-      finalPosition.x < 1 ||
-      finalPosition.x > GameConfig.PITCH_WIDTH ||
+      finalPosition.x < 0 ||
+      finalPosition.x >= GameConfig.PITCH_WIDTH ||
       finalPosition.y < 0 ||
-      finalPosition.y > GameConfig.PITCH_HEIGHT;
+      finalPosition.y >= GameConfig.PITCH_HEIGHT;
 
     const isOwnThird = isTeam1Kicking
       ? finalPosition.x < 7

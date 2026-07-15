@@ -24,6 +24,11 @@ export class BallManager {
   public kickoffController: KickoffController;
   public pickupController: PickupController;
 
+  /** Kick landed out of bounds / short: resolve as a touchback once play starts */
+  private pendingTouchback: boolean = false;
+  /** Waiting for the receiving coach to hand the ball to one of their players */
+  private touchbackTeamId: string | null = null;
+
   constructor(
     private eventBus: IEventBus,
     private state: GameState,
@@ -69,8 +74,16 @@ export class BallManager {
       isTeam1Kicking
     );
 
-    // 3. Update State
-    this.state.ballPosition = { x: result.finalX, y: result.finalY };
+    // 3. Update State. A kick landing out of bounds or in the kicking
+    // team's own third is a Touchback (p.71): the ball never lands — the
+    // receiving coach hands it to any of their players once play starts.
+    this.pendingTouchback = result.isTouchback;
+    if (result.isTouchback) {
+      this.state.ballPosition = null;
+      this.eventBus.emit(GameEventNames.UI_Notification, "Touchback!");
+    } else {
+      this.state.ballPosition = { x: result.finalX, y: result.finalY };
+    }
 
     // 4. Emit Event
     // Calculate direction and distance for visual consistency if needed,
@@ -105,8 +118,59 @@ export class BallManager {
 
   public resolveBallPlacement(): void {
     this.delay(200).then(() => {
+      // ReadyToStart handlers call startGame synchronously, so once emit
+      // returns the receiving team is the active team
       this.eventBus.emit(GameEventNames.ReadyToStart);
+
+      if (this.pendingTouchback) {
+        this.pendingTouchback = false;
+        this.touchbackTeamId = this.state.activeTeamId;
+        if (this.touchbackTeamId) {
+          this.eventBus.emit(GameEventNames.TouchbackAwarded, {
+            teamId: this.touchbackTeamId,
+          });
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Touchback! Choose any of your players to take the ball."
+          );
+        }
+      }
     });
+  }
+
+  /**
+   * Touchback resolution (p.71): the receiving coach gives the ball to any
+   * of their standing players on the pitch. Returns false while no
+   * touchback is pending or for an invalid choice.
+   */
+  public awardTouchback(playerId: string): boolean {
+    if (!this.touchbackTeamId) return false;
+
+    const player = [...this.team1.players, ...this.team2.players].find(
+      (p) => p.id === playerId
+    );
+    if (
+      !player ||
+      player.teamId !== this.touchbackTeamId ||
+      !player.gridPosition ||
+      player.status !== PlayerStatus.ACTIVE
+    ) {
+      return false;
+    }
+
+    this.touchbackTeamId = null;
+    this.state.ballPosition = { ...player.gridPosition };
+    this.callbacks.onBallPlaced(player.gridPosition.x, player.gridPosition.y);
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `${player.playerName} takes the touchback ball.`
+    );
+    return true;
+  }
+
+  /** True while a touchback waits for the receiving coach's choice. */
+  public isTouchbackPending(): boolean {
+    return this.touchbackTeamId !== null;
   }
 
   /**

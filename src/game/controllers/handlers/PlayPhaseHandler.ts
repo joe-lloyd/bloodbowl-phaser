@@ -16,6 +16,13 @@ import { GameEventNames } from "../../../types/events";
  */
 export class PlayPhaseHandler implements PhaseHandler {
   private handlers: Map<string, (data: any) => void> = new Map();
+  /** Blitz block awaiting the rush confirmation dialog */
+  private pendingBlitzBlock: {
+    attackerId: string;
+    defenderId: string;
+    numDice: number;
+    isAttackerChoice: boolean;
+  } | null = null;
 
   constructor(
     private scene: GameScene,
@@ -83,17 +90,67 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Ready To Start (Kickoff -> Play)
     // REMOVED from PlayPhase, handled in KickoffPhase transition
 
-    // Block Dice
+    // Block Dice. The block at the end of a Blitz costs 1 movement; if that
+    // point is beyond MA it's a Rush — ask the usual rush confirmation
+    // BEFORE any dice are rolled (declining keeps the activation open).
     this.register(GameEventNames.UI_RollBlockDice, (data) => {
-      // Delegate to GameService (Model)
-      // Note: UI usually triggers this, but we listen to relay it?
-      // Actually SceneOrchestrator relayed it.
+      const state = this.gameService.getState();
+      const attacker = this.gameService.getPlayerById(data.attackerId);
+      const isBlitzBlock =
+        state.activePlayer?.action === "blitz" &&
+        state.activePlayer.id === data.attackerId;
+
+      if (isBlitzBlock && attacker) {
+        const used = this.gameService.getMovementUsed(data.attackerId);
+        if (used + 1 > attacker.stats.MA + 2) {
+          // Even a Rush can't pay for the block any more
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "No movement left to make the Blitz block!"
+          );
+          this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+          return;
+        }
+        if (used + 1 > attacker.stats.MA) {
+          this.pendingBlitzBlock = data;
+          this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+            actionId: "blitz-rush-confirm",
+            title: "Rush Required!",
+            message:
+              `The Blitz block costs 1 movement beyond ${attacker.playerName}'s MA.\n` +
+              `Rush (GFI): 2+ — failure knocks them down in front of the target (turnover, no block).\n\n` +
+              `Rush to throw the block?`,
+            confirmLabel: "Rush!",
+            cancelLabel: "Cancel",
+            risky: true,
+          });
+          return;
+        }
+      }
+
       this.gameService.rollBlockDice(
         data.attackerId,
         data.defenderId,
         data.numDice,
         data.isAttackerChoice
       );
+    });
+
+    this.register(GameEventNames.UI_ConfirmationResult, (data) => {
+      if (data.actionId !== "blitz-rush-confirm") return;
+      const pending = this.pendingBlitzBlock;
+      this.pendingBlitzBlock = null;
+      if (data.confirmed && pending) {
+        this.gameService.rollBlockDice(
+          pending.attackerId,
+          pending.defenderId,
+          pending.numDice,
+          pending.isAttackerChoice
+        );
+      } else {
+        // Rush declined: no dice will come — stop the dialog's rolling state
+        this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      }
     });
 
     // Block Result Selected
@@ -105,10 +162,11 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
     });
 
-    // Push Follow Up Response
+    // Push Follow Up Response — the follow-up move is free (no movement
+    // cost, no dice), so it must NOT go through movePlayer
     this.register(GameEventNames.UI_FollowUpResponse, (data) => {
       if (data.followUp && data.targetSquare) {
-        this.gameService.movePlayer(data.attackerId, [data.targetSquare]);
+        this.gameService.followUpPush(data.attackerId, data.targetSquare);
       }
       this.gameService.finishActivation(data.attackerId);
     });
@@ -117,6 +175,36 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.PlayerKnockedDown, (data) => {
       const sprite = this.scene["playerSprites"].get(data.playerId);
       if (sprite) sprite.updateStatus();
+    });
+
+    // Crowd surf: the surfed player must leave the pitch NOW. Their sprite
+    // used to disappear only via the turn-end dugout refresh, but the
+    // follow-up prompt keeps the activation (and turn) open, so without
+    // this the "pushed out" player visibly stayed on their square.
+    this.register(GameEventNames.PlayerPushedIntoCrowd, (data) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (!sprite) return;
+      this.scene.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        duration: 350,
+        onComplete: () => {
+          sprite.setVisible(false);
+          sprite.setAlpha(1); // ready for re-use next drive
+          this.scene.refreshDugouts();
+        },
+      });
+    });
+
+    // Keep the sprite's look in sync with any status flip (stunned → prone
+    // at turn start, crowd-injury results, …). Off-pitch changes also move
+    // the player between dugout boxes — but only those trigger the full
+    // refresh: refreshing on on-pitch changes would snap every sprite to
+    // its grid square and teleport a mid-animation mover.
+    this.register(GameEventNames.PlayerStatusChanged, (player) => {
+      const sprite = this.scene["playerSprites"].get(player.id);
+      if (sprite) sprite.updateStatus();
+      if (!player.gridPosition) this.scene.refreshDugouts();
     });
 
     this.register(GameEventNames.PlayerStoodUp, (data) => {
@@ -168,16 +256,16 @@ export class PlayPhaseHandler implements PhaseHandler {
         );
 
         // If the mover carries the ball, walk it along with them instead of
-        // letting the BallPlaced teleport leave it at the destination
-        const ballPos = this.gameService.getState().ballPosition;
-        const dest = data.path[data.path.length - 1];
-        if (
-          ballPos &&
-          data.from &&
-          ballPos.x === dest.x &&
-          ballPos.y === dest.y
-        ) {
-          this.scene.animateBallAlong(data.from, data.path);
+        // letting the BallPlaced teleport leave it at the destination. The
+        // engine says exactly where the ball joined (start square, or the
+        // pickup square mid-path) so the ball never jumps to a square it
+        // was never on.
+        if (data.ballFrom && data.ballPath && data.ballPath.length > 0) {
+          this.scene.animateBallAlong(
+            data.ballFrom,
+            data.ballPath,
+            (data.ballJoinStep || 0) * 180
+          );
         }
 
         sprite.animateMovement(pixelPath).then(() => {

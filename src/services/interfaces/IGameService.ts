@@ -45,6 +45,9 @@ export interface IGameService {
     targetY: number
   ): void;
   rollKickoff(): void;
+  /** Touchback: receiving coach hands the ball to one of their players */
+  awardTouchback(playerId: string): boolean;
+  isTouchbackPending(): boolean;
 
   // Game Actions
   startGame(kickingTeamId: string): void;
@@ -88,6 +91,11 @@ export interface IGameService {
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   throwInBall(from: { x: number; y: number }): void;
+  /** Free move into the vacated square after a push (no cost, no dice) */
+  followUpPush(
+    attackerId: string,
+    targetSquare: { x: number; y: number }
+  ): void;
   triggerTurnover(reason: string): void;
 
   // Scoring / end of drive

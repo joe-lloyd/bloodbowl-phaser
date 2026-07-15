@@ -40,6 +40,11 @@ async function playFullMatch(seed: number): Promise<{
       } else if (pending.type === "push-direction") {
         const dir = pending.options[0];
         await run({ type: "choose-push-direction", x: dir.x, y: dir.y });
+      } else if (pending.type === "touchback") {
+        const receiver = snap.teams
+          .find((t) => t.id === pending.teamId)!
+          .players.find((p) => p.position && p.status === "Active")!;
+        await run({ type: "touchback", playerId: receiver.id });
       } else {
         await run({ type: "choose-follow-up", followUp: true });
       }

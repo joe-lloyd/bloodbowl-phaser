@@ -170,6 +170,58 @@ describe("FormationManager", () => {
     });
   });
 
+  describe("built-in formations", () => {
+    it("offers 7-player presets inside each side's setup zone", () => {
+      for (const isTeam1 of [true, false]) {
+        const presets = manager.getBuiltInFormations(isTeam1);
+        expect(presets.length).toBeGreaterThanOrEqual(3);
+        presets.forEach((preset) => {
+          expect(preset.positions).toHaveLength(7);
+          const unique = new Set(
+            preset.positions.map((p) => `${p.x},${p.y}`)
+          );
+          expect(unique.size).toBe(7);
+          preset.positions.forEach((p) => {
+            if (isTeam1) {
+              expect(p.x).toBeGreaterThanOrEqual(0);
+              expect(p.x).toBeLessThanOrEqual(6);
+            } else {
+              expect(p.x).toBeGreaterThanOrEqual(13);
+              expect(p.x).toBeLessThanOrEqual(19);
+            }
+            expect(p.y).toBeGreaterThanOrEqual(0);
+            expect(p.y).toBeLessThanOrEqual(10);
+          });
+        });
+      }
+    });
+
+    it("lists built-ins before the team's saved formations", () => {
+      manager.saveFormation("Human:left", [], "My Wall");
+      const all = manager.listAllFormations("Human:left", true);
+      expect(all[0]).toEqual({ name: "Balanced", builtIn: true });
+      expect(all).toContainEqual({ name: "My Wall", builtIn: false });
+    });
+
+    it("resolves customs over built-ins and falls back to presets", () => {
+      const custom: FormationPosition[] = [{ playerId: "0", x: 3, y: 3 }];
+      manager.saveFormation("Human:left", custom, "My Wall");
+
+      expect(manager.getFormation("Human:left", "My Wall", true)).toEqual(
+        custom
+      );
+      expect(
+        manager.getFormation("Human:left", "Balanced", true)
+      ).toHaveLength(7);
+      expect(manager.getFormation("Human:left", "Nope", true)).toBeNull();
+    });
+
+    it("knows which names are built-in", () => {
+      expect(manager.isBuiltIn("Balanced")).toBe(true);
+      expect(manager.isBuiltIn("My Wall")).toBe(false);
+    });
+  });
+
   describe("getDefaultFormation", () => {
     it("should return 7 positions for Team 1", () => {
       const formation = manager.getDefaultFormation(true);

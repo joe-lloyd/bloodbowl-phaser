@@ -211,16 +211,31 @@ describe("crowd surf", () => {
       // Surfing an opponent is not a turnover
       expect(names).not.toContain(GameEventNames.Turnover);
 
-      // No follow-up is offered when the defender left the pitch; the
-      // attacker's activation closes on its own, and since they were the
-      // team's last player the turn ends — but only after the throw-in
-      // has settled (ball at rest before the turn changes)
-      expect(surfed.pendingDecision).toBeNull();
-      expect(surfed.snapshot.activeTeamId).toBe(snap.teams[1].id);
-      const turnStartIndex = names.indexOf(GameEventNames.TurnStarted);
-      const throwInIndex = names.indexOf(GameEventNames.BallThrownIn);
-      expect(throwInIndex).toBeGreaterThanOrEqual(0);
-      expect(turnStartIndex).toBeGreaterThan(throwInIndex);
+      // The blocker is still offered the follow-up into the vacated
+      // square — only AFTER the throw-in settled (ball at rest), and the
+      // activation/turn must not end until the follow-up is answered
+      expect(names).not.toContain(GameEventNames.TurnStarted);
+      expect(surfed.pendingDecision).toEqual({
+        type: "follow-up",
+        attackerId: attacker.id,
+        targetSquare: { x: 10, y: 0 },
+      });
+      expect(surfed.snapshot.activeTeamId).toBe(snap.teams[0].id);
+
+      const followed = await game.execute({
+        type: "choose-follow-up",
+        followUp: true,
+      });
+      expect(followed.ok).toBe(true);
+      const attackerAfter = followed.snapshot.teams[0].players.find(
+        (p) => p.id === attacker.id
+      )!;
+      expect(attackerAfter.position).toEqual({ x: 10, y: 0 });
+      // The attacker was the team's last player: the turn now ends
+      expect(
+        followed.events.map((e) => e.name)
+      ).toContain(GameEventNames.TurnStarted);
+      expect(followed.snapshot.activeTeamId).toBe(snap.teams[1].id);
     }
 
     expect(surfsTested).toBeGreaterThanOrEqual(5);

@@ -50,6 +50,7 @@ const COMMAND_SHAPES: Record<
   "choose-block-result": { index: "number" },
   "choose-push-direction": { x: "number", y: "number" },
   "choose-follow-up": { followUp: "boolean" },
+  touchback: { playerId: "string" },
   state: {},
   "legal-actions": {},
 };
@@ -58,6 +59,7 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "choose-block-result": "block-dice",
   "choose-push-direction": "push-direction",
   "choose-follow-up": "follow-up",
+  touchback: "touchback",
 };
 
 export class HeadlessGame {
@@ -268,9 +270,18 @@ export class HeadlessGame {
       case "choose-follow-up": {
         const pending = this.takePending("follow-up");
         if (cmd.followUp) {
-          await gs.movePlayer(pending.attackerId, [pending.targetSquare]);
+          // Free move: no movement cost, no dice (rush/dodge already paid)
+          gs.followUpPush(pending.attackerId, pending.targetSquare);
         }
         gs.finishActivation(pending.attackerId);
+        break;
+      }
+      case "touchback": {
+        const pending = this.takePending("touchback");
+        if (!gs.awardTouchback(cmd.playerId)) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-touchback-player");
+        }
         break;
       }
     }
@@ -323,6 +334,16 @@ export class HeadlessGame {
         type: "follow-up",
         attackerId: data.followUpData.attackerId,
         targetSquare: data.followUpData.targetSquare,
+      };
+    } else if (name === GameEventNames.TouchbackAwarded) {
+      this.pending = { type: "touchback", teamId: data.teamId };
+    } else if (name === GameEventNames.UI_FollowUpPrompt) {
+      // Crowd surf: the engine prompts the follow-up directly (there is no
+      // PlayerMoved for the surfed defender)
+      this.pending = {
+        type: "follow-up",
+        attackerId: data.attackerId,
+        targetSquare: data.targetSquare,
       };
     }
   }

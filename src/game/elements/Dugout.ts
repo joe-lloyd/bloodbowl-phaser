@@ -4,6 +4,7 @@ import { Player, PlayerStatus } from "../../types/Player";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
 import { GameConfig } from "../../config/GameConfig";
+import { centeredHitArea } from "./InteractiveHitArea";
 
 export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
@@ -16,6 +17,10 @@ export class Dugout extends Phaser.GameObjects.Container {
   // Grid configuration
   private readonly GRID_ROWS = 2;
   private readonly SQUARE_SIZE = GameConfig.SQUARE_SIZE;
+  private readonly RESERVES_COLS = 6;
+  private readonly KO_COLS = 5;
+  private readonly DEAD_COLS = 5;
+  private readonly SECTION_PAD = 20;
 
   constructor(
     scene: Phaser.Scene,
@@ -46,13 +51,13 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // console.log(`[Dugout] createLayout for team ${this.team.id}. Players: ${this.team.players.length}`);
 
-    const reservesCols = 6;
-    const koCols = 5;
-    const deadCols = 5;
+    const reservesCols = this.RESERVES_COLS;
+    const koCols = this.KO_COLS;
+    const deadCols = this.DEAD_COLS;
 
-    const reservesWidth = reservesCols * this.SQUARE_SIZE + 20; // + padding
-    const koWidth = koCols * this.SQUARE_SIZE + 20;
-    const deadWidth = deadCols * this.SQUARE_SIZE + 20;
+    const reservesWidth = reservesCols * this.SQUARE_SIZE + this.SECTION_PAD;
+    const koWidth = koCols * this.SQUARE_SIZE + this.SECTION_PAD;
+    const deadWidth = deadCols * this.SQUARE_SIZE + this.SECTION_PAD;
 
     // Section order mirrors for the right-side team so the reserves
     // (team-colored) section always sits on the side of the pitch you play
@@ -192,19 +197,10 @@ export class Dugout extends Phaser.GameObjects.Container {
     // Override size and hit area to match grid square for easier clicking
     sprite.setSize(this.SQUARE_SIZE, this.SQUARE_SIZE);
 
-    // CRITICAL: We initially disable interaction so the Controller can manage it cleanly
-    // The Controller will call setInteractive({ draggable: true }) on the sprites it wants.
-    // If we set it here, we might just confuse things or have conflicting hit areas.
-    // However, for HOVER events (info panel), we need it to be interactive.
-
-    // Let's set a base HitArea but NOT draggable here.
+    // This FIRST setInteractive decides the hit area forever (Phaser ignores
+    // hit areas on re-enable), so it must be the correctly-centered one
     sprite.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -this.SQUARE_SIZE / 2,
-        -this.SQUARE_SIZE / 2,
-        this.SQUARE_SIZE,
-        this.SQUARE_SIZE
-      ),
+      centeredHitArea(sprite, this.SQUARE_SIZE),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -284,6 +280,14 @@ export class Dugout extends Phaser.GameObjects.Container {
   public getSprites(): Map<string, Phaser.GameObjects.Container> {
     // console.log(`[Dugout] getSprites for team ${this.team.id}: ${this.playerSprites.size} sprites`);
     return this.playerSprites;
+  }
+
+  /** Total pixel width of all three sections (for right-aligning) */
+  public getTotalWidth(): number {
+    return (
+      (this.RESERVES_COLS + this.KO_COLS + this.DEAD_COLS) * this.SQUARE_SIZE +
+      3 * this.SECTION_PAD
+    );
   }
 
   private getPlayersByStatus(statusType: "Reserves" | "KO" | "Dead"): Player[] {

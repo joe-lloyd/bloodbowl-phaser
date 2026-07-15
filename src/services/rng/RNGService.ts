@@ -3,14 +3,21 @@ import { DeterministicRNG } from "./DeterministicRNG";
 export interface IRNGService {
   rollDie(sides: number): number;
   rollMultipleDice(count: number, sides: number): number[];
+  /** Current internal RNG state (advances with every roll) */
   getSeed(): number;
+  /** The seed the game was started with — replaying it reproduces the game */
+  getInitialSeed(): number;
 }
 
 export class RNGService implements IRNGService {
   private rng: DeterministicRNG;
 
-  constructor(seed: number) {
-    this.rng = new DeterministicRNG(seed);
+  constructor(private initialSeed: number) {
+    this.rng = new DeterministicRNG(initialSeed);
+  }
+
+  public getInitialSeed(): number {
+    return this.initialSeed;
   }
 
   public rollDie(sides: number): number {

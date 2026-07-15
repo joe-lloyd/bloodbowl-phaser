@@ -4,6 +4,7 @@ import { GameConfig } from "../config/GameConfig";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
+import { centeredHitArea } from "../game/elements/InteractiveHitArea";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -432,7 +433,8 @@ export class GameScene extends Phaser.Scene {
     // Add 10px padding.
     const bottomDugoutY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT + 10;
 
-    // Team 2 plays the right side: mirror so reserves sit on the right
+    // Team 2 plays the right side: mirror so reserves sit on the right,
+    // and right-align the whole dugout with the pitch's right edge
     const bottomDugout = new Dugout(
       this,
       pitchX,
@@ -441,6 +443,8 @@ export class GameScene extends Phaser.Scene {
       150,
       true
     );
+    bottomDugout.x =
+      pitchX + GameConfig.PITCH_PIXEL_WIDTH - bottomDugout.getTotalWidth();
     bottomDugout.setDepth(10); // Ensure dugout container is above background
     this.dugouts.set(this.team2.id, bottomDugout);
 
@@ -531,6 +535,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   public enablePlacement(activeTeam: Team, isTeam1: boolean): void {
+    // Later drives (post-touchdown, second half) enter setup WITHOUT the
+    // coin flip, so this flag was never turned back on — leaving pointer
+    // input routed to the gameplay controller (movement pins during setup)
+    // and checkSetupCompleteness returning early (setup unconfirmable)
+    this.isSetupActive = true;
+
     const dugout = this.dugouts.get(activeTeam.id);
     const sprites = dugout ? dugout.getSprites() : new Map();
     this.placementController.enablePlacement(activeTeam, isTeam1, sprites);
@@ -560,7 +570,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       sprite.setInteractive(
-        new Phaser.Geom.Rectangle(-30, -30, 60, 60),
+        centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
         Phaser.Geom.Rectangle.Contains
       );
       this.input.setDraggable(sprite);
@@ -587,8 +597,13 @@ export class GameScene extends Phaser.Scene {
           grid.y
         );
         if (!moved) {
-          // Invalid drop: snap back to the current placement
-          this.placePlayersOnPitch();
+          if (!this.placementController.isInSetupZone(grid.x, grid.y)) {
+            // Dropped outside the setup zone: back to the dugout
+            this.placementController.removePlayer(player.id);
+          } else {
+            // e.g. occupied square: snap back to the current placement
+            this.placePlayersOnPitch();
+          }
         }
       });
     });
@@ -773,11 +788,13 @@ export class GameScene extends Phaser.Scene {
    * Animate the ball along a grid path in lockstep with a carrying player's
    * movement animation (same 180ms linear steps as PlayerSprite). Without
    * this the BallPlaced events teleport the ball to the destination before
-   * the player sprite even starts walking.
+   * the player sprite even starts walking. `delayMs` holds the ball on its
+   * start square until the walking player reaches it (mid-path pickups).
    */
   public animateBallAlong(
     from: { x: number; y: number },
-    path: { x: number; y: number }[]
+    path: { x: number; y: number }[],
+    delayMs: number = 0
   ): void {
     if (!this.ballSprite || path.length === 0) return;
 
@@ -791,6 +808,7 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.chain({
       targets: this.ballSprite,
+      delay: delayMs,
       tweens: tweenConfigs,
     });
   }

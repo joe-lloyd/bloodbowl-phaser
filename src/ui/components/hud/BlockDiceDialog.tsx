@@ -37,12 +37,22 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       setIsRolling(false);
     };
 
+    // The roll will not happen (illegal block, no movement left, rush
+    // declined or failed): close instead of spinning forever
+    const onRollCancelled = () => {
+      setIsOpen(false);
+      setIsRolling(false);
+      setRollData(null);
+    };
+
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
+    eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
 
     return () => {
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
+      eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
     };
   }, [eventBus]);
 
@@ -169,14 +179,19 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — once the dice are rolled the block CANNOT be cancelled:
+            a result must be picked */}
         <div className="flex justify-between">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"
-          >
-            Cancel
-          </button>
+          {!rollData && !isRolling ? (
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"
+            >
+              Cancel
+            </button>
+          ) : (
+            <span />
+          )}
           {!rollData && (
             <button
               onClick={handleRoll}

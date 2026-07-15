@@ -162,6 +162,13 @@ export class MovementManager {
       holdingBall = true;
     }
 
+    // Where the ball visual starts travelling with the mover and after how
+    // many walked squares it joins (0 = carried from the start)
+    let ballFrom: { x: number; y: number } | null = holdingBall
+      ? { ...player.gridPosition! }
+      : null;
+    let ballJoinStep = 0;
+
     for (const step of path) {
       if (failed) break;
 
@@ -243,14 +250,19 @@ export class MovementManager {
           const pickupOp = new PickupOperation(playerId);
           await pickupOp.execute(context);
 
-          holdingBall =
-            this.state.ballPosition?.x === currentPos.x &&
-            this.state.ballPosition?.y === currentPos.y;
+          // Read the operation's own result: on a failure the bounce runs
+          // asynchronously, so the ball can still be on this square right
+          // now — checking positions here used to let the mover walk on
+          // with a ball they never picked up.
+          holdingBall = pickupOp.success;
 
           if (!holdingBall) {
             failed = true;
             break;
           }
+
+          ballFrom = { ...currentPos };
+          ballJoinStep = completedPath.length;
         }
       }
 
@@ -270,6 +282,9 @@ export class MovementManager {
             from: result.path[0] || currentPos,
             to: currentPos,
             path: completedPath,
+            ballFrom: ballFrom ?? undefined,
+            ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
+            ballJoinStep,
           });
           this.callbacks.onTouchdown?.(player.teamId);
           return Promise.resolve();
@@ -285,6 +300,9 @@ export class MovementManager {
       from: result.path[0] || currentPos,
       to: currentPos,
       path: completedPath,
+      ballFrom: ballFrom ?? undefined,
+      ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
+      ballJoinStep,
     });
 
     if (preUsed + stepsTaken >= player.stats.MA + 2) {

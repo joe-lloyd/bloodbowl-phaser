@@ -5,6 +5,7 @@ import { SetupValidator } from "../validators/SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
 import { pixelToGrid } from "../elements/GridUtils";
+import { centeredHitArea } from "../elements/InteractiveHitArea";
 import { GameConfig } from "../../config/GameConfig";
 import { GameEventNames } from "../../types/events";
 
@@ -54,7 +55,15 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
       if (player && player.teamId === team.id) {
         // console.log(`[PlayerPlacementController] Enabling sprite for player ${playerId}`);
-        sprite.setInteractive({ draggable: true });
+        // Phaser keeps the hit area from the sprite's FIRST setInteractive
+        // (the dugout sets the correctly-centered one at creation); this
+        // config only re-enables input — the hitArea here is a fallback for
+        // sprites that were never made interactive
+        sprite.setInteractive({
+          hitArea: centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
+          hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+          draggable: true,
+        });
         sprite.setAlpha(1);
 
         // Remove old listeners to prevent duplicates
@@ -62,9 +71,9 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
         sprite.off("dragstart"); // Ensure we don't duplicate our debug listener
 
         sprite.on("dragstart", () => {
-          console.log(
-            `[PlayerPlacementController] dragstart on ${playerId} (Team ${player.teamId})`
-          );
+          // Remember the dugout slot so a failed drop can snap back to it
+          sprite.setData("homeX", sprite.x);
+          sprite.setData("homeY", sprite.y);
         });
 
         // Add drag end listener for snapping
@@ -94,9 +103,11 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           const gridPos = pixelToGrid(localX, localY, GameConfig.SQUARE_SIZE);
           this.placePlayer(playerId, gridPos.x, gridPos.y);
 
-          // Reset sprite position in dugout (visual only, will be refreshed by GameScene events)
-          sprite.x = 0;
-          sprite.y = 0;
+          // Snap the dugout sprite back to its slot; an invalid drop (off
+          // pitch / outside the zone) leaves the player visibly back in the
+          // dugout, a valid one gets re-laid-out by the dugout refresh
+          sprite.x = (sprite.getData("homeX") as number) ?? 0;
+          sprite.y = (sprite.getData("homeY") as number) ?? 0;
         });
       } else {
         if (!player)
@@ -209,6 +220,11 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     return true;
   }
 
+  /** Whether a grid square lies in the current team's setup zone */
+  isInSetupZone(gridX: number, gridY: number): boolean {
+    return this.validator.isInSetupZone(gridX, gridY, this.isTeam1);
+  }
+
   /**
    * Remove a player from the pitch
    */
@@ -232,14 +248,19 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   /**
-   * Load a formation (place all players at once)
+   * Load a formation (place all players at once). A position's playerId
+   * that parses as a number is a roster index (how formations are stored,
+   * so they survive fresh team instances); otherwise array order is used.
    */
   loadFormation(formation: FormationPosition[]): void {
     this.clearPlacements();
 
     formation.forEach((pos, index) => {
-      if (this.currentTeam && index < this.currentTeam.players.length) {
-        const player = this.currentTeam.players[index];
+      if (!this.currentTeam) return;
+      const parsed = Number.parseInt(pos.playerId, 10);
+      const rosterIndex = Number.isNaN(parsed) ? index : parsed;
+      const player = this.currentTeam.players[rosterIndex];
+      if (player) {
         this.placePlayer(player.id, pos.x, pos.y);
       }
     });
