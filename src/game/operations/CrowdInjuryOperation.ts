@@ -20,7 +20,13 @@ export class CrowdInjuryOperation extends GameOperation {
 
   constructor(
     private playerId: string,
-    private exitSquare: { x: number; y: number }
+    private exitSquare: { x: number; y: number },
+    /**
+     * Whether this surf is a turnover, decided when the push happened —
+     * by resolution time the activation may already have ended the turn,
+     * so the active team can no longer be read from the game state.
+     */
+    private isTurnover: boolean
   ) {
     super();
   }
@@ -80,7 +86,7 @@ export class CrowdInjuryOperation extends GameOperation {
     }
 
     // Active-team player surfed = turnover (latch absorbs duplicates)
-    if (player.teamId === gameService.getActiveTeamId()) {
+    if (this.isTurnover) {
       gameService.triggerTurnover("Pushed into the Crowd");
     }
   }

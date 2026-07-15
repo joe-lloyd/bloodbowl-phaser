@@ -444,6 +444,8 @@ export interface UIEvents {
     validDirections: { x: number; y: number }[];
     canFollowUp: boolean;
     resultType?: string;
+    /** Which rulebook tier the offered squares are: open, chain, or crowd */
+    pushTier?: "open" | "chain" | "crowd";
   };
 
   [GameEventNames.UI_PushDirectionSelected]: {

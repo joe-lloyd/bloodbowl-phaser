@@ -1,6 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { FlowContext } from "../core/GameFlowManager";
 import { PlayerStatus } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
@@ -10,16 +10,17 @@ export class CatchOperation extends GameOperation {
 
   constructor(
     private playerId: string,
-    private isHandoff: boolean = false
+    /**
+     * Only a dropped pass/hand-off is a turnover; a dropped bounce or
+     * throw-in is not (the original loss already caused one if due).
+     */
+    private turnoverOnDrop: boolean = true
   ) {
     super();
   }
 
-  async execute(context: any): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
-    const flowManager = context.flowManager;
+  async execute(context: FlowContext): Promise<void> {
+    const { gameService, eventBus, flowManager } = context;
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player || !player.gridPosition) return;
@@ -68,10 +69,8 @@ export class CatchOperation extends GameOperation {
     const success = agilityTest.success;
 
     if (success) {
-      // CATCH SUCCESS
+      // CATCH SUCCESS (possession is positional: ball is on their square)
       eventBus.emit(GameEventNames.UI_Notification, "Catch Successful!");
-
-      this.handleSuccess(gameService, player);
 
       // Catching in the scoring end zone is an immediate touchdown
       gameService.checkForTouchdown(this.playerId);
@@ -84,20 +83,13 @@ export class CatchOperation extends GameOperation {
 
       // Turnover?
       // If it was a Pass/Handoff by Active Team, dropping it is a Turnover.
-      if (gameService.getActiveTeamId() === player.teamId) {
+      if (
+        this.turnoverOnDrop &&
+        gameService.getActiveTeamId() === player.teamId
+      ) {
         gameService.triggerTurnover("Dropped Ball");
       }
     }
   }
 
-  private handleSuccess(gameService: IGameService, player: any) {
-    // Logic to update ball ownership
-    // This might require a new method on GameService or accessing BallManager
-    // "givePossession"
-    // For now, we will perform a "hack" or plan to add the method.
-    // Since I cannot see BallManager public API fully, I'll rely on adding a service method in next step.
-    // Checking GameService... it has 'attemptPickup'.
-    // I'll use a placeholder comment for the helper call.
-    // gameService.giveBallToPlayer(player.id);
-  }
 }

@@ -176,7 +176,10 @@ export class BallManager {
         p.gridPosition.y === landing.y
     );
     if (occupant) {
-      this.callbacks.getFlowManager?.()?.add(new CatchOperation(occupant.id), true);
+      // A dropped throw-in is not a turnover
+      this.callbacks
+        .getFlowManager?.()
+        ?.add(new CatchOperation(occupant.id, false), true);
     }
   }
 

@@ -1,6 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
-import { IGameService } from "../../services/interfaces/IGameService";
+import { FlowContext } from "../core/GameFlowManager";
 import { CatchOperation } from "./CatchOperation";
 import { GameConfig } from "@/config/GameConfig";
 
@@ -11,11 +11,8 @@ export class BounceOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
-    const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
-    const flowManager = context.flowManager;
+  async execute(context: FlowContext): Promise<void> {
+    const { gameService, eventBus, flowManager } = context;
 
     // 1. Roll Scatter (d8)
     const direction = gameService
@@ -58,9 +55,10 @@ export class BounceOperation extends GameOperation {
       newY < 0 ||
       newY >= GameConfig.PITCH_HEIGHT
     ) {
+      // The crowd throws a bounced-out ball back in from the square it
+      // left (p.73); bouncing out is not itself a turnover
       eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
-      gameService.triggerTurnover("Ball Out of Bounds");
-      // Throw-in logic? For now just turnover/stop.
+      gameService.throwInBall(this.startPosition);
       return;
     }
 
@@ -71,9 +69,9 @@ export class BounceOperation extends GameOperation {
     const playerAtSquare = gameService.getPlayerAt(newX, newY);
 
     if (playerAtSquare) {
-      // Attempt Catch
+      // Attempt Catch (a dropped bounce is not a turnover by itself)
       eventBus.emit(GameEventNames.UI_Notification, "Ball hits player!");
-      flowManager.add(new CatchOperation(playerAtSquare.id), true);
+      flowManager.add(new CatchOperation(playerAtSquare.id, false), true);
     } else {
       // Land in empty square
       eventBus.emit(

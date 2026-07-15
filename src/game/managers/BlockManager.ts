@@ -11,16 +11,36 @@ import {
 } from "../../services/BlockResolutionService";
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
+import { BounceOperation } from "../operations/BounceOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
+import { GameOperation } from "../core/GameOperation";
+import { FlowContext } from "../core/GameFlowManager";
+
+/**
+ * Ends the blocker's activation after a crowd surf resolves. Queued behind
+ * the crowd injury so the throw-in/bounce chain settles before a possible
+ * auto end-turn.
+ */
+class FinishActivationOperation extends GameOperation {
+  public readonly name = "FinishActivation";
+
+  constructor(private playerId: string) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    context.gameService.finishActivation(this.playerId);
+  }
+}
 
 export class BlockManager {
   private blockValidator: BlockValidator = new BlockValidator();
 
   constructor(
     private eventBus: IEventBus,
-    _state: GameState,
+    private state: GameState,
     private team1: Team,
     private team2: Team,
     private blockResolutionService: BlockResolutionService,
@@ -143,7 +163,6 @@ export class BlockManager {
       canFollowUp: this.blockResolutionService.allowsFollowUp(
         this.chain!.resultType
       ),
-      willFollowUp: false,
       resultType: this.chain!.resultType,
       attackerId: this.chain!.attackerId, // chooser is always the blocker
       pushTier: tier,
@@ -224,15 +243,19 @@ export class BlockManager {
 
       if (link.to === null) {
         // Crowd surf: off the pitch; injury without armour, ball throw-in
-        // and turnover handled by the operation
+        // and turnover handled by the operation. Whether it's a turnover is
+        // decided NOW — by the time the operation runs the turn may have
+        // ended (auto end-turn on the blocker's last activation)
         player.gridPosition = undefined;
         this.eventBus.emit(GameEventNames.PlayerPushedIntoCrowd, {
           playerId: link.playerId,
           exitSquare: link.from,
         });
         if (flowManager) {
+          const isTurnover =
+            player.teamId === flowManager.context.gameService.getActiveTeamId();
           flowManager.add(
-            new CrowdInjuryOperation(link.playerId, link.from),
+            new CrowdInjuryOperation(link.playerId, link.from, isTurnover),
             true
           );
         }
@@ -240,6 +263,16 @@ export class BlockManager {
       }
 
       player.gridPosition = { ...link.to };
+
+      // A pushed player keeps hold of the ball
+      const carriedBall =
+        this.state.ballPosition &&
+        this.state.ballPosition.x === link.from.x &&
+        this.state.ballPosition.y === link.from.y;
+      if (carriedBall) {
+        this.state.ballPosition = { ...link.to };
+        this.eventBus.emit(GameEventNames.BallPlaced, { ...link.to });
+      }
 
       const isOriginalDefender = i === 0;
       this.eventBus.emit(GameEventNames.PlayerMoved, {
@@ -254,13 +287,27 @@ export class BlockManager {
       });
 
       // A standing carrier pushed into their scoring end zone still scores
-      if (resultType === "push") {
+      // (the original defender falls on POW, so no score for them)
+      const knockedDown =
+        isOriginalDefender &&
+        (resultType === "pow" || resultType === "pow-dodge");
+      if (!knockedDown) {
         flowManager?.context.gameService.checkForTouchdown(link.playerId);
       }
     }
 
     // Knockdown applies only to the original defender on POW results
     const first = links[0];
+    if (first && first.to === null) {
+      // Defender surfed: no follow-up decision is offered (follow-up onto
+      // the vacated square is a future refinement), so the attacker's
+      // activation ends instead of via the follow-up reply. Queued at the
+      // BACK so the crowd injury + throw-in settle first — finishing the
+      // last activation can auto-end the turn, and the ball must be at
+      // rest before the turn changes
+      flowManager?.add(new FinishActivationOperation(attackerId));
+      return;
+    }
     if (
       first &&
       first.to !== null &&
@@ -270,7 +317,16 @@ export class BlockManager {
       if (defender) {
         this.knockDownPlayer(defender);
         if (flowManager) {
+          // A knocked-down carrier drops the ball where they landed
+          // (added after ArmourOperation so the bounce resolves first)
           flowManager.add(new ArmourOperation(first.playerId), true);
+          if (
+            this.state.ballPosition &&
+            this.state.ballPosition.x === first.to.x &&
+            this.state.ballPosition.y === first.to.y
+          ) {
+            flowManager.add(new BounceOperation(first.to), true);
+          }
         }
       }
     }

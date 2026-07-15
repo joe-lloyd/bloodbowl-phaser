@@ -36,7 +36,9 @@ export class GameplayInteractionController {
   private pushResultType: string = "";
 
   // Store handler references for cleanup
-  private pushDirectionHandler: (data: any) => void;
+  private pushDirectionHandler: (
+    data: import("@/types/events").UIEvents[GameEventNames.UI_SelectPushDirection]
+  ) => void;
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
@@ -275,11 +277,15 @@ export class GameplayInteractionController {
   ): void {
     if (isSetupActive) return;
 
-    const { valid, gridX, gridY } = this.getGridFromPointer(pointer);
+    // Crowd push squares sit one square off-pitch; accept clicks there
+    // while a push direction is being chosen
+    const margin = this.pushSelectionActive ? 1 : 0;
+    const { valid, gridX, gridY } = this.getGridFromPointer(pointer, margin);
     if (valid) {
       this.onSquareClicked(gridX, gridY);
-    } else {
-      // Clicked outside pitch -> Deselect
+    } else if (!this.pushSelectionActive) {
+      // Clicked outside pitch -> Deselect (but never mid push decision:
+      // deselecting would wipe the pending push highlights)
       this.deselectPlayer();
     }
   }
@@ -309,7 +315,10 @@ export class GameplayInteractionController {
     }
   }
 
-  private getGridFromPointer(pointer: Phaser.Input.Pointer): {
+  private getGridFromPointer(
+    pointer: Phaser.Input.Pointer,
+    marginSquares: number = 0
+  ): {
     valid: boolean;
     gridX: number;
     gridY: number;
@@ -320,8 +329,14 @@ export class GameplayInteractionController {
 
     const pitchW = 26 * 60;
     const pitchH = 15 * 60;
+    const m = marginSquares * 60;
 
-    if (localX >= 0 && localX <= pitchW && localY >= 0 && localY <= pitchH) {
+    if (
+      localX >= -m &&
+      localX <= pitchW + m &&
+      localY >= -m &&
+      localY <= pitchH + m
+    ) {
       const gridPos = pixelToGrid(localX, localY, 60);
       return { valid: true, gridX: gridPos.x, gridY: gridPos.y };
     }
@@ -334,6 +349,9 @@ export class GameplayInteractionController {
     // Check if we're selecting a push direction first
     if (this.handlePushDirectionClick(x, y)) {
       return; // Push direction was selected, done
+    }
+    if (this.pushSelectionActive) {
+      return; // Push direction is a mandatory decision: ignore other clicks
     }
 
     const phase = this.gameService.getPhase();
@@ -651,6 +669,20 @@ export class GameplayInteractionController {
     console.log(
       `[Interaction] handlePlayerClick: ${playerId}. Mode: ${this.currentActionMode}, Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
     );
+
+    // Chain push: the option squares are occupied, so the click arrives via
+    // the player sprite — route it to the push decision. While the decision
+    // is open no selection changes are allowed (it's mandatory).
+    if (this.pushSelectionActive) {
+      const clicked = this.gameService.getPlayerById(playerId);
+      if (clicked && clicked.gridPosition) {
+        this.handlePushDirectionClick(
+          clicked.gridPosition.x,
+          clicked.gridPosition.y
+        );
+      }
+      return;
+    }
 
     // CRITICAL FIX: If in Pass Mode (Aiming Step), clicking a player MUST BE TREATED AS A TARGET CLICK.
     // absolutely NO selection changes allowed.
@@ -1262,6 +1294,7 @@ export class GameplayInteractionController {
     defenderId: string;
     attackerId?: string;
     resultType?: string;
+    pushTier?: "open" | "chain" | "crowd";
   }): void {
     this.pushSelectionActive = true;
     this.pushValidDirections = data.validDirections || [];
@@ -1272,9 +1305,21 @@ export class GameplayInteractionController {
     // Clear any existing highlights first
     this.clearAllInteractionHighlights();
 
+    // Yellow = open square, orange = chain push, red = into the crowd
+    const tierColors = { open: 0xffff00, chain: 0xff8800, crowd: 0xff0000 };
+    const color = tierColors[data.pushTier ?? "open"];
+    if (data.pushTier === "crowd") {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Push into the crowd!"
+      );
+    } else if (data.pushTier === "chain") {
+      this.eventBus.emit(GameEventNames.UI_Notification, "Chain push!");
+    }
+
     // Highlight the valid push squares using HighlightManager
     this.pushValidDirections.forEach((dir) => {
-      this.highlightManager.addPushHighlight(dir.x, dir.y, 0xffff00);
+      this.highlightManager.addPushHighlight(dir.x, dir.y, color);
     });
   }
 
@@ -1289,21 +1334,27 @@ export class GameplayInteractionController {
     );
 
     if (isValid) {
-      this.gameService.executePush(
-        this.pushAttackerId,
-        this.pushDefenderId,
-        { x, y },
-        this.pushResultType,
-        false
-      );
+      const attackerId = this.pushAttackerId;
+      const defenderId = this.pushDefenderId;
+      const resultType = this.pushResultType;
 
+      // Reset BEFORE executing: a chain push emits the next push-direction
+      // decision synchronously from inside executePush, and that fresh
+      // selection state must not be clobbered afterwards
       this.pushSelectionActive = false;
       this.pushValidDirections = [];
       this.pushDefenderId = "";
       this.pushAttackerId = "";
       this.pushResultType = "";
-
       this.clearAllInteractionHighlights();
+
+      this.gameService.executePush(
+        attackerId,
+        defenderId,
+        { x, y },
+        resultType,
+        false
+      );
 
       return true;
     }

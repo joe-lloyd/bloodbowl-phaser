@@ -161,67 +161,51 @@ export class BlockResolutionService {
   }
 
   /**
-   * Get valid push directions (3 squares behind defender)
+   * Get valid push directions (3 squares behind defender, on-pitch only)
    */
   public getValidPushDirections(
     attackerPos: { x: number; y: number },
     defenderPos: { x: number; y: number }
   ): { x: number; y: number }[] {
-    // Calculate direction vector from attacker to defender
-    const dx = defenderPos.x - attackerPos.x;
-    const dy = defenderPos.y - attackerPos.y;
+    return this.pushCandidates(attackerPos, defenderPos).filter((pos) =>
+      this.isOnPitch(pos)
+    );
+  }
 
-    // Normalize to get primary direction
-    const primaryDir = { x: Math.sign(dx), y: Math.sign(dy) };
+  /**
+   * The 3 push squares behind the defender relative to the attacker:
+   * straight back plus the two adjacent squares. May include off-pitch
+   * coordinates (crowd exits).
+   */
+  private pushCandidates(
+    attackerPos: { x: number; y: number },
+    defenderPos: { x: number; y: number }
+  ): { x: number; y: number }[] {
+    const dx = Math.sign(defenderPos.x - attackerPos.x);
+    const dy = Math.sign(defenderPos.y - attackerPos.y);
 
-    // The 3 valid push squares are:
-    // 1. Straight back (primary direction)
-    // 2. Diagonal left
-    // 3. Diagonal right
-
-    const directions: { x: number; y: number }[] = [];
-
-    // Straight back
-    directions.push({
-      x: defenderPos.x + primaryDir.x,
-      y: defenderPos.y + primaryDir.y,
-    });
-
-    // Diagonal variations
-    if (primaryDir.x !== 0 && primaryDir.y !== 0) {
-      // Already diagonal, add the two adjacent diagonals
-      directions.push({
-        x: defenderPos.x + primaryDir.x,
-        y: defenderPos.y,
-      });
-      directions.push({
-        x: defenderPos.x,
-        y: defenderPos.y + primaryDir.y,
-      });
-    } else if (primaryDir.x !== 0) {
-      // Horizontal push, add diagonals up and down
-      directions.push({
-        x: defenderPos.x + primaryDir.x,
-        y: defenderPos.y + 1,
-      });
-      directions.push({
-        x: defenderPos.x + primaryDir.x,
-        y: defenderPos.y - 1,
-      });
-    } else {
-      // Vertical push, add diagonals left and right
-      directions.push({
-        x: defenderPos.x + 1,
-        y: defenderPos.y + primaryDir.y,
-      });
-      directions.push({
-        x: defenderPos.x - 1,
-        y: defenderPos.y + primaryDir.y,
-      });
+    if (dx !== 0 && dy !== 0) {
+      // Diagonal push: straight back plus the two adjacent orthogonals
+      return [
+        { x: defenderPos.x + dx, y: defenderPos.y + dy },
+        { x: defenderPos.x + dx, y: defenderPos.y },
+        { x: defenderPos.x, y: defenderPos.y + dy },
+      ];
     }
-
-    // Filter out invalid positions (out of bounds)
-    return directions.filter((pos) => this.isOnPitch(pos));
+    if (dx !== 0) {
+      // Horizontal push: straight back plus diagonals up and down
+      return [
+        { x: defenderPos.x + dx, y: defenderPos.y },
+        { x: defenderPos.x + dx, y: defenderPos.y + 1 },
+        { x: defenderPos.x + dx, y: defenderPos.y - 1 },
+      ];
+    }
+    // Vertical push: straight back plus diagonals left and right
+    return [
+      { x: defenderPos.x, y: defenderPos.y + dy },
+      { x: defenderPos.x + 1, y: defenderPos.y + dy },
+      { x: defenderPos.x - 1, y: defenderPos.y + dy },
+    ];
   }
 
   private isOnPitch(pos: { x: number; y: number }): boolean {
@@ -247,31 +231,8 @@ export class BlockResolutionService {
     options: { x: number; y: number }[];
     tier: "open" | "chain" | "crowd";
   } {
-    const candidates = this.getValidPushDirections(attackerPos, defenderPos);
-    // getValidPushDirections filters to on-pitch; recompute raw candidates
-    // to know whether off-pitch exits exist
-    const dx = Math.sign(defenderPos.x - attackerPos.x);
-    const dy = Math.sign(defenderPos.y - attackerPos.y);
-    const raw: { x: number; y: number }[] = [];
-    if (dx !== 0 && dy !== 0) {
-      raw.push(
-        { x: defenderPos.x + dx, y: defenderPos.y + dy },
-        { x: defenderPos.x + dx, y: defenderPos.y },
-        { x: defenderPos.x, y: defenderPos.y + dy }
-      );
-    } else if (dx !== 0) {
-      raw.push(
-        { x: defenderPos.x + dx, y: defenderPos.y },
-        { x: defenderPos.x + dx, y: defenderPos.y + 1 },
-        { x: defenderPos.x + dx, y: defenderPos.y - 1 }
-      );
-    } else {
-      raw.push(
-        { x: defenderPos.x, y: defenderPos.y + dy },
-        { x: defenderPos.x + 1, y: defenderPos.y + dy },
-        { x: defenderPos.x - 1, y: defenderPos.y + dy }
-      );
-    }
+    const raw = this.pushCandidates(attackerPos, defenderPos);
+    const candidates = raw.filter((p) => this.isOnPitch(p));
 
     const unoccupied = candidates.filter((p) => !isOccupied(p.x, p.y));
     if (unoccupied.length > 0) return { options: unoccupied, tier: "open" };
