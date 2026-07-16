@@ -17,6 +17,7 @@ import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
+import { foldBlockResult, BlockResultContext } from "../skills";
 
 /**
  * Offers the blocker the follow-up into the square their crowd-surfed
@@ -358,18 +359,39 @@ export class BlockManager {
    * Handle both down result
    */
   private handleBothDown(attacker: Player, defender: Player): void {
-    this.knockDownPlayer(attacker);
-    this.knockDownPlayer(defender);
+    // Skill hook: rules may cancel a knock-down (Block ignores Both Down).
+    const ctx: BlockResultContext = {
+      attacker,
+      defender,
+      resultType: "both-down",
+      attackerKnockedDown: true,
+      defenderKnockedDown: true,
+      triggers: [],
+    };
+    foldBlockResult(ctx);
+    ctx.triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+
+    if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
+    if (ctx.defenderKnockedDown) this.knockDownPlayer(defender);
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
-      // Add both to queue (next: true means they get processed in order they were added to front?)
-      // unshift(defender), then unshift(attacker) -> attacker runs FIRST.
-      flowManager.add(new ArmourOperation(defender.id), true);
-      flowManager.add(new ArmourOperation(attacker.id), true);
+      // Only the players actually knocked down roll armour. Attacker runs
+      // first (added last to the front of the queue).
+      if (ctx.defenderKnockedDown) {
+        flowManager.add(new ArmourOperation(defender.id), true);
+      }
+      if (ctx.attackerKnockedDown) {
+        flowManager.add(new ArmourOperation(attacker.id), true);
+      }
     }
 
-    this.callbacks.onTurnover("Both Down");
+    // A turnover happens only if the active player (the attacker) went down.
+    if (ctx.attackerKnockedDown) {
+      this.callbacks.onTurnover("Both Down");
+    }
   }
 
   /**
