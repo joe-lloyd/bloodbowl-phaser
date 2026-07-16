@@ -185,6 +185,7 @@ export class HostSession {
       pendingDecision: this.options.game.pendingDecision(),
       teamIdOfPlayer: (playerId) => gameService.getPlayerById(playerId)?.teamId,
       hostTeamId: this.options.hostTeamId,
+      phase: gameService.getState().phase,
     };
   }
 

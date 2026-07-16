@@ -6,6 +6,7 @@ import { GameEventNames, GameEvents } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
 import { PlayerPlacementController } from "../PlayerPlacementController";
 import { FormationManager } from "@/game/managers/FormationManager";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 /**
  * SetupPhaseHandler
@@ -33,13 +34,20 @@ export class SetupPhaseHandler implements PhaseHandler {
     const subPhase = this.gameService.getSubPhase();
     console.log(`[SetupPhaseHandler] Current SubPhase: ${subPhase}`);
 
+    // Online: the opening (intro/weather/coin flip) is a shared,
+    // host-authoritative sequence handled outside the engine (OnlineCoinFlip
+    // over the lobby doc). Neither side runs the local intro or the in-HUD
+    // coin flip — the host applies the toss result via UI_CoinFlipComplete.
+    const match = getActiveOnlineMatch();
+    const isOnline = !!match;
+
     if (subPhase === SubPhase.INTRO) {
-      this.runIntroSequence();
+      if (!isOnline) this.runIntroSequence();
     } else if (subPhase === SubPhase.WEATHER) {
       // Weather handled by intro or direct state
     } else if (subPhase === SubPhase.COIN_FLIP) {
-      // Only show if NOT in the middle of intro (intro will show it after delay)
-      if (!this.isIntroSequence) {
+      // Only show if NOT mid-intro and NOT online (online toss is external).
+      if (!this.isIntroSequence && !isOnline) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.scene.team1,
           team2: this.scene.team2,
@@ -57,12 +65,21 @@ export class SetupPhaseHandler implements PhaseHandler {
             ? this.scene.team1
             : this.scene.team2;
         const isTeam1 = activeTeam.id === this.scene.team1.id;
-        this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
-          subPhase,
-          activeTeam,
-        });
-        this.scene.highlightSetupZone(isTeam1);
-        this.scene.enablePlacement(activeTeam, isTeam1);
+        // Online: only the active team's coach places; the other watches the
+        // board update read-only (UI_SyncBoard), no controls or drag.
+        const isMySetup = !match || activeTeam.id === match.myTeamId;
+        if (isMySetup) {
+          this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
+            subPhase,
+            activeTeam,
+          });
+          this.scene.highlightSetupZone(isTeam1);
+          this.scene.enablePlacement(activeTeam, isTeam1);
+        } else {
+          this.eventBus.emit(GameEventNames.UI_HideSetupControls);
+          this.scene.disableSetupInteraction();
+          this.eventBus.emit(GameEventNames.UI_SyncBoard);
+        }
       }
     }
   }
@@ -79,6 +96,12 @@ export class SetupPhaseHandler implements PhaseHandler {
       (data) => {
         this.scene.kickingTeam = data.kickingTeam;
         this.scene.receivingTeam = data.receivingTeam;
+        // Online skips the local intro (which rolls weather), so the host
+        // rolls it once here — the result rides the snapshot to the guest.
+        // Only the host emits UI_CoinFlipComplete, so this runs host-side only.
+        if (getActiveOnlineMatch()) {
+          this.gameService.rollInitialWeather();
+        }
         this.gameService.startSetup(data.kickingTeam.id);
       }
     );

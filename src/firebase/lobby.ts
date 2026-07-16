@@ -26,6 +26,7 @@ import {
 } from "firebase/firestore";
 import { getDb } from "./config";
 import { Team } from "../types/Team";
+import { GameSnapshot } from "../headless/serialization";
 
 export type LobbyStatus = "lobby" | "active" | "finished" | "abandoned";
 
@@ -35,6 +36,8 @@ export interface LobbyPlayer {
   /** The full serialized team this player brings (null until selected) */
   team: Team | null;
   ready: boolean;
+  /** Last presence heartbeat (client epoch ms); stale = disconnected */
+  lastSeen?: number;
 }
 
 export interface LobbySettings {
@@ -42,6 +45,35 @@ export interface LobbySettings {
   turnSeconds: number;
   /** Each player's pause budget */
   timeoutBankMs: number;
+}
+
+/**
+ * Turn clock. The host writes an absolute `deadline` (epoch ms) at each play
+ * turn start; both clients derive the countdown locally (no per-second
+ * writes). A player may spend their `banks` budget to pause: `pausedBy` +
+ * `pausedAt` freeze the clock and block commands until resume, when the
+ * elapsed pause is deducted from that player's bank.
+ */
+export interface TimerState {
+  deadline: number | null;
+  pausedBy: string | null;
+  pausedAt: number | null;
+  /** uid -> remaining pause budget (ms) */
+  banks: Record<string, number>;
+}
+
+/**
+ * Shared coin-flip state at match start. Both players ready up; the host
+ * (authoritative) writes the winner; the winner writes their kick/receive
+ * choice. Persisting it means a resumed match never re-flips.
+ */
+export interface CoinFlipState {
+  hostReady?: boolean;
+  guestReady?: boolean;
+  /** Team that won the toss (host-written once both are ready) */
+  winnerTeamId?: string | null;
+  /** Kicking team, from the winner's choice — coin flip is done once set */
+  kickingTeamId?: string | null;
 }
 
 export interface LobbyDoc {
@@ -54,6 +86,14 @@ export interface LobbyDoc {
   settings: LobbySettings;
   players: Record<string, LobbyPlayer>;
   createdAt: unknown;
+  /** Latest authoritative state (host-written); lets a saved match resume */
+  snapshot?: GameSnapshot | null;
+  /** uid of the player proposing to end the match; the other must agree */
+  endRequestBy?: string | null;
+  /** Shared coin-flip handshake at match start */
+  coinFlip?: CoinFlipState | null;
+  /** Turn clock + pause banks */
+  timer?: TimerState | null;
 }
 
 export const DEFAULT_SETTINGS: LobbySettings = {
@@ -73,6 +113,59 @@ function generateMatchCode(): string {
 
 function lobbyRef(code: string) {
   return doc(getDb(), "games", code);
+}
+
+function userRef(uid: string) {
+  return doc(getDb(), "users", uid);
+}
+
+// ===== Active-match pointer (one live match per user) =====
+
+/**
+ * A player may only have one active match at a time. We keep a pointer on
+ * the user's own doc so the home page can offer to resume it and hosting can
+ * refuse to spawn a duplicate.
+ */
+export async function setActiveMatchCode(
+  uid: string,
+  code: string
+): Promise<void> {
+  await setDoc(userRef(uid), { activeMatchCode: code }, { merge: true });
+}
+
+export async function clearActiveMatchCode(uid: string): Promise<void> {
+  await setDoc(userRef(uid), { activeMatchCode: null }, { merge: true });
+}
+
+export async function getActiveMatchCode(uid: string): Promise<string | null> {
+  const snapshot = await getDoc(userRef(uid));
+  return snapshot.exists()
+    ? ((snapshot.data().activeMatchCode as string | null) ?? null)
+    : null;
+}
+
+// ===== Coach profile (display name that isn't the Google account name) =====
+
+/** A privacy-safe default so we never fall back to the Google name. */
+export function defaultCoachName(uid: string): string {
+  return `Coach-${uid.slice(0, 4).toUpperCase()}`;
+}
+
+export async function getCoachName(uid: string): Promise<string | null> {
+  const snapshot = await getDoc(userRef(uid));
+  const name = snapshot.exists()
+    ? (snapshot.data().coachName as string | undefined)
+    : undefined;
+  return name?.trim() ? name : null;
+}
+
+/** The name to show in lobbies/matches — stored coach name or the default. */
+export async function resolveCoachName(uid: string): Promise<string> {
+  return (await getCoachName(uid)) ?? defaultCoachName(uid);
+}
+
+export async function setCoachName(uid: string, name: string): Promise<void> {
+  await setDoc(userRef(uid), { coachName: name.trim() }, { merge: true });
 }
 
 /** Firestore rejects undefined; teams round-trip through JSON anyway. */
@@ -104,6 +197,7 @@ export async function createLobby(
     // does not delete subcollections: cleanupMatch handles the clean path.
     expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
   });
+  await setActiveMatchCode(hostUid, code);
   return { ...lobby, createdAt: null };
 }
 
@@ -131,8 +225,32 @@ export async function joinLobby(
       [guestUid]: { uid: guestUid, displayName, team: null, ready: false },
     };
     tx.update(lobbyRef(normalized), { guestUid, players: plain(players) });
+    tx.set(userRef(guestUid), { activeMatchCode: normalized }, { merge: true });
     return { ...lobby, guestUid, players };
   });
+}
+
+// ===== Presence / disconnect detection =====
+
+/** Presence heartbeat: stamp this player's lastSeen on the game doc. */
+export async function heartbeat(code: string, uid: string): Promise<void> {
+  await updateDoc(lobbyRef(code), { [`players.${uid}.lastSeen`]: Date.now() });
+}
+
+/**
+ * Whether the given player's presence is fresh. Uses client clocks (both
+ * stamp and compare with Date.now()), so the threshold is generous to absorb
+ * modest clock skew. A player with no lastSeen yet is treated as present.
+ */
+export function isPlayerOnline(
+  lobby: LobbyDoc,
+  uid: string,
+  thresholdMs: number,
+  now: number = Date.now()
+): boolean {
+  const last = lobby.players[uid]?.lastSeen;
+  if (last == null) return true;
+  return now - last <= thresholdMs;
 }
 
 export function subscribeLobby(
@@ -181,15 +299,138 @@ export function canStart(lobby: LobbyDoc): boolean {
 }
 
 /** Host starts the match: writes the seed and flips status to active. */
-export async function startMatch(code: string, seed: number): Promise<void> {
-  await updateDoc(lobbyRef(code), { seed, status: "active" });
+export async function startMatch(
+  code: string,
+  seed: number,
+  settings: LobbySettings,
+  hostUid: string,
+  guestUid: string
+): Promise<void> {
+  const timer: TimerState = {
+    deadline: null,
+    pausedBy: null,
+    pausedAt: null,
+    banks: {
+      [hostUid]: settings.timeoutBankMs,
+      [guestUid]: settings.timeoutBankMs,
+    },
+  };
+  await updateDoc(lobbyRef(code), { seed, status: "active", timer });
+}
+
+// ===== Turn clock =====
+
+/** Host: set the countdown deadline for the current play turn. */
+export async function setTurnDeadline(
+  code: string,
+  deadline: number | null
+): Promise<void> {
+  await updateDoc(lobbyRef(code), { "timer.deadline": deadline });
+}
+
+/**
+ * Pure resume math: deduct the paused duration from the pauser's bank
+ * (clamped at 0) and push the turn deadline out by the same amount so no turn
+ * time is lost. Exposed for testing and used by resume/exhaustion handling.
+ */
+export function computeResume(
+  timer: TimerState,
+  uid: string,
+  nowMs: number
+): { remainingBankMs: number; newDeadline: number } {
+  const pausedAt = timer.pausedAt ?? nowMs;
+  const elapsed = Math.max(0, nowMs - pausedAt);
+  const bank = timer.banks?.[uid] ?? 0;
+  return {
+    remainingBankMs: Math.max(0, bank - elapsed),
+    newDeadline: (timer.deadline ?? nowMs) + elapsed,
+  };
+}
+
+/** Spend timeout to pause the clock for both players. */
+export async function pauseClock(code: string, uid: string): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    "timer.pausedBy": uid,
+    "timer.pausedAt": Date.now(),
+  });
+}
+
+/**
+ * Resume after a pause: deduct the elapsed time from the pauser's bank and
+ * push the turn deadline out by the same amount so no turn time was lost.
+ */
+export async function resumeClock(
+  code: string,
+  uid: string,
+  remainingBankMs: number,
+  newDeadline: number | null
+): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    "timer.pausedBy": null,
+    "timer.pausedAt": null,
+    [`timer.banks.${uid}`]: Math.max(0, remainingBankMs),
+    "timer.deadline": newDeadline,
+  });
+}
+
+/** Host persists the latest authoritative state so the match can resume. */
+export async function persistSnapshot(
+  code: string,
+  snapshot: GameSnapshot
+): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    snapshot: plain(snapshot),
+    snapshotAt: serverTimestamp(),
+  });
+}
+
+// ===== Shared coin flip =====
+
+/** Mark this player ready for the toss. */
+export async function setCoinFlipReady(
+  code: string,
+  isHost: boolean
+): Promise<void> {
+  const field = isHost ? "coinFlip.hostReady" : "coinFlip.guestReady";
+  await updateDoc(lobbyRef(code), { [field]: true });
+}
+
+/** Host only: record the toss winner once both players are ready. */
+export async function setCoinFlipWinner(
+  code: string,
+  winnerTeamId: string
+): Promise<void> {
+  await updateDoc(lobbyRef(code), { "coinFlip.winnerTeamId": winnerTeamId });
+}
+
+/** Winner only: record the kick/receive choice; this ends the toss. */
+export async function setCoinFlipChoice(
+  code: string,
+  kickingTeamId: string
+): Promise<void> {
+  await updateDoc(lobbyRef(code), { "coinFlip.kickingTeamId": kickingTeamId });
+}
+
+// ===== Mutual end-of-match agreement =====
+
+/** Propose ending the match; the opponent must agree before it closes. */
+export async function requestEndMatch(
+  code: string,
+  uid: string
+): Promise<void> {
+  await updateDoc(lobbyRef(code), { endRequestBy: uid });
+}
+
+/** Withdraw a pending end request (proposer cancels or opponent declines). */
+export async function cancelEndMatch(code: string): Promise<void> {
+  await updateDoc(lobbyRef(code), { endRequestBy: null });
 }
 
 export async function finishMatch(
   code: string,
   status: Extract<LobbyStatus, "finished" | "abandoned">
 ): Promise<void> {
-  await updateDoc(lobbyRef(code), { status });
+  await updateDoc(lobbyRef(code), { status, endRequestBy: null });
 }
 
 export async function deleteLobby(code: string): Promise<void> {

@@ -60,6 +60,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     { id: string; text: string }[]
   >([]);
   const [queue, setQueue] = useState<{ id: string; text: string }[]>([]);
+  // De-dup identical messages arriving close together. Online, a notification
+  // derived from a game event can arrive twice on the peer — once as the
+  // host's broadcast UI_Notification and once re-derived locally from the
+  // re-emitted event. Same text within a short window is treated as one.
+  const recentNotifRef = React.useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const initHUD = () => {
@@ -167,9 +172,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }
   }, [notifications.length, queue]);
 
-  const addNotification = (text: string) => {
-    const id = `${text}-${Date.now()}`;
+  const DEDUP_WINDOW_MS = 1500;
 
+  const addNotification = (text: string) => {
+    const now = Date.now();
+    const recent = recentNotifRef.current;
+    // Drop an identical message seen within the window (duplicate suppression)
+    if (recent.has(text) && now - (recent.get(text) ?? 0) < DEDUP_WINDOW_MS) {
+      return;
+    }
+    recent.set(text, now);
+    // Keep the dedup map small
+    if (recent.size > 20) {
+      for (const [k, t] of recent) {
+        if (now - t > DEDUP_WINDOW_MS) recent.delete(k);
+      }
+    }
+
+    const id = `${text}-${now}`;
     setNotifications((prev) => {
       if (prev.length < 3) {
         setTimeout(() => {
@@ -226,8 +246,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <FollowUpDialog eventBus={eventBus} />
           <TurnoverOverlay eventBus={eventBus} />
 
-          {/* Notification overlay */}
-          <div className="absolute inset-0 flex items-start justify-center pointer-events-none pt-32 z-50">
+          {/* Notification overlay — bottom-center, out of the board's way,
+              capped at 3 with de-duplication (see addNotification). */}
+          <div className="absolute inset-x-0 bottom-6 flex items-end justify-center pointer-events-none z-50">
             <NotificationFeed messages={notifications} />
           </div>
         </>

@@ -56,16 +56,22 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   });
 
-  // Online chat: append incoming messages; badge them while on the dice tab
+  // Online chat: always receive incoming messages (regardless of the active
+  // tab). While the player isn't looking at chat, badge the tab AND pop a
+  // toast so the message is noticed from anywhere in the HUD.
   useEffect(() => {
     if (!match) return;
     return match.onChatMessage((message) => {
       setChat((prev) => [...prev, message]);
       if (!message.fromSelf && tabRef.current !== "chat") {
         setUnread((count) => count + 1);
+        eventBus.emit(
+          GameEventNames.UI_Notification,
+          `💬 ${message.senderName}: ${message.text}`
+        );
       }
     });
-  }, [match]);
+  }, [match, eventBus]);
 
   const openTab = (next: Tab) => {
     setTab(next);

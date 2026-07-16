@@ -19,6 +19,7 @@
  */
 
 import { HeadlessCommand, PendingDecision } from "../headless/protocol";
+import { GamePhase } from "../types/GameState";
 
 export interface GateContext {
   activeTeamId: string | null;
@@ -26,6 +27,8 @@ export interface GateContext {
   /** Resolve which team a player belongs to (undefined if unknown) */
   teamIdOfPlayer(playerId: string): string | undefined;
   hostTeamId: string;
+  /** Current phase — kickoff is owned by the kicking (non-active) team */
+  phase?: GamePhase;
 }
 
 export type GateVerdict =
@@ -101,20 +104,30 @@ export function checkOwnership(
     case "start-setup":
       return senderTeamId === ctx.hostTeamId ? allow : deny("host-only");
 
-    // Setup: both teams place their own players in parallel
+    // Setup is sequential (kicking team, then receiving team): a coach may
+    // only place/edit their own players while it is their setup turn, so a
+    // coach who has finished can't keep editing during the opponent's setup.
     case "place-player":
     case "remove-player":
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       return ownsPlayer(command.playerId);
     case "swap-players": {
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       const first = ownsPlayer(command.player1Id);
       return first.allowed ? ownsPlayer(command.player2Id) : first;
     }
     case "confirm-setup":
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       return command.teamId === senderTeamId ? allow : deny("not-your-turn");
 
-    // Kickoff: the kicking team's coach acts through their own player
+    // Kickoff: the kicking team's coach acts through their own player. During
+    // KICKOFF the kicking team is the NON-active team (active is the receiving
+    // team, set last during SETUP_RECEIVING), so the active team can't kick.
     case "select-kicker":
     case "kick-ball":
+      if (ctx.phase === GamePhase.KICKOFF && ctx.activeTeamId === senderTeamId) {
+        return deny("not-your-turn");
+      }
       return ownsPlayer(command.playerId);
 
     // Block references two players; the attacker must be yours

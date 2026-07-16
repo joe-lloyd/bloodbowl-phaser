@@ -14,16 +14,14 @@ export const NotificationFeed: React.FC<NotificationFeedProps> = ({
   messages,
 }) => {
   return (
-    <div className="flex flex-col items-center space-y-2 pointer-events-none">
+    <div className="flex flex-col items-center gap-1.5 pointer-events-none">
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`
-                px-8 py-2
-                font-heading font-bold text-3xl text-white uppercase tracking-wider
-                shadow-lg bg-bb-blood-red
-                border-y-2 border-bb-gold
-            `}
+          className="px-5 py-1.5 rounded-md
+                font-heading font-bold text-lg text-white uppercase tracking-wide
+                shadow-lg bg-bb-blood-red/90 border border-bb-gold
+                animate-fade-in"
         >
           {msg.text}
         </div>

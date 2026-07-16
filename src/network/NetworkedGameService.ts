@@ -87,7 +87,18 @@ export class NetworkedGameService implements IGameService {
     return this.inner.getFlowContext();
   }
   isSetupComplete(teamId: string): boolean {
-    return this.inner.isSetupComplete(teamId);
+    // The replica's SetupManager.placedPlayers map is never populated on the
+    // guest (placements are optimistic on the team objects + snapshot-applied),
+    // so count placed players from grid positions instead. Mirrors
+    // SetupManager.isSetupComplete's eligibility rule.
+    const team = this.inner.getTeam(teamId);
+    if (!team) return false;
+    const eligible = team.players.filter(
+      (p) => p.status !== "KO" && p.status !== "Injured" && p.status !== "Dead"
+    );
+    const available = Math.min(7, eligible.length);
+    const placed = eligible.filter((p) => p.gridPosition).length;
+    return placed === available;
   }
   getSetupZone(teamId: string) {
     return this.inner.getSetupZone(teamId);
@@ -135,13 +146,27 @@ export class NetworkedGameService implements IGameService {
     }
   }
   placePlayer(playerId: string, x: number, y: number): boolean {
+    // Optimistic: place immediately on the local replica so the board never
+    // flashes back to the dugout while the command round-trips. The host's
+    // response snapshot corrects/rolls back if the placement was illegal.
+    const player = this.inner.getPlayerById(playerId);
+    if (player) player.gridPosition = { x, y };
     this.send({ type: "place-player", playerId, x, y });
-    return true; // optimistic; host response corrects the board if illegal
+    return true;
   }
   removePlayer(playerId: string): void {
+    const player = this.inner.getPlayerById(playerId);
+    if (player) player.gridPosition = undefined;
     this.send({ type: "remove-player", playerId });
   }
   swapPlayers(player1Id: string, player2Id: string): boolean {
+    const a = this.inner.getPlayerById(player1Id);
+    const b = this.inner.getPlayerById(player2Id);
+    if (a && b) {
+      const tmp = a.gridPosition;
+      a.gridPosition = b.gridPosition;
+      b.gridPosition = tmp;
+    }
     this.send({ type: "swap-players", player1Id, player2Id });
     return true;
   }
@@ -264,6 +289,7 @@ export class NetworkedGameService implements IGameService {
 
   startKickoff(): void {}
   rollKickoff(): void {}
+  rollInitialWeather(): void {} // host rolls; guest gets weather via snapshot
   startGame(_kickingTeamId: string): void {}
   startTurn(_teamId: string): void {}
   triggerTurnover(_reason: string): void {}

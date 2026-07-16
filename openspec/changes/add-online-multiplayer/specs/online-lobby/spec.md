@@ -49,6 +49,43 @@ The match SHALL NOT start until both players have joined, each has selected a te
 - **WHEN** one player has not yet selected a team or readied
 - **THEN** the match cannot start and both players see who or what the lobby is waiting on
 
+### Requirement: One active match per player
+
+A player SHALL have at most one active match at a time. Choosing to host while already in a match SHALL reattach to that match rather than create a new one, and the home menu SHALL offer to resume an in-progress match.
+
+#### Scenario: Hosting reattaches instead of duplicating
+
+- **WHEN** a player who already has an active match chooses Host Game
+- **THEN** they are returned to that match (its lobby or its game) and no second match record is created
+
+#### Scenario: Resume from the menu
+
+- **WHEN** a player with an in-progress match opens the main menu
+- **THEN** a resume control is shown that returns them to that match
+
+### Requirement: Save and resume a match later
+
+Players SHALL be able to leave an in-progress match and resume it later from where it paused. The authoritative game state SHALL be persisted so that reopening the match restores the board, score, turn, and pending decision for both players.
+
+#### Scenario: Save and come back
+
+- **WHEN** a player saves and exits mid-match and later resumes it
+- **THEN** the match reopens at the same state and play continues once the opponent rejoins
+
+### Requirement: Mutual end-of-match agreement
+
+Ending a match early SHALL require both players to agree. One player proposes ending; the match SHALL close only when the other accepts, and either side may decline or the proposer may cancel. When the match ends, each player's active-match pointer SHALL be cleared.
+
+#### Scenario: Both agree to end
+
+- **WHEN** one player proposes ending the match and the other accepts
+- **THEN** the match is recorded finished and both players return to the menu with no active match
+
+#### Scenario: Opponent declines
+
+- **WHEN** one player proposes ending and the other chooses to keep playing
+- **THEN** the proposal is withdrawn and the match continues
+
 ### Requirement: Host-controlled match settings
 
 The host SHALL be able to configure match settings in the lobby before start — at minimum the per-turn time limit and each player's initial timeout bank. The chosen settings SHALL apply to both players for the match. Only the host SHALL be able to change them.

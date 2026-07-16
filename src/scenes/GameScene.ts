@@ -493,6 +493,20 @@ export class GameScene extends Phaser.Scene {
       this.refreshDugouts();
     });
 
+    // Online: a snapshot arrived — reconcile the board to authoritative state.
+    // In setup we do a full refresh (repositions from state). In play we only
+    // reconcile status visuals (down/up/stunned/off-pitch): a full refresh
+    // would snap a mid-animation mover to its grid square, but updateStatus
+    // touches only alpha/angle/visibility, never position — so it's safe and
+    // catches any status-change event the watcher missed.
+    this.eventBus.on(GameEventNames.UI_SyncBoard, () => {
+      if (this.gameService.getPhase() === GamePhase.SETUP) {
+        this.refreshDugouts();
+      } else {
+        this.syncPlayerStatuses();
+      }
+    });
+
     // Touchdown celebration: the scoring team's players on the pitch jump
     this.eventBus.on(GameEventNames.Touchdown, (data) => {
       this.playerSprites.forEach((sprite) => {
@@ -548,6 +562,39 @@ export class GameScene extends Phaser.Scene {
     // Placed players stay movable until setup is confirmed
     this.repositionTeam = activeTeam;
     this.applyPitchRepositioning();
+  }
+
+  /**
+   * Online: the opponent is setting up (or this coach has finished). Strip all
+   * placement interaction so the board is view-only — no dugout drag, no
+   * repositioning of placed players, no setup-zone highlight. The board still
+   * renders via UI_SyncBoard; placement re-enables when it's this coach's turn.
+   */
+  /**
+   * Online watcher: reconcile every sprite's status visual (prone/stunned/
+   * off-pitch) to the authoritative player state, without moving anything.
+   * Fixes status desync (a player down on one screen, up on the other) when a
+   * status-change event was missed. Position-safe, so callable during play.
+   */
+  public syncPlayerStatuses(): void {
+    this.playerSprites.forEach((sprite) => {
+      const player = sprite.getPlayer();
+      if (player.gridPosition) {
+        sprite.updateStatus();
+      } else {
+        // In the dugout / KO'd / injured — no pitch presence
+        sprite.setVisible(false);
+      }
+    });
+  }
+
+  public disableSetupInteraction(): void {
+    this.isSetupActive = false;
+    this.repositionTeam = null;
+    // Broadcast-driven phase changes can arrive before controllers exist
+    if (this.placementController) this.placementController.disablePlacement();
+    this.applyPitchRepositioning(); // team=null → every sprite loses drag
+    if (this.pitch) this.pitch.clearHighlights();
   }
 
   /**

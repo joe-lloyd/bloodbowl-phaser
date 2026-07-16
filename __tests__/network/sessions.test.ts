@@ -19,7 +19,7 @@ import { HostSession } from "../../src/network/HostSession";
 import { GuestSession } from "../../src/network/GuestSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
-import { decisionOwner } from "../../src/network/OwnershipGate";
+import { decisionOwner, checkOwnership } from "../../src/network/OwnershipGate";
 
 interface Match {
   game: HeadlessGame;
@@ -342,7 +342,13 @@ describe("networked sessions", () => {
 
   it("rejects guest commands that reference the host's players", async () => {
     const match = createMatch({ seed: 7, startingPhase: GamePhase.SETUP });
-    await match.host.executeLocal({ type: "coin-flip" });
+    // Make the GUEST the active setup team, so the rejection is specifically
+    // about ownership (not turn): a coach may set up, but only their own
+    // players — never reach across and place the opponent's.
+    await match.host.executeLocal({
+      type: "start-setup",
+      kickingTeamId: match.guestTeamId,
+    });
 
     const hostPlayer = match.game.ctx.team1.players[0];
     const response = await match.guest.sendCommand({
@@ -354,6 +360,62 @@ describe("networked sessions", () => {
 
     expect(response.ok).toBe(false);
     expect(response.reason).toBe("not-your-player");
+  });
+
+  it("rejects setup placement when it is not that coach's setup turn", async () => {
+    const match = createMatch({ seed: 7, startingPhase: GamePhase.SETUP });
+    // Host is the kicking team and sets up first; the guest must wait.
+    await match.host.executeLocal({
+      type: "start-setup",
+      kickingTeamId: match.hostTeamId,
+    });
+
+    const guestPlayer = match.game.ctx.team2.players[0];
+    const response = await match.guest.sendCommand({
+      type: "place-player",
+      playerId: guestPlayer.id,
+      x: 20,
+      y: 5,
+    });
+
+    expect(response.ok).toBe(false);
+    expect(response.reason).toBe("not-your-turn");
+  });
+
+  it("kickoff belongs to the kicking (non-active) team, not the active team", () => {
+    // During KICKOFF, active = receiving team; the kicking team acts.
+    const ctx = {
+      activeTeamId: "receiving",
+      pendingDecision: null,
+      teamIdOfPlayer: (id: string) =>
+        id.startsWith("kick") ? "kicking" : "receiving",
+      hostTeamId: "kicking",
+      phase: GamePhase.KICKOFF,
+    };
+
+    // Kicking team (non-active) may select its kicker and kick
+    expect(
+      checkOwnership(
+        { type: "select-kicker", playerId: "kick-1" },
+        "kicking",
+        ctx
+      ).allowed
+    ).toBe(true);
+    expect(
+      checkOwnership(
+        { type: "kick-ball", playerId: "kick-1", x: 5, y: 5 },
+        "kicking",
+        ctx
+      ).allowed
+    ).toBe(true);
+
+    // Receiving team (active) may NOT kick off
+    const denied = checkOwnership(
+      { type: "select-kicker", playerId: "recv-1" },
+      "receiving",
+      ctx
+    );
+    expect(denied.allowed).toBe(false);
   });
 
   it("uphill block dice: only the defender may choose", async () => {

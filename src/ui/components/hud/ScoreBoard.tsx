@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 interface TeamRow {
   id: string;
@@ -11,6 +12,9 @@ interface TeamRow {
   score: number;
   turn: number;
   rerolls: number;
+  /** Coach controlling this team (online only) */
+  coach?: string;
+  isMe?: boolean;
 }
 
 const hexColor = (color: number) =>
@@ -36,6 +40,7 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
         .map((teamId) => gs.getTeam(teamId))
         .filter((t): t is NonNullable<typeof t> => !!t);
 
+      const online = getActiveOnlineMatch();
       setRows(
         teams.map((team) => ({
           id: team.id,
@@ -45,6 +50,8 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
           rerolls: team.rerolls,
+          coach: online?.coachName(team.id),
+          isMe: online?.myTeamId === team.id,
         }))
       );
       setHalf(state.turn.isHalf2 ? 2 : 1);
@@ -95,18 +102,28 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
                   className="h-3 w-3 rounded-sm border border-white/40 shrink-0"
                   style={{ backgroundColor: row.color }}
                 />
-                <span
-                  className={`truncate text-sm ${
-                    row.id === activeTeamId
-                      ? "font-bold text-white"
-                      : "text-white/70"
-                  }`}
-                >
-                  {row.name}
-                  <span className="text-white/40 font-normal">
-                    {" "}
-                    ({row.roster})
+                <span className="min-w-0">
+                  <span
+                    className={`block truncate text-sm ${
+                      row.id === activeTeamId
+                        ? "font-bold text-white"
+                        : "text-white/70"
+                    }`}
+                  >
+                    {row.name}
+                    <span className="text-white/40 font-normal">
+                      {" "}
+                      ({row.roster})
+                    </span>
                   </span>
+                  {row.coach && (
+                    <span className="block truncate text-[11px] text-bb-gold/80">
+                      🎓 {row.coach}
+                      {row.isMe && (
+                        <span className="text-white/40"> (you)</span>
+                      )}
+                    </span>
+                  )}
                 </span>
               </span>
               <span className="font-heading text-2xl text-bb-gold ml-3">

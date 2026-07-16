@@ -18,6 +18,9 @@ import {
   startMatch,
   subscribeLobby,
   updateSettings,
+  getActiveMatchCode,
+  fetchLobby,
+  resolveCoachName,
 } from "../../../firebase/lobby";
 import { Team } from "../../../types/Team";
 
@@ -40,15 +43,44 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
   const myTeams = useMemo(() => (user ? loadTeams() : []), [user]);
 
-  // Host mode: create the lobby once on entry
+  // Host mode: resume the user's existing match if any, else create one.
+  // A player may only have one active match at a time, so we never spawn a
+  // second lobby doc — we reattach to the current one.
   useEffect(() => {
     if (mode !== "host" || code || !user) return;
+    let cancelled = false;
     setBusy(true);
-    createLobby(user.uid, user.displayName ?? "Host")
-      .then((created) => setCode(created.code))
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setBusy(false));
-  }, [mode, code, user]);
+    void (async () => {
+      try {
+        const existing = await getActiveMatchCode(user.uid);
+        if (cancelled) return;
+        if (existing) {
+          const doc = await fetchLobby(existing);
+          if (cancelled) return;
+          if (doc && doc.status === "active") {
+            navigate(`/online/play/${existing}`, { replace: true });
+            return;
+          }
+          if (doc && doc.status === "lobby") {
+            setCode(existing); // reattach to the open lobby
+            return;
+          }
+          // stale/finished pointer — fall through and make a fresh lobby
+        }
+        const coachName = await resolveCoachName(user.uid);
+        const created = await createLobby(user.uid, coachName);
+        if (!cancelled) setCode(created.code);
+      } catch (e) {
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, code, user, navigate]);
 
   // Live lobby subscription
   useEffect(() => {
@@ -92,11 +124,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
               setError(null);
               setBusy(true);
               try {
-                const joined = await joinLobby(
-                  joinInput,
-                  user.uid,
-                  user.displayName ?? "Guest"
-                );
+                const coachName = await resolveCoachName(user.uid);
+                const joined = await joinLobby(joinInput, user.uid, coachName);
                 setCode(joined.code);
               } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
@@ -204,7 +233,13 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           <Button
             disabled={!canStart(lobby)}
             onClick={() =>
-              void startMatch(lobby.code, Date.now() & 0x7fffffff)
+              void startMatch(
+                lobby.code,
+                Date.now() & 0x7fffffff,
+                lobby.settings,
+                lobby.hostUid,
+                lobby.guestUid!
+              )
             }
           >
             Start Match

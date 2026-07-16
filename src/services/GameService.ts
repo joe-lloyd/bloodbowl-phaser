@@ -367,6 +367,16 @@ export class GameService implements IGameService {
     });
   }
 
+  /**
+   * Roll the initial weather using the seeded RNG, without advancing the
+   * setup subphase. Used by online play, which skips the local intro (that
+   * normally rolls weather) — the host rolls once and the result rides the
+   * snapshot to the guest, so both see the same weather.
+   */
+  rollInitialWeather(): void {
+    this.weatherService.rollWeather();
+  }
+
   // ===== Turn Management =====
   setCoinFlipWinner(winningTeamId: string): void {
     this.startSetup(winningTeamId);
@@ -545,6 +555,20 @@ export class GameService implements IGameService {
       ballPath: carriedBall ? [from, { ...targetSquare }] : undefined,
       ballJoinStep: 0,
     });
+
+    // Following up onto a loose ball is entering its square — the player must
+    // roll to pick it up (a failed pickup bounces the ball and is a turnover,
+    // handled by attemptPickup). Without this the player just stood on the
+    // ball holding nothing.
+    const looseBallHere =
+      !carriedBall &&
+      this.state.ballPosition &&
+      this.state.ballPosition.x === targetSquare.x &&
+      this.state.ballPosition.y === targetSquare.y;
+    if (looseBallHere) {
+      const pickedUp = this.attemptPickup(attacker, targetSquare);
+      if (!pickedUp) return; // failed pickup already bounced + turned over
+    }
 
     this.checkForTouchdown(attackerId);
   }

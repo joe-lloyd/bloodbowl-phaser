@@ -5,6 +5,7 @@ import { GameEventNames } from "../../../types/events";
 import { Team } from "../../../types/Team";
 import { Button, DangerButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 interface CoinFlipProps {
   eventBus: EventBus;
@@ -17,8 +18,10 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   const [winner, setWinner] = useState<Team | null>(null);
   const [rotation, setRotation] = useState(0);
 
-  // Listen for start request
+  // Listen for start request. Online matches use the shared OnlineCoinFlip
+  // (ready check + host-authoritative result) instead of this local overlay.
   useEventBus(eventBus, GameEventNames.UI_StartCoinFlip, (data) => {
+    if (getActiveOnlineMatch()) return;
     setTeams({ team1: data.team1, team2: data.team2 });
     setIsVisible(true);
     setStep("START");

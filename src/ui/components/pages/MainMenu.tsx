@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
@@ -7,23 +7,61 @@ import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import Stars from "../componentWarehouse/stars";
 import { useAuth } from "../../hooks/useAuth";
+import { useCoachProfile } from "../../hooks/useCoachProfile";
+import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
+
+interface ActiveMatch {
+  code: string;
+  /** where resuming should send the player */
+  path: string;
+  label: string;
+}
 
 /**
- * Main Menu Component - Replaces MenuScene Phaser UI
- * Rendered as React overlay positioned absolutely over the canvas
+ * Main Menu - grouped into Play / Online / Extras now that there are more
+ * options, with a resume banner when the player has a match in progress.
  */
 export function MainMenu() {
   const navigate = useNavigate();
   const { user, onlineAvailable, signIn, signOut } = useAuth();
+  const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
 
-  const handleBuildTeam = () => {
-    navigate("/build-team");
-  };
-
-  const handlePlayGame = () => {
-    navigate("/select-team");
-  };
+  // Resolve the player's in-progress match (if any) for the resume banner
+  useEffect(() => {
+    if (!user) {
+      setActiveMatch(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const code = await getActiveMatchCode(user.uid);
+        if (!code || cancelled) return;
+        const lobby = await fetchLobby(code);
+        if (cancelled || !lobby) return;
+        if (lobby.status === "active") {
+          setActiveMatch({
+            code,
+            path: `/online/play/${code}`,
+            label: "Resume Match",
+          });
+        } else if (lobby.status === "lobby") {
+          setActiveMatch({
+            code,
+            path: `/online/lobby/${code}`,
+            label: "Return to Lobby",
+          });
+        }
+      } catch {
+        // non-fatal: just don't show the banner
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   /** Online actions require sign-in; local play never does. */
   const handleOnline = async (path: string) => {
@@ -44,75 +82,98 @@ export function MainMenu() {
       <Parchment $intensity="high" />
 
       <ContentContainer>
-        <div className="flex flex-col items-center justify-center text-center py-20">
-          {/* Title with decorative stars */}
-          <div className="relative mb-12">
+        <div className="flex flex-col items-center text-center py-14 max-w-4xl mx-auto">
+          {/* Title */}
+          <div className="relative mb-6">
             <Stars />
             <Title className="text-7xl lg:text-6xl md:text-5xl">
               BLOOD BOWL SEVENS
             </Title>
           </div>
-
-          <p className="text-bb-deep-crimson text-3xl font-body italic font-bold mb-16">
+          <p className="text-bb-deep-crimson text-2xl font-body italic font-bold mb-10">
             Fantasy Football Mayhem
           </p>
 
-          <div className="flex flex-col gap-6 min-w-[300px] mb-8">
-            <Button onClick={handleBuildTeam} className="text-2xl py-5">
-              Build Team
-            </Button>
-
-            <Button onClick={handlePlayGame} className="text-2xl py-5">
-              Play Game
-            </Button>
-
-            <Button
-              onClick={() => handleOnline("/online/host")}
-              disabled={!onlineAvailable}
-              title={
-                onlineAvailable
-                  ? undefined
-                  : "Online play requires Firebase config (see .env.example)"
-              }
-              className="text-2xl py-5 disabled:opacity-50"
+          {/* Resume banner */}
+          {activeMatch && (
+            <button
+              onClick={() => navigate(activeMatch.path)}
+              className="w-full max-w-2xl mb-8 flex items-center justify-between
+                gap-4 bg-bb-blood-red text-bb-parchment border-2 border-bb-dark-gold
+                rounded-lg px-6 py-4 shadow-md hover:bg-bb-deep-crimson transition-bb"
             >
-              Host Game
-            </Button>
+              <span className="font-heading text-xl uppercase">
+                ⚔️ {activeMatch.label}
+              </span>
+              <span className="font-heading tracking-[0.2em] text-bb-gold">
+                {activeMatch.code}
+              </span>
+            </button>
+          )}
 
-            <Button
-              onClick={() => handleOnline("/online/join")}
-              disabled={!onlineAvailable}
-              title={
-                onlineAvailable
-                  ? undefined
-                  : "Online play requires Firebase config (see .env.example)"
-              }
-              className="text-2xl py-5 disabled:opacity-50"
-            >
-              Join Game
-            </Button>
+          {/* Option groups */}
+          <div className="w-full grid gap-8 md:grid-cols-3 grid-cols-1">
+            <MenuSection title="Play">
+              <Button
+                onClick={() => navigate("/select-team")}
+                className="w-full text-xl py-4"
+              >
+                Play Local
+              </Button>
+              <Button
+                onClick={() => navigate("/build-team")}
+                className="w-full text-xl py-4"
+              >
+                Build Team
+              </Button>
+            </MenuSection>
 
-            <Button
-              onClick={() => navigate("/music")}
-              className="text-xl py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500"
-            >
-              🔊 Sound Test
-            </Button>
+            <MenuSection title="Online">
+              <Button
+                onClick={() => handleOnline("/online/host")}
+                disabled={!onlineAvailable}
+                title={onlineAvailable ? undefined : ONLINE_HINT}
+                className="w-full text-xl py-4 disabled:opacity-50"
+              >
+                Host Game
+              </Button>
+              <Button
+                onClick={() => handleOnline("/online/join")}
+                disabled={!onlineAvailable}
+                title={onlineAvailable ? undefined : ONLINE_HINT}
+                className="w-full text-xl py-4 disabled:opacity-50"
+              >
+                Join Game
+              </Button>
+            </MenuSection>
 
-            <Button
-              onClick={() => navigate("/sand-box")}
-              className="text-xl py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800"
-            >
-              🛠️ Sandbox Mode
-            </Button>
+            <MenuSection title="Extras">
+              <Button
+                onClick={() => navigate("/sand-box")}
+                className="w-full text-lg py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800"
+              >
+                🛠️ Sandbox
+              </Button>
+              <Button
+                onClick={() => navigate("/music")}
+                className="w-full text-lg py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500"
+              >
+                🔊 Sound Test
+              </Button>
+            </MenuSection>
           </div>
 
-          {/* Auth status — online play needs sign-in; local play never does */}
-          <div className="mb-8 flex flex-col items-center gap-2">
+          {/* Auth status */}
+          <div className="mt-10 flex flex-col items-center gap-2">
             {user ? (
               <>
-                <span className="text-bb-muted-text text-lg font-body">
-                  Signed in as {user.displayName ?? user.email ?? user.uid}
+                <CoachNameEditor
+                  value={coach.coachName ?? ""}
+                  placeholder={coach.effectiveName}
+                  onSave={(name) => void coach.save(name)}
+                />
+                <span className="text-bb-muted-text text-xs font-body">
+                  Signed in with Google (your account name stays private)
                 </span>
                 <SecondaryButton onClick={() => void signOut()}>
                   Sign out
@@ -140,11 +201,77 @@ export function MainMenu() {
             )}
           </div>
 
-          <div className="text-bb-muted-text text-lg mt-auto font-heading">
+          <div className="text-bb-muted-text text-base mt-10 font-heading">
             v0.1.0 - Phase 3.5 (React UI)
           </div>
         </div>
       </ContentContainer>
     </MinHeightContainer>
+  );
+}
+
+const ONLINE_HINT =
+  "Online play requires Firebase config (see .env.example)";
+
+/** Inline editor for the coach display name (privacy-preserving). */
+function CoachNameEditor({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: string;
+  placeholder: string;
+  onSave: (name: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [saved, setSaved] = useState(false);
+
+  // Keep in sync when the stored value loads/changes
+  useEffect(() => setDraft(value), [value]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === value) return;
+    onSave(trimmed);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <label className="font-heading text-bb-deep-crimson text-sm uppercase">
+        Coach
+      </label>
+      <input
+        value={draft}
+        placeholder={placeholder}
+        maxLength={20}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="bg-bb-parchment border-2 border-bb-dark-gold rounded px-3 py-1
+          font-body text-bb-text-dark w-48 text-center"
+      />
+      {saved && <span className="text-green-700 text-sm font-body">✓</span>}
+    </div>
+  );
+}
+
+function MenuSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-stretch gap-3">
+      <h2 className="font-heading text-bb-deep-crimson text-lg uppercase tracking-widest border-b-2 border-bb-dark-gold/40 pb-1 mb-1">
+        {title}
+      </h2>
+      {children}
+    </div>
   );
 }

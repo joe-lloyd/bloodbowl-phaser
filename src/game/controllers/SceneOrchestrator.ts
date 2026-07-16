@@ -7,6 +7,7 @@ import { PhaseHandler } from "./handlers/PhaseHandler";
 import { SetupPhaseHandler } from "./handlers/SetupPhaseHandler";
 import { PlayPhaseHandler } from "./handlers/PlayPhaseHandler";
 import { KickoffPhaseHandler } from "./handlers/KickoffPhaseHandler";
+import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 
 /**
  * SceneOrchestrator - Manages Phase Transitions and Delegates Logic
@@ -172,6 +173,17 @@ export class SceneOrchestrator {
     }
 
     const isTeam1 = activeTeam.id === this.scene.team1.id;
+
+    // Online: only the active team's coach interacts with placement; the
+    // opponent watches the board update read-only (UI_SyncBoard renders it)
+    // with the setup panel hidden and no drag.
+    const match = getActiveOnlineMatch();
+    if (match && activeTeam.id !== match.myTeamId) {
+      this.eventBus.emit(GameEventNames.UI_HideSetupControls);
+      this.scene.disableSetupInteraction();
+      this.eventBus.emit(GameEventNames.UI_SyncBoard);
+      return;
+    }
 
     this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
       subPhase,

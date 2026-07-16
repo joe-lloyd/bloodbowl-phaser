@@ -98,6 +98,9 @@ export interface IGameService {
   ): void;
   triggerTurnover(reason: string): void;
 
+  /** Roll initial weather (seeded) without advancing the setup subphase */
+  rollInitialWeather(): void;
+
   // Scoring / end of drive
   checkForTouchdown(playerId: string): boolean;
   endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void;

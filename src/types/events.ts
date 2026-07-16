@@ -40,6 +40,9 @@ export enum GameEventNames {
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
   PlayerStoodUp = "playerStoodUp",
+  /** A skill rule changed a roll/dice/result, or offered/used a reroll */
+  SkillTriggered = "skillTriggered",
+  RerollUsed = "rerollUsed",
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
@@ -99,6 +102,9 @@ export enum GameEventNames {
   UI_RequestCoinFlipState = "ui:requestCoinFlipState",
   UI_ShowSetupControls = "ui:showSetupControls",
   UI_HideSetupControls = "ui:hideSetupControls",
+  /** Online: re-render the pitch from the authoritative snapshot so a
+   *  player watching the opponent's setup/placement sees it live. */
+  UI_SyncBoard = "ui:syncBoard",
   UI_SetupComplete = "ui:setupcomplete",
   UI_SetupAction = "ui:setupAction",
   UI_FormationsUpdated = "ui:formationsUpdated",
@@ -202,6 +208,19 @@ export interface GameEvents {
   [GameEventNames.PlayerKnockedDown]: {
     playerId: string;
     // ... details?
+  };
+
+  [GameEventNames.SkillTriggered]: {
+    playerId: string;
+    skill: string;
+    effect: string;
+  };
+
+  [GameEventNames.RerollUsed]: {
+    playerId: string;
+    source: "skill" | "team";
+    rollKind: string;
+    skill?: string;
   };
 
   [GameEventNames.PlayerStoodUp]: {
@@ -401,6 +420,7 @@ export interface UIEvents {
     activeTeam: { id: string; name: string };
   };
   [GameEventNames.UI_HideSetupControls]: void;
+  [GameEventNames.UI_SyncBoard]: void;
   [GameEventNames.UI_SetupComplete]: boolean;
   [GameEventNames.UI_SetupAction]: { action: string; name?: string };
   /** The formations pickable for the team currently setting up */

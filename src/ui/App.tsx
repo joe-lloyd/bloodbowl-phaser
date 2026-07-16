@@ -33,6 +33,10 @@ export function App({ eventBus }: AppProps) {
         <Route path="/online/host" element={<OnlineLobby mode="host" />} />
         <Route path="/online/join" element={<OnlineLobby mode="join" />} />
         <Route
+          path="/online/lobby/:code"
+          element={<OnlineLobby mode="host" />}
+        />
+        <Route
           path="/online/play/:code"
           element={<OnlinePlayPage eventBus={eventBus} />}
         />
