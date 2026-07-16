@@ -18,6 +18,18 @@ import { GameState, GamePhase, SubPhase } from "../types/GameState";
 import { Scenario } from "../types/Scenario";
 
 export interface HeadlessGameOptions {
+  /**
+   * Adopt an already-running engine (e.g. the browser's ServiceContainer)
+   * instead of constructing one — used by online play, where HeadlessGame
+   * executes the remote coach's protocol commands against the live game.
+   * When set, every other option is ignored.
+   */
+  ctx?: HeadlessGameContext;
+  /**
+   * Start play automatically on the ReadyToStart signal (default true).
+   * The browser passes false: KickoffPhaseHandler already does this.
+   */
+  autoStartOnReady?: boolean;
   /** Provide teams, or omit to get two generated default teams */
   team1?: Team;
   team2?: Team;
@@ -60,6 +72,8 @@ function stabilizeIds(team: Team, stableId: string): Team {
 export function createHeadlessGame(
   options: HeadlessGameOptions = {}
 ): HeadlessGameContext {
+  if (options.ctx) return options.ctx;
+
   const seed = options.seed ?? options.scenario?.seed ?? Date.now();
 
   // A scenario may pin specific rosters (as the browser sandbox does);

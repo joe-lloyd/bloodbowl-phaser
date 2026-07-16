@@ -21,6 +21,7 @@ import { FollowUpDialog } from "./FollowUpDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 interface GameHUDProps {
   eventBus: EventBus;
@@ -183,6 +184,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   };
 
   const handleEndTurn = () => {
+    // Online: only the active coach may end their turn
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     const container = ServiceContainer.getInstance();
     container.gameService.endTurn();
   };

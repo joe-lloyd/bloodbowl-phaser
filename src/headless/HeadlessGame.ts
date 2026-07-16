@@ -35,6 +35,7 @@ const COMMAND_SHAPES: Record<
   "start-setup": { kickingTeamId: "string" },
   "place-player": { playerId: "string", x: "number", y: "number" },
   "remove-player": { playerId: "string" },
+  "swap-players": { player1Id: "string", player2Id: "string" },
   "confirm-setup": { teamId: "string" },
   "select-kicker": { playerId: "string" },
   "kick-ball": { playerId: "string", x: "number", y: "number" },
@@ -70,8 +71,11 @@ export class HeadlessGame {
   /** Kicking team of the current drive; set by coin-flip/start-setup/kick-ball */
   private kickingTeamId: string | null = null;
 
+  private readonly autoStartOnReady: boolean;
+
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
+    this.autoStartOnReady = options.autoStartOnReady !== false;
     this.subscribeToAllEvents();
   }
 
@@ -171,6 +175,11 @@ export class HeadlessGame {
         break;
       case "remove-player":
         gs.removePlayer(cmd.playerId);
+        break;
+      case "swap-players":
+        if (!gs.swapPlayers(cmd.player1Id, cmd.player2Id)) {
+          throw new Error("illegal-swap");
+        }
         break;
       case "confirm-setup":
         this.assertTeam(cmd.teamId);
@@ -304,7 +313,7 @@ export class HeadlessGame {
     if (name === GameEventNames.ReadyToStart) {
       // In the browser KickoffPhaseHandler starts play on this signal;
       // headless mirrors that so the kickoff chain flows into PLAY.
-      if (this.kickingTeamId) {
+      if (this.autoStartOnReady && this.kickingTeamId) {
         this.ctx.gameService.startGame(this.kickingTeamId);
       }
       return;

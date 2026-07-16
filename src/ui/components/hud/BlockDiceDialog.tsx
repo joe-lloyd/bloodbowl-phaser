@@ -6,6 +6,7 @@ import {
   BlockRollData,
 } from "../../../services/BlockResolutionService";
 import { GameEventNames } from "@/types/events";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -62,6 +63,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const { diceCount, isUphill, attackerST, defenderST } = analysis;
 
   const handleRoll = () => {
+    // Online: only the coach who owns the action/decision may interact
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     setIsRolling(true);
 
     // Emit event to roll dice (GameService will handle it)
@@ -74,6 +77,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   };
 
   const handleSelectResult = (result: BlockResult) => {
+    // Online: an uphill block's die belongs to the defender
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     // Emit result to GameService
     eventBus.emit(GameEventNames.UI_BlockResultSelected, {
       attackerId: data.attackerId,

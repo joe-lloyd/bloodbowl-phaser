@@ -10,6 +10,7 @@ import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { PassController } from "./PassController";
+import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 
 export class GameplayInteractionController {
   private scene: GameScene;
@@ -328,6 +329,8 @@ export class GameplayInteractionController {
     isSetupActive: boolean
   ): void {
     if (isSetupActive) return;
+    // Online: input is locked while the opponent owns the turn/decision
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
 
     // Crowd push squares sit one square off-pitch; accept clicks there
     // while a push direction is being chosen
@@ -738,6 +741,8 @@ export class GameplayInteractionController {
   }
 
   public handlePlayerClick(playerId: string): void {
+    // Online: input is locked while the opponent owns the turn/decision
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     console.log(
       `[Interaction] handlePlayerClick: ${playerId}. Mode: ${this.currentActionMode}, Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
     );

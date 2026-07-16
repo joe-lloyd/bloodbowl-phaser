@@ -20,6 +20,7 @@ export type HeadlessCommand =
   | { type: "start-setup"; kickingTeamId: string }
   | { type: "place-player"; playerId: string; x: number; y: number }
   | { type: "remove-player"; playerId: string }
+  | { type: "swap-players"; player1Id: string; player2Id: string }
   | { type: "confirm-setup"; teamId: string }
   // Kickoff
   | { type: "select-kicker"; playerId: string }

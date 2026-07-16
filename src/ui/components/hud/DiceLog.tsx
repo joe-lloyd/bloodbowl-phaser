@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
+import {
+  getActiveOnlineMatch,
+  ChatMessage,
+} from "../../../network/OnlineMatch";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -19,9 +23,20 @@ interface RollEntry {
   timestamp: number;
 }
 
+type Tab = "dice" | "chat";
+
 export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [logs, setLogs] = useState<RollEntry[]>([]);
   const counterRef = React.useRef(0);
+  const match = getActiveOnlineMatch();
+  const [tab, setTab] = useState<Tab>("dice");
+  const [chat, setChat] = useState<ChatMessage[]>(() =>
+    match ? match.chatHistory() : []
+  );
+  const [unread, setUnread] = useState(0);
+  const [draft, setDraft] = useState("");
+  const tabRef = React.useRef<Tab>("dice");
+  tabRef.current = tab;
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (data) => {
     const timestamp = Date.now();
@@ -41,6 +56,28 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   });
 
+  // Online chat: append incoming messages; badge them while on the dice tab
+  useEffect(() => {
+    if (!match) return;
+    return match.onChatMessage((message) => {
+      setChat((prev) => [...prev, message]);
+      if (!message.fromSelf && tabRef.current !== "chat") {
+        setUnread((count) => count + 1);
+      }
+    });
+  }, [match]);
+
+  const openTab = (next: Tab) => {
+    setTab(next);
+    if (next === "chat") setUnread(0);
+  };
+
+  const sendDraft = () => {
+    if (!match || !draft.trim()) return;
+    match.sendChat(draft);
+    setDraft("");
+  };
+
   // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
     if (!teamId || typeof teamId !== "string")
@@ -53,26 +90,56 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
 
   return (
     <div className="w-full h-full max-h-[50vh] flex flex-col pointer-events-auto">
-      {/* Header */}
+      {/* Header / Tabs */}
       <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md z-10">
-        <span className="font-heading text-bb-gold text-lg">DICE LOG</span>
-        <span className="text-xs text-gray-400">Recent Rolls</span>
+        {match ? (
+          <div className="flex gap-3">
+            <button
+              onClick={() => openTab("dice")}
+              className={`font-heading text-lg ${
+                tab === "dice" ? "text-bb-gold" : "text-gray-500"
+              }`}
+            >
+              DICE LOG
+            </button>
+            <button
+              onClick={() => openTab("chat")}
+              className={`relative font-heading text-lg ${
+                tab === "chat" ? "text-bb-gold" : "text-gray-500"
+              }`}
+            >
+              CHAT
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-4 bg-red-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
+                  {unread}
+                </span>
+              )}
+            </button>
+          </div>
+        ) : (
+          <span className="font-heading text-bb-gold text-lg">DICE LOG</span>
+        )}
+        <span className="text-xs text-gray-400">
+          {tab === "chat" ? match?.opponentName : "Recent Rolls"}
+        </span>
       </div>
 
-      {/* Log List Container with Fade Mask */}
-      <div className="relative flex-1 overflow-hidden border-2 border-bb-gold rounded-b-md bg-black/60">
-        {/* Scrollable Content - Scrollbar Hidden */}
-        <div className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-12">
-          {logs.length === 0 && (
-            <div className="text-gray-500 text-sm italic text-center p-2">
-              No rolls yet...
-            </div>
-          )}
+      {/* Panel body */}
+      <div className="relative flex-1 overflow-hidden border-2 border-bb-gold rounded-b-md bg-black/60 flex flex-col">
+        {tab === "dice" ? (
+          <>
+            {/* Scrollable Content - Scrollbar Hidden */}
+            <div className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-12">
+              {logs.length === 0 && (
+                <div className="text-gray-500 text-sm italic text-center p-2">
+                  No rolls yet...
+                </div>
+              )}
 
-          {logs.map((log) => (
-            <div
-              key={log.id}
-              className={`
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className={`
                                 relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
                                 ${getTeamColorClass(log.teamId)}
                                 ${
@@ -85,38 +152,87 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                                         : "!border-gray-500 !bg-gray-900/20"
                                 }
                             `}
-            >
-              <div className="p-2">
-                {/* Header Row: Type & Dice + Value */}
-                <div className="flex justify-between items-center text-xs text-gray-300 mb-1">
-                  <span className="font-bold uppercase tracking-wide text-bb-parchment">
-                    {log.rollType}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
-                      {log.diceType}
-                    </span>
-                    <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
-                      {Array.isArray(log.value)
-                        ? `[${log.value.join(", ")}]`
-                        : log.value}
-                    </span>
+                >
+                  <div className="p-2">
+                    {/* Header Row: Type & Dice + Value */}
+                    <div className="flex justify-between items-center text-xs text-gray-300 mb-1">
+                      <span className="font-bold uppercase tracking-wide text-bb-parchment">
+                        {log.rollType}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
+                          {log.diceType}
+                        </span>
+                        <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
+                          {Array.isArray(log.value)
+                            ? `[${log.value.join(", ")}]`
+                            : log.value}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Result Row - Full Width Description */}
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-white/90 leading-snug">
+                        {log.description}
+                      </span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Result Row - Full Width Description */}
-                <div className="flex justify-between items-start">
-                  <span className="text-sm font-medium text-white/90 leading-snug">
-                    {log.description}
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Fade Mask at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-10"></div>
+            {/* Fade Mask at Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-10"></div>
+          </>
+        ) : (
+          <>
+            {/* Chat history (newest at bottom) */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-2 flex flex-col justify-end gap-1">
+              {chat.length === 0 && (
+                <div className="text-gray-500 text-sm italic text-center p-2">
+                  Say hello…
+                </div>
+              )}
+              {chat.map((message, index) => (
+                <div
+                  key={`${message.ts}-${index}`}
+                  className={`max-w-[85%] rounded px-2 py-1 text-sm ${
+                    message.fromSelf
+                      ? "self-end bg-blue-900/70 text-white"
+                      : "self-start bg-gray-700/80 text-white"
+                  }`}
+                >
+                  {!message.fromSelf && (
+                    <span className="block text-[10px] text-bb-gold font-bold">
+                      {message.senderName}
+                    </span>
+                  )}
+                  {message.text}
+                </div>
+              ))}
+            </div>
+            {/* Composer */}
+            <div className="flex border-t border-bb-gold/50">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") sendDraft();
+                  e.stopPropagation();
+                }}
+                placeholder="Message…"
+                className="flex-1 bg-black/60 text-white text-sm px-2 py-1.5 outline-none"
+              />
+              <button
+                onClick={sendDraft}
+                className="px-3 text-bb-gold font-heading text-sm"
+              >
+                SEND
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Inline Styles for hiding scrollbar and custom animation */}

@@ -13,24 +13,28 @@ import { Team } from "../../types/Team";
 interface GamePageProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
+  /** Explicit teams (online play) — takes precedence over location.state */
+  teams?: { team1: Team; team2: Team };
 }
 
 /**
  * GamePage - Manages Phaser game lifecycle
  * Initializes Phaser on mount, destroys on unmount
  */
-export function GamePage({ eventBus, mode = "normal" }: GamePageProps) {
+export function GamePage({ eventBus, mode = "normal", teams }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get team data from location state (for normal mode)
+    // Get team data from props (online) or location state (local play)
     const { team1, team2 } =
-      (location.state as {
+      teams ??
+      ((location.state as {
         team1?: Team;
         team2?: Team;
-      }) || {};
+      }) ||
+        {});
 
     // Initialize Phaser game
     const config: Phaser.Types.Core.GameConfig = {
@@ -88,7 +92,7 @@ export function GamePage({ eventBus, mode = "normal" }: GamePageProps) {
         ServiceContainer.reset();
       }
     };
-  }, [mode, location.state, navigate]);
+  }, [mode, location.state, navigate, teams]);
 
   return (
     <div className="w-full h-full relative">

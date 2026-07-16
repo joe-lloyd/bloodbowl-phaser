@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
 import { EventBus } from "./services/EventBus";
+import { connectTeamPersistenceToAuth } from "./firebase/cloudTeamRepository";
 
 /**
  * Main entry point
@@ -11,6 +12,9 @@ import { EventBus } from "./services/EventBus";
 
 // Create shared EventBus instance
 const eventBus = new EventBus();
+
+// Signed-in users get a cloud team library; inert without Firebase config
+connectTeamPersistenceToAuth();
 
 // Initialize React UI
 const reactRoot = document.getElementById("react-root");

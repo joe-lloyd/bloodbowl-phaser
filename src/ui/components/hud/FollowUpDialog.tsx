@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 interface FollowUpDialogProps {
   eventBus: EventBus;
@@ -30,6 +31,8 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   }, [eventBus]);
 
   const handleYes = () => {
+    // Online: the follow-up belongs to the attacking coach
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (followUpData) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
         attackerId: followUpData.attackerId,
@@ -42,6 +45,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   };
 
   const handleNo = () => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (followUpData) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
         attackerId: followUpData.attackerId,

@@ -9,29 +9,62 @@ import { createPlayer } from "../../types/Player";
 const STORAGE_KEY = "bloodbowl_teams";
 
 /**
- * Save teams to localStorage
+ * Storage seam: signed-out play persists to localStorage (the default
+ * repository below); when a user signs in, the Firebase layer swaps in a
+ * cloud-backed repository (src/firebase/cloudTeamRepository.ts). Both are
+ * synchronous so every existing call site keeps working — the cloud repo is
+ * a write-through in-memory cache over Firestore.
  */
-export function saveTeams(teams: Team[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
-  } catch (error) {
-    console.error("Failed to save teams:", error);
-  }
+export interface TeamRepository {
+  loadTeams(): Team[];
+  saveTeams(teams: Team[]): void;
+}
+
+const localRepository: TeamRepository = {
+  saveTeams(teams: Team[]): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+    } catch (error) {
+      console.error("Failed to save teams:", error);
+    }
+  },
+  loadTeams(): Team[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (error) {
+      console.error("Failed to load teams:", error);
+    }
+    return [];
+  },
+};
+
+let activeRepository: TeamRepository = localRepository;
+
+/** Swap the persistence backend (null restores the localStorage default). */
+export function setTeamRepository(repository: TeamRepository | null): void {
+  activeRepository = repository ?? localRepository;
+}
+
+/** The signed-out localStorage backend (used by migration and tests). */
+export function getLocalRepository(): TeamRepository {
+  return localRepository;
 }
 
 /**
- * Load teams from localStorage
+ * Save teams to the active backend
+ */
+export function saveTeams(teams: Team[]): void {
+  activeRepository.saveTeams(teams);
+}
+
+/**
+ * Load teams from the active backend
  */
 export function loadTeams(): Team[] {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error("Failed to load teams:", error);
-  }
-  return [];
+  return activeRepository.loadTeams();
 }
 
 /**

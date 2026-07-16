@@ -29,7 +29,8 @@ export class ServiceContainer {
     team1: Team,
     team2: Team,
     initialState?: GameState,
-    seed?: number
+    seed?: number,
+    gameServiceFactory?: (inner: GameService) => IGameService
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
@@ -44,7 +45,7 @@ export class ServiceContainer {
     this.rngService = new RNGService(rngSeed);
     this.blockResolutionService = new BlockResolutionService(this.rngService);
 
-    this.gameService = new GameService(
+    const gameService = new GameService(
       this.eventBus,
       team1,
       team2,
@@ -52,6 +53,12 @@ export class ServiceContainer {
       this.blockResolutionService,
       initialState
     );
+    // Online guests wrap the local engine in a network proxy: the inner
+    // service becomes a passive, snapshot-synced replica the UI reads from,
+    // while all mutations travel to the host (see NetworkedGameService).
+    this.gameService = gameServiceFactory
+      ? gameServiceFactory(gameService)
+      : gameService;
   }
 
   /**
@@ -64,14 +71,16 @@ export class ServiceContainer {
     team1: Team,
     team2: Team,
     initialState?: GameState,
-    seed?: number
+    seed?: number,
+    gameServiceFactory?: (inner: GameService) => IGameService
   ): ServiceContainer {
     ServiceContainer.instance = new ServiceContainer(
       eventBus,
       team1,
       team2,
       initialState,
-      seed
+      seed,
+      gameServiceFactory
     );
     return ServiceContainer.instance;
   }

@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button } from "../componentWarehouse/Button";
+import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import Stars from "../componentWarehouse/stars";
+import { useAuth } from "../../hooks/useAuth";
 
 /**
  * Main Menu Component - Replaces MenuScene Phaser UI
@@ -12,6 +14,8 @@ import Stars from "../componentWarehouse/stars";
  */
 export function MainMenu() {
   const navigate = useNavigate();
+  const { user, onlineAvailable, signIn, signOut } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const handleBuildTeam = () => {
     navigate("/build-team");
@@ -19,6 +23,20 @@ export function MainMenu() {
 
   const handlePlayGame = () => {
     navigate("/select-team");
+  };
+
+  /** Online actions require sign-in; local play never does. */
+  const handleOnline = async (path: string) => {
+    setAuthError(null);
+    if (!user) {
+      try {
+        await signIn();
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
+    navigate(path);
   };
 
   return (
@@ -39,13 +57,39 @@ export function MainMenu() {
             Fantasy Football Mayhem
           </p>
 
-          <div className="flex flex-col gap-6 min-w-[300px] mb-16">
+          <div className="flex flex-col gap-6 min-w-[300px] mb-8">
             <Button onClick={handleBuildTeam} className="text-2xl py-5">
               Build Team
             </Button>
 
             <Button onClick={handlePlayGame} className="text-2xl py-5">
               Play Game
+            </Button>
+
+            <Button
+              onClick={() => handleOnline("/online/host")}
+              disabled={!onlineAvailable}
+              title={
+                onlineAvailable
+                  ? undefined
+                  : "Online play requires Firebase config (see .env.example)"
+              }
+              className="text-2xl py-5 disabled:opacity-50"
+            >
+              Host Game
+            </Button>
+
+            <Button
+              onClick={() => handleOnline("/online/join")}
+              disabled={!onlineAvailable}
+              title={
+                onlineAvailable
+                  ? undefined
+                  : "Online play requires Firebase config (see .env.example)"
+              }
+              className="text-2xl py-5 disabled:opacity-50"
+            >
+              Join Game
             </Button>
 
             <Button
@@ -61,6 +105,39 @@ export function MainMenu() {
             >
               🛠️ Sandbox Mode
             </Button>
+          </div>
+
+          {/* Auth status — online play needs sign-in; local play never does */}
+          <div className="mb-8 flex flex-col items-center gap-2">
+            {user ? (
+              <>
+                <span className="text-bb-muted-text text-lg font-body">
+                  Signed in as {user.displayName ?? user.email ?? user.uid}
+                </span>
+                <SecondaryButton onClick={() => void signOut()}>
+                  Sign out
+                </SecondaryButton>
+              </>
+            ) : (
+              onlineAvailable && (
+                <SecondaryButton
+                  onClick={() =>
+                    void signIn().catch((error: unknown) =>
+                      setAuthError(
+                        error instanceof Error ? error.message : String(error)
+                      )
+                    )
+                  }
+                >
+                  Sign in with Google
+                </SecondaryButton>
+              )
+            )}
+            {authError && (
+              <span className="text-bb-deep-crimson text-sm font-body">
+                {authError}
+              </span>
+            )}
           </div>
 
           <div className="text-bb-muted-text text-lg mt-auto font-heading">

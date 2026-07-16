@@ -5,6 +5,7 @@ interface ButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  title?: string;
 }
 
 export const Button = ({
@@ -12,6 +13,7 @@ export const Button = ({
   onClick,
   disabled,
   className = "",
+  title,
 }: ButtonProps) => {
   return (
     <button
@@ -31,6 +33,7 @@ export const Button = ({
       `}
       onClick={onClick}
       disabled={disabled}
+      title={title}
     >
       {children}
     </button>
