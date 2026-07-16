@@ -44,6 +44,34 @@ firebase emulators:start --only auth,firestore   # auth :9099, firestore :8080
 # then set VITE_FIREBASE_USE_EMULATORS=true in .env.local
 ```
 
+## Deploy (Netlify)
+
+`netlify.toml` configures the deploy: it builds with `vite build` (skipping the
+`tsc` gate, which has pre-existing UI-layer errors), publishes `dist`, adds the
+SPA fallback so react-router deep links like `/online/play/ABC123` resolve, and
+sets the `Cross-Origin-Opener-Policy: same-origin-allow-popups` header the
+Google sign-in popup needs. Connect the repo in Netlify and it just builds.
+
+For online play to work on the deployed site you must also:
+
+1. **Netlify env vars** — set the `VITE_FIREBASE_*` values (from `.env.example`)
+   in Netlify → Site settings → Environment variables. Vite inlines these at
+   **build time**, so trigger a redeploy after adding them. Without them the
+   site still runs, but Host/Join stay disabled.
+2. **Custom subdomain** — add it in Netlify (Domain settings) and point the DNS
+   from `joe-lloyd.com`. (You said you'll handle this part.)
+3. **Firebase Auth → Authorized domains** *(the allow-list step)* — in the
+   Firebase console → Authentication → Settings → **Authorized domains**, add
+   both the Netlify domain (`your-site.netlify.app`) and the custom subdomain.
+   Google sign-in (`signInWithPopup`) is **rejected on any domain not on this
+   list** — this is the most common "sign-in silently fails after deploy" cause.
+4. **Rules** — `firebase deploy --only firestore:rules` if you haven't since the
+   last rules change (the `users/{uid}` profile/active-match rule, etc.).
+
+Firestore itself has no domain allow-list — access is gated by auth + rules, so
+no rules change is needed for a new domain; only the Auth authorized-domains
+list matters.
+
 ### Security model (read this before worrying about the API key)
 
 The Firebase client config in `.env.local` is **publishable, not secret** —
