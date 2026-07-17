@@ -18,6 +18,8 @@ import { DiceLog } from "./DiceLog";
 import { PlayerInfoPanel } from "./PlayerInfoPanel";
 import { BlockDiceDialog } from "./BlockDiceDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
+import { RerollDialog } from "./RerollDialog";
+import { ReactionDialog } from "./ReactionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
@@ -244,6 +246,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <ConfirmationModal eventBus={eventBus} />
           <BlockDiceDialog eventBus={eventBus} />
           <FollowUpDialog eventBus={eventBus} />
+          <RerollDialog eventBus={eventBus} />
+          <ReactionDialog eventBus={eventBus} />
           <TurnoverOverlay eventBus={eventBus} />
 
           {/* Notification overlay — bottom-center, out of the board's way,

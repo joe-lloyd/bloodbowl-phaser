@@ -24,7 +24,7 @@ const followUpOntoBall: Scenario = {
 };
 
 describe("follow-up onto a loose ball", () => {
-  it("rolls to pick up when following up onto the ball's square", () => {
+  it("rolls to pick up when following up onto the ball's square", async () => {
     const game = new HeadlessGame({ scenario: followUpOntoBall, seed: 7 });
     const attacker = game.ctx.team1.players[0];
 
@@ -34,13 +34,13 @@ describe("follow-up onto a loose ball", () => {
     );
 
     // The follow-up moves the attacker onto (11,5), where the ball sits.
-    game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
+    await game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
 
     // A pickup roll must have happened (previously it was silently skipped).
     expect(pickups).toHaveLength(1);
   });
 
-  it("does not roll a pickup when the follow-up square has no ball", () => {
+  it("does not roll a pickup when the follow-up square has no ball", async () => {
     const noBall: Scenario = {
       ...followUpOntoBall,
       setup: { ...followUpOntoBall.setup, ballPosition: { x: 1, y: 1 } },
@@ -53,7 +53,7 @@ describe("follow-up onto a loose ball", () => {
       pickups.push(data)
     );
 
-    game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
+    await game.ctx.gameService.followUpPush(attacker.id, { x: 11, y: 5 });
 
     expect(pickups).toHaveLength(0);
   });

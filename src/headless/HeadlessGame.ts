@@ -51,6 +51,8 @@ const COMMAND_SHAPES: Record<
   "choose-block-result": { index: "number" },
   "choose-push-direction": { x: "number", y: "number" },
   "choose-follow-up": { followUp: "boolean" },
+  "use-reroll": { accept: "boolean" },
+  "use-reaction": { accept: "boolean" },
   touchback: { playerId: "string" },
   state: {},
   "legal-actions": {},
@@ -60,6 +62,8 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "choose-block-result": "block-dice",
   "choose-push-direction": "push-direction",
   "choose-follow-up": "follow-up",
+  "use-reroll": "reroll",
+  "use-reaction": "reaction",
   touchback: "touchback",
 };
 
@@ -67,6 +71,13 @@ export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
   private eventLog: EmittedEvent[] = [];
   private pending: PendingDecision | null = null;
+  /**
+   * A command suspended mid-execution on an awaitable decision (reroll):
+   * its promise parks here while the response goes out with the pending
+   * decision; the reply command resumes it and awaits its completion.
+   */
+  private inFlight: Promise<void> | null = null;
+  private decisionWaiters: (() => void)[] = [];
   private blockValidator = new BlockValidator();
   /** Kicking team of the current drive; set by coin-flip/start-setup/kick-ball */
   private kickingTeamId: string | null = null;
@@ -120,14 +131,43 @@ export class HeadlessGame {
     }
 
     this.eventLog = [];
-    try {
+    this.decisionWaiters = [];
+    const raised = new Promise<void>((resolve) =>
+      this.decisionWaiters.push(resolve)
+    );
+
+    // A command may suspend mid-execution on an awaitable decision (a
+    // reroll offer inside a move, a flow operation pausing). Race the run
+    // against "a decision was raised": on suspension, respond now with the
+    // pending decision and park the run; the reply command resumes it.
+    const prior = this.inFlight;
+    this.inFlight = null;
+    const run = (async () => {
       await this.dispatch(cmd);
-    } catch (err) {
+      if (prior) await prior; // a resumed suspended command finishes first
+      await this.settle();
+    })();
+
+    const outcome = await Promise.race([
+      run.then(
+        () => ({ kind: "done" as const }),
+        (err: unknown) => ({ kind: "error" as const, err })
+      ),
+      raised.then(() => ({ kind: "decision" as const })),
+    ]);
+
+    if (outcome.kind === "error") {
       return this.reject(
-        `command-failed: ${err instanceof Error ? err.message : String(err)}`
+        `command-failed: ${
+          outcome.err instanceof Error ? outcome.err.message : String(outcome.err)
+        }`
       );
     }
-    await this.settle();
+    if (outcome.kind === "decision") {
+      this.inFlight = run.catch((err) =>
+        console.error("[Headless] suspended command failed:", err)
+      );
+    }
     return this.respond(true);
   }
 
@@ -218,7 +258,7 @@ export class HeadlessGame {
           defender,
           allPlayers
         );
-        gs.rollBlockDice(
+        await gs.rollBlockDice(
           cmd.attackerId,
           cmd.defenderId,
           analysis.diceCount,
@@ -251,7 +291,7 @@ export class HeadlessGame {
           this.pending = pending; // restore, reply was invalid
           throw new Error("invalid-block-result-index");
         }
-        gs.resolveBlock(
+        await gs.resolveBlock(
           pending.attackerId,
           pending.defenderId,
           pending.options[cmd.index]
@@ -280,9 +320,32 @@ export class HeadlessGame {
         const pending = this.takePending("follow-up");
         if (cmd.followUp) {
           // Free move: no movement cost, no dice (rush/dodge already paid)
-          gs.followUpPush(pending.attackerId, pending.targetSquare);
+          await gs.followUpPush(pending.attackerId, pending.targetSquare);
         }
         gs.finishActivation(pending.attackerId);
+        break;
+      }
+      case "use-reroll": {
+        const pending = this.takePending("reroll");
+        if (
+          cmd.source !== undefined &&
+          !pending.sources.includes(cmd.source)
+        ) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-reroll-source");
+        }
+        if (!gs.answerReroll(cmd.accept, cmd.source)) {
+          this.pending = pending;
+          throw new Error("no-reroll-awaiting");
+        }
+        break;
+      }
+      case "use-reaction": {
+        const pending = this.takePending("reaction");
+        if (!gs.answerReaction(cmd.accept)) {
+          this.pending = pending;
+          throw new Error("no-reaction-awaiting");
+        }
         break;
       }
       case "touchback": {
@@ -316,6 +379,33 @@ export class HeadlessGame {
       if (this.autoStartOnReady && this.kickingTeamId) {
         this.ctx.gameService.startGame(this.kickingTeamId);
       }
+      return;
+    }
+    if (name === GameEventNames.DecisionRequested) {
+      // Awaitable decision: the engine is paused on this promise. Surface
+      // it and wake execute()'s race so the response goes out now.
+      if (data?.type === "reroll") {
+        this.pending = {
+          type: "reroll",
+          playerId: data.playerId,
+          chooserTeamId: data.chooserTeamId,
+          rollKind: data.rollKind,
+          sources: data.sources,
+          skill: data.skill,
+          roll: data.roll,
+        };
+      } else if (data?.type === "reaction") {
+        this.pending = {
+          type: "reaction",
+          playerId: data.playerId,
+          chooserTeamId: data.chooserTeamId,
+          skill: data.skill,
+          prompt: data.prompt,
+        };
+      } else {
+        return;
+      }
+      this.decisionWaiters.splice(0).forEach((wake) => wake());
       return;
     }
     if (name === GameEventNames.BlockDiceRolled) {

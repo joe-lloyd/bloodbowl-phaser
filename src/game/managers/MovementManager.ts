@@ -12,6 +12,13 @@ import { IGameService } from "@/services/interfaces/IGameService";
 import { DiceController } from "../controllers/DiceController";
 import { isInEndZone } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
+import {
+  withRerollOffer,
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  DodgeDeclaredContext,
+} from "../skills";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -173,11 +180,53 @@ export class MovementManager {
       if (failed) break;
 
       if (this.dodgeController.isDodgeRequired(currentPos, opponents)) {
-        const dodgeResult = this.dodgeController.attemptDodge(
+        // Trigger point: dodge declared — rules from the dodger AND the
+        // opponents marking the vacated square may adjust the roll (Diving
+        // Tackle) or deny the skill reroll (Tackle)
+        const dodgeCtx: DodgeDeclaredContext = {
           player,
-          step,
-          opponents
+          from: { ...currentPos },
+          to: { ...step },
+          modifiers: this.dodgeController.calculateDodgeModifiers(
+            step,
+            opponents
+          ),
+          skillRerollAllowed: true,
+          decisions: gameService?.getDecisionService(),
+          flow: flowManager,
+          triggers: [],
+        };
+        await foldTrigger(
+          "onDodgeDeclared",
+          gatherParticipants(
+            player,
+            undefined,
+            adjacentStanding(currentPos, opponents)
+          ),
+          dodgeCtx
         );
+        dodgeCtx.triggers.forEach((t) =>
+          this.eventBus.emit(GameEventNames.SkillTriggered, t)
+        );
+
+        const rollDodge = () =>
+          this.dodgeController.attemptDodge(
+            player,
+            step,
+            opponents,
+            dodgeCtx.modifiers
+          );
+        // A failed dodge may be rerolled (Dodge skill / team reroll); the
+        // move pauses on the coach's decision
+        const dodgeResult = gameService
+          ? await withRerollOffer(
+              { gameService, eventBus: this.eventBus },
+              player,
+              "dodge",
+              rollDodge,
+              { skillAllowed: dodgeCtx.skillRerollAllowed }
+            )
+          : rollDodge();
 
         if (!dodgeResult.success) {
           failed = true;

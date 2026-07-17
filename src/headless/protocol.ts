@@ -39,6 +39,13 @@ export type HeadlessCommand =
   | { type: "choose-block-result"; index: number }
   | { type: "choose-push-direction"; x: number; y: number }
   | { type: "choose-follow-up"; followUp: boolean }
+  | {
+      type: "use-reroll";
+      accept: boolean;
+      /** Which source to spend; defaults to the first offered */
+      source?: "skill" | "team";
+    }
+  | { type: "use-reaction"; accept: boolean }
   | { type: "touchback"; playerId: string }
   // Queries (never mutate state)
   | { type: "state" }
@@ -70,6 +77,26 @@ export type PendingDecision =
       /** Kick went out / short: receiving coach picks who takes the ball */
       type: "touchback";
       teamId: string;
+    }
+  | {
+      /** A failed roll can be rerolled: the rolling coach accepts/declines */
+      type: "reroll";
+      playerId: string;
+      chooserTeamId: string;
+      rollKind: string;
+      /** Available sources, skill first when both may be spent */
+      sources: ("skill" | "team")[];
+      skill?: string;
+      /** The failed die result */
+      roll: number;
+    }
+  | {
+      /** A reactive skill may fire: the REACTING coach accepts/declines */
+      type: "reaction";
+      playerId: string;
+      chooserTeamId: string;
+      skill: string;
+      prompt: string;
     };
 
 export interface EmittedEvent {

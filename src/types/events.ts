@@ -43,6 +43,8 @@ export enum GameEventNames {
   /** A skill rule changed a roll/dice/result, or offered/used a reroll */
   SkillTriggered = "skillTriggered",
   RerollUsed = "rerollUsed",
+  /** The engine paused on a mid-action decision (reroll offer, reaction) */
+  DecisionRequested = "decisionRequested",
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
@@ -124,6 +126,8 @@ export enum GameEventNames {
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
   UI_FollowUpResponse = "ui:followUpResponse",
+  UI_RerollResponse = "ui:rerollResponse",
+  UI_ReactionResponse = "ui:reactionResponse",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_StepSelected = "ui:stepSelected",
 
@@ -221,7 +225,12 @@ export interface GameEvents {
     source: "skill" | "team";
     rollKind: string;
     skill?: string;
+    /** Die result before and after the reroll */
+    before: number;
+    after: number;
   };
+
+  [GameEventNames.DecisionRequested]: import("./decisions").DecisionRequest;
 
   [GameEventNames.PlayerStoodUp]: {
     playerId: string;
@@ -505,6 +514,9 @@ export interface UIEvents {
     followUp: boolean;
     targetSquare?: { x: number; y: number };
   };
+
+  [GameEventNames.UI_RerollResponse]: import("./decisions").RerollDecisionAnswer;
+  [GameEventNames.UI_ReactionResponse]: import("./decisions").ReactionDecisionAnswer;
 
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;

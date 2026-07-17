@@ -50,11 +50,12 @@ export class PassOperation extends GameOperation {
       opponents
     );
 
-    const result = passController.attemptPass(
+    const result = await passController.attemptPass(
       passer,
       passer.gridPosition,
       { x: this.targetX, y: this.targetY },
-      markingOpponents
+      markingOpponents,
+      { gameService, eventBus } // failed passes may offer a reroll
     );
 
     // 2. Emit Animation Events

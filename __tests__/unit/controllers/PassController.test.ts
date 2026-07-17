@@ -110,13 +110,13 @@ describe("PassController", () => {
   });
 
   describe("Attempt Pass", () => {
-    it("should emit pass events for accurate pass", () => {
+    it("should emit pass events for accurate pass", async () => {
       mockDiceController.rollSkillCheck.mockReturnValue({
         success: true,
         roll: 6,
       });
 
-      const result = controller.attemptPass(
+      const result = await controller.attemptPass(
         player,
         { x: 5, y: 5 },
         { x: 7, y: 5 },
@@ -132,7 +132,7 @@ describe("PassController", () => {
       );
     });
 
-    it("should scatter ball for inaccurate pass", () => {
+    it("should scatter ball for inaccurate pass", async () => {
       mockDiceController.rollSkillCheck.mockReturnValue({
         success: false,
         roll: 2,
@@ -141,7 +141,7 @@ describe("PassController", () => {
       const scatterPath = [{ x: 8, y: 8 }];
       mockMovementController.scatter.mockReturnValue(scatterPath);
 
-      const result = controller.attemptPass(
+      const result = await controller.attemptPass(
         player,
         { x: 5, y: 5 },
         { x: 7, y: 5 },

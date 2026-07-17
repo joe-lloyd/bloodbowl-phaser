@@ -2,6 +2,12 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryOperation } from "./InjuryOperation.js";
+import {
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  ArmourBreakContext,
+} from "../skills";
 
 /**
  * ArmourOperation
@@ -39,10 +45,33 @@ export class ArmourOperation extends GameOperation {
       .getDiceController()
       .roll2D6(`Armour Roll (${player.playerName})`);
 
-    // 2. Check if broken
-    const isBroken = gameService
-      .getArmourController()
-      .isArmourBroken(player, roll);
+    // 2. Check if broken; trigger point: rules may adjust the outcome
+    const ctx: ArmourBreakContext = {
+      player,
+      roll,
+      broken: gameService.getArmourController().isArmourBroken(player, roll),
+      decisions: gameService.getDecisionService(),
+      flow: flowManager,
+      triggers: [],
+    };
+    await foldTrigger(
+      "onArmourBreak",
+      gatherParticipants(
+        player,
+        undefined,
+        player.gridPosition
+          ? adjacentStanding(
+              player.gridPosition,
+              gameService.getOpponents(player.teamId)
+            )
+          : []
+      ),
+      ctx
+    );
+    ctx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+    const isBroken = ctx.broken;
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");

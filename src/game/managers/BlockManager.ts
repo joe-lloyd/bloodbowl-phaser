@@ -17,7 +17,15 @@ import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
-import { foldBlockResult, BlockResultContext } from "../skills";
+import {
+  foldBlockResult,
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  BlockResultContext,
+  BlockDeclaredContext,
+  PushContext,
+} from "../skills";
 
 /**
  * Offers the blocker the follow-up into the square their crowd-surfed
@@ -85,12 +93,37 @@ export class BlockManager {
   /**
    * Roll block dice and emit results
    */
-  public rollBlockDice(
+  public async rollBlockDice(
     attackerId: string,
     defenderId: string,
     numDice: number,
     isAttackerChoice: boolean
-  ): void {
+  ): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    const defender = this.getPlayerById(defenderId);
+
+    // Trigger point: block declared — rules may adjust the dice before they
+    // roll (pre-block rolls, dice-count effects)
+    if (attacker && defender) {
+      const ctx: BlockDeclaredContext = {
+        attacker,
+        defender,
+        diceCount: numDice,
+        isAttackerChoice,
+        decisions: this.decisions(),
+        flow: this.callbacks.getFlowManager?.(),
+        triggers: [],
+      };
+      await foldTrigger(
+        "onBlockDeclared",
+        this.blockParticipants(attacker, defender),
+        ctx
+      );
+      this.announce(ctx.triggers);
+      numDice = ctx.diceCount;
+      isAttackerChoice = ctx.isAttackerChoice;
+    }
+
     const teamId = attackerId.split("-")[0];
     const results = this.diceController.rollBlockDice(numDice, teamId);
 
@@ -108,11 +141,11 @@ export class BlockManager {
   /**
    * Resolve block with selected result
    */
-  public resolveBlock(
+  public async resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
-  ): void {
+  ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
 
@@ -126,16 +159,61 @@ export class BlockManager {
         this.handleSkull(attacker);
         break;
       case "both-down":
-        this.handleBothDown(attacker, defender);
+        await this.handleBothDown(attacker, defender);
         break;
       case "push":
       case "pow":
       case "pow-dodge": {
+        // Trigger point: block result — rules may cancel the knockdown
+        // (Dodge turns a Defender Stumbles into a plain push unless the
+        // attacker has Tackle)
+        const resultCtx: BlockResultContext = {
+          attacker,
+          defender,
+          resultType: result.type,
+          attackerKnockedDown: false,
+          defenderKnockedDown:
+            result.type === "pow" || result.type === "pow-dodge",
+          decisions: this.decisions(),
+          flow: this.callbacks.getFlowManager?.(),
+          triggers: [],
+        };
+        await foldBlockResult(resultCtx, this.allPlayers());
+        this.announce(resultCtx.triggers);
+
+        // Trigger point: the defender is about to be pushed — a reacting
+        // rule may refuse the push outright (Stand Firm)
+        const pushCtx: PushContext = {
+          attacker,
+          pushed: defender,
+          resultType: result.type,
+          refused: false,
+          decisions: this.decisions(),
+          flow: this.callbacks.getFlowManager?.(),
+          triggers: [],
+        };
+        await foldTrigger(
+          "onPush",
+          this.blockParticipants(attacker, defender),
+          pushCtx
+        );
+        this.announce(pushCtx.triggers);
+
+        if (pushCtx.refused) {
+          this.resolveRefusedPush(
+            attacker,
+            defender,
+            resultCtx.defenderKnockedDown
+          );
+          break;
+        }
+
         // Start a (possibly chained) push: the chain is decided link by
         // link, applied only once fully chosen (rulebook p.55)
         this.chain = {
           attackerId,
           resultType: result.type,
+          knockDownDefender: resultCtx.defenderKnockedDown,
           links: [],
         };
         this.requestPushDecision(attacker.gridPosition!, defender);
@@ -144,10 +222,44 @@ export class BlockManager {
     }
   }
 
+  /**
+   * A refused push (Stand Firm): nobody moves, so there is no chain and no
+   * follow-up. POW results still knock the defender down — in place.
+   */
+  private resolveRefusedPush(
+    attacker: Player,
+    defender: Player,
+    knockDownDefender: boolean
+  ): void {
+    const flowManager = this.callbacks.getFlowManager?.();
+
+    if (knockDownDefender) {
+      this.knockDownPlayer(defender);
+      if (flowManager) {
+        flowManager.add(new ArmourOperation(defender.id), true);
+        const pos = defender.gridPosition;
+        if (
+          pos &&
+          this.state.ballPosition &&
+          this.state.ballPosition.x === pos.x &&
+          this.state.ballPosition.y === pos.y
+        ) {
+          flowManager.add(new BounceOperation(pos), true);
+        }
+      }
+    }
+
+    // No square was vacated, so the follow-up prompt never fires — end the
+    // blocker's activation directly
+    flowManager?.context.gameService.finishActivation(attacker.id);
+  }
+
   /** Pending chain-push state between push-direction decisions */
   private chain: {
     attackerId: string;
     resultType: BlockResultType;
+    /** Whether the original defender goes down (skills may have cancelled) */
+    knockDownDefender?: boolean;
     links: {
       playerId: string;
       from: { x: number; y: number };
@@ -205,6 +317,7 @@ export class BlockManager {
       this.chain = {
         attackerId,
         resultType: resultType as BlockResultType,
+        knockDownDefender: resultType === "pow" || resultType === "pow-dodge",
         links: [],
       };
     }
@@ -240,6 +353,9 @@ export class BlockManager {
   private applyChain(followUp: boolean): void {
     if (!this.chain) return;
     const { attackerId, resultType, links } = this.chain;
+    const knockDownDefender =
+      this.chain.knockDownDefender ??
+      (resultType === "pow" || resultType === "pow-dodge");
     this.chain = null;
 
     const flowManager = this.callbacks.getFlowManager?.();
@@ -299,9 +415,7 @@ export class BlockManager {
 
       // A standing carrier pushed into their scoring end zone still scores
       // (the original defender falls on POW, so no score for them)
-      const knockedDown =
-        isOriginalDefender &&
-        (resultType === "pow" || resultType === "pow-dodge");
+      const knockedDown = isOriginalDefender && knockDownDefender;
       if (!knockedDown) {
         flowManager?.context.gameService.checkForTouchdown(link.playerId);
       }
@@ -317,11 +431,7 @@ export class BlockManager {
       flowManager?.add(new CrowdSurfFollowUpOperation(attackerId, first.from));
       return;
     }
-    if (
-      first &&
-      first.to !== null &&
-      (resultType === "pow" || resultType === "pow-dodge")
-    ) {
+    if (first && first.to !== null && knockDownDefender) {
       const defender = this.getPlayerById(first.playerId);
       if (defender) {
         this.knockDownPlayer(defender);
@@ -358,40 +468,76 @@ export class BlockManager {
   /**
    * Handle both down result
    */
-  private handleBothDown(attacker: Player, defender: Player): void {
-    // Skill hook: rules may cancel a knock-down (Block ignores Both Down).
+  private async handleBothDown(
+    attacker: Player,
+    defender: Player
+  ): Promise<void> {
+    // Skill hook: rules may cancel a knock-down (Block ignores Both Down)
+    // or choose both-prone-no-armour (Wrestle, a reacting-team decision).
     const ctx: BlockResultContext = {
       attacker,
       defender,
       resultType: "both-down",
       attackerKnockedDown: true,
       defenderKnockedDown: true,
+      decisions: this.decisions(),
+      flow: this.callbacks.getFlowManager?.(),
       triggers: [],
     };
-    foldBlockResult(ctx);
-    ctx.triggers.forEach((t) =>
-      this.eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
+    await foldBlockResult(ctx, this.allPlayers());
+    this.announce(ctx.triggers);
+
+    const attackerHadBall = this.isOnBall(attacker);
 
     if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
     if (ctx.defenderKnockedDown) this.knockDownPlayer(defender);
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
-      // Only the players actually knocked down roll armour. Attacker runs
-      // first (added last to the front of the queue).
-      if (ctx.defenderKnockedDown) {
-        flowManager.add(new ArmourOperation(defender.id), true);
-      }
-      if (ctx.attackerKnockedDown) {
-        flowManager.add(new ArmourOperation(attacker.id), true);
+      // A downed carrier drops the ball (prone players can't hold it)
+      [defender, attacker].forEach((p) => {
+        const down =
+          p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
+        if (down && this.isOnBall(p)) {
+          flowManager.add(new BounceOperation(p.gridPosition!), true);
+        }
+      });
+
+      // Only the players actually knocked down roll armour — none at all
+      // when a rule placed them prone (Wrestle). Attacker runs first
+      // (added last to the front of the queue).
+      if (!ctx.placedProne) {
+        if (ctx.defenderKnockedDown) {
+          flowManager.add(new ArmourOperation(defender.id), true);
+        }
+        if (ctx.attackerKnockedDown) {
+          flowManager.add(new ArmourOperation(attacker.id), true);
+        }
       }
     }
 
-    // A turnover happens only if the active player (the attacker) went down.
     if (ctx.attackerKnockedDown) {
-      this.callbacks.onTurnover("Both Down");
+      if (!ctx.placedProne) {
+        // A turnover happens only if the active player (the attacker) went
+        // down.
+        this.callbacks.onTurnover("Both Down");
+      } else if (attackerHadBall) {
+        // Placed Prone (p.42): a turnover only if the active player was
+        // carrying the ball; otherwise just the activation ends
+        this.callbacks.onTurnover("Ball carrier placed prone");
+      } else {
+        flowManager?.context.gameService.finishActivation(attacker.id);
+      }
     }
+  }
+
+  private isOnBall(player: Player): boolean {
+    return (
+      !!player.gridPosition &&
+      !!this.state.ballPosition &&
+      this.state.ballPosition.x === player.gridPosition.x &&
+      this.state.ballPosition.y === player.gridPosition.y
+    );
   }
 
   /**
@@ -408,6 +554,38 @@ export class BlockManager {
     return (
       this.team1.players.find((p) => p.id === playerId) ||
       this.team2.players.find((p) => p.id === playerId)
+    );
+  }
+
+  private allPlayers(): Player[] {
+    return [...this.team1.players, ...this.team2.players];
+  }
+
+  private decisions() {
+    return this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.getDecisionService();
+  }
+
+  /** Attacker → defender → players adjacent to either, by position. */
+  private blockParticipants(attacker: Player, defender: Player): Player[] {
+    const all = this.allPlayers();
+    const adjacents = [
+      ...(attacker.gridPosition
+        ? adjacentStanding(attacker.gridPosition, all)
+        : []),
+      ...(defender.gridPosition
+        ? adjacentStanding(defender.gridPosition, all)
+        : []),
+    ];
+    return gatherParticipants(attacker, defender, adjacents);
+  }
+
+  private announce(
+    triggers: { playerId: string; skill: string; effect: string }[]
+  ): void {
+    triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
     );
   }
 }

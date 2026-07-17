@@ -1,6 +1,8 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
+import { withRerollOffer } from "../skills";
+import { RerollableRollKind } from "../../types/decisions";
 
 /**
  * AgilityTestOperation
@@ -20,7 +22,9 @@ export class AgilityTestOperation extends GameOperation {
     private testName: string,
     private targetNumber: number,
     private modifiers: number,
-    private description?: string
+    private description?: string,
+    /** When set, a failure offers a reroll decision for this roll kind */
+    private rerollKind?: RerollableRollKind
   ) {
     super();
   }
@@ -42,15 +46,24 @@ export class AgilityTestOperation extends GameOperation {
       `${info}: ${this.targetNumber}+ (Mod: ${modString})`
     );
 
-    // Execute Roll via DiceController
-    const result = gameService
-      .getDiceController()
-      .rollSkillCheck(
-        this.testName,
-        this.targetNumber,
-        this.modifiers,
-        player.playerName
-      );
+    // Execute Roll via DiceController; failures may offer a reroll
+    const doRoll = () =>
+      gameService
+        .getDiceController()
+        .rollSkillCheck(
+          this.testName,
+          this.targetNumber,
+          this.modifiers,
+          player.playerName
+        );
+    const result = this.rerollKind
+      ? await withRerollOffer(
+          { gameService, eventBus },
+          player,
+          this.rerollKind,
+          doRoll
+        )
+      : doRoll();
 
     this.success = result.success;
     this.roll = result.roll;

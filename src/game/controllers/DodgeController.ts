@@ -43,10 +43,13 @@ export class DodgeController {
   public attemptDodge(
     player: Player,
     to: { x: number; y: number },
-    opponents: Player[]
+    opponents: Player[],
+    /** Skill triggers may have adjusted the modifiers (Diving Tackle) */
+    modifiersOverride?: number
   ): DodgeResult {
     const target = player.stats.AG;
-    const modifiers = this.calculateDodgeModifiers(to, opponents);
+    const modifiers =
+      modifiersOverride ?? this.calculateDodgeModifiers(to, opponents);
     const result = this.diceController.rollSkillCheck(
       "Dodge",
       target,

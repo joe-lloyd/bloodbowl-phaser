@@ -7,20 +7,26 @@ import { GameSnapshot } from "../../src/headless/serialization";
 
 /**
  * Minimal deterministic match bot: places players, kicks off, moves one
- * player per turn, answers every pendingDecision with its first option.
- * Exists to prove a complete match runs headless — not to play well.
+ * player per turn, answers every pendingDecision with its first option —
+ * and always DECLINES reroll/reaction offers. Exists to prove a complete
+ * match runs headless — not to play well.
  */
 async function playFullMatch(seed: number): Promise<{
   finalSnapshot: GameSnapshot;
   commandCount: number;
   sawHalftime: boolean;
+  skillDecisions: number;
 }> {
   const game = new HeadlessGame({ seed, startingPhase: GamePhase.SETUP });
+  // Bank team rerolls so failed rolls raise real reroll decisions mid-match
+  game.ctx.team1.rerolls = 3;
+  game.ctx.team2.rerolls = 3;
   const gs = game.ctx.gameService;
   let commandCount = 0;
   let sawHalftime = false;
   let kickingTeamId: string | null = null;
   let driveCount = 0;
+  let skillDecisions = 0;
 
   const run = async (command: unknown) => {
     commandCount++;
@@ -45,6 +51,12 @@ async function playFullMatch(seed: number): Promise<{
           .find((t) => t.id === pending.teamId)!
           .players.find((p) => p.position && p.status === "Active")!;
         await run({ type: "touchback", playerId: receiver.id });
+      } else if (pending.type === "reroll") {
+        skillDecisions++;
+        await run({ type: "use-reroll", accept: false });
+      } else if (pending.type === "reaction") {
+        skillDecisions++;
+        await run({ type: "use-reaction", accept: false });
       } else {
         await run({ type: "choose-follow-up", followUp: true });
       }
@@ -152,7 +164,12 @@ async function playFullMatch(seed: number): Promise<{
   }
 
   expect(gs.getState().phase).toBe(GamePhase.GAME_OVER);
-  return { finalSnapshot: game.snapshot(), commandCount, sawHalftime };
+  return {
+    finalSnapshot: game.snapshot(),
+    commandCount,
+    sawHalftime,
+    skillDecisions,
+  };
 }
 
 async function placeTeam(
@@ -213,6 +230,17 @@ describe("full headless match", () => {
     expect(Object.keys(finalSnapshot.score)).toHaveLength(2);
     expect(commandCount).toBeLessThan(600);
   }, 60_000);
+
+  it("the bot answers reroll/reaction decisions when a match raises them", async () => {
+    // Not every seed fails an eligible roll; scan a few full matches until
+    // one offers a reroll — the bot declines and the match still completes.
+    for (let seed = 1; seed <= 12; seed++) {
+      const { finalSnapshot, skillDecisions } = await playFullMatch(seed);
+      expect(finalSnapshot.phase).toBe(GamePhase.GAME_OVER);
+      if (skillDecisions > 0) return;
+    }
+    throw new Error("no seed raised a skill decision in a full match");
+  }, 120_000);
 
   it("is deterministic: same seed twice gives the same final state", async () => {
     const a = await playFullMatch(31337);

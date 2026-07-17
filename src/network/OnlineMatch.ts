@@ -98,6 +98,8 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_RollBlockDice,
   GameEventNames.UI_BlockResultSelected,
   GameEventNames.UI_FollowUpResponse,
+  GameEventNames.UI_RerollResponse,
+  GameEventNames.UI_ReactionResponse,
   GameEventNames.UI_ConfirmationResult,
   GameEventNames.UI_CoinFlipComplete,
   GameEventNames.UI_SetupAction,
@@ -360,6 +362,16 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       },
       awardTouchback: (playerId: string) => {
         executeAsHost({ type: "touchback", playerId });
+        return true;
+      },
+      answerReroll: (accept: boolean, source?: "skill" | "team") => {
+        if (game.pendingDecision()?.type !== "reroll") return false;
+        executeAsHost({ type: "use-reroll", accept, source });
+        return true;
+      },
+      answerReaction: (accept: boolean) => {
+        if (game.pendingDecision()?.type !== "reaction") return false;
+        executeAsHost({ type: "use-reaction", accept });
         return true;
       },
       finishActivation: (playerId: string) => {

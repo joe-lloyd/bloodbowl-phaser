@@ -86,6 +86,25 @@ export class NetworkedGameService implements IGameService {
   getFlowContext() {
     return this.inner.getFlowContext();
   }
+  getDecisionService() {
+    return this.inner.getDecisionService();
+  }
+  getRerollArbiter() {
+    return this.inner.getRerollArbiter();
+  }
+  answerReroll(
+    accept: boolean,
+    source?: import("../types/decisions").RerollSource
+  ): boolean {
+    if (this.pendingDecision()?.type !== "reroll") return false;
+    this.send({ type: "use-reroll", accept, source });
+    return true;
+  }
+  answerReaction(accept: boolean): boolean {
+    if (this.pendingDecision()?.type !== "reaction") return false;
+    this.send({ type: "use-reaction", accept });
+    return true;
+  }
   isSetupComplete(teamId: string): boolean {
     // The replica's SetupManager.placedPlayers map is never populated on the
     // guest (placements are optimistic on the team objects + snapshot-applied),

@@ -27,7 +27,8 @@ describe("BlockManager", () => {
       gridPosition: { x: 5, y: 5 },
       stats: { ST: 3, AG: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
-    } as Player;
+      skills: [],
+    } as unknown as Player;
 
     defender = {
       id: "team2-p1",
@@ -36,7 +37,8 @@ describe("BlockManager", () => {
       gridPosition: { x: 6, y: 5 },
       stats: { ST: 3, AG: 3, AV: 8 },
       status: PlayerStatus.ACTIVE,
-    } as Player;
+      skills: [],
+    } as unknown as Player;
 
     mockTeam1 = { id: "team1", players: [attacker] } as Team;
     mockTeam2 = { id: "team2", players: [defender] } as Team;
@@ -80,14 +82,14 @@ describe("BlockManager", () => {
   });
 
   describe("Roll Block Dice", () => {
-    it("should call diceController.rollBlockDice", () => {
-      manager.rollBlockDice(attacker.id, defender.id, 2, true);
+    it("should call diceController.rollBlockDice", async () => {
+      await manager.rollBlockDice(attacker.id, defender.id, 2, true);
 
       expect(mockDiceController.rollBlockDice).toHaveBeenCalledWith(2, "team1");
     });
 
-    it("should emit BlockDiceRolled event", () => {
-      manager.rollBlockDice(attacker.id, defender.id, 2, true);
+    it("should emit BlockDiceRolled event", async () => {
+      await manager.rollBlockDice(attacker.id, defender.id, 2, true);
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         GameEventNames.BlockDiceRolled,

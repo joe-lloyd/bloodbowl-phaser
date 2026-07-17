@@ -24,6 +24,17 @@ export interface IGameService {
   getFoulController(): import("@/game/controllers/FoulController").FoulController;
   getFlowContext(): import("@/game/core/GameFlowManager").FlowContext;
 
+  // Skill decisions (rerolls, reactions)
+  getDecisionService(): import("@/game/skills").DecisionService;
+  getRerollArbiter(): import("@/game/skills").RerollArbiter;
+  /** Answer a pending reroll decision; false when none is pending */
+  answerReroll(
+    accept: boolean,
+    source?: import("@/types/decisions").RerollSource
+  ): boolean;
+  /** Answer a pending reaction decision; false when none is pending */
+  answerReaction(accept: boolean): boolean;
+
   // Setup
   startSetup(startingTeamId?: string): void;
   placePlayer(playerId: string, x: number, y: number): boolean;
@@ -63,17 +74,19 @@ export interface IGameService {
   standUp(playerId: string): Promise<void>;
 
   previewBlock(attackerId: string, defenderId: string): void;
+  /** May pause on a skill trigger decision — async engines await it */
   rollBlockDice(
     attackerId: string,
     defenderId: string,
     numDice: number,
     isAttackerChoice: boolean
-  ): void;
+  ): void | Promise<void>;
+  /** May pause on a skill trigger decision — async engines await it */
   resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
-  ): void;
+  ): void | Promise<void>;
   executePush(
     attackerId: string,
     defenderId: string,
@@ -95,7 +108,7 @@ export interface IGameService {
   followUpPush(
     attackerId: string,
     targetSquare: { x: number; y: number }
-  ): void;
+  ): void | Promise<void>;
   triggerTurnover(reason: string): void;
 
   /** Roll initial weather (seeded) without advancing the setup subphase */

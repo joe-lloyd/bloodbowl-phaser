@@ -3,6 +3,7 @@ import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 import { BallMovementController } from "./BallMovementController";
 import { DiceController } from "./DiceController";
+import { withRerollOffer } from "../skills";
 
 export type PassType = "Quick Pass" | "Short Pass" | "Long Pass" | "Long Bomb";
 
@@ -137,14 +138,23 @@ export class PassController {
     return { success: check.success, roll: check.roll };
   }
 
-  public attemptPass(
+  public async attemptPass(
     player: Player,
     from: { x: number; y: number },
     to: { x: number; y: number },
-    markingOpponents: number
-  ): PassResult {
+    markingOpponents: number,
+    rerollDeps?: import("../skills").RerollDeps
+  ): Promise<PassResult> {
     const passRange = this.measureRange(from, to);
-    const accuracyTest = this.testAccuracy(player, passRange, markingOpponents);
+    // An inaccurate or fumbled pass is a failed PA test: offer the reroll
+    // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
+    const rollAccuracy = () => {
+      const test = this.testAccuracy(player, passRange, markingOpponents);
+      return { ...test, success: test.accurate };
+    };
+    const accuracyTest = rerollDeps
+      ? await withRerollOffer(rerollDeps, player, "pass", rollAccuracy)
+      : rollAccuracy();
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 

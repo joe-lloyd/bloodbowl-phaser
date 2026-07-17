@@ -60,7 +60,9 @@ export class CatchOperation extends GameOperation {
       this.playerId,
       "Catch",
       player.stats.AG,
-      modifiers
+      modifiers,
+      undefined,
+      "catch" // failed catches may offer a reroll (Catch skill / team)
     );
 
     // Execute the operation (sub-routine style)

@@ -46,6 +46,15 @@ import { ArmourOperation } from "@/game/operations/ArmourOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { IRNGService } from "./rng/RNGService.js";
+import {
+  RerollArbiter,
+  DecisionService,
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  FollowUpContext,
+} from "@/game/skills";
+import { RerollSource } from "@/types/decisions";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -95,6 +104,8 @@ export class GameService implements IGameService {
     };
   }
   private playerActionManager: PlayerActionManager;
+  private decisionService: DecisionService;
+  private rerollArbiter: RerollArbiter;
   private passController: PassController;
   private catchController: CatchController;
   public diceController: DiceController;
@@ -130,6 +141,12 @@ export class GameService implements IGameService {
 
     // Initialize Dice Controller first
     this.diceController = new DiceController(eventBus, rngService);
+
+    // Mid-action decision channel + reroll constraints (skill rules)
+    this.decisionService = new DecisionService(eventBus);
+    this.rerollArbiter = new RerollArbiter(this.state, (id) =>
+      this.getTeam(id)
+    );
 
     // Initialize Flow Manager (Pass 'this' as context)
     this.flowManager = new GameFlowManager({
@@ -271,6 +288,28 @@ export class GameService implements IGameService {
 
   public getFlowContext(): import("@/game/core/GameFlowManager").FlowContext {
     return this.flowManager.context;
+  }
+
+  public getDecisionService(): DecisionService {
+    return this.decisionService;
+  }
+
+  public getRerollArbiter(): RerollArbiter {
+    return this.rerollArbiter;
+  }
+
+  /** Answer a pending reroll decision (dialog or protocol reply). */
+  public answerReroll(accept: boolean, source?: RerollSource): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "reroll") return false;
+    return this.decisionService.answer({ accept, source });
+  }
+
+  /** Answer a pending reaction decision (dialog or protocol reply). */
+  public answerReaction(accept: boolean): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "reaction") return false;
+    return this.decisionService.answer({ accept });
   }
 
   getTurnNumber(teamId: string): number {
@@ -422,12 +461,12 @@ export class GameService implements IGameService {
     this.blockManager.previewBlock(attackerId, defenderId);
   }
 
-  rollBlockDice(
+  async rollBlockDice(
     attackerId: string,
     defenderId: string,
     numDice: number,
     isAttackerChoice: boolean
-  ): void {
+  ): Promise<void> {
     // A player that is down or stunned can never throw a block
     const blocker = this.getPlayerById(attackerId);
     if (!blocker || blocker.status !== PlayerStatus.ACTIVE) {
@@ -489,7 +528,7 @@ export class GameService implements IGameService {
       }
     }
 
-    this.blockManager.rollBlockDice(
+    await this.blockManager.rollBlockDice(
       attackerId,
       defenderId,
       numDice,
@@ -497,12 +536,12 @@ export class GameService implements IGameService {
     );
   }
 
-  resolveBlock(
+  async resolveBlock(
     attackerId: string,
     defenderId: string,
     result: BlockResult
-  ): void {
-    this.blockManager.resolveBlock(attackerId, defenderId, result);
+  ): Promise<void> {
+    await this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 
   public executePush(
@@ -526,12 +565,36 @@ export class GameService implements IGameService {
    * no movement cost, no dodge, no rush — a Blitz already paid its movement
    * (and rolled any Rush) before the block.
    */
-  public followUpPush(
+  public async followUpPush(
     attackerId: string,
     targetSquare: { x: number; y: number }
-  ): void {
+  ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     if (!attacker || !attacker.gridPosition) return;
+
+    // Trigger point: the blocker follows up (Frenzy-style effects hook here)
+    const followCtx: FollowUpContext = {
+      attacker,
+      targetSquare,
+      decisions: this.decisionService,
+      flow: this.flowManager,
+      triggers: [],
+    };
+    await foldTrigger(
+      "onFollowUp",
+      gatherParticipants(
+        attacker,
+        undefined,
+        adjacentStanding(attacker.gridPosition, [
+          ...this.team1.players,
+          ...this.team2.players,
+        ])
+      ),
+      followCtx
+    );
+    followCtx.triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
 
     const from = { ...attacker.gridPosition };
     attacker.gridPosition = { ...targetSquare };

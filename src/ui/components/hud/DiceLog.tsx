@@ -38,21 +38,44 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const tabRef = React.useRef<Tab>("dice");
   tabRef.current = tab;
 
-  useEventBus(eventBus, GameEventNames.DiceRoll, (data) => {
+  const pushEntry = (entry: Omit<RollEntry, "id" | "timestamp">) => {
     const timestamp = Date.now();
     counterRef.current += 1;
     const newEntry: RollEntry = {
       id: `${timestamp}-${counterRef.current}`,
-      ...data,
+      ...entry,
       timestamp,
     };
-
     setLogs((prev) => {
       // Add new entry at the START (top) of the array
       const updated = [newEntry, ...prev];
       // Keep only the most recent 50 entries
       if (updated.length > 50) return updated.slice(0, 50);
       return updated;
+    });
+  };
+
+  useEventBus(eventBus, GameEventNames.DiceRoll, (data) => pushEntry(data));
+
+  // Skill activity: triggers and reroll usage read like rolls in the log
+  useEventBus(eventBus, GameEventNames.SkillTriggered, (data) => {
+    pushEntry({
+      rollType: "Skill",
+      diceType: "★",
+      value: data.skill,
+      total: 0,
+      description: data.effect,
+      resultState: "none",
+    });
+  });
+  useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
+    pushEntry({
+      rollType: "Re-roll",
+      diceType: data.source === "team" ? "team" : "skill",
+      value: data.skill ?? "Team Re-roll",
+      total: data.after,
+      description: `${data.skill ?? "Team re-roll"} on the ${data.rollKind}: ${data.before} → ${data.after}`,
+      resultState: "none",
     });
   });
 

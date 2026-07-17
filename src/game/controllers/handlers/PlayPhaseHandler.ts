@@ -162,6 +162,15 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
     });
 
+    // Reroll/reaction dialog answers — resolve the paused roll path (or,
+    // on the guest / online host, route the reply over the protocol)
+    this.register(GameEventNames.UI_RerollResponse, (data) => {
+      this.gameService.answerReroll(data.accept, data.source);
+    });
+    this.register(GameEventNames.UI_ReactionResponse, (data) => {
+      this.gameService.answerReaction(data.accept);
+    });
+
     // Push Follow Up Response — the follow-up move is free (no movement
     // cost, no dice), so it must NOT go through movePlayer
     this.register(GameEventNames.UI_FollowUpResponse, (data) => {

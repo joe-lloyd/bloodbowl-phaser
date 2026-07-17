@@ -24,6 +24,11 @@ export const SkillRegistry = {
     return rules.has(type);
   },
 
+  /** Remove one rule (tests use this to clean up stubs). */
+  unregister(type: SkillType): void {
+    rules.delete(type);
+  },
+
   /** Implemented vs. the full SkillType catalog. */
   coverage(): { implemented: number; total: number; missing: string[] } {
     const all = Object.values(SkillType) as SkillType[];

@@ -14,6 +14,7 @@ import {
 } from "../../src/headless/protocol";
 import { GameSnapshot } from "../../src/headless/serialization";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
+import { SkillType, SkillCategory } from "../../src/types/Skills";
 import { Scenario } from "../../src/types/Scenario";
 import { HostSession } from "../../src/network/HostSession";
 import { GuestSession } from "../../src/network/GuestSession";
@@ -453,6 +454,141 @@ describe("networked sessions", () => {
       index: 0,
     });
     expect(guestAttempt.ok).toBe(true);
+  });
+
+  it("a reroll decision is accepted only from the rolling coach's session", async () => {
+    // The GUEST's mover fails a pickup with team rerolls banked: the offer
+    // belongs to the guest, and the host may not answer it.
+    const guestPickup: Scenario = {
+      id: "guest-pickup",
+      name: "Guest pickup",
+      description: "guest mover picks up with rerolls banked",
+      setup: {
+        team1Placements: [{ playerIndex: 0, x: 20, y: 9 }],
+        team2Placements: [{ playerIndex: 0, x: 4, y: 5 }],
+        activeTeam: "team2",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 5, y: 5 },
+      },
+    };
+
+    for (let seed = 1; seed <= 100; seed++) {
+      const match = createMatch({ scenario: guestPickup, seed });
+      match.game.ctx.team2.rerolls = 3;
+      const mover = match.game.ctx.team2.players[0];
+
+      await match.guest.sendCommand({
+        type: "declare-action",
+        playerId: mover.id,
+        action: "move",
+      });
+      await match.guest.sendCommand({
+        type: "move",
+        playerId: mover.id,
+        path: [{ x: 5, y: 5 }],
+      });
+
+      const pending = match.game.pendingDecision();
+      if (pending?.type !== "reroll") continue; // pickup succeeded
+      expect(pending.chooserTeamId).toBe(match.guestTeamId);
+
+      // The host may not spend the guest's reroll decision
+      const hostAttempt = await match.host.executeLocal({
+        type: "use-reroll",
+        accept: true,
+      });
+      expect(hostAttempt.ok).toBe(false);
+      expect(hostAttempt.reason).toBe("not-your-decision");
+      expect(match.game.pendingDecision()?.type).toBe("reroll");
+
+      // The guest may
+      const guestAttempt = await match.guest.sendCommand({
+        type: "use-reroll",
+        accept: true,
+        source: "team",
+      });
+      expect(guestAttempt.ok).toBe(true);
+      expect(match.game.ctx.team2.rerolls).toBe(2);
+      return;
+    }
+    throw new Error("no failing pickup found in seed range");
+  });
+
+  it("a reaction decision belongs to the REACTING coach, not the actor", async () => {
+    // Host blocks the guest's Stand Firm defender: the push refusal is the
+    // guest's decision even though the host is the acting side.
+    const standFirmScenario: Scenario = {
+      id: "standfirm-online",
+      name: "Stand Firm online",
+      description: "host blocks a guest defender who has Stand Firm",
+      setup: {
+        team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+        team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+        activeTeam: "team1",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 1, y: 1 },
+      },
+    };
+
+    for (let seed = 1; seed <= 60; seed++) {
+      const match = createMatch({ scenario: standFirmScenario, seed });
+      const attacker = match.game.ctx.team1.players[0];
+      const defender = match.game.ctx.team2.players[0];
+      defender.skills.push({
+        type: SkillType.STAND_FIRM,
+        category: SkillCategory.GENERAL,
+        description: "",
+      });
+
+      await match.host.executeLocal({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      await match.host.executeLocal({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+
+      const dice = match.game.pendingDecision();
+      if (dice?.type !== "block-dice") continue;
+      const pushIndex = dice.options.findIndex((o) =>
+        ["push", "pow", "pow-dodge"].includes(o.type)
+      );
+      if (pushIndex < 0) continue; // no push rolled — next seed
+
+      await match.host.executeLocal({
+        type: "choose-block-result",
+        index: pushIndex,
+      });
+
+      const pending = match.game.pendingDecision();
+      expect(pending?.type).toBe("reaction");
+      if (pending?.type !== "reaction") return;
+      expect(pending.chooserTeamId).toBe(match.guestTeamId);
+      expect(pending.skill).toBe(SkillType.STAND_FIRM);
+
+      // The acting host may not answer the guest's reaction
+      const hostAttempt = await match.host.executeLocal({
+        type: "use-reaction",
+        accept: false,
+      });
+      expect(hostAttempt.ok).toBe(false);
+      expect(hostAttempt.reason).toBe("not-your-decision");
+
+      // The reacting guest may — refusing the push keeps them in place
+      const guestAttempt = await match.guest.sendCommand({
+        type: "use-reaction",
+        accept: true,
+      });
+      expect(guestAttempt.ok).toBe(true);
+      expect(defender.gridPosition).toEqual({ x: 11, y: 5 });
+      return;
+    }
+    throw new Error("no push result rolled in seed range");
   });
 
   it("drops duplicates and requests a resync on a sequence gap", async () => {

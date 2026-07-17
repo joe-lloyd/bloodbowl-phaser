@@ -60,7 +60,9 @@ export class PickupOperation extends GameOperation {
       this.playerId,
       "Pickup",
       player.stats.AG,
-      modifiers
+      modifiers,
+      undefined,
+      "pickup" // failed pickups may offer a reroll (Sure Hands / team)
     );
 
     await agilityTest.execute(context);
