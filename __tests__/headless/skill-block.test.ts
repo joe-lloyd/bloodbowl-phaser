@@ -82,30 +82,9 @@ describe("Block skill â€” Both Down immunity", () => {
   });
 });
 
-describe("skill registry coverage", () => {
-  it("exactly the starter set is implemented — update this list consciously", () => {
-    const cov = SkillRegistry.coverage();
-    const implemented = (Object.values(SkillType) as SkillType[])
-      .filter((t) => SkillRegistry.has(t))
-      .sort();
-    // Snapshot of implemented skills: adding a rule must extend this list
-    expect(implemented).toEqual(
-      [
-        SkillType.BLOCK,
-        SkillType.CATCH,
-        SkillType.DODGE,
-        SkillType.PASS,
-        SkillType.STAND_FIRM,
-        SkillType.SURE_HANDS,
-        SkillType.TACKLE,
-        SkillType.WRESTLE,
-      ].sort()
-    );
-    expect(cov.implemented).toBe(8);
-    expect(cov.total).toBe(cov.implemented + cov.missing.length);
-    expect(cov.missing).not.toContain(SkillType.BLOCK);
-  });
+// Coverage/gate assertions live in __tests__/headless/rules/gate.test.ts
 
+describe("inert skills", () => {
   it("an inert skill does not change a Both Down outcome", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];

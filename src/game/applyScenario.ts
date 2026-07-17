@@ -6,11 +6,27 @@
  * usable by both the browser ScenarioLoader and the headless engine.
  */
 
-import { Scenario } from "../types/Scenario";
+import { Scenario, PlayerPlacement } from "../types/Scenario";
 import { Team } from "../types/Team";
 import { GameState } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
+import { SKILL_DEFINITIONS, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
+
+function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
+  placements.forEach((p) => {
+    const player = team.players[p.playerIndex];
+    if (!player) return;
+    player.gridPosition = { x: p.x, y: p.y };
+    player.status = p.status || PlayerStatus.ACTIVE;
+    // Scenario-granted skills: additive to roster skills, marked so the
+    // next scenario load strips them again
+    p.skills?.forEach((type) => {
+      if (hasSkill(player.skills, type)) return;
+      player.skills.push({ ...SKILL_DEFINITIONS[type], scenarioGranted: true });
+    });
+  });
+}
 
 export function applyScenario(
   scenario: Scenario,
@@ -20,21 +36,15 @@ export function applyScenario(
   SetupManager.sanitizeTeam(team1);
   SetupManager.sanitizeTeam(team2);
 
-  scenario.setup.team1Placements.forEach((p) => {
-    const player = team1.players[p.playerIndex];
-    if (player) {
-      player.gridPosition = { x: p.x, y: p.y };
-      player.status = p.status || PlayerStatus.ACTIVE;
-    }
-  });
+  // Skills granted by a previous scenario must not leak into this one
+  [team1, team2].forEach((team) =>
+    team.players.forEach((player) => {
+      player.skills = player.skills.filter((s) => !s.scenarioGranted);
+    })
+  );
 
-  scenario.setup.team2Placements.forEach((p) => {
-    const player = team2.players[p.playerIndex];
-    if (player) {
-      player.gridPosition = { x: p.x, y: p.y };
-      player.status = p.status || PlayerStatus.ACTIVE;
-    }
-  });
+  applyPlacements(team1, scenario.setup.team1Placements);
+  applyPlacements(team2, scenario.setup.team2Placements);
 
   const activeTeamId =
     scenario.setup.activeTeam === "team1" ? team1.id : team2.id;

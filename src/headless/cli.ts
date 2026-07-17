@@ -24,6 +24,9 @@ interface CliOptions {
   seed?: number;
   json: boolean;
   script?: string;
+  rule?: string;
+  config?: string;
+  outcome?: string;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -41,6 +44,15 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case "--script":
         options.script = argv[++i];
+        break;
+      case "--rule":
+        options.rule = argv[++i];
+        break;
+      case "--config":
+        options.config = argv[++i];
+        break;
+      case "--outcome":
+        options.outcome = argv[++i];
         break;
       case "--help":
         printHelp();
@@ -60,6 +72,10 @@ function printHelp(): void {
       "  --seed <n>        RNG seed for a deterministic game",
       "  --json            JSON-lines mode: one command in, one response out",
       "  --script <file>   run commands from file (one JSON per line), exit 1 on failure",
+      '  --rule <skill>    run a rule\'s catalog configurations (e.g. --rule "Sure Hands")',
+      "  --config <id>     narrow --rule to one configuration",
+      "  --outcome <id>    narrow --rule to one outcome",
+      "                    with --seed: run exactly that seed, report the outcome",
       "  --help            this text",
       "",
       "Text-mode commands: any protocol command as JSON, or shortcuts:",
@@ -168,9 +184,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // In JSON mode nothing but responses may reach stdout: reroute console.*
-  // (engine diagnostics like "[Flow] Executing:") to stderr.
-  if (options.json || options.script) {
+  // In JSON/rule mode nothing but results may reach stdout: reroute
+  // console.* (engine diagnostics like "[Flow] Executing:") to stderr.
+  if (options.json || options.script || options.rule) {
     const toStderr =
       (label: string) =>
       (...args: unknown[]) =>
@@ -181,6 +197,11 @@ async function main(): Promise<void> {
     console.info = toStderr("[info]");
     console.warn = toStderr("[warn]");
     console.error = toStderr("[error]");
+  }
+
+  if (options.rule) {
+    await runRuleMode(options);
+    return;
   }
 
   const game = new HeadlessGame({
@@ -204,6 +225,90 @@ async function main(): Promise<void> {
   }
 
   await runTextMode(game);
+}
+
+// ===== Rule runner mode =====
+
+async function runRuleMode(options: CliOptions): Promise<void> {
+  const { RULE_SCENARIOS } = await import("../data/ruleScenarios");
+  const { runRuleConfig, findSeed } = await import("../game/rules-lab");
+  const { GameEventNames } = await import("../types/events");
+
+  const entry = RULE_SCENARIOS.find(
+    (e) => e.skill.toLowerCase() === options.rule!.toLowerCase()
+  );
+  if (!entry) {
+    const covered = RULE_SCENARIOS.map((e) => e.skill).join(", ");
+    process.stderr.write(
+      `No catalog entry for rule '${options.rule}'. Covered rules: ${covered}\n`
+    );
+    process.exit(1);
+  }
+
+  const configs = options.config
+    ? entry.configs.filter((c) => c.id === options.config)
+    : entry.configs;
+  if (configs.length === 0) {
+    process.stderr.write(
+      `No configuration '${options.config}' for ${entry.skill}. ` +
+        `Available: ${entry.configs.map((c) => c.id).join(", ")}\n`
+    );
+    process.exit(1);
+  }
+
+  const out = (line: string) => process.stdout.write(line + "\n");
+  let failed = false;
+
+  for (const config of configs) {
+    out(`\n=== ${entry.skill}: ${config.name} (${config.id})`);
+    out(`    ${config.description}`);
+
+    const skillEvents = (result: {
+      events: { name: string; data?: unknown }[];
+    }) =>
+      result.events
+        .filter(
+          (e) =>
+            e.name === GameEventNames.SkillTriggered ||
+            e.name === GameEventNames.RerollUsed
+        )
+        .map((e) => `      event ${e.name}: ${JSON.stringify(e.data)}`)
+        .join("\n");
+
+    if (options.seed !== undefined) {
+      // Fixed seed: run it once, report which outcome(s) it produced
+      const result = await runRuleConfig(config, options.seed);
+      for (const outcome of config.outcomes) {
+        out(
+          `  seed ${options.seed} → ${outcome.id}: ${
+            outcome.matches(result) ? "MATCHED" : "not matched"
+          }`
+        );
+      }
+      const events = skillEvents(result);
+      if (events) out(events);
+      continue;
+    }
+
+    const outcomes = options.outcome
+      ? config.outcomes.filter((o) => o.id === options.outcome)
+      : config.outcomes;
+    for (const outcome of outcomes) {
+      try {
+        const found = await findSeed(config, outcome.id);
+        outcome.verify?.(found.result);
+        out(`  ✓ ${outcome.id}: seed ${found.seed} — ${outcome.name}`);
+        const events = skillEvents(found.result);
+        if (events) out(events);
+      } catch (error) {
+        failed = true;
+        out(
+          `  ✗ ${outcome.id}: ${error instanceof Error ? error.message : error}`
+        );
+      }
+    }
+  }
+  process.exit(failed ? 1 : 0);
 }
 
 async function runScript(game: HeadlessGame, file: string): Promise<void> {

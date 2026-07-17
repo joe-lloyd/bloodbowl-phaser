@@ -409,7 +409,14 @@ export interface UIEvents {
     scene: string;
     data?: Record<string, unknown>;
   };
-  [GameEventNames.UI_LoadScenario]: { scenarioId: string };
+  [GameEventNames.UI_LoadScenario]: {
+    /** A core scenario id or a rule-catalog configuration id */
+    scenarioId: string;
+    /** Seed override (e.g. found by the outcome seed search) */
+    seed?: number;
+    /** Outcome text to surface after load */
+    expectedOutcome?: string;
+  };
 
   // Game Start
   [GameEventNames.UI_StartGame]: { team1: Team; team2: Team };

@@ -1,12 +1,15 @@
 import { GamePhase, SubPhase } from "./GameState";
 import { PlayerStatus } from "./Player";
 import { RosterName } from "./Team";
+import { SkillType } from "./Skills";
 
 export interface PlayerPlacement {
   playerIndex: number; // Index in the team.players array
   x: number; // Grid X
   y: number; // Grid Y
   status?: PlayerStatus; // Optional status override
+  /** Skills granted for this scenario, additive to the player's roster skills */
+  skills?: SkillType[];
 }
 
 export interface ScenarioSetup {

@@ -8,6 +8,7 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { ScenarioLoader } from "../services/ScenarioLoader";
 import { SCENARIOS } from "../data/scenarios";
+import { findRuleConfig } from "../data/ruleScenarios";
 import { GameEventNames } from "@/types/events";
 
 export class SandboxScene extends GameScene {
@@ -73,8 +74,12 @@ export class SandboxScene extends GameScene {
     super.create();
 
     // Add sandbox specific listeners
-    this.loadScenarioHandler = (data: { scenarioId: string }) => {
-      this.loadScenario(data.scenarioId);
+    this.loadScenarioHandler = (data: {
+      scenarioId: string;
+      seed?: number;
+      expectedOutcome?: string;
+    }) => {
+      this.loadScenario(data.scenarioId, data.seed, data.expectedOutcome);
     };
 
     this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
@@ -103,8 +108,27 @@ export class SandboxScene extends GameScene {
     }
   }
 
-  private loadScenario(scenarioId: string): void {
-    const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+  private loadScenario(
+    scenarioId: string,
+    seedOverride?: number,
+    expectedOutcome?: string
+  ): void {
+    // A core scenario id, or a rule-catalog configuration id
+    let scenario = SCENARIOS.find((s) => s.id === scenarioId);
+    if (!scenario) {
+      const ruleConfig = findRuleConfig(scenarioId);
+      if (ruleConfig) {
+        scenario = {
+          id: ruleConfig.config.id,
+          name: `${ruleConfig.skill}: ${ruleConfig.config.name}`,
+          description: ruleConfig.config.description,
+          setup: ruleConfig.config.setup,
+        };
+      }
+    }
+    if (scenario && seedOverride !== undefined) {
+      scenario = { ...scenario, seed: seedOverride };
+    }
     if (scenario) {
       // 1. Handle Team/Roster changes if specified
       if (
@@ -161,7 +185,7 @@ export class SandboxScene extends GameScene {
       this.eventBus.emit(GameEventNames.ScenarioLoaded, {
         name: scenario.name,
         seed: ServiceContainer.getInstance().rngService.getInitialSeed(),
-        expectedOutcome: scenario.expectedOutcome,
+        expectedOutcome: expectedOutcome ?? scenario.expectedOutcome,
       });
 
       // Update URL with scenario ID

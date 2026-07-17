@@ -166,6 +166,8 @@ export interface Skill {
   type: SkillType;
   category: SkillCategory;
   description: string;
+  /** Granted by a scenario placement (stripped when the next scenario loads) */
+  scenarioGranted?: boolean;
 }
 
 /**
