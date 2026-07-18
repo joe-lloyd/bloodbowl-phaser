@@ -414,8 +414,8 @@ export interface UIEvents {
     scenarioId: string;
     /** Seed override (e.g. found by the outcome seed search) */
     seed?: number;
-    /** Outcome text to surface after load */
-    expectedOutcome?: string;
+    /** Rule-catalog outcome id whose name is surfaced after load */
+    outcomeId?: string;
   };
 
   // Game Start

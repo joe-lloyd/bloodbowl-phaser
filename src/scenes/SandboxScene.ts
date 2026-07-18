@@ -77,9 +77,9 @@ export class SandboxScene extends GameScene {
     this.loadScenarioHandler = (data: {
       scenarioId: string;
       seed?: number;
-      expectedOutcome?: string;
+      outcomeId?: string;
     }) => {
-      this.loadScenario(data.scenarioId, data.seed, data.expectedOutcome);
+      this.loadScenario(data.scenarioId, data.seed, data.outcomeId);
     };
 
     this.eventBus.on(GameEventNames.UI_LoadScenario, this.loadScenarioHandler);
@@ -97,13 +97,20 @@ export class SandboxScene extends GameScene {
     };
     this.eventBus.on(GameEventNames.PlayerMoved, this.playerMovedHandler);
 
-    // Check for scenario query param
+    // Restore the last load from the URL (scenario + seed + outcome), so a
+    // refresh reproduces the exact board the user was looking at
     const urlParams = new URLSearchParams(window.location.search);
     const scenarioId = urlParams.get("scenario");
     if (scenarioId) {
+      const seedParam = urlParams.get("seed");
+      const seed =
+        seedParam !== null && Number.isFinite(Number(seedParam))
+          ? Number(seedParam)
+          : undefined;
+      const outcomeId = urlParams.get("outcome") ?? undefined;
       // Delay slightly to ensure everything is ready
       this.time.delayedCall(100, () => {
-        this.loadScenario(scenarioId);
+        this.loadScenario(scenarioId, seed, outcomeId);
       });
     }
   }
@@ -111,10 +118,11 @@ export class SandboxScene extends GameScene {
   private loadScenario(
     scenarioId: string,
     seedOverride?: number,
-    expectedOutcome?: string
+    outcomeId?: string
   ): void {
     // A core scenario id, or a rule-catalog configuration id
     let scenario = SCENARIOS.find((s) => s.id === scenarioId);
+    let expectedOutcome: string | undefined;
     if (!scenario) {
       const ruleConfig = findRuleConfig(scenarioId);
       if (ruleConfig) {
@@ -124,6 +132,9 @@ export class SandboxScene extends GameScene {
           description: ruleConfig.config.description,
           setup: ruleConfig.config.setup,
         };
+        expectedOutcome = ruleConfig.config.outcomes.find(
+          (o) => o.id === outcomeId
+        )?.name;
       }
     }
     if (scenario && seedOverride !== undefined) {
@@ -182,16 +193,26 @@ export class SandboxScene extends GameScene {
 
       // Always surface the effective seed (the scenario's own, or the
       // random one the container fell back to) so any game is reproducible
+      const effectiveSeed = ServiceContainer.getInstance()
+        .rngService.getInitialSeed();
       this.eventBus.emit(GameEventNames.ScenarioLoaded, {
         name: scenario.name,
-        seed: ServiceContainer.getInstance().rngService.getInitialSeed(),
+        seed: effectiveSeed,
         expectedOutcome: expectedOutcome ?? scenario.expectedOutcome,
       });
 
-      // Update URL with scenario ID
+      // Mirror the load into the URL so a refresh reproduces it exactly.
+      // Scenario id + seed + outcome is the full state: the explorer's
+      // topic/rule selects are derivable from the config id via the catalog
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set("scenario", scenarioId);
-      window.history.pushState({ path: newUrl.href }, "", newUrl.href);
+      newUrl.searchParams.set("seed", String(effectiveSeed));
+      if (outcomeId && expectedOutcome) {
+        newUrl.searchParams.set("outcome", outcomeId);
+      } else {
+        newUrl.searchParams.delete("outcome");
+      }
+      window.history.replaceState({ path: newUrl.href }, "", newUrl.href);
     } else {
       console.warn(`Scenario not found: ${scenarioId}`);
       this.eventBus.emit(

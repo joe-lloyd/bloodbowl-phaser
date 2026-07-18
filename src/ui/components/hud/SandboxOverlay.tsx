@@ -4,12 +4,17 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus, useEventEmit } from "../../hooks/useEventBus";
 import { SCENARIOS } from "../../../data/scenarios";
 import {
+  findRuleConfig,
   ruleScenariosFor,
   skillsInCategory,
 } from "../../../data/ruleScenarios";
 import { findSeed, RuleConfig } from "../../../game/rules-lab";
 import { SkillRegistry } from "../../../game/skills";
-import { SkillCategory, SkillType } from "../../../types/Skills";
+import {
+  SKILL_DEFINITIONS,
+  SkillCategory,
+  SkillType,
+} from "../../../types/Skills";
 import { Button } from "../componentWarehouse/Button";
 import { GameEventNames } from "@/types/events";
 
@@ -18,6 +23,39 @@ interface SandboxOverlayProps {
 }
 
 const CORE_TOPIC = "core";
+
+/**
+ * Rebuild the explorer's form state from the URL the scene maintains
+ * (?scenario=&seed=&outcome=). Only the config id, seed and outcome are
+ * stored — topic and rule are derived from the config id via the catalog —
+ * so a refresh restores every select without a param per level.
+ */
+function formStateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const scenarioId = params.get("scenario") ?? "";
+  const empty = {
+    topic: "",
+    skill: "",
+    configId: "",
+    coreId: "",
+    seed: params.get("seed") ?? "",
+    outcomeId: "",
+  };
+  if (!scenarioId) return empty;
+  if (SCENARIOS.some((s) => s.id === scenarioId)) {
+    return { ...empty, topic: CORE_TOPIC, coreId: scenarioId };
+  }
+  const rule = findRuleConfig(scenarioId);
+  if (!rule) return empty;
+  return {
+    ...empty,
+    topic: SKILL_DEFINITIONS[rule.skill]?.category ?? "",
+    skill: rule.skill as string,
+    configId: scenarioId,
+    outcomeId: params.get("outcome") ?? "",
+  };
+}
+
 const selectClass =
   "w-full px-2 py-1.5 text-sm bg-bb-parchment border-2 border-bb-gold rounded font-heading text-bb-text cursor-pointer hover:border-bb-blood-red transition-colors pointer-events-auto";
 
@@ -31,11 +69,12 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   const emit = useEventEmit(eventBus);
   const navigate = useNavigate();
 
-  const [topic, setTopic] = useState("");
-  const [skill, setSkill] = useState("");
-  const [configId, setConfigId] = useState("");
-  const [seedInput, setSeedInput] = useState("");
-  const [outcomeId, setOutcomeId] = useState("");
+  const [init] = useState(formStateFromUrl);
+  const [topic, setTopic] = useState(init.topic);
+  const [skill, setSkill] = useState(init.skill);
+  const [configId, setConfigId] = useState(init.configId);
+  const [seedInput, setSeedInput] = useState(init.seed);
+  const [outcomeId, setOutcomeId] = useState(init.outcomeId);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [scenarioInfo, setScenarioInfo] = useState<{
@@ -53,12 +92,12 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     (c) => c.id === configId
   );
 
-  const load = (scenarioId: string, seed?: number, expected?: string) => {
+  const load = (scenarioId: string, seed?: number, outcome?: string) => {
     setSearchError(null);
     emit(GameEventNames.UI_LoadScenario, {
       scenarioId,
       seed,
-      expectedOutcome: expected,
+      outcomeId: outcome,
     });
   };
 
@@ -99,10 +138,9 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     setSearching(true);
     setSearchError(null);
     try {
-      const outcome = config.outcomes.find((o) => o.id === outcomeId);
       const found = await findSeed(config, outcomeId);
       setSeedInput(String(found.seed));
-      load(config.id, found.seed, outcome?.name);
+      load(config.id, found.seed, outcomeId);
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -136,7 +174,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         {/* Core topic: the classic flat scenario list */}
         {topic === CORE_TOPIC && (
           <select
-            defaultValue=""
+            defaultValue={init.coreId}
             onChange={(e) => e.target.value && load(e.target.value)}
             className={selectClass}
           >
