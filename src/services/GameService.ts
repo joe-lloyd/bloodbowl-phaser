@@ -52,8 +52,10 @@ import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
+  withRerollOffer,
   FollowUpContext,
 } from "@/game/skills";
+import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
 
 export class GameService implements IGameService {
@@ -489,7 +491,7 @@ export class GameService implements IGameService {
       if (attacker) {
         const used = this.state.turn.movementUsed.get(attackerId) || 0;
         const newUsed = used + 1;
-        if (newUsed > attacker.stats.MA + 2) {
+        if (newUsed > moveAllowance(attacker)) {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
             "No movement left to make the Blitz block!"
@@ -500,11 +502,18 @@ export class GameService implements IGameService {
         this.state.turn.movementUsed.set(attackerId, newUsed);
 
         if (newUsed > attacker.stats.MA) {
-          const check = this.diceController.rollSkillCheck(
-            "Rush (GFI)",
-            2,
-            0,
-            attacker.playerName
+          // The Blitz block's rush may be rerolled (Sure Feet / team)
+          const check = await withRerollOffer(
+            { gameService: this, eventBus: this.eventBus },
+            attacker,
+            "rush",
+            () =>
+              this.diceController.rollSkillCheck(
+                "Rush (GFI)",
+                2,
+                0,
+                attacker.playerName
+              )
           );
           if (!check.success) {
             attacker.status = PlayerStatus.PRONE;

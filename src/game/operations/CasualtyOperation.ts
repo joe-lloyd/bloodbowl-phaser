@@ -1,21 +1,29 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
-import { InjuryType } from "../../types/Player.js";
+import { InjuryType, PlayerStatus } from "../../types/Player.js";
 import { CasualtyType } from "../controllers/InjuryController.js";
+import {
+  foldTrigger,
+  CasualtyContext,
+  CasualtyRollContext,
+} from "../skills";
 
 /**
  * CasualtyOperation
  *
  * Responsibility:
- * - Execute Casualty Roll (D16)
- * - Determine specific permanent injury
- * - Update player permanent state
+ * - Offer pre-roll saves (Regeneration) via the casualty trigger
+ * - Execute Casualty Roll (D16), letting rules modify it (Decay)
+ * - Determine specific permanent injury and update player state
  */
 export class CasualtyOperation extends GameOperation {
   public readonly name = "CasualtyOperation";
 
-  constructor(private playerId: string) {
+  constructor(
+    private playerId: string,
+    private causedById?: string
+  ) {
     super();
   }
 
@@ -26,6 +34,33 @@ export class CasualtyOperation extends GameOperation {
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
+    const causedBy = this.causedById
+      ? gameService.getPlayerById(this.causedById)
+      : undefined;
+
+    // Trigger point: a rule may save the player before the roll
+    const preCtx: CasualtyContext = {
+      player,
+      causedBy,
+      decisions: gameService.getDecisionService(),
+      flow: context.flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      dice: gameService.getDiceController(),
+      triggers: [],
+    };
+    await foldTrigger("onCasualty", [player], preCtx);
+    preCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+    if (preCtx.regenerated) {
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${player.playerName} regenerates!`
+      );
+      player.status = PlayerStatus.RESERVE;
+      player.gridPosition = undefined;
+      return;
+    }
 
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -40,9 +75,31 @@ export class CasualtyOperation extends GameOperation {
       .getDiceController()
       .rollD16(`Casualty Roll (${player.playerName})`);
 
-    // 2. Determine result
+    // 2. Trigger point: rules may modify the casualty roll (Decay +1)
+    const rollCtx: CasualtyRollContext = {
+      player,
+      causedBy,
+      roll,
+      modifier: 0,
+      decisions: gameService.getDecisionService(),
+      flow: context.flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      dice: gameService.getDiceController(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onCasualtyRoll",
+      causedBy ? [causedBy, player] : [player],
+      rollCtx
+    );
+    rollCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+
     const injuryController = gameService.getInjuryController();
-    const result = injuryController.getCasualtyResult(roll);
+    const result = injuryController.getCasualtyResult(
+      rollCtx.roll + rollCtx.modifier
+    );
 
     eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
 

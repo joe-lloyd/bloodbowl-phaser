@@ -19,6 +19,7 @@ import {
   adjacentStanding,
   DodgeDeclaredContext,
 } from "../skills";
+import { moveAllowance, standUpCost } from "../skills/movement";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -52,7 +53,7 @@ export class MovementManager {
     const used = this.getMovementUsed(playerId);
     const ma = player.stats.MA;
 
-    if (used >= ma + 2) return [];
+    if (used >= moveAllowance(player)) return [];
 
     const team = player.teamId === this.team1.id ? this.team1 : this.team2;
     const opponentTeam =
@@ -67,8 +68,7 @@ export class MovementManager {
 
     let effectiveMA = ma - used;
     if (player.status === PlayerStatus.PRONE) {
-      const standUpCost = Math.min(3, ma);
-      effectiveMA = Math.max(0, effectiveMA - standUpCost);
+      effectiveMA = Math.max(0, effectiveMA - standUpCost(player));
     }
 
     const proxyPlayer = {
@@ -93,22 +93,22 @@ export class MovementManager {
     }
 
     const used = this.getMovementUsed(playerId);
-    const standUpCost = Math.min(3, player.stats.MA);
+    const cost = standUpCost(player);
 
-    if (used + standUpCost > player.stats.MA + 2) {
+    if (used + cost > moveAllowance(player)) {
       return Promise.reject("Not enough movement to stand up");
     }
 
     player.status = PlayerStatus.ACTIVE;
-    this.state.turn.movementUsed.set(playerId, used + standUpCost);
+    this.state.turn.movementUsed.set(playerId, used + cost);
 
     this.eventBus.emit(GameEventNames.PlayerStoodUp, {
       playerId,
-      cost: standUpCost,
+      cost,
     });
     this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
-    if (used + standUpCost >= player.stats.MA + 2) {
+    if (used + cost >= moveAllowance(player)) {
       this.callbacks.onActivationFinished(playerId);
     }
 
@@ -149,12 +149,12 @@ export class MovementManager {
     const wasProne = player.status === PlayerStatus.PRONE;
 
     if (wasProne) {
-      const standUpCost = Math.min(3, player.stats.MA);
-      stepsTaken += standUpCost;
+      const cost = standUpCost(player);
+      stepsTaken += cost;
       player.status = PlayerStatus.ACTIVE;
       this.eventBus.emit(GameEventNames.PlayerStoodUp, {
         playerId,
-        cost: standUpCost,
+        cost,
       });
       this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     }
@@ -194,6 +194,7 @@ export class MovementManager {
           skillRerollAllowed: true,
           decisions: gameService?.getDecisionService(),
           flow: flowManager,
+          arbiter: gameService?.getRerollArbiter(),
           triggers: [],
         };
         await foldTrigger(
@@ -255,12 +256,22 @@ export class MovementManager {
       const totalUsed = preUsed + stepsTaken;
 
       if (totalUsed > player.stats.MA) {
-        const check = this.diceController.rollSkillCheck(
-          "Rush (GFI)",
-          2,
-          0,
-          player.playerName
-        );
+        const rollRush = () =>
+          this.diceController.rollSkillCheck(
+            "Rush (GFI)",
+            2,
+            0,
+            player.playerName
+          );
+        // A failed rush may be rerolled (Sure Feet / team reroll)
+        const check = gameService
+          ? await withRerollOffer(
+              { gameService, eventBus: this.eventBus },
+              player,
+              "rush",
+              rollRush
+            )
+          : rollRush();
 
         if (!check.success) {
           failed = true;
@@ -354,7 +365,7 @@ export class MovementManager {
       ballJoinStep,
     });
 
-    if (preUsed + stepsTaken >= player.stats.MA + 2) {
+    if (preUsed + stepsTaken >= moveAllowance(player)) {
       this.callbacks.onActivationFinished(playerId);
     }
 

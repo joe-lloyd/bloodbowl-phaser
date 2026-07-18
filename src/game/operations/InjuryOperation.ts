@@ -4,19 +4,24 @@ import { IGameService } from "../../services/interfaces/IGameService.js";
 import { PlayerStatus } from "../../types/Player.js";
 import { InjuryResult } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
+import { foldTrigger, InjuryRollContext } from "../skills";
 
 /**
  * InjuryOperation
  *
  * Responsibility:
- * - Execute Injury Roll (2D6)
+ * - Execute Injury Roll (2D6), applying any carried modifier (Mighty Blow)
+ * - Fold skill rules that adjust the result (Thick Skull)
  * - Update Player Status (STUNNED, KO, CASUALTY)
  * - If CASUALTY, trigger CasualtyOperation
  */
 export class InjuryOperation extends GameOperation {
   public readonly name = "InjuryOperation";
 
-  constructor(private playerId: string) {
+  constructor(
+    private playerId: string,
+    private opts: { modifier?: number; causedById?: string } = {}
+  ) {
     super();
   }
 
@@ -28,6 +33,9 @@ export class InjuryOperation extends GameOperation {
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
+    const causedBy = this.opts.causedById
+      ? gameService.getPlayerById(this.opts.causedById)
+      : undefined;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -42,12 +50,32 @@ export class InjuryOperation extends GameOperation {
       .getDiceController()
       .roll2D6(`Injury Roll (${player.playerName})`);
 
-    // 2. Determine result
+    // 2. Determine result (with modifier), then let rules adjust it
     const injuryController = gameService.getInjuryController();
-    const result = injuryController.getInjuryResult(player, roll);
+    const modifier = this.opts.modifier ?? 0;
+    const ctx: InjuryRollContext = {
+      player,
+      causedBy,
+      roll,
+      modifier,
+      result: injuryController.getInjuryResult(player, roll + modifier),
+      decisions: gameService.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      dice: gameService.getDiceController(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onInjuryRoll",
+      causedBy ? [causedBy, player] : [player],
+      ctx
+    );
+    ctx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
 
     // 3. Apply status
-    switch (result) {
+    switch (ctx.result) {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
         player.status = PlayerStatus.STUNNED;
@@ -60,7 +88,10 @@ export class InjuryOperation extends GameOperation {
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         player.status = PlayerStatus.INJURED;
         // Trigger Casualty Operation
-        flowManager.add(new CasualtyOperation(this.playerId), true);
+        flowManager.add(
+          new CasualtyOperation(this.playerId, this.opts.causedById),
+          true
+        );
         break;
     }
 

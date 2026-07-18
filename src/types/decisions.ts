@@ -8,7 +8,7 @@
 export type RerollSource = "skill" | "team";
 
 /** Roll kinds a reroll can be offered for. */
-export type RerollableRollKind = "dodge" | "pickup" | "catch" | "pass";
+export type RerollableRollKind = "dodge" | "pickup" | "catch" | "pass" | "rush";
 
 export interface RerollDecisionRequest {
   type: "reroll";

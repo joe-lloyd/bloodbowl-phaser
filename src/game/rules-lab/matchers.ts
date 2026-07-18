@@ -95,6 +95,24 @@ export function playerAt(
   return !!pos && pos.x === square.x && pos.y === square.y;
 }
 
+/**
+ * total − value of the FIRST skill-check dice event whose rollType starts
+ * with the prefix — i.e. the net modifier that was applied to the roll.
+ */
+export function skillCheckDiff(
+  result: ScriptResult,
+  rollTypePrefix: string
+): number | undefined {
+  const event = result.events.find(
+    (e) =>
+      e.name === GameEventNames.DiceRoll &&
+      (e.data as { rollType?: string })?.rollType?.startsWith(rollTypePrefix)
+  );
+  if (!event) return undefined;
+  const data = event.data as { value: number; total: number };
+  return data.total - data.value;
+}
+
 /** Count armour rolls seen in the run (for no-armour outcomes). */
 export function armourRolls(result: ScriptResult): number {
   return result.events.filter(

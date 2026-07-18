@@ -28,24 +28,42 @@ describe("rule coverage gate", () => {
     expect(inertWithConfigs).toEqual([]);
   });
 
-  it("exactly the starter set is implemented — update this list consciously", () => {
+  it("exactly the implemented set is registered — update this list consciously", () => {
     const cov = SkillRegistry.coverage();
     const implemented = (Object.values(SkillType) as SkillType[])
       .filter((type) => SkillRegistry.has(type))
       .sort();
     expect(implemented).toEqual(
       [
+        SkillType.ACCURATE,
+        SkillType.BIG_HAND,
         SkillType.BLOCK,
+        SkillType.BREAK_TACKLE,
+        SkillType.CANNONEER,
         SkillType.CATCH,
+        SkillType.CLAWS,
+        SkillType.DECAY,
         SkillType.DODGE,
+        SkillType.EXTRA_ARMS,
+        SkillType.IRON_HARD_SKIN,
+        SkillType.JUMP_UP,
+        SkillType.MIGHTY_BLOW,
+        SkillType.NERVES_OF_STEEL,
+        SkillType.NO_BALL,
         SkillType.PASS,
+        SkillType.REGENERATION,
+        SkillType.SAFE_PASS,
+        SkillType.SPRINT,
         SkillType.STAND_FIRM,
+        SkillType.SURE_FEET,
         SkillType.SURE_HANDS,
         SkillType.TACKLE,
+        SkillType.THICK_SKULL,
+        SkillType.TWO_HEADS,
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(8);
+    expect(cov.implemented).toBe(26);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

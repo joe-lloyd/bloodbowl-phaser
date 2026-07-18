@@ -5,6 +5,7 @@
 import { Team, createTeam, RosterName, TeamColors } from "../../types/Team";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { createPlayer } from "../../types/Player";
+import { migrateSkills } from "../../types/Skills";
 
 const STORAGE_KEY = "bloodbowl_teams";
 
@@ -61,10 +62,18 @@ export function saveTeams(teams: Team[]): void {
 }
 
 /**
- * Load teams from the active backend
+ * Load teams from the active backend. Persisted skills may carry names
+ * from before the 2025 catalog reconciliation — migrate them on the way in
+ * so every loaded team speaks the current catalog.
  */
 export function loadTeams(): Team[] {
-  return activeRepository.loadTeams();
+  const teams = activeRepository.loadTeams();
+  teams.forEach((team) =>
+    team.players.forEach((player) => {
+      player.skills = migrateSkills(player.skills ?? []);
+    })
+  );
+  return teams;
 }
 
 /**

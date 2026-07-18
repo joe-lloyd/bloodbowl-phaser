@@ -1,5 +1,5 @@
 import { GamePhase, SubPhase } from "./GameState";
-import { PlayerStatus } from "./Player";
+import { PlayerStatus, PlayerStats } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
 
@@ -10,6 +10,8 @@ export interface PlayerPlacement {
   status?: PlayerStatus; // Optional status override
   /** Skills granted for this scenario, additive to the player's roster skills */
   skills?: SkillType[];
+  /** Stat overrides for this scenario (e.g. ST 4 for a Break Tackle demo) */
+  stats?: Partial<PlayerStats>;
 }
 
 export interface ScenarioSetup {

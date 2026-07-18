@@ -236,7 +236,7 @@ export class BlockManager {
     if (knockDownDefender) {
       this.knockDownPlayer(defender);
       if (flowManager) {
-        flowManager.add(new ArmourOperation(defender.id), true);
+        flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
         const pos = defender.gridPosition;
         if (
           pos &&
@@ -438,7 +438,7 @@ export class BlockManager {
         if (flowManager) {
           // A knocked-down carrier drops the ball where they landed
           // (added after ArmourOperation so the bounce resolves first)
-          flowManager.add(new ArmourOperation(first.playerId), true);
+          flowManager.add(new ArmourOperation(first.playerId, attackerId), true);
           if (
             this.state.ballPosition &&
             this.state.ballPosition.x === first.to.x &&
@@ -505,10 +505,11 @@ export class BlockManager {
 
       // Only the players actually knocked down roll armour — none at all
       // when a rule placed them prone (Wrestle). Attacker runs first
-      // (added last to the front of the queue).
+      // (added last to the front of the queue). Only the attacker "caused"
+      // a knockdown (2025 Mighty Blow: the defender performed no block).
       if (!ctx.placedProne) {
         if (ctx.defenderKnockedDown) {
-          flowManager.add(new ArmourOperation(defender.id), true);
+          flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
         }
         if (ctx.attackerKnockedDown) {
           flowManager.add(new ArmourOperation(attacker.id), true);

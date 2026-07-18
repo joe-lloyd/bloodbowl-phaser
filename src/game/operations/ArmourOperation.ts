@@ -14,12 +14,18 @@ import {
  *
  * Responsibility:
  * - Execute Armour Roll (2D6)
- * - If successful (Broken), trigger InjuryOperation
+ * - Fold skill rules (Mighty Blow, Claws, Iron Hard Skin) — causer first,
+ *   then the downed player, so defensive rules can cancel
+ * - If broken, trigger InjuryOperation (carrying any injury modifier)
  */
 export class ArmourOperation extends GameOperation {
   public readonly name = "ArmourOperation";
 
-  constructor(private playerId: string) {
+  constructor(
+    private playerId: string,
+    /** The blocker who knocked this player down (block-path armour only) */
+    private causedById?: string
+  ) {
     super();
   }
 
@@ -31,6 +37,9 @@ export class ArmourOperation extends GameOperation {
 
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
+    const causedBy = this.causedById
+      ? gameService.getPlayerById(this.causedById)
+      : undefined;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
@@ -45,20 +54,25 @@ export class ArmourOperation extends GameOperation {
       .getDiceController()
       .roll2D6(`Armour Roll (${player.playerName})`);
 
-    // 2. Check if broken; trigger point: rules may adjust the outcome
+    // 2. Trigger point: rules may modify the roll or force/cancel a break
     const ctx: ArmourBreakContext = {
       player,
+      causedBy,
       roll,
+      armourModifier: 0,
+      injuryModifier: 0,
       broken: gameService.getArmourController().isArmourBroken(player, roll),
       decisions: gameService.getDecisionService(),
       flow: flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      dice: gameService.getDiceController(),
       triggers: [],
     };
     await foldTrigger(
       "onArmourBreak",
       gatherParticipants(
-        player,
-        undefined,
+        causedBy ?? player,
+        causedBy ? player : undefined,
         player.gridPosition
           ? adjacentStanding(
               player.gridPosition,
@@ -71,14 +85,22 @@ export class ArmourOperation extends GameOperation {
     ctx.triggers.forEach((t) =>
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
-    const isBroken = ctx.broken;
+
+    const isBroken =
+      ctx.forcedBreak || roll + ctx.armourModifier >= player.stats.AV;
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       await context.delay(600);
 
-      // 3. Trigger Injury Operation
-      flowManager.add(new InjuryOperation(this.playerId), true);
+      // 3. Trigger Injury Operation (with any carried modifier)
+      flowManager.add(
+        new InjuryOperation(this.playerId, {
+          modifier: ctx.injuryModifier,
+          causedById: this.causedById,
+        }),
+        true
+      );
     } else {
       eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
     }

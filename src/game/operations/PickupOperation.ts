@@ -3,6 +3,12 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
+import {
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  PickupContext,
+} from "../skills";
 
 /**
  * PickupOperation
@@ -49,26 +55,61 @@ export class PickupOperation extends GameOperation {
       player.gridPosition,
       opponents
     );
-    const modifiers = 1 - markingOpponents; // +1 base modifier for pickup
 
-    // TODO: Add weather modifier if applicable
-    // const weatherMod = gameService.getWeatherModifier?.() || 0;
-    // modifiers += weatherMod;
-
-    // 2. Execute Agility Test
-    const agilityTest = new AgilityTestOperation(
-      this.playerId,
-      "Pickup",
-      player.stats.AG,
-      modifiers,
-      undefined,
-      "pickup" // failed pickups may offer a reroll (Sure Hands / team)
+    let roll = 1;
+    // Trigger point: rules may adjust the pickup (Big Hand, Extra Arms)
+    // or auto-fail it (No Ball)
+    const pickupCtx: PickupContext = {
+      player,
+      marking: markingOpponents,
+      modifiers: 1 - markingOpponents, // +1 base modifier for pickup
+      decisions: gameService.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onPickup",
+      gatherParticipants(
+        player,
+        undefined,
+        adjacentStanding(player.gridPosition, opponents)
+      ),
+      pickupCtx
+    );
+    pickupCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
     );
 
-    await agilityTest.execute(context);
-    this.success = agilityTest.success;
+    if (pickupCtx.autoFail) {
+      eventBus.emit(GameEventNames.DiceRoll, {
+        rollType: `Pickup (${player.playerName})`,
+        diceType: "1d6",
+        value: 1,
+        total: 1,
+        description: `Pickup (${player.playerName}): auto-fail`,
+        resultState: "failure",
+        teamId: player.teamId,
+      });
+      this.success = false;
+      roll = 1;
+    } else {
+      // 2. Execute Agility Test
+      const agilityTest = new AgilityTestOperation(
+        this.playerId,
+        "Pickup",
+        player.stats.AG,
+        pickupCtx.modifiers,
+        undefined,
+        "pickup" // failed pickups may offer a reroll (Sure Hands / team)
+      );
 
-    if (agilityTest.success) {
+      await agilityTest.execute(context);
+      this.success = agilityTest.success;
+      roll = agilityTest.roll;
+    }
+
+    if (this.success) {
       // PICKUP SUCCESS
       eventBus.emit(GameEventNames.UI_Notification, "Pickup Successful!");
 
@@ -79,7 +120,7 @@ export class PickupOperation extends GameOperation {
       eventBus.emit(GameEventNames.BallPickup, {
         playerId: this.playerId,
         success: true,
-        roll: agilityTest.roll,
+        roll,
         target: player.stats.AG,
       });
 
@@ -93,7 +134,7 @@ export class PickupOperation extends GameOperation {
       eventBus.emit(GameEventNames.BallPickup, {
         playerId: this.playerId,
         success: false,
-        roll: agilityTest.roll,
+        roll,
         target: player.stats.AG,
       });
 

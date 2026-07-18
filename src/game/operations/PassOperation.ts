@@ -3,6 +3,13 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import {
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  PassDeclaredContext,
+  PassResultContext,
+} from "../skills";
 
 /**
  * PassOperation
@@ -50,12 +57,59 @@ export class PassOperation extends GameOperation {
       opponents
     );
 
+    // Trigger point: pass declared — rules adjust the PA test (Accurate,
+    // Cannoneer by range; Nerves of Steel cancels marking)
+    const passRange = passController.measureRange(passer.gridPosition, {
+      x: this.targetX,
+      y: this.targetY,
+    });
+    const passCtx: PassDeclaredContext = {
+      player: passer,
+      passType: passRange.type,
+      marking: markingOpponents,
+      modifiers: 0,
+      decisions: gameService.getDecisionService(),
+      flow: context.flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onPassDeclared",
+      gatherParticipants(
+        passer,
+        undefined,
+        adjacentStanding(passer.gridPosition, opponents)
+      ),
+      passCtx
+    );
+    passCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+
     const result = await passController.attemptPass(
       passer,
       passer.gridPosition,
       { x: this.targetX, y: this.targetY },
       markingOpponents,
-      { gameService, eventBus } // failed passes may offer a reroll
+      { gameService, eventBus }, // failed passes may offer a reroll
+      passCtx.modifiers
+    );
+
+    // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
+    // fumble (keep the ball, end the activation, no turnover)
+    const resultCtx: PassResultContext = {
+      player: passer,
+      roll: result.roll,
+      fumbled: result.fumbled,
+      accurate: result.accurate,
+      decisions: gameService.getDecisionService(),
+      flow: context.flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      triggers: [],
+    };
+    await foldTrigger("onPassResult", [passer], resultCtx);
+    resultCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
     );
 
     // 2. Emit Animation Events
@@ -74,6 +128,19 @@ export class PassOperation extends GameOperation {
     await context.delay(1500);
 
     // 4. Handle Outcome
+    if (result.fumbled && resultCtx.keepBall) {
+      // Safe Pass: no fumble — the passer retains possession, their
+      // activation ends, no turnover
+      eventBus.emit(GameEventNames.UI_Notification, "Safe Pass! Ball held.");
+      if (passer.gridPosition) {
+        gameService.setBallPosition(
+          passer.gridPosition.x,
+          passer.gridPosition.y
+        );
+      }
+      gameService.finishActivation(this.passerId);
+      return;
+    }
     if (result.fumbled) {
       eventBus.emit(GameEventNames.UI_Notification, "FUMBLE!");
       // Fumbled = Drops in passer's square, then bounces

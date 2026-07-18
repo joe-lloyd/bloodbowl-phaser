@@ -10,11 +10,17 @@ import { RuleScenarioEntry } from "../../game/rules-lab";
 import { GENERAL_RULE_SCENARIOS } from "./general";
 import { AGILITY_RULE_SCENARIOS } from "./agility";
 import { PASSING_RULE_SCENARIOS } from "./passing";
+import { MUTATION_RULE_SCENARIOS } from "./mutation";
+import { STRENGTH_RULE_SCENARIOS } from "./strength";
+import { TRAIT_RULE_SCENARIOS } from "./traits";
 
 export const RULE_SCENARIOS: RuleScenarioEntry[] = [
   ...GENERAL_RULE_SCENARIOS,
   ...AGILITY_RULE_SCENARIOS,
   ...PASSING_RULE_SCENARIOS,
+  ...MUTATION_RULE_SCENARIOS,
+  ...STRENGTH_RULE_SCENARIOS,
+  ...TRAIT_RULE_SCENARIOS,
 ];
 
 export function ruleScenariosFor(

@@ -19,7 +19,10 @@ import { Player } from "../../types/Player";
 import { BlockResultType } from "../../services/BlockResolutionService";
 import { RerollableRollKind } from "../../types/decisions";
 import { DecisionService } from "./DecisionService";
+import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
+import { DiceController } from "../controllers/DiceController";
+import { InjuryResult } from "../controllers/InjuryController";
 
 export interface SkillTriggerRecord {
   playerId: string;
@@ -39,6 +42,10 @@ interface TriggerContextBase {
   decisions?: DecisionService;
   /** Enqueue flow-altering operations (extra block, pre-roll, …) */
   flow?: FlowLike;
+  /** Once-per-turn usage ledger (Break Tackle's modifier, …) */
+  arbiter?: RerollArbiter;
+  /** Seeded dice for rules that roll their own dice (Regeneration, …) */
+  dice?: DiceController;
 }
 
 /** A player is about to dodge out of one or more tackle zones. */
@@ -87,18 +94,101 @@ export interface BlockResultContext extends TriggerContextBase {
   placedProne?: boolean;
 }
 
+/** A player is about to roll to pick up the ball. */
+export interface PickupContext extends TriggerContextBase {
+  player: Player;
+  /** Opponents marking the pickup square */
+  marking: number;
+  /** Net pickup modifier; rules may adjust (Big Hand, Extra Arms) */
+  modifiers: number;
+  /** Fail without rolling, as a natural 1 (No Ball) */
+  autoFail?: boolean;
+}
+
+/** A player is about to roll to catch the ball. */
+export interface CatchContext extends TriggerContextBase {
+  player: Player;
+  /** Opponents marking the catcher */
+  marking: number;
+  modifiers: number;
+  autoFail?: boolean;
+}
+
+/** A pass is declared, before the Passing Ability Test. */
+export interface PassDeclaredContext extends TriggerContextBase {
+  player: Player;
+  passType: string;
+  /** Opponents marking the passer */
+  marking: number;
+  /** Extra modifier added to the PA test (Accurate, Nerves of Steel, …) */
+  modifiers: number;
+}
+
+/** The Passing Ability Test has been rolled. */
+export interface PassResultContext extends TriggerContextBase {
+  player: Player;
+  roll: number;
+  fumbled: boolean;
+  accurate: boolean;
+  /**
+   * Cancel the fumble: the passer keeps the ball, their activation ends,
+   * no turnover (Safe Pass on a natural 1).
+   */
+  keepBall?: boolean;
+}
+
 /** The blocker may follow up into the vacated square. */
 export interface FollowUpContext extends TriggerContextBase {
   attacker: Player;
   targetSquare: { x: number; y: number };
 }
 
-/** A player's armour roll has been made. */
+/**
+ * A player's armour roll has been made. Fold order is causer first, then
+ * the downed player (so defensive rules like Iron Hard Skin see and may
+ * cancel what the attacker's rules applied), then adjacents.
+ */
 export interface ArmourBreakContext extends TriggerContextBase {
   player: Player;
+  /** The blocker who knocked this player down (block-path armour only) */
+  causedBy?: Player;
+  /** Natural 2D6 total */
   roll: number;
-  /** Rules may cancel or force the break (Thick Skull-style effects) */
+  /** Net armour-roll modifier (Mighty Blow; cleared by Iron Hard Skin) */
+  armourModifier: number;
+  /** Carried into the injury roll (Mighty Blow choosing injury) */
+  injuryModifier: number;
+  /** Break regardless of AV (Claws on 8+; cancelled by Iron Hard Skin) */
+  forcedBreak?: boolean;
+  /** The unmodified outcome (roll vs AV) — recomputed after the fold */
   broken: boolean;
+}
+
+/** A player's injury roll has been made; rules may adjust the result. */
+export interface InjuryRollContext extends TriggerContextBase {
+  player: Player;
+  causedBy?: Player;
+  /** Natural 2D6 total */
+  roll: number;
+  /** Net injury modifier (from Mighty Blow via the armour fold, …) */
+  modifier: number;
+  result: InjuryResult;
+}
+
+/** A casualty is about to be rolled (Regeneration's save happens here). */
+export interface CasualtyContext extends TriggerContextBase {
+  player: Player;
+  causedBy?: Player;
+  /** Set true to ignore the casualty and go to Reserves (Regeneration) */
+  regenerated?: boolean;
+}
+
+/** The casualty D16 has been rolled; rules may modify it (Decay). */
+export interface CasualtyRollContext extends TriggerContextBase {
+  player: Player;
+  causedBy?: Player;
+  roll: number;
+  modifier: number;
 }
 
 export interface SkillRule {
@@ -113,6 +203,13 @@ export interface SkillRule {
     ctx: DodgeDeclaredContext,
     self: Player
   ): void | Promise<void>;
+  onPickup?(ctx: PickupContext, self: Player): void | Promise<void>;
+  onCatch?(ctx: CatchContext, self: Player): void | Promise<void>;
+  onPassDeclared?(
+    ctx: PassDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
+  onPassResult?(ctx: PassResultContext, self: Player): void | Promise<void>;
   onBlockDeclared?(
     ctx: BlockDeclaredContext,
     self: Player
@@ -126,4 +223,10 @@ export interface SkillRule {
   onBlockResult?(ctx: BlockResultContext, self: Player): void | Promise<void>;
   onFollowUp?(ctx: FollowUpContext, self: Player): void | Promise<void>;
   onArmourBreak?(ctx: ArmourBreakContext, self: Player): void | Promise<void>;
+  onInjuryRoll?(ctx: InjuryRollContext, self: Player): void | Promise<void>;
+  onCasualty?(ctx: CasualtyContext, self: Player): void | Promise<void>;
+  onCasualtyRoll?(
+    ctx: CasualtyRollContext,
+    self: Player
+  ): void | Promise<void>;
 }

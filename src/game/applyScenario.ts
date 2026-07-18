@@ -10,7 +10,7 @@ import { Scenario, PlayerPlacement } from "../types/Scenario";
 import { Team } from "../types/Team";
 import { GameState } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
-import { SKILL_DEFINITIONS, hasSkill } from "../types/Skills";
+import { getSkill, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
 
 function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
@@ -19,11 +19,12 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     if (!player) return;
     player.gridPosition = { x: p.x, y: p.y };
     player.status = p.status || PlayerStatus.ACTIVE;
+    if (p.stats) Object.assign(player.stats, p.stats);
     // Scenario-granted skills: additive to roster skills, marked so the
     // next scenario load strips them again
     p.skills?.forEach((type) => {
       if (hasSkill(player.skills, type)) return;
-      player.skills.push({ ...SKILL_DEFINITIONS[type], scenarioGranted: true });
+      player.skills.push({ ...getSkill(type), scenarioGranted: true });
     });
   });
 }

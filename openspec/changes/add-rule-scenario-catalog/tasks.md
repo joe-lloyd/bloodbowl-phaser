@@ -24,11 +24,11 @@
 
 ## 5. Sandbox leveled selector
 
-- [ ] 5.1 `SandboxOverlay`: Topic -> Rule (implemented/inert badges from `SkillRegistry`) -> Configuration selectors with progressive disclosure; Core topic wraps existing `SCENARIOS`.
-- [ ] 5.2 Load path: `UI_LoadScenario` carries rule config + seed; `ScenarioLoader` applies skill-equipped placements (via 1.1).
-- [ ] 5.3 Seed row: numeric input, randomize, outcome picker + "Find seed" running the in-browser headless search; exhausted search surfaces in the UI; expected outcome text shown after load.
+- [x] 5.1 `SandboxOverlay`: Topic -> Rule (implemented/inert badges from `SkillRegistry`) -> Configuration selectors with progressive disclosure; Core topic wraps existing `SCENARIOS`.
+- [x] 5.2 Load path: `UI_LoadScenario` carries rule config id + seed + expected outcome; `SandboxScene` resolves core scenarios OR catalog configs; skill-equipped placements applied via 1.1.
+- [x] 5.3 Seed row: numeric input, randomize, outcome picker + "Find seed" running the in-browser headless search; exhausted search surfaces in the UI; expected outcome text shown after load.
 
 ## 6. CLI + wrap-up
 
-- [ ] 6.1 `pnpm headless --rule <skill> [--config <id>] [--outcome <id>] [--seed <n>]` on the shared runner; document in `--help`.
-- [ ] 6.2 Full suite green; sandbox manually verified for one reroll skill (Sure Hands) and one reaction skill (Stand Firm) end-to-end.
+- [x] 6.1 `pnpm headless --rule <skill> [--config <id>] [--outcome <id>] [--seed <n>]` on the shared runner; documented in `--help`; engine diagnostics routed to stderr in rule mode.
+- [x] 6.2 Full suite green (425 tests); sandbox verified end-to-end in headless Chrome for Sure Hands (found seed 7 — identical to the CLI's, proving cross-front-end determinism) and Stand Firm (screenshots checked; fixed an off-pitch placement the screenshots revealed).

@@ -3,6 +3,7 @@ import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
+import { moveAllowance } from "../skills/movement";
 import { pixelToGrid } from "../elements/GridUtils";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
@@ -875,7 +876,7 @@ export class GameplayInteractionController {
               : this.getSceneTeam1();
           const remainingAllowance = Math.max(
             0,
-            player.stats.MA + 2 - used - this.waypoints.length
+            moveAllowance(player) - used - this.waypoints.length
           );
           reachable = this.movementValidator
             .findReachableSquares(
@@ -1008,7 +1009,7 @@ export class GameplayInteractionController {
 
       // Check TOTAL path length limit (Remaining MA + 2)
       const used = this.gameService.getMovementUsed(player.id);
-      const totalAllowance = player.stats.MA + 2;
+      const totalAllowance = moveAllowance(player);
       const remainingAllowance = Math.max(0, totalAllowance - used);
 
       const currentLen = this.waypoints.length;

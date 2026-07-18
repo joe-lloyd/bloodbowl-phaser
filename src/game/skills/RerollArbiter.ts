@@ -44,6 +44,18 @@ export class RerollArbiter {
     this.usedSkill.add(`${this.turnKey()}|${player.id}|${skill}`);
   }
 
+  /**
+   * Generic once-per-turn skill usage (Break Tackle's modifier, …) —
+   * the same per-turn ledger the skill rerolls use, aliased for intent.
+   */
+  public onceAvailable(player: Player, skill: SkillType): boolean {
+    return this.skillRerollAvailable(player, skill);
+  }
+
+  public consumeOnce(player: Player, skill: SkillType): void {
+    this.consumeSkillReroll(player, skill);
+  }
+
   public consumeTeamReroll(teamId: string): void {
     this.usedTeam.add(`${this.turnKey()}|${teamId}`);
     const team = this.getTeam(teamId);

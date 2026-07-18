@@ -4,6 +4,12 @@ import { FlowContext } from "../core/GameFlowManager";
 import { PlayerStatus } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
+import {
+  foldTrigger,
+  gatherParticipants,
+  adjacentStanding,
+  CatchContext,
+} from "../skills";
 
 export class CatchOperation extends GameOperation {
   public readonly name = "CatchOperation";
@@ -49,26 +55,56 @@ export class CatchOperation extends GameOperation {
     const catchController = gameService.getCatchController();
     const opponents = gameService.getOpponents(player.teamId);
 
+    const marking = catchController.countMarkingOpponents(
+      player.gridPosition,
+      opponents
+    );
     const modifiers = catchController.calculateModifiers(
       player,
       player.gridPosition,
       opponents
     );
 
-    // 2. Perform Agility Test
-    const agilityTest = new AgilityTestOperation(
-      this.playerId,
-      "Catch",
-      player.stats.AG,
+    // Trigger point: rules may adjust the catch (Extra Arms, Nerves of
+    // Steel) or auto-fail it (No Ball)
+    const catchCtx: CatchContext = {
+      player,
+      marking,
       modifiers,
-      undefined,
-      "catch" // failed catches may offer a reroll (Catch skill / team)
+      decisions: gameService.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService.getRerollArbiter(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onCatch",
+      gatherParticipants(
+        player,
+        undefined,
+        adjacentStanding(player.gridPosition, opponents)
+      ),
+      catchCtx
+    );
+    catchCtx.triggers.forEach((t) =>
+      eventBus.emit(GameEventNames.SkillTriggered, t)
     );
 
-    // Execute the operation (sub-routine style)
-    await agilityTest.execute(context);
+    let success = false;
+    if (!catchCtx.autoFail) {
+      // 2. Perform Agility Test
+      const agilityTest = new AgilityTestOperation(
+        this.playerId,
+        "Catch",
+        player.stats.AG,
+        catchCtx.modifiers,
+        undefined,
+        "catch" // failed catches may offer a reroll (Catch skill / team)
+      );
 
-    const success = agilityTest.success;
+      // Execute the operation (sub-routine style)
+      await agilityTest.execute(context);
+      success = agilityTest.success;
+    }
 
     if (success) {
       // CATCH SUCCESS (possession is positional: ball is on their square)

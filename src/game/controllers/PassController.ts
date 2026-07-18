@@ -82,10 +82,12 @@ export class PassController {
   public testAccuracy(
     player: Player,
     passRange: PassRange,
-    markingOpponents: number
+    markingOpponents: number,
+    extraModifier: number = 0
   ): { success: boolean; accurate: boolean; fumbled: boolean; roll: number } {
     const target = player.stats.PA;
-    const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
+    const modifiers =
+      this.calculatePassModifiers(passRange, markingOpponents) + extraModifier;
 
     // Use DiceController for the roll
     const check = this.diceController.rollSkillCheck(
@@ -143,13 +145,20 @@ export class PassController {
     from: { x: number; y: number },
     to: { x: number; y: number },
     markingOpponents: number,
-    rerollDeps?: import("../skills").RerollDeps
+    rerollDeps?: import("../skills").RerollDeps,
+    /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
+    extraModifier: number = 0
   ): Promise<PassResult> {
     const passRange = this.measureRange(from, to);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
     // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
     const rollAccuracy = () => {
-      const test = this.testAccuracy(player, passRange, markingOpponents);
+      const test = this.testAccuracy(
+        player,
+        passRange,
+        markingOpponents,
+        extraModifier
+      );
       return { ...test, success: test.accurate };
     };
     const accuracyTest = rerollDeps

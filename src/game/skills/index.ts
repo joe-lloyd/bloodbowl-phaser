@@ -16,6 +16,24 @@ import { CatchRule } from "./rules/CatchRule";
 import { PassRule } from "./rules/PassRule";
 import { WrestleRule } from "./rules/WrestleRule";
 import { StandFirmRule } from "./rules/StandFirmRule";
+import { SureFeetRule } from "./rules/SureFeetRule";
+import { SprintRule } from "./rules/SprintRule";
+import { JumpUpRule } from "./rules/JumpUpRule";
+import { TwoHeadsRule } from "./rules/TwoHeadsRule";
+import { BreakTackleRule } from "./rules/BreakTackleRule";
+import { BigHandRule } from "./rules/BigHandRule";
+import { ExtraArmsRule } from "./rules/ExtraArmsRule";
+import { NoBallRule } from "./rules/NoBallRule";
+import { AccurateRule } from "./rules/AccurateRule";
+import { CannoneerRule } from "./rules/CannoneerRule";
+import { NervesOfSteelRule } from "./rules/NervesOfSteelRule";
+import { SafePassRule } from "./rules/SafePassRule";
+import { MightyBlowRule } from "./rules/MightyBlowRule";
+import { ClawsRule } from "./rules/ClawsRule";
+import { IronHardSkinRule } from "./rules/IronHardSkinRule";
+import { ThickSkullRule } from "./rules/ThickSkullRule";
+import { DecayRule } from "./rules/DecayRule";
+import { RegenerationRule } from "./rules/RegenerationRule";
 
 let registered = false;
 
@@ -31,6 +49,24 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.PASS, PassRule);
   SkillRegistry.register(SkillType.WRESTLE, WrestleRule);
   SkillRegistry.register(SkillType.STAND_FIRM, StandFirmRule);
+  SkillRegistry.register(SkillType.SURE_FEET, SureFeetRule);
+  SkillRegistry.register(SkillType.SPRINT, SprintRule);
+  SkillRegistry.register(SkillType.JUMP_UP, JumpUpRule);
+  SkillRegistry.register(SkillType.TWO_HEADS, TwoHeadsRule);
+  SkillRegistry.register(SkillType.BREAK_TACKLE, BreakTackleRule);
+  SkillRegistry.register(SkillType.BIG_HAND, BigHandRule);
+  SkillRegistry.register(SkillType.EXTRA_ARMS, ExtraArmsRule);
+  SkillRegistry.register(SkillType.NO_BALL, NoBallRule);
+  SkillRegistry.register(SkillType.ACCURATE, AccurateRule);
+  SkillRegistry.register(SkillType.CANNONEER, CannoneerRule);
+  SkillRegistry.register(SkillType.NERVES_OF_STEEL, NervesOfSteelRule);
+  SkillRegistry.register(SkillType.SAFE_PASS, SafePassRule);
+  SkillRegistry.register(SkillType.MIGHTY_BLOW, MightyBlowRule);
+  SkillRegistry.register(SkillType.CLAWS, ClawsRule);
+  SkillRegistry.register(SkillType.IRON_HARD_SKIN, IronHardSkinRule);
+  SkillRegistry.register(SkillType.THICK_SKULL, ThickSkullRule);
+  SkillRegistry.register(SkillType.DECAY, DecayRule);
+  SkillRegistry.register(SkillType.REGENERATION, RegenerationRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.
@@ -43,7 +79,14 @@ export type TriggerHook =
   | "onPush"
   | "onBlockResult"
   | "onFollowUp"
-  | "onArmourBreak";
+  | "onArmourBreak"
+  | "onPickup"
+  | "onCatch"
+  | "onPassDeclared"
+  | "onPassResult"
+  | "onInjuryRoll"
+  | "onCasualty"
+  | "onCasualtyRoll";
 
 /**
  * Deterministic all-participant gather: actor first, then target, then the
@@ -148,4 +191,12 @@ export type {
   PushContext,
   FollowUpContext,
   ArmourBreakContext,
+  PickupContext,
+  CatchContext,
+  PassDeclaredContext,
+  PassResultContext,
+  InjuryRollContext,
+  CasualtyContext,
+  CasualtyRollContext,
 } from "./SkillRule";
+export { rushAllowance, moveAllowance, standUpCost } from "./movement";

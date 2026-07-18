@@ -1,4 +1,5 @@
 import { Player, PlayerStatus } from "@/types/Player";
+import { moveAllowance } from "../skills/movement";
 import { GameConfig } from "@/config/GameConfig";
 
 export interface MovementResult {
@@ -101,7 +102,7 @@ export class MovementValidator {
 
     const reachable: { x: number; y: number; cost: number }[] = [];
     const start = player.gridPosition;
-    const maxMovement = player.stats.MA + 2;
+    const maxMovement = moveAllowance(player);
 
     const queue: { x: number; y: number; cost: number }[] = [
       { x: start.x, y: start.y, cost: 0 },
@@ -202,7 +203,7 @@ export class MovementValidator {
 
     openSet.push(start);
 
-    const maxSteps = player.stats.MA + 2; // GFI limit
+    const maxSteps = moveAllowance(player); // GFI limit
 
     while (openSet.length > 0) {
       // Sort by fScore (lowest first)
@@ -366,7 +367,7 @@ export class MovementValidator {
       }
 
       if (stepsAccumulator > ma) {
-        if (stepsAccumulator > ma + 2) {
+        if (stepsAccumulator > moveAllowance(player)) {
           valid = false;
         }
         rolls.push({

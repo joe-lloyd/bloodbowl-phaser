@@ -3,6 +3,7 @@ import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
+import { moveAllowance } from "../../skills/movement";
 
 /**
  * PlayPhaseHandler
@@ -102,7 +103,7 @@ export class PlayPhaseHandler implements PhaseHandler {
 
       if (isBlitzBlock && attacker) {
         const used = this.gameService.getMovementUsed(data.attackerId);
-        if (used + 1 > attacker.stats.MA + 2) {
+        if (used + 1 > moveAllowance(attacker)) {
           // Even a Rush can't pay for the block any more
           this.eventBus.emit(
             GameEventNames.UI_Notification,

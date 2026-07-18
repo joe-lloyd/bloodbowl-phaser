@@ -464,7 +464,7 @@ describe("networked sessions", () => {
       name: "Guest pickup",
       description: "guest mover picks up with rerolls banked",
       setup: {
-        team1Placements: [{ playerIndex: 0, x: 20, y: 9 }],
+        team1Placements: [{ playerIndex: 0, x: 18, y: 8 }],
         team2Placements: [{ playerIndex: 0, x: 4, y: 5 }],
         activeTeam: "team2",
         phase: GamePhase.PLAY,
