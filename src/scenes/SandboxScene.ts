@@ -130,7 +130,15 @@ export class SandboxScene extends GameScene {
           id: ruleConfig.config.id,
           name: `${ruleConfig.skill}: ${ruleConfig.config.name}`,
           description: ruleConfig.config.description,
-          setup: ruleConfig.config.setup,
+          // Pin the rosters the seed finder runs with (createHeadlessGame
+          // defaults to Human): a found seed only reproduces if the replay
+          // uses identical teams — different ST/AV changes the dice count
+          // and RNG draw order, so the same seed rolls different results.
+          setup: {
+            ...ruleConfig.config.setup,
+            team1Roster: ruleConfig.config.setup.team1Roster ?? RosterName.HUMAN,
+            team2Roster: ruleConfig.config.setup.team2Roster ?? RosterName.HUMAN,
+          },
         };
         expectedOutcome = ruleConfig.config.outcomes.find(
           (o) => o.id === outcomeId

@@ -26,6 +26,7 @@ type AuthListener = (user: AuthUser | null) => void;
 let currentUser: AuthUser | null = null;
 const listeners = new Set<AuthListener>();
 let watching = false;
+let resolved = false;
 
 function toAuthUser(user: User | null): AuthUser | null {
   if (!user) return null;
@@ -41,9 +42,20 @@ function ensureWatching(): void {
   if (watching || !isFirebaseConfigured()) return;
   watching = true;
   onAuthStateChanged(getFirebaseAuth(), (user) => {
+    resolved = true;
     currentUser = toAuthUser(user);
     listeners.forEach((listener) => listener(currentUser));
   });
+}
+
+/**
+ * True once Firebase has reported the initial auth state (or when Firebase
+ * isn't configured, so there is nothing to wait for). Until then a null
+ * user may just mean "still restoring the session" — don't redirect on it.
+ */
+export function isAuthResolved(): boolean {
+  ensureWatching();
+  return !isFirebaseConfigured() || resolved;
 }
 
 /** Current signed-in user, or null (always null when unconfigured). */

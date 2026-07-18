@@ -9,6 +9,7 @@ import Stars from "../componentWarehouse/stars";
 import { useAuth } from "../../hooks/useAuth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
+import { isAdminUser } from "../../../firebase/admin";
 
 interface ActiveMatch {
   code: string;
@@ -147,20 +148,22 @@ export function MainMenu() {
               </Button>
             </MenuSection>
 
-            <MenuSection title="Extras">
-              <Button
-                onClick={() => navigate("/sand-box")}
-                className="w-full text-lg py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800"
-              >
-                🛠️ Sandbox
-              </Button>
-              <Button
-                onClick={() => navigate("/music")}
-                className="w-full text-lg py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500"
-              >
-                🔊 Sound Test
-              </Button>
-            </MenuSection>
+            {isAdminUser(user) && (
+              <MenuSection title="Extras">
+                <Button
+                  onClick={() => navigate("/sand-box")}
+                  className="w-full text-lg py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800"
+                >
+                  🛠️ Sandbox
+                </Button>
+                <Button
+                  onClick={() => navigate("/music")}
+                  className="w-full text-lg py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500"
+                >
+                  🔊 Sound Test
+                </Button>
+              </MenuSection>
+            )}
           </div>
 
           {/* Auth status */}

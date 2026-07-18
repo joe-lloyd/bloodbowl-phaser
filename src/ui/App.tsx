@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainMenu } from "./components/pages/MainMenu";
 import { TeamManagement } from "./components/pages/TeamManagement";
 import { TeamBuilder } from "./components/pages/TeamBuilder";
@@ -7,11 +7,25 @@ import { SoundTest } from "./components/pages/SoundTest";
 import { OnlineLobby } from "./components/pages/OnlineLobby";
 import { GamePage } from "./pages/GamePage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
+import { ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
+import { useAuth } from "./hooks/useAuth";
+import { isAdminUser } from "../firebase/admin";
 import "./styles/global.css";
 
 interface AppProps {
   eventBus: EventBus;
+}
+
+/**
+ * Admin-only pages (the Extras dev tools). Non-admins landing on the URL
+ * are sent back to the main menu; nothing renders until the initial auth
+ * state is known, so a restoring session isn't misredirected.
+ */
+function AdminRoute({ children }: { children: ReactElement }) {
+  const { user, ready } = useAuth();
+  if (!ready) return null;
+  return isAdminUser(user) ? children : <Navigate to="/" replace />;
 }
 
 /**
@@ -46,9 +60,20 @@ export function App({ eventBus }: AppProps) {
         />
         <Route
           path="/sand-box"
-          element={<GamePage eventBus={eventBus} mode="sandbox" />}
+          element={
+            <AdminRoute>
+              <GamePage eventBus={eventBus} mode="sandbox" />
+            </AdminRoute>
+          }
         />
-        <Route path="/music" element={<SoundTest eventBus={eventBus} />} />
+        <Route
+          path="/music"
+          element={
+            <AdminRoute>
+              <SoundTest eventBus={eventBus} />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
