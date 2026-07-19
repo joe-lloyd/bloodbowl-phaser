@@ -7,7 +7,7 @@
 import { SkillType } from "../../types/Skills";
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
-import { BlockResultContext } from "./SkillRule";
+import { BlockResultContext, CountAssistContext } from "./SkillRule";
 import { BlockRule } from "./rules/BlockRule";
 import { DodgeRule } from "./rules/DodgeRule";
 import { TackleRule } from "./rules/TackleRule";
@@ -34,6 +34,14 @@ import { IronHardSkinRule } from "./rules/IronHardSkinRule";
 import { ThickSkullRule } from "./rules/ThickSkullRule";
 import { DecayRule } from "./rules/DecayRule";
 import { RegenerationRule } from "./rules/RegenerationRule";
+import { GuardRule } from "./rules/GuardRule";
+import { DefensiveRule } from "./rules/DefensiveRule";
+import { HornsRule } from "./rules/HornsRule";
+import { DauntlessRule } from "./rules/DauntlessRule";
+import { FoulAppearanceRule } from "./rules/FoulAppearanceRule";
+import { BrawlerRule } from "./rules/BrawlerRule";
+import { FendRule } from "./rules/FendRule";
+import { StripBallRule } from "./rules/StripBallRule";
 
 let registered = false;
 
@@ -67,6 +75,14 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.THICK_SKULL, ThickSkullRule);
   SkillRegistry.register(SkillType.DECAY, DecayRule);
   SkillRegistry.register(SkillType.REGENERATION, RegenerationRule);
+  SkillRegistry.register(SkillType.GUARD, GuardRule);
+  SkillRegistry.register(SkillType.DEFENSIVE, DefensiveRule);
+  SkillRegistry.register(SkillType.HORNS, HornsRule);
+  SkillRegistry.register(SkillType.DAUNTLESS, DauntlessRule);
+  SkillRegistry.register(SkillType.FOUL_APPEARANCE, FoulAppearanceRule);
+  SkillRegistry.register(SkillType.BRAWLER, BrawlerRule);
+  SkillRegistry.register(SkillType.FEND, FendRule);
+  SkillRegistry.register(SkillType.STRIP_BALL, StripBallRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.
@@ -76,6 +92,7 @@ registerBuiltinSkills();
 export type TriggerHook =
   | "onDodgeDeclared"
   | "onBlockDeclared"
+  | "onBlockDiceRolled"
   | "onPush"
   | "onBlockResult"
   | "onFollowUp"
@@ -176,6 +193,22 @@ export async function foldBlockResult(
   );
 }
 
+/**
+ * Fold assist-eligibility rules over the participants (assister first, then
+ * markers). Synchronous — assist counting is passive and runs during preview,
+ * so it never awaits a decision.
+ */
+export function foldCountAssists(
+  ctx: CountAssistContext,
+  participants: Player[]
+): void {
+  for (const self of participants) {
+    for (const skill of self.skills) {
+      SkillRegistry.get(skill.type)?.onCountAssists?.(ctx, self);
+    }
+  }
+}
+
 export { SkillRegistry } from "./SkillRegistry";
 export { RerollArbiter } from "./RerollArbiter";
 export { DecisionService } from "./DecisionService";
@@ -188,6 +221,7 @@ export type {
   BlockResultContext,
   DodgeDeclaredContext,
   BlockDeclaredContext,
+  BlockDiceRolledContext,
   PushContext,
   FollowUpContext,
   ArmourBreakContext,
@@ -198,5 +232,6 @@ export type {
   InjuryRollContext,
   CasualtyContext,
   CasualtyRollContext,
+  CountAssistContext,
 } from "./SkillRule";
 export { rushAllowance, moveAllowance, standUpCost } from "./movement";

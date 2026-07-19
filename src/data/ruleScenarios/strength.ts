@@ -15,6 +15,7 @@ import {
   skillTriggered,
   skillCheckDiff,
   playerOf,
+  blockDiceCount,
 } from "../../game/rules-lab";
 
 const mbTriggered = (effectPart: string) => (r: ScriptResult) =>
@@ -26,7 +27,45 @@ const mbTriggered = (effectPart: string) => (r: ScriptResult) =>
       (d as { effect: string }).effect.includes(effectPart)
   );
 
+
 export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
+  {
+    skill: SkillType.GUARD,
+    configs: [
+      blockConfig({
+        id: "guard-marked-assist",
+        name: "Guard assists while marked",
+        description:
+          "A marked assister with Guard still supports the block (2 dice)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5 }, // attacker
+            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] }, // assister
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5 }, // defender
+            { playerIndex: 1, x: 10, y: 7 }, // marks the assister only
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "assist-counts",
+            name: "The Guard assist yields a second die",
+            matches: (r) => blockDiceCount(r) === 2,
+            verify: (r) =>
+              assert(
+                blockDiceCount(r) === 2,
+                "Guard's marked assist must give the attacker 2 block dice"
+              ),
+          },
+        ],
+      }),
+    ],
+  },
   {
     skill: SkillType.MIGHTY_BLOW,
     configs: [

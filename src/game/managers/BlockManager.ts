@@ -2,7 +2,10 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
-import { BlockValidator } from "../validators/BlockValidator";
+import {
+  BlockValidator,
+  blockDiceForStrength,
+} from "../validators/BlockValidator";
 import {
   BlockResolutionService,
   BlockResult,
@@ -24,6 +27,7 @@ import {
   adjacentStanding,
   BlockResultContext,
   BlockDeclaredContext,
+  BlockDiceRolledContext,
   PushContext,
 } from "../skills";
 
@@ -48,6 +52,24 @@ class CrowdSurfFollowUpOperation extends GameOperation {
       attackerId: this.attackerId,
       targetSquare: this.targetSquare,
     });
+  }
+}
+
+/**
+ * Ends the blocker's activation once the push chain (and any armour/injury
+ * rolls it queued) has fully settled. Queued at the BACK of the flow so the
+ * turn only flips after those rolls apply — used when no follow-up prompt
+ * will fire to end the activation (Fend denied the follow-up).
+ */
+class FinishActivationOperation extends GameOperation {
+  public readonly name = "FinishActivation";
+
+  constructor(private attackerId: string) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    context.gameService.finishActivation(this.attackerId);
   }
 }
 
@@ -80,7 +102,8 @@ export class BlockManager {
     const analysis = this.blockValidator.analyzeBlock(
       attacker,
       defender,
-      allPlayers
+      allPlayers,
+      this.state.activeTeamId
     );
 
     this.eventBus.emit(GameEventNames.UI_BlockDialog, {
@@ -102,16 +125,29 @@ export class BlockManager {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
 
-    // Trigger point: block declared — rules may adjust the dice before they
-    // roll (pre-block rolls, dice-count effects)
+    // Trigger point: block declared — rules may adjust strength/dice, roll a
+    // pre-block die, or cancel the block before any block dice are rolled.
     if (attacker && defender) {
+      const analysis = this.blockValidator.analyzeBlock(
+        attacker,
+        defender,
+        this.allPlayers(),
+        this.state.activeTeamId
+      );
       const ctx: BlockDeclaredContext = {
         attacker,
         defender,
         diceCount: numDice,
         isAttackerChoice,
+        attackerStrength: analysis.attackerST,
+        defenderStrength: analysis.defenderST,
+        isBlitz:
+          this.state.activePlayer?.action === "blitz" &&
+          this.state.activePlayer?.id === attacker.id,
+        cancelled: false,
         decisions: this.decisions(),
         flow: this.callbacks.getFlowManager?.(),
+        dice: this.diceController,
         triggers: [],
       };
       await foldTrigger(
@@ -120,12 +156,56 @@ export class BlockManager {
         ctx
       );
       this.announce(ctx.triggers);
+
+      if (ctx.cancelled) {
+        // Foul Appearance et al: the block never happens; end the activation.
+        this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+        this.callbacks
+          .getFlowManager?.()
+          ?.context.gameService.finishActivation(attacker.id);
+        return;
+      }
+
+      // Recompute the dice if a rule changed the effective strengths.
+      if (
+        ctx.attackerStrength !== analysis.attackerST ||
+        ctx.defenderStrength !== analysis.defenderST
+      ) {
+        const recomputed = blockDiceForStrength(
+          ctx.attackerStrength,
+          ctx.defenderStrength
+        );
+        ctx.diceCount = recomputed.diceCount;
+        ctx.isAttackerChoice = !recomputed.isUphill;
+      }
+
       numDice = ctx.diceCount;
       isAttackerChoice = ctx.isAttackerChoice;
     }
 
     const teamId = attackerId.split("-")[0];
     const results = this.diceController.rollBlockDice(numDice, teamId);
+
+    // Trigger point: dice rolled — a rule may reroll dice in place (Brawler's
+    // single Both Down) before the coach selects a result.
+    if (attacker && defender) {
+      const ctx: BlockDiceRolledContext = {
+        attacker,
+        defender,
+        results,
+        isAttackerChoice,
+        decisions: this.decisions(),
+        flow: this.callbacks.getFlowManager?.(),
+        dice: this.diceController,
+        triggers: [],
+      };
+      await foldTrigger(
+        "onBlockDiceRolled",
+        this.blockParticipants(attacker, defender),
+        ctx
+      );
+      this.announce(ctx.triggers);
+    }
 
     const rollData: BlockRollData = {
       attackerId,
@@ -187,7 +267,14 @@ export class BlockManager {
           attacker,
           pushed: defender,
           resultType: result.type,
+          isBlitz:
+            this.state.activePlayer?.action === "blitz" &&
+            this.state.activePlayer?.id === attacker.id,
+          pushedHasBall: this.isOnBall(defender),
+          blockerIgnoresReactions: false,
           refused: false,
+          preventFollowUp: false,
+          stripBall: false,
           decisions: this.decisions(),
           flow: this.callbacks.getFlowManager?.(),
           triggers: [],
@@ -214,6 +301,8 @@ export class BlockManager {
           attackerId,
           resultType: result.type,
           knockDownDefender: resultCtx.defenderKnockedDown,
+          preventFollowUp: pushCtx.preventFollowUp,
+          stripBall: pushCtx.stripBall,
           links: [],
         };
         this.requestPushDecision(attacker.gridPosition!, defender);
@@ -260,6 +349,10 @@ export class BlockManager {
     resultType: BlockResultType;
     /** Whether the original defender goes down (skills may have cancelled) */
     knockDownDefender?: boolean;
+    /** Fend denied the blocker their follow-up */
+    preventFollowUp?: boolean;
+    /** Strip Ball: the pushed carrier drops the ball where they land */
+    stripBall?: boolean;
     links: {
       playerId: string;
       from: { x: number; y: number };
@@ -280,9 +373,9 @@ export class BlockManager {
     this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
       defenderId: pushed.id,
       validDirections: options,
-      canFollowUp: this.blockResolutionService.allowsFollowUp(
-        this.chain!.resultType
-      ),
+      canFollowUp:
+        this.blockResolutionService.allowsFollowUp(this.chain!.resultType) &&
+        !this.chain!.preventFollowUp,
       resultType: this.chain!.resultType,
       attackerId: this.chain!.attackerId, // chooser is always the blocker
       pushTier: tier,
@@ -352,7 +445,8 @@ export class BlockManager {
   /** Apply all chain links innermost-first, then knockdown/follow-up. */
   private applyChain(followUp: boolean): void {
     if (!this.chain) return;
-    const { attackerId, resultType, links } = this.chain;
+    const { attackerId, resultType, links, preventFollowUp, stripBall } =
+      this.chain;
     const knockDownDefender =
       this.chain.knockDownDefender ??
       (resultType === "pow" || resultType === "pow-dodge");
@@ -408,7 +502,7 @@ export class BlockManager {
         ballPath: carriedBall ? [link.from, link.to] : undefined,
         ballJoinStep: 0,
         followUpData:
-          isOriginalDefender && !followUp
+          isOriginalDefender && !followUp && !preventFollowUp
             ? { attackerId, targetSquare: link.from }
             : undefined,
       });
@@ -448,6 +542,28 @@ export class BlockManager {
           }
         }
       }
+    }
+
+    // Strip Ball: a still-standing carrier who was Pushed Back drops the ball
+    // where they land, which then bounces (a POW carrier drops it above).
+    if (
+      stripBall &&
+      !knockDownDefender &&
+      flowManager &&
+      first &&
+      first.to !== null &&
+      this.state.ballPosition &&
+      this.state.ballPosition.x === first.to.x &&
+      this.state.ballPosition.y === first.to.y
+    ) {
+      flowManager.add(new BounceOperation(first.to), true);
+    }
+
+    // Fend denied the blocker their follow-up: no follow-up prompt will fire,
+    // so end the activation once any queued armour/injury rolls have settled
+    // (queued at the BACK so the turn flips only after they apply).
+    if (preventFollowUp && first && first.to !== null) {
+      flowManager?.add(new FinishActivationOperation(attackerId));
     }
   }
 

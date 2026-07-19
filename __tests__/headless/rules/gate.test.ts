@@ -38,13 +38,20 @@ describe("rule coverage gate", () => {
         SkillType.ACCURATE,
         SkillType.BIG_HAND,
         SkillType.BLOCK,
+        SkillType.BRAWLER,
         SkillType.BREAK_TACKLE,
         SkillType.CANNONEER,
         SkillType.CATCH,
         SkillType.CLAWS,
+        SkillType.DAUNTLESS,
         SkillType.DECAY,
+        SkillType.DEFENSIVE,
         SkillType.DODGE,
         SkillType.EXTRA_ARMS,
+        SkillType.FEND,
+        SkillType.FOUL_APPEARANCE,
+        SkillType.GUARD,
+        SkillType.HORNS,
         SkillType.IRON_HARD_SKIN,
         SkillType.JUMP_UP,
         SkillType.MIGHTY_BLOW,
@@ -55,6 +62,7 @@ describe("rule coverage gate", () => {
         SkillType.SAFE_PASS,
         SkillType.SPRINT,
         SkillType.STAND_FIRM,
+        SkillType.STRIP_BALL,
         SkillType.SURE_FEET,
         SkillType.SURE_HANDS,
         SkillType.TACKLE,
@@ -63,7 +71,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(26);
+    expect(cov.implemented).toBe(34);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

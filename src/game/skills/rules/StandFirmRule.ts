@@ -13,6 +13,7 @@ export const StandFirmRule: SkillRule = {
   async onPush(ctx, self) {
     if (self.id !== ctx.pushed.id) return;
     if (ctx.refused) return;
+    if (ctx.blockerIgnoresReactions) return; // Juggernaut on a Blitz
     if (!ctx.decisions) return;
 
     const answer = (await ctx.decisions.request({

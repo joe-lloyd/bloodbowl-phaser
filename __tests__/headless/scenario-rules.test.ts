@@ -544,11 +544,16 @@ describe("block-injury scenarios (seeded)", () => {
       playerId: attacker.id,
       action: "block",
     });
-    const rolled = await game.execute({
+    let rolled = await game.execute({
       type: "block",
       attackerId: attacker.id,
       defenderId: defender.id,
     });
+    // A Brawler attacker (e.g. Black Orcs) is offered a Both Down re-roll;
+    // decline it so the seeded dice — and the advertised outcome — stand.
+    if (rolled.pendingDecision?.type === "reaction") {
+      rolled = await game.execute({ type: "use-reaction", accept: false });
+    }
     if (rolled.pendingDecision?.type !== "block-dice") {
       throw new Error(`no block decision for ${id}`);
     }

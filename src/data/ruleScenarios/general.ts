@@ -4,8 +4,10 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
+  ScriptResult,
   playSetup,
   blockConfig,
   assert,
@@ -15,8 +17,18 @@ import {
   playerStanding,
   playerDown,
   playerAt,
+  playerOf,
   armourRolls,
+  blockDiceCount,
 } from "../../game/rules-lab";
+
+/** How many block-dice rolls happened (a Brawler re-roll adds a second). */
+const blockRollCount = (r: ScriptResult): number =>
+  r.events.filter(
+    (e) =>
+      e.name === GameEventNames.DiceRoll &&
+      (e.data as { rollType?: string }).rollType === "Block Roll"
+  ).length;
 
 /** Attacker team1:0 at (10,5) faces defender team2:0 at (11,5). */
 const faceOff = (
@@ -30,6 +42,140 @@ const faceOff = (
   });
 
 export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
+  {
+    skill: SkillType.DAUNTLESS,
+    configs: [
+      blockConfig({
+        id: "dauntless-matches-strength",
+        name: "Dauntless vs a stronger foe",
+        description:
+          "A D6 + own ST beating the target's ST matches it (even block, 1 die)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.DAUNTLESS] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 4 } }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "strength-matched",
+            name: "Strength matched — a single even die",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DAUNTLESS) &&
+              blockDiceCount(r) === 1,
+            verify: (r) =>
+              assert(
+                blockDiceCount(r) === 1,
+                "matching ST 4 makes the ST-3 blocker even (1 die)"
+              ),
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.FEND,
+    configs: [
+      blockConfig({
+        id: "fend-denies-follow-up",
+        name: "Fend denies the follow-up",
+        description: "A pushed Fend player stops the blocker following up",
+        setup: faceOff([], [SkillType.FEND]),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "no-follow-up",
+            name: "The blocker stays put",
+            matches: (r) => skillTriggered(r, SkillType.FEND),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 10, y: 5 }),
+                "the blocker must not follow up"
+              );
+              assert(
+                !playerAt(r, "team2:0", { x: 11, y: 5 }),
+                "the defender must be pushed back"
+              );
+              assert(
+                !r.decisions.some((d) => d.type === "follow-up"),
+                "no follow-up decision may be offered"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.STRIP_BALL,
+    configs: [
+      blockConfig({
+        id: "strip-ball-drops-ball",
+        name: "Strip Ball knocks the ball loose",
+        description: "A pushed ball carrier drops the ball, which bounces",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.STRIP_BALL] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 11, y: 5 }, // the defender is holding it
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "ball-dropped",
+            name: "The carrier no longer holds the ball",
+            matches: (r) => skillTriggered(r, SkillType.STRIP_BALL),
+            verify: (r) => {
+              const defender = playerOf(r, "team2:0");
+              const ball = r.snapshot.ballPosition;
+              assert(
+                !!ball &&
+                  !!defender.gridPosition &&
+                  (ball.x !== defender.gridPosition.x ||
+                    ball.y !== defender.gridPosition.y),
+                "the ball must have bounced off the pushed carrier"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.BRAWLER,
+    configs: [
+      blockConfig({
+        id: "brawler-rerolls-both-down",
+        name: "Brawler re-rolls a Both Down",
+        description: "A single Both Down die is re-rolled once",
+        setup: faceOff([SkillType.BRAWLER], []), // ST 3 v 3 → one die
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "both-down",
+        outcomes: [
+          {
+            id: "both-down-rerolled",
+            name: "The Both Down die is re-rolled",
+            matches: (r) => skillTriggered(r, SkillType.BRAWLER),
+            verify: (r) =>
+              assert(
+                blockRollCount(r) === 2,
+                "Brawler must roll a second block die"
+              ),
+          },
+        ],
+      }),
+    ],
+  },
   {
     skill: SkillType.BLOCK,
     configs: [

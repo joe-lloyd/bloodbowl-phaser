@@ -14,6 +14,7 @@ import {
   playerStanding,
   playerAt,
   sawEvent,
+  blockDiceCount,
 } from "../../game/rules-lab";
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
@@ -181,6 +182,43 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    skill: SkillType.DEFENSIVE,
+    configs: [
+      blockConfig({
+        id: "defensive-cancels-guard",
+        name: "Defensive cancels an enemy Guard",
+        description:
+          "On the assister's Turn, a Defensive marker denies their Guard (back to 1 die)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5 }, // attacker
+            { playerIndex: 1, x: 11, y: 6, skills: [SkillType.GUARD] }, // Guard assister
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5 }, // defender
+            { playerIndex: 1, x: 10, y: 7, skills: [SkillType.DEFENSIVE] }, // Defensive marker
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "guard-denied",
+            name: "Guard denied — no extra die",
+            matches: (r) => blockDiceCount(r) === 1,
+            verify: (r) =>
+              assert(
+                blockDiceCount(r) === 1,
+                "Defensive must cancel the Guard assist, leaving a single die"
+              ),
+          },
+        ],
+      }),
     ],
   },
   {

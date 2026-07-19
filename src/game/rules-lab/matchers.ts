@@ -113,6 +113,17 @@ export function skillCheckDiff(
   return data.total - data.value;
 }
 
+/**
+ * Dice the block actually rolled with — the observable for strength/assist
+ * skills (Guard, Defensive, Horns, Dauntless, …).
+ */
+export function blockDiceCount(result: ScriptResult): number | undefined {
+  const event = result.events.find(
+    (e) => e.name === GameEventNames.BlockDiceRolled
+  );
+  return event ? (event.data as { numDice: number }).numDice : undefined;
+}
+
 /** Count armour rolls seen in the run (for no-armour outcomes). */
 export function armourRolls(result: ScriptResult): number {
   return result.events.filter(

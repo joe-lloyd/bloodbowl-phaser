@@ -12,6 +12,7 @@ import {
   sawEvent,
   skillTriggered,
   skillCheckDiff,
+  blockDiceCount,
 } from "../../game/rules-lab";
 
 const injuryRolled = (r: Parameters<typeof skillTriggered>[0]) =>
@@ -22,6 +23,85 @@ const injuryRolled = (r: Parameters<typeof skillTriggered>[0]) =>
   );
 
 export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
+  {
+    skill: SkillType.HORNS,
+    configs: [
+      {
+        id: "horns-blitz-strength",
+        name: "Horns on a Blitz block",
+        description: "+1 Strength on the Blitz block yields a second die",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 7, skills: [SkillType.HORNS] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 7 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "blitz" },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 7 }] },
+          { type: "block", attackerId: "team1:0", defenderId: "team2:0" },
+        ],
+        decisionPolicy: { preferBlockResult: "push" },
+        outcomes: [
+          {
+            id: "second-die",
+            name: "Blitz block rolls 2 dice",
+            matches: (r) =>
+              skillTriggered(r, SkillType.HORNS) && blockDiceCount(r) === 2,
+            verify: (r) =>
+              assert(
+                blockDiceCount(r) === 2,
+                "Horns' +1 ST gives the ST-3 blitzer 2 dice vs ST 3"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.FOUL_APPEARANCE,
+    configs: [
+      blockConfig({
+        id: "foul-appearance-cancels-block",
+        name: "Foul Appearance cancels a block",
+        description:
+          "A 1 on the pre-block D6 cancels the block and ends the activation",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 11,
+              y: 5,
+              skills: [SkillType.FOUL_APPEARANCE],
+            },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "block-cancelled",
+            name: "The block never rolls",
+            matches: (r) => skillTriggered(r, SkillType.FOUL_APPEARANCE),
+            verify: (r) => {
+              assert(
+                blockDiceCount(r) === undefined,
+                "no block dice are rolled when Foul Appearance cancels"
+              );
+              assert(
+                sawEvent(r, GameEventNames.UI_BlockRollCancelled),
+                "the block must be cancelled"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
   {
     skill: SkillType.CLAWS,
     configs: [

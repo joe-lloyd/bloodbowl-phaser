@@ -16,8 +16,18 @@ export class FoulValidator extends AssistValidator {
     target: Player,
     allPlayers: Player[]
   ): FoulAnalysis {
-    const offensiveAssists = this.getValidAssists(fouler, target, allPlayers);
-    const defensiveAssists = this.getValidAssists(target, fouler, allPlayers);
+    const offensiveAssists = this.getValidAssists(
+      fouler,
+      target,
+      allPlayers,
+      "foul"
+    );
+    const defensiveAssists = this.getValidAssists(
+      target,
+      fouler,
+      allPlayers,
+      "foul"
+    );
 
     const modifier = offensiveAssists.length - defensiveAssists.length;
 
@@ -26,11 +36,5 @@ export class FoulValidator extends AssistValidator {
       defensiveAssists,
       modifier,
     };
-  }
-
-  protected canProvideAssist(_player: Player, isMarked: boolean): boolean {
-    // Standard foul rules: anyone marked cannot assist.
-    // Future skills like "Put the boot in" might change this.
-    return !isMarked;
   }
 }

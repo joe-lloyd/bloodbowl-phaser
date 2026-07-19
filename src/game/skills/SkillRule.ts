@@ -16,7 +16,10 @@
  */
 
 import { Player } from "../../types/Player";
-import { BlockResultType } from "../../services/BlockResolutionService";
+import {
+  BlockResult,
+  BlockResultType,
+} from "../../services/BlockResolutionService";
 import { RerollableRollKind } from "../../types/decisions";
 import { DecisionService } from "./DecisionService";
 import { RerollArbiter } from "./RerollArbiter";
@@ -63,8 +66,28 @@ export interface DodgeDeclaredContext extends TriggerContextBase {
 export interface BlockDeclaredContext extends TriggerContextBase {
   attacker: Player;
   defender: Player;
-  /** Number of block dice; rules may adjust (Dauntless outcomes, Horns) */
+  /** Number of block dice; recomputed from strength after the fold. */
   diceCount: number;
+  isAttackerChoice: boolean;
+  /** Effective attacker strength (assists included); rules may raise it. */
+  attackerStrength: number;
+  /** Effective defender strength (assists included). */
+  defenderStrength: number;
+  /** The block is thrown as part of a Blitz Action (Horns, Juggernaut). */
+  isBlitz: boolean;
+  /**
+   * Cancel the block outright and end the attacker's activation (Foul
+   * Appearance's failed roll — no dice are rolled).
+   */
+  cancelled: boolean;
+}
+
+/** Block dice have been rolled, before the coach selects a result. */
+export interface BlockDiceRolledContext extends TriggerContextBase {
+  attacker: Player;
+  defender: Player;
+  /** The rolled results; a rule may reroll dice in place (Brawler). */
+  results: BlockResult[];
   isAttackerChoice: boolean;
 }
 
@@ -73,8 +96,25 @@ export interface PushContext extends TriggerContextBase {
   attacker: Player;
   pushed: Player;
   resultType: BlockResultType;
+  /** The block is thrown as part of a Blitz Action (Juggernaut). */
+  isBlitz: boolean;
+  /** Does the pushed player currently carry the ball? (Strip Ball) */
+  pushedHasBall: boolean;
+  /**
+   * The blocker ignores the pushed player's push reactions — Fend and Stand
+   * Firm are cancelled (Juggernaut on a Blitz, set as the attacker folds
+   * first).
+   */
+  blockerIgnoresReactions: boolean;
   /** Set true to refuse the push entirely (Stand Firm) */
   refused: boolean;
+  /** Deny the blocker their follow-up into the vacated square (Fend). */
+  preventFollowUp: boolean;
+  /**
+   * The pushed carrier drops the ball in the square they are pushed into,
+   * before they become Prone and after the follow-up choice (Strip Ball).
+   */
+  stripBall: boolean;
 }
 
 /** Outcome of a block result, mutated by rules before it is applied. */
@@ -183,6 +223,30 @@ export interface CasualtyContext extends TriggerContextBase {
   regenerated?: boolean;
 }
 
+/**
+ * A teammate is being considered as an assist for a Block or Foul. Folded
+ * synchronously while assists are counted (no decisions/dice/flow — assist
+ * counting is passive and runs during preview). Fold order is the assister
+ * first (so Guard can ignore its markers), then the markers (so Defensive
+ * can cancel that Guard).
+ */
+export interface CountAssistContext {
+  /** The teammate offering the assist. */
+  assister: Player;
+  /** The block/foul opponent (never counts as a marker of the assister). */
+  opponent: Player;
+  /** Which action the assist supports — Guard only helps Blocks. */
+  action: "block" | "foul";
+  /** Whose turn it is (Defensive only bites on its opponent's turn). */
+  activeTeamId: string | null;
+  /** Enemies with a tackle zone marking the assister (excluding opponent). */
+  markers: Player[];
+  /** Does marking currently negate this assist? Rules mutate (Guard clears). */
+  negated: boolean;
+  /** Skill effects to announce. */
+  triggers: SkillTriggerRecord[];
+}
+
 /** The casualty D16 has been rolled; rules may modify it (Decay). */
 export interface CasualtyRollContext extends TriggerContextBase {
   player: Player;
@@ -214,6 +278,10 @@ export interface SkillRule {
     ctx: BlockDeclaredContext,
     self: Player
   ): void | Promise<void>;
+  onBlockDiceRolled?(
+    ctx: BlockDiceRolledContext,
+    self: Player
+  ): void | Promise<void>;
   onPush?(ctx: PushContext, self: Player): void | Promise<void>;
   /**
    * Fired while a block result is being resolved. `self` is the player who
@@ -229,4 +297,10 @@ export interface SkillRule {
     ctx: CasualtyRollContext,
     self: Player
   ): void | Promise<void>;
+  /**
+   * Passive assist-eligibility adjustment, folded synchronously while assists
+   * are counted (Guard ignores marking; Defensive cancels an enemy's Guard).
+   * Never raises decisions or enqueues flow — it only mutates the context.
+   */
+  onCountAssists?(ctx: CountAssistContext, self: Player): void;
 }

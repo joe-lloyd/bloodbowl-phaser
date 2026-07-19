@@ -4,7 +4,7 @@ Every remaining catalog skill appears in exactly one task below. Definition of d
 
 **Scoping (Joe, 2026-07-18): standard rules first; subsystem-heavy work (batch 9, special actions, and rules needing missing engine features) is deferred to a follow-up part.** Reconciliation removed Portal Navigator/Passer, Wall Thrower, Running Pass, Swarming, Safe Throw (→Safe Pass) and merged Piling On into Pile Driver — those names are dropped from the batches below.
 
-Progress: **26/108 catalog skills implemented** (gate snapshot in `__tests__/headless/rules/gate.test.ts` is the source of truth).
+Progress: **34/108 catalog skills implemented** (gate snapshot in `__tests__/headless/rules/gate.test.ts` is the source of truth).
 
 ## 1. Movement & agility (rush-reroll seam DONE)
 
@@ -31,9 +31,9 @@ Progress: **26/108 catalog skills implemented** (gate snapshot in `__tests__/hea
 
 ## 5. Block: dice & flow (adds assist seam)
 
-- [ ] 5.1 Assist hook in `BlockValidator` (`onCountAssists`): Guard, Defensive.
-- [ ] 5.2 Pre/post block rolls & dice: Dauntless, Horns, Brawler, Foul Appearance.
-- [ ] 5.3 Push/result flow: Fend, Arm Bar, Grab, Juggernaut (owns Wrestle/Fend/Stand Firm interaction configs), Strip Ball, Hit and Run.
+- [x] 5.1 Assist hook in `BlockValidator` (`onCountAssists`): Guard, Defensive.
+- [x] 5.2 Pre/post block rolls & dice: Dauntless, Horns, Brawler, Foul Appearance.
+- [ ] 5.3 DONE: Fend (denies follow-up; honours the Juggernaut-blitz cancel via a `blockerIgnoresReactions` push flag), Strip Ball (pushed carrier drops the ball, which bounces). DEFERRED: Grab (any-adjacent push-square choice + Sidestep cancel — Sidestep is batch 6), Juggernaut (Both Down→Push conversion on a Blitz needs the both-down path to redirect into a push; owns the Wrestle/Fend/Stand Firm interaction configs), Arm Bar (needs the dodge-fail→armour causer seam), Hit and Run (needs a post-Block free-move action).
 - [ ] 5.4 Flow-queue block effects: Frenzy (second block), Multiple Block.
 
 ## 6. Marking reactions (adds opponent-movement trigger)

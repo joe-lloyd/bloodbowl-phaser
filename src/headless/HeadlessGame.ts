@@ -256,7 +256,8 @@ export class HeadlessGame {
         const analysis = this.blockValidator.analyzeBlock(
           attacker,
           defender,
-          allPlayers
+          allPlayers,
+          gs.getActiveTeamId()
         );
         await gs.rollBlockDice(
           cmd.attackerId,

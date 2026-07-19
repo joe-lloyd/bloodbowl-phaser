@@ -1,4 +1,6 @@
 import { Player, PlayerStatus } from "../../types/Player";
+import { CountAssistContext } from "../skills/SkillRule";
+import { foldCountAssists } from "../skills";
 
 /**
  * Base Validator for calculate assists in Blood Bowl
@@ -9,11 +11,15 @@ export abstract class AssistValidator {
    * @param subject The player wanting the assist (Attacker/Fouler or Defender/Target)
    * @param opponent The opponent related to the action
    * @param allPlayers All players on the pitch
+   * @param action Whether the assist supports a Block or a Foul (Guard is Block-only)
+   * @param activeTeamId Whose turn it is (Defensive only bites on its opponent's turn)
    */
   public getValidAssists(
     subject: Player,
     opponent: Player,
-    allPlayers: Player[]
+    allPlayers: Player[],
+    action: "block" | "foul" = "block",
+    activeTeamId: string | null = null
   ): Player[] {
     const assists: Player[] = [];
 
@@ -30,25 +36,32 @@ export abstract class AssistValidator {
       // 2. Must not be Prone, Stunned, etc. (Must have tackle zone)
       if (!this.hasTackleZone(teammate)) return;
 
-      // 3. Must not be in an enemy Tackle Zone (Marked)
-      // Note: The 'opponent' involved in the action does NOT count for marking assisters.
-      const isMarked = this.isMarkedByOthers(teammate, enemies, opponent);
+      // 3. Enemies marking this assister (the action opponent never counts).
+      const markers = enemies.filter(
+        (enemy) =>
+          enemy.id !== opponent.id &&
+          this.hasTackleZone(enemy) &&
+          this.isAdjacent(teammate, enemy)
+      );
 
-      if (this.canProvideAssist(teammate, isMarked)) {
-        assists.push(teammate);
-      }
+      // 4. A marked assister is negated unless a skill rescues it (Guard),
+      //    which another skill may in turn cancel (Defensive).
+      const ctx: CountAssistContext = {
+        assister: teammate,
+        opponent,
+        action,
+        activeTeamId,
+        markers,
+        negated: markers.length > 0,
+        triggers: [],
+      };
+      foldCountAssists(ctx, [teammate, ...markers]);
+
+      if (!ctx.negated) assists.push(teammate);
     });
 
     return assists;
   }
-
-  /**
-   * Determine if a specific player can provide an assist based on marking and skills
-   */
-  protected abstract canProvideAssist(
-    player: Player,
-    isMarked: boolean
-  ): boolean;
 
   protected isAdjacent(p1: Player, p2: Player): boolean {
     if (!p1.gridPosition || !p2.gridPosition) return false;
@@ -59,17 +72,5 @@ export abstract class AssistValidator {
 
   protected hasTackleZone(player: Player): boolean {
     return player.status === PlayerStatus.ACTIVE;
-  }
-
-  protected isMarkedByOthers(
-    player: Player,
-    enemies: Player[],
-    excludedEnemy: Player
-  ): boolean {
-    return enemies.some((enemy) => {
-      if (enemy.id === excludedEnemy.id) return false;
-      if (!this.hasTackleZone(enemy)) return false;
-      return this.isAdjacent(player, enemy);
-    });
   }
 }

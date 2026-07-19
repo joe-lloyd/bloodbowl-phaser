@@ -1,7 +1,22 @@
 import { Player } from "../../types/Player";
-import { hasSkill, SkillType } from "../../types/Skills";
 import { BlockAnalysis } from "../../types/Actions";
 import { AssistValidator } from "./AssistValidator";
+
+/**
+ * Block dice from two effective strengths (assists already folded in). More
+ * than double is 3 dice, any other advantage is 2; the stronger side chooses
+ * (isUphill = the attacker is the weaker side, so the defender chooses).
+ */
+export function blockDiceForStrength(
+  attackerST: number,
+  defenderST: number
+): { diceCount: number; isUphill: boolean } {
+  if (attackerST === defenderST) return { diceCount: 1, isUphill: false };
+  if (attackerST > defenderST) {
+    return { diceCount: attackerST > defenderST * 2 ? 3 : 2, isUphill: false };
+  }
+  return { diceCount: defenderST > attackerST * 2 ? 3 : 2, isUphill: true };
+}
 
 export class BlockValidator extends AssistValidator {
   /**
@@ -10,18 +25,23 @@ export class BlockValidator extends AssistValidator {
   public analyzeBlock(
     attacker: Player,
     defender: Player,
-    allPlayers: Player[]
+    allPlayers: Player[],
+    activeTeamId: string | null = null
   ): BlockAnalysis {
-    // 1. Calculate Assists
+    // 1. Calculate Assists (Guard/Defensive resolved via the assist seam)
     const attackerAssists = this.getValidAssists(
       attacker,
       defender,
-      allPlayers
+      allPlayers,
+      "block",
+      activeTeamId
     );
     const defenderAssists = this.getValidAssists(
       defender,
       attacker,
-      allPlayers
+      allPlayers,
+      "block",
+      activeTeamId
     );
 
     // 2. Calculate Final Strength
@@ -29,27 +49,10 @@ export class BlockValidator extends AssistValidator {
     const finalDefenderST = defender.stats.ST + defenderAssists.length;
 
     // 3. Determine Dice
-    let diceCount = 1;
-    let isUphill = false;
-
-    if (finalAttackerST === finalDefenderST) {
-      diceCount = 1;
-      isUphill = false;
-    } else if (finalAttackerST > finalDefenderST) {
-      if (finalAttackerST > finalDefenderST * 2) {
-        diceCount = 3;
-      } else {
-        diceCount = 2;
-      }
-      isUphill = false;
-    } else {
-      isUphill = true;
-      if (finalDefenderST > finalAttackerST * 2) {
-        diceCount = 3;
-      } else {
-        diceCount = 2;
-      }
-    }
+    const { diceCount, isUphill } = blockDiceForStrength(
+      finalAttackerST,
+      finalDefenderST
+    );
 
     return {
       diceCount,
@@ -59,12 +62,5 @@ export class BlockValidator extends AssistValidator {
       attackerAssists,
       defenderAssists,
     };
-  }
-
-  protected canProvideAssist(player: Player, isMarked: boolean): boolean {
-    if (!isMarked) return true;
-
-    // Exception: GUARD skill ignores marking for block assists
-    return hasSkill(player.skills, SkillType.GUARD);
   }
 }
