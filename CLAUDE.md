@@ -1,0 +1,1 @@
+never use git cmds unless explicitly told to including worktrees

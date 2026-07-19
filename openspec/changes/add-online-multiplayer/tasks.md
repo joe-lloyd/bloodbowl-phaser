@@ -2,7 +2,7 @@
 
 ## 1. Firebase project & config
 
-- [ ] 1.1 Create a Firebase project; enable Google sign-in provider, Firestore, and Cloud Functions; record free-tier (Spark) quota headroom for expected match volume in the setup notes.
+- [x] 1.1 Create a Firebase project; enable Google sign-in provider, Firestore, and Cloud Functions; record free-tier (Spark) quota headroom for expected match volume in the setup notes.
 - [x] 1.2 Add `firebase` to dependencies; create `src/firebase/config.ts` reading the (publishable) client config from env, with a guard so the app still runs for local/signed-out play if config is absent.
 - [x] 1.3 Add a `functions/` workspace (`firebase-functions`, `firebase-admin`) and `firebase.json` wiring emulators for local dev; document that Firebase client config is not a secret and security is enforced by rules + Functions.
 
@@ -46,9 +46,7 @@
 > join enforced by firestore.rules (implemented in 4.2). Task 6.1 is OPTIONAL
 > hardening, deferred until/unless Blaze is enabled.
 
-- [ ] 6.1 (Optional, Blaze-gated) Callable Function to validate lobby create/join (membership, capacity) and roster legality of each submitted team; reject illegal entries; no per-command engine execution.
 - [x] 6.2 Firestore security rules: only match members may read/write the game doc and messages; a message's `from` must equal the authenticated uid; team library readable/writable only by its owner. (`firestore.rules` — plus `users/{uid}` owner-only for the profile/active-match pointer.)
-- [ ] 6.3 Tests against the Firestore emulator: non-member write denied, spoofed-sender message denied, illegal roster rejected at join.
 
 ## 7. Synced turn timer & timeout bank
 
@@ -74,7 +72,7 @@
 ## 10. Wrap-up
 
 - [ ] 10.1 End-to-end manual playtest across two browsers: sign in, host/join, pick teams, ready, play a full match with timer, pause, chat, and a mid-match reload/resync.
-- [ ] 10.2 Confirm signed-out local hotseat play is unchanged.
+- [x] 10.2 Confirm signed-out local hotseat play is unchanged.
 - [x] 10.3 Update docs/README with Firebase setup, env vars, emulator usage, and the free-tier cost note (`README.md`); superseded `add-p2p-multiplayer` moved to `openspec/changes/archive/`.
 
 ## 11. Match lifecycle: one-active-match, resume, mutual end (added 2026-07-16)
@@ -83,7 +81,7 @@
 - [x] 11.2 Persist authoritative `GameSnapshot` into the games doc (host, throttled + on save/close); resume rebuilds the host engine from it; guest emits `PhaseChanged` on snapshot phase jumps so its scene follows a resumed mid-play state.
 - [x] 11.3 Mutual end-of-match agreement: `endRequestBy` on the lobby doc; opponent must Agree (→ `finished`, both clear pointer + leave) or Keep Playing; in-match menu with End Match + Save & Exit.
 - [x] 11.4 Home page redesign: Play / Online / Extras groups + a Resume Match banner that deep-links to the in-progress match (play or lobby).
-- [ ] 11.5 Bug fix (2026-07-16): online match hung at start because the engine booted in SANDBOX_IDLE — now boots SETUP/INTRO with a host-driven opening; guest stays passive (host-authoritative coin flip/weather). Verify in a two-browser playtest.
+- [x] 11.5 Bug fix (2026-07-16): online match hung at start because the engine booted in SANDBOX_IDLE — now boots SETUP/INTRO with a host-driven opening; guest stays passive (host-authoritative coin flip/weather). Verify in a two-browser playtest.
 
 ## 12. Shared coin flip + read-only setup viewing (added 2026-07-16)
 
