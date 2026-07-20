@@ -2,6 +2,8 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
+import { SkillType, hasSkill } from "../../types/Skills";
+import { ReactionDecisionAnswer } from "../../types/decisions";
 import {
   BlockValidator,
   blockDiceForStrength,
@@ -70,6 +72,57 @@ class FinishActivationOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     context.gameService.finishActivation(this.attackerId);
+  }
+}
+
+/**
+ * Frenzy (2025 rulebook p.130): the blocker must follow up a Push Back, and
+ * if the target is still Standing must throw a second Block Action at the same
+ * player. Runs after the first push settles; the second block re-enters the
+ * normal block flow (which will not Frenzy again — one extra block only).
+ */
+class FrenzyOperation extends GameOperation {
+  public readonly name = "Frenzy";
+
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string,
+    private defenderId: string,
+    private vacatedSquare: { x: number; y: number },
+    private targetStanding: boolean
+  ) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    // Frenzy forces the follow-up into the vacated square.
+    await context.gameService.followUpPush(this.attackerId, this.vacatedSquare);
+    await this.manager.frenzySecondBlock(
+      this.attackerId,
+      this.defenderId,
+      this.targetStanding
+    );
+  }
+}
+
+/**
+ * Hit and Run (2025 rulebook p.130): after fully resolving a Block, a still-
+ * Standing player may move one free square (ignoring Tackle Zones) that leaves
+ * them neither Marked by nor Marking any opponent. Offered as a yes/no
+ * reaction; the free square is one that satisfies the constraint.
+ */
+class HitAndRunOperation extends GameOperation {
+  public readonly name = "HitAndRun";
+
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string
+  ) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    await this.manager.resolveHitAndRun(this.attackerId);
   }
 }
 
@@ -251,6 +304,7 @@ export class BlockManager {
           attacker,
           defender,
           resultType: result.type,
+          isBlitz: this.isBlitzBlock(attacker),
           attackerKnockedDown: false,
           defenderKnockedDown:
             result.type === "pow" || result.type === "pow-dodge",
@@ -261,54 +315,75 @@ export class BlockManager {
         await foldBlockResult(resultCtx, this.allPlayers());
         this.announce(resultCtx.triggers);
 
-        // Trigger point: the defender is about to be pushed — a reacting
-        // rule may refuse the push outright (Stand Firm)
-        const pushCtx: PushContext = {
+        await this.beginPush(
           attacker,
-          pushed: defender,
-          resultType: result.type,
-          isBlitz:
-            this.state.activePlayer?.action === "blitz" &&
-            this.state.activePlayer?.id === attacker.id,
-          pushedHasBall: this.isOnBall(defender),
-          blockerIgnoresReactions: false,
-          refused: false,
-          preventFollowUp: false,
-          stripBall: false,
-          decisions: this.decisions(),
-          flow: this.callbacks.getFlowManager?.(),
-          triggers: [],
-        };
-        await foldTrigger(
-          "onPush",
-          this.blockParticipants(attacker, defender),
-          pushCtx
+          defender,
+          result.type,
+          resultCtx.defenderKnockedDown
         );
-        this.announce(pushCtx.triggers);
-
-        if (pushCtx.refused) {
-          this.resolveRefusedPush(
-            attacker,
-            defender,
-            resultCtx.defenderKnockedDown
-          );
-          break;
-        }
-
-        // Start a (possibly chained) push: the chain is decided link by
-        // link, applied only once fully chosen (rulebook p.55)
-        this.chain = {
-          attackerId,
-          resultType: result.type,
-          knockDownDefender: resultCtx.defenderKnockedDown,
-          preventFollowUp: pushCtx.preventFollowUp,
-          stripBall: pushCtx.stripBall,
-          links: [],
-        };
-        this.requestPushDecision(attacker.gridPosition!, defender);
         break;
       }
     }
+  }
+
+  /** Is this block the block at the end of the active player's Blitz? */
+  private isBlitzBlock(attacker: Player): boolean {
+    return (
+      this.state.activePlayer?.action === "blitz" &&
+      this.state.activePlayer?.id === attacker.id
+    );
+  }
+
+  /**
+   * Fold the push reactions (Stand Firm / Fend / Strip Ball / Grab) and start
+   * the (possibly chained) push, or resolve it in place if refused. Shared by
+   * plain push/POW results and by Juggernaut converting a Both Down.
+   */
+  private async beginPush(
+    attacker: Player,
+    defender: Player,
+    resultType: BlockResultType,
+    knockDownDefender: boolean
+  ): Promise<void> {
+    const pushCtx: PushContext = {
+      attacker,
+      pushed: defender,
+      resultType,
+      isBlitz: this.isBlitzBlock(attacker),
+      pushedHasBall: this.isOnBall(defender),
+      blockerIgnoresReactions: false,
+      refused: false,
+      preventFollowUp: false,
+      stripBall: false,
+      grabPush: false,
+      decisions: this.decisions(),
+      flow: this.callbacks.getFlowManager?.(),
+      triggers: [],
+    };
+    await foldTrigger(
+      "onPush",
+      this.blockParticipants(attacker, defender),
+      pushCtx
+    );
+    this.announce(pushCtx.triggers);
+
+    if (pushCtx.refused) {
+      this.resolveRefusedPush(attacker, defender, knockDownDefender);
+      return;
+    }
+
+    // Start a (possibly chained) push: the chain is decided link by link,
+    // applied only once fully chosen (rulebook p.55)
+    this.chain = {
+      attackerId: attacker.id,
+      resultType,
+      knockDownDefender,
+      preventFollowUp: pushCtx.preventFollowUp,
+      stripBall: pushCtx.stripBall,
+      grabPush: pushCtx.grabPush,
+      links: [],
+    };
+    this.requestPushDecision(attacker.gridPosition!, defender);
   }
 
   /**
@@ -353,6 +428,8 @@ export class BlockManager {
     preventFollowUp?: boolean;
     /** Strip Ball: the pushed carrier drops the ball where they land */
     stripBall?: boolean;
+    /** Grab: the blocker picks any unoccupied square adjacent to the target */
+    grabPush?: boolean;
     links: {
       playerId: string;
       from: { x: number; y: number };
@@ -360,15 +437,182 @@ export class BlockManager {
     }[];
   } | null = null;
 
+  /** The attacker mid-Frenzy-extra block, so it does not Frenzy a third time. */
+  private frenzyExtraFor: string | null = null;
+
+  /** Analyze and start a fresh Block Action (Frenzy's second block). */
+  public async startBlock(
+    attackerId: string,
+    defenderId: string
+  ): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    const defender = this.getPlayerById(defenderId);
+    if (!attacker || !defender) return;
+    const analysis = this.blockValidator.analyzeBlock(
+      attacker,
+      defender,
+      this.allPlayers(),
+      this.state.activeTeamId
+    );
+    await this.rollBlockDice(
+      attackerId,
+      defenderId,
+      analysis.diceCount,
+      !analysis.isUphill
+    );
+  }
+
+  /** Frenzy's second block, if the target is still standing and adjacent. */
+  public async frenzySecondBlock(
+    attackerId: string,
+    defenderId: string,
+    targetStanding: boolean
+  ): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    const defender = this.getPlayerById(defenderId);
+    const adjacent =
+      !!attacker?.gridPosition &&
+      !!defender?.gridPosition &&
+      Math.abs(attacker.gridPosition.x - defender.gridPosition.x) <= 1 &&
+      Math.abs(attacker.gridPosition.y - defender.gridPosition.y) <= 1;
+
+    if (
+      targetStanding &&
+      attacker?.status === PlayerStatus.ACTIVE &&
+      defender?.status === PlayerStatus.ACTIVE &&
+      adjacent
+    ) {
+      this.frenzyExtraFor = attackerId;
+      await this.startBlock(attackerId, defenderId);
+    } else {
+      this.callbacks
+        .getFlowManager?.()
+        ?.context.gameService.finishActivation(attackerId);
+    }
+  }
+
+  /** Squares a Hit and Run move may end in (leaving nobody marked). */
+  public hitAndRunSquares(player: Player): { x: number; y: number }[] {
+    if (!player.gridPosition) return [];
+    const opponents = this.allPlayers().filter(
+      (p) => p.teamId !== player.teamId
+    );
+    const squares: { x: number; y: number }[] = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const pos = {
+          x: player.gridPosition.x + dx,
+          y: player.gridPosition.y + dy,
+        };
+        if (
+          pos.x < 0 ||
+          pos.x >= GameConfig.PITCH_WIDTH ||
+          pos.y < 0 ||
+          pos.y >= GameConfig.PITCH_HEIGHT
+        )
+          continue;
+        if (this.getPlayerAt(pos.x, pos.y)) continue;
+        // Not Marked by / Marking: no standing opponent adjacent to the square.
+        const marked = opponents.some(
+          (o) =>
+            o.status === PlayerStatus.ACTIVE &&
+            o.gridPosition &&
+            Math.abs(o.gridPosition.x - pos.x) <= 1 &&
+            Math.abs(o.gridPosition.y - pos.y) <= 1
+        );
+        if (!marked) squares.push(pos);
+      }
+    }
+    return squares;
+  }
+
+  /** Offer Hit and Run's free move, then end the activation. */
+  public async resolveHitAndRun(attackerId: string): Promise<void> {
+    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+    const attacker = this.getPlayerById(attackerId);
+    const squares = attacker ? this.hitAndRunSquares(attacker) : [];
+    if (!attacker || attacker.status !== PlayerStatus.ACTIVE || !squares.length) {
+      gs?.finishActivation(attackerId);
+      return;
+    }
+
+    const decisions = this.decisions();
+    let use = true;
+    if (decisions) {
+      const answer = (await decisions.request({
+        type: "reaction",
+        playerId: attackerId,
+        chooserTeamId: attacker.teamId,
+        skill: SkillType.HIT_AND_RUN,
+        prompt: `${attacker.playerName} may Hit and Run one free square — use it?`,
+      })) as ReactionDecisionAnswer;
+      use = answer.accept;
+    }
+
+    if (use) {
+      this.freeMove(attacker, squares[0]);
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: attackerId,
+        skill: SkillType.HIT_AND_RUN,
+        effect: "Hit and Run: one free square",
+      });
+    }
+    gs?.finishActivation(attackerId);
+  }
+
+  /** Move a player to an adjacent square (no dice/cost), carrying the ball. */
+  private freeMove(player: Player, to: { x: number; y: number }): void {
+    const from = { ...player.gridPosition! };
+    player.gridPosition = { ...to };
+    const carriedBall =
+      !!this.state.ballPosition &&
+      this.state.ballPosition.x === from.x &&
+      this.state.ballPosition.y === from.y;
+    if (carriedBall) {
+      this.state.ballPosition = { ...to };
+      this.eventBus.emit(GameEventNames.BallPlaced, { ...to });
+    }
+    this.eventBus.emit(GameEventNames.PlayerMoved, {
+      playerId: player.id,
+      from,
+      to: { ...to },
+      path: [from, { ...to }],
+      ballFrom: carriedBall ? from : undefined,
+      ballPath: carriedBall ? [from, { ...to }] : undefined,
+      ballJoinStep: 0,
+    });
+    this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.checkForTouchdown(player.id);
+  }
+
   private requestPushDecision(
     pusherPos: { x: number; y: number },
     pushed: Player
   ): void {
-    const { options, tier } = this.blockResolutionService.getPushOptions(
-      pusherPos,
-      pushed.gridPosition!,
-      (x, y) => this.getPlayerAt(x, y) !== undefined
-    );
+    const isOccupied = (x: number, y: number) =>
+      this.getPlayerAt(x, y) !== undefined;
+
+    // Grab (first push only): the blocker chooses any unoccupied square
+    // adjacent to the target. Falls back to the normal push if the target is
+    // fully boxed in (the skill "cannot be used").
+    const grabOptions =
+      this.chain?.grabPush && this.chain.links.length === 0
+        ? this.blockResolutionService.getGrabPushOptions(
+            pushed.gridPosition!,
+            isOccupied
+          )
+        : [];
+
+    const { options, tier } =
+      grabOptions.length > 0
+        ? { options: grabOptions, tier: "open" as const }
+        : this.blockResolutionService.getPushOptions(
+            pusherPos,
+            pushed.gridPosition!,
+            isOccupied
+          );
 
     this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
       defenderId: pushed.id,
@@ -594,6 +838,7 @@ export class BlockManager {
       attacker,
       defender,
       resultType: "both-down",
+      isBlitz: this.isBlitzBlock(attacker),
       attackerKnockedDown: true,
       defenderKnockedDown: true,
       decisions: this.decisions(),
@@ -602,6 +847,13 @@ export class BlockManager {
     };
     await foldBlockResult(ctx, this.allPlayers());
     this.announce(ctx.triggers);
+
+    // Juggernaut on a Blitz may treat the Both Down as a Push Back instead:
+    // nobody is knocked down and there is no turnover.
+    if (ctx.treatAsPush) {
+      await this.beginPush(attacker, defender, "push", false);
+      return;
+    }
 
     const attackerHadBall = this.isOnBall(attacker);
 

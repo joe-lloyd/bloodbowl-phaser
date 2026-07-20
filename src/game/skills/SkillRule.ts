@@ -115,6 +115,11 @@ export interface PushContext extends TriggerContextBase {
    * before they become Prone and after the follow-up choice (Strip Ball).
    */
   stripBall: boolean;
+  /**
+   * The blocker chooses any unoccupied square adjacent to the pushed player,
+   * not just the three behind them (Grab).
+   */
+  grabPush: boolean;
 }
 
 /** Outcome of a block result, mutated by rules before it is applied. */
@@ -122,6 +127,8 @@ export interface BlockResultContext extends TriggerContextBase {
   attacker: Player;
   defender: Player;
   resultType: BlockResultType;
+  /** The block is thrown as part of a Blitz Action (Juggernaut). */
+  isBlitz: boolean;
   /** Will the attacker be knocked down? (rules may flip to false) */
   attackerKnockedDown: boolean;
   /** Will the defender be knocked down? */
@@ -132,6 +139,16 @@ export interface BlockResultContext extends TriggerContextBase {
    * ball (2025 rulebook p.42).
    */
   placedProne?: boolean;
+  /**
+   * Treat a Both Down as a Push Back instead: the defender is pushed, nobody
+   * is knocked down, and there is no turnover (Juggernaut on a Blitz).
+   */
+  treatAsPush?: boolean;
+  /**
+   * The blocker ignores the defender's block-result reactions — Wrestle is
+   * cancelled (Juggernaut on a Blitz).
+   */
+  suppressReactions?: boolean;
 }
 
 /** A player is about to roll to pick up the ball. */
@@ -192,6 +209,10 @@ export interface ArmourBreakContext extends TriggerContextBase {
   player: Player;
   /** The blocker who knocked this player down (block-path armour only) */
   causedBy?: Player;
+  /** What put the player down — "dodge" enables Arm Bar. */
+  cause?: "block" | "dodge";
+  /** The square the player fell leaving (a failed Dodge/Leap/Jump). */
+  vacatedSquare?: { x: number; y: number };
   /** Natural 2D6 total */
   roll: number;
   /** Net armour-roll modifier (Mighty Blow; cleared by Iron Hard Skin) */

@@ -103,6 +103,46 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
   {
+    skill: SkillType.PREHENSILE_TAIL,
+    configs: [
+      {
+        id: "prehensile-tail-dodge",
+        name: "Dodge out of a Prehensile Tail zone",
+        description: "-1 to the Agility Test for leaving the tail's tackle zone",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 16,
+              y: 5,
+              skills: [SkillType.PREHENSILE_TAIL],
+            },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+        ],
+        outcomes: [
+          {
+            id: "minus-one-applied",
+            name: "-1 on the dodge roll",
+            matches: (r) =>
+              skillTriggered(r, SkillType.PREHENSILE_TAIL) &&
+              skillCheckDiff(r, "Dodge") === -1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Dodge") === -1,
+                "dodge total must be roll - 1"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.CLAWS,
     configs: [
       blockConfig({

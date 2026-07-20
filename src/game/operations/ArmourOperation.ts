@@ -24,7 +24,12 @@ export class ArmourOperation extends GameOperation {
   constructor(
     private playerId: string,
     /** The blocker who knocked this player down (block-path armour only) */
-    private causedById?: string
+    private causedById?: string,
+    /**
+     * How the player went down and, for a failed Dodge/Leap/Jump, the square
+     * they were leaving — so Arm Bar markers of that square can react.
+     */
+    private fall?: { cause: "dodge"; vacatedSquare: { x: number; y: number } }
   ) {
     super();
   }
@@ -58,6 +63,8 @@ export class ArmourOperation extends GameOperation {
     const ctx: ArmourBreakContext = {
       player,
       causedBy,
+      cause: this.fall?.cause ?? (causedBy ? "block" : undefined),
+      vacatedSquare: this.fall?.vacatedSquare,
       roll,
       armourModifier: 0,
       injuryModifier: 0,
@@ -68,17 +75,19 @@ export class ArmourOperation extends GameOperation {
       dice: gameService.getDiceController(),
       triggers: [],
     };
+    const opponents = gameService.getOpponents(player.teamId);
+    // Standing opponents adjacent to the fallen player, plus — for a failed
+    // Dodge — those adjacent to the square they were leaving (Arm Bar).
+    const nearby = [
+      ...(player.gridPosition ? adjacentStanding(player.gridPosition, opponents) : []),
+      ...(this.fall ? adjacentStanding(this.fall.vacatedSquare, opponents) : []),
+    ];
     await foldTrigger(
       "onArmourBreak",
       gatherParticipants(
         causedBy ?? player,
         causedBy ? player : undefined,
-        player.gridPosition
-          ? adjacentStanding(
-              player.gridPosition,
-              gameService.getOpponents(player.teamId)
-            )
-          : []
+        nearby
       ),
       ctx
     );

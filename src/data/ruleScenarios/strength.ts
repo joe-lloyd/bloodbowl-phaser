@@ -15,6 +15,10 @@ import {
   skillTriggered,
   skillCheckDiff,
   playerOf,
+  playerStanding,
+  playerDown,
+  playerAt,
+  turnoverHappened,
   blockDiceCount,
 } from "../../game/rules-lab";
 
@@ -29,6 +33,124 @@ const mbTriggered = (effectPart: string) => (r: ScriptResult) =>
 
 
 export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
+  {
+    skill: SkillType.ARM_BAR,
+    configs: [
+      {
+        id: "arm-bar-failed-dodge",
+        name: "Arm Bar on a failed dodge",
+        description: "A marker adds +1 armour/injury when the dodger falls",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
+          team2Placements: [
+            { playerIndex: 0, x: 16, y: 5, skills: [SkillType.ARM_BAR] },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          // Dodge away from (16,4); the Arm Bar marker at (16,5) is adjacent
+          // to the vacated square but not to the (15,3) landing square.
+          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+        ],
+        outcomes: [
+          {
+            id: "arm-bar-applied",
+            name: "Arm Bar adds its modifier",
+            matches: (r) => skillTriggered(r, SkillType.ARM_BAR),
+            verify: (r) =>
+              assert(
+                playerDown(r, "team1:0"),
+                "Arm Bar only fires when the dodger falls"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.GRAB,
+    configs: [
+      blockConfig({
+        id: "grab-any-adjacent-square",
+        name: "Grab widens the push squares",
+        description: "The blocker may push into any unoccupied adjacent square",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.GRAB] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "side-squares-offered",
+            name: "The squares beside the defender are offered",
+            matches: (r) => skillTriggered(r, SkillType.GRAB),
+            verify: (r) => {
+              const push = r.decisions.find(
+                (d) => d.type === "push-direction"
+              ) as { options: { x: number; y: number }[] } | undefined;
+              assert(!!push, "a push-direction decision must be raised");
+              const opts = push!.options;
+              assert(
+                opts.some((o) => o.x === 11 && o.y === 4) &&
+                  opts.some((o) => o.x === 11 && o.y === 6),
+                "Grab must offer the squares beside the defender, not just behind"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.JUGGERNAUT,
+    configs: [
+      {
+        id: "juggernaut-both-down-to-push",
+        name: "Juggernaut turns Both Down into a Push on a Blitz",
+        description: "The blitzer stays up and there is no turnover",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 7, skills: [SkillType.JUGGERNAUT] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 7 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "blitz" },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 7 }] },
+          { type: "block", attackerId: "team1:0", defenderId: "team2:0" },
+        ],
+        decisionPolicy: { preferBlockResult: "both-down" },
+        outcomes: [
+          {
+            id: "converted-to-push",
+            name: "Both Down becomes a push, no turnover",
+            matches: (r) => skillTriggered(r, SkillType.JUGGERNAUT),
+            verify: (r) => {
+              assert(
+                playerStanding(r, "team1:0"),
+                "the blitzer must stay standing"
+              );
+              assert(
+                !turnoverHappened(r),
+                "no turnover when Both Down is treated as a push"
+              );
+              assert(
+                !playerAt(r, "team2:0", { x: 12, y: 7 }),
+                "the defender must be pushed back"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
   {
     skill: SkillType.GUARD,
     configs: [

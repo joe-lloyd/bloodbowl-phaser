@@ -4,7 +4,7 @@ Every remaining catalog skill appears in exactly one task below. Definition of d
 
 **Scoping (Joe, 2026-07-18): standard rules first; subsystem-heavy work (batch 9, special actions, and rules needing missing engine features) is deferred to a follow-up part.** Reconciliation removed Portal Navigator/Passer, Wall Thrower, Running Pass, Swarming, Safe Throw (→Safe Pass) and merged Piling On into Pile Driver — those names are dropped from the batches below.
 
-Progress: **34/108 catalog skills implemented** (gate snapshot in `__tests__/headless/rules/gate.test.ts` is the source of truth).
+Progress: **38/108 catalog skills implemented** (gate snapshot in `__tests__/headless/rules/gate.test.ts` is the source of truth).
 
 ## 1. Movement & agility (rush-reroll seam DONE)
 
@@ -33,13 +33,13 @@ Progress: **34/108 catalog skills implemented** (gate snapshot in `__tests__/hea
 
 - [x] 5.1 Assist hook in `BlockValidator` (`onCountAssists`): Guard, Defensive.
 - [x] 5.2 Pre/post block rolls & dice: Dauntless, Horns, Brawler, Foul Appearance.
-- [ ] 5.3 DONE: Fend (denies follow-up; honours the Juggernaut-blitz cancel via a `blockerIgnoresReactions` push flag), Strip Ball (pushed carrier drops the ball, which bounces). DEFERRED: Grab (any-adjacent push-square choice + Sidestep cancel — Sidestep is batch 6), Juggernaut (Both Down→Push conversion on a Blitz needs the both-down path to redirect into a push; owns the Wrestle/Fend/Stand Firm interaction configs), Arm Bar (needs the dodge-fail→armour causer seam), Hit and Run (needs a post-Block free-move action).
-- [ ] 5.4 Flow-queue block effects: Frenzy (second block), Multiple Block.
+- [ ] 5.3 DONE: Fend (denies follow-up; honours the Juggernaut-blitz cancel via a `blockerIgnoresReactions` push flag), Strip Ball (pushed carrier drops the ball, which bounces), Grab (any-adjacent push-square choice via `getGrabPushOptions`; the Sidestep-cancel clause lands with Sidestep in batch 6), Juggernaut (Both Down→Push on a Blitz via `beginPush`; cancels Fend/Stand Firm through the push flag and Wrestle via `suppressReactions` on the result fold), Arm Bar (failed-dodge armour/injury +1: `ArmourOperation` now carries `cause: "dodge"` + `vacatedSquare` and gathers that square's markers; auto-optimized like Mighty Blow). DEFERRED: Hit and Run (needs a post-Block free-move coach decision — an interactive 1-square move ignoring tackle zones that must end unmarked; a new decision type + activation-end interception, subsystem-level).
+- [ ] 5.4 DEFERRED (needs re-entrant flow subsystems, not modifier rules): Frenzy (forced follow-up + a second full interactive Block Action re-driven through the flow queue, plus the Blitz second-block movement/Rush cost — spans the UI/headless/online block drivers) and Multiple Block (a new two-target simultaneous block declaration with a −2 ST duration effect). Both qualify as "rules needing missing engine features" under the batch-5 scoping note; land them with the subsystem work.
 
 ## 6. Marking reactions (adds opponent-movement trigger)
 
-- [ ] 6.1 Opponent-movement trigger point (per-step, marked-square gather) exercised by this batch.
-- [ ] 6.2 Diving Tackle, Shadowing, Tentacles, Prehensile Tail.
+- [ ] 6.1 The per-step marked-square gather already exists on `onDodgeDeclared` (folds the dodger + opponents adjacent to the vacated square) and is now exercised by Prehensile Tail. STILL NEEDED for the rest of 6.2: a richer opponent-movement seam that can (a) react after the dodge roll (Diving Tackle's -2 + go prone), (b) cancel the move and end the activation (Tentacles), and (c) follow into the vacated square (Shadowing).
+- [ ] 6.2 DONE: Prehensile Tail (-1 to a dodge out of its tackle zone, once even with several tails, via the existing `onDodgeDeclared` gather). PENDING (need the 6.1 richer seam): Diving Tackle (post-roll -2 + go prone), Shadowing (D6 4+ follow into the vacated square), Tentacles (D6 + ST vs ST to stop the dodge and end the activation).
 - [ ] 6.3 Sidestep, Taunt, Disturbing Presence (aura also affects pass/catch — coordinate with batch 3).
 - [ ] 6.4 Size/marking passives: Stunty (dodge + injury table, incl. Thick Skull interplay), Titchy, Insignificant, Unsteady.
 

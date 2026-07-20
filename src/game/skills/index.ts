@@ -42,6 +42,10 @@ import { FoulAppearanceRule } from "./rules/FoulAppearanceRule";
 import { BrawlerRule } from "./rules/BrawlerRule";
 import { FendRule } from "./rules/FendRule";
 import { StripBallRule } from "./rules/StripBallRule";
+import { GrabRule } from "./rules/GrabRule";
+import { JuggernautRule } from "./rules/JuggernautRule";
+import { PrehensileTailRule } from "./rules/PrehensileTailRule";
+import { ArmBarRule } from "./rules/ArmBarRule";
 
 let registered = false;
 
@@ -83,6 +87,10 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.BRAWLER, BrawlerRule);
   SkillRegistry.register(SkillType.FEND, FendRule);
   SkillRegistry.register(SkillType.STRIP_BALL, StripBallRule);
+  SkillRegistry.register(SkillType.GRAB, GrabRule);
+  SkillRegistry.register(SkillType.JUGGERNAUT, JuggernautRule);
+  SkillRegistry.register(SkillType.PREHENSILE_TAIL, PrehensileTailRule);
+  SkillRegistry.register(SkillType.ARM_BAR, ArmBarRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

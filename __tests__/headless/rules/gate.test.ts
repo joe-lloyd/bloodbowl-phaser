@@ -36,6 +36,7 @@ describe("rule coverage gate", () => {
     expect(implemented).toEqual(
       [
         SkillType.ACCURATE,
+        SkillType.ARM_BAR,
         SkillType.BIG_HAND,
         SkillType.BLOCK,
         SkillType.BRAWLER,
@@ -50,14 +51,17 @@ describe("rule coverage gate", () => {
         SkillType.EXTRA_ARMS,
         SkillType.FEND,
         SkillType.FOUL_APPEARANCE,
+        SkillType.GRAB,
         SkillType.GUARD,
         SkillType.HORNS,
         SkillType.IRON_HARD_SKIN,
+        SkillType.JUGGERNAUT,
         SkillType.JUMP_UP,
         SkillType.MIGHTY_BLOW,
         SkillType.NERVES_OF_STEEL,
         SkillType.NO_BALL,
         SkillType.PASS,
+        SkillType.PREHENSILE_TAIL,
         SkillType.REGENERATION,
         SkillType.SAFE_PASS,
         SkillType.SPRINT,
@@ -71,7 +75,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(34);
+    expect(cov.implemented).toBe(38);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

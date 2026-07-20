@@ -250,6 +250,26 @@ export class BlockResolutionService {
   }
 
   /**
+   * Grab push options (rulebook p.135): any on-pitch unoccupied square
+   * adjacent to the pushed player, not just the three behind them. Empty when
+   * the target is fully boxed in — the skill then cannot be used.
+   */
+  public getGrabPushOptions(
+    pushedPos: { x: number; y: number },
+    isOccupied: (x: number, y: number) => boolean
+  ): { x: number; y: number }[] {
+    const squares: { x: number; y: number }[] = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const pos = { x: pushedPos.x + dx, y: pushedPos.y + dy };
+        if (this.isOnPitch(pos) && !isOccupied(pos.x, pos.y)) squares.push(pos);
+      }
+    }
+    return squares;
+  }
+
+  /**
    * Roll armor
    */
   public rollArmor(player: Player): ArmorResult {

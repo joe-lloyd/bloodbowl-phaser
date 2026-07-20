@@ -231,6 +231,8 @@ export class MovementManager {
 
         if (!dodgeResult.success) {
           failed = true;
+          // The square the dodger was leaving — Arm Bar markers of it react.
+          const vacatedSquare = { ...currentPos };
           currentPos = step;
           player.gridPosition = currentPos;
           player.status = PlayerStatus.PRONE;
@@ -243,7 +245,13 @@ export class MovementManager {
           }
 
           if (flowManager) {
-            flowManager.add(new ArmourOperation(playerId), true);
+            flowManager.add(
+              new ArmourOperation(playerId, undefined, {
+                cause: "dodge",
+                vacatedSquare,
+              }),
+              true
+            );
           }
 
           this.callbacks.onTurnover("Failed Dodge");
