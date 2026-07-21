@@ -18,6 +18,7 @@ import {
   gatherParticipants,
   adjacentStanding,
   DodgeDeclaredContext,
+  DodgeResolvedContext,
 } from "../skills";
 import { moveAllowance, standUpCost } from "../skills/movement";
 
@@ -144,6 +145,8 @@ export class MovementManager {
     let currentPos = player.gridPosition!;
     const completedPath: { x: number; y: number }[] = [];
     let failed = false;
+    /** Tentacles held the dodger — the activation ends where they stand */
+    let heldFast = false;
     let stepsTaken = 0;
     const preUsed = this.getMovementUsed(playerId);
     const wasProne = player.status === PlayerStatus.PRONE;
@@ -181,34 +184,44 @@ export class MovementManager {
 
       if (this.dodgeController.isDodgeRequired(currentPos, opponents)) {
         // Trigger point: dodge declared — rules from the dodger AND the
-        // opponents marking the vacated square may adjust the roll (Diving
-        // Tackle) or deny the skill reroll (Tackle)
+        // opponents marking the vacated or destination square may adjust
+        // the roll (Prehensile Tail, Titchy) or deny the skill reroll
+        // (Tackle)
+        const markingPenalty = this.dodgeController.calculateDodgeModifiers(
+          step,
+          opponents
+        );
         const dodgeCtx: DodgeDeclaredContext = {
           player,
           from: { ...currentPos },
           to: { ...step },
-          modifiers: this.dodgeController.calculateDodgeModifiers(
-            step,
-            opponents
-          ),
+          modifiers: markingPenalty,
+          markingPenalty,
           skillRerollAllowed: true,
           decisions: gameService?.getDecisionService(),
           flow: flowManager,
           arbiter: gameService?.getRerollArbiter(),
+          dice: this.diceController,
           triggers: [],
         };
         await foldTrigger(
           "onDodgeDeclared",
-          gatherParticipants(
-            player,
-            undefined,
-            adjacentStanding(currentPos, opponents)
-          ),
+          gatherParticipants(player, undefined, [
+            ...adjacentStanding(currentPos, opponents),
+            ...adjacentStanding(step, opponents),
+          ]),
           dodgeCtx
         );
         dodgeCtx.triggers.forEach((t) =>
           this.eventBus.emit(GameEventNames.SkillTriggered, t)
         );
+
+        // Tentacles held the dodger: no Agility Test, no move, and the
+        // activation ends — not a turnover
+        if (dodgeCtx.escapeCancelled) {
+          heldFast = true;
+          break;
+        }
 
         const rollDodge = () =>
           this.dodgeController.attemptDodge(
@@ -229,7 +242,76 @@ export class MovementManager {
             )
           : rollDodge();
 
-        if (!dodgeResult.success) {
+        // Trigger point: dodge resolved — markers of the vacated square
+        // react after any re-rolls (Diving Tackle, Shadowing)
+        const resolvedCtx: DodgeResolvedContext = {
+          player,
+          from: { ...currentPos },
+          to: { ...step },
+          naturalRoll: dodgeResult.roll,
+          target: dodgeResult.target,
+          modifiers: dodgeResult.modifiers,
+          success: dodgeResult.success,
+          decisions: gameService?.getDecisionService(),
+          flow: flowManager,
+          arbiter: gameService?.getRerollArbiter(),
+          dice: this.diceController,
+          triggers: [],
+        };
+        await foldTrigger(
+          "onDodgeResolved",
+          gatherParticipants(
+            player,
+            undefined,
+            adjacentStanding(currentPos, opponents)
+          ),
+          resolvedCtx
+        );
+        resolvedCtx.triggers.forEach((t) =>
+          this.eventBus.emit(GameEventNames.SkillTriggered, t)
+        );
+
+        // Shadowing: the chaser steps into the square being vacated —
+        // free, Standing, no dice for them
+        const applyShadowFollow = (into: { x: number; y: number }) => {
+          if (!resolvedCtx.followInto) return;
+          const shadower = opponents.find(
+            (p) => p.id === resolvedCtx.followInto
+          );
+          if (!shadower?.gridPosition) return;
+          const shadowerFrom = { ...shadower.gridPosition };
+          shadower.gridPosition = { ...into };
+          this.eventBus.emit(GameEventNames.PlayerMoved, {
+            playerId: shadower.id,
+            from: shadowerFrom,
+            to: { ...into },
+            path: [shadowerFrom, { ...into }],
+            ballJoinStep: 0,
+          });
+        };
+
+        // Diving Tackle: the diver is placed Prone in the vacated square
+        // (no Armour Roll — placed, not Knocked Down)
+        if (resolvedCtx.proneInVacated) {
+          const diver = opponents.find(
+            (p) => p.id === resolvedCtx.proneInVacated
+          );
+          if (diver?.gridPosition) {
+            const diverFrom = { ...diver.gridPosition };
+            diver.gridPosition = { ...currentPos };
+            diver.status = PlayerStatus.PRONE;
+            this.eventBus.emit(GameEventNames.PlayerMoved, {
+              playerId: diver.id,
+              from: diverFrom,
+              to: { ...currentPos },
+              path: [diverFrom, { ...currentPos }],
+              ballJoinStep: 0,
+            });
+            this.eventBus.emit(GameEventNames.PlayerStatusChanged, diver);
+          }
+        }
+
+        if (!resolvedCtx.success) {
           failed = true;
           // The square the dodger was leaving — Arm Bar markers of it react.
           const vacatedSquare = { ...currentPos };
@@ -238,6 +320,8 @@ export class MovementManager {
           player.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+
+          applyShadowFollow(vacatedSquare);
 
           if (holdingBall && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
@@ -258,6 +342,8 @@ export class MovementManager {
           completedPath.push(step);
           break;
         }
+
+        applyShadowFollow({ ...resolvedCtx.from });
       }
 
       stepsTaken++;
@@ -373,7 +459,8 @@ export class MovementManager {
       ballJoinStep,
     });
 
-    if (preUsed + stepsTaken >= moveAllowance(player)) {
+    if (heldFast || preUsed + stepsTaken >= moveAllowance(player)) {
+      // Tentacles ends the activation where the player stands (no turnover)
       this.callbacks.onActivationFinished(playerId);
     }
 

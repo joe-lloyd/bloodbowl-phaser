@@ -11,6 +11,7 @@ import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
 import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
@@ -45,6 +46,7 @@ import { BounceOperation } from "@/game/operations/BounceOperation";
 import { ArmourOperation } from "@/game/operations/ArmourOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
+import { StabOperation } from "@/game/operations/StabOperation";
 import { IRNGService } from "./rng/RNGService.js";
 import {
   RerollArbiter,
@@ -54,6 +56,8 @@ import {
   adjacentStanding,
   withRerollOffer,
   FollowUpContext,
+  foldActionDeclared,
+  ActionDeclaredContext,
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
@@ -908,6 +912,27 @@ export class GameService implements IGameService {
       const player = this.getPlayerById(playerId);
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
     }
+    // A Stab Special Action needs the Stab trait and a Standing stabber
+    if (action === "stab") {
+      const player = this.getPlayerById(playerId);
+      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (!hasSkill(player.skills, SkillType.STAB)) return false;
+    }
+    // Rules may refuse the declaration outright (Unsteady vs Secure the Ball)
+    const declaring = this.getPlayerById(playerId);
+    if (declaring) {
+      const ctx: ActionDeclaredContext = {
+        player: declaring,
+        action,
+        refused: false,
+        triggers: [],
+      };
+      foldActionDeclared(ctx);
+      for (const t of ctx.triggers) {
+        this.eventBus.emit(GameEventNames.SkillTriggered, t);
+      }
+      if (ctx.refused) return false;
+    }
     return this.playerActionManager.declareAction(playerId, action);
   }
 
@@ -941,5 +966,26 @@ export class GameService implements IGameService {
     }
 
     this.flowManager.add(new FoulOperation(foulerId, targetX, targetY));
+  }
+
+  /**
+   * Stab Special Action (2025 p.136): unmodifiable Armour Roll against an
+   * adjacent Standing opponent; the activation ends after the stab. Legal
+   * as the declared "stab" action, or during a Blitz in place of the Block.
+   */
+  public async stabPlayer(attackerId: string, targetId: string): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
+
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return;
+    if (!hasSkill(attacker.skills, SkillType.STAB)) return;
+
+    const declared =
+      this.state.activePlayer?.id === attackerId
+        ? this.state.activePlayer.action
+        : undefined;
+    if (declared !== "stab" && declared !== "blitz") return;
+
+    this.flowManager.add(new StabOperation(attackerId, targetId));
   }
 }

@@ -13,6 +13,7 @@ import { PASSING_RULE_SCENARIOS } from "./passing";
 import { MUTATION_RULE_SCENARIOS } from "./mutation";
 import { STRENGTH_RULE_SCENARIOS } from "./strength";
 import { TRAIT_RULE_SCENARIOS } from "./traits";
+import { DEVIOUS_RULE_SCENARIOS } from "./devious";
 
 export const RULE_SCENARIOS: RuleScenarioEntry[] = [
   ...GENERAL_RULE_SCENARIOS,
@@ -21,6 +22,7 @@ export const RULE_SCENARIOS: RuleScenarioEntry[] = [
   ...MUTATION_RULE_SCENARIOS,
   ...STRENGTH_RULE_SCENARIOS,
   ...TRAIT_RULE_SCENARIOS,
+  ...DEVIOUS_RULE_SCENARIOS,
 ];
 
 export function ruleScenariosFor(

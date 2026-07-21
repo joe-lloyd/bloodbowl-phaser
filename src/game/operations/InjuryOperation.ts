@@ -50,15 +50,18 @@ export class InjuryOperation extends GameOperation {
       .getDiceController()
       .roll2D6(`Injury Roll (${player.playerName})`);
 
-    // 2. Determine result (with modifier), then let rules adjust it
+    // 2. Fold the rules' declared effects (table switch, KO downgrade),
+    // then resolve them together — stacked skills stay independent
     const injuryController = gameService.getInjuryController();
     const modifier = this.opts.modifier ?? 0;
+    const total = roll + modifier;
     const ctx: InjuryRollContext = {
       player,
       causedBy,
       roll,
       modifier,
-      result: injuryController.getInjuryResult(player, roll + modifier),
+      table: "standard",
+      result: injuryController.getInjuryResult(player, total),
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -70,6 +73,20 @@ export class InjuryOperation extends GameOperation {
       causedBy ? [causedBy, player] : [player],
       ctx
     );
+
+    ctx.result = injuryController.getInjuryResult(player, total, ctx.table);
+    if (
+      ctx.koDowngrade &&
+      ctx.result === InjuryResult.KO &&
+      total === injuryController.lowestKO(ctx.table)
+    ) {
+      ctx.result = InjuryResult.STUNNED;
+      ctx.triggers.push(ctx.koDowngrade);
+    }
+    ctx.casualtyAutoBadlyHurt =
+      ctx.result === InjuryResult.CASUALTY &&
+      injuryController.isAutoBadlyHurt(ctx.table, total);
+
     ctx.triggers.forEach((t) =>
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
@@ -89,7 +106,9 @@ export class InjuryOperation extends GameOperation {
         player.status = PlayerStatus.INJURED;
         // Trigger Casualty Operation
         flowManager.add(
-          new CasualtyOperation(this.playerId, this.opts.causedById),
+          new CasualtyOperation(this.playerId, this.opts.causedById, {
+            autoBadlyHurt: ctx.casualtyAutoBadlyHurt,
+          }),
           true
         );
         break;

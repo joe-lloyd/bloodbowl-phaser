@@ -101,6 +101,8 @@ export interface IGameService {
     targetY: number
   ): Promise<{ success: boolean; result?: string }>;
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
+  /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
+  stabPlayer(attackerId: string, targetId: string): Promise<void>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   throwInBall(from: { x: number; y: number }): void;

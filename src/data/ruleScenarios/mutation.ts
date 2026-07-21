@@ -1,5 +1,6 @@
 /**
- * Rule scenarios — Mutation skills (Two Heads, Big Hand, Extra Arms).
+ * Rule scenarios — Mutation skills (Two Heads, Big Hand, Extra Arms,
+ * Disturbing Presence).
  */
 
 import { SkillType } from "../../types/Skills";
@@ -12,6 +13,7 @@ import {
   sawEvent,
   skillTriggered,
   skillCheckDiff,
+  playerAt,
   blockDiceCount,
 } from "../../game/rules-lab";
 
@@ -213,6 +215,62 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
   {
+    skill: SkillType.TENTACLES,
+    configs: [
+      {
+        id: "tentacles-holds-dodger",
+        name: "Tentacles grips the escaping dodger",
+        description:
+          "D6 + own ST - dodger ST of 6+ (or a natural 6) holds the player; their activation ends, no dodge is rolled",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 16,
+              y: 5,
+              skills: [SkillType.TENTACLES],
+              stats: { ST: 5 }, // holds on a 4+ vs ST 3
+            },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+        ],
+        outcomes: [
+          {
+            id: "held-fast",
+            name: "The dodger never leaves the square",
+            matches: (r) =>
+              sawEvent(
+                r,
+                GameEventNames.SkillTriggered,
+                (d) =>
+                  (d as { skill?: string }).skill === SkillType.TENTACLES &&
+                  !!(d as { effect?: string }).effect?.includes("held fast")
+              ),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 16, y: 4 }),
+                "the held player must still be in their square"
+              );
+              assert(
+                skillCheckDiff(r, "Dodge") === undefined,
+                "no dodge Agility Test may be rolled"
+              );
+              assert(
+                !sawEvent(r, GameEventNames.Turnover),
+                "being held is not a turnover"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.TWO_HEADS,
     configs: [
       {
@@ -276,6 +334,50 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 skillCheckDiff(r, "Pickup") === 1,
                 "net modifier must be +1 (base +1, marker cancelled)"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.DISTURBING_PRESENCE,
+    configs: [
+      {
+        id: "disturbing-presence-pass",
+        name: "Pass near a Disturbing Presence",
+        description:
+          "-1 to the PA test for the aura player 3 squares away (not marking)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 }, // passer
+            { playerIndex: 1, x: 7, y: 5 }, // catcher (Quick Pass)
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 8, // 3 squares from the passer — inside the aura, no marking
+              skills: [SkillType.DISTURBING_PRESENCE],
+            },
+          ],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        outcomes: [
+          {
+            id: "minus-one-pass",
+            name: "-1 on the PA test",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DISTURBING_PRESENCE) &&
+              skillCheckDiff(r, "Pass") === -1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Pass") === -1,
+                "PA test must carry the aura's -1 (Quick Pass base 0)"
               ),
           },
         ],

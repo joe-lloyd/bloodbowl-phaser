@@ -63,7 +63,10 @@ export class PlayerActionManager {
       case "secureBall":
       case "forgoe":
       case "special":
-        // Always allowed if general activation is allowed
+      case "stab":
+        // Always allowed if general activation is allowed (Stab: "there is
+        // no limit to the number of players that can declare this Special
+        // Action each Turn")
         break;
       case "throwTeamMate":
         // Check if player has Right Stuff / Throw Team Mate traits (TODO)

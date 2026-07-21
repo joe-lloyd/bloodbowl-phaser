@@ -501,6 +501,8 @@ export interface UIEvents {
     validDirections: { x: number; y: number }[];
     canFollowUp: boolean;
     resultType?: string;
+    /** Team whose coach places the push (the pushed player's on Sidestep) */
+    chooserTeamId?: string;
     /** Which rulebook tier the offered squares are: open, chain, or crowd */
     pushTier?: "open" | "chain" | "crowd";
   };
@@ -563,6 +565,7 @@ export type ActionType =
   | "throwTeamMate"
   | "secureBall"
   | "special"
+  | "stab"
   | "forgoe";
 
 /**

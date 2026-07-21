@@ -33,6 +33,7 @@ export type HeadlessCommand =
   | { type: "pass"; playerId: string; x: number; y: number }
   | { type: "handoff"; playerId: string; x: number; y: number }
   | { type: "foul"; playerId: string; x: number; y: number }
+  | { type: "stab"; attackerId: string; defenderId: string }
   | { type: "end-activation"; playerId: string }
   | { type: "end-turn" }
   // Decision replies
@@ -66,6 +67,8 @@ export type PendingDecision =
       attackerId: string;
       defenderId: string;
       resultType: string;
+      /** Team whose coach places the push (the pushed player's on Sidestep) */
+      chooserTeamId?: string;
       options: GridPosition[];
     }
   | {

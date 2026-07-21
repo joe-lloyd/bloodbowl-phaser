@@ -46,6 +46,7 @@ const COMMAND_SHAPES: Record<
   pass: { playerId: "string", x: "number", y: "number" },
   handoff: { playerId: "string", x: "number", y: "number" },
   foul: { playerId: "string", x: "number", y: "number" },
+  stab: { attackerId: "string", defenderId: "string" },
   "end-activation": { playerId: "string" },
   "end-turn": {},
   "choose-block-result": { index: "number" },
@@ -278,6 +279,9 @@ export class HeadlessGame {
       case "foul":
         await gs.foulPlayer(cmd.playerId, cmd.x, cmd.y);
         break;
+      case "stab":
+        await gs.stabPlayer(cmd.attackerId, cmd.defenderId);
+        break;
       case "end-activation":
         gs.finishActivation(cmd.playerId);
         break;
@@ -427,6 +431,7 @@ export class HeadlessGame {
         attackerId: data.attackerId,
         defenderId: data.defenderId,
         resultType: data.resultType,
+        chooserTeamId: data.chooserTeamId,
         options: data.validDirections,
       };
     } else if (name === GameEventNames.PlayerMoved && data?.followUpData) {

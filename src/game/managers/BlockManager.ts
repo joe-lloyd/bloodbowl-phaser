@@ -76,6 +76,27 @@ class FinishActivationOperation extends GameOperation {
 }
 
 /**
+ * Taunt (2025 rulebook p.136): the pushed player's coach made the blocker
+ * Follow-up. Runs the free move without offering a choice; the activation
+ * ends via a FinishActivationOperation queued at the back, once armour and
+ * injury rolls have settled.
+ */
+class ForcedFollowUpOperation extends GameOperation {
+  public readonly name = "ForcedFollowUp";
+
+  constructor(
+    private attackerId: string,
+    private targetSquare: { x: number; y: number }
+  ) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    await context.gameService.followUpPush(this.attackerId, this.targetSquare);
+  }
+}
+
+/**
  * Frenzy (2025 rulebook p.130): the blocker must follow up a Push Back, and
  * if the target is still Standing must throw a second Block Action at the same
  * player. Runs after the first push settles; the second block re-enters the
@@ -356,6 +377,8 @@ export class BlockManager {
       preventFollowUp: false,
       stripBall: false,
       grabPush: false,
+      sideStepPush: false,
+      forceFollowUp: false,
       decisions: this.decisions(),
       flow: this.callbacks.getFlowManager?.(),
       triggers: [],
@@ -381,6 +404,8 @@ export class BlockManager {
       preventFollowUp: pushCtx.preventFollowUp,
       stripBall: pushCtx.stripBall,
       grabPush: pushCtx.grabPush,
+      sideStepPush: pushCtx.sideStepPush,
+      forceFollowUp: pushCtx.forceFollowUp,
       links: [],
     };
     this.requestPushDecision(attacker.gridPosition!, defender);
@@ -430,6 +455,10 @@ export class BlockManager {
     stripBall?: boolean;
     /** Grab: the blocker picks any unoccupied square adjacent to the target */
     grabPush?: boolean;
+    /** Sidestep: the PUSHED player's coach picks any adjacent unoccupied square */
+    sideStepPush?: boolean;
+    /** Taunt: the blocker must follow up — no follow-up choice is offered */
+    forceFollowUp?: boolean;
     links: {
       playerId: string;
       from: { x: number; y: number };
@@ -594,11 +623,13 @@ export class BlockManager {
     const isOccupied = (x: number, y: number) =>
       this.getPlayerAt(x, y) !== undefined;
 
-    // Grab (first push only): the blocker chooses any unoccupied square
-    // adjacent to the target. Falls back to the normal push if the target is
-    // fully boxed in (the skill "cannot be used").
-    const grabOptions =
-      this.chain?.grabPush && this.chain.links.length === 0
+    // Grab / Sidestep (first push only): any unoccupied square adjacent to
+    // the target — Grab hands the choice to the blocker, Sidestep to the
+    // PUSHED player's coach. Both fall back to the normal push if the
+    // target is fully boxed in (the skill "cannot be used").
+    const anyAdjacent =
+      (this.chain?.grabPush || this.chain?.sideStepPush) &&
+      this.chain.links.length === 0
         ? this.blockResolutionService.getGrabPushOptions(
             pushed.gridPosition!,
             isOccupied
@@ -606,13 +637,19 @@ export class BlockManager {
         : [];
 
     const { options, tier } =
-      grabOptions.length > 0
-        ? { options: grabOptions, tier: "open" as const }
+      anyAdjacent.length > 0
+        ? { options: anyAdjacent, tier: "open" as const }
         : this.blockResolutionService.getPushOptions(
             pusherPos,
             pushed.gridPosition!,
             isOccupied
           );
+
+    const sideStepApplies =
+      !!this.chain?.sideStepPush &&
+      this.chain.links.length === 0 &&
+      anyAdjacent.length > 0;
+    const attacker = this.getPlayerById(this.chain!.attackerId);
 
     this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
       defenderId: pushed.id,
@@ -621,7 +658,10 @@ export class BlockManager {
         this.blockResolutionService.allowsFollowUp(this.chain!.resultType) &&
         !this.chain!.preventFollowUp,
       resultType: this.chain!.resultType,
-      attackerId: this.chain!.attackerId, // chooser is always the blocker
+      attackerId: this.chain!.attackerId,
+      // The blocker's coach chooses — except a Sidestep push, which the
+      // pushed player's coach places
+      chooserTeamId: sideStepApplies ? pushed.teamId : attacker?.teamId,
       pushTier: tier,
     });
   }
@@ -689,8 +729,14 @@ export class BlockManager {
   /** Apply all chain links innermost-first, then knockdown/follow-up. */
   private applyChain(followUp: boolean): void {
     if (!this.chain) return;
-    const { attackerId, resultType, links, preventFollowUp, stripBall } =
-      this.chain;
+    const {
+      attackerId,
+      resultType,
+      links,
+      preventFollowUp,
+      stripBall,
+      forceFollowUp,
+    } = this.chain;
     const knockDownDefender =
       this.chain.knockDownDefender ??
       (resultType === "pow" || resultType === "pow-dodge");
@@ -746,7 +792,7 @@ export class BlockManager {
         ballPath: carriedBall ? [link.from, link.to] : undefined,
         ballJoinStep: 0,
         followUpData:
-          isOriginalDefender && !followUp && !preventFollowUp
+          isOriginalDefender && !followUp && !preventFollowUp && !forceFollowUp
             ? { attackerId, targetSquare: link.from }
             : undefined,
       });
@@ -801,6 +847,17 @@ export class BlockManager {
       this.state.ballPosition.y === first.to.y
     ) {
       flowManager.add(new BounceOperation(first.to), true);
+    }
+
+    // Taunt forced the blocker's follow-up: run the free move now (at the
+    // FRONT, before any queued armour/injury rolls) and end the activation
+    // once everything has settled — no follow-up prompt will fire.
+    if (forceFollowUp && first && first.to !== null) {
+      flowManager?.add(
+        new ForcedFollowUpOperation(attackerId, first.from),
+        true
+      );
+      flowManager?.add(new FinishActivationOperation(attackerId));
     }
 
     // Fend denied the blocker their follow-up: no follow-up prompt will fire,

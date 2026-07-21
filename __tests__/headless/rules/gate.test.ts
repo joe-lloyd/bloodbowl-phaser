@@ -47,6 +47,8 @@ describe("rule coverage gate", () => {
         SkillType.DAUNTLESS,
         SkillType.DECAY,
         SkillType.DEFENSIVE,
+        SkillType.DISTURBING_PRESENCE,
+        SkillType.DIVING_TACKLE,
         SkillType.DODGE,
         SkillType.EXTRA_ARMS,
         SkillType.FEND,
@@ -64,19 +66,37 @@ describe("rule coverage gate", () => {
         SkillType.PREHENSILE_TAIL,
         SkillType.REGENERATION,
         SkillType.SAFE_PASS,
+        SkillType.SHADOWING,
+        SkillType.SIDESTEP,
         SkillType.SPRINT,
+        SkillType.STAB,
         SkillType.STAND_FIRM,
         SkillType.STRIP_BALL,
+        SkillType.STUNTY,
         SkillType.SURE_FEET,
         SkillType.SURE_HANDS,
         SkillType.TACKLE,
+        SkillType.TAUNT,
+        SkillType.TENTACLES,
         SkillType.THICK_SKULL,
+        SkillType.TITCHY,
         SkillType.TWO_HEADS,
+        SkillType.UNSTEADY,
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(38);
+    expect(cov.implemented).toBe(48);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
+  });
+
+  it("draft-list-only traits are deliberately inert (allowlist)", () => {
+    // Insignificant (2025 p.129) only constrains Team Draft List
+    // construction, which happens outside a match - nothing to enforce
+    // in-game, so it stays unregistered on purpose.
+    const draftListOnly = [SkillType.INSIGNIFICANT];
+    for (const type of draftListOnly) {
+      expect(SkillRegistry.has(type)).toBe(false);
+    }
   });
 
   it("seed search fails loudly when the outcome is unreachable", async () => {

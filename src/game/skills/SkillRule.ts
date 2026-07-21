@@ -16,6 +16,7 @@
  */
 
 import { Player } from "../../types/Player";
+import { ActionType } from "../../types/events";
 import {
   BlockResult,
   BlockResultType,
@@ -25,7 +26,10 @@ import { DecisionService } from "./DecisionService";
 import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
 import { DiceController } from "../controllers/DiceController";
-import { InjuryResult } from "../controllers/InjuryController";
+import {
+  InjuryResult,
+  InjuryTableKind,
+} from "../controllers/InjuryController";
 
 export interface SkillTriggerRecord {
   playerId: string;
@@ -58,8 +62,42 @@ export interface DodgeDeclaredContext extends TriggerContextBase {
   to: { x: number; y: number };
   /** Net dodge modifier; rules may worsen/improve it (Diving Tackle) */
   modifiers: number;
+  /**
+   * The (negative) share of `modifiers` that comes from opponents Marking
+   * the destination square. Rules that ignore or soften marking (Stunty,
+   * Titchy) adjust BOTH fields, so each marker's -1 is only forgiven once.
+   */
+  markingPenalty: number;
   /** Rules may deny the dodging player's skill reroll (Tackle) */
   skillRerollAllowed: boolean;
+  /**
+   * The dodger is held fast: they never leave the square, no Agility Test
+   * is rolled, and their activation ends — not a turnover (Tentacles).
+   */
+  escapeCancelled?: boolean;
+}
+
+/**
+ * The dodge Agility Test has been rolled and any re-rolls applied. Markers
+ * of the vacated square may still react: worsen the result and drop prone
+ * in the vacated square (Diving Tackle) or chase into it (Shadowing).
+ */
+export interface DodgeResolvedContext extends TriggerContextBase {
+  player: Player;
+  /** The square the dodger left (where reactions land) */
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  /** The natural D6 (a 6 always succeeds — no modifier can flip it) */
+  naturalRoll: number;
+  target: number;
+  /** Net modifiers applied to the test; reactions may worsen (Diving Tackle) */
+  modifiers: number;
+  /** The final outcome; reactions may flip it to a failure */
+  success: boolean;
+  /** This player is placed Prone in the vacated square (Diving Tackle) */
+  proneInVacated?: string;
+  /** This player follows into the vacated square (Shadowing) */
+  followInto?: string;
 }
 
 /** A block is declared, before the dice are rolled. */
@@ -120,6 +158,17 @@ export interface PushContext extends TriggerContextBase {
    * not just the three behind them (Grab).
    */
   grabPush: boolean;
+  /**
+   * The PUSHED player's coach chooses any unoccupied square adjacent to
+   * them to be pushed into (Sidestep — cancelled when the blocker has
+   * Grab).
+   */
+  sideStepPush: boolean;
+  /**
+   * The pushed player's coach makes the blocker Follow-up whether the
+   * blocker wants to or not (Taunt).
+   */
+  forceFollowUp: boolean;
 }
 
 /** Outcome of a block result, mutated by rules before it is applied. */
@@ -225,7 +274,12 @@ export interface ArmourBreakContext extends TriggerContextBase {
   broken: boolean;
 }
 
-/** A player's injury roll has been made; rules may adjust the result. */
+/**
+ * A player's injury roll has been made. Rules declare independent,
+ * order-agnostic effects (which table applies, downgrade requests); the
+ * operation resolves them together after the fold, so stacked skills like
+ * Stunty + Thick Skull compose without knowing about each other.
+ */
 export interface InjuryRollContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
@@ -233,7 +287,21 @@ export interface InjuryRollContext extends TriggerContextBase {
   roll: number;
   /** Net injury modifier (from Mighty Blow via the armour fold, …) */
   modifier: number;
+  /** Which Injury Table resolves the roll (Stunty switches it). */
+  table: InjuryTableKind;
+  /**
+   * Request to treat the active table's LOWEST Knocked-out total as a
+   * Stunned result (Thick Skull: the 8 on the standard table, the 7 on the
+   * Stunty table). The trigger record is announced only if it bites.
+   */
+  koDowngrade?: SkillTriggerRecord;
+  /** Resolved from `table` + `koDowngrade` by the operation after the fold. */
   result: InjuryResult;
+  /**
+   * The casualty is automatic Badly Hurt — no Casualty Roll is made (the
+   * Stunty Injury Table's 9). Resolved by the operation after the fold.
+   */
+  casualtyAutoBadlyHurt?: boolean;
 }
 
 /** A casualty is about to be rolled (Regeneration's save happens here). */
@@ -268,6 +336,23 @@ export interface CountAssistContext {
   triggers: SkillTriggerRecord[];
 }
 
+/**
+ * An action is being declared for a player, after the generic legality
+ * checks. Folded synchronously (declaration gating is passive - no
+ * decisions, dice, or flow); a rule may refuse the declaration outright
+ * (Unsteady vs Secure the Ball; later My Ball).
+ */
+export interface ActionDeclaredContext {
+  /** The player the action is being declared for. */
+  player: Player;
+  /** The action being declared ("move", "secureBall", ...). */
+  action: ActionType;
+  /** Set true to refuse the declaration; nothing is declared. */
+  refused: boolean;
+  /** Skill effects to announce. */
+  triggers: SkillTriggerRecord[];
+}
+
 /** The casualty D16 has been rolled; rules may modify it (Decay). */
 export interface CasualtyRollContext extends TriggerContextBase {
   player: Player;
@@ -286,6 +371,10 @@ export interface SkillRule {
 
   onDodgeDeclared?(
     ctx: DodgeDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
+  onDodgeResolved?(
+    ctx: DodgeResolvedContext,
     self: Player
   ): void | Promise<void>;
   onPickup?(ctx: PickupContext, self: Player): void | Promise<void>;
@@ -318,6 +407,12 @@ export interface SkillRule {
     ctx: CasualtyRollContext,
     self: Player
   ): void | Promise<void>;
+  /**
+   * Passive declaration gate, folded synchronously when an action is being
+   * declared for this player (Unsteady refuses Secure the Ball). Never
+   * raises decisions or enqueues flow - it only mutates the context.
+   */
+  onActionDeclared?(ctx: ActionDeclaredContext, self: Player): void;
   /**
    * Passive assist-eligibility adjustment, folded synchronously while assists
    * are counted (Guard ignores marking; Defensive cancels an enemy's Guard).

@@ -407,4 +407,40 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
       }),
     ],
   },
+  {
+    skill: SkillType.TAUNT,
+    configs: [
+      blockConfig({
+        id: "taunt-forces-follow-up",
+        name: "Taunt forces the blocker's follow-up",
+        description:
+          "The pushed player's coach makes the blocker follow up — no choice",
+        setup: faceOff([], [SkillType.TAUNT]),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "follow-up-forced",
+            name: "The blocker ends in the vacated square",
+            matches: (r) => reactionOffered(r, { skill: SkillType.TAUNT }),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 11, y: 5 }),
+                "the blocker must follow up into the vacated square"
+              );
+              assert(
+                !r.decisions.some((d) => d.type === "follow-up"),
+                "no follow-up choice may be offered"
+              );
+              assert(
+                playerStanding(r, "team2:0"),
+                "a plain push leaves the taunter standing"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
 ];

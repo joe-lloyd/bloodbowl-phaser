@@ -56,6 +56,18 @@ export class RerollArbiter {
     this.consumeSkillReroll(player, skill);
   }
 
+  /** Counted per-turn skill usage (Shadowing may fire MA times per turn). */
+  private usesCount = new Map<string, number>();
+
+  public usesThisTurn(player: Player, skill: SkillType): number {
+    return this.usesCount.get(`${this.turnKey()}|${player.id}|${skill}`) ?? 0;
+  }
+
+  public consumeUse(player: Player, skill: SkillType): void {
+    const key = `${this.turnKey()}|${player.id}|${skill}`;
+    this.usesCount.set(key, (this.usesCount.get(key) ?? 0) + 1);
+  }
+
   public consumeTeamReroll(teamId: string): void {
     this.usedTeam.add(`${this.turnKey()}|${teamId}`);
     const team = this.getTeam(teamId);

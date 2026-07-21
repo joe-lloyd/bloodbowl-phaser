@@ -22,7 +22,11 @@ export class CasualtyOperation extends GameOperation {
 
   constructor(
     private playerId: string,
-    private causedById?: string
+    private causedById?: string,
+    private opts: {
+      /** No Casualty Roll — automatically Badly Hurt (Stunty's 9). */
+      autoBadlyHurt?: boolean;
+    } = {}
   ) {
     super();
   }
@@ -59,6 +63,16 @@ export class CasualtyOperation extends GameOperation {
       );
       player.status = PlayerStatus.RESERVE;
       player.gridPosition = undefined;
+      return;
+    }
+
+    if (this.opts.autoBadlyHurt) {
+      // Stunty's 9: no Casualty Roll is made — automatically Badly Hurt
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Result: ${CasualtyType.BADLY_HURT}`
+      );
+      player.injuries.push(InjuryType.BADLY_HURT);
       return;
     }
 

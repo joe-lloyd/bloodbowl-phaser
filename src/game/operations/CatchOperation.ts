@@ -8,6 +8,7 @@ import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
+  playersWithin,
   CatchContext,
 } from "../skills";
 
@@ -78,11 +79,11 @@ export class CatchOperation extends GameOperation {
     };
     await foldTrigger(
       "onCatch",
-      gatherParticipants(
-        player,
-        undefined,
-        adjacentStanding(player.gridPosition, opponents)
-      ),
+      gatherParticipants(player, undefined, [
+        ...adjacentStanding(player.gridPosition, opponents),
+        // Aura skills (Disturbing Presence) reach 3 squares, any status
+        ...playersWithin(player.gridPosition, opponents, 3),
+      ]),
       catchCtx
     );
     catchCtx.triggers.forEach((t) =>

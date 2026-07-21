@@ -11,8 +11,10 @@ import {
   blockConfig,
   assert,
   skillTriggered,
+  reactionOffered,
   playerStanding,
   playerAt,
+  playerOf,
   sawEvent,
   blockDiceCount,
 } from "../../game/rules-lab";
@@ -241,6 +243,144 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: [
           { type: "declare-action", playerId: "team1:0", action: "pass" },
           { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.DIVING_TACKLE,
+    configs: [
+      {
+        id: "diving-tackle-drops-dodger",
+        name: "Diving Tackle after the dodge roll",
+        description:
+          "-2 after re-rolls brings the dodger down; the tackler drops Prone in the vacated square",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 16,
+              y: 5,
+              skills: [SkillType.DIVING_TACKLE],
+            },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+        ],
+        outcomes: [
+          {
+            id: "dodger-down",
+            name: "The succeeded dodge is flipped to a failure",
+            matches: (r) =>
+              reactionOffered(r, { skill: SkillType.DIVING_TACKLE }) &&
+              skillTriggered(r, SkillType.DIVING_TACKLE),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 15, y: 3 }) &&
+                  !playerStanding(r, "team1:0"),
+                "the dodger must be down in the destination square"
+              );
+              assert(
+                playerAt(r, "team2:0", { x: 16, y: 4 }),
+                "the tackler must be Prone in the vacated square"
+              );
+              assert(
+                playerOf(r, "team2:0").status === PlayerStatus.PRONE,
+                "the tackler is placed Prone (no Armour Roll for them)"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.SIDESTEP,
+    configs: [
+      blockConfig({
+        id: "sidestep-picks-square",
+        name: "Pushed player Sidesteps",
+        description:
+          "The pushed player's coach picks any adjacent unoccupied square",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, skills: [SkillType.SIDESTEP] },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "defender-chooses",
+            name: "The defender's coach places the push",
+            matches: (r) =>
+              reactionOffered(r, {
+                skill: SkillType.SIDESTEP,
+                chooser: "team2",
+              }),
+            verify: (r) => {
+              const push = r.decisions.find(
+                (d) => d.type === "push-direction"
+              ) as
+                | {
+                    options: { x: number; y: number }[];
+                    chooserTeamId?: string;
+                  }
+                | undefined;
+              assert(!!push, "a push-direction decision must be raised");
+              assert(
+                push!.chooserTeamId === r.game.ctx.team2.id,
+                "the PUSHED player's coach must choose the square"
+              );
+              const opts = push!.options;
+              assert(
+                opts.some((o) => o.x === 11 && o.y === 4) &&
+                  opts.some((o) => o.x === 11 && o.y === 6),
+                "any adjacent unoccupied square must be offered"
+              );
+              assert(
+                !opts.some((o) => o.x === 10 && o.y === 5),
+                "the blocker's own square is occupied and never offered"
+              );
+            },
+          },
+        ],
+      }),
+      blockConfig({
+        id: "sidestep-cancelled-by-grab",
+        name: "Grab cancels Sidestep",
+        description:
+          "A blocker with Grab denies the pushed player their Sidestep",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.GRAB] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, skills: [SkillType.SIDESTEP] },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        outcomes: [
+          {
+            id: "no-sidestep",
+            name: "No Sidestep reaction is offered",
+            matches: (r) => skillTriggered(r, SkillType.GRAB),
+            verify: (r) =>
+              assert(
+                !reactionOffered(r, { skill: SkillType.SIDESTEP }),
+                "Sidestep cannot be used against a Grab block"
+              ),
+          },
         ],
       }),
     ],

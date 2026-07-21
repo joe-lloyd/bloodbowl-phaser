@@ -7,7 +7,7 @@
 import { SkillType } from "../../types/Skills";
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
-import { BlockResultContext, CountAssistContext } from "./SkillRule";
+import { ActionDeclaredContext, BlockResultContext, CountAssistContext } from "./SkillRule";
 import { BlockRule } from "./rules/BlockRule";
 import { DodgeRule } from "./rules/DodgeRule";
 import { TackleRule } from "./rules/TackleRule";
@@ -46,6 +46,16 @@ import { GrabRule } from "./rules/GrabRule";
 import { JuggernautRule } from "./rules/JuggernautRule";
 import { PrehensileTailRule } from "./rules/PrehensileTailRule";
 import { ArmBarRule } from "./rules/ArmBarRule";
+import { DisturbingPresenceRule } from "./rules/DisturbingPresenceRule";
+import { TitchyRule } from "./rules/TitchyRule";
+import { StuntyRule } from "./rules/StuntyRule";
+import { SidestepRule } from "./rules/SidestepRule";
+import { TauntRule } from "./rules/TauntRule";
+import { DivingTackleRule } from "./rules/DivingTackleRule";
+import { ShadowingRule } from "./rules/ShadowingRule";
+import { TentaclesRule } from "./rules/TentaclesRule";
+import { UnsteadyRule } from "./rules/UnsteadyRule";
+import { StabRule } from "./rules/StabRule";
 
 let registered = false;
 
@@ -91,6 +101,19 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.JUGGERNAUT, JuggernautRule);
   SkillRegistry.register(SkillType.PREHENSILE_TAIL, PrehensileTailRule);
   SkillRegistry.register(SkillType.ARM_BAR, ArmBarRule);
+  SkillRegistry.register(
+    SkillType.DISTURBING_PRESENCE,
+    DisturbingPresenceRule
+  );
+  SkillRegistry.register(SkillType.TITCHY, TitchyRule);
+  SkillRegistry.register(SkillType.STUNTY, StuntyRule);
+  SkillRegistry.register(SkillType.SIDESTEP, SidestepRule);
+  SkillRegistry.register(SkillType.TAUNT, TauntRule);
+  SkillRegistry.register(SkillType.DIVING_TACKLE, DivingTackleRule);
+  SkillRegistry.register(SkillType.SHADOWING, ShadowingRule);
+  SkillRegistry.register(SkillType.TENTACLES, TentaclesRule);
+  SkillRegistry.register(SkillType.UNSTEADY, UnsteadyRule);
+  SkillRegistry.register(SkillType.STAB, StabRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.
@@ -99,6 +122,7 @@ registerBuiltinSkills();
 /** Trigger points a rule can hook (see SkillRule). */
 export type TriggerHook =
   | "onDodgeDeclared"
+  | "onDodgeResolved"
   | "onBlockDeclared"
   | "onBlockDiceRolled"
   | "onPush"
@@ -140,6 +164,23 @@ export function gatherParticipants(
     }
   }
   return participants;
+}
+
+/**
+ * On-pitch players within `range` squares (Chebyshev) of a square, any
+ * status — aura skills like Disturbing Presence work even while down.
+ */
+export function playersWithin(
+  square: { x: number; y: number },
+  players: Player[],
+  range: number
+): Player[] {
+  return players.filter((p) => {
+    if (!p.gridPosition) return false;
+    const dx = Math.abs(p.gridPosition.x - square.x);
+    const dy = Math.abs(p.gridPosition.y - square.y);
+    return dx <= range && dy <= range && dx + dy > 0;
+  });
 }
 
 /** Standing players adjacent to a square — the usual "others" for a gather. */
@@ -217,6 +258,17 @@ export function foldCountAssists(
   }
 }
 
+/**
+ * Fold declaration-gating rules for the declaring player. Synchronous -
+ * declaration gating is passive and never awaits a decision (see
+ * onActionDeclared).
+ */
+export function foldActionDeclared(ctx: ActionDeclaredContext): void {
+  for (const skill of ctx.player.skills) {
+    SkillRegistry.get(skill.type)?.onActionDeclared?.(ctx, ctx.player);
+  }
+}
+
 export { SkillRegistry } from "./SkillRegistry";
 export { RerollArbiter } from "./RerollArbiter";
 export { DecisionService } from "./DecisionService";
@@ -228,6 +280,7 @@ export type {
   FlowLike,
   BlockResultContext,
   DodgeDeclaredContext,
+  DodgeResolvedContext,
   BlockDeclaredContext,
   BlockDiceRolledContext,
   PushContext,
@@ -241,5 +294,6 @@ export type {
   CasualtyContext,
   CasualtyRollContext,
   CountAssistContext,
+  ActionDeclaredContext,
 } from "./SkillRule";
 export { rushAllowance, moveAllowance, standUpCost } from "./movement";

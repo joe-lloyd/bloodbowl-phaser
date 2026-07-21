@@ -7,6 +7,7 @@ import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
+  playersWithin,
   PassDeclaredContext,
   PassResultContext,
 } from "../skills";
@@ -75,11 +76,11 @@ export class PassOperation extends GameOperation {
     };
     await foldTrigger(
       "onPassDeclared",
-      gatherParticipants(
-        passer,
-        undefined,
-        adjacentStanding(passer.gridPosition, opponents)
-      ),
+      gatherParticipants(passer, undefined, [
+        ...adjacentStanding(passer.gridPosition, opponents),
+        // Aura skills (Disturbing Presence) reach 3 squares, any status
+        ...playersWithin(passer.gridPosition, opponents, 3),
+      ]),
       passCtx
     );
     passCtx.triggers.forEach((t) =>
