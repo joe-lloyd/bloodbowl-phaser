@@ -64,14 +64,23 @@ export class PassOperation extends GameOperation {
       x: this.targetX,
       y: this.targetY,
     });
+    const targetPlayer = gameService
+      .getTeammates(this.passerId)
+      .find(
+        (p) =>
+          p.gridPosition?.x === this.targetX &&
+          p.gridPosition?.y === this.targetY
+      );
     const passCtx: PassDeclaredContext = {
       player: passer,
       passType: passRange.type,
+      targetPlayer,
       marking: markingOpponents,
       modifiers: 0,
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
+      dice: gameService.getDiceController(),
       triggers: [],
     };
     await foldTrigger(
@@ -86,6 +95,17 @@ export class PassOperation extends GameOperation {
     passCtx.triggers.forEach((t) =>
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
+
+    // Animosity: the thrower refuses — the activation ends, the ball
+    // stays put, no turnover
+    if (passCtx.refused) {
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${passer.playerName} refuses to throw to that team-mate!`
+      );
+      gameService.finishActivation(this.passerId);
+      return;
+    }
 
     const result = await passController.attemptPass(
       passer,

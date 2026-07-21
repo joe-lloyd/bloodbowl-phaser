@@ -1,5 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
-import { Player, PlayerStatus } from "@/types/Player";
+import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
 
 import { DiceController } from "./DiceController";
@@ -151,7 +151,7 @@ export class CatchController {
     let count = 0;
 
     for (const opponent of opponents) {
-      if (!opponent.gridPosition || opponent.status !== PlayerStatus.ACTIVE) {
+      if (!opponent.gridPosition || !hasTackleZone(opponent)) {
         continue;
       }
 

@@ -143,6 +143,9 @@ export class NetworkedGameService implements IGameService {
   getOpponents(teamId: string): Player[] {
     return this.inner.getOpponents(teamId);
   }
+  getTeammates(playerId: string): Player[] {
+    return this.inner.getTeammates(playerId);
+  }
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }
@@ -287,6 +290,25 @@ export class NetworkedGameService implements IGameService {
       y: targetY,
     });
     return { success: response.ok, result: response.reason };
+  }
+  async stabPlayer(attackerId: string, targetId: string): Promise<void> {
+    await this.dispatch({
+      type: "stab",
+      attackerId,
+      defenderId: targetId,
+    });
+  }
+  async performSpecialAction(
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    attackerId: string,
+    targetId: string
+  ): Promise<void> {
+    await this.dispatch({
+      type: "special-action",
+      action: kind,
+      attackerId,
+      defenderId: targetId,
+    });
   }
   async foulPlayer(
     foulerId: string,

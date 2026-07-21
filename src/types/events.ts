@@ -222,7 +222,7 @@ export interface GameEvents {
 
   [GameEventNames.RerollUsed]: {
     playerId: string;
-    source: "skill" | "team";
+    source: "skill" | "team" | "pro";
     rollKind: string;
     skill?: string;
     /** Die result before and after the reroll */
@@ -566,6 +566,10 @@ export type ActionType =
   | "secureBall"
   | "special"
   | "stab"
+  | "breatheFire"
+  | "vomit"
+  | "gaze"
+  | "chomp"
   | "forgoe";
 
 /**

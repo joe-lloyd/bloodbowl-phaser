@@ -1,7 +1,12 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import {
+  Player,
+  PlayerStatus,
+  PlayerCondition,
+  hasCondition,
+} from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import {
@@ -219,6 +224,7 @@ export class BlockManager {
           this.state.activePlayer?.action === "blitz" &&
           this.state.activePlayer?.id === attacker.id,
         cancelled: false,
+        allPlayers: this.allPlayers(),
         decisions: this.decisions(),
         flow: this.callbacks.getFlowManager?.(),
         dice: this.diceController,
@@ -238,6 +244,26 @@ export class BlockManager {
           .getFlowManager?.()
           ?.context.gameService.finishActivation(attacker.id);
         return;
+      }
+
+      // Trickster: the defender relocated before the dice are determined —
+      // re-run the assist analysis from the new square
+      if (ctx.relocateDefenderTo && defender.gridPosition) {
+        const from = { ...defender.gridPosition };
+        defender.gridPosition = { ...ctx.relocateDefenderTo };
+        this.eventBus.emit(GameEventNames.PlayerMoved, {
+          playerId: defender.id,
+          from,
+          to: { ...ctx.relocateDefenderTo },
+        });
+        const moved = this.blockValidator.analyzeBlock(
+          attacker,
+          defender,
+          this.allPlayers(),
+          this.state.activeTeamId
+        );
+        ctx.attackerStrength = moved.attackerST;
+        ctx.defenderStrength = moved.defenderST;
       }
 
       // Recompute the dice if a rule changed the effective strengths.
@@ -389,6 +415,23 @@ export class BlockManager {
       pushCtx
     );
     this.announce(pushCtx.triggers);
+
+    // Rooted players cannot be Pushed Back for any reason — a condition,
+    // not a skill reaction, so Juggernaut's cancel does not apply
+    if (hasCondition(defender, PlayerCondition.ROOTED)) {
+      pushCtx.refused = true;
+      this.announce([
+        {
+          playerId: defender.id,
+          skill: SkillType.TAKE_ROOT,
+          effect: "Rooted: cannot be pushed back",
+        },
+      ]);
+    }
+    // A Rooted attacker may never follow up
+    if (hasCondition(attacker, PlayerCondition.ROOTED)) {
+      pushCtx.preventFollowUp = true;
+    }
 
     if (pushCtx.refused) {
       this.resolveRefusedPush(attacker, defender, knockDownDefender);

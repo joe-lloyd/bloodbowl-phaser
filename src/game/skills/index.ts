@@ -5,9 +5,14 @@
  */
 
 import { SkillType } from "../../types/Skills";
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player, hasTackleZone } from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
-import { ActionDeclaredContext, BlockResultContext, CountAssistContext } from "./SkillRule";
+import {
+  ActionDeclaredContext,
+  BlockResultContext,
+  CountAssistContext,
+  TurnEndingContext,
+} from "./SkillRule";
 import { BlockRule } from "./rules/BlockRule";
 import { DodgeRule } from "./rules/DodgeRule";
 import { TackleRule } from "./rules/TackleRule";
@@ -56,6 +61,26 @@ import { ShadowingRule } from "./rules/ShadowingRule";
 import { TentaclesRule } from "./rules/TentaclesRule";
 import { UnsteadyRule } from "./rules/UnsteadyRule";
 import { StabRule } from "./rules/StabRule";
+import { BoneHeadRule } from "./rules/BoneHeadRule";
+import { ReallyStupidRule } from "./rules/ReallyStupidRule";
+import { UnchannelledFuryRule } from "./rules/UnchannelledFuryRule";
+import { TakeRootRule } from "./rules/TakeRootRule";
+import { TimmberRule } from "./rules/TimmberRule";
+import { DrunkardRule } from "./rules/DrunkardRule";
+import { LonerRule } from "./rules/LonerRule";
+import { ProRule } from "./rules/ProRule";
+import { AnimalSavageryRule } from "./rules/AnimalSavageryRule";
+import { BloodlustRule } from "./rules/BloodlustRule";
+import { AnimosityRule } from "./rules/AnimosityRule";
+import { HatredRule } from "./rules/HatredRule";
+import { PickMeUpRule } from "./rules/PickMeUpRule";
+import { TricksterRule } from "./rules/TricksterRule";
+import { AlwaysHungryRule } from "./rules/AlwaysHungryRule";
+import { MyBallRule } from "./rules/MyBallRule";
+import { MonstrousMouthRule } from "./rules/MonstrousMouthRule";
+import { HypnoticGazeRule } from "./rules/HypnoticGazeRule";
+import { BreatheFireRule } from "./rules/BreatheFireRule";
+import { ProjectileVomitRule } from "./rules/ProjectileVomitRule";
 
 let registered = false;
 
@@ -114,6 +139,26 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.TENTACLES, TentaclesRule);
   SkillRegistry.register(SkillType.UNSTEADY, UnsteadyRule);
   SkillRegistry.register(SkillType.STAB, StabRule);
+  SkillRegistry.register(SkillType.BONE_HEAD, BoneHeadRule);
+  SkillRegistry.register(SkillType.REALLY_STUPID, ReallyStupidRule);
+  SkillRegistry.register(SkillType.UNCHANNELLED_FURY, UnchannelledFuryRule);
+  SkillRegistry.register(SkillType.TAKE_ROOT, TakeRootRule);
+  SkillRegistry.register(SkillType.TIMMM_BER, TimmberRule);
+  SkillRegistry.register(SkillType.DRUNKARD, DrunkardRule);
+  SkillRegistry.register(SkillType.LONER, LonerRule);
+  SkillRegistry.register(SkillType.PRO, ProRule);
+  SkillRegistry.register(SkillType.ANIMAL_SAVAGERY, AnimalSavageryRule);
+  SkillRegistry.register(SkillType.BLOODLUST, BloodlustRule);
+  SkillRegistry.register(SkillType.ANIMOSITY, AnimosityRule);
+  SkillRegistry.register(SkillType.HATRED, HatredRule);
+  SkillRegistry.register(SkillType.PICK_ME_UP, PickMeUpRule);
+  SkillRegistry.register(SkillType.TRICKSTER, TricksterRule);
+  SkillRegistry.register(SkillType.ALWAYS_HUNGRY, AlwaysHungryRule);
+  SkillRegistry.register(SkillType.MY_BALL, MyBallRule);
+  SkillRegistry.register(SkillType.MONSTROUS_MOUTH, MonstrousMouthRule);
+  SkillRegistry.register(SkillType.HYPNOTIC_GAZE, HypnoticGazeRule);
+  SkillRegistry.register(SkillType.BREATHE_FIRE, BreatheFireRule);
+  SkillRegistry.register(SkillType.PROJECTILE_VOMIT, ProjectileVomitRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.
@@ -135,7 +180,10 @@ export type TriggerHook =
   | "onPassResult"
   | "onInjuryRoll"
   | "onCasualty"
-  | "onCasualtyRoll";
+  | "onCasualtyRoll"
+  | "onActivationDeclared"
+  | "onRushDeclared"
+  | "onStandUpRoll";
 
 /**
  * Deterministic all-participant gather: actor first, then target, then the
@@ -183,13 +231,16 @@ export function playersWithin(
   });
 }
 
-/** Standing players adjacent to a square — the usual "others" for a gather. */
+/**
+ * Players with a Tackle Zone adjacent to a square — the usual "others" for
+ * a gather (Distracted players have no Tackle Zone and never mark).
+ */
 export function adjacentStanding(
   square: { x: number; y: number },
   players: Player[]
 ): Player[] {
   return players.filter((p) => {
-    if (!p.gridPosition || p.status !== PlayerStatus.ACTIVE) return false;
+    if (!p.gridPosition || !hasTackleZone(p)) return false;
     const dx = Math.abs(p.gridPosition.x - square.x);
     const dy = Math.abs(p.gridPosition.y - square.y);
     return dx <= 1 && dy <= 1 && dx + dy > 0;
@@ -259,6 +310,22 @@ export function foldCountAssists(
 }
 
 /**
+ * Fold end-of-opposition-turn rules over the reacting team's players
+ * (Pick-Me-Up). Synchronous — runs inside endTurn before the next turn
+ * starts, so stood players are up when it begins.
+ */
+export function foldTurnEnding(
+  ctx: TurnEndingContext,
+  participants: Player[]
+): void {
+  for (const self of participants) {
+    for (const skill of self.skills) {
+      SkillRegistry.get(skill.type)?.onTurnEnding?.(ctx, self);
+    }
+  }
+}
+
+/**
  * Fold declaration-gating rules for the declaring player. Synchronous -
  * declaration gating is passive and never awaits a decision (see
  * onActionDeclared).
@@ -295,5 +362,12 @@ export type {
   CasualtyRollContext,
   CountAssistContext,
   ActionDeclaredContext,
+  ActivationDeclaredContext,
+  ActivationGate,
+  ActivationGateFailure,
+  RushDeclaredContext,
+  StandUpRollContext,
+  TurnEndingContext,
+  TeamRerollGateContext,
 } from "./SkillRule";
 export { rushAllowance, moveAllowance, standUpCost } from "./movement";

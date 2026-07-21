@@ -47,6 +47,11 @@ const COMMAND_SHAPES: Record<
   handoff: { playerId: "string", x: "number", y: "number" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
+  "special-action": {
+    action: "string",
+    attackerId: "string",
+    defenderId: "string",
+  },
   "end-activation": { playerId: "string" },
   "end-turn": {},
   "choose-block-result": { index: "number" },
@@ -281,6 +286,13 @@ export class HeadlessGame {
         break;
       case "stab":
         await gs.stabPlayer(cmd.attackerId, cmd.defenderId);
+        break;
+      case "special-action":
+        await gs.performSpecialAction(
+          cmd.action as "breatheFire" | "vomit" | "gaze" | "chomp",
+          cmd.attackerId,
+          cmd.defenderId
+        );
         break;
       case "end-activation":
         gs.finishActivation(cmd.playerId);

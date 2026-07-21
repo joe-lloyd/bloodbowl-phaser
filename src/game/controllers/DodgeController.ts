@@ -1,4 +1,4 @@
-import { Player, PlayerStatus } from "@/types/Player";
+import { Player, hasTackleZone } from "@/types/Player";
 import { DiceController } from "./DiceController";
 
 export interface DodgeResult {
@@ -16,8 +16,7 @@ export class DodgeController {
     opponents: Player[]
   ): boolean {
     for (const opponent of opponents) {
-      if (!opponent.gridPosition || opponent.status !== PlayerStatus.ACTIVE)
-        continue;
+      if (!opponent.gridPosition || !hasTackleZone(opponent)) continue;
       const dx = Math.abs(from.x - opponent.gridPosition.x);
       const dy = Math.abs(from.y - opponent.gridPosition.y);
       if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) return true;
@@ -31,8 +30,7 @@ export class DodgeController {
   ): number {
     let modifier = 0;
     for (const opponent of opponents) {
-      if (!opponent.gridPosition || opponent.status !== PlayerStatus.ACTIVE)
-        continue;
+      if (!opponent.gridPosition || !hasTackleZone(opponent)) continue;
       const dx = Math.abs(to.x - opponent.gridPosition.x);
       const dy = Math.abs(to.y - opponent.gridPosition.y);
       if (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0)) modifier -= 1;

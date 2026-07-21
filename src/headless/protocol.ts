@@ -34,6 +34,13 @@ export type HeadlessCommand =
   | { type: "handoff"; playerId: string; x: number; y: number }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }
+  | {
+      type: "special-action";
+      /** "breatheFire" | "vomit" | "gaze" | "chomp" */
+      action: string;
+      attackerId: string;
+      defenderId: string;
+    }
   | { type: "end-activation"; playerId: string }
   | { type: "end-turn" }
   // Decision replies
@@ -44,7 +51,7 @@ export type HeadlessCommand =
       type: "use-reroll";
       accept: boolean;
       /** Which source to spend; defaults to the first offered */
-      source?: "skill" | "team";
+      source?: "skill" | "team" | "pro";
     }
   | { type: "use-reaction"; accept: boolean }
   | { type: "touchback"; playerId: string }
@@ -88,7 +95,7 @@ export type PendingDecision =
       chooserTeamId: string;
       rollKind: string;
       /** Available sources, skill first when both may be spent */
-      sources: ("skill" | "team")[];
+      sources: ("skill" | "team" | "pro")[];
       skill?: string;
       /** The failed die result */
       roll: number;

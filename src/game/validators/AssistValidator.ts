@@ -1,4 +1,4 @@
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player, hasTackleZone as tackleZone } from "../../types/Player";
 import { CountAssistContext } from "../skills/SkillRule";
 import { foldCountAssists } from "../skills";
 
@@ -71,6 +71,6 @@ export abstract class AssistValidator {
   }
 
   protected hasTackleZone(player: Player): boolean {
-    return player.status === PlayerStatus.ACTIVE;
+    return tackleZone(player);
   }
 }

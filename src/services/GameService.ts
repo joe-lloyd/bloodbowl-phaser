@@ -10,7 +10,14 @@ import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import {
+  Player,
+  PlayerStatus,
+  PlayerCondition,
+  hasCondition,
+  removeCondition,
+  hasTackleZone,
+} from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
@@ -44,6 +51,11 @@ import { isInEndZone } from "@/game/elements/GridUtils";
 import { GameConfig } from "@/config/GameConfig";
 import { BounceOperation } from "@/game/operations/BounceOperation";
 import { ArmourOperation } from "@/game/operations/ArmourOperation";
+import { ActivationGateOperation } from "@/game/operations/ActivationGateOperation";
+import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
+import { ProjectileVomitOperation } from "@/game/operations/ProjectileVomitOperation";
+import { HypnoticGazeOperation } from "@/game/operations/HypnoticGazeOperation";
+import { ChompOperation } from "@/game/operations/ChompOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
@@ -58,6 +70,9 @@ import {
   FollowUpContext,
   foldActionDeclared,
   ActionDeclaredContext,
+  foldTurnEnding,
+  TurnEndingContext,
+  SkillRegistry,
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
@@ -190,6 +205,7 @@ export class GameService implements IGameService {
           this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
         onHalfEnded: (secondHalfKickingTeamId) =>
           this.endDrive("halftime", secondHalfKickingTeamId),
+        onTurnEnding: (endingTeamId) => this.handleTurnEnding(endingTeamId),
       },
       this.delay
     );
@@ -213,6 +229,19 @@ export class GameService implements IGameService {
     );
 
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
+
+    // Conditions expire on engine events, not in rules: Rooted ends when
+    // its player is Knocked Down or Placed Prone; Chomped ends the moment
+    // the chomper is no longer Marking the victim (moved, downed, pushed).
+    eventBus.on(
+      GameEventNames.PlayerKnockedDown,
+      ({ playerId }: { playerId: string }) => this.onPlayerDowned(playerId)
+    );
+    eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
+      if (p.status !== PlayerStatus.ACTIVE) this.onPlayerDowned(p.id);
+      this.sweepChomped();
+    });
+    eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
 
     this.passController = new PassController(
       eventBus,
@@ -740,6 +769,79 @@ export class GameService implements IGameService {
     return teamId === this.team1.id ? this.team2.players : this.team1.players;
   }
 
+  public getTeammates(playerId: string): Player[] {
+    const player = this.getPlayerById(playerId);
+    if (!player) return [];
+    const team = player.teamId === this.team1.id ? this.team1 : this.team2;
+    return team.players.filter((p) => p.id !== playerId && p.gridPosition);
+  }
+
+  /** Rooted ends when its player is Knocked Down or Placed Prone. */
+  private onPlayerDowned(playerId: string): void {
+    const player = this.getPlayerById(playerId);
+    if (player && hasCondition(player, PlayerCondition.ROOTED)) {
+      removeCondition(player, PlayerCondition.ROOTED);
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    }
+  }
+
+  /** Chomped ends the moment the chomper is no longer Marking the victim. */
+  private sweepChomped(): void {
+    for (const player of [...this.team1.players, ...this.team2.players]) {
+      const chomp = (player.conditions ?? []).find(
+        (c) => c.type === PlayerCondition.CHOMPED
+      );
+      if (!chomp) continue;
+      const chomper = chomp.byPlayerId
+        ? this.getPlayerById(chomp.byPlayerId)
+        : undefined;
+      const marking =
+        !!chomper?.gridPosition &&
+        !!player.gridPosition &&
+        hasTackleZone(chomper) &&
+        Math.abs(chomper.gridPosition.x - player.gridPosition.x) <= 1 &&
+        Math.abs(chomper.gridPosition.y - player.gridPosition.y) <= 1 &&
+        !(
+          chomper.gridPosition.x === player.gridPosition.x &&
+          chomper.gridPosition.y === player.gridPosition.y
+        );
+      if (!marking) {
+        removeCondition(player, PlayerCondition.CHOMPED);
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      }
+    }
+  }
+
+  /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
+  private handleTurnEnding(endingTeamId: string): void {
+    const reacting =
+      endingTeamId === this.team1.id ? this.team2 : this.team1;
+    const players = reacting.players.filter((p) => p.gridPosition);
+    const ctx: TurnEndingContext = {
+      endingTeamId,
+      players,
+      dice: this.diceController,
+      rolledFor: new Set(),
+      standUp: [],
+      triggers: [],
+    };
+    foldTurnEnding(ctx, players);
+    for (const id of ctx.standUp) {
+      const p = this.getPlayerById(id);
+      if (p && p.status === PlayerStatus.PRONE) {
+        p.status = PlayerStatus.ACTIVE;
+        this.eventBus.emit(GameEventNames.PlayerStoodUp, {
+          playerId: id,
+          cost: 0,
+        });
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
+      }
+    }
+    for (const t of ctx.triggers) {
+      this.eventBus.emit(GameEventNames.SkillTriggered, t);
+    }
+  }
+
   passBall(
     passerId: string,
     targetSquare: { x: number; y: number }
@@ -802,6 +904,11 @@ export class GameService implements IGameService {
     this.state.turn.hasPassed = false;
     this.state.turn.hasHandedOff = false;
     this.state.turn.hasFouled = false;
+
+    // Conditions do not survive the drive (Rooted explicitly ends here)
+    [...this.team1.players, ...this.team2.players].forEach((p) => {
+      if (p.conditions?.length) p.conditions = [];
+    });
 
     this.eventBus.emit(GameEventNames.RefreshBoard);
   }
@@ -906,6 +1013,25 @@ export class GameService implements IGameService {
     // protocol relies on this guard.
     if (!this.canActivate(playerId)) return false;
 
+    const activating = this.getPlayerById(playerId);
+    // Distracted expires when the player is next activated
+    if (activating && hasCondition(activating, PlayerCondition.DISTRACTED)) {
+      removeCondition(activating, PlayerCondition.DISTRACTED);
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
+    }
+    // A Rooted player may not leave their square, so no Move-type actions
+    if (
+      activating &&
+      hasCondition(activating, PlayerCondition.ROOTED) &&
+      (action === "move" || action === "secureBall")
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${activating.playerName} is Rooted and cannot Move!`
+      );
+      return false;
+    }
+
     // A player who is down cannot plain-Block: standing up costs movement,
     // so a hit after rising is what Blitz is for
     if (action === "block") {
@@ -918,12 +1044,36 @@ export class GameService implements IGameService {
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
       if (!hasSkill(player.skills, SkillType.STAB)) return false;
     }
+    // The other special actions likewise need their trait and a Standing player
+    if (
+      action === "breatheFire" ||
+      action === "vomit" ||
+      action === "gaze" ||
+      action === "chomp"
+    ) {
+      const player = this.getPlayerById(playerId);
+      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      const needed =
+        action === "breatheFire"
+          ? SkillType.BREATHE_FIRE
+          : action === "vomit"
+            ? SkillType.PROJECTILE_VOMIT
+            : action === "gaze"
+              ? SkillType.HYPNOTIC_GAZE
+              : SkillType.MONSTROUS_MOUTH;
+      if (!hasSkill(player.skills, needed)) return false;
+    }
     // Rules may refuse the declaration outright (Unsteady vs Secure the Ball)
     const declaring = this.getPlayerById(playerId);
     if (declaring) {
       const ctx: ActionDeclaredContext = {
         player: declaring,
         action,
+        hasBall:
+          !!this.state.ballPosition &&
+          !!declaring.gridPosition &&
+          this.state.ballPosition.x === declaring.gridPosition.x &&
+          this.state.ballPosition.y === declaring.gridPosition.y,
         refused: false,
         triggers: [],
       };
@@ -933,7 +1083,21 @@ export class GameService implements IGameService {
       }
       if (ctx.refused) return false;
     }
-    return this.playerActionManager.declareAction(playerId, action);
+    if (!this.playerActionManager.declareAction(playerId, action)) {
+      return false;
+    }
+    // Negatraits roll between declaring and performing (Bone Head, …):
+    // queued at the FRONT of the flow so the gate — decisions included —
+    // resolves before the declared action can proceed
+    if (
+      declaring &&
+      declaring.skills.some(
+        (s) => SkillRegistry.get(s.type)?.onActivationDeclared
+      )
+    ) {
+      this.flowManager.add(new ActivationGateOperation(playerId, action), true);
+    }
+    return true;
   }
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
@@ -987,5 +1151,55 @@ export class GameService implements IGameService {
     if (declared !== "stab" && declared !== "blitz") return;
 
     this.flowManager.add(new StabOperation(attackerId, targetId));
+  }
+
+  /**
+   * Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic
+   * Gaze, Chomp): legal as their declared action, or — where the book says
+   * so — during a Blitz in place of the Block. Hypnotic Gaze has its own
+   * pre-move and never replaces a Blitz block.
+   */
+  public async performSpecialAction(
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    attackerId: string,
+    targetId: string
+  ): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return;
+
+    const requirement =
+      kind === "breatheFire"
+        ? SkillType.BREATHE_FIRE
+        : kind === "vomit"
+          ? SkillType.PROJECTILE_VOMIT
+          : kind === "gaze"
+            ? SkillType.HYPNOTIC_GAZE
+            : SkillType.MONSTROUS_MOUTH;
+    if (!hasSkill(attacker.skills, requirement)) return;
+
+    const declared =
+      this.state.activePlayer?.id === attackerId
+        ? this.state.activePlayer.action
+        : undefined;
+    const blitzOk = kind !== "gaze";
+    if (declared !== kind && !(blitzOk && declared === "blitz")) return;
+
+    switch (kind) {
+      case "breatheFire":
+        this.flowManager.add(new BreatheFireOperation(attackerId, targetId));
+        break;
+      case "vomit":
+        this.flowManager.add(
+          new ProjectileVomitOperation(attackerId, targetId)
+        );
+        break;
+      case "gaze":
+        this.flowManager.add(new HypnoticGazeOperation(attackerId, targetId));
+        break;
+      case "chomp":
+        this.flowManager.add(new ChompOperation(attackerId, targetId));
+        break;
+    }
   }
 }

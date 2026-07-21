@@ -9,7 +9,11 @@
 
 import { GameState, GamePhase, SubPhase, TurnData } from "../types/GameState";
 import { Team } from "../types/Team";
-import { PlayerStats, PlayerStatus } from "../types/Player";
+import {
+  PlayerStats,
+  PlayerStatus,
+  PlayerConditionInstance,
+} from "../types/Player";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -33,6 +37,8 @@ export interface PlayerSnapshot {
   status: PlayerStatus;
   stats: PlayerStats;
   skills: string[];
+  /** Active conditions (Distracted, Rooted, Chomped). */
+  conditions: PlayerConditionInstance[];
   movementUsed: number;
 }
 
@@ -99,6 +105,7 @@ export function serializeGameState(
         status: p.status,
         stats: { ...p.stats },
         skills: p.skills.map((s) => (typeof s === "string" ? s : s.type)),
+        conditions: (p.conditions ?? []).map((c) => ({ ...c })),
         movementUsed: state.turn.movementUsed.get(p.id) ?? 0,
       })),
     })),
@@ -154,6 +161,7 @@ export function applySnapshotToTeams(
       if (!snap) return;
       player.status = snap.status;
       player.gridPosition = snap.position ? { ...snap.position } : undefined;
+      player.conditions = (snap.conditions ?? []).map((c) => ({ ...c }));
     });
   });
 }

@@ -64,6 +64,10 @@ export class PlayerActionManager {
       case "forgoe":
       case "special":
       case "stab":
+      case "breatheFire":
+      case "vomit":
+      case "gaze":
+      case "chomp":
         // Always allowed if general activation is allowed (Stab: "there is
         // no limit to the number of players that can declare this Special
         // Action each Turn")

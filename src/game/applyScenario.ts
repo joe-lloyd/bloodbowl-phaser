@@ -22,9 +22,15 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     if (p.stats) Object.assign(player.stats, p.stats);
     // Scenario-granted skills: additive to roster skills, marked so the
     // next scenario load strips them again
-    p.skills?.forEach((type) => {
+    p.skills?.forEach((entry) => {
+      const type = typeof entry === "object" ? entry.type : entry;
+      const parameter =
+        typeof entry === "object" ? entry.parameter : undefined;
       if (hasSkill(player.skills, type)) return;
-      player.skills.push({ ...getSkill(type), scenarioGranted: true });
+      player.skills.push({
+        ...getSkill(type, parameter),
+        scenarioGranted: true,
+      });
     });
   });
 }

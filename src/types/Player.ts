@@ -19,6 +19,25 @@ export enum PlayerStatus {
 }
 
 /**
+ * Named player conditions (2025 rulebook) — state distinct from status,
+ * applied by rules/operations, expired by the engine (see GameService):
+ * Distracted clears when the player is next activated, Rooted ends at the
+ * end of the drive or when Knocked Down/Placed Prone, Chomped ends the
+ * moment the chomping player is no longer Marking the victim.
+ */
+export enum PlayerCondition {
+  DISTRACTED = "Distracted",
+  ROOTED = "Rooted",
+  CHOMPED = "Chomped",
+}
+
+export interface PlayerConditionInstance {
+  type: PlayerCondition;
+  /** The player who inflicted it (Chomped tracks its chomper). */
+  byPlayerId?: string;
+}
+
+/**
  * Injury types from casualty table
  */
 export enum InjuryType {
@@ -69,6 +88,8 @@ export interface Player {
 
   // Status
   status: PlayerStatus;
+  /** Active conditions (Distracted, Rooted, Chomped); absent = none. */
+  conditions?: PlayerConditionInstance[];
   injuries: InjuryType[]; // Permanent injuries
 
   // Game state
@@ -227,4 +248,41 @@ export function getPlayerPassing(player: Player): number {
  */
 export function getPlayerArmor(player: Player): number {
   return player.stats.AV;
+}
+
+export function hasCondition(
+  player: Player,
+  type: PlayerCondition
+): boolean {
+  return (player.conditions ?? []).some((c) => c.type === type);
+}
+
+export function addCondition(
+  player: Player,
+  type: PlayerCondition,
+  byPlayerId?: string
+): void {
+  if (hasCondition(player, type)) return;
+  (player.conditions ??= []).push({
+    type,
+    ...(byPlayerId ? { byPlayerId } : {}),
+  });
+}
+
+export function removeCondition(player: Player, type: PlayerCondition): void {
+  if (!player.conditions?.length) return;
+  player.conditions = player.conditions.filter((c) => c.type !== type);
+}
+
+/**
+ * Standing and not Distracted — the test for exerting a Tackle Zone.
+ * Every marking computation (dodge modifiers, assists, pass/catch marking,
+ * marked-square skill gathers) goes through this one helper, so the
+ * Distracted condition bites everywhere at once.
+ */
+export function hasTackleZone(player: Player): boolean {
+  return (
+    player.status === PlayerStatus.ACTIVE &&
+    !hasCondition(player, PlayerCondition.DISTRACTED)
+  );
 }

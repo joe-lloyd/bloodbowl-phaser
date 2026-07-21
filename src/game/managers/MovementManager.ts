@@ -1,7 +1,12 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import {
+  Player,
+  PlayerStatus,
+  PlayerCondition,
+  hasCondition,
+} from "@/types/Player";
 import { MovementValidator } from "../validators/MovementValidator";
 import { GameEventNames } from "../../types/events";
 import { DodgeController } from "../controllers/DodgeController";
@@ -21,6 +26,10 @@ import {
   DodgeResolvedContext,
 } from "../skills";
 import { moveAllowance, standUpCost } from "../skills/movement";
+import {
+  RushDeclaredContext,
+  StandUpRollContext,
+} from "../skills/SkillRule";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -87,6 +96,38 @@ export class MovementManager {
     );
   }
 
+  /**
+   * 2025: a player with MA less than 3 must roll to stand up (4+, natural
+   * 1 fails; Timmm-ber! adds +1 per Open Standing adjacent team-mate). A
+   * failed attempt keeps them Prone, spends the movement, and ends the
+   * activation. Returns true when the player may stand.
+   */
+  private async rollToStand(player: Player): Promise<boolean> {
+    if (player.stats.MA >= 3) return true;
+    const team = player.teamId === this.team1.id ? this.team1 : this.team2;
+    const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
+    const ctx: StandUpRollContext = {
+      player,
+      teammates: team.players.filter(
+        (p) => p.id !== player.id && p.gridPosition
+      ),
+      opponents: oppTeam.players.filter((p) => p.gridPosition),
+      modifiers: 0,
+      triggers: [],
+    };
+    await foldTrigger("onStandUpRoll", [player], ctx);
+    for (const t of ctx.triggers) {
+      this.eventBus.emit(GameEventNames.SkillTriggered, t);
+    }
+    const check = this.diceController.rollSkillCheck(
+      "Stand Up",
+      4,
+      ctx.modifiers,
+      player.playerName
+    );
+    return check.success;
+  }
+
   public async standUp(playerId: string): Promise<void> {
     const player = this.getPlayerById(playerId);
     if (!player || player.status !== PlayerStatus.PRONE) {
@@ -98,6 +139,13 @@ export class MovementManager {
 
     if (used + cost > moveAllowance(player)) {
       return Promise.reject("Not enough movement to stand up");
+    }
+
+    if (!(await this.rollToStand(player))) {
+      // Failed the stand-up roll: still Prone, movement spent, activation over
+      this.state.turn.movementUsed.set(playerId, used + cost);
+      this.callbacks.onActivationFinished(playerId);
+      return;
     }
 
     player.status = PlayerStatus.ACTIVE;
@@ -123,6 +171,18 @@ export class MovementManager {
   ): Promise<void> {
     const player = this.getPlayerById(playerId);
     if (!player) return Promise.reject("Player not found!");
+
+    // Rooted/Chomped players may not leave their square (2025 conditions)
+    if (
+      hasCondition(player, PlayerCondition.ROOTED) ||
+      hasCondition(player, PlayerCondition.CHOMPED)
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${player.playerName} cannot leave their square!`
+      );
+      return Promise.reject("Cannot move");
+    }
 
     const gameService = context?.gameService as IGameService;
     const flowManager = context?.flowManager;
@@ -153,6 +213,12 @@ export class MovementManager {
 
     if (wasProne) {
       const cost = standUpCost(player);
+      if (!(await this.rollToStand(player))) {
+        // Failed the stand-up roll: still Prone, movement spent, activation over
+        this.state.turn.movementUsed.set(playerId, preUsed + cost);
+        this.callbacks.onActivationFinished(playerId);
+        return;
+      }
       stepsTaken += cost;
       player.status = PlayerStatus.ACTIVE;
       this.eventBus.emit(GameEventNames.PlayerStoodUp, {
@@ -350,11 +416,21 @@ export class MovementManager {
       const totalUsed = preUsed + stepsTaken;
 
       if (totalUsed > player.stats.MA) {
+        // Trigger point: rush declared — rules may modify it (Drunkard)
+        const rushCtx: RushDeclaredContext = {
+          player,
+          modifiers: 0,
+          triggers: [],
+        };
+        await foldTrigger("onRushDeclared", [player], rushCtx);
+        for (const t of rushCtx.triggers) {
+          this.eventBus.emit(GameEventNames.SkillTriggered, t);
+        }
         const rollRush = () =>
           this.diceController.rollSkillCheck(
             "Rush (GFI)",
             2,
-            0,
+            rushCtx.modifiers,
             player.playerName
           );
         // A failed rush may be rerolled (Sure Feet / team reroll)

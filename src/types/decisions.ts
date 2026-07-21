@@ -5,10 +5,17 @@
  * skills work identically in local and online play.
  */
 
-export type RerollSource = "skill" | "team";
+/** "pro" = Pro's die-level reroll (3+ usage roll, locks out other sources). */
+export type RerollSource = "skill" | "team" | "pro";
 
-/** Roll kinds a reroll can be offered for. */
-export type RerollableRollKind = "dodge" | "pickup" | "catch" | "pass" | "rush";
+/** Roll kinds a reroll can be offered for ("activation" = negatrait gates). */
+export type RerollableRollKind =
+  | "dodge"
+  | "pickup"
+  | "catch"
+  | "pass"
+  | "rush"
+  | "activation";
 
 export interface RerollDecisionRequest {
   type: "reroll";

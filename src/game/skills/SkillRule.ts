@@ -118,6 +118,13 @@ export interface BlockDeclaredContext extends TriggerContextBase {
    * Appearance's failed roll — no dice are rolled).
    */
   cancelled: boolean;
+  /** Everyone on the pitch (Trickster's occupancy check). */
+  allPlayers: Player[];
+  /**
+   * The defender slips to this square before the dice are determined
+   * (Trickster); BlockManager applies it and re-runs the assist analysis.
+   */
+  relocateDefenderTo?: { x: number; y: number };
 }
 
 /** Block dice have been rolled, before the coach selects a result. */
@@ -228,6 +235,13 @@ export interface PassDeclaredContext extends TriggerContextBase {
   marking: number;
   /** Extra modifier added to the PA test (Accurate, Nerves of Steel, …) */
   modifiers: number;
+  /** The intended receiver, when the target square holds a team-mate. */
+  targetPlayer?: Player;
+  /**
+   * Refuse the throw outright: the activation ends, the ball stays put,
+   * no turnover (Animosity's 1).
+   */
+  refused?: boolean;
 }
 
 /** The Passing Ability Test has been rolled. */
@@ -347,6 +361,8 @@ export interface ActionDeclaredContext {
   player: Player;
   /** The action being declared ("move", "secureBall", ...). */
   action: ActionType;
+  /** Is the declaring player standing on the ball? (My Ball) */
+  hasBall: boolean;
   /** Set true to refuse the declaration; nothing is declared. */
   refused: boolean;
   /** Skill effects to announce. */
@@ -359,6 +375,87 @@ export interface CasualtyRollContext extends TriggerContextBase {
   causedBy?: Player;
   roll: number;
   modifier: number;
+}
+
+/** Failure effect an activation-gate rule declares (applied by the operation). */
+export type ActivationGateFailure =
+  | { kind: "distracted" }
+  | { kind: "endActivation" }
+  | { kind: "rooted" }
+  | { kind: "lashOut" }
+  | { kind: "bloodlust" };
+
+/** One negatrait's roll-to-act, rolled by ActivationGateOperation in order. */
+export interface ActivationGate {
+  skill: string;
+  /** Unmodified D6 target (Bone Head 2, Really Stupid 4, …). */
+  target: number;
+  /** Modifier the rule computed (Really Stupid's +2 helper, …). */
+  modifier: number;
+  onFail: ActivationGateFailure;
+}
+
+/**
+ * An action has been declared and the player's negatraits roll before it
+ * is performed. Rules PUSH a gate; ActivationGateOperation rolls each in
+ * fold order (team-rerollable, natural 1 fails) and applies the first
+ * failure.
+ */
+export interface ActivationDeclaredContext extends TriggerContextBase {
+  player: Player;
+  action: ActionType;
+  /** On-pitch team-mates (Really Stupid's helper check). */
+  teammates: Player[];
+  gates: ActivationGate[];
+}
+
+/** A Rush (GFI) is about to be rolled; rules may modify it (Drunkard). */
+export interface RushDeclaredContext extends TriggerContextBase {
+  player: Player;
+  modifiers: number;
+}
+
+/**
+ * A player with MA < 3 rolls to stand up (4+, natural 1 fails); rules may
+ * modify the roll (Timmm-ber!'s +1 per Open Standing adjacent team-mate).
+ */
+export interface StandUpRollContext extends TriggerContextBase {
+  player: Player;
+  /** On-pitch team-mates. */
+  teammates: Player[];
+  /** On-pitch opponents (to judge whether a helper is Open). */
+  opponents: Player[];
+  modifiers: number;
+}
+
+/**
+ * The opposition's turn is ending, before the next turn starts. Folded
+ * SYNCHRONOUSLY over the non-active team (Pick-Me-Up) — no decisions or
+ * flow, only dice and context mutation.
+ */
+export interface TurnEndingContext {
+  endingTeamId: string;
+  /** On-pitch players of the reacting (non-active) team. */
+  players: Player[];
+  dice: DiceController;
+  /** Prone players already rolled for this pass (one roll each). */
+  rolledFor: Set<string>;
+  /** Players to stand up once the fold completes (applied by the engine). */
+  standUp: string[];
+  triggers: SkillTriggerRecord[];
+}
+
+/**
+ * A team reroll is about to be spent by this player; a rule may forbid it,
+ * in which case the reroll is still lost (Loner). Folded synchronously
+ * inside the reroll machinery.
+ */
+export interface TeamRerollGateContext {
+  player: Player;
+  dice: DiceController;
+  /** Set false to lose the reroll without rerolling. */
+  allowed: boolean;
+  triggers: SkillTriggerRecord[];
 }
 
 export interface SkillRule {
@@ -407,6 +504,34 @@ export interface SkillRule {
     ctx: CasualtyRollContext,
     self: Player
   ): void | Promise<void>;
+  /**
+   * Negatrait roll between declaring and performing an action — the rule
+   * pushes an ActivationGate; ActivationGateOperation rolls and applies it.
+   */
+  onActivationDeclared?(
+    ctx: ActivationDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
+  /** A Rush is about to be rolled (Drunkard's -1). */
+  onRushDeclared?(
+    ctx: RushDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
+  /** An MA < 3 player rolls to stand up (Timmm-ber!). */
+  onStandUpRoll?(
+    ctx: StandUpRollContext,
+    self: Player
+  ): void | Promise<void>;
+  /**
+   * The opposition's turn is ending (Pick-Me-Up). Synchronous — never
+   * raises decisions or enqueues flow; the engine applies ctx.standUp.
+   */
+  onTurnEnding?(ctx: TurnEndingContext, self: Player): void;
+  /**
+   * A team reroll is about to be spent by this player (Loner's gate).
+   * Synchronous; setting allowed=false loses the reroll unspent.
+   */
+  onTeamRerollGate?(ctx: TeamRerollGateContext, self: Player): void;
   /**
    * Passive declaration gate, folded synchronously when an action is being
    * declared for this player (Unsteady refuses Secure the Ball). Never

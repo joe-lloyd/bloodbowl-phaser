@@ -22,6 +22,8 @@ export class TurnManager {
       onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
       /** Fired at halftime with the team kicking off the second half */
       onHalfEnded?: (secondHalfKickingTeamId: string) => void;
+      /** Fired as a turn ends, before the next begins (Pick-Me-Up). */
+      onTurnEnding?: (endingTeamId: string) => void;
     },
     private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
       new Promise((resolve) => setTimeout(resolve, ms))
@@ -119,6 +121,10 @@ export class TurnManager {
   public endTurn(): void {
     const currentTeamId = this.state.activeTeamId;
     if (!currentTeamId) return;
+
+    // Fires before the next turn starts, so its effects (Pick-Me-Up
+    // stand-ups) are in place when that turn begins
+    this.callbacks.onTurnEnding?.(currentTeamId);
 
     const nextTeamId =
       currentTeamId === this.team1.id ? this.team2.id : this.team1.id;

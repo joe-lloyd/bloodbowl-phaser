@@ -3,13 +3,22 @@ import { PlayerStatus, PlayerStats } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
 
+/**
+ * A skill to grant a placement — either the bare type, or a type plus its
+ * parameter value for a parameterized family (Loner "4+", Animosity a
+ * keyword, Bloodlust "2+").
+ */
+export type PlacementSkill =
+  | SkillType
+  | { type: SkillType; parameter: string | number };
+
 export interface PlayerPlacement {
   playerIndex: number; // Index in the team.players array
   x: number; // Grid X
   y: number; // Grid Y
   status?: PlayerStatus; // Optional status override
   /** Skills granted for this scenario, additive to the player's roster skills */
-  skills?: SkillType[];
+  skills?: PlacementSkill[];
   /** Stat overrides for this scenario (e.g. ST 4 for a Break Tackle demo) */
   stats?: Partial<PlayerStats>;
 }

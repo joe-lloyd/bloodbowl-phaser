@@ -103,6 +103,12 @@ export interface IGameService {
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
   /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
   stabPlayer(attackerId: string, targetId: string): Promise<void>;
+  /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
+  performSpecialAction(
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    attackerId: string,
+    targetId: string
+  ): Promise<void>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   throwInBall(from: { x: number; y: number }): void;
@@ -127,6 +133,8 @@ export interface IGameService {
   getPlayerById(playerId: string): Player | undefined;
   getPlayerAt(x: number, y: number): Player | undefined;
   getOpponents(teamId: string): Player[];
+  /** On-pitch team-mates of a player (any status), excluding the player. */
+  getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
   getMovementUsed(playerId: string): number;
   getAvailableMovements(

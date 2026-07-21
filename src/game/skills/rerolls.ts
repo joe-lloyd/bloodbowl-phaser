@@ -8,7 +8,7 @@
  */
 
 import { Player } from "../../types/Player";
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import {
@@ -17,6 +17,7 @@ import {
   RerollDecisionAnswer,
 } from "../../types/decisions";
 import { SkillRegistry } from "./SkillRegistry";
+import { TeamRerollGateContext } from "./SkillRule";
 import { IGameService } from "../../services/interfaces/IGameService";
 
 export interface RollLike {
@@ -69,6 +70,16 @@ export async function withRerollOffer<T extends RollLike>(
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
   if (arbiter.teamRerollAvailable(player.teamId)) sources.push("team");
+  // Pro: a die-level reroll during the player's own activation. Every
+  // rollKind offered through this seam qualifies (Armour/Injury/Casualty
+  // rolls never come through here). Once per activation, 3+ to use.
+  if (
+    SkillRegistry.has(SkillType.PRO) &&
+    hasSkill(player.skills, SkillType.PRO) &&
+    arbiter.onceAvailable(player, SkillType.PRO)
+  ) {
+    sources.push("pro");
+  }
   if (sources.length === 0) return first;
 
   const answer: RerollDecisionAnswer = await deps.gameService
@@ -88,7 +99,26 @@ export async function withRerollOffer<T extends RollLike>(
     answer.source && sources.includes(answer.source)
       ? answer.source
       : sources[0];
-  if (chosen === "skill" && skillSource) {
+  if (chosen === "pro") {
+    // Book: once attempted, the roll is locked against every other source
+    arbiter.consumeOnce(player, SkillType.PRO);
+    const gate = deps.gameService
+      .getDiceController()
+      .rollSkillCheck("Pro", 3, 0, player.playerName);
+    if (!gate.success) {
+      deps.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: player.id,
+        skill: String(SkillType.PRO),
+        effect: "Pro: the attempt fails — no other re-roll may be used",
+      });
+      return first;
+    }
+    deps.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill: String(SkillType.PRO),
+      effect: `Pro: re-roll the failed ${rollKind}`,
+    });
+  } else if (chosen === "skill" && skillSource) {
     arbiter.consumeSkillReroll(player, skillSource);
     deps.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: player.id,
@@ -96,7 +126,21 @@ export async function withRerollOffer<T extends RollLike>(
       effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
     });
   } else {
+    // Loner-class rules may gate the spend; the reroll is lost either way
+    const gateCtx: TeamRerollGateContext = {
+      player,
+      dice: deps.gameService.getDiceController(),
+      allowed: true,
+      triggers: [],
+    };
+    for (const skill of player.skills) {
+      SkillRegistry.get(skill.type)?.onTeamRerollGate?.(gateCtx, player);
+    }
+    for (const t of gateCtx.triggers) {
+      deps.eventBus.emit(GameEventNames.SkillTriggered, t);
+    }
     arbiter.consumeTeamReroll(player.teamId);
+    if (!gateCtx.allowed) return first;
   }
 
   const second = doRoll();
