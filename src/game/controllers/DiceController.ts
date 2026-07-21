@@ -41,6 +41,21 @@ export class DiceController {
   /**
    * Roll a D6
    */
+  /** A D3 (1-3): a D6 halved, rounding up (2025 dice convention). */
+  public rollD3(reason: string, teamId?: string): number {
+    const roll = Math.ceil(this.rng.rollDie(6) / 2);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: "1d3",
+      value: roll,
+      total: roll,
+      description: `${reason}: ${roll}`,
+      resultState: "none",
+      teamId,
+    });
+    return roll;
+  }
+
   public rollD6(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(6);
     this.emitDiceRoll({

@@ -68,6 +68,7 @@ describe("rule coverage gate", () => {
         SkillType.IRON_HARD_SKIN,
         SkillType.JUGGERNAUT,
         SkillType.JUMP_UP,
+        SkillType.KICK,
         SkillType.LONER,
         SkillType.MIGHTY_BLOW,
         SkillType.MONSTROUS_MOUTH,
@@ -105,7 +106,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(68);
+    expect(cov.implemented).toBe(69);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

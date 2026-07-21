@@ -5,6 +5,7 @@
 
 import { SkillType } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
+import { GamePhase, SubPhase } from "../../types/GameState";
 import {
   RuleScenarioEntry,
   ScriptResult,
@@ -441,6 +442,59 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       }),
+    ],
+  },
+  {
+    skill: SkillType.KICK,
+    configs: [
+      {
+        id: "kick-deviation-d3",
+        name: "Kick halves the kickoff deviation",
+        description:
+          "A nominated kicker with Kick deviates the ball only D3 squares instead of the usual D6",
+        setup: {
+          // Team 1's line of scrimmage is x=6; the kicker must stand at
+          // least one square back from it (here x=4), with team-mates on
+          // the line, or the kick is illegal.
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.KICK] },
+            { playerIndex: 1, x: 6, y: 4 },
+            { playerIndex: 2, x: 6, y: 5 },
+            { playerIndex: 3, x: 6, y: 6 },
+            { playerIndex: 4, x: 3, y: 7 },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 13, y: 4 },
+            { playerIndex: 1, x: 13, y: 5 },
+            { playerIndex: 2, x: 13, y: 6 },
+            { playerIndex: 3, x: 16, y: 8 },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.KICKOFF,
+          subPhase: SubPhase.ROLL_KICKOFF,
+        },
+        script: [{ type: "kick-ball", playerId: "team1:0", x: 16, y: 5 }],
+        outcomes: [
+          {
+            id: "deviates-d3",
+            name: "The kick Deviates only D3 squares",
+            matches: (r) => skillTriggered(r, SkillType.KICK),
+            verify: (r) => {
+              const roll = r.events.find(
+                (e) =>
+                  e.name === GameEventNames.DiceRoll &&
+                  (e.data as { rollType?: string }).rollType ===
+                    "Kickoff Deviate Distance (Kick)"
+              );
+              assert(!!roll, "the deviation distance is rolled as a Kick D3");
+              assert(
+                (roll!.data as { value: number }).value <= 3,
+                "a D3 deviation never exceeds 3 squares"
+              );
+            },
+          },
+        ],
+      },
     ],
   },
 ];

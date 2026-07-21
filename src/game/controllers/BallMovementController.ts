@@ -59,12 +59,18 @@ export class BallMovementController {
    * @param position Starting position (target square)
    * @returns New position (landing square)
    */
-  public deviate(position: { x: number; y: number }): { x: number; y: number } {
+  public deviate(
+    position: { x: number; y: number },
+    /** Kick skill: the kicking coach halves the deviation to D3 (p.130). */
+    useKickD3 = false
+  ): { x: number; y: number } {
     // 1. Roll Direction (d8)
     const direction = this.diceController.rollD8("Kickoff Deviate Direction");
 
-    // 2. Roll Distance (d6)
-    const distance = this.diceController.rollD6("Kickoff Deviate Distance");
+    // 2. Roll Distance (D6, or D3 with the Kick skill)
+    const distance = useKickD3
+      ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)")
+      : this.diceController.rollD6("Kickoff Deviate Distance");
 
     return this.calculateOffsetPosition(position, direction, distance);
   }

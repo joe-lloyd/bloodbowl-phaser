@@ -38,7 +38,7 @@ describe("KickoffController", () => {
 
       const result = controller.calculateKickDestination(target.x, target.y);
 
-      expect(mockMovementController.deviate).toHaveBeenCalledWith(target);
+      expect(mockMovementController.deviate).toHaveBeenCalledWith(target, false);
       expect(result).toEqual({
         finalX: 6,
         finalY: 6,

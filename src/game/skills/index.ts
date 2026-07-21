@@ -81,6 +81,7 @@ import { MonstrousMouthRule } from "./rules/MonstrousMouthRule";
 import { HypnoticGazeRule } from "./rules/HypnoticGazeRule";
 import { BreatheFireRule } from "./rules/BreatheFireRule";
 import { ProjectileVomitRule } from "./rules/ProjectileVomitRule";
+import { KickRule } from "./rules/KickRule";
 
 let registered = false;
 
@@ -159,6 +160,7 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.HYPNOTIC_GAZE, HypnoticGazeRule);
   SkillRegistry.register(SkillType.BREATHE_FIRE, BreatheFireRule);
   SkillRegistry.register(SkillType.PROJECTILE_VOMIT, ProjectileVomitRule);
+  SkillRegistry.register(SkillType.KICK, KickRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

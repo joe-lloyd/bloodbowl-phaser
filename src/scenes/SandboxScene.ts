@@ -194,6 +194,16 @@ export class SandboxScene extends GameScene {
       this.reloadState(false);
       this.placePlayersOnPitch();
 
+      // A KICKOFF-phase scenario needs the kicking/receiving teams wired so
+      // the kicker can be selected — handleKickoffClick matches the clicked
+      // player against scene.kickingTeam (default team1 is otherwise stale,
+      // and a roster swap replaces the team objects).
+      if (scenario.setup.phase === GamePhase.KICKOFF) {
+        const team1Kicks = scenario.setup.activeTeam !== "team2";
+        this.kickingTeam = team1Kicks ? this.team1 : this.team2;
+        this.receivingTeam = team1Kicks ? this.team2 : this.team1;
+      }
+
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `Loaded Scenario: ${scenario.name}`

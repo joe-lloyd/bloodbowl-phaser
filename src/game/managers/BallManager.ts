@@ -2,6 +2,7 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
 import { GameEventNames } from "../../types/events";
 
 import { WeatherManager } from "./WeatherManager";
@@ -67,11 +68,28 @@ export class BallManager {
     // 1. Transition State
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
+    // Kick (p.130): a nominated kicker with the Kick skill lets their coach
+    // halve the deviation to D3. The reduced deviation is always the safer
+    // choice (the ball lands nearer the aim), so it is applied whenever the
+    // kicker has the skill.
+    const kicker = [...this.team1.players, ...this.team2.players].find(
+      (p) => p.id === playerId
+    );
+    const useKickD3 = !!kicker && hasSkill(kicker.skills ?? [], SkillType.KICK);
+    if (useKickD3) {
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId,
+        skill: SkillType.KICK,
+        effect: "Kick: the ball Deviates only D3 squares",
+      });
+    }
+
     // 2. Calculate Deviation (using Controller)
     const result = this.kickoffController.calculateKickDestination(
       targetX,
       targetY,
-      isTeam1Kicking
+      isTeam1Kicking,
+      useKickD3
     );
 
     // 3. Update State. A kick landing out of bounds or in the kicking

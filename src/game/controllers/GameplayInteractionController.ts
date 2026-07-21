@@ -1436,6 +1436,9 @@ export class GameplayInteractionController {
           }
 
           this.selectedPlayerId = playerAtSquare.id;
+          // Kickoff selection is only for aiming the kick — clear any
+          // movement/tackle overlays so it isn't mistaken for an activation.
+          this.pitch.clearHighlights();
           this.scene.highlightPlayer(playerAtSquare.id);
           this.gameService.selectKicker(playerAtSquare.id);
           this.eventBus.emit(

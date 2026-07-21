@@ -78,16 +78,21 @@ export class KickoffController {
   public calculateKickDestination(
     targetX: number,
     targetY: number,
-    isTeam1Kicking: boolean
+    isTeam1Kicking: boolean,
+    /** The kicker has the Kick skill: deviate only D3 squares. */
+    useKickD3 = false
   ): {
     finalX: number;
     finalY: number;
     isTouchback: boolean;
   } {
-    const finalPosition = this.movementController.deviate({
-      x: targetX,
-      y: targetY,
-    });
+    const finalPosition = this.movementController.deviate(
+      {
+        x: targetX,
+        y: targetY,
+      },
+      useKickD3
+    );
 
     const isOffPitch =
       finalPosition.x < 0 ||

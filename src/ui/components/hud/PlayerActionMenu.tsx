@@ -4,6 +4,7 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Player, PlayerStatus } from "../../../types/Player";
+import { GamePhase } from "../../../types/GameState";
 import { ActionType, GameEventNames } from "../../../types/events";
 import {
   computeActionAvailability,
@@ -143,6 +144,10 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   }, [selectedPlayer, turnData, hasMovedInAction, refreshTick]);
 
   if (!selectedPlayer) return null;
+
+  // During a kickoff the kicker is selected only to aim the kick — no
+  // movement or action menu (the receiving team gets the first real turn).
+  if (turnData?.phase === GamePhase.KICKOFF) return null;
 
   // Only show menu for active team's players
   if (selectedPlayer.teamId !== turnData.activeTeamId) return null;
