@@ -137,6 +137,13 @@ export interface IGameService {
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
   getMovementUsed(playerId: string): number;
+  /**
+   * End or continue a blocker's activation once the block resolved. A plain
+   * Block ends it; a Blitz block keeps the player active while MA+rush remains.
+   */
+  finishBlockActivation(playerId: string): void;
+  /** The single block a Blitz allows has been spent this activation. */
+  hasUsedBlitzBlock(playerId: string): boolean;
   getAvailableMovements(
     playerId: string
   ): { x: number; y: number; cost?: number }[];

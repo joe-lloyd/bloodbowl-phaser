@@ -242,6 +242,8 @@ export class GameService implements IGameService {
       this.sweepChomped();
     });
     eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
+    // A Blitz's single block is tracked per activation; a fresh turn clears it.
+    eventBus.on(GameEventNames.TurnStarted, () => this.blitzBlockUsed.clear());
 
     this.passController = new PassController(
       eventBus,
@@ -473,7 +475,53 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
+    this.blitzBlockUsed.delete(playerId);
     this.turnManager.finishActivation(playerId);
+  }
+
+  /**
+   * The single block a Blitz allows was spent this activation. A Blitz may
+   * block once, at any point during the move; afterwards the player may keep
+   * moving, so a second block must be refused.
+   */
+  private blitzBlockUsed = new Set<string>();
+
+  public hasUsedBlitzBlock(playerId: string): boolean {
+    return this.blitzBlockUsed.has(playerId);
+  }
+
+  /**
+   * End (or continue) a blocker's activation once their block has fully
+   * resolved. A plain Block always ends the activation. A Blitz block does
+   * not: it costs one square of the move, marks the Blitz's block as spent,
+   * and — while any of the MA+rush budget remains and the blocker is still
+   * Standing — leaves the player active so the coach can keep moving (and
+   * Rush). The normal movement auto-finish ends it once the budget is spent.
+   */
+  public finishBlockActivation(attackerId: string): void {
+    const player = this.getPlayerById(attackerId);
+    const isBlitz =
+      this.state.activePlayer?.action === "blitz" &&
+      this.state.activePlayer?.id === attackerId;
+    if (
+      player &&
+      isBlitz &&
+      player.status === PlayerStatus.ACTIVE &&
+      !this.blitzBlockUsed.has(attackerId)
+    ) {
+      // The Blitz block's own square is already charged in rollBlockDice; here
+      // we only decide whether the move continues. Mark the single block as
+      // spent, and if any of the MA+rush budget is left, keep the player
+      // active so the coach can keep moving (and Rush).
+      this.blitzBlockUsed.add(attackerId);
+      if (this.getMovementUsed(attackerId) < moveAllowance(player)) {
+        this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
+          playerId: attackerId,
+        });
+        return;
+      }
+    }
+    this.finishActivation(attackerId);
   }
 
   canActivate(playerId: string): boolean {

@@ -255,6 +255,10 @@ export class HeadlessGame {
       case "block": {
         const attacker = this.requirePlayer(cmd.attackerId);
         const defender = this.requirePlayer(cmd.defenderId);
+        // A Blitz allows only one block; refuse a second after the first.
+        if (gs.hasUsedBlitzBlock(cmd.attackerId)) {
+          throw new Error("blitz-block-already-used");
+        }
         const allPlayers = [
           ...this.ctx.team1.players,
           ...this.ctx.team2.players,
@@ -339,7 +343,9 @@ export class HeadlessGame {
           // Free move: no movement cost, no dice (rush/dodge already paid)
           await gs.followUpPush(pending.attackerId, pending.targetSquare);
         }
-        gs.finishActivation(pending.attackerId);
+        // A Blitz block leaves the player active to continue moving; a plain
+        // block ends the activation here.
+        gs.finishBlockActivation(pending.attackerId);
         break;
       }
       case "use-reroll": {

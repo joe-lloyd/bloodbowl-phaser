@@ -146,6 +146,13 @@ export class NetworkedGameService implements IGameService {
   getTeammates(playerId: string): Player[] {
     return this.inner.getTeammates(playerId);
   }
+  finishBlockActivation(playerId: string): void {
+    // Online Blitz continuation is not wired; end the activation as before.
+    this.finishActivation(playerId);
+  }
+  hasUsedBlitzBlock(playerId: string): boolean {
+    return this.inner.hasUsedBlitzBlock(playerId);
+  }
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }

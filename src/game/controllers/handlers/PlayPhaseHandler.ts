@@ -4,6 +4,7 @@ import { IGameService } from "../../../services/interfaces/IGameService";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 
 /**
  * PlayPhaseHandler
@@ -174,11 +175,24 @@ export class PlayPhaseHandler implements PhaseHandler {
 
     // Push Follow Up Response — the follow-up move is free (no movement
     // cost, no dice), so it must NOT go through movePlayer
-    this.register(GameEventNames.UI_FollowUpResponse, (data) => {
+    this.register(GameEventNames.UI_FollowUpResponse, async (data) => {
       if (data.followUp && data.targetSquare) {
-        this.gameService.followUpPush(data.attackerId, data.targetSquare);
+        await this.gameService.followUpPush(data.attackerId, data.targetSquare);
       }
-      this.gameService.finishActivation(data.attackerId);
+      // A Blitz block keeps the player active with the rest of their move;
+      // a plain block ends the activation.
+      this.gameService.finishBlockActivation(data.attackerId);
+      // hasUsedBlitzBlock is true ONLY when a Blitz block kept the player
+      // active (a plain block, or a Blitz that spent its last movement,
+      // clears it) — the precise signal to resume the move.
+      if (
+        !getActiveOnlineMatch() &&
+        this.gameService.hasUsedBlitzBlock(data.attackerId)
+      ) {
+        this.eventBus.emit(GameEventNames.UI_ResumeBlitzMove, {
+          playerId: data.attackerId,
+        });
+      }
     });
 
     // Status Updates

@@ -54,6 +54,7 @@ export class GameplayInteractionController {
   private pushDirectionHandler: (
     data: import("@/types/events").UIEvents[GameEventNames.UI_SelectPushDirection]
   ) => void;
+  private resumeBlitzMoveHandler: (data: { playerId: string }) => void;
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
@@ -85,6 +86,27 @@ export class GameplayInteractionController {
       this.startPushDirectionSelection(data);
     };
 
+    // A Blitz block that left movement re-enters the move: re-select the
+    // blitzer where the follow-up left them, with the rest of their MA (and
+    // Rush) available. Their one Block is spent, so only Move remains.
+    this.resumeBlitzMoveHandler = (data) => {
+      const player = this.gameService.getPlayerById(data.playerId);
+      if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
+      this.selectedPlayerId = data.playerId;
+      this.currentActionMode = "blitz";
+      this.currentStepId = "move";
+      this.hasMovedInAction = true;
+      this.waypoints = [];
+      this.pitch.clearPath();
+      this.scene.highlightPlayer(data.playerId);
+      this.eventBus.emit(GameEventNames.PlayerSelected, { player });
+      this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+        steps: [{ id: "move", label: "Move" }],
+        currentStepId: "move",
+      });
+      this.refreshPlayerVisualization(data.playerId);
+    };
+
     // Listen for confirmation
     this.eventBus.on(
       GameEventNames.UI_ConfirmationResult,
@@ -102,6 +124,10 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.on(
+      GameEventNames.UI_ResumeBlitzMove,
+      this.resumeBlitzMoveHandler
+    );
 
     // Leaving PLAY (touchdown, drive end, halftime) must fully reset the
     // interaction state — a lingering selection/action menu/overlay broke
@@ -614,6 +640,15 @@ export class GameplayInteractionController {
                 state.activePlayer?.id === selectedPlayer.id
                   ? state.activePlayer?.action
                   : undefined;
+
+              // A Blitz allows only one Block; after it, further clicks move.
+              if (this.gameService.hasUsedBlitzBlock(selectedPlayer.id)) {
+                this.eventBus.emit(
+                  GameEventNames.UI_Notification,
+                  "This Blitz has already used its Block \u2014 keep moving."
+                );
+                return;
+              }
 
               if (!currentAction) {
                 // If no action declared for this player, implicitly declare
@@ -1222,6 +1257,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(
+      GameEventNames.UI_ResumeBlitzMove,
+      this.resumeBlitzMoveHandler
+    );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
 
     // Cleanup highlight manager

@@ -129,6 +129,7 @@ export enum GameEventNames {
   UI_RerollResponse = "ui:rerollResponse",
   UI_ReactionResponse = "ui:reactionResponse",
   UI_UpdateActionSteps = "ui:updateActionSteps",
+  UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_StepSelected = "ui:stepSelected",
 
   // State Events
@@ -530,6 +531,11 @@ export interface UIEvents {
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;
     steps: { id: string; label: string }[];
+  };
+
+  /** A Blitz block resolved with movement left — resume the move. */
+  [GameEventNames.UI_ResumeBlitzMove]: {
+    playerId: string;
   };
 
   [GameEventNames.UI_StepSelected]: {
