@@ -104,6 +104,16 @@ function answerDecision(
     }
     case "reaction":
       return { type: "use-reaction", accept: policy.acceptReactions ?? true };
+    case "interception": {
+      // Default: the defending coach picks the least-penalised interceptor.
+      if ((policy.acceptInterceptions ?? true) === false) {
+        return { type: "choose-interception" };
+      }
+      const best = [...pending.candidates].sort(
+        (a, b) => b.modifier - a.modifier
+      )[0];
+      return { type: "choose-interception", playerId: best?.playerId };
+    }
   }
 }
 

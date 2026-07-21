@@ -100,6 +100,7 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_FollowUpResponse,
   GameEventNames.UI_RerollResponse,
   GameEventNames.UI_ReactionResponse,
+  GameEventNames.UI_InterceptionResponse,
   GameEventNames.UI_ConfirmationResult,
   GameEventNames.UI_CoinFlipComplete,
   GameEventNames.UI_SetupAction,
@@ -372,6 +373,11 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       answerReaction: (accept: boolean) => {
         if (game.pendingDecision()?.type !== "reaction") return false;
         executeAsHost({ type: "use-reaction", accept });
+        return true;
+      },
+      answerInterception: (playerId?: string) => {
+        if (game.pendingDecision()?.type !== "interception") return false;
+        executeAsHost({ type: "choose-interception", playerId });
         return true;
       },
       finishActivation: (playerId: string) => {

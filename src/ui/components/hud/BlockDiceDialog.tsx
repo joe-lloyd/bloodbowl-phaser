@@ -24,18 +24,26 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const [isRolling, setIsRolling] = useState(false);
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
+  // Pro mode: the next die the coach clicks is re-rolled (not selected).
+  const [proMode, setProMode] = useState(false);
 
   useEffect(() => {
-    const onOpen = (payload) => {
+    const onOpen = (payload: {
+      attackerId: string;
+      defenderId: string;
+      analysis: BlockAnalysis;
+    }) => {
       setData(payload);
       setRollData(null);
       setIsRolling(false);
+      setProMode(false);
       setIsOpen(true);
     };
 
     const onDiceRolled = (payload: BlockRollData) => {
       setRollData(payload);
       setIsRolling(false);
+      setProMode(false);
     };
 
     // The roll will not happen (illegal block, no movement left, rush
@@ -89,6 +97,24 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     setIsOpen(false);
   };
 
+  const handleTeamReroll = () => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
+    if (!data) return;
+    eventBus.emit(GameEventNames.UI_TeamRerollBlock, {
+      attackerId: data.attackerId,
+    });
+  };
+
+  const handleProReroll = (dieIndex: number) => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
+    if (!data) return;
+    setProMode(false);
+    eventBus.emit(GameEventNames.UI_ProRerollBlockDie, {
+      attackerId: data.attackerId,
+      dieIndex,
+    });
+  };
+
   const handleCancel = () => {
     setIsOpen(false);
   };
@@ -133,9 +159,11 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               {rollData.results.map((result, idx) => (
                 <button
                   key={idx}
-                  onClick={() => handleSelectResult(result)}
-                  className="group relative hover:scale-110 transition-transform"
-                  title={result.label}
+                  onClick={() =>
+                    proMode ? handleProReroll(idx) : handleSelectResult(result)
+                  }
+                  className={`group relative hover:scale-110 transition-transform ${proMode ? "ring-2 ring-purple-400 rounded" : ""}`}
+                  title={proMode ? `Re-roll this ${result.label}` : result.label}
                 >
                   <img
                     src={result.icon}
@@ -149,8 +177,34 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               ))}
             </div>
             <div className="text-center text-sm text-yellow-400 mt-8">
-              Click a die to select result
+              {proMode
+                ? "Pro: click a die to re-roll it (3+)"
+                : "Click a die to select the result"}
             </div>
+            {(rollData.teamRerollAvailable || rollData.proAvailable) && (
+              <div className="flex justify-center gap-3 mt-3">
+                {rollData.teamRerollAvailable && (
+                  <button
+                    onClick={handleTeamReroll}
+                    className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 rounded text-xs font-bold text-white transition-colors"
+                  >
+                    TEAM RE-ROLL (all dice)
+                  </button>
+                )}
+                {rollData.proAvailable && (
+                  <button
+                    onClick={() => setProMode((m) => !m)}
+                    className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors ${
+                      proMode
+                        ? "bg-purple-500"
+                        : "bg-purple-700 hover:bg-purple-600"
+                    }`}
+                  >
+                    {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex justify-center mb-6 h-20 items-center">

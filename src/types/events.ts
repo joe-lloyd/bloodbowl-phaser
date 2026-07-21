@@ -65,7 +65,9 @@ export enum GameEventNames {
   PassAttempted = "passAttempted",
   PassCompleted = "passCompleted",
   PassFumbled = "passFumbled",
+  InterceptionAttempted = "interceptionAttempted",
   PassIntercepted = "passIntercepted",
+  InterceptionFailed = "interceptionFailed",
   CatchAttempted = "catchAttempted",
   CatchSucceeded = "catchSucceeded",
   CatchFailed = "catchFailed",
@@ -128,8 +130,11 @@ export enum GameEventNames {
   UI_FollowUpResponse = "ui:followUpResponse",
   UI_RerollResponse = "ui:rerollResponse",
   UI_ReactionResponse = "ui:reactionResponse",
+  UI_InterceptionResponse = "ui:interceptionResponse",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
+  UI_TeamRerollBlock = "ui:teamRerollBlock",
+  UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_StepSelected = "ui:stepSelected",
 
   // State Events
@@ -309,10 +314,21 @@ export interface GameEvents {
     position: { x: number; y: number };
     bouncePosition: { x: number; y: number };
   };
+  [GameEventNames.InterceptionAttempted]: {
+    passerId: string;
+    interceptorId: string;
+    /** Net modifier the interceptor rolls at (base -3/-2 plus marking). */
+    modifier: number;
+  };
   [GameEventNames.PassIntercepted]: {
     passerId: string;
     interceptorId: string;
     position: { x: number; y: number };
+  };
+  [GameEventNames.InterceptionFailed]: {
+    passerId: string;
+    interceptorId: string;
+    roll: number;
   };
   [GameEventNames.CatchAttempted]: {
     playerId: string;
@@ -527,6 +543,7 @@ export interface UIEvents {
 
   [GameEventNames.UI_RerollResponse]: import("./decisions").RerollDecisionAnswer;
   [GameEventNames.UI_ReactionResponse]: import("./decisions").ReactionDecisionAnswer;
+  [GameEventNames.UI_InterceptionResponse]: import("./decisions").InterceptionDecisionAnswer;
 
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;
@@ -536,6 +553,14 @@ export interface UIEvents {
   /** A Blitz block resolved with movement left — resume the move. */
   [GameEventNames.UI_ResumeBlitzMove]: {
     playerId: string;
+  };
+
+  /** Spend a Team Re-roll on a block (re-roll all the dice). */
+  [GameEventNames.UI_TeamRerollBlock]: { attackerId: string };
+  /** Spend Pro on a block (re-roll one die). */
+  [GameEventNames.UI_ProRerollBlockDie]: {
+    attackerId: string;
+    dieIndex: number;
   };
 
   [GameEventNames.UI_StepSelected]: {

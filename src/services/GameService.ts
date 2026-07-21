@@ -349,6 +349,16 @@ export class GameService implements IGameService {
     return this.decisionService.answer({ accept });
   }
 
+  /**
+   * Answer a pending interception decision — the defending coach's chosen
+   * interceptor, or undefined to decline. False when none is pending.
+   */
+  public answerInterception(playerId?: string): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "interception") return false;
+    return this.decisionService.answer({ playerId });
+  }
+
   getTurnNumber(teamId: string): number {
     return this.turnManager.getTurnNumber(teamId);
   }
@@ -632,6 +642,16 @@ export class GameService implements IGameService {
     result: BlockResult
   ): Promise<void> {
     await this.blockManager.resolveBlock(attackerId, defenderId, result);
+  }
+
+  /** Team Re-roll on a block: re-roll all the dice. */
+  teamRerollBlock(attackerId: string): void {
+    this.blockManager.teamRerollBlock(attackerId);
+  }
+
+  /** Pro on a block: re-roll a single die (3+ to use). */
+  proRerollBlockDie(attackerId: string, dieIndex: number): void {
+    this.blockManager.proRerollBlockDie(attackerId, dieIndex);
   }
 
   public executePush(

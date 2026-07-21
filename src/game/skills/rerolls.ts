@@ -70,21 +70,22 @@ export async function withRerollOffer<T extends RollLike>(
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
   if (arbiter.teamRerollAvailable(player.teamId)) sources.push("team");
-  // Pro: a die-level reroll during the player's own activation. Every
+  // Pro: a die-level reroll during the player's OWN activation only. Every
   // rollKind offered through this seam qualifies (Armour/Injury/Casualty
-  // rolls never come through here). Once per activation, 3+ to use.
+  // rolls never come through here); the active-player check excludes rolls
+  // made on the player's behalf outside their activation (e.g. catching an
+  // opponent's pass on the opponent's turn). Once per activation, 3+ to use.
   if (
     SkillRegistry.has(SkillType.PRO) &&
     hasSkill(player.skills, SkillType.PRO) &&
+    deps.gameService.getState().activePlayer?.id === player.id &&
     arbiter.onceAvailable(player, SkillType.PRO)
   ) {
     sources.push("pro");
   }
   if (sources.length === 0) return first;
 
-  const answer: RerollDecisionAnswer = await deps.gameService
-    .getDecisionService()
-    .request({
+  const answer = (await deps.gameService.getDecisionService().request({
       type: "reroll",
       playerId: player.id,
       chooserTeamId: player.teamId,
@@ -92,7 +93,7 @@ export async function withRerollOffer<T extends RollLike>(
       sources,
       skill: skillSource ? String(skillSource) : undefined,
       roll: first.roll,
-    });
+    })) as RerollDecisionAnswer;
   if (!answer.accept) return first;
 
   const chosen: RerollSource =

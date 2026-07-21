@@ -545,11 +545,84 @@ export class Pitch {
   }
 
   /**
+   * Visualise the interception corridor for a pass aimed at `to`: a band
+   * ~0.875 squares either side of the pass line, every grid square that band
+   * passes over (the squares a player could intercept from), and a stronger
+   * highlight on the squares where a standing opponent actually threatens the
+   * throw.
+   */
+  public drawInterceptZone(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    zoneSquares: { x: number; y: number }[],
+    threatSquares: { x: number; y: number }[]
+  ): void {
+    this.clearLayer("pass_intercept");
+
+    const half = 0.875 * this.squareSize; // corridor half-width
+
+    // The band itself: a rotated rectangle from passer to target.
+    const a = gridToPixel(from.x, from.y, this.squareSize);
+    const b = gridToPixel(to.x, to.y, this.squareSize);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 0) {
+      // Unit perpendicular to the pass line.
+      const px = -dy / len;
+      const py = dx / len;
+      const band = this.scene.add.graphics();
+      band.setName("pass_intercept");
+      band.fillStyle(0xff0000, 0.12);
+      band.beginPath();
+      band.moveTo(a.x + px * half, a.y + py * half);
+      band.lineTo(b.x + px * half, b.y + py * half);
+      band.lineTo(b.x - px * half, b.y - py * half);
+      band.lineTo(a.x - px * half, a.y - py * half);
+      band.closePath();
+      band.fillPath();
+      this.container.add(band);
+    }
+
+    // Every square the corridor passes over — where an interceptor could stand.
+    zoneSquares.forEach((square) => {
+      const local = gridToPixel(square.x, square.y, this.squareSize);
+      const rect = this.scene.add.rectangle(
+        local.x,
+        local.y,
+        this.squareSize,
+        this.squareSize,
+        0xff5555,
+        0.22
+      );
+      rect.setName("pass_intercept");
+      this.container.add(rect);
+    });
+
+    // Squares where a standing opponent actually threatens the pass.
+    threatSquares.forEach((square) => {
+      const local = gridToPixel(square.x, square.y, this.squareSize);
+      const rect = this.scene.add.rectangle(
+        local.x,
+        local.y,
+        this.squareSize,
+        this.squareSize,
+        0xff0000,
+        0.45
+      );
+      rect.setStrokeStyle(3, 0xff3333, 1);
+      rect.setName("pass_intercept");
+      this.container.add(rect);
+    });
+  }
+
+  /**
    * Clear pass visualization
    */
   public clearPassVisualization(): void {
     this.clearLayer("pass_zone");
     this.clearLayer("pass_line");
+    this.clearLayer("pass_intercept");
   }
 
   /**

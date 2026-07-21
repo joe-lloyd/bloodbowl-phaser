@@ -47,6 +47,8 @@ const COMMAND_SHAPES: Record<
   handoff: { playerId: "string", x: "number", y: "number" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
+  "team-reroll-block": { attackerId: "string" },
+  "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "special-action": {
     action: "string",
     attackerId: "string",
@@ -59,6 +61,7 @@ const COMMAND_SHAPES: Record<
   "choose-follow-up": { followUp: "boolean" },
   "use-reroll": { accept: "boolean" },
   "use-reaction": { accept: "boolean" },
+  "choose-interception": {},
   touchback: { playerId: "string" },
   state: {},
   "legal-actions": {},
@@ -66,10 +69,13 @@ const COMMAND_SHAPES: Record<
 
 const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "choose-block-result": "block-dice",
+  "team-reroll-block": "block-dice",
+  "pro-reroll-block": "block-dice",
   "choose-push-direction": "push-direction",
   "choose-follow-up": "follow-up",
   "use-reroll": "reroll",
   "use-reaction": "reaction",
+  "choose-interception": "interception",
   touchback: "touchback",
 };
 
@@ -306,6 +312,12 @@ export class HeadlessGame {
         break;
 
       // --- Decision replies ---
+      case "team-reroll-block":
+        gs.teamRerollBlock(cmd.attackerId);
+        break;
+      case "pro-reroll-block":
+        gs.proRerollBlockDie(cmd.attackerId, cmd.dieIndex);
+        break;
       case "choose-block-result": {
         const pending = this.takePending("block-dice");
         if (cmd.index < 0 || cmd.index >= pending.options.length) {
@@ -371,6 +383,21 @@ export class HeadlessGame {
         }
         break;
       }
+      case "choose-interception": {
+        const pending = this.takePending("interception");
+        if (
+          cmd.playerId !== undefined &&
+          !pending.candidates.some((c) => c.playerId === cmd.playerId)
+        ) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-interception-player");
+        }
+        if (!gs.answerInterception(cmd.playerId)) {
+          this.pending = pending;
+          throw new Error("no-interception-awaiting");
+        }
+        break;
+      }
       case "touchback": {
         const pending = this.takePending("touchback");
         if (!gs.awardTouchback(cmd.playerId)) {
@@ -425,6 +452,13 @@ export class HeadlessGame {
           skill: data.skill,
           prompt: data.prompt,
         };
+      } else if (data?.type === "interception") {
+        this.pending = {
+          type: "interception",
+          chooserTeamId: data.chooserTeamId,
+          passerId: data.passerId,
+          candidates: data.candidates,
+        };
       } else {
         return;
       }
@@ -442,6 +476,8 @@ export class HeadlessGame {
           ? (attacker?.teamId ?? "")
           : (defender?.teamId ?? ""),
         options: data.results,
+        teamRerollAvailable: data.teamRerollAvailable,
+        proAvailable: data.proAvailable,
       };
     } else if (name === GameEventNames.UI_SelectPushDirection) {
       this.pending = {

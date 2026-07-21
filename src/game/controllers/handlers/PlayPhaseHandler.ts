@@ -164,6 +164,15 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
     });
 
+    // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die). Both
+    // re-emit BlockDiceRolled, so the dialog refreshes in place.
+    this.register(GameEventNames.UI_TeamRerollBlock, (data) => {
+      this.gameService.teamRerollBlock(data.attackerId);
+    });
+    this.register(GameEventNames.UI_ProRerollBlockDie, (data) => {
+      this.gameService.proRerollBlockDie(data.attackerId, data.dieIndex);
+    });
+
     // Reroll/reaction dialog answers — resolve the paused roll path (or,
     // on the guest / online host, route the reply over the protocol)
     this.register(GameEventNames.UI_RerollResponse, (data) => {
@@ -171,6 +180,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     });
     this.register(GameEventNames.UI_ReactionResponse, (data) => {
       this.gameService.answerReaction(data.accept);
+    });
+    this.register(GameEventNames.UI_InterceptionResponse, (data) => {
+      this.gameService.answerInterception(data.playerId);
     });
 
     // Push Follow Up Response — the follow-up move is free (no movement

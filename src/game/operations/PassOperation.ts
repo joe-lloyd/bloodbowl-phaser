@@ -1,6 +1,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
+import { InterceptionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
 import {
@@ -179,6 +180,18 @@ export class PassOperation extends GameOperation {
       // Pass logic already determined 'finalPosition' (target or scattered)
       const landingPos = result.finalPosition;
 
+      // The defending team may Intercept the ball in flight, before it
+      // resolves at its landing square. A successful interception grants
+      // possession and a turnover — the catch/bounce below is skipped.
+      const intercepted = await this.resolveInterception(
+        gameService,
+        eventBus,
+        passer,
+        landingPos,
+        result.accurate
+      );
+      if (intercepted) return;
+
       if (result.success) {
         eventBus.emit(GameEventNames.UI_Notification, "Accurate Pass!");
       } else {
@@ -219,5 +232,111 @@ export class PassOperation extends GameOperation {
 
     // Update State
     gameService.getState().ballPosition = result.finalPosition;
+  }
+
+  /**
+   * Offer the defending coach an interception of a pass in flight. Returns
+   * true when the ball was intercepted (possession changed, turnover caused),
+   * in which case the caller must NOT resolve the ball at its landing square.
+   */
+  private async resolveInterception(
+    gameService: IGameService,
+    eventBus: import("../../services/EventBus").IEventBus,
+    passer: import("@/types/Player").Player,
+    landing: { x: number; y: number },
+    accurate: boolean
+  ): Promise<boolean> {
+    if (!passer.gridPosition) return false;
+
+    const passController = gameService.getPassController();
+    const catchController = gameService.getCatchController();
+    const opponents = gameService.getOpponents(passer.teamId);
+
+    const eligible = passController.checkInterceptions(
+      passer.gridPosition,
+      landing,
+      opponents,
+      accurate
+    );
+    if (eligible.length === 0) return false;
+
+    // Marking is measured at each interceptor against the passing team.
+    const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
+    const candidates = eligible.map((e) => {
+      const interceptor = gameService.getPlayerById(e.playerId)!;
+      const marking = catchController.countMarkingOpponents(
+        interceptor.gridPosition!,
+        passingTeam
+      );
+      return {
+        playerId: e.playerId,
+        base: e.modifier,
+        marking,
+        modifier: e.modifier - marking,
+      };
+    });
+
+    const chooserTeamId = gameService.getPlayerById(
+      candidates[0].playerId
+    )!.teamId;
+
+    const answer = (await gameService.getDecisionService().request({
+      type: "interception",
+      chooserTeamId,
+      passerId: passer.id,
+      candidates: candidates.map((c) => ({
+        playerId: c.playerId,
+        playerName: gameService.getPlayerById(c.playerId)?.playerName,
+        modifier: c.modifier,
+      })),
+    })) as InterceptionDecisionAnswer;
+
+    const chosen = answer.playerId
+      ? candidates.find((c) => c.playerId === answer.playerId)
+      : undefined;
+    if (!chosen) return false; // declined or invalid
+
+    const interceptor = gameService.getPlayerById(chosen.playerId)!;
+    eventBus.emit(GameEventNames.InterceptionAttempted, {
+      passerId: passer.id,
+      interceptorId: interceptor.id,
+      modifier: chosen.modifier,
+    });
+
+    const outcome = passController.attemptInterception(
+      interceptor,
+      chosen.base,
+      chosen.marking
+    );
+
+    if (!outcome.success) {
+      eventBus.emit(GameEventNames.InterceptionFailed, {
+        passerId: passer.id,
+        interceptorId: interceptor.id,
+        roll: outcome.roll,
+      });
+      return false;
+    }
+
+    // Interception! The interceptor gains the ball where they stand and the
+    // passing team suffers a turnover; the ball never reaches its landing.
+    if (interceptor.gridPosition) {
+      gameService.setBallPosition(
+        interceptor.gridPosition.x,
+        interceptor.gridPosition.y
+      );
+    }
+    eventBus.emit(GameEventNames.PassIntercepted, {
+      passerId: passer.id,
+      interceptorId: interceptor.id,
+      position: interceptor.gridPosition!,
+    });
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      `${interceptor.playerName} intercepts the pass!`
+    );
+    gameService.getState().ballPosition = interceptor.gridPosition!;
+    gameService.triggerTurnover("Intercepted");
+    return true;
   }
 }

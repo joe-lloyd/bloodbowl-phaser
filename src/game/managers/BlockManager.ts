@@ -313,9 +313,110 @@ export class BlockManager {
       numDice,
       isAttackerChoice,
       results,
+      ...this.blockRerollAvailability(attacker),
     };
 
+    this.pendingBlockRoll = rollData;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, rollData);
+  }
+
+  /** The block roll awaiting the coach's result choice (for re-rolls). */
+  private pendingBlockRoll: BlockRollData | null = null;
+
+  /** Which block-dice re-rolls the attacker may use right now. */
+  private blockRerollAvailability(attacker?: Player): {
+    teamRerollAvailable: boolean;
+    proAvailable: boolean;
+  } {
+    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+    const arbiter = gs?.getRerollArbiter();
+    if (!attacker || !gs || !arbiter) {
+      return { teamRerollAvailable: false, proAvailable: false };
+    }
+    return {
+      teamRerollAvailable: arbiter.teamRerollAvailable(attacker.teamId),
+      proAvailable:
+        hasSkill(attacker.skills, SkillType.PRO) &&
+        gs.getState().activePlayer?.id === attacker.id &&
+        arbiter.onceAvailable(attacker, SkillType.PRO),
+    };
+  }
+
+  /**
+   * Team Re-roll on a block: re-roll ALL the dice. One re-roll per block, so
+   * Pro is locked out afterwards.
+   */
+  public teamRerollBlock(attackerId: string): void {
+    const pending = this.pendingBlockRoll;
+    if (!pending || pending.attackerId !== attackerId) return;
+    const attacker = this.getPlayerById(attackerId);
+    const arbiter = this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.getRerollArbiter();
+    if (!attacker || !arbiter || !arbiter.teamRerollAvailable(attacker.teamId)) {
+      return;
+    }
+    arbiter.consumeTeamReroll(attacker.teamId);
+    pending.results = this.diceController.rollBlockDice(
+      pending.numDice,
+      attacker.teamId
+    );
+    this.eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: attackerId,
+      source: "team",
+      rollKind: "block",
+      before: 0,
+      after: 0,
+    });
+    pending.teamRerollAvailable = false;
+    pending.proAvailable = false;
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+  }
+
+  /**
+   * Pro on a block: re-roll a SINGLE die (3+ to use). Once attempted, no
+   * other re-roll source may be used on this block (rulebook p.133).
+   */
+  public proRerollBlockDie(attackerId: string, dieIndex: number): void {
+    const pending = this.pendingBlockRoll;
+    if (!pending || pending.attackerId !== attackerId) return;
+    if (dieIndex < 0 || dieIndex >= pending.results.length) return;
+    const attacker = this.getPlayerById(attackerId);
+    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+    const arbiter = gs?.getRerollArbiter();
+    if (!attacker || !gs || !arbiter) return;
+    if (!hasSkill(attacker.skills, SkillType.PRO)) return;
+    if (gs.getState().activePlayer?.id !== attacker.id) return;
+    if (!arbiter.onceAvailable(attacker, SkillType.PRO)) return;
+
+    // Once Pro is attempted the die is committed to Pro — no other source.
+    arbiter.consumeOnce(attacker, SkillType.PRO);
+    const gate = this.diceController.rollSkillCheck(
+      "Pro",
+      3,
+      0,
+      attacker.playerName
+    );
+    if (gate.success) {
+      pending.results[dieIndex] = this.diceController.rollBlockDice(
+        1,
+        attacker.teamId
+      )[0];
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: attackerId,
+        skill: SkillType.PRO,
+        effect: "Pro: re-rolled a block die",
+      });
+    } else {
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: attackerId,
+        skill: SkillType.PRO,
+        effect: "Pro: the attempt fails — no other re-roll may be used",
+      });
+    }
+    pending.proAvailable = false;
+    pending.teamRerollAvailable = false;
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
   /**
@@ -326,6 +427,7 @@ export class BlockManager {
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
+    this.pendingBlockRoll = null; // the coach committed to a result
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
 

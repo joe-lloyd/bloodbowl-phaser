@@ -56,5 +56,38 @@ export interface ReactionDecisionAnswer {
   accept: boolean;
 }
 
-export type DecisionRequest = RerollDecisionRequest | ReactionDecisionRequest;
-export type DecisionAnswer = RerollDecisionAnswer | ReactionDecisionAnswer;
+/** One player the defending coach may pick to attempt an interception. */
+export interface InterceptionCandidate {
+  playerId: string;
+  /** Display name for the dialog (engine-side requests populate this). */
+  playerName?: string;
+  /** Net modifier the interceptor would roll at (base -3/-2 plus marking). */
+  modifier: number;
+}
+
+/**
+ * After a pass' landing square is fixed, the DEFENDING coach may pick one
+ * eligible player (under the Range Ruler) to attempt an interception, or
+ * decline. The chooser is the team that does NOT own the passer.
+ */
+export interface InterceptionDecisionRequest {
+  type: "interception";
+  chooserTeamId: string;
+  /** The passer, for context/logging. */
+  passerId: string;
+  candidates: InterceptionCandidate[];
+}
+
+export interface InterceptionDecisionAnswer {
+  /** Chosen interceptor; omit/undefined to decline. */
+  playerId?: string;
+}
+
+export type DecisionRequest =
+  | RerollDecisionRequest
+  | ReactionDecisionRequest
+  | InterceptionDecisionRequest;
+export type DecisionAnswer =
+  | RerollDecisionAnswer
+  | ReactionDecisionAnswer
+  | InterceptionDecisionAnswer;

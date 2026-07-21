@@ -38,9 +38,11 @@ export interface DecisionPolicy {
   /** Pick this block result when it was rolled (else first die). */
   preferBlockResult?: BlockResultType;
   /** Accept reroll offers (default true; "skill"/"team" forces the source). */
-  acceptRerolls?: boolean | "skill" | "team";
+  acceptRerolls?: boolean | "skill" | "team" | "pro";
   /** Accept reaction offers (default true). */
   acceptReactions?: boolean;
+  /** Attempt interceptions (default true; picks the least-penalised player). */
+  acceptInterceptions?: boolean;
   /** Follow up after pushes (default true). */
   followUp?: boolean;
   custom?(

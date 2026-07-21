@@ -34,6 +34,8 @@ export type HeadlessCommand =
   | { type: "handoff"; playerId: string; x: number; y: number }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }
+  | { type: "team-reroll-block"; attackerId: string }
+  | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | {
       type: "special-action";
       /** "breatheFire" | "vomit" | "gaze" | "chomp" */
@@ -54,6 +56,7 @@ export type HeadlessCommand =
       source?: "skill" | "team" | "pro";
     }
   | { type: "use-reaction"; accept: boolean }
+  | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
   // Queries (never mutate state)
   | { type: "state" }
@@ -68,6 +71,10 @@ export type PendingDecision =
       /** Team that picks the die (attacker unless more defender dice) */
       chooserTeamId: string;
       options: BlockResult[];
+      /** The attacker may spend a Team Re-roll (all dice) before choosing. */
+      teamRerollAvailable?: boolean;
+      /** The attacker may Pro-re-roll one die before choosing. */
+      proAvailable?: boolean;
     }
   | {
       type: "push-direction";
@@ -107,6 +114,14 @@ export type PendingDecision =
       chooserTeamId: string;
       skill: string;
       prompt: string;
+    }
+  | {
+      /** A pass' landing square is fixed: the DEFENDING coach picks an
+          interceptor under the Range Ruler, or declines. */
+      type: "interception";
+      chooserTeamId: string;
+      passerId: string;
+      candidates: { playerId: string; modifier: number }[];
     };
 
 export interface EmittedEvent {

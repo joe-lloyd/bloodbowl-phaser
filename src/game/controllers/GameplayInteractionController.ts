@@ -792,6 +792,31 @@ export class GameplayInteractionController {
             { x, y },
             passRange.type
           );
+
+          // Preview the interception corridor for a throw at this square: the
+          // whole zone a defender could intercept from, plus the squares where
+          // a standing opponent actually threatens the throw.
+          const opponents = this.gameService.getOpponents(
+            selectedPlayer.teamId
+          );
+          const zone = this.passController.getInterceptionSquares(
+            selectedPlayer.gridPosition,
+            { x, y }
+          );
+          const threats = this.passController
+            .checkInterceptions(
+              selectedPlayer.gridPosition,
+              { x, y },
+              opponents,
+              true
+            )
+            .map((i) => i.position);
+          this.pitch.drawInterceptZone(
+            selectedPlayer.gridPosition,
+            { x, y },
+            zone,
+            threats
+          );
         }
       } else if (
         this.currentActionMode === "foul" &&

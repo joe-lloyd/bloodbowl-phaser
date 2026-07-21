@@ -4,6 +4,7 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
   RuleConfig,
@@ -61,6 +62,297 @@ function passModifierConfig(opts: {
     ],
   };
 }
+
+/**
+ * Interception is a CORE rule, not a skill. This standalone config pins the
+ * Range Ruler geometry and outcome via findSeed in the headless interception
+ * tests. It is intentionally NOT part of PASSING_RULE_SCENARIOS, so the
+ * skill-coverage gate snapshot is unaffected.
+ *
+ * Layout — passer (4,5) with the ball throws a Short Pass to the catcher at
+ * (10,5). The interceptor stands on the pass line at (7,5); a decoy sits off
+ * the line at (7,8) and must never be offered.
+ */
+export const INTERCEPTION_SCENARIO: RuleConfig = {
+  id: "interception-short-pass",
+  name: "Intercept a short pass",
+  description:
+    "A standing defender on the pass line may intercept; success steals the ball and causes a turnover",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer (holds the ball)
+      { playerIndex: 1, x: 10, y: 5 }, // catcher
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 7, y: 5 }, // interceptor — on the ruler
+      { playerIndex: 1, x: 7, y: 8 }, // decoy — off the ruler
+    ],
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "offered",
+      name: "The on-ruler defender is offered an interception (-3 vs accurate)",
+      matches: (r) =>
+        r.decisions.some(
+          (d) =>
+            d.type === "interception" &&
+            d.candidates.some((c) => c.modifier === -3)
+        ),
+      verify: (r) => {
+        const d = r.decisions.find((x) => x.type === "interception");
+        assert(!!d && d.type === "interception", "an interception is raised");
+        if (!d || d.type !== "interception") return;
+        assert(
+          d.chooserTeamId === r.game.ctx.team2.id,
+          "the defending team chooses the interceptor"
+        );
+        assert(
+          d.candidates.length === 1,
+          "only the on-ruler standing defender is eligible (decoy excluded)"
+        );
+        assert(
+          d.candidates[0].playerId === r.game.ctx.team2.players[0].id,
+          "the eligible interceptor is the defender on the pass line"
+        );
+        assert(
+          d.candidates[0].modifier === -3,
+          "an accurate pass gives the interceptor a -3 modifier"
+        );
+      },
+    },
+    {
+      id: "intercepted",
+      name: "A successful interception steals the ball and causes a turnover",
+      matches: (r) =>
+        r.events.some((e) => e.name === GameEventNames.PassIntercepted),
+      verify: (r) => {
+        const ev = r.events.find(
+          (e) => e.name === GameEventNames.PassIntercepted
+        );
+        assert(!!ev, "a PassIntercepted event is emitted");
+        const data = ev!.data as {
+          interceptorId: string;
+          position: { x: number; y: number };
+        };
+        assert(
+          data.interceptorId === r.game.ctx.team2.players[0].id,
+          "the on-ruler defender is the interceptor"
+        );
+        assert(turnoverHappened(r), "an interception causes a turnover");
+        const ball = r.snapshot.ballPosition;
+        assert(
+          !!ball && ball.x === 7 && ball.y === 5,
+          "the interceptor gains the ball in their own square"
+        );
+      },
+    },
+  ],
+};
+
+/** Reusable "an interception is offered" outcome check. */
+function interceptionOffered(expectedModifier: number, candidateCount: number) {
+  return {
+    matches: (r: import("../../game/rules-lab").ScriptResult) =>
+      r.decisions.some(
+        (d) =>
+          d.type === "interception" &&
+          d.candidates.length === candidateCount &&
+          d.candidates.some((c) => c.modifier === expectedModifier)
+      ),
+    verify: (r: import("../../game/rules-lab").ScriptResult) => {
+      const d = r.decisions.find((x) => x.type === "interception");
+      assert(!!d && d.type === "interception", "an interception is raised");
+      if (!d || d.type !== "interception") return;
+      assert(
+        d.chooserTeamId === r.game.ctx.team2.id,
+        "the defending team chooses the interceptor"
+      );
+      assert(
+        d.candidates.length === candidateCount,
+        `expected ${candidateCount} eligible interceptor(s)`
+      );
+      assert(
+        d.candidates.some((c) => c.modifier === expectedModifier),
+        `a candidate at modifier ${expectedModifier}`
+      );
+    },
+  };
+}
+
+/**
+ * Interceptor marked by a passing-team player: the catcher stands on the
+ * target square (8,5), adjacent to the interceptor at (7,5), so an accurate
+ * pass gives the interceptor -3 (accurate) -1 (marked) = -4.
+ */
+export const INTERCEPTION_MARKED_SCENARIO: RuleConfig = {
+  id: "interception-marked",
+  name: "Marking stacks onto the interception penalty",
+  description: "An accurate pass past a marked interceptor is a -4 attempt",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer
+      { playerIndex: 1, x: 8, y: 5 }, // catcher, marks (7,5)
+    ],
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 8, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "offered-marked",
+      name: "The marked interceptor is offered at -4",
+      ...interceptionOffered(-4, 1),
+    },
+  ],
+};
+
+/**
+ * Two standing defenders on the pass line: the defending coach is offered
+ * both and picks one.
+ */
+export const INTERCEPTION_MULTI_SCENARIO: RuleConfig = {
+  id: "interception-multi",
+  name: "Coach chooses among several interceptors",
+  description: "Two defenders under the ruler are both offered",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer
+      { playerIndex: 1, x: 10, y: 5 }, // catcher
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 6, y: 5 }, // interceptor A
+      { playerIndex: 1, x: 8, y: 5 }, // interceptor B
+    ],
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "two-candidates",
+      name: "Both on-ruler defenders are eligible",
+      matches: (r) =>
+        r.decisions.some(
+          (d) => d.type === "interception" && d.candidates.length === 2
+        ),
+      verify: (r) => {
+        const d = r.decisions.find((x) => x.type === "interception");
+        assert(!!d && d.type === "interception", "an interception is raised");
+        if (!d || d.type !== "interception") return;
+        const ids = new Set(d.candidates.map((c) => c.playerId));
+        assert(
+          ids.has(r.game.ctx.team2.players[0].id) &&
+            ids.has(r.game.ctx.team2.players[1].id),
+          "both defenders on the pass line are offered"
+        );
+      },
+    },
+  ],
+};
+
+/**
+ * Declining the interception lets the pass carry on to its landing square —
+ * the interceptor never gains the ball.
+ */
+export const INTERCEPTION_DECLINE_SCENARIO: RuleConfig = {
+  id: "interception-decline",
+  name: "Declining leaves the pass to resolve normally",
+  description: "A declined interception does not steal the ball",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer
+      { playerIndex: 1, x: 10, y: 5 }, // catcher
+    ],
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+  ],
+  decisionPolicy: { acceptInterceptions: false },
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "declined",
+      name: "Offered then declined — no steal",
+      matches: (r) =>
+        r.decisions.some((d) => d.type === "interception") &&
+        !r.events.some((e) => e.name === GameEventNames.PassIntercepted),
+      verify: (r) => {
+        assert(
+          !r.events.some((e) => e.name === GameEventNames.PassIntercepted),
+          "no interception occurs when declined"
+        );
+        const ball = r.snapshot.ballPosition;
+        assert(
+          !ball || !(ball.x === 7 && ball.y === 5),
+          "the declined interceptor never holds the ball"
+        );
+      },
+    },
+  ],
+};
+
+/**
+ * No opponent under the ruler → no interception is offered at all (negative
+ * case; the lone defender sits well off the pass line).
+ */
+export const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
+  id: "interception-none",
+  name: "No interception when nobody is under the ruler",
+  description: "A clear lane raises no interception decision",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer
+      { playerIndex: 1, x: 7, y: 5 }, // catcher
+    ],
+    team2Placements: [{ playerIndex: 0, x: 4, y: 12 }], // far off the lane
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "no-interception",
+      name: "The throw resolves with no interception offered",
+      matches: (r) =>
+        r.events.some((e) => e.name === GameEventNames.PassAttempted) &&
+        !r.decisions.some((d) => d.type === "interception"),
+      verify: (r) => {
+        assert(
+          !r.decisions.some((d) => d.type === "interception"),
+          "no interception decision is raised for a clear lane"
+        );
+      },
+    },
+  ],
+};
+
+/** All seeded interception scenarios, for the headless interception suite. */
+export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
+  INTERCEPTION_SCENARIO,
+  INTERCEPTION_MARKED_SCENARIO,
+  INTERCEPTION_MULTI_SCENARIO,
+  INTERCEPTION_DECLINE_SCENARIO,
+  INTERCEPTION_NONE_SCENARIO,
+];
 
 export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {

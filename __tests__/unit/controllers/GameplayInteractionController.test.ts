@@ -26,6 +26,7 @@ const mockPitch = {
   clearPassVisualization: vi.fn(),
   drawPassZones: vi.fn(),
   drawPassLine: vi.fn(),
+  drawInterceptZone: vi.fn(),
   clearLayer: vi.fn(),
 };
 
@@ -64,9 +65,12 @@ const mockGameService = {
   throwBall: vi.fn(),
   isTouchbackPending: vi.fn().mockReturnValue(false),
   awardTouchback: vi.fn(),
+  getOpponents: vi.fn().mockReturnValue([]),
   getPassController: vi.fn().mockReturnValue({
     getAllRanges: vi.fn().mockReturnValue(new Map()),
     measureRange: vi.fn().mockReturnValue({ type: "Quick Pass", modifier: 0 }),
+    getInterceptionSquares: vi.fn().mockReturnValue([]),
+    checkInterceptions: vi.fn().mockReturnValue([]),
   }),
 };
 

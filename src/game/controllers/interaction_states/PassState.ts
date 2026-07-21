@@ -38,15 +38,34 @@ export class PassInteractionState extends BaseInteractionState {
 
   handleSquareHover(x: number, y: number): void {
     super.handleSquareHover(x, y);
-    // Draw pass line
+    // Draw pass line — the target is the hovered square's centre, so the
+    // previewed Range Ruler matches the one used at resolution.
     const player = this.gameService.getPlayerById(this.playerId);
     if (player && player.gridPosition) {
-      const passRange = this.gameService
-        .getPassController()
-        .measureRange(player.gridPosition, { x, y });
+      const passController = this.gameService.getPassController();
+      const passRange = passController.measureRange(player.gridPosition, {
+        x,
+        y,
+      });
       this.controller
         .getPitch()
         .drawPassLine(player.gridPosition, { x, y }, passRange.type);
+
+      // Preview the interception corridor for a pass landing on this square:
+      // the whole zone a player could intercept from, plus the squares where
+      // a standing opponent actually threatens the throw (same geometry the
+      // pass resolution uses).
+      const opponents = this.gameService.getOpponents(player.teamId);
+      const zone = passController.getInterceptionSquares(player.gridPosition, {
+        x,
+        y,
+      });
+      const threats = passController
+        .checkInterceptions(player.gridPosition, { x, y }, opponents, true)
+        .map((i) => i.position);
+      this.controller
+        .getPitch()
+        .drawInterceptZone(player.gridPosition, { x, y }, zone, threats);
     }
   }
 

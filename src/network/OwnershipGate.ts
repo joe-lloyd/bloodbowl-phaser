@@ -55,6 +55,7 @@ const DECISION_REPLIES = new Set([
   "choose-follow-up",
   "use-reroll",
   "use-reaction",
+  "choose-interception",
   "touchback",
 ]);
 
@@ -67,6 +68,7 @@ export function decisionOwner(
     case "block-dice":
     case "reroll":
     case "reaction":
+    case "interception":
       // The deciding team rides on the decision itself
       return pending.chooserTeamId;
     case "push-direction":

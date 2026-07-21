@@ -34,6 +34,8 @@ export interface IGameService {
   ): boolean;
   /** Answer a pending reaction decision; false when none is pending */
   answerReaction(accept: boolean): boolean;
+  /** Answer a pending interception decision; undefined playerId declines */
+  answerInterception(playerId?: string): boolean;
 
   // Setup
   startSetup(startingTeamId?: string): void;
@@ -87,6 +89,10 @@ export interface IGameService {
     defenderId: string,
     result: BlockResult
   ): void | Promise<void>;
+  /** Team Re-roll on a block: re-roll all the dice. */
+  teamRerollBlock(attackerId: string): void;
+  /** Pro on a block: re-roll a single die (3+ to use). */
+  proRerollBlockDie(attackerId: string, dieIndex: number): void;
   executePush(
     attackerId: string,
     defenderId: string,

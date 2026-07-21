@@ -6,7 +6,7 @@
  * Gaze, Breathe Fire, Projectile Vomit, Chomp).
  */
 
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { PlayerCondition } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
 import {
@@ -422,6 +422,164 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "pro-fails",
             name: "Pro fails — no other re-roll may be used",
+            matches: (r) =>
+              sawEvent(
+                r,
+                GameEventNames.SkillTriggered,
+                (d) =>
+                  (d as { skill?: string }).skill === SkillType.PRO &&
+                  !!(d as { effect?: string }).effect?.includes("fails")
+              ),
+          },
+        ],
+      },
+      {
+        id: "pro-rerolls-a-pickup",
+        name: "Pro re-rolls a single die (a pick-up)",
+        description:
+          "Pro is not limited to dodges: a 3+ re-rolls a failed pick-up too (a die rolled on its own)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.PRO] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 11, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+        ],
+        seedSearch: { from: 1, limit: 600 },
+        outcomes: [
+          {
+            id: "rerolls-pickup",
+            name: "A failed pick-up is re-rolled by Pro",
+            matches: (r) =>
+              sawEvent(
+                r,
+                GameEventNames.RerollUsed,
+                (d) =>
+                  (d as { source?: string }).source === "pro" &&
+                  (d as { rollKind?: string }).rollKind === "pickup"
+              ),
+          },
+        ],
+      },
+      {
+        id: "pro-locks-out-other-rerolls",
+        name: "Once Pro is attempted, no other re-roll may be used",
+        description:
+          "With a Team Re-roll available, choosing Pro on a failed dodge locks the die — the Team Re-roll is never spent on it",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.PRO] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        rerolls: { team1: 1 },
+        decisionPolicy: { acceptRerolls: "pro" },
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 9, y: 4 }] },
+        ],
+        seedSearch: { from: 1, limit: 600 },
+        outcomes: [
+          {
+            id: "team-reroll-locked-out",
+            name: "Pro is attempted and the Team Re-roll is not spent on the die",
+            matches: (r) =>
+              (sawEvent(
+                r,
+                GameEventNames.RerollUsed,
+                (d) => (d as { source?: string }).source === "pro"
+              ) ||
+                sawEvent(
+                  r,
+                  GameEventNames.SkillTriggered,
+                  (d) =>
+                    (d as { skill?: string }).skill === SkillType.PRO &&
+                    !!(d as { effect?: string }).effect?.includes("fails")
+                )) &&
+              !sawEvent(
+                r,
+                GameEventNames.RerollUsed,
+                (d) => (d as { source?: string }).source === "team"
+              ),
+            verify: (r) =>
+              assert(
+                !sawEvent(
+                  r,
+                  GameEventNames.RerollUsed,
+                  (d) => (d as { source?: string }).source === "team"
+                ),
+                "the Team Re-roll must not be spent once Pro is attempted"
+              ),
+          },
+        ],
+      },
+      {
+        id: "pro-rerolls-a-block-die",
+        name: "Pro re-rolls a single block die",
+        description:
+          "During a Block, Pro may re-roll ONE die (3+); the coach picks which die, and no other re-roll may follow",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.PRO],
+              stats: { ST: 4 },
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 2 } }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        decisionPolicy: {
+          // On the block-dice choice, spend Pro on the first die once, then
+          // pick a result; other decisions (push, follow-up) fall through.
+          custom: (pending, game) => {
+            if (pending.type !== "block-dice") return undefined;
+            const gs = game.ctx.gameService;
+            const attacker = gs.getPlayerById(pending.attackerId);
+            if (
+              attacker &&
+              hasSkill(attacker.skills, SkillType.PRO) &&
+              gs.getRerollArbiter().onceAvailable(attacker, SkillType.PRO)
+            ) {
+              return {
+                type: "pro-reroll-block",
+                attackerId: pending.attackerId,
+                dieIndex: 0,
+              };
+            }
+            return { type: "choose-block-result", index: 0 };
+          },
+        },
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "block" },
+          { type: "block", attackerId: "team1:0", defenderId: "team2:0" },
+        ],
+        seedSearch: { from: 1, limit: 400 },
+        outcomes: [
+          {
+            id: "block-die-rerolled",
+            name: "Pro re-rolls a block die (3+)",
+            matches: (r) =>
+              sawEvent(
+                r,
+                GameEventNames.SkillTriggered,
+                (d) =>
+                  (d as { skill?: string }).skill === SkillType.PRO &&
+                  !!(d as { effect?: string }).effect?.includes(
+                    "re-rolled a block die"
+                  )
+              ),
+          },
+          {
+            id: "block-die-fails",
+            name: "Pro fails on the block die (1-2)",
             matches: (r) =>
               sawEvent(
                 r,

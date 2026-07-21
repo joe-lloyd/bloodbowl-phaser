@@ -105,6 +105,11 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "use-reaction", accept });
     return true;
   }
+  answerInterception(playerId?: string): boolean {
+    if (this.pendingDecision()?.type !== "interception") return false;
+    this.send({ type: "choose-interception", playerId });
+    return true;
+  }
   isSetupComplete(teamId: string): boolean {
     // The replica's SetupManager.placedPlayers map is never populated on the
     // guest (placements are optimistic on the team objects + snapshot-applied),
@@ -152,6 +157,12 @@ export class NetworkedGameService implements IGameService {
   }
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
+  }
+  teamRerollBlock(attackerId: string): void {
+    this.send({ type: "team-reroll-block", attackerId });
+  }
+  proRerollBlockDie(attackerId: string, dieIndex: number): void {
+    this.send({ type: "pro-reroll-block", attackerId, dieIndex });
   }
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
