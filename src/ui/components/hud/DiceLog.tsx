@@ -118,7 +118,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   };
 
   return (
-    <div className="w-full h-full max-h-[50vh] flex flex-col pointer-events-auto">
+    <div className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto">
       {/* Header / Tabs */}
       <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md z-10">
         {match ? (
@@ -182,9 +182,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                                 }
                             `}
                 >
-                  <div className="p-2">
+                  <div className="p-1.5">
                     {/* Header Row: Type & Dice + Value */}
-                    <div className="flex justify-between items-center text-xs text-gray-300 mb-1">
+                    <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
                       <span className="font-bold uppercase tracking-wide text-bb-parchment">
                         {log.rollType}
                       </span>
@@ -202,7 +202,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
 
                     {/* Result Row - Full Width Description */}
                     <div className="flex justify-between items-start">
-                      <span className="text-sm font-medium text-white/90 leading-snug">
+                      <span className="text-xs font-medium text-white/90 leading-snug">
                         {log.description}
                       </span>
                     </div>
@@ -282,14 +282,14 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
           }
           100% {
             opacity: 1;
-            max-height: 100px;
-            margin-bottom: 0.5rem;
+            max-height: 64px;
+            margin-bottom: 0.3rem;
             transform: translateY(0);
           }
         }
         .animate-push-down {
           animation: pushDown 0.4s ease-out forwards;
-          margin-bottom: 0.5rem; /* Ensure final state matches animation end */
+          margin-bottom: 0.3rem; /* Ensure final state matches animation end */
         }
       `}</style>
     </div>

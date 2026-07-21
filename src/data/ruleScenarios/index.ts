@@ -48,3 +48,68 @@ export function skillsInCategory(category: SkillCategory): SkillType[] {
     (type) => SKILL_DEFINITIONS[type]?.category === category
   );
 }
+
+/**
+ * Sandbox topics for the "trait"-kind entries, which carry no book
+ * skill-category and would otherwise be dumped into the General list. Split
+ * into Negatraits (traits detrimental to the player that has them) and
+ * Traits (everything else — positive/special-action/weapon traits).
+ */
+export const NEGATRAIT_TOPIC = "Negatraits";
+export const TRAIT_TOPIC = "Traits";
+
+/**
+ * The Blood Bowl negatraits: traits that hinder their own player (a roll to
+ * act, a penalty, a restriction, or a send-off). Everything else trait-kind
+ * is a neutral/positive trait. Curated because the rulebook data carries no
+ * positive/negative flag.
+ */
+const NEGATRAIT_SKILLS = new Set<SkillType>([
+  SkillType.ALWAYS_HUNGRY,
+  SkillType.ANIMAL_SAVAGERY,
+  SkillType.ANIMOSITY,
+  SkillType.BLOODLUST,
+  SkillType.BONE_HEAD,
+  SkillType.DECAY,
+  SkillType.DRUNKARD,
+  SkillType.INSIGNIFICANT,
+  SkillType.LONER,
+  SkillType.MY_BALL,
+  SkillType.NO_BALL,
+  SkillType.PLAGUE_RIDDEN,
+  SkillType.REALLY_STUPID,
+  SkillType.SECRET_WEAPON,
+  SkillType.STUNTY,
+  SkillType.TAKE_ROOT,
+  SkillType.TITCHY,
+  SkillType.UNCHANNELLED_FURY,
+  SkillType.UNSTEADY,
+]);
+
+function isTrait(type: SkillType): boolean {
+  return SKILL_DEFINITIONS[type]?.kind === "trait";
+}
+
+/** The explorer topic a skill belongs to: Negatraits/Traits for trait-kind, else its category. */
+export function topicForSkill(type: SkillType): string {
+  if (isTrait(type)) {
+    return NEGATRAIT_SKILLS.has(type) ? NEGATRAIT_TOPIC : TRAIT_TOPIC;
+  }
+  return SKILL_DEFINITIONS[type]?.category ?? SkillCategory.GENERAL;
+}
+
+/**
+ * Skills listed under an explorer topic: negatraits under Negatraits, the
+ * remaining traits under Traits, else the category's non-trait skills (so
+ * traits show once, not buried in General).
+ */
+export function skillsInTopic(topic: string): SkillType[] {
+  const all = Object.values(SkillType) as SkillType[];
+  if (topic === NEGATRAIT_TOPIC) {
+    return all.filter((t) => isTrait(t) && NEGATRAIT_SKILLS.has(t));
+  }
+  if (topic === TRAIT_TOPIC) {
+    return all.filter((t) => isTrait(t) && !NEGATRAIT_SKILLS.has(t));
+  }
+  return skillsInCategory(topic as SkillCategory).filter((t) => !isTrait(t));
+}

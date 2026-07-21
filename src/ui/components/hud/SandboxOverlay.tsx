@@ -6,15 +6,14 @@ import { SCENARIOS } from "../../../data/scenarios";
 import {
   findRuleConfig,
   ruleScenariosFor,
-  skillsInCategory,
+  skillsInTopic,
+  topicForSkill,
+  TRAIT_TOPIC,
+  NEGATRAIT_TOPIC,
 } from "../../../data/ruleScenarios";
 import { findSeed, RuleConfig } from "../../../game/rules-lab";
 import { SkillRegistry } from "../../../game/skills";
-import {
-  SKILL_DEFINITIONS,
-  SkillCategory,
-  SkillType,
-} from "../../../types/Skills";
+import { SkillCategory, SkillType } from "../../../types/Skills";
 import { Button } from "../componentWarehouse/Button";
 import { GameEventNames } from "@/types/events";
 
@@ -49,7 +48,7 @@ function formStateFromUrl() {
   if (!rule) return empty;
   return {
     ...empty,
-    topic: SKILL_DEFINITIONS[rule.skill]?.category ?? "",
+    topic: topicForSkill(rule.skill),
     skill: rule.skill as string,
     configId: scenarioId,
     outcomeId: params.get("outcome") ?? "",
@@ -164,6 +163,8 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             Select Topic
           </option>
           <option value={CORE_TOPIC}>Core Rules</option>
+          <option value={NEGATRAIT_TOPIC}>Negatraits</option>
+          <option value={TRAIT_TOPIC}>Traits</option>
           {Object.values(SkillCategory).map((category) => (
             <option key={category} value={category}>
               {category} Skills
@@ -199,7 +200,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             <option value="" disabled>
               Select Rule
             </option>
-            {skillsInCategory(topic as SkillCategory).map((type) => (
+            {skillsInTopic(topic).map((type) => (
               <option key={type} value={type}>
                 {SkillRegistry.has(type) ? "✓" : "○"} {type}
               </option>

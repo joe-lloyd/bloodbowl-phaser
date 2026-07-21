@@ -13,6 +13,19 @@ import { HighlightManager } from "../managers/HighlightManager";
 import { PassController } from "./PassController";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 
+/**
+ * Special activation actions that target a single adjacent Standing
+ * opponent. Declaring one enters a "target" step; clicking a valid target
+ * runs it through the matching IGameService call.
+ */
+const SPECIAL_ACTION_MODES = new Set<string>([
+  "stab",
+  "breatheFire",
+  "vomit",
+  "gaze",
+  "chomp",
+]);
+
 export class GameplayInteractionController {
   private scene: GameScene;
   private gameService: IGameService;
@@ -242,9 +255,19 @@ export class GameplayInteractionController {
 
       // Define steps based on action
       this.actionSteps = [];
-      const defaultStep = "move";
+      const defaultStep = SPECIAL_ACTION_MODES.has(data.action)
+        ? "target"
+        : "move";
 
       switch (data.action) {
+        case "stab":
+        case "breatheFire":
+        case "vomit":
+        case "gaze":
+        case "chomp":
+          // Single-target special action: pick an adjacent Standing opponent
+          this.actionSteps = [{ id: "target", label: "Select Target" }];
+          break;
         case "pass":
           this.actionSteps = [
             { id: "move", label: "Move" },
@@ -484,6 +507,55 @@ export class GameplayInteractionController {
         this.eventBus.emit(
           GameEventNames.UI_Notification,
           "Target must be Prone or Stunned!"
+        );
+      }
+      return;
+    }
+
+    // SPECIAL ACTION Execution (Stab / Breathe Fire / Projectile Vomit /
+    // Hypnotic Gaze / Chomp): click an adjacent Standing opponent to resolve.
+    if (
+      this.currentActionMode &&
+      SPECIAL_ACTION_MODES.has(this.currentActionMode) &&
+      this.currentStepId === "target" &&
+      this.selectedPlayerId
+    ) {
+      const mode = this.currentActionMode;
+      const attackerId = this.selectedPlayerId;
+      const attacker = this.gameService.getPlayerById(attackerId);
+      if (playerAtSquare && playerAtSquare.id === attackerId) {
+        return;
+      }
+      const adjacent =
+        !!attacker?.gridPosition &&
+        Math.abs(attacker.gridPosition.x - x) <= 1 &&
+        Math.abs(attacker.gridPosition.y - y) <= 1;
+      if (
+        playerAtSquare &&
+        attacker &&
+        playerAtSquare.teamId !== attacker.teamId &&
+        playerAtSquare.status === PlayerStatus.ACTIVE &&
+        adjacent
+      ) {
+        this.isBusy = true;
+        try {
+          if (mode === "stab") {
+            await this.gameService.stabPlayer(attackerId, playerAtSquare.id);
+          } else {
+            await this.gameService.performSpecialAction(
+              mode as "breatheFire" | "vomit" | "gaze" | "chomp",
+              attackerId,
+              playerAtSquare.id
+            );
+          }
+        } finally {
+          this.isBusy = false;
+          this.deselectPlayer();
+        }
+      } else {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Target must be an adjacent Standing opponent!"
         );
       }
       return;
