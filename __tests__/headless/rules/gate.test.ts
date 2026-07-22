@@ -92,6 +92,7 @@ describe("rule coverage gate", () => {
         SkillType.SPRINT,
         SkillType.STAB,
         SkillType.STAND_FIRM,
+        SkillType.STEADY_FOOTING,
         SkillType.STRIP_BALL,
         SkillType.STRONG_ARM,
         SkillType.STUNTY,
@@ -113,7 +114,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(76);
+    expect(cov.implemented).toBe(77);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

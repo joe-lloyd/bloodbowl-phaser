@@ -4,6 +4,7 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import {
@@ -12,6 +13,7 @@ import {
   playSetup,
   blockConfig,
   assert,
+  sawEvent,
   skillTriggered,
   reactionOffered,
   turnoverHappened,
@@ -22,6 +24,14 @@ import {
   armourRolls,
   blockDiceCount,
 } from "../../game/rules-lab";
+
+/** A Steady Footing D6 was rolled (i.e. the player was about to fall). */
+const steadyFootingRolled = (r: ScriptResult): boolean =>
+  sawEvent(
+    r,
+    GameEventNames.DiceRoll,
+    (d) => !!(d as { rollType?: string }).rollType?.startsWith("Steady Footing")
+  );
 
 /** How many block-dice rolls happened (a Brawler re-roll adds a second). */
 const blockRollCount = (r: ScriptResult): number =>
@@ -490,6 +500,68 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 (roll!.data as { value: number }).value <= 3,
                 "a D3 deviation never exceeds 3 squares"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.STEADY_FOOTING,
+    configs: [
+      {
+        id: "steady-footing-dodge",
+        name: "Steady Footing on a failed Dodge",
+        description:
+          "A Bretonnian Grail Knight (Steady Footing) who fails a Dodge rolls a D6: on a 6 they keep their feet and move on with no Turnover; on 1-5 they Fall Over as usual",
+        setup: playSetup({
+          team1Roster: RosterName.BRETONIAN,
+          // Grail Knight (index 0) has Steady Footing natively; an opponent
+          // marks it so leaving the square needs a Dodge.
+          team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
+          team2Placements: [{ playerIndex: 0, x: 16, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+        ],
+        seedSearch: { from: 1, limit: 1000 },
+        outcomes: [
+          {
+            id: "saves",
+            name: "Rolls a 6 — stays on their feet, no turnover",
+            matches: (r) =>
+              skillTriggered(r, SkillType.STEADY_FOOTING) &&
+              playerStanding(r, "team1:0") &&
+              !turnoverHappened(r),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 15, y: 3 }),
+                "a saved Grail Knight completes the move and keeps going"
+              );
+              assert(
+                !turnoverHappened(r),
+                "Steady Footing prevents the failed-Dodge turnover"
+              );
+            },
+          },
+          {
+            id: "fails",
+            name: "Rolls 1-5 — Falls Over, turnover",
+            matches: (r) =>
+              steadyFootingRolled(r) &&
+              !skillTriggered(r, SkillType.STEADY_FOOTING) &&
+              playerDown(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                playerDown(r, "team1:0"),
+                "a non-6 leaves the Grail Knight Prone"
+              );
+              assert(
+                turnoverHappened(r),
+                "a Fall Over that Steady Footing did not save is a turnover"
               );
             },
           },

@@ -15,6 +15,7 @@ import { BounceOperation } from "../operations/BounceOperation";
 import { ArmourOperation } from "../operations/ArmourOperation";
 import { IGameService } from "@/services/interfaces/IGameService";
 import { DiceController } from "../controllers/DiceController";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 import { isInEndZone } from "../elements/GridUtils";
 import { GameConfig } from "../../config/GameConfig";
 import {
@@ -377,7 +378,10 @@ export class MovementManager {
           }
         }
 
-        if (!resolvedCtx.success) {
+        if (
+          !resolvedCtx.success &&
+          !steadyFootingSaves(player, this.diceController, this.eventBus)
+        ) {
           failed = true;
           // The square the dodger was leaving — Arm Bar markers of it react.
           const vacatedSquare = { ...currentPos };
@@ -408,6 +412,9 @@ export class MovementManager {
           completedPath.push(step);
           break;
         }
+        // A failed dodge that Steady Footing saved keeps the player Standing:
+        // fall through as if it had succeeded — they move on and continue their
+        // activation, no Armour Roll and no Turnover.
 
         applyShadowFollow({ ...resolvedCtx.from });
       }
@@ -443,7 +450,10 @@ export class MovementManager {
             )
           : rollRush();
 
-        if (!check.success) {
+        if (
+          !check.success &&
+          !steadyFootingSaves(player, this.diceController, this.eventBus)
+        ) {
           failed = true;
           currentPos = step;
           player.gridPosition = currentPos;
@@ -464,6 +474,8 @@ export class MovementManager {
           completedPath.push(step);
           break;
         }
+        // A failed Rush that Steady Footing saved keeps the player Standing:
+        // they move into the square and may keep going, no fall and no Turnover.
       }
 
       currentPos = step;

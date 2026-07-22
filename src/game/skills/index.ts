@@ -78,6 +78,7 @@ import { TricksterRule } from "./rules/TricksterRule";
 import { AlwaysHungryRule } from "./rules/AlwaysHungryRule";
 import { PlagueRiddenRule } from "./rules/PlagueRiddenRule";
 import { FrenzyRule } from "./rules/FrenzyRule";
+import { SteadyFootingRule } from "./rules/SteadyFootingRule";
 import { MyBallRule } from "./rules/MyBallRule";
 import { MonstrousMouthRule } from "./rules/MonstrousMouthRule";
 import { HypnoticGazeRule } from "./rules/HypnoticGazeRule";
@@ -164,6 +165,7 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.ALWAYS_HUNGRY, AlwaysHungryRule);
   SkillRegistry.register(SkillType.PLAGUE_RIDDEN, PlagueRiddenRule);
   SkillRegistry.register(SkillType.FRENZY, FrenzyRule);
+  SkillRegistry.register(SkillType.STEADY_FOOTING, SteadyFootingRule);
   SkillRegistry.register(SkillType.MY_BALL, MyBallRule);
   SkillRegistry.register(SkillType.MONSTROUS_MOUTH, MonstrousMouthRule);
   SkillRegistry.register(SkillType.HYPNOTIC_GAZE, HypnoticGazeRule);
