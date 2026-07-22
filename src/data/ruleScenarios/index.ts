@@ -15,6 +15,7 @@ import { STRENGTH_RULE_SCENARIOS } from "./strength";
 import { TRAIT_RULE_SCENARIOS } from "./traits";
 import { DEVIOUS_RULE_SCENARIOS } from "./devious";
 import { NEGATRAIT_RULE_SCENARIOS } from "./negatraits";
+import { THROW_TEAMMATE_RULE_SCENARIOS } from "./throwTeammate";
 
 export const RULE_SCENARIOS: RuleScenarioEntry[] = [
   ...GENERAL_RULE_SCENARIOS,
@@ -25,6 +26,7 @@ export const RULE_SCENARIOS: RuleScenarioEntry[] = [
   ...TRAIT_RULE_SCENARIOS,
   ...DEVIOUS_RULE_SCENARIOS,
   ...NEGATRAIT_RULE_SCENARIOS,
+  ...THROW_TEAMMATE_RULE_SCENARIOS,
 ];
 
 export function ruleScenariosFor(

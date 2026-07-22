@@ -310,6 +310,61 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Throw arc — used when a player is thrown (Throw Team-mate). The container
+   * slides to the destination while the inner shape rises and grows (height),
+   * spins, then squashes on landing, so it reads as a projectile rather than a
+   * jog. `path` is in pixel coordinates (like animateMovement).
+   */
+  public async animateThrow(
+    path: { x: number; y: number }[]
+  ): Promise<void> {
+    if (path.length === 0) return;
+    const dest = path[path.length - 1];
+    const duration = 550;
+
+    return new Promise((resolve) => {
+      // Rise then fall (fake height) and grow then shrink (fake distance).
+      this.scene.tweens.add({
+        targets: this.shape,
+        y: -36,
+        scale: 1.5,
+        duration: duration / 2,
+        ease: "Sine.easeOut",
+        yoyo: true,
+      });
+      // Spin through the air.
+      this.scene.tweens.add({
+        targets: this.shape,
+        angle: 360,
+        duration,
+        ease: "Linear",
+      });
+      // Carry the whole sprite to the landing square.
+      this.scene.tweens.add({
+        targets: this,
+        x: dest.x,
+        y: dest.y,
+        duration,
+        ease: "Sine.easeInOut",
+        onComplete: () => {
+          this.shape.setAngle(0);
+          this.shape.setScale(1);
+          this.shape.y = 0;
+          // Landing squash.
+          this.scene.tweens.add({
+            targets: this.shape,
+            scaleY: 0.7,
+            scaleX: 1.2,
+            duration: 90,
+            yoyo: true,
+            onComplete: () => resolve(),
+          });
+        },
+      });
+    });
+  }
+
+  /**
    * Play celebration animation (jumping up and down)
    * Returns a Promise that resolves when the animation is complete.
    */

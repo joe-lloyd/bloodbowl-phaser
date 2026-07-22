@@ -71,6 +71,9 @@ export class NetworkedGameService implements IGameService {
   getCatchController() {
     return this.inner.getCatchController();
   }
+  getBallMovementController() {
+    return this.inner.getBallMovementController();
+  }
   getDiceController() {
     return this.inner.getDiceController();
   }
@@ -314,6 +317,22 @@ export class NetworkedGameService implements IGameService {
       type: "stab",
       attackerId,
       defenderId: targetId,
+    });
+  }
+  async throwTeammate(
+    throwerId: string,
+    teammateId: string,
+    x: number,
+    y: number,
+    mode?: "throw" | "kick"
+  ): Promise<void> {
+    await this.dispatch({
+      type: "throw-teammate",
+      throwerId,
+      teammateId,
+      x,
+      y,
+      mode,
     });
   }
   async performSpecialAction(

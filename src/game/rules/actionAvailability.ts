@@ -14,6 +14,7 @@
 
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
+import { isRightStuffEligible } from "./throwTeammate";
 
 export interface TurnFlags {
   hasBlitzed: boolean;
@@ -49,6 +50,8 @@ export interface ActionAvailability {
   vomit: boolean;
   gaze: boolean;
   chomp: boolean;
+  throwTeammate: boolean;
+  kickTeammate: boolean;
 }
 
 const chebyshev = (
@@ -78,6 +81,8 @@ export function computeActionAvailability(
     vomit: false,
     gaze: false,
     chomp: false,
+    throwTeammate: false,
+    kickTeammate: false,
   };
   if (!here) return none;
 
@@ -126,6 +131,17 @@ export function computeActionAvailability(
   const special = (type: SkillType) =>
     hasSkill(player.skills, type) && adjacentStandingEnemy;
 
+  // Throw / Kick Team-mate: an adjacent Standing team-mate that is Right-Stuff
+  // eligible (has the trait and Strength 3 or less) is a legal target.
+  const adjacentEligibleMate = standingMates.some(
+    (t) =>
+      chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
+  );
+  const throwTeammate =
+    hasSkill(player.skills, SkillType.THROW_TEAM_MATE) && adjacentEligibleMate;
+  const kickTeammate =
+    hasSkill(player.skills, SkillType.KICK_TEAM_MATE) && adjacentEligibleMate;
+
   return {
     move: true,
     blitz,
@@ -139,5 +155,7 @@ export function computeActionAvailability(
     vomit: special(SkillType.PROJECTILE_VOMIT),
     gaze: special(SkillType.HYPNOTIC_GAZE),
     chomp: special(SkillType.MONSTROUS_MOUTH),
+    throwTeammate,
+    kickTeammate,
   };
 }

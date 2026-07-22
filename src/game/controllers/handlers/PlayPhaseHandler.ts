@@ -304,7 +304,10 @@ export class PlayPhaseHandler implements PhaseHandler {
           );
         }
 
-        sprite.animateMovement(pixelPath).then(() => {
+        const flight = data.thrown
+          ? sprite.animateThrow(pixelPath)
+          : sprite.animateMovement(pixelPath);
+        flight.then(() => {
           this.scene.refreshDugouts();
           // Check follow up
           if (data.followUpData) {

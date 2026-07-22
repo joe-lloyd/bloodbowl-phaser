@@ -260,6 +260,77 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "throw-team-mate-ogre",
+    name: "Throw Team-mate (Ogre & Gnoblar)",
+    description:
+      "An Ogre Blocker (Throw Team-mate), marked by two opponents, throws a ball-carrying Gnoblar (Right Stuff) downfield. Watch the marking penalty and the ball fly with the Gnoblar.",
+    setup: {
+      team1Roster: RosterName.OGRE,
+      team1Placements: [
+        // Index 0 = Ogre Blocker (Throw Team-mate) — the thrower, marked.
+        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE },
+        // Index 3 = Gnoblar Lineman (Right Stuff, ST 1) — carries the ball.
+        { playerIndex: 3, x: 9, y: 5, status: PlayerStatus.ACTIVE },
+        // A second Ogre Blocker as support.
+        { playerIndex: 1, x: 7, y: 8, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 7, y: 5, status: PlayerStatus.ACTIVE }, // Marker on the thrower
+        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.ACTIVE }, // Marker on the thrower
+        { playerIndex: 2, x: 14, y: 6, status: PlayerStatus.ACTIVE }, // Downfield defender
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 9, y: 5 }, // On the Gnoblar being thrown
+    },
+  },
+  {
+    id: "kick-team-mate-ogre",
+    name: "Kick Team-mate (Ogre & Gnoblar)",
+    description:
+      "An Ogre Runt Punter (Kick Team-mate) launches a Gnoblar (Right Stuff) downfield — a fumble removes and injures the Gnoblar.",
+    setup: {
+      team1Roster: RosterName.OGRE,
+      team1Placements: [
+        // Index 2 = Ogre Runt Punter (Kick Team-mate) — the kicker.
+        { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE },
+        // Index 3 = Gnoblar Lineman (Right Stuff) — kicked.
+        { playerIndex: 3, x: 9, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.ACTIVE }, // Downfield defender
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 1, y: 1 },
+    },
+  },
+  {
+    id: "gnoblar-touchdown-run",
+    name: "Gnoblar Touchdown Run",
+    description:
+      "A Gnoblar (Right Stuff, MA 5) has the ball four squares from the end zone. Move it into the right end zone (x = 19) to score a touchdown — dodge past the defenders with Dodge/Sidestep.",
+    setup: {
+      team1Roster: RosterName.OGRE,
+      team1Placements: [
+        // Index 3 = Gnoblar Lineman — the ball carrier.
+        { playerIndex: 3, x: 15, y: 5, status: PlayerStatus.ACTIVE },
+        // A trailing Ogre Blocker.
+        { playerIndex: 0, x: 12, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 17, y: 4, status: PlayerStatus.ACTIVE }, // Defender to dodge past
+        { playerIndex: 1, x: 17, y: 6, status: PlayerStatus.ACTIVE }, // Defender to dodge past
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 15, y: 5 }, // On the Gnoblar
+    },
+  },
+  {
     id: "setup-intro",
     name: "Setup: Intro",
     description: "Start at the game introduction screen",

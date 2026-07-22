@@ -32,6 +32,7 @@ import { WeatherManager } from "../game/managers/WeatherManager";
 import { PlayerActionManager } from "../game/managers/PlayerActionManager";
 import { PassController } from "../game/controllers/PassController";
 import { CatchController } from "../game/controllers/CatchController";
+import { BallMovementController } from "../game/controllers/BallMovementController";
 import { DiceController } from "../game/controllers/DiceController";
 import { ArmourController } from "../game/controllers/ArmourController";
 import { InjuryController } from "../game/controllers/InjuryController";
@@ -59,6 +60,7 @@ import { ChompOperation } from "@/game/operations/ChompOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
+import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
 import { IRNGService } from "./rng/RNGService.js";
 import {
   RerollArbiter,
@@ -305,6 +307,10 @@ export class GameService implements IGameService {
   }
   public getCatchController(): CatchController {
     return this.catchController;
+  }
+
+  public getBallMovementController(): BallMovementController {
+    return this.ballManager.movementController;
   }
 
   public getDiceController(): DiceController {
@@ -1112,6 +1118,17 @@ export class GameService implements IGameService {
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
       if (!hasSkill(player.skills, SkillType.STAB)) return false;
     }
+    // A Throw / Kick Team-mate Action needs the trait and a Standing thrower
+    if (action === "throwTeamMate") {
+      const player = this.getPlayerById(playerId);
+      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (
+        !hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
+        !hasSkill(player.skills, SkillType.KICK_TEAM_MATE)
+      ) {
+        return false;
+      }
+    }
     // The other special actions likewise need their trait and a Standing player
     if (
       action === "breatheFire" ||
@@ -1219,6 +1236,41 @@ export class GameService implements IGameService {
     if (declared !== "stab" && declared !== "blitz") return;
 
     this.flowManager.add(new StabOperation(attackerId, targetId));
+  }
+
+  /**
+   * Throw / Kick Team-mate Action: a Standing player with the trait throws an
+   * eligible team-mate (Right Stuff, ST 3 or less) at an aim square. Legal only
+   * as the declared "throwTeamMate" action. `mode` picks Kick's harsher fumble;
+   * when omitted it is inferred from the thrower's traits.
+   */
+  public async throwTeammate(
+    throwerId: string,
+    teammateId: string,
+    x: number,
+    y: number,
+    mode?: "throw" | "kick"
+  ): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
+
+    const thrower = this.getPlayerById(throwerId);
+    if (!thrower || thrower.status !== PlayerStatus.ACTIVE) return;
+    const canThrow = hasSkill(thrower.skills, SkillType.THROW_TEAM_MATE);
+    const canKick = hasSkill(thrower.skills, SkillType.KICK_TEAM_MATE);
+    if (!canThrow && !canKick) return;
+
+    const declared =
+      this.state.activePlayer?.id === throwerId
+        ? this.state.activePlayer.action
+        : undefined;
+    if (declared !== "throwTeamMate") return;
+
+    const resolved: "throw" | "kick" =
+      mode ?? (canKick && !canThrow ? "kick" : "throw");
+
+    this.flowManager.add(
+      new ThrowTeammateOperation(throwerId, teammateId, x, y, resolved)
+    );
   }
 
   /**

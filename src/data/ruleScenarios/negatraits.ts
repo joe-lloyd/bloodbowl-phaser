@@ -8,6 +8,7 @@
 
 import { SkillType, hasSkill } from "../../types/Skills";
 import { PlayerCondition } from "../../types/Player";
+import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
@@ -863,25 +864,74 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
     skill: SkillType.ALWAYS_HUNGRY,
     configs: [
       {
-        id: "always-hungry-registered",
-        name: "Always Hungry is registered (TTM clause deferred)",
+        id: "always-hungry-ttm",
+        name: "Always Hungry on a Throw Team-mate Action",
         description:
-          "Always Hungry only bites on a Throw Team-mate Action — a deferred subsystem; the trait is present and inert until then",
+          "Before completing a throw, an Always Hungry player rolls to eat the team-mate: 1 then 1 = eaten (removed, turnover); 1 then 2+ = squirm free (Fumbled Throw); 2+ = throw proceeds normally",
         setup: playSetup({
+          team1Roster: RosterName.OGRE,
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.ALWAYS_HUNGRY] },
+            {
+              // Ogre Blocker (native Throw Team-mate) made Always Hungry.
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.ALWAYS_HUNGRY],
+            },
+            // Gnoblar Lineman (Right Stuff, ST 1) — the meal / the throw.
+            { playerIndex: 3, x: 11, y: 5 },
           ],
-          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
-          ballPosition: { x: 1, y: 1 },
+          team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
+          ballPosition: { x: 18, y: 9 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "declare-action", playerId: "team1:0", action: "throwTeamMate" },
+          {
+            type: "throw-teammate",
+            throwerId: "team1:0",
+            teammateId: "team1:3",
+            x: 14,
+            y: 5,
+            mode: "throw",
+          },
         ],
+        seedSearch: { from: 1, limit: 2000 },
         outcomes: [
           {
-            id: "inert-without-ttm",
-            name: "No Throw Team-mate, no effect",
-            matches: (r) => !skillTriggered(r, SkillType.ALWAYS_HUNGRY),
+            id: "eats-teammate",
+            name: "Eats the team-mate — removed, turnover",
+            matches: (r) =>
+              skillTriggered(r, SkillType.ALWAYS_HUNGRY) &&
+              sawEvent(
+                r,
+                GameEventNames.UI_Notification,
+                (d) => typeof d === "string" && d.includes("EATS")
+              ),
+            verify: (r) =>
+              assert(turnoverHappened(r), "eating a team-mate is a turnover"),
+          },
+          {
+            id: "squirms-free",
+            name: "Team-mate squirms free — Fumbled Throw",
+            matches: (r) =>
+              skillTriggered(r, SkillType.ALWAYS_HUNGRY) &&
+              sawEvent(
+                r,
+                GameEventNames.UI_Notification,
+                (d) => typeof d === "string" && d.includes("squirms free")
+              ),
+            verify: (r) =>
+              assert(
+                turnoverHappened(r),
+                "a squirm-free Fumbled Throw is a turnover"
+              ),
+          },
+          {
+            id: "proceeds-normally",
+            name: "Hungry roll of 2+ — the throw proceeds",
+            matches: (r) =>
+              skillTriggered(r, SkillType.THROW_TEAM_MATE) &&
+              !skillTriggered(r, SkillType.ALWAYS_HUNGRY),
           },
         ],
       },

@@ -34,6 +34,15 @@ export type HeadlessCommand =
   | { type: "handoff"; playerId: string; x: number; y: number }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }
+  | {
+      type: "throw-teammate";
+      throwerId: string;
+      teammateId: string;
+      x: number;
+      y: number;
+      /** "throw" | "kick"; inferred from the thrower's traits when omitted */
+      mode?: "throw" | "kick";
+    }
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | {

@@ -69,6 +69,7 @@ describe("rule coverage gate", () => {
         SkillType.JUGGERNAUT,
         SkillType.JUMP_UP,
         SkillType.KICK,
+        SkillType.KICK_TEAM_MATE,
         SkillType.LONER,
         SkillType.MIGHTY_BLOW,
         SkillType.MONSTROUS_MOUTH,
@@ -82,6 +83,7 @@ describe("rule coverage gate", () => {
         SkillType.PROJECTILE_VOMIT,
         SkillType.REALLY_STUPID,
         SkillType.REGENERATION,
+        SkillType.RIGHT_STUFF,
         SkillType.SAFE_PASS,
         SkillType.SHADOWING,
         SkillType.SIDESTEP,
@@ -89,14 +91,17 @@ describe("rule coverage gate", () => {
         SkillType.STAB,
         SkillType.STAND_FIRM,
         SkillType.STRIP_BALL,
+        SkillType.STRONG_ARM,
         SkillType.STUNTY,
         SkillType.SURE_FEET,
         SkillType.SURE_HANDS,
+        SkillType.SWOOP,
         SkillType.TACKLE,
         SkillType.TAKE_ROOT,
         SkillType.TAUNT,
         SkillType.TENTACLES,
         SkillType.THICK_SKULL,
+        SkillType.THROW_TEAM_MATE,
         SkillType.TIMMM_BER,
         SkillType.TITCHY,
         SkillType.TRICKSTER,
@@ -106,7 +111,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(69);
+    expect(cov.implemented).toBe(74);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

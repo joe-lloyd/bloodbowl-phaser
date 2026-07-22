@@ -193,6 +193,8 @@ export interface GameEvents {
     ballPath?: { x: number; y: number }[];
     /** Player steps walked before the ball joins (0 = carried from start) */
     ballJoinStep?: number;
+    /** The player is being thrown (Throw Team-mate): animate an arc, not a walk. */
+    thrown?: boolean;
   };
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };

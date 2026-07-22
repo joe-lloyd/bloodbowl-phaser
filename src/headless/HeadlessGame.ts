@@ -47,6 +47,12 @@ const COMMAND_SHAPES: Record<
   handoff: { playerId: "string", x: "number", y: "number" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
+  "throw-teammate": {
+    throwerId: "string",
+    teammateId: "string",
+    x: "number",
+    y: "number",
+  },
   "team-reroll-block": { attackerId: "string" },
   "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "special-action": {
@@ -296,6 +302,15 @@ export class HeadlessGame {
         break;
       case "stab":
         await gs.stabPlayer(cmd.attackerId, cmd.defenderId);
+        break;
+      case "throw-teammate":
+        await gs.throwTeammate(
+          cmd.throwerId,
+          cmd.teammateId,
+          cmd.x,
+          cmd.y,
+          cmd.mode
+        );
         break;
       case "special-action":
         await gs.performSpecialAction(

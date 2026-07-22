@@ -119,4 +119,65 @@ describe("computeActionAvailability", () => {
     input.player = P({ gridPosition: { x: 5, y: 5 }, status: PlayerStatus.PRONE });
     expect(computeActionAvailability(input).standUp).toBe(true);
   });
+
+  it("offers Throw Team-mate only with the trait AND an adjacent Right-Stuff mate (ST<=3)", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      skills: [getSkill(SkillType.THROW_TEAM_MATE)],
+    });
+    // A Right-Stuff, ST 2 team-mate standing adjacent — eligible target.
+    input.teammates = [
+      P({
+        id: "m",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.ACTIVE,
+        skills: [getSkill(SkillType.RIGHT_STUFF)],
+        stats: { MA: 6, ST: 2, AG: 3, PA: 3, AV: 7 },
+      }),
+    ];
+    expect(computeActionAvailability(input).throwTeammate).toBe(true);
+
+    // Same mate but Strength 4 — no longer a legal target.
+    input.teammates[0].stats.ST = 4;
+    expect(computeActionAvailability(input).throwTeammate).toBe(false);
+
+    // Reset to ST 2 but strip Right Stuff — still not a target.
+    input.teammates[0].stats.ST = 2;
+    input.teammates[0].skills = [];
+    expect(computeActionAvailability(input).throwTeammate).toBe(false);
+  });
+
+  it("does not offer Throw Team-mate to a player without the trait", () => {
+    const input = base();
+    input.teammates = [
+      P({
+        id: "m",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.ACTIVE,
+        skills: [getSkill(SkillType.RIGHT_STUFF)],
+        stats: { MA: 6, ST: 2, AG: 3, PA: 3, AV: 7 },
+      }),
+    ];
+    expect(computeActionAvailability(input).throwTeammate).toBe(false);
+  });
+
+  it("offers Kick Team-mate to a Kick-Team-mate player with an eligible adjacent mate", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      skills: [getSkill(SkillType.KICK_TEAM_MATE)],
+    });
+    input.teammates = [
+      P({
+        id: "m",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.ACTIVE,
+        skills: [getSkill(SkillType.RIGHT_STUFF)],
+        stats: { MA: 6, ST: 2, AG: 3, PA: 3, AV: 7 },
+      }),
+    ];
+    expect(computeActionAvailability(input).kickTeammate).toBe(true);
+    expect(computeActionAvailability(input).throwTeammate).toBe(false);
+  });
 });

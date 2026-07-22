@@ -82,6 +82,11 @@ import { HypnoticGazeRule } from "./rules/HypnoticGazeRule";
 import { BreatheFireRule } from "./rules/BreatheFireRule";
 import { ProjectileVomitRule } from "./rules/ProjectileVomitRule";
 import { KickRule } from "./rules/KickRule";
+import { ThrowTeamMateRule } from "./rules/ThrowTeamMateRule";
+import { KickTeamMateRule } from "./rules/KickTeamMateRule";
+import { RightStuffRule } from "./rules/RightStuffRule";
+import { SwoopRule } from "./rules/SwoopRule";
+import { StrongArmRule } from "./rules/StrongArmRule";
 
 let registered = false;
 
@@ -161,6 +166,11 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.BREATHE_FIRE, BreatheFireRule);
   SkillRegistry.register(SkillType.PROJECTILE_VOMIT, ProjectileVomitRule);
   SkillRegistry.register(SkillType.KICK, KickRule);
+  SkillRegistry.register(SkillType.THROW_TEAM_MATE, ThrowTeamMateRule);
+  SkillRegistry.register(SkillType.KICK_TEAM_MATE, KickTeamMateRule);
+  SkillRegistry.register(SkillType.RIGHT_STUFF, RightStuffRule);
+  SkillRegistry.register(SkillType.SWOOP, SwoopRule);
+  SkillRegistry.register(SkillType.STRONG_ARM, StrongArmRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

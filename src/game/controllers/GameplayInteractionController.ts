@@ -11,6 +11,10 @@ import { Player, PlayerStatus } from "@/types/Player";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { PassController } from "./PassController";
+import {
+  isRightStuffEligible,
+  isThrowTeammateInRange,
+} from "../rules/throwTeammate";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 
 /**
@@ -61,6 +65,8 @@ export class GameplayInteractionController {
   private currentStepId: string | null = null;
   private actionSteps: { id: string; label: string }[] = [];
   private hasMovedInAction: boolean = false;
+  /** The team-mate chosen for a Throw / Kick Team-mate Action, awaiting an aim. */
+  private ttmTeammateId: string | null = null;
   private passController: PassController;
 
   // Interaction Lock
@@ -319,9 +325,12 @@ export class GameplayInteractionController {
           ];
           break;
         case "throwTeamMate":
+          this.ttmTeammateId = null;
+          // Move first (optional), then throw: in the throw step the first
+          // click picks the adjacent Right-Stuff team-mate, the second aims.
           this.actionSteps = [
             { id: "move", label: "Move" },
-            { id: "ttm", label: "Throw Team Mate" },
+            { id: "throw", label: "Throw Team-mate" },
           ];
           break;
         // Secure Ball logic? Usually automatic, but stepper requested.
@@ -505,6 +514,80 @@ export class GameplayInteractionController {
         this.deselectPlayer();
       }
       return;
+    }
+
+    // THROW / KICK TEAM-MATE: clicking a valid target team-mate (adjacent,
+    // Standing, Right-Stuff) selects it as the throw target and jumps to the
+    // aim step — even directly from the Move step, so a direct click on the
+    // target works without first switching to the Throw step. Once a target
+    // is chosen, the next click aims at a Quick/Short-range square.
+    if (this.currentActionMode === "throwTeamMate" && this.selectedPlayerId) {
+      const thrower = this.gameService.getPlayerById(this.selectedPlayerId);
+      if (!this.ttmTeammateId) {
+        const mate = playerAtSquare;
+        const adjacent =
+          !!thrower?.gridPosition &&
+          Math.abs(thrower.gridPosition.x - x) <= 1 &&
+          Math.abs(thrower.gridPosition.y - y) <= 1;
+        const validTarget =
+          !!mate &&
+          !!thrower &&
+          mate.id !== thrower.id &&
+          mate.teamId === thrower.teamId &&
+          mate.status === PlayerStatus.ACTIVE &&
+          adjacent &&
+          isRightStuffEligible(mate);
+        if (validTarget) {
+          this.ttmTeammateId = mate!.id;
+          if (this.currentStepId !== "throw") {
+            this.currentStepId = "throw";
+            this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+              steps: this.actionSteps,
+              currentStepId: this.currentStepId,
+            });
+          }
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            `Aim ${mate!.playerName}'s throw — click a Quick/Short-range square.`
+          );
+          return;
+        }
+        // No valid target on this square. In the aim step tell the coach what
+        // to click; in the Move step let the click fall through to movement.
+        if (this.currentStepId === "throw") {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Select an adjacent Right Stuff team-mate (ST 3 or less)!"
+          );
+          return;
+        }
+      } else {
+        // A team-mate has been chosen — this click is the aim square.
+        if (
+          thrower?.gridPosition &&
+          !isThrowTeammateInRange(thrower.gridPosition, { x, y })
+        ) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Out of range — a team-mate can only be thrown to Quick or Short range!"
+          );
+          return;
+        }
+        this.isBusy = true;
+        try {
+          await this.gameService.throwTeammate(
+            this.selectedPlayerId,
+            this.ttmTeammateId,
+            x,
+            y
+          );
+        } finally {
+          this.isBusy = false;
+          this.ttmTeammateId = null;
+          this.deselectPlayer();
+        }
+        return;
+      }
     }
 
     // FOUL Execution
@@ -819,6 +902,45 @@ export class GameplayInteractionController {
           );
         }
       } else if (
+        this.currentActionMode === "throwTeamMate" &&
+        this.currentStepId === "throw"
+      ) {
+        // THROW TEAM-MATE aim: reuse the pass arrow + range template, but
+        // capped to Quick and Short range (a thrown player is too heavy to go
+        // further — Long / Long Bomb are out of range).
+        this.pitch.clearPath();
+        const thrower = this.gameService.getPlayerById(this.selectedPlayerId);
+        if (thrower && thrower.gridPosition) {
+          if (this.ttmTeammateId) {
+            // A mate is chosen: show the throw template + arrow to the cursor.
+            const all = this.passController.getAllRanges(thrower.gridPosition);
+            const limited = new Map<string, { x: number; y: number }[]>();
+            for (const type of ["Quick Pass", "Short Pass"]) {
+              const squares = all.get(type as never);
+              if (squares) limited.set(type, squares);
+            }
+            this.pitch.drawPassZones(thrower.gridPosition, limited);
+
+            const inRange = isThrowTeammateInRange(thrower.gridPosition, {
+              x,
+              y,
+            });
+            const passRange = this.passController.measureRange(
+              thrower.gridPosition,
+              { x, y }
+            );
+            // In range → colour by Quick/Short; out of range → grey arrow.
+            this.pitch.drawPassLine(
+              thrower.gridPosition,
+              { x, y },
+              inRange ? passRange.type : "Out of Range"
+            );
+          } else {
+            // No mate chosen yet: no target highlight, just clear stale viz.
+            this.pitch.clearPassVisualization();
+          }
+        }
+      } else if (
         this.currentActionMode === "foul" &&
         this.currentStepId === "foul"
       ) {
@@ -914,6 +1036,17 @@ export class GameplayInteractionController {
       const player = this.gameService.getPlayerById(playerId);
       if (player && player.gridPosition) {
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
+        return;
+      }
+    }
+
+    // Throw / Kick Team-mate: route the click to the grid handler, which
+    // selects a valid target team-mate (auto-advancing to the aim step) or
+    // aims once a target is chosen — never a plain re-selection.
+    if (this.currentActionMode === "throwTeamMate") {
+      const clicked = this.gameService.getPlayerById(playerId);
+      if (clicked && clicked.gridPosition) {
+        this.onSquareClicked(clicked.gridPosition.x, clicked.gridPosition.y);
         return;
       }
     }

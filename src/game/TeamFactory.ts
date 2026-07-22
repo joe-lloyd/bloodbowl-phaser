@@ -55,6 +55,13 @@ export class TeamFactory {
         hire("Grail Knight", 1);
         hire("Bretonian Squire", 6);
         break;
+      case RosterName.OGRE:
+        // Indices: 0-1 Ogre Blocker (Throw Team-mate), 2 Ogre Runt Punter
+        // (Kick Team-mate), 3-6 Gnoblar Lineman (Right Stuff, ST 1).
+        hire("Ogre Blocker", 2);
+        hire("Ogre Runt Punter", 1);
+        hire("Gnoblar Lineman", 4);
+        break;
       default:
         // Fallback: Fill with first available position (usually Lineman)
         if (roster.playerTemplates.length > 0) {

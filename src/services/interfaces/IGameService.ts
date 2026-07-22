@@ -4,6 +4,7 @@ import { Team } from "@/types/Team";
 import { BlockResult } from "../../services/BlockResolutionService";
 import { PassController } from "@/game/controllers/PassController";
 import { CatchController } from "@/game/controllers/CatchController";
+import { BallMovementController } from "@/game/controllers/BallMovementController";
 import { DiceController } from "@/game/controllers/DiceController";
 import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
@@ -18,6 +19,7 @@ export interface IGameService {
   // Controllers
   getPassController(): PassController;
   getCatchController(): CatchController;
+  getBallMovementController(): BallMovementController;
   getDiceController(): DiceController;
   getArmourController(): ArmourController;
   getInjuryController(): InjuryController;
@@ -109,6 +111,14 @@ export interface IGameService {
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
   /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
   stabPlayer(attackerId: string, targetId: string): Promise<void>;
+  /** Throw / Kick Team-mate Action: throw an eligible team-mate at an aim square */
+  throwTeammate(
+    throwerId: string,
+    teammateId: string,
+    x: number,
+    y: number,
+    mode?: "throw" | "kick"
+  ): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
     kind: "breatheFire" | "vomit" | "gaze" | "chomp",
