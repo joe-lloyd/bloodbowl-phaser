@@ -132,8 +132,10 @@ export class GameScene extends Phaser.Scene {
     this.pitch.clearHover();
     this.pitch.clearPath();
 
-    // Refresh Display
-    this.refreshDugouts();
+    // Refresh Display — rebuild (not just refresh) so a roster swap in the
+    // loaded scenario replaces the dugouts' stale team references.
+    this.rebuildDugouts();
+    this.placePlayersOnPitch();
   }
 
   constructor(key: string = "GameScene") {
@@ -455,6 +457,21 @@ export class GameScene extends Phaser.Scene {
         (id, x, y) => this.onDugoutDragEnd(id, x, y)
       );
     });
+  }
+
+  /**
+   * Recreate both dugouts against the CURRENT team objects. A scenario load
+   * swaps this.team1/this.team2 for new rosters (new team ids), leaving the
+   * existing dugouts pointing at the old teams — so a plain refresh keeps
+   * rendering the previous roster's reserves. Rebuild to follow the swap.
+   */
+  private rebuildDugouts(): void {
+    const width = this.cameras.main.width;
+    const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
+    const pitchY = GameConfig.TOP_UI_HEIGHT;
+    this.dugouts.forEach((d) => d.destroy());
+    this.dugouts.clear();
+    this.createDugouts(pitchX, pitchY);
   }
 
   private initializeControllers(): void {

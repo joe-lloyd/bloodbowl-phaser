@@ -117,7 +117,8 @@ export class BreatheFireOperation extends GameOperation {
         );
       }
       context.flowManager.add(
-        new ArmourOperation(target.id, attacker.id),
+        // Breathe Fire is a special action, not a Block — never arms Plague Ridden.
+        new ArmourOperation(target.id, attacker.id, undefined, "special"),
         true
       );
     } else if (check.success) {

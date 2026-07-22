@@ -3,6 +3,12 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryType, PlayerStatus } from "../../types/Player.js";
 import { CasualtyType } from "../controllers/InjuryController.js";
+import { SkillType } from "../../types/Skills";
+import {
+  CasualtyCause,
+  plagueRiddenApplies,
+  addReserveLineman,
+} from "../rules/plagueRidden";
 import {
   foldTrigger,
   CasualtyContext,
@@ -26,6 +32,8 @@ export class CasualtyOperation extends GameOperation {
     private opts: {
       /** No Casualty Roll — automatically Badly Hurt (Stunty's 9). */
       autoBadlyHurt?: boolean;
+      /** What inflicted the casualty — "block" can arm Plague Ridden. */
+      cause?: CasualtyCause;
     } = {}
   ) {
     super();
@@ -62,7 +70,7 @@ export class CasualtyOperation extends GameOperation {
         `${player.playerName} regenerates!`
       );
       player.status = PlayerStatus.RESERVE;
-      player.gridPosition = undefined;
+      this.removeFromPitch(eventBus, player);
       return;
     }
 
@@ -73,6 +81,7 @@ export class CasualtyOperation extends GameOperation {
         `Result: ${CasualtyType.BADLY_HURT}`
       );
       player.injuries.push(InjuryType.BADLY_HURT);
+      this.removeFromPitch(eventBus, player);
       return;
     }
 
@@ -134,7 +143,52 @@ export class CasualtyOperation extends GameOperation {
         break;
       case CasualtyType.DEAD:
         player.injuries.push(InjuryType.DEAD);
+        player.status = PlayerStatus.DEAD;
+        // Plague Ridden: a Block Action kill by the trait-holder against an
+        // eligible opponent lets their coach add a Lineman to the Reserves.
+        if (causedBy && plagueRiddenApplies(causedBy, player, this.opts.cause)) {
+          this.applyPlagueRidden(gameService, eventBus, causedBy, player);
+        }
         break;
     }
+
+    // A casualty leaves play for the Casualty box: clear its square and
+    // announce the status change so the pitch sprite is removed and the
+    // dugout re-renders it among the casualties (not left lying on the pitch).
+    this.removeFromPitch(eventBus, player);
+  }
+
+  /** Send a casualty off the pitch: clear its square, announce the change. */
+  private removeFromPitch(
+    eventBus: import("../../services/EventBus").IEventBus,
+    player: import("../../types/Player").Player
+  ): void {
+    player.gridPosition = undefined;
+    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+  }
+
+  /** Spend Plague Ridden: mark it used and add a Lineman to the Reserves. */
+  private applyPlagueRidden(
+    gameService: IGameService,
+    eventBus: import("../../services/EventBus").IEventBus,
+    killer: import("../../types/Player").Player,
+    victim: import("../../types/Player").Player
+  ): void {
+    const team = gameService.getTeam(killer.teamId);
+    if (!team) return;
+    const reinforcement = addReserveLineman(team);
+    if (!reinforcement) return;
+
+    killer.plagueRiddenUsed = true;
+    eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: killer.id,
+      skill: SkillType.PLAGUE_RIDDEN,
+      effect: `Plague Ridden: ${victim.playerName}'s death summons ${reinforcement.playerName} to the Reserves`,
+    });
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Plague Ridden — ${killer.playerName} adds ${reinforcement.playerName} to the Reserves!`
+    );
+    eventBus.emit(GameEventNames.RefreshBoard);
   }
 }

@@ -62,6 +62,12 @@ export class TeamFactory {
         hire("Ogre Runt Punter", 1);
         hire("Gnoblar Lineman", 4);
         break;
+      case RosterName.GOBLIN:
+        // Index 0 Trained Troll (Always Hungry + Throw Team-mate natively),
+        // 1-6 Goblin Lineman (Right Stuff) — the Troll throws a Goblin.
+        hire("Trained Troll", 1);
+        hire("Goblin Lineman", 6);
+        break;
       default:
         // Fallback: Fill with first available position (usually Lineman)
         if (roster.playerTemplates.length > 0) {

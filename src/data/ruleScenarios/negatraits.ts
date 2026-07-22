@@ -7,12 +7,13 @@
  */
 
 import { SkillType, hasSkill } from "../../types/Skills";
-import { PlayerCondition } from "../../types/Player";
+import { PlayerCondition, PlayerStatus, PositionKeyWord } from "../../types/Player";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
   playSetup,
+  blockConfig,
   assert,
   sawEvent,
   skillTriggered,
@@ -869,17 +870,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Before completing a throw, an Always Hungry player rolls to eat the team-mate: 1 then 1 = eaten (removed, turnover); 1 then 2+ = squirm free (Fumbled Throw); 2+ = throw proceeds normally",
         setup: playSetup({
-          team1Roster: RosterName.OGRE,
+          team1Roster: RosterName.GOBLIN,
           team1Placements: [
-            {
-              // Ogre Blocker (native Throw Team-mate) made Always Hungry.
-              playerIndex: 0,
-              x: 10,
-              y: 5,
-              skills: [SkillType.ALWAYS_HUNGRY],
-            },
-            // Gnoblar Lineman (Right Stuff, ST 1) — the meal / the throw.
-            { playerIndex: 3, x: 11, y: 5 },
+            // Trained Troll — Always Hungry + Throw Team-mate, both native.
+            { playerIndex: 0, x: 10, y: 5 },
+            // Goblin Lineman (Right Stuff) — the meal / the throw.
+            { playerIndex: 1, x: 11, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 1, y: 1 }],
           ballPosition: { x: 18, y: 9 },
@@ -889,7 +885,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             type: "throw-teammate",
             throwerId: "team1:0",
-            teammateId: "team1:3",
+            teammateId: "team1:1",
             x: 14,
             y: 5,
             mode: "throw",
@@ -1183,6 +1179,69 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    skill: SkillType.PLAGUE_RIDDEN,
+    configs: [
+      blockConfig({
+        id: "plague-ridden-reinforcement",
+        name: "Plague Ridden — reinforcement on a Block kill",
+        description:
+          "When a Plague Ridden Nurgle player kills an eligible opponent (not Big Guy / Decay / Regeneration / Stunty) with a Block, their coach adds one Lineman to the Reserves Box — once per game",
+        // Nurgle Rotter (Plague Ridden) vs a fragile Human Lineman with low
+        // Armour so the block reaches a Casualty; seed-hunted to a Dead roll.
+        setup: playSetup({
+          team1Roster: RosterName.NURGLE,
+          team2Roster: RosterName.HUMAN,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, stats: { ST: 1, AV: 3 } },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "pow",
+        decisionPolicy: { followUp: false },
+        seedSearch: { from: 1, limit: 5000 },
+        outcomes: [
+          {
+            id: "reserve-added",
+            name: "A Lineman joins the Reserves after a Dead casualty",
+            matches: (r) =>
+              skillTriggered(r, SkillType.PLAGUE_RIDDEN) &&
+              r.game.ctx.team1.players.length > 7,
+            verify: (r) => {
+              const team1 = r.game.ctx.team1;
+              const team2 = r.game.ctx.team2;
+              assert(
+                team1.players.length === 8,
+                "exactly one reinforcement is added to the killer's team"
+              );
+              assert(
+                team2.players.length === 7,
+                "the victim's team gains nothing — the Reserve is only on the killing side"
+              );
+              const added = team1.players[team1.players.length - 1];
+              assert(
+                added.status === PlayerStatus.RESERVE && !added.gridPosition,
+                "the reinforcement waits in the Reserves Box"
+              );
+              assert(
+                added.keywords.includes(PositionKeyWord.LINEMAN),
+                "the reinforcement is a Lineman"
+              );
+              // The killed player leaves the pitch for the Casualty box.
+              const victim = team2.players[0];
+              assert(
+                victim.status === PlayerStatus.DEAD && !victim.gridPosition,
+                "the dead player is removed from the pitch"
+              );
+            },
+          },
+        ],
+      }),
     ],
   },
 ];

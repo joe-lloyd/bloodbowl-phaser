@@ -32,6 +32,17 @@ export class TurnManager {
     this.turnCounts[team2.id] = 0;
   }
 
+  /**
+   * Force both teams' per-turn counters to a given turn number. Used when a
+   * sandbox scenario begins mid-drive so the match tracker shows that turn
+   * instead of Turn 0. A live game never calls this — startTurn drives the
+   * counts — so it does not disturb normal turn counting or halftime.
+   */
+  public seedTurnCounts(turnNumber: number): void {
+    this.turnCounts[this.team1.id] = turnNumber;
+    this.turnCounts[this.team2.id] = turnNumber;
+  }
+
   public startGame(kickingTeamId: string): void {
     this.state.phase = GamePhase.PLAY;
     this.driveKickingTeamId = kickingTeamId;

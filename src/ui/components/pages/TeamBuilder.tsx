@@ -8,6 +8,7 @@ import {
   calculateTeamValue,
 } from "../../../types/Team";
 import { createPlayer } from "../../../types/Player";
+import { validateInsignificant } from "../../../game/rules/insignificant";
 import {
   getRosterByRosterName,
   getAvailableRosterNames,
@@ -184,6 +185,14 @@ export function TeamBuilder() {
   const handleSave = () => {
     if (!team || team.players.length < 7) {
       alert("You need at least 7 players to save the team!");
+      return;
+    }
+
+    // Insignificant limit: a finished draft list may not have more players
+    // with the trait than without it (checked whole-list, not per hire).
+    const insignificantError = validateInsignificant(team.players);
+    if (insignificantError) {
+      alert(insignificantError);
       return;
     }
 

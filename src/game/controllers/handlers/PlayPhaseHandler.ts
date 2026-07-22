@@ -67,6 +67,17 @@ export class PlayPhaseHandler implements PhaseHandler {
       this.handlePlayerMove(data)
     );
 
+    // Throw / Kick Team-mate: the thrower leans into a throw or swings a kick.
+    this.register(GameEventNames.PlayerThrowGesture, (data) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (!sprite) return;
+      if (data.mode === "kick") {
+        sprite.animateKickGesture(data.dir);
+      } else {
+        sprite.animateThrowGesture(data.dir);
+      }
+    });
+
     // Pass Declaration - Zoom In
     this.register(GameEventNames.PassDeclared, (data) => {
       // Logic moved from SceneOrchestrator

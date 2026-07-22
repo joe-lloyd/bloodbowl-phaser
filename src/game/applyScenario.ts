@@ -8,7 +8,7 @@
 
 import { Scenario, PlayerPlacement } from "../types/Scenario";
 import { Team } from "../types/Team";
-import { GameState } from "../types/GameState";
+import { GameState, GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { getSkill, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
@@ -56,13 +56,20 @@ export function applyScenario(
   const activeTeamId =
     scenario.setup.activeTeam === "team1" ? team1.id : team2.id;
 
+  // A kickoff happens BEFORE the first turn, so it sits at turn 0; every
+  // other scenario is a mid-drive situation, so it defaults to turn 2 rather
+  // than making it look like the opening turn. A scenario may pin its own turn.
+  const turnNumber =
+    scenario.setup.turn ??
+    (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
+
   return {
     phase: scenario.setup.phase,
     subPhase: scenario.setup.subPhase,
     activeTeamId: activeTeamId,
     turn: {
       teamId: activeTeamId,
-      turnNumber: 1, // Start at Turn 1 for immediate play
+      turnNumber,
       isHalf2: false,
       activatedPlayerIds: new Set(),
       hasBlitzed: false,

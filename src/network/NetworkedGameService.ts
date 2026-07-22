@@ -65,6 +65,9 @@ export class NetworkedGameService implements IGameService {
   getTurnNumber(teamId: string): number {
     return this.inner.getTurnNumber(teamId);
   }
+  seedTurnCounts(turnNumber: number): void {
+    this.inner.seedTurnCounts(turnNumber);
+  }
   getPassController() {
     return this.inner.getPassController();
   }

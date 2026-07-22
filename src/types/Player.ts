@@ -94,6 +94,8 @@ export interface Player {
 
   // Game state
   hasActed: boolean; // Has taken action this turn
+  /** Plague Ridden is once-per-game; set when this player has spent it. */
+  plagueRiddenUsed?: boolean;
   gridPosition?: {
     // Current position on pitch (if on field)
     x: number;

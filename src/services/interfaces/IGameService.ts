@@ -15,6 +15,8 @@ export interface IGameService {
   getSubPhase(): SubPhase | undefined;
   getActiveTeamId(): string | null;
   getTurnNumber(teamId: string): number;
+  /** Seed both teams' turn counters (sandbox scenarios starting mid-drive). */
+  seedTurnCounts(turnNumber: number): void;
 
   // Controllers
   getPassController(): PassController;

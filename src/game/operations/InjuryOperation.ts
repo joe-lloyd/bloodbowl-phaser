@@ -4,6 +4,7 @@ import { IGameService } from "../../services/interfaces/IGameService.js";
 import { PlayerStatus } from "../../types/Player.js";
 import { InjuryResult } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
+import { CasualtyCause } from "../rules/plagueRidden";
 import { foldTrigger, InjuryRollContext } from "../skills";
 
 /**
@@ -20,7 +21,12 @@ export class InjuryOperation extends GameOperation {
 
   constructor(
     private playerId: string,
-    private opts: { modifier?: number; causedById?: string } = {}
+    private opts: {
+      modifier?: number;
+      causedById?: string;
+      /** What inflicted the injury — "block" arms Plague Ridden downstream. */
+      cause?: CasualtyCause;
+    } = {}
   ) {
     super();
   }
@@ -108,6 +114,7 @@ export class InjuryOperation extends GameOperation {
         flowManager.add(
           new CasualtyOperation(this.playerId, this.opts.causedById, {
             autoBadlyHurt: ctx.casualtyAutoBadlyHurt,
+            cause: this.opts.cause,
           }),
           true
         );

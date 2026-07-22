@@ -129,6 +129,13 @@ export class ThrowTeammateOperation extends GameOperation {
       effect: `${this.mode === "kick" ? "Kick" : "Throw"} Team-mate: ${teammate.playerName}`,
     });
 
+    // The thrower leans into the throw / swings a little kick toward the aim.
+    eventBus.emit(GameEventNames.PlayerThrowGesture, {
+      playerId: thrower.id,
+      mode: this.mode,
+      dir: this.aimX >= thrower.gridPosition.x ? 1 : -1,
+    });
+
     await context.delay(600);
 
     // 1. Always Hungry — before the throw completes, roll to eat the team-mate.
@@ -145,12 +152,17 @@ export class ThrowTeammateOperation extends GameOperation {
         if (eat === 1) {
           // Eaten: removed from the Team Draft List, no Apothecary, no
           // Regeneration. A carried ball bounces from the thrower's square.
+          // Model it as a Casualty (Dead) so they leave the pitch and land in
+          // the dugout's casualty box rather than lingering as a reserve.
           eventBus.emit(
             GameEventNames.UI_Notification,
             `${thrower.playerName} EATS ${teammate.playerName}!`
           );
           this.bounceIfCarried(gameService, context, teammate);
+          teammate.gridPosition = undefined;
+          teammate.status = PlayerStatus.DEAD;
           gameService.removePlayer(teammate.id);
+          eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
           gameService.triggerTurnover("Ate Team-mate");
           return;
         }

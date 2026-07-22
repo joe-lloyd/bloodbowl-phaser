@@ -40,6 +40,8 @@ export enum GameEventNames {
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
   PlayerStoodUp = "playerStoodUp",
+  /** A thrower performs a Throw / Kick Team-mate gesture (sprite lean/kick) */
+  PlayerThrowGesture = "playerThrowGesture",
   /** A skill rule changed a roll/dice/result, or offered/used a reroll */
   SkillTriggered = "skillTriggered",
   RerollUsed = "rerollUsed",
@@ -220,6 +222,14 @@ export interface GameEvents {
   [GameEventNames.PlayerKnockedDown]: {
     playerId: string;
     // ... details?
+  };
+
+  [GameEventNames.PlayerThrowGesture]: {
+    playerId: string;
+    /** "throw" tips the thrower forward; "kick" swings a little kick */
+    mode: "throw" | "kick";
+    /** +1 if the target is to the right, -1 to the left (tilt direction) */
+    dir: number;
   };
 
   [GameEventNames.SkillTriggered]: {

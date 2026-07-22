@@ -66,3 +66,7 @@ takes the ball: the operation sets the ball to the landing square and passes
 `ballFrom/ballPath/ballJoinStep` so the existing ball-follow tween runs; on a
 Standing landing they keep it, on crash/prone-landing a `BounceOperation` drops
 it. Catalog `ttm-carry-ball → lands-with-ball` locks possession retention.
+Thrower gesture: the operation emits `PlayerThrowGesture {playerId, mode, dir}`
+(dir = sign(aimX - throwerX)); `PlayPhaseHandler` calls
+`PlayerSprite.animateThrowGesture` (forward lean toward the target) or
+`animateKickGesture` (wind-up + sharper swing) — pure `this.shape` angle tweens.

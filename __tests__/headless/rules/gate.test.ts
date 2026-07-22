@@ -78,6 +78,7 @@ describe("rule coverage gate", () => {
         SkillType.NO_BALL,
         SkillType.PASS,
         SkillType.PICK_ME_UP,
+        SkillType.PLAGUE_RIDDEN,
         SkillType.PREHENSILE_TAIL,
         SkillType.PRO,
         SkillType.PROJECTILE_VOMIT,
@@ -111,14 +112,16 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(74);
+    expect(cov.implemented).toBe(75);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 
   it("draft-list-only traits are deliberately inert (allowlist)", () => {
     // Insignificant (2025 p.129) only constrains Team Draft List
     // construction, which happens outside a match - nothing to enforce
-    // in-game, so it stays unregistered on purpose.
+    // in-game, so it stays unregistered on purpose. Its rule lives in
+    // src/game/rules/insignificant.ts and is enforced when the team builder
+    // saves a draft list (see __tests__/unit/rules/insignificant.test.ts).
     const draftListOnly = [SkillType.INSIGNIFICANT];
     for (const type of draftListOnly) {
       expect(SkillRegistry.has(type)).toBe(false);

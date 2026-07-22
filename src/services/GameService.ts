@@ -369,6 +369,10 @@ export class GameService implements IGameService {
     return this.turnManager.getTurnNumber(teamId);
   }
 
+  seedTurnCounts(turnNumber: number): void {
+    this.turnManager.seedTurnCounts(turnNumber);
+  }
+
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {

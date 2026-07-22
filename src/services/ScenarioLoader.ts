@@ -42,6 +42,13 @@ export class ScenarioLoader {
       seed
     );
 
+    // Seed the per-team turn counters so the match tracker reflects the
+    // scenario's turn (a mid-drive demo, not Turn 0). Sandbox scenarios are
+    // static — no startGame drives the counts — so this is the only source.
+    ServiceContainer.getInstance().gameService.seedTurnCounts(
+      initialState.turn.turnNumber
+    );
+
     // 4. Trigger UI Refresh and Turn Start
     this.eventBus.emit(GameEventNames.GameStateRestored, initialState);
 

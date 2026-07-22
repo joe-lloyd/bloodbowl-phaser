@@ -365,6 +365,37 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Throw gesture — the thrower tips forward a little toward the target, as if
+   * launching a team-mate, then rocks back upright. `dir` is +1 to the right,
+   * -1 to the left. Fire-and-forget (the throw resolves on its own timer).
+   */
+  public animateThrowGesture(dir = 1): void {
+    this.scene.tweens.chain({
+      targets: this.shape,
+      tweens: [
+        { angle: dir * 22, duration: 130, ease: "Sine.easeOut" }, // lean into it
+        { angle: 0, duration: 220, ease: "Sine.easeInOut" }, // rock back upright
+      ],
+    });
+  }
+
+  /**
+   * Kick gesture — a quick wind-up then a swing so the sprite's lower body
+   * kicks out toward the target, then settles upright. `dir` is +1 right, -1
+   * left. Sharper and larger than the throw lean so it reads as a kick.
+   */
+  public animateKickGesture(dir = 1): void {
+    this.scene.tweens.chain({
+      targets: this.shape,
+      tweens: [
+        { angle: -dir * 8, duration: 90, ease: "Sine.easeOut" }, // wind up
+        { angle: dir * 26, duration: 110, ease: "Back.easeOut" }, // kick
+        { angle: 0, duration: 200, ease: "Sine.easeInOut" }, // settle
+      ],
+    });
+  }
+
+  /**
    * Play celebration animation (jumping up and down)
    * Returns a Promise that resolves when the animation is complete.
    */
