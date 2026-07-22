@@ -60,6 +60,7 @@ describe("rule coverage gate", () => {
         SkillType.EXTRA_ARMS,
         SkillType.FEND,
         SkillType.FOUL_APPEARANCE,
+        SkillType.FRENZY,
         SkillType.GRAB,
         SkillType.GUARD,
         SkillType.HATRED,
@@ -112,7 +113,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(75);
+    expect(cov.implemented).toBe(76);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

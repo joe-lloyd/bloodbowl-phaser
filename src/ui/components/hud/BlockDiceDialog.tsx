@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { BlockAnalysis } from "../../../types/Actions";
 import {
@@ -16,6 +16,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   eventBus,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // Mirror isOpen into a ref so the (once-registered) event handlers can tell a
+  // normal block (dialog already open, coach clicked Roll) from a forced/auto
+  // block (dialog closed) without a stale closure.
+  const openRef = useRef(false);
+  useEffect(() => {
+    openRef.current = isOpen;
+  }, [isOpen]);
+
   const [data, setData] = useState<{
     attackerId: string;
     defenderId: string;
@@ -24,6 +32,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   const [isRolling, setIsRolling] = useState(false);
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
+  // A forced block (Frenzy's second Block) arrives already rolled; hold its
+  // dice behind a ROLL button so the coach still triggers the reveal.
+  const [heldDice, setHeldDice] = useState<BlockRollData | null>(null);
   // Pro mode: the next die the coach clicks is re-rolled (not selected).
   const [proMode, setProMode] = useState(false);
 
@@ -35,15 +46,28 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     }) => {
       setData(payload);
       setRollData(null);
+      setHeldDice(null);
       setIsRolling(false);
       setProMode(false);
       setIsOpen(true);
     };
 
     const onDiceRolled = (payload: BlockRollData) => {
-      setRollData(payload);
       setIsRolling(false);
       setProMode(false);
+      if (openRef.current) {
+        // Normal block: the coach already clicked Roll — show the dice.
+        setRollData(payload);
+      } else {
+        // Forced/auto block (Frenzy's mandatory second Block): the window was
+        // closed when the first result was picked. Re-open it onto a ROLL
+        // button that reveals the already-rolled dice, so it still feels like
+        // the coach triggers it. The retained `data` is the same
+        // attacker/defender, so its stats panel still applies.
+        setHeldDice(payload);
+        setRollData(null);
+        setIsOpen(true);
+      }
     };
 
     // The roll will not happen (illegal block, no movement left, rush
@@ -52,6 +76,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       setIsOpen(false);
       setIsRolling(false);
       setRollData(null);
+      setHeldDice(null);
     };
 
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
@@ -73,6 +98,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const handleRoll = () => {
     // Online: only the coach who owns the action/decision may interact
     if (getActiveOnlineMatch()?.mayAct() === false) return;
+
+    // A forced block already has its dice — the ROLL button just reveals them.
+    if (heldDice) {
+      setRollData(heldDice);
+      setHeldDice(null);
+      return;
+    }
+
     setIsRolling(true);
 
     // Emit event to roll dice (GameService will handle it)
@@ -95,6 +128,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
 
     setIsOpen(false);
+    setHeldDice(null);
   };
 
   const handleTeamReroll = () => {
@@ -241,7 +275,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         {/* Actions — once the dice are rolled the block CANNOT be cancelled:
             a result must be picked */}
         <div className="flex justify-between">
-          {!rollData && !isRolling ? (
+          {!rollData && !isRolling && !heldDice ? (
             <button
               onClick={handleCancel}
               className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"

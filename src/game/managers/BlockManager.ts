@@ -121,8 +121,12 @@ class FrenzyOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
+    // Let the Push Back animation land before the blocker follows up…
+    await context.delay(300);
     // Frenzy forces the follow-up into the vacated square.
     await context.gameService.followUpPush(this.attackerId, this.vacatedSquare);
+    // …and let that follow-up move finish before the second Block window opens.
+    await context.delay(450);
     await this.manager.frenzySecondBlock(
       this.attackerId,
       this.defenderId,
@@ -473,6 +477,10 @@ export class BlockManager {
         break;
       }
     }
+
+    // A Frenzy extra block is now resolved (beginPush already read the flag);
+    // clear it so this player Frenzies again on their next Block Action.
+    if (this.frenzyExtraFor === attackerId) this.frenzyExtraFor = null;
   }
 
   /** Is this block the block at the end of the active player's Blitz? */
@@ -535,6 +543,21 @@ export class BlockManager {
       pushCtx.preventFollowUp = true;
     }
 
+    // Frenzy: the blocker MUST follow up a Push Back, and — on the first block
+    // only — must throw a second Block at the same player if they are still
+    // Standing. `frenzyExtraFor` marks the second (extra) block so it doesn't
+    // spawn a third.
+    const frenzy =
+      hasSkill(attacker.skills, SkillType.FRENZY) &&
+      this.frenzyExtraFor !== attacker.id &&
+      !pushCtx.preventFollowUp;
+    if (
+      hasSkill(attacker.skills, SkillType.FRENZY) &&
+      !pushCtx.preventFollowUp
+    ) {
+      pushCtx.forceFollowUp = true; // both the first and the extra block
+    }
+
     if (pushCtx.refused) {
       this.resolveRefusedPush(attacker, defender, knockDownDefender);
       return;
@@ -551,6 +574,7 @@ export class BlockManager {
       grabPush: pushCtx.grabPush,
       sideStepPush: pushCtx.sideStepPush,
       forceFollowUp: pushCtx.forceFollowUp,
+      frenzy,
       links: [],
     };
     this.requestPushDecision(attacker.gridPosition!, defender);
@@ -602,8 +626,10 @@ export class BlockManager {
     grabPush?: boolean;
     /** Sidestep: the PUSHED player's coach picks any adjacent unoccupied square */
     sideStepPush?: boolean;
-    /** Taunt: the blocker must follow up — no follow-up choice is offered */
+    /** Taunt / Frenzy: the blocker must follow up — no follow-up choice offered */
     forceFollowUp?: boolean;
+    /** Frenzy's FIRST block: force follow-up + a mandatory second block. */
+    frenzy?: boolean;
     links: {
       playerId: string;
       from: { x: number; y: number };
@@ -881,6 +907,7 @@ export class BlockManager {
       preventFollowUp,
       stripBall,
       forceFollowUp,
+      frenzy,
     } = this.chain;
     const knockDownDefender =
       this.chain.knockDownDefender ??
@@ -994,21 +1021,34 @@ export class BlockManager {
       flowManager.add(new BounceOperation(first.to), true);
     }
 
-    // Taunt forced the blocker's follow-up: run the free move now (at the
-    // FRONT, before any queued armour/injury rolls) and end the activation
-    // once everything has settled — no follow-up prompt will fire.
-    if (forceFollowUp && first && first.to !== null) {
+    // Frenzy's first block: force the follow-up into the vacated square and,
+    // if the target is still Standing, throw a mandatory second Block at the
+    // same player. Queued at the BACK so a POW's armour/injury settle first;
+    // FrenzyOperation then follows up, blocks again if able, and ends the
+    // activation (so it is NOT combined with the forceFollowUp branch below).
+    if (frenzy && first && first.to !== null) {
+      flowManager?.add(
+        new FrenzyOperation(
+          this,
+          attackerId,
+          first.playerId,
+          first.from,
+          !knockDownDefender
+        )
+      );
+    } else if (forceFollowUp && first && first.to !== null) {
+      // Taunt, or Frenzy's second (extra) block: run the free follow-up now
+      // (at the FRONT) and end the activation once everything has settled —
+      // no follow-up prompt will fire.
       flowManager?.add(
         new ForcedFollowUpOperation(attackerId, first.from),
         true
       );
       flowManager?.add(new FinishActivationOperation(attackerId));
-    }
-
-    // Fend denied the blocker their follow-up: no follow-up prompt will fire,
-    // so end the activation once any queued armour/injury rolls have settled
-    // (queued at the BACK so the turn flips only after they apply).
-    if (preventFollowUp && first && first.to !== null) {
+    } else if (preventFollowUp && first && first.to !== null) {
+      // Fend denied the blocker their follow-up: no follow-up prompt will
+      // fire, so end the activation once any queued armour/injury rolls have
+      // settled (queued at the BACK so the turn flips only after they apply).
       flowManager?.add(new FinishActivationOperation(attackerId));
     }
   }

@@ -4,6 +4,7 @@
 
 import { SkillType } from "../../types/Skills";
 import { PlayerStatus } from "../../types/Player";
+import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
@@ -15,10 +16,16 @@ import {
   skillCheckDiff,
   turnoverHappened,
   playerOf,
+  playerAt,
   playerStanding,
   playerDown,
   resolveRef,
+  ScriptResult,
 } from "../../game/rules-lab";
+
+/** How many Block Actions were rolled in the run (Frenzy's second block). */
+const blockRollCount = (r: ScriptResult): number =>
+  r.events.filter((e) => e.name === GameEventNames.BlockDiceRolled).length;
 
 /** THIS player's injury 2D6 landed on this total (before rule adjustments). */
 const injuryTotal = (
@@ -577,6 +584,81 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    skill: SkillType.FRENZY,
+    configs: [
+      blockConfig({
+        id: "frenzy-second-block",
+        name: "Frenzy — forced follow-up and a second Block",
+        description:
+          "A Khorne Bloodborn Marauder (Frenzy) blocks: on a Push Back it must follow up, and if the target is still Standing it must throw a mandatory second Block at the same player",
+        setup: playSetup({
+          team1Roster: RosterName.KHORNE,
+          team2Roster: RosterName.HUMAN,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "push",
+        seedSearch: { from: 1, limit: 600 },
+        outcomes: [
+          {
+            id: "second-block",
+            name: "A standing pushed target draws a mandatory second Block",
+            matches: (r) => blockRollCount(r) >= 2,
+            verify: (r) => {
+              // The blocker was forced to follow up out of its start square…
+              assert(
+                !playerAt(r, "team1:0", { x: 10, y: 5 }),
+                "Frenzy forces the blocker to follow up the push"
+              );
+              // …and threw a second Block (two block rolls, one activation)…
+              assert(
+                blockRollCount(r) === 2,
+                "Frenzy throws exactly one extra Block, not a third"
+              );
+              // …both follow-ups forced, so no follow-up choice is ever shown…
+              assert(
+                !sawEvent(r, GameEventNames.UI_FollowUpPrompt),
+                "Frenzy follow-ups are automatic — no follow-up prompt"
+              );
+              // …and after the second Block the blocker has followed up to sit
+              // adjacent to the twice-pushed target.
+              const atk = playerOf(r, "team1:0").gridPosition;
+              const def = playerOf(r, "team2:0").gridPosition;
+              assert(
+                !!atk &&
+                  !!def &&
+                  Math.abs(atk.x - def.x) <= 1 &&
+                  Math.abs(atk.y - def.y) <= 1,
+                "the blocker follows up adjacent after the second Block"
+              );
+            },
+          },
+          {
+            id: "followup-on-knockdown",
+            name: "A knocked-down target still forces the follow-up (no second Block)",
+            matches: (r) =>
+              blockRollCount(r) === 1 &&
+              playerDown(r, "team2:0") &&
+              playerAt(r, "team1:0", { x: 11, y: 5 }),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 11, y: 5 }),
+                "Frenzy follows the blocker up into the vacated square"
+              );
+              assert(
+                blockRollCount(r) === 1,
+                "a downed target is not Standing, so there is no second Block"
+              );
+            },
+          },
+        ],
+      }),
     ],
   },
 ];
