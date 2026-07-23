@@ -16,6 +16,49 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Opt-in public roster snapshots. Authenticated coaches may discover and
+    // inspect them; only the owner named on the document may publish/refresh
+    // or remove one.
+    match /shared-teams/{teamId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Organizers control competition structure. Entrant owners may report a
+    // fixture result, but cannot rename a competition or replace its entrants.
+    match /leagues/{leagueId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.organizerUid == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.organizerUid == request.auth.uid
+          || (request.auth.uid in resource.data.participantUids
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['fixtures', 'standings', 'status', 'updatedAt'])));
+      allow delete: if request.auth != null
+        && resource.data.organizerUid == request.auth.uid;
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.organizerUid == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.organizerUid == request.auth.uid
+          || (request.auth.uid in resource.data.participantUids
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['fixtures', 'standings', 'status',
+                        'championEntrantId', 'updatedAt'])));
+      allow delete: if request.auth != null
+        && resource.data.organizerUid == request.auth.uid;
+    }
+
     // Game/lobby docs: readable to allow join-by-code; writes members-only.
     // (Join itself is mediated by the callable Function.)
     match /games/{code} {

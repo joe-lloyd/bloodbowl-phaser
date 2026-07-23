@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
@@ -23,6 +23,7 @@ import {
   resolveCoachName,
 } from "../../../firebase/lobby";
 import { Team } from "../../../types/Team";
+import { CompetitionContext } from "../../../competition/types";
 
 type Mode = "host" | "join";
 
@@ -33,6 +34,7 @@ type Mode = "host" | "join";
  */
 export function OnlineLobby({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { code: routeCode } = useParams();
   const { user } = useAuth();
   const [lobby, setLobby] = useState<LobbyDoc | null>(null);
@@ -40,6 +42,15 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   const [joinInput, setJoinInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const competitionFixture = (
+    location.state as {
+      competitionFixture?: {
+        context: CompetitionContext;
+        homeTeam: Team;
+        awayTeam: Team;
+      };
+    } | null
+  )?.competitionFixture;
 
   const myTeams = useMemo(() => (user ? loadTeams() : []), [user]);
 
@@ -68,11 +79,14 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
           // stale/finished pointer — fall through and make a fresh lobby
         }
         const coachName = await resolveCoachName(user.uid);
-        const created = await createLobby(user.uid, coachName);
+        const created = await createLobby(
+          user.uid,
+          coachName,
+          competitionFixture
+        );
         if (!cancelled) setCode(created.code);
       } catch (e) {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -80,7 +94,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     return () => {
       cancelled = true;
     };
-  }, [mode, code, user, navigate]);
+  }, [mode, code, user, navigate, competitionFixture]);
 
   // Live lobby subscription
   useEffect(() => {
@@ -172,6 +186,11 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       <p className="font-heading text-2xl tracking-[0.3em] text-bb-deep-crimson mb-8">
         CODE: {lobby.code}
       </p>
+      {lobby.competitionContext && (
+        <p className="font-body mb-5 bg-bb-warm-paper border border-bb-dark-gold rounded px-4 py-2">
+          Competition fixture: {lobby.competitionContext.fixtureId}
+        </p>
+      )}
 
       <div className="flex flex-wrap justify-center gap-8 mb-8">
         <PlayerCard
@@ -188,7 +207,11 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       {/* Your team picker — your own library only */}
       <div className="mb-8 w-full max-w-md">
         <Subtitle className="mb-2">Your team</Subtitle>
-        {myTeams.length === 0 ? (
+        {lobby.fixtureTeams && me?.team ? (
+          <div className="w-full text-xl font-body bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2">
+            {me.team.name} ({me.team.rosterName}) — locked for this fixture
+          </div>
+        ) : myTeams.length === 0 ? (
           <p className="font-body text-bb-muted-text">
             No saved teams — build one first.
           </p>

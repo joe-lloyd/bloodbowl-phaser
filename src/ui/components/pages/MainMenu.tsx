@@ -113,7 +113,7 @@ export function MainMenu() {
           )}
 
           {/* Option groups */}
-          <div className="w-full grid gap-8 md:grid-cols-3 grid-cols-1">
+          <div className="w-full grid gap-8 md:grid-cols-2 lg:grid-cols-4 grid-cols-1">
             <MenuSection title="Play">
               <Button
                 onClick={() => navigate("/select-team")}
@@ -126,6 +126,21 @@ export function MainMenu() {
                 className="w-full text-xl py-4"
               >
                 Build Team
+              </Button>
+            </MenuSection>
+
+            <MenuSection title="Competitions">
+              <Button
+                onClick={() => navigate("/leagues")}
+                className="w-full text-xl py-4"
+              >
+                Leagues
+              </Button>
+              <Button
+                onClick={() => navigate("/tournaments")}
+                className="w-full text-xl py-4"
+              >
+                Tournaments
               </Button>
             </MenuSection>
 
@@ -213,8 +228,7 @@ export function MainMenu() {
   );
 }
 
-const ONLINE_HINT =
-  "Online play requires Firebase config (see .env.example)";
+const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
 
 /** Inline editor for the coach display name (privacy-preserving). */
 function CoachNameEditor({

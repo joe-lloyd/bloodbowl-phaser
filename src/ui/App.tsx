@@ -5,6 +5,10 @@ import { TeamBuilder } from "./components/pages/TeamBuilder";
 import { TeamSelect } from "./components/pages/TeamSelect";
 import { SoundTest } from "./components/pages/SoundTest";
 import { OnlineLobby } from "./components/pages/OnlineLobby";
+import { SharedTeamBrowser } from "./components/pages/SharedTeamBrowser";
+import { CompetitionHub } from "./components/pages/CompetitionHub";
+import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
+import { CompetitionView } from "./components/pages/CompetitionView";
 import { GamePage } from "./pages/GamePage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
 import { ReactElement } from "react";
@@ -37,12 +41,31 @@ export function App({ eventBus }: AppProps) {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainMenu />} />
-        <Route
-          path="/build-team"
-          element={<TeamManagement eventBus={eventBus} />}
-        />
+        <Route path="/build-team" element={<TeamManagement />} />
         <Route path="/build-team/new-team" element={<TeamBuilder />} />
         <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+        <Route path="/shared-teams" element={<SharedTeamBrowser />} />
+        <Route path="/leagues" element={<CompetitionHub type="league" />} />
+        <Route
+          path="/leagues/new"
+          element={<CompetitionBuilder type="league" />}
+        />
+        <Route
+          path="/leagues/:id"
+          element={<CompetitionView type="league" />}
+        />
+        <Route
+          path="/tournaments"
+          element={<CompetitionHub type="tournament" />}
+        />
+        <Route
+          path="/tournaments/new"
+          element={<CompetitionBuilder type="tournament" />}
+        />
+        <Route
+          path="/tournaments/:id"
+          element={<CompetitionView type="tournament" />}
+        />
         <Route path="/select-team" element={<TeamSelect mode="play" />} />
         <Route path="/online/host" element={<OnlineLobby mode="host" />} />
         <Route path="/online/join" element={<OnlineLobby mode="join" />} />
