@@ -31,6 +31,7 @@ const SPECIAL_ACTION_MODES = new Set<string>([
   "vomit",
   "gaze",
   "chomp",
+  "chainsaw",
 ]);
 
 export class GameplayInteractionController {
@@ -328,6 +329,7 @@ export class GameplayInteractionController {
         case "vomit":
         case "gaze":
         case "chomp":
+        case "chainsaw":
           // Single-target special action: pick an adjacent Standing opponent
           this.actionSteps = [{ id: "target", label: "Select Target" }];
           break;
@@ -699,7 +701,7 @@ export class GameplayInteractionController {
             await this.gameService.stabPlayer(attackerId, playerAtSquare.id);
           } else {
             await this.gameService.performSpecialAction(
-              mode as "breatheFire" | "vomit" | "gaze" | "chomp",
+              mode as "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
               attackerId,
               playerAtSquare.id
             );

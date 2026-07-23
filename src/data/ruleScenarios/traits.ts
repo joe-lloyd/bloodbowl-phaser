@@ -661,4 +661,91 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
       }),
     ],
   },
+  {
+    skill: SkillType.CHAINSAW,
+    configs: [
+      {
+        id: "chainsaw-attack",
+        name: "Chainsaw Attack",
+        description:
+          "A D6: on 2+ a +3 Armour Roll against an adjacent Standing opponent; on a 1 the chainsaw Kicks-back and Knocks the wielder Down",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.CHAINSAW] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, stats: { AV: 7 } },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "chainsaw" },
+          {
+            type: "special-action",
+            action: "chainsaw",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "attack-armour-roll",
+            name: "A 2+ makes the +3 Armour Roll on the target",
+            matches: (r) =>
+              skillTriggered(r, SkillType.CHAINSAW) &&
+              sawEvent(
+                r,
+                GameEventNames.DiceRoll,
+                (d) =>
+                  !!(d as { rollType?: string }).rollType?.startsWith(
+                    "Chainsaw Kick-back"
+                  ) &&
+                  (d as { resultState?: string }).resultState === "success"
+              ) &&
+              sawEvent(
+                r,
+                GameEventNames.DiceRoll,
+                (d) => (d as { rollType?: string }).rollType === "Armor Check"
+              ) &&
+              playerStanding(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                playerStanding(r, "team1:0"),
+                "no kick-back on a 2+ — the wielder stays Standing"
+              );
+              assert(
+                !turnoverHappened(r),
+                "the Chainsaw Attack itself is not a Turnover"
+              );
+            },
+          },
+          {
+            id: "kick-back",
+            name: "A 1 kicks back and Knocks the wielder Down",
+            matches: (r) =>
+              sawEvent(
+                r,
+                GameEventNames.DiceRoll,
+                (d) =>
+                  !!(d as { rollType?: string }).rollType?.startsWith(
+                    "Chainsaw Kick-back"
+                  ) &&
+                  (d as { resultState?: string }).resultState === "failure"
+              ) && playerDown(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                playerDown(r, "team1:0"),
+                "a kick-back Knocks the wielder Down"
+              );
+              assert(
+                turnoverHappened(r),
+                "the wielder going down is a Turnover"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];

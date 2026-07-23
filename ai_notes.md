@@ -102,7 +102,7 @@ now immediately throw the bomb again.
 Unfortunately, the Squire rolls a 1 and fumbles
 the bomb, causing it to blow up in their square.
 
-- CHAINSAW” (ACTIVE)
+- CHAINSAW” (ACTIVE) ✅ DONE 2026-07-23 (ChainsawAttackOperation as a 'chainsaw' special-action kind — mirrors Stab: D6 kick-back via rollSkillCheck("Chainsaw Kick-back",2) → 1=wielder knocked down+Armour+turnover, 2+=+3 Armour Roll on adjacent Standing target→Injury; ChainsawRule.onArmourBreak adds the always-on +3 to the downed wielder's own armour. Wired ActionType/declareAction/performSpecialAction/actionAvailability/headless special-action/browser button. config chainsaw-attack. TODO: Foul-with-chainsaw +3 and Blitz-block-replacement clauses.)
 When this player is activated, they can declare
 a Chainsaw Attack Special Action; there is no
 limit to the number of players that can declare

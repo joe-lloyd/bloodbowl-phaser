@@ -56,6 +56,7 @@ export interface ActionAvailability {
   vomit: boolean;
   gaze: boolean;
   chomp: boolean;
+  chainsaw: boolean;
   throwTeammate: boolean;
   kickTeammate: boolean;
 }
@@ -89,6 +90,7 @@ export function computeActionAvailability(
     vomit: false,
     gaze: false,
     chomp: false,
+    chainsaw: false,
     throwTeammate: false,
     kickTeammate: false,
   };
@@ -189,6 +191,7 @@ export function computeActionAvailability(
     vomit: special(SkillType.PROJECTILE_VOMIT),
     gaze: special(SkillType.HYPNOTIC_GAZE),
     chomp: special(SkillType.MONSTROUS_MOUTH),
+    chainsaw: special(SkillType.CHAINSAW),
     throwTeammate,
     kickTeammate,
   };

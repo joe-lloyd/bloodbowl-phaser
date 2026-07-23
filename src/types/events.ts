@@ -613,6 +613,7 @@ export type ActionType =
   | "vomit"
   | "gaze"
   | "chomp"
+  | "chainsaw"
   | "forgoe";
 
 /**

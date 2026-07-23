@@ -124,7 +124,7 @@ export interface IGameService {
   ): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
     attackerId: string,
     targetId: string
   ): Promise<void>;

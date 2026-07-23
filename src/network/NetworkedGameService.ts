@@ -345,7 +345,7 @@ export class NetworkedGameService implements IGameService {
     });
   }
   async performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
     attackerId: string,
     targetId: string
   ): Promise<void> {

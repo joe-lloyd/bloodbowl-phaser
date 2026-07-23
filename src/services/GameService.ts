@@ -57,6 +57,7 @@ import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
 import { ProjectileVomitOperation } from "@/game/operations/ProjectileVomitOperation";
 import { HypnoticGazeOperation } from "@/game/operations/HypnoticGazeOperation";
 import { ChompOperation } from "@/game/operations/ChompOperation";
+import { ChainsawAttackOperation } from "@/game/operations/ChainsawAttackOperation";
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
@@ -1152,7 +1153,8 @@ export class GameService implements IGameService {
       action === "breatheFire" ||
       action === "vomit" ||
       action === "gaze" ||
-      action === "chomp"
+      action === "chomp" ||
+      action === "chainsaw"
     ) {
       const player = this.getPlayerById(playerId);
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
@@ -1163,7 +1165,9 @@ export class GameService implements IGameService {
             ? SkillType.PROJECTILE_VOMIT
             : action === "gaze"
               ? SkillType.HYPNOTIC_GAZE
-              : SkillType.MONSTROUS_MOUTH;
+              : action === "chainsaw"
+                ? SkillType.CHAINSAW
+                : SkillType.MONSTROUS_MOUTH;
       if (!hasSkill(player.skills, needed)) return false;
     }
     // Rules may refuse the declaration outright (Unsteady vs Secure the Ball)
@@ -1298,7 +1302,7 @@ export class GameService implements IGameService {
    * pre-move and never replaces a Blitz block.
    */
   public async performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp",
+    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
     attackerId: string,
     targetId: string
   ): Promise<void> {
@@ -1313,7 +1317,9 @@ export class GameService implements IGameService {
           ? SkillType.PROJECTILE_VOMIT
           : kind === "gaze"
             ? SkillType.HYPNOTIC_GAZE
-            : SkillType.MONSTROUS_MOUTH;
+            : kind === "chainsaw"
+              ? SkillType.CHAINSAW
+              : SkillType.MONSTROUS_MOUTH;
     if (!hasSkill(attacker.skills, requirement)) return;
 
     const declared =
@@ -1337,6 +1343,11 @@ export class GameService implements IGameService {
         break;
       case "chomp":
         this.flowManager.add(new ChompOperation(attackerId, targetId));
+        break;
+      case "chainsaw":
+        this.flowManager.add(
+          new ChainsawAttackOperation(attackerId, targetId)
+        );
         break;
     }
   }

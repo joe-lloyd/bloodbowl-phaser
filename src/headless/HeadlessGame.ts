@@ -318,7 +318,7 @@ export class HeadlessGame {
         break;
       case "special-action":
         await gs.performSpecialAction(
-          cmd.action as "breatheFire" | "vomit" | "gaze" | "chomp",
+          cmd.action as "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
           cmd.attackerId,
           cmd.defenderId
         );
