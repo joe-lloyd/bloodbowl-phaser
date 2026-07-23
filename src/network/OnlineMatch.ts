@@ -51,6 +51,11 @@ export interface ChatMessage {
   ts: number;
 }
 
+export type ProgressionCommand = Extract<
+  HeadlessCommand,
+  { type: "award-mvp" | "assign-awarded-touchdown" }
+>;
+
 export interface OnlineMatch {
   role: "host" | "guest";
   code: string;
@@ -75,6 +80,8 @@ export interface OnlineMatch {
   saveState(): void;
   /** Freeze/unfreeze all input while the turn clock is paused. */
   setClockPaused(paused: boolean): void;
+  /** Run a post-match choice on the authoritative host engine. */
+  runProgressionCommand(command: ProgressionCommand): Promise<CommandResponse>;
   close(): void;
 }
 
@@ -250,7 +257,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       team1,
       team2,
       initialState,
-      seed
+      seed,
+      undefined,
+      lobby.settings.progressionEnabled ?? false
     );
     const native = container.gameService as GameService;
     const game = new HeadlessGame({
@@ -261,6 +270,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         team1,
         team2,
         seed,
+        matchStats: container.matchStats,
       },
       autoStartOnReady: false,
     });
@@ -318,18 +328,24 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     /** Host decision replies go through the protocol so pending-decision
      *  state stays consistent; the broadcast inside executeLocal already
      *  delivers the events, so the broadcaster pauses meanwhile. */
-    const executeAsHost = (command: HeadlessCommand) => {
+    const executeOnHost = async (
+      command: HeadlessCommand
+    ): Promise<CommandResponse> => {
       broadcaster.pause();
-      void session
-        .executeLocal(command)
-        .then((response) => {
-          if (!response.ok) {
-            console.warn(
-              `[Online] host ${command.type} rejected: ${response.reason}`
-            );
-          }
-        })
-        .finally(() => broadcaster.resume());
+      try {
+        const response = await session.executeLocal(command);
+        if (!response.ok) {
+          console.warn(
+            `[Online] host ${command.type} rejected: ${response.reason}`
+          );
+        }
+        return response;
+      } finally {
+        broadcaster.resume();
+      }
+    };
+    const executeAsHost = (command: HeadlessCommand) => {
+      void executeOnHost(command);
     };
 
     let swallowNextFinish: string | null = null;
@@ -411,10 +427,10 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     return finishMatch({
       role: "host",
       pendingDecision: () => game.pendingDecision(),
-      sendChatRaw: (text) =>
-        void session.sendChat(text, myName),
+      sendChatRaw: (text) => void session.sendChat(text, myName),
       activeTeamId: () => native.getActiveTeamId(),
       phase: () => native.getPhase(),
+      runProgressionCommand: executeOnHost,
       saveState: persistNow,
       close: () => {
         persistNow(); // final save so a reload resumes where we left off
@@ -504,7 +520,11 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       transport,
       selfId: user.uid,
       onApply: (response) =>
-        applyBundle(response.events, response.snapshot, response.pendingDecision),
+        applyBundle(
+          response.events,
+          response.snapshot,
+          response.pendingDecision
+        ),
       onBroadcast: (payload) =>
         applyBundle(
           payload.response.events,
@@ -547,16 +567,17 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       (inner: GameService): IGameService => {
         replica = inner;
         return new NetworkedGameService(inner, dispatch, () => pending);
-      }
+      },
+      lobby.settings.progressionEnabled ?? false
     );
 
     return finishMatch({
       role: "guest",
       pendingDecision: () => pending,
-      sendChatRaw: (text) =>
-        void session.sendChat(text, myName),
+      sendChatRaw: (text) => void session.sendChat(text, myName),
       activeTeamId: () => replica?.getActiveTeamId() ?? null,
       phase: () => replica?.getPhase() ?? GamePhase.SETUP,
+      runProgressionCommand: dispatch,
       // The guest holds no authoritative engine; the host persists state.
       saveState: () => {},
       close: () => {
@@ -574,6 +595,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     sendChatRaw: (text: string) => void;
     activeTeamId: () => string | null;
     phase: () => GamePhase;
+    runProgressionCommand(
+      command: ProgressionCommand
+    ): Promise<CommandResponse>;
     saveState: () => void;
     close: () => void;
   }): OnlineMatch {
@@ -657,6 +681,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       setClockPaused: (paused: boolean) => {
         clockPaused = paused;
       },
+      runProgressionCommand: parts.runProgressionCommand,
       close(): void {
         parts.close();
         if (activeMatch === match) setActiveOnlineMatch(null);

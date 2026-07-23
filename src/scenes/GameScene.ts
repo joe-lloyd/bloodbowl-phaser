@@ -142,7 +142,7 @@ export class GameScene extends Phaser.Scene {
     super({ key });
   }
 
-  init(data: { team1: Team; team2: Team }): void {
+  init(data: { team1: Team; team2: Team; progressionEnabled?: boolean }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
 
@@ -162,7 +162,10 @@ export class GameScene extends Phaser.Scene {
         window.eventBus,
         this.team1,
         this.team2,
-        initialState
+        initialState,
+        undefined,
+        undefined,
+        data.progressionEnabled ?? false
       );
     }
 

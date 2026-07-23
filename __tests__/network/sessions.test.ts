@@ -419,6 +419,47 @@ describe("networked sessions", () => {
     expect(denied.allowed).toBe(false);
   });
 
+  it("post-match SPP choices are limited to the coach's own team", () => {
+    const ctx = {
+      activeTeamId: "team-1",
+      pendingDecision: null,
+      teamIdOfPlayer: (id: string) =>
+        id.startsWith("one") ? "team-1" : "team-2",
+      hostTeamId: "team-1",
+      phase: GamePhase.GAME_OVER,
+    };
+
+    expect(
+      checkOwnership(
+        {
+          type: "award-mvp",
+          teamId: "team-1",
+          nominatedPlayerIds: ["one-1"],
+        },
+        "team-1",
+        ctx
+      ).allowed
+    ).toBe(true);
+    expect(
+      checkOwnership(
+        {
+          type: "award-mvp",
+          teamId: "team-2",
+          nominatedPlayerIds: ["two-1"],
+        },
+        "team-1",
+        ctx
+      ).allowed
+    ).toBe(false);
+    expect(
+      checkOwnership(
+        { type: "assign-awarded-touchdown", playerId: "two-1" },
+        "team-1",
+        ctx
+      ).allowed
+    ).toBe(false);
+  });
+
   it("uphill block dice: only the defender may choose", async () => {
     const match = createMatch({ scenario: uphillScenario, seed: 11 });
     const attacker = match.game.ctx.team1.players[0];
@@ -623,7 +664,11 @@ describe("networked sessions", () => {
     expect(chats).toEqual(["hello"]);
 
     // A gap (seq jumps 2 → 9) triggers a resync request, host answers it
-    await hostEnd.send({ ...chat, payload: { ...chat.payload, text: "gap" }, seq: 9 });
+    await hostEnd.send({
+      ...chat,
+      payload: { ...chat.payload, text: "gap" },
+      seq: 9,
+    });
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(chats).toEqual(["hello", "gap"]); // gapped envelope still newest, applied

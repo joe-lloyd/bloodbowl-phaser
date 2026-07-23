@@ -5,7 +5,10 @@ import { PlayerStatus, Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
-import { isRightStuffEligible, isThrowTeammateInRange } from "../rules/throwTeammate";
+import {
+  isRightStuffEligible,
+  isThrowTeammateInRange,
+} from "../rules/throwTeammate";
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -177,6 +180,7 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // 2. Passing Ability Test (Strong Arm helps a THROW only).
     let fumbled = forcedFumble;
+    let superbThrow = false;
     if (!forcedFumble) {
       const opponents = gameService.getOpponents(thrower.teamId);
       const marking = gameService
@@ -203,6 +207,7 @@ export class ThrowTeammateOperation extends GameOperation {
         .getPassController()
         .testAccuracy(thrower, passRange, marking, extra);
       fumbled = test.fumbled;
+      superbThrow = test.accurate;
     }
 
     // 3. Fumble handling.
@@ -228,7 +233,9 @@ export class ThrowTeammateOperation extends GameOperation {
       this.bounceIfCarried(gameService, context, teammate);
       teammate.gridPosition = { ...thrower.gridPosition };
       teammate.status = PlayerStatus.PRONE;
-      eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: teammate.id });
+      eventBus.emit(GameEventNames.PlayerKnockedDown, {
+        playerId: teammate.id,
+      });
       eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
       context.flowManager.add(new InjuryOperation(teammate.id), true);
       gameService.triggerTurnover("Fumbled Throw Team-mate");
@@ -319,6 +326,14 @@ export class ThrowTeammateOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${teammate.playerName} lands safely!`
       );
+      if (this.mode === "throw") {
+        eventBus.emit(GameEventNames.ThrowTeammateLanded, {
+          throwerId: thrower.id,
+          thrownPlayerId: teammate.id,
+          safeLanding: true,
+          superbThrow,
+        });
+      }
       eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
       // Landed Standing — NOT a turnover; they keep the ball if they had it.
       context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));

@@ -15,26 +15,34 @@ interface GamePageProps {
   mode?: "normal" | "sandbox";
   /** Explicit teams (online play) — takes precedence over location.state */
   teams?: { team1: Team; team2: Team };
+  progressionEnabled?: boolean;
 }
 
 /**
  * GamePage - Manages Phaser game lifecycle
  * Initializes Phaser on mount, destroys on unmount
  */
-export function GamePage({ eventBus, mode = "normal", teams }: GamePageProps) {
+export function GamePage({
+  eventBus,
+  mode = "normal",
+  teams,
+  progressionEnabled,
+}: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Get team data from props (online) or location state (local play)
-    const { team1, team2 } =
-      teams ??
-      ((location.state as {
+    const routeState =
+      (location.state as {
         team1?: Team;
         team2?: Team;
-      }) ||
-        {});
+        progressionEnabled?: boolean;
+      }) ?? {};
+    const { team1, team2 } = teams ?? routeState;
+    const enableProgression =
+      progressionEnabled ?? routeState.progressionEnabled ?? false;
 
     // Initialize Phaser game
     const config: Phaser.Types.Core.GameConfig = {
@@ -73,7 +81,11 @@ export function GamePage({ eventBus, mode = "normal", teams }: GamePageProps) {
       if (mode === "sandbox") {
         game.scene.start("SandboxScene");
       } else if (team1 && team2) {
-        game.scene.start("GameScene", { team1, team2 });
+        game.scene.start("GameScene", {
+          team1,
+          team2,
+          progressionEnabled: enableProgression,
+        });
       } else {
         // No teams provided, redirect to team selection
         console.warn("No teams provided for game, redirecting to menu");
@@ -92,7 +104,7 @@ export function GamePage({ eventBus, mode = "normal", teams }: GamePageProps) {
         ServiceContainer.reset();
       }
     };
-  }, [mode, location.state, navigate, teams]);
+  }, [mode, location.state, navigate, teams, progressionEnabled]);
 
   return (
     <div className="w-full h-full relative">

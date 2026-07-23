@@ -71,8 +71,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         const created = await createLobby(user.uid, coachName);
         if (!cancelled) setCode(created.code);
       } catch (e) {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -357,6 +356,20 @@ function SettingsPanel({
           ))}
         </select>
       </div>
+      <label className="mt-3 flex justify-between items-center gap-4 font-body text-lg">
+        <span>League progression</span>
+        <input
+          type="checkbox"
+          disabled={readOnly}
+          checked={settings.progressionEnabled ?? false}
+          onChange={(event) =>
+            onChange({
+              ...settings,
+              progressionEnabled: event.target.checked,
+            })
+          }
+        />
+      </label>
     </div>
   );
 }

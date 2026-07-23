@@ -215,7 +215,14 @@ export class PassOperation extends GameOperation {
 
       if (playerAtLanding) {
         // Attempt Catch
-        context.flowManager.add(new CatchOperation(playerAtLanding.id), true);
+        context.flowManager.add(
+          new CatchOperation(playerAtLanding.id, true, {
+            passerId: passer.id,
+            passerTeamId: passer.teamId,
+            accurate: result.accurate,
+          }),
+          true
+        );
       } else {
         // Land in empty square -> Bounce
         eventBus.emit(

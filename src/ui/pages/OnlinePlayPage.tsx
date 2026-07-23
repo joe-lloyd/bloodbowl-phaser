@@ -21,7 +21,11 @@ import {
 } from "../../network/OnlineMatch";
 import { GamePhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
-import { Button, SecondaryButton, DangerButton } from "../components/componentWarehouse/Button";
+import {
+  Button,
+  SecondaryButton,
+  DangerButton,
+} from "../components/componentWarehouse/Button";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
 
@@ -136,7 +140,12 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
 
   return (
     <div className="w-full h-full relative">
-      <GamePage eventBus={eventBus} mode="normal" teams={match.teams} />
+      <GamePage
+        eventBus={eventBus}
+        mode="normal"
+        teams={match.teams}
+        progressionEnabled={lobby?.settings.progressionEnabled ?? false}
+      />
       <WaitingBanner match={match} />
 
       {lobby && code && opponentUid && (

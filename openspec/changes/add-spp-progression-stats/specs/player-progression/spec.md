@@ -2,42 +2,62 @@
 
 ## ADDED Requirements
 
-### Requirement: SPP awarded from match statistics
-At the end of a match the system SHALL convert each player's tracked statistics into Star Player Points using the 2025 award values (completion, deflection, casualty, interception, touchdown, and MVP), add them to the player's running `spp`, and record the SPP earned this match for the summary.
+### Requirement: Exact 2025 SPP values
 
-#### Scenario: SPP totals from a match
-- **WHEN** a player finishes a match with tracked statistics (e.g. two completions, one casualty, one touchdown)
-- **THEN** their `spp` increases by the sum of the corresponding SPP award values
+The system SHALL award Completion 1, Superb Throw plus safe landing to the thrower 1, safe landing to the thrown player 1, Interception 2, eligible Casualty 2, Touchdown 3, and MVP 4 SPP.
 
-#### Scenario: MVP contributes SPP
-- **WHEN** a player receives the MVP award
-- **THEN** the MVP SPP value is added to their earned SPP for the match
+#### Scenario: Combined match line
 
-### Requirement: Advancement options and costs
-The system SHALL offer advancements — random primary skill, chosen primary skill, random secondary skill, chosen secondary skill, and characteristic increase — each with its 2025 SPP cost, available only when the player has enough unspent SPP. Applying an advancement SHALL update the player's `skills` or `stats`, recompute `level`, `teamValue`, and `cost`, and deduct the spent SPP.
+- **WHEN** an eligible player records two Completions, one eligible Casualty, one Touchdown, and MVP
+- **THEN** the player earns 11 SPP
 
-#### Scenario: Affordable advancement is offered
-- **WHEN** a player has unspent SPP at or above a given advancement's cost
-- **THEN** that advancement is offered as a choice
+### Requirement: Exact advancement bands
 
-#### Scenario: Unaffordable advancement is withheld
-- **WHEN** a player's unspent SPP is below an advancement's cost
-- **THEN** that advancement is not selectable
+For advancement numbers 1-6, the system SHALL charge Random Primary `[3,4,6,8,10,15]`, Chosen Primary `[6,8,12,16,20,30]`, Chosen Secondary `[10,12,16,20,24,34]`, and Characteristic `[14,16,20,24,28,38]` SPP. There SHALL be no Random Secondary option.
 
-#### Scenario: Applying a skill advancement
-- **WHEN** a coach confirms a chosen primary skill advancement
-- **THEN** the skill is added to the player, its SPP cost is deducted, and `level`/`teamValue`/`cost` are recomputed
+#### Scenario: Forced advancement
 
-### Requirement: Advancement is confirmed and applied once
-Advancement SHALL require explicit coach confirmation and SHALL apply at most once per player per advancement, so revisiting the post-match screen cannot double-apply or double-spend.
+- **WHEN** a non-Legend player has at least the Characteristic cost for their next advancement
+- **THEN** the post-match flow requires them to buy an advancement, though it need not be a Characteristic
 
-#### Scenario: Revisiting the summary does not re-advance
-- **WHEN** an advancement has already been confirmed and applied for a player
-- **THEN** returning to the post-match screen does not apply it again or deduct SPP again
+### Requirement: Skill advancements obey access and roll rules
 
-### Requirement: Progression persists to the saved team
-Confirmed progression (added SPP, skills, stat changes, level) SHALL be written back to the owning coach's saved team through the team repository, with new fields defaulting so existing saved teams load unchanged. In online play each coach SHALL persist only their own team.
+Chosen skills SHALL be legal Skills in the player's selected Primary/Secondary category and SHALL not duplicate or conflict with an existing Skill. Random Primary SHALL generate two legal candidates by selecting the correct half from the first D6 and row from the second D6, reroll illegal candidates, and let the coach choose unless both candidates match.
 
-#### Scenario: Growth survives to the next match
-- **WHEN** a coach confirms advancements and reloads their saved team
-- **THEN** the added SPP, new skills, and stat changes are present
+#### Scenario: Random Primary choice
+
+- **WHEN** a coach chooses an eligible Primary category and rolls two legal different candidates
+- **THEN** both results are shown and exactly one may be confirmed
+
+#### Scenario: Identical random results
+
+- **WHEN** both random candidate rolls resolve to the same legal Skill
+- **THEN** that Skill is the mandatory result
+
+### Requirement: Characteristic advancement obeys the D8 table and caps
+
+The system SHALL offer AV on 1; AV/PA on 2; AV/MA/PA on 3-4; MA/PA on 5; AG/MA on 6; AG/ST on 7; and any characteristic on 8, filtered by the twice-only rule and maxima MA 9, ST 8, AG 1+, PA 1+, AV 11+. The coach MAY reject the roll for a legal chosen Primary or Secondary skill while still paying the Characteristic cost.
+
+#### Scenario: Target-number characteristic improves
+
+- **WHEN** AG 3+ is legally improved
+- **THEN** it becomes AG 2+
+
+#### Scenario: Capped choice removed
+
+- **WHEN** a characteristic is at its maximum or already has two improvements
+- **THEN** it is not offered for the D8 result
+
+### Requirement: Advancement value and history persist
+
+Applying an advancement SHALL deduct SPP, append durable history, increment level up to Legend, mutate the skill/stat, and add Primary 20k, Secondary 40k, AV 10k, MA/PA 20k, AG 30k, or ST 60k to player advancement value. Block, Dodge, Guard, and Mighty Blow SHALL add a further 10k Elite surcharge.
+
+#### Scenario: Elite Primary
+
+- **WHEN** a player gains Block as a Primary Skill
+- **THEN** player advancement value increases by 30k
+
+#### Scenario: Existing saved team
+
+- **WHEN** a saved player lacks the new progression fields
+- **THEN** loading supplies safe defaults and derives skill access from its roster position

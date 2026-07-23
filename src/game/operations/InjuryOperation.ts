@@ -110,6 +110,16 @@ export class InjuryOperation extends GameOperation {
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         player.status = PlayerStatus.INJURED;
+        eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
+          causerId: this.opts.causedById,
+          victimId: player.id,
+          cause:
+            this.opts.cause ?? (this.opts.causedById ? "special" : "crowd"),
+          sppEligible:
+            this.opts.cause === "block" &&
+            !!this.opts.causedById &&
+            this.opts.causedById !== player.id,
+        });
         // Trigger Casualty Operation
         flowManager.add(
           new CasualtyOperation(this.playerId, this.opts.causedById, {

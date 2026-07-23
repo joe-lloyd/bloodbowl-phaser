@@ -357,7 +357,11 @@ export class BlockManager {
     const arbiter = this.callbacks
       .getFlowManager?.()
       ?.context.gameService.getRerollArbiter();
-    if (!attacker || !arbiter || !arbiter.teamRerollAvailable(attacker.teamId)) {
+    if (
+      !attacker ||
+      !arbiter ||
+      !arbiter.teamRerollAvailable(attacker.teamId)
+    ) {
       return;
     }
     arbiter.consumeTeamReroll(attacker.teamId);
@@ -732,7 +736,11 @@ export class BlockManager {
     const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     const attacker = this.getPlayerById(attackerId);
     const squares = attacker ? this.hitAndRunSquares(attacker) : [];
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE || !squares.length) {
+    if (
+      !attacker ||
+      attacker.status !== PlayerStatus.ACTIVE ||
+      !squares.length
+    ) {
       gs?.finishActivation(attackerId);
       return;
     }
@@ -839,8 +847,7 @@ export class BlockManager {
 
   private getPlayerAt(x: number, y: number): Player | undefined {
     return [...this.team1.players, ...this.team2.players].find(
-      (p) =>
-        p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
+      (p) => p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
     );
   }
 
@@ -994,7 +1001,10 @@ export class BlockManager {
         if (flowManager) {
           // A knocked-down carrier drops the ball where they landed
           // (added after ArmourOperation so the bounce resolves first)
-          flowManager.add(new ArmourOperation(first.playerId, attackerId), true);
+          flowManager.add(
+            new ArmourOperation(first.playerId, attackerId),
+            true
+          );
           if (
             this.state.ballPosition &&
             this.state.ballPosition.x === first.to.x &&
@@ -1115,14 +1125,15 @@ export class BlockManager {
 
       // Only the players actually knocked down roll armour — none at all
       // when a rule placed them prone (Wrestle). Attacker runs first
-      // (added last to the front of the queue). Only the attacker "caused"
-      // a knockdown (2025 Mighty Blow: the defender performed no block).
+      // (added last to the front of the queue). On Both Down each player
+      // knocked the other down as part of the Block Action, so either can
+      // earn casualty SPP even though only the attacker declared the Block.
       if (!ctx.placedProne) {
         if (ctx.defenderKnockedDown) {
           flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
         }
         if (ctx.attackerKnockedDown) {
-          flowManager.add(new ArmourOperation(attacker.id), true);
+          flowManager.add(new ArmourOperation(attacker.id, defender.id), true);
         }
       }
     }

@@ -21,7 +21,12 @@ export class CatchOperation extends GameOperation {
      * Only a dropped pass/hand-off is a turnover; a dropped bounce or
      * throw-in is not (the original loss already caused one if due).
      */
-    private turnoverOnDrop: boolean = true
+    private turnoverOnDrop: boolean = true,
+    private pass?: {
+      passerId: string;
+      passerTeamId: string;
+      accurate: boolean;
+    }
   ) {
     super();
   }
@@ -110,6 +115,17 @@ export class CatchOperation extends GameOperation {
     if (success) {
       // CATCH SUCCESS (possession is positional: ball is on their square)
       eventBus.emit(GameEventNames.UI_Notification, "Catch Successful!");
+      if (
+        this.pass?.accurate &&
+        player.teamId === this.pass.passerTeamId &&
+        player.id !== this.pass.passerId
+      ) {
+        eventBus.emit(GameEventNames.PassCompleted, {
+          playerId: this.pass.passerId,
+          catcherId: player.id,
+          position: { ...player.gridPosition },
+        });
+      }
 
       // Catching in the scoring end zone is an immediate touchdown
       gameService.checkForTouchdown(this.playerId);
@@ -130,5 +146,4 @@ export class CatchOperation extends GameOperation {
       }
     }
   }
-
 }

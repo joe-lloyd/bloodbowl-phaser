@@ -54,6 +54,13 @@ export type HeadlessCommand =
     }
   | { type: "end-activation"; playerId: string }
   | { type: "end-turn" }
+  // Post-match league progression
+  | {
+      type: "award-mvp";
+      teamId: string;
+      nominatedPlayerIds: string[];
+    }
+  | { type: "assign-awarded-touchdown"; playerId: string }
   // Decision replies
   | { type: "choose-block-result"; index: number }
   | { type: "choose-push-direction"; x: number; y: number }

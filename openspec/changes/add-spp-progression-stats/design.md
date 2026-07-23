@@ -2,58 +2,82 @@
 
 ## Context
 
-The engine is event-driven (a Phaser-free EventBus) and already exposes most of what SPP needs as domain events — `Touchdown`, `PassCompleted`, plus the pass/catch and injury paths. Two gaps: casualties surface only as a `UI_Notification` string, and interceptions/MVP have no attributed event. `Player` has dormant `spp: number` and `level: number` fields. Saved teams round-trip as JSON through `TeamRepository` (memory cache + background Firestore write at `users/{uid}/teams/{teamId}`, or a local repository when signed out). Headless play must keep working, so stat tracking cannot depend on the DOM.
+The engine uses a Phaser-free typed EventBus and already exposes interception attribution, movement, blocks, and most pass state. It lacks a scorer on `Touchdown`, a reliable successful-completion signal, Throw Team-mate SPP outcomes, and a casualty event. `Player` has unused `spp`/`level` fields but does not retain its Primary/Secondary categories or advancement history.
 
 ## Goals / Non-Goals
 
-**Goals:**
+**Goals**
 
-- Capture every SPP-earning action per player during a match, from domain events only.
-- Compute SPP and apply advancement per the 2025 rulebook, mutating the player and persisting to the saved team.
-- A clear post-match summary for both teams, with the advancement step reachable from it.
-- Keep tracking engine-side and headless-safe; keep the summary/advancement UI in the React layer.
+- Apply every standard 2025 SPP and advancement rule supplied with this change.
+- Keep raw statistics engine-driven, deterministic, and available headlessly.
+- Make all coach decisions explicit and only persist after confirmation.
+- Safely load older teams with no progression metadata.
 
-**Non-Goals:**
+**Non-Goals**
 
-- League tables, schedules, or inducements — those belong to `add-leagues-and-tournaments`. This change persists per-player growth only.
-- Star Players / mercenaries / special-rule SPP quirks beyond the core earning table (can extend the catalog later).
-- Automatic advancement AI — the coach chooses/confirms; only the random-skill roll is automated.
+- League scheduling, standings, winnings, fans, hiring, firing, or redrafting.
+- Automatically choosing coach decisions.
+- Implementing niche skill-specific SPP exceptions beyond events the engine already models; the event catalog remains extensible.
 
 ## Decisions
 
-### 1. A `MatchStats` accumulator that only subscribes to events
+### 1. Progression is an explicit match rule
 
-One class holds `Map<playerId, PlayerMatchStats>` and subscribes to the EventBus, mirroring the `add-sound-effects-suite` SoundSuite pattern (observe events, never touch engine internals). It lives engine-adjacent so headless runs accumulate stats without a UI. Alternative — incrementing counters inside operations/managers — rejected: it scatters bookkeeping through the rules code and re-couples concerns the codebase keeps separate.
+`progressionEnabled` travels with local route state and online lobby settings. A tracker may still collect flavour statistics, but finalisation returns no SPP and performs no writes when disabled. This directly represents a League Fixture versus a Friendly.
 
-### 2. Add attributable domain events rather than scrape notifications
+### 2. `MatchStats` observes typed outcome events
 
-`InjuryOperation`/`CrowdInjuryOperation`/`FoulOperation` emit a new `PlayerCasualtyInflicted { attackerId, victimId, cause }`; the pass/catch path emits interception attribution; an end-of-match step rolls and emits `MvpAwarded`. The stats layer binds to these. This is the **BREAKING** part (casualties become a real event, not just a toast), but it is the only way to attribute SPP correctly (the caser, foul assist, or crowd all award differently).
+One engine-adjacent accumulator owns `Map<playerId, PlayerMatchStats>`. It subscribes to attributed events and is mounted by both `ServiceContainer` and `createHeadlessGame`.
 
-### 3. SPP + advancement as a pure module
+- `PassCompleted` is emitted only for an Accurate Pass caught directly by a team-mate.
+- `ThrowTeammateLanded` identifies thrower, thrown player, whether it was a Superb Throw, and safe landing; it awards the thrower and passenger independently.
+- `PlayerCasualtyInflicted` identifies causer, victim, and cause. Only `cause === "block"` is standard SPP-eligible. Emission happens on the Injury casualty result, so recovery does not revoke it.
+- `Touchdown` identifies the scorer for played touchdowns; awarded concession touchdowns are explicit post-match allocations.
+- `PlayerParticipated` is recorded when a player is placed/activated, providing the MVP pool.
 
-`progression.ts` is pure functions: `sppFromStats(stats) → number`, `advancementOptions(player) → Option[]`, `applyAdvancement(player, choice) → Player`. No events, no DOM — unit-testable headless, and reusable by the UI. The 2025 SPP values and the advancement cost table (random primary / chosen primary / random secondary / chosen secondary / characteristic) are data constants here.
+### 3. MVP and allocation are coach-controlled finalisation
 
-### 4. Advancement is an explicit, confirmed post-match step
+The post-match controller requires up to six eligible participating players per team (exactly six when six are available), assigns slots 1-6, and rolls through the seeded RNG. It emits `MvpAwarded` only after a valid nomination. A normal fixture has one MVP per team. A conceding team loses its match SPP and MVP; its opponent gets a second MVP. Awarded touchdown SPP is assigned to chosen eligible roster players before confirmation.
 
-Advancement mutates a player permanently, so it never auto-applies. The summary page surfaces who can advance; the coach opens each and confirms a spend. Random-skill rolls use the same seeded RNG service for reproducibility. Only after confirmation is the player written back.
+Finalisation has a match id/guard and produces an immutable summary. Reopening the screen cannot duplicate SPP.
 
-### 5. Persist through the existing repository, additive fields only
+### 4. Progression is pure data + explicit rolls
 
-Write-back reuses `TeamRepository.save` (sync cache + background Firestore). New per-player fields (career/match sub-stats) default to zero/empty so existing saved teams load unchanged — no migration. Progression is written per owning coach: in online play each side persists only its own team.
+`progression.ts` owns constants and pure transformations.
+
+- SPP values: Completion 1; Superb Throw + safe landing to thrower 1; safe landing to thrown player 1; Interception 2; eligible Casualty 2; Touchdown 3; MVP 4.
+- Advancement costs by advancement index:
+
+| Advancement     | Random Primary | Choose Primary | Choose Secondary | Characteristic |
+| --------------- | -------------: | -------------: | ---------------: | -------------: |
+| 1 Experienced   |              3 |              6 |               10 |             14 |
+| 2 Veteran       |              4 |              8 |               12 |             16 |
+| 3 Emerging Star |              6 |             12 |               16 |             20 |
+| 4 Star          |              8 |             16 |               20 |             24 |
+| 5 Superstar     |             10 |             20 |               24 |             28 |
+| 6 Legend        |             15 |             30 |               34 |             38 |
+
+There is no random Secondary option in the 2025 table.
+
+For a random Primary, the coach chooses an eligible Primary category. Each candidate rolls a first D6 (1-3 first half, 4-6 second half) and second D6 (row); two legal candidates are generated and the coach chooses one, except identical results are mandatory. Existing or incompatible skills reroll.
+
+Characteristic improvement spends its full cost before a D8 roll. Legal choices are AV; AV/PA; AV/MA/PA; MA/PA; AG/MA; AG/ST; or any characteristic for results 1 through 8. The coach may instead choose a legal Primary or Secondary skill without a refund. A characteristic can be improved at most twice and not beyond MA 9, ST 8, AG 1+, PA 1+, AV 11+.
+
+### 5. Player value stores advancement value separately
+
+Every applied advancement appends a durable record and increases `teamValue` (the player's advancement value): Primary +20k, Secondary +40k, AV +10k, MA/PA +20k, AG +30k, ST +60k. Block, Dodge, Guard, and Mighty Blow are Elite and add another +10k. The hiring `cost` remains the base hiring fee; current player value is `cost + teamValue`.
+
+### 6. Migration defaults are derived from the roster
+
+New players copy Primary/Secondary categories from their template. On load, older players are hydrated by matching their roster position template. Missing SPP, level, history, category access, kind, and characteristic-increase counters receive safe defaults.
 
 ## Risks / Trade-offs
 
-- [Casualty event is breaking for existing listeners] → grep shows casualties are notification-only today; the new event is additive and the notification stays, so no current consumer breaks in practice.
-- [SPP mis-attribution in chains (foul assists, crowd surf, chain-push casualties)] → attribution rides `cause` on the event, decided at the point of resolution where the actor is known; covered by headless scenario tests.
-- [Double-award across a snapshot/reconnect in online play] → stats accumulate on the host from authoritative events only; the guest renders the summary from the host's final tally, never its own count.
-- [Advancement applied twice if the summary is revisited] → advancement is idempotent per player per match via a `advancedThisMatch` guard and only-once write.
+- Accurate completion currently spans Pass and Catch operations. The Catch operation receives pass metadata so it emits only after the direct catch succeeds.
+- Some mutually exclusive skill rules are catalog-specific. Duplicate rejection is mandatory now; incompatibility is centralized in a table so more pairs can be added without changing the UI.
+- Online finalisation must remain authoritative. The host owns the tally and seeded rolls; each client persists only the team it owns.
+- Journeymen can earn SPP but only retain it if later hired. This change records/returns their earned total; the separate hiring step decides whether it persists.
 
 ## Migration Plan
 
-Land the new events first (with the notifications retained), then the `MatchStats` accumulator, then the pure `progression` module with tests, then the summary UI, then persistence write-back. Each step keeps the suite green. No stored-data migration; new fields are optional with zero defaults.
-
-## Open Questions
-
-- Exact 2025 SPP values / advancement costs to hard-code (verify against the current rulebook during task 3).
-- Whether career totals live on `Player` or a parallel `users/{uid}/teams/{teamId}` sub-collection (start on `Player`; revisit if docs get large).
-- Whether MVP is a single random award or the 2025 three-nominations variant (start single; the event shape allows either).
+Add event payloads and migration defaults, then mount the tracker, add the pure progression module/tests, and finally add the post-match UI and persistence. All new stored fields are optional on read.

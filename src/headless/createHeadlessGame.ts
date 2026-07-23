@@ -16,6 +16,7 @@ import { TeamFactory } from "../game/TeamFactory";
 import { Team, RosterName } from "../types/Team";
 import { GameState, GamePhase, SubPhase } from "../types/GameState";
 import { Scenario } from "../types/Scenario";
+import { MatchStats } from "../game/progression/MatchStats";
 
 export interface HeadlessGameOptions {
   /**
@@ -44,6 +45,8 @@ export interface HeadlessGameOptions {
   startingSubPhase?: SubPhase;
   /** Roster used for generated default teams */
   defaultRoster?: RosterName;
+  /** League fixture progression; friendlies default to false. */
+  progressionEnabled?: boolean;
 }
 
 export interface HeadlessGameContext {
@@ -53,6 +56,7 @@ export interface HeadlessGameContext {
   team1: Team;
   team2: Team;
   seed: number;
+  matchStats: MatchStats;
 }
 
 /**
@@ -95,6 +99,11 @@ export function createHeadlessGame(
     );
 
   const eventBus = new EventBus();
+  const matchStats = new MatchStats(
+    eventBus,
+    [team1, team2],
+    options.progressionEnabled
+  );
   const rng = new RNGService(seed);
   const blockResolutionService = new BlockResolutionService(rng);
 
@@ -120,5 +129,5 @@ export function createHeadlessGame(
     noDelay
   );
 
-  return { eventBus, gameService, rng, team1, team2, seed };
+  return { eventBus, gameService, rng, team1, team2, seed, matchStats };
 }

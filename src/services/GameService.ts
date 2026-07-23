@@ -892,8 +892,7 @@ export class GameService implements IGameService {
 
   /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
   private handleTurnEnding(endingTeamId: string): void {
-    const reacting =
-      endingTeamId === this.team1.id ? this.team2 : this.team1;
+    const reacting = endingTeamId === this.team1.id ? this.team2 : this.team1;
     const players = reacting.players.filter((p) => p.gridPosition);
     const ctx: TurnEndingContext = {
       endingTeamId,
@@ -935,7 +934,7 @@ export class GameService implements IGameService {
 
   // ===== Score Management =====
 
-  addTouchdown(teamId: string): void {
+  addTouchdown(teamId: string, scorerId?: string): void {
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
     this.state.phase = GamePhase.TOUCHDOWN;
@@ -944,6 +943,7 @@ export class GameService implements IGameService {
     this.eventBus.emit(GameEventNames.Touchdown, {
       teamId,
       score: this.state.score[teamId],
+      scorerId,
     });
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.TOUCHDOWN,
@@ -1035,7 +1035,7 @@ export class GameService implements IGameService {
     if (!isInEndZone(player.gridPosition, GameConfig.PITCH_WIDTH, side)) {
       return false;
     }
-    this.addTouchdown(player.teamId);
+    this.addTouchdown(player.teamId, player.id);
     return true;
   }
 

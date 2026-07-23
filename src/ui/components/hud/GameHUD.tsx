@@ -25,6 +25,7 @@ import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { PostMatchProgression } from "./PostMatchProgression";
 
 interface GameHUDProps {
   eventBus: EventBus;
@@ -251,6 +252,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <ReactionDialog eventBus={eventBus} />
           <InterceptionDialog eventBus={eventBus} />
           <TurnoverOverlay eventBus={eventBus} />
+          <PostMatchProgression
+            visible={turnData.phase === GamePhase.GAME_OVER}
+          />
 
           {/* Notification overlay — bottom-center, out of the board's way,
               capped at 3 with de-duplication (see addNotification). */}

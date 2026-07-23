@@ -2,31 +2,63 @@
 
 ## ADDED Requirements
 
-### Requirement: Per-player match statistics tracking
-The system SHALL accumulate, per player, the statistics needed to award SPP and to fill the post-match summary: completions, passing/deflection SPP-earning actions, touchdowns (rushing the ball over the line), casualties inflicted, interceptions, blocks thrown, yards moved, and injuries suffered. Tracking SHALL be driven exclusively by subscribing to engine domain events; the rules engine SHALL NOT hold statistic counters.
+### Requirement: Progression applies only to eligible matches
 
-#### Scenario: Touchdown credited to the scorer
-- **WHEN** a `Touchdown` event is emitted for the ball carrier
-- **THEN** that player's touchdown count increments by one
+The system SHALL award and persist SPP only when the match is explicitly progression-enabled. Friendly/disabled matches SHALL award no SPP.
 
-#### Scenario: Completion credited to the passer
-- **WHEN** a completed pass or hand-off that earns a completion is resolved
-- **THEN** the throwing player's completion count increments by one
+#### Scenario: Friendly match
 
-### Requirement: Attributable casualty, interception, and MVP events
-The engine SHALL emit distinct domain events for a casualty inflicted (`PlayerCasualtyInflicted` with the attacker, the victim, and the cause: block, foul, or crowd), for an interception, and for the end-of-match MVP award — so statistics can be attributed without parsing UI notification text. The existing casualty `UI_Notification` MAY remain for the on-screen message.
+- **WHEN** a match ends with progression disabled
+- **THEN** no player SPP changes and no progression is persisted
 
-#### Scenario: Block casualty attributes to the attacker
-- **WHEN** a block causes an opposition player to be removed as a casualty
-- **THEN** a `PlayerCasualtyInflicted` event names the attacking player as the causer and the stats layer credits that player one casualty
+### Requirement: Standard SPP outcomes are attributed exactly
 
-#### Scenario: MVP awarded at end of match
-- **WHEN** the match ends
-- **THEN** an MVP is rolled and an `MvpAwarded` event names the receiving player
+The engine SHALL provide attributable outcomes for every standard SPP action without parsing UI text.
 
-### Requirement: Headless-safe accumulation
-Statistic tracking SHALL function without any DOM or Phaser dependency, so a headless match accumulates a complete stat tally with no UI mounted.
+#### Scenario: Accurate completion
 
-#### Scenario: Headless match produces a full tally
-- **WHEN** a match is played to completion through the headless engine
-- **THEN** the per-player statistics are available with no browser environment present
+- **WHEN** a Pass Action produces an Accurate Pass caught directly by a team-mate without a bounce
+- **THEN** the passer records one Completion
+
+#### Scenario: Non-completion
+
+- **WHEN** a hand-off succeeds, an inaccurate pass is caught, an opponent catches the pass, or the ball bounces before a team-mate catches it
+- **THEN** no Completion is recorded
+
+#### Scenario: Throw Team-mate awards
+
+- **WHEN** a thrown team-mate lands safely
+- **THEN** the thrown player records a safe landing and, only when the throw was Superb, the thrower records a Superb Throw landing
+
+#### Scenario: Block casualty survives recovery
+
+- **WHEN** a player knocks down another player during a Block Action and the victim suffers a Casualty
+- **THEN** the causer records an SPP-eligible Casualty even if both players fell or the victim later recovers through Regeneration, an Apothecary, or another rule
+
+#### Scenario: Other casualty does not qualify
+
+- **WHEN** a Casualty is caused by a Special Action, failed dodge, foul, or the crowd
+- **THEN** it is not counted as a standard SPP-eligible Casualty
+
+#### Scenario: Touchdown and interception
+
+- **WHEN** a player scores a Touchdown or intercepts an opposition Pass Action
+- **THEN** the scorer/interceptor is recorded
+
+### Requirement: Participation and summary statistics are headless-safe
+
+The system SHALL track participating players and per-player completion, safe landing, superb throw, interception, eligible casualty, touchdown, MVP, blocks, yards, and injuries using the typed EventBus with no DOM or Phaser dependency.
+
+#### Scenario: Headless tally
+
+- **WHEN** a headless match emits gameplay outcomes
+- **THEN** an immutable per-player and per-team summary is available
+
+### Requirement: Star Player and Journeyman eligibility
+
+Star Players SHALL never generate SPP. Journeymen SHALL generate SPP normally and retain it only if the later hiring step keeps them.
+
+#### Scenario: Mixed temporary players
+
+- **WHEN** a Star Player and a Journeyman each perform the same SPP action
+- **THEN** only the Journeyman receives earned SPP

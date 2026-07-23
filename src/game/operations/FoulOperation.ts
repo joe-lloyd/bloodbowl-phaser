@@ -121,6 +121,12 @@ export class FoulOperation extends GameOperation {
         case InjuryResult.CASUALTY:
           eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
           target.status = PlayerStatus.INJURED;
+          eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
+            causerId: fouler.id,
+            victimId: target.id,
+            cause: "special",
+            sppEligible: false,
+          });
           break;
       }
     } else {

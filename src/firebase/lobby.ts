@@ -45,6 +45,8 @@ export interface LobbySettings {
   turnSeconds: number;
   /** Each player's pause budget */
   timeoutBankMs: number;
+  /** League fixture rules: SPP, MVP and advancement are enabled. */
+  progressionEnabled: boolean;
 }
 
 /**
@@ -99,6 +101,7 @@ export interface LobbyDoc {
 export const DEFAULT_SETTINGS: LobbySettings = {
   turnSeconds: 120,
   timeoutBankMs: 5 * 60 * 1000,
+  progressionEnabled: false,
 };
 
 /** Short, human-enterable, unambiguous (no 0/O/1/I). */

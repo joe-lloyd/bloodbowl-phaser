@@ -20,6 +20,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
+  const [progressionEnabled, setProgressionEnabled] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       state: {
         team1: selectedTeam1,
         team2: selectedTeam2,
+        progressionEnabled,
       },
     });
   };
@@ -171,6 +173,17 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             ))}
           </div>
         </div>
+
+        {mode !== "sandbox" && (
+          <label className="my-6 flex items-center justify-center gap-3 font-body text-lg">
+            <input
+              type="checkbox"
+              checked={progressionEnabled}
+              onChange={(event) => setProgressionEnabled(event.target.checked)}
+            />
+            League fixture — award SPP and enable player advancement
+          </label>
+        )}
 
         <div className="flex justify-between gap-5 mt-8">
           <Button onClick={handleBack}>← Back to Menu</Button>

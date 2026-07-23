@@ -2,23 +2,43 @@
 
 ## ADDED Requirements
 
-### Requirement: End-of-match summary screen
-When a match ends the system SHALL present a summary screen showing, for both teams, each player's tracked statistics and SPP earned this match, plus team totals (final score, casualties inflicted, completions) and the match MVP.
+### Requirement: Coaches complete SPP assignment before confirmation
 
-#### Scenario: Summary lists both teams
-- **WHEN** a match reaches its end
-- **THEN** the summary screen displays per-player stat lines and SPP earned for both teams, the team totals, and the MVP
+For a progression-enabled completed match, the system SHALL show both teams' statistics, require each coach to nominate six participating players (or every participant when fewer than six), assign them unique slots 1-6, roll a seeded D6 for MVP, assign any awarded concession-touchdown SPP, and review final earned SPP before confirmation.
 
-### Requirement: Advancement entry point
-The summary screen SHALL indicate which of the coach's own players have enough SPP to advance and SHALL provide the entry point into the advancement flow for those players.
+#### Scenario: MVP roll
 
-#### Scenario: Advancement is reachable for eligible players
-- **WHEN** the summary is shown and one of the coach's players has enough SPP to advance
-- **THEN** that player is marked advanceable and the advancement flow can be opened for them
+- **WHEN** six eligible players occupy slots 1-6 and the coach rolls a 4
+- **THEN** the player assigned slot 4 receives MVP and 4 SPP
 
-### Requirement: Summary reflects the authoritative tally in online play
-In an online match the summary SHALL render from the host's final authoritative statistics, so both coaches see identical numbers.
+#### Scenario: Awarded touchdown
 
-#### Scenario: Both coaches see the same summary
-- **WHEN** an online match ends
-- **THEN** both coaches' summary screens show the same per-player and team totals
+- **WHEN** a team receives a touchdown through concession
+- **THEN** its coach assigns that touchdown's 3 SPP to an eligible player of their choice
+
+### Requirement: Concessions adjust SPP
+
+A conceding team SHALL lose all SPP earned in that match and receive no MVP. The opponent SHALL receive a second MVP. A concession without penalty SHALL preserve the rules that apply to that concession type.
+
+#### Scenario: Standard concession
+
+- **WHEN** a team concedes
+- **THEN** its earned SPP is zeroed, it cannot nominate an MVP, and the opponent completes two MVP awards
+
+### Requirement: Confirmation is only-once and persists owned teams
+
+SPP finalisation and each advancement SHALL require explicit confirmation and SHALL be idempotent for the match. Confirmed roster-player changes SHALL persist through the team repository. An online client SHALL persist only its owned team and both clients SHALL render the host's authoritative tally/rolls.
+
+#### Scenario: Summary reopened
+
+- **WHEN** a confirmed summary is reopened
+- **THEN** no SPP or advancement is applied a second time
+
+### Requirement: Advancement is completed from the summary
+
+The summary SHALL mark players who may or must advance and provide all legal skill and characteristic workflows, including visible dice results, SPP cost, value change, and final confirmation.
+
+#### Scenario: Mandatory spend
+
+- **WHEN** a player has reached their next Characteristic threshold
+- **THEN** the coach cannot finish the post-match progression step until that player buys a legal advancement

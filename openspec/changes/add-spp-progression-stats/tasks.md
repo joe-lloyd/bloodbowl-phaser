@@ -1,39 +1,44 @@
 # Tasks: add-spp-progression-stats
 
-## 1. Attributable domain events
+## 1. Rules contract and player migration
 
-- [ ] 1.1 Add `PlayerCasualtyInflicted { attackerId, victimId, cause: "block" | "foul" | "crowd" }` to `src/types/events.ts` and emit it from `InjuryOperation`, `FoulOperation`, and `CrowdInjuryOperation` at the point the casualty is confirmed (keep the existing `UI_Notification`)
-- [ ] 1.2 Add interception attribution to the pass/catch path (event or field on the existing interception result) so the intercepting player is identifiable
-- [ ] 1.3 Add an end-of-match MVP step that rolls with the seeded RNG and emits `MvpAwarded { playerId, teamId }`
-- [ ] 1.4 Headless test: a scripted block-casualty, an interception, and match end each emit the new events with correct attribution
+- [x] 1.1 Add progression-enabled match settings for local and online matches, defaulting to disabled for friendly safety.
+- [x] 1.2 Add Primary/Secondary access, player kind (roster/Journeyman/Star), advancement records, and characteristic-increase counters to `Player`.
+- [x] 1.3 Copy access on player creation and hydrate safe defaults/access from roster templates when older saved teams load.
 
-## 2. Match stats accumulator
+## 2. Attributable engine outcomes
 
-- [ ] 2.1 Define `PlayerMatchStats` (completions, deflections, touchdowns, casualties, interceptions, blocks, yards, injuries suffered) and a `MatchStats` accumulator holding `Map<playerId, PlayerMatchStats>`
-- [ ] 2.2 Subscribe `MatchStats` to `Touchdown`, `PassCompleted`, `PlayerCasualtyInflicted`, interception, `PlayerMoved`, `MvpAwarded` (and any others needed) and increment the right player's counters
-- [ ] 2.3 Mount the accumulator so it runs in both browser play and headless (engine-adjacent, no DOM); headless test: a full match yields a complete tally
+- [x] 2.1 Add scorer attribution to `Touchdown`.
+- [x] 2.2 Emit `PassCompleted` only after an Accurate Pass is directly caught by a team-mate.
+- [x] 2.3 Emit a safe Throw Team-mate landing outcome with Superb Throw attribution.
+- [x] 2.4 Emit `PlayerCasualtyInflicted` when an Injury roll confirms a casualty, retaining block/special/dodge/crowd provenance through recovery.
+- [x] 2.5 Track participation and preserve the existing attributed interception event.
 
-## 3. SPP + advancement module
+## 3. Match stats and SPP finalisation
 
-- [ ] 3.1 `progression.ts` constants: 2025 SPP award values and the advancement cost table (random/chosen primary & secondary, characteristic), verified against the rulebook
-- [ ] 3.2 `sppFromStats(stats)` → SPP; apply to each player's `spp` at match end and record SPP earned this match
-- [ ] 3.3 `advancementOptions(player)` (gated by unspent SPP) and `applyAdvancement(player, choice)` → updated `skills`/`stats`, recomputed `level`/`teamValue`/`cost`, SPP deducted; random-skill roll uses the seeded RNG
-- [ ] 3.4 Idempotency guard so an advancement applies at most once per player per match
-- [ ] 3.5 Unit tests (headless): SPP totals from a sample stat line, affordable/unaffordable option gating, a skill and a characteristic advancement, no double-apply
+- [x] 3.1 Implement headless-safe `MatchStats` for completions, Throw Team-mate awards, interceptions, eligible casualties, touchdowns, MVPs, participation, blocks, yards, and injuries.
+- [x] 3.2 Mount one tracker in browser and headless engine bootstraps and expose immutable summaries.
+- [x] 3.3 Implement SPP calculation and Star Player/Journeyman eligibility.
+- [x] 3.4 Implement valid six-player MVP nomination + seeded D6 award, awarded-touchdown assignment, and only-once confirmation.
+- [x] 3.5 Test exact award values, block-only casualty credit, recovery-independent credit, no-friendly awards, and finalisation idempotency.
+- [ ] 3.6 Carry an actual concession result into finalisation so the conceding side loses match SPP/MVP and the opponent receives a second MVP.
 
-## 4. Post-match summary UI
+## 4. Advancement rules
 
-- [ ] 4.1 Summary page: per-player stat lines + SPP earned for both teams, team totals (score, casualties, completions), MVP
-- [ ] 4.2 Mark the coach's advanceable players and wire the advancement flow (open, choose, confirm) from the summary
-- [ ] 4.3 Online: render the summary from the host's authoritative final tally so both coaches match
+- [x] 4.1 Add the exact six-row 2025 advancement cost table and forced-advancement threshold.
+- [x] 4.2 Add the exact 12-skill category roll table, two-candidate random Primary flow, duplicate/incompatible rerolls, and mandatory identical result.
+- [x] 4.3 Add chosen Primary/Secondary validation and the four Elite Skills' +10k surcharge.
+- [x] 4.4 Add D8 characteristic choices, skill fallback at spent characteristic cost, twice-only/max caps, and exact value increases.
+- [x] 4.5 Apply advancements once, deduct SPP, update level/history/stats/player value, and test all bands and failure cases.
 
-## 5. Persistence
+## 5. Post-match UI and persistence
 
-- [ ] 5.1 Write confirmed progression back through `TeamRepository` (cloud + local); new player fields default so existing saved teams load unchanged
-- [ ] 5.2 Online: each coach persists only their own team
-- [ ] 5.3 Verify: play a match, confirm advancements, reload the saved team — added SPP, skills, and stat changes are present
+- [x] 5.1 Show the end-match summary only for progression-enabled matches, with both teams' player lines and team totals.
+- [x] 5.2 Add MVP nomination/roll and awarded-touchdown assignment UI, then confirm SPP to the roster.
+- [x] 5.3 Add advancement UI for random Primary, chosen Primary/Secondary, and characteristic improvement/fallback.
+- [x] 5.4 Persist confirmed changes through `TeamRepository`; online clients persist only their owned team and render the host tally.
 
 ## 6. Verification
 
-- [ ] 6.1 Full test suite green; headless CLI still runs a match to completion in plain Node with stats accumulating
-- [ ] 6.2 Manual browser pass: play to a touchdown + a casualty, reach the summary, advance a player, confirm persistence
+- [x] 6.1 Run focused progression/stat tests, the full test suite, typecheck/build, and lint.
+- [ ] 6.2 Verify a browser fixture from enabled match selection through MVP, SPP confirmation, advancement, and reload.
