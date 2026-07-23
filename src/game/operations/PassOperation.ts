@@ -15,6 +15,42 @@ import {
 } from "../skills";
 
 /**
+ * Ends the passer's activation once a Pass / Hand-off (and its catch/bounce)
+ * has settled — a Pass Action ends the activation. Give and Go skips this after
+ * a Quick Pass or a Hand-off (so long as no Turnover was caused), letting the
+ * player continue their Move with any movement remaining. Guarded on the passer
+ * still being the active player, so a Turnover (which flips the turn) or an
+ * already-ended activation is a no-op.
+ */
+class FinishPassActivationOperation extends GameOperation {
+  public readonly name = "FinishPassActivation";
+
+  constructor(
+    private passerId: string,
+    private giveAndGoExempt: boolean
+  ) {
+    super();
+  }
+
+  async execute(context: any): Promise<void> {
+    const gameService = context.gameService as IGameService;
+    const eventBus =
+      context.eventBus as import("../../services/EventBus").IEventBus;
+    if (gameService.getState().activePlayer?.id !== this.passerId) return;
+    if (this.giveAndGoExempt) {
+      const passer = gameService.getPlayerById(this.passerId);
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: this.passerId,
+        skill: SkillType.GIVE_AND_GO,
+        effect: `Give and Go: ${passer?.playerName ?? "the player"} may continue moving`,
+      });
+      return;
+    }
+    gameService.finishActivation(this.passerId);
+  }
+}
+
+/**
  * PassOperation
  *
  * Responsibility:
@@ -239,6 +275,17 @@ export class PassOperation extends GameOperation {
 
     // Update State
     gameService.getState().ballPosition = result.finalPosition;
+
+    // A Pass Action ends the activation once it settles. Give and Go keeps it
+    // open after a Quick Pass or a Hand-off (bypassed on a Turnover, which the
+    // finish op detects by the passer no longer being active).
+    const declaredAction = gameService.getState().activePlayer?.action;
+    const giveAndGoExempt =
+      hasSkill(passer.skills, SkillType.GIVE_AND_GO) &&
+      (declaredAction === "handoff" || result.passType === "Quick Pass");
+    context.flowManager.add(
+      new FinishPassActivationOperation(this.passerId, giveAndGoExempt)
+    );
   }
 
   /**

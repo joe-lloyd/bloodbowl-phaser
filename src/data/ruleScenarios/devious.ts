@@ -33,6 +33,47 @@ const armourCheckCount = (r: ScriptResult): number =>
 
 export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
+    skill: SkillType.QUICK_FOUL,
+    configs: [
+      {
+        id: "quick-foul-continues-move",
+        name: "Quick Foul keeps moving after the Foul",
+        description:
+          "A Foul Action normally ends the activation; with Quick Foul the player continues their Move with any movement remaining",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.QUICK_FOUL] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "foul" },
+          { type: "foul", playerId: "team1:0", x: 11, y: 5 },
+          // Only legal because the Foul did not end the activation.
+          { type: "move", playerId: "team1:0", path: [{ x: 9, y: 5 }] },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "moves-after-foul",
+            name: "The fouler moves after fouling",
+            matches: (r) =>
+              skillTriggered(r, SkillType.QUICK_FOUL) &&
+              playerAt(r, "team1:0", { x: 9, y: 5 }),
+            verify: (r) =>
+              assert(
+                playerAt(r, "team1:0", { x: 9, y: 5 }),
+                "Quick Foul must let the fouler keep moving after the Foul"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.PUT_THE_BOOT_IN,
     configs: [
       {

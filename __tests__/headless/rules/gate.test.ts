@@ -68,6 +68,7 @@ describe("rule coverage gate", () => {
         SkillType.FEND,
         SkillType.FOUL_APPEARANCE,
         SkillType.FRENZY,
+        SkillType.GIVE_AND_GO,
         SkillType.GRAB,
         SkillType.GUARD,
         SkillType.HAIL_MARY_PASS,
@@ -96,6 +97,7 @@ describe("rule coverage gate", () => {
         SkillType.PRO,
         SkillType.PROJECTILE_VOMIT,
         SkillType.PUT_THE_BOOT_IN,
+        SkillType.QUICK_FOUL,
         SkillType.REALLY_STUPID,
         SkillType.REGENERATION,
         SkillType.RIGHT_STUFF,
@@ -130,7 +132,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(93);
+    expect(cov.implemented).toBe(95);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 
