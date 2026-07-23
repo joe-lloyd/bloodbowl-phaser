@@ -18,9 +18,9 @@ import {
  * Ends the passer's activation once a Pass / Hand-off (and its catch/bounce)
  * has settled — a Pass Action ends the activation. Give and Go skips this after
  * a Quick Pass or a Hand-off (so long as no Turnover was caused), letting the
- * player continue their Move with any movement remaining. Guarded on the passer
- * still being the active player, so a Turnover (which flips the turn) or an
- * already-ended activation is a no-op.
+ * player continue their Move with any movement remaining. A turnover is latched
+ * before the ball-settling flow goes idle, so this operation can suppress Give
+ * and Go even before the delayed turn change occurs.
  */
 class FinishPassActivationOperation extends GameOperation {
   public readonly name = "FinishPassActivation";
@@ -36,6 +36,12 @@ class FinishPassActivationOperation extends GameOperation {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
+    if (gameService.isTurnoverInProgress()) {
+      // The visual turnover delay must not leave a command window in which
+      // the passer can keep moving before the next turn starts.
+      gameService.finishActivation(this.passerId);
+      return;
+    }
     if (gameService.getState().activePlayer?.id !== this.passerId) return;
     if (this.giveAndGoExempt) {
       const passer = gameService.getPlayerById(this.passerId);
@@ -277,8 +283,8 @@ export class PassOperation extends GameOperation {
     gameService.getState().ballPosition = result.finalPosition;
 
     // A Pass Action ends the activation once it settles. Give and Go keeps it
-    // open after a Quick Pass or a Hand-off (bypassed on a Turnover, which the
-    // finish op detects by the passer no longer being active).
+    // open after a Quick Pass or a Hand-off. A latched Turnover bypasses it
+    // even while the ball-settling flow is still completing.
     const declaredAction = gameService.getState().activePlayer?.action;
     const giveAndGoExempt =
       hasSkill(passer.skills, SkillType.GIVE_AND_GO) &&

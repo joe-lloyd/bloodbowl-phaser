@@ -587,6 +587,145 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
   {
+    skill: SkillType.GIVE_AND_GO,
+    configs: [
+      {
+        id: "give-and-go-quick-pass",
+        name: "Give and Go after a Quick Pass",
+        description:
+          "After a completed Quick Pass causes no Turnover, the passer may continue moving with their remaining movement",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.GIVE_AND_GO],
+            },
+            { playerIndex: 1, x: 7, y: 5 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+          { type: "move", playerId: "team1:0", path: [{ x: 3, y: 5 }] },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "moves-after-quick-pass",
+            name: "The passer continues moving",
+            matches: (r) =>
+              skillTriggered(r, SkillType.GIVE_AND_GO) &&
+              !turnoverHappened(r) &&
+              playerAt(r, "team1:0", { x: 3, y: 5 }),
+            verify: (r) => {
+              assert(
+                !turnoverHappened(r),
+                "the completed Quick Pass must not cause a Turnover"
+              );
+              assert(
+                playerAt(r, "team1:0", { x: 3, y: 5 }),
+                "Give and Go must leave the passer active to continue moving"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "give-and-go-handoff",
+        name: "Give and Go after a Hand-off",
+        description:
+          "After a completed Hand-off causes no Turnover, the ball carrier may continue moving with their remaining movement",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.GIVE_AND_GO],
+            },
+            { playerIndex: 1, x: 5, y: 5 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "handoff" },
+          { type: "handoff", playerId: "team1:0", x: 5, y: 5 },
+          { type: "move", playerId: "team1:0", path: [{ x: 3, y: 5 }] },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "moves-after-handoff",
+            name: "The ball carrier continues moving",
+            matches: (r) =>
+              skillTriggered(r, SkillType.GIVE_AND_GO) &&
+              !turnoverHappened(r) &&
+              playerAt(r, "team1:0", { x: 3, y: 5 }),
+            verify: (r) => {
+              assert(
+                !turnoverHappened(r),
+                "the completed Hand-off must not cause a Turnover"
+              );
+              assert(
+                playerAt(r, "team1:0", { x: 3, y: 5 }),
+                "Give and Go must leave the ball carrier active after a Hand-off"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "give-and-go-turnover",
+        name: "Give and Go stops on a Turnover",
+        description:
+          "Give and Go cannot keep the activation open when the Quick Pass causes a Turnover",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.GIVE_AND_GO],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "turnover-ends-activation",
+            name: "The passer cannot continue after the Turnover",
+            matches: (r) =>
+              turnoverHappened(r) &&
+              !skillTriggered(r, SkillType.GIVE_AND_GO) &&
+              r.snapshot.activeTeamId === r.game.ctx.team2.id,
+            verify: (r) => {
+              assert(turnoverHappened(r), "the incomplete Pass is a Turnover");
+              assert(
+                !skillTriggered(r, SkillType.GIVE_AND_GO),
+                "Give and Go must not trigger after a Turnover"
+              );
+              assert(
+                r.snapshot.activeTeamId === r.game.ctx.team2.id,
+                "the Turnover must end the passing team's turn"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.SURE_HANDS,
     configs: [
       skillRerollConfig({

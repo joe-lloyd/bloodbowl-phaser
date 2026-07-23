@@ -773,6 +773,10 @@ export class GameService implements IGameService {
       .then(() => this.turnManager.completeTurnover());
   }
 
+  isTurnoverInProgress(): boolean {
+    return this.turnManager.isTurnoverInProgress();
+  }
+
   blockPlayer(
     _attackerId: string,
     _defenderId: string

@@ -141,6 +141,8 @@ export interface IGameService {
     targetSquare: { x: number; y: number }
   ): void | Promise<void>;
   triggerTurnover(reason: string): void;
+  /** True after a turnover is latched, until the next turn begins. */
+  isTurnoverInProgress(): boolean;
 
   /** Roll initial weather (seeded) without advancing the setup subphase */
   rollInitialWeather(): void;

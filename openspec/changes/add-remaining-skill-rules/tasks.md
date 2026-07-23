@@ -26,7 +26,7 @@ fixes in `ai_notes.md`.
 - [x] 2.2 Add an intercept-suppression flag on the pass context and honour it in the interception path
 - [x] 2.3 Cloud Burster: opponents may not Intercept this player's Pass (sets the suppression flag)
 - [x] 2.4 Hail Mary Pass: target any square as a Long Bomb, Accurate→Inaccurate, no Interception
-- [ ] 2.5 Give and Go: keep the activation open after a no-Turnover Quick Pass or Hand-off (reuse the open-activation pattern)
+- [x] 2.5 Give and Go: keep the activation open after a no-Turnover Quick Pass or Hand-off (reuse the open-activation pattern)
 - [ ] 2.6 On the Ball: reacting move up to 3 squares (no Rush) on an opponent's declared Pass, ending on a Fall Over — surfaces as a reacting-team decision + move
 - [ ] 2.7 Dump-Off: an immediate Quick Pass (no Turnover) when Blocked or directly targeted, before the targeting action resolves — reacting-team decision
 - [ ] 2.8 Leader: grant one extra Leader Re-roll at the start of a half when a Leader is on the pitch; lost if all Leaders leave play before use — hook `TurnManager`/half start + the reroll machinery
@@ -55,7 +55,7 @@ fixes in `ai_notes.md`.
 - [x] 4.4 Sneaky Git: no send-off on a natural-double Armour roll that does not break armour (still sent off if broken)
 - [x] 4.5 Put the Boot In: provide offensive assists to a team-mate's Foul regardless of markers (extend `onCountAssists`)
 - [x] 4.6 Eye Gouge: a pushed-back opponent cannot provide Offensive/Defensive assists until next activated — per-player flag cleared on activation
-- [ ] 4.7 Quick Foul: activation does not end after a Foul; continue the Move with remaining movement
+- [x] 4.7 Quick Foul: activation does not end after a Foul; continue the Move with remaining movement
 - [ ] 4.8 Pile Driver: after a Block knockdown while still Marking, a free Foul, then place the blocker Prone and end the activation
 - [ ] 4.9 Secret Weapon: Sent-off for a Foul at the end of any Drive the player took part in (even if off the pitch) — add an end-of-Drive send-off pass in `DriveManager`/`TurnManager`
 - [ ] 4.10 Saboteur (requires Secret Weapon): on a Block knockdown, roll a D6 before the Armour roll — 4+ Knocks Down the blocker too (Turnover only if they held the ball) and Knocks Out the Saboteur with no Armour roll

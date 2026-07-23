@@ -238,6 +238,11 @@ export class TurnManager {
     this.endTurn();
   }
 
+  /** True while a turnover has been latched and its resolution is settling. */
+  public isTurnoverInProgress(): boolean {
+    return this.turnoverInProgress;
+  }
+
   // Helpers
   public getTurnNumber(teamId: string): number {
     return this.turnCounts[teamId] || 0;
