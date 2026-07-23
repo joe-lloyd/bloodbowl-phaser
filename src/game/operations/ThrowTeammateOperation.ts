@@ -177,6 +177,9 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // 2. Passing Ability Test (Strong Arm helps a THROW only).
     let fumbled = forcedFumble;
+    // Bullseye: a Superb Throw (a natural 6 on the Passing Ability Test) lands
+    // the team-mate dead on the target square — they do not Scatter. THROW only.
+    let bullseye = false;
     if (!forcedFumble) {
       const opponents = gameService.getOpponents(thrower.teamId);
       const marking = gameService
@@ -203,6 +206,10 @@ export class ThrowTeammateOperation extends GameOperation {
         .getPassController()
         .testAccuracy(thrower, passRange, marking, extra);
       fumbled = test.fumbled;
+      bullseye =
+        this.mode === "throw" &&
+        test.roll === 6 &&
+        hasSkill(thrower.skills, SkillType.BULLSEYE);
     }
 
     // 3. Fumble handling.
@@ -239,7 +246,15 @@ export class ThrowTeammateOperation extends GameOperation {
     const swoop = hasSkill(thrower.skills, SkillType.SWOOP);
     const movement = gameService.getBallMovementController();
     let landing: { x: number; y: number };
-    if (swoop) {
+    if (bullseye) {
+      // Superb Throw with Bullseye: no scatter — straight to the target square.
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: thrower.id,
+        skill: SkillType.BULLSEYE,
+        effect: "Bullseye: a Superb Throw lands on target with no scatter",
+      });
+      landing = { x: this.aimX, y: this.aimY };
+    } else if (swoop) {
       // Swoop: the tighter throw-in template — a single scatter step.
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: thrower.id,

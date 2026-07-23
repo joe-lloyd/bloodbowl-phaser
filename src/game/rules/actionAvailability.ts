@@ -61,6 +61,8 @@ export interface ActionAvailability {
   kickTeammate: boolean;
   /** A Throw Bomb Special Action — has Bombardier and has not moved yet. */
   throwBomb: boolean;
+  /** A Ball & Chain Special Action — the only action a Fanatic may declare. */
+  ballAndChain: boolean;
 }
 
 const chebyshev = (
@@ -96,12 +98,22 @@ export function computeActionAvailability(
     throwTeammate: false,
     kickTeammate: false,
     throwBomb: false,
+    ballAndChain: false,
   };
   if (!here) return none;
 
   const isProne = player.status === PlayerStatus.PRONE;
   const canAct = !player.hasActed && player.status !== PlayerStatus.STUNNED;
   if (!canAct) return { ...none, standUp: false };
+
+  // Ball & Chain: a Fanatic can declare NOTHING else — the lurch is its only
+  // action (Standing only; a Prone Fanatic can still Stand Up first).
+  if (
+    hasSkill(player.skills, SkillType.BALL_AND_CHAIN) &&
+    player.status === PlayerStatus.ACTIVE
+  ) {
+    return { ...none, ballAndChain: true };
+  }
 
   // Squares the player could be standing on when they act — every reachable
   // square plus the one they occupy now (acting without moving).
@@ -204,5 +216,6 @@ export function computeActionAvailability(
     throwTeammate,
     kickTeammate,
     throwBomb,
+    ballAndChain: false,
   };
 }

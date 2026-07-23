@@ -343,6 +343,10 @@ export class GameplayInteractionController {
           // A Bomber may not Move before throwing: one step, aim at any square.
           this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
           break;
+        case "ballAndChain":
+          // The Fanatic's only action: pick a facing (a click direction).
+          this.actionSteps = [{ id: "swing", label: "Swing (pick a direction)" }];
+          break;
         case "blitz":
           this.actionSteps = [
             { id: "move", label: "Move" },
@@ -581,6 +585,38 @@ export class GameplayInteractionController {
       this.isBusy = true;
       try {
         await this.gameService.throwBomb(this.selectedPlayerId, x, y);
+      } finally {
+        this.isBusy = false;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    // BALL & CHAIN Execution (Fanatic): the click picks a facing — a cardinal
+    // direction (an End Zone or a Sideline) — and the Fanatic lurches off.
+    if (
+      this.currentActionMode === "ballAndChain" &&
+      this.currentStepId === "swing" &&
+      this.selectedPlayerId
+    ) {
+      const fanatic = this.gameService.getPlayerById(this.selectedPlayerId);
+      if (!fanatic?.gridPosition) return;
+      const facingX = Math.sign(x - fanatic.gridPosition.x);
+      const facingY = Math.sign(y - fanatic.gridPosition.y);
+      if (facingX === 0 && facingY === 0) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Click a square in the direction to swing."
+        );
+        return;
+      }
+      this.isBusy = true;
+      try {
+        await this.gameService.ballAndChain(
+          this.selectedPlayerId,
+          facingX,
+          facingY
+        );
       } finally {
         this.isBusy = false;
         this.deselectPlayer();

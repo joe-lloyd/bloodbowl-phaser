@@ -45,6 +45,7 @@ export type HeadlessCommand =
       mode?: "throw" | "kick";
     }
   | { type: "throw-bomb"; throwerId: string; x: number; y: number }
+  | { type: "ball-and-chain"; playerId: string; x: number; y: number }
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | {

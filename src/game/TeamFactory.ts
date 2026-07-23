@@ -64,9 +64,14 @@ export class TeamFactory {
         break;
       case RosterName.GOBLIN:
         // Index 0 Trained Troll (Always Hungry + Throw Team-mate natively),
-        // 1-6 Goblin Lineman (Right Stuff) — the Troll throws a Goblin.
+        // 1-3 Goblin Lineman (Right Stuff), then the Secret-Weapon specialists
+        // so the sandbox demos field the real players: 4 Loony (Chainsaw),
+        // 5 Bomma (Bombardier), 6 Fanatic (Ball & Chain).
         hire("Trained Troll", 1);
-        hire("Goblin Lineman", 6);
+        hire("Goblin Lineman", 3);
+        hire("Loony", 1);
+        hire("Bomma", 1);
+        hire("Fanatic", 1);
         break;
       default:
         // Fallback: Fill with first available position (usually Lineman)

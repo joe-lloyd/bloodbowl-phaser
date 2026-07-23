@@ -364,6 +364,18 @@ export class NetworkedGameService implements IGameService {
       y,
     });
   }
+  async ballAndChain(
+    fanaticId: string,
+    facingX: number,
+    facingY: number
+  ): Promise<void> {
+    await this.dispatch({
+      type: "ball-and-chain",
+      playerId: fanaticId,
+      x: facingX,
+      y: facingY,
+    });
+  }
   async foulPlayer(
     foulerId: string,
     targetX: number,

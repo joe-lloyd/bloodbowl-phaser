@@ -829,4 +829,101 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
       },
     ],
   },
+  {
+    skill: SkillType.BALL_AND_CHAIN,
+    configs: [
+      {
+        id: "ball-and-chain-block",
+        name: "Ball & Chain lurches into a Standing player",
+        description:
+          "The Fanatic (ST 7) swings toward an End Zone and automatically Blocks the first Standing player it bumps into — its own action, no dodge required.",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.BALL_AND_CHAIN],
+              stats: { ST: 7, MA: 3 },
+            },
+          ],
+          team2Placements: [
+            // A wall directly East, so any of the three template arrows lands
+            // the Fanatic on a Standing opponent → an automatic Block.
+            { playerIndex: 0, x: 11, y: 4 },
+            { playerIndex: 1, x: 11, y: 5 },
+            { playerIndex: 2, x: 11, y: 6 },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "ballAndChain" },
+          // Facing East (toward the opponents' End Zone).
+          { type: "ball-and-chain", playerId: "team1:0", x: 1, y: 0 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "auto-block",
+            name: "The Fanatic Blocks whoever it lurches into",
+            matches: (r) =>
+              skillTriggered(r, SkillType.BALL_AND_CHAIN) &&
+              sawEvent(
+                r,
+                GameEventNames.DiceRoll,
+                (d) =>
+                  (d as { rollType?: string }).rollType === "Ball & Chain Block"
+              ),
+            verify: (r) =>
+              assert(
+                skillTriggered(r, SkillType.BALL_AND_CHAIN),
+                "the Ball & Chain action must have fired"
+              ),
+          },
+        ],
+      },
+      {
+        id: "ball-and-chain-crowd",
+        name: "Ball & Chain lurches off the pitch",
+        description:
+          "Swinging toward the Sideline, the Fanatic can wander off the pitch and be hurt by the Crowd — a Turnover.",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 1,
+              skills: [SkillType.BALL_AND_CHAIN],
+              stats: { ST: 7, MA: 3 },
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
+          ballPosition: { x: 1, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "ballAndChain" },
+          // Facing North (toward the top Sideline at y = 0).
+          { type: "ball-and-chain", playerId: "team1:0", x: 0, y: -1 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "crowd-surf",
+            name: "Off the pitch — hurt by the Crowd, a Turnover",
+            matches: (r) =>
+              skillTriggered(r, SkillType.BALL_AND_CHAIN) &&
+              turnoverHappened(r) &&
+              !playerOf(r, "team1:0").gridPosition,
+            verify: (r) => {
+              assert(
+                !playerOf(r, "team1:0").gridPosition,
+                "the Fanatic has left the pitch"
+              );
+              assert(turnoverHappened(r), "surfing the crowd is a Turnover");
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];

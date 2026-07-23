@@ -75,6 +75,10 @@ export enum GameEventNames {
   CatchFailed = "catchFailed",
   BallScattered = "ballScattered",
 
+  // Weapon Events (Bombardier)
+  BombThrown = "bombThrown",
+  BombExploded = "bombExploded",
+
   // Action Mode Events
   ActionModeChanged = "game:actionModeChanged",
   PlayerMovedInAction = "game:playerMovedInAction",
@@ -320,6 +324,17 @@ export interface GameEvents {
     playerId: string;
     catcherId: string;
     position: { x: number; y: number };
+  };
+  /** A thrown bomb flies from the Bomber's square to where it comes to rest. */
+  [GameEventNames.BombThrown]: {
+    playerId: string;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  };
+  /** A bomb explodes on a square, covering it and its eight neighbours. */
+  [GameEventNames.BombExploded]: {
+    x: number;
+    y: number;
   };
   [GameEventNames.PassFumbled]: {
     playerId: string;
@@ -615,6 +630,7 @@ export type ActionType =
   | "chomp"
   | "chainsaw"
   | "throwBomb"
+  | "ballAndChain"
   | "forgoe";
 
 /**

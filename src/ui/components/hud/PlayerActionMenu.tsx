@@ -38,6 +38,7 @@ const EMPTY_AVAILABILITY: ActionAvailability = {
   throwTeammate: false,
   kickTeammate: false,
   throwBomb: false,
+  ballAndChain: false,
 };
 
 export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
@@ -243,7 +244,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const anyContextual =
     a.block || a.blitz || a.pass || a.handoff || a.foul || a.standUp ||
     a.secureBall || a.stab || a.breatheFire || a.vomit || a.gaze || a.chomp ||
-    a.chainsaw || a.throwTeammate || a.kickTeammate || a.throwBomb;
+    a.chainsaw || a.throwTeammate || a.kickTeammate || a.throwBomb ||
+    a.ballAndChain;
 
   return (
     <div
@@ -337,6 +339,9 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             )}
             {a.throwBomb && (
               <ActionButton action="throwBomb" label="THROW BOMB" sub="Special" disabled={false} color="orange" />
+            )}
+            {a.ballAndChain && (
+              <ActionButton action="ballAndChain" label="BALL & CHAIN" sub="Special" disabled={false} color="orange" />
             )}
             {a.throwTeammate && (
               <ActionButton action="throwTeamMate" label="THROW TEAM-MATE" sub="Special" disabled={false} color="green" />

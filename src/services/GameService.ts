@@ -63,6 +63,7 @@ import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
 import { BombardierOperation } from "@/game/operations/BombardierOperation";
+import { BallAndChainOperation } from "@/game/operations/BallAndChainOperation";
 import { IRNGService } from "./rng/RNGService.js";
 import {
   RerollArbiter,
@@ -1155,6 +1156,20 @@ export class GameService implements IGameService {
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
       if (!hasSkill(player.skills, SkillType.BOMBARDIER)) return false;
     }
+    // Ball & Chain: the trait needs a Standing Fanatic — and a Fanatic may
+    // declare NOTHING else (the lurch is the only action available to them).
+    {
+      const player = this.getPlayerById(playerId);
+      const isFanatic =
+        !!player && hasSkill(player.skills, SkillType.BALL_AND_CHAIN);
+      if (action === "ballAndChain") {
+        if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+        if (!isFanatic) return false;
+      } else if (isFanatic && player!.status === PlayerStatus.ACTIVE) {
+        // A Standing Fanatic can only ever declare Ball & Chain.
+        return false;
+      }
+    }
     // The other special actions likewise need their trait and a Standing player
     if (
       action === "breatheFire" ||
@@ -1325,6 +1340,34 @@ export class GameService implements IGameService {
     if (declared !== "throwBomb") return;
 
     this.flowManager.add(new BombardierOperation(throwerId, x, y));
+  }
+
+  /**
+   * Ball & Chain Special Action (Fanatic): the player lurches up to its MA in a
+   * chosen facing (a cardinal direction — an End Zone or a Sideline), deviating
+   * each square by the Throw-in Template. Legal only as the declared
+   * "ballAndChain" action.
+   */
+  public async ballAndChain(
+    fanaticId: string,
+    facingX: number,
+    facingY: number
+  ): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
+
+    const fanatic = this.getPlayerById(fanaticId);
+    if (!fanatic || fanatic.status !== PlayerStatus.ACTIVE) return;
+    if (!hasSkill(fanatic.skills, SkillType.BALL_AND_CHAIN)) return;
+
+    const declared =
+      this.state.activePlayer?.id === fanaticId
+        ? this.state.activePlayer.action
+        : undefined;
+    if (declared !== "ballAndChain") return;
+
+    this.flowManager.add(
+      new BallAndChainOperation(fanaticId, facingX, facingY)
+    );
   }
 
   /**

@@ -573,6 +573,38 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
   {
+    skill: SkillType.BULLSEYE,
+    configs: [
+      {
+        id: "bullseye-superb-throw",
+        name: "Bullseye — a Superb Throw lands on target",
+        description:
+          "On a Superb Throw (a natural 6 on the Passing Ability Test), a thrower with Bullseye lands the Gnoblar dead on the target square with no Scatter — it still makes its Right Stuff landing roll there",
+        setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.BULLSEYE] }),
+        script: script("throw", 14, 5),
+        seedSearch: { from: 1, limit: 2000 },
+        outcomes: [
+          {
+            id: "no-scatter-on-target",
+            name: "The thrown Gnoblar lands on the target square, no Scatter",
+            matches: (r) => skillTriggered(r, SkillType.BULLSEYE),
+            verify: (r) => {
+              const mate = playerOf(r, MATE).gridPosition;
+              assert(
+                !!mate && mate.x === 14 && mate.y === 5,
+                "a Superb Throw lands the Gnoblar on the target square"
+              );
+              assert(
+                !rolled(r, "Scatter"),
+                "Bullseye skips the Scatter template entirely"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.STRONG_ARM,
     configs: [
       {

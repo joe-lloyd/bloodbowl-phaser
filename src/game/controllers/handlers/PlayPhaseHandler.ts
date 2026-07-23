@@ -1,3 +1,4 @@
+import Phaser from "phaser";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
@@ -5,6 +6,8 @@ import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { BombSprite } from "../../elements/BombSprite";
+import { GameConfig } from "../../../config/GameConfig";
 
 /**
  * PlayPhaseHandler
@@ -93,6 +96,14 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Pass Attempted - Animate Ball
     this.register(GameEventNames.PassAttempted, (data) =>
       this.handlePassAnimation(data)
+    );
+
+    // Bombardier: arc a bomb to its landing square, then blow it up.
+    this.register(GameEventNames.BombThrown, (data) =>
+      this.handleBombThrow(data)
+    );
+    this.register(GameEventNames.BombExploded, (data) =>
+      this.handleBombExplosion(data)
     );
 
     // --- MISSING HANDLERS RESTORED ---
@@ -362,5 +373,82 @@ export class PlayPhaseHandler implements PhaseHandler {
         });
       },
     });
+  }
+
+  /** Arc a transient BombSprite from the Bomber's square to where it lands. */
+  private handleBombThrow(data: {
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  }): void {
+    const pitch = this.scene["pitch"];
+    if (!pitch) return;
+    const p0 = pitch.getPixelPosition(data.from.x, data.from.y);
+    const p1 = pitch.getPixelPosition(data.to.x, data.to.y);
+
+    const bomb = new BombSprite(this.scene, p0.x, p0.y);
+    const dist = Phaser.Math.Distance.Between(p0.x, p0.y, p1.x, p1.y);
+    const arc = Math.min(160, 50 + dist * 0.25);
+
+    this.scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 600,
+      ease: "Quad.easeInOut",
+      onUpdate: (tw) => {
+        const t = tw.getValue() ?? 0;
+        bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
+        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.rotation += 0.18;
+      },
+      onComplete: () => bomb.destroy(),
+    });
+  }
+
+  /**
+   * A blast over the landing square and its eight neighbours: a translucent
+   * 3×3 flash plus an expanding fireball that fades out.
+   */
+  private handleBombExplosion(data: { x: number; y: number }): void {
+    const pitch = this.scene["pitch"];
+    if (!pitch) return;
+    const centre = pitch.getPixelPosition(data.x, data.y);
+    const s = GameConfig.SQUARE_SIZE;
+
+    // 3×3 area flash — literally the square and its neighbours.
+    const area = this.scene.add.graphics();
+    area.setDepth(129);
+    area.fillStyle(0xff7722, 0.35);
+    area.fillRect(centre.x - s * 1.5, centre.y - s * 1.5, s * 3, s * 3);
+    this.scene.tweens.add({
+      targets: area,
+      alpha: 0,
+      duration: 550,
+      ease: "Quad.easeOut",
+      onComplete: () => area.destroy(),
+    });
+
+    // Expanding fireball, layered hot-to-cool.
+    const fireball = this.scene.add.graphics();
+    fireball.setDepth(131);
+    fireball.fillStyle(0xff4400, 0.55);
+    fireball.fillCircle(0, 0, s * 1.5);
+    fireball.fillStyle(0xffaa22, 0.7);
+    fireball.fillCircle(0, 0, s * 0.95);
+    fireball.fillStyle(0xffffdd, 0.9);
+    fireball.fillCircle(0, 0, s * 0.45);
+    fireball.setPosition(centre.x, centre.y);
+    fireball.setScale(0.3);
+    this.scene.tweens.add({
+      targets: fireball,
+      scale: 1.15,
+      alpha: 0,
+      duration: 500,
+      ease: "Quad.easeOut",
+      onComplete: () => fireball.destroy(),
+    });
+
+    if (this.scene.cameras?.main) {
+      this.scene.cameras.main.shake(220, 0.006);
+    }
   }
 }

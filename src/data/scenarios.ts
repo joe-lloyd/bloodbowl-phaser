@@ -2,7 +2,6 @@ import { Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
-import { SkillType } from "../types/Skills";
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -334,19 +333,14 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: "throw-bomb-bombardier",
-    name: "Throw Bomb (Bombardier)",
+    name: "Throw Bomb (Goblin Bomma)",
     description:
-      "A Bombardier lobs a bomb at a cluster of opponents. Declare Throw Bomb, click a target square, and watch it explode — the square it lands in is hit and each adjacent player is hit on a 4+ (Armour Rolls all round). A Fumble blows up in the Bomber's own square.",
+      "The Goblin Bomma lobs a bomb at a cluster of opponents. Declare Throw Bomb, click a target square, and watch it explode — the square it lands in is hit and each adjacent player is hit on a 4+ (Armour Rolls all round). A Fumble blows up in the Bomber's own square.",
     setup: {
+      team1Roster: RosterName.GOBLIN,
       team1Placements: [
-        // The Bomber — Standing, ready to throw. Bombardier granted for the demo.
-        {
-          playerIndex: 0,
-          x: 8,
-          y: 5,
-          status: PlayerStatus.ACTIVE,
-          skills: [SkillType.BOMBARDIER],
-        },
+        // Index 5 = Bomma (Bombardier) — the real Goblin bomber.
+        { playerIndex: 5, x: 8, y: 5, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
         // A tight cluster downfield so the blast can catch several at once.
@@ -354,6 +348,49 @@ export const SCENARIOS: Scenario[] = [
         { playerIndex: 1, x: 13, y: 4, status: PlayerStatus.ACTIVE },
         { playerIndex: 2, x: 14, y: 5, status: PlayerStatus.ACTIVE },
         { playerIndex: 3, x: 13, y: 6, status: PlayerStatus.PRONE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 1, y: 1 },
+    },
+  },
+  {
+    id: "chainsaw-loony",
+    name: "Chainsaw Attack (Goblin Loony)",
+    description:
+      "The Goblin Loony revs its chainsaw at an adjacent opponent. Declare Chainsaw, click the target: a D6 of 2+ makes a +3 Armour Roll on them; a 1 kicks back and Knocks the Loony Down (a Turnover). A downed Loony is +3 to Armour Rolls against it.",
+    setup: {
+      team1Roster: RosterName.GOBLIN,
+      team1Placements: [
+        // Index 4 = Loony (Chainsaw) — the real Goblin sawman.
+        { playerIndex: 4, x: 10, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 1, y: 1 },
+    },
+  },
+  {
+    id: "ball-and-chain-fanatic",
+    name: "Ball & Chain (Goblin Fanatic)",
+    description:
+      "The Goblin Fanatic (ST 7) can only swing its ball and chain. Declare Ball & Chain, then click a direction (an End Zone or a Sideline) — it lurches up to 3 squares by the Throw-in Template, auto-Blocking anyone it hits, pushing downed players, and risking the crowd if it wanders off the pitch.",
+    setup: {
+      team1Roster: RosterName.GOBLIN,
+      team1Placements: [
+        // Index 6 = Fanatic (Ball & Chain) — the real Goblin wrecking ball.
+        { playerIndex: 6, x: 8, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      team2Placements: [
+        // A loose cluster to the East for the Fanatic to smash through.
+        { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 10, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 11, y: 6, status: PlayerStatus.ACTIVE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,

@@ -8,6 +8,28 @@ import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
 
 /**
+ * Ends the fouler's activation once the Foul (and any send-off it queued) has
+ * settled — a Foul Action ends the activation. Quick Foul skips this so the
+ * player may continue their Move with any movement they have left. Guarded on
+ * the fouler still being the active player (a send-off may already have ended
+ * it).
+ */
+class FinishFoulActivationOperation extends GameOperation {
+  public readonly name = "FinishFoulActivation";
+
+  constructor(private foulerId: string) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    const gameService = context.gameService as IGameService;
+    if (gameService.getState().activePlayer?.id === this.foulerId) {
+      gameService.finishActivation(this.foulerId);
+    }
+  }
+}
+
+/**
  * FoulOperation
  *
  * Responsibility:
@@ -204,5 +226,19 @@ export class FoulOperation extends GameOperation {
 
     // Mark that a foul has been performed
     gameService.getState().turn.hasFouled = true;
+
+    // A Foul Action ends the activation — unless the fouler has Quick Foul,
+    // which lets them continue their Move with any movement remaining.
+    if (hasSkill(fouler.skills, SkillType.QUICK_FOUL)) {
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: fouler.id,
+        skill: SkillType.QUICK_FOUL,
+        effect: "Quick Foul: the activation continues after the Foul",
+      });
+    } else {
+      context.flowManager.add(
+        new FinishFoulActivationOperation(this.foulerId)
+      );
+    }
   }
 }

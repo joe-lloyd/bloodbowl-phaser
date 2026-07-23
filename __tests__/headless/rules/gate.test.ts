@@ -40,6 +40,7 @@ describe("rule coverage gate", () => {
         SkillType.ANIMAL_SAVAGERY,
         SkillType.ANIMOSITY,
         SkillType.ARM_BAR,
+        SkillType.BALL_AND_CHAIN,
         SkillType.BLOODLUST,
         SkillType.BOMBARDIER,
         SkillType.BONE_HEAD,
@@ -48,6 +49,7 @@ describe("rule coverage gate", () => {
         SkillType.BLOCK,
         SkillType.BRAWLER,
         SkillType.BREAK_TACKLE,
+        SkillType.BULLSEYE,
         SkillType.CANNONEER,
         SkillType.CATCH,
         SkillType.CHAINSAW,
@@ -128,7 +130,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(91);
+    expect(cov.implemented).toBe(93);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

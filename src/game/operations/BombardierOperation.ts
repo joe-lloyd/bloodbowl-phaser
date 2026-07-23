@@ -141,7 +141,14 @@ export class BombardierOperation extends GameOperation {
       test.accurate ? "The bomb is on target!" : "The bomb scatters!"
     );
 
-    await context.delay(400);
+    // Animate the bomb arcing from the thrower to its landing square.
+    eventBus.emit(GameEventNames.BombThrown, {
+      playerId: thrower.id,
+      from: { ...thrower.gridPosition },
+      to: { ...landing },
+    });
+
+    await context.delay(600);
 
     // 4. Interception: a player under the Range Ruler may catch the bomb in
     //    flight — and must then immediately throw it again.
@@ -268,6 +275,8 @@ export class BombardierOperation extends GameOperation {
     const dice = gameService.getDiceController();
 
     eventBus.emit(GameEventNames.UI_Notification, "BOOM! The bomb explodes!");
+    // Visual blast covering the square and its eight neighbours.
+    eventBus.emit(GameEventNames.BombExploded, { x: square.x, y: square.y });
 
     const hits: Player[] = [];
     const direct = gameService.getPlayerAt(square.x, square.y);
