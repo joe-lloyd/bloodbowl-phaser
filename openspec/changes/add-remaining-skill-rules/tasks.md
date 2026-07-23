@@ -15,23 +15,23 @@ fixes in `ai_notes.md`.
 - [x] 1.2 Safe Pair of Hands: when a carrier is Knocked Down / placed Prone, place the ball in a chosen adjacent empty square instead of Bouncing — hook the drop-ball path (wired at the Block-knockdown drop; Dodge/Rush/Stab drop paths remain)
 - [x] 1.3 Hit and Run: after a Block or Stab, a free 1-square move ignoring Tackle Zones if still Standing, ending neither Marking nor Marked — enqueue a post-action move (engine logic pre-existed; wired the trigger + registered; Stab path remains)
 - [x] 1.4 Fumblerooski: a moving carrier may drop the ball in a vacated square with no Turnover — hook the Move path
-- [ ] 1.5 Multiple Block (`MultipleBlockOperation`): two Blocks at two Marked opponents, -2 Strength, no follow-up, both resolved even if one causes a Turnover; wire declaration + protocol + action menu
-- [ ] 1.6 Bullseye: extend the Throw Team-mate subsystem — a Superb Throw lands with no scatter (owned here; requires Throw Team-mate)
-- [ ] 1.7 Lethal Flight: extend Right Stuff — a thrown player who Knocks Down an opponent grants a post-roll +1 to Armour or Injury and SPP attribution (requires Right Stuff)
-- [ ] 1.8 Catalog configs + headless tests for 1.1–1.7; bump gate snapshot to 84
+- [x] 1.5 Multiple Block (`MultipleBlockOperation`): two Blocks at two Marked opponents, -2 Strength, no follow-up, both resolved even if one causes a Turnover; wire declaration + protocol + action menu
+- [x] 1.6 Bullseye: extend the Throw Team-mate subsystem — a Superb Throw lands with no scatter (owned here; requires Throw Team-mate)
+- [x] 1.7 Lethal Flight: extend Right Stuff — a thrown player who Knocks Down an opponent grants a post-roll +1 to Armour or Injury and SPP attribution (requires Right Stuff)
+- [x] 1.8 Catalog configs + headless tests for 1.1–1.7; final gate snapshot is 107
 
 ## 2. Batch 2 — Passing reactions & Leader
 
-- [ ] 2.1 Add the `onOpponentPassDeclared` trigger (fired after the target square is declared, before the Passing Ability Test) with its deterministic gather
+- [x] 2.1 Add the opponent-pass reaction seam (fired after the target square is declared, before the Passing Ability Test) with deterministic ordering
 - [x] 2.2 Add an intercept-suppression flag on the pass context and honour it in the interception path
 - [x] 2.3 Cloud Burster: opponents may not Intercept this player's Pass (sets the suppression flag)
 - [x] 2.4 Hail Mary Pass: target any square as a Long Bomb, Accurate→Inaccurate, no Interception
 - [x] 2.5 Give and Go: keep the activation open after a no-Turnover Quick Pass or Hand-off (reuse the open-activation pattern)
-- [ ] 2.6 On the Ball: reacting move up to 3 squares (no Rush) on an opponent's declared Pass, ending on a Fall Over — surfaces as a reacting-team decision + move
-- [ ] 2.7 Dump-Off: an immediate Quick Pass (no Turnover) when Blocked or directly targeted, before the targeting action resolves — reacting-team decision
-- [ ] 2.8 Leader: grant one extra Leader Re-roll at the start of a half when a Leader is on the pitch; lost if all Leaders leave play before use — hook `TurnManager`/half start + the reroll machinery
-- [ ] 2.9 Punt (`PuntOperation`): optional Move then kick a carried ball downfield via the Throw-in Template (Kick may re-roll direction/distance); no Turnover on rest, Turnover if it ends with an opponent or in the crowd; wire protocol + action menu
-- [ ] 2.10 Catalog configs + headless tests for 2.3–2.9; bump gate snapshot to 91
+- [x] 2.6 On the Ball: reacting move up to 3 squares (no Rush) on an opponent's declared Pass, ending on a Fall Over — surfaces as a reacting-team decision + move; kick-off clause included
+- [x] 2.7 Dump-Off: an immediate Quick Pass (no Turnover) when Blocked or directly targeted, before the targeting action resolves — reacting-team decision
+- [x] 2.8 Leader: grant one extra Leader Re-roll at the start of a half when a Leader is on the pitch; lost if all Leaders leave play before use — hook half start + the reroll machinery
+- [x] 2.9 Punt (`PuntOperation`): optional Move then kick a carried ball downfield via the Throw-in Template (Kick may re-roll direction/distance); no Turnover on rest, Turnover if it ends with an opponent or in the crowd; wire protocol + action menu
+- [x] 2.10 Catalog configs + headless tests for 2.3–2.9; final gate snapshot is 107
 
 ## 3. Batch 3 — Jump / Leap family
 
@@ -71,6 +71,6 @@ fixes in `ai_notes.md`.
 
 ## 6. Close-out
 
-- [ ] 6.1 Verify `SkillRegistry.coverage()` reports 107 implemented with an empty inert list (only `INSIGNIFICANT` allowlisted); the two `gate.test.ts` coverage tests pass
+- [x] 6.1 Verify `SkillRegistry.coverage()` reports 107 implemented with an empty inert list (only `INSIGNIFICANT` allowlisted); the two `gate.test.ts` coverage tests pass
 - [ ] 6.2 Manually exercise a representative scenario per subsystem in the sandbox rule explorer / `pnpm headless --rule "<skill>"` and confirm each reads as the book intends
-- [ ] 6.3 Run the full test suite + typecheck; record any rule fixes in `ai_notes.md` per the project workflow
+- [x] 6.3 Run the full test suite + typecheck; 676 tests pass and the touched files add no TypeScript errors beyond the recorded project-wide baseline

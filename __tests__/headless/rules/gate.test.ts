@@ -64,6 +64,7 @@ describe("rule coverage gate", () => {
         SkillType.DIVING_CATCH,
         SkillType.DODGE,
         SkillType.DRUNKARD,
+        SkillType.DUMP_OFF,
         SkillType.EXTRA_ARMS,
         SkillType.EYE_GOUGE,
         SkillType.FEND,
@@ -84,13 +85,17 @@ describe("rule coverage gate", () => {
         SkillType.KICK,
         SkillType.KICK_TEAM_MATE,
         SkillType.LEAP,
+        SkillType.LEADER,
+        SkillType.LETHAL_FLIGHT,
         SkillType.LONE_FOULER,
         SkillType.LONER,
         SkillType.MIGHTY_BLOW,
         SkillType.MONSTROUS_MOUTH,
+        SkillType.MULTIPLE_BLOCK,
         SkillType.MY_BALL,
         SkillType.NERVES_OF_STEEL,
         SkillType.NO_BALL,
+        SkillType.ON_THE_BALL,
         SkillType.PASS,
         SkillType.PICK_ME_UP,
         SkillType.PILE_DRIVER,
@@ -99,6 +104,7 @@ describe("rule coverage gate", () => {
         SkillType.PREHENSILE_TAIL,
         SkillType.PRO,
         SkillType.PROJECTILE_VOMIT,
+        SkillType.PUNT,
         SkillType.PUT_THE_BOOT_IN,
         SkillType.QUICK_FOUL,
         SkillType.REALLY_STUPID,
@@ -138,7 +144,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(101);
+    expect(cov.implemented).toBe(107);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 
@@ -167,9 +173,7 @@ describe("rule coverage gate", () => {
         subPhase: SubPhase.TURN_RECEIVING,
       },
       seedSearch: { from: 1, limit: 3 },
-      outcomes: [
-        { id: "never", name: "never", matches: () => false },
-      ],
+      outcomes: [{ id: "never", name: "never", matches: () => false }],
     };
     await expect(findSeed(config, "never")).rejects.toThrow(
       "no seed in [1, 4) produced outcome 'never'"

@@ -77,6 +77,8 @@ export class GameplayInteractionController {
   private jumpTargeting: boolean = false;
   /** The team-mate chosen for a Throw / Kick Team-mate Action, awaiting an aim. */
   private ttmTeammateId: string | null = null;
+  /** First opponent selected for a Multiple Block, awaiting the second. */
+  private multipleBlockFirstTargetId: string | null = null;
   private passController: PassController;
 
   // Interaction Lock
@@ -225,9 +227,7 @@ export class GameplayInteractionController {
       this.gameService
         .standUp(playerId)
         .then(() => {
-          this.actionSteps = this.actionSteps.filter(
-            (s) => s.id !== "standup"
-          );
+          this.actionSteps = this.actionSteps.filter((s) => s.id !== "standup");
           this.currentStepId = "move";
           this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
             steps: this.actionSteps,
@@ -321,7 +321,9 @@ export class GameplayInteractionController {
       this.actionSteps = [];
       const defaultStep = SPECIAL_ACTION_MODES.has(data.action)
         ? "target"
-        : "move";
+        : data.action === "multipleBlock"
+          ? "multipleBlock"
+          : "move";
 
       switch (data.action) {
         case "stab":
@@ -339,13 +341,21 @@ export class GameplayInteractionController {
             { id: "pass", label: "Pass" },
           ];
           break;
+        case "punt":
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "punt", label: "Punt (pick direction)" },
+          ];
+          break;
         case "throwBomb":
           // A Bomber may not Move before throwing: one step, aim at any square.
           this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
           break;
         case "ballAndChain":
           // The Fanatic's only action: pick a facing (a click direction).
-          this.actionSteps = [{ id: "swing", label: "Swing (pick a direction)" }];
+          this.actionSteps = [
+            { id: "swing", label: "Swing (pick a direction)" },
+          ];
           break;
         case "blitz":
           this.actionSteps = [
@@ -368,6 +378,12 @@ export class GameplayInteractionController {
         case "block":
           // A standalone Block: pick an adjacent Standing opponent to block.
           this.actionSteps = [{ id: "block", label: "Block" }];
+          break;
+        case "multipleBlock":
+          this.multipleBlockFirstTargetId = null;
+          this.actionSteps = [
+            { id: "multipleBlock", label: "Select Two Targets" },
+          ];
           break;
         case "throwTeamMate":
           this.ttmTeammateId = null;
@@ -537,7 +553,10 @@ export class GameplayInteractionController {
     // TOUCHBACK: the receiving coach must hand the ball to one of their
     // players before anything else happens
     if (this.gameService.isTouchbackPending()) {
-      if (playerAtSquare && this.gameService.awardTouchback(playerAtSquare.id)) {
+      if (
+        playerAtSquare &&
+        this.gameService.awardTouchback(playerAtSquare.id)
+      ) {
         return;
       }
       this.eventBus.emit(
@@ -568,6 +587,83 @@ export class GameplayInteractionController {
         await this.gameService.throwBall(this.selectedPlayerId, x, y);
       } finally {
         this.isBusy = false;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    // PUNT: click a square to choose the Throw-in Template facing.
+    if (
+      this.currentActionMode === "punt" &&
+      this.currentStepId === "punt" &&
+      this.selectedPlayerId
+    ) {
+      const punter = this.gameService.getPlayerById(this.selectedPlayerId);
+      if (!punter?.gridPosition) return;
+      const facingX = Math.sign(x - punter.gridPosition.x);
+      const facingY = Math.sign(y - punter.gridPosition.y);
+      if (facingX === 0 && facingY === 0) return;
+      this.isBusy = true;
+      try {
+        await this.gameService.puntBall(
+          this.selectedPlayerId,
+          facingX,
+          facingY
+        );
+      } finally {
+        this.isBusy = false;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    // MULTIPLE BLOCK: select two different adjacent Standing opponents.
+    if (
+      this.currentActionMode === "multipleBlock" &&
+      this.currentStepId === "multipleBlock" &&
+      this.selectedPlayerId
+    ) {
+      const attacker = this.gameService.getPlayerById(this.selectedPlayerId);
+      const target = playerAtSquare;
+      const adjacent =
+        !!attacker?.gridPosition &&
+        !!target?.gridPosition &&
+        Math.max(
+          Math.abs(attacker.gridPosition.x - target.gridPosition.x),
+          Math.abs(attacker.gridPosition.y - target.gridPosition.y)
+        ) === 1;
+      if (
+        !attacker ||
+        !target ||
+        target.teamId === attacker.teamId ||
+        target.status !== PlayerStatus.ACTIVE ||
+        !adjacent
+      ) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Select an adjacent Standing opponent."
+        );
+        return;
+      }
+      if (!this.multipleBlockFirstTargetId) {
+        this.multipleBlockFirstTargetId = target.id;
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "First target selected — choose a different adjacent opponent."
+        );
+        return;
+      }
+      if (this.multipleBlockFirstTargetId === target.id) return;
+      this.isBusy = true;
+      try {
+        await this.gameService.multipleBlock(
+          this.selectedPlayerId,
+          this.multipleBlockFirstTargetId,
+          target.id
+        );
+      } finally {
+        this.isBusy = false;
+        this.multipleBlockFirstTargetId = null;
         this.deselectPlayer();
       }
       return;
@@ -844,7 +940,9 @@ export class GameplayInteractionController {
               if (!currentAction) {
                 // If no action declared for this player, implicitly declare
                 // BLOCK — refused e.g. for a prone/stunned blocker
-                if (!this.gameService.declareAction(selectedPlayer.id, "block")) {
+                if (
+                  !this.gameService.declareAction(selectedPlayer.id, "block")
+                ) {
                   this.eventBus.emit(
                     GameEventNames.UI_Notification,
                     "This player cannot Block (down players must Blitz)."
@@ -1166,8 +1264,22 @@ export class GameplayInteractionController {
       }
     }
 
+    if (
+      this.currentActionMode === "multipleBlock" &&
+      this.currentStepId === "multipleBlock"
+    ) {
+      const player = this.gameService.getPlayerById(playerId);
+      if (player?.gridPosition) {
+        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
+        return;
+      }
+    }
+
     // Throw Bomb: clicking a player aims the bomb at their square.
-    if (this.currentActionMode === "throwBomb" && this.currentStepId === "bomb") {
+    if (
+      this.currentActionMode === "throwBomb" &&
+      this.currentStepId === "bomb"
+    ) {
       const player = this.gameService.getPlayerById(playerId);
       if (player && player.gridPosition) {
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
@@ -1282,9 +1394,7 @@ export class GameplayInteractionController {
             .findReachableSquares(
               { ...player, gridPosition: { ...lastNode } },
               opponentTeam.players.filter((p) => p.gridPosition),
-              team.players.filter(
-                (p) => p.gridPosition && p.id !== player.id
-              )
+              team.players.filter((p) => p.gridPosition && p.id !== player.id)
             )
             .filter((m) => m.cost <= remainingAllowance);
           used += this.waypoints.length;
@@ -1845,10 +1955,7 @@ export class GameplayInteractionController {
     try {
       await this.gameService.jumpPlayer(player.id, { x, y });
     } catch (err) {
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Cannot Jump: ${err}`
-      );
+      this.eventBus.emit(GameEventNames.UI_Notification, `Cannot Jump: ${err}`);
     }
     const after = this.gameService.getPlayerById(player.id);
     if (

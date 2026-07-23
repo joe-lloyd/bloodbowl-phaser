@@ -38,7 +38,14 @@ export type HeadlessCommand =
   | { type: "jump"; playerId: string; x: number; y: number }
   | { type: "stand-up"; playerId: string }
   | { type: "block"; attackerId: string; defenderId: string }
+  | {
+      type: "multiple-block";
+      attackerId: string;
+      defender1Id: string;
+      defender2Id: string;
+    }
   | { type: "pass"; playerId: string; x: number; y: number }
+  | { type: "punt"; playerId: string; x: number; y: number }
   | { type: "handoff"; playerId: string; x: number; y: number }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }

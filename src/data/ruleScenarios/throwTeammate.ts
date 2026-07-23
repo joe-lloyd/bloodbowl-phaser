@@ -12,7 +12,7 @@
  * Runt Punter, 3-6 Gnoblar Lineman.
  */
 
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import { PlayerStats } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
@@ -57,6 +57,8 @@ interface TtmOpts {
   mode: "throw" | "kick";
   /** Extra skills granted to the thrower (Strong Arm, Swoop, Always Hungry). */
   extraThrowerSkills?: SkillType[];
+  /** Extra skills granted to the thrown Right Stuff player. */
+  extraMateSkills?: SkillType[];
   /** thrower square (defaults 10,5) */
   thrower?: { x: number; y: number };
   /** Gnoblar square (defaults 11,5) */
@@ -64,7 +66,12 @@ interface TtmOpts {
   mateST?: number;
   mateAG?: number;
   /** opponents (defaults one far away, no marking) */
-  opponents?: { x: number; y: number; index?: number }[];
+  opponents?: {
+    x: number;
+    y: number;
+    index?: number;
+    stats?: Partial<PlayerStats>;
+  }[];
   ball?: { x: number; y: number };
 }
 
@@ -81,14 +88,13 @@ const ttm = (opts: TtmOpts): ScenarioSetup => {
         playerIndex: throwerIndex,
         x: opts.thrower?.x ?? 10,
         y: opts.thrower?.y ?? 5,
-        ...(opts.extraThrowerSkills
-          ? { skills: opts.extraThrowerSkills }
-          : {}),
+        ...(opts.extraThrowerSkills ? { skills: opts.extraThrowerSkills } : {}),
       },
       {
         playerIndex: 3,
         x: opts.mate?.x ?? 11,
         y: opts.mate?.y ?? 5,
+        ...(opts.extraMateSkills ? { skills: opts.extraMateSkills } : {}),
         ...(Object.keys(mateStats).length ? { stats: mateStats } : {}),
       },
     ],
@@ -96,6 +102,7 @@ const ttm = (opts: TtmOpts): ScenarioSetup => {
       playerIndex: o.index ?? i,
       x: o.x,
       y: o.y,
+      ...(o.stats ? { stats: o.stats } : {}),
     })),
     ballPosition: opts.ball ?? { x: 18, y: 9 },
   });
@@ -141,6 +148,46 @@ const injuryOf = (r: Result, ref: string) =>
 
 export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
+    skill: SkillType.LETHAL_FLIGHT,
+    configs: [
+      {
+        id: "lethal-flight-crash-casualty",
+        name: "Lethal Flight crash Casualty",
+        description:
+          "A thrown Right Stuff player gets +1 to the crash Armour/Injury roll and receives the Casualty SPP",
+        setup: ttm({
+          mode: "throw",
+          extraMateSkills: [SkillType.LETHAL_FLIGHT],
+          opponents: ring(14, 5, 8).map((opponent) => ({
+            ...opponent,
+            stats: { AV: 5 },
+          })),
+        }),
+        script: script("throw", 14, 5),
+        seedSearch: { from: 1, limit: 5000 },
+        outcomes: [
+          {
+            id: "crash-casualty-credited",
+            name: "The thrown player receives +1 and Casualty credit",
+            matches: (r) =>
+              skillTriggered(r, SkillType.LETHAL_FLIGHT) &&
+              playerOf(r, MATE).spp >= 2,
+            verify: (r) => {
+              assert(
+                hasSkill(playerOf(r, MATE).skills, SkillType.RIGHT_STUFF),
+                "Lethal Flight requires Right Stuff"
+              );
+              assert(
+                playerOf(r, MATE).spp === 2,
+                "the thrown player must receive exactly 2 SPP for the Casualty"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.THROW_TEAM_MATE,
     configs: [
       {
@@ -163,7 +210,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 playerStanding(r, MATE),
                 "the thrown Gnoblar must be Standing"
               );
-              assert(!turnoverHappened(r), "landing Standing is not a turnover");
+              assert(
+                !turnoverHappened(r),
+                "landing Standing is not a turnover"
+              );
             },
           },
           {
@@ -456,10 +506,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "The agile Gnoblar lands Standing",
             matches: (r) => saw(r, "lands safely"),
             verify: (r) =>
-              assert(
-                playerStanding(r, MATE),
-                "an AG 5 Gnoblar lands Standing"
-              ),
+              assert(playerStanding(r, MATE), "an AG 5 Gnoblar lands Standing"),
           },
         ],
       },
@@ -612,7 +659,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Strong Arm helps a Throw Team-mate",
         description:
           "Strong Arm fires on a Throw Team-mate Passing Ability Test",
-        setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.STRONG_ARM] }),
+        setup: ttm({
+          mode: "throw",
+          extraThrowerSkills: [SkillType.STRONG_ARM],
+        }),
         script: script("throw", 14, 5),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
@@ -633,7 +683,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Strong Arm — a clean +1 on a Quick throw",
         description:
           "On an unmarked Quick throw the only modifier is Strong Arm's +1, so the PA test is exactly roll + 1",
-        setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.STRONG_ARM] }),
+        setup: ttm({
+          mode: "throw",
+          extraThrowerSkills: [SkillType.STRONG_ARM],
+        }),
         script: script("throw", 12, 5),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
@@ -656,7 +709,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Strong Arm does not help a Kick Team-mate",
         description:
           "Strong Arm explicitly does not modify a Kick Team-mate Action",
-        setup: ttm({ mode: "kick", extraThrowerSkills: [SkillType.STRONG_ARM] }),
+        setup: ttm({
+          mode: "kick",
+          extraThrowerSkills: [SkillType.STRONG_ARM],
+        }),
         script: script("kick", 14, 5),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [

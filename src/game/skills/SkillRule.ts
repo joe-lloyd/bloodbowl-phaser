@@ -26,10 +26,7 @@ import { DecisionService } from "./DecisionService";
 import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
 import { DiceController } from "../controllers/DiceController";
-import {
-  InjuryResult,
-  InjuryTableKind,
-} from "../controllers/InjuryController";
+import { InjuryResult, InjuryTableKind } from "../controllers/InjuryController";
 
 export interface SkillTriggerRecord {
   playerId: string;
@@ -297,7 +294,7 @@ export interface ArmourBreakContext extends TriggerContextBase {
   /** The blocker who knocked this player down (block-path armour only) */
   causedBy?: Player;
   /** What put the player down — "dodge" enables Arm Bar. */
-  cause?: "block" | "dodge";
+  cause?: "block" | "dodge" | "lethal-flight";
   /** The square the player fell leaving (a failed Dodge/Leap/Jump). */
   vacatedSquare?: { x: number; y: number };
   /** Natural 2D6 total */
@@ -346,7 +343,7 @@ export interface InjuryRollContext extends TriggerContextBase {
 export interface CasualtyContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
-  cause?: "block" | "special";
+  cause?: "block" | "special" | "dodge" | "lethal-flight";
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
 }
@@ -523,10 +520,7 @@ export interface SkillRule {
   ): void | Promise<void>;
   onPickup?(ctx: PickupContext, self: Player): void | Promise<void>;
   onCatch?(ctx: CatchContext, self: Player): void | Promise<void>;
-  onPassDeclared?(
-    ctx: PassDeclaredContext,
-    self: Player
-  ): void | Promise<void>;
+  onPassDeclared?(ctx: PassDeclaredContext, self: Player): void | Promise<void>;
   onPassResult?(ctx: PassResultContext, self: Player): void | Promise<void>;
   onBlockDeclared?(
     ctx: BlockDeclaredContext,
@@ -547,10 +541,7 @@ export interface SkillRule {
   onArmourBreak?(ctx: ArmourBreakContext, self: Player): void | Promise<void>;
   onInjuryRoll?(ctx: InjuryRollContext, self: Player): void | Promise<void>;
   onCasualty?(ctx: CasualtyContext, self: Player): void | Promise<void>;
-  onCasualtyRoll?(
-    ctx: CasualtyRollContext,
-    self: Player
-  ): void | Promise<void>;
+  onCasualtyRoll?(ctx: CasualtyRollContext, self: Player): void | Promise<void>;
   /**
    * Negatrait roll between declaring and performing an action — the rule
    * pushes an ActivationGate; ActivationGateOperation rolls and applies it.
@@ -560,20 +551,11 @@ export interface SkillRule {
     self: Player
   ): void | Promise<void>;
   /** A Rush is about to be rolled (Drunkard's -1). */
-  onRushDeclared?(
-    ctx: RushDeclaredContext,
-    self: Player
-  ): void | Promise<void>;
+  onRushDeclared?(ctx: RushDeclaredContext, self: Player): void | Promise<void>;
   /** A Jump/Leap Agility Test is about to be rolled (Leap, Pogo, Very Long Legs). */
-  onJumpDeclared?(
-    ctx: JumpDeclaredContext,
-    self: Player
-  ): void | Promise<void>;
+  onJumpDeclared?(ctx: JumpDeclaredContext, self: Player): void | Promise<void>;
   /** An MA < 3 player rolls to stand up (Timmm-ber!). */
-  onStandUpRoll?(
-    ctx: StandUpRollContext,
-    self: Player
-  ): void | Promise<void>;
+  onStandUpRoll?(ctx: StandUpRollContext, self: Player): void | Promise<void>;
   /**
    * The opposition's turn is ending (Pick-Me-Up). Synchronous — never
    * raises decisions or enqueues flow; the engine applies ctx.standUp.

@@ -3,9 +3,10 @@ import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
-import { PlayerStatus } from "../../types/Player";
+import { PlayerStatus, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import { ArmourOperation } from "./ArmourOperation";
 import {
   foldTrigger,
   gatherParticipants,
@@ -13,6 +14,7 @@ import {
   playersWithin,
   PassDeclaredContext,
   PassResultContext,
+  withRerollOffer,
 } from "../skills";
 
 /**
@@ -116,6 +118,16 @@ export class PassOperation extends GameOperation {
           p.gridPosition?.x === this.targetX &&
           p.gridPosition?.y === this.targetY
       );
+
+    // On the Ball resolves after the target is known but before any modifier
+    // folds or the Passing Ability Test. Reactors move one at a time; a fall
+    // stops the remaining reactions but is not a Turnover (it is not their
+    // team turn).
+    await this.resolveOnTheBall(gameService, eventBus, context, passer, {
+      x: this.targetX,
+      y: this.targetY,
+    });
+
     const passCtx: PassDeclaredContext = {
       player: passer,
       passType: passRange.type,
@@ -333,6 +345,142 @@ export class PassOperation extends GameOperation {
     context.flowManager.add(
       new FinishPassActivationOperation(this.passerId, giveAndGoExempt)
     );
+  }
+
+  private async resolveOnTheBall(
+    gameService: IGameService,
+    eventBus: import("../../services/EventBus").IEventBus,
+    context: any,
+    passer: import("../../types/Player").Player,
+    target: { x: number; y: number }
+  ): Promise<void> {
+    const reactors = gameService
+      .getOpponents(passer.teamId)
+      .filter(
+        (player) =>
+          !!player.gridPosition &&
+          player.status === PlayerStatus.ACTIVE &&
+          hasSkill(player.skills, SkillType.ON_THE_BALL)
+      )
+      .sort(
+        (a, b) =>
+          a.gridPosition!.y - b.gridPosition!.y ||
+          a.gridPosition!.x - b.gridPosition!.x
+      );
+
+    for (const reactor of reactors) {
+      const answer = (await gameService.getDecisionService().request({
+        type: "reaction",
+        playerId: reactor.id,
+        chooserTeamId: reactor.teamId,
+        skill: SkillType.ON_THE_BALL,
+        prompt: `${reactor.playerName} may move up to 3 squares before the pass — use On the Ball?`,
+      })) as import("../../types/decisions").ReactionDecisionAnswer;
+      if (!answer.accept || !reactor.gridPosition) continue;
+
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: reactor.id,
+        skill: SkillType.ON_THE_BALL,
+        effect: "On the Ball: reacting move before the Passing Ability Test",
+      });
+
+      for (let stepNumber = 0; stepNumber < 3; stepNumber++) {
+        const from = { ...reactor.gridPosition };
+        const occupied = new Set<string>();
+        for (const teamId of [passer.teamId, reactor.teamId]) {
+          for (const player of gameService.getTeam(teamId)?.players ?? []) {
+            if (player.id !== reactor.id && player.gridPosition) {
+              occupied.add(`${player.gridPosition.x},${player.gridPosition.y}`);
+            }
+          }
+        }
+        const candidates: { x: number; y: number }[] = [];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const square = { x: from.x + dx, y: from.y + dy };
+            if (
+              square.x >= 0 &&
+              square.x < 26 &&
+              square.y >= 0 &&
+              square.y < 15 &&
+              !occupied.has(`${square.x},${square.y}`)
+            ) {
+              candidates.push(square);
+            }
+          }
+        }
+        candidates.sort(
+          (a, b) =>
+            Math.max(Math.abs(a.x - target.x), Math.abs(a.y - target.y)) -
+              Math.max(Math.abs(b.x - target.x), Math.abs(b.y - target.y)) ||
+            a.y - b.y ||
+            a.x - b.x
+        );
+        const to = candidates[0];
+        if (!to) break;
+
+        const opposition = gameService
+          .getOpponents(reactor.teamId)
+          .filter((player) => !!player.gridPosition && hasTackleZone(player));
+        const leavesTackleZone = opposition.some(
+          (marker) =>
+            Math.max(
+              Math.abs(marker.gridPosition!.x - from.x),
+              Math.abs(marker.gridPosition!.y - from.y)
+            ) === 1
+        );
+        if (leavesTackleZone) {
+          const destinationMarkers = opposition.filter(
+            (marker) =>
+              Math.max(
+                Math.abs(marker.gridPosition!.x - to.x),
+                Math.abs(marker.gridPosition!.y - to.y)
+              ) === 1
+          ).length;
+          const dodge = await withRerollOffer(
+            { gameService, eventBus },
+            reactor,
+            "dodge",
+            () =>
+              gameService
+                .getDiceController()
+                .rollSkillCheck(
+                  "Dodge",
+                  reactor.stats.AG,
+                  -destinationMarkers,
+                  reactor.playerName
+                )
+          );
+          if (!dodge.success) {
+            reactor.gridPosition = { ...to };
+            reactor.status = PlayerStatus.PRONE;
+            eventBus.emit(GameEventNames.PlayerMoved, {
+              playerId: reactor.id,
+              from,
+              to: { ...to },
+              path: [from, { ...to }],
+              ballJoinStep: 0,
+            });
+            eventBus.emit(GameEventNames.PlayerKnockedDown, {
+              playerId: reactor.id,
+            });
+            eventBus.emit(GameEventNames.PlayerStatusChanged, reactor);
+            context.flowManager.add(new ArmourOperation(reactor.id), true);
+            return;
+          }
+        }
+
+        reactor.gridPosition = { ...to };
+        eventBus.emit(GameEventNames.PlayerMoved, {
+          playerId: reactor.id,
+          from,
+          to: { ...to },
+          path: [from, { ...to }],
+          ballJoinStep: 0,
+        });
+      }
+    }
   }
 
   /**

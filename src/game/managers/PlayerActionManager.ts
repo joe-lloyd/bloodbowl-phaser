@@ -51,6 +51,8 @@ export class PlayerActionManager {
       case "pass":
         if (turn.hasPassed) return false;
         break;
+      case "punt":
+        break;
       case "handoff":
         if (turn.hasHandedOff) return false;
         break;
@@ -59,6 +61,7 @@ export class PlayerActionManager {
         break;
       case "move":
       case "block":
+      case "multipleBlock":
       case "standUp":
       case "secureBall":
       case "forgoe":
@@ -123,8 +126,12 @@ export class PlayerActionManager {
         return "Move and Block (1/Turn). Block costs 1 MA.";
       case "block":
         return "Block an adjacent enemy.";
+      case "multipleBlock":
+        return "Block two adjacent enemies at -2 Strength; no Follow-up.";
       case "pass":
         return "Move and Pass ball (1/Turn).";
+      case "punt":
+        return "Move, then kick the carried ball using the Throw-in Template.";
       case "handoff":
         return "Move and Handoff ball (1/Turn).";
       case "foul":

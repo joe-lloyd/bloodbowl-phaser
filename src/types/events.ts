@@ -615,8 +615,10 @@ export type AllEvents = GameEvents & UIEvents & StateEvents;
 export type ActionType =
   | "move"
   | "block"
+  | "multipleBlock"
   | "blitz"
   | "pass"
+  | "punt"
   | "handoff"
   | "foul"
   | "standUp"

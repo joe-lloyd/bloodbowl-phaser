@@ -114,6 +114,12 @@ import { DivingCatchRule } from "./rules/DivingCatchRule";
 import { ViolentInnovatorRule } from "./rules/ViolentInnovatorRule";
 import { PileDriverRule } from "./rules/PileDriverRule";
 import { SaboteurRule } from "./rules/SaboteurRule";
+import { MultipleBlockRule } from "./rules/MultipleBlockRule";
+import { DumpOffRule } from "./rules/DumpOffRule";
+import { LeaderRule } from "./rules/LeaderRule";
+import { OnTheBallRule } from "./rules/OnTheBallRule";
+import { PuntRule } from "./rules/PuntRule";
+import { LethalFlightRule } from "./rules/LethalFlightRule";
 
 let registered = false;
 
@@ -159,10 +165,7 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.JUGGERNAUT, JuggernautRule);
   SkillRegistry.register(SkillType.PREHENSILE_TAIL, PrehensileTailRule);
   SkillRegistry.register(SkillType.ARM_BAR, ArmBarRule);
-  SkillRegistry.register(
-    SkillType.DISTURBING_PRESENCE,
-    DisturbingPresenceRule
-  );
+  SkillRegistry.register(SkillType.DISTURBING_PRESENCE, DisturbingPresenceRule);
   SkillRegistry.register(SkillType.TITCHY, TitchyRule);
   SkillRegistry.register(SkillType.STUNTY, StuntyRule);
   SkillRegistry.register(SkillType.SIDESTEP, SidestepRule);
@@ -222,12 +225,15 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.FUMBLEROOSKI, FumblerooskiRule);
   SkillRegistry.register(SkillType.SECRET_WEAPON, SecretWeaponRule);
   SkillRegistry.register(SkillType.DIVING_CATCH, DivingCatchRule);
-  SkillRegistry.register(
-    SkillType.VIOLENT_INNOVATOR,
-    ViolentInnovatorRule
-  );
+  SkillRegistry.register(SkillType.VIOLENT_INNOVATOR, ViolentInnovatorRule);
   SkillRegistry.register(SkillType.PILE_DRIVER, PileDriverRule);
   SkillRegistry.register(SkillType.SABOTEUR, SaboteurRule);
+  SkillRegistry.register(SkillType.MULTIPLE_BLOCK, MultipleBlockRule);
+  SkillRegistry.register(SkillType.DUMP_OFF, DumpOffRule);
+  SkillRegistry.register(SkillType.LEADER, LeaderRule);
+  SkillRegistry.register(SkillType.ON_THE_BALL, OnTheBallRule);
+  SkillRegistry.register(SkillType.PUNT, PuntRule);
+  SkillRegistry.register(SkillType.LETHAL_FLIGHT, LethalFlightRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

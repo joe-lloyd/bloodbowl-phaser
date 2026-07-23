@@ -12,16 +12,53 @@
 import { GameState } from "../../types/GameState";
 import { Team } from "../../types/Team";
 import { Player } from "../../types/Player";
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
+import { IEventBus } from "../../services/EventBus";
+import { GameEventNames } from "../../types/events";
 
 export class RerollArbiter {
   private usedSkill = new Set<string>();
   private usedTeam = new Set<string>();
+  private leaderRerolls = new Map<string, number>();
+  private initializedLeaderHalf: string | null = null;
 
   constructor(
     private state: GameState,
-    private getTeam: (teamId: string) => Team | undefined
+    private getTeam: (teamId: string) => Team | undefined,
+    private eventBus?: IEventBus
   ) {}
+
+  /** Grant each eligible team one Leader Re-roll once at the start of a half. */
+  public beginHalf(teamIds: string[]): void {
+    const half = this.state.turn.isHalf2 ? "h2" : "h1";
+    if (this.initializedLeaderHalf === half) return;
+    this.initializedLeaderHalf = half;
+    this.leaderRerolls.clear();
+    for (const teamId of teamIds) {
+      if (this.hasOnPitchLeader(teamId)) {
+        this.leaderRerolls.set(teamId, 1);
+      }
+    }
+  }
+
+  private hasOnPitchLeader(teamId: string): boolean {
+    return (
+      this.getTeam(teamId)?.players.some(
+        (player) =>
+          !!player.gridPosition && hasSkill(player.skills, SkillType.LEADER)
+      ) ?? false
+    );
+  }
+
+  private leaderRerollAvailable(teamId: string): boolean {
+    if ((this.leaderRerolls.get(teamId) ?? 0) <= 0) return false;
+    if (!this.hasOnPitchLeader(teamId)) {
+      // The final Leader left play: the half's unspent Leader Re-roll is lost.
+      this.leaderRerolls.set(teamId, 0);
+      return false;
+    }
+    return true;
+  }
 
   /** One team turn = one key; usage sets reset naturally as turns advance. */
   private turnKey(): string {
@@ -37,7 +74,10 @@ export class RerollArbiter {
     // A team reroll may only be spent on that team's own turn
     if (this.state.turn.teamId !== teamId) return false;
     if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return false;
-    return (this.getTeam(teamId)?.rerolls ?? 0) > 0;
+    return (
+      (this.getTeam(teamId)?.rerolls ?? 0) > 0 ||
+      this.leaderRerollAvailable(teamId)
+    );
   }
 
   public consumeSkillReroll(player: Player, skill: SkillType): void {
@@ -71,6 +111,23 @@ export class RerollArbiter {
   public consumeTeamReroll(teamId: string): void {
     this.usedTeam.add(`${this.turnKey()}|${teamId}`);
     const team = this.getTeam(teamId);
-    if (team && team.rerolls > 0) team.rerolls -= 1;
+    if (team && team.rerolls > 0) {
+      team.rerolls -= 1;
+      return;
+    }
+    if (this.leaderRerollAvailable(teamId)) {
+      this.leaderRerolls.set(teamId, 0);
+      const leader = team?.players.find(
+        (player) =>
+          !!player.gridPosition && hasSkill(player.skills, SkillType.LEADER)
+      );
+      if (leader) {
+        this.eventBus?.emit(GameEventNames.SkillTriggered, {
+          playerId: leader.id,
+          skill: SkillType.LEADER,
+          effect: "Leader: spent the team's Leader Re-roll",
+        });
+      }
+    }
   }
 }

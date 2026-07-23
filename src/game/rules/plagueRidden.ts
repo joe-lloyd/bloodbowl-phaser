@@ -29,7 +29,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 
 /** How the casualty was inflicted — only a Block Action arms Plague Ridden. */
-export type CasualtyCause = "block" | "special" | "dodge";
+export type CasualtyCause = "block" | "special" | "dodge" | "lethal-flight";
 
 /**
  * A legal Plague Ridden target: NOT a Big Guy, and without the Decay,
