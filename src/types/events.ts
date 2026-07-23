@@ -39,6 +39,7 @@ export enum GameEventNames {
   BlockDiceRolled = "blockDiceRolled",
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
+  PlayerCasualtyInflicted = "playerCasualtyInflicted",
   PlayerStoodUp = "playerStoodUp",
   /** A thrower performs a Throw / Kick Team-mate gesture (sprite lean/kick) */
   PlayerThrowGesture = "playerThrowGesture",
@@ -69,6 +70,9 @@ export enum GameEventNames {
   PassFumbled = "passFumbled",
   InterceptionAttempted = "interceptionAttempted",
   PassIntercepted = "passIntercepted",
+  ThrowTeammateLanded = "throwTeammateLanded",
+  MvpAwarded = "mvpAwarded",
+  AwardedTouchdownAssigned = "awardedTouchdownAssigned",
   InterceptionFailed = "interceptionFailed",
   CatchAttempted = "catchAttempted",
   CatchSucceeded = "catchSucceeded",
@@ -260,7 +264,18 @@ export interface GameEvents {
   };
 
   // Scoring
-  [GameEventNames.Touchdown]: { teamId: string; score: number };
+  [GameEventNames.Touchdown]: {
+    teamId: string;
+    score: number;
+    /** Absent for a touchdown awarded by a post-match/concession rule. */
+    scorerId?: string;
+  };
+  [GameEventNames.PlayerCasualtyInflicted]: {
+    causerId?: string;
+    victimId: string;
+    cause: "block" | "special" | "dodge" | "crowd" | "lethal-flight";
+    sppEligible: boolean;
+  };
 
   // End of drive
   [GameEventNames.KORecoveryRolled]: {
@@ -351,6 +366,21 @@ export interface GameEvents {
     passerId: string;
     interceptorId: string;
     position: { x: number; y: number };
+  };
+  [GameEventNames.ThrowTeammateLanded]: {
+    throwerId: string;
+    thrownPlayerId: string;
+    safeLanding: boolean;
+    superbThrow: boolean;
+  };
+  [GameEventNames.MvpAwarded]: {
+    teamId: string;
+    playerId: string;
+    roll: number;
+  };
+  [GameEventNames.AwardedTouchdownAssigned]: {
+    teamId: string;
+    playerId: string;
   };
   [GameEventNames.InterceptionFailed]: {
     passerId: string;

@@ -14,6 +14,7 @@ import { GameState } from "@/types/GameState";
 
 import { RNGService, IRNGService } from "./rng/RNGService.js";
 import { BlockResolutionService } from "./BlockResolutionService.js";
+import { MatchStats } from "../game/progression/MatchStats.js";
 
 export class ServiceContainer {
   private static instance: ServiceContainer | null = null;
@@ -23,6 +24,7 @@ export class ServiceContainer {
   public readonly soundManager: SoundManager;
   public readonly rngService: IRNGService;
   public readonly blockResolutionService: BlockResolutionService;
+  public readonly matchStats: MatchStats;
 
   private constructor(
     eventBus: IEventBus,
@@ -30,7 +32,8 @@ export class ServiceContainer {
     team2: Team,
     initialState?: GameState,
     seed?: number,
-    gameServiceFactory?: (inner: GameService) => IGameService
+    gameServiceFactory?: (inner: GameService) => IGameService,
+    progressionEnabled = false
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
@@ -44,6 +47,11 @@ export class ServiceContainer {
     console.log(`[ServiceContainer] Initializing RNG with seed: ${rngSeed}`);
     this.rngService = new RNGService(rngSeed);
     this.blockResolutionService = new BlockResolutionService(this.rngService);
+    this.matchStats = new MatchStats(
+      this.eventBus,
+      [team1, team2],
+      progressionEnabled
+    );
 
     const gameService = new GameService(
       this.eventBus,
@@ -72,7 +80,8 @@ export class ServiceContainer {
     team2: Team,
     initialState?: GameState,
     seed?: number,
-    gameServiceFactory?: (inner: GameService) => IGameService
+    gameServiceFactory?: (inner: GameService) => IGameService,
+    progressionEnabled = false
   ): ServiceContainer {
     ServiceContainer.instance = new ServiceContainer(
       eventBus,
@@ -80,7 +89,8 @@ export class ServiceContainer {
       team2,
       initialState,
       seed,
-      gameServiceFactory
+      gameServiceFactory,
+      progressionEnabled
     );
     return ServiceContainer.instance;
   }

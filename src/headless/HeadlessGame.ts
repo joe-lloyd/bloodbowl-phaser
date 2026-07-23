@@ -29,7 +29,7 @@ import { BlockValidator } from "../game/validators/BlockValidator";
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
   string,
-  Record<string, "string" | "number" | "boolean" | "path">
+  Record<string, "string" | "number" | "boolean" | "path" | "string-array">
 > = {
   "coin-flip": {},
   "start-setup": { kickingTeamId: "string" },
@@ -72,6 +72,8 @@ const COMMAND_SHAPES: Record<
   },
   "end-activation": { playerId: "string" },
   "end-turn": {},
+  "award-mvp": { teamId: "string", nominatedPlayerIds: "string-array" },
+  "assign-awarded-touchdown": { playerId: "string" },
   "choose-block-result": { index: "number" },
   "choose-push-direction": { x: "number", y: "number" },
   "choose-follow-up": { followUp: "boolean" },
@@ -366,6 +368,23 @@ export class HeadlessGame {
       case "end-turn":
         gs.endTurn();
         break;
+      case "award-mvp": {
+        if (gs.getPhase() !== GamePhase.GAME_OVER) {
+          throw new Error("mvp-only-after-match");
+        }
+        this.assertTeam(cmd.teamId);
+        const roll = this.ctx.rng.rollDie(cmd.nominatedPlayerIds.length);
+        this.ctx.matchStats.awardMvp(cmd.teamId, cmd.nominatedPlayerIds, roll);
+        break;
+      }
+      case "assign-awarded-touchdown": {
+        if (gs.getPhase() !== GamePhase.GAME_OVER) {
+          throw new Error("awarded-touchdown-only-after-match");
+        }
+        this.requirePlayer(cmd.playerId);
+        this.ctx.matchStats.assignAwardedTouchdown(cmd.playerId);
+        break;
+      }
 
       // --- Decision replies ---
       case "team-reroll-block":
@@ -711,6 +730,14 @@ export class HeadlessGame {
           );
         if (!isPath)
           return `malformed-command: '${field}' must be a non-empty {x,y}[]`;
+      } else if (kind === "string-array") {
+        const isStringArray =
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.every((entry) => typeof entry === "string");
+        if (!isStringArray) {
+          return `malformed-command: '${field}' must be a non-empty string[]`;
+        }
       } else if (typeof value !== kind) {
         return `malformed-command: '${field}' must be a ${kind}`;
       }

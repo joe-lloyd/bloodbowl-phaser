@@ -187,8 +187,7 @@ export function calculateTeamValue(team: Team): number {
 
   // Player costs
   team.players.forEach((player) => {
-    value += player.cost;
-    // Add value for skills gained (not implemented yet)
+    value += player.cost + (player.teamValue ?? 0);
   });
 
   // Re-rolls

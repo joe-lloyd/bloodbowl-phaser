@@ -279,13 +279,22 @@ export class PassOperation extends GameOperation {
       if (playerAtLanding) {
         // Attempt Catch
         context.flowManager.add(
-          new CatchOperation(playerAtLanding.id, true, {
-            origin: declaredAction === "handoff" ? "handoff" : "pass",
-            isPassTarget:
-              declaredAction !== "handoff" &&
-              landingPos.x === this.targetX &&
-              landingPos.y === this.targetY,
-          }),
+          new CatchOperation(
+            playerAtLanding.id,
+            true,
+            {
+              origin: declaredAction === "handoff" ? "handoff" : "pass",
+              isPassTarget:
+                declaredAction !== "handoff" &&
+                landingPos.x === this.targetX &&
+                landingPos.y === this.targetY,
+            },
+            {
+              passerId: passer.id,
+              passerTeamId: passer.teamId,
+              accurate: result.accurate,
+            }
+          ),
           true
         );
       } else {

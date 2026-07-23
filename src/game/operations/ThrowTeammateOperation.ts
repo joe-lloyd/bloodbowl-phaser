@@ -183,6 +183,7 @@ export class ThrowTeammateOperation extends GameOperation {
     // Bullseye: a Superb Throw (a natural 6 on the Passing Ability Test) lands
     // the team-mate dead on the target square — they do not Scatter. THROW only.
     let bullseye = false;
+    let superbThrow = false;
     if (!forcedFumble) {
       const opponents = gameService.getOpponents(thrower.teamId);
       const marking = gameService
@@ -213,6 +214,7 @@ export class ThrowTeammateOperation extends GameOperation {
         this.mode === "throw" &&
         test.roll === 6 &&
         hasSkill(thrower.skills, SkillType.BULLSEYE);
+      superbThrow = test.accurate;
     }
 
     // 3. Fumble handling.
@@ -351,6 +353,14 @@ export class ThrowTeammateOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${teammate.playerName} lands safely!`
       );
+      if (this.mode === "throw") {
+        eventBus.emit(GameEventNames.ThrowTeammateLanded, {
+          throwerId: thrower.id,
+          thrownPlayerId: teammate.id,
+          safeLanding: true,
+          superbThrow,
+        });
+      }
       eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
       // Landed Standing — NOT a turnover; they keep the ball if they had it.
       context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));

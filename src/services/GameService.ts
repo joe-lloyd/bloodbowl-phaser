@@ -988,7 +988,7 @@ export class GameService implements IGameService {
 
   // ===== Score Management =====
 
-  addTouchdown(teamId: string): void {
+  addTouchdown(teamId: string, scorerId?: string): void {
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
     this.state.phase = GamePhase.TOUCHDOWN;
@@ -997,6 +997,7 @@ export class GameService implements IGameService {
     this.eventBus.emit(GameEventNames.Touchdown, {
       teamId,
       score: this.state.score[teamId],
+      scorerId,
     });
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.TOUCHDOWN,
@@ -1088,7 +1089,7 @@ export class GameService implements IGameService {
     if (!isInEndZone(player.gridPosition, GameConfig.PITCH_WIDTH, side)) {
       return false;
     }
-    this.addTouchdown(player.teamId);
+    this.addTouchdown(player.teamId, player.id);
     return true;
   }
 

@@ -68,11 +68,32 @@ export function saveTeams(teams: Team[]): void {
  */
 export function loadTeams(): Team[] {
   const teams = activeRepository.loadTeams();
-  teams.forEach((team) =>
+  teams.forEach((team) => {
+    let roster: ReturnType<typeof getRosterByRosterName> | undefined;
+    try {
+      roster = team.rosterName
+        ? getRosterByRosterName(team.rosterName)
+        : undefined;
+    } catch {
+      // Legacy/test documents may predate rosterName. They still receive
+      // progression defaults; category access remains empty until edited.
+      roster = undefined;
+    }
     team.players.forEach((player) => {
       player.skills = migrateSkills(player.skills ?? []);
-    })
-  );
+      const template = roster?.playerTemplates.find(
+        (candidate) => candidate.positionName === player.positionName
+      );
+      player.spp ??= 0;
+      player.advancements ??= [];
+      player.level = player.advancements.length;
+      player.characteristicAdvances ??= {};
+      player.playerKind ??= "roster";
+      player.primary ??= [...(template?.primary ?? [])];
+      player.secondary ??= [...(template?.secondary ?? [])];
+      player.teamValue ??= 0;
+    });
+  });
   return teams;
 }
 

@@ -127,12 +127,23 @@ export function checkOwnership(
       if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       return command.teamId === senderTeamId ? allow : deny("not-your-turn");
 
+    // Post-match choices belong to the coach of the affected team/player.
+    case "award-mvp":
+      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
+      return command.teamId === senderTeamId ? allow : deny("not-your-player");
+    case "assign-awarded-touchdown":
+      if (ctx.phase !== GamePhase.GAME_OVER) return deny("not-your-turn");
+      return ownsPlayer(command.playerId);
+
     // Kickoff: the kicking team's coach acts through their own player. During
     // KICKOFF the kicking team is the NON-active team (active is the receiving
     // team, set last during SETUP_RECEIVING), so the active team can't kick.
     case "select-kicker":
     case "kick-ball":
-      if (ctx.phase === GamePhase.KICKOFF && ctx.activeTeamId === senderTeamId) {
+      if (
+        ctx.phase === GamePhase.KICKOFF &&
+        ctx.activeTeamId === senderTeamId
+      ) {
         return deny("not-your-turn");
       }
       return ownsPlayer(command.playerId);

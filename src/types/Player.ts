@@ -87,10 +87,16 @@ export interface Player {
 
   // Skills
   skills: Skill[];
+  /** Skill-category access copied from the roster profile for advancement. */
+  primary?: SkillCategory[];
+  secondary?: SkillCategory[];
 
   // Progression
   spp: number; // Star Player Points
-  level: number; // Current level (1-6)
+  level: number; // Advancement count: Rookie 0 through Legend 6
+  playerKind?: "roster" | "journeyman" | "star";
+  advancements?: PlayerAdvancement[];
+  characteristicAdvances?: Partial<Record<keyof PlayerStats, number>>;
 
   // Status
   status: PlayerStatus;
@@ -111,6 +117,15 @@ export interface Player {
   // Cost (for team building)
   cost: number;
   teamValue: number;
+}
+
+export interface PlayerAdvancement {
+  id: string;
+  type: "primary-skill" | "secondary-skill" | "characteristic";
+  name: string;
+  sppCost: number;
+  valueIncrease: number;
+  elite?: boolean;
 }
 
 /**
@@ -195,8 +210,13 @@ export function createPlayer(
     stats: { ...template.stats },
     baseStats: { ...template.stats },
     skills: [...template.skills],
+    primary: [...template.primary],
+    secondary: [...template.secondary],
     spp: 0,
-    level: 1,
+    level: 0,
+    playerKind: "roster",
+    advancements: [],
+    characteristicAdvances: {},
     status: PlayerStatus.RESERVE,
     injuries: [],
     hasActed: false,
@@ -258,10 +278,7 @@ export function getPlayerArmor(player: Player): number {
   return player.stats.AV;
 }
 
-export function hasCondition(
-  player: Player,
-  type: PlayerCondition
-): boolean {
+export function hasCondition(player: Player, type: PlayerCondition): boolean {
   return (player.conditions ?? []).some((c) => c.type === type);
 }
 

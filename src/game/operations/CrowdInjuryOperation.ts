@@ -54,10 +54,9 @@ export class CrowdInjuryOperation extends GameOperation {
     const roll = gameService
       .getDiceController()
       .roll2D6(`Injury by the Crowd (${player.playerName})`);
-    const result = gameService.getInjuryController().getInjuryResult(
-      player,
-      roll
-    );
+    const result = gameService
+      .getInjuryController()
+      .getInjuryResult(player, roll);
 
     switch (result) {
       case InjuryResult.STUNNED:
@@ -75,6 +74,11 @@ export class CrowdInjuryOperation extends GameOperation {
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         player.status = PlayerStatus.INJURED;
+        eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
+          victimId: player.id,
+          cause: "crowd",
+          sppEligible: false,
+        });
         flowManager.add(new CasualtyOperation(this.playerId), true);
         break;
     }

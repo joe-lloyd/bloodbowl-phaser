@@ -12,7 +12,7 @@ import { GameSnapshot } from "../headless/serialization";
 import { Team } from "../types/Team";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export interface HelloPayload {
   protocolVersion: number;

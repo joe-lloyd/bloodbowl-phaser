@@ -44,6 +44,56 @@ describe("HeadlessGame action protocol", () => {
     }
   });
 
+  it("runs post-match SPP choices through the deterministic protocol", async () => {
+    const game = new HeadlessGame({
+      startingPhase: GamePhase.GAME_OVER,
+      progressionEnabled: true,
+      seed: 24,
+    });
+    const nominees = game.ctx.team1.players.slice(0, 6);
+    nominees.forEach((player, index) =>
+      game.ctx.eventBus.emit(GameEventNames.PlayerPlaced, {
+        playerId: player.id,
+        x: index,
+        y: 1,
+      })
+    );
+
+    const mvp = await game.execute({
+      type: "award-mvp",
+      teamId: game.ctx.team1.id,
+      nominatedPlayerIds: nominees.map((player) => player.id),
+    });
+    expect(mvp.ok).toBe(true);
+    const mvpEvent = mvp.events.find(
+      (event) => event.name === GameEventNames.MvpAwarded
+    );
+    expect(mvpEvent?.data).toMatchObject({
+      teamId: game.ctx.team1.id,
+      roll: expect.any(Number),
+    });
+
+    const touchdown = await game.execute({
+      type: "assign-awarded-touchdown",
+      playerId: nominees[0].id,
+    });
+    expect(touchdown.ok).toBe(true);
+    expect(
+      touchdown.events.some(
+        (event) => event.name === GameEventNames.AwardedTouchdownAssigned
+      )
+    ).toBe(true);
+
+    const summary = game.ctx.matchStats.summary(game.ctx.team1.players);
+    expect(
+      summary.players.find((entry) => entry.playerId === nominees[0].id)
+        ?.touchdowns
+    ).toBe(1);
+    expect(
+      summary.players.reduce((total, entry) => total + entry.mvps, 0)
+    ).toBe(1);
+  });
+
   it("enumerated moves execute successfully (enumerate→execute consistency)", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 23 });
 
