@@ -49,7 +49,7 @@ export class ClearPitchOperation extends GameOperation {
         player.status !== PlayerStatus.REMOVED
       ) {
         player.status = PlayerStatus.REMOVED;
-        player.gridPosition = null;
+        player.gridPosition = undefined;
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
           skill: SkillType.SECRET_WEAPON,
