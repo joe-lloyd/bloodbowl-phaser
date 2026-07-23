@@ -41,6 +41,7 @@ const COMMAND_SHAPES: Record<
   "kick-ball": { playerId: "string", x: "number", y: "number" },
   "declare-action": { playerId: "string", action: "string" },
   move: { playerId: "string", path: "path" },
+  jump: { playerId: "string", x: "number", y: "number" },
   "stand-up": { playerId: "string" },
   block: { attackerId: "string", defenderId: "string" },
   pass: { playerId: "string", x: "number", y: "number" },
@@ -289,6 +290,9 @@ export class HeadlessGame {
         );
         break;
       }
+      case "jump":
+        await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
+        break;
       case "pass":
       case "handoff": {
         const result = await gs.throwBall(cmd.playerId, cmd.x, cmd.y);

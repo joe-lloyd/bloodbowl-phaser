@@ -242,6 +242,23 @@ export interface PassDeclaredContext extends TriggerContextBase {
    * no turnover (Animosity's 1).
    */
   refused?: boolean;
+  /**
+   * Opponents may not attempt to Intercept this pass at all — a hard
+   * suppression not even Very Long Legs bypasses (Hail Mary Pass).
+   */
+  suppressInterception?: boolean;
+  /**
+   * Cloud Burster: opponents may not Intercept — EXCEPT a Very Long Legs
+   * player, who "ignores the Cloud Burster Skill". Softer than
+   * suppressInterception; PassOperation still offers the interception to any
+   * Very Long Legs interceptor.
+   */
+  cloudBurster?: boolean;
+  /**
+   * An Accurate result is treated as Inaccurate — the ball scatters from the
+   * target square (Hail Mary Pass).
+   */
+  downgradeAccurate?: boolean;
 }
 
 /** The Passing Ability Test has been rolled. */
@@ -416,6 +433,28 @@ export interface RushDeclaredContext extends TriggerContextBase {
 }
 
 /**
+ * A player is about to make the Agility Test to Jump over a square (a Prone/
+ * Stunned player by default; any square with Leap/Pogo). Rules adjust the
+ * modifier: Leap softens the marking penalty, Pogo ignores it, Very Long Legs
+ * adds a flat bonus. Kept as two fields so a Pogo (zero the penalty) and a
+ * Very Long Legs (+1 bonus) compose regardless of fold order.
+ */
+export interface JumpDeclaredContext extends TriggerContextBase {
+  player: Player;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  /** The square being jumped over. */
+  over: { x: number; y: number };
+  /**
+   * The (negative or zero) marking penalty = -max(markers of the from square,
+   * markers of the to square). Leap raises it toward -1; Pogo zeroes it.
+   */
+  negativeModifier: number;
+  /** Flat additions to the Agility Test (Very Long Legs +1). */
+  bonusModifier: number;
+}
+
+/**
  * A player with MA < 3 rolls to stand up (4+, natural 1 fails); rules may
  * modify the roll (Timmm-ber!'s +1 per Open Standing adjacent team-mate).
  */
@@ -515,6 +554,11 @@ export interface SkillRule {
   /** A Rush is about to be rolled (Drunkard's -1). */
   onRushDeclared?(
     ctx: RushDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
+  /** A Jump/Leap Agility Test is about to be rolled (Leap, Pogo, Very Long Legs). */
+  onJumpDeclared?(
+    ctx: JumpDeclaredContext,
     self: Player
   ): void | Promise<void>;
   /** An MA < 3 player rolls to stand up (Timmm-ber!). */

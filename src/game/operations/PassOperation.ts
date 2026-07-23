@@ -1,5 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
@@ -114,7 +115,8 @@ export class PassOperation extends GameOperation {
       { x: this.targetX, y: this.targetY },
       markingOpponents,
       { gameService, eventBus }, // failed passes may offer a reroll
-      passCtx.modifiers
+      passCtx.modifiers,
+      passCtx.downgradeAccurate // Hail Mary: Accurate → Inaccurate
     );
 
     // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
@@ -182,14 +184,19 @@ export class PassOperation extends GameOperation {
 
       // The defending team may Intercept the ball in flight, before it
       // resolves at its landing square. A successful interception grants
-      // possession and a turnover — the catch/bounce below is skipped.
-      const intercepted = await this.resolveInterception(
-        gameService,
-        eventBus,
-        passer,
-        landingPos,
-        result.accurate
-      );
+      // possession and a turnover — the catch/bounce below is skipped. Hail
+      // Mary Pass suppresses interception outright; Cloud Burster suppresses it
+      // for everyone except a Very Long Legs interceptor.
+      const intercepted =
+        !passCtx.suppressInterception &&
+        (await this.resolveInterception(
+          gameService,
+          eventBus,
+          passer,
+          landingPos,
+          result.accurate,
+          passCtx.cloudBurster ?? false
+        ));
       if (intercepted) return;
 
       if (result.success) {
@@ -244,7 +251,8 @@ export class PassOperation extends GameOperation {
     eventBus: import("../../services/EventBus").IEventBus,
     passer: import("@/types/Player").Player,
     landing: { x: number; y: number },
-    accurate: boolean
+    accurate: boolean,
+    cloudBurster: boolean
   ): Promise<boolean> {
     if (!passer.gridPosition) return false;
 
@@ -252,12 +260,19 @@ export class PassOperation extends GameOperation {
     const catchController = gameService.getCatchController();
     const opponents = gameService.getOpponents(passer.teamId);
 
-    const eligible = passController.checkInterceptions(
+    let eligible = passController.checkInterceptions(
       passer.gridPosition,
       landing,
       opponents,
       accurate
     );
+    // Cloud Burster: only a Very Long Legs interceptor may still try.
+    if (cloudBurster) {
+      eligible = eligible.filter((e) => {
+        const p = gameService.getPlayerById(e.playerId);
+        return !!p && hasSkill(p.skills, SkillType.VERY_LONG_LEGS);
+      });
+    }
     if (eligible.length === 0) return false;
 
     // Marking is measured at each interceptor against the passing team.
@@ -268,11 +283,22 @@ export class PassOperation extends GameOperation {
         interceptor.gridPosition!,
         passingTeam
       );
+      // Very Long Legs: +2 to the interception Agility Test.
+      const vll = hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
+        ? 2
+        : 0;
+      if (vll) {
+        eventBus.emit(GameEventNames.SkillTriggered, {
+          playerId: e.playerId,
+          skill: SkillType.VERY_LONG_LEGS,
+          effect: "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
+        });
+      }
       return {
         playerId: e.playerId,
-        base: e.modifier,
+        base: e.modifier + vll,
         marking,
-        modifier: e.modifier - marking,
+        modifier: e.modifier + vll - marking,
       };
     });
 

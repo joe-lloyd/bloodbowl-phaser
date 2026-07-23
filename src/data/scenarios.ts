@@ -90,6 +90,30 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "jump-over-prone",
+    name: "Jump Over a Prone Player",
+    description:
+      "Declare Move, then Jump the ball carrier at (8,5) over the Prone " +
+      "defender at (9,5) into the empty square (10,5) beyond. The base Jump " +
+      "only clears Prone/Stunned players — the Standing defender at (12,5) " +
+      "cannot be jumped without Leap or Pogo.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // jumper (carries ball)
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE }, // jump over this one
+        { playerIndex: 1, x: 12, y: 5, status: PlayerStatus.ACTIVE }, // Standing — base Jump can't clear it
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 8, y: 5 }, // on the jumper
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "kickoff-test",
     name: "Kickoff Test",
     description: "Test kickoff camera tracking - ball ready to kick",

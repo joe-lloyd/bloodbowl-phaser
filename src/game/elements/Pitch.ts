@@ -371,6 +371,58 @@ export class Pitch {
   /**
    * Draw movement path with lines and centered dots
    */
+  /**
+   * Jump targeting: every legal (over, dest) at once — a line from the jumper
+   * through the jumped-over square to each landing square, a green end node on
+   * each landing, and a distinct amber "jump" node on each jumped-over square.
+   */
+  public drawJumpTargets(
+    from: { x: number; y: number },
+    targets: {
+      over: { x: number; y: number };
+      dest: { x: number; y: number };
+    }[]
+  ): void {
+    this.clearPath();
+    if (targets.length === 0) return;
+    const sq = this.squareSize;
+    const a = gridToPixel(from.x, from.y, sq);
+
+    const lines = this.scene.add.graphics();
+    lines.setName("path_line");
+    const overs = new Map<string, { x: number; y: number }>();
+    for (const t of targets) {
+      const o = gridToPixel(t.over.x, t.over.y, sq);
+      const b = gridToPixel(t.dest.x, t.dest.y, sq);
+      lines.lineStyle(4, 0x3b82f6, 0.85);
+      lines.beginPath();
+      lines.moveTo(a.x, a.y);
+      lines.lineTo(o.x, o.y);
+      lines.lineTo(b.x, b.y);
+      lines.strokePath();
+      overs.set(`${t.over.x},${t.over.y}`, t.over);
+    }
+    this.container.add(lines);
+
+    // Landing (end) nodes — green dots.
+    for (const t of targets) {
+      const b = gridToPixel(t.dest.x, t.dest.y, sq);
+      const dot = this.scene.add.circle(b.x, b.y, 8, 0x22c55e);
+      dot.setName("path_dot");
+      dot.setStrokeStyle(2, 0x000000);
+      this.container.add(dot);
+    }
+    // Jump-over nodes — a distinct amber ring so it reads as "leap over here".
+    for (const o of overs.values()) {
+      const p = gridToPixel(o.x, o.y, sq);
+      const ring = this.scene.add.circle(p.x, p.y, sq * 0.32);
+      ring.setName("path_dot");
+      ring.setStrokeStyle(3, 0xf59e0b);
+      ring.setFillStyle(0xf59e0b, 0.2);
+      this.container.add(ring);
+    }
+  }
+
   public drawMovementPath(
     path: { x: number; y: number }[],
     rolls: { type: string; target: number; roll: number; result: string }[],

@@ -33,6 +33,76 @@ const base = () => ({
 });
 
 describe("computeActionAvailability", () => {
+  it("offers Block when adjacent to a Standing opponent and not yet moved", () => {
+    const input = base();
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }),
+    ];
+    expect(computeActionAvailability(input).block).toBe(true);
+    // Once the player has moved, a Block needs a Blitz instead.
+    input.hasMovedInAction = true;
+    expect(computeActionAvailability(input).block).toBe(false);
+  });
+
+  it("hides Block when the adjacent opponent is down", () => {
+    const input = base();
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+    ];
+    expect(computeActionAvailability(input).block).toBe(false);
+  });
+
+  it("offers Jump over an adjacent Prone player with an empty landing square", () => {
+    const input = base();
+    // Prone player directly to the right; (7,5) is the empty landing square.
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+    ];
+    expect(computeActionAvailability(input).jump).toBe(true);
+  });
+
+  it("hides Jump when the only adjacent player is Standing (needs Leap/Pogo)", () => {
+    const input = base();
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }), // Standing
+    ];
+    expect(computeActionAvailability(input).jump).toBe(false);
+  });
+
+  it("offers Jump over a Standing player when the jumper has Leap", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      skills: [getSkill(SkillType.LEAP)],
+    });
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }), // Standing
+    ];
+    expect(computeActionAvailability(input).jump).toBe(true);
+  });
+
+  it("hides Jump when all three push-back squares beyond the downed player are occupied", () => {
+    const input = base();
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+      // Push-back squares of (6,5) from (5,5) are (7,5)/(7,4)/(7,6) — fill them.
+      P({ id: "e2", teamId: "team2", gridPosition: { x: 7, y: 5 } }),
+      P({ id: "e3", teamId: "team2", gridPosition: { x: 7, y: 4 } }),
+      P({ id: "e4", teamId: "team2", gridPosition: { x: 7, y: 6 } }),
+    ];
+    expect(computeActionAvailability(input).jump).toBe(false);
+  });
+
+  it("offers Jump over a diagonally-adjacent downed player (push-back squares)", () => {
+    const input = base();
+    // Prone player at (6,6) diagonal to the jumper at (5,5): push-back squares
+    // (7,7)/(7,6)/(6,7) are empty, so a Jump is offered.
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 6 }, status: PlayerStatus.PRONE }),
+    ];
+    expect(computeActionAvailability(input).jump).toBe(true);
+  });
+
   it("hides Foul when no downed enemy is reachable", () => {
     const input = base();
     input.opponents = [

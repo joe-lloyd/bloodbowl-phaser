@@ -6,15 +6,19 @@
 import { SkillType } from "../../types/Skills";
 import {
   RuleScenarioEntry,
+  RuleConfig,
   playSetup,
   skillRerollConfig,
   blockConfig,
   assert,
   skillTriggered,
+  skillCheckDiff,
   reactionOffered,
   playerStanding,
   playerAt,
+  playerDown,
   playerOf,
+  turnoverHappened,
   sawEvent,
   blockDiceCount,
 } from "../../game/rules-lab";
@@ -26,6 +30,392 @@ const straightPath = (fromX: number, y: number, steps: number) =>
   Array.from({ length: steps }, (_, i) => ({ x: fromX + 1 + i, y }));
 
 export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
+  // Jump-over-players mechanic (2025 p.56). Leap/Pogo/Very Long Legs modify
+  // the Jump Agility Test; the base mechanic runs inside each config.
+  {
+    skill: SkillType.LEAP,
+    configs: [
+      {
+        id: "leap-softens-penalty",
+        name: "Leap reduces the Jump penalty",
+        description:
+          "A -2 marking penalty on a Jump over a Prone player is reduced to -1",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.LEAP] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.PRONE }, // jumped over
+            { playerIndex: 1, x: 9, y: 3 }, // marks the target (10,3)
+            { playerIndex: 2, x: 11, y: 3 }, // marks the target (10,3)
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "jump", playerId: "team1:0", x: 10, y: 3 },
+        ],
+        seedSearch: { from: 1, limit: 50 },
+        outcomes: [
+          {
+            id: "penalty-reduced",
+            name: "Net Jump modifier is -1, not -2",
+            matches: (r) =>
+              skillTriggered(r, SkillType.LEAP) &&
+              skillCheckDiff(r, "Jump") === -1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Jump") === -1,
+                "Leap must reduce the -2 marking penalty to -1"
+              ),
+          },
+        ],
+      },
+      {
+        id: "leap-over-standing-player",
+        name: "Leap can Jump over a Standing player",
+        description:
+          "Base Jump only clears Prone/Stunned; Leap clears a Standing player too",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.LEAP] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5 }, // STANDING — only Leap may clear it
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "jump", playerId: "team1:0", x: 12, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 50 },
+        outcomes: [
+          {
+            id: "jump-resolved",
+            name: "The Jump over a Standing player is rolled",
+            // The Jump Agility Test only happens if the Jump was allowed — base
+            // Jump would have been refused with no roll.
+            matches: (r) =>
+              r.events.some(
+                (e) =>
+                  e.name === GameEventNames.DiceRoll &&
+                  !!(e.data as { rollType?: string }).rollType?.startsWith(
+                    "Jump"
+                  )
+              ),
+            verify: (r) =>
+              assert(
+                r.events.some(
+                  (e) =>
+                    e.name === GameEventNames.DiceRoll &&
+                    !!(e.data as { rollType?: string }).rollType?.startsWith(
+                      "Jump"
+                    )
+                ),
+                "Leap must allow the Jump over a Standing player to resolve"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.POGO,
+    configs: [
+      {
+        id: "pogo-ignores-penalty",
+        name: "Pogo ignores the Jump penalty",
+        description: "A -2 marking penalty on a Jump is ignored (net 0)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.POGO] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 10, y: 4, status: PlayerStatus.PRONE },
+            { playerIndex: 1, x: 9, y: 3 },
+            { playerIndex: 2, x: 11, y: 3 },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "jump", playerId: "team1:0", x: 10, y: 3 },
+        ],
+        seedSearch: { from: 1, limit: 50 },
+        outcomes: [
+          {
+            id: "penalty-ignored",
+            name: "Net Jump modifier is 0",
+            matches: (r) =>
+              skillTriggered(r, SkillType.POGO) &&
+              skillCheckDiff(r, "Jump") === 0,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Jump") === 0,
+                "Pogo must ignore the -2 marking penalty"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.VERY_LONG_LEGS,
+    configs: [
+      {
+        id: "very-long-legs-jump-bonus",
+        name: "Very Long Legs adds +1 to the Jump",
+        description: "+1 to the Agility Test on an unmarked Jump over a Prone player",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.VERY_LONG_LEGS],
+            },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }, // jumped over
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "jump", playerId: "team1:0", x: 12, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 100 },
+        outcomes: [
+          {
+            id: "plus-one-applied",
+            name: "Net Jump modifier is +1",
+            matches: (r) =>
+              skillTriggered(r, SkillType.VERY_LONG_LEGS) &&
+              skillCheckDiff(r, "Jump") === 1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Jump") === 1,
+                "Very Long Legs must add +1 to the Jump Agility Test"
+              ),
+          },
+          {
+            id: "lands-standing",
+            name: "A passed Jump lands the player Standing beyond",
+            matches: (r) =>
+              playerAt(r, "team1:0", { x: 12, y: 5 }) &&
+              playerStanding(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                playerAt(r, "team1:0", { x: 12, y: 5 }),
+                "the jumper must land in the target square"
+              );
+              assert(
+                playerStanding(r, "team1:0"),
+                "a successful Jump leaves the player Standing"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "very-long-legs-intercept-bonus",
+        name: "Very Long Legs adds +2 to an interception",
+        description:
+          "A Very Long Legs defender on the pass line intercepts at +2 (accurate -3 → -1)",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 }, // passer with the ball
+            { playerIndex: 1, x: 10, y: 5 }, // catcher
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 7,
+              y: 5,
+              skills: [SkillType.VERY_LONG_LEGS],
+            }, // interceptor on the ruler
+          ],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+        ],
+        decisionPolicy: { acceptInterceptions: false },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "plus-two-offered",
+            name: "An accurate pass offers the interception at -1 (-3 + 2)",
+            matches: (r) =>
+              skillTriggered(r, SkillType.VERY_LONG_LEGS) &&
+              r.decisions.some(
+                (d) =>
+                  d.type === "interception" &&
+                  d.candidates.some((c) => c.modifier === -1)
+              ),
+            verify: (r) => {
+              const d = r.decisions.find((x) => x.type === "interception");
+              assert(!!d && d.type === "interception", "an interception is raised");
+              if (!d || d.type !== "interception") return;
+              assert(
+                d.candidates.some((c) => c.modifier === -1),
+                "Very Long Legs must turn the -3 accurate interception into -1"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "very-long-legs-ignores-cloud-burster",
+        name: "Very Long Legs ignores Cloud Burster",
+        description:
+          "A Cloud Burster pass may still be Intercepted by a Very Long Legs defender",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.CLOUD_BURSTER] },
+            { playerIndex: 1, x: 10, y: 5 }, // catcher
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 7,
+              y: 5,
+              skills: [SkillType.VERY_LONG_LEGS],
+            }, // on the ruler
+          ],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+        ],
+        decisionPolicy: { acceptInterceptions: false },
+        seedSearch: { from: 1, limit: 200 },
+        outcomes: [
+          {
+            id: "intercept-still-offered",
+            name: "The Very Long Legs defender is still offered the interception",
+            matches: (r) =>
+              skillTriggered(r, SkillType.CLOUD_BURSTER) &&
+              skillTriggered(r, SkillType.VERY_LONG_LEGS) &&
+              r.decisions.some((d) => d.type === "interception"),
+            verify: (r) => {
+              assert(
+                r.decisions.some((d) => d.type === "interception"),
+                "Very Long Legs must be offered the interception despite Cloud Burster"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.SAFE_PAIR_OF_HANDS,
+    configs: [
+      blockConfig({
+        id: "safe-pair-of-hands-places-ball",
+        name: "Safe Pair of Hands places the ball, not bounces it",
+        description:
+          "A knocked-down carrier with Safe Pair of Hands sets the ball in an adjacent empty square",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 11,
+              y: 5,
+              skills: [SkillType.SAFE_PAIR_OF_HANDS],
+            },
+          ],
+          ballPosition: { x: 11, y: 5 }, // the defender carries the ball
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "pow",
+        seedSearch: { from: 1, limit: 400 },
+        outcomes: [
+          {
+            id: "ball-placed-adjacent",
+            name: "The ball ends adjacent to the downed carrier",
+            matches: (r) => {
+              if (!skillTriggered(r, SkillType.SAFE_PAIR_OF_HANDS)) return false;
+              const ball = r.snapshot.ballPosition;
+              const dp = playerOf(r, "team2:0").gridPosition;
+              if (!ball || !dp) return false;
+              const dx = Math.abs(ball.x - dp.x);
+              const dy = Math.abs(ball.y - dp.y);
+              return dx <= 1 && dy <= 1 && dx + dy > 0;
+            },
+            verify: (r) => {
+              const ball = r.snapshot.ballPosition!;
+              const dp = playerOf(r, "team2:0").gridPosition!;
+              assert(
+                !(ball.x === dp.x && ball.y === dp.y),
+                "the ball must not stay on the downed carrier's square"
+              );
+              const dx = Math.abs(ball.x - dp.x);
+              const dy = Math.abs(ball.y - dp.y);
+              assert(
+                dx <= 1 && dy <= 1 && dx + dy > 0,
+                "the ball must be placed in an adjacent square"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.HIT_AND_RUN,
+    configs: [
+      blockConfig({
+        id: "hit-and-run-free-square",
+        name: "Hit and Run takes a free square after a Block",
+        description:
+          "A still-Standing blocker with Hit and Run moves one free square after knocking the target down",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.HIT_AND_RUN] },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "pow",
+        seedSearch: { from: 1, limit: 400 },
+        outcomes: [
+          {
+            id: "moved-free",
+            name: "The blocker ends off its block square, still Standing",
+            matches: (r) =>
+              skillTriggered(r, SkillType.HIT_AND_RUN) &&
+              !playerAt(r, "team1:0", { x: 10, y: 5 }) &&
+              playerStanding(r, "team1:0"),
+            verify: (r) => {
+              const pos = playerOf(r, "team1:0").gridPosition!;
+              assert(
+                !(pos.x === 10 && pos.y === 5),
+                "the Hit and Run blocker must leave its block square"
+              );
+              assert(
+                playerStanding(r, "team1:0"),
+                "the Hit and Run move keeps the player Standing"
+              );
+              // The free square must leave them adjacent to their old square.
+              assert(
+                Math.abs(pos.x - 10) <= 1 && Math.abs(pos.y - 5) <= 1,
+                "Hit and Run is a single free square"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
   {
     skill: SkillType.DODGE,
     configs: [
@@ -386,3 +776,86 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
 ];
+
+/**
+ * Core Jump-over-a-Prone-player scenario (2025 p.56). This is a CORE Move
+ * mechanic, not a skill, so — like INTERCEPTION_SCENARIOS — it lives outside
+ * AGILITY_RULE_SCENARIOS (it must not affect the skill-coverage gate) and is
+ * driven by the dedicated headless jump suite.
+ *
+ * Layout — an AG 4+ jumper at (10,5) Jumps over a Prone opponent at (11,5)
+ * into the empty square (12,5). No opponents Mark either square, so the Agility
+ * Test is unmodified: a 4+ succeeds (Stand in the target), a 2–3 Falls Over in
+ * the target (Turnover), and a natural 1 Falls Over where it stands (10,5).
+ */
+export const JUMP_OVER_PRONE_SCENARIO: RuleConfig = {
+  id: "jump-over-prone",
+  name: "Jump over a Prone player",
+  description:
+    "The basic Jump: cross an adjacent Prone player into the empty square beyond",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 10, y: 5, stats: { AG: 4 } }, // jumper (no skills)
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.PRONE }, // jumped over
+    ],
+    ballPosition: { x: 1, y: 1 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "move" },
+    { type: "jump", playerId: "team1:0", x: 12, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "cleared",
+      name: "A passed Jump lands the player Standing beyond the Prone player",
+      matches: (r) =>
+        playerAt(r, "team1:0", { x: 12, y: 5 }) &&
+        playerStanding(r, "team1:0"),
+      verify: (r) => {
+        assert(
+          playerAt(r, "team1:0", { x: 12, y: 5 }),
+          "the jumper lands in the target square"
+        );
+        assert(
+          playerStanding(r, "team1:0"),
+          "a passed Jump leaves the player Standing"
+        );
+        assert(!turnoverHappened(r), "a successful Jump is not a Turnover");
+      },
+    },
+    {
+      id: "falls-in-target",
+      name: "A failed Jump Falls Over in the target square (Turnover)",
+      matches: (r) =>
+        playerDown(r, "team1:0") && playerAt(r, "team1:0", { x: 12, y: 5 }),
+      verify: (r) => {
+        assert(
+          playerAt(r, "team1:0", { x: 12, y: 5 }),
+          "a failed Jump still moves the player into the target square"
+        );
+        assert(playerDown(r, "team1:0"), "the player Falls Over");
+        assert(turnoverHappened(r), "a failed Jump is a Turnover");
+      },
+    },
+    {
+      id: "natural-one-falls-in-place",
+      name: "A natural 1 Falls Over in the square the player started in",
+      matches: (r) =>
+        playerDown(r, "team1:0") && playerAt(r, "team1:0", { x: 10, y: 5 }),
+      verify: (r) => {
+        assert(
+          playerAt(r, "team1:0", { x: 10, y: 5 }),
+          "a natural 1 leaves the player in their original square, not the target"
+        );
+        assert(playerDown(r, "team1:0"), "the player Falls Over");
+        assert(turnoverHappened(r), "a natural-1 Jump is a Turnover");
+      },
+    },
+  ],
+};
+
+/** All core Jump scenarios, for the dedicated headless jump suite. */
+export const JUMP_SCENARIOS: RuleConfig[] = [JUMP_OVER_PRONE_SCENARIO];

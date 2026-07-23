@@ -244,6 +244,12 @@ export class NetworkedGameService implements IGameService {
   ): Promise<void> {
     await this.dispatch({ type: "move", playerId, path });
   }
+  async jumpPlayer(
+    playerId: string,
+    target: { x: number; y: number }
+  ): Promise<void> {
+    await this.dispatch({ type: "jump", playerId, x: target.x, y: target.y });
+  }
   async standUp(playerId: string): Promise<void> {
     await this.dispatch({ type: "stand-up", playerId });
   }

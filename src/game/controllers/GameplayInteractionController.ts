@@ -5,9 +5,12 @@ import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
 import { moveAllowance } from "../skills/movement";
 import { pixelToGrid } from "../elements/GridUtils";
+import { jumpTargets, JumpTarget } from "../rules/jump";
+import { GameConfig } from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { PassController } from "./PassController";
@@ -65,6 +68,12 @@ export class GameplayInteractionController {
   private currentStepId: string | null = null;
   private actionSteps: { id: string; label: string }[] = [];
   private hasMovedInAction: boolean = false;
+  /**
+   * The Jump step is selected: a click Jumps two squares in the compass
+   * direction toward the pointer. A separate flag (not currentStepId) so the
+   * Move step is never marked "done" — a Jump does not consume the Move.
+   */
+  private jumpTargeting: boolean = false;
   /** The team-mate chosen for a Throw / Kick Team-mate Action, awaiting an aim. */
   private ttmTeammateId: string | null = null;
   private passController: PassController;
@@ -234,6 +243,28 @@ export class GameplayInteractionController {
       return;
     }
 
+    // Jump step: enter Jump targeting — a snapped two-square arrow follows the
+    // pointer and a click leaps in that compass direction. Kept OFF of
+    // currentStepId (the Move step stays current, never marked done) since a
+    // Jump does not consume the Move.
+    if (data.stepId === "jump" && this.selectedPlayerId) {
+      this.jumpTargeting = true;
+      const player = this.gameService.getPlayerById(this.selectedPlayerId);
+      const targets = player ? this.computeJumpTargets(player) : [];
+      if (player?.gridPosition) {
+        this.pitch.drawJumpTargets(player.gridPosition, targets);
+      }
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        targets.length > 0
+          ? "Jump: click a highlighted landing square to leap over the player."
+          : "No adjacent player to Jump over."
+      );
+      return;
+    }
+
+    // Any other step ends Jump targeting.
+    this.jumpTargeting = false;
     this.currentStepId = data.stepId;
     console.log(`Switched action step to: ${data.stepId}`);
 
@@ -324,6 +355,10 @@ export class GameplayInteractionController {
             { id: "foul", label: "Foul" },
           ];
           break;
+        case "block":
+          // A standalone Block: pick an adjacent Standing opponent to block.
+          this.actionSteps = [{ id: "block", label: "Block" }];
+          break;
         case "throwTeamMate":
           this.ttmTeammateId = null;
           // Move first (optional), then throw: in the throw step the first
@@ -341,8 +376,12 @@ export class GameplayInteractionController {
           ];
           break;
         default:
-          // Single step actions (Move)
-          this.actionSteps = [{ id: "move", label: "Move" }];
+          // Move: walk by clicking squares, or Jump over an adjacent downed
+          // player via the Jump step (you can jump at any point in the move).
+          this.actionSteps = [
+            { id: "move", label: "Move" },
+            { id: "jump", label: "Jump" },
+          ];
           break;
       }
 
@@ -470,6 +509,14 @@ export class GameplayInteractionController {
 
     const phase = this.gameService.getPhase();
     const playerAtSquare = this.getPlayerAt(x, y);
+
+    // JUMP TARGETING: while the Jump step is selected, any click Jumps two
+    // squares in the compass direction toward the pointer — regardless of what
+    // is under the cursor.
+    if (this.jumpTargeting && this.selectedPlayerId) {
+      await this.handleJumpClick(x, y);
+      return;
+    }
 
     // KICKOFF PHASE
     if (phase === GamePhase.KICKOFF) {
@@ -979,6 +1026,21 @@ export class GameplayInteractionController {
             }
           });
         }
+      } else if (this.jumpTargeting) {
+        // JUMP MODE: show every legal landing at once (lines + end nodes +
+        // amber jump-over nodes); no free walking path.
+        this.pitch.clearPassVisualization();
+        const selectedPlayer = this.gameService.getPlayerById(
+          this.selectedPlayerId
+        );
+        if (selectedPlayer?.gridPosition) {
+          this.pitch.drawJumpTargets(
+            selectedPlayer.gridPosition,
+            this.computeJumpTargets(selectedPlayer)
+          );
+        } else {
+          this.pitch.clearPath();
+        }
       } else {
         // MOVE MODE: Only visualize if NOT hovering a player
         this.pitch.clearPassVisualization();
@@ -1225,6 +1287,7 @@ export class GameplayInteractionController {
     // Reset action mode state
     this.currentActionMode = null;
     this.currentStepId = null;
+    this.jumpTargeting = false;
     this.actionSteps = [];
     this.hasMovedInAction = false;
     this.pitch.clearPassVisualization();
@@ -1657,6 +1720,74 @@ export class GameplayInteractionController {
       players.find((p) => p.gridPosition?.x === x && p.gridPosition?.y === y) ||
       null
     );
+  }
+
+  /** Every legal Jump (over → landing) for the selected player right now. */
+  private computeJumpTargets(player: Player): JumpTarget[] {
+    const from = player.gridPosition;
+    if (!from || player.status !== PlayerStatus.ACTIVE) return [];
+    const others = [
+      ...this.getSceneTeam1().players,
+      ...this.getSceneTeam2().players,
+    ].filter((p) => p.id !== player.id && p.gridPosition);
+    const canJumpAnything =
+      hasSkill(player.skills, SkillType.LEAP) ||
+      hasSkill(player.skills, SkillType.POGO);
+    const inBounds = (x: number, y: number) =>
+      x >= 0 &&
+      y >= 0 &&
+      x < GameConfig.PITCH_WIDTH &&
+      y < GameConfig.PITCH_HEIGHT;
+    return jumpTargets(from, others, canJumpAnything, inBounds);
+  }
+
+  /** True when `target` is a legal Jump landing square (a push-back square). */
+  private isJumpTarget(
+    player: Player,
+    target: { x: number; y: number }
+  ): boolean {
+    return this.computeJumpTargets(player).some(
+      (t) => t.dest.x === target.x && t.dest.y === target.y
+    );
+  }
+
+  /**
+   * Resolve a Jump-targeting click: leap over the adjacent player into the
+   * clicked push-back square. A Jump does not end the Move — if the player is
+   * still Standing with an activation left they stay selected and can move or
+   * Jump again (the Move step is never marked complete).
+   */
+  private async handleJumpClick(x: number, y: number): Promise<void> {
+    const player = this.gameService.getPlayerById(this.selectedPlayerId!);
+    if (!player?.gridPosition) return;
+    if (!this.isJumpTarget(player, { x, y })) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Click one of the highlighted landing squares to Jump."
+      );
+      return;
+    }
+    this.jumpTargeting = false;
+    this.pitch.clearPath();
+    try {
+      await this.gameService.jumpPlayer(player.id, { x, y });
+    } catch (err) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Cannot Jump: ${err}`
+      );
+    }
+    const after = this.gameService.getPlayerById(player.id);
+    if (
+      after?.status === PlayerStatus.ACTIVE &&
+      this.gameService.canActivate(player.id)
+    ) {
+      // Keep the player selected and in Move mode so they can keep moving or
+      // Jump again; refresh the movement overlay for the new square.
+      this.refreshPlayerVisualization(player.id);
+    } else {
+      this.deselectPlayer();
+    }
   }
 
   // Helpers to access Scene data (temporary until full decouple)

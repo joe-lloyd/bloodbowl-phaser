@@ -541,7 +541,8 @@ export class GameService implements IGameService {
         return;
       }
     }
-    this.finishActivation(attackerId);
+    // A plain Block ends here — Hit and Run may take a free square first.
+    this.blockManager.endBlockActivation(attackerId);
   }
 
   canActivate(playerId: string): boolean {
@@ -1081,6 +1082,14 @@ export class GameService implements IGameService {
     return this.movementManager.standUp(playerId);
   }
 
+  async jumpPlayer(
+    playerId: string,
+    target: { x: number; y: number }
+  ): Promise<void> {
+    const context = this.getFlowContext();
+    return this.movementManager.jumpPlayer(playerId, target, context);
+  }
+
   declareAction(
     playerId: string,
     action: import("@/types/events").ActionType
@@ -1095,6 +1104,11 @@ export class GameService implements IGameService {
     // Distracted expires when the player is next activated
     if (activating && hasCondition(activating, PlayerCondition.DISTRACTED)) {
       removeCondition(activating, PlayerCondition.DISTRACTED);
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
+    }
+    // Eye Gouged (cannot assist) also expires once the player is activated
+    if (activating && hasCondition(activating, PlayerCondition.EYE_GOUGED)) {
+      removeCondition(activating, PlayerCondition.EYE_GOUGED);
       this.eventBus.emit(GameEventNames.PlayerStatusChanged, activating);
     }
     // A Rooted player may not leave their square, so no Move-type actions

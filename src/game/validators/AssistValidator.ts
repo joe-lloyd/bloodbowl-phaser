@@ -1,4 +1,9 @@
-import { Player, hasTackleZone as tackleZone } from "../../types/Player";
+import {
+  Player,
+  hasTackleZone as tackleZone,
+  hasCondition,
+  PlayerCondition,
+} from "../../types/Player";
 import { CountAssistContext } from "../skills/SkillRule";
 import { foldCountAssists } from "../skills";
 
@@ -35,6 +40,10 @@ export abstract class AssistValidator {
 
       // 2. Must not be Prone, Stunned, etc. (Must have tackle zone)
       if (!this.hasTackleZone(teammate)) return;
+
+      // Eye Gouge: a player Pushed Back by an Eye Gouge blocker cannot assist
+      // until after they are next activated.
+      if (hasCondition(teammate, PlayerCondition.EYE_GOUGED)) return;
 
       // 3. Enemies marking this assister (the action opponent never counts).
       const markers = enemies.filter(

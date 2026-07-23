@@ -29,6 +29,12 @@ export enum PlayerCondition {
   DISTRACTED = "Distracted",
   ROOTED = "Rooted",
   CHOMPED = "Chomped",
+  /**
+   * Eye Gouge: a player Pushed Back by an Eye Gouge player cannot provide
+   * Offensive or Defensive Assists until after they are next activated (the
+   * engine clears it when the player activates).
+   */
+  EYE_GOUGED = "Eye Gouged",
 }
 
 export interface PlayerConditionInstance {

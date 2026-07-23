@@ -190,7 +190,9 @@ export class PassController {
     markingOpponents: number,
     rerollDeps?: import("../skills").RerollDeps,
     /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
-    extraModifier: number = 0
+    extraModifier: number = 0,
+    /** Hail Mary Pass: an Accurate result is treated as Inaccurate. */
+    forceInaccurate: boolean = false
   ): Promise<PassResult> {
     const passRange = this.measureRange(from, to);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
@@ -207,6 +209,9 @@ export class PassController {
     const accuracyTest = rerollDeps
       ? await withRerollOffer(rerollDeps, player, "pass", rollAccuracy)
       : rollAccuracy();
+    // Hail Mary Pass: an Accurate result becomes Inaccurate (it still flies,
+    // but scatters from the target square).
+    const effectiveAccurate = accuracyTest.accurate && !forceInaccurate;
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 
@@ -220,7 +225,7 @@ export class PassController {
         position: from,
         bouncePosition: finalPosition,
       });
-    } else if (!accuracyTest.accurate) {
+    } else if (!effectiveAccurate) {
       const path = this.movementController!.scatter(to);
       scatterPath = [to, ...path];
       finalPosition = path[path.length - 1];
@@ -246,7 +251,7 @@ export class PassController {
 
     return {
       success: !accuracyTest.fumbled,
-      accurate: accuracyTest.accurate,
+      accurate: effectiveAccurate,
       fumbled: accuracyTest.fumbled,
       roll: accuracyTest.roll,
       target,

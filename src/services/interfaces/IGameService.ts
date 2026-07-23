@@ -77,6 +77,7 @@ export interface IGameService {
     action: import("@/types/events").ActionType
   ): boolean;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
+  jumpPlayer(playerId: string, target: { x: number; y: number }): Promise<void>;
   standUp(playerId: string): Promise<void>;
 
   previewBlock(attackerId: string, defenderId: string): void;

@@ -2,6 +2,7 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus } from "../../types/Player";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { InjuryResult } from "../controllers/InjuryController";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
@@ -77,21 +78,63 @@ export class FoulOperation extends GameOperation {
 
     await context.delay(1000);
 
+    // Devious foul skills are the FOULER's own — read inline (like Steady
+    // Footing / Frenzy), not via a participant fold.
+    const foulerHasNoAssists =
+      analysis.offensiveAssists.length === 0 &&
+      analysis.defensiveAssists.length === 0;
+    // Assists are already folded into the effective AV target; the roll
+    // breaks the armour when its 2D6 total meets it.
+    const avTarget = target.stats.AV - analysis.modifier;
+    const announce = (skill: SkillType, effect: string) =>
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: fouler.id,
+        skill,
+        effect,
+      });
+
     // 2. Armour Roll
-    const armorResultRaw = diceController.rollArmorCheck(
-      target.stats.AV - analysis.modifier,
+    let armour = diceController.rollArmorCheck(
+      avTarget,
       target.playerName,
       fouler.teamId
     );
-    const armorResult = foulController.resolveArmourRoll(
-      target,
-      armorResultRaw.rolls,
-      analysis.modifier
-    );
+    let rolls = armour.rolls;
+    let broken = rolls[0] + rolls[1] >= avTarget;
 
-    let spotted = armorResult.isNaturalDouble;
+    // Lone Fouler: with no assists, re-roll a failed Armour Roll.
+    if (
+      !broken &&
+      foulerHasNoAssists &&
+      hasSkill(fouler.skills, SkillType.LONE_FOULER)
+    ) {
+      announce(
+        SkillType.LONE_FOULER,
+        "Lone Fouler: re-roll the failed Armour Roll"
+      );
+      armour = diceController.rollArmorCheck(
+        avTarget,
+        target.playerName,
+        fouler.teamId
+      );
+      rolls = armour.rolls;
+      broken = rolls[0] + rolls[1] >= avTarget;
+    }
 
-    if (armorResult.broken) {
+    // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour
+    // when the +1 breaks it, otherwise hold it for the Injury Roll.
+    const dirtyPlayer = hasSkill(fouler.skills, SkillType.DIRTY_PLAYER);
+    let dirtyUsedOnArmour = false;
+    if (dirtyPlayer && !broken && rolls[0] + rolls[1] + 1 >= avTarget) {
+      broken = true;
+      dirtyUsedOnArmour = true;
+      announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Armour Roll");
+    }
+
+    const isNaturalDouble = rolls[0] === rolls[1];
+    let spotted = isNaturalDouble;
+
+    if (broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       await context.delay(800);
 
@@ -104,7 +147,12 @@ export class FoulOperation extends GameOperation {
         spotted = true;
       }
 
-      const injuryTotal = injuryResultRaw.total;
+      let injuryTotal = injuryResultRaw.total;
+      if (dirtyPlayer && !dirtyUsedOnArmour) {
+        injuryTotal += 1;
+        announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Injury Roll");
+      }
+
       const injuryController = gameService.getInjuryController();
       const result = injuryController.getInjuryResult(target, injuryTotal);
 
@@ -128,6 +176,21 @@ export class FoulOperation extends GameOperation {
     }
 
     await context.delay(1000);
+
+    // Sneaky Git: a natural double on the Armour Roll does not Send-off the
+    // fouler unless the target's armour was broken.
+    if (
+      spotted &&
+      !broken &&
+      isNaturalDouble &&
+      hasSkill(fouler.skills, SkillType.SNEAKY_GIT)
+    ) {
+      spotted = false;
+      announce(
+        SkillType.SNEAKY_GIT,
+        "Sneaky Git: not Sent-off on an unbroken double"
+      );
+    }
 
     // 4. Handle spotted / send-off
     if (spotted) {

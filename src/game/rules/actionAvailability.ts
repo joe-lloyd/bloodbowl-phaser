@@ -15,6 +15,8 @@
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
+import { jumpTargets } from "./jump";
+import { GameConfig } from "../../config/GameConfig";
 
 export interface TurnFlags {
   hasBlitzed: boolean;
@@ -39,6 +41,10 @@ export interface ActionAvailabilityInput {
 
 export interface ActionAvailability {
   move: boolean;
+  /** A Block without moving — an adjacent Standing opponent, not yet moved. */
+  block: boolean;
+  /** A Jump over an adjacent downed player (or any square with Leap/Pogo). */
+  jump: boolean;
   blitz: boolean;
   pass: boolean;
   handoff: boolean;
@@ -70,6 +76,8 @@ export function computeActionAvailability(
   const here = player.gridPosition;
   const none: ActionAvailability = {
     move: false,
+    block: false,
+    jump: false,
     blitz: false,
     pass: false,
     handoff: false,
@@ -128,6 +136,30 @@ export function computeActionAvailability(
   const adjacentStandingEnemy = standingEnemies.some(
     (e) => chebyshev(here, e.gridPosition!) === 1
   );
+
+  // A standalone Block: adjacent to a Standing opponent and not yet moved
+  // (once moved, a Block needs a Blitz). The auto-block on clicking an
+  // adjacent enemy still works; this just surfaces it as a menu button.
+  const block = adjacentStandingEnemy && !input.hasMovedInAction;
+
+  // Jump: over an adjacent player (Prone/Stunned by default, any with
+  // Leap/Pogo) into one of their unoccupied push-back squares.
+  const canJumpAnything =
+    hasSkill(player.skills, SkillType.LEAP) ||
+    hasSkill(player.skills, SkillType.POGO);
+  const inBounds = (x: number, y: number) =>
+    x >= 0 &&
+    y >= 0 &&
+    x < GameConfig.PITCH_WIDTH &&
+    y < GameConfig.PITCH_HEIGHT;
+  const jump =
+    isStanding(player) &&
+    jumpTargets(
+      here,
+      [...opponents, ...teammates].filter(onPitch),
+      canJumpAnything,
+      inBounds
+    ).length > 0;
   const special = (type: SkillType) =>
     hasSkill(player.skills, type) && adjacentStandingEnemy;
 
@@ -144,6 +176,8 @@ export function computeActionAvailability(
 
   return {
     move: true,
+    block,
+    jump,
     blitz,
     pass,
     handoff,

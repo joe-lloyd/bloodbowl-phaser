@@ -458,6 +458,134 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
     ],
   },
   {
+    skill: SkillType.CLOUD_BURSTER,
+    configs: [
+      {
+        id: "cloud-burster-no-intercept",
+        name: "Cloud Burster denies interception",
+        description:
+          "A defender standing on the pass line is never offered an interception",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.CLOUD_BURSTER] },
+            { playerIndex: 1, x: 10, y: 5 }, // catcher
+          ],
+          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // on the ruler
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 200 },
+        outcomes: [
+          {
+            id: "interception-suppressed",
+            name: "No interception is offered under the ruler",
+            matches: (r) =>
+              skillTriggered(r, SkillType.CLOUD_BURSTER) &&
+              !r.decisions.some((d) => d.type === "interception"),
+            verify: (r) => {
+              assert(
+                !r.decisions.some((d) => d.type === "interception"),
+                "Cloud Burster must suppress the interception offer"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.HAIL_MARY_PASS,
+    configs: [
+      {
+        id: "hail-mary-no-intercept",
+        name: "Hail Mary Pass cannot be intercepted",
+        description:
+          "A defender on the pass line is never offered an interception",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.HAIL_MARY_PASS] },
+            { playerIndex: 1, x: 10, y: 5 }, // catcher
+          ],
+          team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // on the ruler
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 200 },
+        outcomes: [
+          {
+            id: "no-interception",
+            name: "No interception offered under the ruler",
+            matches: (r) =>
+              skillTriggered(r, SkillType.HAIL_MARY_PASS) &&
+              !r.decisions.some((d) => d.type === "interception"),
+            verify: (r) =>
+              assert(
+                !r.decisions.some((d) => d.type === "interception"),
+                "Hail Mary Pass must suppress interception"
+              ),
+          },
+        ],
+      },
+      {
+        id: "hail-mary-downgrades-accurate",
+        name: "An accurate Hail Mary is treated as inaccurate",
+        description:
+          "A successful Passing Ability Test still scatters from the target",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.HAIL_MARY_PASS] },
+            { playerIndex: 1, x: 8, y: 5 }, // catcher
+          ],
+          team2Placements: [{ playerIndex: 0, x: 20, y: 12 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 8, y: 5 },
+        ],
+        decisionPolicy: { acceptRerolls: false },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "accurate-scatters",
+            name: "A passed PA test scatters the ball off-target",
+            matches: (r) =>
+              skillTriggered(r, SkillType.HAIL_MARY_PASS) &&
+              r.events.some(
+                (e) =>
+                  e.name === GameEventNames.DiceRoll &&
+                  !!(e.data as { rollType?: string }).rollType?.startsWith(
+                    "Pass"
+                  ) &&
+                  (e.data as { resultState?: string }).resultState ===
+                    "success"
+              ) &&
+              r.events.some(
+                (e) =>
+                  e.name === GameEventNames.PassAttempted &&
+                  (e.data as { accurate?: boolean }).accurate === false
+              ),
+            verify: (r) =>
+              assert(
+                r.events.some(
+                  (e) =>
+                    e.name === GameEventNames.PassAttempted &&
+                    (e.data as { accurate?: boolean }).accurate === false
+                ),
+                "an accurate Hail Mary must be reported inaccurate (scatter)"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
     skill: SkillType.SURE_HANDS,
     configs: [
       skillRerollConfig({

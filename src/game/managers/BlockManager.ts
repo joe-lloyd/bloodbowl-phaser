@@ -151,7 +151,7 @@ class HitAndRunOperation extends GameOperation {
     super();
   }
 
-  async execute(context: FlowContext): Promise<void> {
+  async execute(_context: FlowContext): Promise<void> {
     await this.manager.resolveHitAndRun(this.attackerId);
   }
 }
@@ -608,8 +608,36 @@ export class BlockManager {
     }
 
     // No square was vacated, so the follow-up prompt never fires — end the
-    // blocker's activation directly
-    flowManager?.context.gameService.finishActivation(attacker.id);
+    // blocker's activation directly (Hit and Run may take a free square first).
+    this.endBlockActivation(attacker.id);
+  }
+
+  /**
+   * End the blocker's activation after a Block resolves — but if they are a
+   * still-Standing Hit and Run player with a legal free square, queue the
+   * Hit and Run move (which ends the activation itself). Currently wired into
+   * the knockdown-in-place completion; the push/follow-up and Stab paths are
+   * a further increment.
+   */
+  public endBlockActivation(attackerId: string): void {
+    const flowManager = this.callbacks.getFlowManager?.();
+    if (!flowManager) {
+      this.callbacks
+        .getFlowManager?.()
+        ?.context.gameService.finishActivation(attackerId);
+      return;
+    }
+    const attacker = this.getPlayerById(attackerId);
+    if (
+      attacker &&
+      attacker.status === PlayerStatus.ACTIVE &&
+      hasSkill(attacker.skills, SkillType.HIT_AND_RUN) &&
+      this.hitAndRunSquares(attacker).length > 0
+    ) {
+      flowManager.add(new HitAndRunOperation(this, attackerId));
+      return;
+    }
+    flowManager.context.gameService.finishActivation(attackerId);
   }
 
   /** Pending chain-push state between push-direction decisions */
@@ -1104,12 +1132,13 @@ export class BlockManager {
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
-      // A downed carrier drops the ball (prone players can't hold it)
+      // A downed carrier drops the ball (prone players can't hold it) — Safe
+      // Pair of Hands places it in an adjacent empty square instead of bouncing.
       [defender, attacker].forEach((p) => {
         const down =
           p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
         if (down && this.isOnBall(p)) {
-          flowManager.add(new BounceOperation(p.gridPosition!), true);
+          this.dropCarrierBall(p, flowManager);
         }
       });
 
@@ -1149,6 +1178,67 @@ export class BlockManager {
       this.state.ballPosition.x === player.gridPosition.x &&
       this.state.ballPosition.y === player.gridPosition.y
     );
+  }
+
+  /**
+   * A knocked-down carrier drops the ball. Safe Pair of Hands (2025 p.126)
+   * places it in an adjacent unoccupied square instead of Bouncing; otherwise
+   * the ball Bounces from the carrier's square as normal.
+   */
+  private dropCarrierBall(
+    player: Player,
+    flowManager: import("../core/GameFlowManager").GameFlowManager
+  ): void {
+    const pos = player.gridPosition!;
+    if (hasSkill(player.skills, SkillType.SAFE_PAIR_OF_HANDS)) {
+      const spot = this.adjacentEmptySquare(pos);
+      if (spot) {
+        flowManager.context.gameService.setBallPosition(spot.x, spot.y);
+        this.eventBus.emit(GameEventNames.BallPlaced, spot);
+        this.eventBus.emit(GameEventNames.SkillTriggered, {
+          playerId: player.id,
+          skill: SkillType.SAFE_PAIR_OF_HANDS,
+          effect: "Safe Pair of Hands: places the ball in an adjacent square",
+        });
+        return;
+      }
+    }
+    flowManager.add(new BounceOperation(pos), true);
+  }
+
+  /** First unoccupied on-pitch square adjacent to `pos` (fixed clockwise order). */
+  private adjacentEmptySquare(pos: {
+    x: number;
+    y: number;
+  }): { x: number; y: number } | null {
+    const occupied = new Set(
+      this.allPlayers()
+        .filter((p) => p.gridPosition)
+        .map((p) => `${p.gridPosition!.x},${p.gridPosition!.y}`)
+    );
+    const dirs = [
+      [0, -1],
+      [1, -1],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [-1, 1],
+      [-1, 0],
+      [-1, -1],
+    ];
+    for (const [dx, dy] of dirs) {
+      const s = { x: pos.x + dx, y: pos.y + dy };
+      if (
+        s.x < 0 ||
+        s.y < 0 ||
+        s.x >= GameConfig.PITCH_WIDTH ||
+        s.y >= GameConfig.PITCH_HEIGHT
+      ) {
+        continue;
+      }
+      if (!occupied.has(`${s.x},${s.y}`)) return s;
+    }
+    return null;
   }
 
   /**

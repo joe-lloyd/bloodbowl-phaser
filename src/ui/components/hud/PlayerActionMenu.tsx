@@ -21,6 +21,8 @@ interface PlayerActionMenuProps {
 
 const EMPTY_AVAILABILITY: ActionAvailability = {
   move: false,
+  block: false,
+  jump: false,
   blitz: false,
   pass: false,
   handoff: false,
@@ -237,8 +239,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const a = availability;
   // Nothing situational to offer beyond ending the activation.
   const anyContextual =
-    a.blitz || a.pass || a.handoff || a.foul || a.standUp || a.secureBall ||
-    a.stab || a.breatheFire || a.vomit || a.gaze || a.chomp ||
+    a.block || a.blitz || a.pass || a.handoff || a.foul || a.standUp ||
+    a.secureBall || a.stab || a.breatheFire || a.vomit || a.gaze || a.chomp ||
     a.throwTeammate || a.kickTeammate;
 
   return (
@@ -279,6 +281,24 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       ) : (
         <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col overflow-y-auto max-h-[50vh] scrollbar-thin scrollbar-thumb-bb-gold">
           <div className="space-y-1">
+            {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
+                a prone player stands up as its first step. Clicking an empty
+                square still auto-moves. */}
+            {a.move && (
+              <ActionButton
+                action="move"
+                label="MOVE"
+                sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
+                disabled={false}
+                color="green"
+              />
+            )}
+            {/* Block without moving; auto-block on clicking an adjacent enemy
+                still works. */}
+            {a.block && (
+              <ActionButton action="block" label="BLOCK" disabled={false} color="red" />
+            )}
+
             {/* Only actions with a legal target this activation are shown. */}
             {a.blitz && (
               <ActionButton action="blitz" label="BLITZ" sub="1/Turn" disabled={false} color="red" />

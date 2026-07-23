@@ -30,7 +30,10 @@ import { moveAllowance, standUpCost } from "../skills/movement";
 import {
   RushDeclaredContext,
   StandUpRollContext,
+  JumpDeclaredContext,
 } from "../skills/SkillRule";
+import { SkillType, hasSkill } from "../../types/Skills";
+import { jumpTargets } from "../rules/jump";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -553,6 +556,224 @@ export class MovementManager {
     }
 
     return Promise.resolve();
+  }
+
+  /**
+   * Jump over a single adjacent square into an unoccupied square beyond, as
+   * part of a Move Action (2025 rulebook p.56). By default the jumped-over
+   * square must hold a Prone or Stunned player; Leap/Pogo let a player Jump
+   * over any square. The Jump costs 2 squares of Movement (Rushing as needed,
+   * each Rush rolled before the Jump), and an Agility Test with a negative
+   * modifier equal to the greater of the opponents Marking the from square and
+   * the to square. Pass → Stand in the target and continue; fail → Fall Over in
+   * the target (a natural 1 → Fall Over where they stand); either fall ends the
+   * activation and is a Turnover.
+   */
+  public async jumpPlayer(
+    playerId: string,
+    target: { x: number; y: number },
+    context?: import("../core/GameFlowManager").FlowContext
+  ): Promise<void> {
+    const player = this.getPlayerById(playerId);
+    if (!player?.gridPosition) return Promise.reject("Player not found!");
+
+    if (
+      hasCondition(player, PlayerCondition.ROOTED) ||
+      hasCondition(player, PlayerCondition.CHOMPED)
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${player.playerName} cannot leave their square!`
+      );
+      return Promise.reject("Cannot move");
+    }
+    if (player.status !== PlayerStatus.ACTIVE) {
+      return Promise.reject("Only a Standing player may Jump");
+    }
+
+    const gameService = context?.gameService as IGameService;
+    const flowManager = context?.flowManager;
+
+    const from = { ...player.gridPosition };
+    const oppTeam = player.teamId === this.team1.id ? this.team2 : this.team1;
+    const opponents = oppTeam.players.filter(
+      (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
+    );
+    const others = [...this.team1.players, ...this.team2.players].filter(
+      (p) => p.id !== player.id && p.gridPosition
+    );
+    const canJumpAnything =
+      hasSkill(player.skills, SkillType.LEAP) ||
+      hasSkill(player.skills, SkillType.POGO);
+    const inBounds = (x: number, y: number) =>
+      x >= 0 &&
+      y >= 0 &&
+      x < GameConfig.PITCH_WIDTH &&
+      y < GameConfig.PITCH_HEIGHT;
+
+    // The target must be one of the jumped-over player's push-back squares.
+    const chosen = jumpTargets(from, others, canJumpAnything, inBounds).find(
+      (t) => t.dest.x === target.x && t.dest.y === target.y
+    );
+    if (!chosen) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "You may only Jump over an adjacent player into their push-back squares"
+      );
+      return Promise.reject("Invalid Jump");
+    }
+    const over = chosen.over;
+
+    // Cost: a Jump moves 2 squares; those beyond the MA are Rushes.
+    const preUsed = this.getMovementUsed(playerId);
+    const JUMP_COST = 2;
+    if (preUsed + JUMP_COST > moveAllowance(player)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${player.playerName} does not have the Movement to Jump`
+      );
+      return Promise.reject("Not enough movement to Jump");
+    }
+    const holdingBall =
+      !!this.state.ballPosition &&
+      this.state.ballPosition.x === from.x &&
+      this.state.ballPosition.y === from.y;
+    const rushesNeeded = Math.max(0, preUsed + JUMP_COST - player.stats.MA);
+
+    // Roll each Rush BEFORE the Jump test. A failed Rush drops the player in
+    // the square they are in, ends the activation, and is a Turnover.
+    for (let i = 0; i < rushesNeeded; i++) {
+      const rushCtx: RushDeclaredContext = {
+        player,
+        modifiers: 0,
+        triggers: [],
+      };
+      await foldTrigger("onRushDeclared", [player], rushCtx);
+      rushCtx.triggers.forEach((t) =>
+        this.eventBus.emit(GameEventNames.SkillTriggered, t)
+      );
+      const rollRush = () =>
+        this.diceController.rollSkillCheck(
+          "Rush (GFI)",
+          2,
+          rushCtx.modifiers,
+          player.playerName
+        );
+      const check = gameService
+        ? await withRerollOffer(
+            { gameService, eventBus: this.eventBus },
+            player,
+            "rush",
+            rollRush
+          )
+        : rollRush();
+      if (
+        !check.success &&
+        !steadyFootingSaves(player, this.diceController, this.eventBus)
+      ) {
+        player.status = PlayerStatus.PRONE;
+        this.state.turn.movementUsed.set(playerId, moveAllowance(player));
+        this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+        if (holdingBall && flowManager) {
+          gameService.setBallPosition(from.x, from.y);
+          flowManager.add(new BounceOperation(from), true);
+        }
+        if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
+        this.callbacks.onTurnover("Failed GFI");
+        this.callbacks.onActivationFinished(playerId);
+        return;
+      }
+    }
+
+    // Marking penalty: the greater of the markers on the from and to squares.
+    const markFrom = -this.dodgeController.calculateDodgeModifiers(
+      from,
+      opponents
+    );
+    const markTo = -this.dodgeController.calculateDodgeModifiers(
+      target,
+      opponents
+    );
+    const penalty = Math.max(markFrom, markTo);
+    const jumpCtx: JumpDeclaredContext = {
+      player,
+      from,
+      to: { ...target },
+      over: { ...over },
+      negativeModifier: -penalty,
+      bonusModifier: 0,
+      decisions: gameService?.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService?.getRerollArbiter(),
+      dice: this.diceController,
+      triggers: [],
+    };
+    await foldTrigger("onJumpDeclared", [player], jumpCtx);
+    jumpCtx.triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+    const modifier = jumpCtx.negativeModifier + jumpCtx.bonusModifier;
+
+    const check = this.diceController.rollSkillCheck(
+      "Jump",
+      player.stats.AG,
+      modifier,
+      player.playerName
+    );
+    this.state.turn.movementUsed.set(playerId, preUsed + JUMP_COST);
+
+    if (check.success) {
+      player.gridPosition = { ...target };
+      this.eventBus.emit(GameEventNames.PlayerMoved, {
+        playerId,
+        from,
+        to: { ...target },
+        path: [from, { ...target }],
+        ballFrom: holdingBall ? from : undefined,
+        ballPath: holdingBall ? [from, { ...target }] : undefined,
+        ballJoinStep: 0,
+      });
+      if (holdingBall) {
+        gameService?.setBallPosition(target.x, target.y);
+        this.state.ballPosition = { ...target };
+        this.eventBus.emit(GameEventNames.BallPlaced, { ...target });
+        const side = player.teamId === this.team1.id ? 1 : 2;
+        if (isInEndZone(target, GameConfig.PITCH_WIDTH, side)) {
+          this.callbacks.onTouchdown?.(player.teamId);
+          return;
+        }
+      }
+      if (preUsed + JUMP_COST >= moveAllowance(player)) {
+        this.callbacks.onActivationFinished(playerId);
+      }
+      return;
+    }
+
+    // Failure: a natural 1 Falls Over where they stand; any other failure
+    // Falls Over in the target square. Either way the activation ends and it
+    // is a Turnover.
+    const fallSquare = check.roll === 1 ? from : { ...target };
+    player.gridPosition = { ...fallSquare };
+    player.status = PlayerStatus.PRONE;
+    if (fallSquare.x !== from.x || fallSquare.y !== from.y) {
+      this.eventBus.emit(GameEventNames.PlayerMoved, {
+        playerId,
+        from,
+        to: { ...fallSquare },
+        path: [from, { ...fallSquare }],
+        ballJoinStep: 0,
+      });
+    }
+    this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    if (holdingBall && flowManager) {
+      gameService.setBallPosition(fallSquare.x, fallSquare.y);
+      flowManager.add(new BounceOperation(fallSquare), true);
+    }
+    if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
+    this.callbacks.onTurnover("Failed Jump");
+    this.callbacks.onActivationFinished(playerId);
   }
 
   private getPlayerById(playerId: string): Player | undefined {

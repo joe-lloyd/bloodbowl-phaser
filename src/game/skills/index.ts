@@ -90,6 +90,18 @@ import { KickTeamMateRule } from "./rules/KickTeamMateRule";
 import { RightStuffRule } from "./rules/RightStuffRule";
 import { SwoopRule } from "./rules/SwoopRule";
 import { StrongArmRule } from "./rules/StrongArmRule";
+import { CloudBursterRule } from "./rules/CloudBursterRule";
+import { HailMaryPassRule } from "./rules/HailMaryPassRule";
+import { PutTheBootInRule } from "./rules/PutTheBootInRule";
+import { DirtyPlayerRule } from "./rules/DirtyPlayerRule";
+import { LoneFoulerRule } from "./rules/LoneFoulerRule";
+import { SneakyGitRule } from "./rules/SneakyGitRule";
+import { EyeGougeRule } from "./rules/EyeGougeRule";
+import { LeapRule } from "./rules/LeapRule";
+import { PogoRule } from "./rules/PogoRule";
+import { VeryLongLegsRule } from "./rules/VeryLongLegsRule";
+import { SafePairOfHandsRule } from "./rules/SafePairOfHandsRule";
+import { HitAndRunRule } from "./rules/HitAndRunRule";
 
 let registered = false;
 
@@ -177,6 +189,18 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.RIGHT_STUFF, RightStuffRule);
   SkillRegistry.register(SkillType.SWOOP, SwoopRule);
   SkillRegistry.register(SkillType.STRONG_ARM, StrongArmRule);
+  SkillRegistry.register(SkillType.CLOUD_BURSTER, CloudBursterRule);
+  SkillRegistry.register(SkillType.HAIL_MARY_PASS, HailMaryPassRule);
+  SkillRegistry.register(SkillType.PUT_THE_BOOT_IN, PutTheBootInRule);
+  SkillRegistry.register(SkillType.DIRTY_PLAYER, DirtyPlayerRule);
+  SkillRegistry.register(SkillType.LONE_FOULER, LoneFoulerRule);
+  SkillRegistry.register(SkillType.SNEAKY_GIT, SneakyGitRule);
+  SkillRegistry.register(SkillType.EYE_GOUGE, EyeGougeRule);
+  SkillRegistry.register(SkillType.LEAP, LeapRule);
+  SkillRegistry.register(SkillType.POGO, PogoRule);
+  SkillRegistry.register(SkillType.VERY_LONG_LEGS, VeryLongLegsRule);
+  SkillRegistry.register(SkillType.SAFE_PAIR_OF_HANDS, SafePairOfHandsRule);
+  SkillRegistry.register(SkillType.HIT_AND_RUN, HitAndRunRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.
@@ -201,6 +225,7 @@ export type TriggerHook =
   | "onCasualtyRoll"
   | "onActivationDeclared"
   | "onRushDeclared"
+  | "onJumpDeclared"
   | "onStandUpRoll";
 
 /**
