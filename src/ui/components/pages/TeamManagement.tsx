@@ -10,8 +10,19 @@ import {
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button, DangerButton } from "../componentWarehouse/Button";
+import {
+  Button,
+  DangerButton,
+  SecondaryButton,
+} from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
+import { useAuth } from "../../hooks/useAuth";
+import { useCoachProfile } from "../../hooks/useCoachProfile";
+import {
+  fetchPublishedTeamIds,
+  publishTeam,
+  unpublishTeam,
+} from "../../../firebase/sharedTeamRepository";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -64,11 +75,51 @@ function getPlayerSpriteUrl(
  */
 export function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [published, setPublished] = useState<Set<string>>(new Set());
+  const [publishing, setPublishing] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const coach = useCoachProfile(user);
 
   useEffect(() => {
     setTeams(loadTeams());
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setPublished(new Set());
+      return;
+    }
+    void fetchPublishedTeamIds(user.uid)
+      .then(setPublished)
+      .catch(() => setPublished(new Set()));
+  }, [user]);
+
+  const handlePublish = async (team: Team) => {
+    if (!user) return;
+    setPublishing(team.id);
+    try {
+      await publishTeam(user.uid, coach.effectiveName, team);
+      setPublished((current) => new Set(current).add(team.id));
+    } finally {
+      setPublishing(null);
+    }
+  };
+
+  const handleUnpublish = async (team: Team) => {
+    if (!user) return;
+    setPublishing(team.id);
+    try {
+      await unpublishTeam(user.uid, team.id);
+      setPublished((current) => {
+        const next = new Set(current);
+        next.delete(team.id);
+        return next;
+      });
+    } finally {
+      setPublishing(null);
+    }
+  };
 
   const handleCreateTeam = () => {
     navigate("/build-team/new-team");
@@ -130,6 +181,12 @@ export function TeamManagement() {
             </p>
           </div>
           <div className="flex gap-4 flex-wrap">
+            <SecondaryButton
+              onClick={() => navigate("/shared-teams")}
+              className="px-6 py-5 text-lg"
+            >
+              Shared Team Library
+            </SecondaryButton>
             <Button
               onClick={handleCreateTeam}
               className="px-10 py-5 text-2xl shadow-lg hover:shadow-xl"
@@ -306,6 +363,28 @@ export function TeamManagement() {
                       🗑️
                     </DangerButton>
                   </div>
+                  {user && (
+                    <div className="flex gap-2 mt-2">
+                      <SecondaryButton
+                        disabled={publishing === team.id}
+                        onClick={() => void handlePublish(team)}
+                        className="flex-1 !text-sm !py-2 !my-0"
+                      >
+                        {published.has(team.id)
+                          ? "Refresh published snapshot"
+                          : "Publish team"}
+                      </SecondaryButton>
+                      {published.has(team.id) && (
+                        <button
+                          disabled={publishing === team.id}
+                          onClick={() => void handleUnpublish(team)}
+                          className="font-heading text-sm underline text-bb-parchment"
+                        >
+                          Unpublish
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

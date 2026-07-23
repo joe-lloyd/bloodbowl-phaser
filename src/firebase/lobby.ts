@@ -27,6 +27,7 @@ import {
 import { getDb } from "./config";
 import { Team } from "../types/Team";
 import { GameSnapshot } from "../headless/serialization";
+import { CompetitionContext } from "../competition/types";
 
 export type LobbyStatus = "lobby" | "active" | "finished" | "abandoned";
 
@@ -96,6 +97,10 @@ export interface LobbyDoc {
   coinFlip?: CoinFlipState | null;
   /** Turn clock + pause banks */
   timer?: TimerState | null;
+  /** Present when this match was launched from a league/tournament fixture. */
+  competitionContext?: CompetitionContext;
+  /** Locked roster snapshots for a hosted competition fixture. */
+  fixtureTeams?: { home: Team; away: Team };
 }
 
 export const DEFAULT_SETTINGS: LobbySettings = {
@@ -178,7 +183,12 @@ function plain<T>(value: T): T {
 
 export async function createLobby(
   hostUid: string,
-  displayName: string
+  displayName: string,
+  fixture?: {
+    context: CompetitionContext;
+    homeTeam: Team;
+    awayTeam: Team;
+  }
 ): Promise<LobbyDoc> {
   const code = generateMatchCode();
   const lobby: Omit<LobbyDoc, "createdAt"> = {
@@ -189,8 +199,22 @@ export async function createLobby(
     seed: null,
     settings: DEFAULT_SETTINGS,
     players: {
-      [hostUid]: { uid: hostUid, displayName, team: null, ready: false },
+      [hostUid]: {
+        uid: hostUid,
+        displayName,
+        team: fixture?.homeTeam ?? null,
+        ready: false,
+      },
     },
+    ...(fixture
+      ? {
+          competitionContext: fixture.context,
+          fixtureTeams: {
+            home: fixture.homeTeam,
+            away: fixture.awayTeam,
+          },
+        }
+      : {}),
   };
   await setDoc(lobbyRef(code), {
     ...plain(lobby),
@@ -225,7 +249,12 @@ export async function joinLobby(
 
     const players = {
       ...lobby.players,
-      [guestUid]: { uid: guestUid, displayName, team: null, ready: false },
+      [guestUid]: {
+        uid: guestUid,
+        displayName,
+        team: lobby.fixtureTeams?.away ?? null,
+        ready: false,
+      },
     };
     tx.update(lobbyRef(normalized), { guestUid, players: plain(players) });
     tx.set(userRef(guestUid), { activeMatchCode: normalized }, { merge: true });

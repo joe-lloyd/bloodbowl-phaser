@@ -61,6 +61,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         if (loaded.status !== "active")
           throw new Error("This match has not started (or is over).");
         if (cancelled) return;
+        setLobby(loaded);
 
         // Must exist before GamePage mounts: it initializes ServiceContainer
         // with the right engine (host: native + protocol bridge; guest:
@@ -145,6 +146,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         mode="normal"
         teams={match.teams}
         progressionEnabled={lobby?.settings.progressionEnabled ?? false}
+        competitionContext={lobby?.competitionContext}
       />
       <WaitingBanner match={match} />
 
