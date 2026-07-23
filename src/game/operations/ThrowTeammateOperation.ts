@@ -5,7 +5,10 @@ import { PlayerStatus, Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
-import { isRightStuffEligible, isThrowTeammateInRange } from "../rules/throwTeammate";
+import {
+  isRightStuffEligible,
+  isThrowTeammateInRange,
+} from "../rules/throwTeammate";
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -235,7 +238,9 @@ export class ThrowTeammateOperation extends GameOperation {
       this.bounceIfCarried(gameService, context, teammate);
       teammate.gridPosition = { ...thrower.gridPosition };
       teammate.status = PlayerStatus.PRONE;
-      eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: teammate.id });
+      eventBus.emit(GameEventNames.PlayerKnockedDown, {
+        playerId: teammate.id,
+      });
       eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
       context.flowManager.add(new InjuryOperation(teammate.id), true);
       gameService.triggerTurnover("Fumbled Throw Team-mate");
@@ -316,7 +321,19 @@ export class ThrowTeammateOperation extends GameOperation {
         context.flowManager.add(new BounceOperation({ ...landing }), true);
       }
       context.flowManager.add(new ArmourOperation(teammate.id), true);
-      context.flowManager.add(new ArmourOperation(occupant.id), true);
+      context.flowManager.add(
+        new ArmourOperation(
+          occupant.id,
+          hasSkill(teammate.skills, SkillType.LETHAL_FLIGHT) &&
+            hasSkill(teammate.skills, SkillType.RIGHT_STUFF) &&
+            occupant.teamId !== teammate.teamId
+            ? teammate.id
+            : undefined,
+          undefined,
+          "lethal-flight"
+        ),
+        true
+      );
       gameService.triggerTurnover("Thrown player crashed");
       return;
     }

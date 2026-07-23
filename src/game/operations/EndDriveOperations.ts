@@ -14,6 +14,8 @@ import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
+import { SkillType, hasSkill } from "../../types/Skills";
+import { PlayerStatus } from "../../types/Player";
 
 export class ClearPitchOperation extends GameOperation {
   public readonly name = "ClearPitch";
@@ -32,6 +34,30 @@ export class ClearPitchOperation extends GameOperation {
       reason: this.reason,
       nextKickingTeamId: this.nextKickingTeamId,
     });
+
+    const activeTeamId = gameService.getActiveTeamId();
+    const activeTeam = activeTeamId
+      ? gameService.getTeam(activeTeamId)
+      : undefined;
+    const players = activeTeam
+      ? [...activeTeam.players, ...gameService.getOpponents(activeTeam.id)]
+      : [];
+    for (const player of players) {
+      if (
+        hasSkill(player.skills, SkillType.SECRET_WEAPON) &&
+        player.status !== PlayerStatus.RESERVE &&
+        player.status !== PlayerStatus.REMOVED
+      ) {
+        player.status = PlayerStatus.REMOVED;
+        player.gridPosition = undefined;
+        eventBus.emit(GameEventNames.SkillTriggered, {
+          playerId: player.id,
+          skill: SkillType.SECRET_WEAPON,
+          effect: "Secret Weapon: Sent-off at the end of the Drive",
+        });
+        eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      }
+    }
 
     await context.delay(800);
 

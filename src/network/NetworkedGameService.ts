@@ -225,13 +225,18 @@ export class NetworkedGameService implements IGameService {
   selectKicker(playerId: string): void {
     this.send({ type: "select-kicker", playerId });
   }
-  kickBall(
+  async kickBall(
     _isTeam1Kicking: boolean,
     playerId: string,
     targetX: number,
     targetY: number
-  ): void {
-    this.send({ type: "kick-ball", playerId, x: targetX, y: targetY });
+  ): Promise<void> {
+    await this.dispatch({
+      type: "kick-ball",
+      playerId,
+      x: targetX,
+      y: targetY,
+    });
   }
   awardTouchback(playerId: string): boolean {
     this.send({ type: "touchback", playerId });
@@ -246,6 +251,18 @@ export class NetworkedGameService implements IGameService {
     path: { x: number; y: number }[]
   ): Promise<void> {
     await this.dispatch({ type: "move", playerId, path });
+  }
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean {
+    this.send({
+      type: "fumblerooski",
+      playerId,
+      x: square.x,
+      y: square.y,
+    });
+    return true;
   }
   async jumpPlayer(
     playerId: string,
@@ -264,6 +281,18 @@ export class NetworkedGameService implements IGameService {
   ): void {
     // The host recomputes dice count and choice from the board
     this.send({ type: "block", attackerId, defenderId });
+  }
+  async multipleBlock(
+    attackerId: string,
+    defender1Id: string,
+    defender2Id: string
+  ): Promise<void> {
+    await this.dispatch({
+      type: "multiple-block",
+      attackerId,
+      defender1Id,
+      defender2Id,
+    });
   }
   resolveBlock(
     _attackerId: string,
@@ -323,6 +352,18 @@ export class NetworkedGameService implements IGameService {
       y: targetY,
     });
     return { success: response.ok, result: response.reason };
+  }
+  async puntBall(
+    playerId: string,
+    facingX: number,
+    facingY: number
+  ): Promise<void> {
+    await this.dispatch({
+      type: "punt",
+      playerId,
+      x: facingX,
+      y: facingY,
+    });
   }
   async stabPlayer(attackerId: string, targetId: string): Promise<void> {
     await this.dispatch({

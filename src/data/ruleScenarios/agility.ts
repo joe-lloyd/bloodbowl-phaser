@@ -166,7 +166,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
       {
         id: "very-long-legs-jump-bonus",
         name: "Very Long Legs adds +1 to the Jump",
-        description: "+1 to the Agility Test on an unmarked Jump over a Prone player",
+        description:
+          "+1 to the Agility Test on an unmarked Jump over a Prone player",
         setup: playSetup({
           team1Placements: [
             {
@@ -257,7 +258,10 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
               ),
             verify: (r) => {
               const d = r.decisions.find((x) => x.type === "interception");
-              assert(!!d && d.type === "interception", "an interception is raised");
+              assert(
+                !!d && d.type === "interception",
+                "an interception is raised"
+              );
               if (!d || d.type !== "interception") return;
               assert(
                 d.candidates.some((c) => c.modifier === -1),
@@ -341,7 +345,8 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "ball-placed-adjacent",
             name: "The ball ends adjacent to the downed carrier",
             matches: (r) => {
-              if (!skillTriggered(r, SkillType.SAFE_PAIR_OF_HANDS)) return false;
+              if (!skillTriggered(r, SkillType.SAFE_PAIR_OF_HANDS))
+                return false;
               const ball = r.snapshot.ballPosition;
               const dp = playerOf(r, "team2:0").gridPosition;
               if (!ball || !dp) return false;
@@ -775,6 +780,57 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
       }),
     ],
   },
+  {
+    skill: SkillType.FUMBLEROOSKI,
+    configs: [
+      {
+        id: "fumblerooski-leaves-ball",
+        name: "Fumblerooski leaves the ball behind",
+        description:
+          "During a Move, the carrier places the ball in the square they just vacated without causing a Turnover",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.FUMBLEROOSKI],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 5, y: 5 }] },
+          { type: "fumblerooski", playerId: "team1:0", x: 4, y: 5 },
+        ],
+        outcomes: [
+          {
+            id: "ball-left-no-turnover",
+            name: "The ball remains in the vacated square",
+            matches: (r) =>
+              skillTriggered(r, SkillType.FUMBLEROOSKI) &&
+              !turnoverHappened(r) &&
+              r.snapshot.ballPosition?.x === 4 &&
+              r.snapshot.ballPosition?.y === 5 &&
+              playerAt(r, "team1:0", { x: 5, y: 5 }),
+            verify: (r) => {
+              assert(
+                !turnoverHappened(r),
+                "Fumblerooski must not cause a Turnover"
+              );
+              assert(
+                r.snapshot.ballPosition?.x === 4 &&
+                  r.snapshot.ballPosition?.y === 5,
+                "the ball must be left in the vacated square"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 /**
@@ -812,8 +868,7 @@ export const JUMP_OVER_PRONE_SCENARIO: RuleConfig = {
       id: "cleared",
       name: "A passed Jump lands the player Standing beyond the Prone player",
       matches: (r) =>
-        playerAt(r, "team1:0", { x: 12, y: 5 }) &&
-        playerStanding(r, "team1:0"),
+        playerAt(r, "team1:0", { x: 12, y: 5 }) && playerStanding(r, "team1:0"),
       verify: (r) => {
         assert(
           playerAt(r, "team1:0", { x: 12, y: 5 }),

@@ -292,7 +292,8 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "seven-is-ko",
             name: "The 7 is a KO, not a Stunned",
             matches: (r) =>
-              skillTriggered(r, SkillType.STUNTY) && injuryTotal(r, "team2:1", 7),
+              skillTriggered(r, SkillType.STUNTY) &&
+              injuryTotal(r, "team2:1", 7),
             verify: (r) =>
               assert(
                 playerOf(r, "team2:1").status === PlayerStatus.KO,
@@ -303,7 +304,8 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "nine-is-badly-hurt",
             name: "The 9 is automatically Badly Hurt",
             matches: (r) =>
-              skillTriggered(r, SkillType.STUNTY) && injuryTotal(r, "team2:1", 9),
+              skillTriggered(r, SkillType.STUNTY) &&
+              injuryTotal(r, "team2:1", 9),
             verify: (r) => {
               assert(
                 playerOf(r, "team2:1").status === PlayerStatus.INJURED,
@@ -686,9 +688,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.CHAINSAW] },
           ],
-          team2Placements: [
-            { playerIndex: 0, x: 11, y: 5, stats: { AV: 7 } },
-          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 7 } }],
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
@@ -713,8 +713,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (d) =>
                   !!(d as { rollType?: string }).rollType?.startsWith(
                     "Chainsaw Kick-back"
-                  ) &&
-                  (d as { resultState?: string }).resultState === "success"
+                  ) && (d as { resultState?: string }).resultState === "success"
               ) &&
               sawEvent(
                 r,
@@ -743,8 +742,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (d) =>
                   !!(d as { rollType?: string }).rollType?.startsWith(
                     "Chainsaw Kick-back"
-                  ) &&
-                  (d as { resultState?: string }).resultState === "failure"
+                  ) && (d as { resultState?: string }).resultState === "failure"
               ) && playerDown(r, "team1:0"),
             verify: (r) => {
               assert(
@@ -819,10 +817,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 playerDown(r, "team1:0"),
                 "the Bomber is caught in their own blast"
               );
-              assert(
-                turnoverHappened(r),
-                "a Fumbled bomb is a Turnover"
-              );
+              assert(turnoverHappened(r), "a Fumbled bomb is a Turnover");
             },
           },
         ],
@@ -857,7 +852,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "ballAndChain" },
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "ballAndChain",
+          },
           // Facing East (toward the opponents' End Zone).
           { type: "ball-and-chain", playerId: "team1:0", x: 1, y: 0 },
         ],
@@ -901,7 +900,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 1, y: 5 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "ballAndChain" },
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "ballAndChain",
+          },
           // Facing North (toward the top Sideline at y = 0).
           { type: "ball-and-chain", playerId: "team1:0", x: 0, y: -1 },
         ],
@@ -921,6 +924,98 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               );
               assert(turnoverHappened(r), "surfing the crowd is a Turnover");
             },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.SECRET_WEAPON,
+    configs: [
+      {
+        id: "secret-weapon-end-of-drive",
+        name: "Secret Weapon is Sent-off after the Drive",
+        description:
+          "A Secret Weapon that took part in the Drive is Sent-off when a touchdown ends that Drive",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 18,
+              y: 5,
+              skills: [SkillType.SECRET_WEAPON],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 10, y: 8 }],
+          ballPosition: { x: 18, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 19, y: 5 }] },
+        ],
+        outcomes: [
+          {
+            id: "sent-off",
+            name: "The Secret Weapon is removed before the next Drive",
+            matches: (r) =>
+              skillTriggered(r, SkillType.SECRET_WEAPON) &&
+              playerOf(r, "team1:0").status === PlayerStatus.REMOVED,
+            verify: (r) => {
+              assert(
+                playerOf(r, "team1:0").status === PlayerStatus.REMOVED,
+                "the Secret Weapon must be Sent-off"
+              );
+              assert(
+                !playerOf(r, "team1:0").gridPosition,
+                "a Sent-off player must be off the pitch"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.VIOLENT_INNOVATOR,
+    configs: [
+      {
+        id: "violent-innovator-special-casualty",
+        name: "Violent Innovator earns a Special Action Casualty",
+        description:
+          "When Stab causes a Casualty, Violent Innovator credits the attacker as the casualty causer for SPP",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.STAB, SkillType.VIOLENT_INNOVATOR],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 2 } }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "stab" },
+          {
+            type: "stab",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "casualty-credited",
+            name: "The Special Action casualty is credited",
+            matches: (r) =>
+              skillTriggered(r, SkillType.VIOLENT_INNOVATOR) &&
+              playerOf(r, "team2:0").status === PlayerStatus.INJURED,
+            verify: (r) =>
+              assert(
+                skillTriggered(r, SkillType.VIOLENT_INNOVATOR),
+                "Violent Innovator must credit the Special Action casualty"
+              ),
           },
         ],
       },

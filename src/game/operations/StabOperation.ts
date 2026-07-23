@@ -105,7 +105,10 @@ export class StabOperation extends GameOperation {
         );
       }
       context.flowManager.add(
-        new InjuryOperation(target.id, { causedById: attacker.id }),
+        new InjuryOperation(target.id, {
+          causedById: attacker.id,
+          cause: "special",
+        }),
         true
       );
     } else {

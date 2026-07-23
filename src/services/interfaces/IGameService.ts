@@ -60,7 +60,7 @@ export interface IGameService {
     playerId: string,
     targetX: number,
     targetY: number
-  ): void;
+  ): Promise<void>;
   rollKickoff(): void;
   /** Touchback: receiving coach hands the ball to one of their players */
   awardTouchback(playerId: string): boolean;
@@ -77,10 +77,21 @@ export interface IGameService {
     action: import("@/types/events").ActionType
   ): boolean;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
+  /** Leave the carried ball in a square vacated during this Move, no Turnover. */
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean;
   jumpPlayer(playerId: string, target: { x: number; y: number }): Promise<void>;
   standUp(playerId: string): Promise<void>;
 
   previewBlock(attackerId: string, defenderId: string): void;
+  /** Multiple Block: resolve two marked opponents at -2 ST with no follow-up. */
+  multipleBlock(
+    attackerId: string,
+    defender1Id: string,
+    defender2Id: string
+  ): Promise<void>;
   /** May pause on a skill trigger decision — async engines await it */
   rollBlockDice(
     attackerId: string,
@@ -111,6 +122,8 @@ export interface IGameService {
     targetX: number,
     targetY: number
   ): Promise<{ success: boolean; result?: string }>;
+  /** Punt a carried ball in the chosen facing via the Throw-in Template. */
+  puntBall(playerId: string, facingX: number, facingY: number): Promise<void>;
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
   /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
   stabPlayer(attackerId: string, targetId: string): Promise<void>;
@@ -125,7 +138,11 @@ export interface IGameService {
   /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
   throwBomb(throwerId: string, x: number, y: number): Promise<void>;
   /** Ball & Chain Special Action (Fanatic): lurch up to MA in a chosen facing */
-  ballAndChain(fanaticId: string, facingX: number, facingY: number): Promise<void>;
+  ballAndChain(
+    fanaticId: string,
+    facingX: number,
+    facingY: number
+  ): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
     kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",

@@ -5,6 +5,7 @@
 
 import { SkillType } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
+import { GamePhase, SubPhase } from "../../types/GameState";
 import {
   RuleScenarioEntry,
   RuleConfig,
@@ -15,6 +16,9 @@ import {
   skillCheckDiff,
   turnoverHappened,
   playerAt,
+  playerOf,
+  rerollOffered,
+  rerollUsed,
 } from "../../game/rules-lab";
 
 /** Passer at (4,5) holding the ball throws to (targetX, 5). */
@@ -564,8 +568,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   !!(e.data as { rollType?: string }).rollType?.startsWith(
                     "Pass"
                   ) &&
-                  (e.data as { resultState?: string }).resultState ===
-                    "success"
+                  (e.data as { resultState?: string }).resultState === "success"
               ) &&
               r.events.some(
                 (e) =>
@@ -718,6 +721,470 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 r.snapshot.activeTeamId === r.game.ctx.team2.id,
                 "the Turnover must end the passing team's turn"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.DIVING_CATCH,
+    configs: [
+      {
+        id: "diving-catch-adjacent-pass",
+        name: "Diving Catch reaches an adjacent Pass",
+        description:
+          "A player may attempt to catch a Pass that lands in an adjacent square in their Tackle Zone",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            {
+              playerIndex: 1,
+              x: 7,
+              y: 6,
+              skills: [SkillType.DIVING_CATCH],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "adjacent-catch",
+            name: "The adjacent player catches the ball",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DIVING_CATCH) &&
+              !turnoverHappened(r) &&
+              r.snapshot.ballPosition?.x === 7 &&
+              r.snapshot.ballPosition?.y === 6,
+            verify: (r) =>
+              assert(
+                r.snapshot.ballPosition?.x === 7 &&
+                  r.snapshot.ballPosition?.y === 6,
+                "the caught ball must move onto the Diving Catch player"
+              ),
+          },
+        ],
+      },
+      {
+        id: "diving-catch-target-bonus",
+        name: "Diving Catch gains +1 in the Pass target square",
+        description:
+          "When the player occupies the declared target square of a Pass, Diving Catch adds +1 to the catch Agility Test",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            {
+              playerIndex: 1,
+              x: 7,
+              y: 5,
+              skills: [SkillType.DIVING_CATCH],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "plus-one",
+            name: "+1 is applied to the catch",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DIVING_CATCH) &&
+              skillCheckDiff(r, "Catch") === 1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Catch") === 1,
+                "Diving Catch must add exactly +1 in the Pass target square"
+              ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.DUMP_OFF,
+    configs: [
+      {
+        id: "dump-off-before-block",
+        name: "Quick Pass before a Block",
+        description:
+          "The targeted carrier may complete a no-Turnover Quick Pass before block dice are rolled",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 11,
+              y: 5,
+              skills: [SkillType.DUMP_OFF],
+            },
+            { playerIndex: 1, x: 12, y: 5 },
+          ],
+          ballPosition: { x: 11, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "block" },
+          {
+            type: "block",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        decisionPolicy: {
+          acceptReactions: true,
+          preferBlockResult: "push",
+          followUp: false,
+        },
+        outcomes: [
+          {
+            id: "pass-precedes-block",
+            name: "Dump-Off resolves before the incoming Block",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DUMP_OFF) &&
+              r.events.some((e) => e.name === GameEventNames.BlockDiceRolled),
+            verify: (r) => {
+              const passIndex = r.events.findIndex(
+                (e) => e.name === GameEventNames.PassAttempted
+              );
+              const blockIndex = r.events.findIndex(
+                (e) => e.name === GameEventNames.BlockDiceRolled
+              );
+              assert(passIndex >= 0, "Dump-Off must attempt a Quick Pass");
+              assert(
+                passIndex < blockIndex,
+                "the Quick Pass must resolve before block dice are rolled"
+              );
+              assert(
+                !r.events
+                  .slice(passIndex, blockIndex)
+                  .some((e) => e.name === GameEventNames.Turnover),
+                "the Dump-Off pass must not cause a Turnover"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "dump-off-before-stab-without-receiver",
+        name: "Quick Pass to an empty square before Stab",
+        description:
+          "A lone carrier may use Dump-Off against a directly targeting Special Action even when no team-mate is available",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.STAB],
+            },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 11,
+              y: 5,
+              skills: [SkillType.DUMP_OFF],
+            },
+          ],
+          ballPosition: { x: 11, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "stab" },
+          {
+            type: "stab",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        decisionPolicy: { acceptReactions: true },
+        outcomes: [
+          {
+            id: "empty-pass-precedes-stab",
+            name: "Dump-Off targets an empty square before Stab",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DUMP_OFF) &&
+              r.events.some(
+                (event) =>
+                  event.name === GameEventNames.DiceRoll &&
+                  (event.data as { rollType?: string }).rollType ===
+                    "Armor Check"
+              ),
+            verify: (r) => {
+              const passIndex = r.events.findIndex(
+                (event) => event.name === GameEventNames.PassAttempted
+              );
+              const stabIndex = r.events.findIndex(
+                (event) =>
+                  event.name === GameEventNames.DiceRoll &&
+                  (event.data as { rollType?: string }).rollType ===
+                    "Armor Check"
+              );
+              assert(
+                passIndex >= 0,
+                "Dump-Off must allow an empty-square Quick Pass"
+              );
+              assert(
+                passIndex < stabIndex,
+                "the Quick Pass must resolve before Stab's Armour Roll"
+              );
+              assert(
+                !r.events
+                  .slice(passIndex, stabIndex)
+                  .some((event) => event.name === GameEventNames.Turnover),
+                "the empty-square Dump-Off must not cause a Turnover"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.LEADER,
+    configs: [
+      {
+        id: "leader-reroll",
+        name: "Leader Re-roll for the half",
+        description:
+          "An on-pitch Leader grants one Team Re-roll even when none were purchased",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.LEADER],
+            },
+            { playerIndex: 1, x: 5, y: 5 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 6, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:1", action: "move" },
+          {
+            type: "move",
+            playerId: "team1:1",
+            path: [{ x: 6, y: 5 }],
+          },
+        ],
+        rerolls: { team1: 0 },
+        decisionPolicy: { acceptRerolls: "team" },
+        outcomes: [
+          {
+            id: "leader-reroll-spent",
+            name: "The Leader Re-roll is offered and spent",
+            matches: (r) =>
+              rerollOffered(r, { rollKind: "pickup", source: "team" }) &&
+              skillTriggered(r, SkillType.LEADER),
+            verify: (r) => {
+              assert(
+                rerollUsed(r, "team"),
+                "the failed pickup must spend the Leader Re-roll"
+              );
+              assert(
+                skillTriggered(r, SkillType.LEADER),
+                "Leader must announce when its re-roll is spent"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.ON_THE_BALL,
+    configs: [
+      {
+        id: "on-the-ball-pre-pass-move",
+        name: "Reactive movement before a Pass",
+        description:
+          "An opposition On the Ball player moves three squares after target declaration and before the PA roll",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            { playerIndex: 1, x: 8, y: 5 },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 12,
+              y: 5,
+              skills: [SkillType.ON_THE_BALL],
+            },
+          ],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 8, y: 5 },
+        ],
+        decisionPolicy: {
+          acceptReactions: true,
+          acceptInterceptions: false,
+        },
+        outcomes: [
+          {
+            id: "moves-before-pa",
+            name: "Three-square reaction precedes the PA test",
+            matches: (r) =>
+              skillTriggered(r, SkillType.ON_THE_BALL) &&
+              r.events.filter(
+                (e) =>
+                  e.name === GameEventNames.PlayerMoved &&
+                  (e.data as { playerId?: string }).playerId ===
+                    r.game.ctx.team2.players[0].id
+              ).length === 3,
+            verify: (r) => {
+              const moves = r.events
+                .map((event, index) => ({ event, index }))
+                .filter(
+                  ({ event }) =>
+                    event.name === GameEventNames.PlayerMoved &&
+                    (event.data as { playerId?: string }).playerId ===
+                      r.game.ctx.team2.players[0].id
+                );
+              const passRoll = r.events.findIndex(
+                (event) =>
+                  event.name === GameEventNames.DiceRoll &&
+                  (event.data as { rollType?: string }).rollType?.startsWith(
+                    "Pass"
+                  )
+              );
+              assert(moves.length === 3, "On the Ball may move three squares");
+              assert(
+                moves.every(({ index }) => index < passRoll),
+                "every reacting move must happen before the Passing Ability Test"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "on-the-ball-kickoff-move",
+        name: "Receiving move before the Kick-off Event",
+        description:
+          "One Open receiving player moves after deviation, stays in their own half, and moves before the Kick-off Event",
+        setup: {
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            { playerIndex: 1, x: 6, y: 4 },
+            { playerIndex: 2, x: 6, y: 5 },
+            { playerIndex: 3, x: 6, y: 6 },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 18,
+              y: 8,
+              skills: [SkillType.ON_THE_BALL],
+            },
+            { playerIndex: 1, x: 13, y: 4 },
+            { playerIndex: 2, x: 13, y: 5 },
+            { playerIndex: 3, x: 13, y: 6 },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.KICKOFF,
+          subPhase: SubPhase.ROLL_KICKOFF,
+        },
+        script: [{ type: "kick-ball", playerId: "team1:0", x: 16, y: 5 }],
+        decisionPolicy: { acceptReactions: true },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "moves-before-kickoff-event",
+            name: "The receiving player moves before the event roll",
+            matches: (r) =>
+              r.events.some(
+                (event) =>
+                  event.name === GameEventNames.SkillTriggered &&
+                  (event.data as { skill?: string; effect?: string }).skill ===
+                    SkillType.ON_THE_BALL &&
+                  (event.data as { effect?: string }).effect?.includes(
+                    "Kick-off Event"
+                  )
+              ),
+            verify: (r) => {
+              const moveIndex = r.events.findIndex(
+                (event) =>
+                  event.name === GameEventNames.PlayerMoved &&
+                  (event.data as { playerId?: string }).playerId ===
+                    r.game.ctx.team2.players[0].id
+              );
+              const eventIndex = r.events.findIndex(
+                (event) =>
+                  event.name === GameEventNames.DiceRoll &&
+                  (event.data as { rollType?: string }).rollType ===
+                    "Kickoff Event"
+              );
+              assert(moveIndex >= 0, "the receiving player must move");
+              assert(
+                eventIndex < 0 || moveIndex < eventIndex,
+                "the move must happen before the Kick-off Event roll"
+              );
+              assert(
+                playerOf(r, "team2:0").gridPosition!.x >= 13,
+                "the receiving player may not enter the opposition half"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.PUNT,
+    configs: [
+      {
+        id: "punt-loose-ball",
+        name: "Punt to an empty part of the pitch",
+        description:
+          "Direction and distance use the Throw-in Template and a loose ball at rest is not a Turnover",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 7,
+              skills: [SkillType.PUNT],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 20, y: 12 }],
+          ballPosition: { x: 10, y: 7 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "punt" },
+          { type: "punt", playerId: "team1:0", x: 1, y: 0 },
+        ],
+        outcomes: [
+          {
+            id: "loose-no-turnover",
+            name: "The loose Punt settles without a Turnover",
+            matches: (r) =>
+              skillTriggered(r, SkillType.PUNT) && !turnoverHappened(r),
+            verify: (r) => {
+              assert(
+                !!r.snapshot.ballPosition &&
+                  !(
+                    r.snapshot.ballPosition.x === 10 &&
+                    r.snapshot.ballPosition.y === 7
+                  ),
+                "the Punt must move the ball away from the carrier"
+              );
+              assert(
+                !turnoverHappened(r),
+                "a loose Punt at rest must not cause a Turnover"
               );
             },
           },

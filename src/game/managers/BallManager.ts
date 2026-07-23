@@ -12,6 +12,7 @@ import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
 import { GameConfig } from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
+import { ReactionDecisionAnswer } from "../../types/decisions";
 
 /**
  * BallManager
@@ -59,12 +60,12 @@ export class BallManager {
 
   // --- KICKOFF ORCHESTRATION ---
 
-  public kickBall(
+  public async kickBall(
     isTeam1Kicking: boolean,
     playerId: string,
     targetX: number,
     targetY: number
-  ): void {
+  ): Promise<void> {
     // 1. Transition State
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
@@ -118,8 +119,138 @@ export class BallManager {
       finalY: result.finalY,
     });
 
+    // On the Ball's kick-off clause sits exactly here: deviation is known,
+    // but no Kick-off Event has been rolled yet. Touchbacks suppress it.
+    if (!result.isTouchback) {
+      await this.resolveKickoffOnTheBall(isTeam1Kicking);
+    }
+
     // 5. Chain to Event Table
     this.delay(500).then(() => this.rollKickoff());
+  }
+
+  /**
+   * One Open receiving player may make a legal, no-Rush move of up to three
+   * squares. The engine's deterministic policy chooses the first eligible
+   * player and a safe route toward the deviated ball; the reaction decision
+   * still belongs to the receiving coach.
+   */
+  private async resolveKickoffOnTheBall(
+    isTeam1Kicking: boolean
+  ): Promise<void> {
+    const receiving = isTeam1Kicking ? this.team2 : this.team1;
+    const opponents = isTeam1Kicking ? this.team1 : this.team2;
+    const isOpen = (player: Player) =>
+      !!player.gridPosition &&
+      !opponents.players.some(
+        (opponent) =>
+          opponent.status === PlayerStatus.ACTIVE &&
+          opponent.gridPosition &&
+          Math.max(
+            Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
+            Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
+          ) === 1
+      );
+    const reactor = receiving.players
+      .filter(
+        (player) =>
+          player.status === PlayerStatus.ACTIVE &&
+          hasSkill(player.skills ?? [], SkillType.ON_THE_BALL) &&
+          isOpen(player)
+      )
+      .sort(
+        (a, b) =>
+          a.gridPosition!.y - b.gridPosition!.y ||
+          a.gridPosition!.x - b.gridPosition!.x
+      )[0];
+    const flow = this.callbacks.getFlowManager?.();
+    if (!reactor?.gridPosition || !flow || !this.state.ballPosition) return;
+
+    const answer = (await flow.context.gameService
+      .getDecisionService()
+      .request({
+        type: "reaction",
+        playerId: reactor.id,
+        chooserTeamId: reactor.teamId,
+        skill: SkillType.ON_THE_BALL,
+        prompt: `${reactor.playerName} may move up to 3 squares before the Kick-off Event — use On the Ball?`,
+      })) as ReactionDecisionAnswer;
+    if (!answer.accept || !reactor.gridPosition) return;
+
+    const start = { ...reactor.gridPosition };
+    const path: { x: number; y: number }[] = [];
+    for (let step = 0; step < 3; step++) {
+      const current = reactor.gridPosition;
+      const occupied = new Set(
+        [...this.team1.players, ...this.team2.players]
+          .filter((player) => player.id !== reactor.id && player.gridPosition)
+          .map(
+            (player) => `${player.gridPosition!.x},${player.gridPosition!.y}`
+          )
+      );
+      const candidates: { x: number; y: number }[] = [];
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const square = { x: current.x + dx, y: current.y + dy };
+          const staysOwnHalf = isTeam1Kicking
+            ? square.x >= GameConfig.PITCH_WIDTH / 2
+            : square.x < GameConfig.PITCH_WIDTH / 2;
+          const marked = opponents.players.some(
+            (opponent) =>
+              opponent.status === PlayerStatus.ACTIVE &&
+              opponent.gridPosition &&
+              Math.max(
+                Math.abs(opponent.gridPosition.x - square.x),
+                Math.abs(opponent.gridPosition.y - square.y)
+              ) === 1
+          );
+          if (
+            square.x >= 0 &&
+            square.x < GameConfig.PITCH_WIDTH &&
+            square.y >= 0 &&
+            square.y < GameConfig.PITCH_HEIGHT &&
+            staysOwnHalf &&
+            !marked &&
+            !occupied.has(`${square.x},${square.y}`)
+          ) {
+            candidates.push(square);
+          }
+        }
+      }
+      candidates.sort(
+        (a, b) =>
+          Math.max(
+            Math.abs(a.x - this.state.ballPosition!.x),
+            Math.abs(a.y - this.state.ballPosition!.y)
+          ) -
+            Math.max(
+              Math.abs(b.x - this.state.ballPosition!.x),
+              Math.abs(b.y - this.state.ballPosition!.y)
+            ) ||
+          a.y - b.y ||
+          a.x - b.x
+      );
+      const next = candidates[0];
+      if (!next) break;
+      reactor.gridPosition = { ...next };
+      path.push({ ...next });
+    }
+
+    if (path.length) {
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: reactor.id,
+        skill: SkillType.ON_THE_BALL,
+        effect: "On the Ball: receiving-team move before the Kick-off Event",
+      });
+      this.eventBus.emit(GameEventNames.PlayerMoved, {
+        playerId: reactor.id,
+        from: start,
+        to: { ...reactor.gridPosition },
+        path,
+        ballJoinStep: 0,
+      });
+    }
   }
 
   public rollKickoff(): void {
@@ -150,6 +281,20 @@ export class BallManager {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
             "Touchback! Choose any of your players to take the ball."
+          );
+        }
+      } else if (this.state.ballPosition) {
+        const landing = { ...this.state.ballPosition };
+        const occupant = this.playerAt(landing);
+        const catcher = occupant ?? this.divingCatcherAt(landing);
+        if (catcher) {
+          this.callbacks.getFlowManager?.()?.add(
+            new CatchOperation(catcher.id, false, {
+              origin: "kick-off",
+              divingCatch: !occupant,
+              landingPosition: landing,
+            }),
+            true
           );
         }
       }
@@ -204,12 +349,30 @@ export class BallManager {
 
     // Infield directions for the edge the ball left from
     let dirs: { x: number; y: number }[];
-    if (from.x <= 0) dirs = [{ x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 }];
+    if (from.x <= 0)
+      dirs = [
+        { x: 1, y: -1 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ];
     else if (from.x >= maxX)
-      dirs = [{ x: -1, y: -1 }, { x: -1, y: 0 }, { x: -1, y: 1 }];
+      dirs = [
+        { x: -1, y: -1 },
+        { x: -1, y: 0 },
+        { x: -1, y: 1 },
+      ];
     else if (from.y <= 0)
-      dirs = [{ x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
-    else dirs = [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }];
+      dirs = [
+        { x: -1, y: 1 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ];
+    else
+      dirs = [
+        { x: -1, y: -1 },
+        { x: 0, y: -1 },
+        { x: 1, y: -1 },
+      ];
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
     const dir = dirs[Math.floor((directionRoll - 1) / 2)];
@@ -261,8 +424,53 @@ export class BallManager {
       // A dropped throw-in is not a turnover
       this.callbacks
         .getFlowManager?.()
-        ?.add(new CatchOperation(occupant.id, false), true);
+        ?.add(
+          new CatchOperation(occupant.id, false, { origin: "throw-in" }),
+          true
+        );
+    } else {
+      const catcher = this.divingCatcherAt(landing);
+      if (catcher) {
+        this.callbacks.getFlowManager?.()?.add(
+          new CatchOperation(catcher.id, false, {
+            origin: "throw-in",
+            divingCatch: true,
+            landingPosition: landing,
+          }),
+          true
+        );
+      }
     }
+  }
+
+  private playerAt(square: { x: number; y: number }): Player | undefined {
+    return [...this.team1.players, ...this.team2.players].find(
+      (player) =>
+        player.gridPosition?.x === square.x &&
+        player.gridPosition?.y === square.y
+    );
+  }
+
+  private divingCatcherAt(landing: {
+    x: number;
+    y: number;
+  }): Player | undefined {
+    return [...this.team1.players, ...this.team2.players]
+      .filter(
+        (player) =>
+          player.gridPosition &&
+          player.status === PlayerStatus.ACTIVE &&
+          hasSkill(player.skills, SkillType.DIVING_CATCH) &&
+          Math.max(
+            Math.abs(player.gridPosition.x - landing.x),
+            Math.abs(player.gridPosition.y - landing.y)
+          ) === 1
+      )
+      .sort(
+        (a, b) =>
+          a.gridPosition!.y - b.gridPosition!.y ||
+          a.gridPosition!.x - b.gridPosition!.x
+      )[0];
   }
 
   // --- PICKUP ORCHESTRATION ---

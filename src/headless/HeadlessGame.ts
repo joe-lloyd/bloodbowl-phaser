@@ -41,10 +41,17 @@ const COMMAND_SHAPES: Record<
   "kick-ball": { playerId: "string", x: "number", y: "number" },
   "declare-action": { playerId: "string", action: "string" },
   move: { playerId: "string", path: "path" },
+  fumblerooski: { playerId: "string", x: "number", y: "number" },
   jump: { playerId: "string", x: "number", y: "number" },
   "stand-up": { playerId: "string" },
   block: { attackerId: "string", defenderId: "string" },
+  "multiple-block": {
+    attackerId: "string",
+    defender1Id: "string",
+    defender2Id: "string",
+  },
   pass: { playerId: "string", x: "number", y: "number" },
+  punt: { playerId: "string", x: "number", y: "number" },
   handoff: { playerId: "string", x: "number", y: "number" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
@@ -180,7 +187,9 @@ export class HeadlessGame {
     if (outcome.kind === "error") {
       return this.reject(
         `command-failed: ${
-          outcome.err instanceof Error ? outcome.err.message : String(outcome.err)
+          outcome.err instanceof Error
+            ? outcome.err.message
+            : String(outcome.err)
         }`
       );
     }
@@ -253,7 +262,7 @@ export class HeadlessGame {
         const kicker = this.requirePlayer(cmd.playerId);
         const isTeam1Kicking = kicker.teamId === this.ctx.team1.id;
         this.kickingTeamId = kicker.teamId;
-        gs.kickBall(isTeam1Kicking, cmd.playerId, cmd.x, cmd.y);
+        await gs.kickBall(isTeam1Kicking, cmd.playerId, cmd.x, cmd.y);
         break;
       }
       case "declare-action":
@@ -263,6 +272,16 @@ export class HeadlessGame {
         break;
       case "move":
         await gs.movePlayer(cmd.playerId, cmd.path);
+        break;
+      case "fumblerooski":
+        if (
+          !gs.dropBallWithFumblerooski(cmd.playerId, {
+            x: cmd.x,
+            y: cmd.y,
+          })
+        ) {
+          throw new Error("illegal-fumblerooski");
+        }
         break;
       case "stand-up":
         await gs.standUp(cmd.playerId);
@@ -292,6 +311,13 @@ export class HeadlessGame {
         );
         break;
       }
+      case "multiple-block":
+        await gs.multipleBlock(
+          cmd.attackerId,
+          cmd.defender1Id,
+          cmd.defender2Id
+        );
+        break;
       case "jump":
         await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
         break;
@@ -303,6 +329,9 @@ export class HeadlessGame {
         }
         break;
       }
+      case "punt":
+        await gs.puntBall(cmd.playerId, cmd.x, cmd.y);
+        break;
       case "foul":
         await gs.foulPlayer(cmd.playerId, cmd.x, cmd.y);
         break;
@@ -389,10 +418,7 @@ export class HeadlessGame {
       }
       case "use-reroll": {
         const pending = this.takePending("reroll");
-        if (
-          cmd.source !== undefined &&
-          !pending.sources.includes(cmd.source)
-        ) {
+        if (cmd.source !== undefined && !pending.sources.includes(cmd.source)) {
           this.pending = pending; // restore, reply was invalid
           throw new Error("invalid-reroll-source");
         }

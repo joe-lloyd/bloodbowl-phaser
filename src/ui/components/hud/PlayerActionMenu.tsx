@@ -22,9 +22,11 @@ interface PlayerActionMenuProps {
 const EMPTY_AVAILABILITY: ActionAvailability = {
   move: false,
   block: false,
+  multipleBlock: false,
   jump: false,
   blitz: false,
   pass: false,
+  punt: false,
   handoff: false,
   foul: false,
   standUp: false,
@@ -184,13 +186,48 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       string,
       { bg: string; border: string; hoverBg: string; hoverBorder: string }
     > = {
-      red: { bg: "#7f1d1d", border: "#991b1b", hoverBg: "#991b1b", hoverBorder: "#dc2626" },
-      yellow: { bg: "#713f12", border: "#a16207", hoverBg: "#a16207", hoverBorder: "#eab308" },
-      purple: { bg: "#581c87", border: "#6b21a8", hoverBg: "#6b21a8", hoverBorder: "#a855f7" },
-      blue: { bg: "#1e3a8a", border: "#1e40af", hoverBg: "#1e40af", hoverBorder: "#3b82f6" },
-      green: { bg: "#14532d", border: "#166534", hoverBg: "#166534", hoverBorder: "#22c55e" },
-      orange: { bg: "#7c2d12", border: "#9a3412", hoverBg: "#9a3412", hoverBorder: "#f97316" },
-      gray: { bg: "#374151", border: "#4b5563", hoverBg: "#4b5563", hoverBorder: "#6b7280" },
+      red: {
+        bg: "#7f1d1d",
+        border: "#991b1b",
+        hoverBg: "#991b1b",
+        hoverBorder: "#dc2626",
+      },
+      yellow: {
+        bg: "#713f12",
+        border: "#a16207",
+        hoverBg: "#a16207",
+        hoverBorder: "#eab308",
+      },
+      purple: {
+        bg: "#581c87",
+        border: "#6b21a8",
+        hoverBg: "#6b21a8",
+        hoverBorder: "#a855f7",
+      },
+      blue: {
+        bg: "#1e3a8a",
+        border: "#1e40af",
+        hoverBg: "#1e40af",
+        hoverBorder: "#3b82f6",
+      },
+      green: {
+        bg: "#14532d",
+        border: "#166534",
+        hoverBg: "#166534",
+        hoverBorder: "#22c55e",
+      },
+      orange: {
+        bg: "#7c2d12",
+        border: "#9a3412",
+        hoverBg: "#9a3412",
+        hoverBorder: "#f97316",
+      },
+      gray: {
+        bg: "#374151",
+        border: "#4b5563",
+        hoverBg: "#4b5563",
+        hoverBorder: "#6b7280",
+      },
     };
 
     const scheme = colorSchemes[color] || colorSchemes.blue;
@@ -226,7 +263,9 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         }}
       >
         <div className="flex justify-between w-full items-center">
-          <span className={`font-heading text-sm ${disabled ? "text-gray-400" : "text-white"}`}>
+          <span
+            className={`font-heading text-sm ${disabled ? "text-gray-400" : "text-white"}`}
+          >
             {label}
           </span>
           {sub && (
@@ -242,9 +281,24 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const a = availability;
   // Nothing situational to offer beyond ending the activation.
   const anyContextual =
-    a.block || a.blitz || a.pass || a.handoff || a.foul || a.standUp ||
-    a.secureBall || a.stab || a.breatheFire || a.vomit || a.gaze || a.chomp ||
-    a.chainsaw || a.throwTeammate || a.kickTeammate || a.throwBomb ||
+    a.block ||
+    a.multipleBlock ||
+    a.blitz ||
+    a.pass ||
+    a.punt ||
+    a.handoff ||
+    a.foul ||
+    a.standUp ||
+    a.secureBall ||
+    a.stab ||
+    a.breatheFire ||
+    a.vomit ||
+    a.gaze ||
+    a.chomp ||
+    a.chainsaw ||
+    a.throwTeammate ||
+    a.kickTeammate ||
+    a.throwBomb ||
     a.ballAndChain;
 
   return (
@@ -300,62 +354,181 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {/* Block without moving; auto-block on clicking an adjacent enemy
                 still works. */}
             {a.block && (
-              <ActionButton action="block" label="BLOCK" disabled={false} color="red" />
+              <ActionButton
+                action="block"
+                label="BLOCK"
+                disabled={false}
+                color="red"
+              />
+            )}
+            {a.multipleBlock && (
+              <ActionButton
+                action="multipleBlock"
+                label="MULTIPLE BLOCK"
+                sub="2 Targets"
+                disabled={false}
+                color="red"
+              />
             )}
 
             {/* Only actions with a legal target this activation are shown. */}
             {a.blitz && (
-              <ActionButton action="blitz" label="BLITZ" sub="1/Turn" disabled={false} color="red" />
+              <ActionButton
+                action="blitz"
+                label="BLITZ"
+                sub="1/Turn"
+                disabled={false}
+                color="red"
+              />
             )}
             {a.pass && (
-              <ActionButton action="pass" label="PASS" sub="1/Turn" disabled={false} color="yellow" />
+              <ActionButton
+                action="pass"
+                label="PASS"
+                sub="1/Turn"
+                disabled={false}
+                color="yellow"
+              />
+            )}
+            {a.punt && (
+              <ActionButton
+                action="punt"
+                label="PUNT"
+                sub="1/Turn"
+                disabled={false}
+                color="yellow"
+              />
             )}
             {a.handoff && (
-              <ActionButton action="handoff" label="HAND-OFF" sub="1/Turn" disabled={false} color="yellow" />
+              <ActionButton
+                action="handoff"
+                label="HAND-OFF"
+                sub="1/Turn"
+                disabled={false}
+                color="yellow"
+              />
             )}
             {a.foul && (
-              <ActionButton action="foul" label="FOUL" sub="1/Turn" disabled={false} color="purple" />
+              <ActionButton
+                action="foul"
+                label="FOUL"
+                sub="1/Turn"
+                disabled={false}
+                color="purple"
+              />
             )}
 
             {/* Special actions — only when the player has the trait and an
                 adjacent Standing opponent to target. */}
             {a.stab && (
-              <ActionButton action="stab" label="STAB" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="stab"
+                label="STAB"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.breatheFire && (
-              <ActionButton action="breatheFire" label="BREATHE FIRE" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="breatheFire"
+                label="BREATHE FIRE"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.vomit && (
-              <ActionButton action="vomit" label="PROJECTILE VOMIT" sub="Special" disabled={false} color="green" />
+              <ActionButton
+                action="vomit"
+                label="PROJECTILE VOMIT"
+                sub="Special"
+                disabled={false}
+                color="green"
+              />
             )}
             {a.gaze && (
-              <ActionButton action="gaze" label="HYPNOTIC GAZE" sub="Special" disabled={false} color="purple" />
+              <ActionButton
+                action="gaze"
+                label="HYPNOTIC GAZE"
+                sub="Special"
+                disabled={false}
+                color="purple"
+              />
             )}
             {a.chomp && (
-              <ActionButton action="chomp" label="CHOMP" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="chomp"
+                label="CHOMP"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.chainsaw && (
-              <ActionButton action="chainsaw" label="CHAINSAW" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="chainsaw"
+                label="CHAINSAW"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.throwBomb && (
-              <ActionButton action="throwBomb" label="THROW BOMB" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="throwBomb"
+                label="THROW BOMB"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.ballAndChain && (
-              <ActionButton action="ballAndChain" label="BALL & CHAIN" sub="Special" disabled={false} color="orange" />
+              <ActionButton
+                action="ballAndChain"
+                label="BALL & CHAIN"
+                sub="Special"
+                disabled={false}
+                color="orange"
+              />
             )}
             {a.throwTeammate && (
-              <ActionButton action="throwTeamMate" label="THROW TEAM-MATE" sub="Special" disabled={false} color="green" />
+              <ActionButton
+                action="throwTeamMate"
+                label="THROW TEAM-MATE"
+                sub="Special"
+                disabled={false}
+                color="green"
+              />
             )}
             {a.kickTeammate && (
-              <ActionButton action="throwTeamMate" label="KICK TEAM-MATE" sub="Special" disabled={false} color="green" />
+              <ActionButton
+                action="throwTeamMate"
+                label="KICK TEAM-MATE"
+                sub="Special"
+                disabled={false}
+                color="green"
+              />
             )}
 
             {isProne && (
-              <ActionButton action="standUp" label="STAND UP" sub="3 MA" disabled={!a.standUp} color="blue" />
+              <ActionButton
+                action="standUp"
+                label="STAND UP"
+                sub="3 MA"
+                disabled={!a.standUp}
+                color="blue"
+              />
             )}
 
             {a.secureBall && (
-              <ActionButton action="secureBall" label="SECURE BALL" sub="Pick Up" disabled={false} color="blue" />
+              <ActionButton
+                action="secureBall"
+                label="SECURE BALL"
+                sub="Pick Up"
+                disabled={false}
+                color="blue"
+              />
             )}
 
             {!anyContextual && (
@@ -364,7 +537,13 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
               </div>
             )}
 
-            <ActionButton action="forgoe" label="END ACTIVATION" sub="Skip" disabled={hasActed} color="gray" />
+            <ActionButton
+              action="forgoe"
+              label="END ACTIVATION"
+              sub="Skip"
+              disabled={hasActed}
+              color="gray"
+            />
           </div>
         </div>
       )}

@@ -61,6 +61,7 @@ import { ChainsawAttackOperation } from "@/game/operations/ChainsawAttackOperati
 import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
+import { PuntOperation } from "@/game/operations/PuntOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
 import { BombardierOperation } from "@/game/operations/BombardierOperation";
 import { BallAndChainOperation } from "@/game/operations/BallAndChainOperation";
@@ -170,8 +171,10 @@ export class GameService implements IGameService {
 
     // Mid-action decision channel + reroll constraints (skill rules)
     this.decisionService = new DecisionService(eventBus);
-    this.rerollArbiter = new RerollArbiter(this.state, (id) =>
-      this.getTeam(id)
+    this.rerollArbiter = new RerollArbiter(
+      this.state,
+      (id) => this.getTeam(id),
+      eventBus
     );
 
     // Initialize Flow Manager (Pass 'this' as context)
@@ -248,7 +251,10 @@ export class GameService implements IGameService {
     });
     eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
-    eventBus.on(GameEventNames.TurnStarted, () => this.blitzBlockUsed.clear());
+    eventBus.on(GameEventNames.TurnStarted, () => {
+      this.blitzBlockUsed.clear();
+      this.puntUsedThisTurn = false;
+    });
 
     this.passController = new PassController(
       eventBus,
@@ -286,6 +292,12 @@ export class GameService implements IGameService {
         getFlowManager: () => this.flowManager,
       }
     );
+
+    // A headless/sandbox scenario may begin directly in PLAY, bypassing the
+    // normal kickoff transition, so seed its half-level Leader bank here.
+    if (this.state.phase === GamePhase.PLAY) {
+      this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
+    }
   }
 
   // ===== State Queries =====
@@ -429,13 +441,13 @@ export class GameService implements IGameService {
     }
   }
 
-  kickBall(
+  async kickBall(
     isTeam1Kicking: boolean,
     playerId: string,
     targetX: number,
     targetY: number
-  ): void {
-    this.ballManager.kickBall(isTeam1Kicking, playerId, targetX, targetY);
+  ): Promise<void> {
+    await this.ballManager.kickBall(isTeam1Kicking, playerId, targetX, targetY);
   }
 
   rollKickoff(): void {
@@ -482,6 +494,7 @@ export class GameService implements IGameService {
   }
 
   startGame(kickingTeamId: string): void {
+    this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
     this.turnManager.startGame(kickingTeamId);
   }
 
@@ -508,6 +521,7 @@ export class GameService implements IGameService {
    * moving, so a second block must be refused.
    */
   private blitzBlockUsed = new Set<string>();
+  private puntUsedThisTurn = false;
 
   public hasUsedBlitzBlock(playerId: string): boolean {
     return this.blitzBlockUsed.has(playerId);
@@ -566,6 +580,18 @@ export class GameService implements IGameService {
 
   previewBlock(attackerId: string, defenderId: string): void {
     this.blockManager.previewBlock(attackerId, defenderId);
+  }
+
+  async multipleBlock(
+    attackerId: string,
+    defender1Id: string,
+    defender2Id: string
+  ): Promise<void> {
+    await this.blockManager.startMultipleBlock(
+      attackerId,
+      defender1Id,
+      defender2Id
+    );
   }
 
   async rollBlockDice(
@@ -831,6 +857,26 @@ export class GameService implements IGameService {
     return { success: true, result: "Pass Started" };
   }
 
+  async puntBall(
+    playerId: string,
+    facingX: number,
+    facingY: number
+  ): Promise<void> {
+    const player = this.getPlayerById(playerId);
+    if (
+      !player?.gridPosition ||
+      this.puntUsedThisTurn ||
+      this.state.activePlayer?.id !== playerId ||
+      this.state.activePlayer.action !== "punt" ||
+      !hasSkill(player.skills, SkillType.PUNT) ||
+      !this.ballManager.hasBall(playerId)
+    ) {
+      return;
+    }
+    this.puntUsedThisTurn = true;
+    this.flowManager.add(new PuntOperation(playerId, facingX, facingY));
+  }
+
   // No changes needed here, just removing the section below
 
   /**
@@ -900,8 +946,7 @@ export class GameService implements IGameService {
 
   /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
   private handleTurnEnding(endingTeamId: string): void {
-    const reacting =
-      endingTeamId === this.team1.id ? this.team2 : this.team1;
+    const reacting = endingTeamId === this.team1.id ? this.team2 : this.team1;
     const players = reacting.players.filter((p) => p.gridPosition);
     const ctx: TurnEndingContext = {
       endingTeamId,
@@ -1085,6 +1130,35 @@ export class GameService implements IGameService {
     return this.movementManager.movePlayer(playerId, path, context);
   }
 
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean {
+    const player = this.getPlayerById(playerId);
+    const active = this.state.activePlayer;
+    if (
+      !player?.gridPosition ||
+      active?.id !== playerId ||
+      active.action !== "move" ||
+      !hasSkill(player.skills, SkillType.FUMBLEROOSKI) ||
+      !this.ballManager.hasBall(playerId)
+    ) {
+      return false;
+    }
+    const dx = Math.abs(player.gridPosition.x - square.x);
+    const dy = Math.abs(player.gridPosition.y - square.y);
+    if (Math.max(dx, dy) !== 1 || this.getPlayerAt(square.x, square.y)) {
+      return false;
+    }
+    this.setBallPosition(square.x, square.y);
+    this.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId,
+      skill: SkillType.FUMBLEROOSKI,
+      effect: "Fumblerooski: left the ball behind without causing a Turnover",
+    });
+    return true;
+  }
+
   async standUp(playerId: string): Promise<void> {
     return this.movementManager.standUp(playerId);
   }
@@ -1133,9 +1207,15 @@ export class GameService implements IGameService {
 
     // A player who is down cannot plain-Block: standing up costs movement,
     // so a hit after rising is what Blitz is for
-    if (action === "block") {
+    if (action === "block" || action === "multipleBlock") {
       const player = this.getPlayerById(playerId);
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (
+        action === "multipleBlock" &&
+        !hasSkill(player.skills, SkillType.MULTIPLE_BLOCK)
+      ) {
+        return false;
+      }
     }
     // A Stab Special Action needs the Stab trait and a Standing stabber
     if (action === "stab") {
@@ -1159,6 +1239,17 @@ export class GameService implements IGameService {
       const player = this.getPlayerById(playerId);
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
       if (!hasSkill(player.skills, SkillType.BOMBARDIER)) return false;
+    }
+    if (action === "punt") {
+      const player = this.getPlayerById(playerId);
+      if (
+        !player ||
+        player.status !== PlayerStatus.ACTIVE ||
+        !hasSkill(player.skills, SkillType.PUNT) ||
+        this.puntUsedThisTurn
+      ) {
+        return false;
+      }
     }
     // Ball & Chain: the trait needs a Standing Fanatic — and a Fanatic may
     // declare NOTHING else (the lurch is the only action available to them).
@@ -1282,6 +1373,11 @@ export class GameService implements IGameService {
         ? this.state.activePlayer.action
         : undefined;
     if (declared !== "stab" && declared !== "blitz") return;
+
+    const target = this.getPlayerById(targetId);
+    if (target && target.teamId !== attacker.teamId) {
+      await this.blockManager.offerDumpOff(targetId);
+    }
 
     this.flowManager.add(new StabOperation(attackerId, targetId));
   }
@@ -1408,6 +1504,12 @@ export class GameService implements IGameService {
     const blitzOk = kind !== "gaze";
     if (declared !== kind && !(blitzOk && declared === "blitz")) return;
 
+    // Dump-Off is resolved before a directly-targeting opposition Special
+    // Action, just as it is before a Block.
+    const target = this.getPlayerById(targetId);
+    if (target && target.teamId !== attacker.teamId) {
+      await this.blockManager.offerDumpOff(targetId);
+    }
     switch (kind) {
       case "breatheFire":
         this.flowManager.add(new BreatheFireOperation(attackerId, targetId));
@@ -1424,9 +1526,7 @@ export class GameService implements IGameService {
         this.flowManager.add(new ChompOperation(attackerId, targetId));
         break;
       case "chainsaw":
-        this.flowManager.add(
-          new ChainsawAttackOperation(attackerId, targetId)
-        );
+        this.flowManager.add(new ChainsawAttackOperation(attackerId, targetId));
         break;
     }
   }

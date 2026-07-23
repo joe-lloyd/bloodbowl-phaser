@@ -31,7 +31,6 @@ const mbTriggered = (effectPart: string) => (r: ScriptResult) =>
       (d as { effect: string }).effect.includes(effectPart)
   );
 
-
 export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
     skill: SkillType.ARM_BAR,
@@ -262,7 +261,11 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => skillTriggered(r, SkillType.THICK_SKULL),
             verify: (r) => {
               assert(
-                sawEvent(r, GameEventNames.UI_Notification, (d) => d === "STUNNED!"),
+                sawEvent(
+                  r,
+                  GameEventNames.UI_Notification,
+                  (d) => d === "STUNNED!"
+                ),
                 "the 8 must resolve as Stunned"
               );
               assert(
@@ -339,6 +342,78 @@ export const STRENGTH_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 !skillTriggered(r, SkillType.BREAK_TACKLE),
                 "Break Tackle must not trigger below ST 4"
               ),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.MULTIPLE_BLOCK,
+    configs: [
+      {
+        id: "multiple-block-two-targets",
+        name: "Two Blocks at reduced Strength",
+        description:
+          "Both marked opponents are blocked at -2 ST and no Follow-up is offered",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.MULTIPLE_BLOCK],
+            },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5 },
+            { playerIndex: 1, x: 10, y: 6 },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "multipleBlock",
+          },
+          {
+            type: "multiple-block",
+            attackerId: "team1:0",
+            defender1Id: "team2:0",
+            defender2Id: "team2:1",
+          },
+        ],
+        decisionPolicy: { preferBlockResult: "push", followUp: false },
+        outcomes: [
+          {
+            id: "both-blocks-resolve",
+            name: "Both reduced-Strength blocks resolve without Follow-up",
+            matches: (r) =>
+              skillTriggered(r, SkillType.MULTIPLE_BLOCK) &&
+              r.events.filter((e) => e.name === GameEventNames.BlockDiceRolled)
+                .length === 2,
+            verify: (r) => {
+              const rolls = r.events.filter(
+                (e) => e.name === GameEventNames.BlockDiceRolled
+              );
+              assert(
+                rolls.length === 2,
+                `exactly two Blocks must be rolled (got ${rolls.length}; errors: ${r.responses
+                  .filter((response) => !response.ok)
+                  .map((response) => response.reason)
+                  .join(", ")})`
+              );
+              assert(
+                rolls.every(
+                  (e) => (e.data as { numDice?: number }).numDice === 3
+                ),
+                "-2 ST must make both ST3 opponents choose three dice"
+              );
+              assert(
+                !r.decisions.some((d) => d.type === "follow-up"),
+                "Multiple Block must never offer a Follow-up"
+              );
+            },
           },
         ],
       },

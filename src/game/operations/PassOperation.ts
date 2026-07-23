@@ -3,8 +3,10 @@ import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
+import { PlayerStatus, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import { ArmourOperation } from "./ArmourOperation";
 import {
   foldTrigger,
   gatherParticipants,
@@ -12,6 +14,7 @@ import {
   playersWithin,
   PassDeclaredContext,
   PassResultContext,
+  withRerollOffer,
 } from "../skills";
 
 /**
@@ -115,6 +118,16 @@ export class PassOperation extends GameOperation {
           p.gridPosition?.x === this.targetX &&
           p.gridPosition?.y === this.targetY
       );
+
+    // On the Ball resolves after the target is known but before any modifier
+    // folds or the Passing Ability Test. Reactors move one at a time; a fall
+    // stops the remaining reactions but is not a Turnover (it is not their
+    // team turn).
+    await this.resolveOnTheBall(gameService, eventBus, context, passer, {
+      x: this.targetX,
+      y: this.targetY,
+    });
+
     const passCtx: PassDeclaredContext = {
       player: passer,
       passType: passRange.type,
@@ -194,6 +207,7 @@ export class PassOperation extends GameOperation {
     await context.delay(1500);
 
     // 4. Handle Outcome
+    const declaredAction = gameService.getState().activePlayer?.action;
     if (result.fumbled && resultCtx.keepBall) {
       // Safe Pass: no fumble — the passer retains possession, their
       // activation ends, no turnover
@@ -264,18 +278,58 @@ export class PassOperation extends GameOperation {
 
       if (playerAtLanding) {
         // Attempt Catch
-        context.flowManager.add(new CatchOperation(playerAtLanding.id), true);
-      } else {
-        // Land in empty square -> Bounce
-        eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Ball Lands in Empty Square"
+        context.flowManager.add(
+          new CatchOperation(playerAtLanding.id, true, {
+            origin: declaredAction === "handoff" ? "handoff" : "pass",
+            isPassTarget:
+              declaredAction !== "handoff" &&
+              landingPos.x === this.targetX &&
+              landingPos.y === this.targetY,
+          }),
+          true
         );
-        context.flowManager.add(new BounceOperation(landingPos), true);
+      } else {
+        const divingCatcher = [
+          ...(gameService.getTeam(passer.teamId)?.players ?? []),
+          ...opponents,
+        ]
+          .filter(
+            (candidate) =>
+              candidate.gridPosition &&
+              candidate.status === PlayerStatus.ACTIVE &&
+              hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
+              Math.max(
+                Math.abs(candidate.gridPosition.x - landingPos.x),
+                Math.abs(candidate.gridPosition.y - landingPos.y)
+              ) === 1
+          )
+          .sort(
+            (a, b) =>
+              a.gridPosition!.y - b.gridPosition!.y ||
+              a.gridPosition!.x - b.gridPosition!.x
+          )[0];
 
-        // If accurate pass lands empty -> Bounce -> Stop. Turnover?
-        // "If the ball is not caught, it is a Turnover."
-        gameService.triggerTurnover("Pass Incomplete");
+        if (divingCatcher) {
+          context.flowManager.add(
+            new CatchOperation(divingCatcher.id, true, {
+              origin: declaredAction === "handoff" ? "handoff" : "pass",
+              divingCatch: true,
+              landingPosition: landingPos,
+            }),
+            true
+          );
+        } else {
+          // Land in empty square -> Bounce
+          eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Ball Lands in Empty Square"
+          );
+          context.flowManager.add(new BounceOperation(landingPos), true);
+
+          // If accurate pass lands empty -> Bounce -> Stop. Turnover?
+          // "If the ball is not caught, it is a Turnover."
+          gameService.triggerTurnover("Pass Incomplete");
+        }
       }
     }
 
@@ -285,13 +339,148 @@ export class PassOperation extends GameOperation {
     // A Pass Action ends the activation once it settles. Give and Go keeps it
     // open after a Quick Pass or a Hand-off. A latched Turnover bypasses it
     // even while the ball-settling flow is still completing.
-    const declaredAction = gameService.getState().activePlayer?.action;
     const giveAndGoExempt =
       hasSkill(passer.skills, SkillType.GIVE_AND_GO) &&
       (declaredAction === "handoff" || result.passType === "Quick Pass");
     context.flowManager.add(
       new FinishPassActivationOperation(this.passerId, giveAndGoExempt)
     );
+  }
+
+  private async resolveOnTheBall(
+    gameService: IGameService,
+    eventBus: import("../../services/EventBus").IEventBus,
+    context: any,
+    passer: import("../../types/Player").Player,
+    target: { x: number; y: number }
+  ): Promise<void> {
+    const reactors = gameService
+      .getOpponents(passer.teamId)
+      .filter(
+        (player) =>
+          !!player.gridPosition &&
+          player.status === PlayerStatus.ACTIVE &&
+          hasSkill(player.skills, SkillType.ON_THE_BALL)
+      )
+      .sort(
+        (a, b) =>
+          a.gridPosition!.y - b.gridPosition!.y ||
+          a.gridPosition!.x - b.gridPosition!.x
+      );
+
+    for (const reactor of reactors) {
+      const answer = (await gameService.getDecisionService().request({
+        type: "reaction",
+        playerId: reactor.id,
+        chooserTeamId: reactor.teamId,
+        skill: SkillType.ON_THE_BALL,
+        prompt: `${reactor.playerName} may move up to 3 squares before the pass — use On the Ball?`,
+      })) as import("../../types/decisions").ReactionDecisionAnswer;
+      if (!answer.accept || !reactor.gridPosition) continue;
+
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: reactor.id,
+        skill: SkillType.ON_THE_BALL,
+        effect: "On the Ball: reacting move before the Passing Ability Test",
+      });
+
+      for (let stepNumber = 0; stepNumber < 3; stepNumber++) {
+        const from = { ...reactor.gridPosition };
+        const occupied = new Set<string>();
+        for (const teamId of [passer.teamId, reactor.teamId]) {
+          for (const player of gameService.getTeam(teamId)?.players ?? []) {
+            if (player.id !== reactor.id && player.gridPosition) {
+              occupied.add(`${player.gridPosition.x},${player.gridPosition.y}`);
+            }
+          }
+        }
+        const candidates: { x: number; y: number }[] = [];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const square = { x: from.x + dx, y: from.y + dy };
+            if (
+              square.x >= 0 &&
+              square.x < 26 &&
+              square.y >= 0 &&
+              square.y < 15 &&
+              !occupied.has(`${square.x},${square.y}`)
+            ) {
+              candidates.push(square);
+            }
+          }
+        }
+        candidates.sort(
+          (a, b) =>
+            Math.max(Math.abs(a.x - target.x), Math.abs(a.y - target.y)) -
+              Math.max(Math.abs(b.x - target.x), Math.abs(b.y - target.y)) ||
+            a.y - b.y ||
+            a.x - b.x
+        );
+        const to = candidates[0];
+        if (!to) break;
+
+        const opposition = gameService
+          .getOpponents(reactor.teamId)
+          .filter((player) => !!player.gridPosition && hasTackleZone(player));
+        const leavesTackleZone = opposition.some(
+          (marker) =>
+            Math.max(
+              Math.abs(marker.gridPosition!.x - from.x),
+              Math.abs(marker.gridPosition!.y - from.y)
+            ) === 1
+        );
+        if (leavesTackleZone) {
+          const destinationMarkers = opposition.filter(
+            (marker) =>
+              Math.max(
+                Math.abs(marker.gridPosition!.x - to.x),
+                Math.abs(marker.gridPosition!.y - to.y)
+              ) === 1
+          ).length;
+          const dodge = await withRerollOffer(
+            { gameService, eventBus },
+            reactor,
+            "dodge",
+            () =>
+              gameService
+                .getDiceController()
+                .rollSkillCheck(
+                  "Dodge",
+                  reactor.stats.AG,
+                  -destinationMarkers,
+                  reactor.playerName
+                )
+          );
+          if (!dodge.success) {
+            reactor.gridPosition = { ...to };
+            reactor.status = PlayerStatus.PRONE;
+            eventBus.emit(GameEventNames.PlayerMoved, {
+              playerId: reactor.id,
+              from,
+              to: { ...to },
+              path: [from, { ...to }],
+              ballJoinStep: 0,
+            });
+            eventBus.emit(GameEventNames.PlayerKnockedDown, {
+              playerId: reactor.id,
+            });
+            eventBus.emit(GameEventNames.PlayerStatusChanged, reactor);
+            context.flowManager.add(new ArmourOperation(reactor.id), true);
+            return;
+          }
+        }
+
+        reactor.gridPosition = { ...to };
+        eventBus.emit(GameEventNames.PlayerMoved, {
+          playerId: reactor.id,
+          from,
+          to: { ...to },
+          path: [from, { ...to }],
+          ballJoinStep: 0,
+        });
+      }
+    }
   }
 
   /**
@@ -344,7 +533,8 @@ export class PassOperation extends GameOperation {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: e.playerId,
           skill: SkillType.VERY_LONG_LEGS,
-          effect: "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
+          effect:
+            "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
       return {

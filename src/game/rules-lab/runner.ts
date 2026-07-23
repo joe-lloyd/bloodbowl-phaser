@@ -13,12 +13,7 @@ import {
 } from "../../headless/protocol";
 import { Scenario } from "../../types/Scenario";
 import { Player, PlayerStatus } from "../../types/Player";
-import {
-  RuleConfig,
-  RuleOutcome,
-  ScriptResult,
-  DecisionPolicy,
-} from "./types";
+import { RuleConfig, RuleOutcome, ScriptResult, DecisionPolicy } from "./types";
 
 const PLAYER_REF = /^(team1|team2):(\d+)$/;
 
@@ -40,6 +35,8 @@ const ID_FIELDS = [
   "playerId",
   "attackerId",
   "defenderId",
+  "defender1Id",
+  "defender2Id",
   "player1Id",
   "player2Id",
   "throwerId",

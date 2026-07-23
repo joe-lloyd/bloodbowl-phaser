@@ -43,10 +43,12 @@ export interface ActionAvailability {
   move: boolean;
   /** A Block without moving — an adjacent Standing opponent, not yet moved. */
   block: boolean;
+  multipleBlock: boolean;
   /** A Jump over an adjacent downed player (or any square with Leap/Pogo). */
   jump: boolean;
   blitz: boolean;
   pass: boolean;
+  punt: boolean;
   handoff: boolean;
   foul: boolean;
   standUp: boolean;
@@ -82,9 +84,11 @@ export function computeActionAvailability(
   const none: ActionAvailability = {
     move: false,
     block: false,
+    multipleBlock: false,
     jump: false,
     blitz: false,
     pass: false,
+    punt: false,
     handoff: false,
     foul: false,
     standUp: false,
@@ -158,6 +162,12 @@ export function computeActionAvailability(
   // (once moved, a Block needs a Blitz). The auto-block on clicking an
   // adjacent enemy still works; this just surfaces it as a menu button.
   const block = adjacentStandingEnemy && !input.hasMovedInAction;
+  const multipleBlock =
+    !input.hasMovedInAction &&
+    hasSkill(player.skills, SkillType.MULTIPLE_BLOCK) &&
+    standingEnemies.filter(
+      (enemy) => chebyshev(here, enemy.gridPosition!) === 1
+    ).length >= 2;
 
   // Jump: over an adjacent player (Prone/Stunned by default, any with
   // Leap/Pogo) into one of their unoccupied push-back squares.
@@ -183,8 +193,7 @@ export function computeActionAvailability(
   // Throw / Kick Team-mate: an adjacent Standing team-mate that is Right-Stuff
   // eligible (has the trait and Strength 3 or less) is a legal target.
   const adjacentEligibleMate = standingMates.some(
-    (t) =>
-      chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
+    (t) => chebyshev(here, t.gridPosition!) === 1 && isRightStuffEligible(t)
   );
   const throwTeammate =
     hasSkill(player.skills, SkillType.THROW_TEAM_MATE) && adjacentEligibleMate;
@@ -196,13 +205,19 @@ export function computeActionAvailability(
     hasSkill(player.skills, SkillType.BOMBARDIER) &&
     isStanding(player) &&
     !input.hasMovedInAction;
+  const punt =
+    hasSkill(player.skills, SkillType.PUNT) &&
+    isStanding(player) &&
+    canHaveBall;
 
   return {
     move: true,
     block,
+    multipleBlock,
     jump,
     blitz,
     pass,
+    punt,
     handoff,
     foul,
     standUp: isProne,
