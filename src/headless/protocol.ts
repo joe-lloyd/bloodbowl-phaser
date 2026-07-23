@@ -28,6 +28,13 @@ export type HeadlessCommand =
   // Turn play
   | { type: "declare-action"; playerId: string; action: ActionType }
   | { type: "move"; playerId: string; path: GridPosition[] }
+  | {
+      type: "fumblerooski";
+      playerId: string;
+      /** A square this player just moved out of. */
+      x: number;
+      y: number;
+    }
   | { type: "jump"; playerId: string; x: number; y: number }
   | { type: "stand-up"; playerId: string }
   | { type: "block"; attackerId: string; defenderId: string }

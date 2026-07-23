@@ -71,7 +71,10 @@ export class BounceOperation extends GameOperation {
     if (playerAtSquare) {
       // Attempt Catch (a dropped bounce is not a turnover by itself)
       eventBus.emit(GameEventNames.UI_Notification, "Ball hits player!");
-      flowManager.add(new CatchOperation(playerAtSquare.id, false), true);
+      flowManager.add(
+        new CatchOperation(playerAtSquare.id, false, { origin: "bounce" }),
+        true
+      );
     } else {
       // Land in empty square
       eventBus.emit(

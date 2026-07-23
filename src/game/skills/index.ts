@@ -108,6 +108,12 @@ import { BallAndChainRule } from "./rules/BallAndChainRule";
 import { BullseyeRule } from "./rules/BullseyeRule";
 import { QuickFoulRule } from "./rules/QuickFoulRule";
 import { GiveAndGoRule } from "./rules/GiveAndGoRule";
+import { FumblerooskiRule } from "./rules/FumblerooskiRule";
+import { SecretWeaponRule } from "./rules/SecretWeaponRule";
+import { DivingCatchRule } from "./rules/DivingCatchRule";
+import { ViolentInnovatorRule } from "./rules/ViolentInnovatorRule";
+import { PileDriverRule } from "./rules/PileDriverRule";
+import { SaboteurRule } from "./rules/SaboteurRule";
 
 let registered = false;
 
@@ -213,6 +219,15 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.BULLSEYE, BullseyeRule);
   SkillRegistry.register(SkillType.QUICK_FOUL, QuickFoulRule);
   SkillRegistry.register(SkillType.GIVE_AND_GO, GiveAndGoRule);
+  SkillRegistry.register(SkillType.FUMBLEROOSKI, FumblerooskiRule);
+  SkillRegistry.register(SkillType.SECRET_WEAPON, SecretWeaponRule);
+  SkillRegistry.register(SkillType.DIVING_CATCH, DivingCatchRule);
+  SkillRegistry.register(
+    SkillType.VIOLENT_INNOVATOR,
+    ViolentInnovatorRule
+  );
+  SkillRegistry.register(SkillType.PILE_DRIVER, PileDriverRule);
+  SkillRegistry.register(SkillType.SABOTEUR, SaboteurRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

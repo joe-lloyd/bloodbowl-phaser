@@ -11,10 +11,10 @@ fixes in `ai_notes.md`.
 
 ## 1. Batch 1 — Misc leftovers (no new engine seam)
 
-- [ ] 1.1 Diving Catch: catch a ball landing in the player's Tackle Zone from a Pass/Throw-in/Kick-off (not a Bounce), +1 when the player is the Pass target — hook the catch/ball-landing path
+- [x] 1.1 Diving Catch: catch a ball landing in the player's Tackle Zone from a Pass/Throw-in/Kick-off (not a Bounce), +1 when the player is the Pass target — hook the catch/ball-landing path
 - [x] 1.2 Safe Pair of Hands: when a carrier is Knocked Down / placed Prone, place the ball in a chosen adjacent empty square instead of Bouncing — hook the drop-ball path (wired at the Block-knockdown drop; Dodge/Rush/Stab drop paths remain)
 - [x] 1.3 Hit and Run: after a Block or Stab, a free 1-square move ignoring Tackle Zones if still Standing, ending neither Marking nor Marked — enqueue a post-action move (engine logic pre-existed; wired the trigger + registered; Stab path remains)
-- [ ] 1.4 Fumblerooski: a moving carrier may drop the ball in a vacated square with no Turnover — hook the Move path
+- [x] 1.4 Fumblerooski: a moving carrier may drop the ball in a vacated square with no Turnover — hook the Move path
 - [ ] 1.5 Multiple Block (`MultipleBlockOperation`): two Blocks at two Marked opponents, -2 Strength, no follow-up, both resolved even if one causes a Turnover; wire declaration + protocol + action menu
 - [ ] 1.6 Bullseye: extend the Throw Team-mate subsystem — a Superb Throw lands with no scatter (owned here; requires Throw Team-mate)
 - [ ] 1.7 Lethal Flight: extend Right Stuff — a thrown player who Knocks Down an opponent grants a post-roll +1 to Armour or Injury and SPP attribution (requires Right Stuff)
@@ -56,10 +56,10 @@ fixes in `ai_notes.md`.
 - [x] 4.5 Put the Boot In: provide offensive assists to a team-mate's Foul regardless of markers (extend `onCountAssists`)
 - [x] 4.6 Eye Gouge: a pushed-back opponent cannot provide Offensive/Defensive assists until next activated — per-player flag cleared on activation
 - [x] 4.7 Quick Foul: activation does not end after a Foul; continue the Move with remaining movement
-- [ ] 4.8 Pile Driver: after a Block knockdown while still Marking, a free Foul, then place the blocker Prone and end the activation
-- [ ] 4.9 Secret Weapon: Sent-off for a Foul at the end of any Drive the player took part in (even if off the pitch) — add an end-of-Drive send-off pass in `DriveManager`/`TurnManager`
-- [ ] 4.10 Saboteur (requires Secret Weapon): on a Block knockdown, roll a D6 before the Armour roll — 4+ Knocks Down the blocker too (Turnover only if they held the ball) and Knocks Out the Saboteur with no Armour roll
-- [ ] 4.11 Violent Innovator: SPP attribution for a casualty caused by a Special Action — flag on the special-action operations read by the casualty/SPP path
+- [x] 4.8 Pile Driver: after a Block knockdown while still Marking, a free Foul, then place the blocker Prone and end the activation
+- [x] 4.9 Secret Weapon: Sent-off for a Foul at the end of any Drive the player took part in (even if off the pitch) — add an end-of-Drive send-off pass in `DriveManager`/`TurnManager`
+- [x] 4.10 Saboteur (requires Secret Weapon): on a Block knockdown, roll a D6 before the Armour roll — 4+ Knocks Down the blocker too (Turnover only if they held the ball) and Knocks Out the Saboteur with no Armour roll
+- [x] 4.11 Violent Innovator: SPP attribution for a casualty caused by a Special Action — flag on the special-action operations read by the casualty/SPP path
 - [ ] 4.12 Catalog configs + headless tests for 4.2–4.11 (foul edge cases: unbroken-double send-off, foul-caused turnover, Pile Driver forced-prone activation end, end-of-Drive send-off); bump gate snapshot to 104
 
 ## 5. Batch 5 — Special-action weapons

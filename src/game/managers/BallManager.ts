@@ -152,6 +152,20 @@ export class BallManager {
             "Touchback! Choose any of your players to take the ball."
           );
         }
+      } else if (this.state.ballPosition) {
+        const landing = { ...this.state.ballPosition };
+        const occupant = this.playerAt(landing);
+        const catcher = occupant ?? this.divingCatcherAt(landing);
+        if (catcher) {
+          this.callbacks.getFlowManager?.()?.add(
+            new CatchOperation(catcher.id, false, {
+              origin: "kick-off",
+              divingCatch: !occupant,
+              landingPosition: landing,
+            }),
+            true
+          );
+        }
       }
     });
   }
@@ -204,12 +218,30 @@ export class BallManager {
 
     // Infield directions for the edge the ball left from
     let dirs: { x: number; y: number }[];
-    if (from.x <= 0) dirs = [{ x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 }];
+    if (from.x <= 0)
+      dirs = [
+        { x: 1, y: -1 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ];
     else if (from.x >= maxX)
-      dirs = [{ x: -1, y: -1 }, { x: -1, y: 0 }, { x: -1, y: 1 }];
+      dirs = [
+        { x: -1, y: -1 },
+        { x: -1, y: 0 },
+        { x: -1, y: 1 },
+      ];
     else if (from.y <= 0)
-      dirs = [{ x: -1, y: 1 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
-    else dirs = [{ x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }];
+      dirs = [
+        { x: -1, y: 1 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ];
+    else
+      dirs = [
+        { x: -1, y: -1 },
+        { x: 0, y: -1 },
+        { x: 1, y: -1 },
+      ];
 
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
     const dir = dirs[Math.floor((directionRoll - 1) / 2)];
@@ -261,8 +293,53 @@ export class BallManager {
       // A dropped throw-in is not a turnover
       this.callbacks
         .getFlowManager?.()
-        ?.add(new CatchOperation(occupant.id, false), true);
+        ?.add(
+          new CatchOperation(occupant.id, false, { origin: "throw-in" }),
+          true
+        );
+    } else {
+      const catcher = this.divingCatcherAt(landing);
+      if (catcher) {
+        this.callbacks.getFlowManager?.()?.add(
+          new CatchOperation(catcher.id, false, {
+            origin: "throw-in",
+            divingCatch: true,
+            landingPosition: landing,
+          }),
+          true
+        );
+      }
     }
+  }
+
+  private playerAt(square: { x: number; y: number }): Player | undefined {
+    return [...this.team1.players, ...this.team2.players].find(
+      (player) =>
+        player.gridPosition?.x === square.x &&
+        player.gridPosition?.y === square.y
+    );
+  }
+
+  private divingCatcherAt(landing: {
+    x: number;
+    y: number;
+  }): Player | undefined {
+    return [...this.team1.players, ...this.team2.players]
+      .filter(
+        (player) =>
+          player.gridPosition &&
+          player.status === PlayerStatus.ACTIVE &&
+          hasSkill(player.skills, SkillType.DIVING_CATCH) &&
+          Math.max(
+            Math.abs(player.gridPosition.x - landing.x),
+            Math.abs(player.gridPosition.y - landing.y)
+          ) === 1
+      )
+      .sort(
+        (a, b) =>
+          a.gridPosition!.y - b.gridPosition!.y ||
+          a.gridPosition!.x - b.gridPosition!.x
+      )[0];
   }
 
   // --- PICKUP ORCHESTRATION ---

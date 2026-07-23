@@ -61,6 +61,7 @@ describe("rule coverage gate", () => {
         SkillType.DIRTY_PLAYER,
         SkillType.DISTURBING_PRESENCE,
         SkillType.DIVING_TACKLE,
+        SkillType.DIVING_CATCH,
         SkillType.DODGE,
         SkillType.DRUNKARD,
         SkillType.EXTRA_ARMS,
@@ -68,6 +69,7 @@ describe("rule coverage gate", () => {
         SkillType.FEND,
         SkillType.FOUL_APPEARANCE,
         SkillType.FRENZY,
+        SkillType.FUMBLEROOSKI,
         SkillType.GIVE_AND_GO,
         SkillType.GRAB,
         SkillType.GUARD,
@@ -91,6 +93,7 @@ describe("rule coverage gate", () => {
         SkillType.NO_BALL,
         SkillType.PASS,
         SkillType.PICK_ME_UP,
+        SkillType.PILE_DRIVER,
         SkillType.PLAGUE_RIDDEN,
         SkillType.POGO,
         SkillType.PREHENSILE_TAIL,
@@ -103,6 +106,8 @@ describe("rule coverage gate", () => {
         SkillType.RIGHT_STUFF,
         SkillType.SAFE_PAIR_OF_HANDS,
         SkillType.SAFE_PASS,
+        SkillType.SABOTEUR,
+        SkillType.SECRET_WEAPON,
         SkillType.SHADOWING,
         SkillType.SIDESTEP,
         SkillType.SNEAKY_GIT,
@@ -129,10 +134,11 @@ describe("rule coverage gate", () => {
         SkillType.UNCHANNELLED_FURY,
         SkillType.VERY_LONG_LEGS,
         SkillType.UNSTEADY,
+        SkillType.VIOLENT_INNOVATOR,
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(95);
+    expect(cov.implemented).toBe(101);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

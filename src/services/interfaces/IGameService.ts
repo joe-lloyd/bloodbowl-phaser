@@ -77,6 +77,11 @@ export interface IGameService {
     action: import("@/types/events").ActionType
   ): boolean;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
+  /** Leave the carried ball in a square vacated during this Move, no Turnover. */
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean;
   jumpPlayer(playerId: string, target: { x: number; y: number }): Promise<void>;
   standUp(playerId: string): Promise<void>;
 

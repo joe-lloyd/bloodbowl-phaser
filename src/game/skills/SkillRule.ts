@@ -205,6 +205,8 @@ export interface BlockResultContext extends TriggerContextBase {
    * cancelled (Juggernaut on a Blitz).
    */
   suppressReactions?: boolean;
+  /** Saboteur replaced the defender's knockdown/Armour with an automatic KO. */
+  saboteurExploded?: boolean;
 }
 
 /** A player is about to roll to pick up the ball. */
@@ -225,6 +227,11 @@ export interface CatchContext extends TriggerContextBase {
   marking: number;
   modifiers: number;
   autoFail?: boolean;
+  origin?: "pass" | "handoff" | "throw-in" | "kick-off" | "bounce";
+  /** True when this catcher occupies the declared target square of a Pass. */
+  isPassTarget?: boolean;
+  /** The ball landed in an adjacent Tackle Zone rather than this square. */
+  divingCatch?: boolean;
 }
 
 /** A pass is declared, before the Passing Ability Test. */
@@ -339,6 +346,7 @@ export interface InjuryRollContext extends TriggerContextBase {
 export interface CasualtyContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
+  cause?: "block" | "special";
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
 }

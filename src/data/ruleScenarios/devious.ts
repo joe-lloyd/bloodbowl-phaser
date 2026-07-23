@@ -21,6 +21,7 @@ import {
   playerOf,
   playerAt,
   playerStanding,
+  turnoverHappened,
 } from "../../game/rules-lab";
 
 /** How many Armour Checks were rolled in the run (Lone Fouler's re-roll). */
@@ -112,16 +113,14 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
               sawEvent(
                 r,
                 GameEventNames.UI_Notification,
-                (d) =>
-                  typeof d === "string" && d.includes("+1 Offensive")
+                (d) => typeof d === "string" && d.includes("+1 Offensive")
               ),
             verify: (r) =>
               assert(
                 sawEvent(
                   r,
                   GameEventNames.UI_Notification,
-                  (d) =>
-                    typeof d === "string" && d.includes("+1 Offensive")
+                  (d) => typeof d === "string" && d.includes("+1 Offensive")
                 ),
                 "Put the Boot In must let the marked player assist the Foul"
               ),
@@ -301,8 +300,7 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   .flatMap((t) => t.players)
                   .find(
                     (p) =>
-                      p.id ===
-                        r.game.ctx.team1.players[0].id && !!p.position
+                      p.id === r.game.ctx.team1.players[0].id && !!p.position
                   ),
                 "the fouler stays on the pitch (not Sent-off)"
               );
@@ -380,6 +378,99 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+    ],
+  },
+  {
+    skill: SkillType.PILE_DRIVER,
+    configs: [
+      blockConfig({
+        id: "pile-driver-free-foul",
+        name: "Pile Driver follows a knockdown with a Foul",
+        description:
+          "After knocking down a marked opponent, the blocker Fouls for free, is Placed Prone, and ends their activation",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.PILE_DRIVER],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "pow",
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "fouls-then-prone",
+            name: "The blocker ends Prone after the free Foul",
+            matches: (r) =>
+              skillTriggered(r, SkillType.PILE_DRIVER) &&
+              playerOf(r, "team1:0").status === PlayerStatus.PRONE,
+            verify: (r) => {
+              assert(
+                playerOf(r, "team1:0").status === PlayerStatus.PRONE,
+                "Pile Driver must Place the blocker Prone"
+              );
+              assert(
+                r.snapshot.activePlayer === null,
+                "Pile Driver must end the blocker's activation"
+              );
+            },
+          },
+        ],
+      }),
+    ],
+  },
+  {
+    skill: SkillType.SABOTEUR,
+    configs: [
+      blockConfig({
+        id: "saboteur-explosion",
+        name: "Saboteur weapon explodes before Armour",
+        description:
+          "On 4+, the Saboteur is automatically KO'd with no Armour roll and the ball-carrying blocker is Knocked Down, causing a Turnover",
+        setup: playSetup({
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: 11,
+              y: 5,
+              skills: [SkillType.SECRET_WEAPON, SkillType.SABOTEUR],
+            },
+          ],
+          ballPosition: { x: 10, y: 5 },
+        }),
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "pow",
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "explodes",
+            name: "The blocker falls and the Saboteur is KO'd",
+            matches: (r) =>
+              skillTriggered(r, SkillType.SABOTEUR) &&
+              playerOf(r, "team2:0").status === PlayerStatus.KO &&
+              playerOf(r, "team1:0").status === PlayerStatus.PRONE,
+            verify: (r) => {
+              assert(
+                turnoverHappened(r),
+                "a ball-carrying blocker falling is a Turnover"
+              );
+              assert(
+                playerOf(r, "team2:0").status === PlayerStatus.KO,
+                "the Saboteur must be automatically KO'd"
+              );
+            },
+          },
+        ],
+      }),
     ],
   },
 ];

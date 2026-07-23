@@ -126,7 +126,7 @@ export class ProjectileVomitOperation extends GameOperation {
     context.flowManager.add(
       new InjuryOperation(
         victim.id,
-        causedBy ? { causedById: causedBy.id } : undefined
+        causedBy ? { causedById: causedBy.id, cause: "special" } : undefined
       ),
       true
     );

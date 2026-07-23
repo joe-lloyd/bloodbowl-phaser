@@ -1085,6 +1085,35 @@ export class GameService implements IGameService {
     return this.movementManager.movePlayer(playerId, path, context);
   }
 
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean {
+    const player = this.getPlayerById(playerId);
+    const active = this.state.activePlayer;
+    if (
+      !player?.gridPosition ||
+      active?.id !== playerId ||
+      active.action !== "move" ||
+      !hasSkill(player.skills, SkillType.FUMBLEROOSKI) ||
+      !this.ballManager.hasBall(playerId)
+    ) {
+      return false;
+    }
+    const dx = Math.abs(player.gridPosition.x - square.x);
+    const dy = Math.abs(player.gridPosition.y - square.y);
+    if (Math.max(dx, dy) !== 1 || this.getPlayerAt(square.x, square.y)) {
+      return false;
+    }
+    this.setBallPosition(square.x, square.y);
+    this.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId,
+      skill: SkillType.FUMBLEROOSKI,
+      effect: "Fumblerooski: left the ball behind without causing a Turnover",
+    });
+    return true;
+  }
+
   async standUp(playerId: string): Promise<void> {
     return this.movementManager.standUp(playerId);
   }

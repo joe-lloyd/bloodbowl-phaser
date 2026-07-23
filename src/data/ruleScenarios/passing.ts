@@ -564,8 +564,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   !!(e.data as { rollType?: string }).rollType?.startsWith(
                     "Pass"
                   ) &&
-                  (e.data as { resultState?: string }).resultState ===
-                    "success"
+                  (e.data as { resultState?: string }).resultState === "success"
               ) &&
               r.events.some(
                 (e) =>
@@ -720,6 +719,90 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the Turnover must end the passing team's turn"
               );
             },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.DIVING_CATCH,
+    configs: [
+      {
+        id: "diving-catch-adjacent-pass",
+        name: "Diving Catch reaches an adjacent Pass",
+        description:
+          "A player may attempt to catch a Pass that lands in an adjacent square in their Tackle Zone",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            {
+              playerIndex: 1,
+              x: 7,
+              y: 6,
+              skills: [SkillType.DIVING_CATCH],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "adjacent-catch",
+            name: "The adjacent player catches the ball",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DIVING_CATCH) &&
+              !turnoverHappened(r) &&
+              r.snapshot.ballPosition?.x === 7 &&
+              r.snapshot.ballPosition?.y === 6,
+            verify: (r) =>
+              assert(
+                r.snapshot.ballPosition?.x === 7 &&
+                  r.snapshot.ballPosition?.y === 6,
+                "the caught ball must move onto the Diving Catch player"
+              ),
+          },
+        ],
+      },
+      {
+        id: "diving-catch-target-bonus",
+        name: "Diving Catch gains +1 in the Pass target square",
+        description:
+          "When the player occupies the declared target square of a Pass, Diving Catch adds +1 to the catch Agility Test",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 4, y: 5 },
+            {
+              playerIndex: 1,
+              x: 7,
+              y: 5,
+              skills: [SkillType.DIVING_CATCH],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "pass" },
+          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "plus-one",
+            name: "+1 is applied to the catch",
+            matches: (r) =>
+              skillTriggered(r, SkillType.DIVING_CATCH) &&
+              skillCheckDiff(r, "Catch") === 1,
+            verify: (r) =>
+              assert(
+                skillCheckDiff(r, "Catch") === 1,
+                "Diving Catch must add exactly +1 in the Pass target square"
+              ),
           },
         ],
       },

@@ -27,6 +27,7 @@ import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
+import { PileDriverOperation } from "../operations/PileDriverOperation";
 import {
   foldBlockResult,
   foldTrigger,
@@ -157,6 +158,7 @@ class HitAndRunOperation extends GameOperation {
 }
 
 export class BlockManager {
+  private pileDriverTargets = new Map<string, string>();
   private blockValidator: BlockValidator = new BlockValidator();
 
   constructor(
@@ -357,7 +359,11 @@ export class BlockManager {
     const arbiter = this.callbacks
       .getFlowManager?.()
       ?.context.gameService.getRerollArbiter();
-    if (!attacker || !arbiter || !arbiter.teamRerollAvailable(attacker.teamId)) {
+    if (
+      !attacker ||
+      !arbiter ||
+      !arbiter.teamRerollAvailable(attacker.teamId)
+    ) {
       return;
     }
     arbiter.consumeTeamReroll(attacker.teamId);
@@ -463,10 +469,26 @@ export class BlockManager {
             result.type === "pow" || result.type === "pow-dodge",
           decisions: this.decisions(),
           flow: this.callbacks.getFlowManager?.(),
+          dice: this.diceController,
           triggers: [],
         };
         await foldBlockResult(resultCtx, this.allPlayers());
         this.announce(resultCtx.triggers);
+
+        if (resultCtx.saboteurExploded) {
+          const flowManager = this.callbacks.getFlowManager?.();
+          this.knockDownPlayer(attacker);
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
+          if (flowManager) {
+            flowManager.add(new ArmourOperation(attacker.id), true);
+            if (this.isOnBall(attacker) && attacker.gridPosition) {
+              flowManager.add(new BounceOperation(attacker.gridPosition), true);
+              this.callbacks.onTurnover("Ball carrier hit by Saboteur");
+            }
+          }
+          this.endBlockActivation(attacker.id);
+          break;
+        }
 
         await this.beginPush(
           attacker,
@@ -593,6 +615,9 @@ export class BlockManager {
 
     if (knockDownDefender) {
       this.knockDownPlayer(defender);
+      if (hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
+        this.pileDriverTargets.set(attacker.id, defender.id);
+      }
       if (flowManager) {
         flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
         const pos = defender.gridPosition;
@@ -628,6 +653,16 @@ export class BlockManager {
       return;
     }
     const attacker = this.getPlayerById(attackerId);
+    const pileDriverTarget = this.pileDriverTargets.get(attackerId);
+    this.pileDriverTargets.delete(attackerId);
+    if (
+      attacker &&
+      pileDriverTarget &&
+      attacker.status === PlayerStatus.ACTIVE
+    ) {
+      flowManager.add(new PileDriverOperation(attackerId, pileDriverTarget));
+      return;
+    }
     if (
       attacker &&
       attacker.status === PlayerStatus.ACTIVE &&
@@ -760,7 +795,11 @@ export class BlockManager {
     const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     const attacker = this.getPlayerById(attackerId);
     const squares = attacker ? this.hitAndRunSquares(attacker) : [];
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE || !squares.length) {
+    if (
+      !attacker ||
+      attacker.status !== PlayerStatus.ACTIVE ||
+      !squares.length
+    ) {
       gs?.finishActivation(attackerId);
       return;
     }
@@ -867,8 +906,7 @@ export class BlockManager {
 
   private getPlayerAt(x: number, y: number): Player | undefined {
     return [...this.team1.players, ...this.team2.players].find(
-      (p) =>
-        p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
+      (p) => p.gridPosition && p.gridPosition.x === x && p.gridPosition.y === y
     );
   }
 
@@ -1019,10 +1057,17 @@ export class BlockManager {
       const defender = this.getPlayerById(first.playerId);
       if (defender) {
         this.knockDownPlayer(defender);
+        const attacker = this.getPlayerById(attackerId);
+        if (attacker && hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
+          this.pileDriverTargets.set(attackerId, defender.id);
+        }
         if (flowManager) {
           // A knocked-down carrier drops the ball where they landed
           // (added after ArmourOperation so the bounce resolves first)
-          flowManager.add(new ArmourOperation(first.playerId, attackerId), true);
+          flowManager.add(
+            new ArmourOperation(first.playerId, attackerId),
+            true
+          );
           if (
             this.state.ballPosition &&
             this.state.ballPosition.x === first.to.x &&

@@ -41,6 +41,7 @@ const COMMAND_SHAPES: Record<
   "kick-ball": { playerId: "string", x: "number", y: "number" },
   "declare-action": { playerId: "string", action: "string" },
   move: { playerId: "string", path: "path" },
+  fumblerooski: { playerId: "string", x: "number", y: "number" },
   jump: { playerId: "string", x: "number", y: "number" },
   "stand-up": { playerId: "string" },
   block: { attackerId: "string", defenderId: "string" },
@@ -263,6 +264,16 @@ export class HeadlessGame {
         break;
       case "move":
         await gs.movePlayer(cmd.playerId, cmd.path);
+        break;
+      case "fumblerooski":
+        if (
+          !gs.dropBallWithFumblerooski(cmd.playerId, {
+            x: cmd.x,
+            y: cmd.y,
+          })
+        ) {
+          throw new Error("illegal-fumblerooski");
+        }
         break;
       case "stand-up":
         await gs.standUp(cmd.playerId);

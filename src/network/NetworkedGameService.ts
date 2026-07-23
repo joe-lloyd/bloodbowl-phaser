@@ -247,6 +247,18 @@ export class NetworkedGameService implements IGameService {
   ): Promise<void> {
     await this.dispatch({ type: "move", playerId, path });
   }
+  dropBallWithFumblerooski(
+    playerId: string,
+    square: { x: number; y: number }
+  ): boolean {
+    this.send({
+      type: "fumblerooski",
+      playerId,
+      x: square.x,
+      y: square.y,
+    });
+    return true;
+  }
   async jumpPlayer(
     playerId: string,
     target: { x: number; y: number }

@@ -3,6 +3,7 @@ import { GameEventNames } from "../../types/events";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
+import { PlayerStatus } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
 import {
@@ -194,6 +195,7 @@ export class PassOperation extends GameOperation {
     await context.delay(1500);
 
     // 4. Handle Outcome
+    const declaredAction = gameService.getState().activePlayer?.action;
     if (result.fumbled && resultCtx.keepBall) {
       // Safe Pass: no fumble — the passer retains possession, their
       // activation ends, no turnover
@@ -264,18 +266,58 @@ export class PassOperation extends GameOperation {
 
       if (playerAtLanding) {
         // Attempt Catch
-        context.flowManager.add(new CatchOperation(playerAtLanding.id), true);
-      } else {
-        // Land in empty square -> Bounce
-        eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Ball Lands in Empty Square"
+        context.flowManager.add(
+          new CatchOperation(playerAtLanding.id, true, {
+            origin: declaredAction === "handoff" ? "handoff" : "pass",
+            isPassTarget:
+              declaredAction !== "handoff" &&
+              landingPos.x === this.targetX &&
+              landingPos.y === this.targetY,
+          }),
+          true
         );
-        context.flowManager.add(new BounceOperation(landingPos), true);
+      } else {
+        const divingCatcher = [
+          ...(gameService.getTeam(passer.teamId)?.players ?? []),
+          ...opponents,
+        ]
+          .filter(
+            (candidate) =>
+              candidate.gridPosition &&
+              candidate.status === PlayerStatus.ACTIVE &&
+              hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
+              Math.max(
+                Math.abs(candidate.gridPosition.x - landingPos.x),
+                Math.abs(candidate.gridPosition.y - landingPos.y)
+              ) === 1
+          )
+          .sort(
+            (a, b) =>
+              a.gridPosition!.y - b.gridPosition!.y ||
+              a.gridPosition!.x - b.gridPosition!.x
+          )[0];
 
-        // If accurate pass lands empty -> Bounce -> Stop. Turnover?
-        // "If the ball is not caught, it is a Turnover."
-        gameService.triggerTurnover("Pass Incomplete");
+        if (divingCatcher) {
+          context.flowManager.add(
+            new CatchOperation(divingCatcher.id, true, {
+              origin: declaredAction === "handoff" ? "handoff" : "pass",
+              divingCatch: true,
+              landingPosition: landingPos,
+            }),
+            true
+          );
+        } else {
+          // Land in empty square -> Bounce
+          eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Ball Lands in Empty Square"
+          );
+          context.flowManager.add(new BounceOperation(landingPos), true);
+
+          // If accurate pass lands empty -> Bounce -> Stop. Turnover?
+          // "If the ball is not caught, it is a Turnover."
+          gameService.triggerTurnover("Pass Incomplete");
+        }
       }
     }
 
@@ -285,7 +327,6 @@ export class PassOperation extends GameOperation {
     // A Pass Action ends the activation once it settles. Give and Go keeps it
     // open after a Quick Pass or a Hand-off. A latched Turnover bypasses it
     // even while the ball-settling flow is still completing.
-    const declaredAction = gameService.getState().activePlayer?.action;
     const giveAndGoExempt =
       hasSkill(passer.skills, SkillType.GIVE_AND_GO) &&
       (declaredAction === "handoff" || result.passType === "Quick Pass");
@@ -344,7 +385,8 @@ export class PassOperation extends GameOperation {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: e.playerId,
           skill: SkillType.VERY_LONG_LEGS,
-          effect: "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
+          effect:
+            "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
       return {

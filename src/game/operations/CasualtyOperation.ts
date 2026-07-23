@@ -9,11 +9,7 @@ import {
   plagueRiddenApplies,
   addReserveLineman,
 } from "../rules/plagueRidden";
-import {
-  foldTrigger,
-  CasualtyContext,
-  CasualtyRollContext,
-} from "../skills";
+import { foldTrigger, CasualtyContext, CasualtyRollContext } from "../skills";
 
 /**
  * CasualtyOperation
@@ -54,13 +50,18 @@ export class CasualtyOperation extends GameOperation {
     const preCtx: CasualtyContext = {
       player,
       causedBy,
+      cause: this.opts.cause,
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
       dice: gameService.getDiceController(),
       triggers: [],
     };
-    await foldTrigger("onCasualty", [player], preCtx);
+    await foldTrigger(
+      "onCasualty",
+      causedBy ? [causedBy, player] : [player],
+      preCtx
+    );
     preCtx.triggers.forEach((t) =>
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
@@ -146,7 +147,10 @@ export class CasualtyOperation extends GameOperation {
         player.status = PlayerStatus.DEAD;
         // Plague Ridden: a Block Action kill by the trait-holder against an
         // eligible opponent lets their coach add a Lineman to the Reserves.
-        if (causedBy && plagueRiddenApplies(causedBy, player, this.opts.cause)) {
+        if (
+          causedBy &&
+          plagueRiddenApplies(causedBy, player, this.opts.cause)
+        ) {
           this.applyPlagueRidden(gameService, eventBus, causedBy, player);
         }
         break;

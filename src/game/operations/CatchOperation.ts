@@ -21,7 +21,13 @@ export class CatchOperation extends GameOperation {
      * Only a dropped pass/hand-off is a turnover; a dropped bounce or
      * throw-in is not (the original loss already caused one if due).
      */
-    private turnoverOnDrop: boolean = true
+    private turnoverOnDrop: boolean = true,
+    private options: {
+      origin?: "pass" | "handoff" | "throw-in" | "kick-off" | "bounce";
+      isPassTarget?: boolean;
+      divingCatch?: boolean;
+      landingPosition?: { x: number; y: number };
+    } = {}
   ) {
     super();
   }
@@ -72,6 +78,9 @@ export class CatchOperation extends GameOperation {
       player,
       marking,
       modifiers,
+      origin: this.options.origin,
+      isPassTarget: this.options.isPassTarget,
+      divingCatch: this.options.divingCatch,
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -108,6 +117,12 @@ export class CatchOperation extends GameOperation {
     }
 
     if (success) {
+      if (this.options.divingCatch && player.gridPosition) {
+        gameService.setBallPosition(
+          player.gridPosition.x,
+          player.gridPosition.y
+        );
+      }
       // CATCH SUCCESS (possession is positional: ball is on their square)
       eventBus.emit(GameEventNames.UI_Notification, "Catch Successful!");
 
@@ -118,7 +133,12 @@ export class CatchOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "Catch Failed!");
 
       // Bounce from this square
-      flowManager.add(new BounceOperation(player.gridPosition), true);
+      flowManager.add(
+        new BounceOperation(
+          this.options.landingPosition ?? player.gridPosition
+        ),
+        true
+      );
 
       // Turnover?
       // If it was a Pass/Handoff by Active Team, dropping it is a Turnover.
@@ -130,5 +150,4 @@ export class CatchOperation extends GameOperation {
       }
     }
   }
-
 }
