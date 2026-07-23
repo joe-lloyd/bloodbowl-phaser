@@ -122,6 +122,8 @@ export interface IGameService {
     y: number,
     mode?: "throw" | "kick"
   ): Promise<void>;
+  /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
+  throwBomb(throwerId: string, x: number, y: number): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
     kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",

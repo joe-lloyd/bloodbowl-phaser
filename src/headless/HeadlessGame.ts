@@ -54,6 +54,7 @@ const COMMAND_SHAPES: Record<
     x: "number",
     y: "number",
   },
+  "throw-bomb": { throwerId: "string", x: "number", y: "number" },
   "team-reroll-block": { attackerId: "string" },
   "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "special-action": {
@@ -315,6 +316,9 @@ export class HeadlessGame {
           cmd.y,
           cmd.mode
         );
+        break;
+      case "throw-bomb":
+        await gs.throwBomb(cmd.throwerId, cmd.x, cmd.y);
         break;
       case "special-action":
         await gs.performSpecialAction(

@@ -41,6 +41,7 @@ describe("rule coverage gate", () => {
         SkillType.ANIMOSITY,
         SkillType.ARM_BAR,
         SkillType.BLOODLUST,
+        SkillType.BOMBARDIER,
         SkillType.BONE_HEAD,
         SkillType.BREATHE_FIRE,
         SkillType.BIG_HAND,
@@ -127,7 +128,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(90);
+    expect(cov.implemented).toBe(91);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

@@ -59,6 +59,8 @@ export interface ActionAvailability {
   chainsaw: boolean;
   throwTeammate: boolean;
   kickTeammate: boolean;
+  /** A Throw Bomb Special Action — has Bombardier and has not moved yet. */
+  throwBomb: boolean;
 }
 
 const chebyshev = (
@@ -93,6 +95,7 @@ export function computeActionAvailability(
     chainsaw: false,
     throwTeammate: false,
     kickTeammate: false,
+    throwBomb: false,
   };
   if (!here) return none;
 
@@ -176,6 +179,12 @@ export function computeActionAvailability(
   const kickTeammate =
     hasSkill(player.skills, SkillType.KICK_TEAM_MATE) && adjacentEligibleMate;
 
+  // Throw Bomb: like a Pass, it may not follow a Move, and targets any square.
+  const throwBomb =
+    hasSkill(player.skills, SkillType.BOMBARDIER) &&
+    isStanding(player) &&
+    !input.hasMovedInAction;
+
   return {
     move: true,
     block,
@@ -194,5 +203,6 @@ export function computeActionAvailability(
     chainsaw: special(SkillType.CHAINSAW),
     throwTeammate,
     kickTeammate,
+    throwBomb,
   };
 }

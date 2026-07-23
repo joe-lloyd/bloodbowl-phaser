@@ -356,6 +356,14 @@ export class NetworkedGameService implements IGameService {
       defenderId: targetId,
     });
   }
+  async throwBomb(throwerId: string, x: number, y: number): Promise<void> {
+    await this.dispatch({
+      type: "throw-bomb",
+      throwerId,
+      x,
+      y,
+    });
+  }
   async foulPlayer(
     foulerId: string,
     targetX: number,

@@ -62,6 +62,7 @@ import { FoulController } from "@/game/controllers/FoulController";
 import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
+import { BombardierOperation } from "@/game/operations/BombardierOperation";
 import { IRNGService } from "./rng/RNGService.js";
 import {
   RerollArbiter,
@@ -1148,6 +1149,12 @@ export class GameService implements IGameService {
         return false;
       }
     }
+    // A Throw Bomb Special Action needs the Bombardier trait and a Standing thrower
+    if (action === "throwBomb") {
+      const player = this.getPlayerById(playerId);
+      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (!hasSkill(player.skills, SkillType.BOMBARDIER)) return false;
+    }
     // The other special actions likewise need their trait and a Standing player
     if (
       action === "breatheFire" ||
@@ -1293,6 +1300,31 @@ export class GameService implements IGameService {
     this.flowManager.add(
       new ThrowTeammateOperation(throwerId, teammateId, x, y, resolved)
     );
+  }
+
+  /**
+   * Throw Bomb Special Action (Bombardier): a Standing player with the trait
+   * lobs a bomb at a target square, resolved like a Pass. Legal only as the
+   * declared "throwBomb" action.
+   */
+  public async throwBomb(
+    throwerId: string,
+    x: number,
+    y: number
+  ): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
+
+    const thrower = this.getPlayerById(throwerId);
+    if (!thrower || thrower.status !== PlayerStatus.ACTIVE) return;
+    if (!hasSkill(thrower.skills, SkillType.BOMBARDIER)) return;
+
+    const declared =
+      this.state.activePlayer?.id === throwerId
+        ? this.state.activePlayer.action
+        : undefined;
+    if (declared !== "throwBomb") return;
+
+    this.flowManager.add(new BombardierOperation(throwerId, x, y));
   }
 
   /**

@@ -44,6 +44,7 @@ export type HeadlessCommand =
       /** "throw" | "kick"; inferred from the thrower's traits when omitted */
       mode?: "throw" | "kick";
     }
+  | { type: "throw-bomb"; throwerId: string; x: number; y: number }
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | {

@@ -103,6 +103,7 @@ import { VeryLongLegsRule } from "./rules/VeryLongLegsRule";
 import { SafePairOfHandsRule } from "./rules/SafePairOfHandsRule";
 import { HitAndRunRule } from "./rules/HitAndRunRule";
 import { ChainsawRule } from "./rules/ChainsawRule";
+import { BombardierRule } from "./rules/BombardierRule";
 
 let registered = false;
 
@@ -203,6 +204,7 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.SAFE_PAIR_OF_HANDS, SafePairOfHandsRule);
   SkillRegistry.register(SkillType.HIT_AND_RUN, HitAndRunRule);
   SkillRegistry.register(SkillType.CHAINSAW, ChainsawRule);
+  SkillRegistry.register(SkillType.BOMBARDIER, BombardierRule);
 }
 
 // Register on first import so any consumer of the fold helpers is covered.

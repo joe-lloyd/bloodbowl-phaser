@@ -2,6 +2,7 @@ import { Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
+import { SkillType } from "../types/Skills";
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -324,6 +325,35 @@ export const SCENARIOS: Scenario[] = [
       ],
       team2Placements: [
         { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.ACTIVE }, // Downfield defender
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 1, y: 1 },
+    },
+  },
+  {
+    id: "throw-bomb-bombardier",
+    name: "Throw Bomb (Bombardier)",
+    description:
+      "A Bombardier lobs a bomb at a cluster of opponents. Declare Throw Bomb, click a target square, and watch it explode — the square it lands in is hit and each adjacent player is hit on a 4+ (Armour Rolls all round). A Fumble blows up in the Bomber's own square.",
+    setup: {
+      team1Placements: [
+        // The Bomber — Standing, ready to throw. Bombardier granted for the demo.
+        {
+          playerIndex: 0,
+          x: 8,
+          y: 5,
+          status: PlayerStatus.ACTIVE,
+          skills: [SkillType.BOMBARDIER],
+        },
+      ],
+      team2Placements: [
+        // A tight cluster downfield so the blast can catch several at once.
+        { playerIndex: 0, x: 13, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 13, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 2, x: 14, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 13, y: 6, status: PlayerStatus.PRONE },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,

@@ -50,7 +50,7 @@ the ball to Bounce, before Falling Over in the
 Square they have moved into.
 if this player is Knocked Down, Falls Over or Placed Prone for any reason, immediately make an Injury Roll for them treating any result of Stunned as Knocked-out instead.
 
--  BOMBARDIER (ACTIVE)
+-  BOMBARDIER (ACTIVE)  ✅ DONE 2026-07-23 (BombardierOperation: Throw Bomb Special Action = "throwBomb" action + GameService.throwBomb + headless `throw-bomb` command. PA test like a Pass → accurate/scatter/fumble; the bomb is a separate projectile (never the ball) and never Bounces — it explodes when it comes to rest: the square it lands in is hit, each adjacent player hit on a 4+, Armour Rolls all round (standing hits Knocked Down first). Fumble = explodes in the Bomber's own square + Turnover. Catch/Intercept → immediate auto-re-throw (nearest enemy, MAX_RETHROWS cap). BombardierRule = inert marker. Configs `throw-bomb` (accurate-explodes, fumble-self-detonates); headless bombardier.test.ts; sandbox scenario `throw-bomb-bombardier`. Gaps: "only one Throw Bomb per team Turn" limit not enforced; crowd (off-pitch scatter clamped to edge); Pass-side skill folds (Accurate/Cannoneer/etc.) not applied to the bomb's PA test.)
 P When this player is activated, they can declare
 a Throw Bomb Special Action; only one player
 can declare this Special Action each Turn.

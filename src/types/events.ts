@@ -614,6 +614,7 @@ export type ActionType =
   | "gaze"
   | "chomp"
   | "chainsaw"
+  | "throwBomb"
   | "forgoe";
 
 /**

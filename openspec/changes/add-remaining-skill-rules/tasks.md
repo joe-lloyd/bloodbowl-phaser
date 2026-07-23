@@ -64,8 +64,8 @@ fixes in `ai_notes.md`.
 
 ## 5. Batch 5 — Special-action weapons
 
-- [ ] 5.1 Chainsaw (`ChainsawAttackOperation`): Kick-back die (1 = self Knock Down, else +3 Armour roll on an adjacent Standing opponent); always +3 to Armour rolls made against the wielder; usable in a Foul and as a Blitz block replacement (activation ends on use); protocol + action menu
-- [ ] 5.2 Bombardier (`ThrowBombOperation`): Throw Bomb via the Pass rules; explode on rest (Knock Down the square's Standing player, hit each adjacent player on a 4+, Armour rolls for Prone/Stunned); catch/intercept forces an immediate re-throw; protocol + action menu
+- [x] 5.1 Chainsaw (`ChainsawAttackOperation`): Kick-back die (1 = self Knock Down, else +3 Armour roll on an adjacent Standing opponent); always +3 to Armour rolls made against the wielder; protocol + action menu (deferred: Foul-with-chainsaw +3 and Blitz block replacement — noted in ai_notes)
+- [x] 5.2 Bombardier (`BombardierOperation`): Throw Bomb via the Pass rules; explode on rest (Knock Down the square's Standing player, hit each adjacent player on a 4+, Armour rolls for Prone/Stunned); catch/intercept forces an immediate re-throw; protocol + action menu (gaps noted in ai_notes: per-turn declaration limit, off-pitch crowd, Pass-side skill folds)
 - [ ] 5.3 Ball & Chain (`BallAndChainMoveOperation`): forced Throw-in-Template move up to MA (Rush allowed), auto-passed dodges, forced Blocks on Standing players, push/bounce on Prone/ball, crowd risk off-pitch; ignores Shadowing/Tentacles/Foul Appearance; Knocked-Down/KO handling per the trait; protocol + action menu
 - [ ] 5.4 Catalog configs + headless tests for 5.1–5.3 (Chainsaw kick-back + +3-against-me, bomb explosion + adjacent 4+ + re-throw on catch, Ball & Chain auto-dodge + forced block + crowd risk); bump gate snapshot to 107
 

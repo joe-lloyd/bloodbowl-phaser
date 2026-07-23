@@ -339,6 +339,10 @@ export class GameplayInteractionController {
             { id: "pass", label: "Pass" },
           ];
           break;
+        case "throwBomb":
+          // A Bomber may not Move before throwing: one step, aim at any square.
+          this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
+          break;
         case "blitz":
           this.actionSteps = [
             { id: "move", label: "Move" },
@@ -558,6 +562,25 @@ export class GameplayInteractionController {
       this.isBusy = true;
       try {
         await this.gameService.throwBall(this.selectedPlayerId, x, y);
+      } finally {
+        this.isBusy = false;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    // THROW BOMB Execution (Bombardier): click any square to lob the bomb.
+    if (
+      this.currentActionMode === "throwBomb" &&
+      this.currentStepId === "bomb" &&
+      this.selectedPlayerId
+    ) {
+      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
+        return;
+      }
+      this.isBusy = true;
+      try {
+        await this.gameService.throwBomb(this.selectedPlayerId, x, y);
       } finally {
         this.isBusy = false;
         this.deselectPlayer();
@@ -898,7 +921,10 @@ export class GameplayInteractionController {
     // 3. Visualization
     if (this.selectedPlayerId) {
       const isPassMode =
-        this.currentActionMode === "pass" && this.currentStepId === "pass";
+        (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
+        // A thrown Bomb aims like a Pass — same range template + arrow.
+        (this.currentActionMode === "throwBomb" &&
+          this.currentStepId === "bomb");
 
       if (isPassMode) {
         // PASS MODE: Visualize even if hovering a player
@@ -1097,6 +1123,15 @@ export class GameplayInteractionController {
     }
 
     if (this.currentActionMode === "foul" && this.currentStepId === "foul") {
+      const player = this.gameService.getPlayerById(playerId);
+      if (player && player.gridPosition) {
+        this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
+        return;
+      }
+    }
+
+    // Throw Bomb: clicking a player aims the bomb at their square.
+    if (this.currentActionMode === "throwBomb" && this.currentStepId === "bomb") {
       const player = this.gameService.getPlayerById(playerId);
       if (player && player.gridPosition) {
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);

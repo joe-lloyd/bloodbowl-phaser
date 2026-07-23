@@ -58,6 +58,19 @@ const injuryRolled = (r: Parameters<typeof skillTriggered>[0]): boolean =>
     (d) => !!(d as { rollType?: string }).rollType?.startsWith("Injury Roll")
   );
 
+/** An Armour Roll was made for the referenced player (ArmourOperation). */
+const armourRolledFor = (
+  r: Parameters<typeof skillTriggered>[0],
+  ref: string
+): boolean =>
+  sawEvent(
+    r,
+    GameEventNames.DiceRoll,
+    (d) =>
+      (d as { rollType?: string }).rollType ===
+      `Armour Roll (${playerOf(r, ref).playerName})`
+  );
+
 /**
  * The player's activation is spent (Stab always ends it). Checked on the
  * event log, not live state: finishing the active team's last player flips
@@ -741,6 +754,74 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 turnoverHappened(r),
                 "the wielder going down is a Turnover"
+              );
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    skill: SkillType.BOMBARDIER,
+    configs: [
+      {
+        id: "throw-bomb",
+        name: "Throw Bomb Special Action",
+        description:
+          "A bomb thrown like a Pass; when it comes to rest it explodes, hitting the square it lands in (Armour Rolls all round). A Fumble blows up in the Bomber's own square — a Turnover.",
+        setup: playSetup({
+          team1Placements: [
+            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BOMBARDIER] },
+          ],
+          team2Placements: [
+            // A Prone target auto-fails the Catch, so the bomb explodes on it.
+            { playerIndex: 0, x: 13, y: 5, status: PlayerStatus.PRONE },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "throwBomb" },
+          { type: "throw-bomb", throwerId: "team1:0", x: 13, y: 5 },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "accurate-explodes",
+            name: "An on-target bomb explodes and rolls Armour for the player hit",
+            matches: (r) =>
+              skillTriggered(r, SkillType.BOMBARDIER) &&
+              armourRolledFor(r, "team2:0") &&
+              playerStanding(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                sawEvent(
+                  r,
+                  GameEventNames.UI_Notification,
+                  (d) => d === "BOOM! The bomb explodes!"
+                ),
+                "the bomb must explode where it lands"
+              );
+              assert(
+                !turnoverHappened(r),
+                "a bomb landing on an opponent is not a Turnover"
+              );
+            },
+          },
+          {
+            id: "fumble-self-detonates",
+            name: "A Fumbled bomb blows up in the Bomber's own square",
+            matches: (r) =>
+              skillTriggered(r, SkillType.BOMBARDIER) &&
+              playerDown(r, "team1:0") &&
+              turnoverHappened(r),
+            verify: (r) => {
+              assert(
+                playerDown(r, "team1:0"),
+                "the Bomber is caught in their own blast"
+              );
+              assert(
+                turnoverHappened(r),
+                "a Fumbled bomb is a Turnover"
               );
             },
           },
