@@ -16,7 +16,7 @@ export class SandboxScene extends GameScene {
     super("SandboxScene");
   }
 
-  init(data: { team1?: Team; team2?: Team }): void {
+  init(data: { team1?: Team; team2?: Team; pitchThemeId?: string }): void {
     // If teams are passed, use them. Otherwise generate Mock Teams.
     if (data && data.team1 && data.team2) {
       // Need to initialize ServiceContainer before GameScene uses it
@@ -31,7 +31,13 @@ export class SandboxScene extends GameScene {
         data.team2,
         initialState
       );
-      super.init(data as { team1: Team; team2: Team });
+      super.init(
+        data as {
+          team1: Team;
+          team2: Team;
+          pitchThemeId?: string;
+        }
+      );
     } else {
       const team1 = TeamFactory.createTestTeam(
         RosterName.BLACK_ORC,
@@ -43,6 +49,16 @@ export class SandboxScene extends GameScene {
         "Test Black Orcs 2",
         0xdc143c
       );
+
+      // Keep the visual sandbox representative of league play so theme and
+      // dugout presentation changes can be reviewed without extra setup.
+      team1.coaches = 2;
+      team1.cheerleaders = 3;
+      team1.apothecary = true;
+      team1.dedicatedFans = 2;
+      team2.coaches = 1;
+      team2.cheerleaders = 4;
+      team2.dedicatedFans = 1;
 
       // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
       const initialState = GameService.createInitialState(
@@ -57,7 +73,7 @@ export class SandboxScene extends GameScene {
         initialState
       );
 
-      super.init({ team1, team2 });
+      super.init({ team1, team2, pitchThemeId: data?.pitchThemeId });
     }
 
     // Listen for shutdown to clean up custom listeners
@@ -136,8 +152,10 @@ export class SandboxScene extends GameScene {
           // and RNG draw order, so the same seed rolls different results.
           setup: {
             ...ruleConfig.config.setup,
-            team1Roster: ruleConfig.config.setup.team1Roster ?? RosterName.HUMAN,
-            team2Roster: ruleConfig.config.setup.team2Roster ?? RosterName.HUMAN,
+            team1Roster:
+              ruleConfig.config.setup.team1Roster ?? RosterName.HUMAN,
+            team2Roster:
+              ruleConfig.config.setup.team2Roster ?? RosterName.HUMAN,
           },
         };
         expectedOutcome = ruleConfig.config.outcomes.find(
@@ -211,8 +229,8 @@ export class SandboxScene extends GameScene {
 
       // Always surface the effective seed (the scenario's own, or the
       // random one the container fell back to) so any game is reproducible
-      const effectiveSeed = ServiceContainer.getInstance()
-        .rngService.getInitialSeed();
+      const effectiveSeed =
+        ServiceContainer.getInstance().rngService.getInitialSeed();
       this.eventBus.emit(GameEventNames.ScenarioLoaded, {
         name: scenario.name,
         seed: effectiveSeed,

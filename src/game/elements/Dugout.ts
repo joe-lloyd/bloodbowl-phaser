@@ -3,24 +3,30 @@ import { Team } from "../../types/Team";
 import { Player, PlayerStatus } from "../../types/Player";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
-import { GameConfig } from "../../config/GameConfig";
 import { centeredHitArea } from "./InteractiveHitArea";
+import {
+  colorToCss,
+  PitchTheme,
+  resolvePitchTheme,
+} from "../presentation/pitchThemes";
+import { getVisibleSidelineStaff } from "../presentation/sidelineStaff";
+import { DUGOUT_LAYOUT, getDugoutLayout } from "../presentation/dugoutLayout";
 
 export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
   private mirrored: boolean = false;
   private dugoutHeight: number;
+  private theme: PitchTheme;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private onPlayerDragStart?: (playerId: string) => void;
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
 
   // Grid configuration
-  private readonly GRID_ROWS = 2;
-  private readonly SQUARE_SIZE = GameConfig.SQUARE_SIZE;
-  private readonly RESERVES_COLS = 6;
-  private readonly KO_COLS = 5;
-  private readonly DEAD_COLS = 5;
-  private readonly SECTION_PAD = 20;
+  private readonly GRID_ROWS = DUGOUT_LAYOUT.gridRows;
+  private readonly SQUARE_SIZE = DUGOUT_LAYOUT.squareSize;
+  private readonly RESERVES_COLS = DUGOUT_LAYOUT.reservesCols;
+  private readonly KO_COLS = DUGOUT_LAYOUT.koCols;
+  private readonly DEAD_COLS = DUGOUT_LAYOUT.casualtyCols;
 
   constructor(
     scene: Phaser.Scene,
@@ -28,13 +34,15 @@ export class Dugout extends Phaser.GameObjects.Container {
     y: number,
     team: Team,
     height: number = 150, // Increased default height to fit 2 rows of 60px + padding
-    mirrored: boolean = false // Right-side team: reserves section on the right
+    mirrored: boolean = false, // Right-side team: reserves section on the right
+    themeId?: string
   ) {
     super(scene, x, y);
     this.scene = scene;
     this.team = team;
     this.dugoutHeight = height;
     this.mirrored = mirrored;
+    this.theme = resolvePitchTheme(themeId);
 
     this.setDepth(0); // Ensure it's behind other UI/players
     this.scene.add.existing(this);
@@ -55,15 +63,30 @@ export class Dugout extends Phaser.GameObjects.Container {
     const koCols = this.KO_COLS;
     const deadCols = this.DEAD_COLS;
 
-    const reservesWidth = reservesCols * this.SQUARE_SIZE + this.SECTION_PAD;
-    const koWidth = koCols * this.SQUARE_SIZE + this.SECTION_PAD;
-    const deadWidth = deadCols * this.SQUARE_SIZE + this.SECTION_PAD;
+    const layout = getDugoutLayout(this.mirrored);
+    const reservesWidth = layout.sections.reserves.width;
+    const koWidth = layout.sections.ko.width;
+    const deadWidth = layout.sections.casualty.width;
+
+    const backdrop = this.scene.add
+      .rectangle(
+        0,
+        0,
+        layout.totalWidth,
+        sectionHeight,
+        this.theme.dugout.background,
+        1
+      )
+      .setOrigin(0);
+    backdrop.setStrokeStyle(3, this.theme.dugout.border, 0.9);
+    backdrop.setName("dugout_backdrop");
+    this.add(backdrop);
 
     // Section order mirrors for the right-side team so the reserves
     // (team-colored) section always sits on the side of the pitch you play
-    const reservesX = this.mirrored ? deadWidth + koWidth : 0;
-    const koX = this.mirrored ? deadWidth : reservesWidth;
-    const deadX = this.mirrored ? 0 : reservesWidth + koWidth;
+    const reservesX = layout.sections.reserves.x;
+    const koX = layout.sections.ko.x;
+    const deadX = layout.sections.casualty.x;
 
     // 1. Reserves Section - 6x2 Grid
     this.createSection(
@@ -73,7 +96,8 @@ export class Dugout extends Phaser.GameObjects.Container {
       sectionHeight,
       this.team.colors.primary,
       this.getPlayersByStatus("Reserves"),
-      reservesCols
+      reservesCols,
+      "RESERVES"
     );
 
     // 2. KO Section (Middle) - 5x2 Grid
@@ -82,9 +106,10 @@ export class Dugout extends Phaser.GameObjects.Container {
       0,
       koWidth,
       sectionHeight,
-      0xffaa00,
+      this.theme.dugout.ko,
       this.getPlayersByStatus("KO"),
-      koCols
+      koCols,
+      "KNOCKED OUT"
     );
 
     // 3. Dead/Injured Section - 5x2 Grid
@@ -93,10 +118,13 @@ export class Dugout extends Phaser.GameObjects.Container {
       0,
       deadWidth,
       sectionHeight,
-      0xff0000,
+      this.theme.dugout.casualty,
       this.getPlayersByStatus("Dead"),
-      deadCols
+      deadCols,
+      "CASUALTIES"
     );
+
+    this.createStaffRail(layout.staffX, 0);
   }
 
   private createSection(
@@ -106,10 +134,13 @@ export class Dugout extends Phaser.GameObjects.Container {
     h: number,
     color: number,
     players: Player[],
-    cols: number
+    cols: number,
+    label: string
   ): void {
     // Background
-    const bg = this.scene.add.rectangle(x, y, w, h, 0x1a1a2e, 0.8).setOrigin(0);
+    const bg = this.scene.add
+      .rectangle(x, y, w, h, this.theme.dugout.panel, 0.94)
+      .setOrigin(0);
     const tint = this.scene.add.rectangle(x, y, w, h, color, 0.15).setOrigin(0);
 
     // Border
@@ -118,13 +149,26 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     this.add([bg, tint, border]);
 
+    const titleBand = this.scene.add
+      .rectangle(x + 2, y + 2, w - 4, 12, color, 0.72)
+      .setOrigin(0);
+    const title = this.scene.add
+      .text(x + 8, y + 1, label, {
+        fontFamily: "Arial, sans-serif",
+        fontSize: "10px",
+        fontStyle: "bold",
+        color: colorToCss(this.theme.dugout.label),
+      })
+      .setOrigin(0);
+    this.add([titleBand, title]);
+
     // Draw Grid
-    const gridOffsetX = 10;
-    const gridOffsetY = 15; // Centered vertically in the 150px height (approx)
+    const gridOffsetX = DUGOUT_LAYOUT.gridOffsetX;
+    const gridOffsetY = DUGOUT_LAYOUT.gridOffsetY;
 
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(1, 0xffffff, 0.2);
-    graphics.fillStyle(0x000000, 0.3);
+    graphics.lineStyle(1, this.theme.dugout.slotLine, 0.28);
+    graphics.fillStyle(this.theme.dugout.slotFill, 0.64);
 
     for (let row = 0; row < this.GRID_ROWS; row++) {
       for (let col = 0; col < cols; col++) {
@@ -140,6 +184,88 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     // Render Players in Grid
     this.renderPlayerGrid(players, x + gridOffsetX, y + gridOffsetY, cols);
+  }
+
+  private createStaffRail(x: number, y: number): void {
+    const rail = this.scene.add
+      .rectangle(
+        x,
+        y,
+        DUGOUT_LAYOUT.staffWidth,
+        this.dugoutHeight,
+        this.theme.dugout.staffRail,
+        1
+      )
+      .setOrigin(0);
+    rail.setStrokeStyle(2, this.theme.dugout.border, 0.72);
+
+    const teamStripe = this.scene.add
+      .rectangle(
+        x + 6,
+        y + 18,
+        DUGOUT_LAYOUT.staffWidth - 12,
+        4,
+        this.team.colors.primary,
+        0.92
+      )
+      .setOrigin(0);
+    const title = this.scene.add
+      .text(x + DUGOUT_LAYOUT.staffWidth / 2, y + 3, "SIDELINE CREW", {
+        fontFamily: "Arial, sans-serif",
+        fontSize: "10px",
+        fontStyle: "bold",
+        color: colorToCss(this.theme.dugout.label),
+      })
+      .setOrigin(0.5, 0);
+    this.add([rail, teamStripe, title]);
+
+    const staff = getVisibleSidelineStaff(this.team);
+    staff.forEach((member, position) => {
+      const col = position % 4;
+      const row = Math.floor(position / 4);
+      const px = x + 25 + col * 43;
+      const py = y + 42 + row * 40;
+
+      const body = this.scene.add.rectangle(
+        0,
+        7,
+        24,
+        20,
+        this.team.colors.primary,
+        0.92
+      );
+      body.setStrokeStyle(2, this.theme.dugout.border, 0.85);
+      const head = this.scene.add.circle(0, -8, 7, member.color, 1);
+      head.setStrokeStyle(1, this.theme.dugout.label, 0.7);
+      const badge = this.scene.add
+        .text(0, 7, member.label, {
+          fontFamily: "Arial, sans-serif",
+          fontSize: "11px",
+          fontStyle: "bold",
+          color: colorToCss(this.theme.dugout.label),
+        })
+        .setOrigin(0.5);
+      const sprite = this.scene.add.container(px, py, [body, head, badge]);
+      sprite.setName(`sideline_staff_${member.type}_${member.index}`);
+      this.add(sprite);
+    });
+
+    if (staff.length === 0) {
+      const empty = this.scene.add
+        .text(
+          x + DUGOUT_LAYOUT.staffWidth / 2,
+          y + this.dugoutHeight / 2,
+          "NO STAFF",
+          {
+            fontFamily: "Arial, sans-serif",
+            fontSize: "11px",
+            color: colorToCss(this.theme.dugout.label),
+          }
+        )
+        .setOrigin(0.5);
+      empty.setAlpha(0.45);
+      this.add(empty);
+    }
   }
 
   private renderPlayerGrid(
@@ -284,10 +410,7 @@ export class Dugout extends Phaser.GameObjects.Container {
 
   /** Total pixel width of all three sections (for right-aligning) */
   public getTotalWidth(): number {
-    return (
-      (this.RESERVES_COLS + this.KO_COLS + this.DEAD_COLS) * this.SQUARE_SIZE +
-      3 * this.SECTION_PAD
-    );
+    return getDugoutLayout(this.mirrored).totalWidth;
   }
 
   private getPlayersByStatus(statusType: "Reserves" | "KO" | "Dead"): Player[] {

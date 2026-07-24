@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GameConfig } from "../../config/GameConfig";
+import { getPitchPresentation, PitchTheme } from "../presentation/pitchThemes";
 import { gridToPixel } from "./GridUtils";
 
 /**
@@ -13,12 +14,15 @@ export class Pitch {
   private squareSize: number;
   private offsetX: number;
   private offsetY: number;
+  private theme: PitchTheme;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, themeId?: string) {
     this.scene = scene;
-    this.width = GameConfig.PITCH_WIDTH;
-    this.height = GameConfig.PITCH_HEIGHT;
-    this.squareSize = GameConfig.SQUARE_SIZE;
+    const presentation = getPitchPresentation(themeId);
+    this.width = presentation.width;
+    this.height = presentation.height;
+    this.squareSize = presentation.squareSize;
+    this.theme = presentation.theme;
     this.offsetX = x;
     this.offsetY = y;
 
@@ -27,37 +31,87 @@ export class Pitch {
   }
 
   private render(): void {
-    // Draw pitch background
     const pitchWidth = this.width * this.squareSize;
     const pitchHeight = this.height * this.squareSize;
 
+    // An interactive base remains the pitch hit target. Everything above it
+    // is presentation-only and never participates in hit testing.
     const background = this.scene.add.rectangle(
       pitchWidth / 2,
       pitchHeight / 2,
       pitchWidth,
       pitchHeight,
-      GameConfig.COLORS.PITCH_GREEN
+      this.theme.surface.top
     );
-    // Make background interactive to stop propagation to scene background (which deselects)
+    background.setName("pitch_surface");
     background.setInteractive();
     this.container.add(background);
 
-    // Draw grid lines
-    this.drawGrid();
+    this.drawSurface();
 
-    // Draw end zones
     this.drawEndZones();
-
-    // Draw field markings (Center and Setup lines)
-    this.drawFieldMarkings();
-
-    // Draw wide zones
     this.drawWideZones();
+    this.drawGrid();
+    this.drawFieldMarkings();
+  }
+
+  private drawSurface(): void {
+    const pitchWidth = this.width * this.squareSize;
+    const pitchHeight = this.height * this.squareSize;
+    const graphics = this.scene.add.graphics();
+    graphics.setName("pitch_surface_detail");
+
+    graphics.fillGradientStyle(
+      this.theme.surface.top,
+      this.theme.surface.top,
+      this.theme.surface.bottom,
+      this.theme.surface.bottom,
+      1
+    );
+    graphics.fillRect(0, 0, pitchWidth, pitchHeight);
+
+    // Alternating low-contrast mowing/wear bands keep the field textured
+    // without competing with players, the ball, or movement overlays.
+    graphics.fillStyle(this.theme.surface.stripe, 0.07);
+    for (let x = 1; x < this.width; x += 2) {
+      graphics.fillRect(x * this.squareSize, 0, this.squareSize, pitchHeight);
+    }
+
+    // Deterministic hash/wear details: no random state and no rules impact.
+    graphics.lineStyle(2, this.theme.surface.detail, 0.16);
+    for (let x = 2; x < this.width - 1; x += 2) {
+      const px = x * this.squareSize + this.squareSize / 2;
+      const middle = pitchHeight / 2;
+      graphics.lineBetween(px - 8, middle - 9, px + 8, middle - 9);
+      graphics.lineBetween(px - 8, middle + 9, px + 8, middle + 9);
+    }
+    this.container.add(graphics);
+
+    // Optional texture overlays are strictly additive. Every theme above has
+    // a complete primitive fallback, so a missing binary changes nothing.
+    const textureKey = this.theme.surface.textureKey;
+    if (textureKey && this.scene.textures.exists(textureKey)) {
+      const texture = this.scene.add.tileSprite(
+        pitchWidth / 2,
+        pitchHeight / 2,
+        pitchWidth,
+        pitchHeight,
+        textureKey
+      );
+      texture.setName("pitch_surface_texture");
+      texture.setAlpha(0.18);
+      this.container.add(texture);
+    }
   }
 
   private drawGrid(): void {
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(1, GameConfig.COLORS.PITCH_LINE, 0.3);
+    graphics.setName("pitch_grid");
+    graphics.lineStyle(
+      this.theme.lines.gridWidth,
+      this.theme.lines.grid,
+      this.theme.lines.gridAlpha
+    );
 
     // Vertical lines
     for (let x = 0; x <= this.width; x++) {
@@ -76,35 +130,57 @@ export class Pitch {
 
   private drawEndZones(): void {
     const graphics = this.scene.add.graphics();
+    graphics.setName("pitch_end_zones");
+    const pitchHeight = this.height * this.squareSize;
 
-    // Left end zone (Team 1)
-    graphics.fillStyle(0x4444ff, 0.2);
-    graphics.fillRect(0, 0, this.squareSize, this.height * this.squareSize);
+    graphics.fillStyle(this.theme.endZones.left, this.theme.endZones.alpha);
+    graphics.fillRect(0, 0, this.squareSize, pitchHeight);
 
-    // Right end zone (Team 2)
-    graphics.fillStyle(0xff4444, 0.2);
+    graphics.fillStyle(this.theme.endZones.right, this.theme.endZones.alpha);
     graphics.fillRect(
       (this.width - 1) * this.squareSize,
       0,
       this.squareSize,
-      this.height * this.squareSize
+      pitchHeight
     );
 
+    graphics.lineStyle(3, this.theme.endZones.border, 0.82);
+    graphics.strokeRect(1, 1, this.squareSize - 2, pitchHeight - 2);
+    graphics.strokeRect(
+      (this.width - 1) * this.squareSize + 1,
+      1,
+      this.squareSize - 2,
+      pitchHeight - 2
+    );
     this.container.add(graphics);
   }
 
   private drawFieldMarkings(): void {
     const graphics = this.scene.add.graphics();
+    graphics.setName("pitch_major_lines");
 
     // Line of Scrimmage (Center Line)
-    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
+    graphics.lineStyle(
+      this.theme.lines.majorWidth,
+      this.theme.lines.major,
+      this.theme.lines.majorAlpha
+    );
     const centerX = (this.width / 2) * this.squareSize;
     graphics.lineBetween(centerX, 0, centerX, this.height * this.squareSize);
+    graphics.strokeCircle(
+      centerX,
+      (this.height * this.squareSize) / 2,
+      this.squareSize * 0.4
+    );
 
     // Setup Zone Lines (Separating Setup Zones from Neutral Zone)
     // Left Setup Line (Between Col 6 and 7 -> X=7)
     // Right Setup Line (Between Col 12 and 13 -> X=13)
-    graphics.lineStyle(4, GameConfig.COLORS.PITCH_LINE, 1.0); // Thicker line
+    graphics.lineStyle(
+      this.theme.lines.setupWidth,
+      this.theme.lines.major,
+      this.theme.lines.majorAlpha
+    );
 
     const leftSetupX = 7 * this.squareSize;
     graphics.lineBetween(
@@ -127,17 +203,23 @@ export class Pitch {
 
   private drawWideZones(): void {
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(2, GameConfig.COLORS.PITCH_LINE, 0.8);
+    graphics.setName("pitch_wide_zones");
 
-    // Top Wide Zone line (separating row 1 and 2)
-    // Grid 0, 1 are top wide zone. Line should be at Y = 2 * SQUARE_SIZE
     const topY = 2 * this.squareSize;
-    graphics.lineBetween(0, topY, this.width * this.squareSize, topY);
-
-    // Bottom Wide Zone line (separating row 8 and 9)
-    // Height is 11 (0-10). Bottom wide zone is 9, 10.
-    // Line should be at Y = 9 * SQUARE_SIZE
     const bottomY = (this.height - 2) * this.squareSize;
+    const pitchWidth = this.width * this.squareSize;
+    const pitchHeight = this.height * this.squareSize;
+
+    graphics.fillStyle(this.theme.wideZones.fill, this.theme.wideZones.alpha);
+    graphics.fillRect(0, 0, pitchWidth, topY);
+    graphics.fillRect(0, bottomY, pitchWidth, pitchHeight - bottomY);
+
+    graphics.lineStyle(
+      this.theme.lines.majorWidth,
+      this.theme.wideZones.line,
+      this.theme.lines.majorAlpha
+    );
+    graphics.lineBetween(0, topY, pitchWidth, topY);
     graphics.lineBetween(0, bottomY, this.width * this.squareSize, bottomY);
 
     this.container.add(graphics);
