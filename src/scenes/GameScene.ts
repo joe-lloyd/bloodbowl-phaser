@@ -596,10 +596,13 @@ export class GameScene extends Phaser.Scene {
         this.ballSprite.destroy();
         this.ballSprite = null;
       }
-      // New drive: nobody is "activated" and turn borders reset
+      // New drive: nobody is "activated", turn borders reset, and any player
+      // left Prone (rotated 90°) is stood back upright so the rotation does
+      // not carry into the next drive when the sprite is re-placed.
       this.playerSprites.forEach((sprite) => {
         sprite.setActivated(false);
         sprite.setTeamTurnBorder(false);
+        sprite.resetOrientation();
       });
       this.refreshDugouts();
     });

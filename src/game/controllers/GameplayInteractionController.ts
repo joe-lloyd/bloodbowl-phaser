@@ -573,12 +573,19 @@ export class GameplayInteractionController {
       );
     }
 
+    // PASS / HAND-OFF Execution (aiming step). A hand-off is resolved through
+    // the same throwBall path — PassOperation reads the declared action to
+    // apply the Quick-Pass/hand-off catch rules — so both complete here
+    // rather than reselecting the clicked team-mate.
     if (
-      this.currentActionMode === "pass" &&
-      this.currentStepId === "pass" &&
+      ((this.currentActionMode === "pass" && this.currentStepId === "pass") ||
+        (this.currentActionMode === "handoff" &&
+          this.currentStepId === "handoff")) &&
       this.selectedPlayerId
     ) {
-      console.log("[Interaction] Attempting Pass Execution...");
+      console.log(
+        `[Interaction] Attempting ${this.currentActionMode} Execution...`
+      );
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
       }
@@ -1056,6 +1063,9 @@ export class GameplayInteractionController {
     if (this.selectedPlayerId) {
       const isPassMode =
         (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
+        // A hand-off aims at an adjacent team-mate — same pass template/arrow.
+        (this.currentActionMode === "handoff" &&
+          this.currentStepId === "handoff") ||
         // A thrown Bomb aims like a Pass — same range template + arrow.
         (this.currentActionMode === "throwBomb" &&
           this.currentStepId === "bomb");
@@ -1240,16 +1250,21 @@ export class GameplayInteractionController {
       return;
     }
 
-    // CRITICAL FIX: If in Pass Mode (Aiming Step), clicking a player MUST BE TREATED AS A TARGET CLICK.
-    // absolutely NO selection changes allowed.
-    if (this.currentActionMode === "pass" && this.currentStepId === "pass") {
+    // CRITICAL FIX: while aiming a targeted throw at a team-mate — a Pass or a
+    // Hand-off — clicking a player MUST be treated as a TARGET click that
+    // completes the action, never a re-selection of the clicked team-mate.
+    if (
+      (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
+      (this.currentActionMode === "handoff" &&
+        this.currentStepId === "handoff")
+    ) {
       const p1 = this.scene.team1.players.find((p) => p.id === playerId);
       const p2 = this.scene.team2.players.find((p) => p.id === playerId);
       const player = p1 || p2;
 
       if (player && player.gridPosition) {
         console.log(
-          `[Interaction] Target player clicked at ${player.gridPosition.x},${player.gridPosition.y}. Triggering Pass onSquareClicked.`
+          `[Interaction] Target player clicked at ${player.gridPosition.x},${player.gridPosition.y}. Triggering ${this.currentActionMode} onSquareClicked.`
         );
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);
         return; // EXIT IMMEDIATELY - DO NOT SELECT PLAYER

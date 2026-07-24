@@ -113,6 +113,13 @@ export class SceneOrchestrator {
           );
           this.currentHandler = null;
           break;
+        case GamePhase.GAME_OVER:
+          // The match has ended. There is no active handler; resolve to the
+          // completed state and surface the final result to the HUD instead
+          // of falling through to the unhandled-phase warning.
+          this.currentHandler = null;
+          this.resolveMatchComplete();
+          break;
         default:
           console.warn(`[Orchestrator] No handler for phase: ${phase}`);
           break;
@@ -196,6 +203,27 @@ export class SceneOrchestrator {
 
   public startSetupPhase(): void {
     this.scene.startSetupPhase();
+  }
+
+  /**
+   * The match has reached GAME_OVER. Compute the final score/winner from live
+   * state and surface it to the HUD. The React layer already renders the
+   * post-match screen off the phase change; this announcement makes the
+   * result explicit rather than leaving the game to stall silently.
+   */
+  private resolveMatchComplete(): void {
+    const team1 = this.scene.team1;
+    const team2 = this.scene.team2;
+    const score1 = this.gameService.getScore(team1.id);
+    const score2 = this.gameService.getScore(team2.id);
+    const result =
+      score1 === score2
+        ? `Full time — ${team1.name} ${score1} : ${score2} ${team2.name} (draw)`
+        : score1 > score2
+          ? `Full time — ${team1.name} win ${score1} : ${score2}`
+          : `Full time — ${team2.name} win ${score2} : ${score1}`;
+    console.log(`[Orchestrator] Match complete. ${result}`);
+    this.eventBus.emit(GameEventNames.UI_Notification, result);
   }
 
   public checkSetupCompleteness(): void {

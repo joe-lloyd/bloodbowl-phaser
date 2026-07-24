@@ -43,6 +43,46 @@ async function scoreTouchdown(game: HeadlessGame) {
   });
 }
 
+/** Place up to 7 unplaced eligible players on their setup line. */
+async function placeTeam(game: HeadlessGame, teamId: string): Promise<void> {
+  const zone = game.ctx.gameService.getSetupZone(teamId)!;
+  const snap = game.snapshot();
+  const team = snap.teams.find((t) => t.id === teamId)!;
+  const eligible = team.players.filter(
+    (p) => p.status === "Active" || p.status === "Reserve"
+  );
+  const toPlace = eligible.filter((p) => !p.position).slice(0, 7);
+  const occupied = new Set(
+    snap.teams
+      .flatMap((t) => t.players)
+      .filter((p) => p.position)
+      .map((p) => `${p.position!.x},${p.position!.y}`)
+  );
+  const isTeam1 = teamId === snap.teams[0].id;
+  const lineX = isTeam1 ? zone.maxX : zone.minX;
+  let placed = 0;
+  outer: for (
+    let x = lineX;
+    x >= zone.minX && x <= zone.maxX;
+    x += isTeam1 ? -1 : 1
+  ) {
+    for (let y = 2; y <= 8; y++) {
+      if (placed >= toPlace.length) break outer;
+      if (occupied.has(`${x},${y}`)) continue;
+      const r = await game.execute({
+        type: "place-player",
+        playerId: toPlace[placed].id,
+        x,
+        y,
+      });
+      if (r.ok) {
+        occupied.add(`${x},${y}`);
+        placed++;
+      }
+    }
+  }
+}
+
 describe("drive reset", () => {
   it("clears the pitch after a touchdown: dugouts, no ball, placements reset", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
@@ -173,6 +213,76 @@ describe("drive reset", () => {
       expect(response.snapshot.phase).toBe(GamePhase.SETUP);
     }
     expect(scored).toBe(true);
+  });
+
+  it("resets any player left prone when the drive ends (no lingering prone orientation)", async () => {
+    // A player left Prone renders rotated 90°; the end-of-drive teardown must
+    // clear that state so nothing carries the rotation into the next drive.
+    // The sprite orientation is derived from status, so at the model level the
+    // regression is: no player survives the drive still Prone.
+    const game = new HeadlessGame({ scenario: tdScenario, seed: 3 });
+    const proneVictim = game.ctx.team2.players[0];
+    proneVictim.status = PlayerStatus.PRONE;
+
+    const response = await scoreTouchdown(game);
+    expect(response.ok).toBe(true);
+
+    const everyone = response.snapshot.teams.flatMap((t) => t.players);
+    expect(everyone.some((p) => p.status === "Prone")).toBe(false);
+    // The prone player specifically returned to Reserves, upright.
+    expect(game.ctx.gameService.getPlayerById(proneVictim.id)!.status).toBe(
+      PlayerStatus.RESERVE
+    );
+  });
+
+  it("leaves the ball interactable where it lands after the second-half kickoff", async () => {
+    // Regression for the reported "stuck ball" after the second-half kickoff:
+    // the receiving team must be able to move to and attempt to pick it up,
+    // identically to the first half.
+    const game = new HeadlessGame({ scenario: tdScenario, seed: 5 });
+    const [team1Id, team2Id] = game.snapshot().teams.map((t) => t.id);
+
+    // Run the first half to halftime (team1 kicked; team2 kicks the second).
+    game.ctx.gameService.startGame(team1Id);
+    for (let i = 0; i < 12; i++) await game.execute({ type: "end-turn" });
+
+    let snap = game.snapshot();
+    expect(snap.phase).toBe(GamePhase.SETUP);
+    expect(snap.turn.isHalf2).toBe(true);
+
+    // Second-half setup: kicking team, then receiving team.
+    await placeTeam(game, snap.activeTeamId!);
+    await game.execute({ type: "confirm-setup", teamId: snap.activeTeamId! });
+    snap = game.snapshot();
+    await placeTeam(game, snap.activeTeamId!);
+    await game.execute({ type: "confirm-setup", teamId: snap.activeTeamId! });
+    snap = game.snapshot();
+    expect(snap.phase).toBe(GamePhase.KICKOFF);
+
+    // team2 kicks deep into team1's half so the ball actually lands on pitch.
+    const kicker = snap.teams
+      .find((t) => t.id === team2Id)!
+      .players.find((p) => p.position)!;
+    const kicked = await game.execute({
+      type: "kick-ball",
+      playerId: kicker.id,
+      x: 18,
+      y: 5,
+    });
+    expect(kicked.ok).toBe(true);
+
+    snap = game.snapshot();
+    expect(snap.phase).toBe(GamePhase.PLAY);
+    // The ball rests on the pitch (not a touchback, not stuck/null).
+    expect(snap.ballPosition).not.toBeNull();
+    expect(game.ctx.gameService.isTouchbackPending()).toBe(false);
+
+    // The receiving team can act — a player can be moved toward the ball.
+    const legal = await game.execute({ type: "legal-actions" });
+    const movers =
+      legal.legalActions!.players.filter((p) => p.actions.includes("move")) ??
+      [];
+    expect(movers.length).toBeGreaterThan(0);
   });
 
   it("halftime swaps the kicking team, resets turns, and clears the pitch", async () => {

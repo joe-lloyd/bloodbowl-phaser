@@ -383,6 +383,49 @@ describe("GameplayInteractionController", () => {
       expect(spy).toHaveBeenCalledWith(5, 5);
     });
 
+    it("should complete a hand-off (not reselect) when clicking the target team-mate", () => {
+      // Regression: a pending hand-off used to reselect the clicked team-mate
+      // instead of completing the action.
+      controller["currentActionMode"] = "handoff";
+      controller["currentStepId"] = "handoff";
+      controller["selectedPlayerId"] = "p1";
+
+      const teammate = {
+        id: "p3",
+        gridPosition: { x: 6, y: 5 },
+        teamId: "team1",
+      };
+      (controller as any).scene.team1.players = [teammate];
+      (controller as any).scene.team2.players = [];
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.isTouchbackPending.mockReturnValue(false);
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue(teammate);
+
+      const selectSpy = vi.spyOn(controller, "selectPlayer");
+
+      controller.handlePlayerClick("p3");
+
+      // Hand-off is thrown to the team-mate's square; no reselection happens.
+      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 6, 5);
+      expect(selectSpy).not.toHaveBeenCalled();
+    });
+
+    it("should execute the hand-off when clicking a square in the 'handoff' step", () => {
+      controller["currentActionMode"] = "handoff";
+      controller["currentStepId"] = "handoff";
+      controller["selectedPlayerId"] = "p1";
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.isTouchbackPending.mockReturnValue(false);
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue({
+        id: "p3",
+        teamId: "team1",
+      });
+
+      (controller as any).onSquareClicked(6, 5);
+
+      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 6, 5);
+    });
+
     it("should select player normally if not in Pass Mode", () => {
       controller["currentActionMode"] = null;
 

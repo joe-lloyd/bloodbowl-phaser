@@ -190,6 +190,17 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Reset the sprite's laid-down rotation to upright. Used by the end-of-drive
+   * teardown: a player left Prone (rendered rotated 90°) returns to the dugout
+   * for the next drive, so its sprite must not carry the rotation into the
+   * fresh drive when it is re-placed on the pitch.
+   */
+  public resetOrientation(): void {
+    this.setAngle(0);
+    this.refreshTeamTurnBorder();
+  }
+
+  /**
    * Show/hide the active-team square border. Color reflects status:
    * standing = white, prone (down) = yellow, stunned = orange. Opacity
    * (setActivated) continues to show who has already gone.
