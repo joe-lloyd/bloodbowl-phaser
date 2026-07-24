@@ -7,6 +7,7 @@ import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD } from "../components/hud/GameHUD";
+import { BoardLabelOverlay } from "../components/hud/BoardLabelOverlay";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 import { CompetitionContext } from "../../competition/types";
@@ -165,6 +166,9 @@ export function GamePage({
     <div className="w-full h-full relative">
       {/* Phaser canvas container */}
       <div id="game-container" className="w-full h-full" />
+
+      {/* Crisp board text (dugout headers, end-zone names) over the canvas */}
+      <BoardLabelOverlay eventBus={eventBus} />
 
       {/* Game HUD overlay */}
       <GameHUD eventBus={eventBus} mode={mode} />

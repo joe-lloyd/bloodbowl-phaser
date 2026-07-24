@@ -15,14 +15,23 @@ export class Pitch {
   private offsetX: number;
   private offsetY: number;
   private theme: PitchTheme;
+  /** Team colours for the two end zones (left = team1, right = team2). */
+  private endZoneColors: { left: number; right: number } | null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, themeId?: string) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    themeId?: string,
+    endZoneColors?: { left: number; right: number }
+  ) {
     this.scene = scene;
     const presentation = getPitchPresentation(themeId);
     this.width = presentation.width;
     this.height = presentation.height;
     this.squareSize = presentation.squareSize;
     this.theme = presentation.theme;
+    this.endZoneColors = endZoneColors ?? null;
     this.offsetX = x;
     this.offsetY = y;
 
@@ -133,10 +142,15 @@ export class Pitch {
     graphics.setName("pitch_end_zones");
     const pitchHeight = this.height * this.squareSize;
 
-    graphics.fillStyle(this.theme.endZones.left, this.theme.endZones.alpha);
+    // Each end zone is tinted with its owning team's colour (a transparent
+    // wash), falling back to the theme's neutral colours when unset.
+    const leftColor = this.endZoneColors?.left ?? this.theme.endZones.left;
+    const rightColor = this.endZoneColors?.right ?? this.theme.endZones.right;
+
+    graphics.fillStyle(leftColor, this.theme.endZones.alpha);
     graphics.fillRect(0, 0, this.squareSize, pitchHeight);
 
-    graphics.fillStyle(this.theme.endZones.right, this.theme.endZones.alpha);
+    graphics.fillStyle(rightColor, this.theme.endZones.alpha);
     graphics.fillRect(
       (this.width - 1) * this.squareSize,
       0,

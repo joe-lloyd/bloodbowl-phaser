@@ -26,6 +26,7 @@ import {
   PitchThemeId,
   resolvePitchTheme,
 } from "../game/presentation/pitchThemes";
+import { BoardLabel } from "../game/presentation/boardLabels";
 
 // Assets
 // Dynamic loading via import.meta.glob
@@ -236,7 +237,10 @@ export class GameScene extends Phaser.Scene {
     // Pitch centered horizontally, with fixed top margin
     const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
     const pitchY = GameConfig.TOP_UI_HEIGHT;
-    this.pitch = new Pitch(this, pitchX, pitchY, this.pitchThemeId);
+    this.pitch = new Pitch(this, pitchX, pitchY, this.pitchThemeId, {
+      left: this.team1.colors.primary,
+      right: this.team2.colors.primary,
+    });
 
     // Dice Log
     // Dice Log - Moved to React
@@ -481,6 +485,72 @@ export class GameScene extends Phaser.Scene {
         (id, x, y) => this.onDugoutDragEnd(id, x, y)
       );
     });
+
+    this.emitBoardLabels(pitchX, pitchY, topDugout, bottomDugout);
+  }
+
+  /**
+   * Publish all board text (dugout headers, sideline crew, end-zone team
+   * names) in canvas design coordinates for the React overlay to render as
+   * crisp DOM text. Called whenever the dugouts are (re)built.
+   */
+  private emitBoardLabels(
+    pitchX: number,
+    pitchY: number,
+    top: Dugout,
+    bottom: Dugout
+  ): void {
+    const labels: BoardLabel[] = [];
+
+    const addDugout = (dugout: Dugout, prefix: string) => {
+      dugout.getLabels().forEach((label, i) => {
+        labels.push({
+          ...label,
+          id: `${prefix}-${i}`,
+          x: label.x + dugout.x,
+          y: label.y + dugout.y,
+        });
+      });
+    };
+    addDugout(top, `dugout-${this.team1.id}`);
+    addDugout(bottom, `dugout-${this.team2.id}`);
+
+    // End-zone team names: rotated, centred in the single-square end zones.
+    // team1 defends the left end zone, team2 the right (matching the dugouts).
+    const midY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT / 2;
+    const half = GameConfig.SQUARE_SIZE / 2;
+    // The zone fill already carries the team colour, so the name itself is a
+    // light parchment for legibility over any team colour. The two names are
+    // mirror-rotated so each reads upward from its own touchline.
+    const endZone = (
+      id: string,
+      team: Team,
+      x: number,
+      rotation: number
+    ): BoardLabel => ({
+      id,
+      text: team.name,
+      x,
+      y: midY,
+      size: 30,
+      weight: "bold",
+      align: "center",
+      rotation,
+      color: "#f6efdd",
+      opacity: 0.95,
+      tracking: 3,
+    });
+    labels.push(endZone("endzone-left", this.team1, pitchX + half, 90));
+    labels.push(
+      endZone(
+        "endzone-right",
+        this.team2,
+        pitchX + GameConfig.PITCH_PIXEL_WIDTH - half,
+        -90
+      )
+    );
+
+    this.eventBus.emit(GameEventNames.UI_BoardLabels, { labels });
   }
 
   /**

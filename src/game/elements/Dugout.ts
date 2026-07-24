@@ -11,6 +11,7 @@ import {
 } from "../presentation/pitchThemes";
 import { getVisibleSidelineStaff } from "../presentation/sidelineStaff";
 import { DUGOUT_LAYOUT, getDugoutLayout } from "../presentation/dugoutLayout";
+import { BoardLabel } from "../presentation/boardLabels";
 
 export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
@@ -96,8 +97,7 @@ export class Dugout extends Phaser.GameObjects.Container {
       sectionHeight,
       this.team.colors.primary,
       this.getPlayersByStatus("Reserves"),
-      reservesCols,
-      "RESERVES"
+      reservesCols
     );
 
     // 2. KO Section (Middle) - 5x2 Grid
@@ -108,8 +108,7 @@ export class Dugout extends Phaser.GameObjects.Container {
       sectionHeight,
       this.theme.dugout.ko,
       this.getPlayersByStatus("KO"),
-      koCols,
-      "KNOCKED OUT"
+      koCols
     );
 
     // 3. Dead/Injured Section - 5x2 Grid
@@ -120,8 +119,7 @@ export class Dugout extends Phaser.GameObjects.Container {
       sectionHeight,
       this.theme.dugout.casualty,
       this.getPlayersByStatus("Dead"),
-      deadCols,
-      "CASUALTIES"
+      deadCols
     );
 
     this.createStaffRail(layout.staffX, 0);
@@ -134,8 +132,7 @@ export class Dugout extends Phaser.GameObjects.Container {
     h: number,
     color: number,
     players: Player[],
-    cols: number,
-    label: string
+    cols: number
   ): void {
     // Background
     const bg = this.scene.add
@@ -149,18 +146,12 @@ export class Dugout extends Phaser.GameObjects.Container {
 
     this.add([bg, tint, border]);
 
+    // Coloured header band; the header text is drawn by the React overlay
+    // (see getLabels) so it stays crisp at any canvas scale.
     const titleBand = this.scene.add
       .rectangle(x + 2, y + 2, w - 4, 12, color, 0.72)
       .setOrigin(0);
-    const title = this.scene.add
-      .text(x + 8, y + 1, label, {
-        fontFamily: "Arial, sans-serif",
-        fontSize: "10px",
-        fontStyle: "bold",
-        color: colorToCss(this.theme.dugout.label),
-      })
-      .setOrigin(0);
-    this.add([titleBand, title]);
+    this.add(titleBand);
 
     // Draw Grid
     const gridOffsetX = DUGOUT_LAYOUT.gridOffsetX;
@@ -209,15 +200,9 @@ export class Dugout extends Phaser.GameObjects.Container {
         0.92
       )
       .setOrigin(0);
-    const title = this.scene.add
-      .text(x + DUGOUT_LAYOUT.staffWidth / 2, y + 3, "SIDELINE CREW", {
-        fontFamily: "Arial, sans-serif",
-        fontSize: "10px",
-        fontStyle: "bold",
-        color: colorToCss(this.theme.dugout.label),
-      })
-      .setOrigin(0.5, 0);
-    this.add([rail, teamStripe, title]);
+    // "SIDELINE CREW" title and each figure's badge letter / "NO STAFF"
+    // placeholder are drawn by the React overlay (see getLabels).
+    this.add([rail, teamStripe]);
 
     const staff = getVisibleSidelineStaff(this.team);
     staff.forEach((member, position) => {
@@ -237,35 +222,86 @@ export class Dugout extends Phaser.GameObjects.Container {
       body.setStrokeStyle(2, this.theme.dugout.border, 0.85);
       const head = this.scene.add.circle(0, -8, 7, member.color, 1);
       head.setStrokeStyle(1, this.theme.dugout.label, 0.7);
-      const badge = this.scene.add
-        .text(0, 7, member.label, {
-          fontFamily: "Arial, sans-serif",
-          fontSize: "11px",
-          fontStyle: "bold",
-          color: colorToCss(this.theme.dugout.label),
-        })
-        .setOrigin(0.5);
-      const sprite = this.scene.add.container(px, py, [body, head, badge]);
+      const sprite = this.scene.add.container(px, py, [body, head]);
       sprite.setName(`sideline_staff_${member.type}_${member.index}`);
       this.add(sprite);
     });
+  }
 
-    if (staff.length === 0) {
-      const empty = this.scene.add
-        .text(
-          x + DUGOUT_LAYOUT.staffWidth / 2,
-          y + this.dugoutHeight / 2,
-          "NO STAFF",
-          {
-            fontFamily: "Arial, sans-serif",
-            fontSize: "11px",
-            color: colorToCss(this.theme.dugout.label),
-          }
-        )
-        .setOrigin(0.5);
-      empty.setAlpha(0.45);
-      this.add(empty);
+  /**
+   * Board text for this dugout, in the dugout's local coordinate space. The
+   * scene offsets these by the dugout's world position and hands them to the
+   * React overlay so headers, the sideline-crew rail and badges render as
+   * crisp DOM text instead of blurry canvas text.
+   */
+  public getLabels(): Omit<BoardLabel, "id">[] {
+    const labels: Omit<BoardLabel, "id">[] = [];
+    const layout = getDugoutLayout(this.mirrored);
+    const color = colorToCss(this.theme.dugout.label);
+
+    // Section headers sit centred on their 12px coloured band (top at y+2).
+    const sections: [number, string][] = [
+      [layout.sections.reserves.x, "RESERVES"],
+      [layout.sections.ko.x, "KNOCKED OUT"],
+      [layout.sections.casualty.x, "CASUALTIES"],
+    ];
+    for (const [sx, text] of sections) {
+      labels.push({
+        text,
+        x: sx + 8,
+        y: 8,
+        size: 10,
+        weight: "bold",
+        align: "left",
+        color,
+        tracking: 0.5,
+      });
     }
+
+    // Sideline crew rail.
+    const railCenterX = layout.staffX + DUGOUT_LAYOUT.staffWidth / 2;
+    labels.push({
+      text: "SIDELINE CREW",
+      x: railCenterX,
+      y: 8,
+      size: 10,
+      weight: "bold",
+      align: "center",
+      color,
+      tracking: 0.5,
+    });
+
+    const staff = getVisibleSidelineStaff(this.team);
+    if (staff.length === 0) {
+      labels.push({
+        text: "NO STAFF",
+        x: railCenterX,
+        y: this.dugoutHeight / 2,
+        size: 11,
+        align: "center",
+        color,
+        opacity: 0.45,
+      });
+    } else {
+      staff.forEach((member, position) => {
+        const col = position % 4;
+        const row = Math.floor(position / 4);
+        // Matches the figure container placement above; badge sits on the body.
+        const px = layout.staffX + 25 + col * 43;
+        const py = 42 + row * 40 + 7;
+        labels.push({
+          text: member.label,
+          x: px,
+          y: py,
+          size: 11,
+          weight: "bold",
+          align: "center",
+          color,
+        });
+      });
+    }
+
+    return labels;
   }
 
   private renderPlayerGrid(

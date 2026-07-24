@@ -37,3 +37,5 @@ lerna-debug.log*
 /docs/pdfs/*.pdf
 
 src/data/*.json
+
+.pnpm-store/

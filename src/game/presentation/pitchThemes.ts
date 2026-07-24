@@ -71,7 +71,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     endZones: {
       left: 0x4444ff,
       right: 0xff4444,
-      alpha: 0.2,
+      alpha: 0.8,
       border: 0xf3e9d2,
     },
     wideZones: {
@@ -114,7 +114,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     endZones: {
       left: 0x324f73,
       right: 0x7a2923,
-      alpha: 0.36,
+      alpha: 0.8,
       border: 0xe6d4aa,
     },
     wideZones: {
@@ -157,7 +157,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     endZones: {
       left: 0x3853a4,
       right: 0xa22d4a,
-      alpha: 0.36,
+      alpha: 0.8,
       border: 0xd9f7f4,
     },
     wideZones: {
@@ -200,7 +200,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     endZones: {
       left: 0x4b4e69,
       right: 0x793c2f,
-      alpha: 0.38,
+      alpha: 0.8,
       border: 0xe7d3a5,
     },
     wideZones: {

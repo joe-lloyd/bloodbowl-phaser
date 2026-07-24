@@ -9,6 +9,7 @@ import { GamePhase, GameState, SubPhase } from "./GameState";
 import { Team } from "./Team";
 import { Player } from "./Player";
 import { BlockResult } from "../services/BlockResolutionService";
+import { BoardLabel } from "../game/presentation/boardLabels";
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -62,6 +63,8 @@ export enum GameEventNames {
   DiceRoll = "diceRoll",
   GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
+  /** Crisp text (dugout headers, end-zone names) for the React overlay */
+  UI_BoardLabels = "ui:boardLabels",
 
   // Pass/Catch Events
   PassDeclared = "passDeclared",
@@ -437,6 +440,9 @@ export interface GameEvents {
   // Sandbox
   [GameEventNames.GameStateRestored]: GameState;
   [GameEventNames.RefreshBoard]: void;
+  /** Board text (dugout section headers, sideline crew, end-zone team names)
+   *  positioned in canvas design space for the React overlay to draw crisply. */
+  [GameEventNames.UI_BoardLabels]: { labels: BoardLabel[] };
   [GameEventNames.ScenarioLoaded]: {
     name: string;
     seed?: number;
