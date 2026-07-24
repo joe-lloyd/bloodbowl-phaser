@@ -7,6 +7,11 @@ import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button } from "../componentWarehouse/Button";
 import { Title, SectionTitle } from "../componentWarehouse/Titles";
+import { PitchThemePicker } from "../common/PitchThemePicker";
+import {
+  DEFAULT_PITCH_THEME_ID,
+  PitchThemeId,
+} from "../../../game/presentation/pitchThemes";
 
 interface TeamSelectProps {
   mode?: "sandbox" | "standard" | "play";
@@ -21,6 +26,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
   const [progressionEnabled, setProgressionEnabled] = useState(false);
+  const [pitchThemeId, setPitchThemeId] = useState<PitchThemeId>(
+    DEFAULT_PITCH_THEME_ID
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +57,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         team1: selectedTeam1,
         team2: selectedTeam2,
         progressionEnabled,
+        pitchThemeId,
       },
     });
   };
@@ -173,6 +182,14 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             ))}
           </div>
         </div>
+
+        <section className="my-6 rounded-lg border border-bb-divider bg-bb-warm-paper p-5 shadow-parchment-light">
+          <SectionTitle>Choose the pitch</SectionTitle>
+          <p className="mb-4 font-body text-bb-muted-text">
+            Presentation only—the same 20×11 field is used for every theme.
+          </p>
+          <PitchThemePicker value={pitchThemeId} onChange={setPitchThemeId} />
+        </section>
 
         {mode !== "sandbox" && (
           <label className="my-6 flex items-center justify-center gap-3 font-body text-lg">

@@ -160,7 +160,8 @@ create() {
 
 **Data Passed**:
 
-- To SetupScene: `{ team1: Team, team2: Team }`
+- To SetupScene:
+  `{ team1: Team, team2: Team, pitchThemeId: PitchThemeId }`
 
 ---
 
@@ -186,7 +187,7 @@ create() {
 
 **Data Received**:
 
-- `{ team1: Team, team2: Team }`
+- `{ team1: Team, team2: Team, pitchThemeId: PitchThemeId }`
 
 **Data Passed**:
 
@@ -196,6 +197,7 @@ create() {
   {
     team1: Team,
     team2: Team,
+    pitchThemeId: PitchThemeId,
     kickingTeam: Team,
     receivingTeam: Team,
     gameStateManager: GameStateManager
@@ -242,11 +244,18 @@ create() {
 {
   team1: Team,
   team2: Team,
+  pitchThemeId: PitchThemeId,
   kickingTeam: Team,
   receivingTeam: Team,
   gameStateManager: GameStateManager
 }
 ```
+
+`pitchThemeId` is cosmetic setup state. `GameScene` resolves it through the
+fixed theme catalog and passes the palette to `Pitch` and both `Dugout`
+instances. Local play carries the id in route state. Online play stores it in
+`LobbySettings`, so the host and guest mount the same presentation. Missing or
+legacy values resolve to Classic Grass.
 
 **Game Loop**:
 
@@ -366,4 +375,4 @@ class ExampleScene extends Phaser.Scene {
 
 ---
 
-**Last Updated**: 2025-12-05
+**Last Updated**: 2026-07-24

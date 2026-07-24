@@ -95,6 +95,37 @@
 - React UI uses viewport units and matches canvas bounds
 - Both canvas and UI center together for perfect alignment
 
+## Match Presentation Themes
+
+The pitch and dugouts share one fixed presentation catalog in
+`src/game/presentation/pitchThemes.ts`. The starter themes are Classic Grass,
+Midden Mud, Doomdome Astro, and Ash Wastes.
+
+- A theme may change only surface, zone, line, and dugout colours/details.
+- `GameConfig.PITCH_WIDTH`, `PITCH_HEIGHT`, `SQUARE_SIZE`, offsets, and
+  `gridToPixel`/`pixelToGrid` remain the geometry source of truth.
+- All themes render from Phaser primitives. Optional texture keys are overlays
+  and must never be required for a usable field.
+- The surface stays low contrast behind players and the ball; grid and major
+  setup lines remain the strongest pitch marks.
+- End zones use distinct cool/warm treatments, wide zones have a restrained
+  tint, and the centre/setup lines retain clear hierarchy.
+
+The shared React `PitchThemePicker` is used for local match setup and the
+online lobby. Online guests display the host's persisted lobby setting.
+
+### Dugout and sideline
+
+Each dugout spans the same 1200px width as the pitch. The existing 1020px
+reserve/KO/casualty section block keeps its original world coordinates; the
+remaining 180px is a non-interactive sideline staff rail.
+
+- Reserves use the team primary colour.
+- KO and casualty sections use theme-specific amber/red accents.
+- Assistant coaches, cheerleaders, the apothecary, and dedicated fans render
+  as compact primitive sprites in the staff rail.
+- Visible staff are capped per type, and staff never overlap player slots.
+
 ## Fantasy Theme Elements
 
 ### Parchment Effect

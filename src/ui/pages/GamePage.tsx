@@ -13,6 +13,7 @@ import { CompetitionContext } from "../../competition/types";
 import { recordCompetitionFixture } from "../../competition/resultRecording";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
+import { resolvePitchTheme } from "../../game/presentation/pitchThemes";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -21,6 +22,7 @@ interface GamePageProps {
   teams?: { team1: Team; team2: Team };
   progressionEnabled?: boolean;
   competitionContext?: CompetitionContext;
+  pitchThemeId?: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function GamePage({
   teams,
   progressionEnabled,
   competitionContext,
+  pitchThemeId,
 }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const reportedRef = useRef(false);
@@ -44,6 +47,7 @@ export function GamePage({
       team2?: Team;
       competitionContext?: CompetitionContext;
       progressionEnabled?: boolean;
+      pitchThemeId?: string;
     } | null) ?? {};
   const fixtureContext =
     competitionContext ?? routeState.competitionContext ?? null;
@@ -52,6 +56,11 @@ export function GamePage({
     (routeState.team1 && routeState.team2
       ? { team1: routeState.team1, team2: routeState.team2 }
       : undefined);
+  const selectedPitchThemeId = resolvePitchTheme(
+    pitchThemeId ??
+      routeState.pitchThemeId ??
+      new URLSearchParams(location.search).get("theme")
+  ).id;
 
   useEffect(() => {
     if (!fixtureContext || !matchTeams) return;
@@ -115,12 +124,15 @@ export function GamePage({
     // Wait for boot, then start appropriate scene
     game.events.once("ready", () => {
       if (mode === "sandbox") {
-        game.scene.start("SandboxScene");
+        game.scene.start("SandboxScene", {
+          pitchThemeId: selectedPitchThemeId,
+        });
       } else if (team1 && team2) {
         game.scene.start("GameScene", {
           team1,
           team2,
           progressionEnabled: enableProgression,
+          pitchThemeId: selectedPitchThemeId,
         });
       } else {
         // No teams provided, redirect to team selection
@@ -140,7 +152,14 @@ export function GamePage({
         ServiceContainer.reset();
       }
     };
-  }, [mode, location.state, navigate, teams, progressionEnabled]);
+  }, [
+    mode,
+    location.state,
+    navigate,
+    teams,
+    progressionEnabled,
+    selectedPitchThemeId,
+  ]);
 
   return (
     <div className="w-full h-full relative">

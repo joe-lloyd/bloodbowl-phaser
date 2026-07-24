@@ -21,6 +21,11 @@ import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
+import {
+  DEFAULT_PITCH_THEME_ID,
+  PitchThemeId,
+  resolvePitchTheme,
+} from "../game/presentation/pitchThemes";
 
 // Assets
 // Dynamic loading via import.meta.glob
@@ -67,6 +72,7 @@ export class GameScene extends Phaser.Scene {
   public isSetupActive: boolean = false;
   protected ballSprite: Phaser.GameObjects.Container | null = null;
   private pendingKickoffData = null; // Stores kick data for scatter animation
+  private pitchThemeId: PitchThemeId = DEFAULT_PITCH_THEME_ID;
 
   // Store handlers for cleanup
   private eventHandlers: Map<GameEventNames, () => void> = new Map();
@@ -142,9 +148,15 @@ export class GameScene extends Phaser.Scene {
     super({ key });
   }
 
-  init(data: { team1: Team; team2: Team; progressionEnabled?: boolean }): void {
+  init(data: {
+    team1: Team;
+    team2: Team;
+    progressionEnabled?: boolean;
+    pitchThemeId?: string;
+  }): void {
     this.team1 = data.team1;
     this.team2 = data.team2;
+    this.pitchThemeId = resolvePitchTheme(data.pitchThemeId).id;
 
     // Default kicking/receiving (will be set by coinflip)
     this.kickingTeam = this.team1;
@@ -224,7 +236,7 @@ export class GameScene extends Phaser.Scene {
     // Pitch centered horizontally, with fixed top margin
     const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
     const pitchY = GameConfig.TOP_UI_HEIGHT;
-    this.pitch = new Pitch(this, pitchX, pitchY);
+    this.pitch = new Pitch(this, pitchX, pitchY, this.pitchThemeId);
 
     // Dice Log
     // Dice Log - Moved to React
@@ -259,14 +271,14 @@ export class GameScene extends Phaser.Scene {
         const localX = pointer.x - pitchContainer.x;
         const localY = pointer.y - pitchContainer.y;
 
-        // Simple bounds check (0-26, 0-15) - hardcoded for now, or use Pitch dims
+        // Theme-independent pitch bounds.
         if (
           localX >= 0 &&
-          localX <= 26 * 60 &&
+          localX < GameConfig.PITCH_PIXEL_WIDTH &&
           localY >= 0 &&
-          localY <= 15 * 60
+          localY < GameConfig.PITCH_PIXEL_HEIGHT
         ) {
-          const gridPos = pixelToGrid(localX, localY, 60);
+          const gridPos = pixelToGrid(localX, localY, GameConfig.SQUARE_SIZE);
           this.pitch.highlightHoverSquare(gridPos.x, gridPos.y);
         } else {
           this.pitch.clearHover();
@@ -428,7 +440,15 @@ export class GameScene extends Phaser.Scene {
     // Placed at the very top of the canvas (y=0)
     // Dugout height is ~150px. Pitch starts at TOP_UI_HEIGHT (160px).
     const topDugoutY = 0;
-    const topDugout = new Dugout(this, pitchX, topDugoutY, this.team1);
+    const topDugout = new Dugout(
+      this,
+      pitchX,
+      topDugoutY,
+      this.team1,
+      150,
+      false,
+      this.pitchThemeId
+    );
     topDugout.setDepth(10);
     this.dugouts.set(this.team1.id, topDugout);
 
@@ -446,7 +466,8 @@ export class GameScene extends Phaser.Scene {
       bottomDugoutY,
       this.team2,
       150,
-      true
+      true,
+      this.pitchThemeId
     );
     bottomDugout.x =
       pitchX + GameConfig.PITCH_PIXEL_WIDTH - bottomDugout.getTotalWidth();

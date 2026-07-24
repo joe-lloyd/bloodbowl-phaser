@@ -24,6 +24,7 @@ import {
 } from "../../../firebase/lobby";
 import { Team } from "../../../types/Team";
 import { CompetitionContext } from "../../../competition/types";
+import { PitchThemePicker } from "../common/PitchThemePicker";
 
 type Mode = "host" | "join";
 
@@ -346,6 +347,17 @@ function SettingsPanel({
       <Subtitle className="mb-2">
         Match settings {readOnly && "(host decides)"}
       </Subtitle>
+      <div className="mb-5 text-left">
+        <p className="mb-2 font-heading text-sm uppercase text-bb-muted-text">
+          Pitch
+        </p>
+        <PitchThemePicker
+          compact
+          disabled={readOnly}
+          value={settings.pitchThemeId}
+          onChange={(pitchThemeId) => onChange({ ...settings, pitchThemeId })}
+        />
+      </div>
       <div className="flex justify-between items-center gap-4 mb-2">
         <label className="font-body text-lg">Turn timer</label>
         <select
