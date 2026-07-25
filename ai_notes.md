@@ -48,6 +48,20 @@ when trying to jump up and blcok i got the message cannot declaire block already
   Clause 1 of Jump Up (free stand-up during a movement action) was already
   implemented and is unchanged.
   Locked by __tests__/headless/foul-and-jump-actions.test.ts.
+  Rule-catalog config added so this is watchable in the sandbox rule explorer:
+  Agility skills -> Jump Up -> "Block declared while Prone", with four
+  seed-searched variants:
+    - stand-up-failed        (seed 7)  Agility test fails, Action wasted,
+                                       NOT a turnover — the idle team-mate at
+                                       (3,8) can still act, which is the proof
+    - stood-and-pushed       (seed 11) test passes, stands free, defender pushed
+    - stood-and-knocked-down (seed 5)  test passes, defender knocked down
+    - blocker-back-down      (seed 1)  test passes, Block thrown, blocker goes
+                                       back down — and THIS one IS a turnover,
+                                       the deliberate contrast with the failed
+                                       stand-up
+  Both players are ST 3 so the Block is a single die and the seed alone decides
+  which variant you get.
 
 after scoroing a touchdown i was unable to complete the seup, i noticed this warning SceneOrchestrator.ts:124 [Orchestrator] No handler for phase: TOUCHDOWN. i had 7 players ebcause my ko player got recovered but he ended up being duplicated one version was on the pitch and one version was stuck in the ko box, so we need to make the ko recovery a bit of a thing where we roll for each player do an animatino to show they recovered or theya re still KO'd then if they recover move them to the resetrves so they are ready fro setup. and if the are no ready setting up with less than 7 player should not break the gasetup process.
 
@@ -75,3 +89,31 @@ upon finishing the game this is all i got "[Orchestrator] Match complete. Full t
 im not sure the publish team thing is useful, I think a users teams should be readable just not writable, but in team managemnt tyheres should be kinda 2 modes, the mode before they have ever played a game where they can be edited and everything and then after they have started playing games they should be locked in and they need to folow the rules for an active team or team in a league so the team rerole becaomse double price for example and they cannot buy fanfactor any more, shoiuld should also see the page where we can speend the SPP for a player adn see their individual stats touchdowns etc.
 
 lets fix the tounements overview ui so it looks like a proper cup layout where theres is all teh sames split out with players solowly gettign eleminated till the get to the center and the cuop
+
+  DONE 2026-07-25 — single-elimination tournaments now render as a mirrored cup
+  bracket: both halves of the draw advance inward round by round and meet at the
+  final in the centre column, with the trophy and champion above it. Connectors
+  are SVG elbows following the recorded next-fixture linkage, losers are struck
+  through and dimmed, winners are emphasised and carried into their next tie.
+  Geometry lives in a pure helper (src/competition/bracketLayout.ts) rather than
+  in JSX, so odd draws are testable — 27 unit tests cover 2/3/4/5/8/11/16-entrant
+  draws, byes, shared paths to the final, and a full tournament played to a
+  champion.
+  Cards are in DOCUMENT FLOW, not absolutely positioned: one flex column per
+  round with justify-around, which is what centres each round between the ties
+  feeding it. Flex items cannot overlap, so a tall card (one with play/host
+  buttons and score inputs) pushes its neighbours apart instead of colliding
+  with them — the first pass positioned cards absolutely on a fixed 132px row
+  pitch and they overlapped badly. Connectors are measured from the rendered
+  card edges (ResizeObserver) rather than predicted, so they stay attached
+  whatever height a card ends up.
+  Leagues and round-robin keep the existing standings + fixture list untouched.
+  The bracket scrolls inside its own container (page never scrolls sideways) and
+  falls back to the round-by-round list under 640px or below four entrants.
+  Play/host/report controls are the SAME code in both presentations, so they
+  cannot drift apart.
+  Also fixed while here: tournaments saved without bracket linkage could never
+  advance a winner at all (advanceWinner returns early with no nextFixtureId).
+  repairBracketLinkage() derives it from round/order and runs on every read.
+  ** TODO: eyeball a 16-team bracket on a narrow window, and confirm launching
+  and reporting from a bracket card. **

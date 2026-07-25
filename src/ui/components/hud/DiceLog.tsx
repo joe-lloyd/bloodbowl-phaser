@@ -282,7 +282,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
           }
           100% {
             opacity: 1;
-            max-height: 64px;
+            max-height: 250px;
             margin-bottom: 0.3rem;
             transform: translateY(0);
           }

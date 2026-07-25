@@ -9,6 +9,10 @@ import {
   CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
+import {
+  BracketFixtureContext,
+  TournamentBracket,
+} from "./TournamentBracket";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
@@ -112,6 +116,116 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     });
   };
 
+  const isBracket =
+    competition.type === "tournament" &&
+    competition.format === "single-elimination";
+
+  // Shared by the bracket cards and the round list so the two presentations
+  // can never drift apart. Called as a plain function, never mounted as a
+  // component — a component boundary here would remount the score inputs on
+  // every keystroke and lose focus.
+  const fixtureActions = ({ fixture, home, away }: BracketFixtureContext) => {
+    const draft = scores[fixture.id] ?? { home: "", away: "" };
+    return (
+      <>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            className="!text-sm !px-3 !py-2 !my-0"
+            onClick={() => launchLocal(fixture)}
+          >
+            Play local
+          </Button>
+          <Button
+            className="!text-sm !px-3 !py-2 !my-0"
+            disabled={!onlineAvailable || !user}
+            onClick={() => launchHosted(fixture)}
+          >
+            Host online
+          </Button>
+        </div>
+        {canReport && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <input
+              aria-label={`${home?.name} score`}
+              type="number"
+              min="0"
+              value={draft.home}
+              onChange={(event) =>
+                setScores((current) => ({
+                  ...current,
+                  [fixture.id]: { ...draft, home: event.target.value },
+                }))
+              }
+              className="w-14 border border-bb-divider rounded p-1"
+            />
+            <span>–</span>
+            <input
+              aria-label={`${away?.name} score`}
+              type="number"
+              min="0"
+              value={draft.away}
+              onChange={(event) =>
+                setScores((current) => ({
+                  ...current,
+                  [fixture.id]: { ...draft, away: event.target.value },
+                }))
+              }
+              className="w-14 border border-bb-divider rounded p-1"
+            />
+            <button
+              onClick={() => void report(fixture)}
+              className="font-heading underline text-bb-blood-red text-sm"
+            >
+              Record result
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderRoundList = () => (
+    <div className="grid lg:grid-cols-2 gap-6">
+      {rounds.map((round) => (
+        <div key={round}>
+          <h3 className="font-heading text-xl mb-2">Round {round}</h3>
+          <div className="space-y-3">
+            {competition.fixtures
+              .filter((fixture) => fixture.round === round)
+              .map((fixture) => {
+                const home = entrant(fixture.homeEntrantId);
+                const away = entrant(fixture.awayEntrantId);
+                const ready =
+                  fixture.status === "ready" && Boolean(home && away);
+                return (
+                  <article
+                    key={fixture.id}
+                    className="bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg p-4"
+                  >
+                    <div className="font-body flex justify-between gap-3">
+                      <span>{home?.name ?? "TBD"}</span>
+                      <strong>{fixture.result?.homeScore ?? "—"}</strong>
+                    </div>
+                    <div className="font-body flex justify-between gap-3">
+                      <span>
+                        {away?.name ?? (fixture.result?.bye ? "BYE" : "TBD")}
+                      </span>
+                      <strong>{fixture.result?.awayScore ?? "—"}</strong>
+                    </div>
+                    {ready && (
+                      <div className="mt-3">
+                        {fixtureActions({ fixture, home, away, ready })}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <CompetitionShell>
       <div className="flex flex-wrap justify-between items-start gap-4">
@@ -183,110 +297,22 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       )}
 
       <section className="my-8">
-        <SectionTitle>
-          {competition.type === "tournament" &&
-          competition.format === "single-elimination"
-            ? "Bracket"
-            : "Schedule"}
-        </SectionTitle>
-        <div className="grid lg:grid-cols-2 gap-6">
-          {rounds.map((round) => (
-            <div key={round}>
-              <h3 className="font-heading text-xl mb-2">Round {round}</h3>
-              <div className="space-y-3">
-                {competition.fixtures
-                  .filter((fixture) => fixture.round === round)
-                  .map((fixture) => {
-                    const home = entrant(fixture.homeEntrantId);
-                    const away = entrant(fixture.awayEntrantId);
-                    const ready =
-                      fixture.status === "ready" && Boolean(home && away);
-                    const draft = scores[fixture.id] ?? { home: "", away: "" };
-                    return (
-                      <article
-                        key={fixture.id}
-                        className="bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg p-4"
-                      >
-                        <div className="font-body flex justify-between gap-3">
-                          <span>{home?.name ?? "TBD"}</span>
-                          <strong>{fixture.result?.homeScore ?? "—"}</strong>
-                        </div>
-                        <div className="font-body flex justify-between gap-3">
-                          <span>
-                            {away?.name ??
-                              (fixture.result?.bye ? "BYE" : "TBD")}
-                          </span>
-                          <strong>{fixture.result?.awayScore ?? "—"}</strong>
-                        </div>
-                        {ready && (
-                          <>
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              <Button
-                                className="!text-sm !px-3 !py-2 !my-0"
-                                onClick={() => launchLocal(fixture)}
-                              >
-                                Play local
-                              </Button>
-                              <Button
-                                className="!text-sm !px-3 !py-2 !my-0"
-                                disabled={!onlineAvailable || !user}
-                                onClick={() => launchHosted(fixture)}
-                              >
-                                Host online
-                              </Button>
-                            </div>
-                            {canReport && (
-                              <div className="flex items-center gap-2 mt-3">
-                                <input
-                                  aria-label={`${home?.name} score`}
-                                  type="number"
-                                  min="0"
-                                  value={draft.home}
-                                  onChange={(event) =>
-                                    setScores((current) => ({
-                                      ...current,
-                                      [fixture.id]: {
-                                        ...draft,
-                                        home: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                  className="w-16 border border-bb-divider rounded p-2"
-                                />
-                                <span>–</span>
-                                <input
-                                  aria-label={`${away?.name} score`}
-                                  type="number"
-                                  min="0"
-                                  value={draft.away}
-                                  onChange={(event) =>
-                                    setScores((current) => ({
-                                      ...current,
-                                      [fixture.id]: {
-                                        ...draft,
-                                        away: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                  className="w-16 border border-bb-divider rounded p-2"
-                                />
-                                <button
-                                  onClick={() => void report(fixture)}
-                                  className="font-heading underline text-bb-blood-red"
-                                >
-                                  Record result
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </article>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
-        </div>
+        <SectionTitle>{isBracket ? "Bracket" : "Schedule"}</SectionTitle>
+        {isBracket ? (
+          <TournamentBracket
+            fixtures={competition.fixtures}
+            entrants={competition.entrants}
+            championEntrantId={
+              competition.type === "tournament"
+                ? competition.championEntrantId
+                : undefined
+            }
+            renderActions={fixtureActions}
+            fallback={renderRoundList()}
+          />
+        ) : (
+          renderRoundList()
+        )}
       </section>
       {error && <p className="font-body text-bb-deep-crimson">{error}</p>}
     </CompetitionShell>

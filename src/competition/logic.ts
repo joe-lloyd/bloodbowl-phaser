@@ -140,6 +140,52 @@ export function generateSingleElimination(
   return fixtures;
 }
 
+/**
+ * Fill in bracket linkage missing from tournaments generated before it was
+ * recorded, derived from the round/order convention: round r order o is fed by
+ * round r-1 orders 2o-1 and 2o, and advances into round r+1 order ceil(o/2).
+ *
+ * This is not only cosmetic. `advanceWinner` returns early without a
+ * `nextFixtureId`, so a bracket lacking the linkage could never progress past
+ * its first round. Mutates in place; returns true when anything was repaired.
+ */
+export function repairBracketLinkage(fixtures: CompetitionFixture[]): boolean {
+  const rounds = [...new Set(fixtures.map((f) => f.round))].sort(
+    (a, b) => a - b
+  );
+  if (rounds.length === 0) return false;
+  const firstRound = rounds[0];
+  const lastRound = rounds[rounds.length - 1];
+  const byRoundOrder = new Map(
+    fixtures.map((f) => [`${f.round}:${f.order}`, f])
+  );
+  let repaired = false;
+
+  for (const fixture of fixtures) {
+    if (fixture.round > firstRound && !fixture.sourceFixtureIds?.length) {
+      const sources = [
+        byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2 - 1}`),
+        byRoundOrder.get(`${fixture.round - 1}:${fixture.order * 2}`),
+      ].filter((f): f is CompetitionFixture => !!f);
+      if (sources.length) {
+        fixture.sourceFixtureIds = sources.map((source) => source.id);
+        repaired = true;
+      }
+    }
+    if (fixture.round < lastRound && !fixture.nextFixtureId) {
+      const next = byRoundOrder.get(
+        `${fixture.round + 1}:${Math.ceil(fixture.order / 2)}`
+      );
+      if (next) {
+        fixture.nextFixtureId = next.id;
+        fixture.nextSlot = fixture.order % 2 ? "home" : "away";
+        repaired = true;
+      }
+    }
+  }
+  return repaired;
+}
+
 export function generateRoundRobin(
   entrants: CompetitionEntrant[]
 ): CompetitionFixture[] {

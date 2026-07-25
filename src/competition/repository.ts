@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { CompetitionDoc, CompetitionType } from "./types";
+import { repairBracketLinkage } from "./logic";
 
 const LOCAL_STORAGE_KEY = "bloodbowl_competitions";
 
@@ -47,6 +48,23 @@ export async function saveCompetition(
   writeLocal(store);
 }
 
+/**
+ * Repair bracket linkage on read, for tournaments saved before it was
+ * recorded. Cheap, idempotent, and it keeps both the bracket view and
+ * winner-advancement working on legacy documents.
+ */
+function withRepairedLinkage(
+  competition: CompetitionDoc | null
+): CompetitionDoc | null {
+  if (
+    competition?.type === "tournament" &&
+    competition.format === "single-elimination"
+  ) {
+    repairBracketLinkage(competition.fixtures);
+  }
+  return competition;
+}
+
 export async function getCompetition(
   type: CompetitionType,
   id: string
@@ -54,12 +72,14 @@ export async function getCompetition(
   if (isFirebaseConfigured()) {
     try {
       const snapshot = await getDoc(doc(getDb(), collectionName(type), id));
-      if (snapshot.exists()) return snapshot.data() as CompetitionDoc;
+      if (snapshot.exists()) {
+        return withRepairedLinkage(snapshot.data() as CompetitionDoc);
+      }
     } catch {
       // A signed-out or offline competition may still exist locally.
     }
   }
-  return readLocal()[storageKey(type, id)] ?? null;
+  return withRepairedLinkage(readLocal()[storageKey(type, id)] ?? null);
 }
 
 export async function listCompetitions(

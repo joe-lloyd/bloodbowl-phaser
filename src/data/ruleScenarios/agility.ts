@@ -579,6 +579,154 @@ export const AGILITY_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+      {
+        id: "jump-up-prone-block",
+        name: "Block declared while Prone",
+        description:
+          "Jump Up's second clause: a Prone player may declare a Block. " +
+          "Standing up to make it needs an Agility Test with a +1 modifier. " +
+          "Passed, they stand for free and the Block is thrown; failed, the " +
+          "Action is wasted — and crucially that is NOT a Turnover, so the " +
+          "team-mate at (3,8) can still act. Attacker and defender are both " +
+          "ST 3, so the Block is a single die and the seed decides whether " +
+          "the defender is pushed, knocked down, or the blocker goes " +
+          "straight back down again.",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              status: PlayerStatus.PRONE,
+              skills: [SkillType.JUMP_UP],
+              stats: { AG: 4, ST: 3 },
+            },
+            // Idle team-mate: proof that a failed stand-up is not a Turnover.
+            { playerIndex: 1, x: 3, y: 8 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 3 } }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "block" },
+          { type: "stand-up", playerId: "team1:0" },
+          {
+            type: "block",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        // Stay put after a push so the blocker's square is a stable assertion.
+        decisionPolicy: { followUp: false },
+        outcomes: [
+          {
+            id: "stand-up-failed",
+            name: "Failed Agility Test — Action wasted, NOT a Turnover",
+            matches: (r) =>
+              blockDiceCount(r) === undefined && playerDown(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                sawEvent(
+                  r,
+                  GameEventNames.DiceRoll,
+                  (d) =>
+                    (d as { rollType?: string }).rollType?.startsWith(
+                      "Jump Up"
+                    ) ?? false
+                ),
+                "the Jump Up stand-up test was rolled"
+              );
+              assert(
+                playerDown(r, "team1:0"),
+                "a failed test leaves the player Prone"
+              );
+              assert(
+                blockDiceCount(r) === undefined,
+                "no Block is thrown when the player never stood up"
+              );
+              assert(
+                !turnoverHappened(r),
+                "a failed Jump Up stand-up is NOT a Turnover"
+              );
+              // The proof: the team still holds the turn and the team-mate
+              // at (3,8) is still free to act.
+              assert(
+                r.snapshot.activeTeamId === r.game.ctx.team1.id,
+                "the blocking team still holds the turn"
+              );
+              const mate = playerOf(r, "team1:1");
+              assert(
+                r.game.ctx.gameService.canActivate(mate.id),
+                "the team-mate can still be activated — the turn did not end"
+              );
+            },
+          },
+          {
+            id: "stood-and-pushed",
+            name: "Passed — stands for free and pushes the defender back",
+            matches: (r) =>
+              blockDiceCount(r) !== undefined &&
+              playerStanding(r, "team1:0") &&
+              playerStanding(r, "team2:0") &&
+              !playerAt(r, "team2:0", { x: 11, y: 5 }),
+            verify: (r) => {
+              assert(
+                playerStanding(r, "team1:0"),
+                "a passed test leaves the blocker Standing"
+              );
+              assert(
+                !playerAt(r, "team2:0", { x: 11, y: 5 }),
+                "the defender was pushed out of their square"
+              );
+              assert(
+                r.snapshot.teams[0].players[0].movementUsed === 0,
+                "standing up via Jump Up spends no movement"
+              );
+              assert(!turnoverHappened(r), "a push is not a Turnover");
+            },
+          },
+          {
+            id: "stood-and-knocked-down",
+            name: "Passed — stands and knocks the defender down",
+            matches: (r) =>
+              blockDiceCount(r) !== undefined &&
+              playerStanding(r, "team1:0") &&
+              playerDown(r, "team2:0"),
+            verify: (r) => {
+              assert(
+                playerStanding(r, "team1:0"),
+                "the blocker is left Standing"
+              );
+              assert(playerDown(r, "team2:0"), "the defender is knocked down");
+              assert(
+                !turnoverHappened(r),
+                "knocking an opponent down is not a Turnover"
+              );
+            },
+          },
+          {
+            id: "blocker-back-down",
+            name: "Passed, blocked, and went straight back down (Turnover)",
+            matches: (r) =>
+              blockDiceCount(r) !== undefined && playerDown(r, "team1:0"),
+            verify: (r) => {
+              assert(
+                blockDiceCount(r) !== undefined,
+                "the Block was thrown, so the stand-up test had passed"
+              );
+              assert(
+                playerDown(r, "team1:0"),
+                "the blocker ends the Block on the floor again"
+              );
+              assert(
+                turnoverHappened(r),
+                "the active team's player going down IS a Turnover — the " +
+                  "contrast with a failed stand-up"
+              );
+            },
+          },
+        ],
+      },
     ],
   },
   {

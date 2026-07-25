@@ -39,6 +39,8 @@
 - [x] 4.4 Seeded test: a stale Blitz-block flag does not refuse a plain Block. The "second Blitz block refused" half was already covered by `blitzMoveBlockMove.test.ts` and still passes
 - [x] 4.5 Confirm the new sandbox scenario loads and plays through the headless CLI (`--scenario jump-multiple-prone`)
 - [x] 4.6 Confirm the `gate.test.ts` snapshot is unchanged — Jump Up's coverage classification did not move
+- [x] 4.8 Add the `jump-up-prone-block` config to the rule catalog under Agility → Jump Up, with four seed-searched variants: failed test (not a turnover, proven by an idle team-mate who can still act), stands-and-pushes, stands-and-knocks-down, and stands-then-goes-back-down (which IS a turnover)
+- [x] 4.9 Verify every variant finds a seed and passes its assertions — `--rule "Jump Up"` resolves all five outcomes (seeds 7, 11, 5, 1 for the new ones)
 - [x] 4.7 Fix `armourRolls` in `rules-lab/matchers.ts`, which matched "Armour" while the engine emits "Armor Check", so every `armourRolls(r) === 0` assertion had been passing vacuously
 
 ## 5. Verification
