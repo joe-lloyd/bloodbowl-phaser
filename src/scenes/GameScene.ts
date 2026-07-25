@@ -27,6 +27,13 @@ import {
   resolvePitchTheme,
 } from "../game/presentation/pitchThemes";
 import { BoardLabel } from "../game/presentation/boardLabels";
+import {
+  createMatchSave,
+  MatchSave,
+  restoreMatchSave,
+} from "../headless/serialization";
+import { CompetitionContext } from "../competition/types";
+import { MatchAutosave } from "../game/persistence/MatchAutosave";
 
 // Assets
 // Dynamic loading via import.meta.glob
@@ -74,6 +81,10 @@ export class GameScene extends Phaser.Scene {
   protected ballSprite: Phaser.GameObjects.Container | null = null;
   private pendingKickoffData = null; // Stores kick data for scatter animation
   private pitchThemeId: PitchThemeId = DEFAULT_PITCH_THEME_ID;
+  private competitionContext?: CompetitionContext;
+  private autosave: MatchAutosave | null = null;
+  private resumedMatch = false;
+  private autosaveEnabled = false;
 
   // Store handlers for cleanup
   private eventHandlers: Map<GameEventNames, () => void> = new Map();
@@ -154,23 +165,42 @@ export class GameScene extends Phaser.Scene {
     team2: Team;
     progressionEnabled?: boolean;
     pitchThemeId?: string;
+    competitionContext?: CompetitionContext;
+    resumeSave?: MatchSave;
+    autosaveEnabled?: boolean;
   }): void {
-    this.team1 = data.team1;
-    this.team2 = data.team2;
-    this.pitchThemeId = resolvePitchTheme(data.pitchThemeId).id;
+    const restored = data.resumeSave ? restoreMatchSave(data.resumeSave) : null;
+    this.team1 = restored?.teams[0] ?? data.team1;
+    this.team2 = restored?.teams[1] ?? data.team2;
+    this.pitchThemeId = resolvePitchTheme(
+      restored?.save.presentation?.pitchThemeId ?? data.pitchThemeId
+    ).id;
+    this.competitionContext =
+      restored?.save.competition ?? data.competitionContext;
+    this.resumedMatch = !!restored;
+    this.autosaveEnabled =
+      data.autosaveEnabled ?? this.sys.settings.key === "GameScene";
 
     // Default kicking/receiving (will be set by coinflip)
-    this.kickingTeam = this.team1;
-    this.receivingTeam = this.team2;
+    this.kickingTeam =
+      restored?.save.drive.kickingTeamId === this.team2.id
+        ? this.team2
+        : this.team1;
+    this.receivingTeam =
+      restored?.save.drive.receivingTeamId === this.team1.id
+        ? this.team1
+        : this.team2;
 
     // Ensure ServiceContainer is initialized
     if (!ServiceContainer.isInitialized()) {
-      const initialState = GameService.createInitialState(
-        this.team1,
-        this.team2,
-        GamePhase.SETUP,
-        SubPhase.INTRO
-      );
+      const initialState =
+        restored?.state ??
+        GameService.createInitialState(
+          this.team1,
+          this.team2,
+          GamePhase.SETUP,
+          SubPhase.INTRO
+        );
       ServiceContainer.initialize(
         window.eventBus,
         this.team1,
@@ -178,7 +208,12 @@ export class GameScene extends Phaser.Scene {
         initialState,
         undefined,
         undefined,
-        data.progressionEnabled ?? false
+        restored?.save.matchStats.progressionEnabled ??
+          data.progressionEnabled ??
+          false,
+        restored?.save.rng,
+        restored?.save.matchStats,
+        restored?.save.turnManager
       );
     }
 
@@ -334,6 +369,40 @@ export class GameScene extends Phaser.Scene {
     this.setupSceneSpecificListeners(); // Setup-specific events
     this.orchestrator.initialize();
 
+    if (this.resumedMatch) {
+      this.refreshDugouts();
+      const ball = this.gameService.getState().ballPosition;
+      if (ball) this.placeBallVisual(ball.x, ball.y);
+      this.eventBus.emit(
+        GameEventNames.GameStateRestored,
+        this.gameService.getState()
+      );
+    }
+
+    if (this.autosaveEnabled) {
+      const container = ServiceContainer.getInstance();
+      this.autosave = new MatchAutosave(
+        this.eventBus,
+        this.gameService,
+        () =>
+          createMatchSave({
+            state: this.gameService.getState(),
+            teams: [this.team1, this.team2],
+            drive: {
+              kickingTeamId: this.kickingTeam.id,
+              receivingTeamId: this.receivingTeam.id,
+            },
+            rng: container.rngService.captureState(),
+            matchStats: container.matchStats.captureState(),
+            turnManager: this.gameService.captureTurnManagerState(),
+            competition: this.competitionContext,
+            presentation: { pitchThemeId: this.pitchThemeId },
+          }),
+        { enabled: true }
+      );
+      this.autosave.start();
+    }
+
     this.eventBus.on(GameEventNames.PlayerActivated, (playerId: string) => {
       const sprite = this.playerSprites.get(playerId);
       if (sprite) {
@@ -385,6 +454,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
+    this.autosave?.dispose();
+    this.autosave = null;
     // Remove all listeners attached by this scene
     this.eventHandlers.forEach((handler, event) => {
       this.eventBus.off(event, handler);

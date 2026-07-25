@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventBus } from "../../services/EventBus";
@@ -15,6 +15,11 @@ import { recordCompetitionFixture } from "../../competition/resultRecording";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { resolvePitchTheme } from "../../game/presentation/pitchThemes";
+import { MatchSave } from "../../headless/serialization";
+import {
+  clearMatchSave,
+  readMatchSave,
+} from "../../game/persistence/MatchSaveRepository";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -49,16 +54,31 @@ export function GamePage({
       competitionContext?: CompetitionContext;
       progressionEnabled?: boolean;
       pitchThemeId?: string;
+      resumeSave?: MatchSave;
     } | null) ?? {};
+  const [persistedResumeSave] = useState(() =>
+    teams || mode === "sandbox" ? undefined : (readMatchSave() ?? undefined)
+  );
+  const resumeSave = routeState.resumeSave ?? persistedResumeSave;
   const fixtureContext =
-    competitionContext ?? routeState.competitionContext ?? null;
+    competitionContext ??
+    resumeSave?.competition ??
+    routeState.competitionContext ??
+    null;
   const matchTeams =
     teams ??
+    (resumeSave
+      ? {
+          team1: resumeSave.teams[0],
+          team2: resumeSave.teams[1],
+        }
+      : undefined) ??
     (routeState.team1 && routeState.team2
       ? { team1: routeState.team1, team2: routeState.team2 }
       : undefined);
   const selectedPitchThemeId = resolvePitchTheme(
     pitchThemeId ??
+      resumeSave?.presentation?.pitchThemeId ??
       routeState.pitchThemeId ??
       new URLSearchParams(location.search).get("theme")
   ).id;
@@ -134,6 +154,9 @@ export function GamePage({
           team2,
           progressionEnabled: enableProgression,
           pitchThemeId: selectedPitchThemeId,
+          competitionContext: fixtureContext ?? undefined,
+          resumeSave,
+          autosaveEnabled: !teams,
         });
       } else {
         // No teams provided, redirect to team selection
@@ -144,6 +167,14 @@ export function GamePage({
 
     // Cleanup on unmount
     return () => {
+      if (
+        !teams &&
+        ServiceContainer.isInitialized() &&
+        ServiceContainer.getInstance().gameService.getPhase() ===
+          GamePhase.GAME_OVER
+      ) {
+        clearMatchSave();
+      }
       if (gameRef.current) {
         gameRef.current.destroy(true);
         gameRef.current = null;
@@ -160,6 +191,8 @@ export function GamePage({
     teams,
     progressionEnabled,
     selectedPitchThemeId,
+    fixtureContext,
+    resumeSave,
   ]);
 
   return (

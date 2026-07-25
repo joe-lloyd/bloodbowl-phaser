@@ -68,6 +68,14 @@ export class NetworkedGameService implements IGameService {
   seedTurnCounts(turnNumber: number): void {
     this.inner.seedTurnCounts(turnNumber);
   }
+  captureTurnManagerState() {
+    return this.inner.captureTurnManagerState();
+  }
+  restoreTurnManagerState(
+    snapshot: import("../game/managers/TurnManager").TurnManagerState
+  ): void {
+    this.inner.restoreTurnManagerState(snapshot);
+  }
   isTurnoverInProgress(): boolean {
     return this.inner.isTurnoverInProgress();
   }

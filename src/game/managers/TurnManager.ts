@@ -5,6 +5,13 @@ import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { GameEventNames } from "../../types/events";
 
+export interface TurnManagerState {
+  turnCounts: Record<string, number>;
+  driveKickingTeamId: string | null;
+  firstHalfKickingTeamId: string | null;
+  turnoverInProgress: boolean;
+}
+
 export class TurnManager {
   private maxTurns: number = 6; // Sevens default
   private turnCounts: { [key: string]: number } = {};
@@ -41,6 +48,25 @@ export class TurnManager {
   public seedTurnCounts(turnNumber: number): void {
     this.turnCounts[this.team1.id] = turnNumber;
     this.turnCounts[this.team2.id] = turnNumber;
+  }
+
+  public captureState(): TurnManagerState {
+    return {
+      turnCounts: { ...this.turnCounts },
+      driveKickingTeamId: this.driveKickingTeamId,
+      firstHalfKickingTeamId: this.firstHalfKickingTeamId,
+      turnoverInProgress: this.turnoverInProgress,
+    };
+  }
+
+  public restoreState(snapshot: TurnManagerState): void {
+    this.turnCounts = {
+      [this.team1.id]: snapshot.turnCounts[this.team1.id] ?? 0,
+      [this.team2.id]: snapshot.turnCounts[this.team2.id] ?? 0,
+    };
+    this.driveKickingTeamId = snapshot.driveKickingTeamId;
+    this.firstHalfKickingTeamId = snapshot.firstHalfKickingTeamId;
+    this.turnoverInProgress = snapshot.turnoverInProgress;
   }
 
   public startGame(kickingTeamId: string): void {

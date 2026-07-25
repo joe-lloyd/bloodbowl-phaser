@@ -23,7 +23,7 @@ import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
 import { SetupManager } from "../game/managers/SetupManager";
-import { TurnManager } from "../game/managers/TurnManager";
+import { TurnManager, TurnManagerState } from "../game/managers/TurnManager";
 import { BallManager } from "../game/managers/BallManager";
 import { MovementManager } from "../game/managers/MovementManager";
 import { BlockManager } from "../game/managers/BlockManager";
@@ -388,6 +388,14 @@ export class GameService implements IGameService {
     this.turnManager.seedTurnCounts(turnNumber);
   }
 
+  captureTurnManagerState(): TurnManagerState {
+    return this.turnManager.captureState();
+  }
+
+  restoreTurnManagerState(snapshot: TurnManagerState): void {
+    this.turnManager.restoreState(snapshot);
+  }
+
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
@@ -513,6 +521,7 @@ export class GameService implements IGameService {
   finishActivation(playerId: string): void {
     this.blitzBlockUsed.delete(playerId);
     this.turnManager.finishActivation(playerId);
+    this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
   }
 
   /**

@@ -29,4 +29,12 @@ export class DeterministicRNG {
   public getSeed(): number {
     return this.seed;
   }
+
+  /** Restore the exact running state captured by getSeed(). */
+  public setSeed(seed: number): void {
+    if (!Number.isFinite(seed)) {
+      throw new Error("rng-state-must-be-a-finite-number");
+    }
+    this.seed = seed;
+  }
 }

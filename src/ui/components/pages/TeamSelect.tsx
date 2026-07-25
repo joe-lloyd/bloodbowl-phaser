@@ -12,6 +12,10 @@ import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
 } from "../../../game/presentation/pitchThemes";
+import {
+  clearMatchSave,
+  readMatchSave,
+} from "../../../game/persistence/MatchSaveRepository";
 
 interface TeamSelectProps {
   mode?: "sandbox" | "standard" | "play";
@@ -50,6 +54,18 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       selectedTeam1.id === selectedTeam2.id
     ) {
       return;
+    }
+    if (
+      mode !== "sandbox" &&
+      readMatchSave() &&
+      !window.confirm(
+        "Starting a new local match will replace your saved match. Continue?"
+      )
+    ) {
+      return;
+    }
+    if (mode !== "sandbox") {
+      clearMatchSave();
     }
     const targetRoute = mode === "sandbox" ? "/sand-box" : "/play";
     navigate(targetRoute, {

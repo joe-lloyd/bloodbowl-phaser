@@ -16,6 +16,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // One resumable local match per coach, mirrored from localStorage.
+    match /users/{uid}/saved-matches/{saveId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Opt-in public roster snapshots. Authenticated coaches may discover and
     // inspect them; only the owner named on the document may publish/refresh
     // or remove one.

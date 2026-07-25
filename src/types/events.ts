@@ -26,6 +26,7 @@ export enum GameEventNames {
   ReadyToStart = "readyToStart",
   TurnStarted = "turnStarted",
   TurnEnded = "turnEnded",
+  ActionResolved = "actionResolved",
   TurnDataUpdated = "turnDataUpdated", // New event
   PlayerPlaced = "playerPlaced",
   PlayerRemoved = "playerRemoved",
@@ -178,6 +179,7 @@ export interface GameEvents {
     isHalf2?: boolean; // Optional if not always present
   };
   [GameEventNames.TurnEnded]: { teamId: string };
+  [GameEventNames.ActionResolved]: { playerId: string };
   [GameEventNames.TurnDataUpdated]: {
     hasBlitzed: boolean;
     hasPassed: boolean;

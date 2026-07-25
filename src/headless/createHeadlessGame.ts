@@ -8,7 +8,7 @@
 
 import { EventBus, IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
-import { RNGService, IRNGService } from "../services/rng/RNGService";
+import { RNGService, IRNGService, RNGState } from "../services/rng/RNGService";
 import { BlockResolutionService } from "../services/BlockResolutionService";
 import { applyScenario } from "../game/applyScenario";
 import { noDelay } from "../game/core/GameFlowManager";
@@ -16,7 +16,9 @@ import { TeamFactory } from "../game/TeamFactory";
 import { Team, RosterName } from "../types/Team";
 import { GameState, GamePhase, SubPhase } from "../types/GameState";
 import { Scenario } from "../types/Scenario";
-import { MatchStats } from "../game/progression/MatchStats";
+import { MatchStats, MatchStatsSnapshot } from "../game/progression/MatchStats";
+import { MatchSave, restoreMatchSave } from "./serialization";
+import { TurnManagerState } from "../game/managers/TurnManager";
 
 export interface HeadlessGameOptions {
   /**
@@ -47,6 +49,14 @@ export interface HeadlessGameOptions {
   defaultRoster?: RosterName;
   /** League fixture progression; friendlies default to false. */
   progressionEnabled?: boolean;
+  /** Exact running RNG state when restoring a saved match. */
+  rngState?: RNGState;
+  /** Accumulated statistics when restoring a saved match. */
+  matchStatsState?: MatchStatsSnapshot;
+  /** Turn counters and drive lifecycle state when restoring a saved match. */
+  turnManagerState?: TurnManagerState;
+  /** Restore every cold-start dependency from a persisted match payload. */
+  matchSave?: MatchSave;
 }
 
 export interface HeadlessGameContext {
@@ -78,7 +88,16 @@ export function createHeadlessGame(
 ): HeadlessGameContext {
   if (options.ctx) return options.ctx;
 
-  const seed = options.seed ?? options.scenario?.seed ?? Date.now();
+  const restored = options.matchSave
+    ? restoreMatchSave(options.matchSave)
+    : null;
+  const rngState = restored?.save.rng ?? options.rngState;
+  const matchStatsState = restored?.save.matchStats ?? options.matchStatsState;
+  const seed =
+    rngState?.initialSeed ??
+    options.seed ??
+    options.scenario?.seed ??
+    Date.now();
 
   // A scenario may pin specific rosters (as the browser sandbox does);
   // explicit options still win over the scenario's choice
@@ -86,12 +105,14 @@ export function createHeadlessGame(
   const team1Roster = options.scenario?.setup.team1Roster ?? roster;
   const team2Roster = options.scenario?.setup.team2Roster ?? roster;
   const team1 =
+    restored?.teams[0] ??
     options.team1 ??
     stabilizeIds(
       TeamFactory.createTestTeam(team1Roster, "Home Team", 0xcc0000),
       "team1"
     );
   const team2 =
+    restored?.teams[1] ??
     options.team2 ??
     stabilizeIds(
       TeamFactory.createTestTeam(team2Roster, "Away Team", 0x0000cc),
@@ -102,12 +123,17 @@ export function createHeadlessGame(
   const matchStats = new MatchStats(
     eventBus,
     [team1, team2],
-    options.progressionEnabled
+    matchStatsState?.progressionEnabled ?? options.progressionEnabled
   );
+  if (matchStatsState) {
+    matchStats.restoreState(matchStatsState);
+  }
   const rng = new RNGService(seed);
+  if (rngState) rng.restoreState(rngState);
   const blockResolutionService = new BlockResolutionService(rng);
 
-  let initialState: GameState | undefined = options.initialState;
+  let initialState: GameState | undefined =
+    restored?.state ?? options.initialState;
   if (options.scenario && !initialState) {
     initialState = applyScenario(options.scenario, team1, team2);
   } else if (options.startingPhase) {
@@ -128,6 +154,11 @@ export function createHeadlessGame(
     initialState,
     noDelay
   );
+  const turnManagerState =
+    restored?.save.turnManager ?? options.turnManagerState;
+  if (turnManagerState) {
+    gameService.restoreTurnManagerState(turnManagerState);
+  }
 
   return { eventBus, gameService, rng, team1, team2, seed, matchStats };
 }

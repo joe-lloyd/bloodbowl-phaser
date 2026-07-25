@@ -26,6 +26,8 @@ import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { PostMatchProgression } from "./PostMatchProgression";
+import { useNavigate } from "react-router-dom";
+import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 
 interface GameHUDProps {
   eventBus: EventBus;
@@ -48,6 +50,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
 }) => {
+  const navigate = useNavigate();
   const [turnData, setTurnData] = useState<TurnData>({
     turnNumber: null,
     activeTeamName: null,
@@ -214,12 +217,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     container.gameService.endTurn();
   };
 
+  const leaveLocalMatch = () => {
+    if (
+      turnData.phase !== GamePhase.GAME_OVER &&
+      !window.confirm(
+        "Abandon this local match and discard its saved progress?"
+      )
+    ) {
+      return;
+    }
+    clearMatchSave();
+    navigate("/");
+  };
+
   return (
     <HUDLayout
       left={
         <div className="flex flex-1 flex-col space-between w-full gap-4">
           <ScoreBoard eventBus={eventBus} />
           <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
+          {mode === "normal" && !getActiveOnlineMatch() && (
+            <button
+              onClick={leaveLocalMatch}
+              className="rounded border border-bb-dark-gold bg-bb-deep-crimson
+                px-3 py-2 font-heading uppercase text-bb-parchment"
+            >
+              {turnData.phase === GamePhase.GAME_OVER
+                ? "Leave results"
+                : "Abandon match"}
+            </button>
+          )}
           <div className="flex flex-1 flex-col gap-4 w-full">
             <SetupControls eventBus={eventBus} />
             <PlayerActionMenu eventBus={eventBus} turnData={turnData} />

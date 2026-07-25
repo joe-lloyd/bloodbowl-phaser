@@ -117,6 +117,7 @@ export class HeadlessGame {
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
     this.autoStartOnReady = options.autoStartOnReady !== false;
+    this.kickingTeamId = options.matchSave?.drive.kickingTeamId ?? null;
     this.subscribeToAllEvents();
   }
 

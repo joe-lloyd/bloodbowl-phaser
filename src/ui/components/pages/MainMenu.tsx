@@ -10,6 +10,13 @@ import { useAuth } from "../../hooks/useAuth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
 import { isAdminUser } from "../../../firebase/admin";
+import {
+  clearMatchSave,
+  getMatchSaveDescription,
+  MatchSaveDescription,
+  readMatchSave,
+  subscribeToMatchSaveChanges,
+} from "../../../game/persistence/MatchSaveRepository";
 
 interface ActiveMatch {
   code: string;
@@ -28,6 +35,15 @@ export function MainMenu() {
   const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
+  const [localMatch, setLocalMatch] = useState<MatchSaveDescription | null>(
+    () => getMatchSaveDescription()
+  );
+
+  useEffect(() => {
+    const refresh = () => setLocalMatch(getMatchSaveDescription());
+    refresh();
+    return subscribeToMatchSaveChanges(refresh);
+  }, []);
 
   // Resolve the player's in-progress match (if any) for the resume banner
   useEffect(() => {
@@ -78,6 +94,24 @@ export function MainMenu() {
     navigate(path);
   };
 
+  const resumeLocal = () => {
+    const save = readMatchSave();
+    if (!save) {
+      setLocalMatch(null);
+      return;
+    }
+    navigate("/play", { state: { resumeSave: save } });
+  };
+
+  const discardLocal = () => {
+    if (
+      !window.confirm("Discard this saved local match? This cannot be undone.")
+    ) {
+      return;
+    }
+    clearMatchSave();
+  };
+
   return (
     <MinHeightContainer className="bg-bb-parchment">
       <Parchment $intensity="high" />
@@ -110,6 +144,33 @@ export function MainMenu() {
                 {activeMatch.code}
               </span>
             </button>
+          )}
+
+          {localMatch && (
+            <div
+              className="w-full max-w-2xl mb-8 bg-bb-ink-blue text-bb-parchment
+                border-2 border-bb-dark-gold rounded-lg px-6 py-4 shadow-md"
+            >
+              <button
+                onClick={resumeLocal}
+                className="w-full text-left"
+                data-testid="resume-local-match"
+              >
+                <span className="block font-heading text-xl uppercase text-bb-gold">
+                  Resume local match
+                </span>
+                <span className="block mt-1 font-body">
+                  {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
+                  {localMatch.awayScore} {localMatch.awayTeamName}
+                </span>
+                <span className="block text-sm opacity-90">
+                  Half {localMatch.half}, turn {localMatch.turn}
+                </span>
+              </button>
+              <SecondaryButton onClick={discardLocal} className="mt-3">
+                Discard saved match
+              </SecondaryButton>
+            </div>
           )}
 
           {/* Option groups */}

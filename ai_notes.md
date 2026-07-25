@@ -67,6 +67,8 @@ after scoroing a touchdown i was unable to complete the seup, i noticed this war
 
 local games are not saved in teh same way that lets them be rejhoinable, a local game is lost if you hit the resfresh button. we should at least make sure the lcoal game is saved in local storage fro recovery but ideally we should add it to the firebase.
 
+**FIXED 2026-07-25:** Local matches now autosave committed, idle game state to local storage, restore deterministically after refresh (including turn counters, RNG, statistics, player progression, and competition context), and expose resume/discard details on the main menu. Signed-in coaches also use an owner-scoped Firestore save with newest-save reconciliation; online matches remain on their existing host-resync path.
+
 I think the firebase has a lot of redundant content we should use ref ids to refrence stuff like teams in leagues instead of duplicating all the team data, same for the coach. a team can only be in one league or tournement at a time anyway so a ref to that team should be singular. additoinally the statlines etc do not need to be added to the firestoore as well when saving a team only unique data for the player needs to go to teh firestore or the additional stuff like the name spp or stat increases or new skills or injuries or just general stats like maybe you wanna add how many games played steps taken kills scores passes etc all that good stats stuff. but reduce the nopise and adata when it comes to redundant stuff. 
 
 when i booted asecond game i got an error after setup where the team couldnt move heres the log Uncaught (in promise) TypeError: Cannot read properties of null (reading 'queueDepthSort')

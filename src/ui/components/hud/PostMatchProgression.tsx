@@ -23,6 +23,7 @@ import {
 import { MatchStatsSummary } from "../../../game/progression/MatchStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
+import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 
 interface Props {
   visible: boolean;
@@ -432,7 +433,10 @@ export function PostMatchProgression({ visible }: Props) {
             </section>
 
             <button
-              onClick={() => navigate("/")}
+              onClick={() => {
+                clearMatchSave();
+                navigate("/");
+              }}
               disabled={!canFinish}
               title={
                 canFinish

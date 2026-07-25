@@ -12,9 +12,13 @@ import { SoundManager } from "./SoundManager.js";
 import { Team } from "@/types/Team";
 import { GameState } from "@/types/GameState";
 
-import { RNGService, IRNGService } from "./rng/RNGService.js";
+import { RNGService, IRNGService, RNGState } from "./rng/RNGService.js";
 import { BlockResolutionService } from "./BlockResolutionService.js";
-import { MatchStats } from "../game/progression/MatchStats.js";
+import {
+  MatchStats,
+  MatchStatsSnapshot,
+} from "../game/progression/MatchStats.js";
+import { TurnManagerState } from "../game/managers/TurnManager.js";
 
 export class ServiceContainer {
   private static instance: ServiceContainer | null = null;
@@ -33,7 +37,10 @@ export class ServiceContainer {
     initialState?: GameState,
     seed?: number,
     gameServiceFactory?: (inner: GameService) => IGameService,
-    progressionEnabled = false
+    progressionEnabled = false,
+    rngState?: RNGState,
+    matchStatsState?: MatchStatsSnapshot,
+    turnManagerState?: TurnManagerState
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
@@ -43,15 +50,18 @@ export class ServiceContainer {
 
     // Deterministic RNG initialization
     // Use provided seed if available, otherwise use timestamp
-    const rngSeed = seed !== undefined ? seed : Date.now();
+    const rngSeed =
+      rngState?.initialSeed ?? (seed !== undefined ? seed : Date.now());
     console.log(`[ServiceContainer] Initializing RNG with seed: ${rngSeed}`);
     this.rngService = new RNGService(rngSeed);
+    if (rngState) this.rngService.restoreState(rngState);
     this.blockResolutionService = new BlockResolutionService(this.rngService);
     this.matchStats = new MatchStats(
       this.eventBus,
       [team1, team2],
-      progressionEnabled
+      matchStatsState?.progressionEnabled ?? progressionEnabled
     );
+    if (matchStatsState) this.matchStats.restoreState(matchStatsState);
 
     const gameService = new GameService(
       this.eventBus,
@@ -61,6 +71,9 @@ export class ServiceContainer {
       this.blockResolutionService,
       initialState
     );
+    if (turnManagerState) {
+      gameService.restoreTurnManagerState(turnManagerState);
+    }
     // Online guests wrap the local engine in a network proxy: the inner
     // service becomes a passive, snapshot-synced replica the UI reads from,
     // while all mutations travel to the host (see NetworkedGameService).
@@ -81,7 +94,10 @@ export class ServiceContainer {
     initialState?: GameState,
     seed?: number,
     gameServiceFactory?: (inner: GameService) => IGameService,
-    progressionEnabled = false
+    progressionEnabled = false,
+    rngState?: RNGState,
+    matchStatsState?: MatchStatsSnapshot,
+    turnManagerState?: TurnManagerState
   ): ServiceContainer {
     ServiceContainer.instance = new ServiceContainer(
       eventBus,
@@ -90,7 +106,10 @@ export class ServiceContainer {
       initialState,
       seed,
       gameServiceFactory,
-      progressionEnabled
+      progressionEnabled,
+      rngState,
+      matchStatsState,
+      turnManagerState
     );
     return ServiceContainer.instance;
   }

@@ -9,15 +9,16 @@ import {
   CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
-import {
-  BracketFixtureContext,
-  TournamentBracket,
-} from "./TournamentBracket";
+import { BracketFixtureContext, TournamentBracket } from "./TournamentBracket";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import Parchment from "../componentWarehouse/Parchment";
 import { SectionTitle, Title } from "../componentWarehouse/Titles";
+import {
+  clearMatchSave,
+  readMatchSave,
+} from "../../../game/persistence/MatchSaveRepository";
 
 type DraftScores = Record<string, { home: string; away: string }>;
 
@@ -92,6 +93,15 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
+    if (
+      readMatchSave() &&
+      !window.confirm(
+        "Starting this fixture will replace your saved local match. Continue?"
+      )
+    ) {
+      return;
+    }
+    clearMatchSave();
     navigate("/play", {
       state: {
         team1: home.team,

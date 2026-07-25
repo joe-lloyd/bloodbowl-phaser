@@ -17,6 +17,10 @@ export interface IGameService {
   getTurnNumber(teamId: string): number;
   /** Seed both teams' turn counters (sandbox scenarios starting mid-drive). */
   seedTurnCounts(turnNumber: number): void;
+  captureTurnManagerState(): import("@/game/managers/TurnManager").TurnManagerState;
+  restoreTurnManagerState(
+    snapshot: import("@/game/managers/TurnManager").TurnManagerState
+  ): void;
 
   // Controllers
   getPassController(): PassController;

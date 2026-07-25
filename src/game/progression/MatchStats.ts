@@ -25,6 +25,13 @@ export interface MatchStatsSummary {
   players: PlayerMatchStats[];
 }
 
+export interface MatchStatsSnapshot {
+  version: 1;
+  progressionEnabled: boolean;
+  applied: boolean;
+  players: PlayerMatchStats[];
+}
+
 export const SPP_VALUES = {
   completion: 1,
   superbThrow: 1,
@@ -206,6 +213,32 @@ export class MatchStats {
       };
     });
     return { progressionEnabled: this.progressionEnabled, players: result };
+  }
+
+  /** JSON-safe accumulated state for local-match resume. */
+  captureState(): MatchStatsSnapshot {
+    return {
+      version: 1,
+      progressionEnabled: this.progressionEnabled,
+      applied: this.applied,
+      players: [...this.stats.values()].map((stats) => ({ ...stats })),
+    };
+  }
+
+  /** Restore counters while preserving this instance's event subscriptions. */
+  restoreState(snapshot: MatchStatsSnapshot): void {
+    if (
+      snapshot.version !== 1 ||
+      snapshot.progressionEnabled !== this.progressionEnabled ||
+      !Array.isArray(snapshot.players)
+    ) {
+      throw new Error("unsupported-or-invalid-match-stats-state");
+    }
+    this.stats.clear();
+    snapshot.players.forEach((stats) => {
+      this.stats.set(stats.playerId, { ...stats });
+    });
+    this.applied = snapshot.applied;
   }
 
   applySpp(teams: Team[], concedingTeamId?: string): MatchStatsSummary {

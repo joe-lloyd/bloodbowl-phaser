@@ -1,5 +1,11 @@
 import { DeterministicRNG } from "./DeterministicRNG";
 
+export interface RNGState {
+  version: 1;
+  initialSeed: number;
+  currentSeed: number;
+}
+
 export interface IRNGService {
   rollDie(sides: number): number;
   rollMultipleDice(count: number, sides: number): number[];
@@ -7,6 +13,8 @@ export interface IRNGService {
   getSeed(): number;
   /** The seed the game was started with — replaying it reproduces the game */
   getInitialSeed(): number;
+  captureState(): RNGState;
+  restoreState(state: RNGState): void;
 }
 
 export class RNGService implements IRNGService {
@@ -34,5 +42,25 @@ export class RNGService implements IRNGService {
 
   public getSeed(): number {
     return this.rng.getSeed();
+  }
+
+  public captureState(): RNGState {
+    return {
+      version: 1,
+      initialSeed: this.initialSeed,
+      currentSeed: this.rng.getSeed(),
+    };
+  }
+
+  public restoreState(state: RNGState): void {
+    if (
+      state.version !== 1 ||
+      !Number.isFinite(state.initialSeed) ||
+      !Number.isFinite(state.currentSeed)
+    ) {
+      throw new Error("unsupported-or-invalid-rng-state");
+    }
+    this.initialSeed = state.initialSeed;
+    this.rng.setSeed(state.currentSeed);
   }
 }

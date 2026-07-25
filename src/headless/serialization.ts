@@ -14,6 +14,10 @@ import {
   PlayerStatus,
   PlayerConditionInstance,
 } from "../types/Player";
+import { RNGState } from "../services/rng/RNGService";
+import { MatchStatsSnapshot } from "../game/progression/MatchStats";
+import { CompetitionContext } from "../competition/types";
+import { TurnManagerState } from "../game/managers/TurnManager";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -60,6 +64,41 @@ export interface GameSnapshot {
   activePlayer: { id: string; action: string | null } | null;
   coachesEjected: string[];
   teams: TeamSnapshot[];
+}
+
+export const MATCH_SAVE_VERSION = 1 as const;
+
+export interface MatchDriveAssignment {
+  kickingTeamId: string;
+  receivingTeamId: string;
+  half: 1 | 2;
+}
+
+export interface MatchSave {
+  version: typeof MATCH_SAVE_VERSION;
+  savedAt: number;
+  snapshot: GameSnapshot;
+  teams: [Team, Team];
+  drive: MatchDriveAssignment;
+  rng: RNGState;
+  matchStats: MatchStatsSnapshot;
+  turnManager?: TurnManagerState;
+  competition?: CompetitionContext;
+  presentation?: {
+    pitchThemeId?: string;
+  };
+}
+
+export interface CreateMatchSaveInput {
+  state: GameState;
+  teams: [Team, Team];
+  drive: Omit<MatchDriveAssignment, "half"> & { half?: 1 | 2 };
+  rng: RNGState;
+  matchStats: MatchStatsSnapshot;
+  turnManager?: TurnManagerState;
+  competition?: CompetitionContext;
+  presentation?: MatchSave["presentation"];
+  savedAt?: number;
 }
 
 export function serializeGameState(
@@ -164,4 +203,81 @@ export function applySnapshotToTeams(
       player.conditions = (snap.conditions ?? []).map((c) => ({ ...c }));
     });
   });
+}
+
+/** Build a complete JSON-safe cold-restore payload without widening GameSnapshot. */
+export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
+  const payload: MatchSave = {
+    version: MATCH_SAVE_VERSION,
+    savedAt: input.savedAt ?? Date.now(),
+    snapshot: serializeGameState(input.state, input.teams),
+    teams: input.teams.map((team) => structuredClone(team)) as [Team, Team],
+    drive: {
+      kickingTeamId: input.drive.kickingTeamId,
+      receivingTeamId: input.drive.receivingTeamId,
+      half: input.drive.half ?? (input.state.turn.isHalf2 ? 2 : 1),
+    },
+    rng: { ...input.rng },
+    matchStats: {
+      ...input.matchStats,
+      players: input.matchStats.players.map((stats) => ({ ...stats })),
+    },
+    ...(input.turnManager
+      ? { turnManager: structuredClone(input.turnManager) }
+      : {}),
+    ...(input.competition
+      ? { competition: structuredClone(input.competition) }
+      : {}),
+    ...(input.presentation
+      ? { presentation: structuredClone(input.presentation) }
+      : {}),
+  };
+
+  return JSON.parse(JSON.stringify(payload)) as MatchSave;
+}
+
+export function serializeMatchSave(save: MatchSave): string {
+  return JSON.stringify(save);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function deserializeMatchSave(value: string | unknown): MatchSave {
+  const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+  if (
+    !isRecord(parsed) ||
+    parsed.version !== MATCH_SAVE_VERSION ||
+    typeof parsed.savedAt !== "number" ||
+    !isRecord(parsed.snapshot) ||
+    !Array.isArray(parsed.teams) ||
+    parsed.teams.length !== 2 ||
+    !isRecord(parsed.drive) ||
+    typeof parsed.drive.kickingTeamId !== "string" ||
+    typeof parsed.drive.receivingTeamId !== "string" ||
+    !isRecord(parsed.rng) ||
+    !isRecord(parsed.matchStats)
+  ) {
+    throw new Error("unsupported-or-invalid-match-save");
+  }
+  return parsed as unknown as MatchSave;
+}
+
+export interface RestoredMatchSave {
+  save: MatchSave;
+  state: GameState;
+  teams: [Team, Team];
+}
+
+/** Rebuild mutable teams and GameState from a validated save. */
+export function restoreMatchSave(value: MatchSave | string): RestoredMatchSave {
+  const save = deserializeMatchSave(value);
+  const teams = save.teams.map((team) => structuredClone(team)) as [Team, Team];
+  applySnapshotToTeams(save.snapshot, teams);
+  return {
+    save,
+    state: deserializeGameState(save.snapshot),
+    teams,
+  };
 }
