@@ -1,40 +1,36 @@
-## 1. Restructure the post-match component
+## 1. Result and Termination Model
 
-- [ ] 1.1 Split `PostMatchProgression` into three sections — Result, Statistics, Progression — behind the single `visible` flag
-- [ ] 1.2 Move the `progressionEnabled` check off the top-level early return and onto the Progression section only
-- [ ] 1.3 Keep the component rendering when a tracker exists but progression is off, and when teams are resolvable from live game state
-- [ ] 1.4 Resolve the participating teams without depending on the stats tracker's team ids alone, so the screen works even when no stats were recorded
+- [ ] 1.1 Keep played score and termination reason as separate match-result fields
+- [ ] 1.2 Remove any concession path that appends an artificial touchdown, changes the played score, or awards player touchdown statistics
+- [ ] 1.3 Make result and award recording idempotent across rerender, resume, and reconnect
 
-## 2. Result section
+## 2. Results Screen Structure
 
-- [ ] 2.1 Render both team names, the final score, and the outcome (win / draw / concession)
-- [ ] 2.2 Show a clear note when the match awards no SPP
-- [ ] 2.3 Always render a "Leave match" route back to the main menu, disabled only while a required advancement is outstanding, with the reason shown
+- [ ] 2.1 Split the post-match component into Result, Statistics, and Awards sections behind the game-over visibility flag
+- [ ] 2.2 Remove the top-level progression-enabled early return so every match renders the result
+- [ ] 2.3 Render team names, played score, and normal/draw/concession/forfeit outcome labels
+- [ ] 2.4 Render both participant statistics tables from `MatchStats.summary()` and show SPP only when eligible
+- [ ] 2.5 Provide a main-menu exit after required result and award recording
 
-## 3. Statistics section
+## 3. Awards and Deferred Development
 
-- [ ] 3.1 Render `StatsTables` for both teams from `MatchStats.summary()`
-- [ ] 3.2 Show the SPP column only when progression is enabled
-- [ ] 3.3 Confirm `summary()` returns complete participation, completions, interceptions, casualties, and touchdowns when progression is disabled
-- [ ] 3.4 Omit players who did not participate
+- [ ] 3.1 Keep MVP nomination and SPP confirmation on the results screen for eligible matches
+- [ ] 3.2 Remove skill and characteristic assignment controls from the post-match flow
+- [ ] 3.3 Persist eligible and required advancements as pending team development after awards are confirmed
+- [ ] 3.4 Surface pending development in Manage Team using the shared advancement service and save path
+- [ ] 3.5 Ensure pending development never blocks leaving results, while incomplete required award recording may do so with a reason
 
-## 4. Match end wiring
+## 4. Match and Competition Wiring
 
-- [ ] 4.1 Emit a full-time announcement and a match-log entry from `SceneOrchestrator.resolveMatchComplete`, keeping the console line as a developer aid
-- [ ] 4.2 Confirm `GameHUD` shows the screen on `GAME_OVER` for local, online, sandbox, and competition matches
-- [ ] 4.3 Confirm both coaches in an online match reach the screen and that progression actions stay restricted to each coach's own team
+- [ ] 4.1 Emit a full-time announcement and match-log entry from match completion
+- [ ] 4.2 Show the results screen for local, online, sandbox, and competition game-over phases
+- [ ] 4.3 Record a competition fixture result exactly once and show confirmation before leaving
+- [ ] 4.4 Restrict online award actions to the owning coach while both coaches can see both teams' results and statistics
 
-## 5. Competition reporting
+## 5. Verification
 
-- [ ] 5.1 Confirm the fixture result is recorded once on reaching `GAME_OVER`, guarded by the existing reported flag
-- [ ] 5.2 Show confirmation on the results screen that the fixture result was recorded
-- [ ] 5.3 Verify the competition view reflects the recorded result after leaving the match
-
-## 6. Verification
-
-- [ ] 6.1 Add a headless test that plays a match to full time with progression disabled and asserts a complete stats summary is produced
-- [ ] 6.2 Add a component test asserting the screen renders with progression disabled and hides only the progression controls
-- [ ] 6.3 Play a full local match to full time and confirm result, statistics, and exit
-- [ ] 6.4 Play a full progression-enabled match and confirm MVP, SPP, and advancement still work after the results section
-- [ ] 6.5 Play a competition fixture to full time and confirm the result is recorded and confirmed
-- [ ] 6.6 Mark the item fixed in `ai_notes.md` with a dated note
+- [ ] 5.1 Add component tests for progression-disabled, progression-enabled, concession, and pending-development results
+- [ ] 5.2 Add a regression test proving a 0-0 concession remains displayed as 0-0 and creates no touchdown event or statistic
+- [ ] 5.3 Add headless Playwright flows for local, online, sandbox, and competition completion
+- [ ] 5.4 Add a journey that confirms MVP/SPP, leaves without assigning a skill, and completes the pending advancement in Manage Team
+- [ ] 5.5 Add result-recording tests for rerender, save/resume, and reconnect idempotency

@@ -1,28 +1,47 @@
 ## Why
 
-Finishing a match produces nothing a coach can see. The only output is a console line — `[Orchestrator] Match complete. Full time — Shambiling Undead Sample 1 : 1 Human Sample (draw)` — and a transient banner. There is no results screen, no match statistics, and no SPP screen. The post-match UI that exists is gated behind `progressionEnabled`, which is off by default, so an ordinary exhibition or local match shows nothing at all and the coach is left staring at a finished pitch with no way forward. Everything needed is already tracked: `MatchStats` records completions, casualties, touchdowns, and interceptions for every player throughout the match, and is simply never shown.
+Finishing a match currently produces no dependable coach-facing result for ordinary
+matches. The data for score and player statistics exists, but the summary is hidden when
+progression is disabled. The enabled progression flow also asks coaches to assign
+advancements immediately, while a concession can be presented as though an extra
+touchdown was scored. Results should report what happened, record awards, and let the
+coach manage development later.
 
 ## What Changes
 
-- **Full time always presents a results screen.** Reaching `GAME_OVER` SHALL present a results screen showing the final score, the winner or draw, and each team's match statistics — regardless of whether progression is enabled.
-- **Match statistics are always shown.** Per-player completions, throw team-mate results, interceptions, casualties inflicted, and touchdowns SHALL be presented for both teams, drawn from the stats already tracked during the match.
-- **SPP and advancement follow the results, they do not gate them.** When progression is enabled the results screen SHALL continue into MVP nomination, SPP confirmation, and player advancement. When progression is disabled it SHALL show the result and statistics and offer to leave, with a clear note that this match does not award SPP.
-- **There is always a way out.** The results screen SHALL offer a route back to the main menu, and — for a competition fixture — SHALL report the result to the competition before leaving.
-- **The match-complete announcement is a real announcement.** Full time SHALL be announced on screen and recorded in the match log rather than only written to the console.
+- Full time always presents a results screen for local, online, sandbox, and competition
+  matches.
+- The screen shows both teams, the actual final score, outcome, and per-player match
+  statistics whether or not progression is enabled.
+- A concession or forfeit is labelled as such without adding an artificial touchdown,
+  mutating the played score, or awarding touchdown statistics.
+- Eligible matches complete MVP nomination and SPP confirmation on the results screen,
+  but never assign skills or characteristics there.
+- Pending advancements are saved and surfaced in Manage Team for the coach to resolve in
+  their own time.
+- The screen always offers a route out after required result/award recording, and
+  competition results are recorded exactly once before leaving.
+- Full time is announced on screen and written to the match log.
 
 ## Capabilities
 
 ### New Capabilities
-- `match-results-screen`: full time presents the score, outcome, and per-player match statistics for both teams, with a route onward, in every match type.
+
+- `match-results-screen`: every completed match presents the actual result, player
+  statistics, award confirmation where eligible, and a safe route onward.
 
 ### Modified Capabilities
-- `post-match-summary`: the summary is presented for every completed match; progression eligibility controls which sections are offered, not whether the screen appears.
+
+- `post-match-summary`: progression eligibility controls MVP/SPP awards, while skill and
+  characteristic advancement is deferred to Manage Team.
 
 ## Impact
 
-- Match end: `src/game/controllers/SceneOrchestrator.ts` (`resolveMatchComplete`), `src/game/managers/TurnManager.ts` (`GAME_OVER` transition).
-- UI: `src/ui/components/hud/PostMatchProgression.tsx` (the `progressionEnabled` early return, the stats tables), `src/ui/components/hud/GameHUD.tsx` (visibility), a new results section preceding the progression flow.
-- Stats: `src/game/progression/MatchStats.ts` (`summary()` usable without progression), `src/services/ServiceContainer.ts`.
-- Competition: `src/ui/pages/GamePage.tsx` result reporting, `src/competition/resultRecording.ts`.
-- Online: `src/network/OnlineMatch.ts` — both coaches must reach the results screen, and only the owning coach may act on their own team's progression.
-- Depends on `phase-announcer` from `overhaul-match-announcements` for the full-time announcement; degrades to the existing banner if that change lands later.
+- Match completion and announcements in `SceneOrchestrator`, `TurnManager`, and match
+  result modelling.
+- `PostMatchProgression`, `GameHUD`, and the extraction or removal of direct advancement
+  controls from the results flow.
+- Match statistics, MVP/SPP confirmation, pending team development, and team management.
+- Competition result recording and online owner gating.
+- Headless and Playwright coverage for normal, disabled-progression, concession, online,
+  and competition match completion.

@@ -3,19 +3,41 @@
 ## ADDED Requirements
 
 ### Requirement: The summary is presented for every completed match
-The post-match summary SHALL be presented whenever a match reaches the game-over phase. Progression eligibility SHALL determine which sections of the summary are offered, and SHALL NOT determine whether the summary is presented at all.
 
-#### Scenario: An ineligible match still gets a summary
-- **WHEN** a match that is not eligible for progression reaches full time
-- **THEN** the post-match summary is presented with the result and match statistics, and without the SPP and advancement sections
+The post-match summary SHALL be presented whenever a match reaches game over.
+Progression eligibility SHALL determine whether awards are offered, not whether the
+result and statistics are presented.
 
-#### Scenario: An eligible match gets the full summary
-- **WHEN** a match eligible for progression reaches full time
-- **THEN** the post-match summary is presented with the result, match statistics, MVP nomination, SPP confirmation, and advancement
+#### Scenario: Ineligible match completes
 
-### Requirement: Match statistics are available independently of progression
-The per-player statistics used by the summary SHALL be readable for any completed match. Progression eligibility SHALL affect only the SPP figures within them.
+- **WHEN** a match ineligible for progression reaches full time
+- **THEN** its result and statistics are shown without award or advancement controls
 
-#### Scenario: Statistics without SPP
-- **WHEN** the summary is built for a match that awards no SPP
-- **THEN** participation, completions, interceptions, casualties, and touchdowns are all present, and SPP earned is zero and not displayed
+#### Scenario: Eligible match completes
+
+- **WHEN** a progression-eligible match reaches full time
+- **THEN** its result, statistics, MVP nomination, and SPP confirmation are shown without
+  direct advancement controls
+
+### Requirement: Match statistics are independent of progression
+
+Per-player participation and match statistics SHALL be readable for every completed
+match. Eligibility SHALL affect only whether SPP is awarded and displayed.
+
+#### Scenario: Statistics exist without SPP
+
+- **WHEN** a summary is built for a match that awards no SPP
+- **THEN** participation, completions, interceptions, casualties, and touchdowns remain
+  available while SPP is zero and hidden
+
+### Requirement: Confirmed awards create deferred development
+
+MVP and SPP confirmation SHALL update the durable team record and create pending Manage
+Team development where applicable. It SHALL NOT apply a skill or characteristic from the
+post-match summary.
+
+#### Scenario: SPP threshold is reached
+
+- **WHEN** confirmed post-match awards make a player eligible to advance
+- **THEN** the summary saves the awards and creates pending development without changing
+  that player's skills or characteristics

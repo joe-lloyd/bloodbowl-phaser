@@ -2,72 +2,131 @@
 
 ## ADDED Requirements
 
-### Requirement: A team's mode is derived from whether it has played
-A team SHALL record when it first completed a match. A team with no such record SHALL be in **draft** mode; a team with one SHALL be in **active** mode. The mode SHALL NOT be settable directly, and a team SHALL NOT return to draft once active.
+### Requirement: Team mode is derived from completed play
 
-#### Scenario: A new team is in draft
-- **WHEN** a coach creates a team and has not yet played a match with it
+A team SHALL record its first completed match. A team without that record SHALL be in
+draft mode; a team with it SHALL be active. Mode SHALL NOT be directly settable and an
+active team SHALL NOT return to draft.
+
+#### Scenario: New team is draft
+
+- **WHEN** a coach creates a team that has not completed a match
 - **THEN** the team is in draft mode
 
-#### Scenario: Completing a first match makes a team active
-- **WHEN** a team completes its first match and the post-match summary is confirmed
-- **THEN** the team records that match's completion and is in active mode from then on
+#### Scenario: First match completes
 
-#### Scenario: An abandoned match does not activate a team
-- **WHEN** a draft team's match is abandoned before the post-match summary is confirmed
+- **WHEN** that team's first match and post-match record are confirmed
+- **THEN** the first completed match is recorded and the team is active thereafter
+
+#### Scenario: Match is abandoned
+
+- **WHEN** a draft team's match is abandoned before completion
 - **THEN** the team remains in draft mode
 
-### Requirement: Draft teams are freely editable
-A team in draft mode SHALL allow every team-building operation: renaming, changing the roster type, adding and removing players, buying re-rolls at roster price, and setting Dedicated Fans.
+### Requirement: Draft teams are editable but must be legal to finalize
 
-#### Scenario: A draft team can change roster type
-- **WHEN** a coach changes the roster of a draft team
-- **THEN** the change is allowed
+A draft team MAY be persisted while incomplete and SHALL allow renaming, roster changes,
+player changes, roster-price re-roll purchases, and Dedicated Fans. It SHALL NOT be
+finalized, selected for play, or entered in a competition until shared roster validation
+passes.
 
-#### Scenario: A draft team buys a re-roll at roster price
-- **WHEN** a coach buys a re-roll for a draft team
-- **THEN** they are charged the roster's re-roll price
+#### Scenario: Incomplete work is saved
 
-### Requirement: Active teams only accept changes legal in play
-A team in active mode SHALL refuse draft-only operations — renaming the roster type, changing the roster, and freely removing players — and SHALL state the reason and the mode when it does so.
+- **WHEN** a draft has fewer than seven players
+- **THEN** it may remain saved as an incomplete draft and is clearly marked unavailable
+  for play
 
-#### Scenario: Changing the roster of an active team is refused
-- **WHEN** a coach attempts to change the roster type of an active team
-- **THEN** the change is refused with a message naming the active-team rule
+#### Scenario: Illegal draft tries to play
 
-#### Scenario: Refusals explain themselves
-- **WHEN** any edit is refused because the team is active
-- **THEN** the message states that the team is active and which rule prevents the edit
+- **WHEN** an incomplete or illegal draft is selected for a match
+- **THEN** selection is refused and every known legality failure is shown
 
-### Requirement: Active-team purchasing rules are enforced
-For an active team, re-rolls SHALL cost double the roster's re-roll price, and Dedicated Fans SHALL NOT be purchasable. Hiring players SHALL be allowed at roster price up to the roster maximum.
+### Requirement: Sevens roster legality is shared
 
-#### Scenario: A re-roll costs double for an active team
-- **WHEN** a coach buys a re-roll for an active team
-- **THEN** they are charged twice the roster's re-roll price
+For a standard Sevens profile, finalization validation SHALL require at least seven and
+at most eleven players, no more than four players without the Lineman keyword, no player
+type above its roster maximum, and non-negative remaining budget. Team Builder, match
+selection, competition entry, and development seeding SHALL use the same validator.
 
-#### Scenario: Dedicated Fans cannot be bought by an active team
-- **WHEN** a coach attempts to buy Dedicated Fans for an active team
+#### Scenario: Legal seven-player roster
+
+- **WHEN** a seven-player team has no more than four non-Lineman players, obeys every
+  positional maximum, and is within budget
+- **THEN** shared roster validation accepts it
+
+#### Scenario: Fifth non-Lineman is hired
+
+- **WHEN** a draft would contain five players without the Lineman keyword
+- **THEN** finalization is refused with the non-Lineman limit stated
+
+#### Scenario: Positional maximum is exceeded
+
+- **WHEN** a roster contains more of a player type than its roster permits
+- **THEN** finalization is refused with that player type and maximum stated
+
+### Requirement: Active teams only accept legal in-play changes
+
+An active team SHALL refuse roster-type changes, draft-only edits, and unrestricted
+player removal, with structured reasons that name the active-team rule.
+
+#### Scenario: Active roster type is changed
+
+- **WHEN** a coach attempts to change an active team's roster type
+- **THEN** the operation is refused and the active-team restriction is stated
+
+### Requirement: Active purchasing rules are enforced
+
+For an active team, re-rolls SHALL cost twice roster price, Dedicated Fans SHALL NOT be
+purchasable, and an eligible player MAY be hired at roster price subject to roster and
+budget limits.
+
+#### Scenario: Active team buys a re-roll
+
+- **WHEN** an active team buys a re-roll
+- **THEN** the displayed and charged price is twice the roster price
+
+#### Scenario: Active team attempts Dedicated Fans
+
+- **WHEN** an active team attempts to buy Dedicated Fans
 - **THEN** the purchase is refused and the reason is stated
 
-#### Scenario: Hiring a player is allowed for an active team
-- **WHEN** an active team below its roster maximum hires an eligible player
-- **THEN** the hire is allowed at the roster price
+#### Scenario: Active team hires a legal player
 
-### Requirement: The displayed price is the price charged
-Every purchasable item SHALL be displayed at the price that will actually be charged for the team's current mode.
+- **WHEN** an active team can afford a player without violating roster limits
+- **THEN** the hire is accepted at roster price
 
-#### Scenario: An active team sees the doubled re-roll price
-- **WHEN** a coach views the re-roll purchase option for an active team
-- **THEN** the price shown is the doubled price
+### Requirement: The team mode and rules are visible
 
-### Requirement: The team's mode is visible
-Team management SHALL show whether each team is in draft or active mode, and SHALL state which active-team rules are enforced so a coach is not led to assume rules that are not modelled.
+Team list and management views SHALL show draft or active mode, legality state, and the
+mode-specific restrictions currently enforced.
 
-#### Scenario: Mode is shown in the team list
-- **WHEN** a coach views their teams
-- **THEN** each team is marked as draft or active
+#### Scenario: Incomplete draft is listed
 
-#### Scenario: Enforced rules are stated
+- **WHEN** a coach views a saved incomplete draft
+- **THEN** it is marked draft and illegal for play with a route to fix it
+
+#### Scenario: Active team is opened
+
 - **WHEN** a coach opens an active team
-- **THEN** the enforced active-team rules are listed
+- **THEN** doubled re-roll pricing, unavailable Dedicated Fans, and locked draft edits
+  are communicated
+
+### Requirement: Team-builder roster information remains readable
+
+The team builder SHALL render critical labels, prices, counts, characteristics, and
+validation messages at the application's normal body-text scale. Table headers and row
+values SHALL share aligned columns. At narrow widths, the layout SHALL scroll or switch
+to an intentional stacked presentation rather than shrinking critical text below that
+scale.
+
+#### Scenario: Standard desktop roster table
+
+- **WHEN** the team builder displays player and roster summaries at its supported desktop
+  viewport
+- **THEN** headers align with row values and critical text uses the normal body scale
+
+#### Scenario: Narrow supported viewport
+
+- **WHEN** the same information does not fit horizontally
+- **THEN** it remains readable through scrolling or a stacked layout without clipped
+  controls or miniature critical text

@@ -3,82 +3,130 @@
 ## ADDED Requirements
 
 ### Requirement: Full time presents a results screen
-Reaching the game-over phase SHALL present a results screen to the coach. The screen SHALL appear for every completed match — local, online, sandbox, and competition fixtures — and SHALL NOT depend on whether progression is enabled.
 
-#### Scenario: A local match with progression disabled shows results
+Reaching game over SHALL present a results screen for every completed local, online,
+sandbox, and competition match, regardless of progression eligibility.
+
+#### Scenario: Local match without progression
+
 - **WHEN** a local match with progression disabled reaches full time
 - **THEN** the results screen is presented
 
-#### Scenario: An online match shows results to both coaches
+#### Scenario: Online match completes
+
 - **WHEN** an online match reaches full time
-- **THEN** both the host and the guest are presented with the results screen
+- **THEN** both host and guest are presented with the results screen
 
-### Requirement: The results screen states the outcome
-The screen SHALL show both team names, the final score, and the outcome — which team won, or that the match was drawn. Where the match ended by concession or forfeit, that SHALL be stated.
+### Requirement: The screen states the actual outcome
 
-#### Scenario: A win is stated
-- **WHEN** a match ends 2–1
-- **THEN** the screen names the winning team and shows the final score
+The screen SHALL show both team names, the played final score, and whether the match was
+won, drawn, conceded, or forfeited. Concession or forfeit SHALL NOT create an artificial
+touchdown, mutate the played score, or award a touchdown statistic to any player.
 
-#### Scenario: A draw is stated
-- **WHEN** a match ends 1–1
-- **THEN** the screen states the match was drawn and shows the final score
+#### Scenario: Played win is stated
 
-#### Scenario: A concession is stated
-- **WHEN** a match ends because a coach conceded
-- **THEN** the screen states that the match ended by concession
+- **WHEN** a match ends normally at 2-1
+- **THEN** the screen names the winner and shows 2-1
 
-### Requirement: Per-player match statistics are shown for both teams
-The screen SHALL show, for every player who took part, their completions, thrown team-mate results, interceptions, casualties inflicted, and touchdowns. Both teams' statistics SHALL be visible to both coaches. Statistics SHALL come from the stats tracked during the match.
+#### Scenario: Draw is stated
 
-#### Scenario: Statistics are shown without progression
+- **WHEN** a match ends normally at 1-1
+- **THEN** the screen states that the match was drawn and shows 1-1
+
+#### Scenario: Coach concedes
+
+- **WHEN** a coach concedes while the played score is 0-0
+- **THEN** the screen labels the concession, shows the played score as 0-0, and records no
+  additional player touchdown
+
+### Requirement: Both teams' participating-player statistics are shown
+
+The screen SHALL show each participant's completions, thrown-team-mate results,
+interceptions, casualties inflicted, and touchdowns for both teams. It SHALL derive the
+figures from match tracking and omit non-participants.
+
+#### Scenario: Statistics without progression
+
 - **WHEN** a match with progression disabled reaches the results screen
-- **THEN** each team's per-player statistics table is shown, without an SPP column
+- **THEN** both teams' participant tables are shown without an SPP column
 
-#### Scenario: Statistics are shown with progression
-- **WHEN** a match with progression enabled reaches the results screen
-- **THEN** each team's per-player statistics table is shown, including SPP earned
+#### Scenario: Statistics with progression
 
-#### Scenario: Non-participants are omitted
-- **WHEN** a rostered player never took the field
-- **THEN** that player is not listed in the statistics table
+- **WHEN** an eligible match reaches the results screen
+- **THEN** both teams' participant tables include confirmed SPP earned
 
-### Requirement: Progression follows the results rather than gating them
-When progression is enabled, the screen SHALL continue from the results into MVP nomination, SPP confirmation, and player advancement. When progression is disabled, the screen SHALL state that this match awards no SPP and offer no progression controls.
+### Requirement: Eligible awards follow the result
 
-#### Scenario: Progression sections appear only when enabled
-- **WHEN** progression is disabled
-- **THEN** no MVP, SPP, or advancement controls are shown, and the screen explains that this match awards no SPP
+When progression is enabled, the screen SHALL continue from result and statistics into
+MVP nomination and SPP confirmation. When progression is disabled, it SHALL explain that
+the match awards no SPP. The screen SHALL NOT offer skill or characteristic advancement
+selection.
 
-#### Scenario: Progression flow is reachable when enabled
-- **WHEN** progression is enabled
-- **THEN** MVP nomination, SPP confirmation, and advancement are available after the results
+#### Scenario: Progression is disabled
 
-### Requirement: The screen always offers a way out
-The results screen SHALL always offer a route back out of the match. Where progression is enabled and a player must advance, the exit MAY be held until that requirement is met, and the reason SHALL be stated.
+- **WHEN** the completed match awards no progression
+- **THEN** no MVP, SPP confirmation, skill, or characteristic controls are shown
+
+#### Scenario: Progression is enabled
+
+- **WHEN** the match is eligible for progression
+- **THEN** MVP nomination and SPP confirmation are available and no advancement selector
+  is shown
+
+### Requirement: Advancement is deferred to Manage Team
+
+After awards are confirmed, every player eligible or required to advance SHALL be saved
+as pending team development. The results screen SHALL direct the coach to Manage Team
+but SHALL NOT require that development to be completed before leaving.
+
+#### Scenario: Award makes a player eligible
+
+- **WHEN** confirmed SPP makes a player eligible for an advancement
+- **THEN** pending development is stored and Manage Team lists that player
+
+#### Scenario: Coach leaves with pending development
+
+- **WHEN** award recording is complete and one or more players have pending development
+- **THEN** the coach can leave the results screen without choosing a skill
+
+### Requirement: The screen always offers a safe route out
+
+The results screen SHALL offer a route back to the main menu once required result and
+award recording has completed. Pending skill or characteristic choices SHALL NOT disable
+that route.
 
 #### Scenario: Leaving a non-progression match
-- **WHEN** a coach finishes reading the results of a match with progression disabled
-- **THEN** they can leave the match and return to the main menu
 
-#### Scenario: A required advancement is explained
-- **WHEN** a player must advance before the coach can finish
-- **THEN** the exit is disabled and the screen states which requirement is outstanding
+- **WHEN** a coach finishes reading a non-progression result
+- **THEN** they can return to the main menu
 
-### Requirement: A competition fixture result is recorded and confirmed
-When the match was launched as a competition fixture, the result SHALL be recorded against that fixture, and the screen SHALL confirm the recording before the coach leaves. The result SHALL be recorded exactly once.
+#### Scenario: Award confirmation is still pending
 
-#### Scenario: Fixture result recorded and confirmed
+- **WHEN** required MVP or SPP confirmation has not been recorded
+- **THEN** exit may be held with the outstanding recording requirement stated
+
+### Requirement: Competition results are recorded exactly once
+
+When the match belongs to a competition fixture, its result SHALL be recorded against
+that fixture exactly once and the screen SHALL confirm recording before the coach leaves.
+
+#### Scenario: Fixture result is recorded
+
 - **WHEN** a competition fixture reaches full time
-- **THEN** the fixture result is recorded and the results screen confirms it was recorded
+- **THEN** the result is recorded and confirmation appears on the screen
 
-#### Scenario: The result is not recorded twice
-- **WHEN** the results screen is re-rendered after the result has already been recorded
-- **THEN** no second result is recorded
+#### Scenario: Screen reconnects or rerenders
+
+- **WHEN** the results screen is entered again after that fixture result was recorded
+- **THEN** no duplicate result is created
 
 ### Requirement: Full time is announced and logged
-The end of the match SHALL be announced on screen and recorded in the match log, naming the teams, the score, and the outcome. The console SHALL NOT be the only place the result appears.
 
-#### Scenario: Full time reaches the coach
-- **WHEN** a match reaches full time
-- **THEN** an on-screen full-time announcement is raised and a matching entry is written to the match log
+Match completion SHALL be announced on screen and written to the match log with team
+names, played score, and outcome. Console output SHALL NOT be its only presentation.
+
+#### Scenario: Match reaches full time
+
+- **WHEN** the game-over phase begins
+- **THEN** the coach receives a full-time announcement and the match log contains the
+  corresponding entry

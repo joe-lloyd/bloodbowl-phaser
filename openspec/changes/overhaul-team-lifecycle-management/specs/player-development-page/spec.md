@@ -3,49 +3,62 @@
 ## ADDED Requirements
 
 ### Requirement: Each player has a development page
-Team management SHALL provide a per-player page reachable from the roster. The page SHALL show the player's name, number, position, current and base characteristics with any advances or injury reductions marked, starting skills separated from gained skills, injuries, level, SPP spent and available, and career statistics.
 
-#### Scenario: Opening a player from the roster
-- **WHEN** a coach selects a player in team management
-- **THEN** that player's development page is shown with their characteristics, skills, injuries, SPP, and career statistics
+Team management SHALL provide a per-player page showing name, number, position, current
+and base characteristics with advances/injuries marked, starting and gained skills,
+injuries, level, SPP spent/available, career statistics, and pending development.
 
-#### Scenario: Advances and injuries are marked on characteristics
-- **WHEN** a player has a characteristic advance and an injury reduction
-- **THEN** the page shows the current value alongside the base value and marks both adjustments
+#### Scenario: Player is opened from the roster
 
-#### Scenario: Gained skills are distinguished from starting skills
-- **WHEN** a player has gained skills through advancement
-- **THEN** the page lists starting skills and gained skills separately
+- **WHEN** a coach selects a player in Manage Team
+- **THEN** that player's durable details and development state are shown
 
-### Requirement: SPP can be spent outside the post-match flow
-A coach SHALL be able to spend a player's available SPP on an advancement from the development page, using the same advancement rules and costs as the post-match screen. The result SHALL be saved to the team.
+#### Scenario: Gained skills are distinguished
 
-#### Scenario: Spending SPP between matches
-- **WHEN** a coach opens a player with enough SPP for an advancement and chooses one
-- **THEN** the advancement is applied, the SPP is spent, and the team is saved
+- **WHEN** a player has starting and gained skills
+- **THEN** the page lists the two groups separately with gained-skill provenance
 
-#### Scenario: Unaffordable advancements are unavailable
-- **WHEN** a player does not have enough SPP for an advancement type
-- **THEN** that option is shown with its cost but cannot be chosen
+### Requirement: Standard SPP advancement is resolved in Manage Team
 
-#### Scenario: Advancement rules are unchanged
-- **WHEN** an advancement is taken from the development page
-- **THEN** the same access, roll, and characteristic-cap rules apply as on the post-match screen
+An eligible coach SHALL spend a player's SPP and resolve legal skill or characteristic
+advancement from the development page using the standard advancement rules and costs.
+The result SHALL be saved to the team.
 
-### Requirement: Advancement is allowed regardless of team mode
-Spending SPP SHALL be permitted for both draft and active teams, since advancement is earned rather than purchased.
+#### Scenario: SPP is spent between matches
 
-#### Scenario: An active team's player advances
-- **WHEN** a coach spends SPP for a player on an active team
-- **THEN** the advancement is applied and no active-team purchasing refusal is raised
+- **WHEN** a coach confirms a legal affordable advancement
+- **THEN** the advancement is applied, SPP is spent, pending state is cleared as
+  appropriate, and the team is saved
 
-### Requirement: Players needing attention are visible in the roster
-The team view SHALL indicate which players have SPP available to spend and which must advance before the coach can continue.
+#### Scenario: Advancement is unaffordable
 
-#### Scenario: Available SPP is flagged
-- **WHEN** a player has enough SPP for at least one advancement
-- **THEN** the roster marks that player as having SPP to spend
+- **WHEN** the player lacks enough SPP for an advancement type
+- **THEN** its cost may be shown but it cannot be confirmed
 
-#### Scenario: A mandatory advancement is flagged
-- **WHEN** a player has reached a threshold at which they must advance
-- **THEN** the roster marks that player as requiring an advancement
+### Requirement: Post-match pending development is visible
+
+Awards confirmed after a match SHALL create or update pending development without
+assigning a skill. The roster and player page SHALL show which players can advance and
+which must advance before a competition permits another match.
+
+#### Scenario: Results create pending work
+
+- **WHEN** post-match SPP makes a player eligible
+- **THEN** Manage Team marks the player and offers their legal development options
+
+#### Scenario: Mandatory advancement is pending
+
+- **WHEN** a player has reached a mandatory advancement threshold
+- **THEN** the roster marks the requirement and compatible match launch can direct the
+  coach back to Manage Team
+
+### Requirement: Advancement uses the team's selected mode
+
+The development page SHALL offer only operations legal for the team's advancement mode.
+Advanced League SHALL use SPP; Matched Play and Sevens Skill Selection SHALL use their
+own pending package or random-skill work when those capabilities are available.
+
+#### Scenario: Non-SPP team is opened
+
+- **WHEN** a Matched Play or Sevens Skill Selection player is managed
+- **THEN** standard SPP spending is not offered
