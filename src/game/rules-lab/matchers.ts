@@ -124,11 +124,18 @@ export function blockDiceCount(result: ScriptResult): number | undefined {
   return event ? (event.data as { numDice: number }).numDice : undefined;
 }
 
-/** Count armour rolls seen in the run (for no-armour outcomes). */
+/**
+ * Count armour rolls seen in the run (for no-armour outcomes).
+ *
+ * The engine labels these "Armor Check" (American spelling); matching only
+ * "Armour" made this always return 0, so every `armourRolls(r) === 0`
+ * assertion passed vacuously. Both spellings are accepted so the assertion
+ * can actually fail.
+ */
 export function armourRolls(result: ScriptResult): number {
-  return result.events.filter(
-    (e) =>
-      e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType?: string })?.rollType?.includes("Armour")
-  ).length;
+  return result.events.filter((e) => {
+    if (e.name !== GameEventNames.DiceRoll) return false;
+    const rollType = (e.data as { rollType?: string })?.rollType ?? "";
+    return rollType.includes("Armor") || rollType.includes("Armour");
+  }).length;
 }

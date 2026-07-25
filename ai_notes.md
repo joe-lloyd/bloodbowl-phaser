@@ -4,9 +4,50 @@
 
 - the foul action when i use it and try to get a downed player the block windwo just opens up instead of a proper foul action
 
+  FIXED 2026-07-25 — root cause was `defaultStep` in GameplayInteractionController
+  being hard-coded to "move" regardless of the action's own steps, so the Foul
+  branch (which required currentStepId === "foul") never matched and the click
+  fell through to the implicit-Block path. Three changes: the opening step is now
+  the action's first step; the Foul branch claims player clicks at either step;
+  and the implicit Block only runs for modes that mean to block (nothing declared,
+  a declared Block, or a Blitz) so no action can decay into a block dice dialog
+  again. Also fixed Throw Bomb / Ball & Chain / standalone Block, which were
+  stranded on a nonexistent "move" step by the same bug.
+  Locked by __tests__/headless/foul-and-jump-actions.test.ts.
+
 when using the jump move ability and there are multiple potentiasl targets only one is selected as a jump opertuinity but when jumping every adjacent downed player should be an option
 
+  INVESTIGATED 2026-07-25 — could NOT reproduce at the engine level, so no
+  behaviour was changed. jumpTargets returns every adjacent jumpable player
+  (3 prone -> 3 jump-overs; a full ring -> 8), Pitch.drawJumpTargets already
+  rings every jump-over and dots every landing, and actionAvailability gates on
+  the full set.
+  Added sandbox scenario "jump-multiple-prone" (Jump: Multiple Prone Targets) so
+  this can be checked in-app: four adjacent Prone defenders plus a Standing one
+  that must NOT be offered, and two deliberately shared landing squares — (10,4)
+  reachable over either (9,5) or (9,4), and (9,3) over either (8,4) or (9,4).
+  A shared landing resolves to the first jump-over in engine order, so if the
+  real symptom was "the wrong player got jumped", that tie-break is the likely
+  culprit.
+  ** TODO: play this scenario and confirm. If still wrong, note how many amber
+  rings appear and which action was declared. **
+
 when trying to jump up and blcok i got the message cannot declaire block already used, which makes nosense because you can always blcok adjacent players theres no limit, the block button should alow me to use jumpup and then perform a standard block since jumpup makes the move free
+
+  FIXED 2026-07-25 — two separate defects behind this one message:
+  1. The "already used its Block" guard (GameService.blitzBlockUsed) could refuse
+     a Block the player was entitled to make. It is now scoped to a player whose
+     CURRENTLY declared action is a blitz, and is also cleared at drive reset, so
+     a stale flag can never refuse a later Block.
+  2. Jump Up's second clause was never implemented (JumpUpRule.ts said so). A
+     Prone player with Jump Up may now declare a Block. NOTE: per the 2025 rules
+     this is NOT free — standing up to make the Block requires an Agility test
+     with a +1 modifier; pass = stand for free and Block, fail = Action wasted
+     (not a turnover). Confirmed as the intended behaviour rather than the
+     free stand-up assumed in the note above.
+  Clause 1 of Jump Up (free stand-up during a movement action) was already
+  implemented and is unchanged.
+  Locked by __tests__/headless/foul-and-jump-actions.test.ts.
 
 after scoroing a touchdown i was unable to complete the seup, i noticed this warning SceneOrchestrator.ts:124 [Orchestrator] No handler for phase: TOUCHDOWN. i had 7 players ebcause my ko player got recovered but he ended up being duplicated one version was on the pitch and one version was stuck in the ko box, so we need to make the ko recovery a bit of a thing where we roll for each player do an animatino to show they recovered or theya re still KO'd then if they recover move them to the resetrves so they are ready fro setup. and if the are no ready setting up with less than 7 player should not break the gasetup process.
 

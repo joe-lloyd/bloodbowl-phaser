@@ -524,7 +524,15 @@ export class GameService implements IGameService {
   private puntUsedThisTurn = false;
 
   public hasUsedBlitzBlock(playerId: string): boolean {
-    return this.blitzBlockUsed.has(playerId);
+    if (!this.blitzBlockUsed.has(playerId)) return false;
+    // The guard only means anything INSIDE the Blitz that spent the block.
+    // A flag surviving an earlier activation must never refuse a later
+    // Block — that is what produced "this Blitz has already used its Block"
+    // on a plain Block the player was entitled to make.
+    return (
+      this.state.activePlayer?.id === playerId &&
+      this.state.activePlayer?.action === "blitz"
+    );
   }
 
   /**
@@ -1037,6 +1045,10 @@ export class GameService implements IGameService {
     this.state.turn.hasHandedOff = false;
     this.state.turn.hasFouled = false;
 
+    // A drive can end mid-activation (touchdown, halftime), which skips
+    // finishActivation — clear the Blitz block guard at this boundary too.
+    this.blitzBlockUsed.clear();
+
     // Conditions do not survive the drive (Rooted explicitly ends here)
     [...this.team1.players, ...this.team2.players].forEach((p) => {
       if (p.conditions?.length) p.conditions = [];
@@ -1207,10 +1219,20 @@ export class GameService implements IGameService {
     }
 
     // A player who is down cannot plain-Block: standing up costs movement,
-    // so a hit after rising is what Blitz is for
+    // so a hit after rising is what Blitz is for. Jump Up is the exception —
+    // it may declare a Block while Prone, with standing gated on an Agility
+    // test (+1) resolved by the stand-up step. Multiple Block gets no such
+    // exception.
     if (action === "block" || action === "multipleBlock") {
       const player = this.getPlayerById(playerId);
-      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (!player) return false;
+      const jumpUpProneBlock =
+        action === "block" &&
+        player.status === PlayerStatus.PRONE &&
+        hasSkill(player.skills, SkillType.JUMP_UP);
+      if (player.status !== PlayerStatus.ACTIVE && !jumpUpProneBlock) {
+        return false;
+      }
       if (
         action === "multipleBlock" &&
         !hasSkill(player.skills, SkillType.MULTIPLE_BLOCK)

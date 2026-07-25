@@ -114,6 +114,38 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "jump-multiple-prone",
+    name: "Jump: Multiple Prone Targets",
+    description:
+      "Declare Move, then Jump with the player at (8,5). FOUR Prone " +
+      "defenders surround them — (9,5) east, (8,4) north, (9,4) north-east " +
+      "and (8,6) south — so all four should show an amber jump-over ring, " +
+      "each with its own green landing squares (12 jump options across 10 " +
+      "distinct landing squares). The " +
+      "Standing defender at (7,5) must NOT be offered: the base Jump only " +
+      "clears Prone/Stunned players. Two landings are deliberately shared by " +
+      "two different jump-overs — (10,4) is reachable over either (9,5) or " +
+      "(9,4), and (9,3) over either (8,4) or (9,4) — so clicking those shows " +
+      "which jump-over wins the tie-break.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // jumper
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE }, // east
+        { playerIndex: 1, x: 8, y: 4, status: PlayerStatus.PRONE }, // north
+        { playerIndex: 2, x: 9, y: 4, status: PlayerStatus.PRONE }, // north-east
+        { playerIndex: 3, x: 8, y: 6, status: PlayerStatus.PRONE }, // south
+        { playerIndex: 4, x: 7, y: 5, status: PlayerStatus.ACTIVE }, // Standing — not jumpable
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "kickoff-test",
     name: "Kickoff Test",
     description: "Test kickoff camera tracking - ball ready to kick",

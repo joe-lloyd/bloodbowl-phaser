@@ -6,7 +6,7 @@ Three declared actions misbehave in the browser and make legal Sevens play impos
 
 - **Foul resolves as a Foul.** With a Foul action declared, clicking a Prone or Stunned opponent SHALL run the Foul sequence (armour roll, injury roll, referee/sending-off check) and SHALL NOT fall through to the implicit Block path that opens the block dice dialog.
 - **Jump offers every jumpable neighbour.** Jump targeting SHALL present every adjacent jumpable player together with each of that player's legal landing squares, not just the first one found. The engine's `jumpTargets` already returns the full set; the browser targeting SHALL consume all of it, and a click SHALL resolve the specific (jump-over, landing) pair the coach picked.
-- **Jump Up allows a Block.** A Prone player with Jump Up SHALL be able to declare a Block action: they stand up for free and immediately perform the Block against an adjacent opponent.
+- **Jump Up allows a Block.** A Prone player with Jump Up SHALL be able to declare a Block action. Per the 2025 entry's second clause this is gated on an Agility test with a `+1` modifier: passed, they stand up without spending movement and Block an adjacent opponent; failed, they stay Prone and the action is wasted (not a turnover).
 - **The one-block-per-Blitz guard is scoped to the Blitz.** The "already used its Block" refusal SHALL only apply within the Blitz activation that spent it, and SHALL be cleared when that activation ends — it SHALL NOT leak into a later activation or into a non-Blitz Block declaration.
 - Each fix is locked by a seeded rule scenario runnable from the headless CLI so it cannot silently regress.
 

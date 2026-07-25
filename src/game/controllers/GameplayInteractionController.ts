@@ -221,14 +221,24 @@ export class GameplayInteractionController {
       return;
     }
 
-    // Stand Up executes immediately and hands over to the move step
+    // Stand Up executes immediately and hands over to the action's next step
     if (data.stepId === "standup" && this.selectedPlayerId) {
       const playerId = this.selectedPlayerId;
       this.gameService
         .standUp(playerId)
         .then(() => {
+          // A Jump Up player standing to make a declared Block must pass an
+          // Agility test; on a failure they are still Prone and the Action is
+          // spent, so there is no next step to advance to.
+          const after = this.gameService.getPlayerById(playerId);
+          if (after?.status !== PlayerStatus.ACTIVE) {
+            this.deselectPlayer();
+            return;
+          }
           this.actionSteps = this.actionSteps.filter((s) => s.id !== "standup");
-          this.currentStepId = "move";
+          // Advance to whatever the action's own next step is — a Block
+          // action has no "move" step, so assuming one stranded it.
+          this.currentStepId = this.actionSteps[0]?.id ?? "move";
           this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
             steps: this.actionSteps,
             currentStepId: this.currentStepId,
@@ -319,11 +329,6 @@ export class GameplayInteractionController {
 
       // Define steps based on action
       this.actionSteps = [];
-      const defaultStep = SPECIAL_ACTION_MODES.has(data.action)
-        ? "target"
-        : data.action === "multipleBlock"
-          ? "multipleBlock"
-          : "move";
 
       switch (data.action) {
         case "stab":
@@ -410,6 +415,13 @@ export class GameplayInteractionController {
           ];
           break;
       }
+
+      // The opening step is always the action's own first step. Deriving it
+      // from the list (rather than assuming "move") keeps single-step actions
+      // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
+      // their click handler actually matches; a hard-coded "move" left them
+      // on a step no branch claimed, so their clicks fell through.
+      const defaultStep = this.actionSteps[0]?.id ?? "move";
 
       // A prone player stands up first — same activation, costs movement
       const declarer = this.gameService.getPlayerById(data.playerId);
@@ -801,11 +813,15 @@ export class GameplayInteractionController {
       }
     }
 
-    // FOUL Execution
+    // FOUL Execution. A Foul may move first, so during the Move step an empty
+    // square still falls through to movement — but a click on ANY player is
+    // claimed here, at either step. Without that, a coach who declared a Foul
+    // and went straight for the victim (still on the Move step) fell through
+    // to the implicit-Block path and got the block dice dialog instead.
     if (
       this.currentActionMode === "foul" &&
-      this.currentStepId === "foul" &&
-      this.selectedPlayerId
+      this.selectedPlayerId &&
+      (this.currentStepId === "foul" || playerAtSquare)
     ) {
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
@@ -908,8 +924,17 @@ export class GameplayInteractionController {
     if (playerAtSquare) {
       // Clicking ANOTHER player?
       if (playerAtSquare.id !== this.selectedPlayerId) {
-        // BLOCK CHECK
-        if (this.selectedPlayerId) {
+        // BLOCK CHECK — only for modes that actually mean to Block: nothing
+        // declared (the implicit shortcut), a declared standalone Block, or a
+        // Blitz still in its move. Every other action mode must have claimed
+        // this click already; letting them reach here is how a declared Foul
+        // (and any future targeted action) decayed into a block dice dialog.
+        const mayBlockFromHere =
+          this.currentActionMode === null ||
+          this.currentActionMode === "block" ||
+          this.currentActionMode === "blitz";
+
+        if (this.selectedPlayerId && mayBlockFromHere) {
           const selectedPlayer = this.gameService.getPlayerById(
             this.selectedPlayerId
           );
@@ -977,17 +1002,21 @@ export class GameplayInteractionController {
           }
         }
 
-        // If not a block, select them (inspection)
-        // BUGFIX: If we are in "pass" mode, we SHOULD NOT select another player.
-        // We passed the 'Pass Execution' block above, implying either wrong step or something,
-        // but we should not abandon the pass action just by clicking a player.
-        if (this.currentActionMode === "pass") {
+        // If not a block, select them (inspection) — but never while a
+        // targeted action is mid-declaration. Reaching here means the click
+        // was not a valid target for that action; abandoning the action and
+        // reselecting the clicked player is never what the coach meant.
+        if (
+          this.currentActionMode !== null &&
+          !mayBlockFromHere &&
+          this.currentActionMode !== "move"
+        ) {
           console.warn(
-            "[Interaction] Clicked player while in Pass Mode (but not in Pass Execution block). Ignoring to prevent selection change."
+            `[Interaction] Clicked player during ${this.currentActionMode} mode; ignoring to prevent selection change.`
           );
           this.eventBus.emit(
             GameEventNames.UI_Notification,
-            "Finish your Pass Action first!"
+            `Finish your ${this.currentActionMode} Action first!`
           );
           return;
         }
@@ -1271,7 +1300,9 @@ export class GameplayInteractionController {
       }
     }
 
-    if (this.currentActionMode === "foul" && this.currentStepId === "foul") {
+    // A Foul claims player clicks at either step (see onSquareClicked) so the
+    // victim can be picked without first advancing the stepper.
+    if (this.currentActionMode === "foul") {
       const player = this.gameService.getPlayerById(playerId);
       if (player && player.gridPosition) {
         this.onSquareClicked(player.gridPosition.x, player.gridPosition.y);

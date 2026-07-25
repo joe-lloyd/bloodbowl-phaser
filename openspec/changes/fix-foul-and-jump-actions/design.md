@@ -31,7 +31,9 @@ Targeting SHALL hold the full `JumpTarget[]` from `jumpTargets(...)` and index i
 `blitzBlockUsed` SHALL be cleared on every activation boundary (`finishActivation`, turn start, drive reset), not only the happy path. The refusal SHALL additionally require that the player's *currently declared action* is `blitz` — a stale id can then never refuse a plain Block. Alternative considered: moving the flag onto the declared-action record so it dies with the declaration. That is the cleaner model and is the direction of travel, but it touches the online declaration envelope; the guard-plus-clear is equivalent in behavior and far cheaper here.
 
 **4. Jump Up's Block exception lives in the skill rule, not in the click handler.**
-`declareAction(playerId, "block")` SHALL consult the skill registry: a Prone player with Jump Up is legal, stands up for free (0 MA, no Agility roll per the 2025 entry), then blocks. Any other Prone player is still refused with the existing "down players must Blitz" message. Keeping it in `JumpUpRule` means the headless protocol and the browser get it from one place.
+`declareAction(playerId, "block")` SHALL consult the skill registry: a Prone player with Jump Up may declare it. The 2025 entry has two clauses — standing up for free during a movement action (already implemented via `standUpCost`), and declaring a Block while Prone, which is gated on an **Agility test with a `+1` modifier**. Passed: stand without spending MA, then Block. Failed: stay Prone, action wasted, no turnover. Any other Prone player is still refused with the existing "down players must Blitz" message. Keeping it in `JumpUpRule` means the headless protocol and the browser get it from one place.
+
+The original draft of this design said the stand-up required no Agility test. That was wrong — it conflated clause 1 (free stand-up during a Move) with clause 2 (the Prone Block declaration), and contradicted the deferred-work note already recorded in `JumpUpRule.ts`. Corrected to the rulebook on the user's decision.
 
 ## Risks / Trade-offs
 

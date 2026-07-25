@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Every jumpable neighbour is offered as a Jump target
-When a Jump is being aimed, the coach SHALL be offered every adjacent player the jumper may legally Jump over — by default every adjacent Prone or Stunned player, and additionally adjacent Standing players when the jumper has Leap, Pogo, or Very Long Legs — together with each of that player's legal, in-bounds, unoccupied landing squares. The set offered SHALL equal the set returned by the engine's jump geometry; no legal target SHALL be omitted because another target was found first.
+When a Jump is being aimed, the coach SHALL be offered every adjacent player the jumper may legally Jump over — by default every adjacent Prone or Stunned player, and additionally adjacent Standing players when the jumper has Leap or Pogo — together with each of that player's legal, in-bounds, unoccupied landing squares. The set offered SHALL equal the set returned by the engine's jump geometry; no legal target SHALL be omitted because another target was found first.
 
 #### Scenario: Multiple adjacent downed players are all jumpable
 - **WHEN** a player declares a Jump while adjacent to three Prone opponents

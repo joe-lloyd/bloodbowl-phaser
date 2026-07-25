@@ -161,7 +161,12 @@ export function computeActionAvailability(
   // A standalone Block: adjacent to a Standing opponent and not yet moved
   // (once moved, a Block needs a Blitz). The auto-block on clicking an
   // adjacent enemy still works; this just surfaces it as a menu button.
-  const block = adjacentStandingEnemy && !input.hasMovedInAction;
+  // A Prone player may only declare it with Jump Up (2025 p.130), which
+  // gates standing up on an Agility test — everyone else must Blitz.
+  const block =
+    adjacentStandingEnemy &&
+    !input.hasMovedInAction &&
+    (isStanding(player) || hasSkill(player.skills, SkillType.JUMP_UP));
   const multipleBlock =
     !input.hasMovedInAction &&
     hasSkill(player.skills, SkillType.MULTIPLE_BLOCK) &&

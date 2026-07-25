@@ -138,6 +138,41 @@ export class MovementManager {
       return Promise.reject("Player is not prone");
     }
 
+    // Jump Up (2025 p.130), SECOND clause: standing up to make a declared
+    // Block is gated on an Agility test with a +1 modifier — this is not the
+    // free stand-up the first clause grants during a movement Action. A
+    // failed test leaves the player Prone and wastes the Action, but is NOT
+    // a Turnover.
+    if (
+      this.state.activePlayer?.id === playerId &&
+      this.state.activePlayer?.action === "block" &&
+      hasSkill(player.skills ?? [], SkillType.JUMP_UP)
+    ) {
+      const check = this.diceController.rollSkillCheck(
+        "Jump Up (stand to Block)",
+        player.stats.AG,
+        1,
+        player.playerName,
+        player.teamId
+      );
+      this.eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId,
+        skill: SkillType.JUMP_UP,
+        effect: check.success
+          ? "Jump Up: stood up to make a Block"
+          : "Jump Up: failed the stand-up test — Action wasted",
+      });
+      if (!check.success) {
+        // Action wasted. No movement is spent and possession does not change.
+        this.callbacks.onActivationFinished(playerId);
+        return;
+      }
+      player.status = PlayerStatus.ACTIVE;
+      this.eventBus.emit(GameEventNames.PlayerStoodUp, { playerId, cost: 0 });
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      return;
+    }
+
     const used = this.getMovementUsed(playerId);
     const cost = standUpCost(player);
 

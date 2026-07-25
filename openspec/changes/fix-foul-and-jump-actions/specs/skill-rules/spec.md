@@ -3,19 +3,27 @@
 ## ADDED Requirements
 
 ### Requirement: Jump Up lets a Prone player declare and perform a Block
-A Prone player with the Jump Up skill SHALL be able to declare a Block action. Declaring it SHALL stand the player up for free — costing no movement and requiring no Agility test — and SHALL then resolve the Block against a chosen adjacent opponent as a normal standing Block. A Prone player without Jump Up SHALL still be refused a Block declaration and directed to an action that includes movement.
+A Prone player with the Jump Up skill SHALL be able to declare a Block action. Declaring it SHALL require an Agility test with a `+1` modifier to stand up. On a passed test the player SHALL stand up without spending movement and the Block SHALL resolve against a chosen adjacent opponent as a normal standing Block. On a failed test the player SHALL remain Prone, the action SHALL be wasted, and it SHALL NOT be a turnover. A Prone player without Jump Up SHALL still be refused a Block declaration and directed to an action that includes movement.
 
 #### Scenario: Prone Jump Up player blocks an adjacent opponent
-- **WHEN** a Prone player with Jump Up is adjacent to a Standing opponent and the coach declares a Block against them
-- **THEN** the player stands up for free and the Block is resolved with normal block dice
+- **WHEN** a Prone player with Jump Up is adjacent to a Standing opponent, the coach declares a Block against them, and the Agility test is passed
+- **THEN** the player stands up without spending movement and the Block is resolved with normal block dice
+
+#### Scenario: A failed Agility test wastes the action without a turnover
+- **WHEN** a Prone player with Jump Up declares a Block and fails the Agility test
+- **THEN** the player remains Prone, their activation ends with the action wasted, and possession does not change
+
+#### Scenario: The stand-up test takes a +1 modifier
+- **WHEN** the Agility test to stand up and Block is rolled
+- **THEN** it is resolved with a `+1` modifier applied
 
 #### Scenario: Prone player without Jump Up cannot declare a Block
 - **WHEN** a Prone player without Jump Up attempts to declare a Block
 - **THEN** the declaration is refused and the coach is told a down player must use an action that includes standing up
 
-#### Scenario: Jump Up standing up costs no movement
-- **WHEN** a Prone player with Jump Up stands up as part of declaring a Block
-- **THEN** no movement allowance is deducted and no Agility roll is made for standing up
+#### Scenario: Standing up via Jump Up costs no movement
+- **WHEN** a Prone player with Jump Up stands up as part of declaring a Block and passes the test
+- **THEN** no movement allowance is deducted for standing up
 
 ### Requirement: The single-Block-per-Blitz guard is scoped to its activation
 The refusal that prevents a second Block during a Blitz SHALL apply only while the player that spent it is still in the Blitz activation that spent it. The guard SHALL be cleared when that activation ends, at the start of a new turn, and at drive reset. A Block declaration SHALL never be refused as "already used" when the declaring player has no Blitz action currently declared.
