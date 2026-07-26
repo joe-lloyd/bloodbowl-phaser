@@ -18,6 +18,7 @@ import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { CompetitionContext } from "../competition/types";
 import { TurnManagerState } from "../game/managers/TurnManager";
+import { SetupState } from "../types/SetupTypes";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -63,6 +64,7 @@ export interface GameSnapshot {
   ballPosition: { x: number; y: number } | null;
   activePlayer: { id: string; action: string | null } | null;
   coachesEjected: string[];
+  setup?: SetupState | null;
   teams: TeamSnapshot[];
 }
 
@@ -130,6 +132,7 @@ export function serializeGameState(
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
     coachesEjected: [...state.coachesEjected],
+    setup: state.setup ? structuredClone(state.setup) : null,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -179,6 +182,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
     coachesEjected: [...snapshot.coachesEjected],
+    setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
   };
 }
 

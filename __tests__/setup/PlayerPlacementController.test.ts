@@ -194,7 +194,7 @@ describe("PlayerPlacementController", () => {
     it("should load valid formation", () => {
       const formation = [
         { playerId: "p1", x: 0, y: 0 },
-        { playerId: "p2", x: 0, y: 1 },
+        { playerId: "p2", x: 0, y: 2 },
       ];
 
       controller.loadFormation(formation);

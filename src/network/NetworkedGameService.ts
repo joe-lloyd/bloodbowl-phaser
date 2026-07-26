@@ -128,18 +128,13 @@ export class NetworkedGameService implements IGameService {
     return true;
   }
   isSetupComplete(teamId: string): boolean {
-    // The replica's SetupManager.placedPlayers map is never populated on the
-    // guest (placements are optimistic on the team objects + snapshot-applied),
-    // so count placed players from grid positions instead. Mirrors
-    // SetupManager.isSetupComplete's eligibility rule.
-    const team = this.inner.getTeam(teamId);
-    if (!team) return false;
-    const eligible = team.players.filter(
-      (p) => p.status !== "KO" && p.status !== "Injured" && p.status !== "Dead"
-    );
-    const available = Math.min(7, eligible.length);
-    const placed = eligible.filter((p) => p.gridPosition).length;
-    return placed === available;
+    return this.getSetupStatus(teamId)?.canConfirm ?? false;
+  }
+  getSetupStatus(teamId: string) {
+    return this.inner.getState().setup?.teams[teamId];
+  }
+  getLastSetupError(): string | null {
+    return this.inner.getLastSetupError();
   }
   getSetupZone(teamId: string) {
     return this.inner.getSetupZone(teamId);
@@ -227,8 +222,45 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "swap-players", player1Id, player2Id });
     return true;
   }
-  confirmSetup(teamId: string): void {
+  confirmSetup(teamId: string): boolean {
     this.send({ type: "confirm-setup", teamId });
+    return true;
+  }
+  applySetupFormation(
+    teamId: string,
+    formation: import("../types/SetupTypes").FormationPosition[]
+  ): import("../types/SetupTypes").SetupFormationResult {
+    const team = this.inner.getTeam(teamId);
+    const placedPlayerIds: string[] = [];
+    if (team) {
+      team.players.forEach((player) => (player.gridPosition = undefined));
+      formation.slice(0, 7).forEach((position, index) => {
+        const rosterIndex = Number.parseInt(position.playerId, 10);
+        const player =
+          team.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
+        if (!player) return;
+        player.gridPosition = { x: position.x, y: position.y };
+        placedPlayerIds.push(player.id);
+      });
+    }
+    this.send({ type: "apply-formation", teamId, formation });
+    return {
+      placedPlayerIds,
+      skipped: [],
+      status: this.getSetupStatus(teamId) ?? {
+        teamId,
+        placedPlayerCount: placedPlayerIds.length,
+        requiredPlayerCount: Math.min(7, team?.players.length ?? 0),
+        availablePlayerCount: team?.players.length ?? 0,
+        restrictions: [],
+        canConfirm: false,
+        concessionDecision: "not-offered",
+      },
+    };
+  }
+  resolveSetupConcession(teamId: string, concede: boolean): boolean {
+    this.send({ type: "setup-concession", teamId, concede });
+    return true;
   }
   selectKicker(playerId: string): void {
     this.send({ type: "select-kicker", playerId });

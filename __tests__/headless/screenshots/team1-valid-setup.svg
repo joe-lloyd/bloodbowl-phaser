@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660">
+  <rect width="1200" height="660" fill="#2d5016"/>
+  <rect width="1200" height="120" fill="#ffffff" fill-opacity=".08"/>
+  <rect y="540" width="1200" height="120" fill="#ffffff" fill-opacity=".08"/>
+  <path d="M420 0V660M780 0V660M0 120H1200M0 540H1200" stroke="#ffffff" stroke-width="3" fill="none"/>
+  <path d="M0 0V660M60 0V660M120 0V660M180 0V660M240 0V660M300 0V660M360 0V660M420 0V660M480 0V660M540 0V660M600 0V660M660 0V660M720 0V660M780 0V660M840 0V660M900 0V660M960 0V660M1020 0V660M1080 0V660M1140 0V660M1200 0V660M0 0H1200M0 60H1200M0 120H1200M0 180H1200M0 240H1200M0 300H1200M0 360H1200M0 420H1200M0 480H1200M0 540H1200M0 600H1200M0 660H1200" stroke="#ffffff" stroke-opacity=".28" fill="none"/>
+  <circle cx="390" cy="270" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="390" cy="150" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="390" cy="390" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="390" cy="330" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="210" cy="90" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="210" cy="570" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="330" cy="330" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3"/>
+</svg>

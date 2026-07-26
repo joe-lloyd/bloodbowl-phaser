@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FormationManager } from "../../src/game/managers/FormationManager";
 import { FormationPosition } from "../../src/types/SetupTypes";
+import { SetupValidator } from "../../src/game/validators/SetupValidator";
 
 describe("FormationManager", () => {
   let manager: FormationManager;
@@ -177,9 +178,7 @@ describe("FormationManager", () => {
         expect(presets.length).toBeGreaterThanOrEqual(3);
         presets.forEach((preset) => {
           expect(preset.positions).toHaveLength(7);
-          const unique = new Set(
-            preset.positions.map((p) => `${p.x},${p.y}`)
-          );
+          const unique = new Set(preset.positions.map((p) => `${p.x},${p.y}`));
           expect(unique.size).toBe(7);
           preset.positions.forEach((p) => {
             if (isTeam1) {
@@ -192,6 +191,10 @@ describe("FormationManager", () => {
             expect(p.y).toBeGreaterThanOrEqual(0);
             expect(p.y).toBeLessThanOrEqual(10);
           });
+          expect(
+            new SetupValidator().validateFormation(preset.positions, isTeam1, 7)
+              .valid
+          ).toBe(true);
         });
       }
     });
@@ -210,9 +213,9 @@ describe("FormationManager", () => {
       expect(manager.getFormation("Human:left", "My Wall", true)).toEqual(
         custom
       );
-      expect(
-        manager.getFormation("Human:left", "Balanced", true)
-      ).toHaveLength(7);
+      expect(manager.getFormation("Human:left", "Balanced", true)).toHaveLength(
+        7
+      );
       expect(manager.getFormation("Human:left", "Nope", true)).toBeNull();
     });
 

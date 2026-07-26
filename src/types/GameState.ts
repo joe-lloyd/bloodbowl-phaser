@@ -59,4 +59,6 @@ export interface GameState {
     action: string | null; // ActionType
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
+  /** Present during/after setup so saves and online snapshots preserve it. */
+  setup?: import("./SetupTypes").SetupState;
 }

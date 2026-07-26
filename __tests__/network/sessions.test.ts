@@ -383,6 +383,37 @@ describe("networked sessions", () => {
     expect(response.reason).toBe("not-your-turn");
   });
 
+  it("gives a guest the same named setup restriction as local/headless play", async () => {
+    const match = createMatch({ seed: 8, startingPhase: GamePhase.SETUP });
+    await match.host.executeLocal({
+      type: "start-setup",
+      kickingTeamId: match.guestTeamId,
+    });
+    const [first, second] = match.game.ctx.team2.players;
+
+    expect(
+      (
+        await match.guest.sendCommand({
+          type: "place-player",
+          playerId: first.id,
+          x: 14,
+          y: 0,
+        })
+      ).ok
+    ).toBe(true);
+    const response = await match.guest.sendCommand({
+      type: "place-player",
+      playerId: second.id,
+      x: 14,
+      y: 1,
+    });
+
+    expect(response.ok).toBe(false);
+    expect(response.reason).toContain(
+      "Only one player may be set up in each Wide Zone."
+    );
+  });
+
   it("kickoff belongs to the kicking (non-active) team, not the active team", () => {
     // During KICKOFF, active = receiving team; the kicking team acts.
     const ctx = {

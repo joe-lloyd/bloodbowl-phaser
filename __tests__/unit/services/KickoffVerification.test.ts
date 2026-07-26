@@ -5,6 +5,7 @@ import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
 import { GameEventNames } from "../../../src/types/events.js";
+import { noDelay } from "../../../src/game/core/GameFlowManager.js";
 
 describe("Kickoff Verification", () => {
   let gameService: IGameService;
@@ -12,7 +13,7 @@ describe("Kickoff Verification", () => {
   let team1;
   let team2;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     eventBus = new EventBus();
     team1 = new TeamBuilder()
       .withId("t1")
@@ -41,22 +42,33 @@ describe("Kickoff Verification", () => {
       team1,
       team2,
       mockRngService as any,
-      mockBlockService
+      mockBlockService,
+      undefined,
+      noDelay
     );
 
     // Fast forward to Kickoff
-    gameService.startSetup();
-    // Place minimal players to satisfy setup (mocking usually relies on checking count, but let's just force phase if possible or do proper setup)
-    // Actually, let's just manually set phase if we can, or do the full setup loop since we are in unit test
-
-    // Setup Team 1
-    for (let i = 0; i < 7; i++)
-      gameService.placePlayer(team1.players[i].id, 0, 5 + i > 10 ? 10 : 5 + i); // Just valid spots
+    gameService.startSetup("t1");
+    const left = [
+      [6, 3],
+      [6, 5],
+      [6, 7],
+      [4, 2],
+      [4, 4],
+      [4, 6],
+      [4, 8],
+    ];
+    left.forEach(([x, y], index) =>
+      gameService.placePlayer(team1.players[index].id, x, y)
+    );
     gameService.confirmSetup("t1");
+    await Promise.resolve();
 
-    // Setup Team 2
-    for (let i = 0; i < 7; i++)
-      gameService.placePlayer(team2.players[i].id, 14, 5 + i > 10 ? 10 : 5 + i);
+    left
+      .map(([x, y]) => [19 - x, y])
+      .forEach(([x, y], index) =>
+        gameService.placePlayer(team2.players[index].id, x, y)
+      );
     gameService.confirmSetup("t2");
   });
 

@@ -7,6 +7,7 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
 import { GameSnapshot } from "./serialization";
+import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 
 export interface GridPosition {
   x: number;
@@ -21,6 +22,12 @@ export type HeadlessCommand =
   | { type: "place-player"; playerId: string; x: number; y: number }
   | { type: "remove-player"; playerId: string }
   | { type: "swap-players"; player1Id: string; player2Id: string }
+  | {
+      type: "apply-formation";
+      teamId: string;
+      formation: FormationPosition[];
+    }
+  | { type: "setup-concession"; teamId: string; concede: boolean }
   | { type: "confirm-setup"; teamId: string }
   // Kickoff
   | { type: "select-kicker"; playerId: string }
@@ -179,6 +186,15 @@ export interface LegalActions {
   pendingDecision: PendingDecision | null;
   players: PlayerActions[];
   canEndTurn: boolean;
+  setup?: {
+    status: SetupTeamStatus;
+    placements: FormationPosition[];
+    presetNames: string[];
+    canPlace: boolean;
+    canApplyPreset: boolean;
+    canChooseConcession: boolean;
+    canConfirm: boolean;
+  };
 }
 
 export interface CommandResponse {

@@ -25,17 +25,23 @@ import { GameEventNames, ActionType } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
+import { FormationManager } from "../game/managers/FormationManager";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
   string,
-  Record<string, "string" | "number" | "boolean" | "path" | "string-array">
+  Record<
+    string,
+    "string" | "number" | "boolean" | "path" | "formation" | "string-array"
+  >
 > = {
   "coin-flip": {},
   "start-setup": { kickingTeamId: "string" },
   "place-player": { playerId: "string", x: "number", y: "number" },
   "remove-player": { playerId: "string" },
   "swap-players": { player1Id: "string", player2Id: "string" },
+  "apply-formation": { teamId: "string", formation: "formation" },
+  "setup-concession": { teamId: "string", concede: "boolean" },
   "confirm-setup": { teamId: "string" },
   "select-kicker": { playerId: "string" },
   "kick-ball": { playerId: "string", x: "number", y: "number" },
@@ -243,7 +249,7 @@ export class HeadlessGame {
         break;
       case "place-player":
         if (!gs.placePlayer(cmd.playerId, cmd.x, cmd.y)) {
-          throw new Error("illegal-placement");
+          throw new Error(gs.getLastSetupError() ?? "illegal-placement");
         }
         break;
       case "remove-player":
@@ -251,12 +257,28 @@ export class HeadlessGame {
         break;
       case "swap-players":
         if (!gs.swapPlayers(cmd.player1Id, cmd.player2Id)) {
-          throw new Error("illegal-swap");
+          throw new Error(gs.getLastSetupError() ?? "illegal-swap");
+        }
+        break;
+      case "apply-formation": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.applySetupFormation(cmd.teamId, cmd.formation);
+        if (result.placedPlayerIds.length === 0 && result.skipped.length > 0) {
+          throw new Error(result.skipped[0].reason);
+        }
+        break;
+      }
+      case "setup-concession":
+        this.assertTeam(cmd.teamId);
+        if (!gs.resolveSetupConcession(cmd.teamId, cmd.concede)) {
+          throw new Error(gs.getLastSetupError() ?? "illegal-concession");
         }
         break;
       case "confirm-setup":
         this.assertTeam(cmd.teamId);
-        gs.confirmSetup(cmd.teamId);
+        if (!gs.confirmSetup(cmd.teamId)) {
+          throw new Error(gs.getLastSetupError() ?? "illegal-setup");
+        }
         break;
       case "select-kicker":
         gs.selectKicker(cmd.playerId);
@@ -657,7 +679,7 @@ export class HeadlessGame {
       }
     }
 
-    return {
+    const legal: LegalActions = {
       phase: state.phase,
       subPhase: state.subPhase ?? null,
       activeTeamId: state.activeTeamId,
@@ -665,6 +687,35 @@ export class HeadlessGame {
       players,
       canEndTurn: state.phase === GamePhase.PLAY && !this.pending,
     };
+    if (
+      state.phase === GamePhase.SETUP &&
+      state.activeTeamId &&
+      !this.pending
+    ) {
+      const status = gs.getSetupStatus(state.activeTeamId);
+      if (status) {
+        const isTeam1 = state.activeTeamId === this.ctx.team1.id;
+        legal.setup = {
+          status,
+          placements: (isTeam1
+            ? this.ctx.team1
+            : this.ctx.team2
+          ).players.flatMap((player) =>
+            player.gridPosition
+              ? [{ playerId: player.id, ...player.gridPosition }]
+              : []
+          ),
+          presetNames: new FormationManager()
+            .getBuiltInFormations(isTeam1)
+            .map((formation) => formation.name),
+          canPlace: status.concessionDecision !== "pending",
+          canApplyPreset: status.concessionDecision !== "pending",
+          canChooseConcession: status.concessionDecision === "pending",
+          canConfirm: status.canConfirm,
+        };
+      }
+    }
+    return legal;
   }
 
   // ===== Helpers =====
@@ -731,6 +782,22 @@ export class HeadlessGame {
           );
         if (!isPath)
           return `malformed-command: '${field}' must be a non-empty {x,y}[]`;
+      } else if (kind === "formation") {
+        const isFormation =
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.every(
+            (position) =>
+              typeof position === "object" &&
+              position !== null &&
+              typeof (position as { playerId?: unknown }).playerId ===
+                "string" &&
+              typeof (position as GridPosition).x === "number" &&
+              typeof (position as GridPosition).y === "number"
+          );
+        if (!isFormation) {
+          return `malformed-command: '${field}' must be a non-empty formation`;
+        }
       } else if (kind === "string-array") {
         const isStringArray =
           Array.isArray(value) &&

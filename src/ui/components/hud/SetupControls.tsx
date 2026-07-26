@@ -4,6 +4,7 @@ import { useEventBus } from "../../hooks/useEventBus";
 
 import { SubPhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
+import { SetupTeamStatus } from "../../../types/SetupTypes";
 
 interface SetupControlsProps {
   eventBus: EventBus;
@@ -22,12 +23,14 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
   >([]);
   const [selectedFormation, setSelectedFormation] = useState("");
   const [saveName, setSaveName] = useState("");
+  const [status, setStatus] = useState<SetupTeamStatus | null>(null);
 
   useEventBus(eventBus, GameEventNames.UI_ShowSetupControls, (data) => {
     setIsVisible(true);
     setSubPhase(data.subPhase);
     setActiveTeam(data.activeTeam);
-    setIsComplete(false);
+    setStatus(data.status ?? null);
+    setIsComplete(data.status?.canConfirm ?? false);
     setSaveName("");
     // Fetch this team's pickable formations (presets + their saved ones)
     eventBus.emit(GameEventNames.UI_SetupAction, { action: "list" });
@@ -54,11 +57,23 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
     }
   );
 
+  useEventBus(
+    eventBus,
+    GameEventNames.SetupRestrictionsUpdated,
+    (nextStatus) => {
+      setStatus(nextStatus);
+      setIsComplete(nextStatus.canConfirm);
+    }
+  );
+
   const handleAction = (action: string, name?: string) => {
     eventBus.emit(GameEventNames.UI_SetupAction, { action, name });
   };
 
   const selected = formations.find((f) => f.name === selectedFormation);
+  const concessionPending = status?.concessionDecision === "pending";
+  const outstanding =
+    status?.restrictions.filter((restriction) => !restriction.satisfied) ?? [];
 
   const SetupActionButton = ({
     action,
@@ -183,6 +198,26 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
 
       {/* Body */}
       <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col gap-1">
+        {concessionPending && (
+          <div className="mb-2 rounded border-2 border-red-800 bg-red-50 p-2 text-xs text-bb-text">
+            <div className="font-heading text-sm text-red-900">
+              Short-handed team
+            </div>
+            <p className="my-1">
+              Only {status?.availablePlayerCount ?? 0} players are available.
+              You may concede now without an additional penalty, or play on.
+            </p>
+            <div className="flex gap-1">
+              <SetupActionButton
+                action="continue"
+                label="PLAY ON"
+                color="green"
+              />
+              <SetupActionButton action="concede" label="CONCEDE" color="red" />
+            </div>
+          </div>
+        )}
+
         {/* Formations: presets + this team's saved layouts */}
         <select
           value={selectedFormation}
@@ -216,7 +251,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
             action="load"
             label="LOAD"
             color="blue"
-            disabled={!selectedFormation}
+            disabled={!selectedFormation || concessionPending}
             onClick={() => handleAction("load", selectedFormation)}
           />
           <SetupActionButton
@@ -259,6 +294,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           label="CLEAR PITCH"
           sub="Reset"
           color="red"
+          disabled={concessionPending}
         />
 
         <div className="h-2"></div>

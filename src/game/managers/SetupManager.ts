@@ -3,13 +3,21 @@ import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
 import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
-import { SetupZone } from "@/types/SetupTypes";
-
+import {
+  FormationPosition,
+  SetupFormationResult,
+  SetupState,
+  SetupTeamStatus,
+  SetupZone,
+} from "@/types/SetupTypes";
+import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
   private setupReady: Set<string> = new Set();
+  private validator = new SetupValidator();
+  private lastError: string | null = null;
 
   constructor(
     private eventBus: IEventBus,
@@ -23,26 +31,19 @@ export class SetupManager {
     private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
       new Promise((resolve) => setTimeout(resolve, ms))
   ) {
-    // Sync placedPlayers from initial team state (for Scenario loading)
     this.syncPlacedPlayers(team1);
     this.syncPlacedPlayers(team2);
+    this.state.setup?.confirmedTeamIds.forEach((id) => this.setupReady.add(id));
   }
 
   private syncPlacedPlayers(team: Team): void {
-    team.players.forEach((p) => {
-      if (p.gridPosition) {
-        this.placedPlayers.set(p.id, {
-          x: p.gridPosition.x,
-          y: p.gridPosition.y,
-        });
+    team.players.forEach((player) => {
+      if (player.gridPosition) {
+        this.placedPlayers.set(player.id, { ...player.gridPosition });
       }
     });
   }
 
-  /**
-   * Static utility: Sanitize team state - clear positions and reset status
-   * Used when starting a fresh game to prevent state leaks
-   */
   public static sanitizeTeam(team: Team): void {
     team.players.forEach((player) => {
       player.gridPosition = undefined;
@@ -54,226 +55,371 @@ export class SetupManager {
   public startSetup(startingTeamId?: string): void {
     this.state.phase = GamePhase.SETUP;
 
-    // If startingTeamId provided, jump to kicking setup
     if (startingTeamId) {
+      const kickingTeam = this.getTeam(startingTeamId);
+      if (!kickingTeam) {
+        this.refuse(`Unknown kicking team: ${startingTeamId}`);
+        return;
+      }
+      const receivingTeam =
+        kickingTeam.id === this.team1.id ? this.team2 : this.team1;
+      this.setupReady.clear();
+      this.state.setup = this.createSetupState(
+        kickingTeam.id,
+        receivingTeam.id
+      );
       this.state.subPhase = SubPhase.SETUP_KICKING;
-      this.state.activeTeamId = startingTeamId;
+      this.state.activeTeamId = kickingTeam.id;
+      this.updateAllStatuses();
       this.eventBus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.SETUP,
         subPhase: this.state.subPhase,
+        activeTeamId: kickingTeam.id,
       });
-    } else {
-      // Otherwise start at beginning sequence (Weather)
-      this.state.subPhase = SubPhase.WEATHER;
+      this.emitStatus(kickingTeam.id);
+      return;
+    }
+
+    this.state.subPhase = SubPhase.WEATHER;
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
+      phase: GamePhase.SETUP,
+      subPhase: SubPhase.WEATHER,
+    });
+    this.weatherService.rollWeather();
+    this.delay(2000).then(() => {
+      this.state.subPhase = SubPhase.COIN_FLIP;
       this.eventBus.emit(GameEventNames.PhaseChanged, {
         phase: GamePhase.SETUP,
-        subPhase: SubPhase.WEATHER,
+        subPhase: SubPhase.COIN_FLIP,
       });
-
-      // @TODO: Consider moveing the weather roll to GameService
-      this.weatherService.rollWeather();
-
-      // Proceed to Coin Flip after a short delay
-      this.delay(2000).then(() => {
-        this.state.subPhase = SubPhase.COIN_FLIP;
-        this.eventBus.emit(GameEventNames.PhaseChanged, {
-          phase: GamePhase.SETUP,
-          subPhase: SubPhase.COIN_FLIP,
-        });
-      });
-    }
+    });
   }
 
   public placePlayer(playerId: string, x: number, y: number): boolean {
-    if (this.state.phase !== GamePhase.SETUP) return false;
+    this.lastError = null;
+    if (this.state.phase !== GamePhase.SETUP) {
+      return this.refuse("Players may only be placed during setup.");
+    }
 
-    // Validate position
-    if (!this.isValidSetupPosition(playerId, x, y)) return false;
-
-    // Check if occupied by another player
-    if (this.isSquareOccupiedByOther(x, y, playerId)) return false;
-
-    // Check limit (7 players)
     const player = this.getPlayerById(playerId);
-    if (!player) return false;
+    if (!player) return this.refuse(`Unknown player: ${playerId}`);
+    if (this.state.activeTeamId !== player.teamId) {
+      return this.refuse(
+        "Only the team currently setting up may place players."
+      );
+    }
+    if (!this.isEligible(player)) {
+      return this.refuse("That player is not available for this drive.");
+    }
+    const status = this.getSetupStatus(player.teamId);
+    if (status?.concessionDecision === "pending") {
+      return this.refuse(
+        "Choose whether to concede or play on before placing players."
+      );
+    }
 
-    const teamId = player.teamId;
-    const teamPlacedCount = this.getPlacedCount(teamId);
-
-    // If moving existing player, don't count against limit
-    const isNewPlacement = !this.placedPlayers.has(playerId);
-    if (isNewPlacement && teamPlacedCount >= 7) return false;
+    const team = this.getTeam(player.teamId)!;
+    const positions = this.getFormationPositions(player.teamId).filter(
+      (position) => position.playerId !== playerId
+    );
+    const validation = this.validator.validatePlacement(
+      { playerId, x, y },
+      positions,
+      player.teamId === this.team1.id,
+      this.getEligiblePlayers(team).length
+    );
+    if (!validation.valid) {
+      return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
+        playerId,
+        x,
+        y,
+      });
+    }
+    if (this.isSquareOccupiedByOther(x, y, playerId)) {
+      return this.refuse("Only one player may occupy a pitch square.", {
+        playerId,
+        x,
+        y,
+      });
+    }
 
     this.placedPlayers.set(playerId, { x, y });
     player.gridPosition = { x, y };
-
+    player.status = PlayerStatus.ACTIVE;
+    this.updateStatus(player.teamId);
     this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
+    this.emitStatus(player.teamId);
     return true;
   }
 
   public removePlayer(playerId: string): void {
-    if (this.placedPlayers.has(playerId)) {
-      this.placedPlayers.delete(playerId);
-      const player = this.getPlayerById(playerId);
-      if (player) player.gridPosition = undefined;
-
+    this.lastError = null;
+    const player = this.getPlayerById(playerId);
+    if (
+      !player ||
+      this.state.phase !== GamePhase.SETUP ||
+      this.state.activeTeamId !== player.teamId
+    ) {
+      this.refuse("Only the team currently setting up may remove players.");
+      return;
+    }
+    if (this.placedPlayers.delete(playerId)) {
+      player.gridPosition = undefined;
+      if (this.isEligible(player)) player.status = PlayerStatus.RESERVE;
+      this.updateStatus(player.teamId);
       this.eventBus.emit(GameEventNames.PlayerRemoved, playerId);
+      this.emitStatus(player.teamId);
     }
   }
 
   public swapPlayers(player1Id: string, player2Id: string): boolean {
-    if (this.state.phase !== GamePhase.SETUP) return false;
+    this.lastError = null;
+    if (this.state.phase !== GamePhase.SETUP) {
+      return this.refuse("Players may only be swapped during setup.");
+    }
+    const player1 = this.getPlayerById(player1Id);
+    const player2 = this.getPlayerById(player2Id);
+    if (
+      !player1 ||
+      !player2 ||
+      player1.teamId !== player2.teamId ||
+      player1.teamId !== this.state.activeTeamId
+    ) {
+      return this.refuse(
+        "Only players on the team currently setting up may be swapped."
+      );
+    }
 
     const pos1 = this.placedPlayers.get(player1Id);
     const pos2 = this.placedPlayers.get(player2Id);
+    if (!pos1 && !pos2) return this.refuse("Neither player is on the pitch.");
 
-    if (!pos1 && !pos2) return false;
-
-    // Update positions logic
     if (pos1 && pos2) {
       this.placedPlayers.set(player1Id, pos2);
       this.placedPlayers.set(player2Id, pos1);
-    } else if (pos1 && !pos2) {
+    } else if (pos1) {
       this.placedPlayers.set(player2Id, pos1);
       this.placedPlayers.delete(player1Id);
-    } else if (!pos1 && pos2) {
+    } else if (pos2) {
       this.placedPlayers.set(player1Id, pos2);
       this.placedPlayers.delete(player2Id);
     }
-
-    // Sync player objects
-    const p1 = this.getPlayerById(player1Id);
-    const p2 = this.getPlayerById(player2Id);
-
-    if (p1) p1.gridPosition = this.placedPlayers.get(player1Id);
-    if (p2) p2.gridPosition = this.placedPlayers.get(player2Id);
-
-    this.eventBus.emit(GameEventNames.PlayersSwapped, { player1Id, player2Id });
+    player1.gridPosition = this.placedPlayers.get(player1Id);
+    player2.gridPosition = this.placedPlayers.get(player2Id);
+    player1.status = player1.gridPosition
+      ? PlayerStatus.ACTIVE
+      : PlayerStatus.RESERVE;
+    player2.status = player2.gridPosition
+      ? PlayerStatus.ACTIVE
+      : PlayerStatus.RESERVE;
+    this.updateStatus(player1.teamId);
+    this.eventBus.emit(GameEventNames.PlayersSwapped, {
+      player1Id,
+      player2Id,
+    });
+    this.emitStatus(player1.teamId);
     return true;
   }
 
-  public confirmSetup(teamId: string): void {
+  public applyFormation(
+    teamId: string,
+    formation: FormationPosition[]
+  ): SetupFormationResult {
+    this.lastError = null;
+    const team = this.getTeam(teamId);
+    if (!team || this.state.activeTeamId !== teamId) {
+      const reason = "Only the team currently setting up may load a formation.";
+      this.refuse(reason);
+      return {
+        placedPlayerIds: [],
+        skipped: [{ reason }],
+        status: this.requireStatus(teamId),
+      };
+    }
+    const status = this.getSetupStatus(teamId);
+    if (status?.concessionDecision === "pending") {
+      const reason =
+        "Choose whether to concede or play on before loading a formation.";
+      this.refuse(reason);
+      return {
+        placedPlayerIds: [],
+        skipped: [{ reason }],
+        status,
+      };
+    }
+
+    this.clearTeamPlacements(team);
+    const eligible = this.getEligiblePlayers(team);
+    const placedPlayerIds: string[] = [];
+    const skipped: { playerId?: string; reason: string }[] = [];
+    const used = new Set<string>();
+
+    formation
+      .slice(0, Math.min(7, eligible.length))
+      .forEach((position, index) => {
+        const rosterIndex = Number.parseInt(position.playerId, 10);
+        const indexed = Number.isNaN(rosterIndex)
+          ? eligible[index]
+          : team.players[rosterIndex];
+        const player =
+          indexed && this.isEligible(indexed) && !used.has(indexed.id)
+            ? indexed
+            : eligible.find((candidate) => !used.has(candidate.id));
+        if (!player) {
+          skipped.push({
+            reason: "No available player for this preset square.",
+          });
+          return;
+        }
+        used.add(player.id);
+        if (this.placePlayer(player.id, position.x, position.y)) {
+          placedPlayerIds.push(player.id);
+        } else {
+          skipped.push({
+            playerId: player.id,
+            reason: this.lastError ?? "Illegal preset placement.",
+          });
+        }
+      });
+
+    this.updateStatus(teamId);
+    this.emitStatus(teamId);
+    return {
+      placedPlayerIds,
+      skipped,
+      status: this.requireStatus(teamId),
+    };
+  }
+
+  public confirmSetup(teamId: string): boolean {
+    this.lastError = null;
+    if (
+      this.state.phase !== GamePhase.SETUP ||
+      this.state.activeTeamId !== teamId
+    ) {
+      return this.refuse(
+        "Only the team currently setting up may confirm its formation."
+      );
+    }
+
+    const status = this.updateStatus(teamId);
+    if (!status.canConfirm) {
+      const reason =
+        status.restrictions.find(
+          (restriction) => restriction.satisfiable && !restriction.satisfied
+        )?.message ?? "Setup is incomplete.";
+      return this.refuse(reason);
+    }
+
+    const team = this.getTeam(teamId)!;
+    this.getEligiblePlayers(team).forEach((player) => {
+      if (!player.gridPosition) player.status = PlayerStatus.RESERVE;
+    });
     this.setupReady.add(teamId);
+    const setup = this.ensureSetupState();
+    setup.confirmedTeamIds = Array.from(this.setupReady);
+    this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
 
     if (this.state.subPhase === SubPhase.SETUP_KICKING) {
-      if (teamId === this.state.activeTeamId) {
-        // Kicking team done. Switch to Receiving.
-        const receivingTeamId =
-          teamId === this.team1.id ? this.team2.id : this.team1.id;
-
-        // Use a delay to ensure UI updates and previous events clear
-        this.delay(100).then(() => {
-          this.state.subPhase = SubPhase.SETUP_RECEIVING;
-          this.state.activeTeamId = receivingTeamId;
-
-          this.eventBus.emit(GameEventNames.PhaseChanged, {
-            phase: GamePhase.SETUP,
-            subPhase: SubPhase.SETUP_RECEIVING,
-            activeTeamId: receivingTeamId,
-          });
+      const receivingTeamId = setup.receivingTeamId!;
+      this.delay(100).then(() => {
+        this.state.subPhase = SubPhase.SETUP_RECEIVING;
+        this.state.activeTeamId = receivingTeamId;
+        setup.currentTeamId = receivingTeamId;
+        this.updateStatus(receivingTeamId);
+        this.eventBus.emit(GameEventNames.PhaseChanged, {
+          phase: GamePhase.SETUP,
+          subPhase: SubPhase.SETUP_RECEIVING,
+          activeTeamId: receivingTeamId,
         });
-      }
+        this.emitStatus(receivingTeamId);
+      });
     } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
-      if (teamId === this.state.activeTeamId) {
-        // Receiving team done. Proceed to Kickoff.
-        this.callbacks.onKickoffRequested();
-      }
-    } else {
-      // Fallback
-      if (
-        this.setupReady.has(this.team1.id) &&
-        this.setupReady.has(this.team2.id)
-      ) {
-        this.callbacks.onKickoffRequested();
-      } else {
-        this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
-      }
+      setup.currentTeamId = null;
+      this.callbacks.onKickoffRequested();
     }
+    return true;
+  }
+
+  public resolveConcession(teamId: string, concede: boolean): boolean {
+    this.lastError = null;
+    const status = this.getSetupStatus(teamId);
+    if (
+      this.state.phase !== GamePhase.SETUP ||
+      this.state.activeTeamId !== teamId ||
+      !status ||
+      status.concessionDecision !== "pending"
+    ) {
+      return this.refuse(
+        "No pre-setup concession decision is pending for that team."
+      );
+    }
+
+    status.concessionDecision = concede ? "conceded" : "continue";
+    if (concede) {
+      this.state.phase = GamePhase.GAME_OVER;
+      this.state.activeTeamId = null;
+      this.ensureSetupState().currentTeamId = null;
+      this.eventBus.emit(GameEventNames.SetupConcessionResolved, {
+        teamId,
+        conceded: true,
+        penaltyFree: true,
+      });
+      this.eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: GamePhase.GAME_OVER,
+      });
+      return true;
+    }
+
+    this.updateStatus(teamId);
+    this.eventBus.emit(GameEventNames.SetupConcessionResolved, {
+      teamId,
+      conceded: false,
+      penaltyFree: true,
+    });
+    this.emitStatus(teamId);
+    return true;
   }
 
   public isSetupComplete(teamId: string): boolean {
-    const placed = this.getPlacedCount(teamId);
-    const team = teamId === this.team1.id ? this.team1 : this.team2;
+    return this.updateStatus(teamId).canConfirm;
+  }
 
-    const eligiblePlayers = team.players.filter(
-      (p) => p.status !== "KO" && p.status !== "Injured" && p.status !== "Dead"
-    );
-    const available = Math.min(7, eligiblePlayers.length);
+  public getSetupStatus(teamId: string): SetupTeamStatus | undefined {
+    const setup = this.state.setup;
+    if (!setup || !this.getTeam(teamId)) return undefined;
+    return this.updateStatus(teamId);
+  }
 
-    return placed === available;
+  public getLastError(): string | null {
+    return this.lastError;
   }
 
   public getSetupZone(teamId: string): SetupZone | undefined {
-    if (teamId === this.team1.id) {
-      return { minX: 0, maxX: 6, minY: 0, maxY: 10 };
-    } else if (teamId === this.team2.id) {
-      return { minX: 13, maxX: 19, minY: 0, maxY: 10 };
-    }
+    if (teamId === this.team1.id) return this.validator.getSetupZone(true);
+    if (teamId === this.team2.id) return this.validator.getSetupZone(false);
     return undefined;
   }
 
-  // Helpers
-  private getPlacedCount(teamId: string): number {
-    let count = 0;
-    this.placedPlayers.forEach((_pos, pid) => {
-      const p = this.getPlayerById(pid);
-      if (p && p.teamId === teamId) count++;
+  public getFormationPositions(teamId: string): FormationPosition[] {
+    const team = this.getTeam(teamId);
+    if (!team) return [];
+    return team.players.flatMap((player) => {
+      const position = this.placedPlayers.get(player.id);
+      return position ? [{ playerId: player.id, ...position }] : [];
     });
-    return count;
   }
 
-  private isValidSetupPosition(
-    playerId: string,
-    x: number,
-    y: number
-  ): boolean {
-    if (x < 0 || x >= 20 || y < 0 || y >= 11) return false;
-    const player = this.getPlayerById(playerId);
-    if (!player) return false;
-
-    // Team 1: Left side (x: 0-6), Team 2: Right side (x: 13-19)
-    if (player.teamId === this.team1.id) {
-      return x >= 0 && x <= 6;
-    } else {
-      return x >= 13 && x < 20;
-    }
-  }
-
-  private isSquareOccupiedByOther(
-    x: number,
-    y: number,
-    playerId: string
-  ): boolean {
-    for (const [pid, pos] of this.placedPlayers.entries()) {
-      if (pid !== playerId && pos.x === x && pos.y === y) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private getPlayerById(playerId: string): Player | undefined {
-    return (
-      this.team1.players.find((p) => p.id === playerId) ||
-      this.team2.players.find((p) => p.id === playerId)
-    );
-  }
-
-  // For Sandbox/Scenario loading, we might need a reset or direct set
   public reset(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
+    this.state.setup = undefined;
   }
 
-  /**
-   * End-of-drive pitch clear: every player returns to the dugout.
-   * Standing/prone/stunned players go to Reserves; KO'd players stay in the
-   * KO box (until recovery is rolled); injured/dead/removed stay out.
-   */
   public resetForNewDrive(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
-
+    this.state.setup = undefined;
     [this.team1, this.team2].forEach((team) => {
       team.players.forEach((player) => {
         player.gridPosition = undefined;
@@ -291,5 +437,160 @@ export class SetupManager {
 
   public setPlacedPlayer(playerId: string, x: number, y: number): void {
     this.placedPlayers.set(playerId, { x, y });
+  }
+
+  private createSetupState(
+    kickingTeamId: string,
+    receivingTeamId: string
+  ): SetupState {
+    return {
+      kickingTeamId,
+      receivingTeamId,
+      currentTeamId: kickingTeamId,
+      confirmedTeamIds: [],
+      teams: {},
+    };
+  }
+
+  private ensureSetupState(): SetupState {
+    if (!this.state.setup) {
+      const kicking = this.state.activeTeamId ?? this.team1.id;
+      const receiving =
+        kicking === this.team1.id ? this.team2.id : this.team1.id;
+      this.state.setup = this.createSetupState(kicking, receiving);
+    }
+    return this.state.setup;
+  }
+
+  private updateAllStatuses(): void {
+    this.updateStatus(this.team1.id);
+    this.updateStatus(this.team2.id);
+  }
+
+  private updateStatus(teamId: string): SetupTeamStatus {
+    const setup = this.ensureSetupState();
+    const team = this.getTeam(teamId);
+    if (!team) return this.requireStatus(teamId);
+    const availablePlayerCount = this.getEligiblePlayers(team).length;
+    const positions = this.getFormationPositions(teamId);
+    const validation = this.validator.validateFormation(
+      positions,
+      teamId === this.team1.id,
+      availablePlayerCount
+    );
+    const previousDecision = setup.teams[teamId]?.concessionDecision;
+    const concessionDecision =
+      previousDecision ??
+      (availablePlayerCount <= 3 ? "pending" : "not-offered");
+    const restrictions = [...validation.restrictions];
+    if (concessionDecision === "pending") {
+      restrictions.push({
+        id: "concession-decision",
+        satisfied: false,
+        satisfiable: true,
+        message: "Choose whether to concede without penalty or play on.",
+      });
+    }
+    const status: SetupTeamStatus = {
+      teamId,
+      placedPlayerCount: positions.length,
+      requiredPlayerCount: Math.min(7, availablePlayerCount),
+      availablePlayerCount,
+      restrictions,
+      canConfirm:
+        restrictions.every(
+          (restriction) => !restriction.satisfiable || restriction.satisfied
+        ) && concessionDecision !== "pending",
+      concessionDecision,
+    };
+    setup.teams[teamId] = status;
+    return status;
+  }
+
+  private requireStatus(teamId: string): SetupTeamStatus {
+    const existing = this.state.setup?.teams[teamId];
+    if (existing) return existing;
+    return {
+      teamId,
+      placedPlayerCount: 0,
+      requiredPlayerCount: 0,
+      availablePlayerCount: 0,
+      restrictions: [],
+      canConfirm: false,
+      concessionDecision: "not-offered",
+    };
+  }
+
+  private emitStatus(teamId: string): void {
+    const status = this.updateStatus(teamId);
+    this.eventBus.emit(GameEventNames.SetupRestrictionsUpdated, status);
+    if (status.concessionDecision === "pending") {
+      this.eventBus.emit(GameEventNames.SetupConcessionOffered, {
+        teamId,
+        availablePlayerCount: status.availablePlayerCount,
+      });
+    }
+  }
+
+  private refuse(
+    reason: string,
+    placement?: { playerId: string; x: number; y: number }
+  ): false {
+    this.lastError = reason;
+    if (placement) {
+      this.eventBus.emit(GameEventNames.PlacementInvalid, {
+        ...placement,
+        reason,
+      });
+    }
+    this.eventBus.emit(GameEventNames.UI_Notification, reason);
+    return false;
+  }
+
+  private clearTeamPlacements(team: Team): void {
+    team.players.forEach((player) => {
+      if (this.placedPlayers.delete(player.id)) {
+        player.gridPosition = undefined;
+        if (this.isEligible(player)) player.status = PlayerStatus.RESERVE;
+        this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
+      }
+    });
+  }
+
+  private isSquareOccupiedByOther(
+    x: number,
+    y: number,
+    playerId: string
+  ): boolean {
+    for (const [id, position] of this.placedPlayers.entries()) {
+      if (id !== playerId && position.x === x && position.y === y) return true;
+    }
+    return false;
+  }
+
+  private getEligiblePlayers(team: Team): Player[] {
+    return team.players.filter((player) => this.isEligible(player));
+  }
+
+  private isEligible(player: Player): boolean {
+    return ![
+      PlayerStatus.KO,
+      PlayerStatus.INJURED,
+      PlayerStatus.DEAD,
+      PlayerStatus.REMOVED,
+    ].includes(player.status);
+  }
+
+  private getTeam(teamId: string): Team | undefined {
+    if (teamId === this.team1.id) return this.team1;
+    if (teamId === this.team2.id) return this.team2;
+    return undefined;
+  }
+
+  private getPlayerById(playerId: string): Player | undefined {
+    return (
+      this.team1.players.find((player) => player.id === playerId) ||
+      this.team2.players.find((player) => player.id === playerId)
+    );
   }
 }

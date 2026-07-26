@@ -195,6 +195,7 @@ export class SceneOrchestrator {
     this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
       subPhase,
       activeTeam,
+      status: this.gameService.getSetupStatus(activeTeam.id),
     });
 
     this.scene.highlightSetupZone(isTeam1);

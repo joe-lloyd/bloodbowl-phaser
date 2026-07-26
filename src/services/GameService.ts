@@ -128,6 +128,7 @@ export class GameService implements IGameService {
       ballPosition: null, // Ball not placed yet
       activePlayer: null,
       coachesEjected: [],
+      setup: undefined,
     };
   }
   private playerActionManager: PlayerActionManager;
@@ -414,12 +415,33 @@ export class GameService implements IGameService {
     return this.setupManager.swapPlayers(player1Id, player2Id);
   }
 
-  confirmSetup(teamId: string): void {
-    this.setupManager.confirmSetup(teamId);
+  confirmSetup(teamId: string): boolean {
+    return this.setupManager.confirmSetup(teamId);
   }
 
   isSetupComplete(teamId: string): boolean {
     return this.setupManager.isSetupComplete(teamId);
+  }
+
+  getSetupStatus(
+    teamId: string
+  ): import("../types/SetupTypes").SetupTeamStatus | undefined {
+    return this.setupManager.getSetupStatus(teamId);
+  }
+
+  getLastSetupError(): string | null {
+    return this.setupManager.getLastError();
+  }
+
+  applySetupFormation(
+    teamId: string,
+    formation: import("../types/SetupTypes").FormationPosition[]
+  ): import("../types/SetupTypes").SetupFormationResult {
+    return this.setupManager.applyFormation(teamId, formation);
+  }
+
+  resolveSetupConcession(teamId: string, concede: boolean): boolean {
+    return this.setupManager.resolveConcession(teamId, concede);
   }
 
   getSetupZone(

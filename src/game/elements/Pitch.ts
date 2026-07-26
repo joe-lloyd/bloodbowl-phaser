@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GameConfig } from "../../config/GameConfig";
+import { GameConfig, SEVENS_GEOMETRY } from "../../config/GameConfig";
 import { getPitchPresentation, PitchTheme } from "../presentation/pitchThemes";
 import { gridToPixel } from "./GridUtils";
 
@@ -196,7 +196,8 @@ export class Pitch {
       this.theme.lines.majorAlpha
     );
 
-    const leftSetupX = 7 * this.squareSize;
+    const leftSetupX =
+      (SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1 + 1) * this.squareSize;
     graphics.lineBetween(
       leftSetupX,
       0,
@@ -204,7 +205,8 @@ export class Pitch {
       this.height * this.squareSize
     );
 
-    const rightSetupX = 13 * this.squareSize;
+    const rightSetupX =
+      SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2 * this.squareSize;
     graphics.lineBetween(
       rightSetupX,
       0,
@@ -219,8 +221,8 @@ export class Pitch {
     const graphics = this.scene.add.graphics();
     graphics.setName("pitch_wide_zones");
 
-    const topY = 2 * this.squareSize;
-    const bottomY = (this.height - 2) * this.squareSize;
+    const topY = (SEVENS_GEOMETRY.WIDE_ZONE_ROWS.top.max + 1) * this.squareSize;
+    const bottomY = SEVENS_GEOMETRY.WIDE_ZONE_ROWS.bottom.min * this.squareSize;
     const pitchWidth = this.width * this.squareSize;
     const pitchHeight = this.height * this.squareSize;
 
