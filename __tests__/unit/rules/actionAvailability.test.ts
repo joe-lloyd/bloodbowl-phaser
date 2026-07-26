@@ -47,7 +47,12 @@ describe("computeActionAvailability", () => {
   it("hides Block when the adjacent opponent is down", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.PRONE,
+      }),
     ];
     expect(computeActionAvailability(input).block).toBe(false);
   });
@@ -56,7 +61,12 @@ describe("computeActionAvailability", () => {
     const input = base();
     // Prone player directly to the right; (7,5) is the empty landing square.
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.PRONE,
+      }),
     ];
     expect(computeActionAvailability(input).jump).toBe(true);
   });
@@ -84,7 +94,12 @@ describe("computeActionAvailability", () => {
   it("hides Jump when all three push-back squares beyond the downed player are occupied", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.PRONE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.PRONE,
+      }),
       // Push-back squares of (6,5) from (5,5) are (7,5)/(7,4)/(7,6) — fill them.
       P({ id: "e2", teamId: "team2", gridPosition: { x: 7, y: 5 } }),
       P({ id: "e3", teamId: "team2", gridPosition: { x: 7, y: 4 } }),
@@ -98,7 +113,12 @@ describe("computeActionAvailability", () => {
     // Prone player at (6,6) diagonal to the jumper at (5,5): push-back squares
     // (7,7)/(7,6)/(6,7) are empty, so a Jump is offered.
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 6 }, status: PlayerStatus.PRONE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 6 },
+        status: PlayerStatus.PRONE,
+      }),
     ];
     expect(computeActionAvailability(input).jump).toBe(true);
   });
@@ -106,7 +126,12 @@ describe("computeActionAvailability", () => {
   it("hides Foul when no downed enemy is reachable", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 18, y: 9 }, status: PlayerStatus.PRONE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 18, y: 9 },
+        status: PlayerStatus.PRONE,
+      }),
     ];
     expect(computeActionAvailability(input).foul).toBe(false);
   });
@@ -114,7 +139,12 @@ describe("computeActionAvailability", () => {
   it("shows Foul when a downed enemy is adjacent (or reachable-adjacent)", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.STUNNED }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.STUNNED,
+      }),
     ];
     expect(computeActionAvailability(input).foul).toBe(true);
   });
@@ -151,7 +181,12 @@ describe("computeActionAvailability", () => {
   it("gates Blitz on a standing enemy the player can end adjacent to", () => {
     const input = base();
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 9, y: 5 }, status: PlayerStatus.ACTIVE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 9, y: 5 },
+        status: PlayerStatus.ACTIVE,
+      }),
     ];
     expect(computeActionAvailability(input).blitz).toBe(false);
     input.reachable = [{ x: 8, y: 5, cost: 3 }]; // adjacent to the enemy
@@ -167,12 +202,77 @@ describe("computeActionAvailability", () => {
     // no enemy adjacent yet
     expect(computeActionAvailability(input).gaze).toBe(false);
     input.opponents = [
-      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.ACTIVE }),
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.ACTIVE,
+      }),
     ];
     expect(computeActionAvailability(input).gaze).toBe(true);
     // a player without the skill never sees it
     input.player = P({ gridPosition: { x: 5, y: 5 } });
     expect(computeActionAvailability(input).gaze).toBe(false);
+  });
+
+  it("offers typed direct and labelled Blitz replacements for every eligible attack", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      skills: [
+        getSkill(SkillType.STAB),
+        getSkill(SkillType.CHAINSAW),
+        getSkill(SkillType.BREATHE_FIRE),
+        getSkill(SkillType.MONSTROUS_MOUTH),
+        getSkill(SkillType.PROJECTILE_VOMIT),
+      ],
+    });
+    input.opponents = [
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 6, y: 5 },
+      }),
+    ];
+
+    const availability = computeActionAvailability(input);
+    expect(availability.directBlockReplacements).toEqual([
+      "stab",
+      "chainsaw",
+      "breatheFire",
+      "chomp",
+      "vomit",
+    ]);
+    expect(availability.blitzBlockReplacements).toEqual([
+      "stab",
+      "chainsaw",
+      "breatheFire",
+      "chomp",
+      "vomit",
+    ]);
+
+    input.turn.hasBlitzed = true;
+    expect(computeActionAvailability(input).blitzBlockReplacements).toEqual([]);
+  });
+
+  it("offers only a Blitz replacement when movement can reach the target", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      skills: [getSkill(SkillType.STAB)],
+    });
+    input.opponents = [
+      P({
+        id: "e",
+        teamId: "team2",
+        gridPosition: { x: 9, y: 5 },
+      }),
+    ];
+    input.reachable = [{ x: 8, y: 5 }];
+
+    const availability = computeActionAvailability(input);
+    expect(availability.directBlockReplacements).toEqual([]);
+    expect(availability.blitzBlockReplacements).toEqual(["stab"]);
   });
 
   it("shows nothing actionable once the player has acted", () => {
@@ -186,7 +286,10 @@ describe("computeActionAvailability", () => {
 
   it("marks Stand Up for a prone player", () => {
     const input = base();
-    input.player = P({ gridPosition: { x: 5, y: 5 }, status: PlayerStatus.PRONE });
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      status: PlayerStatus.PRONE,
+    });
     expect(computeActionAvailability(input).standUp).toBe(true);
   });
 

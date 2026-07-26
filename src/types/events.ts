@@ -504,6 +504,7 @@ export interface GameEvents {
   [GameEventNames.ActionModeChanged]: {
     playerId: string;
     action: ActionType;
+    blockReplacement?: import("./BlockReplacement").BlockReplacement;
     autoSelectMove: boolean;
   };
   [GameEventNames.PlayerMovedInAction]: {
@@ -564,7 +565,11 @@ export interface UIEvents {
   [GameEventNames.UI_RerollPurchased]: void;
 
   // Game Actions
-  [GameEventNames.UI_ActionSelected]: { action: ActionType; playerId: string };
+  [GameEventNames.UI_ActionSelected]: {
+    action: ActionType;
+    playerId: string;
+    blockReplacement?: import("./BlockReplacement").BlockReplacement;
+  };
   [GameEventNames.UI_ConfirmAction]: { actionId: string };
   [GameEventNames.UI_CancelAction]: void;
   [GameEventNames.UI_EndActivation]: void;

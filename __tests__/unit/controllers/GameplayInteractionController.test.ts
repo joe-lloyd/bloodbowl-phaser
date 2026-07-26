@@ -604,7 +604,8 @@ describe("GameplayInteractionController", () => {
 
       expect(mockGameService.declareAction).toHaveBeenCalledWith(
         player1.id,
-        "move"
+        "move",
+        undefined
       );
       expect((controller as any).currentActionMode).toBe("move");
     });

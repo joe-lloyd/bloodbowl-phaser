@@ -18,6 +18,7 @@ import {
 import { GameSnapshot } from "../../headless/serialization";
 import { HeadlessGame } from "../../headless/HeadlessGame";
 import { BlockResultType } from "../../services/BlockResolutionService";
+import { RosterName } from "../../types/Team";
 
 /**
  * Stable reference to a placed player: "team1:0" is placement index 0 of
@@ -87,6 +88,18 @@ export interface RuleConfig {
   decisionPolicy?: DecisionPolicy;
   /** Seed search window override (default from=1, limit=200). */
   seedSearch?: { from?: number; limit?: number };
+  /**
+   * Why each scenario-only skill holder legally has the tested skill.
+   * Roster defaults should not also grant the skill in the placement.
+   */
+  skillProvenance?: {
+    playerRef: PlayerRef;
+    skill: SkillType;
+    roster: RosterName;
+    positionName: string;
+    source: "roster-default" | "primary-advancement" | "secondary-advancement";
+    reason: string;
+  }[];
   outcomes: RuleOutcome[];
 }
 

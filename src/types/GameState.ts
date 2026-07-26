@@ -57,6 +57,10 @@ export interface GameState {
   activePlayer: {
     id: string;
     action: string | null; // ActionType
+    /** Explicit attack selected for a direct action or Blitz replacement. */
+    blockReplacement?: BlockReplacement;
+    /** Set atomically when the accepted target command commits the attack. */
+    blockReplacementUsed?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */
@@ -66,3 +70,4 @@ export interface GameState {
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
 }
+import { BlockReplacement } from "./BlockReplacement";

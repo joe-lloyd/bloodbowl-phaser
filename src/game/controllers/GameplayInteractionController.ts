@@ -20,6 +20,11 @@ import {
 } from "../rules/throwTeammate";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 import { KickoffEvent } from "../kickoff/kickoffEvents";
+import {
+  BlockReplacement,
+  BLOCK_REPLACEMENT_DEFINITIONS,
+  blockReplacementForDirectAction,
+} from "../../types/BlockReplacement";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -93,6 +98,8 @@ export class GameplayInteractionController {
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
+  /** Explicit direct/Blitz attack declaration retained through movement. */
+  private currentBlockReplacement: BlockReplacement | null = null;
   private currentStepId: string | null = null;
   private actionSteps: { id: string; label: string }[] = [];
   private hasMovedInAction: boolean = false;
@@ -239,8 +246,17 @@ export class GameplayInteractionController {
     // If we are in an Action (like Pass) and haven't moved, "Back" should probably cancel the Action Mode
     // and return to "Just Selected" state (Action Menu open).
 
+    if (!this.gameService.cancelAction(this.selectedPlayerId)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "This Action is already committed and cannot be cancelled."
+      );
+      return;
+    }
+
     // Reset Action Mode but keep player selected
     this.currentActionMode = null;
+    this.currentBlockReplacement = null;
     this.currentStepId = null;
     this.actionSteps = [];
     this.pitch.clearPassVisualization();
@@ -320,6 +336,10 @@ export class GameplayInteractionController {
     // Any other step ends Jump targeting.
     this.jumpTargeting = false;
     this.currentStepId = data.stepId;
+    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+      steps: this.actionSteps,
+      currentStepId: this.currentStepId,
+    });
     console.log(`Switched action step to: ${data.stepId}`);
 
     // 1. Refresh static visuals (range overlay, tackle zones) for the new step
@@ -341,6 +361,7 @@ export class GameplayInteractionController {
   private onActionSelected = async (data: {
     action: import("@/types/events").ActionType;
     playerId: string;
+    blockReplacement?: BlockReplacement;
   }) => {
     // Immediate Actions
     if (data.action === "standUp") {
@@ -364,10 +385,19 @@ export class GameplayInteractionController {
     }
 
     // Mode-Setting Actions (Blitz, Pass, Move, etc.)
-    const success = this.gameService.declareAction(data.playerId, data.action);
+    const blockReplacement =
+      data.blockReplacement ??
+      blockReplacementForDirectAction(data.action) ??
+      null;
+    const success = this.gameService.declareAction(
+      data.playerId,
+      data.action,
+      blockReplacement ?? undefined
+    );
     if (success) {
       // Set action mode state
       this.currentActionMode = data.action;
+      this.currentBlockReplacement = blockReplacement;
       this.hasMovedInAction = false;
 
       // Define steps based on action
@@ -406,10 +436,18 @@ export class GameplayInteractionController {
           ];
           break;
         case "blitz":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "block", label: "Block" },
-          ];
+          this.actionSteps = blockReplacement
+            ? [
+                { id: "move", label: "Move" },
+                {
+                  id: "target",
+                  label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
+                },
+              ]
+            : [
+                { id: "move", label: "Move" },
+                { id: "block", label: "Block" },
+              ];
           break;
         case "handoff":
           this.actionSteps = [
@@ -485,6 +523,7 @@ export class GameplayInteractionController {
       this.eventBus.emit(GameEventNames.ActionModeChanged, {
         playerId: data.playerId,
         action: data.action,
+        blockReplacement: blockReplacement ?? undefined,
         autoSelectMove: true,
       });
 
@@ -894,15 +933,19 @@ export class GameplayInteractionController {
       return;
     }
 
-    // SPECIAL ACTION Execution (Stab / Breathe Fire / Projectile Vomit /
-    // Hypnotic Gaze / Chomp): click an adjacent Standing opponent to resolve.
+    // SPECIAL ACTION Execution, including an explicitly declared Blitz
+    // replacement retained through movement.
     if (
       this.currentActionMode &&
-      SPECIAL_ACTION_MODES.has(this.currentActionMode) &&
+      (SPECIAL_ACTION_MODES.has(this.currentActionMode) ||
+        (this.currentActionMode === "blitz" &&
+          this.currentBlockReplacement !== null)) &&
       this.currentStepId === "target" &&
       this.selectedPlayerId
     ) {
       const mode = this.currentActionMode;
+      const replacement =
+        this.currentBlockReplacement ?? blockReplacementForDirectAction(mode);
       const attackerId = this.selectedPlayerId;
       const attacker = this.gameService.getPlayerById(attackerId);
       if (playerAtSquare && playerAtSquare.id === attackerId) {
@@ -921,11 +964,17 @@ export class GameplayInteractionController {
       ) {
         this.isBusy = true;
         try {
-          if (mode === "stab") {
+          if (replacement === "stab") {
             await this.gameService.stabPlayer(attackerId, playerAtSquare.id);
+          } else if (replacement) {
+            await this.gameService.performSpecialAction(
+              replacement,
+              attackerId,
+              playerAtSquare.id
+            );
           } else {
             await this.gameService.performSpecialAction(
-              mode as "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
+              mode as "gaze",
               attackerId,
               playerAtSquare.id
             );
@@ -1352,8 +1401,7 @@ export class GameplayInteractionController {
     // completes the action, never a re-selection of the clicked team-mate.
     if (
       (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-      (this.currentActionMode === "handoff" &&
-        this.currentStepId === "handoff")
+      (this.currentActionMode === "handoff" && this.currentStepId === "handoff")
     ) {
       const p1 = this.scene.team1.players.find((p) => p.id === playerId);
       const p2 = this.scene.team2.players.find((p) => p.id === playerId);
@@ -1407,6 +1455,20 @@ export class GameplayInteractionController {
     if (this.currentActionMode === "throwTeamMate") {
       const clicked = this.gameService.getPlayerById(playerId);
       if (clicked && clicked.gridPosition) {
+        this.onSquareClicked(clicked.gridPosition.x, clicked.gridPosition.y);
+        return;
+      }
+    }
+
+    // Direct Special Actions and replacement Blitzes claim player-sprite
+    // clicks as target selections; never let them become a re-selection.
+    if (
+      this.currentStepId === "target" &&
+      (this.currentBlockReplacement !== null ||
+        this.currentActionMode === "gaze")
+    ) {
+      const clicked = this.gameService.getPlayerById(playerId);
+      if (clicked?.gridPosition) {
         this.onSquareClicked(clicked.gridPosition.x, clicked.gridPosition.y);
         return;
       }
@@ -1588,6 +1650,7 @@ export class GameplayInteractionController {
 
     // Reset action mode state
     this.currentActionMode = null;
+    this.currentBlockReplacement = null;
     this.currentStepId = null;
     this.jumpTargeting = false;
     this.actionSteps = [];

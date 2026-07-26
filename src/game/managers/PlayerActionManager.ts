@@ -1,6 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { ActionType, GameEventNames } from "@/types/events";
+import { BlockReplacement } from "@/types/BlockReplacement";
 
 export class PlayerActionManager {
   constructor(
@@ -11,7 +12,11 @@ export class PlayerActionManager {
   /**
    * Attempt to declare an action for a player
    */
-  public declareAction(playerId: string, action: ActionType): boolean {
+  public declareAction(
+    playerId: string,
+    action: ActionType,
+    blockReplacement?: BlockReplacement
+  ): boolean {
     // Validation
     if (!this.canDeclareAction(playerId, action)) {
       return false;
@@ -21,6 +26,9 @@ export class PlayerActionManager {
     this.state.activePlayer = {
       id: playerId,
       action: action,
+      ...(blockReplacement
+        ? { blockReplacement, blockReplacementUsed: false }
+        : {}),
     };
 
     // Update Turn Flags
@@ -33,6 +41,33 @@ export class PlayerActionManager {
     );
     // We might want a specific event for "Action Declared" to update UI
 
+    return true;
+  }
+
+  /**
+   * Cancel an uncommitted declaration. Once movement or the replacement
+   * attack has committed, the team action remains spent.
+   */
+  public cancelAction(playerId: string): boolean {
+    const active = this.state.activePlayer;
+    if (!active || active.id !== playerId) return false;
+    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > 0) return false;
+    if (active.blockReplacementUsed) return false;
+    if (this.state.turn.activatedPlayerIds.has(playerId)) return false;
+
+    this.state.activePlayer = null;
+    if (active.action === "blitz") {
+      this.state.turn.hasBlitzed = false;
+    } else if (active.action === "pass") {
+      this.state.turn.hasPassed = false;
+    } else if (active.action === "handoff") {
+      this.state.turn.hasHandedOff = false;
+    } else if (active.action === "foul") {
+      this.state.turn.hasFouled = false;
+    } else if (active.action === "throwTeamMate") {
+      this.state.turn.hasPassed = false;
+    }
+    this.emitTurnFlags();
     return true;
   }
 
@@ -110,6 +145,10 @@ export class PlayerActionManager {
         break;
     }
     // Emit event to update UI
+    this.emitTurnFlags();
+  }
+
+  private emitTurnFlags(): void {
     this.eventBus.emit(GameEventNames.TurnDataUpdated, {
       hasBlitzed: this.state.turn.hasBlitzed,
       hasPassed: this.state.turn.hasPassed,

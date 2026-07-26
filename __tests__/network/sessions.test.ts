@@ -481,6 +481,39 @@ describe("networked sessions", () => {
     expect(response.reason).toBe("not-your-player");
   });
 
+  it("rejects a forged special-attack command from the non-owner without mutation", async () => {
+    const forgedScenario: Scenario = {
+      ...uphillScenario,
+      id: "forged-special-owner",
+      setup: {
+        ...uphillScenario.setup,
+        activeTeam: "team2",
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 10,
+            y: 5,
+            skills: [SkillType.STAB],
+          },
+        ],
+      },
+    };
+    const match = createMatch({ scenario: forgedScenario, seed: 9 });
+    const hostAttacker = match.game.ctx.team1.players[0];
+    const guestTarget = match.game.ctx.team2.players[0];
+    const before = JSON.stringify(match.game.snapshot());
+
+    const response = await match.guest.sendCommand({
+      type: "stab",
+      attackerId: hostAttacker.id,
+      defenderId: guestTarget.id,
+    });
+
+    expect(response.ok).toBe(false);
+    expect(response.reason).toBe("not-your-player");
+    expect(JSON.stringify(match.game.snapshot())).toBe(before);
+  });
+
   it("rejects setup placement when it is not that coach's setup turn", async () => {
     const match = createMatch({ seed: 7, startingPhase: GamePhase.SETUP });
     // Host is the kicking team and sets up first; the guest must wait.

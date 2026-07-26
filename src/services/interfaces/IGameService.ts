@@ -94,8 +94,11 @@ export interface IGameService {
   hasPlayerActed(playerId: string): boolean;
   declareAction(
     playerId: string,
-    action: import("@/types/events").ActionType
+    action: import("@/types/events").ActionType,
+    blockReplacement?: import("@/types/BlockReplacement").BlockReplacement
   ): boolean;
+  /** Cancel a declaration only before movement/attack commitment. */
+  cancelAction(playerId: string): boolean;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
   /** Leave the carried ball in a square vacated during this Move, no Turnover. */
   dropBallWithFumblerooski(
@@ -146,7 +149,7 @@ export interface IGameService {
   puntBall(playerId: string, facingX: number, facingY: number): Promise<void>;
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;
   /** Stab Special Action: unmodifiable Armour Roll vs an adjacent Standing opponent */
-  stabPlayer(attackerId: string, targetId: string): Promise<void>;
+  stabPlayer(attackerId: string, targetId: string): Promise<boolean>;
   /** Throw / Kick Team-mate Action: throw an eligible team-mate at an aim square */
   throwTeammate(
     throwerId: string,
@@ -165,10 +168,10 @@ export interface IGameService {
   ): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
+    kind: import("@/types/BlockReplacement").BlockReplacement | "gaze",
     attackerId: string,
     targetId: string
-  ): Promise<void>;
+  ): Promise<boolean>;
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean;
   throwInBall(from: { x: number; y: number }): void;
