@@ -57,6 +57,11 @@ export interface GameState {
   activePlayer: {
     id: string;
     action: string | null; // ActionType
+    /** Explicit attack selected for a direct action or Blitz replacement. */
+    blockReplacement?: BlockReplacement;
+    /** Set atomically when the accepted target command commits the attack. */
+    blockReplacementUsed?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
 }
+import { BlockReplacement } from "./BlockReplacement";

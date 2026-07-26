@@ -18,6 +18,7 @@ import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { CompetitionContext } from "../competition/types";
 import { TurnManagerState } from "../game/managers/TurnManager";
+import { BlockReplacement } from "../types/BlockReplacement";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -61,7 +62,12 @@ export interface GameSnapshot {
   score: Record<string, number>;
   weather: string;
   ballPosition: { x: number; y: number } | null;
-  activePlayer: { id: string; action: string | null } | null;
+  activePlayer: {
+    id: string;
+    action: string | null;
+    blockReplacement?: BlockReplacement;
+    blockReplacementUsed?: boolean;
+  } | null;
   coachesEjected: string[];
   teams: TeamSnapshot[];
 }

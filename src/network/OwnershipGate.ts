@@ -152,6 +152,15 @@ export function checkOwnership(
     case "block":
       if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       return ownsPlayer(command.attackerId);
+    case "multiple-block":
+    case "stab":
+    case "special-action":
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
+      return ownsPlayer(command.attackerId);
+    case "throw-teammate":
+    case "throw-bomb":
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
+      return ownsPlayer(command.throwerId);
 
     case "end-turn":
       return ctx.activeTeamId === senderTeamId ? allow : deny("not-your-turn");

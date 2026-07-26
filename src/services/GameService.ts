@@ -8,7 +8,7 @@
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
-import { GameEventNames } from "../types/events";
+import { ActionType, GameEventNames } from "../types/events";
 import { Team } from "@/types/Team";
 import {
   Player,
@@ -82,6 +82,16 @@ import {
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
+import {
+  BlockReplacement,
+  BLOCK_REPLACEMENT_DEFINITIONS,
+  blockReplacementForDirectAction,
+} from "@/types/BlockReplacement";
+import {
+  hasReachableBlockReplacementTarget,
+  isLegalBlockReplacementTarget,
+  legalBlockReplacementTargets,
+} from "@/game/rules/blockReplacements";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -520,6 +530,9 @@ export class GameService implements IGameService {
 
   finishActivation(playerId: string): void {
     this.blitzBlockUsed.delete(playerId);
+    if (this.state.activePlayer?.id === playerId) {
+      this.state.activePlayer = null;
+    }
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
   }
@@ -617,6 +630,21 @@ export class GameService implements IGameService {
     numDice: number,
     isAttackerChoice: boolean
   ): Promise<void> {
+    const declaration = this.state.activePlayer;
+    if (
+      declaration?.id !== attackerId ||
+      (declaration.action !== "block" && declaration.action !== "blitz") ||
+      declaration.blockReplacement ||
+      this.hasUsedBlitzBlock(attackerId)
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "No normal Block is available for this declaration."
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return;
+    }
+
     // A player that is down or stunned can never throw a block
     const blocker = this.getPlayerById(attackerId);
     if (!blocker || blocker.status !== PlayerStatus.ACTIVE) {
@@ -1195,7 +1223,8 @@ export class GameService implements IGameService {
 
   declareAction(
     playerId: string,
-    action: import("@/types/events").ActionType
+    action: ActionType,
+    requestedReplacement?: BlockReplacement
   ): boolean {
     // Must be activatable at all: active team, on-pitch, standing or prone,
     // and not already activated this turn (stunned recovery marks players
@@ -1204,6 +1233,52 @@ export class GameService implements IGameService {
     if (!this.canActivate(playerId)) return false;
 
     const activating = this.getPlayerById(playerId);
+    if (!activating) return false;
+
+    const directReplacement = blockReplacementForDirectAction(action);
+    const blockReplacement = requestedReplacement ?? directReplacement;
+    // Replacement declarations are immutable for the activation: neither a
+    // forged replacement nor a normal action may swap one in or out after the
+    // player has started. Preserve the engine's existing Move-then-Block
+    // declaration compatibility for ordinary actions.
+    if (
+      this.state.activePlayer &&
+      (this.state.activePlayer.blockReplacement || blockReplacement)
+    ) {
+      return false;
+    }
+    if (requestedReplacement && action !== "blitz") {
+      if (directReplacement !== requestedReplacement) return false;
+    }
+    if (blockReplacement) {
+      const definition = BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement];
+      if (!hasSkill(activating.skills, definition.skill)) return false;
+      if (action === "blitz") {
+        if (this.state.turn.hasBlitzed) return false;
+        if (
+          !hasReachableBlockReplacementTarget(
+            activating,
+            this.getOpponents(activating.teamId),
+            this.getAvailableMovements(playerId),
+            blockReplacement
+          )
+        ) {
+          return false;
+        }
+      } else {
+        if (action !== definition.directAction) return false;
+        if (
+          legalBlockReplacementTargets(
+            activating,
+            this.getOpponents(activating.teamId),
+            blockReplacement
+          ).length === 0
+        ) {
+          return false;
+        }
+      }
+    }
+
     // Distracted expires when the player is next activated
     if (activating && hasCondition(activating, PlayerCondition.DISTRACTED)) {
       removeCondition(activating, PlayerCondition.DISTRACTED);
@@ -1339,7 +1414,13 @@ export class GameService implements IGameService {
       }
       if (ctx.refused) return false;
     }
-    if (!this.playerActionManager.declareAction(playerId, action)) {
+    if (
+      !this.playerActionManager.declareAction(
+        playerId,
+        action,
+        blockReplacement
+      )
+    ) {
       return false;
     }
     // Negatraits roll between declaring and performing (Bone Head, …):
@@ -1354,6 +1435,10 @@ export class GameService implements IGameService {
       this.flowManager.add(new ActivationGateOperation(playerId, action), true);
     }
     return true;
+  }
+
+  cancelAction(playerId: string): boolean {
+    return this.playerActionManager.cancelAction(playerId);
   }
 
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
@@ -1393,25 +1478,21 @@ export class GameService implements IGameService {
    * adjacent Standing opponent; the activation ends after the stab. Legal
    * as the declared "stab" action, or during a Blitz in place of the Block.
    */
-  public async stabPlayer(attackerId: string, targetId: string): Promise<void> {
-    if (this.state.phase !== GamePhase.PLAY) return;
+  public async stabPlayer(
+    attackerId: string,
+    targetId: string
+  ): Promise<boolean> {
+    const gate = await this.commitBlockReplacement(
+      attackerId,
+      targetId,
+      "stab"
+    );
+    if (!gate.accepted) return false;
+    if (!gate.proceed) return true;
 
-    const attacker = this.getPlayerById(attackerId);
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return;
-    if (!hasSkill(attacker.skills, SkillType.STAB)) return;
-
-    const declared =
-      this.state.activePlayer?.id === attackerId
-        ? this.state.activePlayer.action
-        : undefined;
-    if (declared !== "stab" && declared !== "blitz") return;
-
-    const target = this.getPlayerById(targetId);
-    if (target && target.teamId !== attacker.teamId) {
-      await this.blockManager.offerDumpOff(targetId);
-    }
-
+    await this.blockManager.offerDumpOff(targetId);
     this.flowManager.add(new StabOperation(attackerId, targetId));
+    return true;
   }
 
   /**
@@ -1509,13 +1590,23 @@ export class GameService implements IGameService {
    * pre-move and never replaces a Blitz block.
    */
   public async performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
+    kind: BlockReplacement | "gaze",
     attackerId: string,
     targetId: string
-  ): Promise<void> {
-    if (this.state.phase !== GamePhase.PLAY) return;
+  ): Promise<boolean> {
+    if (this.state.phase !== GamePhase.PLAY) return false;
     const attacker = this.getPlayerById(attackerId);
-    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return;
+    if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return false;
+
+    if (kind !== "gaze") {
+      const gate = await this.commitBlockReplacement(
+        attackerId,
+        targetId,
+        kind
+      );
+      if (!gate.accepted) return false;
+      if (!gate.proceed) return true;
+    }
 
     const requirement =
       kind === "breatheFire"
@@ -1527,14 +1618,29 @@ export class GameService implements IGameService {
             : kind === "chainsaw"
               ? SkillType.CHAINSAW
               : SkillType.MONSTROUS_MOUTH;
-    if (!hasSkill(attacker.skills, requirement)) return;
+    if (!hasSkill(attacker.skills, requirement)) return false;
 
     const declared =
       this.state.activePlayer?.id === attackerId
         ? this.state.activePlayer.action
         : undefined;
-    const blitzOk = kind !== "gaze";
-    if (declared !== kind && !(blitzOk && declared === "blitz")) return;
+    if (kind === "gaze") {
+      const target = this.getPlayerById(targetId);
+      if (
+        declared !== "gaze" ||
+        !target ||
+        !target.gridPosition ||
+        target.teamId === attacker.teamId ||
+        target.status !== PlayerStatus.ACTIVE ||
+        !attacker.gridPosition ||
+        Math.max(
+          Math.abs(attacker.gridPosition.x - target.gridPosition.x),
+          Math.abs(attacker.gridPosition.y - target.gridPosition.y)
+        ) !== 1
+      ) {
+        return false;
+      }
+    }
 
     // Dump-Off is resolved before a directly-targeting opposition Special
     // Action, just as it is before a Block.
@@ -1561,5 +1667,91 @@ export class GameService implements IGameService {
         this.flowManager.add(new ChainsawAttackOperation(attackerId, targetId));
         break;
     }
+    return true;
+  }
+
+  /**
+   * Validate and atomically commit the selected replacement before any roll
+   * or target mutation. Invalid/stale commands leave the state untouched.
+   */
+  private async commitBlockReplacement(
+    attackerId: string,
+    targetId: string,
+    replacement: BlockReplacement
+  ): Promise<{ accepted: boolean; proceed: boolean }> {
+    if (this.state.phase !== GamePhase.PLAY) {
+      return { accepted: false, proceed: false };
+    }
+    const attacker = this.getPlayerById(attackerId);
+    const target = this.getPlayerById(targetId);
+    const active = this.state.activePlayer;
+    const definition = BLOCK_REPLACEMENT_DEFINITIONS[replacement];
+    if (
+      !attacker ||
+      !target ||
+      !active ||
+      active.id !== attackerId ||
+      active.blockReplacement !== replacement ||
+      active.blockReplacementUsed ||
+      (active.action !== "blitz" &&
+        active.action !== definition.directAction) ||
+      !isLegalBlockReplacementTarget(attacker, target, replacement)
+    ) {
+      return { accepted: false, proceed: false };
+    }
+
+    const isBlitz = active.action === "blitz";
+    let newMovementUsed: number | undefined;
+    if (isBlitz) {
+      if (!this.state.turn.hasBlitzed || this.blitzBlockUsed.has(attackerId)) {
+        return { accepted: false, proceed: false };
+      }
+      const used = this.state.turn.movementUsed.get(attackerId) ?? 0;
+      newMovementUsed = used + 1;
+      if (newMovementUsed > moveAllowance(attacker)) {
+        return { accepted: false, proceed: false };
+      }
+    }
+
+    // Commitment boundary: all legality checks passed. From here the attack
+    // and team Blitz are spent even if a required Rush subsequently fails.
+    active.blockReplacementUsed = true;
+    if (isBlitz && newMovementUsed !== undefined) {
+      this.blitzBlockUsed.add(attackerId);
+      this.state.turn.movementUsed.set(attackerId, newMovementUsed);
+      if (newMovementUsed > attacker.stats.MA) {
+        const check = await withRerollOffer(
+          { gameService: this, eventBus: this.eventBus },
+          attacker,
+          "rush",
+          () =>
+            this.diceController.rollSkillCheck(
+              "Rush (GFI)",
+              2,
+              0,
+              attacker.playerName,
+              attacker.teamId
+            )
+        );
+        if (!check.success) {
+          attacker.status = PlayerStatus.PRONE;
+          this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
+            playerId: attackerId,
+          });
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
+          if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
+            this.flowManager.add(
+              new BounceOperation({ ...attacker.gridPosition }),
+              true
+            );
+          }
+          this.flowManager.add(new ArmourOperation(attackerId), true);
+          this.finishActivation(attackerId);
+          this.triggerTurnover("Failed GFI on Blitz special attack");
+          return { accepted: true, proceed: false };
+        }
+      }
+    }
+    return { accepted: true, proceed: true };
   }
 }

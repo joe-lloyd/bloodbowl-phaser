@@ -25,6 +25,13 @@ import { GameEventNames, ActionType } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
+import { computeActionAvailability } from "../game/rules/actionAvailability";
+import {
+  BLOCK_REPLACEMENTS,
+  BLOCK_REPLACEMENT_DEFINITIONS,
+  isBlockReplacement,
+} from "../types/BlockReplacement";
+import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
@@ -40,6 +47,7 @@ const COMMAND_SHAPES: Record<
   "select-kicker": { playerId: "string" },
   "kick-ball": { playerId: "string", x: "number", y: "number" },
   "declare-action": { playerId: "string", action: "string" },
+  "cancel-action": { playerId: "string" },
   move: { playerId: "string", path: "path" },
   fumblerooski: { playerId: "string", x: "number", y: "number" },
   jump: { playerId: "string", x: "number", y: "number" },
@@ -269,8 +277,19 @@ export class HeadlessGame {
         break;
       }
       case "declare-action":
-        if (!gs.declareAction(cmd.playerId, cmd.action)) {
+        if (
+          cmd.blockReplacement !== undefined &&
+          !isBlockReplacement(cmd.blockReplacement)
+        ) {
+          throw new Error("invalid-block-replacement");
+        }
+        if (!gs.declareAction(cmd.playerId, cmd.action, cmd.blockReplacement)) {
           throw new Error("illegal-action-declaration");
+        }
+        break;
+      case "cancel-action":
+        if (!gs.cancelAction(cmd.playerId)) {
+          throw new Error("action-already-committed");
         }
         break;
       case "move":
@@ -292,9 +311,32 @@ export class HeadlessGame {
       case "block": {
         const attacker = this.requirePlayer(cmd.attackerId);
         const defender = this.requirePlayer(cmd.defenderId);
-        // A Blitz allows only one block; refuse a second after the first.
+        const declaration = gs.getState().activePlayer;
+        if (
+          declaration?.id !== attacker.id ||
+          (declaration.action !== "block" && declaration.action !== "blitz") ||
+          declaration.blockReplacement
+        ) {
+          // Keep the established cancellation-event contract for a downed
+          // player's direct Block attempt. Other undeclared/forged commands
+          // remain protocol failures.
+          if (attacker.status !== PlayerStatus.ACTIVE) {
+            await gs.rollBlockDice(cmd.attackerId, cmd.defenderId, 0, false);
+            break;
+          }
+          throw new Error("block-not-declared");
+        }
+        // A Blitz allows only one block; report that invariant before target
+        // legality because the first block may have pushed the defender away.
         if (gs.hasUsedBlitzBlock(cmd.attackerId)) {
           throw new Error("blitz-block-already-used");
+        }
+        if (
+          defender.teamId === attacker.teamId ||
+          !this.isAdjacent(attacker, defender) ||
+          defender.status !== PlayerStatus.ACTIVE
+        ) {
+          throw new Error("illegal-block-target");
         }
         const allPlayers = [
           ...this.ctx.team1.players,
@@ -339,7 +381,9 @@ export class HeadlessGame {
         await gs.foulPlayer(cmd.playerId, cmd.x, cmd.y);
         break;
       case "stab":
-        await gs.stabPlayer(cmd.attackerId, cmd.defenderId);
+        if (!(await gs.stabPlayer(cmd.attackerId, cmd.defenderId))) {
+          throw new Error("illegal-stab-target");
+        }
         break;
       case "throw-teammate":
         await gs.throwTeammate(
@@ -357,11 +401,24 @@ export class HeadlessGame {
         await gs.ballAndChain(cmd.playerId, cmd.x, cmd.y);
         break;
       case "special-action":
-        await gs.performSpecialAction(
-          cmd.action as "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
-          cmd.attackerId,
-          cmd.defenderId
-        );
+        if (
+          (cmd.action as string) !== "gaze" &&
+          !isBlockReplacement(cmd.action)
+        ) {
+          throw new Error("invalid-special-action");
+        }
+        if ((cmd.action as string) === "stab") {
+          throw new Error("use-stab-command");
+        }
+        if (
+          !(await gs.performSpecialAction(
+            cmd.action,
+            cmd.attackerId,
+            cmd.defenderId
+          ))
+        ) {
+          throw new Error("illegal-special-action-target");
+        }
         break;
       case "end-activation":
         gs.finishActivation(cmd.playerId);
@@ -622,6 +679,16 @@ export class HeadlessGame {
           !!state.ballPosition &&
           state.ballPosition.x === p.gridPosition.x &&
           state.ballPosition.y === p.gridPosition.y;
+        const reachable = gs.getAvailableMovements(p.id);
+        const availability = computeActionAvailability({
+          player: p,
+          ballPosition: state.ballPosition,
+          opponents,
+          teammates: gs.getTeammates(p.id),
+          reachable,
+          turn: state.turn,
+          hasMovedInAction: false,
+        });
 
         const actions: ActionType[] = [];
         if (p.status === PlayerStatus.PRONE) {
@@ -638,6 +705,9 @@ export class HeadlessGame {
           if (carriesBall && !state.turn.hasHandedOff) actions.push("handoff");
           if (!state.turn.hasFouled && adjacentDown.length > 0)
             actions.push("foul");
+          for (const replacement of availability.directBlockReplacements) {
+            if (!actions.includes(replacement)) actions.push(replacement);
+          }
         }
         if (actions.length === 0) continue;
 
@@ -645,6 +715,44 @@ export class HeadlessGame {
           playerId: p.id,
           playerName: p.playerName,
           actions,
+          replacementActions: BLOCK_REPLACEMENTS.flatMap((replacement) => {
+            const direct =
+              availability.directBlockReplacements.includes(replacement);
+            const blitz =
+              availability.blitzBlockReplacements.includes(replacement);
+            if (!direct && !blitz) return [];
+            const directTargets = legalBlockReplacementTargets(
+              p,
+              opponents,
+              replacement
+            ).map((target) => target.id);
+            const endSquares = [p.gridPosition!, ...reachable];
+            const blitzTargets = opponents
+              .filter(
+                (target) =>
+                  !!target.gridPosition &&
+                  target.status === PlayerStatus.ACTIVE &&
+                  endSquares.some(
+                    (square) =>
+                      Math.max(
+                        Math.abs(square.x - target.gridPosition!.x),
+                        Math.abs(square.y - target.gridPosition!.y)
+                      ) === 1
+                  )
+              )
+              .map((target) => target.id);
+            return [
+              {
+                blockReplacement: replacement,
+                label: `Blitz (with ${BLOCK_REPLACEMENT_DEFINITIONS[replacement].label})`,
+                direct,
+                blitz,
+                ...(focusPlayerId === p.id
+                  ? { directTargets, blitzTargets }
+                  : {}),
+              },
+            ];
+          }),
         };
         if (focusPlayerId === p.id) {
           entry.moveTargets = gs

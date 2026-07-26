@@ -7,6 +7,7 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
 import { GameSnapshot } from "./serialization";
+import { BlockReplacement } from "../types/BlockReplacement";
 
 export interface GridPosition {
   x: number;
@@ -26,7 +27,13 @@ export type HeadlessCommand =
   | { type: "select-kicker"; playerId: string }
   | { type: "kick-ball"; playerId: string; x: number; y: number }
   // Turn play
-  | { type: "declare-action"; playerId: string; action: ActionType }
+  | {
+      type: "declare-action";
+      playerId: string;
+      action: ActionType;
+      blockReplacement?: BlockReplacement;
+    }
+  | { type: "cancel-action"; playerId: string }
   | { type: "move"; playerId: string; path: GridPosition[] }
   | {
       type: "fumblerooski";
@@ -64,8 +71,7 @@ export type HeadlessCommand =
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | {
       type: "special-action";
-      /** "breatheFire" | "vomit" | "gaze" | "chomp" */
-      action: string;
+      action: Exclude<BlockReplacement, "stab"> | "gaze";
       attackerId: string;
       defenderId: string;
     }
@@ -170,6 +176,15 @@ export interface PlayerActions {
   moveTargets?: GridPosition[];
   blockTargets?: string[];
   foulTargets?: string[];
+  /** Typed direct/Blitz declarations and their authoritative target sets. */
+  replacementActions?: {
+    blockReplacement: BlockReplacement;
+    label: string;
+    direct: boolean;
+    blitz: boolean;
+    directTargets?: string[];
+    blitzTargets?: string[];
+  }[];
 }
 
 export interface LegalActions {

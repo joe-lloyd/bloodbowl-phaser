@@ -441,12 +441,21 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "An unmodifiable Armour Roll against an adjacent Standing opponent; broken armour means an Injury Roll, else nothing - never a turnover",
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.STAB] },
-          ],
+          team1Roster: RosterName.DARK_ELF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason: "Dark Elf Assassins begin with Stab.",
+          },
+        ],
         script: [
           { type: "declare-action", playerId: "team1:0", action: "stab" },
           { type: "stab", attackerId: "team1:0", defenderId: "team2:0" },
@@ -491,17 +500,28 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Mighty Blow and Claws never apply - the roll is a straight 2D6 vs AV",
         setup: playSetup({
+          team1Roster: RosterName.DARK_ELF,
           team1Placements: [
             {
               playerIndex: 0,
               x: 10,
               y: 5,
-              skills: [SkillType.STAB, SkillType.MIGHTY_BLOW, SkillType.CLAWS],
+              skills: [SkillType.MIGHTY_BLOW, SkillType.CLAWS],
             },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason: "Dark Elf Assassins begin with Stab.",
+          },
+        ],
         script: [
           { type: "declare-action", playerId: "team1:0", action: "stab" },
           { type: "stab", attackerId: "team1:0", defenderId: "team2:0" },
@@ -530,14 +550,49 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "During a Blitz the Stab replaces the Block; the activation still ends as soon as the Stab is performed",
         setup: playSetup({
+          team1Roster: RosterName.DARK_ELF,
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.STAB] },
+            { playerIndex: 0, x: 10, y: 5 },
+            { playerIndex: 1, x: 10, y: 9 },
+            { playerIndex: 2, x: 7, y: 3 },
+            { playerIndex: 3, x: 7, y: 7 },
+            { playerIndex: 4, x: 7, y: 11 },
           ],
-          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          team2Placements: [
+            { playerIndex: 0, x: 12, y: 5 },
+            { playerIndex: 1, x: 12, y: 9 },
+            { playerIndex: 2, x: 15, y: 3 },
+            { playerIndex: 3, x: 15, y: 7 },
+            { playerIndex: 4, x: 15, y: 11 },
+          ],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason: "Dark Elf Assassins begin with Stab.",
+          },
+          {
+            playerRef: "team1:1",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason:
+              "A second roster-legal Dark Elf Assassin begins with Stab and remains available to verify the team Blitz is spent.",
+          },
+        ],
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "blitz" },
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "blitz",
+            blockReplacement: "stab",
+          },
           { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
           { type: "stab", attackerId: "team1:0", defenderId: "team2:0" },
         ],
@@ -685,18 +740,27 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "A D6: on 2+ a +3 Armour Roll against an adjacent Standing opponent; on a 1 the chainsaw Kicks-back and Knocks the wielder Down",
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.CHAINSAW] },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 4, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 7 } }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:4",
+            skill: SkillType.CHAINSAW,
+            roster: RosterName.GOBLIN,
+            positionName: "Loony",
+            source: "roster-default",
+            reason: "Goblin Looneys begin with Chainsaw.",
+          },
+        ],
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "chainsaw" },
+          { type: "declare-action", playerId: "team1:4", action: "chainsaw" },
           {
             type: "special-action",
             action: "chainsaw",
-            attackerId: "team1:0",
+            attackerId: "team1:4",
             defenderId: "team2:0",
           },
         ],
@@ -720,10 +784,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 GameEventNames.DiceRoll,
                 (d) => (d as { rollType?: string }).rollType === "Armor Check"
               ) &&
-              playerStanding(r, "team1:0"),
+              playerStanding(r, "team1:4"),
             verify: (r) => {
               assert(
-                playerStanding(r, "team1:0"),
+                playerStanding(r, "team1:4"),
                 "no kick-back on a 2+ — the wielder stays Standing"
               );
               assert(
@@ -743,15 +807,69 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   !!(d as { rollType?: string }).rollType?.startsWith(
                     "Chainsaw Kick-back"
                   ) && (d as { resultState?: string }).resultState === "failure"
-              ) && playerDown(r, "team1:0"),
+              ) && playerDown(r, "team1:4"),
             verify: (r) => {
               assert(
-                playerDown(r, "team1:0"),
+                playerDown(r, "team1:4"),
                 "a kick-back Knocks the wielder Down"
               );
               assert(
                 turnoverHappened(r),
                 "the wielder going down is a Turnover"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "chainsaw-blitz",
+        name: "Chainsaw replaces the Block of a Blitz",
+        description:
+          "A rostered Goblin Loony moves, then resolves the declared Chainsaw attack instead of rolling Block dice.",
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 4, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:4",
+            skill: SkillType.CHAINSAW,
+            roster: RosterName.GOBLIN,
+            positionName: "Loony",
+            source: "roster-default",
+            reason: "Goblin Looneys begin with Chainsaw.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:4",
+            action: "blitz",
+            blockReplacement: "chainsaw",
+          },
+          { type: "move", playerId: "team1:4", path: [{ x: 11, y: 5 }] },
+          {
+            type: "special-action",
+            action: "chainsaw",
+            attackerId: "team1:4",
+            defenderId: "team2:0",
+          },
+        ],
+        outcomes: [
+          {
+            id: "replaces-block",
+            name: "The Chainsaw attack resolves with no Block dice",
+            matches: (r) => skillTriggered(r, SkillType.CHAINSAW),
+            verify: (r) => {
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "no Block dice may be rolled"
+              );
+              assert(
+                activationOver(r, "team1:4"),
+                "the Loony's activation ends after the attack"
               );
             },
           },

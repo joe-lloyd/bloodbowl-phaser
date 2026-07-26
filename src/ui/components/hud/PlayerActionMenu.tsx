@@ -11,6 +11,10 @@ import {
   ActionAvailability,
 } from "../../../game/rules/actionAvailability";
 import { ActionStepper } from "./ActionStepper";
+import {
+  BlockReplacement,
+  BLOCK_REPLACEMENT_DEFINITIONS,
+} from "../../../types/BlockReplacement";
 
 interface PlayerActionMenuProps {
   eventBus: EventBus;
@@ -41,6 +45,8 @@ const EMPTY_AVAILABILITY: ActionAvailability = {
   kickTeammate: false,
   throwBomb: false,
   ballAndChain: false,
+  directBlockReplacements: [],
+  blitzBlockReplacements: [],
 };
 
 export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
@@ -149,7 +155,6 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     } catch {
       return EMPTY_AVAILABILITY;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayer, turnData, hasMovedInAction, refreshTick]);
 
   if (!selectedPlayer) return null;
@@ -161,11 +166,15 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   // Only show menu for active team's players
   if (selectedPlayer.teamId !== turnData.activeTeamId) return null;
 
-  const handleAction = (action: ActionType) => {
+  const handleAction = (
+    action: ActionType,
+    blockReplacement?: BlockReplacement
+  ) => {
     if (selectedPlayer) {
       eventBus.emit(GameEventNames.UI_ActionSelected, {
         action,
         playerId: selectedPlayer.id,
+        blockReplacement,
       });
     }
   };
@@ -181,7 +190,16 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     disabled?: boolean;
     color?: string;
     onClick?: () => void;
-  }> = ({ action, label, sub, disabled, color = "blue", onClick }) => {
+    blockReplacement?: BlockReplacement;
+  }> = ({
+    action,
+    label,
+    sub,
+    disabled,
+    color = "blue",
+    onClick,
+    blockReplacement,
+  }) => {
     const colorSchemes: Record<
       string,
       { bg: string; border: string; hoverBg: string; hoverBorder: string }
@@ -237,7 +255,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         onClick={(e) => {
           e.stopPropagation();
           if (onClick) onClick();
-          else if (action) handleAction(action);
+          else if (action) handleAction(action, blockReplacement);
         }}
         disabled={disabled}
         className="group relative w-full px-3 py-1.5 border-2 rounded transition-all duration-200 flex flex-col items-start mb-1"
@@ -381,6 +399,19 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 color="red"
               />
             )}
+            {a.blitzBlockReplacements.map((replacement) => (
+              <ActionButton
+                key={`blitz-${replacement}`}
+                action="blitz"
+                blockReplacement={replacement}
+                label={`BLITZ (WITH ${BLOCK_REPLACEMENT_DEFINITIONS[
+                  replacement
+                ].label.toUpperCase()})`}
+                sub="1/Turn"
+                disabled={false}
+                color="red"
+              />
+            ))}
             {a.pass && (
               <ActionButton
                 action="pass"
@@ -423,6 +454,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {a.stab && (
               <ActionButton
                 action="stab"
+                blockReplacement="stab"
                 label="STAB"
                 sub="Special"
                 disabled={false}
@@ -432,6 +464,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {a.breatheFire && (
               <ActionButton
                 action="breatheFire"
+                blockReplacement="breatheFire"
                 label="BREATHE FIRE"
                 sub="Special"
                 disabled={false}
@@ -441,6 +474,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {a.vomit && (
               <ActionButton
                 action="vomit"
+                blockReplacement="vomit"
                 label="PROJECTILE VOMIT"
                 sub="Special"
                 disabled={false}
@@ -459,6 +493,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {a.chomp && (
               <ActionButton
                 action="chomp"
+                blockReplacement="chomp"
                 label="CHOMP"
                 sub="Special"
                 disabled={false}
@@ -468,6 +503,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             {a.chainsaw && (
               <ActionButton
                 action="chainsaw"
+                blockReplacement="chainsaw"
                 label="CHAINSAW"
                 sub="Special"
                 disabled={false}

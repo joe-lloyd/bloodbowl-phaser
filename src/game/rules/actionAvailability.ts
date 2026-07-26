@@ -17,6 +17,14 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
 import { GameConfig } from "../../config/GameConfig";
+import {
+  BlockReplacement,
+  BLOCK_REPLACEMENTS,
+} from "../../types/BlockReplacement";
+import {
+  hasReachableBlockReplacementTarget,
+  legalBlockReplacementTargets,
+} from "./blockReplacements";
 
 export interface TurnFlags {
   hasBlitzed: boolean;
@@ -65,6 +73,10 @@ export interface ActionAvailability {
   throwBomb: boolean;
   /** A Ball & Chain Special Action — the only action a Fanatic may declare. */
   ballAndChain: boolean;
+  /** Direct declarations with a legal target on the current square. */
+  directBlockReplacements: BlockReplacement[];
+  /** Labelled Blitz declarations that can reach a legal target. */
+  blitzBlockReplacements: BlockReplacement[];
 }
 
 const chebyshev = (
@@ -103,6 +115,8 @@ export function computeActionAvailability(
     kickTeammate: false,
     throwBomb: false,
     ballAndChain: false,
+    directBlockReplacements: [],
+    blitzBlockReplacements: [],
   };
   if (!here) return none;
 
@@ -194,6 +208,25 @@ export function computeActionAvailability(
     ).length > 0;
   const special = (type: SkillType) =>
     hasSkill(player.skills, type) && adjacentStandingEnemy;
+  const directBlockReplacements =
+    player.status === PlayerStatus.ACTIVE
+      ? BLOCK_REPLACEMENTS.filter(
+          (replacement) =>
+            legalBlockReplacementTargets(player, opponents, replacement)
+              .length > 0
+        )
+      : [];
+  const blitzBlockReplacements =
+    !turn.hasBlitzed && !input.hasMovedInAction
+      ? BLOCK_REPLACEMENTS.filter((replacement) =>
+          hasReachableBlockReplacementTarget(
+            player,
+            opponents,
+            reachable,
+            replacement
+          )
+        )
+      : [];
 
   // Throw / Kick Team-mate: an adjacent Standing team-mate that is Right-Stuff
   // eligible (has the trait and Strength 3 or less) is a legal target.
@@ -227,15 +260,17 @@ export function computeActionAvailability(
     foul,
     standUp: isProne,
     secureBall: ballReachable && !holdsBall,
-    stab: special(SkillType.STAB),
-    breatheFire: special(SkillType.BREATHE_FIRE),
-    vomit: special(SkillType.PROJECTILE_VOMIT),
+    stab: directBlockReplacements.includes("stab"),
+    breatheFire: directBlockReplacements.includes("breatheFire"),
+    vomit: directBlockReplacements.includes("vomit"),
     gaze: special(SkillType.HYPNOTIC_GAZE),
-    chomp: special(SkillType.MONSTROUS_MOUTH),
-    chainsaw: special(SkillType.CHAINSAW),
+    chomp: directBlockReplacements.includes("chomp"),
+    chainsaw: directBlockReplacements.includes("chainsaw"),
     throwTeammate,
     kickTeammate,
     throwBomb,
     ballAndChain: false,
+    directBlockReplacements,
+    blitzBlockReplacements,
   };
 }

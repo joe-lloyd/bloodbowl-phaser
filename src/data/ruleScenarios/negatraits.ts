@@ -7,7 +7,11 @@
  */
 
 import { SkillType, hasSkill } from "../../types/Skills";
-import { PlayerCondition, PlayerStatus, PositionKeyWord } from "../../types/Player";
+import {
+  PlayerCondition,
+  PlayerStatus,
+  PositionKeyWord,
+} from "../../types/Player";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
@@ -881,7 +885,11 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 18, y: 9 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "throwTeamMate" },
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "throwTeamMate",
+          },
           {
             type: "throw-teammate",
             throwerId: "team1:0",
@@ -939,8 +947,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
       {
         id: "my-ball-refuses-pass",
         name: "My Ball may not give up the ball",
-        description:
-          "A ball carrier with My Ball cannot declare a Pass Action",
+        description: "A ball carrier with My Ball cannot declare a Pass Action",
         setup: playSetup({
           team1Placements: [
             { playerIndex: 0, x: 5, y: 5, skills: [SkillType.MY_BALL] },
@@ -1035,12 +1042,21 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Against a Marked Standing opponent: on 4+ the target is Placed Prone (natural 6 Knocks Down; natural 1 burns the breather)",
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BREATHE_FIRE] },
-          ],
+          team1Roster: RosterName.CHAOS_DWARF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.BREATHE_FIRE,
+            roster: RosterName.CHAOS_DWARF,
+            positionName: "Chaos Dwarf Flamesmith",
+            source: "roster-default",
+            reason: "Chaos Dwarf Flamesmiths begin with Breathe Fire.",
+          },
+        ],
         script: [
           {
             type: "declare-action",
@@ -1073,6 +1089,60 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+      {
+        id: "breathe-fire-blitz",
+        name: "Breathe Fire replaces the Block of a Blitz",
+        description:
+          "A rostered Flamesmith moves, then resolves the declared Breathe Fire attack instead of rolling Block dice.",
+        setup: playSetup({
+          team1Roster: RosterName.CHAOS_DWARF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.BREATHE_FIRE,
+            roster: RosterName.CHAOS_DWARF,
+            positionName: "Chaos Dwarf Flamesmith",
+            source: "roster-default",
+            reason: "Chaos Dwarf Flamesmiths begin with Breathe Fire.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "blitz",
+            blockReplacement: "breatheFire",
+          },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+          {
+            type: "special-action",
+            action: "breatheFire",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        outcomes: [
+          {
+            id: "replaces-block",
+            name: "Breathe Fire resolves with no Block dice",
+            matches: (r) => skillTriggered(r, SkillType.BREATHE_FIRE),
+            verify: (r) => {
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "no Block dice may be rolled"
+              );
+              assert(
+                activationOver(r, "team1:0"),
+                "the Flamesmith's activation ends after Breathe Fire"
+              );
+            },
+          },
+        ],
+      },
     ],
   },
   {
@@ -1084,17 +1154,21 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Against an adjacent Standing opponent: 2+ an unmodifiable Armour Roll on the target, a 1 douses the vomiter instead",
         setup: playSetup({
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: 10,
-              y: 5,
-              skills: [SkillType.PROJECTILE_VOMIT],
-            },
-          ],
+          team1Roster: RosterName.UNDERWORLD_DENIZENS,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 3 } }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.PROJECTILE_VOMIT,
+            roster: RosterName.UNDERWORLD_DENIZENS,
+            positionName: "Underworld Troll",
+            source: "roster-default",
+            reason: "Underworld Trolls begin with Projectile Vomit.",
+          },
+        ],
         script: [
           { type: "declare-action", playerId: "team1:0", action: "vomit" },
           {
@@ -1119,6 +1193,61 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+      {
+        id: "projectile-vomit-blitz",
+        name: "Projectile Vomit replaces the Block of a Blitz",
+        description:
+          "A rostered Underworld Troll moves, then resolves the declared Projectile Vomit attack instead of rolling Block dice.",
+        setup: playSetup({
+          team1Roster: RosterName.UNDERWORLD_DENIZENS,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.PROJECTILE_VOMIT,
+            roster: RosterName.UNDERWORLD_DENIZENS,
+            positionName: "Underworld Troll",
+            source: "roster-default",
+            reason: "Underworld Trolls begin with Projectile Vomit.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "blitz",
+            blockReplacement: "vomit",
+          },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+          {
+            type: "special-action",
+            action: "vomit",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        seedSearch: { from: 1, limit: 300 },
+        outcomes: [
+          {
+            id: "replaces-block",
+            name: "Projectile Vomit resolves with no Block dice",
+            matches: (r) => skillTriggered(r, SkillType.PROJECTILE_VOMIT),
+            verify: (r) => {
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "no Block dice may be rolled"
+              );
+              assert(
+                activationOver(r, "team1:0"),
+                "the Troll's activation ends after Projectile Vomit"
+              );
+            },
+          },
+        ],
+      },
     ],
   },
   {
@@ -1130,6 +1259,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Against a Marked Standing opponent: 1-2 nothing, 3+ the target is Chomped and pinned while Marked",
         setup: playSetup({
+          team1Roster: RosterName.NURGLE,
           team1Placements: [
             {
               playerIndex: 0,
@@ -1141,6 +1271,17 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.MONSTROUS_MOUTH,
+            roster: RosterName.NURGLE,
+            positionName: "Rotter Lineman",
+            source: "primary-advancement",
+            reason:
+              "Rotter Linemen have Primary Mutation access and may legally advance into Monstrous Mouth.",
+          },
+        ],
         script: [
           { type: "declare-action", playerId: "team1:0", action: "chomp" },
           {
@@ -1176,6 +1317,68 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               rolled(r, "Chomp") &&
               !hasCondition(r, "team2:0", PlayerCondition.CHOMPED),
+          },
+        ],
+      },
+      {
+        id: "chomp-blitz",
+        name: "Monstrous Mouth replaces the Block of a Blitz",
+        description:
+          "A Nurgle Rotter with a legal Primary Mutation advancement moves, then resolves Chomp instead of rolling Block dice.",
+        setup: playSetup({
+          team1Roster: RosterName.NURGLE,
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.MONSTROUS_MOUTH],
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.MONSTROUS_MOUTH,
+            roster: RosterName.NURGLE,
+            positionName: "Rotter Lineman",
+            source: "primary-advancement",
+            reason:
+              "Rotter Linemen have Primary Mutation access and may legally advance into Monstrous Mouth.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "blitz",
+            blockReplacement: "chomp",
+          },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+          {
+            type: "special-action",
+            action: "chomp",
+            attackerId: "team1:0",
+            defenderId: "team2:0",
+          },
+        ],
+        outcomes: [
+          {
+            id: "replaces-block",
+            name: "Chomp resolves with no Block dice",
+            matches: (r) => skillTriggered(r, SkillType.MONSTROUS_MOUTH),
+            verify: (r) => {
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "no Block dice may be rolled"
+              );
+              assert(
+                activationOver(r, "team1:0"),
+                "the Rotter's activation ends after Chomp"
+              );
+            },
           },
         ],
       },

@@ -24,6 +24,7 @@ import { Player } from "../types/Player";
 import { Team } from "../types/Team";
 import { BlockResult } from "../services/BlockResolutionService";
 import { ActionType } from "../types/events";
+import { BlockReplacement } from "../types/BlockReplacement";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -250,8 +251,21 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "touchback", playerId });
     return true;
   }
-  declareAction(playerId: string, action: ActionType): boolean {
-    this.send({ type: "declare-action", playerId, action });
+  declareAction(
+    playerId: string,
+    action: ActionType,
+    blockReplacement?: BlockReplacement
+  ): boolean {
+    this.send({
+      type: "declare-action",
+      playerId,
+      action,
+      blockReplacement,
+    });
+    return true;
+  }
+  cancelAction(playerId: string): boolean {
+    this.send({ type: "cancel-action", playerId });
     return true;
   }
   async movePlayer(
@@ -373,12 +387,13 @@ export class NetworkedGameService implements IGameService {
       y: facingY,
     });
   }
-  async stabPlayer(attackerId: string, targetId: string): Promise<void> {
-    await this.dispatch({
+  async stabPlayer(attackerId: string, targetId: string): Promise<boolean> {
+    const response = await this.dispatch({
       type: "stab",
       attackerId,
       defenderId: targetId,
     });
+    return response.ok;
   }
   async throwTeammate(
     throwerId: string,
@@ -397,16 +412,20 @@ export class NetworkedGameService implements IGameService {
     });
   }
   async performSpecialAction(
-    kind: "breatheFire" | "vomit" | "gaze" | "chomp" | "chainsaw",
+    kind: BlockReplacement | "gaze",
     attackerId: string,
     targetId: string
-  ): Promise<void> {
-    await this.dispatch({
+  ): Promise<boolean> {
+    if (kind === "stab") {
+      return this.stabPlayer(attackerId, targetId);
+    }
+    const response = await this.dispatch({
       type: "special-action",
       action: kind,
       attackerId,
       defenderId: targetId,
     });
+    return response.ok;
   }
   async throwBomb(throwerId: string, x: number, y: number): Promise<void> {
     await this.dispatch({

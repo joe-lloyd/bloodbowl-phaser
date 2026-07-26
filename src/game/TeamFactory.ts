@@ -73,6 +73,27 @@ export class TeamFactory {
         hire("Bomma", 1);
         hire("Fanatic", 1);
         break;
+      case RosterName.DARK_ELF:
+        // Both roster-legal Assassins make it possible to verify that one
+        // replacement Blitz spends the team action for the other player too.
+        hire("Assassin", 2);
+        hire("Dark Elf Lineman", 5);
+        break;
+      case RosterName.CHAOS_DWARF:
+        // A roster-default Breathe Fire holder plus six ordinary players.
+        hire("Chaos Dwarf Flamesmith", 1);
+        hire("Hobgoblin Lineman", 6);
+        break;
+      case RosterName.UNDERWORLD_DENIZENS:
+        // A roster-default Projectile Vomit holder plus six Right Stuff mates.
+        hire("Underworld Troll", 1);
+        hire("Underworld Goblin Lineman", 6);
+        break;
+      case RosterName.NURGLE:
+        // Rotters have Primary Mutation access, making Monstrous Mouth a
+        // legal advancement for scenario fixtures that document the grant.
+        hire("Rotter Lineman", 7);
+        break;
       default:
         // Fallback: Fill with first available position (usually Lineman)
         if (roster.playerTemplates.length > 0) {
