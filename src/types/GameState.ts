@@ -63,4 +63,6 @@ export interface GameState {
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
   bribes?: Record<string, number>;
+  /** Present during/after setup so saves and online snapshots preserve it. */
+  setup?: import("./SetupTypes").SetupState;
 }

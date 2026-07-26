@@ -36,6 +36,9 @@ export enum GameEventNames {
   PlayerSelected = "playerSelected",
   PlayerDeselected = "playerDeselected",
   PlacementInvalid = "placementInvalid",
+  SetupRestrictionsUpdated = "setupRestrictionsUpdated",
+  SetupConcessionOffered = "setupConcessionOffered",
+  SetupConcessionResolved = "setupConcessionResolved",
   PlayerStatusChanged = "playerStatusChanged",
   Turnover = "turnover",
   BlockDiceRolled = "blockDiceRolled",
@@ -214,6 +217,22 @@ export interface GameEvents {
   [GameEventNames.PlayerPlaced]: { playerId: string; x: number; y: number };
   [GameEventNames.PlayerRemoved]: string; // playerId
   [GameEventNames.PlayersSwapped]: { player1Id: string; player2Id: string };
+  [GameEventNames.PlacementInvalid]: {
+    playerId: string;
+    x: number;
+    y: number;
+    reason: string;
+  };
+  [GameEventNames.SetupRestrictionsUpdated]: import("./SetupTypes").SetupTeamStatus;
+  [GameEventNames.SetupConcessionOffered]: {
+    teamId: string;
+    availablePlayerCount: number;
+  };
+  [GameEventNames.SetupConcessionResolved]: {
+    teamId: string;
+    conceded: boolean;
+    penaltyFree: true;
+  };
   [GameEventNames.PlayerMoved]: {
     playerId: string;
     from: { x: number; y: number };
@@ -586,6 +605,7 @@ export interface UIEvents {
   [GameEventNames.UI_ShowSetupControls]: {
     subPhase: SubPhase;
     activeTeam: { id: string; name: string };
+    status?: import("./SetupTypes").SetupTeamStatus;
   };
   [GameEventNames.UI_HideSetupControls]: void;
   [GameEventNames.UI_SyncBoard]: void;

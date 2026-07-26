@@ -912,6 +912,7 @@ export class GameScene extends Phaser.Scene {
       GameEventNames.PlayerPlaced,
       (data: { playerId: string; x: number; y: number }) => {
         this.gameService.placePlayer(data.playerId, data.x, data.y);
+        this.placementController.syncFromTeam();
         this.refreshDugouts();
         this.checkSetupCompleteness();
       }
@@ -923,6 +924,15 @@ export class GameScene extends Phaser.Scene {
         this.gameService.removePlayer(playerId);
         this.refreshDugouts();
         this.checkSetupCompleteness();
+      }
+    );
+
+    this.placementController.on(
+      GameEventNames.PlacementInvalid,
+      (data: { reason: string }) => {
+        this.eventBus.emit(GameEventNames.UI_Notification, data.reason);
+        this.placementController.syncFromTeam();
+        this.refreshDugouts();
       }
     );
   }

@@ -159,6 +159,10 @@ export function checkOwnership(
     case "confirm-setup":
       if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
       return command.teamId === senderTeamId ? allow : deny("not-your-turn");
+    case "apply-formation":
+    case "setup-concession":
+      if (ctx.activeTeamId !== senderTeamId) return deny("not-your-turn");
+      return command.teamId === senderTeamId ? allow : deny("not-your-turn");
 
     // Post-match choices belong to the coach of the affected team/player.
     case "award-mvp":

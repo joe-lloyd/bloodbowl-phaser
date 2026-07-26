@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { Team } from "../../types/Team";
-import { Player } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
 import { SetupValidator } from "../validators/SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
@@ -42,8 +42,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     this.isTeam1 = isTeam1;
     this.dugoutSprites = dugoutSprites;
 
-    // Clear internal tracking for new team (but don't emit events - sprites stay on pitch)
-    this.placedPlayers.clear();
+    this.syncFromTeam();
 
     console.log(
       `[PlayerPlacementController] enablePlacement: team=${team.id}, isTeam1=${isTeam1}, spriteCount=${dugoutSprites.size}`
@@ -177,13 +176,33 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
     if (!this.currentTeam) return false;
 
-    // Validate position is in setup zone
-    if (!this.validator.isInSetupZone(gridX, gridY, this.isTeam1)) {
+    const current = Array.from(this.placedPlayers.values()).filter(
+      (position) => position.playerId !== playerId
+    );
+    const availablePlayerCount = Math.max(
+      7,
+      this.currentTeam.players.filter(
+        (player) =>
+          ![
+            PlayerStatus.KO,
+            PlayerStatus.INJURED,
+            PlayerStatus.DEAD,
+            PlayerStatus.REMOVED,
+          ].includes(player.status)
+      ).length
+    );
+    const validation = this.validator.validatePlacement(
+      { playerId, x: gridX, y: gridY },
+      current,
+      this.isTeam1,
+      availablePlayerCount
+    );
+    if (!validation.valid) {
       this.emit(GameEventNames.PlacementInvalid, {
         playerId,
         x: gridX,
         y: gridY,
-        reason: "Outside setup zone",
+        reason: validation.errors[0],
       });
       return false;
     }
@@ -271,6 +290,19 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
    */
   getPlacements(): FormationPosition[] {
     return Array.from(this.placedPlayers.values());
+  }
+
+  /** Reconcile controller-local drag state with authoritative team state. */
+  syncFromTeam(): void {
+    this.placedPlayers.clear();
+    this.currentTeam?.players.forEach((player) => {
+      if (player.gridPosition) {
+        this.placedPlayers.set(player.id, {
+          playerId: player.id,
+          ...player.gridPosition,
+        });
+      }
+    });
   }
 
   /**

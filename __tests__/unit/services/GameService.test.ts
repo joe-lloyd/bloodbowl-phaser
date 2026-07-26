@@ -65,6 +65,10 @@ describe("GameService", () => {
   });
 
   describe("Setup Phase - Player Placement", () => {
+    beforeEach(() => {
+      gameService.startSetup("team-1");
+    });
+
     it("should allow placing team 1 players in their zone (x: 0-5)", () => {
       const playerId = team1.players[0].id;
       const result = gameService.placePlayer(playerId, 2, 5);
@@ -82,16 +86,6 @@ describe("GameService", () => {
 
   describe("Game Phase - Turn Management", () => {
     beforeEach(() => {
-      // Setup both teams
-      team1.players.forEach((p: any, i: number) =>
-        gameService.placePlayer(p.id, i % 6, Math.floor(i / 6))
-      );
-      team2.players.forEach((p: any, i: number) =>
-        gameService.placePlayer(p.id, 14 + (i % 6), Math.floor(i / 6))
-      );
-
-      gameService.confirmSetup("team-1");
-      gameService.confirmSetup("team-2");
       gameService.startGame("team-1");
     });
 

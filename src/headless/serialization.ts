@@ -18,6 +18,7 @@ import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { CompetitionContext } from "../competition/types";
 import { TurnManagerState } from "../game/managers/TurnManager";
+import { SetupState } from "../types/SetupTypes";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -63,6 +64,7 @@ export interface GameSnapshot {
   ballPosition: { x: number; y: number } | null;
   activePlayer: { id: string; action: string | null } | null;
   coachesEjected: string[];
+  setup?: SetupState | null;
   teams: TeamSnapshot[];
   /** Kickoff-event drive effects; absent on pre-feature saves (= empty). */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
@@ -138,6 +140,7 @@ export function serializeGameState(
       ? structuredClone(state.driveEffects)
       : undefined,
     bribes: state.bribes ? { ...state.bribes } : undefined,
+    setup: state.setup ? structuredClone(state.setup) : null,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -191,6 +194,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? structuredClone(snapshot.driveEffects)
       : undefined,
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
+    setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
   };
 }
 

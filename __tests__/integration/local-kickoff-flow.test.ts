@@ -61,12 +61,30 @@ async function driveToKickoff(
     kickingTeam: team1,
     receivingTeam: team2,
   });
+  const team1Setup = [
+    [6, 3],
+    [6, 5],
+    [6, 7],
+    [4, 2],
+    [4, 4],
+    [4, 6],
+    [4, 8],
+  ];
   for (let i = 0; i < 7; i++)
-    gameService.placePlayer(team1.players[i].id, 5, 4 + i);
+    gameService.placePlayer(
+      team1.players[i].id,
+      team1Setup[i][0],
+      team1Setup[i][1]
+    );
   gameService.confirmSetup("t1");
   await new Promise((r) => setTimeout(r, 20));
+  const team2Setup = team1Setup.map(([x, y]) => [19 - x, y]);
   for (let i = 0; i < 7; i++)
-    gameService.placePlayer(team2.players[i].id, 15, 4 + i);
+    gameService.placePlayer(
+      team2.players[i].id,
+      team2Setup[i][0],
+      team2Setup[i][1]
+    );
   gameService.confirmSetup("t2");
   await new Promise((r) => setTimeout(r, 20));
 }
@@ -81,8 +99,16 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
 
   beforeEach(() => {
     eventBus = new EventBus();
-    team1 = new TeamBuilder().withId("t1").withName("T1").withPlayers(7).build();
-    team2 = new TeamBuilder().withId("t2").withName("T2").withPlayers(7).build();
+    team1 = new TeamBuilder()
+      .withId("t1")
+      .withName("T1")
+      .withPlayers(7)
+      .build();
+    team2 = new TeamBuilder()
+      .withId("t2")
+      .withName("T2")
+      .withPlayers(7)
+      .build();
     const rng = new RNGService(42);
     gameService = new GameService(
       eventBus,
@@ -90,7 +116,12 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       team2,
       rng,
       new BlockResolutionService(rng),
-      GameService.createInitialState(team1, team2, GamePhase.SETUP, SubPhase.COIN_FLIP),
+      GameService.createInitialState(
+        team1,
+        team2,
+        GamePhase.SETUP,
+        SubPhase.COIN_FLIP
+      ),
       noDelay
     );
     scene = makeMockScene(team1, team2);
@@ -118,9 +149,19 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
     );
 
     // Kicking team sets up, then receiving team
+    const team1Setup = [
+      [6, 3],
+      [6, 5],
+      [6, 7],
+      [4, 2],
+      [4, 4],
+      [4, 6],
+      [4, 8],
+    ];
     for (let i = 0; i < 7; i++) {
-      const ok = gameService.placePlayer(team1.players[i].id, 5, 4 + i);
-      if (!ok) console.log(`t1 place ${i} at (5,${4 + i}) FAILED`);
+      const [x, y] = team1Setup[i];
+      const ok = gameService.placePlayer(team1.players[i].id, x, y);
+      if (!ok) console.log(`t1 place ${i} at (${x},${y}) FAILED`);
     }
     gameService.confirmSetup("t1");
     // subphase advance rides a delayed promise (100ms in the browser)
@@ -132,8 +173,9 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       gameService.getActiveTeamId()
     );
     for (let i = 0; i < 7; i++) {
-      const ok = gameService.placePlayer(team2.players[i].id, 15, 4 + i);
-      if (!ok) console.log(`t2 place ${i} at (15,${4 + i}) FAILED`);
+      const [x, y] = team1Setup.map(([px, py]) => [19 - px, py])[i];
+      const ok = gameService.placePlayer(team2.players[i].id, x, y);
+      if (!ok) console.log(`t2 place ${i} at (${x},${y}) FAILED`);
     }
     gameService.confirmSetup("t2");
     console.log(
@@ -168,8 +210,16 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
     let found = false;
     for (let seed = 1; seed < 60 && !found; seed++) {
       const bus = new EventBus();
-      const t1 = new TeamBuilder().withId("t1").withName("T1").withPlayers(7).build();
-      const t2 = new TeamBuilder().withId("t2").withName("T2").withPlayers(7).build();
+      const t1 = new TeamBuilder()
+        .withId("t1")
+        .withName("T1")
+        .withPlayers(7)
+        .build();
+      const t2 = new TeamBuilder()
+        .withId("t2")
+        .withName("T2")
+        .withPlayers(7)
+        .build();
       const rng = new RNGService(seed);
       const svc = new GameService(
         bus,
@@ -177,7 +227,12 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
         t2,
         rng,
         new BlockResolutionService(rng),
-        GameService.createInitialState(t1, t2, GamePhase.SETUP, SubPhase.COIN_FLIP),
+        GameService.createInitialState(
+          t1,
+          t2,
+          GamePhase.SETUP,
+          SubPhase.COIN_FLIP
+        ),
         noDelay
       );
       const mockScene = makeMockScene(t1, t2);

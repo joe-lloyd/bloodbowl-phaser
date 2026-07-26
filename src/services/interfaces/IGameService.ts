@@ -50,8 +50,17 @@ export interface IGameService {
   placePlayer(playerId: string, x: number, y: number): boolean;
   removePlayer(playerId: string): void;
   swapPlayers(player1Id: string, player2Id: string): boolean;
-  confirmSetup(teamId: string): void;
+  confirmSetup(teamId: string): boolean;
   isSetupComplete(teamId: string): boolean;
+  getSetupStatus(
+    teamId: string
+  ): import("@/types/SetupTypes").SetupTeamStatus | undefined;
+  getLastSetupError(): string | null;
+  applySetupFormation(
+    teamId: string,
+    formation: import("@/types/SetupTypes").FormationPosition[]
+  ): import("@/types/SetupTypes").SetupFormationResult;
+  resolveSetupConcession(teamId: string, concede: boolean): boolean;
   getSetupZone(
     teamId: string
   ): import("@/types/SetupTypes").SetupZone | undefined;

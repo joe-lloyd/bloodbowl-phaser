@@ -1,4 +1,5 @@
 import { Formation, FormationPosition } from "../../types/SetupTypes";
+import { getLineOfScrimmageX, SEVENS_GEOMETRY } from "../../config/GameConfig";
 
 /** A formation as shown in the setup dropdown */
 export interface FormationEntry {
@@ -27,7 +28,7 @@ export class FormationManager {
     isTeam1: boolean
   ): { name: string; positions: FormationPosition[] }[] {
     // depth(n) = n squares behind the line of scrimmage
-    const los = isTeam1 ? 6 : 13;
+    const los = getLineOfScrimmageX(isTeam1);
     const depth = (n: number) => (isTeam1 ? los - n : los + n);
     const at = (index: number, x: number, y: number): FormationPosition => ({
       playerId: String(index),
@@ -184,13 +185,15 @@ export class FormationManager {
    * Simple 3-4 setup: 3 on line of scrimmage, 4 in backfield
    */
   getDefaultFormation(isTeam1: boolean): FormationPosition[] {
-    const losX = isTeam1 ? 6 : 13; // Line of scrimmage
-    const backX = isTeam1 ? 3 : 16; // Backfield
+    const losX = getLineOfScrimmageX(isTeam1);
+    const backX = isTeam1
+      ? Math.max(SEVENS_GEOMETRY.END_ZONE_X.team1, losX - 3)
+      : Math.min(SEVENS_GEOMETRY.END_ZONE_X.team2, losX + 3);
 
     return [
       // 3 on LOS (vertical line, spread across y-axis)
       { playerId: "0", x: losX, y: 4 }, // Center
-      { playerId: "1", x: losX, y: 2 }, // Top
+      { playerId: "1", x: losX, y: SEVENS_GEOMETRY.CENTRE_FIELD_ROWS.min },
       { playerId: "2", x: losX, y: 6 }, // Bottom
 
       // 4 in backfield/wide zones

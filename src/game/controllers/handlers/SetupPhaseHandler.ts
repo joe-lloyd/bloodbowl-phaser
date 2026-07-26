@@ -72,6 +72,7 @@ export class SetupPhaseHandler implements PhaseHandler {
           this.eventBus.emit(GameEventNames.UI_ShowSetupControls, {
             subPhase,
             activeTeam,
+            status: this.gameService.getSetupStatus(activeTeam.id),
           });
           this.scene.highlightSetupZone(isTeam1);
           this.scene.enablePlacement(activeTeam, isTeam1);
@@ -142,6 +143,12 @@ export class SetupPhaseHandler implements PhaseHandler {
       case "confirm":
         this.gameService.confirmSetup(activeTeam.id);
         break;
+      case "continue":
+        this.gameService.resolveSetupConcession(activeTeam.id, false);
+        break;
+      case "concede":
+        this.gameService.resolveSetupConcession(activeTeam.id, true);
+        break;
       case "clear":
         placementController?.clearPlacements();
         this.scene.refreshDugouts();
@@ -205,11 +212,29 @@ export class SetupPhaseHandler implements PhaseHandler {
           );
           break;
         }
-        placementController?.loadFormation(positions);
+        const result = this.gameService.applySetupFormation(
+          activeTeam.id,
+          positions
+        );
+        placementController?.syncFromTeam();
         this.scene.refreshDugouts();
+        const outstanding = result.status.restrictions.filter(
+          (restriction) => !restriction.satisfied
+        );
+        const detail =
+          result.skipped.length > 0 || outstanding.length > 0
+            ? ` ${[
+                ...result.skipped.map((entry) => entry.reason),
+                ...outstanding.map((restriction) =>
+                  restriction.satisfiable
+                    ? restriction.message
+                    : `Relaxed: ${restriction.message}`
+                ),
+              ].join(" ")}`
+            : "";
         this.eventBus.emit(
           GameEventNames.UI_Notification,
-          `Formation "${name}" loaded!`
+          `Formation "${name}" loaded.${detail}`
         );
         break;
       }
