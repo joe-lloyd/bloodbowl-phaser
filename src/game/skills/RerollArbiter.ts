@@ -15,6 +15,10 @@ import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
+import {
+  consumeFreeReroll,
+  freeRerollsFor,
+} from "../kickoff/driveEffects";
 
 export class RerollArbiter {
   private usedSkill = new Set<string>();
@@ -75,6 +79,7 @@ export class RerollArbiter {
     if (this.state.turn.teamId !== teamId) return false;
     if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return false;
     return (
+      freeRerollsFor(this.state, teamId) > 0 ||
       (this.getTeam(teamId)?.rerolls ?? 0) > 0 ||
       this.leaderRerollAvailable(teamId)
     );
@@ -110,6 +115,19 @@ export class RerollArbiter {
 
   public consumeTeamReroll(teamId: string): void {
     this.usedTeam.add(`${this.turnKey()}|${teamId}`);
+    // Brilliant Coaching's free re-roll is spent before the team's own.
+    if (consumeFreeReroll(this.state, teamId)) {
+      this.eventBus?.emit(GameEventNames.DriveEffectExpired, {
+        teamId,
+        effect: "free-team-reroll",
+        detail: "Brilliant Coaching free re-roll spent",
+      });
+      this.eventBus?.emit(
+        GameEventNames.UI_Notification,
+        "Brilliant Coaching: free re-roll spent"
+      );
+      return;
+    }
     const team = this.getTeam(teamId);
     if (team && team.rerolls > 0) {
       team.rerolls -= 1;

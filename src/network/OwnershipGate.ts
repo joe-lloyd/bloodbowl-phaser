@@ -57,6 +57,19 @@ const DECISION_REPLIES = new Set([
   "use-reaction",
   "choose-interception",
   "touchback",
+  "kickoff-select-player",
+  "kickoff-move-player",
+  "kickoff-place-player",
+  "kickoff-confirm",
+  "kickoff-skip",
+]);
+
+const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
+  "declare-action",
+  "move",
+  "block",
+  "throw-teammate",
+  "end-activation",
 ]);
 
 /** Which team owns the pending decision. */
@@ -66,6 +79,7 @@ export function decisionOwner(
 ): string | undefined {
   switch (pending.type) {
     case "block-dice":
+    case "kickoff-event":
     case "reroll":
     case "reaction":
     case "interception":
@@ -95,6 +109,25 @@ export function checkOwnership(
     if (!ctx.pendingDecision) return deny("no-decision-pending");
     const owner = decisionOwner(ctx.pendingDecision, ctx);
     return owner === senderTeamId ? allow : deny("not-your-decision");
+  }
+  if (
+    ctx.pendingDecision?.type === "kickoff-event" &&
+    ctx.pendingDecision.charge &&
+    CHARGE_COMMANDS.has(command.type)
+  ) {
+    const owner = decisionOwner(ctx.pendingDecision, ctx);
+    if (owner !== senderTeamId) return deny("not-your-decision");
+    const playerId =
+      "playerId" in command
+        ? command.playerId
+        : "attackerId" in command
+          ? command.attackerId
+          : "throwerId" in command
+            ? command.throwerId
+            : undefined;
+    return playerId && ctx.teamIdOfPlayer(playerId) !== senderTeamId
+      ? deny("not-your-player")
+      : allow;
   }
   if (ctx.pendingDecision) {
     return deny("decision-pending");

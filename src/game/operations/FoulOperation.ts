@@ -6,6 +6,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { InjuryResult } from "../controllers/InjuryController";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
+import { effectiveAV } from "../kickoff/driveEffects";
 
 /**
  * Ends the fouler's activation once the Foul (and any send-off it queued) has
@@ -107,7 +108,7 @@ export class FoulOperation extends GameOperation {
       analysis.defensiveAssists.length === 0;
     // Assists are already folded into the effective AV target; the roll
     // breaks the armour when its 2D6 total meets it.
-    const avTarget = target.stats.AV - analysis.modifier;
+    const avTarget = effectiveAV(target, gameService.getState()) - analysis.modifier;
     const announce = (skill: SkillType, effect: string) =>
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: fouler.id,

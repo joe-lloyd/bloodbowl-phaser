@@ -28,6 +28,7 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { PostMatchProgression } from "./PostMatchProgression";
 import { useNavigate } from "react-router-dom";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
+import { KickoffEventOverlay } from "./KickoffEventOverlay";
 
 interface GameHUDProps {
   eventBus: EventBus;
@@ -258,6 +259,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <>
           {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
           <PlayerInfoPanel eventBus={eventBus} />
+          <KickoffEventOverlay eventBus={eventBus} />
         </>
       }
       overlays={

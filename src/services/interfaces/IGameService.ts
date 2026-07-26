@@ -69,6 +69,13 @@ export interface IGameService {
   /** Touchback: receiving coach hands the ball to one of their players */
   awardTouchback(playerId: string): boolean;
   isTouchbackPending(): boolean;
+  /** Interactive Sevens kickoff event currently awaiting its owning coach. */
+  getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null;
+  selectKickoffEventPlayer(playerId: string): boolean;
+  moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean;
+  placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean;
+  confirmKickoffEventStep(): boolean;
+  skipKickoffEventStep(): boolean;
 
   // Game Actions
   startGame(kickingTeamId: string): void;

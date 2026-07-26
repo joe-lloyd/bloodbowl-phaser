@@ -12,14 +12,15 @@ Everything the events need to touch already exists: `TurnManager` owns turn coun
 
 - The Sevens table, with all eleven results applying their rulebook effect.
 - Drive-scoped and turn-scoped effects that reliably expire.
-- Interactive steps for Solid Defence, High Kick, Quick Snap and Charge! that the kickoff waits on, work online, and can be skipped.
+- Interactive steps for Solid Defence, High Kick, Quick Snap and Charge! that reuse pitch-native interaction, that the kickoff waits on, work online, and can be skipped.
+- One authoritative visual sequence: select kicker, select target, deviate into an enlarged airborne state, roll and resolve the table, then shrink and land into normal catch/bounce handling.
 - Deterministic and reproducible headless.
 
 **Non-Goals:**
 
 - The full inducement economy (`add-inducements-and-apothecary` covers that; here Get the Ref only needs "team holds a Bribe").
 - Setup restriction rules themselves (`enforce-sevens-setup-rules` owns them; Solid Defence calls into them).
-- Animating the kickoff or camera behaviour.
+- General-purpose ball-flight or camera changes outside the kickoff sequence.
 
 ## Decisions
 
@@ -33,26 +34,51 @@ Add a `driveEffects` structure to game state holding: free re-rolls per team, an
 
 The Cheering Fans assist is turn-scoped, not drive-scoped, so it carries the turn number it was granted for and is dropped by `TurnManager` when that turn ends, whether or not it was used.
 
-### 3. Interactive events are a pending-decision step, modelled like the existing reroll decision
+### 3. Interactive events are a pending-decision step driven from the pitch
 
-The kickoff enters a `KICKOFF_EVENT` sub-step carrying `{ event, owningTeam, selectionLimit }`. The controller awaits a confirm/skip action. This mirrors `reroll-decisions`, which already has a working "the engine waits for a coach" pattern and a working online route, so the online path is inherited rather than invented. The step is a coach decision and must be added to `UI_INTENT_EVENTS` handling so a guest's selection is proxied to the host.
+The kickoff enters a `KICKOFF_EVENT` sub-step carrying `{ event, owningTeam, selectionLimit }`. The controller awaits the event's pitch actions and then a confirm/skip action. The overlay is informational: event meaning, remaining allowance, progress, confirm and skip. It occupies the bottom-right temporary-menu area and does not render player buttons or a separate selection list. Eligible players are highlighted and selected directly on the pitch. Destinations use board-square input, Solid Defence uses one direct setup drag from the player's current pitch square to its legal destination, and Charge! uses the existing action window and player context menu. This mirrors the engine-waiting and online ownership aspects of `reroll-decisions`, while keeping actual gameplay input in the established interaction controller. The step is a coach decision and must be added to `UI_INTENT_EVENTS` handling so a guest's pitch actions are proxied to the host.
+
+`KickoffSequenceCompleted` is the only hand-off into the receiving team's first turn. An interactive event must not change the normal active team, start a normal turn, or consume coming-turn activations while it is pending. Its confirm/skip, any final setup validation, and any active Charge! action must all complete before the ball lands and the normal turn begins.
 
 Ordering relative to the kick:
 
-| Event | Resolves |
-|---|---|
-| Solid Defence | before the ball is kicked (re-setup) |
-| Quick Snap, Charge! | before the ball is kicked |
-| High Kick | after the landing square is computed, before the ball lands |
-| Changing Weather | before the kick; a Perfect Conditions result adds Scatter (3) to the in-air path |
+1. The kicking coach selects the kicker.
+2. The kicking coach selects the target square.
+3. Deviation is calculated. The single real ball sprite moves to the deviated
+   square at an enlarged, semi-transparent scale, representing height above
+   that square without hiding it. This is not a landing and SHALL NOT trigger
+   a catch or bounce.
+4. The kickoff table rolls.
+5. The table result and any interactive step fully resolve while that same
+   enlarged ball remains airborne. Changing Weather may move the airborne
+   destination.
+6. The single real ball sprite animates back to its normal scale and full
+   opacity at the final square, representing the landing.
+7. Only after that landing animation does normal catch, bounce, or touchback
+   resolution run.
 
-### 4. Solid Defence and High Kick reuse the setup machinery
+No second or ghost ball is created. The airborne state is represented only by
+the real ball's enlarged, semi-transparent rendering. The kickoff SHALL NOT
+pan, zoom, track the ball, or reset the camera; the gameplay camera remains
+unchanged for the complete sequence. `BallKicked` starts the airborne
+deviation, `KickoffBallLanding` starts the scale/opacity landing, and
+`KickoffSequenceCompleted` clears transient state before play begins. This
+lifecycle is independent of `KickoffResult`, because an interactive event may
+emit its table result before its coach-controlled step finishes.
 
-Solid Defence removes the selected players and re-enters the existing placement flow restricted to those players — the same validator, so setup restrictions apply for free once `enforce-sevens-setup-rules` lands, and apply as-they-are before that. High Kick is a single placement into a known square, validated only for "is this player Open" and "is the square the landing square".
+### 4. Solid Defence and High Kick reuse pitch selection and setup machinery
+
+Solid Defence puts the kicking team into a constrained setup-drag mode. The coach drags an Open player directly from its current pitch square to a legal new setup square; a successful drop counts as one of the D3+1 redeployments. The player remains on the pitch throughout the interaction, is never staged in Reserves, and does not need to be selected in a separate first pass. An invalid drop returns the player to its original square and does not spend the allowance. The existing setup validator remains authoritative, so setup restrictions apply for free once `enforce-sevens-setup-rules` lands, and apply as-they-are before that. High Kick highlights the landing square and lets the receiving coach click one Open player on the pitch; the selected player is placed directly into that known square after validating "is this player Open" and "is the square the landing square".
 
 ### 5. Charge! reuses the normal activation path with a free-action budget
 
-Rather than a bespoke mini-turn, Charge! activates each selected player through the existing activation entry point with a budget object: `{ moveFree: true, blitzRemaining: 1, throwTeammateRemaining: 1, kickTeammateRemaining: 1 }`. The sequence subscribes to knockdown/fall-over outcomes and aborts on the first one. Players activated this way are not marked `hasActed` for the coming turn.
+Rather than a bespoke mini-turn or bespoke action controls, Charge! selects players on the pitch and activates each through the existing activation entry point, action window, and context menu with a budget object: `{ moveFree: true, blitzRemaining: 1, throwTeammateRemaining: 1, kickTeammateRemaining: 1 }`. The sequence subscribes to knockdown/fall-over outcomes and aborts on the first one. Players activated this way are not marked `hasActed` for the coming turn.
+
+### 6. Event state and logs are authoritative and visible
+
+The event resolver writes normal game state, and the ordinary renderer reads that state. Pitch Invasion sets the selected player's status to Stunned through the standard status path, so the model lies sideways and receives the standard orange stunned border without a kickoff-only visual workaround. Dodgy Snack writes a named player's drive modifier or reserves confinement before the event resolves, and the match log names that player and the exact effect.
+
+Contested event rolls are logged as separate, team-attributed components: team name, raw D6, applicable staff/Fan Factor modifier, and total. The winner/tie and granted consequence are then logged with team and player names. This applies at minimum to Cheering Fans, Brilliant Coaching, Dodgy Snack, and Pitch Invasion, so a coach can reconstruct why an outcome occurred.
 
 ## Risks / Trade-offs
 

@@ -1,8 +1,10 @@
 import { GameOperation } from "../core/GameOperation";
+import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
+import { effectiveAV } from "../kickoff/driveEffects";
 import {
   foldTrigger,
   gatherParticipants,
@@ -41,10 +43,9 @@ export class ArmourOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
-    const eventBus =
-      context.eventBus as import("../../services/EventBus").IEventBus;
+    const eventBus = context.eventBus;
     const flowManager = context.flowManager;
 
     const player = gameService.getPlayerById(this.playerId);
@@ -75,7 +76,7 @@ export class ArmourOperation extends GameOperation {
       roll,
       armourModifier: 0,
       injuryModifier: 0,
-      broken: gameService.getArmourController().isArmourBroken(player, roll),
+      broken: roll >= effectiveAV(player, gameService.getState()),
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -103,7 +104,8 @@ export class ArmourOperation extends GameOperation {
     );
 
     const isBroken =
-      ctx.forcedBreak || roll + ctx.armourModifier >= player.stats.AV;
+      ctx.forcedBreak ||
+      roll + ctx.armourModifier >= effectiveAV(player, gameService.getState());
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");

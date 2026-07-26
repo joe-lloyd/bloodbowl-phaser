@@ -224,7 +224,14 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     // Border rotates with the container when a player is laid down; counter
     // the container angle so the square stays axis-aligned on the grid
     this.teamTurnBorder.setAngle(-this.angle);
-    this.teamTurnBorder.setVisible(this.teamTurnBorderVisible);
+    // Down-state borders are status information, not turn information. Keep
+    // them visible even during kickoff (when no normal team turn border is
+    // active) so Pitch Invasion immediately reads as prone/stunned.
+    this.teamTurnBorder.setVisible(
+      this.teamTurnBorderVisible ||
+        this.player.status === "Prone" ||
+        this.player.status === "Stunned"
+    );
   }
 
   /**
@@ -234,7 +241,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     if (activated) {
       this.shape.setAlpha(0.5); // Dim the player
     } else {
-      this.shape.setAlpha(1.0); // Reset
+      // Restore the alpha/rotation dictated by the canonical player status;
+      // a stunned model must not be made visually Standing by a turn reset.
+      this.updateStatus();
     }
   }
 

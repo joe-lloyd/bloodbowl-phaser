@@ -66,6 +66,10 @@ export interface ScriptResult {
 export interface RuleOutcome {
   id: string;
   name: string;
+  /** Optional rule explanation shown by specialized sandbox catalogs. */
+  description?: string;
+  /** Known deterministic example; selecting the outcome can load it directly. */
+  exampleSeed?: number;
   /** Does this run exhibit the outcome? Must be deterministic per seed. */
   matches(result: ScriptResult): boolean;
   /** Extra assertions run by the generated tests on a matching run. */

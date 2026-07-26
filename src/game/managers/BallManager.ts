@@ -12,7 +12,12 @@ import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
 import { GameConfig } from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
+import { BounceOperation } from "../operations/BounceOperation";
 import { ReactionDecisionAnswer } from "../../types/decisions";
+import {
+  KICKOFF_EVENT_MEANING,
+  KickoffEventOutcome,
+} from "../kickoff/kickoffEvents";
 
 /**
  * BallManager
@@ -30,19 +35,30 @@ export class BallManager {
   private pendingTouchback: boolean = false;
   /** Waiting for the receiving coach to hand the ball to one of their players */
   private touchbackTeamId: string | null = null;
+  /** Team orientation for the kickoff currently in flight. */
+  private isTeam1Kicking = true;
 
   constructor(
     private eventBus: IEventBus,
     private state: GameState,
     private team1: Team,
     private team2: Team,
-    weatherService: WeatherManager,
+    _weatherService: WeatherManager,
     private diceController: DiceController,
     private callbacks: {
       onTurnover: (reason: string) => void;
       onPhaseChange: (phase: GamePhase, subPhase: SubPhase) => void;
       onBallPlaced: (x: number, y: number) => void;
       getFlowManager?: () => import("../core/GameFlowManager").GameFlowManager;
+      /** Resolve the Sevens event, pausing while an interactive step is open. */
+      resolveKickoffEvent?: (isTeam1Kicking: boolean) => Promise<void>;
+      /** High Kick is offered after deviation, before the ball lands. */
+      resolveHighKickStep?: (
+        isTeam1Kicking: boolean,
+        landingSquare: { x: number; y: number }
+      ) => Promise<void>;
+      /** Changing Weather / Perfect Conditions adds Scatter (3). */
+      consumeWeatherScatterPending?: () => boolean;
     },
     private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
       new Promise((resolve) => setTimeout(resolve, ms))
@@ -50,9 +66,7 @@ export class BallManager {
     // Instantiate controllers with DiceController
     this.movementController = new BallMovementController(this.diceController);
     this.kickoffController = new KickoffController(
-      eventBus,
       this.movementController,
-      weatherService,
       this.diceController
     );
     this.pickupController = new PickupController(eventBus, this.diceController);
@@ -66,6 +80,7 @@ export class BallManager {
     targetX: number,
     targetY: number
   ): Promise<void> {
+    this.isTeam1Kicking = isTeam1Kicking;
     // 1. Transition State
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
@@ -104,29 +119,36 @@ export class BallManager {
       this.state.ballPosition = { x: result.finalX, y: result.finalY };
     }
 
-    // 4. Emit Event
-    // Calculate direction and distance for visual consistency if needed,
-    // or we update the event type. For now, we mock direction/distance as they are legacy
-    // fields for the animation, but the animation usually relies on finalX/finalY or targets.
-    // Let's assume 0 for now or calculate roughly.
-    this.eventBus.emit(GameEventNames.BallKicked, {
-      playerId,
-      targetX,
-      targetY,
-      direction: 0, // Legacy field
-      distance: 0, // Legacy field
-      finalX: result.finalX,
-      finalY: result.finalY,
-    });
-
     // On the Ball's kick-off clause sits exactly here: deviation is known,
     // but no Kick-off Event has been rolled yet. Touchbacks suppress it.
     if (!result.isTouchback) {
       await this.resolveKickoffOnTheBall(isTeam1Kicking);
     }
 
-    // 5. Chain to Event Table
-    this.delay(500).then(() => this.rollKickoff());
+    // 4. Put the ball in the air before resolving the table. The browser
+    // keeps the real ball airborne and shows a translucent landing preview
+    // while any interactive kickoff step is open.
+    this.eventBus.emit(GameEventNames.BallKicked, {
+      playerId,
+      targetX,
+      targetY,
+      direction: 0,
+      distance: 0,
+      finalX: result.finalX,
+      finalY: result.finalY,
+      isTouchback: result.isTouchback,
+    });
+
+    // 5. Resolve the Event Table. Awaiting here is what lets interactive
+    // kickoff steps suspend browser/headless/online execution consistently
+    // while the ball remains visibly airborne.
+    // The browser's airborne tween is 800ms. Do not roll the table until
+    // the enlarged ball has reached its deviated square.
+    await this.delay(900);
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
+    await this.resolveKickoffEvent();
+
+    await this.finishKickoffResolution();
   }
 
   /**
@@ -253,52 +275,128 @@ export class BallManager {
     }
   }
 
-  public rollKickoff(): void {
+  public async rollKickoff(): Promise<void> {
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
-
-    // Delegate to Controller
-    this.kickoffController.rollKickoffEvent();
-
-    this.delay(1000).then(() => {
-      this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
-      this.resolveBallPlacement();
-    });
+    await this.resolveKickoffEvent();
+    await this.finishKickoffResolution();
   }
 
-  public resolveBallPlacement(): void {
-    this.delay(200).then(() => {
-      // ReadyToStart handlers call startGame synchronously, so once emit
-      // returns the receiving team is the active team
-      this.eventBus.emit(GameEventNames.ReadyToStart);
+  private async resolveKickoffEvent(): Promise<void> {
+    if (this.callbacks.resolveKickoffEvent) {
+      await this.callbacks.resolveKickoffEvent(this.isTeam1Kicking);
+    } else {
+      // Lightweight/unit-test fallback when BallManager is constructed alone.
+      const { roll, event } = this.kickoffController.rollKickoffEvent();
+      const outcome: KickoffEventOutcome = {
+        event,
+        meaning: KICKOFF_EVENT_MEANING[event],
+        perTeam: {},
+      };
+      this.eventBus.emit(GameEventNames.KickoffResult, {
+        roll,
+        event,
+        meaning: outcome.meaning,
+        outcome,
+      });
+    }
+  }
 
-      if (this.pendingTouchback) {
-        this.pendingTouchback = false;
-        this.touchbackTeamId = this.state.activeTeamId;
-        if (this.touchbackTeamId) {
-          this.eventBus.emit(GameEventNames.TouchbackAwarded, {
-            teamId: this.touchbackTeamId,
-          });
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Touchback! Choose any of your players to take the ball."
-          );
-        }
-      } else if (this.state.ballPosition) {
-        const landing = { ...this.state.ballPosition };
-        const occupant = this.playerAt(landing);
-        const catcher = occupant ?? this.divingCatcherAt(landing);
-        if (catcher) {
-          this.callbacks.getFlowManager?.()?.add(
-            new CatchOperation(catcher.id, false, {
-              origin: "kick-off",
-              divingCatch: !occupant,
-              landingPosition: landing,
-            }),
-            true
-          );
-        }
+  private async finishKickoffResolution(): Promise<void> {
+    if (this.state.ballPosition && this.callbacks.resolveHighKickStep) {
+      await this.callbacks.resolveHighKickStep(
+        this.isTeam1Kicking,
+        { ...this.state.ballPosition }
+      );
+    }
+
+    if (
+      this.state.ballPosition &&
+      this.callbacks.consumeWeatherScatterPending?.()
+    ) {
+      const from = { ...this.state.ballPosition };
+      const path = this.movementController.scatter(from);
+      const to = path[path.length - 1];
+      const offPitch =
+        to.x < 0 ||
+        to.x >= GameConfig.PITCH_WIDTH ||
+        to.y < 0 ||
+        to.y >= GameConfig.PITCH_HEIGHT;
+      const ownThird = this.isTeam1Kicking ? to.x < 7 : to.x > 13;
+      this.pendingTouchback = offPitch || ownThird;
+      this.state.ballPosition = this.pendingTouchback ? null : { ...to };
+      this.eventBus.emit(GameEventNames.BallScattered, {
+        from,
+        to,
+        reason: "Changing Weather: Perfect Conditions",
+      });
+      if (this.state.ballPosition) {
+        this.eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
+          ...this.state.ballPosition,
+        });
+        // Let the same enlarged ball finish moving to the weather-adjusted
+        // square before starting its landing tween.
+        await this.delay(800);
       }
+    }
+
+    this.eventBus.emit(GameEventNames.KickoffBallLanding, {
+      landingSquare: this.state.ballPosition
+        ? { ...this.state.ballPosition }
+        : null,
+      isTouchback: this.pendingTouchback,
     });
+
+    await this.delay(1000);
+    this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.PLACE_BALL);
+    await this.resolveBallPlacement();
+  }
+
+  public async resolveBallPlacement(): Promise<void> {
+    await this.delay(200);
+
+    // This must precede ReadyToStart: that event changes phase
+    // synchronously and removes the kickoff handler's listeners.
+    this.eventBus.emit(GameEventNames.KickoffSequenceCompleted, {
+      isTouchback: this.pendingTouchback,
+    });
+
+    // ReadyToStart handlers call startGame synchronously, so once emit
+    // returns the receiving team is the active team.
+    this.eventBus.emit(GameEventNames.ReadyToStart);
+
+    if (this.pendingTouchback) {
+      this.pendingTouchback = false;
+      this.touchbackTeamId = this.state.activeTeamId;
+      if (this.touchbackTeamId) {
+        this.eventBus.emit(GameEventNames.TouchbackAwarded, {
+          teamId: this.touchbackTeamId,
+        });
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Touchback! Choose any of your players to take the ball."
+        );
+      }
+    } else if (this.state.ballPosition) {
+      const landing = { ...this.state.ballPosition };
+      const occupant = this.playerAt(landing);
+      const catcher = occupant ?? this.divingCatcherAt(landing);
+      if (catcher) {
+        this.callbacks.getFlowManager?.()?.add(
+          new CatchOperation(catcher.id, false, {
+            origin: "kick-off",
+            divingCatch: !occupant,
+            landingPosition: landing,
+          }),
+          true
+        );
+      } else {
+        // A kickoff landing in an empty square bounces once. This happens
+        // only after the airborne animation and kickoff table resolution.
+        this.callbacks
+          .getFlowManager?.()
+          ?.add(new BounceOperation(landing), true);
+      }
+    }
   }
 
   /**
@@ -460,7 +558,7 @@ export class BallManager {
         (player) =>
           player.gridPosition &&
           player.status === PlayerStatus.ACTIVE &&
-          hasSkill(player.skills, SkillType.DIVING_CATCH) &&
+          hasSkill(player.skills ?? [], SkillType.DIVING_CATCH) &&
           Math.max(
             Math.abs(player.gridPosition.x - landing.x),
             Math.abs(player.gridPosition.y - landing.y)

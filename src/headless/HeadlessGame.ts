@@ -39,6 +39,11 @@ const COMMAND_SHAPES: Record<
   "confirm-setup": { teamId: "string" },
   "select-kicker": { playerId: "string" },
   "kick-ball": { playerId: "string", x: "number", y: "number" },
+  "kickoff-select-player": { playerId: "string" },
+  "kickoff-move-player": { playerId: "string", x: "number", y: "number" },
+  "kickoff-place-player": { playerId: "string", x: "number", y: "number" },
+  "kickoff-confirm": {},
+  "kickoff-skip": {},
   "declare-action": { playerId: "string", action: "string" },
   move: { playerId: "string", path: "path" },
   fumblerooski: { playerId: "string", x: "number", y: "number" },
@@ -95,7 +100,20 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "use-reaction": "reaction",
   "choose-interception": "interception",
   touchback: "touchback",
+  "kickoff-select-player": "kickoff-event",
+  "kickoff-move-player": "kickoff-event",
+  "kickoff-place-player": "kickoff-event",
+  "kickoff-confirm": "kickoff-event",
+  "kickoff-skip": "kickoff-event",
 };
+
+const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
+  "declare-action",
+  "move",
+  "block",
+  "throw-teammate",
+  "end-activation",
+]);
 
 export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
@@ -151,13 +169,22 @@ export class HeadlessGame {
     }
 
     // Gate: while a decision is pending, only its reply is accepted
+    const pendingAtStart = this.pending;
     const replyFor = DECISION_REPLIES[cmd.type];
-    if (this.pending && replyFor !== this.pending.type) {
+    if (pendingAtStart?.type === "kickoff-event") {
+      const chargeCommand =
+        !!pendingAtStart.charge && CHARGE_COMMANDS.has(cmd.type);
+      if (replyFor !== "kickoff-event" && !chargeCommand) {
+        return this.reject(
+          "decision-pending:kickoff-event — resolve it before other commands"
+        );
+      }
+    } else if (pendingAtStart && replyFor !== pendingAtStart.type) {
       return this.reject(
-        `decision-pending:${this.pending.type} — resolve it before other commands`
+        `decision-pending:${pendingAtStart.type} — resolve it before other commands`
       );
     }
-    if (!this.pending && replyFor) {
+    if (!pendingAtStart && replyFor) {
       return this.reject("no-decision-pending");
     }
 
@@ -175,8 +202,16 @@ export class HeadlessGame {
     this.inFlight = null;
     const run = (async () => {
       await this.dispatch(cmd);
-      if (prior) await prior; // a resumed suspended command finishes first
+      if (prior) {
+        if (this.ctx.gameService.getKickoffEventStep()) {
+          this.inFlight ??= prior;
+          this.surfaceKickoffPending();
+        } else {
+          await prior;
+        }
+      }
       await this.settle();
+      this.surfaceKickoffPending();
     })();
 
     const outcome = await Promise.race([
@@ -266,6 +301,46 @@ export class HeadlessGame {
         const isTeam1Kicking = kicker.teamId === this.ctx.team1.id;
         this.kickingTeamId = kicker.teamId;
         await gs.kickBall(isTeam1Kicking, cmd.playerId, cmd.x, cmd.y);
+        break;
+      }
+      case "kickoff-select-player": {
+        const pending = this.takePending("kickoff-event");
+        if (!gs.selectKickoffEventPlayer(cmd.playerId)) {
+          this.pending = pending;
+          throw new Error("invalid-kickoff-player");
+        }
+        break;
+      }
+      case "kickoff-move-player": {
+        const pending = this.takePending("kickoff-event");
+        if (!gs.moveKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y)) {
+          this.pending = pending;
+          throw new Error("invalid-kickoff-move");
+        }
+        break;
+      }
+      case "kickoff-place-player": {
+        const pending = this.takePending("kickoff-event");
+        if (!gs.placeKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y)) {
+          this.pending = pending;
+          throw new Error("invalid-kickoff-placement");
+        }
+        break;
+      }
+      case "kickoff-confirm": {
+        const pending = this.takePending("kickoff-event");
+        if (!gs.confirmKickoffEventStep()) {
+          this.pending = pending;
+          throw new Error("kickoff-step-not-confirmable");
+        }
+        break;
+      }
+      case "kickoff-skip": {
+        const pending = this.takePending("kickoff-event");
+        if (!gs.skipKickoffEventStep()) {
+          this.pending = pending;
+          throw new Error("kickoff-step-not-skippable");
+        }
         break;
       }
       case "declare-action":
@@ -496,6 +571,15 @@ export class HeadlessGame {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private interceptDecision(name: string, data: any): void {
+    if (name === GameEventNames.KickoffEventStepStarted) {
+      this.surfaceKickoffPending();
+      this.decisionWaiters.splice(0).forEach((wake) => wake());
+      return;
+    }
+    if (name === GameEventNames.KickoffEventStepResolved) {
+      if (this.pending?.type === "kickoff-event") this.pending = null;
+      return;
+    }
     if (name === GameEventNames.ReadyToStart) {
       // In the browser KickoffPhaseHandler starts play on this signal;
       // headless mirrors that so the kickoff chain flows into PLAY.
@@ -578,6 +662,36 @@ export class HeadlessGame {
         targetSquare: data.targetSquare,
       };
     }
+  }
+
+  /** Mirror the engine-owned kickoff step into the protocol decision shape. */
+  private surfaceKickoffPending(): void {
+    if (this.pending && this.pending.type !== "kickoff-event") return;
+    const step = this.ctx.gameService.getKickoffEventStep();
+    if (!step) {
+      if (this.pending?.type === "kickoff-event") this.pending = null;
+      return;
+    }
+    this.pending = {
+      type: "kickoff-event",
+      chooserTeamId: step.teamId,
+      event: step.event,
+      selectionLimit: step.selectionLimit,
+      selectedPlayerIds: [...step.selectedPlayerIds],
+      movedPlayerIds: [...step.movedPlayerIds],
+      awaitingPlacement: [...step.awaitingPlacement],
+      landingSquare: step.landingSquare
+        ? { ...step.landingSquare }
+        : undefined,
+      charge: step.charge
+        ? {
+            queue: [...step.charge.queue],
+            budget: { ...step.charge.budget },
+            activePlayerId: step.charge.activePlayerId,
+            aborted: step.charge.aborted,
+          }
+        : undefined,
+    };
   }
 
   private takePending<T extends PendingDecision["type"]>(

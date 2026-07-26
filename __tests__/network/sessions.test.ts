@@ -21,6 +21,7 @@ import { GuestSession } from "../../src/network/GuestSession";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
 import { decisionOwner, checkOwnership } from "../../src/network/OwnershipGate";
+import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 
 interface Match {
   game: HeadlessGame;
@@ -142,7 +143,9 @@ async function playNetworkedMatch(seed: number): Promise<{
 
     const pending = game.pendingDecision();
     if (pending) {
-      if (pending.type === "block-dice") {
+      if (pending.type === "kickoff-event") {
+        await exec({ type: "kickoff-skip" });
+      } else if (pending.type === "block-dice") {
         await exec({ type: "choose-block-result", index: 0 });
       } else if (pending.type === "push-direction") {
         const dir = pending.options[0];
@@ -152,6 +155,12 @@ async function playNetworkedMatch(seed: number): Promise<{
           .find((t) => t.id === pending.teamId)!
           .players.find((p) => p.position && p.status === "Active")!;
         await exec({ type: "touchback", playerId: receiver.id });
+      } else if (pending.type === "reroll") {
+        await exec({ type: "use-reroll", accept: false });
+      } else if (pending.type === "reaction") {
+        await exec({ type: "use-reaction", accept: false });
+      } else if (pending.type === "interception") {
+        await exec({ type: "choose-interception" });
       } else {
         await exec({ type: "choose-follow-up", followUp: true });
       }
@@ -315,12 +324,121 @@ const uphillScenario: Scenario = {
   },
 };
 
+const kickoffInteractionScenario: Scenario = {
+  id: "online-kickoff-interaction",
+  name: "Online kickoff interaction",
+  description: "Open teams ready for a team-one kick.",
+  setup: {
+    team1Placements: Array.from({ length: 7 }, (_, playerIndex) => ({
+      playerIndex,
+      x: 5,
+      y: playerIndex + 2,
+    })),
+    team2Placements: Array.from({ length: 7 }, (_, playerIndex) => ({
+      playerIndex,
+      x: 14,
+      y: playerIndex + 2,
+    })),
+    activeTeam: "team2",
+    phase: GamePhase.KICKOFF,
+    subPhase: SubPhase.ROLL_KICKOFF,
+  },
+};
+
 describe("networked sessions", () => {
+  it("proxies a guest Quick Snap selection to the host and mirrors the board", async () => {
+    let quickSnapSeed = 0;
+    for (let seed = 1; seed < 400 && !quickSnapSeed; seed++) {
+      const probe = new HeadlessGame({
+        scenario: kickoffInteractionScenario,
+        seed,
+      });
+      const response = await probe.execute({
+        type: "kick-ball",
+        playerId: probe.ctx.team1.players[0].id,
+        x: 14,
+        y: 5,
+      });
+      const result = response.events.find(
+        (event) => event.name === "kickoffResult"
+      )?.data as { event?: KickoffEvent } | undefined;
+      if (
+        result?.event === KickoffEvent.QUICK_SNAP &&
+        response.pendingDecision?.type === "kickoff-event"
+      ) {
+        quickSnapSeed = seed;
+      } else if (response.pendingDecision?.type === "kickoff-event") {
+        await probe.execute({ type: "kickoff-skip" });
+      }
+    }
+    expect(quickSnapSeed).toBeGreaterThan(0);
+
+    const match = createMatch({
+      scenario: kickoffInteractionScenario,
+      seed: quickSnapSeed,
+    });
+    const kicked = await match.host.executeLocal({
+      type: "kick-ball",
+      playerId: match.game.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    expect(kicked.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      event: KickoffEvent.QUICK_SNAP,
+      chooserTeamId: match.guestTeamId,
+    });
+
+    const receiver = match.game.ctx.team2.players[0];
+    const selected = await match.guest.sendCommand({
+      type: "kickoff-select-player",
+      playerId: receiver.id,
+    });
+    expect(selected.ok).toBe(true);
+    expect(selected.pendingDecision).toMatchObject({
+      selectedPlayerIds: [receiver.id],
+    });
+
+    const moved = await match.guest.sendCommand({
+      type: "kickoff-move-player",
+      playerId: receiver.id,
+      x: 13,
+      y: receiver.gridPosition!.y,
+    });
+    expect(moved.ok).toBe(true);
+    expect(receiver.gridPosition?.x).toBe(13);
+    expect(
+      moved.snapshot.teams
+        .find((team) => team.id === match.guestTeamId)
+        ?.players.find((player) => player.id === receiver.id)?.position?.x
+    ).toBe(13);
+    expect(
+      match.game.snapshot().teams
+        .find((team) => team.id === match.guestTeamId)
+        ?.players.find((player) => player.id === receiver.id)?.position
+    ).toEqual(
+      moved.snapshot.teams
+        .find((team) => team.id === match.guestTeamId)
+        ?.players.find((player) => player.id === receiver.id)?.position
+    );
+
+    await match.guest.sendCommand({ type: "kickoff-confirm" });
+  });
+
   it("plays a complete match with every command crossing the wire", async () => {
     const { match, finalSnapshot, commandCount } =
       await playNetworkedMatch(2025);
 
-    expect(finalSnapshot.phase).toBe(GamePhase.GAME_OVER);
+    expect(
+      finalSnapshot.phase,
+      JSON.stringify({
+        commandCount,
+        subPhase: finalSnapshot.subPhase,
+        activeTeamId: finalSnapshot.activeTeamId,
+        turn: finalSnapshot.turn,
+        pending: match.game.pendingDecision(),
+      })
+    ).toBe(GamePhase.GAME_OVER);
     expect(commandCount).toBeLessThan(600);
     // The guest spectated the host's play via broadcasts
     expect(match.broadcasts.length).toBeGreaterThan(0);

@@ -106,6 +106,7 @@ export class SetupManager {
 
     this.placedPlayers.set(playerId, { x, y });
     player.gridPosition = { x, y };
+    player.status = PlayerStatus.ACTIVE;
 
     this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
     return true;

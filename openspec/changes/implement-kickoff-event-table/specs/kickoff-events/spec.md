@@ -24,6 +24,14 @@ Every kickoff SHALL record the 2D6 total, the named event, and a plain statement
 - **WHEN** an event grants a team a Bribe or a free re-roll
 - **THEN** that team's holdings show the granted item
 
+#### Scenario: Contested rolls identify both teams
+- **WHEN** Cheering Fans, Brilliant Coaching, Dodgy Snack, or Pitch Invasion rolls once for each coach
+- **THEN** the match log shows each team name beside its raw die, applicable modifier, total, and resulting benefit or penalty
+
+#### Scenario: Player effects identify the player
+- **WHEN** Dodgy Snack or Pitch Invasion affects a randomly selected player
+- **THEN** the match log names the team, player, and exact state or characteristic change applied
+
 ### Requirement: Get the Ref grants each team a Bribe for the game
 On a result of 2, each team SHALL immediately receive one free Bribe inducement. That Bribe SHALL remain available for the rest of the match and SHALL be lost at the end of the match if unused.
 
@@ -88,7 +96,7 @@ On a result of 11, both coaches SHALL roll a D6. The coach who rolled lowest —
 
 #### Scenario: A player is left queasy
 - **WHEN** the Dodgy Snack player roll is 2 or more
-- **THEN** that player's MA and AV are each 1 lower for the rest of the drive and return to normal when the drive ends
+- **THEN** that player's effective MA and AV are immediately each 1 lower in gameplay and visible state for the rest of the drive and return to normal when the drive ends
 
 #### Scenario: A player is locked in the lavatory
 - **WHEN** the Dodgy Snack player roll is 1
@@ -103,7 +111,7 @@ On a result of 12, both coaches SHALL roll a D6 and add their Fan Factor. The co
 
 #### Scenario: The losing coach loses a player to the crowd
 - **WHEN** one coach's Pitch Invasion total is lower
-- **THEN** one of that coach's players on the pitch, chosen at random, is placed prone and stunned
+- **THEN** one of that coach's players on the pitch, chosen at random, has the normal Stunned game state, is rendered sideways, and shows the standard orange stunned border
 
 #### Scenario: A tie hits both teams
 - **WHEN** both coaches' Pitch Invasion totals are equal

@@ -3,6 +3,12 @@ import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
+import { ServiceContainer } from "../../../services/ServiceContainer";
+import {
+  effectiveAV,
+  effectiveMA,
+  getDriveEffects,
+} from "../../../game/kickoff/driveEffects";
 
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
@@ -13,6 +19,8 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
+  const [, setRefreshTick] = useState(0);
+  const refresh = () => setRefreshTick((tick) => tick + 1);
 
   // Hover Events
   useEventBus(eventBus, GameEventNames.UI_ShowPlayerInfo, (player: Player) => {
@@ -34,6 +42,9 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       setSelectedPlayer(data.player);
     }
   );
+  useEventBus(eventBus, GameEventNames.DriveEffectGranted, refresh);
+  useEventBus(eventBus, GameEventNames.PlayerStatusChanged, refresh);
+  useEventBus(eventBus, GameEventNames.GameStateRestored, refresh);
 
   // Logic:
   // 1. If Selected exists, it is ALWAYS shown (Bottom Right 1).
@@ -43,6 +54,14 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const renderPanel = (player: Player, isComparison: boolean) => {
     const borderColor = isComparison ? "border-yellow-400" : "border-white";
     const titleColor = isComparison ? "text-yellow-400" : "text-white";
+    const state = ServiceContainer.isInitialized()
+      ? ServiceContainer.getInstance().gameService.getState()
+      : null;
+    const ma = state ? effectiveMA(player, state) : player.stats.MA;
+    const av = state ? effectiveAV(player, state) : player.stats.AV;
+    const driveModifier = state
+      ? getDriveEffects(state).playerModifiers[player.id]
+      : undefined;
 
     return (
       <div
@@ -71,12 +90,21 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
 
           {/* Stats Grid */}
           <div className="flex justify-between mb-3 px-1">
-            <StatItem label="MA" value={player.stats.MA} />
+            <StatItem label="MA" value={ma} baseValue={player.stats.MA} />
             <StatItem label="ST" value={player.stats.ST} />
             <StatItem label="AG" value={player.stats.AG} />
             <StatItem label="PA" value={player.stats.PA} />
-            <StatItem label="AV" value={player.stats.AV} />
+            <StatItem label="AV" value={av} baseValue={player.stats.AV} />
           </div>
+
+          {driveModifier && (
+            <div className="mb-2 rounded border border-orange-500/70 bg-orange-950/60 px-2 py-1 text-xs font-bold text-orange-300">
+              Dodgy Snack:{" "}
+              {driveModifier.confinedToReserves
+                ? "confined to Reserves for this drive"
+                : `${driveModifier.maModifier ?? 0} MA, ${driveModifier.avModifier ?? 0} AV for this drive`}
+            </div>
+          )}
 
           {/* Skills */}
           <div className="mb-1">
@@ -109,10 +137,25 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   };
 
   // Helper to format stats with labels matching the original style
-  const StatItem = ({ label, value }: { label: string; value: number }) => (
+  const StatItem = ({
+    label,
+    value,
+    baseValue = value,
+  }: {
+    label: string;
+    value: number;
+    baseValue?: number;
+  }) => (
     <div className="flex flex-col items-center">
       <span className="text-xs text-gray-400 font-bold">{label}</span>
-      <span className="text-sm text-yellow-300 font-bold">{value}</span>
+      <span
+        className={`text-sm font-bold ${
+          value < baseValue ? "text-orange-400" : "text-yellow-300"
+        }`}
+        title={value < baseValue ? `Base ${baseValue}` : undefined}
+      >
+        {value}
+      </span>
     </div>
   );
 

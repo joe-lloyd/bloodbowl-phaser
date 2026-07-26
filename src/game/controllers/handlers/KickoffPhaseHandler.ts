@@ -1,7 +1,10 @@
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
-import { IEventBus } from "../../../services/EventBus";
+import {
+  GameEventMap,
+  IEventBus,
+} from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 
 /**
@@ -13,7 +16,8 @@ import { GameEventNames } from "../../../types/events";
  * - Ball Placement / Scatter
  */
 export class KickoffPhaseHandler implements PhaseHandler {
-  private handlers: Map<string, (data: any) => void> = new Map();
+  private removeHandlers: Array<() => void> = [];
+  private ballIsAirborne = false;
 
   constructor(
     private scene: GameScene,
@@ -33,16 +37,42 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.removeListeners();
   }
 
-  private register<T = any>(event: string, handler: (data: T) => void): void {
-    this.handlers.set(event, handler);
-    this.eventBus.on(event as any, handler);
+  private register<K extends keyof GameEventMap>(
+    event: K,
+    handler: (data: GameEventMap[K]) => void
+  ): void {
+    this.eventBus.on(event, handler);
+    this.removeHandlers.push(() => this.eventBus.off(event, handler));
   }
 
   private removeListeners(): void {
-    this.handlers.forEach((handler, event) => {
-      this.eventBus.off(event as any, handler);
+    this.removeHandlers.forEach((remove) => remove());
+    this.removeHandlers = [];
+  }
+
+  private moveAirborneBallTo(x: number, y: number): void {
+    const ballSprite = this.scene["ballSprite"];
+    if (!ballSprite) return;
+
+    const position = this.scene["pitch"].getPixelPosition(x, y);
+    this.scene.tweens.add({
+      targets: ballSprite,
+      x: position.x,
+      y: position.y,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      alpha: 0.55,
+      duration: 800,
+      ease: "Quad.easeOut",
     });
-    this.handlers.clear();
+  }
+
+  private kickoffSceneState(): {
+    pendingKickoffData: GameEventMap[GameEventNames.BallKicked] | null;
+  } {
+    return this.scene as unknown as {
+      pendingKickoffData: GameEventMap[GameEventNames.BallKicked] | null;
+    };
   }
 
   private setupListeners(): void {
@@ -54,13 +84,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
     // Kickoff: Ball kicked animation
     this.register(
       GameEventNames.BallKicked,
-      async (data: {
-        targetX: number;
-        targetY: number;
-        finalX: number;
-        finalY: number;
-        playerId?: string;
-      }) => {
+      (data) => {
         // Logic matched from SceneOrchestrator
         let startX = data.targetX;
         let startY = data.targetY;
@@ -74,48 +98,89 @@ export class KickoffPhaseHandler implements PhaseHandler {
         }
 
         this.scene["placeBallVisual"](startX, startY);
-        this.scene["pendingKickoffData"] = data; // Store for scatter sequence
+        this.kickoffSceneState().pendingKickoffData = data;
+        this.ballIsAirborne = true;
 
+        // The one real ball moves to the deviated square and stays enlarged
+        // there while the kickoff table (including interactive steps)
+        // resolves. Enlarged and translucent means airborne; this is not a
+        // landing. The gameplay camera intentionally stays fixed.
+        this.moveAirborneBallTo(data.finalX, data.finalY);
+      }
+    );
+
+    this.register(
+      GameEventNames.KickoffAirbornePositionChanged,
+      ({ x, y }) => {
+        if (!this.ballIsAirborne) return;
+        this.moveAirborneBallTo(x, y);
+      }
+    );
+
+    // Interactive kickoff events mutate normal player state while the play
+    // phase handler is not installed. Mirror its board/status listeners here
+    // so Quick Snap, Solid Defence, High Kick and Pitch Invasion are visible
+    // immediately instead of only appearing after the first normal turn.
+    this.register(GameEventNames.PlayerMoved, (data) => {
+      const sprite = this.scene["playerSprites"].get(data.playerId);
+      if (!sprite || !data.path?.length) {
+        this.scene.refreshDugouts();
+        return;
+      }
+      const pixelPath = data.path.map((step) =>
+        this.scene["pitch"].getPixelPosition(step.x, step.y)
+      );
+      void sprite.animateMovement(pixelPath).then(() => {
+        this.scene.refreshDugouts();
+      });
+    });
+
+    this.register(GameEventNames.PlayerPlaced, () => {
+      this.scene.refreshDugouts();
+    });
+
+    this.register(GameEventNames.PlayerRemoved, () => {
+      this.scene.refreshDugouts();
+    });
+
+    this.register(GameEventNames.PlayerKnockedDown, ({ playerId }) => {
+      this.scene["playerSprites"].get(playerId)?.updateStatus();
+    });
+
+    this.register(GameEventNames.PlayerStatusChanged, (player) => {
+      this.scene["playerSprites"].get(player.id)?.updateStatus();
+      if (!player.gridPosition) this.scene.refreshDugouts();
+    });
+
+    this.register(
+      GameEventNames.KickoffBallLanding,
+      ({ landingSquare, isTouchback }) => {
         const ballSprite = this.scene["ballSprite"];
-        const ballAnimDuration = 800;
+        if (!ballSprite) return;
 
-        if (ballSprite) {
-          this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-            ballSprite,
-            animationDuration: ballAnimDuration,
+        if (isTouchback || !landingSquare) {
+          this.scene.tweens.add({
+            targets: ballSprite,
+            alpha: 0,
+            duration: 500,
+            ease: "Quad.easeIn",
           });
-
-          // Wait for zoom
-          await new Promise((resolve) =>
-            this.scene.time.delayedCall(1000, () => resolve(null))
-          );
+          return;
         }
 
-        // Animate to Scatter Destination
-        const finalTargetPos = this.scene["pitch"].getPixelPosition(
-          data.finalX,
-          data.finalY
+        const position = this.scene["pitch"].getPixelPosition(
+          landingSquare.x,
+          landingSquare.y
         );
-
         this.scene.tweens.add({
-          targets: this.scene["ballSprite"],
-          x: finalTargetPos.x,
-          y: finalTargetPos.y,
-          duration: ballAnimDuration,
-          ease: "Quad.easeOut",
-          onStart: () => {
-            this.scene["ballSprite"]?.setScale(0.5);
-          },
-          yoyo: false,
-        });
-
-        this.scene.tweens.add({
-          targets: this.scene["ballSprite"],
-          scaleX: 1.5,
-          scaleY: 1.5,
-          duration: 400,
-          yoyo: true,
-          ease: "Sine.easeOut",
+          targets: ballSprite,
+          x: position.x,
+          y: position.y,
+          scaleX: 0.5,
+          scaleY: 0.5,
+          alpha: 1,
+          duration: 650,
+          ease: "Quad.easeIn",
         });
       }
     );
@@ -123,20 +188,30 @@ export class KickoffPhaseHandler implements PhaseHandler {
     // Kickoff Result
     this.register(
       GameEventNames.KickoffResult,
-      (data: { roll: number; event: string }) => {
+      (data) => {
+        const effects = Object.entries(data.outcome.perTeam)
+          .flatMap(([teamId, lines]) =>
+            lines.map(
+              (line) =>
+                `${this.gameService.getTeam(teamId)?.name ?? teamId}: ${line}`
+            )
+          )
+          .join("; ");
+        const logLine = `Kickoff ${data.roll} — ${data.event}: ${data.meaning}${
+          effects ? ` Result: ${effects}` : ""
+        }`;
+        this.eventBus.emit(GameEventNames.UI_GameLog, logLine);
         this.eventBus.emit(
           GameEventNames.UI_Notification,
-          `${data.roll}: ${data.event}`
+          `${data.roll}: ${data.event} — ${data.meaning}`
         );
-        if (this.scene["pendingKickoffData"]) {
-          // Scatter complete
-          this.scene.time.delayedCall(500, () => {
-            this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 1000 });
-          });
-          this.scene["pendingKickoffData"] = null;
-        }
       }
     );
+
+    this.register(GameEventNames.KickoffSequenceCompleted, () => {
+      this.ballIsAirborne = false;
+      this.kickoffSceneState().pendingKickoffData = null;
+    });
 
     // Ready To Start (Kickoff -> Play)
     this.register(GameEventNames.ReadyToStart, () => {
@@ -147,6 +222,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.register(
       GameEventNames.BallPlaced,
       (data: { x: number; y: number }) => {
+        if (this.ballIsAirborne) return;
         this.scene["placeBallVisual"](data.x, data.y);
       }
     );

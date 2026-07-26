@@ -68,6 +68,8 @@ function answerDecision(
   if (custom !== undefined) return custom; // null = leave pending
 
   switch (pending.type) {
+    case "kickoff-event":
+      return { type: "kickoff-skip" };
     case "block-dice": {
       let index = 0;
       if (policy.preferBlockResult) {
@@ -127,6 +129,9 @@ export async function runRuleConfig(
     setup: config.setup,
   };
   const game = new HeadlessGame({ scenario, seed });
+  if (config.setup.turn !== undefined) {
+    game.ctx.gameService.seedTurnCounts(config.setup.turn);
+  }
   if (config.rerolls?.team1) game.ctx.team1.rerolls = config.rerolls.team1;
   if (config.rerolls?.team2) game.ctx.team2.rerolls = config.rerolls.team2;
 

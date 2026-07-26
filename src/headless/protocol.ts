@@ -7,6 +7,10 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
 import { GameSnapshot } from "./serialization";
+import type {
+  ChargeBudget,
+  KickoffEventStepState,
+} from "../game/kickoff/KickoffEventManager";
 
 export interface GridPosition {
   x: number;
@@ -25,6 +29,11 @@ export type HeadlessCommand =
   // Kickoff
   | { type: "select-kicker"; playerId: string }
   | { type: "kick-ball"; playerId: string; x: number; y: number }
+  | { type: "kickoff-select-player"; playerId: string }
+  | { type: "kickoff-move-player"; playerId: string; x: number; y: number }
+  | { type: "kickoff-place-player"; playerId: string; x: number; y: number }
+  | { type: "kickoff-confirm" }
+  | { type: "kickoff-skip" }
   // Turn play
   | { type: "declare-action"; playerId: string; action: ActionType }
   | { type: "move"; playerId: string; path: GridPosition[] }
@@ -97,6 +106,23 @@ export type HeadlessCommand =
 
 /** A choice the game is waiting on before other commands are accepted. */
 export type PendingDecision =
+  | {
+      /** A coach-owned Sevens kickoff step; may require several commands. */
+      type: "kickoff-event";
+      chooserTeamId: string;
+      event: KickoffEventStepState["event"];
+      selectionLimit: number;
+      selectedPlayerIds: string[];
+      movedPlayerIds: string[];
+      awaitingPlacement: string[];
+      landingSquare?: GridPosition;
+      charge?: {
+        queue: string[];
+        budget: ChargeBudget;
+        activePlayerId: string | null;
+        aborted: boolean;
+      };
+    }
   | {
       type: "block-dice";
       attackerId: string;

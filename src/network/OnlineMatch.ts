@@ -116,6 +116,12 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_EndActivation,
   GameEventNames.UI_StepSelected,
   GameEventNames.UI_StartCoinFlip,
+  GameEventNames.UI_KickoffEventSelectPlayer,
+  GameEventNames.UI_KickoffEventMovePlayer,
+  GameEventNames.UI_KickoffEventPlacePlayer,
+  GameEventNames.UI_KickoffEventDeclareAction,
+  GameEventNames.UI_KickoffEventConfirm,
+  GameEventNames.UI_KickoffEventSkip,
 ]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */

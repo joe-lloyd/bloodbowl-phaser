@@ -122,17 +122,27 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     setCurrentStepId(null);
   });
 
+  const kickoffStep = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
+    : null;
+  const activeCharge =
+    turnData?.phase === GamePhase.KICKOFF &&
+    kickoffStep?.charge?.activePlayerId
+      ? kickoffStep
+      : null;
+  const effectiveActiveTeamId = activeCharge?.teamId ?? turnData?.activeTeamId;
+
   // Contextual availability: recomputed from live game state whenever the
   // selection, the turn flags, movement, or the board changes.
   const availability: ActionAvailability = React.useMemo(() => {
-    if (!selectedPlayer || selectedPlayer.teamId !== turnData?.activeTeamId) {
+    if (!selectedPlayer || selectedPlayer.teamId !== effectiveActiveTeamId) {
       return EMPTY_AVAILABILITY;
     }
     try {
       if (!ServiceContainer.isInitialized()) return EMPTY_AVAILABILITY;
       const gs = ServiceContainer.getInstance().gameService;
       const live = gs.getPlayerById(selectedPlayer.id) ?? selectedPlayer;
-      return computeActionAvailability({
+      const normal = computeActionAvailability({
         player: live,
         ballPosition: gs.getState().ballPosition ?? null,
         opponents: gs.getOpponents(selectedPlayer.teamId),
@@ -146,20 +156,38 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         },
         hasMovedInAction,
       });
+      if (!activeCharge || activeCharge.charge?.activePlayerId !== live.id) {
+        return normal;
+      }
+      const budget = activeCharge.charge.budget;
+      return {
+        ...EMPTY_AVAILABILITY,
+        move: live.status === PlayerStatus.ACTIVE,
+        blitz: budget.blitz > 0 && normal.blitz,
+        throwTeammate:
+          budget.throwTeammate > 0 && normal.throwTeammate,
+        kickTeammate: budget.kickTeammate > 0 && normal.kickTeammate,
+      };
     } catch {
       return EMPTY_AVAILABILITY;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPlayer, turnData, hasMovedInAction, refreshTick]);
+  }, [
+    selectedPlayer,
+    turnData,
+    hasMovedInAction,
+    refreshTick,
+    effectiveActiveTeamId,
+    activeCharge,
+  ]);
 
   if (!selectedPlayer) return null;
 
-  // During a kickoff the kicker is selected only to aim the kick — no
-  // movement or action menu (the receiving team gets the first real turn).
-  if (turnData?.phase === GamePhase.KICKOFF) return null;
+  // The kicker and ordinary kickoff selections do not get an action menu.
+  // Charge! is the exception: it deliberately reuses this normal window.
+  if (turnData?.phase === GamePhase.KICKOFF && !activeCharge) return null;
 
   // Only show menu for active team's players
-  if (selectedPlayer.teamId !== turnData.activeTeamId) return null;
+  if (selectedPlayer.teamId !== effectiveActiveTeamId) return null;
 
   const handleAction = (action: ActionType) => {
     if (selectedPlayer) {

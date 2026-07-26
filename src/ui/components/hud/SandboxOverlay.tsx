@@ -4,6 +4,11 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus, useEventEmit } from "../../hooks/useEventBus";
 import { SCENARIOS } from "../../../data/scenarios";
 import {
+  findKickoffConfig,
+  KICKOFF_SCENARIOS,
+  KICKOFF_TOPIC,
+} from "../../../data/kickoffScenarios";
+import {
   findRuleConfig,
   ruleScenariosFor,
   skillsInTopic,
@@ -43,6 +48,14 @@ function formStateFromUrl() {
   if (!scenarioId) return empty;
   if (SCENARIOS.some((s) => s.id === scenarioId)) {
     return { ...empty, topic: CORE_TOPIC, coreId: scenarioId };
+  }
+  if (findKickoffConfig(scenarioId)) {
+    return {
+      ...empty,
+      topic: KICKOFF_TOPIC,
+      configId: scenarioId,
+      outcomeId: params.get("outcome") ?? "",
+    };
   }
   const rule = findRuleConfig(scenarioId);
   if (!rule) return empty;
@@ -87,8 +100,13 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   });
 
   const entry = skill ? ruleScenariosFor(skill as SkillType) : undefined;
-  const config: RuleConfig | undefined = entry?.configs.find(
-    (c) => c.id === configId
+  const visibleConfigs =
+    topic === KICKOFF_TOPIC ? KICKOFF_SCENARIOS : entry?.configs;
+  const config: RuleConfig | undefined = visibleConfigs?.find(
+    (candidate) => candidate.id === configId
+  );
+  const selectedOutcome = config?.outcomes.find(
+    (outcome) => outcome.id === outcomeId
   );
 
   const load = (scenarioId: string, seed?: number, outcome?: string) => {
@@ -119,6 +137,15 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
     setConfigId(value);
     setOutcomeId("");
     if (value) load(value, parsedSeed());
+  };
+
+  const pickOutcome = (value: string) => {
+    setOutcomeId(value);
+    const outcome = config?.outcomes.find((candidate) => candidate.id === value);
+    if (outcome?.exampleSeed !== undefined && config) {
+      setSeedInput(String(outcome.exampleSeed));
+      load(config.id, outcome.exampleSeed, outcome.id);
+    }
   };
 
   const parsedSeed = (): number | undefined => {
@@ -155,6 +182,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
       <div className="flex flex-col gap-2">
         {/* Level 1: Topic */}
         <select
+          aria-label="Sandbox topic"
           value={topic}
           onChange={(e) => pickTopic(e.target.value)}
           className={selectClass}
@@ -163,6 +191,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             Select Topic
           </option>
           <option value={CORE_TOPIC}>Core Rules</option>
+          <option value={KICKOFF_TOPIC}>{KICKOFF_TOPIC}</option>
           <option value={NEGATRAIT_TOPIC}>Negatraits</option>
           <option value={TRAIT_TOPIC}>Traits</option>
           {Object.values(SkillCategory).map((category) => (
@@ -175,6 +204,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         {/* Core topic: the classic flat scenario list */}
         {topic === CORE_TOPIC && (
           <select
+            aria-label="Core scenario"
             defaultValue={init.coreId}
             onChange={(e) => e.target.value && load(e.target.value)}
             className={selectClass}
@@ -191,8 +221,9 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         )}
 
         {/* Level 2: Rule, badged implemented (✓) / inert (○) */}
-        {topic && topic !== CORE_TOPIC && (
+        {topic && topic !== CORE_TOPIC && topic !== KICKOFF_TOPIC && (
           <select
+            aria-label="Sandbox rule"
             value={skill}
             onChange={(e) => pickSkill(e.target.value)}
             className={selectClass}
@@ -209,9 +240,10 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         )}
 
         {/* Level 3: Configuration */}
-        {skill &&
-          (entry ? (
+        {(topic === KICKOFF_TOPIC || skill) &&
+          (visibleConfigs ? (
             <select
+              aria-label="Sandbox configuration"
               value={configId}
               onChange={(e) => pickConfig(e.target.value)}
               className={selectClass}
@@ -219,7 +251,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               <option value="" disabled>
                 Select Configuration
               </option>
-              {entry.configs.map((c) => (
+              {visibleConfigs.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -233,11 +265,18 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             </div>
           ))}
 
+        {config && (
+          <div className="text-xs text-bb-text/80 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1">
+            {config.description}
+          </div>
+        )}
+
         {/* Level 4: Seed row + outcome finder */}
         {config && (
           <>
             <div className="flex gap-1">
               <input
+                aria-label="Scenario seed"
                 type="number"
                 value={seedInput}
                 onChange={(e) => setSeedInput(e.target.value)}
@@ -258,8 +297,9 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             </div>
             <div className="flex gap-1">
               <select
+                aria-label="Seeded outcome"
                 value={outcomeId}
-                onChange={(e) => setOutcomeId(e.target.value)}
+                onChange={(e) => pickOutcome(e.target.value)}
                 className={`${selectClass} flex-1`}
               >
                 <option value="" disabled>
@@ -279,6 +319,11 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
                 {searching ? "…" : "FIND"}
               </button>
             </div>
+            {selectedOutcome?.description && (
+              <div className="text-xs text-bb-text/80 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1">
+                {selectedOutcome.description}
+              </div>
+            )}
             {searchError && (
               <div className="text-xs text-bb-blood-red bg-bb-parchment border border-bb-blood-red rounded px-2 py-1">
                 {searchError}

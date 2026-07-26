@@ -123,6 +123,30 @@ describe("BallManager", () => {
     });
   });
 
+  describe("Kickoff Landing", () => {
+    it("queues a normal bounce when the landing square is empty", async () => {
+      const add = vi.fn();
+      mockCallbacks.getFlowManager = () => ({ add });
+      mockState.ballPosition = { x: 10, y: 10 };
+      manager = new BallManager(
+        mockEventBus,
+        mockState,
+        mockTeam1,
+        mockTeam2,
+        mockWeatherManager,
+        mockDiceController,
+        mockCallbacks,
+        async () => {}
+      );
+
+      await manager.resolveBallPlacement();
+
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(add.mock.calls[0][0].name).toBe("BounceOperation");
+      expect(add.mock.calls[0][1]).toBe(true);
+    });
+  });
+
   describe("Attempt Pickup", () => {
     it("should succeed when roll meets AG target", () => {
       mockDiceController.rollD6.mockReturnValue(4);

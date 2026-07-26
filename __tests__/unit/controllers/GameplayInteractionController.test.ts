@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust path if needed
+import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
 
 // Mock dependencies
 const mockScene = {
   highlightPlayer: vi.fn(),
   unhighlightPlayer: vi.fn(),
+  setKickoffSolidDefenceDragPlayers: vi.fn(),
   add: {
     rectangle: vi.fn(),
     container: vi.fn(),
@@ -65,6 +67,11 @@ const mockGameService = {
   throwBall: vi.fn(),
   isTouchbackPending: vi.fn().mockReturnValue(false),
   awardTouchback: vi.fn(),
+  getKickoffEventStep: vi.fn().mockReturnValue(null),
+  selectKickoffEventPlayer: vi.fn().mockReturnValue(true),
+  moveKickoffEventPlayer: vi.fn().mockReturnValue(true),
+  placeKickoffEventPlayer: vi.fn().mockReturnValue(true),
+  getTeam: vi.fn(),
   getOpponents: vi.fn().mockReturnValue([]),
   getPassController: vi.fn().mockReturnValue({
     getAllRanges: vi.fn().mockReturnValue(new Map()),
@@ -97,6 +104,10 @@ describe("GameplayInteractionController", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGameService.getKickoffEventStep.mockReturnValue(null);
+    mockGameService.selectKickoffEventPlayer.mockReturnValue(true);
+    mockGameService.moveKickoffEventPlayer.mockReturnValue(true);
+    mockGameService.placeKickoffEventPlayer.mockReturnValue(true);
 
     // Setup default scene mock for teams (as the controller accesses them directly in a temporary hack)
     mockScene.team1 = {
@@ -444,6 +455,158 @@ describe("GameplayInteractionController", () => {
       controller.handlePlayerClick("p1");
 
       expect(spy).toHaveBeenCalledWith("p1");
+    });
+  });
+
+  describe("Kickoff event pitch interaction", () => {
+    it("enables Solid Defence dragging without selecting on click", () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.SOLID_DEFENCE,
+        teamId: team1Id,
+        selectionLimit: 2,
+        selectedPlayerIds: [],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+      });
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getTeam.mockReturnValue(mockScene.team1);
+      mockScene.team2.players = [];
+
+      (controller as any).syncKickoffStepInteraction();
+      controller.handlePlayerClick(player1.id);
+
+      expect(
+        mockScene.setKickoffSolidDefenceDragPlayers
+      ).toHaveBeenLastCalledWith([player1.id]);
+      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
+      expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
+    });
+
+    it("does not use click-to-place during Solid Defence", () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.SOLID_DEFENCE,
+        teamId: team1Id,
+        selectionLimit: 2,
+        selectedPlayerIds: [],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+      });
+
+      (controller as any).onSquareClicked(4, 4);
+
+      expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
+      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
+    });
+
+    it("removes already-redeployed Solid Defence players from drag eligibility", () => {
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.SOLID_DEFENCE,
+        teamId: team1Id,
+        selectionLimit: 2,
+        selectedPlayerIds: [player1.id],
+        movedPlayerIds: [player1.id],
+        awaitingPlacement: [],
+      });
+      mockGameService.getTeam.mockReturnValue(mockScene.team1);
+
+      (controller as any).syncKickoffStepInteraction();
+
+      expect(
+        mockScene.setKickoffSolidDefenceDragPlayers
+      ).toHaveBeenLastCalledWith([]);
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith(
+        player1.id,
+        0xffd700
+      );
+    });
+
+    it("places a High Kick receiver under the ball from one pitch click", () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.HIGH_KICK,
+        teamId: team2Id,
+        selectionLimit: 1,
+        selectedPlayerIds: [],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+        landingSquare: { x: 12, y: 6 },
+      });
+      mockGameService.getPlayerById.mockReturnValue(player2);
+      mockGameService.getTeam.mockReturnValue(mockScene.team2);
+
+      controller.handlePlayerClick(player2.id);
+
+      expect(mockGameService.selectKickoffEventPlayer).toHaveBeenCalledWith(
+        player2.id
+      );
+      expect(mockGameService.placeKickoffEventPlayer).toHaveBeenCalledWith(
+        player2.id,
+        12,
+        6
+      );
+    });
+
+    it("moves a selected Quick Snap player to an adjacent pitch square", () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.QUICK_SNAP,
+        teamId: team1Id,
+        selectionLimit: 2,
+        selectedPlayerIds: [],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+      });
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getTeam.mockReturnValue(mockScene.team1);
+
+      controller.handlePlayerClick(player1.id);
+      (controller as any).onSquareClicked(6, 5);
+
+      expect(mockGameService.selectKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id
+      );
+      expect(mockGameService.moveKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id,
+        6,
+        5
+      );
+    });
+
+    it("lets an active Charge player use normal board actions", async () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.CHARGE,
+        teamId: team1Id,
+        selectionLimit: 1,
+        selectedPlayerIds: [player1.id],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+        charge: {
+          queue: [],
+          budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
+          activePlayerId: player1.id,
+          aborted: false,
+        },
+      });
+      mockGameService.isTouchbackPending.mockReturnValue(false);
+      mockGameService.getState.mockReturnValue({ activeTeamId: team1Id });
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.declareAction.mockReturnValue(true);
+      mockGameService.getTeam.mockReturnValue(mockScene.team1);
+      (controller as any).selectedPlayerId = player1.id;
+
+      await (controller as any).onActionSelected({
+        playerId: player1.id,
+        action: "move",
+      });
+
+      expect(mockGameService.declareAction).toHaveBeenCalledWith(
+        player1.id,
+        "move"
+      );
+      expect((controller as any).currentActionMode).toBe("move");
     });
   });
 });

@@ -789,6 +789,68 @@ export class GameScene extends Phaser.Scene {
    */
   private repositionTeam: Team | null = null;
 
+  /**
+   * Solid Defence reuses the familiar setup drag gesture, but the player
+   * stays on the pitch for the whole operation. The event manager validates
+   * the drop and only a successful authoritative move spends the allowance.
+   */
+  public setKickoffSolidDefenceDragPlayers(playerIds: string[]): void {
+    if (this.isSetupActive) return;
+    const eligible = new Set(playerIds);
+
+    this.playerSprites.forEach((sprite, playerId) => {
+      sprite.off("dragstart");
+      sprite.off("drag");
+      sprite.off("dragend");
+
+      if (!eligible.has(playerId)) {
+        sprite.disableInteractive();
+        return;
+      }
+
+      sprite.setInteractive(
+        centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
+        Phaser.Geom.Rectangle.Contains
+      );
+      this.input.setDraggable(sprite);
+
+      sprite.on("dragstart", () => {
+        sprite.setDepth(100);
+      });
+      sprite.on(
+        "drag",
+        (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+          sprite.setPosition(dragX, dragY);
+        }
+      );
+      sprite.on("dragend", () => {
+        sprite.setDepth(10);
+        const matrix = sprite.getWorldTransformMatrix();
+        const pitchContainer = this.pitch.getContainer();
+        const grid = pixelToGrid(
+          matrix.tx - pitchContainer.x,
+          matrix.ty - pitchContainer.y,
+          GameConfig.SQUARE_SIZE
+        );
+        const moved = this.gameService.placeKickoffEventPlayer(
+          playerId,
+          grid.x,
+          grid.y
+        );
+        if (!moved) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "Solid Defence: drag to a different legal empty setup square."
+          );
+        }
+        // Local games have already changed authoritative state; online guests
+        // snap to their current state until the host's synchronized result
+        // arrives. Invalid drops always return to the original square.
+        this.placePlayersOnPitch();
+      });
+    });
+  }
+
   private applyPitchRepositioning(): void {
     const team = this.repositionTeam;
     this.playerSprites.forEach((sprite) => {
@@ -1062,10 +1124,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Interaction Helpers matched to Controller expectations
-  public highlightPlayer(playerId: string): void {
+  public highlightPlayer(playerId: string, color: number = 0xffff00): void {
     const sprite = this.playerSprites.get(playerId);
     if (sprite) {
-      sprite.highlight(0xffff00);
+      sprite.highlight(color);
     }
   }
 

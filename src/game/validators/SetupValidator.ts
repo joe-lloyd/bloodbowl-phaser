@@ -3,7 +3,7 @@ import {
   ValidationResult,
   FormationPosition,
   SetupConfig,
-} from "../types/SetupTypes";
+} from "@/types/SetupTypes";
 
 /**
  * SetupValidator - Pure logic for validating setup rules

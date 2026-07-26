@@ -86,7 +86,9 @@ export class TurnManager {
     // Ensure all players on pitch are ACTIVE
     const activatePlayers = (team: Team) => {
       team.players.forEach((p) => {
-        if (p.gridPosition) {
+        // Setup players enter as Reserves; activate those, but preserve any
+        // Prone/Stunned result inflicted by the kickoff event.
+        if (p.gridPosition && p.status === PlayerStatus.RESERVE) {
           p.status = PlayerStatus.ACTIVE;
         } else if (!p.status) {
           p.status = PlayerStatus.RESERVE;
@@ -272,6 +274,20 @@ export class TurnManager {
   // Helpers
   public getTurnNumber(teamId: string): number {
     return this.turnCounts[teamId] || 0;
+  }
+
+  /**
+   * Time-Out (kickoff 3): move both teams' turn markers, clamped to the
+   * half's bounds — a marker never goes below 0 or past the last turn.
+   */
+  public moveTurnMarkers(delta: number): void {
+    for (const teamId of [this.team1.id, this.team2.id]) {
+      const current = this.turnCounts[teamId] || 0;
+      this.turnCounts[teamId] = Math.max(
+        0,
+        Math.min(this.maxTurns, current + delta)
+      );
+    }
   }
 
   public reset(): void {

@@ -56,6 +56,16 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   };
 
   useEventBus(eventBus, GameEventNames.DiceRoll, (data) => pushEntry(data));
+  useEventBus(eventBus, GameEventNames.UI_GameLog, (description) => {
+    pushEntry({
+      rollType: "Match",
+      diceType: "event",
+      value: "Kickoff",
+      total: 0,
+      description,
+      resultState: "none",
+    });
+  });
 
   // Skill activity: triggers and reroll usage read like rolls in the log
   useEventBus(eventBus, GameEventNames.SkillTriggered, (data) => {

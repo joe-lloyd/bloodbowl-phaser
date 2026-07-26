@@ -41,7 +41,9 @@ async function playFullMatch(seed: number): Promise<{
 
     const pending = game.pendingDecision();
     if (pending) {
-      if (pending.type === "block-dice") {
+      if (pending.type === "kickoff-event") {
+        await run({ type: "kickoff-skip" });
+      } else if (pending.type === "block-dice") {
         await run({ type: "choose-block-result", index: 0 });
       } else if (pending.type === "push-direction") {
         const dir = pending.options[0];

@@ -28,6 +28,10 @@ import {
 } from "../skills";
 import { moveAllowance, standUpCost } from "../skills/movement";
 import {
+  effectiveMA as driveEffectiveMA,
+  withDriveModifiers,
+} from "../kickoff/driveEffects";
+import {
   RushDeclaredContext,
   StandUpRollContext,
   JumpDeclaredContext,
@@ -65,9 +69,10 @@ export class MovementManager {
     if (!player || player.teamId !== this.state.activeTeamId) return [];
 
     const used = this.getMovementUsed(playerId);
-    const ma = player.stats.MA;
+    const ma = driveEffectiveMA(player, this.state);
 
-    if (used >= moveAllowance(player)) return [];
+    if (used >= moveAllowance(withDriveModifiers(player, this.state)))
+      return [];
 
     const team = player.teamId === this.team1.id ? this.team1 : this.team2;
     const opponentTeam =
@@ -80,16 +85,16 @@ export class MovementManager {
       (p) => p.gridPosition && p.id !== player.id
     );
 
-    let effectiveMA = ma - used;
+    let remainingMA = ma - used;
     if (player.status === PlayerStatus.PRONE) {
-      effectiveMA = Math.max(0, effectiveMA - standUpCost(player));
+      remainingMA = Math.max(0, remainingMA - standUpCost(player));
     }
 
     const proxyPlayer = {
       ...player,
       stats: {
         ...player.stats,
-        MA: effectiveMA,
+        MA: remainingMA,
       },
     };
 
@@ -137,6 +142,8 @@ export class MovementManager {
     if (!player || player.status !== PlayerStatus.PRONE) {
       return Promise.reject("Player is not prone");
     }
+    // Drive modifiers (Dodgy Snack) apply to stand-up MA costs/rolls
+    const maView = withDriveModifiers(player, this.state);
 
     // Jump Up (2025 p.130), SECOND clause: standing up to make a declared
     // Block is gated on an Agility test with a +1 modifier — this is not the
@@ -174,13 +181,13 @@ export class MovementManager {
     }
 
     const used = this.getMovementUsed(playerId);
-    const cost = standUpCost(player);
+    const cost = standUpCost(maView);
 
-    if (used + cost > moveAllowance(player)) {
+    if (used + cost > moveAllowance(maView)) {
       return Promise.reject("Not enough movement to stand up");
     }
 
-    if (!(await this.rollToStand(player))) {
+    if (!(await this.rollToStand(maView))) {
       // Failed the stand-up roll: still Prone, movement spent, activation over
       this.state.turn.movementUsed.set(playerId, used + cost);
       this.callbacks.onActivationFinished(playerId);
@@ -196,7 +203,7 @@ export class MovementManager {
     });
     this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
-    if (used + cost >= moveAllowance(player)) {
+    if (used + cost >= moveAllowance(maView)) {
       this.callbacks.onActivationFinished(playerId);
     }
 
@@ -210,6 +217,9 @@ export class MovementManager {
   ): Promise<void> {
     const player = this.getPlayerById(playerId);
     if (!player) return Promise.reject("Player not found!");
+    // Validate against the drive-modified MA view (Dodgy Snack -1 MA);
+    // state mutations below still land on the real player.
+    const maView = withDriveModifiers(player, this.state);
 
     // Rooted/Chomped players may not leave their square (2025 conditions)
     if (
@@ -232,7 +242,7 @@ export class MovementManager {
     );
 
     const result = this.movementValidator.validatePath(
-      player,
+      maView,
       [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
       opponents
     );
@@ -251,8 +261,8 @@ export class MovementManager {
     const wasProne = player.status === PlayerStatus.PRONE;
 
     if (wasProne) {
-      const cost = standUpCost(player);
-      if (!(await this.rollToStand(player))) {
+      const cost = standUpCost(maView);
+      if (!(await this.rollToStand(maView))) {
         // Failed the stand-up roll: still Prone, movement spent, activation over
         this.state.turn.movementUsed.set(playerId, preUsed + cost);
         this.callbacks.onActivationFinished(playerId);
@@ -460,7 +470,7 @@ export class MovementManager {
       stepsTaken++;
       const totalUsed = preUsed + stepsTaken;
 
-      if (totalUsed > player.stats.MA) {
+      if (totalUsed > maView.stats.MA) {
         // Trigger point: rush declared — rules may modify it (Drunkard)
         const rushCtx: RushDeclaredContext = {
           player,
@@ -585,7 +595,7 @@ export class MovementManager {
       ballJoinStep,
     });
 
-    if (heldFast || preUsed + stepsTaken >= moveAllowance(player)) {
+    if (heldFast || preUsed + stepsTaken >= moveAllowance(maView)) {
       // Tentacles ends the activation where the player stands (no turnover)
       this.callbacks.onActivationFinished(playerId);
     }
@@ -625,6 +635,8 @@ export class MovementManager {
     if (player.status !== PlayerStatus.ACTIVE) {
       return Promise.reject("Only a Standing player may Jump");
     }
+    // Drive modifiers (Dodgy Snack) apply to Jump costs too
+    const maView = withDriveModifiers(player, this.state);
 
     const gameService = context?.gameService as IGameService;
     const flowManager = context?.flowManager;
@@ -662,7 +674,7 @@ export class MovementManager {
     // Cost: a Jump moves 2 squares; those beyond the MA are Rushes.
     const preUsed = this.getMovementUsed(playerId);
     const JUMP_COST = 2;
-    if (preUsed + JUMP_COST > moveAllowance(player)) {
+    if (preUsed + JUMP_COST > moveAllowance(maView)) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `${player.playerName} does not have the Movement to Jump`
@@ -673,7 +685,7 @@ export class MovementManager {
       !!this.state.ballPosition &&
       this.state.ballPosition.x === from.x &&
       this.state.ballPosition.y === from.y;
-    const rushesNeeded = Math.max(0, preUsed + JUMP_COST - player.stats.MA);
+    const rushesNeeded = Math.max(0, preUsed + JUMP_COST - maView.stats.MA);
 
     // Roll each Rush BEFORE the Jump test. A failed Rush drops the player in
     // the square they are in, ends the activation, and is a Turnover.
@@ -707,7 +719,7 @@ export class MovementManager {
         !steadyFootingSaves(player, this.diceController, this.eventBus)
       ) {
         player.status = PlayerStatus.PRONE;
-        this.state.turn.movementUsed.set(playerId, moveAllowance(player));
+        this.state.turn.movementUsed.set(playerId, moveAllowance(maView));
         this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
         this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         if (holdingBall && flowManager) {
@@ -779,7 +791,7 @@ export class MovementManager {
           return;
         }
       }
-      if (preUsed + JUMP_COST >= moveAllowance(player)) {
+      if (preUsed + JUMP_COST >= moveAllowance(maView)) {
         this.callbacks.onActivationFinished(playerId);
       }
       return;

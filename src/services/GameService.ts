@@ -82,6 +82,12 @@ import {
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
+import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
+import {
+  driveEffectsEmpty,
+  emptyDriveEffects,
+  getDriveEffects,
+} from "@/game/kickoff/driveEffects";
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -133,6 +139,7 @@ export class GameService implements IGameService {
   private playerActionManager: PlayerActionManager;
   private decisionService: DecisionService;
   private rerollArbiter: RerollArbiter;
+  private kickoffEventManager!: KickoffEventManager;
   private passController: PassController;
   private catchController: CatchController;
   public diceController: DiceController;
@@ -232,24 +239,56 @@ export class GameService implements IGameService {
         onBallPlaced: (x, y) =>
           this.eventBus.emit(GameEventNames.BallPlaced, { x, y }),
         getFlowManager: () => this.flowManager,
+        resolveKickoffEvent: (isTeam1Kicking) =>
+          this.kickoffEventManager.rollAndResolve(isTeam1Kicking),
+        resolveHighKickStep: (isTeam1Kicking, landingSquare) =>
+          this.kickoffEventManager.resolveHighKickStep(
+            isTeam1Kicking,
+            landingSquare
+          ),
+        consumeWeatherScatterPending: () =>
+          this.kickoffEventManager.consumeWeatherScatterPending(),
       },
       this.delay
     );
 
     this.playerActionManager = new PlayerActionManager(eventBus, this.state);
 
+    this.kickoffEventManager = new KickoffEventManager(
+      eventBus,
+      this.state,
+      team1,
+      team2,
+      this.diceController,
+      this.weatherService,
+      {
+        getTurnNumber: (teamId) => this.turnManager.getTurnNumber(teamId),
+        moveTurnMarkers: (delta) => this.turnManager.moveTurnMarkers(delta),
+      }
+    );
+
     // Conditions expire on engine events, not in rules: Rooted ends when
     // its player is Knocked Down or Placed Prone; Chomped ends the moment
     // the chomper is no longer Marking the victim (moved, downed, pushed).
     eventBus.on(
       GameEventNames.PlayerKnockedDown,
-      ({ playerId }: { playerId: string }) => this.onPlayerDowned(playerId)
+      ({ playerId }: { playerId: string }) => {
+        // A Charge! player going down aborts the whole sequence at once
+        this.kickoffEventManager?.noteChargePlayerDown(playerId);
+        this.onPlayerDowned(playerId);
+      }
     );
     eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
       if (p.status !== PlayerStatus.ACTIVE) this.onPlayerDowned(p.id);
       this.sweepChomped();
     });
     eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
+    eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
+      if (phase === GamePhase.GAME_OVER) {
+        // Get the Ref bribes are match-scoped and never leave this match.
+        this.state.bribes = {};
+      }
+    });
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
     eventBus.on(GameEventNames.TurnStarted, () => {
       this.blitzBlockUsed.clear();
@@ -459,7 +498,7 @@ export class GameService implements IGameService {
   }
 
   rollKickoff(): void {
-    this.ballManager.rollKickoff();
+    void this.ballManager.rollKickoff();
   }
 
   resolveBallPlacement(): void {
@@ -473,6 +512,30 @@ export class GameService implements IGameService {
 
   isTouchbackPending(): boolean {
     return this.ballManager.isTouchbackPending();
+  }
+
+  getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null {
+    return this.kickoffEventManager.getStep();
+  }
+
+  selectKickoffEventPlayer(playerId: string): boolean {
+    return this.kickoffEventManager.togglePlayerSelection(playerId);
+  }
+
+  moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
+    return this.kickoffEventManager.movePlayer(playerId, x, y);
+  }
+
+  placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
+    return this.kickoffEventManager.placePlayer(playerId, x, y);
+  }
+
+  confirmKickoffEventStep(): boolean {
+    return this.kickoffEventManager.confirmStep();
+  }
+
+  skipKickoffEventStep(): boolean {
+    return this.kickoffEventManager.skipStep();
   }
 
   // ===== Sub-Phase Helpers =====
@@ -519,6 +582,14 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
+    // Charge! free activations end without touching the turn ledger — the
+    // player may still activate normally when their team's turn begins.
+    if (this.kickoffEventManager.isChargeActive()) {
+      this.state.activePlayer = null;
+      this.kickoffEventManager.noteChargeActivationEnded(playerId);
+      this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+      return;
+    }
     this.blitzBlockUsed.delete(playerId);
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
@@ -804,6 +875,15 @@ export class GameService implements IGameService {
   }
 
   triggerTurnover(reason: string): void {
+    // Charge! (kickoff 10) runs before the drive begins: a failure there
+    // only ends the Charge, never the coming turn. The knockdown itself
+    // aborts the sequence via the PlayerKnockedDown subscription.
+    if (
+      this.state.phase === GamePhase.KICKOFF ||
+      this.kickoffEventManager.isChargeActive()
+    ) {
+      return;
+    }
     // Only the first turnover of a resolution latches; later failures in the
     // same chain (bounce → dropped catch → …) are absorbed by it.
     if (!this.turnManager.checkTurnover(reason)) return;
@@ -963,6 +1043,17 @@ export class GameService implements IGameService {
 
   /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
   private handleTurnEnding(endingTeamId: string): void {
+    // Cheering Fans: an unused owed Offensive Assist dies with its turn.
+    const owed = getDriveEffects(this.state).owedAssists[endingTeamId];
+    if (owed && owed.turn === this.turnManager.getTurnNumber(endingTeamId)) {
+      delete getDriveEffects(this.state).owedAssists[endingTeamId];
+      this.eventBus.emit(GameEventNames.DriveEffectExpired, {
+        teamId: endingTeamId,
+        effect: "offensive-assist",
+        detail: "the Cheering Fans assist went unused",
+      });
+    }
+
     const reacting = endingTeamId === this.team1.id ? this.team2 : this.team1;
     const players = reacting.players.filter((p) => p.gridPosition);
     const ctx: TurnEndingContext = {
@@ -1044,6 +1135,23 @@ export class GameService implements IGameService {
     this.setupManager.resetForNewDrive();
     this.state.ballPosition = null;
     this.state.activePlayer = null;
+
+    // Kickoff-event effects never survive the drive (free re-roll, Dodgy
+    // Snack modifiers, confinement); bribes persist — they are match-scoped.
+    const driveEffects = getDriveEffects(this.state);
+    if (!driveEffectsEmpty(driveEffects)) {
+      for (const teamId of new Set([
+        ...Object.keys(driveEffects.freeRerolls),
+        ...Object.keys(driveEffects.owedAssists),
+      ])) {
+        this.eventBus.emit(GameEventNames.DriveEffectExpired, {
+          teamId,
+          effect: "drive-effects",
+          detail: "kickoff effects expire as the drive ends",
+        });
+      }
+      this.state.driveEffects = emptyDriveEffects();
+    }
 
     // Activation state must not leak into the next drive's setup — stale
     // activatedPlayerIds left players "already gone" and blocked setup
@@ -1197,6 +1305,11 @@ export class GameService implements IGameService {
     playerId: string,
     action: import("@/types/events").ActionType
   ): boolean {
+    // Charge! (kickoff 10): the current Charge player acts outside any turn
+    if (this.kickoffEventManager.isChargeActive()) {
+      return this.chargeDeclareAction(playerId, action);
+    }
+
     // Must be activatable at all: active team, on-pitch, standing or prone,
     // and not already activated this turn (stunned recovery marks players
     // as activated). The browser checks this before calling; the headless
@@ -1356,6 +1469,41 @@ export class GameService implements IGameService {
     return true;
   }
 
+  /**
+   * Charge! declarations run through the normal action state but deliberately
+   * do not touch the coming turn's action flags or activation ledger.
+   */
+  private chargeDeclareAction(
+    playerId: string,
+    action: import("@/types/events").ActionType
+  ): boolean {
+    const player = this.getPlayerById(playerId);
+    if (
+      !player ||
+      player.status !== PlayerStatus.ACTIVE ||
+      this.kickoffEventManager.getChargeActivePlayerId() !== playerId ||
+      !this.kickoffEventManager.canChargeAct(playerId, action)
+    ) {
+      return false;
+    }
+
+    let teammateMode: "throw" | "kick" | undefined;
+    if (action === "throwTeamMate") {
+      const canThrow = hasSkill(player.skills, SkillType.THROW_TEAM_MATE);
+      const canKick = hasSkill(player.skills, SkillType.KICK_TEAM_MATE);
+      if (!canThrow && !canKick) return false;
+      teammateMode = canKick && !canThrow ? "kick" : "throw";
+    }
+
+    this.state.activePlayer = { id: playerId, action };
+    this.kickoffEventManager.noteChargeActionDeclared(action, teammateMode);
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Charge! action declared: ${action}`
+    );
+    return true;
+  }
+
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
     return this.ballManager.attemptPickup(player, position);
   }
@@ -1427,7 +1575,12 @@ export class GameService implements IGameService {
     y: number,
     mode?: "throw" | "kick"
   ): Promise<void> {
-    if (this.state.phase !== GamePhase.PLAY) return;
+    if (
+      this.state.phase !== GamePhase.PLAY &&
+      !this.kickoffEventManager.isChargeActive()
+    ) {
+      return;
+    }
 
     const thrower = this.getPlayerById(throwerId);
     if (!thrower || thrower.status !== PlayerStatus.ACTIVE) return;

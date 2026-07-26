@@ -53,7 +53,22 @@ export enum GameEventNames {
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
+  /** The airborne kickoff ball's final square changed before landing. */
+  KickoffAirbornePositionChanged = "kickoffAirbornePositionChanged",
+  /** Kickoff events are resolved and the airborne ball may now land. */
+  KickoffBallLanding = "kickoffBallLanding",
+  /** Landing hand-off is complete; camera/preview state may be cleared. */
+  KickoffSequenceCompleted = "kickoffSequenceCompleted",
   KickoffResult = "kickoffResult",
+  /** An interactive kickoff-event step opened for its owning coach. */
+  KickoffEventStepStarted = "kickoffEventStepStarted",
+  /** The kickoff-event step ended (confirmed or skipped); kick resumes. */
+  KickoffEventStepResolved = "kickoffEventStepResolved",
+  /** A drive/match-scoped kickoff effect was granted to a team. */
+  DriveEffectGranted = "driveEffectGranted",
+  /** A drive-scoped kickoff effect expired (drive end, or turn end for
+   *  the owed Offensive Assist). */
+  DriveEffectExpired = "driveEffectExpired",
   KORecoveryRolled = "koRecoveryRolled",
   TouchbackAwarded = "touchbackAwarded",
   PlayerPushedIntoCrowd = "playerPushedIntoCrowd",
@@ -150,6 +165,14 @@ export enum GameEventNames {
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_StepSelected = "ui:stepSelected",
+
+  // Kickoff event step (owning coach only)
+  UI_KickoffEventSelectPlayer = "ui:kickoffEventSelectPlayer",
+  UI_KickoffEventMovePlayer = "ui:kickoffEventMovePlayer",
+  UI_KickoffEventPlacePlayer = "ui:kickoffEventPlacePlayer",
+  UI_KickoffEventDeclareAction = "ui:kickoffEventDeclareAction",
+  UI_KickoffEventConfirm = "ui:kickoffEventConfirm",
+  UI_KickoffEventSkip = "ui:kickoffEventSkip",
 
   // State Events
   TeamUpdated = "team:updated",
@@ -315,8 +338,55 @@ export interface GameEvents {
     distance: number;
     finalX: number;
     finalY: number;
+    isTouchback: boolean;
   };
-  [GameEventNames.KickoffResult]: { roll: number; event: string };
+  [GameEventNames.KickoffAirbornePositionChanged]: {
+    x: number;
+    y: number;
+  };
+  [GameEventNames.KickoffBallLanding]: {
+    /** Null when the deviation produced a touchback instead of a landing. */
+    landingSquare: { x: number; y: number } | null;
+    isTouchback: boolean;
+  };
+  [GameEventNames.KickoffSequenceCompleted]: {
+    isTouchback: boolean;
+  };
+  [GameEventNames.KickoffResult]: {
+    roll: number;
+    /** The resolved Sevens kickoff-table event. */
+    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
+    /** Plain rulebook statement of what the event does. */
+    meaning: string;
+    /** Structured account of what each team received. */
+    outcome: import("../game/kickoff/kickoffEvents").KickoffEventOutcome;
+  };
+  [GameEventNames.KickoffEventStepStarted]: {
+    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
+    /** The coach who may act (kicking or receiving team). */
+    teamId: string;
+    /** D3+1 — how many players the coach may select. */
+    selectionLimit: number;
+    /** High Kick only: the square the ball will land in. */
+    landingSquare?: { x: number; y: number };
+  };
+  [GameEventNames.KickoffEventStepResolved]: {
+    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
+    teamId: string;
+    skipped: boolean;
+  };
+  [GameEventNames.DriveEffectGranted]: {
+    teamId: string;
+    /** Short effect id, e.g. "bribe", "free-reroll", "offensive-assist". */
+    effect: string;
+    /** Legible detail, e.g. "one free team re-roll for this drive". */
+    detail: string;
+  };
+  [GameEventNames.DriveEffectExpired]: {
+    teamId: string;
+    effect: string;
+    detail: string;
+  };
   [GameEventNames.BallPickup]: {
     playerId: string;
     success: boolean;
@@ -631,6 +701,26 @@ export interface UIEvents {
   [GameEventNames.UI_StepSelected]: {
     stepId: string;
   };
+
+  // Kickoff event step (owning coach only)
+  [GameEventNames.UI_KickoffEventSelectPlayer]: { playerId: string };
+  [GameEventNames.UI_KickoffEventMovePlayer]: {
+    playerId: string;
+    x: number;
+    y: number;
+  };
+  [GameEventNames.UI_KickoffEventPlacePlayer]: {
+    playerId: string;
+    x: number;
+    y: number;
+  };
+  /** Charge! only: declare the current player's free action. */
+  [GameEventNames.UI_KickoffEventDeclareAction]: {
+    playerId: string;
+    action: ActionType;
+  };
+  [GameEventNames.UI_KickoffEventConfirm]: void;
+  [GameEventNames.UI_KickoffEventSkip]: void;
 }
 
 /**

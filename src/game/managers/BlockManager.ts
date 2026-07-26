@@ -13,6 +13,11 @@ import {
   BlockValidator,
   blockDiceForStrength,
 } from "../validators/BlockValidator";
+import { BlockAnalysis } from "../../types/Actions";
+import {
+  consumeOffensiveAssist,
+  offensiveAssistBonus,
+} from "../kickoff/driveEffects";
 import {
   BlockResolutionService,
   BlockResult,
@@ -203,6 +208,32 @@ export class BlockManager {
     }
   ) {}
 
+  /**
+   * Cheering Fans: an owed Offensive Assist adds +1 ST to the team's first
+   * Block of the turn it was granted for. Returns 0 outside that window.
+   */
+  private owedAssistBonus(teamId: string): 0 | 1 {
+    if (!this.state.turn) return 0;
+    return offensiveAssistBonus(
+      this.state,
+      teamId,
+      this.state.turn.teamId === teamId ? this.state.turn.turnNumber : -1
+    );
+  }
+
+  /** Apply the owed-assist bonus to an analysis (ST and dice re-derived). */
+  private applyOwedAssist(attacker: Player, analysis: BlockAnalysis): boolean {
+    if (!this.owedAssistBonus(attacker.teamId)) return false;
+    analysis.attackerST += 1;
+    const recomputed = blockDiceForStrength(
+      analysis.attackerST,
+      analysis.defenderST
+    );
+    analysis.diceCount = recomputed.diceCount;
+    analysis.isUphill = recomputed.isUphill;
+    return true;
+  }
+
   public previewBlock(attackerId: string, defenderId: string): void {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
@@ -219,6 +250,7 @@ export class BlockManager {
       allPlayers,
       this.state.activeTeamId
     );
+    this.applyOwedAssist(attacker, analysis);
 
     this.eventBus.emit(GameEventNames.UI_BlockDialog, {
       attackerId,
@@ -254,6 +286,18 @@ export class BlockManager {
         this.allPlayers(),
         this.state.activeTeamId
       );
+      // Cheering Fans: the owed assist lands on this first Block of the turn
+      if (this.applyOwedAssist(attacker, analysis)) {
+        consumeOffensiveAssist(
+          this.state,
+          attacker.teamId,
+          this.state.turn.turnNumber
+        );
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Cheering Fans: +1 Offensive Assist on the first Block!"
+        );
+      }
       const ctx: BlockDeclaredContext = {
         attacker,
         defender,

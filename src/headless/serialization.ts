@@ -64,6 +64,10 @@ export interface GameSnapshot {
   activePlayer: { id: string; action: string | null } | null;
   coachesEjected: string[];
   teams: TeamSnapshot[];
+  /** Kickoff-event drive effects; absent on pre-feature saves (= empty). */
+  driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
+  /** Bribes held per team (Get the Ref); absent on pre-feature saves. */
+  bribes?: Record<string, number>;
 }
 
 export const MATCH_SAVE_VERSION = 1 as const;
@@ -130,6 +134,10 @@ export function serializeGameState(
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
     coachesEjected: [...state.coachesEjected],
+    driveEffects: state.driveEffects
+      ? structuredClone(state.driveEffects)
+      : undefined,
+    bribes: state.bribes ? { ...state.bribes } : undefined,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -179,6 +187,10 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
     coachesEjected: [...snapshot.coachesEjected],
+    driveEffects: snapshot.driveEffects
+      ? structuredClone(snapshot.driveEffects)
+      : undefined,
+    bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
   };
 }
 

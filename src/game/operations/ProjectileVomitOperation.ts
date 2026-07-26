@@ -4,6 +4,7 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
+import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -85,7 +86,7 @@ export class ProjectileVomitOperation extends GameOperation {
 
     // Unmodifiable Armour Roll: straight 2D6 vs AV, no skill fold
     const armour = dice.rollArmorCheck(
-      victim.stats.AV,
+      effectiveAV(victim, gameService.getState()),
       victim.playerName,
       attacker.teamId
     );

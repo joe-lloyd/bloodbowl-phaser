@@ -12,6 +12,8 @@ interface TeamRow {
   score: number;
   turn: number;
   rerolls: number;
+  freeRerolls: number;
+  bribes: number;
   /** Coach controlling this team (online only) */
   coach?: string;
   isMe?: boolean;
@@ -50,6 +52,8 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
           rerolls: team.rerolls,
+          freeRerolls: state.driveEffects?.freeRerolls[team.id] ?? 0,
+          bribes: state.bribes?.[team.id] ?? 0,
           coach: online?.coachName(team.id),
           isMe: online?.myTeamId === team.id,
         }))
@@ -65,6 +69,8 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
       GameEventNames.PhaseChanged,
       GameEventNames.GameStateRestored,
       GameEventNames.TeamUpdated,
+      GameEventNames.DriveEffectGranted,
+      GameEventNames.DriveEffectExpired,
     ] as const;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     events.forEach((e) => eventBus.on(e as any, refresh));
@@ -157,6 +163,8 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
               </div>
               <span className="ml-auto text-[10px] uppercase tracking-wide text-gray-400">
                 RR {row.rerolls}
+                {row.freeRerolls > 0 ? ` +${row.freeRerolls}` : ""}
+                {row.bribes > 0 ? ` · Bribe ${row.bribes}` : ""}
               </span>
             </div>
           </div>

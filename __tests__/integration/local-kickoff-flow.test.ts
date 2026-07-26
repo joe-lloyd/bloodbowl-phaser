@@ -183,6 +183,11 @@ describe("local play: kickoff hands the turn to the receiving team", () => {
       const mockScene = makeMockScene(t1, t2);
       const orch = new SceneOrchestrator(mockScene, svc, bus);
       orch.initialize();
+      // Interactive Sevens events intentionally pause the kick; this legacy
+      // flow test is about turn handoff, so decline any event step.
+      bus.on(GameEventNames.KickoffEventStepStarted, () =>
+        svc.skipKickoffEventStep()
+      );
 
       let touchback = false;
       bus.on(GameEventNames.TouchbackAwarded, () => (touchback = true));

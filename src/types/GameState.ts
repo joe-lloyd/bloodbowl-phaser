@@ -59,4 +59,8 @@ export interface GameState {
     action: string | null; // ActionType
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
+  /** Kickoff-event effects scoped to the current drive; absent = none. */
+  driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
+  /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
+  bribes?: Record<string, number>;
 }

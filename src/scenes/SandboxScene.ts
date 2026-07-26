@@ -7,13 +7,22 @@ import { Team } from "../types/Team";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { ScenarioLoader } from "../services/ScenarioLoader";
+import { IEventBus } from "../services/EventBus";
 import { SCENARIOS } from "../data/scenarios";
 import { findRuleConfig } from "../data/ruleScenarios";
+import {
+  findKickoffConfig,
+  KICKOFF_TOPIC,
+} from "../data/kickoffScenarios";
 import { GameEventNames } from "@/types/events";
 
 export class SandboxScene extends GameScene {
   constructor() {
     super("SandboxScene");
+  }
+
+  private getBrowserEventBus(): IEventBus {
+    return (window as unknown as { eventBus: IEventBus }).eventBus;
   }
 
   init(data: { team1?: Team; team2?: Team; pitchThemeId?: string }): void {
@@ -26,7 +35,7 @@ export class SandboxScene extends GameScene {
         GamePhase.SANDBOX_IDLE
       );
       ServiceContainer.initialize(
-        (window as any).eventBus,
+        this.getBrowserEventBus(),
         data.team1,
         data.team2,
         initialState
@@ -67,7 +76,7 @@ export class SandboxScene extends GameScene {
         GamePhase.SANDBOX_IDLE
       );
       ServiceContainer.initialize(
-        (window as any).eventBus,
+        this.getBrowserEventBus(),
         team1,
         team2,
         initialState
@@ -141,24 +150,25 @@ export class SandboxScene extends GameScene {
     let expectedOutcome: string | undefined;
     if (!scenario) {
       const ruleConfig = findRuleConfig(scenarioId);
-      if (ruleConfig) {
+      const config = ruleConfig?.config ?? findKickoffConfig(scenarioId);
+      if (config) {
         scenario = {
-          id: ruleConfig.config.id,
-          name: `${ruleConfig.skill}: ${ruleConfig.config.name}`,
-          description: ruleConfig.config.description,
+          id: config.id,
+          name: `${ruleConfig?.skill ?? KICKOFF_TOPIC}: ${config.name}`,
+          description: config.description,
           // Pin the rosters the seed finder runs with (createHeadlessGame
           // defaults to Human): a found seed only reproduces if the replay
           // uses identical teams — different ST/AV changes the dice count
           // and RNG draw order, so the same seed rolls different results.
           setup: {
-            ...ruleConfig.config.setup,
+            ...config.setup,
             team1Roster:
-              ruleConfig.config.setup.team1Roster ?? RosterName.HUMAN,
+              config.setup.team1Roster ?? RosterName.HUMAN,
             team2Roster:
-              ruleConfig.config.setup.team2Roster ?? RosterName.HUMAN,
+              config.setup.team2Roster ?? RosterName.HUMAN,
           },
         };
-        expectedOutcome = ruleConfig.config.outcomes.find(
+        expectedOutcome = config.outcomes.find(
           (o) => o.id === outcomeId
         )?.name;
       }

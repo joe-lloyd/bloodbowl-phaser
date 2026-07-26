@@ -147,6 +147,29 @@ export class NetworkedGameService implements IGameService {
   isTouchbackPending(): boolean {
     return this.inner.isTouchbackPending();
   }
+  getKickoffEventStep() {
+    const pending = this.pendingDecision();
+    if (pending?.type !== "kickoff-event") return null;
+    return {
+      event: pending.event,
+      teamId: pending.chooserTeamId,
+      selectionLimit: pending.selectionLimit,
+      selectedPlayerIds: [...pending.selectedPlayerIds],
+      movedPlayerIds: [...pending.movedPlayerIds],
+      awaitingPlacement: [...pending.awaitingPlacement],
+      landingSquare: pending.landingSquare
+        ? { ...pending.landingSquare }
+        : undefined,
+      charge: pending.charge
+        ? {
+            queue: [...pending.charge.queue],
+            budget: { ...pending.charge.budget },
+            activePlayerId: pending.charge.activePlayerId,
+            aborted: pending.charge.aborted,
+          }
+        : undefined,
+    };
+  }
   canActivate(playerId: string): boolean {
     return this.inner.canActivate(playerId);
   }
@@ -248,6 +271,26 @@ export class NetworkedGameService implements IGameService {
   }
   awardTouchback(playerId: string): boolean {
     this.send({ type: "touchback", playerId });
+    return true;
+  }
+  selectKickoffEventPlayer(playerId: string): boolean {
+    this.send({ type: "kickoff-select-player", playerId });
+    return true;
+  }
+  moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
+    this.send({ type: "kickoff-move-player", playerId, x, y });
+    return true;
+  }
+  placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
+    this.send({ type: "kickoff-place-player", playerId, x, y });
+    return true;
+  }
+  confirmKickoffEventStep(): boolean {
+    this.send({ type: "kickoff-confirm" });
+    return true;
+  }
+  skipKickoffEventStep(): boolean {
+    this.send({ type: "kickoff-skip" });
     return true;
   }
   declareAction(playerId: string, action: ActionType): boolean {

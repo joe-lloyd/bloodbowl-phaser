@@ -4,6 +4,7 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
+import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -102,7 +103,7 @@ export class ChainsawAttackOperation extends GameOperation {
 
     // 2+: an Armour Roll against the target with a +3 modifier.
     const armour = dice.rollArmorCheck(
-      target.stats.AV - 3,
+      effectiveAV(target, gameService.getState()) - 3,
       target.playerName,
       attacker.teamId
     );

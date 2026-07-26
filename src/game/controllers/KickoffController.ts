@@ -1,9 +1,7 @@
-import { IEventBus } from "../../services/EventBus";
-import { GameEventNames } from "../../types/events";
 import { BallMovementController } from "./BallMovementController";
-import { WeatherManager } from "../managers/WeatherManager";
 import { DiceController } from "./DiceController";
 import { GameConfig } from "@/config/GameConfig";
+import { KICKOFF_TABLE, KickoffEvent } from "../kickoff/kickoffEvents";
 
 /**
  * KickoffController
@@ -20,59 +18,42 @@ import { GameConfig } from "@/config/GameConfig";
  * - Managing weather effects (Queries WeatherManager, doesn't own it).
  */
 export class KickoffController {
+  private movementController: BallMovementController;
+  private diceController: DiceController;
+
   constructor(
-    private eventBus: IEventBus,
-    private movementController: BallMovementController,
-    private weatherManager: WeatherManager,
-    private diceController: DiceController
-  ) {}
-
-  public rollKickoffEvent(): { roll: number; event: string } {
-    const roll = this.diceController.roll2D6("Kickoff Event");
-    let event = "Changing Weather";
-
-    switch (roll) {
-      case 2:
-        event = "Get the Ref!";
-        break;
-      case 3:
-        event = "Riot!";
-        break;
-      case 4:
-        event = "Perfect Defense";
-        break;
-      case 5:
-        event = "High Kick";
-        break;
-      case 6:
-        event = "Cheering Fans";
-        break;
-      case 7:
-        event = "Changing Weather";
-        this.weatherManager.rollWeather();
-        break;
-      case 8:
-        event = "Brilliant Coaching";
-        break;
-      case 9:
-        event = "Quick Snap!";
-        break;
-      case 10:
-        event = "Blitz!";
-        break;
-      case 11:
-        event = "Throw a Rock";
-        break;
-      case 12:
-        event = "Pitch Invasion!";
-        break;
+    movementController: BallMovementController,
+    diceController: DiceController
+  );
+  /** Compatibility overload for callers using the controller's former shape. */
+  constructor(
+    eventBus: unknown,
+    movementController: BallMovementController,
+    weatherManager: unknown,
+    diceController: DiceController
+  );
+  constructor(
+    movementOrEventBus: BallMovementController | unknown,
+    diceOrMovement: DiceController | BallMovementController,
+    _weatherManager?: unknown,
+    legacyDiceController?: DiceController
+  ) {
+    if (legacyDiceController) {
+      this.movementController = diceOrMovement as BallMovementController;
+      this.diceController = legacyDiceController;
+    } else {
+      this.movementController = movementOrEventBus as BallMovementController;
+      this.diceController = diceOrMovement as DiceController;
     }
+  }
 
-    // DiceController already checks passed/failed? 2d6 is just a roll.
-    // We emit the KickoffResult event for logic handling.
-    this.eventBus.emit(GameEventNames.KickoffResult, { roll, event });
-
-    return { roll, event };
+  /**
+   * Roll the Blood Bowl Sevens table. State-changing resolution is owned by
+   * KickoffEventManager; this controller retains the pure table-roll seam.
+   */
+  public rollKickoffEvent(): { roll: number; event: KickoffEvent } {
+    const roll = this.diceController.roll2D6("Kickoff Event");
+    return { roll, event: KICKOFF_TABLE[roll] };
   }
 
   public calculateKickDestination(

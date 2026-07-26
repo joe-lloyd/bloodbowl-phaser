@@ -19,6 +19,7 @@ import {
   isThrowTeammateInRange,
 } from "../rules/throwTeammate";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
+import { KickoffEvent } from "../kickoff/kickoffEvents";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -63,6 +64,32 @@ export class GameplayInteractionController {
     data: import("@/types/events").UIEvents[GameEventNames.UI_SelectPushDirection]
   ) => void;
   private resumeBlitzMoveHandler: (data: { playerId: string }) => void;
+  private kickoffHighlightedPlayerIds = new Set<string>();
+  private kickoffStepSyncHandler = () => this.syncKickoffStepInteraction();
+  private kickoffPlayerSelectedHandler = (data: { player: Player | null }) => {
+    const step = this.gameService.getKickoffEventStep();
+    if (!step) return;
+    if (
+      step.charge?.activePlayerId &&
+      data.player?.id === step.charge.activePlayerId
+    ) {
+      if (
+        this.selectedPlayerId &&
+        this.selectedPlayerId !== step.charge.activePlayerId
+      ) {
+        this.scene.unhighlightPlayer(this.selectedPlayerId);
+      }
+      this.selectedPlayerId = step.charge.activePlayerId;
+      this.currentActionMode = null;
+      this.currentStepId = null;
+      this.actionSteps = [];
+      this.waypoints = [];
+      this.hasMovedInAction = false;
+      this.pitch.clearPath();
+      this.pitch.clearPassVisualization();
+    }
+    this.syncKickoffStepInteraction();
+  };
 
   // Pass mode state
   private currentActionMode: import("@/types/events").ActionType | null = null;
@@ -145,6 +172,22 @@ export class GameplayInteractionController {
     this.eventBus.on(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
+    );
+    this.eventBus.on(
+      GameEventNames.KickoffEventStepStarted,
+      this.kickoffStepSyncHandler
+    );
+    this.eventBus.on(
+      GameEventNames.KickoffEventStepResolved,
+      this.kickoffStepSyncHandler
+    );
+    this.eventBus.on(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
+    this.eventBus.on(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
+    this.eventBus.on(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
+    this.eventBus.on(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
+    this.eventBus.on(
+      GameEventNames.PlayerSelected,
+      this.kickoffPlayerSelectedHandler
     );
 
     // Leaving PLAY (touchdown, drive end, halftime) must fully reset the
@@ -558,8 +601,11 @@ export class GameplayInteractionController {
 
     // KICKOFF PHASE
     if (phase === GamePhase.KICKOFF) {
-      this.handleKickoffClick(x, y, playerAtSquare);
-      return;
+      const kickoffStep = this.gameService.getKickoffEventStep();
+      if (!kickoffStep?.charge?.activePlayerId) {
+        this.handleKickoffClick(x, y, playerAtSquare);
+        return;
+      }
     }
 
     // TOUCHBACK: the receiving coach must hand the ball to one of their
@@ -1279,6 +1325,28 @@ export class GameplayInteractionController {
       return;
     }
 
+    // A player click and a grid-square click must take the same route during
+    // kickoff selection. Previously sprite-originated clicks fell through to
+    // ordinary turn selection and never reached the kickoff event manager.
+    if (this.gameService.getPhase() === GamePhase.KICKOFF) {
+      const step = this.gameService.getKickoffEventStep();
+      const clicked = this.gameService.getPlayerById(playerId);
+      if (step && !step.charge?.activePlayerId && clicked?.gridPosition) {
+        this.handleKickoffClick(
+          clicked.gridPosition.x,
+          clicked.gridPosition.y,
+          clicked
+        );
+        return;
+      }
+      if (
+        step?.charge?.activePlayerId &&
+        step.charge.activePlayerId !== playerId
+      ) {
+        return;
+      }
+    }
+
     // CRITICAL FIX: while aiming a targeted throw at a team-mate — a Pass or a
     // Hand-off — clicking a player MUST be treated as a TARGET click that
     // completes the action, never a re-selection of the clicked team-mate.
@@ -1403,7 +1471,12 @@ export class GameplayInteractionController {
     const player = this.gameService.getPlayerById(playerId);
     if (!player) return;
 
-    const canActivate = this.gameService.canActivate(playerId);
+    const chargePlayerId =
+      this.gameService.getPhase() === GamePhase.KICKOFF
+        ? this.gameService.getKickoffEventStep()?.charge?.activePlayerId
+        : undefined;
+    const canActivate =
+      this.gameService.canActivate(playerId) || chargePlayerId === playerId;
     const isOwnTurn = state.activeTeamId === player.teamId;
 
     if (isOwnTurn && canActivate) {
@@ -1712,6 +1785,22 @@ export class GameplayInteractionController {
       this.resumeBlitzMoveHandler
     );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
+    this.eventBus.off(
+      GameEventNames.KickoffEventStepStarted,
+      this.kickoffStepSyncHandler
+    );
+    this.eventBus.off(
+      GameEventNames.KickoffEventStepResolved,
+      this.kickoffStepSyncHandler
+    );
+    this.eventBus.off(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
+    this.eventBus.off(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
+    this.eventBus.off(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
+    this.eventBus.off(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
+    this.eventBus.off(
+      GameEventNames.PlayerSelected,
+      this.kickoffPlayerSelectedHandler
+    );
 
     // Cleanup highlight manager
     if (this.highlightManager) {
@@ -1869,6 +1958,75 @@ export class GameplayInteractionController {
     y: number,
     playerAtSquare: Player | null
   ): void {
+    const eventStep = this.gameService.getKickoffEventStep();
+    if (eventStep) {
+      const mayAct = getActiveOnlineMatch()?.mayAct() ?? true;
+      if (!mayAct) return;
+
+      // Solid Defence is intentionally drag-only. A click or pointer-down is
+      // part of beginning that drag and must never select/remove the player.
+      if (eventStep.event === KickoffEvent.SOLID_DEFENCE) return;
+
+      if (
+        playerAtSquare &&
+        playerAtSquare.teamId === eventStep.teamId &&
+        !eventStep.charge
+      ) {
+        const wasSelected = eventStep.selectedPlayerIds.includes(
+          playerAtSquare.id
+        );
+        if (this.gameService.selectKickoffEventPlayer(playerAtSquare.id)) {
+          this.selectedPlayerId = wasSelected ? null : playerAtSquare.id;
+          this.eventBus.emit(GameEventNames.PlayerSelected, {
+            player: wasSelected ? null : playerAtSquare,
+          });
+          // High Kick has exactly one known destination. Selecting the Open
+          // receiver on the pitch is the whole interaction.
+          if (
+            !wasSelected &&
+            eventStep.event === KickoffEvent.HIGH_KICK &&
+            eventStep.landingSquare
+          ) {
+            this.gameService.placeKickoffEventPlayer(
+              playerAtSquare.id,
+              eventStep.landingSquare.x,
+              eventStep.landingSquare.y
+            );
+            this.selectedPlayerId = null;
+          }
+          this.syncKickoffStepInteraction();
+        }
+        return;
+      }
+
+      if (this.selectedPlayerId) {
+        const applied =
+          eventStep.event === KickoffEvent.QUICK_SNAP
+            ? this.gameService.moveKickoffEventPlayer(
+                this.selectedPlayerId,
+                x,
+                y
+              )
+            : this.gameService.placeKickoffEventPlayer(
+                this.selectedPlayerId,
+                x,
+                y
+              );
+        if (applied) {
+          this.selectedPlayerId = null;
+          this.syncKickoffStepInteraction();
+        } else {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            eventStep.event === KickoffEvent.QUICK_SNAP
+              ? "Quick Snap: choose one adjacent empty pitch square."
+              : "Solid Defence: choose a legal empty setup square."
+          );
+        }
+      }
+      return;
+    }
+
     const subPhase = this.gameService.getSubPhase();
 
     if (subPhase === SubPhase.ROLL_KICKOFF) {
@@ -1937,6 +2095,69 @@ export class GameplayInteractionController {
           "Select a Kicker first!"
         );
       }
+    }
+  }
+
+  /**
+   * Keep kickoff interaction visible on the board itself. Open eligible
+   * players are blue; selected/current players are gold. Solid Defence also
+   * enables setup-style dragging for eligible players without removing them
+   * from the pitch.
+   */
+  private syncKickoffStepInteraction(): void {
+    for (const playerId of this.kickoffHighlightedPlayerIds) {
+      this.scene.unhighlightPlayer(playerId);
+    }
+    this.kickoffHighlightedPlayerIds.clear();
+    this.scene.setKickoffSolidDefenceDragPlayers([]);
+
+    const step = this.gameService.getKickoffEventStep();
+    if (!step) return;
+
+    const team = this.gameService.getTeam(step.teamId);
+    if (!team) return;
+    const onlineMatch = getActiveOnlineMatch();
+    const canAct =
+      !onlineMatch ||
+      (onlineMatch.myTeamId === step.teamId && onlineMatch.mayAct());
+    const opponents =
+      team.id === this.scene.team1.id
+        ? this.scene.team2.players
+        : this.scene.team1.players;
+    const eligible = team.players.filter((player) => {
+      if (!player.gridPosition || player.status !== PlayerStatus.ACTIVE) {
+        return false;
+      }
+      if (step.movedPlayerIds.includes(player.id)) return false;
+      return !opponents.some(
+        (opponent) =>
+          opponent.status === PlayerStatus.ACTIVE &&
+          opponent.gridPosition &&
+          Math.max(
+            Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
+            Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
+          ) === 1
+        );
+    });
+
+    if (step.event === KickoffEvent.SOLID_DEFENCE && canAct) {
+      this.scene.setKickoffSolidDefenceDragPlayers(
+        eligible.map((player) => player.id)
+      );
+    }
+
+    for (const player of eligible) {
+      this.scene.highlightPlayer(player.id, 0x38bdf8);
+      this.kickoffHighlightedPlayerIds.add(player.id);
+    }
+    for (const playerId of step.selectedPlayerIds) {
+      this.scene.highlightPlayer(playerId, 0xffd700);
+      this.kickoffHighlightedPlayerIds.add(playerId);
+    }
+    if (step.charge?.activePlayerId) {
+      this.selectedPlayerId = step.charge.activePlayerId;
+      this.scene.highlightPlayer(step.charge.activePlayerId, 0xffd700);
+      this.kickoffHighlightedPlayerIds.add(step.charge.activePlayerId);
     }
   }
 
