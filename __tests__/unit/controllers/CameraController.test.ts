@@ -31,6 +31,7 @@ describe("CameraController", () => {
         }
         return { stop: vi.fn() };
       }),
+      killTweensOf: vi.fn(),
     };
 
     // Mock scene
@@ -119,14 +120,15 @@ describe("CameraController", () => {
       expect(controller.getIsTracking()).toBe(true);
     });
 
-    it("should use default zoom if not provided", () => {
+    it("should use the intensity-derived track zoom if none provided", () => {
       const mockObject = { x: 100, y: 100 };
 
+      // Defaults: resting zoom 1.0, full intensity -> MAX track zoom 2.5
       controller.trackObject(mockObject);
 
       expect(mockTweens.add).toHaveBeenCalledWith(
         expect.objectContaining({
-          zoom: 2.0,
+          zoom: 2.5,
         })
       );
     });
@@ -156,6 +158,119 @@ describe("CameraController", () => {
           zoom: 1.0,
           scrollX: 0,
           scrollY: 0,
+        })
+      );
+    });
+
+    it("should supersede in-flight camera tweens", async () => {
+      await controller.reset(800);
+
+      expect(mockTweens.killTweensOf).toHaveBeenCalledWith(mockCamera);
+    });
+  });
+
+  describe("Resting Zoom", () => {
+    // pitchBounds 1200x660 on a 1920x1080 camera -> fit = min(1.6, 1.636) * 0.9
+    const FIT_ZOOM = 1.6 * 0.9;
+
+    it("should expose the fit-pitch zoom", () => {
+      expect(controller.getFitZoom()).toBeCloseTo(FIT_ZOOM, 5);
+    });
+
+    it("should return null fit zoom without pitch bounds", () => {
+      const noBounds = new CameraController(mockScene);
+      expect(noBounds.getFitZoom()).toBeNull();
+    });
+
+    it("should return to the resting zoom instead of the captured default", async () => {
+      controller.setRestingZoom(2.0);
+
+      await controller.reset(800);
+
+      expect(mockTweens.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          zoom: 2.0,
+          // Same framing, re-centered for the new zoom
+          scrollX: 960 - 1920 / 2 / 2.0,
+          scrollY: 540 - 1080 / 2 / 2.0,
+        })
+      );
+    });
+
+    it("should clamp the resting zoom to the fit-pitch minimum", () => {
+      controller.setRestingZoom(0.5);
+
+      expect(controller.getRestingZoom()).toBeCloseTo(FIT_ZOOM, 5);
+    });
+
+    it("should clamp the resting zoom to the maximum", () => {
+      controller.setRestingZoom(99);
+
+      expect(controller.getRestingZoom()).toBe(2.5);
+    });
+  });
+
+  describe("Follow Intensity", () => {
+    it("should default to full intensity (legacy close tracking)", () => {
+      expect(controller.getFollowIntensity()).toBe(1.0);
+      expect(controller.isFollowEnabled()).toBe(true);
+    });
+
+    it("should clamp intensity to 0..1", () => {
+      controller.setFollowIntensity(2);
+      expect(controller.getFollowIntensity()).toBe(1);
+
+      controller.setFollowIntensity(-1);
+      expect(controller.getFollowIntensity()).toBe(0);
+    });
+
+    it("should not follow or zoom when intensity is Off", () => {
+      controller.setFollowIntensity(0);
+      const mockObject = { x: 100, y: 100 };
+
+      controller.trackObject(mockObject);
+
+      expect(controller.isFollowEnabled()).toBe(false);
+      expect(mockCamera.startFollow).not.toHaveBeenCalled();
+      expect(mockTweens.add).not.toHaveBeenCalled();
+      expect(controller.getIsTracking()).toBe(false);
+    });
+
+    it("should map intensity to the follow lerp (Light .. Close)", () => {
+      const mockObject = { x: 100, y: 100 };
+
+      controller.setFollowIntensity(0.5);
+      controller.trackObject(mockObject);
+
+      const lerp = mockCamera.startFollow.mock.calls[0][2];
+      // 0.08 + (0.25 - 0.08) * 0.5
+      expect(lerp).toBeCloseTo(0.165, 5);
+      expect(mockCamera.startFollow.mock.calls[0][3]).toBeCloseTo(lerp, 5);
+    });
+
+    it("should keep the legacy tight lerp at full intensity", () => {
+      const mockObject = { x: 100, y: 100 };
+
+      controller.trackObject(mockObject);
+
+      expect(mockCamera.startFollow).toHaveBeenCalledWith(
+        mockObject,
+        true,
+        0.25,
+        0.25
+      );
+    });
+
+    it("should derive a gentler track zoom at low intensity", () => {
+      const mockObject = { x: 100, y: 100 };
+
+      controller.setFollowIntensity(0.5);
+      controller.trackObject(mockObject);
+
+      // resting 1.0 + (2.5 - 1.0) * 0.5
+      expect(mockTweens.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          zoom: 1.75,
         })
       );
     });

@@ -87,8 +87,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       // Logic moved from SceneOrchestrator
       const sprite = this.scene["playerSprites"].get(data.playerId);
       if (sprite) {
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite: sprite, // Track passer initially
+        this.eventBus.emit(GameEventNames.Camera_TrackObject, {
+          sprite, // Track passer initially
           animationDuration: 800,
         });
       }
@@ -331,6 +331,10 @@ export class PlayPhaseHandler implements PhaseHandler {
     if (data.path && data.path.length > 0) {
       const sprite = this.scene["playerSprites"].get(data.playerId);
       if (sprite) {
+        // Camera follow: track the moving player (the ball walks with a
+        // carrier; pass/kick hand the follow off to the ball separately)
+        this.eventBus.emit(GameEventNames.Camera_TrackObject, { sprite });
+
         const pixelPath = data.path.map((step: any) =>
           this.scene["pitch"].getPixelPosition(step.x, step.y)
         );
@@ -373,6 +377,12 @@ export class PlayPhaseHandler implements PhaseHandler {
     if (!ballSprite) return;
 
     this.scene["placeBallVisual"](data.from.x, data.from.y);
+
+    // Camera follow: the ball is now the thing in motion — hand the follow
+    // off from the passer to the ball for its whole flight.
+    this.eventBus.emit(GameEventNames.Camera_TrackObject, {
+      sprite: ballSprite,
+    });
 
     const p1 = this.scene["pitch"].getPixelPosition(
       data.finalPosition.x,

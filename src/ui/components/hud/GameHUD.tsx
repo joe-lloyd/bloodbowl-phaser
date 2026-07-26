@@ -26,6 +26,7 @@ import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
+import { CameraControls } from "./CameraControls";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
@@ -294,6 +295,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <>
           {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
           <KickoffEventOverlay eventBus={eventBus} />
+          <CameraControls eventBus={eventBus} />
           <PlayerInfoPanel eventBus={eventBus} />
           <div className="mt-auto pointer-events-auto">
             <MatchOptionsMenu

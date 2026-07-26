@@ -237,6 +237,20 @@ export function isValidSelectionClaim(
     .find((candidate) => candidate.id === playerId);
   return player?.teamId === senderTeamId;
 }
+/**
+ * View-local events that must never cross the wire: the camera is a
+ * per-viewer concern (each coach controls their own), and the track
+ * payloads carry live Phaser sprites, which are not serializable. Each
+ * peer's scene re-derives its own camera triggers from the replayed game
+ * events, gated by that viewer's own camera settings.
+ */
+const LOCAL_ONLY_EVENTS = new Set<string>([
+  GameEventNames.Camera_TrackBall,
+  GameEventNames.Camera_TrackObject,
+  GameEventNames.Camera_Reset,
+  GameEventNames.Camera_StateChanged,
+  GameEventNames.UI_CameraSettingsChanged,
+]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */
 class EventBroadcaster {
@@ -270,7 +284,8 @@ class EventBroadcaster {
   }
 
   private record(name: string, data: unknown): void {
-    if (this.paused || UI_INTENT_EVENTS.has(name)) return;
+    if (this.paused || UI_INTENT_EVENTS.has(name) || LOCAL_ONLY_EVENTS.has(name))
+      return;
     this.buffer.push({ name, data });
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
