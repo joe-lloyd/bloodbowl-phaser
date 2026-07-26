@@ -3,6 +3,7 @@
  */
 
 import { Player, PlayerTemplate } from "./Player";
+import { SeedMetadata } from "./seedMetadata";
 
 /**
  * Team races/types
@@ -127,6 +128,9 @@ export interface Team {
   draws: number;
   touchdowns: number;
   casualties: number;
+
+  /** Development seed ownership; absent on coach-created teams. */
+  seedMetadata?: SeedMetadata;
 }
 
 /**

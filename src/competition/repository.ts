@@ -49,6 +49,29 @@ export async function saveCompetition(
 }
 
 /**
+ * Development-seed maintenance: every locally stored competition document,
+ * unfiltered by uid. Normal flows should use listCompetitions instead.
+ */
+export function readLocalCompetitions(): CompetitionDoc[] {
+  return Object.values(readLocal());
+}
+
+/**
+ * Development-seed maintenance: remove local documents by id. Coach-created
+ * records are only removed if their ids are passed explicitly.
+ */
+export function removeLocalCompetitions(ids: string[]): void {
+  if (ids.length === 0) return;
+  const store = readLocal();
+  const remove = new Set(ids);
+  const next: LocalStore = {};
+  for (const [key, competition] of Object.entries(store)) {
+    if (!remove.has(competition.id)) next[key] = competition;
+  }
+  writeLocal(next);
+}
+
+/**
  * Repair bracket linkage on read, for tournaments saved before it was
  * recorded. Cheap, idempotent, and it keeps both the bracket view and
  * winner-advancement working on legacy documents.

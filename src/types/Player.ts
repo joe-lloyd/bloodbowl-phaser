@@ -117,6 +117,9 @@ export interface Player {
   // Cost (for team building)
   cost: number;
   teamValue: number;
+
+  /** Career totals; absent for players who never played a recorded match. */
+  careerStats?: PlayerCareerStats;
 }
 
 export interface PlayerAdvancement {
@@ -126,6 +129,22 @@ export interface PlayerAdvancement {
   sppCost: number;
   valueIncrease: number;
   elite?: boolean;
+}
+
+/**
+ * Career totals across all matches a player has appeared in. `sppEarned`
+ * must equal the SPP table value of the stat lines (completion 1,
+ * interception/casualty 2, touchdown 3, MVP 4) and, for progressed players,
+ * the player's unspent SPP plus SPP spent on advancements.
+ */
+export interface PlayerCareerStats {
+  matches: number;
+  completions: number;
+  interceptions: number;
+  casualties: number;
+  touchdowns: number;
+  mvps: number;
+  sppEarned: number;
 }
 
 /**

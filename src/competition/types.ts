@@ -1,4 +1,5 @@
 import { Team } from "../types/Team";
+import { SeedMetadata } from "../types/seedMetadata";
 
 export type CompetitionType = "league" | "tournament";
 export type TournamentFormat = "single-elimination" | "round-robin";
@@ -77,6 +78,8 @@ export interface LeagueDoc {
   points: LeaguePoints;
   createdAt: number;
   updatedAt: number;
+  /** Development seed ownership; absent on coach-created competitions. */
+  seedMetadata?: SeedMetadata;
 }
 
 export interface TournamentDoc {
@@ -93,6 +96,8 @@ export interface TournamentDoc {
   championEntrantId?: string;
   createdAt: number;
   updatedAt: number;
+  /** Development seed ownership; absent on coach-created competitions. */
+  seedMetadata?: SeedMetadata;
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;

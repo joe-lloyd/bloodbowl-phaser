@@ -148,7 +148,7 @@ export function TeamManagement() {
   const handleDeleteSeedTeams = () => {
     if (
       confirm(
-        "This will delete all seed teams (ending with ' Sample'). Continue?"
+        "This will delete all development seed teams and competitions. Continue?"
       )
     ) {
       deleteAllSeedTeams();

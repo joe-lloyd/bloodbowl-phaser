@@ -9,6 +9,7 @@ import {
 } from "../../../types/Team";
 import { createPlayer } from "../../../types/Player";
 import { validateInsignificant } from "../../../game/rules/insignificant";
+import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import {
   getRosterByRosterName,
   getAvailableRosterNames,
@@ -193,6 +194,18 @@ export function TeamBuilder() {
     const insignificantError = validateInsignificant(team.players);
     if (insignificantError) {
       alert(insignificantError);
+      return;
+    }
+
+    // Shared roster legality (positional limits, Lineman rule, budget) —
+    // the same validator the development seeds are checked against.
+    const roster = getRosterByRosterName(team.rosterName);
+    const violations = validateRosterLegality(team, roster);
+    if (violations.length > 0) {
+      alert(
+        "This roster is not legal:\n" +
+          violations.map((v) => `• ${v.detail}`).join("\n")
+      );
       return;
     }
 
