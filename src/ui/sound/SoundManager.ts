@@ -8,7 +8,8 @@ import {
 export class SoundManager {
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
-  private currentCycle = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private currentCycle: any = null;
 
   constructor() {
     console.log("SoundManager created.");
@@ -34,6 +35,10 @@ export class SoundManager {
     })();
 
     return this.initPromise;
+  }
+
+  public isReady(): boolean {
+    return this.isInitialized;
   }
 
   public async playOpeningTheme(): Promise<void> {
@@ -92,6 +97,29 @@ export class SoundManager {
   public playGameplayTheme(): void {
     this.stop();
     // Placeholder for ambient
+  }
+
+  /**
+   * Fire a one-shot pattern: schedule it, then stop it after `durationMs` so a
+   * single-hit pattern doesn't keep repeating every Strudel cycle. Dropped
+   * silently before the AudioContext is unlocked (first-click) — the suite
+   * queues nothing, per design.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public playOneShot(pattern: any, durationMs: number): void {
+    if (!this.isInitialized || !pattern) return;
+    try {
+      const cycle = pattern.play();
+      setTimeout(() => {
+        try {
+          if (typeof cycle?.stop === "function") cycle.stop();
+        } catch (e) {
+          console.error("SoundManager: Error stopping one-shot", e);
+        }
+      }, durationMs);
+    } catch (e) {
+      console.error("SoundManager: Error playing one-shot", e);
+    }
   }
 
   public playSFX(_type: "dice" | "kick" | "whistle"): void {

@@ -8,7 +8,6 @@
 import { IEventBus } from "./EventBus.js";
 import { GameService } from "./GameService.js";
 import { IGameService } from "./interfaces/IGameService.js";
-import { SoundManager } from "./SoundManager.js";
 import { Team } from "@/types/Team";
 import { GameState } from "@/types/GameState";
 
@@ -29,7 +28,6 @@ export class ServiceContainer {
 
   public readonly eventBus: IEventBus;
   public readonly gameService: IGameService;
-  public readonly soundManager: SoundManager;
   public readonly rngService: IRNGService;
   public readonly blockResolutionService: BlockResolutionService;
   public readonly matchStats: MatchStats;
@@ -48,9 +46,6 @@ export class ServiceContainer {
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
-
-    // Create Services
-    this.soundManager = new SoundManager();
 
     // Deterministic RNG initialization
     // Use provided seed if available, otherwise use timestamp

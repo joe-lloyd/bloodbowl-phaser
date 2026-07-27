@@ -24,6 +24,7 @@ import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
+import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { PostMatchProgression } from "./PostMatchProgression";
 import { useNavigate } from "react-router-dom";
@@ -211,6 +212,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               turnNumber={turnData.turnNumber}
               phase={turnData.phase}
             />
+          </div>
+
+          {/* Sound mute/volume - Top Right */}
+          <div className="absolute top-4 right-4 z-50">
+            <SoundToggle />
           </div>
 
           {/* Full-screen overlays */}
