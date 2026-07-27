@@ -324,6 +324,24 @@ const uphillScenario: Scenario = {
   },
 };
 
+/** Team2 (the guest) is active; player0 holds the ball, adjacent to player1. */
+const handoffScenario: Scenario = {
+  id: "online-handoff",
+  name: "Online hand-off",
+  description: "Guest's own player hands off to an adjacent team-mate.",
+  setup: {
+    team1Placements: [{ playerIndex: 0, x: 20, y: 8 }],
+    team2Placements: [
+      { playerIndex: 0, x: 4, y: 5 },
+      { playerIndex: 1, x: 5, y: 5 },
+    ],
+    activeTeam: "team2",
+    phase: GamePhase.PLAY,
+    subPhase: SubPhase.TURN_RECEIVING,
+    ballPosition: { x: 4, y: 5 },
+  },
+};
+
 const kickoffInteractionScenario: Scenario = {
   id: "online-kickoff-interaction",
   name: "Online kickoff interaction",
@@ -423,6 +441,45 @@ describe("networked sessions", () => {
     );
 
     await match.guest.sendCommand({ type: "kickoff-confirm" });
+  });
+
+  it("proxies a guest Hand-off by target id and both boards agree", async () => {
+    const match = createMatch({ scenario: handoffScenario, seed: 7 });
+    const hander = match.game.ctx.team2.players[0];
+    const receiver = match.game.ctx.team2.players[1];
+
+    const declared = await match.guest.sendCommand({
+      type: "declare-action",
+      playerId: hander.id,
+      action: "handoff",
+    });
+    expect(declared.ok).toBe(true);
+
+    // The wire command carries a target player id, never a square.
+    let response = await match.guest.sendCommand({
+      type: "handoff",
+      playerId: hander.id,
+      targetId: receiver.id,
+    });
+    expect(response.ok).toBe(true);
+    // A Hand-off is never intercepted — the only decision it can raise is
+    // the receiver's own Catch reroll, never an interception choice.
+    expect(response.pendingDecision?.type).not.toBe("interception");
+
+    // Resolve any reroll the receiving Catch offers so the ball settles.
+    for (let guard = 0; response.pendingDecision && guard < 5; guard++) {
+      expect(response.pendingDecision.type).toBe("reroll");
+      response = await match.guest.sendCommand({
+        type: "use-reroll",
+        accept: false,
+      });
+    }
+
+    // The host's authoritative state and the response the guest received
+    // agree on where the ball landed — proxied by target id, not aimed.
+    expect(response.snapshot.ballPosition).toEqual(
+      match.game.snapshot().ballPosition
+    );
   });
 
   it("plays a complete match with every command crossing the wire", async () => {

@@ -27,6 +27,7 @@ import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { FormationManager } from "../game/managers/FormationManager";
 import { computeActionAvailability } from "../game/rules/actionAvailability";
+import { legalHandoffTargets } from "../game/rules/handoff";
 import {
   BLOCK_REPLACEMENTS,
   BLOCK_REPLACEMENT_DEFINITIONS,
@@ -71,7 +72,7 @@ const COMMAND_SHAPES: Record<
   },
   pass: { playerId: "string", x: "number", y: "number" },
   punt: { playerId: "string", x: "number", y: "number" },
-  handoff: { playerId: "string", x: "number", y: "number" },
+  handoff: { playerId: "string", targetId: "string" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
   "throw-teammate": {
@@ -463,11 +464,17 @@ export class HeadlessGame {
       case "jump":
         await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
         break;
-      case "pass":
-      case "handoff": {
+      case "pass": {
         const result = await gs.throwBall(cmd.playerId, cmd.x, cmd.y);
         if (!result.success) {
           throw new Error(result.result || "pass-failed");
+        }
+        break;
+      }
+      case "handoff": {
+        const result = await gs.handOffBall(cmd.playerId, cmd.targetId);
+        if (!result.success) {
+          throw new Error(result.result || "handoff-failed");
         }
         break;
       }
@@ -838,7 +845,7 @@ export class HeadlessGame {
           if (adjacentStanding.length > 0) actions.push("block");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (carriesBall && !state.turn.hasPassed) actions.push("pass");
-          if (carriesBall && !state.turn.hasHandedOff) actions.push("handoff");
+          if (availability.handoff) actions.push("handoff");
           if (!state.turn.hasFouled && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
@@ -896,6 +903,10 @@ export class HeadlessGame {
             .map(({ x, y }) => ({ x, y }) as GridPosition);
           entry.blockTargets = adjacentStanding.map((o) => o.id);
           entry.foulTargets = adjacentDown.map((o) => o.id);
+          entry.handoffTargets = legalHandoffTargets(
+            p,
+            gs.getTeammates(p.id)
+          ).map((mate) => mate.id);
         }
         players.push(entry);
       }

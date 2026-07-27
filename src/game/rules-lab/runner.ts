@@ -41,6 +41,7 @@ const ID_FIELDS = [
   "player2Id",
   "throwerId",
   "teammateId",
+  "targetId",
   "teamId",
   "kickingTeamId",
 ] as const;

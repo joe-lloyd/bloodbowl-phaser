@@ -450,6 +450,17 @@ export class NetworkedGameService implements IGameService {
     });
     return { success: response.ok, result: response.reason };
   }
+  async handOffBall(
+    passerId: string,
+    targetPlayerId: string
+  ): Promise<{ success: boolean; result?: string }> {
+    const response = await this.dispatch({
+      type: "handoff",
+      playerId: passerId,
+      targetId: targetPlayerId,
+    });
+    return { success: response.ok, result: response.reason };
+  }
   async puntBall(
     playerId: string,
     facingX: number,

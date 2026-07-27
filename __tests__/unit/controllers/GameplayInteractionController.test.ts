@@ -29,6 +29,7 @@ const mockPitch = {
   drawPassZones: vi.fn(),
   drawPassLine: vi.fn(),
   drawInterceptZone: vi.fn(),
+  drawHandoffTargets: vi.fn(),
   clearLayer: vi.fn(),
 };
 
@@ -65,6 +66,8 @@ const mockGameService = {
   kickBall: vi.fn(),
   executePush: vi.fn(),
   throwBall: vi.fn(),
+  handOffBall: vi.fn(),
+  getTeammates: vi.fn().mockReturnValue([]),
   isTouchbackPending: vi.fn().mockReturnValue(false),
   awardTouchback: vi.fn(),
   getKickoffEventStep: vi.fn().mockReturnValue(null),
@@ -405,19 +408,34 @@ describe("GameplayInteractionController", () => {
         id: "p3",
         gridPosition: { x: 6, y: 5 },
         teamId: "team1",
+        status: "Active",
       };
       (controller as any).scene.team1.players = [teammate];
       (controller as any).scene.team2.players = [];
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
+      mockGameService.getPlayerById.mockImplementation((id: string) =>
+        id === "p1"
+          ? {
+              id: "p1",
+              teamId: "team1",
+              gridPosition: { x: 5, y: 5 },
+              status: "Active",
+              skills: [],
+            }
+          : id === "p3"
+            ? teammate
+            : null
+      );
       (controller as any).getPlayerAt = vi.fn().mockReturnValue(teammate);
 
       const selectSpy = vi.spyOn(controller, "selectPlayer");
 
       controller.handlePlayerClick("p3");
 
-      // Hand-off is thrown to the team-mate's square; no reselection happens.
-      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 6, 5);
+      // Hand-off resolves through handOffBall by target id; no reselection.
+      expect(mockGameService.handOffBall).toHaveBeenCalledWith("p1", "p3");
+      expect(mockGameService.throwBall).not.toHaveBeenCalled();
       expect(selectSpy).not.toHaveBeenCalled();
     });
 
@@ -427,14 +445,62 @@ describe("GameplayInteractionController", () => {
       controller["selectedPlayerId"] = "p1";
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.isTouchbackPending.mockReturnValue(false);
+      mockGameService.getPlayerById.mockImplementation((id: string) =>
+        id === "p1"
+          ? {
+              id: "p1",
+              teamId: "team1",
+              gridPosition: { x: 5, y: 5 },
+              status: "Active",
+              skills: [],
+            }
+          : null
+      );
       (controller as any).getPlayerAt = vi.fn().mockReturnValue({
         id: "p3",
         teamId: "team1",
+        gridPosition: { x: 6, y: 5 },
+        status: "Active",
       });
 
       (controller as any).onSquareClicked(6, 5);
 
-      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 6, 5);
+      expect(mockGameService.handOffBall).toHaveBeenCalledWith("p1", "p3");
+      expect(mockGameService.throwBall).not.toHaveBeenCalled();
+    });
+
+    it("should refuse a hand-off click on an illegal (Distracted) target without throwing", () => {
+      controller["currentActionMode"] = "handoff";
+      controller["currentStepId"] = "handoff";
+      controller["selectedPlayerId"] = "p1";
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.isTouchbackPending.mockReturnValue(false);
+      mockGameService.getPlayerById.mockImplementation((id: string) =>
+        id === "p1"
+          ? {
+              id: "p1",
+              teamId: "team1",
+              gridPosition: { x: 5, y: 5 },
+              status: "Active",
+              skills: [],
+            }
+          : null
+      );
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue({
+        id: "p3",
+        teamId: "team1",
+        gridPosition: { x: 6, y: 5 },
+        status: "Active",
+        conditions: [{ type: "Distracted" }],
+      });
+
+      (controller as any).onSquareClicked(6, 5);
+
+      expect(mockGameService.handOffBall).not.toHaveBeenCalled();
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:notification",
+        expect.stringContaining("Tackle Zone")
+      );
     });
 
     it("should select player normally if not in Pass Mode", () => {

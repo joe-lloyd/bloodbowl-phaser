@@ -145,6 +145,15 @@ export interface IGameService {
     targetX: number,
     targetY: number
   ): Promise<{ success: boolean; result?: string }>;
+  /**
+   * Hand-off Action: no Passing Ability Test, no scatter, no interception —
+   * the ball is placed directly in the target's square and they Catch it.
+   * Targets a player id, not a square.
+   */
+  handOffBall(
+    passerId: string,
+    targetPlayerId: string
+  ): Promise<{ success: boolean; result?: string }>;
   /** Punt a carried ball in the chosen facing via the Throw-in Template. */
   puntBall(playerId: string, facingX: number, facingY: number): Promise<void>;
   foulPlayer(foulerId: string, targetX: number, targetY: number): Promise<void>;

@@ -6,6 +6,7 @@
 import { SkillType } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
+import { PlayerCondition } from "../../types/Player";
 import {
   RuleScenarioEntry,
   RuleConfig,
@@ -19,6 +20,7 @@ import {
   playerOf,
   rerollOffered,
   rerollUsed,
+  sawEvent,
 } from "../../game/rules-lab";
 
 /** Passer at (4,5) holding the ball throws to (targetX, 5). */
@@ -359,6 +361,181 @@ export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
   INTERCEPTION_NONE_SCENARIO,
 ];
 
+/**
+ * A Hand-off Action is a CORE rule, not a skill (like interception, above),
+ * so this catalog lives outside PASSING_RULE_SCENARIOS and is driven by its
+ * own headless suite (see __tests__/headless/handoff.test.ts).
+ */
+
+/** Declared without the ball, picked up mid-move, handed off — no PA test. */
+export const HANDOFF_NO_PA_TEST_SCENARIO: RuleConfig = {
+  id: "handoff-no-pa-test",
+  name: "Hand-off without the ball rolls no Passing Ability Test",
+  description:
+    "Declaring a Hand-off without the ball, picking it up mid-move, then handing off performs no PA test — only the receiving Catch",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // hander-off, starts without the ball
+      { playerIndex: 1, x: 6, y: 5 }, // receiver
+    ],
+    team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+    ballPosition: { x: 5, y: 5 }, // loose, on the hander-off's path
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "handoff" },
+    { type: "move", playerId: "team1:0", path: [{ x: 5, y: 5 }] },
+    { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "completes-with-no-pa-test",
+      name: "The hand-off completes with no PA test rolled",
+      matches: (r) =>
+        !turnoverHappened(r) &&
+        playerAt(r, "team1:1", { x: 6, y: 5 }) &&
+        r.snapshot.ballPosition?.x === 6 &&
+        r.snapshot.ballPosition?.y === 5,
+      verify: (r) => {
+        assert(
+          !r.events.some(
+            (e) =>
+              e.name === GameEventNames.DiceRoll &&
+              (e.data as { rollType?: string })?.rollType === "Pass"
+          ),
+          "a Hand-off must never roll a Passing Ability Test"
+        );
+        assert(
+          !r.events.some((e) => e.name === GameEventNames.PassAttempted),
+          "a Hand-off must never emit a PassAttempted (throw) event"
+        );
+        assert(
+          !turnoverHappened(r),
+          "a completed hand-off must not cause a Turnover"
+        );
+      },
+    },
+  ],
+};
+
+/** An adjacent eligible opponent gets no interception opportunity. */
+export const HANDOFF_NO_INTERCEPTION_SCENARIO: RuleConfig = {
+  id: "handoff-no-interception",
+  name: "A Hand-off cannot be intercepted",
+  description:
+    "An eligible opponent standing beside both the hander-off and the receiver gets no interception opportunity",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
+      { playerIndex: 1, x: 5, y: 5 }, // receiver, adjacent
+    ],
+    team2Placements: [{ playerIndex: 0, x: 4, y: 4 }], // adjacent to both
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "handoff" },
+    { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
+  ],
+  outcomes: [
+    {
+      id: "no-interception-offered",
+      name: "No interception decision is raised",
+      matches: (r) => !r.decisions.some((d) => d.type === "interception"),
+      verify: (r) => {
+        assert(
+          !r.decisions.some((d) => d.type === "interception"),
+          "a Hand-off must never offer an interception, even past an eligible opponent"
+        );
+      },
+    },
+  ],
+};
+
+/** A Distracted team-mate has lost its Tackle Zone — an illegal target. */
+export const HANDOFF_DISTRACTED_TARGET_SCENARIO: RuleConfig = {
+  id: "handoff-distracted-target-refused",
+  name: "A Distracted team-mate is not a legal Hand-off target",
+  description:
+    "The only adjacent team-mate is Distracted (has lost their Tackle Zone): the Hand-off is refused and the ball does not move",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
+      {
+        playerIndex: 1,
+        x: 5,
+        y: 5,
+        conditions: [PlayerCondition.DISTRACTED],
+      },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "handoff" },
+    { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
+  ],
+  outcomes: [
+    {
+      id: "refused",
+      name: "The hand-off command is refused and the ball stays put",
+      matches: (r) => r.responses.some((resp) => !resp.ok),
+      verify: (r) => {
+        assert(
+          r.responses.some((resp) => !resp.ok),
+          "the hand-off command must be refused"
+        );
+        assert(
+          r.snapshot.ballPosition?.x === 4 && r.snapshot.ballPosition?.y === 5,
+          "a refused hand-off must leave the ball with the hander-off"
+        );
+      },
+    },
+  ],
+};
+
+/** A dropped Hand-off bounces and is a Turnover, same as a dropped Pass. */
+export const HANDOFF_DROP_TURNOVER_SCENARIO: RuleConfig = {
+  id: "handoff-drop-turnover",
+  name: "A dropped Hand-off bounces and causes a Turnover",
+  description:
+    "When the receiving team-mate fails their Catch, the ball bounces from their square and the team suffers a Turnover",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // hander-off, holds the ball
+      { playerIndex: 1, x: 5, y: 5 }, // receiver
+    ],
+    team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "handoff" },
+    { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "dropped-causes-turnover",
+      name: "A failed Catch bounces the ball and causes a Turnover",
+      matches: (r) => turnoverHappened(r),
+      verify: (r) => {
+        assert(
+          sawEvent(r, GameEventNames.PassFumbled),
+          "a dropped hand-off must bounce the ball"
+        );
+        assert(turnoverHappened(r), "a dropped hand-off must be a Turnover");
+      },
+    },
+  ],
+};
+
+/** All seeded Hand-off scenarios, for the headless hand-off suite. */
+export const HANDOFF_ACTION_SCENARIOS: RuleConfig[] = [
+  HANDOFF_NO_PA_TEST_SCENARIO,
+  HANDOFF_NO_INTERCEPTION_SCENARIO,
+  HANDOFF_DISTRACTED_TARGET_SCENARIO,
+  HANDOFF_DROP_TURNOVER_SCENARIO,
+];
+
 export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
     skill: SkillType.PASS,
@@ -657,7 +834,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "handoff" },
-          { type: "handoff", playerId: "team1:0", x: 5, y: 5 },
+          { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
           { type: "move", playerId: "team1:0", path: [{ x: 3, y: 5 }] },
         ],
         seedSearch: { from: 1, limit: 500 },
@@ -721,6 +898,51 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 r.snapshot.activeTeamId === r.game.ctx.team2.id,
                 "the Turnover must end the passing team's turn"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "give-and-go-handoff-turnover",
+        name: "Give and Go stops on a Hand-off Turnover",
+        description:
+          "Give and Go cannot keep the activation open when a dropped Hand-off causes a Turnover",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 4,
+              y: 5,
+              skills: [SkillType.GIVE_AND_GO],
+            },
+            { playerIndex: 1, x: 5, y: 5 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+          ballPosition: { x: 4, y: 5 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "handoff" },
+          { type: "handoff", playerId: "team1:0", targetId: "team1:1" },
+        ],
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "turnover-ends-activation-handoff",
+            name: "The ball carrier cannot continue after the Turnover",
+            matches: (r) =>
+              turnoverHappened(r) &&
+              !skillTriggered(r, SkillType.GIVE_AND_GO) &&
+              r.snapshot.activeTeamId === r.game.ctx.team2.id,
+            verify: (r) => {
+              assert(turnoverHappened(r), "the dropped Hand-off is a Turnover");
+              assert(
+                !skillTriggered(r, SkillType.GIVE_AND_GO),
+                "Give and Go must not trigger after a Turnover"
+              );
+              assert(
+                r.snapshot.activeTeamId === r.game.ctx.team2.id,
+                "the Turnover must end the hander-off's team's turn"
               );
             },
           },
