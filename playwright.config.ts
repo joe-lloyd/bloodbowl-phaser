@@ -23,6 +23,14 @@ export const E2E_BASE_URL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT
 const ONLINE_PORT = Number(process.env.E2E_ONLINE_PORT ?? 5274);
 export const E2E_ONLINE_BASE_URL = `http://127.0.0.1:${ONLINE_PORT}`;
 
+/** Preview commands, bound explicitly to the address Playwright probes. */
+const PREVIEW_E2E =
+  `pnpm exec vite preview --mode e2e --host 127.0.0.1 ` +
+  `--port ${PORT} --strictPort`;
+const PREVIEW_E2E_ONLINE =
+  `pnpm exec vite preview --mode e2e-online --outDir dist-e2e-online ` +
+  `--host 127.0.0.1 --port ${ONLINE_PORT} --strictPort`;
+
 const isCI = !!process.env.CI;
 
 /**
@@ -192,13 +200,12 @@ export default defineConfig({
           },
           {
             // Its own outDir so the two builds cannot clobber each other.
-            command:
-              `pnpm exec vite build --mode e2e-online --outDir dist-e2e-online && ` +
-              `pnpm exec vite preview --mode e2e-online --outDir dist-e2e-online ` +
-              `--port ${ONLINE_PORT} --strictPort`,
+            command: isCI
+              ? PREVIEW_E2E_ONLINE
+              : `pnpm exec vite build --mode e2e-online --outDir dist-e2e-online && ${PREVIEW_E2E_ONLINE}`,
             url: E2E_ONLINE_BASE_URL,
             reuseExistingServer: !isCI,
-            timeout: isCI ? 600_000 : 240_000,
+            timeout: isCI ? 300_000 : 240_000,
             env: { E2E: "1" },
             stdout: isCI ? ("pipe" as const) : ("ignore" as const),
             stderr: "pipe" as const,
@@ -226,18 +233,22 @@ export default defineConfig({
  */
 function webServerForOfflineLanes() {
   return {
-    command:
-      `pnpm exec vite build --mode e2e && ` +
-      `pnpm exec vite preview --mode e2e --port ${PORT} --strictPort`,
+    // `--host 127.0.0.1` is load-bearing: Vite's preview server otherwise
+    // binds to `localhost`, which on a CI runner can resolve to ::1 only,
+    // while Playwright probes the IPv4 address below. The server starts
+    // fine and is simply never reachable — which surfaces as an
+    // unexplained webServer timeout long after a successful build.
+    //
+    // CI builds in its own workflow step, so a build failure is reported as
+    // a failed build rather than as a timeout; locally the build is folded
+    // in for convenience.
+    command: isCI
+      ? PREVIEW_E2E
+      : `pnpm exec vite build --mode e2e && ${PREVIEW_E2E}`,
     url: E2E_BASE_URL,
     reuseExistingServer: !isCI,
-    // A cold CI runner builds Phaser, React and the whole app from scratch;
-    // 4 minutes was not enough and produced a bare "timed out" with no clue
-    // why. On a warm dev machine this is reached in seconds.
-    timeout: isCI ? 600_000 : 240_000,
+    timeout: isCI ? 300_000 : 240_000,
     env: { E2E: "1" },
-    // Piped in CI so a *build failure* shows up as the build's own error
-    // rather than as an unexplained webServer timeout.
     stdout: isCI ? ("pipe" as const) : ("ignore" as const),
     stderr: "pipe" as const,
   };

@@ -81,6 +81,12 @@ jobs:
         if: steps.browser-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
+      # Built as its own step so a build failure reports itself here rather
+      # than as an unexplained webServer timeout inside Playwright. The
+      # config skips its own build when CI is set and only starts preview.
+      - name: Build the app under test
+        run: pnpm exec vite build --mode e2e
+
       # Playwright shards deterministically by test id, so each case runs
       # exactly once across the matrix. Invoked directly rather than through
       # the package script so the shard flag cannot be swallowed by argument
@@ -146,6 +152,9 @@ jobs:
       - name: Install system deps only
         if: steps.browser-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
+
+      - name: Build the app under test
+        run: pnpm exec vite build --mode e2e
 
       # Never `--update-snapshots` here: a baseline change must be a reviewed
       # commit, not something CI does to itself.
