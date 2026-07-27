@@ -110,6 +110,7 @@ export function BoardLabelOverlay({ eventBus }: BoardLabelOverlayProps) {
     >
       {labels.map((label) => {
         const anchorX = label.align === "left" ? "0" : "-50%";
+        const crew = label.hoverInfo;
         return (
           <span
             key={label.id}
@@ -131,7 +132,27 @@ export function BoardLabelOverlay({ eventBus }: BoardLabelOverlayProps) {
                 : undefined,
               textShadow: "0 1px 3px rgba(0, 0, 0, 0.75)",
               lineHeight: 1,
+              // Board text is click-through by default (see the wrapper's
+              // pointer-events-none); a label carrying hoverInfo (currently
+              // only the NO STAFF placeholder) opts back in so it alone can
+              // be inspected, converging on the same payload the Phaser
+              // crew figures use.
+              pointerEvents: crew ? "auto" : "none",
             }}
+            onMouseEnter={
+              crew
+                ? () =>
+                    eventBus.emit(GameEventNames.UI_ShowInfo, {
+                      kind: "sidelineCrew",
+                      crew,
+                    })
+                : undefined
+            }
+            onMouseLeave={
+              crew
+                ? () => eventBus.emit(GameEventNames.UI_HidePlayerInfo)
+                : undefined
+            }
           >
             {label.text}
           </span>
