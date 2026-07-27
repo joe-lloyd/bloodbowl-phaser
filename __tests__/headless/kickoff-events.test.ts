@@ -17,6 +17,7 @@ import {
 import { RosterName } from "../../src/types/Team";
 import { SkillType } from "../../src/types/Skills";
 import { CommandResponse } from "../../src/headless/protocol";
+import { createMatchSave } from "../../src/headless/serialization";
 
 const kickoffScenario: Scenario = {
   id: "kickoff-events",
@@ -448,6 +449,102 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(game.ctx.gameService.hasPlayerActed(players[1].id)).toBe(false);
   });
 
+  it("getKickoffEventStep() returns a fresh reference after each mutation (regression: frozen x/x counter)", async () => {
+    const found = await findEveryEvent();
+    const { game } = found.get(KickoffEvent.QUICK_SNAP)!;
+    const beforeSelect = game.ctx.gameService.getKickoffEventStep();
+    expect(beforeSelect?.selectedPlayerIds).toEqual([]);
+    // Quick Snap belongs to the receiving coach — select one of their Open
+    // players, not the kicking team's.
+    const owningTeam =
+      beforeSelect!.teamId === game.ctx.team1.id
+        ? game.ctx.team1
+        : game.ctx.team2;
+    const player = owningTeam.players.find(
+      (candidate) =>
+        candidate.gridPosition &&
+        candidate.gridPosition.x > 0 &&
+        candidate.gridPosition.x < 20
+    )!;
+
+    const selectResponse = await game.execute({
+      type: "kickoff-select-player",
+      playerId: player.id,
+    });
+    expect(selectResponse.ok).toBe(true);
+    const afterSelect = game.ctx.gameService.getKickoffEventStep();
+    // A fresh object every call — not the same reference as before the
+    // mutation, and not the same reference between two calls in a row.
+    expect(afterSelect).not.toBe(beforeSelect);
+    expect(afterSelect).not.toBe(game.ctx.gameService.getKickoffEventStep());
+    expect(afterSelect?.selectedPlayerIds).toEqual([player.id]);
+    // The two snapshots' array fields must be independent copies, not the
+    // same mutable array leaking out to every caller.
+    expect(afterSelect?.selectedPlayerIds).not.toBe(beforeSelect?.selectedPlayerIds);
+
+    const toX = player.gridPosition!.x === 0 ? 1 : player.gridPosition!.x - 1;
+    const moveResponse = await game.execute({
+      type: "kickoff-move-player",
+      playerId: player.id,
+      x: toX,
+      y: player.gridPosition!.y,
+    });
+    expect(moveResponse.ok).toBe(true);
+    const afterMove = game.ctx.gameService.getKickoffEventStep();
+    expect(afterMove).not.toBe(afterSelect);
+    expect(afterMove?.movedPlayerIds).toEqual([player.id]);
+
+    await game.execute({ type: "kickoff-skip" });
+  });
+
+  it("Charge!'s active player and step reference advance correctly across advanceCharge() (regression: frozen active player)", async () => {
+    const found = await findEveryEvent();
+    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const players = game.ctx.team1.players.slice(0, 2);
+    for (const player of players) {
+      await game.execute({
+        type: "kickoff-select-player",
+        playerId: player.id,
+      });
+    }
+
+    const beforeConfirm = game.ctx.gameService.getKickoffEventStep();
+    await game.execute({ type: "kickoff-confirm" });
+    const afterConfirm = game.ctx.gameService.getKickoffEventStep();
+    expect(afterConfirm).not.toBe(beforeConfirm);
+    expect(afterConfirm?.charge?.activePlayerId).toBe(players[0].id);
+
+    await game.execute({
+      type: "declare-action",
+      playerId: players[0].id,
+      action: "move",
+    });
+    await game.execute({
+      type: "end-activation",
+      playerId: players[0].id,
+    });
+    const afterFirstAdvance = game.ctx.gameService.getKickoffEventStep();
+    // The step reference must change and the active player must move on to
+    // the second queued player — never stay frozen on the first.
+    expect(afterFirstAdvance).not.toBe(afterConfirm);
+    expect(afterFirstAdvance?.charge?.activePlayerId).toBe(players[1].id);
+    expect(afterFirstAdvance?.charge?.activePlayerId).not.toBe(
+      afterConfirm?.charge?.activePlayerId
+    );
+
+    await game.execute({
+      type: "declare-action",
+      playerId: players[1].id,
+      action: "move",
+    });
+    await game.execute({
+      type: "end-activation",
+      playerId: players[1].id,
+    });
+    // Queue exhausted: the step closes.
+    expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
+  });
+
   it("aborts Charge immediately when the active player is knocked down", async () => {
     const found = await findEveryEvent();
     const { game } = found.get(KickoffEvent.CHARGE)!;
@@ -482,6 +579,84 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
     expect(game.ctx.gameService.hasPlayerActed(candidates[0].id)).toBe(false);
     expect(game.ctx.gameService.hasPlayerActed(candidates[1].id)).toBe(false);
+  });
+});
+
+describe("Kickoff table resolves exactly once per drive (regression: reroll after refresh)", () => {
+  // Simulates the investigated bug vector: a stale re-entry into
+  // ROLL_KICKOFF (page refresh / restored save / the KICKOFF phase being
+  // re-entered) re-offering "Select Kicker & Target" after the table has
+  // already resolved for the drive, and the coach (or the engine, via
+  // BallManager.rollKickoff()) triggering a second resolution. A restored
+  // game must reproduce the exact same event/outcome rather than rolling
+  // again or re-applying resolver effects a second time.
+  it("a save/restore mid-kickoff replays the same result instead of rolling again", async () => {
+    const { game, result } = await kick(5);
+
+    const state = game.ctx.gameService.getState();
+    expect(state.kickoffResolution).toBeDefined();
+    expect(state.kickoffResolution?.event).toBe(result.event);
+    expect(state.kickoffResolution?.roll).toBe(result.roll);
+
+    // If an interactive step is still open (e.g. this seed rolled Charge!),
+    // that is exactly the "mid-kickoff" moment the bug report describes:
+    // the table has resolved but the sequence has not finished.
+    const bribesBeforeReplay = { ...(game.snapshot().bribes ?? {}) };
+    const driveEffectsBeforeReplay = structuredClone(
+      game.snapshot().driveEffects ?? {}
+    );
+
+    const save = createMatchSave({
+      state,
+      teams: [game.ctx.team1, game.ctx.team2],
+      drive: {
+        kickingTeamId: game.ctx.team1.id,
+        receivingTeamId: game.ctx.team2.id,
+      },
+      rng: game.ctx.rng.captureState(),
+      matchStats: game.ctx.matchStats.captureState(),
+      turnManager: game.ctx.gameService.captureTurnManagerState(),
+    });
+
+    const resumed = new HeadlessGame({ matchSave: save });
+    expect(resumed.ctx.gameService.getState().kickoffResolution?.event).toBe(
+      result.event
+    );
+
+    const rngBeforeReplay = resumed.ctx.rng.captureState();
+    let replayed: KickoffResult | undefined;
+    resumed.ctx.eventBus.on(GameEventNames.KickoffResult, (data) => {
+      replayed = data as KickoffResult;
+    });
+
+    // The exact vector under investigation: BallManager.rollKickoff() (the
+    // standalone path distinct from kickBall()'s normal flow) firing again
+    // for a drive whose kickoff has already resolved.
+    resumed.ctx.gameService.rollKickoff();
+
+    expect(replayed).toBeDefined();
+    expect(replayed?.roll).toBe(result.roll);
+    expect(replayed?.event).toBe(result.event);
+    expect(replayed?.outcome).toEqual(result.outcome);
+
+    // No new dice were consumed — the RNG position is unchanged.
+    expect(resumed.ctx.rng.captureState()).toEqual(rngBeforeReplay);
+
+    // Resolver effects (bribes, free re-rolls, drive modifiers, ...) were
+    // not re-applied a second time.
+    expect(resumed.snapshot().bribes ?? {}).toEqual(bribesBeforeReplay);
+    expect(resumed.snapshot().driveEffects ?? {}).toEqual(
+      driveEffectsBeforeReplay
+    );
+  });
+
+  it("clears the guard at end-of-drive teardown so the next drive can roll", async () => {
+    const { game } = await kick(5);
+    expect(game.ctx.gameService.getState().kickoffResolution).toBeDefined();
+
+    game.ctx.gameService.resetDriveState();
+
+    expect(game.ctx.gameService.getState().kickoffResolution).toBeUndefined();
   });
 });
 

@@ -228,7 +228,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   );
 
   return (
-    <div className="w-full flex flex-col-reverse items-end">
+    <div className="w-full flex flex-col items-end">
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&

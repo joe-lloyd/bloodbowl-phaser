@@ -89,5 +89,19 @@ export interface GameState {
   inducements?: import("./Inducements").InducementsMatchState;
   /** Set once the match reaches GAME_OVER; absent beforehand. */
   result?: MatchResult;
+  /**
+   * The kickoff table result already resolved for the current drive, if
+   * any. Guards against rolling the table a second time for the same drive
+   * on a stale re-entry into ROLL_KICKOFF (page refresh, restore, or the
+   * KICKOFF phase being re-entered) — see
+   * `KickoffEventManager.rollAndResolve`. Cleared by `resetDriveState()` at
+   * the same end-of-drive teardown that clears `driveEffects`.
+   */
+  kickoffResolution?: {
+    roll: number;
+    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
+    meaning: string;
+    outcome: import("../game/kickoff/kickoffEvents").KickoffEventOutcome;
+  };
 }
 import { BlockReplacement } from "./BlockReplacement";

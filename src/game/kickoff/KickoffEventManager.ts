@@ -126,6 +126,26 @@ export class KickoffEventManager {
    * High Kick is deferred to resolveHighKickStep (needs the landing square).
    */
   public async rollAndResolve(isTeam1Kicking: boolean): Promise<void> {
+    // A drive's kickoff table resolves exactly once. A stale re-entry into
+    // ROLL_KICKOFF (page refresh, restored save, or the KICKOFF phase being
+    // re-entered) must reproduce the already-resolved event and outcome
+    // rather than rolling — and, critically, must not re-apply resolver
+    // effects (bribes, free re-rolls, etc.) a second time. Re-opening the
+    // original interactive step is out of scope here: that step's in-flight
+    // progress cannot be recovered across a refresh anyway, so a replay only
+    // re-announces the result and lets the kick land normally.
+    const existing = this.state.kickoffResolution;
+    if (existing) {
+      this.lastEvent = existing.event;
+      this.eventBus.emit(GameEventNames.KickoffResult, {
+        roll: existing.roll,
+        event: existing.event,
+        meaning: existing.meaning,
+        outcome: existing.outcome,
+      });
+      return;
+    }
+
     const roll = this.diceController.roll2D6("Kickoff Event");
     const event = KICKOFF_TABLE[roll];
     this.lastEvent = event;
@@ -151,6 +171,8 @@ export class KickoffEventManager {
       );
       grantEffect(outcome, ownerTeamId, `may resolve the ${event} coach step`);
     }
+
+    this.state.kickoffResolution = { roll, event, meaning: outcome.meaning, outcome };
 
     this.eventBus.emit(GameEventNames.KickoffResult, {
       roll,
@@ -430,7 +452,16 @@ export class KickoffEventManager {
   // ===== Interactive step =====
 
   public getStep(): KickoffEventStepState | null {
-    return this.step;
+    if (!this.step) return null;
+    return {
+      ...this.step,
+      selectedPlayerIds: [...this.step.selectedPlayerIds],
+      movedPlayerIds: [...this.step.movedPlayerIds],
+      awaitingPlacement: [...this.step.awaitingPlacement],
+      charge: this.step.charge
+        ? { ...this.step.charge, queue: [...this.step.charge.queue] }
+        : undefined,
+    };
   }
 
   private openStep(

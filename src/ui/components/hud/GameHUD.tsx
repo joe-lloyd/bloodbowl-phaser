@@ -284,8 +284,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       right={
         <>
           {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
-          <PlayerInfoPanel eventBus={eventBus} />
           <KickoffEventOverlay eventBus={eventBus} />
+          <PlayerInfoPanel eventBus={eventBus} />
           <div className="mt-auto pointer-events-auto">
             <MatchOptionsMenu
               entries={menuEntries}
