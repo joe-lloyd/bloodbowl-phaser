@@ -231,8 +231,9 @@ export class FoulOperation extends GameOperation {
       context.flowManager.add(sendOffOp, true);
     }
 
-    // Mark that a foul has been performed
-    gameService.getState().turn.hasFouled = true;
+    // The Armour Roll (and any Injury Roll) already happened — commit the
+    // declaration so it cannot be released or replaced after the fact.
+    gameService.commitAction(this.foulerId);
 
     // A Foul Action ends the activation — unless the fouler has Quick Foul,
     // which lets them continue their Move with any movement remaining.

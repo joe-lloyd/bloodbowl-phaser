@@ -109,7 +109,9 @@ describe("typed block-replacement declarations", () => {
       action: "blitz",
       blockReplacement: "stab",
     });
-    expect(game.snapshot().turn.hasBlitzed).toBe(true);
+    // Declaring alone is provisional — nothing has moved or rolled yet, so
+    // the team's Blitz is not spent until the declaration commits.
+    expect(game.snapshot().turn.hasBlitzed).toBe(false);
 
     const cancelled = await game.execute({
       type: "cancel-action",

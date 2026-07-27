@@ -141,6 +141,16 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
               )}
             </div>
           )}
+
+          {/* Conditions (Distracted, Rooted, ...) — a Standing player can
+              still carry one of these, so this is independent of Status */}
+          {(player.conditions?.length ?? 0) > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                {player.conditions!.map((c) => c.type).join(", ")}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
