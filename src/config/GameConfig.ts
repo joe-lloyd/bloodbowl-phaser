@@ -89,6 +89,12 @@ export const GameConfig = {
 
   // Team building
   STARTING_GOLD: 600000,
+  /**
+   * Team-building minimum ONLY: a roster may not be created or saved below
+   * seven players. It is deliberately not consulted when deciding whether a
+   * team can field a drive — that is `min(7, availablePlayers)`, so a squad
+   * depleted by KOs and casualties fields what it has and plays on.
+   */
   MIN_PLAYERS: 7,
   MAX_ROSTER_SIZE: 11,
 

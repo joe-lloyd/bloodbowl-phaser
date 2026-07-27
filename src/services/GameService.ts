@@ -47,7 +47,12 @@ import {
   ClearPitchOperation,
   KORecoveryOperation,
   StartNextDriveOperation,
+  TouchdownCelebrationOperation,
 } from "@/game/operations/EndDriveOperations";
+import {
+  assertSinglePlayerLocation,
+  movePlayerToBox,
+} from "@/game/rules/playerLocation";
 import { isInEndZone } from "@/game/elements/GridUtils";
 import { GameConfig } from "@/config/GameConfig";
 import { BounceOperation } from "@/game/operations/BounceOperation";
@@ -1152,18 +1157,23 @@ export class GameService implements IGameService {
     this.state.phase = GamePhase.TOUCHDOWN;
     this.state.subPhase = SubPhase.SCORING;
 
+    // Phase first, then the score: the TOUCHDOWN phase handler is installed
+    // by the phase change and must already own the scene when the Touchdown
+    // event it announces arrives.
+    this.eventBus.emit(GameEventNames.PhaseChanged, {
+      phase: GamePhase.TOUCHDOWN,
+      subPhase: SubPhase.SCORING,
+    });
     this.eventBus.emit(GameEventNames.Touchdown, {
       teamId,
       score: this.state.score[teamId],
       scorerId,
     });
-    this.eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.TOUCHDOWN,
-      subPhase: SubPhase.SCORING,
-    });
 
-    // Rulebook: the team that scored becomes the kicking team next drive
-    this.delay(2000).then(() => this.endDrive("touchdown", teamId));
+    // The celebration window is a queued operation, not a bare timer, so the
+    // hand-off into the end-of-drive sequence is ordered against everything
+    // else in flight (and paced identically headless).
+    this.flowManager.add(new TouchdownCelebrationOperation(teamId));
   }
 
   /**
@@ -1172,9 +1182,25 @@ export class GameService implements IGameService {
    * flip after drive one. Runs as operations so the UI can pace each stage.
    */
   endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void {
-    this.flowManager.add(new ClearPitchOperation(reason, nextKickingTeamId));
+    // A touchdown scored with no turns left in the half does not start a
+    // further drive in that half: the sequence continues into halftime (or,
+    // in the second half, to full time) instead.
+    const halfOver =
+      reason === "touchdown" && this.turnManager.isHalfExhausted();
+    const halftimeKickingTeamId = halfOver
+      ? this.turnManager.beginNextHalf()
+      : nextKickingTeamId;
+
+    this.flowManager.add(
+      new ClearPitchOperation(
+        halfOver ? "halftime" : reason,
+        halftimeKickingTeamId ?? nextKickingTeamId
+      )
+    );
     this.flowManager.add(new KORecoveryOperation());
-    this.flowManager.add(new StartNextDriveOperation(nextKickingTeamId));
+    // Null kicking team = full time; there is no next drive to set up.
+    if (halftimeKickingTeamId === null) return;
+    this.flowManager.add(new StartNextDriveOperation(halftimeKickingTeamId));
   }
 
   /**
@@ -1225,26 +1251,38 @@ export class GameService implements IGameService {
   }
 
   /**
-   * Roll KO recovery for every knocked-out player (D6, 4+ recovers to
-   * Reserves). Emits one KORecoveryRolled event per player.
+   * Roll KO recovery one knocked-out player at a time (D6, 4+ recovers to
+   * Reserves). Each roll is announced via KORecoveryRolled and shown for a
+   * beat BEFORE the status change is applied, so the visible roll and the
+   * record never disagree. `beat` paces the sequence (a real pause in the
+   * browser, immediate headless); the returned promise resolves only once
+   * every player has been rolled for and moved.
    */
-  rollKORecovery(): void {
-    [this.team1, this.team2].forEach((team) => {
-      team.players
-        .filter((p) => p.status === PlayerStatus.KO)
-        .forEach((player) => {
-          const roll = this.diceController.rollD6("KO Recovery");
-          const recovered = roll >= 4;
-          if (recovered) {
-            player.status = PlayerStatus.RESERVE;
-          }
-          this.eventBus.emit(GameEventNames.KORecoveryRolled, {
-            playerId: player.id,
-            roll,
-            recovered,
-          });
-        });
-    });
+  async rollKORecovery(
+    beat: () => Promise<void> = () => Promise.resolve()
+  ): Promise<void> {
+    const knockedOut = [...this.team1.players, ...this.team2.players].filter(
+      (p) => p.status === PlayerStatus.KO
+    );
+
+    for (const player of knockedOut) {
+      const roll = this.diceController.rollD6("KO Recovery");
+      const recovered = roll >= 4;
+      this.eventBus.emit(GameEventNames.KORecoveryRolled, {
+        playerId: player.id,
+        roll,
+        recovered,
+      });
+      await beat();
+      if (recovered) {
+        movePlayerToBox(player, { box: "reserves" }, this.eventBus);
+      }
+    }
+
+    assertSinglePlayerLocation(
+      [...this.team1.players, ...this.team2.players],
+      "rollKORecovery"
+    );
   }
 
   /**

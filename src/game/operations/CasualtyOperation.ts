@@ -10,6 +10,7 @@ import {
   addReserveLineman,
 } from "../rules/plagueRidden";
 import { foldTrigger, CasualtyContext, CasualtyRollContext } from "../skills";
+import { movePlayerToBox } from "../rules/playerLocation";
 
 /**
  * CasualtyOperation
@@ -70,8 +71,7 @@ export class CasualtyOperation extends GameOperation {
         GameEventNames.UI_Notification,
         `${player.playerName} regenerates!`
       );
-      player.status = PlayerStatus.RESERVE;
-      this.removeFromPitch(eventBus, player);
+      movePlayerToBox(player, { box: "reserves" }, eventBus);
       return;
     }
 
@@ -162,13 +162,19 @@ export class CasualtyOperation extends GameOperation {
     this.removeFromPitch(eventBus, player);
   }
 
-  /** Send a casualty off the pitch: clear its square, announce the change. */
+  /**
+   * Send a casualty off the pitch — through the one location seam, so the
+   * pitch square is released as the Casualty-box entry is created.
+   */
   private removeFromPitch(
     eventBus: import("../../services/EventBus").IEventBus,
     player: import("../../types/Player").Player
   ): void {
-    player.gridPosition = undefined;
-    eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+    movePlayerToBox(
+      player,
+      { box: "casualty", dead: player.status === PlayerStatus.DEAD },
+      eventBus
+    );
   }
 
   /** Spend Plague Ridden: mark it used and add a Lineman to the Reserves. */

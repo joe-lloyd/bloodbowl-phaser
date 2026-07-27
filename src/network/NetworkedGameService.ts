@@ -548,7 +548,7 @@ export class NetworkedGameService implements IGameService {
   triggerTurnover(_reason: string): void {}
   endDrive(): void {}
   resetDriveState(): void {}
-  rollKORecovery(): void {}
+  async rollKORecovery(): Promise<void> {}
   throwInBall(): void {}
   setBallPosition(): void {}
   attemptPickup(): boolean {

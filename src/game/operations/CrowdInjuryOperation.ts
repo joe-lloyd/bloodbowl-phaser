@@ -11,9 +11,9 @@
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
-import { PlayerStatus } from "../../types/Player";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
+import { movePlayerToBox } from "../rules/playerLocation";
 
 export class CrowdInjuryOperation extends GameOperation {
   public readonly name = "CrowdInjury";
@@ -58,6 +58,9 @@ export class CrowdInjuryOperation extends GameOperation {
       .getInjuryController()
       .getInjuryResult(player, roll);
 
+    // A player in the crowd is off the pitch whatever the result — every
+    // branch moves them through the one location seam (the trailing
+    // PlayerStatusChanged below stays the single announcement).
     switch (result) {
       case InjuryResult.STUNNED:
         // Stunned by the crowd = dumped in the Reserves box instead
@@ -65,15 +68,15 @@ export class CrowdInjuryOperation extends GameOperation {
           GameEventNames.UI_Notification,
           "Thrown back to the reserves!"
         );
-        player.status = PlayerStatus.RESERVE;
+        movePlayerToBox(player, { box: "reserves" });
         break;
       case InjuryResult.KO:
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-        player.status = PlayerStatus.KO;
+        movePlayerToBox(player, { box: "ko" });
         break;
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
-        player.status = PlayerStatus.INJURED;
+        movePlayerToBox(player, { box: "casualty" });
         eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
           victimId: player.id,
           cause: "crowd",

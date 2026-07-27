@@ -12,12 +12,15 @@ import {
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
+import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
   private setupReady: Set<string> = new Set();
   private validator = new SetupValidator();
   private lastError: string | null = null;
+  /** Teams already told they have nobody left to field, this setup. */
+  private reportedNoAvailablePlayers: Set<string> = new Set();
 
   constructor(
     private eventBus: IEventBus,
@@ -46,14 +49,41 @@ export class SetupManager {
 
   public static sanitizeTeam(team: Team): void {
     team.players.forEach((player) => {
-      player.gridPosition = undefined;
-      player.status = PlayerStatus.RESERVE;
+      movePlayerToBox(player, { box: "reserves" });
       player.hasActed = false;
+    });
+  }
+
+  /**
+   * The players a team can actually field this drive: everyone not knocked
+   * out, not a casualty and not sent off. This — not the seven-player roster
+   * minimum — is what decides whether a team can complete its setup.
+   */
+  public availablePlayers(teamId: string): Player[] {
+    const team = this.getTeam(teamId);
+    return team ? this.getEligiblePlayers(team) : [];
+  }
+
+  /** Convenience count of {@link availablePlayers}. */
+  public availablePlayerCount(teamId: string): number {
+    return this.availablePlayers(teamId).length;
+  }
+
+  /**
+   * Take a player off the pitch through the one location seam: the square is
+   * released, an available player lands in Reserves and a knocked-out or
+   * injured one in the box their status already names.
+   */
+  private returnToDugout(player: Player): void {
+    player.gridPosition = undefined;
+    movePlayerToBox(player, {
+      box: this.isEligible(player) ? "reserves" : playerBoxOf(player),
     });
   }
 
   public startSetup(startingTeamId?: string): void {
     this.state.phase = GamePhase.SETUP;
+    this.reportedNoAvailablePlayers.clear();
 
     if (startingTeamId) {
       const kickingTeam = this.getTeam(startingTeamId);
@@ -144,8 +174,7 @@ export class SetupManager {
     }
 
     this.placedPlayers.set(playerId, { x, y });
-    player.gridPosition = { x, y };
-    player.status = PlayerStatus.ACTIVE;
+    movePlayerToBox(player, { box: "pitch", position: { x, y } });
     this.updateStatus(player.teamId);
     this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
     this.emitStatus(player.teamId);
@@ -164,8 +193,7 @@ export class SetupManager {
       return;
     }
     if (this.placedPlayers.delete(playerId)) {
-      player.gridPosition = undefined;
-      if (this.isEligible(player)) player.status = PlayerStatus.RESERVE;
+      this.returnToDugout(player);
       this.updateStatus(player.teamId);
       this.eventBus.emit(GameEventNames.PlayerRemoved, playerId);
       this.emitStatus(player.teamId);
@@ -204,14 +232,14 @@ export class SetupManager {
       this.placedPlayers.set(player1Id, pos2);
       this.placedPlayers.delete(player2Id);
     }
-    player1.gridPosition = this.placedPlayers.get(player1Id);
-    player2.gridPosition = this.placedPlayers.get(player2Id);
-    player1.status = player1.gridPosition
-      ? PlayerStatus.ACTIVE
-      : PlayerStatus.RESERVE;
-    player2.status = player2.gridPosition
-      ? PlayerStatus.ACTIVE
-      : PlayerStatus.RESERVE;
+    for (const player of [player1, player2]) {
+      const position = this.placedPlayers.get(player.id);
+      if (position) {
+        movePlayerToBox(player, { box: "pitch", position });
+      } else {
+        this.returnToDugout(player);
+      }
+    }
     this.updateStatus(player1.teamId);
     this.eventBus.emit(GameEventNames.PlayersSwapped, {
       player1Id,
@@ -313,7 +341,7 @@ export class SetupManager {
 
     const team = this.getTeam(teamId)!;
     this.getEligiblePlayers(team).forEach((player) => {
-      if (!player.gridPosition) player.status = PlayerStatus.RESERVE;
+      if (!player.gridPosition) movePlayerToBox(player, { box: "reserves" });
     });
     this.setupReady.add(teamId);
     const setup = this.ensureSetupState();
@@ -381,6 +409,12 @@ export class SetupManager {
     return true;
   }
 
+  /**
+   * Setup is complete when `min(7, availablePlayers)` are placed (plus the
+   * usual formation restrictions) — never "seven placed". A team depleted by
+   * KOs and casualties fields everyone it has and plays on; the placement cap
+   * stays at seven.
+   */
   public isSetupComplete(teamId: string): boolean {
     return this.updateStatus(teamId).canConfirm;
   }
@@ -413,24 +447,21 @@ export class SetupManager {
   public reset(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
+    this.reportedNoAvailablePlayers.clear();
     this.state.setup = undefined;
   }
 
   public resetForNewDrive(): void {
     this.placedPlayers.clear();
     this.setupReady.clear();
+    this.reportedNoAvailablePlayers.clear();
     this.state.setup = undefined;
     [this.team1, this.team2].forEach((team) => {
       team.players.forEach((player) => {
-        player.gridPosition = undefined;
         player.hasActed = false;
-        if (
-          player.status === PlayerStatus.ACTIVE ||
-          player.status === PlayerStatus.PRONE ||
-          player.status === PlayerStatus.STUNNED
-        ) {
-          player.status = PlayerStatus.RESERVE;
-        }
+        // Everyone leaves the pitch: available players to Reserves, the
+        // knocked out / injured / sent off stay in their own box.
+        this.returnToDugout(player);
       });
     });
   }
@@ -524,6 +555,17 @@ export class SetupManager {
   private emitStatus(teamId: string): void {
     const status = this.updateStatus(teamId);
     this.eventBus.emit(GameEventNames.SetupRestrictionsUpdated, status);
+    // A team with nobody left to field is a distinct condition, not an
+    // incomplete setup — say so once instead of stalling silently.
+    if (
+      status.availablePlayerCount === 0 &&
+      !this.reportedNoAvailablePlayers.has(teamId)
+    ) {
+      this.reportedNoAvailablePlayers.add(teamId);
+      const line = `${this.getTeam(teamId)?.name ?? teamId} has no available players — every player is knocked out, injured or sent off.`;
+      this.eventBus.emit(GameEventNames.UI_Notification, line);
+      this.eventBus.emit(GameEventNames.UI_GameLog, line);
+    }
     if (status.concessionDecision === "pending") {
       this.eventBus.emit(GameEventNames.SetupConcessionOffered, {
         teamId,
@@ -550,8 +592,7 @@ export class SetupManager {
   private clearTeamPlacements(team: Team): void {
     team.players.forEach((player) => {
       if (this.placedPlayers.delete(player.id)) {
-        player.gridPosition = undefined;
-        if (this.isEligible(player)) player.status = PlayerStatus.RESERVE;
+        this.returnToDugout(player);
         this.eventBus.emit(GameEventNames.PlayerRemoved, player.id);
       }
     });

@@ -191,7 +191,11 @@ export interface IGameService {
   checkForTouchdown(playerId: string): boolean;
   endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void;
   resetDriveState(): void;
-  rollKORecovery(): void;
+  /**
+   * Roll KO recovery one player at a time. `beat` paces the sequence between
+   * players; the promise resolves once every roll has been applied.
+   */
+  rollKORecovery(beat?: () => Promise<void>): Promise<void>;
   canCoinFlip(): boolean;
 
   // State Queries & Helpers

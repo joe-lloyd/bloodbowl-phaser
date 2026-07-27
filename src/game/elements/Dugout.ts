@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Team } from "../../types/Team";
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player } from "../../types/Player";
+import { playerBoxOf } from "../rules/playerLocation";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
 import { centeredHitArea } from "./InteractiveHitArea";
@@ -13,12 +14,17 @@ import { getVisibleSidelineStaff } from "../presentation/sidelineStaff";
 import { DUGOUT_LAYOUT, getDugoutLayout } from "../presentation/dugoutLayout";
 import { BoardLabel } from "../presentation/boardLabels";
 
+/** How long a player takes to slide between dugout slots (KO -> Reserves). */
+const DUGOUT_SLOT_MOVE_MS = 320;
+
 export class Dugout extends Phaser.GameObjects.Container {
   private team: Team;
   private mirrored: boolean = false;
   private dugoutHeight: number;
   private theme: PitchTheme;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
+  /** Who was on screen when the current refresh started (see renderPlayerGrid). */
+  private visibleBeforeRefresh: Set<string> = new Set();
   private onPlayerDragStart?: (playerId: string) => void;
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
 
@@ -325,7 +331,24 @@ export class Dugout extends Phaser.GameObjects.Container {
       // Check if sprite already exists to preserve state/input
       if (this.playerSprites.has(player.id)) {
         const sprite = this.playerSprites.get(player.id)!;
-        sprite.setPosition(px, py);
+        // A visible sprite that changed slot has moved between boxes (KO ->
+        // Reserves on a successful recovery): slide it across so the coach
+        // sees the move rather than a silent teleport. A sprite that was
+        // hidden, or has not moved, is placed outright.
+        const moved =
+          this.visibleBeforeRefresh.has(player.id) &&
+          (sprite.x !== px || sprite.y !== py);
+        if (moved) {
+          this.scene.tweens.add({
+            targets: sprite,
+            x: px,
+            y: py,
+            duration: DUGOUT_SLOT_MOVE_MS,
+            ease: "Quad.easeInOut",
+          });
+        } else {
+          sprite.setPosition(px, py);
+        }
         sprite.setVisible(true); // Ensure visible if in grid
         if (!this.exists(sprite)) {
           this.add(sprite);
@@ -421,6 +444,14 @@ export class Dugout extends Phaser.GameObjects.Container {
   }
 
   public refresh(): void {
+    // Remember who was on screen before we hide everyone, so a player who
+    // changes box is slid to their new slot rather than teleported.
+    this.visibleBeforeRefresh = new Set(
+      Array.from(this.playerSprites.entries())
+        .filter(([, sprite]) => sprite.visible)
+        .map(([id]) => id)
+    );
+
     // Hide all sprites first; createLayout will reveal valid ones
     this.playerSprites.forEach((sprite) => sprite.setVisible(false));
 
@@ -449,21 +480,21 @@ export class Dugout extends Phaser.GameObjects.Container {
     return getDugoutLayout(this.mirrored).totalWidth;
   }
 
+  /**
+   * Box membership comes from the one location seam (`playerBoxOf`), never
+   * from a status test of this view's own. A box therefore cannot render a
+   * player the record does not put in it — a player on the pitch is on the
+   * pitch, and a recovered player leaves the KO box the moment their record
+   * says Reserves.
+   */
   private getPlayersByStatus(statusType: "Reserves" | "KO" | "Dead"): Player[] {
-    return this.team.players.filter((p) => {
-      if (statusType === "KO") return p.status === PlayerStatus.KO;
-      if (statusType === "Dead")
-        return (
-          p.status === PlayerStatus.INJURED || p.status === PlayerStatus.DEAD
-        );
-      // Reserves = No grid position and Active/Reserve status
-      return (
-        !p.gridPosition &&
-        (p.status === PlayerStatus.ACTIVE ||
-          p.status === PlayerStatus.RESERVE ||
-          !p.status)
-      );
-    });
+    const box =
+      statusType === "KO"
+        ? "ko"
+        : statusType === "Dead"
+          ? "casualty"
+          : "reserves";
+    return this.team.players.filter((p) => playerBoxOf(p) === box);
   }
 
   /**

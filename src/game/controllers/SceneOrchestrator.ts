@@ -7,6 +7,7 @@ import { PhaseHandler } from "./handlers/PhaseHandler";
 import { SetupPhaseHandler } from "./handlers/SetupPhaseHandler";
 import { PlayPhaseHandler } from "./handlers/PlayPhaseHandler";
 import { KickoffPhaseHandler } from "./handlers/KickoffPhaseHandler";
+import { TouchdownPhaseHandler } from "./handlers/TouchdownPhaseHandler";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 
 /**
@@ -106,6 +107,15 @@ export class SceneOrchestrator {
             this.eventBus
           );
           this.scene.startKickoffPhase(subPhase);
+          break;
+        case GamePhase.TOUCHDOWN:
+          // The celebration window has an owner: without one the scene was
+          // unmanaged exactly while the pitch was being cleared underneath it.
+          this.currentHandler = new TouchdownPhaseHandler(
+            this.scene,
+            this.gameService,
+            this.eventBus
+          );
           break;
         case GamePhase.SANDBOX_IDLE:
           console.log(

@@ -122,6 +122,9 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_KickoffEventDeclareAction,
   GameEventNames.UI_KickoffEventConfirm,
   GameEventNames.UI_KickoffEventSkip,
+  // Skipping the end-of-drive beat is a local viewing choice; replaying it
+  // would cut the other coach's sequence short mid-animation.
+  GameEventNames.UI_SkipDriveSequence,
 ]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */

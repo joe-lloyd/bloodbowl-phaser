@@ -183,27 +183,47 @@ export class TurnManager {
     this.startTurn(nextTeamId);
   }
 
-  public endHalf(): void {
-    if (!this.state.turn.isHalf2) {
-      // Halftime: swap kickoff (first-half receiver kicks), reset turn
-      // counts, and run a fresh setup for the second half.
-      this.state.turn.isHalf2 = true;
-      this.turnCounts[this.team1.id] = 0;
-      this.turnCounts[this.team2.id] = 0;
+  /** Both teams have used every turn of the current half. */
+  public isHalfExhausted(): boolean {
+    return (
+      (this.turnCounts[this.team1.id] ?? 0) >= this.maxTurns &&
+      (this.turnCounts[this.team2.id] ?? 0) >= this.maxTurns
+    );
+  }
 
-      this.state.phase = GamePhase.HALFTIME;
-      this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
-
-      const secondHalfKicker =
-        this.firstHalfKickingTeamId === this.team1.id
-          ? this.team2.id
-          : this.team1.id;
-      this.callbacks.onHalfEnded?.(secondHalfKicker);
-    } else {
+  /**
+   * Cross the half boundary without going through endTurn: swap the kickoff
+   * (first-half receiver kicks), reset the turn counts and announce
+   * HALFTIME. Returns the team that kicks the second half, or null when the
+   * second half is already over — the match is finished.
+   *
+   * Split out of endHalf so a touchdown scored with no turns left can end
+   * the half in place, rather than kicking off a further drive in it.
+   */
+  public beginNextHalf(): string | null {
+    if (this.state.turn.isHalf2) {
       this.state.phase = GamePhase.GAME_OVER;
       this.state.activeTeamId = null;
       this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
+      return null;
     }
+
+    this.state.turn.isHalf2 = true;
+    this.turnCounts[this.team1.id] = 0;
+    this.turnCounts[this.team2.id] = 0;
+
+    this.state.phase = GamePhase.HALFTIME;
+    this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
+
+    return this.firstHalfKickingTeamId === this.team1.id
+      ? this.team2.id
+      : this.team1.id;
+  }
+
+  public endHalf(): void {
+    const secondHalfKicker = this.beginNextHalf();
+    // Halftime runs a fresh setup for the second half; full time does not.
+    if (secondHalfKicker) this.callbacks.onHalfEnded?.(secondHalfKicker);
   }
 
   public finishActivation(playerId: string): void {

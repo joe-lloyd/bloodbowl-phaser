@@ -88,6 +88,40 @@ export class GameScene extends Phaser.Scene {
 
   // Store handlers for cleanup
   private eventHandlers: Map<GameEventNames, () => void> = new Map();
+  /** Unsubscribe callbacks for every EventBus listener this scene registers. */
+  private busSubscriptions: Array<() => void> = [];
+
+  /**
+   * Subscribe to the shared EventBus and remember how to unsubscribe. The bus
+   * outlives the scene, so anything registered without this survives shutdown
+   * and gets called back against a destroyed scene.
+   */
+  protected subscribe<
+    K extends keyof import("../services/EventBus").GameEventMap,
+  >(
+    event: K,
+    handler: (data: import("../services/EventBus").GameEventMap[K]) => void
+  ): void {
+    this.eventBus.on(event, handler);
+    this.busSubscriptions.push(() => this.eventBus.off(event, handler));
+  }
+
+  /**
+   * A destroyed or shut-down scene must never build display objects: Phaser's
+   * systems are gone and `new Sprite(this, …)` dereferences null. Guards the
+   * sprite factories so a leaked callback becomes a logged no-op, not a crash.
+   */
+  protected isSceneLive(where: string): boolean {
+    // Phaser scene status is ordered; everything below SHUTDOWN (8) is a
+    // scene that still has its systems, including INIT/CREATING.
+    const shutdown = Phaser.Scenes?.SHUTDOWN ?? 8;
+    const status = this.sys?.settings?.status;
+    if (status !== undefined && status < shutdown) return true;
+    console.warn(
+      `[GameScene] ${where} ignored: scene "${this.sys?.settings?.key ?? "GameScene"}" is no longer active`
+    );
+    return false;
+  }
 
   /**
    * Reload state from ServiceContainer (e.g. after Scenario Load)
@@ -403,14 +437,14 @@ export class GameScene extends Phaser.Scene {
       this.autosave.start();
     }
 
-    this.eventBus.on(GameEventNames.PlayerActivated, (playerId: string) => {
+    this.subscribe(GameEventNames.PlayerActivated, (playerId: string) => {
       const sprite = this.playerSprites.get(playerId);
       if (sprite) {
         sprite.setActivated(true);
       }
     });
 
-    this.eventBus.on(GameEventNames.TurnStarted, (turnData) => {
+    this.subscribe(GameEventNames.TurnStarted, (turnData) => {
       // Reset all sprites and mark the active team with square borders
       this.playerSprites.forEach((sprite) => {
         sprite.setActivated(false);
@@ -421,7 +455,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Camera event listeners
-    this.eventBus.on(
+    this.subscribe(
       GameEventNames.Camera_TrackBall,
       async (data: { ballSprite; animationDuration: number }) => {
         if (this.cameraController && data.ballSprite) {
@@ -439,7 +473,7 @@ export class GameScene extends Phaser.Scene {
       }
     );
 
-    this.eventBus.on(
+    this.subscribe(
       GameEventNames.Camera_Reset,
       (data: { duration?: number }) => {
         if (this.cameraController) {
@@ -461,10 +495,20 @@ export class GameScene extends Phaser.Scene {
       this.eventBus.off(event, handler);
     });
     this.eventHandlers.clear();
+    this.busSubscriptions.forEach((unsubscribe) => unsubscribe());
+    this.busSubscriptions = [];
 
     // Controller cleanup if needed
     if (this.gameplayController) {
       this.gameplayController.destroy();
+    }
+
+    // The orchestrator holds this scene AND the active phase handler, which
+    // holds its own EventBus subscriptions. The bus outlives the scene, so a
+    // handler left subscribed here is what delivered a second match's
+    // BallKicked to a destroyed first-match scene.
+    if (this.orchestrator) {
+      this.orchestrator.destroy();
     }
 
     // Camera controller cleanup
@@ -511,6 +555,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createDugouts(pitchX: number, pitchY: number): void {
+    if (!this.isSceneLive("createDugouts")) return;
     // Top Dugout (Team 1)
     // Placed at the very top of the canvas (y=0)
     // Dugout height is ~150px. Pitch starts at TOP_UI_HEIGHT (160px).
@@ -651,7 +696,7 @@ export class GameScene extends Phaser.Scene {
     // Handle late UI mounting (handshake).
     // The coin flip only exists before the first drive — later drives set
     // the kicking team automatically, so never re-show the overlay then.
-    this.eventBus.on(GameEventNames.UI_RequestCoinFlipState, () => {
+    this.subscribe(GameEventNames.UI_RequestCoinFlipState, () => {
       if (this.isSetupActive && this.gameService.canCoinFlip()) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.team1,
@@ -662,7 +707,7 @@ export class GameScene extends Phaser.Scene {
 
     // End-of-drive: clear the ball visual and refresh dugouts/pitch when the
     // engine resets drive state, and surface KO recovery results.
-    this.eventBus.on(GameEventNames.RefreshBoard, () => {
+    this.subscribe(GameEventNames.RefreshBoard, () => {
       if (this.ballSprite) {
         this.ballSprite.destroy();
         this.ballSprite = null;
@@ -684,7 +729,7 @@ export class GameScene extends Phaser.Scene {
     // would snap a mid-animation mover to its grid square, but updateStatus
     // touches only alpha/angle/visibility, never position — so it's safe and
     // catches any status-change event the watcher missed.
-    this.eventBus.on(GameEventNames.UI_SyncBoard, () => {
+    this.subscribe(GameEventNames.UI_SyncBoard, () => {
       if (this.gameService.getPhase() === GamePhase.SETUP) {
         this.refreshDugouts();
       } else {
@@ -693,7 +738,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Touchdown celebration: the scoring team's players on the pitch jump
-    this.eventBus.on(GameEventNames.Touchdown, (data) => {
+    this.subscribe(GameEventNames.Touchdown, (data) => {
       this.playerSprites.forEach((sprite) => {
         const p = sprite.getPlayer();
         if (p.teamId === data.teamId && p.gridPosition) {
@@ -702,7 +747,7 @@ export class GameScene extends Phaser.Scene {
       });
     });
 
-    this.eventBus.on(GameEventNames.KORecoveryRolled, (data) => {
+    this.subscribe(GameEventNames.KORecoveryRolled, (data) => {
       const player = this.gameService.getPlayerById(data.playerId);
       const name = player?.playerName ?? data.playerId;
       this.eventBus.emit(
@@ -938,6 +983,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public refreshDugouts(): void {
+    if (!this.isSceneLive("refreshDugouts")) return;
     this.dugouts.forEach((d) => d.refresh());
     this.placePlayersOnPitch();
   }
@@ -973,6 +1019,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected placePlayersOnPitch(): void {
+    if (!this.isSceneLive("placePlayersOnPitch")) return;
     // Get all players that have a grid position
     const allPlayers = [
       ...this.team1.players.filter((p) => p.gridPosition),
@@ -1118,6 +1165,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected placeBallVisual(x: number, y: number): void {
+    // A BallKicked delivered to a shut-down scene is what crashed the second
+    // match of a session (`new BallSprite` on a null `sys`).
+    if (!this.isSceneLive("placeBallVisual")) return;
     if (this.ballSprite) {
       this.ballSprite.destroy();
     }

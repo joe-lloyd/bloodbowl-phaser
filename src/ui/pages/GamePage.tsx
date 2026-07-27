@@ -110,6 +110,16 @@ export function GamePage({
     const enableProgression =
       progressionEnabled ?? routeState.progressionEnabled ?? false;
 
+    // A previous match's container must be gone BEFORE this scene is built,
+    // never merely on the way out: Phaser defers game.destroy() to its next
+    // step, so the outgoing scene's shutdown can otherwise run after the new
+    // scene has already read the stale singleton. Online play is the one
+    // exception — OnlineMatch seeds the container for this match on purpose
+    // before the page mounts, so it must be left alone.
+    if (!teams && ServiceContainer.isInitialized()) {
+      ServiceContainer.reset();
+    }
+
     // Initialize Phaser game
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.CANVAS,

@@ -302,7 +302,15 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
         <SetupActionButton
           action="confirm"
           label={isComplete ? "CONFIRM SETUP" : "SETUP INCOMPLETE"}
-          sub={isComplete ? "Ready!" : "Place Players"}
+          // A short-handed team fields everyone it has, so the target is the
+          // available count — never a hard-coded seven.
+          sub={
+            isComplete
+              ? "Ready!"
+              : status
+                ? `Placed ${status.placedPlayerCount} of ${status.requiredPlayerCount} available`
+                : "Place Players"
+          }
           disabled={!isComplete}
           color={isComplete ? "green" : "gray"}
         />

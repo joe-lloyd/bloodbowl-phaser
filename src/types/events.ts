@@ -146,6 +146,10 @@ export enum GameEventNames {
   UI_FormationsUpdated = "ui:formationsUpdated",
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
+  /** The local coach cut the end-of-drive celebration/recovery beat short.
+   *  Local only — it is a UI intent and never crosses the wire, so an online
+   *  match plays the sequence at its fixed length for both coaches. */
+  UI_SkipDriveSequence = "ui:skipDriveSequence",
   ScenarioLoaded = "scenarioLoaded", // New event for scenario seed info
   UI_RequestConfirmation = "ui:requestConfirmation",
   UI_ConfirmationResult = "ui:confirmationResult",
@@ -624,6 +628,7 @@ export interface UIEvents {
   // Common UI
   [GameEventNames.UI_Notification]: string;
   [GameEventNames.UI_GameLog]: string;
+  [GameEventNames.UI_SkipDriveSequence]: void;
 
   // Confirmation
   [GameEventNames.UI_RequestConfirmation]: {
