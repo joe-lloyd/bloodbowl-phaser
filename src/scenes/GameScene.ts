@@ -55,6 +55,17 @@ const assetFiles = import.meta.glob("../data/assets/**/*.{png,jpg,gif}", {
  */
 export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
+
+  /**
+   * The live pitch, for anything that must map grid squares to canvas
+   * coordinates through the same geometry the game renders with — the E2E
+   * pitch page object reads this so its clicks land where the game thinks
+   * the square is, rather than on a second copy of the arithmetic.
+   */
+  public getPitch(): Pitch | undefined {
+    return this.pitch;
+  }
+
   public team1!: Team;
   public team2!: Team;
   public kickingTeam!: Team;

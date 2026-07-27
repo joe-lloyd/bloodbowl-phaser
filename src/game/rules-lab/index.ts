@@ -7,8 +7,18 @@ export type {
   PlayerRef,
   DecisionPolicy,
 } from "./types";
-export { runRuleConfig, findSeed, resolveRef } from "./runner";
+export { runRuleConfig, findSeed, resolveRef, answerDecision } from "./runner";
 export type { FoundSeed } from "./runner";
+export {
+  resolveReference,
+  resolveCommandReferences,
+  referencesInCommand,
+  parsePlayerRef,
+  isPlayerRef,
+  isTeamRef,
+  REFERENCE_FIELDS,
+} from "./references";
+export type { RefContext } from "./references";
 export * from "./matchers";
 export {
   assert,

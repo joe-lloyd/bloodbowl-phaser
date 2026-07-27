@@ -14,6 +14,9 @@ import {
   effectiveMA,
   getDriveEffects,
 } from "../../src/game/kickoff/driveEffects";
+import { RosterName } from "../../src/types/Team";
+import { SkillType } from "../../src/types/Skills";
+import { CommandResponse } from "../../src/headless/protocol";
 
 const kickoffScenario: Scenario = {
   id: "kickoff-events",
@@ -479,5 +482,87 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
     expect(game.ctx.gameService.hasPlayerActed(candidates[0].id)).toBe(false);
     expect(game.ctx.gameService.hasPlayerActed(candidates[1].id)).toBe(false);
+  });
+});
+
+describe("Dodgy Snack MA modifier applies before Rushes (regression)", () => {
+  // A clear straight lane with the opposing player far out of the way, so
+  // every step is a plain move/Rush with no dodges to consume dice rolls.
+  const maRushScenario: Scenario = {
+    id: "dodgy-snack-ma-rush",
+    name: "Dodgy Snack MA/Rush",
+    description:
+      "An MA 6 Human Lineman carrying a -1 Dodgy Snack MA modifier moves in " +
+      "a straight clear line, so every step past effective MA is a Rush.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 3, y: 7 }],
+      team2Placements: [{ playerIndex: 0, x: 20, y: 10 }],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  };
+
+  const sprintScenario: Scenario = {
+    ...maRushScenario,
+    id: "dodgy-snack-ma-rush-sprint",
+    setup: {
+      ...maRushScenario.setup,
+      team1Placements: [
+        { playerIndex: 0, x: 3, y: 7, skills: [SkillType.SPRINT] },
+      ],
+    },
+  };
+
+  function rushRolls(response: CommandResponse) {
+    return response.events.filter(
+      (event) =>
+        event.name === GameEventNames.DiceRoll &&
+        (event.data as { rollType?: string })?.rollType?.includes("Rush")
+    );
+  }
+
+  it("an afflicted MA 6 player reaches 7 squares as 5 + 2 Rushes", async () => {
+    const game = new HeadlessGame({ scenario: maRushScenario, seed: 2 });
+    const playerId = game.ctx.team1.players[0].id;
+    getDriveEffects(game.ctx.gameService.getState()).playerModifiers[
+      playerId
+    ] = { maModifier: -1 };
+
+    const path = [4, 5, 6, 7, 8, 9, 10].map((x) => ({ x, y: 7 }));
+    const response = await game.execute({ type: "move", playerId, path });
+
+    expect(response.ok).toBe(true);
+    expect(
+      response.events.some(
+        (event) => event.name === GameEventNames.PlayerKnockedDown
+      )
+    ).toBe(false);
+    // Effective MA is 5 (6 - 1): steps 6 and 7 are Rushes, not just step 7 —
+    // the bug this guards against rushed only the raw-MA-6th step.
+    expect(rushRolls(response)).toHaveLength(2);
+    expect(game.ctx.team1.players[0].gridPosition).toEqual({ x: 10, y: 7 });
+  });
+
+  it("a Sprint variant reaches 8 squares as 5 + 3 Rushes", async () => {
+    const game = new HeadlessGame({ scenario: sprintScenario, seed: 2 });
+    const playerId = game.ctx.team1.players[0].id;
+    getDriveEffects(game.ctx.gameService.getState()).playerModifiers[
+      playerId
+    ] = { maModifier: -1 };
+
+    const path = [4, 5, 6, 7, 8, 9, 10, 11].map((x) => ({ x, y: 7 }));
+    const response = await game.execute({ type: "move", playerId, path });
+
+    expect(response.ok).toBe(true);
+    expect(
+      response.events.some(
+        (event) => event.name === GameEventNames.PlayerKnockedDown
+      )
+    ).toBe(false);
+    expect(rushRolls(response)).toHaveLength(3);
+    expect(game.ctx.team1.players[0].gridPosition).toEqual({ x: 11, y: 7 });
   });
 });

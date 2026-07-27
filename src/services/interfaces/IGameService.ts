@@ -205,6 +205,8 @@ export interface IGameService {
   /** On-pitch team-mates of a player (any status), excluding the player. */
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
+  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+  getTeams(): [Team, Team];
   getMovementUsed(playerId: string): number;
   /**
    * End or continue a blocker's activation once the block resolved. A plain

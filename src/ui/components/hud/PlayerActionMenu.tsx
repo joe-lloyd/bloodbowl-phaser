@@ -279,8 +279,16 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
     const scheme = colorSchemes[color] || colorSchemes.blue;
 
+    // A stable hook for E2E: the button's visible label is styling-dependent
+    // and duplicated across replacement variants, so cases target the action
+    // (and its replacement, where there is one) instead.
+    const testId = blockReplacement
+      ? `action-${action ?? "block"}-${blockReplacement}`
+      : `action-${action ?? label.toLowerCase().replace(/\s+/g, "-")}`;
+
     return (
       <button
+        data-testid={testId}
         onClick={(e) => {
           e.stopPropagation();
           if (onClick) onClick();
@@ -350,6 +358,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
   return (
     <div
+      data-testid="player-action-menu"
       className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={(e) => {
