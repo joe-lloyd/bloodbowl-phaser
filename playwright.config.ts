@@ -66,8 +66,13 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
   // Screenshot baselines live beside their spec, one folder per project, so a
-  // visual case is reviewable next to the behaviour it guards.
-  snapshotPathTemplate: "{testDir}/__screenshots__/{projectName}/{testFilePath}/{arg}{ext}",
+  // visual case is reviewable next to the behaviour it guards. `{platform}`
+  // is in the path because canvas and font rendering genuinely differ across
+  // operating systems: a Windows baseline is not a Linux one, and pretending
+  // otherwise just produces diffs nobody can act on. CI runs the visual job
+  // on the platform whose baselines are committed.
+  snapshotPathTemplate:
+    "{testDir}/__screenshots__/{projectName}/{platform}/{testFilePath}/{arg}{ext}",
   outputDir: "./e2e-results/artifacts",
 
   fullyParallel: true,

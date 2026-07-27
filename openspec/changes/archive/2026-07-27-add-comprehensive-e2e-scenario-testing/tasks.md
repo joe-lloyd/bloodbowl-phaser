@@ -68,8 +68,8 @@
 - [ ] 8.3 Add passing variants for range bands, accurate/inaccurate/wildly inaccurate/fumble results, target selection, interception decisions, hand-off, and pending-action completion
 - [ ] 8.4 Add block variants for every die face, strength/dice bands, assists, Both Down skill interactions, follow-up, push choice, chain push, crowd surf, and ball displacement
 - [ ] 8.5 Add armour/injury variants for no break, stun, KO, casualty, death, modifiers, regeneration/apothecary decisions where supported, and resulting player placement
-- [ ] 8.6 Add activation variants for each declared action, cancellation/finish behavior, once-per-turn consumption, reroll accept/decline/source choice, reactions, and turnover paths
-- [ ] 8.7 Add phase-flow variants for coin flip, setup legality, kickoff events, touchback, turn changes, touchdown, end of drive, KO recovery, halftime, second-half kickoff, and game over/result
+- [x] 8.6 Add activation variants for each declared action, cancellation/finish behavior, once-per-turn consumption, reroll accept/decline/source choice, reactions, and turnover paths
+- [x] 8.7 Add phase-flow variants for coin flip, setup legality, kickoff events, touchback, turn changes, touchdown, end of drive, KO recovery, halftime, second-half kickoff, and game over/result
 - [x] 8.8 Add negative and boundary cases for invalid commands, wrong-team interaction, unavailable actions, stale decisions, pitch edges, maximum movement, and exhausted rerolls
 
 ## 9. Rule, Trait, and Special-Action Matrix
@@ -106,6 +106,33 @@
 - [x] 12.4 Add deterministic Playwright sharding, browser caching, merged reports, timing output, and artifact retention to CI
 - [x] 12.5 Document installation, suite selection, sandbox replay, seed discovery/refresh, headed debugging, traces, coverage gaps, visual updates, and fixture-authenticity rules
 - [x] 12.6 Run unit/integration tests, all Playwright projects, strict OpenSpec validation, and a clean production build; resolve failures and record initial E2E coverage totals
+
+### Where 8.6 and 8.7 are covered
+
+Both are satisfied by cases rather than by a file named after the task line:
+
+- **8.6 (activation)** — `activation-cancel-declared-action` (cancel and
+  re-declare), `negative-second-activation-refused` (finish, then the
+  once-per-turn refusal), `negative-prone-player-cannot-block` and
+  `negative-wrong-team-activation` (illegal declarations), the rule catalog's
+  declaration of every action kind, and `ruleMatrix.test.ts`, which asserts
+  the catalog exercises reroll accept/decline/source, reacting-coach
+  accept/decline, declined interception, refused follow-up, once-per-turn
+  limits and parameterised skills. Turnover paths are asserted by
+  `exactlyOneTurnover` / `noTurnover` and `legacy-double-turnover-seeded`.
+- **8.7 (phase flow)** — `match-opening-to-kickoff` (setup legality, kickoff
+  event), `match-setup-adjustments`, `match-apply-formation`,
+  `match-touchback-award`, `match-touchdown-and-drive-reset` (touchdown and
+  end of drive), `match-ko-recovery-at-drive-end` (KO recovery), and
+  `e2e/engine/full-match.e2e.ts` (coin flip, turn changes, both halves,
+  halftime, second-half kickoff, game over and final result).
+
+### 8.1–8.5 remain open
+
+Movement, ball-state, passing, block and armour/injury variants are largely
+exercised through the 186 committed-seed rule-catalog cases and the promoted
+sandbox scenarios, but were not authored as dedicated per-family variant
+sets. They are the natural next increment.
 
 ### Initial E2E coverage (recorded 2026-07-27)
 

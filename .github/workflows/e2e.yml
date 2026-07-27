@@ -82,8 +82,12 @@ jobs:
         run: pnpm exec playwright install-deps chromium
 
       # Playwright shards deterministically by test id, so each case runs
-      # exactly once across the matrix.
-      - run: pnpm e2e:browser -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      # exactly once across the matrix. Invoked directly rather than through
+      # the package script so the shard flag cannot be swallowed by argument
+      # forwarding.
+      - run: >
+          pnpm exec playwright test --project=browser-gameplay
+          --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
       - name: Upload blob report
         if: always()
@@ -111,8 +115,15 @@ jobs:
 
   visual:
     name: visual-regression
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Windows, deliberately: screenshot baselines are platform-specific
+    # (canvas and font rendering differ), and the committed baselines under
+    # e2e/visual/__screenshots__/visual-regression/win32/ were generated
+    # here. Running this on Linux would diff every image for reasons that
+    # have nothing to do with the presentation contract. To add a Linux lane,
+    # commit `linux/` baselines from a container first — CI must never
+    # generate its own.
+    runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
