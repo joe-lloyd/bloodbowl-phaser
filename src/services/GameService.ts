@@ -1685,6 +1685,11 @@ export class GameService implements IGameService {
     return undefined;
   }
 
+  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+  public getTeams(): [Team, Team] {
+    return [this.team1, this.team2];
+  }
+
   public async foulPlayer(
     foulerId: string,
     targetX: number,

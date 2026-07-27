@@ -66,10 +66,10 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Bone Head roll on activation",
         description:
           "After declaring an Action, a D6: 2+ acts as normal, 1 becomes Distracted and the activation ends",
+        // An Ogre Blocker is Bone Head on the roster.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BONE_HEAD] },
-          ],
+          team1Roster: RosterName.OGRE,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -116,10 +116,10 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "really-stupid-alone",
         name: "Really Stupid with no help",
         description: "Unassisted the target is 4+; 1-3 becomes Distracted",
+        // The Goblin roster's Trained Troll (index 0) is Really Stupid.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.REALLY_STUPID] },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -152,9 +152,12 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Really Stupid with a team-mate",
         description:
           "A Standing, non-Really-Stupid team-mate adjacent grants +2 to the roll",
+        // Trained Troll (index 0) helped by a Goblin Lineman (index 1), who
+        // is not Really Stupid and so qualifies as an assist.
         setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
           team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.REALLY_STUPID] },
+            { playerIndex: 0, x: 10, y: 5 },
             { playerIndex: 1, x: 10, y: 6 },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
@@ -318,13 +321,15 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "drunkard-rush",
         name: "Drunkard fumbles a Rush",
         description: "A -1 modifier applies to every Rush test",
+        // A Norse Raider Lineman is a Drunkard on the roster; MA is pinned
+        // low so the second square is always a Rush.
         setup: playSetup({
+          team1Roster: RosterName.NORSE,
           team1Placements: [
             {
               playerIndex: 0,
               x: 5,
               y: 5,
-              skills: [SkillType.DRUNKARD],
               stats: { MA: 1 },
             },
           ],
@@ -365,14 +370,16 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Loner may waste a Team Re-roll",
         description:
           "Using a Team Re-roll needs a D6 roll; below the threshold the re-roll is lost unused",
+        // The Underworld Troll carries Loner (4+) on the roster. It is also
+        // Really Stupid, so the activation gate rolls first and the seed
+        // search covers both dice.
         setup: playSetup({
+          team1Roster: RosterName.UNDERWORLD_DENIZENS,
           team1Placements: [
-            {
-              playerIndex: 0,
-              x: 10,
-              y: 5,
-              skills: [{ type: SkillType.LONER, parameter: "4+" }],
-            },
+            { playerIndex: 0, x: 10, y: 5 },
+            // A non-Really-Stupid neighbour assists the activation gate, so
+            // the run reaches the dodge this config is actually about.
+            { playerIndex: 1, x: 10, y: 6 },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
