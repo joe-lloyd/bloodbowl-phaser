@@ -4,6 +4,7 @@ import { IGameService } from "../../../src/services/interfaces/IGameService.js";
 import { EventBus } from "../../../src/services/EventBus.js";
 import { TeamBuilder } from "../../utils/test-builders.js";
 import { GamePhase } from "../../../src/types/GameState.js";
+import { GameEventNames } from "../../../src/types/events.js";
 
 describe("GameService", () => {
   let gameService: IGameService;
@@ -97,6 +98,63 @@ describe("GameService", () => {
       const initiallyActive = gameService.getActiveTeamId();
       gameService.endTurn();
       expect(gameService.getActiveTeamId()).not.toBe(initiallyActive);
+    });
+  });
+
+  describe("Full time announcement", () => {
+    const notificationsOf = () => {
+      const notifications: string[] = [];
+      eventBus.on(GameEventNames.UI_Notification, (msg) =>
+        notifications.push(msg as string)
+      );
+      const gameLog: string[] = [];
+      eventBus.on(GameEventNames.UI_GameLog, (msg) => gameLog.push(msg));
+      return { notifications, gameLog };
+    };
+
+    it("announces the played score and winner on screen and in the match log", () => {
+      const { notifications, gameLog } = notificationsOf();
+      gameService.getState().score["team-1"] = 2;
+      gameService.getState().score["team-2"] = 1;
+
+      eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: GamePhase.GAME_OVER,
+      });
+
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0]).toContain("Team 1");
+      expect(notifications[0]).toContain("2");
+      expect(notifications[0]).toContain("1");
+      expect(notifications[0]).toContain("win");
+      expect(gameLog).toEqual(notifications);
+    });
+
+    it("announces a draw when scores are level", () => {
+      const { notifications } = notificationsOf();
+      gameService.getState().score["team-1"] = 1;
+      gameService.getState().score["team-2"] = 1;
+
+      eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: GamePhase.GAME_OVER,
+      });
+
+      expect(notifications[0].toLowerCase()).toContain("draw");
+    });
+
+    it("labels a concession by the conceding team without inventing a score", () => {
+      const { notifications } = notificationsOf();
+      // A concession never touches the played score — it stays 0-0.
+      gameService.getState().result = {
+        reason: "concession",
+        concedingTeamId: "team-1",
+      };
+
+      eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: GamePhase.GAME_OVER,
+      });
+
+      expect(notifications[0]).toContain("0 : 0");
+      expect(notifications[0]).toContain("Team 1 conceded");
     });
   });
 });

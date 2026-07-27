@@ -165,6 +165,9 @@ export enum GameEventNames {
    */
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
+  /** A competition fixture's result has been recorded exactly once; the
+   *  results screen uses this to show a recording confirmation. */
+  CompetitionResultRecorded = "competitionResultRecorded",
   /** A durable match-log record: a roll (optional) and the outcome it
    *  produced, authored by the rule that resolved it. Lands in the Dice Log
    *  and never expires on its own (subject only to the log's retention). */
@@ -527,6 +530,9 @@ export interface GameEvents {
   [GameEventNames.AwardedTouchdownAssigned]: {
     teamId: string;
     playerId: string;
+  };
+  [GameEventNames.CompetitionResultRecorded]: {
+    fixtureId: string;
   };
   [GameEventNames.InterceptionFailed]: {
     passerId: string;

@@ -124,11 +124,13 @@ export class SceneOrchestrator {
           this.currentHandler = null;
           break;
         case GamePhase.GAME_OVER:
-          // The match has ended. There is no active handler; resolve to the
-          // completed state and surface the final result to the HUD instead
-          // of falling through to the unhandled-phase warning.
+          // The match has ended. There is no active handler; GameService
+          // already announced full time (screen + match log) from the
+          // engine level, so there is nothing left to do but stop routing
+          // to a phase handler instead of falling through to the
+          // unhandled-phase warning.
           this.currentHandler = null;
-          this.resolveMatchComplete();
+          console.log("[Orchestrator] Match complete.");
           break;
         default:
           console.warn(`[Orchestrator] No handler for phase: ${phase}`);
@@ -214,31 +216,6 @@ export class SceneOrchestrator {
 
   public startSetupPhase(): void {
     this.scene.startSetupPhase();
-  }
-
-  /**
-   * The match has reached GAME_OVER. Compute the final score/winner from live
-   * state and surface it to the HUD. The React layer already renders the
-   * post-match screen off the phase change; this announcement makes the
-   * result explicit rather than leaving the game to stall silently.
-   */
-  private resolveMatchComplete(): void {
-    const team1 = this.scene.team1;
-    const team2 = this.scene.team2;
-    const score1 = this.gameService.getScore(team1.id);
-    const score2 = this.gameService.getScore(team2.id);
-    const subtitle =
-      score1 === score2
-        ? `${team1.name} ${score1} : ${score2} ${team2.name} (draw)`
-        : score1 > score2
-          ? `${team1.name} win ${score1} : ${score2}`
-          : `${team2.name} win ${score2} : ${score1}`;
-    console.log(`[Orchestrator] Match complete. Full time — ${subtitle}`);
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "full-time",
-      headline: "Full Time",
-      subtitle,
-    });
   }
 
   public checkSetupCompleteness(): void {

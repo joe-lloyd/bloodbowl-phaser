@@ -229,6 +229,7 @@ export class TurnManager {
     if (this.state.turn.isHalf2) {
       this.state.phase = GamePhase.GAME_OVER;
       this.state.activeTeamId = null;
+      this.state.result ??= { reason: "completed" };
       this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
       return null;
     }

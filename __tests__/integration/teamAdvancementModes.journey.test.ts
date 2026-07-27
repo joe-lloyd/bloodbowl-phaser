@@ -92,7 +92,7 @@ describe("Advanced League journey", () => {
     expect(scorer.spp).toBe(15); // 5 touchdowns * 3 SPP
     expect(mustAdvance(scorer)).toBe(true); // >= 14 (characteristic cost for adv #1)
 
-    // Post-match would record pending development (see PostMatchProgression);
+    // Post-match would record pending development (see MatchResultsScreen);
     // simulate that directly here.
     team.pendingDevelopment = [
       {

@@ -32,6 +32,20 @@ export enum GamePhase {
   GAME_OVER = "GAME_OVER",
 }
 
+/**
+ * How a match reached GAME_OVER. Kept separate from the played score
+ * (`GameState.score`) so a concession or forfeit can never be confused with
+ * an extra scored touchdown: the score reflects only what was actually
+ * played, and this reason explains why the match ended.
+ */
+export type MatchTerminationReason = "completed" | "concession" | "forfeit";
+
+export interface MatchResult {
+  reason: MatchTerminationReason;
+  /** Present for "concession"/"forfeit"; absent for a normally completed match. */
+  concedingTeamId?: string;
+}
+
 export interface TurnData {
   teamId: string;
   turnNumber: number; // 1-8 (or 1-6 for Sevens)
@@ -71,5 +85,7 @@ export interface GameState {
   bribes?: Record<string, number>;
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
+  /** Set once the match reaches GAME_OVER; absent beforehand. */
+  result?: MatchResult;
 }
 import { BlockReplacement } from "./BlockReplacement";

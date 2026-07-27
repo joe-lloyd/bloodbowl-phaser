@@ -26,7 +26,7 @@ import { HUDLayout } from "./HUDLayout";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { PostMatchProgression } from "./PostMatchProgression";
+import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
@@ -228,7 +228,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <ReactionDialog eventBus={eventBus} />
           <InterceptionDialog eventBus={eventBus} />
           <TurnoverOverlay eventBus={eventBus} />
-          <PostMatchProgression
+          <MatchResultsScreen
             visible={turnData.phase === GamePhase.GAME_OVER}
           />
 

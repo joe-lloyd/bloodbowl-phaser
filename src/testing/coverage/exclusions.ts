@@ -32,7 +32,7 @@ export const COVERAGE_EXCLUSIONS: CoverageExclusion[] = [
     reason:
       "Post-match league progression runs after GAME_OVER and has no in-drive " +
       "scenario to attach to; it is covered by the progression unit tests " +
-      "(__tests__/unit/seeding, PostMatchProgression) rather than a scenario case.",
+      "(__tests__/unit/seeding, MatchResultsScreen) rather than a scenario case.",
     owner: "bloodbowl-phaser maintainers",
     tracking: "openspec/changes/add-comprehensive-e2e-scenario-testing",
   },

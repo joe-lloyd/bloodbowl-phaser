@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { calculateTeamValue, Team } from "../../../types/Team";
+import { MatchResult } from "../../../types/GameState";
+import { MatchStatsSummary } from "../../../game/progression/MatchStats";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { GameEventNames } from "../../../types/events";
+import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import { mustAdvance } from "../../../game/progression/progression";
 import {
   createPendingSkillSelection,
   eligibleSkillSelectionParticipants,
 } from "../../../game/progression/advancementModes";
-import { MatchStatsSummary } from "../../../game/progression/MatchStats";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { GameEventNames } from "../../../types/events";
-import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 
 interface Props {
   visible: boolean;
@@ -22,7 +23,30 @@ function ownedTeams(teams: Team[]): Team[] {
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
 }
 
-export function PostMatchProgression({ visible }: Props) {
+/**
+ * The played score and the termination reason are kept as separate facts
+ * (see `MatchResult`): a concession/forfeit never invents a touchdown or
+ * rewrites the scoreline, it only changes how the outcome is labelled.
+ */
+function outcomeLabel(
+  teams: Team[],
+  score: Record<string, number>,
+  result?: MatchResult
+): string {
+  if (result?.reason === "concession" || result?.reason === "forfeit") {
+    const conceding = teams.find((team) => team.id === result.concedingTeamId);
+    const verb = result.reason === "concession" ? "conceded" : "forfeited";
+    return conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
+  }
+  if (teams.length < 2) return "";
+  const [a, b] = teams;
+  const scoreA = score[a.id] ?? 0;
+  const scoreB = score[b.id] ?? 0;
+  if (scoreA === scoreB) return "Draw";
+  return `${scoreA > scoreB ? a.name : b.name} win`;
+}
+
+export function MatchResultsScreen({ visible }: Props) {
   const navigate = useNavigate();
   const container = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance()
@@ -38,18 +62,37 @@ export function PostMatchProgression({ visible }: Props) {
   const teams = teamIds
     .map((id) => container?.gameService.getTeam(id))
     .filter((team): team is Team => !!team);
+  const progressionEnabled = !!tracker?.progressionEnabled;
 
   const [nominations, setNominations] = useState<Record<string, string[]>>({});
   const [mvpResults, setMvpResults] = useState<
     Record<string, { playerId: string; roll: number }>
   >({});
-  const [summary, setSummary] = useState<MatchStatsSummary | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [touchdownRecipients, setTouchdownRecipients] = useState<
     Record<string, string>
   >({});
+  const [competitionRecorded, setCompetitionRecorded] = useState(false);
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
+
+  // Idempotency across rerender/resume/reconnect: seed from the tracker's
+  // own persisted state instead of only from live events, so a remount never
+  // re-offers a confirm/roll step that has already happened.
+  useEffect(() => {
+    if (!container || !tracker) return;
+    if (tracker.applied) setConfirmed(true);
+    const summary = tracker.summary();
+    const seeded: Record<string, { playerId: string; roll: number }> = {};
+    summary.players.forEach((stats) => {
+      // -1 is a "already awarded, roll unknown" sentinel — the roll itself
+      // isn't persisted, only that MVP was already assigned this match.
+      if (stats.mvps > 0) seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
+    });
+    if (Object.keys(seeded).length) {
+      setMvpResults((previous) => ({ ...seeded, ...previous }));
+    }
+  }, [container, tracker]);
 
   useEffect(() => {
     if (!container) return;
@@ -65,28 +108,39 @@ export function PostMatchProgression({ visible }: Props) {
       refresh((value) => value + 1);
     };
     const onTouchdown = () => refresh((value) => value + 1);
+    const onCompetitionRecorded = () => setCompetitionRecorded(true);
     container.eventBus.on(GameEventNames.MvpAwarded, onMvp);
     container.eventBus.on(GameEventNames.AwardedTouchdownAssigned, onTouchdown);
+    container.eventBus.on(
+      GameEventNames.CompetitionResultRecorded,
+      onCompetitionRecorded
+    );
     return () => {
       container.eventBus.off(GameEventNames.MvpAwarded, onMvp);
       container.eventBus.off(
         GameEventNames.AwardedTouchdownAssigned,
         onTouchdown
       );
+      container.eventBus.off(
+        GameEventNames.CompetitionResultRecorded,
+        onCompetitionRecorded
+      );
     };
   }, [container]);
 
-  if (!visible || !container || !tracker?.progressionEnabled) return null;
+  if (!visible || !container || !tracker) return null;
 
-  const allPlayers = teams.flatMap((team) => team.players);
-  const statsSummary = summary ?? tracker.summary(allPlayers);
+  const state = container.gameService.getState();
+  const result = state.result;
   const own = ownedTeams(teams);
+  const statsSummary = tracker.summary(teams.flatMap((team) => team.players));
   const pendingMvpTeams = teams.filter(
     (team) =>
       !statsSummary.players.some(
         (stats) => stats.teamId === team.id && stats.mvps > 0
       )
   );
+  const canExit = !progressionEnabled || confirmed;
 
   const nomineesFor = (team: Team): string[] => {
     const existing = nominations[team.id];
@@ -115,13 +169,16 @@ export function PostMatchProgression({ visible }: Props) {
           nominatedPlayerIds: nominees,
         });
         if (!response.ok) throw new Error(response.reason ?? "MVP rejected");
-        const result = response.events.find(
+        const eventResult = response.events.find(
           (event) => event.name === GameEventNames.MvpAwarded
         )?.data as { playerId: string; roll: number } | undefined;
-        if (result) {
+        if (eventResult) {
           setMvpResults((previous) => ({
             ...previous,
-            [team.id]: { playerId: result.playerId, roll: result.roll },
+            [team.id]: {
+              playerId: eventResult.playerId,
+              roll: eventResult.roll,
+            },
           }));
         }
       } else {
@@ -206,8 +263,9 @@ export function PostMatchProgression({ visible }: Props) {
 
   const confirmSpp = () => {
     try {
-      const finalSummary = tracker.applySpp(teams);
-      setSummary(finalSummary);
+      const concedingTeamId =
+        result?.reason === "concession" ? result.concedingTeamId : undefined;
+      const finalSummary = tracker.applySpp(teams, concedingTeamId);
       recordPendingDevelopment(`match-${Date.now()}`, finalSummary);
       setConfirmed(true);
       setError("");
@@ -216,25 +274,55 @@ export function PostMatchProgression({ visible }: Props) {
     }
   };
 
+  const leave = () => {
+    if (!canExit) return;
+    clearMatchSave();
+    navigate("/");
+  };
+
   return (
     <div className="absolute inset-0 z-[250] overflow-auto bg-slate-950/95 p-6 text-bb-parchment pointer-events-auto">
       <div className="mx-auto max-w-6xl rounded-xl border-2 border-bb-gold bg-slate-900 p-6 shadow-2xl">
-        <h1 className="font-heading text-4xl text-bb-gold">
-          Post-match progression
-        </h1>
-        <p className="mb-5 font-body text-lg">
-          Review the match and roll each MVP, then confirm. Any advancement,
-          Skill Selection award, or Draft roll is completed afterward from
-          Manage Team.
+        {/* ---- Result ---- */}
+        <h1 className="font-heading text-4xl text-bb-gold">Full Time</h1>
+        {teams.length >= 2 && (
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-bb-dark-gold bg-slate-800 p-4">
+            <span className="font-heading text-2xl">{teams[0].name}</span>
+            <span className="font-heading text-3xl text-bb-gold">
+              {state.score[teams[0].id] ?? 0} : {state.score[teams[1].id] ?? 0}
+            </span>
+            <span className="font-heading text-2xl">{teams[1].name}</span>
+          </div>
+        )}
+        <p className="mt-2 text-lg italic">
+          {outcomeLabel(teams, state.score, result)}
         </p>
+        {competitionRecorded && (
+          <p className="mt-2 text-sm text-green-400">
+            ✓ Competition fixture result recorded.
+          </p>
+        )}
 
-        {!confirmed && (
+        {/* ---- Statistics ---- */}
+        <StatsTables
+          teams={teams}
+          summary={statsSummary}
+          showSpp={progressionEnabled}
+        />
+        {!progressionEnabled && (
+          <p className="mt-3 text-sm italic text-bb-muted-text">
+            This match does not award SPP or MVP recognition.
+          </p>
+        )}
+
+        {/* ---- Awards (eligible matches only) ---- */}
+        {progressionEnabled && !confirmed && (
           <>
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
               {own.map((team) => {
                 const eligibleIds = tracker.getEligibleMvpPlayers(team.id);
                 const nominees = nomineesFor(team);
-                const result = mvpResults[team.id];
+                const mvpResult = mvpResults[team.id];
                 return (
                   <section
                     key={team.id}
@@ -244,8 +332,8 @@ export function PostMatchProgression({ visible }: Props) {
                       {team.name} MVP
                     </h2>
                     <p className="mb-3 text-sm">
-                      Nominate six players who took part. Their displayed order
-                      is slots 1–6.
+                      Nominate six players who took part. Their displayed
+                      order is slots 1–6.
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {eligibleIds.map((playerId) => {
@@ -256,7 +344,7 @@ export function PostMatchProgression({ visible }: Props) {
                         return (
                           <button
                             key={playerId}
-                            disabled={!!result}
+                            disabled={!!mvpResult}
                             onClick={() => toggleNominee(team, playerId)}
                             className={`rounded border px-3 py-2 text-left ${
                               slot >= 0
@@ -270,12 +358,14 @@ export function PostMatchProgression({ visible }: Props) {
                         );
                       })}
                     </div>
-                    {result ? (
+                    {mvpResult ? (
                       <p className="mt-3 font-heading text-xl text-bb-gold">
-                        Rolled {result.roll}:{" "}
+                        {mvpResult.roll >= 1
+                          ? `Rolled ${mvpResult.roll}: `
+                          : ""}
                         {
                           team.players.find(
-                            (player) => player.id === result.playerId
+                            (player) => player.id === mvpResult.playerId
                           )?.playerName
                         }{" "}
                         gains 4 SPP
@@ -293,9 +383,9 @@ export function PostMatchProgression({ visible }: Props) {
                     )}
                     <div className="mt-5 border-t border-slate-600 pt-4">
                       <p className="mb-2 text-sm">
-                        If this team was awarded a touchdown after a concession,
-                        assign its 3 SPP here. Repeat for each awarded
-                        touchdown.
+                        If this team was awarded a touchdown after a
+                        concession, assign its 3 SPP here. Repeat for each
+                        awarded touchdown.
                       </p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <select
@@ -331,8 +421,6 @@ export function PostMatchProgression({ visible }: Props) {
                 );
               })}
             </div>
-
-            <StatsTables teams={teams} summary={statsSummary} />
             <button
               onClick={confirmSpp}
               disabled={pendingMvpTeams.length > 0}
@@ -343,29 +431,31 @@ export function PostMatchProgression({ visible }: Props) {
           </>
         )}
 
-        {confirmed && (
-          <>
-            <StatsTables teams={teams} summary={summary!} />
-            {own.some(
-              (team) => (team.pendingDevelopment?.length ?? 0) > 0
-            ) && (
-              <p className="mt-6 rounded-lg border border-bb-gold bg-slate-800 p-4 text-lg">
-                Development pending: some players need an advancement or a
-                Skill Selection award. Resolve it from Manage Team before your
-                next required fixture.
-              </p>
-            )}
+        {progressionEnabled && confirmed && (
+          <p className="mt-6 rounded-lg border border-bb-dark-gold bg-slate-800 p-4 text-lg">
+            MVP and SPP are confirmed. Any player now eligible to advance is
+            saved as pending development — finish it any time from{" "}
+            <strong>Manage Team</strong>.
+          </p>
+        )}
 
-            <button
-              onClick={() => {
-                clearMatchSave();
-                navigate("/");
-              }}
-              className="mt-5 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl disabled:opacity-40"
-            >
-              Finish post-match
-            </button>
-          </>
+        {/* ---- Exit ---- */}
+        <button
+          onClick={leave}
+          disabled={!canExit}
+          title={
+            canExit
+              ? undefined
+              : "Confirm MVP nomination and SPP for both teams before leaving"
+          }
+          className="mt-6 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl disabled:opacity-40"
+        >
+          Continue to Main Menu
+        </button>
+        {!canExit && (
+          <p className="mt-2 text-sm italic text-bb-muted-text">
+            Confirm MVP nomination and SPP for both teams before leaving.
+          </p>
         )}
 
         {error && <p className="mt-4 text-red-300">{error}</p>}
@@ -377,9 +467,11 @@ export function PostMatchProgression({ visible }: Props) {
 function StatsTables({
   teams,
   summary,
+  showSpp,
 }: {
   teams: Team[];
   summary: MatchStatsSummary;
+  showSpp: boolean;
 }) {
   return (
     <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -396,7 +488,7 @@ function StatsTables({
                 <th>CAS</th>
                 <th>TD</th>
                 <th>MVP</th>
-                <th>SPP</th>
+                {showSpp && <th>SPP</th>}
               </tr>
             </thead>
             <tbody>
@@ -414,9 +506,11 @@ function StatsTables({
                     <td>{stats.casualties}</td>
                     <td>{stats.touchdowns}</td>
                     <td>{stats.mvps}</td>
-                    <td className="font-bold text-bb-gold">
-                      +{stats.sppEarned}
-                    </td>
+                    {showSpp && (
+                      <td className="font-bold text-bb-gold">
+                        +{stats.sppEarned}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

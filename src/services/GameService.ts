@@ -316,6 +316,7 @@ export class GameService implements IGameService {
       if (phase === GamePhase.GAME_OVER) {
         // Get the Ref bribes are match-scoped and never leave this match.
         this.state.bribes = {};
+        this.announceFullTime();
       }
     });
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
@@ -1198,6 +1199,35 @@ export class GameService implements IGameService {
     // hand-off into the end-of-drive sequence is ordered against everything
     // else in flight (and paced identically headless).
     this.flowManager.add(new TouchdownCelebrationOperation(teamId));
+  }
+
+  /**
+   * Full time, announced once from the single place every GAME_OVER
+   * transition passes through (headless CLI included, since this runs at
+   * the engine level rather than in a Phaser scene). States the played
+   * score and the actual outcome — win/draw, or concession/forfeit labelled
+   * as such — never an invented result.
+   */
+  private announceFullTime(): void {
+    const score1 = this.state.score[this.team1.id] ?? 0;
+    const score2 = this.state.score[this.team2.id] ?? 0;
+    const scoreline = `${this.team1.name} ${score1} : ${score2} ${this.team2.name}`;
+    const result = this.state.result;
+    let outcome: string;
+    if (result?.reason === "concession" || result?.reason === "forfeit") {
+      const conceding =
+        (result.concedingTeamId && this.getTeam(result.concedingTeamId)) ||
+        undefined;
+      const verb = result.reason === "concession" ? "conceded" : "forfeited";
+      outcome = conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
+    } else if (score1 === score2) {
+      outcome = "draw";
+    } else {
+      outcome = `${score1 > score2 ? this.team1.name : this.team2.name} win`;
+    }
+    const line = `FULL TIME — ${scoreline} (${outcome})`;
+    this.eventBus.emit(GameEventNames.UI_Notification, line);
+    this.eventBus.emit(GameEventNames.UI_GameLog, line);
   }
 
   /**
