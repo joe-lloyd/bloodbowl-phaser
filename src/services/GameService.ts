@@ -92,6 +92,7 @@ import {
   driveEffectsEmpty,
   emptyDriveEffects,
   getDriveEffects,
+  withDriveModifiers,
 } from "@/game/kickoff/driveEffects";
 import {
   BlockReplacement,
@@ -679,7 +680,10 @@ export class GameService implements IGameService {
       // spent, and if any of the MA+rush budget is left, keep the player
       // active so the coach can keep moving (and Rush).
       this.blitzBlockUsed.add(attackerId);
-      if (this.getMovementUsed(attackerId) < moveAllowance(player)) {
+      if (
+        this.getMovementUsed(attackerId) <
+        moveAllowance(withDriveModifiers(player, this.state))
+      ) {
         this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
           playerId: attackerId,
         });
@@ -763,9 +767,10 @@ export class GameService implements IGameService {
     ) {
       const attacker = this.getPlayerById(attackerId);
       if (attacker) {
+        const effectiveAttacker = withDriveModifiers(attacker, this.state);
         const used = this.state.turn.movementUsed.get(attackerId) || 0;
         const newUsed = used + 1;
-        if (newUsed > moveAllowance(attacker)) {
+        if (newUsed > moveAllowance(effectiveAttacker)) {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
             "No movement left to make the Blitz block!"
@@ -775,7 +780,7 @@ export class GameService implements IGameService {
         }
         this.state.turn.movementUsed.set(attackerId, newUsed);
 
-        if (newUsed > attacker.stats.MA) {
+        if (newUsed > effectiveAttacker.stats.MA) {
           // The Blitz block's rush may be rerolled (Sure Feet / team)
           const check = await withRerollOffer(
             { gameService: this, eventBus: this.eventBus },
@@ -1935,6 +1940,7 @@ export class GameService implements IGameService {
     }
 
     const isBlitz = active.action === "blitz";
+    const effectiveAttacker = withDriveModifiers(attacker, this.state);
     let newMovementUsed: number | undefined;
     if (isBlitz) {
       if (!this.state.turn.hasBlitzed || this.blitzBlockUsed.has(attackerId)) {
@@ -1942,7 +1948,7 @@ export class GameService implements IGameService {
       }
       const used = this.state.turn.movementUsed.get(attackerId) ?? 0;
       newMovementUsed = used + 1;
-      if (newMovementUsed > moveAllowance(attacker)) {
+      if (newMovementUsed > moveAllowance(effectiveAttacker)) {
         return { accepted: false, proceed: false };
       }
     }
@@ -1953,7 +1959,7 @@ export class GameService implements IGameService {
     if (isBlitz && newMovementUsed !== undefined) {
       this.blitzBlockUsed.add(attackerId);
       this.state.turn.movementUsed.set(attackerId, newMovementUsed);
-      if (newMovementUsed > attacker.stats.MA) {
+      if (newMovementUsed > effectiveAttacker.stats.MA) {
         const check = await withRerollOffer(
           { gameService: this, eventBus: this.eventBus },
           attacker,
