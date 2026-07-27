@@ -10,6 +10,9 @@
  */
 
 import { test, expect } from "../support/engineTest";
+// The aggregate registry, itself assembled from the per-section case
+// modules under `src/testing/cases/` (see docs/E2E_TESTING.md) plus the
+// generated rule-catalog and legacy-sandbox cases.
 import { SCENARIO_CASES } from "../../src/testing/cases";
 import {
   runsForLayer,
