@@ -13,6 +13,8 @@ import type {
 } from "../game/kickoff/KickoffEventManager";
 import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
+import { InducementRuleProfile } from "../types/Inducements";
+import { InducementSelectionLine } from "../game/inducements/rules";
 
 export interface GridPosition {
   x: number;
@@ -113,6 +115,17 @@ export type HeadlessCommand =
   | { type: "use-reaction"; accept: boolean }
   | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
+  | { type: "use-apothecary"; accept: boolean }
+  // Sevens pregame inducements
+  | { type: "offer-inducements" }
+  | {
+      type: "select-inducement";
+      teamId: string;
+      inducement: string;
+      quantity: number;
+    }
+  | { type: "remove-inducement"; teamId: string; inducement: string }
+  | { type: "confirm-inducements"; teamId: string }
   // Queries (never mutate state)
   | { type: "state" }
   | { type: "legal-actions"; playerId?: string };
@@ -194,6 +207,17 @@ export type PendingDecision =
       chooserTeamId: string;
       passerId: string;
       candidates: { playerId: string; modifier: number }[];
+    }
+  | {
+      /** An owned, unused Apothecary may patch up an eligible KO/casualty. */
+      type: "apothecary";
+      id: string;
+      chooserTeamId: string;
+      playerId: string;
+      resultKind: "ko" | "casualty";
+      location?: "pitch" | "crowd";
+      position?: GridPosition;
+      casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
     };
 
 export interface EmittedEvent {
@@ -248,4 +272,11 @@ export interface CommandResponse {
   pendingDecision: PendingDecision | null;
   /** Populated for the legal-actions query */
   legalActions?: LegalActions;
+  /** Populated for the offer-inducements query */
+  inducementOffer?: {
+    profile: InducementRuleProfile;
+    budgets: Record<string, number>;
+    selections: Record<string, InducementSelectionLine[]>;
+    confirmed: Record<string, boolean>;
+  };
 }

@@ -69,5 +69,7 @@ export interface GameState {
   bribes?: Record<string, number>;
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
+  /** Sevens inducements/Apothecary state; absent = no inducements this match. */
+  inducements?: import("./Inducements").InducementsMatchState;
 }
 import { BlockReplacement } from "./BlockReplacement";

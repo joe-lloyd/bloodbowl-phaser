@@ -33,6 +33,7 @@ import {
   isBlockReplacement,
 } from "../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
+import { Inducement } from "../types/Inducements";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
@@ -100,6 +101,15 @@ const COMMAND_SHAPES: Record<
   "use-reaction": { accept: "boolean" },
   "choose-interception": {},
   touchback: { playerId: "string" },
+  "use-apothecary": { accept: "boolean" },
+  "offer-inducements": {},
+  "select-inducement": {
+    teamId: "string",
+    inducement: "string",
+    quantity: "number",
+  },
+  "remove-inducement": { teamId: "string", inducement: "string" },
+  "confirm-inducements": { teamId: "string" },
   state: {},
   "legal-actions": {},
 };
@@ -114,6 +124,7 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "use-reaction": "reaction",
   "choose-interception": "interception",
   touchback: "touchback",
+  "use-apothecary": "apothecary",
   "kickoff-select-player": "kickoff-event",
   "kickoff-move-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",
@@ -151,6 +162,16 @@ export class HeadlessGame {
     this.autoStartOnReady = options.autoStartOnReady !== false;
     this.kickingTeamId = options.matchSave?.drive.kickingTeamId ?? null;
     this.subscribeToAllEvents();
+
+    // A restored save mid-Apothecary-decision has already re-armed the
+    // engine's DecisionService (see GameService's constructor); mirror the
+    // same pending state into the protocol surface so a query right after
+    // construction sees it without needing a fresh DecisionRequested event.
+    const restoredApothecary =
+      this.ctx.gameService.getState().inducements?.pendingApothecaryDecision;
+    if (restoredApothecary) {
+      this.pending = restoredApothecary;
+    }
   }
 
   // ===== Public API =====
@@ -179,6 +200,11 @@ export class HeadlessGame {
     if (cmd.type === "legal-actions") {
       const response = this.respond(true);
       response.legalActions = this.enumerateLegalActions(cmd.playerId);
+      return response;
+    }
+    if (cmd.type === "offer-inducements") {
+      const response = this.respond(true);
+      response.inducementOffer = this.ctx.gameService.getInducementOffer();
       return response;
     }
 
@@ -633,6 +659,41 @@ export class HeadlessGame {
         }
         break;
       }
+      case "use-apothecary": {
+        const pending = this.takePending("apothecary");
+        if (!gs.answerApothecary(cmd.accept)) {
+          this.pending = pending;
+          throw new Error("no-apothecary-awaiting");
+        }
+        break;
+      }
+
+      // --- Sevens pregame inducements ---
+      case "offer-inducements":
+        // Handled as a query above `dispatch`; never reached here.
+        break;
+      case "select-inducement": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.selectInducement(
+          cmd.teamId,
+          cmd.inducement as Inducement,
+          cmd.quantity
+        );
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
+      case "remove-inducement": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.removeInducement(cmd.teamId, cmd.inducement as Inducement);
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
+      case "confirm-inducements": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.confirmInducements(cmd.teamId);
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
     }
   }
 
@@ -694,6 +755,17 @@ export class HeadlessGame {
           chooserTeamId: data.chooserTeamId,
           passerId: data.passerId,
           candidates: data.candidates,
+        };
+      } else if (data?.type === "apothecary") {
+        this.pending = {
+          type: "apothecary",
+          id: data.id,
+          chooserTeamId: data.chooserTeamId,
+          playerId: data.playerId,
+          resultKind: data.resultKind,
+          location: data.location,
+          position: data.position,
+          casualtyType: data.casualtyType,
         };
       } else {
         return;

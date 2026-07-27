@@ -14,6 +14,7 @@ import { GameEventNames } from "../../types/events";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
+import { offerApothecary } from "../inducements/apothecary";
 
 export class CrowdInjuryOperation extends GameOperation {
   public readonly name = "CrowdInjury";
@@ -70,10 +71,19 @@ export class CrowdInjuryOperation extends GameOperation {
         );
         movePlayerToBox(player, { box: "reserves" });
         break;
-      case InjuryResult.KO:
+      case InjuryResult.KO: {
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-        movePlayerToBox(player, { box: "ko" });
+        // A crowd KO's Apothecary patch-up moves the player to Reserves
+        // rather than back onto the pitch — there is no square to return to.
+        const patchedUp = await offerApothecary(gameService, eventBus, player, {
+          resultKind: "ko",
+          location: "crowd",
+        });
+        if (!patchedUp) {
+          movePlayerToBox(player, { box: "ko" });
+        }
         break;
+      }
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         movePlayerToBox(player, { box: "casualty" });

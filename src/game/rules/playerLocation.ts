@@ -27,6 +27,12 @@ export interface PlayerDestination {
   position?: { x: number; y: number };
   /** `casualty` only: Dead rather than Injured. */
   dead?: boolean;
+  /**
+   * `pitch` only: override the default Active status — an Apothecary
+   * patch-up returns a Knocked Out player to their square Stunned rather
+   * than standing.
+   */
+  status?: PlayerStatus.ACTIVE | PlayerStatus.STUNNED;
 }
 
 /**
@@ -82,7 +88,7 @@ export function movePlayerToBox(
         );
       }
       player.gridPosition = { ...destination.position };
-      player.status = PlayerStatus.ACTIVE;
+      player.status = destination.status ?? PlayerStatus.ACTIVE;
       break;
     case "reserves":
       player.status = PlayerStatus.RESERVE;

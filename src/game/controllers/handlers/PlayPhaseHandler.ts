@@ -212,6 +212,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.UI_InterceptionResponse, (data) => {
       this.gameService.answerInterception(data.playerId);
     });
+    this.register(GameEventNames.UI_ApothecaryResponse, (data) => {
+      this.gameService.answerApothecary(data.accept);
+    });
 
     // Push Follow Up Response — the follow-up move is free (no movement
     // cost, no dice), so it must NOT go through movePlayer

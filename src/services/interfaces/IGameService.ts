@@ -44,6 +44,41 @@ export interface IGameService {
   answerReaction(accept: boolean): boolean;
   /** Answer a pending interception decision; undefined playerId declines */
   answerInterception(playerId?: string): boolean;
+  /** Answer a pending Apothecary decision; false when none is pending */
+  answerApothecary(accept: boolean): boolean;
+
+  // Sevens inducements
+  /**
+   * Commit a confirmed pregame inducement selection into match-scoped state
+   * (budgets/profile resolved once, inventory copied in — not the roster).
+   */
+  commitInducements(
+    profile: import("@/types/Inducements").InducementRuleProfile,
+    budgets: Record<string, number>,
+    inventory: import("@/types/Inducements").InducementInventoryEntry[]
+  ): void;
+  /** The current pregame offer: catalog/budget plus each team's selection. */
+  getInducementOffer(): {
+    profile: import("@/types/Inducements").InducementRuleProfile;
+    budgets: Record<string, number>;
+    selections: Record<
+      string,
+      import("@/game/inducements/rules").InducementSelectionLine[]
+    >;
+    confirmed: Record<string, boolean>;
+  };
+  /** Set (or clear, at quantity 0) one line of a team's pregame selection. */
+  selectInducement(
+    teamId: string,
+    inducement: import("@/types/Inducements").Inducement,
+    quantity: number
+  ): { ok: boolean; errors: string[] };
+  removeInducement(
+    teamId: string,
+    inducement: import("@/types/Inducements").Inducement
+  ): { ok: boolean; errors: string[] };
+  /** Confirm a team's pregame selection; commits once both teams have. */
+  confirmInducements(teamId: string): { ok: boolean; errors: string[] };
 
   // Setup
   startSetup(startingTeamId?: string): void;

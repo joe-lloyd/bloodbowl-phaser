@@ -83,11 +83,48 @@ export interface InterceptionDecisionAnswer {
   playerId?: string;
 }
 
+/** Where a Knocked Out result happened — changes the Apothecary patch-up. */
+export type ApothecaryLocation = "pitch" | "crowd";
+
+/** The three casualty results a Sevens Apothecary may patch up. */
+export type ApothecaryCasualtyType = "badly-hurt" | "seriously-hurt" | "dead";
+
+export type ApothecaryResultKind = "ko" | "casualty";
+
+/**
+ * An owned, unused Apothecary is offered once an eligible Knocked Out or
+ * casualty result is known, before the player's final placement. Declining
+ * leaves the Apothecary available for a later eligible result this match;
+ * accepting always consumes it, win or lose the patch-up roll. Carries a
+ * stable `id` and every field the resolution needs so a save/resume can
+ * re-arm and resolve the same decision without re-rolling anything.
+ */
+export interface ApothecaryDecisionRequest {
+  type: "apothecary";
+  id: string;
+  /** The injured player's own team; only its coach may answer. */
+  chooserTeamId: string;
+  playerId: string;
+  resultKind: ApothecaryResultKind;
+  /** KO only: on-pitch Stunned vs crowd-KO Reserves. */
+  location?: ApothecaryLocation;
+  /** On-pitch KO only: the square to return the player to if patched up. */
+  position?: { x: number; y: number };
+  /** Casualty only: which of the three eligible results was rolled. */
+  casualtyType?: ApothecaryCasualtyType;
+}
+
+export interface ApothecaryDecisionAnswer {
+  accept: boolean;
+}
+
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
-  | InterceptionDecisionRequest;
+  | InterceptionDecisionRequest
+  | ApothecaryDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
-  | InterceptionDecisionAnswer;
+  | InterceptionDecisionAnswer
+  | ApothecaryDecisionAnswer;

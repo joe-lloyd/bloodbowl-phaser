@@ -175,6 +175,7 @@ export enum GameEventNames {
   UI_RerollResponse = "ui:rerollResponse",
   UI_ReactionResponse = "ui:reactionResponse",
   UI_InterceptionResponse = "ui:interceptionResponse",
+  UI_ApothecaryResponse = "ui:apothecaryResponse",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
@@ -735,6 +736,7 @@ export interface UIEvents {
   [GameEventNames.UI_RerollResponse]: import("./decisions").RerollDecisionAnswer;
   [GameEventNames.UI_ReactionResponse]: import("./decisions").ReactionDecisionAnswer;
   [GameEventNames.UI_InterceptionResponse]: import("./decisions").InterceptionDecisionAnswer;
+  [GameEventNames.UI_ApothecaryResponse]: import("./decisions").ApothecaryDecisionAnswer;
 
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;

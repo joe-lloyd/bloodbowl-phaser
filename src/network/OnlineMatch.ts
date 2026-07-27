@@ -108,6 +108,7 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_RerollResponse,
   GameEventNames.UI_ReactionResponse,
   GameEventNames.UI_InterceptionResponse,
+  GameEventNames.UI_ApothecaryResponse,
   GameEventNames.UI_ConfirmationResult,
   GameEventNames.UI_CoinFlipComplete,
   GameEventNames.UI_SetupAction,
@@ -405,6 +406,11 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       answerInterception: (playerId?: string) => {
         if (game.pendingDecision()?.type !== "interception") return false;
         executeAsHost({ type: "choose-interception", playerId });
+        return true;
+      },
+      answerApothecary: (accept: boolean) => {
+        if (game.pendingDecision()?.type !== "apothecary") return false;
+        executeAsHost({ type: "use-apothecary", accept });
         return true;
       },
       finishActivation: (playerId: string) => {

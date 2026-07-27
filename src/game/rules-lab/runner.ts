@@ -115,6 +115,8 @@ function answerDecision(
       )[0];
       return { type: "choose-interception", playerId: best?.playerId };
     }
+    case "apothecary":
+      return { type: "use-apothecary", accept: policy.useApothecary ?? false };
   }
 }
 
