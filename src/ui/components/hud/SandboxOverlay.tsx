@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus, useEventEmit } from "../../hooks/useEventBus";
 import { SCENARIOS } from "../../../data/scenarios";
@@ -19,7 +18,6 @@ import {
 import { findSeed, RuleConfig } from "../../../game/rules-lab";
 import { SkillRegistry } from "../../../game/skills";
 import { SkillCategory, SkillType } from "../../../types/Skills";
-import { Button } from "../componentWarehouse/Button";
 import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
@@ -88,7 +86,6 @@ const selectClass =
  */
 export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   const emit = useEventEmit(eventBus);
-  const navigate = useNavigate();
 
   const [init] = useState(formStateFromUrl);
   const [topic, setTopic] = useState(init.topic);
@@ -364,13 +361,6 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             )}
           </div>
         )}
-
-        <Button
-          onClick={() => navigate("/")}
-          className="text-xs py-1.5 bg-gray-600 hover:bg-gray-500 border-gray-400"
-        >
-          EXIT
-        </Button>
       </div>
     </div>
   );

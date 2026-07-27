@@ -30,10 +30,32 @@ import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
+import { MatchOptionsMenu } from "./MatchOptionsMenu";
+import {
+  computeMatchOptionsMenu,
+  MatchOptionsMenuActionId,
+  MatchOptionsMenuContext,
+} from "./computeMatchOptionsMenu";
+import type { OpponentConnectionState } from "../../../firebase/lobby";
+
+/** Online-only entries/state, supplied by OnlinePlayPage (GamePage forwards
+ *  it through untouched — GameHUD has no lobby access of its own). */
+export interface OnlineMatchMenuProps {
+  role: "host" | "guest";
+  opponentName: string;
+  connection: OpponentConnectionState;
+  endRequest: "none" | "mine" | "theirs";
+  onSaveAndExit: () => void;
+  onRequestEndMatch: () => void;
+  onCancelEndMatch: () => void;
+  onForceAbandon: () => void;
+  onReconnect: () => void;
+}
 
 interface GameHUDProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
+  onlineMenu?: OnlineMatchMenuProps;
 }
 
 interface TurnData {
@@ -51,6 +73,7 @@ interface TurnData {
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
+  onlineMenu,
 }) => {
   const navigate = useNavigate();
   const [turnData, setTurnData] = useState<TurnData>({
@@ -160,17 +183,71 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     container.gameService.endTurn();
   };
 
-  const leaveLocalMatch = () => {
-    if (
-      turnData.phase !== GamePhase.GAME_OVER &&
-      !window.confirm(
-        "Abandon this local match and discard its saved progress?"
-      )
-    ) {
-      return;
+  // Context-derived menu: recomputed every render so enabled state (e.g. an
+  // opponent reconnecting, or an end-match request landing) always reflects
+  // the live match/connection state rather than a stale snapshot taken when
+  // the menu was opened.
+  const menuContext: MatchOptionsMenuContext =
+    mode === "sandbox"
+      ? { kind: "sandbox" }
+      : onlineMenu
+        ? {
+            kind: "online",
+            role: onlineMenu.role,
+            opponentName: onlineMenu.opponentName,
+            connection: onlineMenu.connection,
+            endRequest: onlineMenu.endRequest,
+          }
+        : { kind: "local", matchOver: turnData.phase === GamePhase.GAME_OVER };
+
+  const menuEntries = computeMatchOptionsMenu(menuContext);
+
+  // A failure here must never strand the coach mid-match with their state
+  // silently discarded (e.g. a save cleared but the navigate away throwing) —
+  // report it and leave them exactly where they were, free to retry.
+  const reportMenuActionFailed = (error: unknown) => {
+    console.error("[MatchOptionsMenu] action failed:", error);
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      "That didn't go through — you're still in the match. Try again."
+    );
+  };
+
+  const handleMenuSelect = (id: MatchOptionsMenuActionId) => {
+    try {
+      switch (id) {
+        case "exit-sandbox":
+        case "return-to-menu":
+          navigate("/");
+          return;
+        case "abandon-match":
+          // Navigate first: if leaving the page fails for any reason, the
+          // save is still intact and the match still resumable.
+          navigate("/");
+          clearMatchSave();
+          return;
+        case "save-and-exit":
+        case "leave-match":
+          onlineMenu?.onSaveAndExit();
+          return;
+        case "request-end-match":
+          onlineMenu?.onRequestEndMatch();
+          return;
+        case "cancel-end-match":
+          onlineMenu?.onCancelEndMatch();
+          return;
+        case "force-abandon":
+          onlineMenu?.onForceAbandon();
+          return;
+        case "reconnect":
+          onlineMenu?.onReconnect();
+          return;
+        default:
+          return;
+      }
+    } catch (error) {
+      reportMenuActionFailed(error);
     }
-    clearMatchSave();
-    navigate("/");
   };
 
   return (
@@ -179,17 +256,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div className="flex flex-1 flex-col space-between w-full gap-4">
           <ScoreBoard eventBus={eventBus} />
           <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
-          {mode === "normal" && !getActiveOnlineMatch() && (
-            <button
-              onClick={leaveLocalMatch}
-              className="rounded border border-bb-dark-gold bg-bb-deep-crimson
-                px-3 py-2 font-heading uppercase text-bb-parchment"
-            >
-              {turnData.phase === GamePhase.GAME_OVER
-                ? "Leave results"
-                : "Abandon match"}
-            </button>
-          )}
           <div className="flex flex-1 flex-col gap-4 w-full">
             <SetupControls eventBus={eventBus} />
             <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
@@ -202,6 +268,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
           <PlayerInfoPanel eventBus={eventBus} />
           <KickoffEventOverlay eventBus={eventBus} />
+          <div className="mt-auto pointer-events-auto">
+            <MatchOptionsMenu
+              entries={menuEntries}
+              onSelect={handleMenuSelect}
+            />
+          </div>
         </>
       }
       overlays={
