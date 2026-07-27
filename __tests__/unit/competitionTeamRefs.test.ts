@@ -7,22 +7,9 @@ vi.mock("../../src/firebase/config", () => ({
   getDb: vi.fn(),
 }));
 
-const sharedTeamsById = new Map<string, { team: Team; ownerName: string }>();
-vi.mock("../../src/firebase/sharedTeamRepository", () => ({
-  getSharedTeam: vi.fn(async (ownerUid: string, teamId: string) => {
-    const shared = sharedTeamsById.get(`${ownerUid}_${teamId}`);
-    if (!shared) return null;
-    return {
-      id: `${ownerUid}_${teamId}`,
-      ownerUid,
-      ownerName: shared.ownerName,
-      teamId,
-      team: shared.team,
-      publishedAt: 0,
-      updatedAt: 0,
-    };
-  }),
-  fetchSharedTeams: vi.fn(async () => []),
+const otherCoachTeams: { ownerUid: string; team: Team }[] = [];
+vi.mock("../../src/firebase/cloudTeamRepository", () => ({
+  fetchAllCoachTeams: vi.fn(async () => otherCoachTeams),
 }));
 
 import {
@@ -64,7 +51,6 @@ function localEntrant(overrides: Partial<CompetitionEntrant> = {}): CompetitionE
     name: "Home (stale)",
     rosterName: "Human",
     seed: 1,
-    source: "local",
     ...overrides,
   };
 }
@@ -72,35 +58,34 @@ function localEntrant(overrides: Partial<CompetitionEntrant> = {}): CompetitionE
 beforeEach(() => {
   localStorage.clear();
   setTeamRepository(null);
-  sharedTeamsById.clear();
+  otherCoachTeams.length = 0;
 });
 
 describe("fetchEntrantTeam", () => {
-  it("resolves a local entrant through this coach's own team library", async () => {
+  it("resolves an entrant through this coach's own team library", async () => {
     saveTeams([team("home")]);
     const resolved = await fetchEntrantTeam(localEntrant());
     expect(resolved?.id).toBe("home");
   });
 
-  it("returns null when a local entrant's team cannot be found", async () => {
-    const resolved = await fetchEntrantTeam(localEntrant({ teamId: "missing" }));
-    expect(resolved).toBeNull();
-  });
-
-  it("resolves a shared entrant through the published snapshot, not the owner's private library", async () => {
-    sharedTeamsById.set("coach-1_away", {
-      team: team("away", { name: "Away Shared" }),
-      ownerName: "Morg",
+  it("resolves another coach's entrant through the live cross-coach read", async () => {
+    otherCoachTeams.push({
+      ownerUid: "coach-1",
+      team: team("away", { name: "Away Live" }),
     });
     const resolved = await fetchEntrantTeam(
       localEntrant({
         id: "e2",
         teamId: "away",
-        source: "shared",
         ownerUid: "coach-1",
       })
     );
-    expect(resolved?.name).toBe("Away Shared");
+    expect(resolved?.name).toBe("Away Live");
+  });
+
+  it("returns null when the entrant's team cannot be found anywhere", async () => {
+    const resolved = await fetchEntrantTeam(localEntrant({ teamId: "missing" }));
+    expect(resolved).toBeNull();
   });
 
   it("a skill gained after round one is present when round two's entrant is resolved", async () => {

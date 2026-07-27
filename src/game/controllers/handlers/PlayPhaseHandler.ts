@@ -5,6 +5,7 @@ import { IGameService } from "../../../services/interfaces/IGameService";
 import { GameEventMap, IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
+import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { BombSprite } from "../../elements/BombSprite";
 import { GameConfig } from "../../../config/GameConfig";
@@ -131,8 +132,9 @@ export class PlayPhaseHandler implements PhaseHandler {
         state.activePlayer.id === data.attackerId;
 
       if (isBlitzBlock && attacker) {
+        const effectiveAttacker = withDriveModifiers(attacker, state);
         const used = this.gameService.getMovementUsed(data.attackerId);
-        if (used + 1 > moveAllowance(attacker)) {
+        if (used + 1 > moveAllowance(effectiveAttacker)) {
           // Even a Rush can't pay for the block any more
           this.eventBus.emit(
             GameEventNames.UI_Notification,
@@ -141,7 +143,7 @@ export class PlayPhaseHandler implements PhaseHandler {
           this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
           return;
         }
-        if (used + 1 > attacker.stats.MA) {
+        if (used + 1 > effectiveAttacker.stats.MA) {
           this.pendingBlitzBlock = data;
           this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
             actionId: "blitz-rush-confirm",
@@ -211,6 +213,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     });
     this.register(GameEventNames.UI_InterceptionResponse, (data) => {
       this.gameService.answerInterception(data.playerId);
+    });
+    this.register(GameEventNames.UI_ApothecaryResponse, (data) => {
+      this.gameService.answerApothecary(data.accept);
     });
 
     // Push Follow Up Response — the follow-up move is free (no movement

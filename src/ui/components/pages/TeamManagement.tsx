@@ -7,6 +7,10 @@ import {
   seedAllRosterTeams,
   deleteAllSeedTeams,
 } from "../../../game/managers/TeamManager";
+import { getTeamMode } from "../../../game/rules/teamLifecycle";
+import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { validateInsignificant } from "../../../game/rules/insignificant";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
@@ -16,13 +20,7 @@ import {
   SecondaryButton,
 } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
-import { useAuth } from "../../hooks/useAuth";
-import { useCoachProfile } from "../../hooks/useCoachProfile";
-import {
-  fetchPublishedTeamIds,
-  publishTeam,
-  unpublishTeam,
-} from "../../../firebase/sharedTeamRepository";
+import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -73,53 +71,28 @@ function getPlayerSpriteUrl(
  * Team Management Component
  * Lists all teams with create/edit/delete functionality
  */
+/** Draft/active mode plus shared roster legality, for the team-list badge. */
+function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
+  const mode = getTeamMode(team);
+  let legal = true;
+  try {
+    const roster = getRosterByRosterName(team.rosterName);
+    legal =
+      validateRosterLegality(team, roster).length === 0 &&
+      !validateInsignificant(team.players);
+  } catch {
+    legal = false;
+  }
+  return { mode, legal };
+}
+
 export function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [published, setPublished] = useState<Set<string>>(new Set());
-  const [publishing, setPublishing] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const coach = useCoachProfile(user);
 
   useEffect(() => {
     setTeams(loadTeams());
   }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setPublished(new Set());
-      return;
-    }
-    void fetchPublishedTeamIds(user.uid)
-      .then(setPublished)
-      .catch(() => setPublished(new Set()));
-  }, [user]);
-
-  const handlePublish = async (team: Team) => {
-    if (!user) return;
-    setPublishing(team.id);
-    try {
-      await publishTeam(user.uid, coach.effectiveName, team);
-      setPublished((current) => new Set(current).add(team.id));
-    } finally {
-      setPublishing(null);
-    }
-  };
-
-  const handleUnpublish = async (team: Team) => {
-    if (!user) return;
-    setPublishing(team.id);
-    try {
-      await unpublishTeam(user.uid, team.id);
-      setPublished((current) => {
-        const next = new Set(current);
-        next.delete(team.id);
-        return next;
-      });
-    } finally {
-      setPublishing(null);
-    }
-  };
 
   const handleCreateTeam = () => {
     navigate("/build-team/new-team");
@@ -185,7 +158,7 @@ export function TeamManagement() {
               onClick={() => navigate("/shared-teams")}
               className="px-6 py-5 text-lg"
             >
-              Shared Team Library
+              Browse Other Coaches
             </SecondaryButton>
             <Button
               onClick={handleCreateTeam}
@@ -230,8 +203,34 @@ export function TeamManagement() {
 
                 <div className="p-8 flex-1 flex flex-col">
                   <div className="mb-8">
-                    <div className="font-heading font-bold text-sm uppercase text-bb-dark-gold tracking-widest mb-2 border-b border-bb-dark-gold/30 pb-2 inline-block">
-                      {team.rosterName}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-heading font-bold text-sm uppercase text-bb-dark-gold tracking-widest border-b border-bb-dark-gold/30 pb-2 inline-block">
+                        {team.rosterName}
+                      </span>
+                      {(() => {
+                        const status = teamStatus(team);
+                        return (
+                          <>
+                            <span
+                              className={`rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${
+                                status.mode === "active"
+                                  ? "bg-bb-gold text-bb-ink-blue"
+                                  : "bg-white/20 text-bb-parchment"
+                              }`}
+                            >
+                              {status.mode}
+                            </span>
+                            {!status.legal && (
+                              <span
+                                className="rounded bg-bb-blood-red px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white"
+                                title="Not yet legal for play or competition entry"
+                              >
+                                Illegal
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight drop-shadow-md">
                       {team.name}
@@ -400,6 +399,11 @@ export function TeamManagement() {
                     </div>
                   </details>
 
+                  <PendingDevelopmentPanel
+                    team={team}
+                    onChange={() => setTeams(loadTeams())}
+                  />
+
                   {/* Spacer to push buttons down */}
                   <div className="flex-1"></div>
 
@@ -418,28 +422,6 @@ export function TeamManagement() {
                       🗑️
                     </DangerButton>
                   </div>
-                  {user && (
-                    <div className="flex gap-2 mt-2">
-                      <SecondaryButton
-                        disabled={publishing === team.id}
-                        onClick={() => void handlePublish(team)}
-                        className="flex-1 !text-sm !py-2 !my-0"
-                      >
-                        {published.has(team.id)
-                          ? "Refresh published snapshot"
-                          : "Publish team"}
-                      </SecondaryButton>
-                      {published.has(team.id) && (
-                        <button
-                          disabled={publishing === team.id}
-                          onClick={() => void handleUnpublish(team)}
-                          className="font-heading text-sm underline text-bb-parchment"
-                        >
-                          Unpublish
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

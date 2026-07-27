@@ -128,6 +128,54 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "choose-interception", playerId });
     return true;
   }
+  answerApothecary(accept: boolean): boolean {
+    if (this.pendingDecision()?.type !== "apothecary") return false;
+    this.send({ type: "use-apothecary", accept });
+    return true;
+  }
+  commitInducements(
+    profile: import("../types/Inducements").InducementRuleProfile,
+    budgets: Record<string, number>,
+    inventory: import("../types/Inducements").InducementInventoryEntry[]
+  ): void {
+    // Pregame inducements are resolved host-side via the authoritative
+    // InducementSession/confirm-inducements command; the guest's replica
+    // only ever reflects the resulting state through a synced snapshot.
+    this.inner.commitInducements(profile, budgets, inventory);
+  }
+  getInducementOffer() {
+    // Known limitation: the catalog/profile/budget always match the host
+    // (pure functions of each team's TV, which does sync), but the
+    // in-progress selections/confirmed flags are NOT part of GameSnapshot —
+    // only the *committed* inventory is (GameState.inducements, post-
+    // confirm). Pre-confirm, this reflects only this replica's own
+    // never-mutated session, not the host's live in-progress picks. Real
+    // Blood Bowl inducement selection is simultaneous/blind before reveal,
+    // so a coach not seeing the opponent's uncommitted choices is correct
+    // behavior; what is missing is this team's OWN selection echoing back
+    // before the next snapshot, which the optimistic `select`/`remove`
+    // return values above already paper over for the common case.
+    return this.inner.getInducementOffer();
+  }
+  selectInducement(
+    teamId: string,
+    inducement: import("../types/Inducements").Inducement,
+    quantity: number
+  ): { ok: boolean; errors: string[] } {
+    this.send({ type: "select-inducement", teamId, inducement, quantity });
+    return { ok: true, errors: [] }; // optimistic; a rejection self-corrects on sync
+  }
+  removeInducement(
+    teamId: string,
+    inducement: import("../types/Inducements").Inducement
+  ): { ok: boolean; errors: string[] } {
+    this.send({ type: "remove-inducement", teamId, inducement });
+    return { ok: true, errors: [] };
+  }
+  confirmInducements(teamId: string): { ok: boolean; errors: string[] } {
+    this.send({ type: "confirm-inducements", teamId });
+    return { ok: true, errors: [] };
+  }
   isSetupComplete(teamId: string): boolean {
     return this.getSetupStatus(teamId)?.canConfirm ?? false;
   }
@@ -343,6 +391,8 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "cancel-action", playerId });
     return true;
   }
+  /** Engine-internal (fired from Operations, which only ever run host-side). */
+  commitAction(_playerId: string): void {}
   async movePlayer(
     playerId: string,
     path: { x: number; y: number }[]
@@ -447,6 +497,17 @@ export class NetworkedGameService implements IGameService {
       playerId: passerId,
       x: targetX,
       y: targetY,
+    });
+    return { success: response.ok, result: response.reason };
+  }
+  async handOffBall(
+    passerId: string,
+    targetPlayerId: string
+  ): Promise<{ success: boolean; result?: string }> {
+    const response = await this.dispatch({
+      type: "handoff",
+      playerId: passerId,
+      targetId: targetPlayerId,
     });
     return { success: response.ok, result: response.reason };
   }

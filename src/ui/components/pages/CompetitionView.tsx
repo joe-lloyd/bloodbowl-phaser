@@ -24,6 +24,7 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
+import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
 
 type DraftScores = Record<string, { home: string; away: string }>;
 
@@ -80,6 +81,40 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     fixtureId: fixture.id,
   });
 
+  const withdraw = async (entrantId: string) => {
+    if (!window.confirm("Withdraw this team from the competition?")) return;
+    try {
+      const updated = await withdrawFromCompetition(
+        { competitionType: type, competitionId: competition.id },
+        entrantId
+      );
+      setCompetition(updated);
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  /** Match launch is refused when the profile requires development to be
+   *  resolved and either entrant's live roster still has pending work (see
+   *  team-advancement-modes: "Team development is completed from Manage
+   *  Team"). Legacy competitions (no profile) never block. */
+  const blockingDevelopment = (
+    home: Team,
+    homeName: string,
+    away: Team,
+    awayName: string
+  ): string | null => {
+    if (!competition.rosterProfile?.requireDevelopmentComplete) return null;
+    if (hasBlockingPendingDevelopment(home)) {
+      return `${homeName} has unresolved development — resolve it from Manage Team before this fixture.`;
+    }
+    if (hasBlockingPendingDevelopment(away)) {
+      return `${awayName} has unresolved development — resolve it from Manage Team before this fixture.`;
+    }
+    return null;
+  };
+
   const report = async (fixture: CompetitionFixture) => {
     const draft = scores[fixture.id];
     const home = Number(draft?.home);
@@ -93,20 +128,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         contextFor(fixture),
         home,
         away
-      );
-      setCompetition(updated);
-      setError(null);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  };
-
-  const withdraw = async (entrantId: string) => {
-    if (!window.confirm("Withdraw this team from the competition?")) return;
-    try {
-      const updated = await withdrawFromCompetition(
-        { competitionType: type, competitionId: competition.id },
-        entrantId
       );
       setCompetition(updated);
       setError(null);
@@ -137,6 +158,11 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         setError("Could not load one of the entrants' rosters.");
         return;
       }
+      const blocked = blockingDevelopment(team1, home.name, team2, away.name);
+      if (blocked) {
+        setError(blocked);
+        return;
+      }
       clearMatchSave();
       navigate("/play", {
         state: {
@@ -162,6 +188,16 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       ]);
       if (!homeTeam || !awayTeam) {
         setError("Could not load one of the entrants' rosters.");
+        return;
+      }
+      const blocked = blockingDevelopment(
+        homeTeam,
+        home.name,
+        awayTeam,
+        away.name
+      );
+      if (blocked) {
+        setError(blocked);
         return;
       }
       navigate("/online/host", {
@@ -319,9 +355,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           <SectionTitle>Entrants</SectionTitle>
           <div className="flex flex-wrap gap-2">
             {competition.entrants.map((candidate) => {
-              const owned =
-                candidate.source === "local" &&
-                !!getTeamById(candidate.teamId);
+              const owned = !!getTeamById(candidate.teamId);
               return (
                 <div
                   key={candidate.id}

@@ -7,6 +7,7 @@ import {
   dehydrateTeam,
   readStoredTeam,
 } from "../../data/persistence/teamPersistence";
+import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import {
   cleanupDevelopmentSeedData,
   seedDevelopmentData,
@@ -90,7 +91,34 @@ export function saveTeams(teams: Team[]): void {
  * template, so every loaded team is ready to play as-is.
  */
 export function loadTeams(): Team[] {
-  return activeRepository.loadTeams();
+  const teams = activeRepository.loadTeams();
+  teams.forEach((team) => {
+    // Teams saved before firstMatchPlayedAt existed: a team with recorded
+    // win/loss/draw history has necessarily completed a match, so it is
+    // active; an unplayed team is left in draft (see teamLifecycle.ts).
+    backfillFirstMatchPlayedAt(team);
+    migrateAdvancementMode(team);
+  });
+  return teams;
+}
+
+/**
+ * Advancement mode migration (see team-advancement-modes): a legacy team
+ * with SPP or advancement history unambiguously belongs to Advanced League
+ * (the only mode that existed before), so it is migrated and locked
+ * automatically. A blank-slate legacy team has no unambiguous mode — it is
+ * left unset and must be chosen explicitly (TeamBuilder prompts for it)
+ * before the team may enter a competition or earn further progression.
+ */
+function migrateAdvancementMode(team: Team): void {
+  if (team.advancementMode) return;
+  const hasProgressionHistory = team.players.some(
+    (player) => (player.spp ?? 0) > 0 || (player.advancements?.length ?? 0) > 0
+  );
+  if (hasProgressionHistory) {
+    team.advancementMode = "advanced-league";
+    team.advancementModeLocked = true;
+  }
 }
 
 /**

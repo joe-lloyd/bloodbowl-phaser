@@ -12,7 +12,7 @@
  * they use plain adjacency.
  */
 
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
@@ -143,6 +143,12 @@ export function computeActionAvailability(
   const standingEnemies = opponents.filter((o) => onPitch(o) && isStanding(o));
   const downEnemies = opponents.filter((o) => onPitch(o) && isDown(o));
   const standingMates = teammates.filter((t) => onPitch(t) && isStanding(t));
+  // A Hand-off target must be Standing AND still hold its Tackle Zone — a
+  // Distracted team-mate is "Standing" (isStanding above) but is not a legal
+  // target, so this is a narrower list than standingMates.
+  const handoffEligibleMates = teammates.filter(
+    (t) => onPitch(t) && hasTackleZone(t)
+  );
 
   const holdsBall =
     !!ballPosition && ballPosition.x === here.x && ballPosition.y === here.y;
@@ -161,11 +167,14 @@ export function computeActionAvailability(
     !input.hasMovedInAction &&
     downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
   const pass = !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
+  // Reachability form: a legal final square exists that is adjacent to a
+  // Standing, Tackle-Zone-holding team-mate. Possession is not required to
+  // declare — canHaveBall already covers "reachable within movement".
   const handoff =
     !turn.hasHandedOff &&
     !input.hasMovedInAction &&
     canHaveBall &&
-    standingMates.some((t) => canEndAdjacentTo(t.gridPosition!));
+    handoffEligibleMates.some((t) => canEndAdjacentTo(t.gridPosition!));
 
   // Special actions target an already-adjacent Standing opponent.
   const adjacentStandingEnemy = standingEnemies.some(

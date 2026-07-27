@@ -27,12 +27,14 @@ import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { FormationManager } from "../game/managers/FormationManager";
 import { computeActionAvailability } from "../game/rules/actionAvailability";
+import { legalHandoffTargets } from "../game/rules/handoff";
 import {
   BLOCK_REPLACEMENTS,
   BLOCK_REPLACEMENT_DEFINITIONS,
   isBlockReplacement,
 } from "../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
+import { Inducement } from "../types/Inducements";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
@@ -71,7 +73,7 @@ const COMMAND_SHAPES: Record<
   },
   pass: { playerId: "string", x: "number", y: "number" },
   punt: { playerId: "string", x: "number", y: "number" },
-  handoff: { playerId: "string", x: "number", y: "number" },
+  handoff: { playerId: "string", targetId: "string" },
   foul: { playerId: "string", x: "number", y: "number" },
   stab: { attackerId: "string", defenderId: "string" },
   "throw-teammate": {
@@ -100,6 +102,15 @@ const COMMAND_SHAPES: Record<
   "use-reaction": { accept: "boolean" },
   "choose-interception": {},
   touchback: { playerId: "string" },
+  "use-apothecary": { accept: "boolean" },
+  "offer-inducements": {},
+  "select-inducement": {
+    teamId: "string",
+    inducement: "string",
+    quantity: "number",
+  },
+  "remove-inducement": { teamId: "string", inducement: "string" },
+  "confirm-inducements": { teamId: "string" },
   state: {},
   "legal-actions": {},
 };
@@ -114,6 +125,7 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "use-reaction": "reaction",
   "choose-interception": "interception",
   touchback: "touchback",
+  "use-apothecary": "apothecary",
   "kickoff-select-player": "kickoff-event",
   "kickoff-move-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",
@@ -151,6 +163,16 @@ export class HeadlessGame {
     this.autoStartOnReady = options.autoStartOnReady !== false;
     this.kickingTeamId = options.matchSave?.drive.kickingTeamId ?? null;
     this.subscribeToAllEvents();
+
+    // A restored save mid-Apothecary-decision has already re-armed the
+    // engine's DecisionService (see GameService's constructor); mirror the
+    // same pending state into the protocol surface so a query right after
+    // construction sees it without needing a fresh DecisionRequested event.
+    const restoredApothecary =
+      this.ctx.gameService.getState().inducements?.pendingApothecaryDecision;
+    if (restoredApothecary) {
+      this.pending = restoredApothecary;
+    }
   }
 
   // ===== Public API =====
@@ -166,6 +188,15 @@ export class HeadlessGame {
     return this.pending;
   }
 
+  /**
+   * Every event seen since the last command, in emission order. `execute()`
+   * clears this per command; a passive observer (the browser test bridge)
+   * never calls execute, so for it this is the whole match log.
+   */
+  public events(): EmittedEvent[] {
+    return [...this.eventLog];
+  }
+
   public async execute(command: unknown): Promise<CommandResponse> {
     const shapeError = this.validateShape(command);
     if (shapeError) return this.reject(shapeError);
@@ -179,6 +210,11 @@ export class HeadlessGame {
     if (cmd.type === "legal-actions") {
       const response = this.respond(true);
       response.legalActions = this.enumerateLegalActions(cmd.playerId);
+      return response;
+    }
+    if (cmd.type === "offer-inducements") {
+      const response = this.respond(true);
+      response.inducementOffer = this.ctx.gameService.getInducementOffer();
       return response;
     }
 
@@ -463,11 +499,17 @@ export class HeadlessGame {
       case "jump":
         await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
         break;
-      case "pass":
-      case "handoff": {
+      case "pass": {
         const result = await gs.throwBall(cmd.playerId, cmd.x, cmd.y);
         if (!result.success) {
           throw new Error(result.result || "pass-failed");
+        }
+        break;
+      }
+      case "handoff": {
+        const result = await gs.handOffBall(cmd.playerId, cmd.targetId);
+        if (!result.success) {
+          throw new Error(result.result || "handoff-failed");
         }
         break;
       }
@@ -633,6 +675,41 @@ export class HeadlessGame {
         }
         break;
       }
+      case "use-apothecary": {
+        const pending = this.takePending("apothecary");
+        if (!gs.answerApothecary(cmd.accept)) {
+          this.pending = pending;
+          throw new Error("no-apothecary-awaiting");
+        }
+        break;
+      }
+
+      // --- Sevens pregame inducements ---
+      case "offer-inducements":
+        // Handled as a query above `dispatch`; never reached here.
+        break;
+      case "select-inducement": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.selectInducement(
+          cmd.teamId,
+          cmd.inducement as Inducement,
+          cmd.quantity
+        );
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
+      case "remove-inducement": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.removeInducement(cmd.teamId, cmd.inducement as Inducement);
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
+      case "confirm-inducements": {
+        this.assertTeam(cmd.teamId);
+        const result = gs.confirmInducements(cmd.teamId);
+        if (!result.ok) throw new Error(result.errors.join(","));
+        break;
+      }
     }
   }
 
@@ -694,6 +771,17 @@ export class HeadlessGame {
           chooserTeamId: data.chooserTeamId,
           passerId: data.passerId,
           candidates: data.candidates,
+        };
+      } else if (data?.type === "apothecary") {
+        this.pending = {
+          type: "apothecary",
+          id: data.id,
+          chooserTeamId: data.chooserTeamId,
+          playerId: data.playerId,
+          resultKind: data.resultKind,
+          location: data.location,
+          position: data.position,
+          casualtyType: data.casualtyType,
         };
       } else {
         return;
@@ -838,7 +926,7 @@ export class HeadlessGame {
           if (adjacentStanding.length > 0) actions.push("block");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (carriesBall && !state.turn.hasPassed) actions.push("pass");
-          if (carriesBall && !state.turn.hasHandedOff) actions.push("handoff");
+          if (availability.handoff) actions.push("handoff");
           if (!state.turn.hasFouled && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
@@ -896,6 +984,10 @@ export class HeadlessGame {
             .map(({ x, y }) => ({ x, y }) as GridPosition);
           entry.blockTargets = adjacentStanding.map((o) => o.id);
           entry.foulTargets = adjacentDown.map((o) => o.id);
+          entry.handoffTargets = legalHandoffTargets(
+            p,
+            gs.getTeammates(p.id)
+          ).map((mate) => mate.id);
         }
         players.push(entry);
       }

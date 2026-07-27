@@ -1,7 +1,7 @@
 /**
  * Fold a confirmed match's stats summary into each participating player's
  * lifetime `careerStats`. Called once, from the post-match confirmation flow
- * (PostMatchProgression.confirmSpp), after `MatchStats.applySpp` — which
+ * (MatchResultsScreen.confirmSpp), after `MatchStats.applySpp` — which
  * itself refuses to run twice for the same match instance
  * (`this.applied`), so a re-render or re-confirmation cannot fold twice.
  * An abandoned match never calls this, so it contributes nothing.

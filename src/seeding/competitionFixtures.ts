@@ -148,7 +148,6 @@ function toEntrant(
     coachUid: null,
     rosterName: team.rosterName,
     seed: 0, // reassigned by seedEntrants in plan order
-    source: "local",
   };
 }
 

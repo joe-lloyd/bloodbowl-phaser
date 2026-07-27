@@ -7,6 +7,7 @@ import { CasualtyOperation } from "./CasualtyOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, InjuryRollContext } from "../skills";
+import { offerApothecary } from "../inducements/apothecary";
 
 /**
  * InjuryOperation
@@ -104,14 +105,25 @@ export class InjuryOperation extends GameOperation {
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
         player.status = PlayerStatus.STUNNED;
         break;
-      case InjuryResult.KO:
+      case InjuryResult.KO: {
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-        // A Knocked Out player leaves the pitch as part of THIS resolution:
-        // status, pitch occupancy and the board announcement move together,
-        // so later pathing/marking/target selection immediately treat the
-        // square as empty and the player appears once, in the KO box.
-        movePlayerToBox(player, { box: "ko" }, eventBus);
+        // An owned, unused Apothecary gets first say: offer a patch-up
+        // before the player leaves the pitch. Declining (or having none)
+        // falls through to the normal move below.
+        const patchedUp = await offerApothecary(gameService, eventBus, player, {
+          resultKind: "ko",
+          location: "pitch",
+          position: player.gridPosition,
+        });
+        if (!patchedUp) {
+          // A Knocked Out player leaves the pitch as part of THIS resolution:
+          // status, pitch occupancy and the board announcement move together,
+          // so later pathing/marking/target selection immediately treat the
+          // square as empty and the player appears once, in the KO box.
+          movePlayerToBox(player, { box: "ko" }, eventBus);
+        }
         break;
+      }
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         player.status = PlayerStatus.INJURED;

@@ -27,9 +27,13 @@ import {
   PlayerStatus,
 } from "../../types/Player";
 import {
+  DraftRecord,
   Formation,
+  MatchedPlayAllocation,
+  PendingDevelopment,
   RosterName,
   Team,
+  TeamAdvancementMode,
   TeamColors,
   calculateTeamValue,
 } from "../../types/Team";
@@ -80,6 +84,13 @@ export interface StoredTeam {
   casualties: number;
   seedMetadata?: SeedMetadata;
   activeCompetitionId?: string;
+  /** Draft until this is set — see teamLifecycle.ts. */
+  firstMatchPlayedAt?: number;
+  advancementMode?: TeamAdvancementMode;
+  advancementModeLocked?: boolean;
+  pendingDevelopment?: PendingDevelopment[];
+  matchedPlayAllocations?: MatchedPlayAllocation[];
+  draftHistory?: DraftRecord[];
 }
 
 /**
@@ -310,6 +321,27 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
     ...(raw.activeCompetitionId
       ? { activeCompetitionId: raw.activeCompetitionId as string }
       : {}),
+    ...(raw.firstMatchPlayedAt != null
+      ? { firstMatchPlayedAt: Number(raw.firstMatchPlayedAt) }
+      : {}),
+    ...(raw.advancementMode
+      ? { advancementMode: raw.advancementMode as TeamAdvancementMode }
+      : {}),
+    ...(raw.advancementModeLocked
+      ? { advancementModeLocked: Boolean(raw.advancementModeLocked) }
+      : {}),
+    ...(Array.isArray(raw.pendingDevelopment)
+      ? { pendingDevelopment: raw.pendingDevelopment as PendingDevelopment[] }
+      : {}),
+    ...(Array.isArray(raw.matchedPlayAllocations)
+      ? {
+          matchedPlayAllocations:
+            raw.matchedPlayAllocations as MatchedPlayAllocation[],
+        }
+      : {}),
+    ...(Array.isArray(raw.draftHistory)
+      ? { draftHistory: raw.draftHistory as DraftRecord[] }
+      : {}),
   };
   team.teamValue = calculateTeamValue(team);
   return { team, warnings };
@@ -344,6 +376,20 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
       : {}),
+    ...(team.firstMatchPlayedAt != null
+      ? { firstMatchPlayedAt: team.firstMatchPlayedAt }
+      : {}),
+    ...(team.advancementMode ? { advancementMode: team.advancementMode } : {}),
+    ...(team.advancementModeLocked
+      ? { advancementModeLocked: team.advancementModeLocked }
+      : {}),
+    ...(team.pendingDevelopment
+      ? { pendingDevelopment: team.pendingDevelopment }
+      : {}),
+    ...(team.matchedPlayAllocations
+      ? { matchedPlayAllocations: team.matchedPlayAllocations }
+      : {}),
+    ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
   };
 }
 

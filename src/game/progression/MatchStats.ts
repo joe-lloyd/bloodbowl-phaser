@@ -22,6 +22,14 @@ export interface PlayerMatchStats {
   /** Squares moved (walked or rushed) — feeds `careerStats.squaresMoved`. */
   yards: number;
   injuriesSuffered: number;
+  /**
+   * Count of touchdowns manually awarded for SPP purposes after a
+   * concession (rulebook: the non-conceding team is credited a touchdown's
+   * worth of SPP for the missed drive). Tracked separately from
+   * `touchdowns` so the displayed touchdown statistic only ever reflects a
+   * touchdown actually scored on the pitch.
+   */
+  awardedTouchdownSpp?: number;
   sppEarned: number;
 }
 
@@ -34,6 +42,8 @@ export interface MatchStatsSnapshot {
   version: 1;
   progressionEnabled: boolean;
   applied: boolean;
+  /** The conceding team's id when SPP was applied with a concession. */
+  concedingTeamId?: string;
   players: PlayerMatchStats[];
 }
 
@@ -64,6 +74,7 @@ function emptyStats(player: Player): PlayerMatchStats {
     blocks: 0,
     yards: 0,
     injuriesSuffered: 0,
+    awardedTouchdownSpp: 0,
     sppEarned: 0,
   };
 }
@@ -76,6 +87,7 @@ export function sppFromMatchStats(stats: PlayerMatchStats): number {
     stats.interceptions * SPP_VALUES.interception +
     stats.casualties * SPP_VALUES.casualty +
     stats.touchdowns * SPP_VALUES.touchdown +
+    (stats.awardedTouchdownSpp ?? 0) * SPP_VALUES.touchdown +
     stats.mvps * SPP_VALUES.mvp
   );
 }
@@ -86,13 +98,34 @@ export function sppFromMatchStats(stats: PlayerMatchStats): number {
  */
 export class MatchStats {
   private readonly stats = new Map<string, PlayerMatchStats>();
-  private applied = false;
+  private appliedFlag = false;
+  /** Set by `applySpp` when the match ended in a concession; persisted so
+   *  every later `summary()` call (rerender, resume, reconnect) agrees that
+   *  team's SPP was zeroed instead of only zeroing a one-off copy. */
+  private concedingTeamId: string | undefined;
+
+  /** Whether SPP has already been confirmed for this match. */
+  get applied(): boolean {
+    return this.appliedFlag;
+  }
+  /** Only Advanced League teams earn SPP (see team-advancement-modes); a
+   *  team with no mode yet (unmigrated legacy team) defaults to earning SPP
+   *  so existing saves keep behaving as before this feature existed. */
+  private readonly sppEligibleTeamIds: Set<string>;
 
   constructor(
     private readonly eventBus: IEventBus,
     teams: Team[],
     public readonly progressionEnabled = false
   ) {
+    this.sppEligibleTeamIds = new Set(
+      teams
+        .filter(
+          (team) =>
+            !team.advancementMode || team.advancementMode === "advanced-league"
+        )
+        .map((team) => team.id)
+    );
     teams
       .flatMap((team) => team.players)
       .forEach((player) => {
@@ -165,8 +198,10 @@ export class MatchStats {
     this.eventBus.on(
       GameEventNames.AwardedTouchdownAssigned,
       ({ playerId }) => {
+        // A concession's SPP-only touchdown award. It must never inflate the
+        // displayed touchdown statistic — the player did not actually score.
         const stats = this.get(playerId);
-        if (stats) stats.touchdowns++;
+        if (stats) stats.awardedTouchdownSpp = (stats.awardedTouchdownSpp ?? 0) + 1;
       }
     );
     this.eventBus.on(GameEventNames.BlockDiceRolled, ({ attackerId }) => {
@@ -221,11 +256,20 @@ export class MatchStats {
     const byId = new Map(players?.map((player) => [player.id, player]));
     const result = [...this.stats.values()].map((stats) => {
       const player = byId.get(stats.playerId);
-      const eligible = player?.playerKind !== "star";
+      const eligible =
+        player?.playerKind !== "star" &&
+        this.sppEligibleTeamIds.has(stats.teamId);
+      // Once SPP has been confirmed, a conceding team's earned SPP stays
+      // zeroed on every later summary — including after a rerender, resume,
+      // or reconnect — rather than only on the one-off value `applySpp`
+      // returned when it ran.
+      const zeroed = this.appliedFlag && stats.teamId === this.concedingTeamId;
       return {
         ...stats,
         sppEarned:
-          this.progressionEnabled && eligible ? sppFromMatchStats(stats) : 0,
+          this.progressionEnabled && eligible && !zeroed
+            ? sppFromMatchStats(stats)
+            : 0,
       };
     });
     return { progressionEnabled: this.progressionEnabled, players: result };
@@ -236,7 +280,8 @@ export class MatchStats {
     return {
       version: 1,
       progressionEnabled: this.progressionEnabled,
-      applied: this.applied,
+      applied: this.appliedFlag,
+      concedingTeamId: this.concedingTeamId,
       players: [...this.stats.values()].map((stats) => ({ ...stats })),
     };
   }
@@ -252,36 +297,44 @@ export class MatchStats {
     }
     this.stats.clear();
     snapshot.players.forEach((stats) => {
-      // A save captured before `attempts`/`kills` existed omits them at
-      // runtime even though the type says otherwise; default to zero
-      // rather than resuming into NaN counters.
+      // A save captured before `attempts`/`kills`/`awardedTouchdownSpp`
+      // existed omits them at runtime even though the type says otherwise;
+      // default to zero rather than resuming into NaN counters.
       const legacy = stats as Partial<PlayerMatchStats>;
       this.stats.set(stats.playerId, {
+        awardedTouchdownSpp: 0,
         ...stats,
         attempts: legacy.attempts ?? 0,
         kills: legacy.kills ?? 0,
       });
     });
-    this.applied = snapshot.applied;
+    this.appliedFlag = snapshot.applied;
+    this.concedingTeamId = snapshot.concedingTeamId;
   }
 
+  /**
+   * Confirm SPP for the match. Idempotent by construction: a second call
+   * throws instead of re-crediting SPP, so a rerender/resume/reconnect that
+   * re-enters the confirm step can check `applied` first rather than risk a
+   * double award.
+   */
   applySpp(teams: Team[], concedingTeamId?: string): MatchStatsSummary {
-    if (this.applied) throw new Error("Match SPP has already been applied");
+    if (this.appliedFlag) throw new Error("Match SPP has already been applied");
+    // Flip state first so this call's own summary() already reflects the
+    // zeroed-for-concession figures every later call will agree on.
+    this.concedingTeamId = concedingTeamId;
+    this.appliedFlag = true;
     const players = teams.flatMap((team) => team.players);
     const summary = this.summary(players);
     if (!this.progressionEnabled) {
-      this.applied = true;
       return summary;
     }
     const byId = new Map(players.map((player) => [player.id, player]));
     summary.players.forEach((stats) => {
       const player = byId.get(stats.playerId);
       if (!player || player.playerKind === "star") return;
-      const earned = stats.teamId === concedingTeamId ? 0 : stats.sppEarned;
-      stats.sppEarned = earned;
-      player.spp = (player.spp ?? 0) + earned;
+      player.spp = (player.spp ?? 0) + stats.sppEarned;
     });
-    this.applied = true;
     return summary;
   }
 }

@@ -1,3 +1,5 @@
+import { SidelineCrewInfo } from "./sidelineStaff";
+
 /**
  * A single crisp text label the React overlay draws over the Phaser canvas.
  *
@@ -28,4 +30,10 @@ export interface BoardLabel {
   opacity?: number;
   /** Letter spacing in design px (for the uppercase section headers). */
   tracking?: number;
+  /**
+   * Makes this label hoverable: the overlay enables pointer events on it
+   * alone and fills/clears the info panel with this subject. Used by the
+   * `NO STAFF` placeholder, which is DOM text rather than a Phaser figure.
+   */
+  hoverInfo?: SidelineCrewInfo;
 }

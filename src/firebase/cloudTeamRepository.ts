@@ -10,6 +10,7 @@
 
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDocs,
@@ -57,6 +58,28 @@ export async function fetchCloudTeams(uid: string): Promise<Team[]> {
     );
     return team;
   });
+}
+
+export interface OwnedTeam {
+  ownerUid: string;
+  team: Team;
+}
+
+/**
+ * Every coach's live team library, read directly — no publish step and no
+ * separate copy (shared-team-library: "A coach's teams are directly
+ * readable by other coaches"). Backed by a `teams` collection-group query,
+ * authorized document-by-document by the same rule that already governs
+ * `users/{uid}/teams/{teamId}` (any authenticated coach may read).
+ */
+export async function fetchAllCoachTeams(): Promise<OwnedTeam[]> {
+  const snapshot = await getDocs(collectionGroup(getDb(), "teams"));
+  return snapshot.docs.map((document) => ({
+    // users/{uid}/teams/{teamId} — the owner uid is the team doc's
+    // grandparent segment.
+    ownerUid: document.ref.parent.parent?.id ?? "",
+    team: document.data() as unknown as Team,
+  }));
 }
 
 async function writeCloudTeam(uid: string, team: Team): Promise<void> {

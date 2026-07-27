@@ -130,6 +130,15 @@ export interface Player {
   hydrationWarning?: string;
 }
 
+/**
+ * Which advancement mode/pipeline produced an advancement. Absent means the
+ * legacy Advanced League SPP flow (the only one that existed previously).
+ */
+export type AdvancementSource =
+  | "advanced-league-spp"
+  | "matched-play-package"
+  | "sevens-skill-selection";
+
 export interface PlayerAdvancement {
   id: string;
   type: "primary-skill" | "secondary-skill" | "characteristic";
@@ -137,6 +146,14 @@ export interface PlayerAdvancement {
   sppCost: number;
   valueIncrease: number;
   elite?: boolean;
+  /** Provenance: which advancement-mode pipeline awarded this. */
+  source?: AdvancementSource;
+  /** The match this advancement was awarded after (Matched Play package
+   *  allocations and characteristic advancements have none). */
+  sourceMatchId?: string;
+  /** Sevens Skill Selection only: the two-roll random candidates offered
+   *  before the coach/system confirmed one (durable audit trail). */
+  candidateRolls?: { skill: string; firstD6: number; secondD6: number }[];
 }
 
 /**

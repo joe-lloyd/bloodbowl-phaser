@@ -19,7 +19,6 @@ function entrants(count: number): CompetitionEntrant[] {
       ownerUid: null,
       name: `Team ${i + 1}`,
       rosterName: "Human",
-      source: "local" as const,
     }))
   );
 }

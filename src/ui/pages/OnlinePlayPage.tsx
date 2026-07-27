@@ -11,7 +11,7 @@ import {
   finishMatch,
   clearActiveMatchCode,
   heartbeat,
-  isPlayerOnline,
+  describeOpponentConnection,
   LobbyDoc,
 } from "../../firebase/lobby";
 import {
@@ -19,13 +19,11 @@ import {
   setActiveOnlineMatch,
   OnlineMatch,
 } from "../../network/OnlineMatch";
+import { OnlineMatchMenuProps } from "../components/hud/GameHUD";
+import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
-import {
-  Button,
-  SecondaryButton,
-  DangerButton,
-} from "../components/componentWarehouse/Button";
+import { Button, DangerButton } from "../components/componentWarehouse/Button";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
 
@@ -48,6 +46,13 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
   const [lobby, setLobby] = useState<LobbyDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const leftRef = useRef(false);
+  // Drives the disconnect → reconnecting → abandonable progression (both the
+  // banner and the options menu's connection-status entry read from this).
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   // Boot the match once
   useEffect(() => {
@@ -138,6 +143,71 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
       ? lobby.guestUid
       : lobby.hostUid
     : null;
+  const connection =
+    lobby && opponentUid
+      ? describeOpponentConnection(lobby, opponentUid, now)
+      : "online";
+
+  // A rejected Firestore write must not vanish silently (the coach would
+  // have no idea their "End Match" click did nothing) nor drop them out of
+  // the match — surface it as an ordinary toast and leave them exactly
+  // where they were, free to retry from the menu.
+  const reportMenuActionFailed = (action: string) => (error: unknown) => {
+    console.warn(`[Online] ${action} failed:`, error);
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      `Couldn't reach the server — ${action} failed. Try again.`
+    );
+  };
+
+  // Everything match-level (save/leave, propose/cancel ending, unilateral
+  // abandon on disconnect) now lives in GameHUD's single bottom-right
+  // options menu — see MatchOptionsMenu/computeMatchOptionsMenu. This page
+  // only supplies the online-specific state and callbacks the menu needs.
+  const onlineMenu: OnlineMatchMenuProps | undefined = code
+    ? {
+        role: match.role,
+        opponentName: match.opponentName,
+        connection,
+        endRequest:
+          endRequestBy === null
+            ? "none"
+            : endRequestBy === user.uid
+              ? "mine"
+              : "theirs",
+        onSaveAndExit: () => {
+          // saveState() already swallows its own persistence failures (see
+          // OnlineMatch's persistNow) — leaving is always safe here.
+          match.saveState();
+          leave();
+        },
+        onRequestEndMatch: () =>
+          requestEndMatch(code, user.uid).catch(
+            reportMenuActionFailed("proposing to end the match")
+          ),
+        onCancelEndMatch: () =>
+          cancelEndMatch(code).catch(
+            reportMenuActionFailed("cancelling the end-match request")
+          ),
+        onForceAbandon: () =>
+          finishMatch(code, "abandoned").catch(
+            reportMenuActionFailed("ending the match")
+          ),
+        // Reconnection is otherwise fully automatic (heartbeat + Firestore's
+        // realtime listener); this only nudges both — an immediate heartbeat
+        // and a fresh lobby read — for the rare case the listener stalled.
+        // It changes nothing about who is authoritative or how sessions
+        // resume, per design.md's non-goal.
+        onReconnect: () => {
+          void heartbeat(code, user.uid).catch(
+            reportMenuActionFailed("reconnecting")
+          );
+          void fetchLobby(code)
+            .then((refreshed) => refreshed && setLobby(refreshed))
+            .catch(reportMenuActionFailed("reconnecting"));
+        },
+      }
+    : undefined;
 
   return (
     <div className="w-full h-full relative">
@@ -148,15 +218,14 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         progressionEnabled={lobby?.settings.progressionEnabled ?? false}
         competitionContext={lobby?.competitionContext}
         pitchThemeId={lobby?.settings.pitchThemeId}
+        onlineMenu={onlineMenu}
       />
       <WaitingBanner match={match} />
 
-      {lobby && code && opponentUid && (
+      {lobby && opponentUid && connection !== "online" && (
         <DisconnectBanner
-          lobby={lobby}
-          opponentUid={opponentUid}
           opponentName={match.opponentName}
-          onAbandon={() => void finishMatch(code, "abandoned")}
+          abandonable={connection === "abandonable"}
         />
       )}
 
@@ -182,117 +251,52 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         />
       )}
 
-      <MatchMenu
-        onSaveExit={() => {
-          match.saveState();
-          leave();
-        }}
-        onEndMatch={() => code && void requestEndMatch(code, user.uid)}
-        endPending={endRequestBy !== null}
-      />
-
-      {endRequestBy && code && (
+      {/* Blocking decision prompt — only for the side who must respond.
+          The proposer's own "cancel" lives in the options menu instead, so
+          proposing no longer locks the requester out of their own screen. */}
+      {endRequestBy && endRequestBy !== user.uid && code && (
         <EndMatchModal
-          mine={endRequestBy === user.uid}
           opponentName={match.opponentName}
-          onAgree={() => void finishMatch(code, "finished")}
-          onDecline={() => void cancelEndMatch(code)}
-          onCancel={() => void cancelEndMatch(code)}
+          onAgree={() =>
+            finishMatch(code, "finished").catch(
+              reportMenuActionFailed("ending the match")
+            )
+          }
+          onDecline={() =>
+            cancelEndMatch(code).catch(
+              reportMenuActionFailed("declining the end-match request")
+            )
+          }
         />
       )}
     </div>
   );
 }
 
-/** Top-right dropdown: save-for-later or propose ending the match. */
-function MatchMenu({
-  onSaveExit,
-  onEndMatch,
-  endPending,
-}: {
-  onSaveExit: () => void;
-  onEndMatch: () => void;
-  endPending: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="absolute top-3 right-3 z-[95] pointer-events-auto">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="bg-slate-900/85 text-bb-gold border border-bb-gold rounded-lg
-          px-4 py-2 font-heading text-lg shadow-xl hover:bg-slate-800"
-      >
-        ☰ Menu
-      </button>
-      {open && (
-        <div
-          className="mt-2 flex flex-col gap-2 bg-slate-900/95 border border-bb-gold
-            rounded-lg p-3 w-56 shadow-2xl"
-        >
-          <SecondaryButton
-            onClick={() => {
-              setOpen(false);
-              onSaveExit();
-            }}
-          >
-            💾 Save &amp; Exit
-          </SecondaryButton>
-          <DangerButton
-            disabled={endPending}
-            onClick={() => {
-              setOpen(false);
-              onEndMatch();
-            }}
-          >
-            🏁 End Match
-          </DangerButton>
-          <p className="text-xs text-gray-400 font-body">
-            Save &amp; Exit keeps the match — resume it later from the menu.
-            Ending needs both players to agree.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Mutual end-of-match agreement. */
+/** Blocking prompt shown to the coach who must respond to an end-match
+ *  proposal (the proposer manages/cancels their own request from the
+ *  options menu instead — see OnlineMatchMenuProps.endRequest). */
 function EndMatchModal({
-  mine,
   opponentName,
   onAgree,
   onDecline,
-  onCancel,
 }: {
-  mine: boolean;
   opponentName: string;
   onAgree: () => void;
   onDecline: () => void;
-  onCancel: () => void;
 }) {
   return (
     <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 pointer-events-auto">
       <div className="bg-slate-900 border-2 border-bb-gold rounded-lg p-6 w-[420px] text-white shadow-2xl text-center">
         <h2 className="text-2xl font-heading text-bb-gold mb-3">End Match?</h2>
-        {mine ? (
-          <>
-            <p className="font-body mb-5">
-              Waiting for {opponentName} to agree to end the match…
-            </p>
-            <SecondaryButton onClick={onCancel}>Cancel request</SecondaryButton>
-          </>
-        ) : (
-          <>
-            <p className="font-body mb-5">
-              {opponentName} wants to end the match. Agree to finish it for both
-              of you?
-            </p>
-            <div className="flex justify-center gap-3">
-              <DangerButton onClick={onAgree}>End Match</DangerButton>
-              <Button onClick={onDecline}>Keep Playing</Button>
-            </div>
-          </>
-        )}
+        <p className="font-body mb-5">
+          {opponentName} wants to end the match. Agree to finish it for both
+          of you?
+        </p>
+        <div className="flex justify-center gap-3">
+          <DangerButton onClick={onAgree}>End Match</DangerButton>
+          <Button onClick={onDecline}>Keep Playing</Button>
+        </div>
       </div>
     </div>
   );
@@ -300,34 +304,17 @@ function EndMatchModal({
 
 /**
  * Opponent-presence banner. Their heartbeat goes stale when they drop; after
- * a short grace we show "reconnecting", and after a longer grace the
- * remaining player may end the match unilaterally (opponent abandoned).
+ * a short grace we show "reconnecting", and after a longer grace the options
+ * menu's "End Match (Opponent Left)" entry becomes available (the unilateral
+ * abandon action itself lives there now, not on this banner).
  */
-const DISCONNECT_MS = 15000;
-const ABANDON_MS = 30000;
-
 function DisconnectBanner({
-  lobby,
-  opponentUid,
   opponentName,
-  onAbandon,
+  abandonable,
 }: {
-  lobby: LobbyDoc;
-  opponentUid: string;
   opponentName: string;
-  onAbandon: () => void;
+  abandonable: boolean;
 }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 2000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (isPlayerOnline(lobby, opponentUid, DISCONNECT_MS, now)) return null;
-
-  const last = lobby.players[opponentUid]?.lastSeen ?? now;
-  const canAbandon = now - last > ABANDON_MS;
-
   return (
     <div className="absolute inset-x-0 top-28 z-[93] flex justify-center pointer-events-none">
       <div className="pointer-events-auto bg-slate-900/90 border border-red-500 rounded-lg px-5 py-3 text-center shadow-2xl">
@@ -335,13 +322,10 @@ function DisconnectBanner({
           ⚠ {opponentName} disconnected
         </p>
         <p className="font-body text-gray-300 text-sm mt-1">
-          Waiting for them to reconnect…
+          {abandonable
+            ? "You can end the match from the Match Options menu."
+            : "Waiting for them to reconnect…"}
         </p>
-        {canAbandon && (
-          <DangerButton onClick={onAbandon} className="mt-2 text-sm py-1">
-            End match (opponent left)
-          </DangerButton>
-        )}
       </div>
     </div>
   );

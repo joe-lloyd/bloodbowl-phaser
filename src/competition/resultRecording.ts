@@ -1,4 +1,5 @@
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
+import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
 import { recordLeagueResult, recordTournamentResult } from "./logic";
 import { getCompetition, saveCompetition } from "./repository";
 import {
@@ -41,6 +42,9 @@ function updateTeamRecord(
   if (ownScore > opponentScore) team.wins = (team.wins ?? 0) + 1;
   else if (ownScore < opponentScore) team.losses = (team.losses ?? 0) + 1;
   else team.draws = (team.draws ?? 0) + 1;
+  // A recorded fixture result is a confirmed completed match — the team is
+  // active from here on (see teamLifecycle.ts). A no-op once already set.
+  stampFirstCompletedMatch(team);
   saveTeam(team);
 }
 

@@ -4,6 +4,12 @@ import { GamePhase, SubPhase } from "../../../src/types/GameState";
 import { SkillRegistry } from "../../../src/game/skills";
 import { RULE_SCENARIOS } from "../../../src/data/ruleScenarios";
 import { findSeed, RuleConfig } from "../../../src/game/rules-lab";
+import { RULE_CASES } from "../../../src/testing/cases";
+import {
+  ruleCaseId,
+  ruleOutcomesMissingSeeds,
+} from "../../../src/testing/cases/fromRuleConfigs";
+import { validateScenarioCases } from "../../../src/testing/scenarioCase";
 
 /**
  * Coverage gate: implemented rules must ship catalog configurations, and
@@ -194,5 +200,48 @@ describe("rule coverage gate", () => {
         expect(config.outcomes.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  /**
+   * Registering a rule is not enough: it must also join the E2E matrix, on
+   * committed seeds, with a declared execution layer. Without this a new
+   * rule could ship a catalog entry that nothing ever runs.
+   */
+  it("every registered rule is a runnable E2E case with committed seeds", () => {
+    const missingSeeds = ruleOutcomesMissingSeeds();
+    expect(
+      missingSeeds,
+      `these outcomes have no committed seed — run 'pnpm e2e:seeds':\n` +
+        missingSeeds
+          .map((entry) => `  ${entry.configId}/${entry.outcomeId}`)
+          .join("\n")
+    ).toEqual([]);
+
+    const byId = new Map(RULE_CASES.map((entry) => [entry.id, entry]));
+    for (const entry of RULE_SCENARIOS) {
+      for (const config of entry.configs) {
+        const scenarioCase = byId.get(ruleCaseId(config.id));
+        expect(
+          scenarioCase,
+          `${config.id} has no generated scenario case`
+        ).toBeDefined();
+        expect(
+          scenarioCase!.layers.length,
+          `${config.id} declares no execution layer`
+        ).toBeGreaterThan(0);
+        expect(
+          scenarioCase!.variants.length,
+          `${config.id} has no seeded variants`
+        ).toBe(config.outcomes.length);
+      }
+    }
+  });
+
+  it("the generated rule cases pass scenario-case validation", () => {
+    const issues = validateScenarioCases(RULE_CASES);
+    expect(
+      issues,
+      `\n${issues.map((issue) => `  ${issue.caseId} · ${issue.field}: ${issue.message}`).join("\n")}`
+    ).toEqual([]);
   });
 });

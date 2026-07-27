@@ -11,6 +11,24 @@ import {
 } from "../rules/plagueRidden";
 import { foldTrigger, CasualtyContext, CasualtyRollContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
+import { ApothecaryCasualtyType } from "../../types/decisions";
+import { offerApothecary } from "../inducements/apothecary";
+
+/** The three casualty results a Sevens Apothecary may patch up. */
+function eligibleApothecaryCasualty(
+  result: CasualtyType
+): ApothecaryCasualtyType | undefined {
+  switch (result) {
+    case CasualtyType.BADLY_HURT:
+      return "badly-hurt";
+    case CasualtyType.SERIOUSLY_HURT:
+      return "seriously-hurt";
+    case CasualtyType.DEAD:
+      return "dead";
+    default:
+      return undefined;
+  }
+}
 
 /**
  * CasualtyOperation
@@ -163,7 +181,19 @@ export class CasualtyOperation extends GameOperation {
     // A casualty leaves play for the Casualty box: clear its square and
     // announce the status change so the pitch sprite is removed and the
     // dugout re-renders it among the casualties (not left lying on the pitch).
-    this.removeFromPitch(eventBus, player);
+    // Badly Hurt / Seriously Hurt / Dead get first say from an owned,
+    // unused Apothecary before that final placement (Serious/Lasting Injury
+    // are not eligible — the underlying casualty table is unchanged).
+    const eligible = eligibleApothecaryCasualty(result);
+    const patchedUp =
+      eligible !== undefined &&
+      (await offerApothecary(gameService, eventBus, player, {
+        resultKind: "casualty",
+        casualtyType: eligible,
+      }));
+    if (!patchedUp) {
+      this.removeFromPitch(eventBus, player);
+    }
   }
 
   /**

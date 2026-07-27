@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeActionAvailability } from "../../../src/game/rules/actionAvailability";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { Player, PlayerStatus, PlayerCondition } from "../../../src/types/Player";
 import { SkillType, getSkill } from "../../../src/types/Skills";
 
 const P = (over: Partial<Player>): Player =>
@@ -168,6 +168,23 @@ describe("computeActionAvailability", () => {
       P({ id: "m", gridPosition: { x: 6, y: 5 }, status: PlayerStatus.ACTIVE }),
     ];
     expect(computeActionAvailability(input).handoff).toBe(true);
+  });
+
+  it("hides Hand-off when the only adjacent team-mate is Distracted (lost its Tackle Zone)", () => {
+    const input = base();
+    input.ballPosition = { x: 5, y: 5 }; // on the player
+    input.teammates = [
+      P({
+        id: "m",
+        gridPosition: { x: 6, y: 5 },
+        status: PlayerStatus.ACTIVE,
+        conditions: [{ type: PlayerCondition.DISTRACTED }],
+      }),
+    ];
+    // A Distracted team-mate is "Standing" but has lost its Tackle Zone, so
+    // it is not a legal Hand-off target even though Pass is unaffected.
+    expect(computeActionAvailability(input).pass).toBe(true);
+    expect(computeActionAvailability(input).handoff).toBe(false);
   });
 
   it("offers Pass when the ball is on the floor within reach (move to pick up)", () => {

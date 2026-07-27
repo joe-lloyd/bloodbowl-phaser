@@ -44,6 +44,41 @@ export interface IGameService {
   answerReaction(accept: boolean): boolean;
   /** Answer a pending interception decision; undefined playerId declines */
   answerInterception(playerId?: string): boolean;
+  /** Answer a pending Apothecary decision; false when none is pending */
+  answerApothecary(accept: boolean): boolean;
+
+  // Sevens inducements
+  /**
+   * Commit a confirmed pregame inducement selection into match-scoped state
+   * (budgets/profile resolved once, inventory copied in — not the roster).
+   */
+  commitInducements(
+    profile: import("@/types/Inducements").InducementRuleProfile,
+    budgets: Record<string, number>,
+    inventory: import("@/types/Inducements").InducementInventoryEntry[]
+  ): void;
+  /** The current pregame offer: catalog/budget plus each team's selection. */
+  getInducementOffer(): {
+    profile: import("@/types/Inducements").InducementRuleProfile;
+    budgets: Record<string, number>;
+    selections: Record<
+      string,
+      import("@/game/inducements/rules").InducementSelectionLine[]
+    >;
+    confirmed: Record<string, boolean>;
+  };
+  /** Set (or clear, at quantity 0) one line of a team's pregame selection. */
+  selectInducement(
+    teamId: string,
+    inducement: import("@/types/Inducements").Inducement,
+    quantity: number
+  ): { ok: boolean; errors: string[] };
+  removeInducement(
+    teamId: string,
+    inducement: import("@/types/Inducements").Inducement
+  ): { ok: boolean; errors: string[] };
+  /** Confirm a team's pregame selection; commits once both teams have. */
+  confirmInducements(teamId: string): { ok: boolean; errors: string[] };
 
   // Setup
   startSetup(startingTeamId?: string): void;
@@ -99,6 +134,13 @@ export interface IGameService {
   ): boolean;
   /** Cancel a declaration only before movement/attack commitment. */
   cancelAction(playerId: string): boolean;
+  /**
+   * Force the live declaration for this player to commit (idempotent): the
+   * once-per-turn flag is set and the declaration can no longer be released.
+   * Called at the moment an activation gate rolls, a die is rolled, or
+   * movement/an attack is spent — engine-internal, never a coach intent.
+   */
+  commitAction(playerId: string): void;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
   /** Leave the carried ball in a square vacated during this Move, no Turnover. */
   dropBallWithFumblerooski(
@@ -144,6 +186,15 @@ export interface IGameService {
     passerId: string,
     targetX: number,
     targetY: number
+  ): Promise<{ success: boolean; result?: string }>;
+  /**
+   * Hand-off Action: no Passing Ability Test, no scatter, no interception —
+   * the ball is placed directly in the target's square and they Catch it.
+   * Targets a player id, not a square.
+   */
+  handOffBall(
+    passerId: string,
+    targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }>;
   /** Punt a carried ball in the chosen facing via the Throw-in Template. */
   puntBall(playerId: string, facingX: number, facingY: number): Promise<void>;
@@ -205,6 +256,8 @@ export interface IGameService {
   /** On-pitch team-mates of a player (any status), excluding the player. */
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
+  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+  getTeams(): [Team, Team];
   getMovementUsed(playerId: string): number;
   /**
    * End or continue a blocker's activation once the block resolved. A plain

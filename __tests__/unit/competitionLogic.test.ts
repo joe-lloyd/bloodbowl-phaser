@@ -15,7 +15,6 @@ function entrant(id: string, seed: number): CompetitionEntrant {
     name: `Team ${id}`,
     rosterName: "Human",
     seed,
-    source: "local",
   };
 }
 
