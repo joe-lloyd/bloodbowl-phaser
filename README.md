@@ -18,7 +18,7 @@ or as a JSON protocol for scripted/AI play.
   player advancement, touchdowns and drive resets.
 - **Team management & competitions**: build and manage rosters across every
   roster in the game, run Leagues (Matched Play / Advanced League) and
-  Tournaments (Sevens skill selection), with career stats tracked per player.
+  Tournaments (Sevens Skill Selection), with career stats tracked per player.
 - **Online multiplayer** via Firebase — host/join with a shareable code,
   cloud team library, in-match chat — or play entirely offline in local
   hotseat mode with no account needed.
