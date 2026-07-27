@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameplayInteractionController } from "../../../src/game/controllers/GameplayInteractionController";
 import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust path if needed
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
+import { PlayerStatus } from "../../../src/types/Player";
 
 // Mock dependencies
 const mockScene = {
@@ -81,6 +82,13 @@ const mockGameService = {
     measureRange: vi.fn().mockReturnValue({ type: "Quick Pass", modifier: 0 }),
     getInterceptionSquares: vi.fn().mockReturnValue([]),
     checkInterceptions: vi.fn().mockReturnValue([]),
+  }),
+  foulPlayer: vi.fn().mockResolvedValue(undefined),
+  // Default: the flow queue is already idle, so unrelated tests that never
+  // touch the foul path see no delay. The foul-highlight tests below replace
+  // this with a controllable promise.
+  getFlowContext: vi.fn().mockReturnValue({
+    flowManager: { whenIdle: vi.fn().mockResolvedValue(undefined) },
   }),
 };
 
@@ -541,6 +549,66 @@ describe("GameplayInteractionController", () => {
       controller.handlePlayerClick("p1");
 
       expect(spy).toHaveBeenCalledWith("p1");
+    });
+  });
+
+  describe("Foul target highlight timing", () => {
+    // Regression: foulPlayer() only queues FoulOperation on GameService's
+    // GameFlowManager (fire-and-forget) — the old code deselected right
+    // after that resolved, clearing the red target highlight well before the
+    // foul's KO/Casualty/Send-Off consequence had actually finished. The fix
+    // awaits GameFlowManager.whenIdle() before deselecting.
+    const target = {
+      id: "p2",
+      teamId: "team2",
+      gridPosition: { x: 6, y: 5 },
+      status: PlayerStatus.PRONE,
+    };
+
+    function armFoulClick() {
+      controller["currentActionMode"] = "foul";
+      controller["currentStepId"] = "foul";
+      controller["selectedPlayerId"] = "p1";
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue(target);
+    }
+
+    it("keeps the highlight while the flow queue is still draining", async () => {
+      armFoulClick();
+      let resolveIdle!: () => void;
+      const idle = new Promise<void>((resolve) => {
+        resolveIdle = resolve;
+      });
+      mockGameService.getFlowContext.mockReturnValue({
+        flowManager: { whenIdle: () => idle },
+      });
+
+      const click = (controller as any).onSquareClicked(6, 5);
+
+      // foulPlayer() itself has already resolved, but whenIdle() has not —
+      // the KO/Casualty/Send-Off consequence is still "in flight".
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(mockGameService.foulPlayer).toHaveBeenCalledWith("p1", 6, 5);
+      expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
+
+      // The queue drains — resolution has actually completed.
+      resolveIdle();
+      await click;
+
+      expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("p1");
+    });
+
+    it("clears the highlight once the queue is already idle", async () => {
+      armFoulClick();
+      mockGameService.getFlowContext.mockReturnValue({
+        flowManager: { whenIdle: vi.fn().mockResolvedValue(undefined) },
+      });
+
+      await (controller as any).onSquareClicked(6, 5);
+
+      expect(mockGameService.foulPlayer).toHaveBeenCalledWith("p1", 6, 5);
+      expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("p1");
     });
   });
 

@@ -50,6 +50,9 @@ export interface PitchTheme {
     staffRail: number;
     ko: number;
     casualty: number;
+    /** Sent-off/ejected section — deliberately brighter/more saturated than
+     *  `casualty` so a red-card marker never reads as just another injury. */
+    sentOff: number;
   };
 }
 
@@ -98,6 +101,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
       staffRail: 0x17233a,
       ko: 0xd98916,
       casualty: 0x922d26,
+      sentOff: 0xe63946,
     },
   },
   {
@@ -141,6 +145,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
       staffRail: 0x2a2116,
       ko: 0xb87322,
       casualty: 0x7d251e,
+      sentOff: 0xd64550,
     },
   },
   {
@@ -184,6 +189,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
       staffRail: 0x0c2330,
       ko: 0xd39b35,
       casualty: 0xa22d4a,
+      sentOff: 0xff3860,
     },
   },
   {
@@ -227,6 +233,7 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
       staffRail: 0x30271d,
       ko: 0xb8792c,
       casualty: 0x7c3028,
+      sentOff: 0xd94f3d,
     },
   },
 ] as const;

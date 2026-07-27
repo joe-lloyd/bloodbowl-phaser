@@ -6,6 +6,7 @@ export const DUGOUT_LAYOUT = {
   reservesCols: 6,
   koCols: 5,
   casualtyCols: 5,
+  sentOffCols: 2,
   sectionPad: 20,
   staffWidth: 180,
   gridOffsetX: 10,
@@ -21,7 +22,10 @@ export function getDugoutLayout(mirrored: boolean) {
   const casualtyWidth =
     DUGOUT_LAYOUT.casualtyCols * DUGOUT_LAYOUT.squareSize +
     DUGOUT_LAYOUT.sectionPad;
-  const sectionsWidth = reservesWidth + koWidth + casualtyWidth;
+  const sentOffWidth =
+    DUGOUT_LAYOUT.sentOffCols * DUGOUT_LAYOUT.squareSize +
+    DUGOUT_LAYOUT.sectionPad;
+  const sectionsWidth = reservesWidth + koWidth + casualtyWidth + sentOffWidth;
   const sectionsX = mirrored ? DUGOUT_LAYOUT.staffWidth : 0;
 
   return {
@@ -29,16 +33,22 @@ export function getDugoutLayout(mirrored: boolean) {
     staffX: mirrored ? 0 : sectionsWidth,
     sections: {
       reserves: {
-        x: sectionsX + (mirrored ? casualtyWidth + koWidth : 0),
+        x:
+          sectionsX +
+          (mirrored ? casualtyWidth + koWidth + sentOffWidth : 0),
         width: reservesWidth,
       },
       ko: {
-        x: sectionsX + (mirrored ? casualtyWidth : reservesWidth),
+        x: sectionsX + (mirrored ? casualtyWidth + sentOffWidth : reservesWidth),
         width: koWidth,
       },
       casualty: {
-        x: sectionsX + (mirrored ? 0 : reservesWidth + koWidth),
+        x: sectionsX + (mirrored ? sentOffWidth : reservesWidth + koWidth),
         width: casualtyWidth,
+      },
+      sentOff: {
+        x: sectionsX + (mirrored ? 0 : reservesWidth + koWidth + casualtyWidth),
+        width: sentOffWidth,
       },
     },
   } as const;

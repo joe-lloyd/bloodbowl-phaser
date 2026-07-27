@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { Team } from "../../types/Team";
-import { Player } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
 import { playerBoxOf } from "../rules/playerLocation";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
@@ -38,6 +38,7 @@ export class Dugout extends Phaser.GameObjects.Container {
   private readonly RESERVES_COLS = DUGOUT_LAYOUT.reservesCols;
   private readonly KO_COLS = DUGOUT_LAYOUT.koCols;
   private readonly DEAD_COLS = DUGOUT_LAYOUT.casualtyCols;
+  private readonly SENT_OFF_COLS = DUGOUT_LAYOUT.sentOffCols;
 
   constructor(
     scene: Phaser.Scene,
@@ -73,11 +74,13 @@ export class Dugout extends Phaser.GameObjects.Container {
     const reservesCols = this.RESERVES_COLS;
     const koCols = this.KO_COLS;
     const deadCols = this.DEAD_COLS;
+    const sentOffCols = this.SENT_OFF_COLS;
 
     const layout = getDugoutLayout(this.mirrored);
     const reservesWidth = layout.sections.reserves.width;
     const koWidth = layout.sections.ko.width;
     const deadWidth = layout.sections.casualty.width;
+    const sentOffWidth = layout.sections.sentOff.width;
 
     const backdrop = this.scene.add
       .rectangle(
@@ -98,6 +101,7 @@ export class Dugout extends Phaser.GameObjects.Container {
     const reservesX = layout.sections.reserves.x;
     const koX = layout.sections.ko.x;
     const deadX = layout.sections.casualty.x;
+    const sentOffX = layout.sections.sentOff.x;
 
     // 1. Reserves Section - 6x2 Grid
     this.createSection(
@@ -130,6 +134,20 @@ export class Dugout extends Phaser.GameObjects.Container {
       this.theme.dugout.casualty,
       this.getPlayersByStatus("Dead"),
       deadCols
+    );
+
+    // 4. Sent Off Section - ejected players, distinct from Reserves/KO/Dead.
+    // Each sprite additionally gets a red-card marker (see createPlayerSprite)
+    // so an ejected player reads as "cannot play the rest of the match"
+    // rather than merely another casualty.
+    this.createSection(
+      sentOffX,
+      0,
+      sentOffWidth,
+      sectionHeight,
+      this.theme.dugout.sentOff,
+      this.getPlayersByStatus("SentOff"),
+      sentOffCols
     );
 
     this.createStaffRail(layout.staffX, 0);
@@ -275,6 +293,7 @@ export class Dugout extends Phaser.GameObjects.Container {
       [layout.sections.reserves.x, "RESERVES"],
       [layout.sections.ko.x, "KNOCKED OUT"],
       [layout.sections.casualty.x, "CASUALTIES"],
+      [layout.sections.sentOff.x, "SENT OFF"],
     ];
     for (const [sx, text] of sections) {
       labels.push({
@@ -389,6 +408,19 @@ export class Dugout extends Phaser.GameObjects.Container {
     });
   }
 
+  /**
+   * Small red-card badge marking a sent-off (ejected) player, distinct from
+   * the section tint alone — it reads as "cannot play the rest of the
+   * match" even if the coach only glances at a single sprite out of context.
+   */
+  private addSentOffMarker(sprite: Phaser.GameObjects.Container): void {
+    const card = this.scene.add.rectangle(13, -13, 11, 15, 0xd0021b, 1);
+    card.setStrokeStyle(1.5, 0xffffff, 0.95);
+    card.setAngle(-10);
+    sprite.add(card);
+    sprite.bringToTop(card);
+  }
+
   private createPlayerSprite(
     player: Player,
     x: number,
@@ -468,6 +500,10 @@ export class Dugout extends Phaser.GameObjects.Container {
       this.refresh();
     });
 
+    if (player.status === PlayerStatus.REMOVED) {
+      this.addSentOffMarker(sprite);
+    }
+
     return sprite;
   }
 
@@ -523,13 +559,17 @@ export class Dugout extends Phaser.GameObjects.Container {
    * pitch, and a recovered player leaves the KO box the moment their record
    * says Reserves.
    */
-  private getPlayersByStatus(statusType: "Reserves" | "KO" | "Dead"): Player[] {
+  private getPlayersByStatus(
+    statusType: "Reserves" | "KO" | "Dead" | "SentOff"
+  ): Player[] {
     const box =
       statusType === "KO"
         ? "ko"
         : statusType === "Dead"
           ? "casualty"
-          : "reserves";
+          : statusType === "SentOff"
+            ? "sent-off"
+            : "reserves";
     return this.team.players.filter((p) => playerBoxOf(p) === box);
   }
 
