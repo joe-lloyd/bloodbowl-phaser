@@ -1,15 +1,58 @@
 # Blood Bowl Sevens
 
-Blood Bowl Sevens (2025 rules) in the browser — Phaser 3 board + React UI, with a
-fully headless engine (`pnpm headless`) driven by a JSON action protocol.
+A browser implementation of **Blood Bowl Sevens** (2025 rules) — the fast,
+7-a-side variant of the tabletop fantasy football game. Phaser 3 renders the
+pitch, React drives every menu and HUD, and the rules engine underneath is
+fully headless: the same match logic runs in the browser, from the terminal,
+or as a JSON protocol for scripted/AI play.
+
+![Main menu](docs/images/main-menu.png)
+
+## Features
+
+- **107 skills and traits implemented** against the 2025 rulebook, each
+  locked in with seeded scenario tests (`__tests__/headless/rules/gate.test.ts`
+  is the coverage source of truth).
+- **Full match flow**: coin toss, setup with saved/preset formations,
+  kick-off event table, blocking, passing, fouling, injuries, SPP and
+  player advancement, touchdowns and drive resets.
+- **Team management & competitions**: build and manage rosters across every
+  roster in the game, run Leagues (Matched Play / Advanced League) and
+  Tournaments (Sevens Skill Selection), with career stats tracked per player.
+- **Online multiplayer** via Firebase — host/join with a shareable code,
+  cloud team library, in-match chat — or play entirely offline in local
+  hotseat mode with no account needed.
+- **Headless engine + JSON protocol** (`pnpm headless`) so the whole game can
+  be driven from the terminal or by a scripted/AI client, independent of the
+  browser UI.
+- **Sandbox & scenario-case tooling** for reproducing and regression-testing
+  individual rules interactions.
+
+## Screenshots
+
+| Team management | Live match |
+| --- | --- |
+| ![Team management](docs/images/team-management.png) | ![Live match](docs/images/live-match.png) |
 
 ## Development
 
 ```bash
 pnpm install
 pnpm dev          # Vite dev server
-pnpm test         # Vitest
+pnpm test         # Vitest unit tests
 pnpm headless     # play a game in the terminal (add --json for AI stdio mode)
+```
+
+### Testing
+
+The full test suite is Vitest (unit) plus a three-lane Playwright E2E suite
+— see [`docs/E2E_TESTING.md`](docs/E2E_TESTING.md) for details:
+
+```bash
+pnpm test              # unit tests
+pnpm e2e:engine        # headless scenario matrix, no browser
+pnpm e2e:browser       # real Chromium against the dev build
+pnpm e2e:visual        # screenshot regression checks
 ```
 
 ## Online multiplayer (Firebase)
