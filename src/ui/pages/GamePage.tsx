@@ -6,7 +6,7 @@ import { GameConfig } from "../../config/GameConfig";
 import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
-import { GameHUD } from "../components/hud/GameHUD";
+import { GameHUD, OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { BoardLabelOverlay } from "../components/hud/BoardLabelOverlay";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
@@ -29,6 +29,8 @@ interface GamePageProps {
   progressionEnabled?: boolean;
   competitionContext?: CompetitionContext;
   pitchThemeId?: string;
+  /** Online-only match-options entries; forwarded to GameHUD untouched. */
+  onlineMenu?: OnlineMatchMenuProps;
 }
 
 /**
@@ -42,6 +44,7 @@ export function GamePage({
   progressionEnabled,
   competitionContext,
   pitchThemeId,
+  onlineMenu,
 }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const reportedRef = useRef(false);
@@ -214,7 +217,7 @@ export function GamePage({
       <BoardLabelOverlay eventBus={eventBus} />
 
       {/* Game HUD overlay */}
-      <GameHUD eventBus={eventBus} mode={mode} />
+      <GameHUD eventBus={eventBus} mode={mode} onlineMenu={onlineMenu} />
     </div>
   );
 }

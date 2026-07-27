@@ -292,6 +292,30 @@ export function isPlayerOnline(
   return now - last <= thresholdMs;
 }
 
+/** Grace before a stale heartbeat is surfaced as "disconnected". */
+export const OPPONENT_DISCONNECT_MS = 15000;
+/** Grace before the remaining player may end the match unilaterally. */
+export const OPPONENT_ABANDON_MS = 30000;
+
+export type OpponentConnectionState = "online" | "reconnecting" | "abandonable";
+
+/**
+ * Single source of truth for opponent presence, shared by the disconnect
+ * banner and the in-match options menu so both agree on when reconnect vs.
+ * unilateral-abandon wording applies.
+ */
+export function describeOpponentConnection(
+  lobby: LobbyDoc,
+  opponentUid: string,
+  now: number = Date.now()
+): OpponentConnectionState {
+  if (isPlayerOnline(lobby, opponentUid, OPPONENT_DISCONNECT_MS, now)) {
+    return "online";
+  }
+  const last = lobby.players[opponentUid]?.lastSeen ?? now;
+  return now - last > OPPONENT_ABANDON_MS ? "abandonable" : "reconnecting";
+}
+
 export function subscribeLobby(
   code: string,
   onChange: (lobby: LobbyDoc | null) => void
