@@ -32,6 +32,20 @@ export enum GamePhase {
   GAME_OVER = "GAME_OVER",
 }
 
+/**
+ * How a match reached GAME_OVER. Kept separate from the played score
+ * (`GameState.score`) so a concession or forfeit can never be confused with
+ * an extra scored touchdown: the score reflects only what was actually
+ * played, and this reason explains why the match ended.
+ */
+export type MatchTerminationReason = "completed" | "concession" | "forfeit";
+
+export interface MatchResult {
+  reason: MatchTerminationReason;
+  /** Present for "concession"/"forfeit"; absent for a normally completed match. */
+  concedingTeamId?: string;
+}
+
 export interface TurnData {
   teamId: string;
   turnNumber: number; // 1-8 (or 1-6 for Sevens)
@@ -61,6 +75,8 @@ export interface GameState {
     blockReplacement?: BlockReplacement;
     /** Set atomically when the accepted target command commits the attack. */
     blockReplacementUsed?: boolean;
+    /** Set once the declaration has become binding (see PlayerActionManager). */
+    committed?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */
@@ -71,5 +87,7 @@ export interface GameState {
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */
   inducements?: import("./Inducements").InducementsMatchState;
+  /** Set once the match reaches GAME_OVER; absent beforehand. */
+  result?: MatchResult;
 }
 import { BlockReplacement } from "./BlockReplacement";

@@ -39,36 +39,36 @@ export function AvailableHires({
       >
         {roster.playerTemplates.map((template) => (
           <TableRow key={`hire-${template.positionName}`}>
-            <CustomTableCell className="text-xs">
+            <CustomTableCell className="text-base">
               {template.positionName}
             </CustomTableCell>
-            <TableCell className="text-xs text-center">
+            <TableCell className="text-sm text-center">
               {template.stats.MA}
             </TableCell>
-            <TableCell className="text-xs text-center">
+            <TableCell className="text-sm text-center">
               {template.stats.ST}
             </TableCell>
-            <TableCell className="text-xs text-center">
+            <TableCell className="text-sm text-center">
               {template.stats.AG}+
             </TableCell>
-            <TableCell className="text-xs text-center">
+            <TableCell className="text-sm text-center">
               {template.stats.PA}+
             </TableCell>
-            <TableCell className="text-xs text-center">
+            <TableCell className="text-sm text-center">
               {template.stats.AV}+
             </TableCell>
             <TableCell
-              className="text-[10px] italic max-w-[120px]"
+              className="text-sm italic"
               title={template.skills.map((s) => s.type).join(", ")}
             >
               {template.skills.map((s) => s.type).join(", ")}
             </TableCell>
-            <TableCell className="font-bold text-xs">
+            <TableCell className="font-bold text-base">
               {formatGold(template.cost)}
             </TableCell>
             <TableCell>
               <Button
-                className="!m-0 !px-2 !py-1 !text-[10px] w-full"
+                className="!m-0 !px-2 !py-1 !text-sm w-full"
                 onClick={() => onHirePlayer(template.positionName)}
                 disabled={treasury < template.cost}
               >

@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import { loadTeams } from "../../../game/managers/TeamManager";
+import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { validateInsignificant } from "../../../game/rules/insignificant";
+import { mustAdvance } from "../../../game/progression/progression";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
 import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
@@ -39,19 +43,48 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     setTeams(loadTeams());
   }, []);
 
+  /**
+   * Shared roster legality — a team may not be selected for a match until it
+   * is legal (team-lifecycle-modes: "Illegal draft tries to play"). Returns
+   * every violation found; empty means the team is legal.
+   */
+  const legalityIssues = (team: Team): string[] => {
+    const issues: string[] = [];
+    const insignificantError = validateInsignificant(team.players);
+    if (insignificantError) issues.push(insignificantError);
+    try {
+      const roster = getRosterByRosterName(team.rosterName);
+      issues.push(
+        ...validateRosterLegality(team, roster).map((v) => v.detail)
+      );
+    } catch {
+      issues.push(`Unknown roster ${team.rosterName}`);
+    }
+    return issues;
+  };
+
+  const pendingDevelopment = (team: Team) => team.players.filter(mustAdvance);
+
   const handleSelectTeam1 = (team: Team) => {
+    if (legalityIssues(team).length > 0) return;
     setSelectedTeam1(team);
   };
 
   const handleSelectTeam2 = (team: Team) => {
+    if (legalityIssues(team).length > 0) return;
     setSelectedTeam2(team);
   };
+
+  const blockingDevelopment = [selectedTeam1, selectedTeam2]
+    .filter((team): team is Team => !!team)
+    .flatMap((team) => pendingDevelopment(team));
 
   const handleStartGame = () => {
     if (
       !selectedTeam1 ||
       !selectedTeam2 ||
-      selectedTeam1.id === selectedTeam2.id
+      selectedTeam1.id === selectedTeam2.id ||
+      blockingDevelopment.length > 0
     ) {
       return;
     }
@@ -85,7 +118,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const canStart =
     selectedTeam1 !== null &&
     selectedTeam2 !== null &&
-    selectedTeam1.id !== selectedTeam2.id;
+    selectedTeam1.id !== selectedTeam2.id &&
+    blockingDevelopment.length === 0;
 
   if (teams.length < 2) {
     return (
@@ -132,28 +166,36 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             <div className="text-center mb-5">
               <SectionTitle>Player 1</SectionTitle>
             </div>
-            {teams.map((team) => (
-              <button
-                key={team.id}
-                className={`
-                                    w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left font-body text-lg
-                                    hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md
+            {teams.map((team) => {
+              const issues = legalityIssues(team);
+              return (
+                <button
+                  key={team.id}
+                  disabled={issues.length > 0}
+                  title={
+                    issues.length > 0 ? issues.join("; ") : undefined
+                  }
+                  className={`
+                                    w-full p-4 my-2.5 text-white border-none rounded transition-all text-left font-body text-lg
+                                    ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
                                     ${
                                       selectedTeam1?.id === team.id
                                         ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md"
                                         : "bg-bb-blood-red"
                                     }
                                 `}
-                onClick={() => handleSelectTeam1(team)}
-              >
-                <span className="font-heading font-bold uppercase">
-                  {team.name}
-                </span>
-                <span className="block text-sm opacity-90">
-                  {team.rosterName}
-                </span>
-              </button>
-            ))}
+                  onClick={() => handleSelectTeam1(team)}
+                >
+                  <span className="font-heading font-bold uppercase">
+                    {team.name}
+                  </span>
+                  <span className="block text-sm opacity-90">
+                    {team.rosterName}
+                    {issues.length > 0 && " — illegal roster"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* VS */}
@@ -174,28 +216,36 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             <div className="text-center mb-5">
               <SectionTitle>Player 2</SectionTitle>
             </div>
-            {teams.map((team) => (
-              <button
-                key={team.id}
-                className={`
-                                    w-full p-4 my-2.5 text-white border-none cursor-pointer rounded transition-all text-left font-body text-lg
-                                    hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md
+            {teams.map((team) => {
+              const issues = legalityIssues(team);
+              return (
+                <button
+                  key={team.id}
+                  disabled={issues.length > 0}
+                  title={
+                    issues.length > 0 ? issues.join("; ") : undefined
+                  }
+                  className={`
+                                    w-full p-4 my-2.5 text-white border-none rounded transition-all text-left font-body text-lg
+                                    ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
                                     ${
                                       selectedTeam2?.id === team.id
                                         ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md"
                                         : "bg-bb-blood-red"
                                     }
                                 `}
-                onClick={() => handleSelectTeam2(team)}
-              >
-                <span className="font-heading font-bold uppercase">
-                  {team.name}
-                </span>
-                <span className="block text-sm opacity-90">
-                  {team.rosterName}
-                </span>
-              </button>
-            ))}
+                  onClick={() => handleSelectTeam2(team)}
+                >
+                  <span className="font-heading font-bold uppercase">
+                    {team.name}
+                  </span>
+                  <span className="block text-sm opacity-90">
+                    {team.rosterName}
+                    {issues.length > 0 && " — illegal roster"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -216,6 +266,14 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             />
             League fixture — award SPP and enable player advancement
           </label>
+        )}
+
+        {blockingDevelopment.length > 0 && (
+          <p className="mb-4 text-center font-body text-bb-blood-red">
+            {blockingDevelopment.length} player
+            {blockingDevelopment.length === 1 ? "" : "s"} must advance in
+            Manage Team before this match can start.
+          </p>
         )}
 
         <div className="flex justify-between gap-5 mt-8">

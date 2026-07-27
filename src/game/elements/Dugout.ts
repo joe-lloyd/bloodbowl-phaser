@@ -10,7 +10,11 @@ import {
   PitchTheme,
   resolvePitchTheme,
 } from "../presentation/pitchThemes";
-import { getVisibleSidelineStaff } from "../presentation/sidelineStaff";
+import {
+  getEmptySidelineCrewInfo,
+  getSidelineCrewInfo,
+  getVisibleSidelineStaff,
+} from "../presentation/sidelineStaff";
 import { DUGOUT_LAYOUT, getDugoutLayout } from "../presentation/dugoutLayout";
 import { BoardLabel } from "../presentation/boardLabels";
 
@@ -230,6 +234,27 @@ export class Dugout extends Phaser.GameObjects.Container {
       head.setStrokeStyle(1, this.theme.dugout.label, 0.7);
       const sprite = this.scene.add.container(px, py, [body, head]);
       sprite.setName(`sideline_staff_${member.type}_${member.index}`);
+
+      // Hover-only: bounding box of the body (24x20 at y+7) and head
+      // (r7 at y-8), never draggable/selectable so an activation is
+      // untouched by a coach reading the rail (see design.md decision 4).
+      sprite.setInteractive(
+        new Phaser.Geom.Rectangle(-12, -15, 24, 32),
+        Phaser.Geom.Rectangle.Contains
+      );
+      sprite.on("pointerover", () => {
+        const crew = getSidelineCrewInfo(member.type, this.team);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.scene as any).eventBus?.emit(GameEventNames.UI_ShowInfo, {
+          kind: "sidelineCrew",
+          crew,
+        });
+      });
+      sprite.on("pointerout", () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.scene as any).eventBus?.emit(GameEventNames.UI_HidePlayerInfo);
+      });
+
       this.add(sprite);
     });
   }
@@ -287,6 +312,7 @@ export class Dugout extends Phaser.GameObjects.Container {
         align: "center",
         color,
         opacity: 0.45,
+        hoverInfo: getEmptySidelineCrewInfo(),
       });
     } else {
       staff.forEach((member, position) => {
@@ -404,6 +430,16 @@ export class Dugout extends Phaser.GameObjects.Container {
     sprite.on("pointerout", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.scene as any).eventBus?.emit("ui:hidePlayerInfo");
+    });
+    // Explicit click/tap, for Reserves/KO/Casualty alike — hover alone
+    // does not help on touch devices, and KO'd/Casualty players are never
+    // draggable so they would otherwise have no way to be inspected.
+    sprite.on("pointerdown", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.scene as any).eventBus?.emit(
+        GameEventNames.UI_ShowPlayerInfo,
+        player
+      );
     });
 
     sprite.on("dragstart", () => {

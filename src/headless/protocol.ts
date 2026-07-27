@@ -71,7 +71,8 @@ export type HeadlessCommand =
     }
   | { type: "pass"; playerId: string; x: number; y: number }
   | { type: "punt"; playerId: string; x: number; y: number }
-  | { type: "handoff"; playerId: string; x: number; y: number }
+  /** Hand-off targets a team-mate id, not a square — a Hand-off never aims. */
+  | { type: "handoff"; playerId: string; targetId: string }
   | { type: "foul"; playerId: string; x: number; y: number }
   | { type: "stab"; attackerId: string; defenderId: string }
   | {
@@ -233,6 +234,8 @@ export interface PlayerActions {
   moveTargets?: GridPosition[];
   blockTargets?: string[];
   foulTargets?: string[];
+  /** Legal Hand-off targets: adjacent, Standing, Tackle-Zone-holding team-mates. */
+  handoffTargets?: string[];
   /** Typed direct/Blitz declarations and their authoritative target sets. */
   replacementActions?: {
     blockReplacement: BlockReplacement;

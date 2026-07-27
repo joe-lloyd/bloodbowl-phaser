@@ -100,6 +100,11 @@ export function setActiveOnlineMatch(match: OnlineMatch | null): void {
  * one on the other machine would trigger its handlers and loop a command
  * back. Engine→UI prompts (UI_SelectPushDirection, UI_FollowUpPrompt, …)
  * are NOT in this set: the guest needs those to render decision dialogs.
+ *
+ * UI_LogEntry and UI_Announce are engine-emitted outcomes (the host resolves
+ * weather/kickoff/turn flow and describes what happened), not intents — like
+ * UI_Notification and DiceRoll they belong OUTSIDE this set so they broadcast
+ * normally and a guest's log/announcer matches the host's.
  */
 const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_RollBlockDice,

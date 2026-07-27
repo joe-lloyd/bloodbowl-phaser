@@ -157,6 +157,9 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
     this.selectedPlayerId = playerId;
     this.emit(GameEventNames.PlayerSelected, playerId);
+    // Setup shows the same info panel as play: selecting (or starting a
+    // drag on) a player fills it with their full details.
+    this.emit(GameEventNames.UI_ShowPlayerInfo, player);
   }
 
   /**
