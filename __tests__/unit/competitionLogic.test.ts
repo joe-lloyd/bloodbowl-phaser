@@ -11,11 +11,11 @@ function entrant(id: string, seed: number): CompetitionEntrant {
   return {
     id,
     teamId: id,
+    ownerUid: null,
     name: `Team ${id}`,
     rosterName: "Human",
     seed,
     source: "local",
-    team: { id, name: `Team ${id}`, players: [] } as never,
   };
 }
 

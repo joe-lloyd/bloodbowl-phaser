@@ -13,7 +13,6 @@ import { SkillRegistry } from "../../src/game/skills";
 import {
   loadTeams,
   setTeamRepository,
-  TeamRepository,
 } from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
 
@@ -146,40 +145,58 @@ describe("legacy skill name migration", () => {
 });
 
 describe("round-trip: a pre-reconciliation saved team loads intact", () => {
-  afterEach(() => setTeamRepository(null));
+  afterEach(() => {
+    setTeamRepository(null);
+    localStorage.clear();
+  });
 
-  it("loads all skills as current families with parameters", () => {
-    // A team saved before this change, skills under old names
+  /**
+   * Since normalize-cloud-data-model, a player's skills are never the
+   * persisted source of truth — they are rehydrated from the roster
+   * template plus `advancements` (src/data/persistence/teamPersistence.ts).
+   * A gained skill's legacy name now lives in `advancements[].name`, so
+   * that is where migration is exercised: a "Human Lineman" template
+   * carries no base skills, so everything below comes from advancement.
+   * Written directly to localStorage (rather than a stub TeamRepository)
+   * so the real hydration path — the localStorage backend's `loadTeams` —
+   * is what performs the migration, exactly as it would for a real legacy
+   * document.
+   */
+  it("loads all gained skills as current families with parameters", () => {
     const savedTeam = {
       id: "fixture-team",
       name: "Fixture",
+      rosterName: "Human",
       players: [
         {
           id: "p1",
           playerName: "Old Ogre",
-          skills: [
-            { type: "Loner 4+", category: "Passing", description: "" },
-            { type: "Throw Teammate", category: "General", description: "" },
-            { type: "Block", category: "General", description: "" },
-            { type: "Unchained Fury", category: "General", description: "" },
+          positionName: "Human Lineman",
+          spp: 0,
+          level: 4,
+          advancements: [
+            { id: "a1", type: "primary-skill", name: "Loner 4+", sppCost: 6, valueIncrease: 20_000 },
+            { id: "a2", type: "primary-skill", name: "Throw Teammate", sppCost: 6, valueIncrease: 20_000 },
+            { id: "a3", type: "primary-skill", name: "Block", sppCost: 6, valueIncrease: 30_000 },
+            { id: "a4", type: "primary-skill", name: "Unchained Fury", sppCost: 6, valueIncrease: 20_000 },
           ],
         },
         {
           id: "p2",
           playerName: "Old Gnome",
-          skills: [
-            { type: "Fumbleoskie", category: "Devious", description: "" },
-            { type: "Portal Navigator", category: "General", description: "" },
+          positionName: "Human Lineman",
+          spp: 0,
+          level: 2,
+          advancements: [
+            { id: "a1", type: "primary-skill", name: "Fumbleoskie", sppCost: 6, valueIncrease: 20_000 },
+            { id: "a2", type: "primary-skill", name: "Portal Navigator", sppCost: 6, valueIncrease: 20_000 },
           ],
         },
       ],
     } as unknown as Team;
 
-    const stub: TeamRepository = {
-      loadTeams: () => [savedTeam],
-      saveTeams: () => {},
-    };
-    setTeamRepository(stub);
+    setTeamRepository(null);
+    localStorage.setItem("bloodbowl_teams", JSON.stringify([savedTeam]));
 
     const [team] = loadTeams();
     const p1 = team.players[0].skills.map((s) => [s.type, s.parameter]);

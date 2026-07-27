@@ -16,10 +16,12 @@ describe("competition Firestore rule contract", () => {
     expect(block).toContain("resource.data.ownerUid == request.auth.uid");
   });
 
-  it("limits participant competition updates to result-derived fields", () => {
+  it("limits participant competition updates to result-derived fields and the entrant display cache", () => {
     expect(rules).toContain("match /leagues/{leagueId}");
     expect(rules).toContain("match /tournaments/{tournamentId}");
-    expect(rules).toContain(".hasOnly(['fixtures', 'standings', 'status'");
+    expect(rules).toContain(
+      ".hasOnly(['entrants', 'fixtures', 'standings', 'status'"
+    );
     expect(rules).toContain("'championEntrantId', 'updatedAt']");
   });
 });

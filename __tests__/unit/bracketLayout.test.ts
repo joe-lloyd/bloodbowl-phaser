@@ -10,17 +10,16 @@ import {
   seedEntrants,
 } from "../../src/competition/logic";
 import { CompetitionEntrant, CompetitionFixture } from "../../src/competition/types";
-import { Team } from "../../src/types/Team";
 
 function entrants(count: number): CompetitionEntrant[] {
   return seedEntrants(
     Array.from({ length: count }, (_, i) => ({
       id: `e${i + 1}`,
       teamId: `t${i + 1}`,
+      ownerUid: null,
       name: `Team ${i + 1}`,
       rosterName: "Human",
       source: "local" as const,
-      team: { id: `t${i + 1}`, name: `Team ${i + 1}` } as Team,
     }))
   );
 }
