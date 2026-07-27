@@ -34,9 +34,15 @@ export interface PlayerDestination {
  * on the pitch whatever their standing (Active / Prone / Stunned); everyone
  * else is placed by status. Total by construction — every player is in
  * exactly one box.
+ *
+ * Status beats a stale `gridPosition`: if some path set a player KO without
+ * clearing their square, they belong to the KO box and their pitch sprite
+ * goes. That direction fails safe (the player is shown once, in the box the
+ * rules put them in); the other direction would draw them on the pitch AND
+ * leave the box empty. `findPlayerLocationViolations` reports the stale
+ * square either way, so the bug is still surfaced rather than hidden.
  */
 export function playerBoxOf(player: Player): PlayerBox {
-  if (player.gridPosition) return "pitch";
   switch (player.status) {
     case PlayerStatus.KO:
       return "ko";
@@ -45,8 +51,10 @@ export function playerBoxOf(player: Player): PlayerBox {
       return "casualty";
     case PlayerStatus.REMOVED:
       return "sent-off";
-    default:
+    case PlayerStatus.RESERVE:
       return "reserves";
+    default:
+      return player.gridPosition ? "pitch" : "reserves";
   }
 }
 

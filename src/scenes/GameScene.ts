@@ -34,6 +34,12 @@ import {
 } from "../headless/serialization";
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
+import {
+  findBoardStateConflicts,
+  isActivatedThisTurn,
+  resolveBallRepresentation,
+  resolvePlayerLocation,
+} from "../game/presentation/boardState";
 
 // Assets
 // Dynamic loading via import.meta.glob
@@ -187,7 +193,10 @@ export class GameScene extends Phaser.Scene {
     // Refresh Display — rebuild (not just refresh) so a roster swap in the
     // loaded scenario replaces the dugouts' stale team references.
     this.rebuildDugouts();
-    this.placePlayersOnPitch();
+    // A scenario/save restore rebuilds ball, pitch/dugout placement and
+    // activation styling through the SAME reconcilers uninterrupted play uses,
+    // against the service reference this reload just installed.
+    this.reconcileBoard();
   }
 
   constructor(key: string = "GameScene") {
@@ -404,9 +413,9 @@ export class GameScene extends Phaser.Scene {
     this.orchestrator.initialize();
 
     if (this.resumedMatch) {
-      this.refreshDugouts();
-      const ball = this.gameService.getState().ballPosition;
-      if (ball) this.placeBallVisual(ball.x, ball.y);
+      // Restore rebuilds presentation from canonical state only — the same
+      // reconcilers uninterrupted play uses, so a resumed board cannot drift.
+      this.reconcileBoard();
       this.eventBus.emit(
         GameEventNames.GameStateRestored,
         this.gameService.getState()
@@ -1164,23 +1173,144 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Move THE ball visual to a square. Idempotent by construction: the scene
+   * owns at most one BallSprite, which is repositioned (and its in-flight
+   * tweens cancelled) rather than destroyed and recreated, so no code path
+   * can leave a second ball behind.
+   */
   protected placeBallVisual(x: number, y: number): void {
     // A BallKicked delivered to a shut-down scene is what crashed the second
     // match of a session (`new BallSprite` on a null `sys`).
     if (!this.isSceneLive("placeBallVisual")) return;
-    if (this.ballSprite) {
-      this.ballSprite.destroy();
-    }
 
     // Use WORLD coordinates (same as players) since ball will be in scene root
     const pos = this.pitch.getPixelPosition(x, y);
 
-    this.ballSprite = new BallSprite(this, pos.x, pos.y);
+    if (this.ballSprite?.active) {
+      this.tweens.killTweensOf(this.ballSprite);
+      this.ballSprite.setPosition(pos.x, pos.y);
+      // Reset the airborne/kickoff treatment so a re-used ball looks the same
+      // as a freshly created one.
+      this.ballSprite.setScale(0.5);
+      this.ballSprite.setAlpha(1);
+      this.ballSprite.setVisible(true);
+    } else {
+      this.ballSprite = new BallSprite(this, pos.x, pos.y);
+    }
 
     // CRITICAL: Add ball to SCENE ROOT (not pitch container)
     // This puts it in the same rendering context as players
     // Players are at depth 10, so ball at depth 100 will render on top
     this.ballSprite.setDepth(100);
+  }
+
+  /**
+   * Reconcile the ball visual and every carrier marker to the single
+   * representation derived from canonical state. Safe to call any number of
+   * times: exactly one ball visual survives and exactly one player (or none)
+   * is marked as the carrier.
+   */
+  public reconcileBallVisual(): void {
+    const players = [...this.team1.players, ...this.team2.players];
+    const ball = resolveBallRepresentation(this.gameService.getState(), players);
+
+    if (ball.kind === "none") {
+      this.ballSprite?.destroy();
+      this.ballSprite = null;
+    } else {
+      // Exactly one ball visual, at the one possession square — whether that
+      // square is empty (loose) or occupied by the carrier.
+      this.placeBallVisual(ball.square.x, ball.square.y);
+    }
+
+    const carrierId = ball.kind === "carried" ? ball.playerId : null;
+    this.playerSprites.forEach((sprite, playerId) => {
+      sprite.setCarryingBall(playerId === carrierId);
+    });
+  }
+
+  /**
+   * Reconcile pitch/dugout presentation from `resolvePlayerLocation` — the one
+   * function that owns "where is this player represented". A player resolved
+   * into a dugout box loses their pitch sprite immediately, even if some rule
+   * path left a stale grid position behind.
+   */
+  public reconcilePlayerLocations(): void {
+    [...this.team1.players, ...this.team2.players].forEach((player) =>
+      this.reconcilePlayerLocation(player.id, true)
+    );
+    this.dugouts.forEach((dugout) => dugout.refresh());
+  }
+
+  /**
+   * Reconcile one player's pitch/dugout presentation. `reposition` is opt-in:
+   * during play a status change must not snap a mid-animation mover back to
+   * their grid square, but a player who has left the pitch must disappear from
+   * it immediately (KO, casualty, sent off).
+   */
+  public reconcilePlayerLocation(playerId: string, reposition = false): void {
+    const player = this.gameService.getPlayerById(playerId);
+    const sprite = this.playerSprites.get(playerId);
+    if (!player || !sprite) return;
+
+    const location = resolvePlayerLocation(player);
+    if (location.kind !== "pitch") {
+      sprite.setCarryingBall(false);
+      sprite.setVisible(false);
+      this.dugouts.forEach((dugout) => dugout.refresh());
+      return;
+    }
+
+    if (reposition) {
+      const pos = this.pitch.getPixelPosition(
+        location.square.x,
+        location.square.y
+      );
+      sprite.setPosition(pos.x, pos.y);
+    }
+    sprite.updateStatus();
+  }
+
+  /**
+   * Reapply the activated (dimmed) treatment from current-turn state. Only
+   * players resolved onto the pitch are touched: clearing the treatment falls
+   * back to the status visual, which would otherwise make a dugout player's
+   * sprite visible again.
+   */
+  public reconcileActivationStyling(): void {
+    const state = this.gameService.getState();
+    this.playerSprites.forEach((sprite, playerId) => {
+      const player = this.gameService.getPlayerById(playerId);
+      if (!player || resolvePlayerLocation(player).kind !== "pitch") return;
+      sprite.setActivated(isActivatedThisTurn(state, playerId));
+    });
+  }
+
+  /**
+   * Full-board reconciliation, used by restore/resume and any path that has
+   * to rebuild presentation from state alone.
+   */
+  public reconcileBoard(): void {
+    this.placePlayersOnPitch();
+    this.reconcilePlayerLocations();
+    this.reconcileBallVisual();
+    this.reconcileActivationStyling();
+    this.reportBoardStateConflicts();
+  }
+
+  /**
+   * Diagnostic: surface any state that cannot be drawn unambiguously (two
+   * balls, a player on the pitch and in a dugout box at once).
+   */
+  private reportBoardStateConflicts(): void {
+    const conflicts = findBoardStateConflicts(this.gameService.getState(), [
+      ...this.team1.players,
+      ...this.team2.players,
+    ]);
+    if (conflicts.length) {
+      console.warn("[GameScene] board state conflicts:", conflicts);
+    }
   }
 
   // Interaction Helpers matched to Controller expectations

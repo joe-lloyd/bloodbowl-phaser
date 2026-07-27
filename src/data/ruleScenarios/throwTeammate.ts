@@ -634,7 +634,11 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "no-scatter-on-target",
             name: "The thrown Gnoblar lands on the target square, no Scatter",
-            matches: (r) => skillTriggered(r, SkillType.BULLSEYE),
+            // A Gnoblar Knocked Out by its landing leaves the pitch at once,
+            // so the on-target square is only observable while it is there.
+            matches: (r) =>
+              skillTriggered(r, SkillType.BULLSEYE) &&
+              !!playerOf(r, MATE).gridPosition,
             verify: (r) => {
               const mate = playerOf(r, MATE).gridPosition;
               assert(

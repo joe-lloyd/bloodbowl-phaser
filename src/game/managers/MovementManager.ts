@@ -547,10 +547,20 @@ export class MovementManager {
           holdingBall = pickupOp.success;
 
           if (!holdingBall) {
+            // A failed pickup ends the route here. The mover is NOT the
+            // carrier; the loose ball's square is decided by the queued
+            // bounce. PickupOperation has already announced the failure, so
+            // presentation reconciles from that event.
             failed = true;
             break;
           }
 
+          // Commit carrier state AT THE PICKUP STEP, before any remaining
+          // route step resolves: the ball is now on the mover's square and
+          // travels with them from here. Every later step, touchdown check
+          // and presentation listener observes the completed possession
+          // rather than the pre-pickup one.
+          this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
           ballFrom = { ...currentPos };
           ballJoinStep = completedPath.length;
         }

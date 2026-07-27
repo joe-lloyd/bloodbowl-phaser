@@ -5,6 +5,7 @@ import { PlayerStatus } from "../../types/Player.js";
 import { InjuryResult } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
+import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, InjuryRollContext } from "../skills";
 
 /**
@@ -105,7 +106,11 @@ export class InjuryOperation extends GameOperation {
         break;
       case InjuryResult.KO:
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-        player.status = PlayerStatus.KO;
+        // A Knocked Out player leaves the pitch as part of THIS resolution:
+        // status, pitch occupancy and the board announcement move together,
+        // so later pathing/marking/target selection immediately treat the
+        // square as empty and the player appears once, in the KO box.
+        movePlayerToBox(player, { box: "ko" }, eventBus);
         break;
       case InjuryResult.CASUALTY:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");

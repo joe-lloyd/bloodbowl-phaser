@@ -125,6 +125,8 @@ const UI_INTENT_EVENTS = new Set<string>([
   // Skipping the end-of-drive beat is a local viewing choice; replaying it
   // would cut the other coach's sequence short mid-animation.
   GameEventNames.UI_SkipDriveSequence,
+  // Presentation acknowledgements are local to each client's animation.
+  GameEventNames.UI_PresentationAcknowledged,
 ]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */

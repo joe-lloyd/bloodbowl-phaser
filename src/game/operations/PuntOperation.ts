@@ -6,6 +6,13 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import {
+  awaitPresentation,
+  nextPresentationId,
+} from "../presentation/presentationGate";
+
+/** Upper bound on the graphical kick animation before the flow moves on. */
+const PUNT_PRESENTATION_TIMEOUT_MS = 1500;
 
 const DIRS = [
   { x: 0, y: -1 },
@@ -116,6 +123,7 @@ export class PuntOperation extends GameOperation {
     const direction = DIRS[(facing + offset + 8) % 8];
     const from = { ...punter.gridPosition };
     let landing = { ...from };
+    let intoCrowd = false;
     for (let step = 0; step < distance; step++) {
       landing = {
         x: landing.x + direction.x,
@@ -127,19 +135,48 @@ export class PuntOperation extends GameOperation {
         landing.y < 0 ||
         landing.y >= GameConfig.PITCH_HEIGHT
       ) {
-        eventBus.emit(GameEventNames.SkillTriggered, {
-          playerId: punter.id,
-          skill: SkillType.PUNT,
-          effect: `Punt: ${distance} squares into the crowd`,
-        });
-        gameService.triggerTurnover("Punt entered the crowd");
-        gameService.throwInBall({
-          x: landing.x - direction.x,
-          y: landing.y - direction.y,
-        });
-        flowManager.add(new FinishPuntOperation(punter.id));
-        return;
+        intoCrowd = true;
+        break;
       }
+    }
+
+    // Presentation boundary. Every die this Punt needs has been rolled and the
+    // destination is fixed, but NOTHING has moved yet: a graphical client
+    // plays the kick here, a headless client auto-acknowledges. Because the
+    // outcome is decided before the boundary and committed after it, the wait
+    // can never re-roll the Punt — and because the wait happens inside a flow
+    // operation, every save path (which drains the flow queue first) sees
+    // either the pre-Punt or the post-Punt board, never a half-kicked one.
+    const presentationId = nextPresentationId("punt");
+    eventBus.emit(GameEventNames.PuntDeclared, {
+      playerId: punter.id,
+      presentationId,
+      from,
+      direction: { ...direction },
+      distance,
+      landing: { ...landing },
+      intoCrowd,
+    });
+    await awaitPresentation(
+      eventBus,
+      context.delay,
+      presentationId,
+      PUNT_PRESENTATION_TIMEOUT_MS
+    );
+
+    if (intoCrowd) {
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: punter.id,
+        skill: SkillType.PUNT,
+        effect: `Punt: ${distance} squares into the crowd`,
+      });
+      gameService.triggerTurnover("Punt entered the crowd");
+      gameService.throwInBall({
+        x: landing.x - direction.x,
+        y: landing.y - direction.y,
+      });
+      flowManager.add(new FinishPuntOperation(punter.id));
+      return;
     }
 
     eventBus.emit(GameEventNames.SkillTriggered, {

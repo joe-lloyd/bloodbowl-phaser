@@ -10,6 +10,23 @@ We use **Vitest** for all testing (Unit, Integration) and it is configured to mi
 - **Run with UI**: `npm run test:ui`
 - **Check coverage**: `npm run test:coverage`
 
+### Headless visual baselines
+
+Board-state screenshots are deterministic fixed-viewport (1200×660) SVG
+renders, not browser captures — they run under plain Vitest with no browser and
+no Playwright dependency.
+
+- **Run them**: `npx vitest run __tests__/headless/match-state-visual-baseline.test.ts`
+- **Update them after an intentional visual change**:
+  `UPDATE_VISUAL_BASELINES=1 npx vitest run __tests__/headless/match-state-visual-baseline.test.ts`
+- Baseline files live in `__tests__/headless/screenshots/`.
+
+The `match-state-visual-sync` checkpoints (loose ball, carried ball, KO box,
+restored activation) render straight from
+`src/game/presentation/boardState.ts`, so any regression that duplicates the
+ball, leaves a knocked-out player on the pitch, or drops the activated
+treatment after a restore changes the image.
+
 ## Test Structure
 
 - `__tests__/unit`: Pure logic tests (Validators, Services).
