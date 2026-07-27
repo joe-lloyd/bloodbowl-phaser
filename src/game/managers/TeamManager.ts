@@ -5,6 +5,7 @@
 import { Team, createTeam, RosterName, TeamColors } from "../../types/Team";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { migrateSkills } from "../../types/Skills";
+import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import {
   cleanupDevelopmentSeedData,
   seedDevelopmentData,
@@ -72,6 +73,10 @@ export function saveTeams(teams: Team[]): void {
 export function loadTeams(): Team[] {
   const teams = activeRepository.loadTeams();
   teams.forEach((team) => {
+    // Teams saved before firstMatchPlayedAt existed: a team with recorded
+    // win/loss/draw history has necessarily completed a match, so it is
+    // active; an unplayed team is left in draft (see teamLifecycle.ts).
+    backfillFirstMatchPlayedAt(team);
     let roster: ReturnType<typeof getRosterByRosterName> | undefined;
     try {
       roster = team.rosterName

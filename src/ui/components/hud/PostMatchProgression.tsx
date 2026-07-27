@@ -1,25 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { Player } from "../../../types/Player";
-import {
-  SkillCategory,
-  SkillType,
-  SKILL_DEFINITIONS,
-} from "../../../types/Skills";
-import { calculateTeamValue, Team } from "../../../types/Team";
+import { Team } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
-import {
-  AdvancementChoice,
-  applyAdvancement,
-  canAdvance,
-  characteristicChoices,
-  eligibleSkills,
-  mustAdvance,
-  nextAdvancementCosts,
-  RandomSkillCandidate,
-  rollRandomPrimaryCandidates,
-} from "../../../game/progression/progression";
+import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
+import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import { MatchStatsSummary } from "../../../game/progression/MatchStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
@@ -29,13 +14,20 @@ interface Props {
   visible: boolean;
 }
 
-type SkillAccess = "primary" | "secondary";
-
 function ownedTeams(teams: Team[]): Team[] {
   const online = getActiveOnlineMatch();
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
 }
 
+/**
+ * Post-match results screen. It records the match's outcome — MVP, awarded
+ * touchdowns, SPP — and, once confirmed, stamps the team active for the
+ * first time it has ever completed a match. It deliberately does not offer
+ * skill or characteristic assignment: that belongs to Manage Team's player
+ * development page (see overhaul-team-lifecycle-management), which is the
+ * only place SPP is actually spent. This screen only surfaces which players
+ * now have pending development to resolve there.
+ */
 export function PostMatchProgression({ visible }: Props) {
   const navigate = useNavigate();
   const container = ServiceContainer.isInitialized()
@@ -62,17 +54,6 @@ export function PostMatchProgression({ visible }: Props) {
   const [touchdownRecipients, setTouchdownRecipients] = useState<
     Record<string, string>
   >({});
-  const [selectedPlayerId, setSelectedPlayerId] = useState("");
-  const [kind, setKind] = useState<AdvancementChoice["kind"]>("random-primary");
-  const [access, setAccess] = useState<SkillAccess>("primary");
-  const [category, setCategory] = useState<SkillCategory | "">("");
-  const [skill, setSkill] = useState<SkillType | "">("");
-  const [randomCandidates, setRandomCandidates] = useState<
-    [RandomSkillCandidate, RandomSkillCandidate] | null
-  >(null);
-  const [characteristicRoll, setCharacteristicRoll] = useState<number | null>(
-    null
-  );
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
 
@@ -107,9 +88,6 @@ export function PostMatchProgression({ visible }: Props) {
   const statsSummary = summary ?? tracker.summary(allPlayers);
   const own = ownedTeams(teams);
   const ownPlayers = own.flatMap((team) => team.players);
-  const selectedPlayer = ownPlayers.find(
-    (player) => player.id === selectedPlayerId
-  );
   const pendingMvpTeams = teams.filter(
     (team) =>
       !statsSummary.players.some(
@@ -188,7 +166,13 @@ export function PostMatchProgression({ visible }: Props) {
   const confirmSpp = () => {
     try {
       const finalSummary = tracker.applySpp(teams);
-      ownedTeams(teams).forEach(saveTeam);
+      ownedTeams(teams).forEach((team) => {
+        // A confirmed post-match result is this team's completed match —
+        // stamp it active (idempotent; see teamLifecycle.ts). Abandoning
+        // before this point never reaches here, so it never activates.
+        stampFirstCompletedMatch(team);
+        saveTeam(team);
+      });
       setSummary(finalSummary);
       setConfirmed(true);
       setError("");
@@ -197,43 +181,12 @@ export function PostMatchProgression({ visible }: Props) {
     }
   };
 
-  const resetAdvancementForm = () => {
-    setCategory("");
-    setSkill("");
-    setRandomCandidates(null);
-    setCharacteristicRoll(null);
-  };
-
-  const applyChoice = (choice: AdvancementChoice) => {
-    if (!selectedPlayer) return;
-    try {
-      applyAdvancement(selectedPlayer, choice);
-      const team = own.find(
-        (candidate) => candidate.id === selectedPlayer.teamId
-      );
-      if (team) {
-        team.teamValue = calculateTeamValue(team);
-        saveTeam(team);
-      }
-      resetAdvancementForm();
-      refresh((value) => value + 1);
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  };
-
-  const categories =
-    selectedPlayer == null
-      ? []
-      : access === "primary"
-        ? (selectedPlayer.primary ?? [])
-        : (selectedPlayer.secondary ?? []);
-  const skills =
-    selectedPlayer && category
-      ? eligibleSkills(selectedPlayer, [category])
-      : [];
-  const canFinish = !ownPlayers.some(mustAdvance);
+  const pendingDevelopment = ownPlayers.filter(canAdvance);
+  // Mandatory advancement is marked here but resolved in Manage Team, not
+  // this screen (post-match-summary, player-development-page) — finishing
+  // is never blocked on it; the next match launch enforces the rule
+  // instead (see TeamSelect's blockingDevelopment check).
+  const requiredDevelopment = ownPlayers.filter(mustAdvance);
 
   return (
     <div className="absolute inset-0 z-[250] overflow-auto bg-slate-950/95 p-6 text-bb-parchment pointer-events-auto">
@@ -242,8 +195,8 @@ export function PostMatchProgression({ visible }: Props) {
           Post-match progression
         </h1>
         <p className="mb-5 font-body text-lg">
-          Review the match, roll each MVP, then confirm SPP before advancing
-          players.
+          Review the match, roll each MVP, then confirm SPP. Advancement
+          itself is resolved in Manage Team, not here.
         </p>
 
         {!confirmed && (
@@ -366,70 +319,33 @@ export function PostMatchProgression({ visible }: Props) {
             <StatsTables teams={teams} summary={summary!} />
             <section className="mt-6 rounded-lg border border-bb-dark-gold bg-slate-800 p-4">
               <h2 className="font-heading text-2xl text-bb-gold">
-                Player advancement
+                Player development
               </h2>
-              <select
-                value={selectedPlayerId}
-                onChange={(event) => {
-                  setSelectedPlayerId(event.target.value);
-                  resetAdvancementForm();
-                }}
-                className="mt-3 w-full rounded bg-slate-950 p-3"
-              >
-                <option value="">Choose an advanceable player</option>
-                {ownPlayers.filter(canAdvance).map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.playerName} — {player.spp} SPP
-                    {mustAdvance(player) ? " (must advance)" : ""}
-                  </option>
-                ))}
-              </select>
-
-              {selectedPlayer && (
-                <AdvancementForm
-                  player={selectedPlayer}
-                  kind={kind}
-                  setKind={(next) => {
-                    setKind(next);
-                    setAccess(
-                      next === "chosen-secondary" ? "secondary" : "primary"
-                    );
-                    resetAdvancementForm();
-                  }}
-                  access={access}
-                  setAccess={(next) => {
-                    setAccess(next);
-                    setCategory("");
-                    setSkill("");
-                  }}
-                  category={category}
-                  setCategory={(next) => {
-                    setCategory(next);
-                    setSkill("");
-                    setRandomCandidates(null);
-                  }}
-                  categories={categories}
-                  skill={skill}
-                  setSkill={setSkill}
-                  skills={skills}
-                  randomCandidates={randomCandidates}
-                  rollRandom={() => {
-                    if (!category) return;
-                    setRandomCandidates(
-                      rollRandomPrimaryCandidates(
-                        selectedPlayer,
-                        category,
-                        container.rngService
-                      )
-                    );
-                  }}
-                  characteristicRoll={characteristicRoll}
-                  rollCharacteristic={() =>
-                    setCharacteristicRoll(container.rngService.rollDie(8))
-                  }
-                  applyChoice={applyChoice}
-                />
+              {pendingDevelopment.length === 0 ? (
+                <p className="mt-2 font-body">
+                  No player earned enough SPP to advance this match.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2 font-body">
+                    Resolve advancement for these players from Manage Team:
+                  </p>
+                  <ul className="mt-3 space-y-1 font-body">
+                    {pendingDevelopment.map((player) => (
+                      <li key={player.id}>
+                        #{player.number} {player.playerName} — {player.spp} SPP
+                        {mustAdvance(player) ? " (must advance)" : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
+              <button
+                onClick={() => navigate("/build-team")}
+                className="mt-4 rounded bg-bb-ink-blue px-4 py-2"
+              >
+                Open Manage Team
+              </button>
             </section>
 
             <button
@@ -437,13 +353,12 @@ export function PostMatchProgression({ visible }: Props) {
                 clearMatchSave();
                 navigate("/");
               }}
-              disabled={!canFinish}
               title={
-                canFinish
-                  ? undefined
-                  : "A player at the characteristic threshold must advance"
+                requiredDevelopment.length > 0
+                  ? "Resolve mandatory advancement in Manage Team before the next match"
+                  : undefined
               }
-              className="mt-5 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl disabled:opacity-40"
+              className="mt-5 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl"
             >
               Finish post-match
             </button>
@@ -506,289 +421,6 @@ function StatsTables({
           </table>
         </section>
       ))}
-    </div>
-  );
-}
-
-function AdvancementForm({
-  player,
-  kind,
-  setKind,
-  access,
-  setAccess,
-  category,
-  setCategory,
-  categories,
-  skill,
-  setSkill,
-  skills,
-  randomCandidates,
-  rollRandom,
-  characteristicRoll,
-  rollCharacteristic,
-  applyChoice,
-}: {
-  player: Player;
-  kind: AdvancementChoice["kind"];
-  setKind: (kind: AdvancementChoice["kind"]) => void;
-  access: SkillAccess;
-  setAccess: (access: SkillAccess) => void;
-  category: SkillCategory | "";
-  setCategory: (category: SkillCategory | "") => void;
-  categories: SkillCategory[];
-  skill: SkillType | "";
-  setSkill: (skill: SkillType | "") => void;
-  skills: SkillType[];
-  randomCandidates: [RandomSkillCandidate, RandomSkillCandidate] | null;
-  rollRandom: () => void;
-  characteristicRoll: number | null;
-  rollCharacteristic: () => void;
-  applyChoice: (choice: AdvancementChoice) => void;
-}) {
-  const costs = nextAdvancementCosts(player)!;
-  const options: {
-    kind: AdvancementChoice["kind"];
-    label: string;
-    cost: number;
-  }[] = [
-    {
-      kind: "random-primary",
-      label: "Random Primary",
-      cost: costs.randomPrimary,
-    },
-    {
-      kind: "chosen-primary",
-      label: "Choose Primary",
-      cost: costs.chosenPrimary,
-    },
-    {
-      kind: "chosen-secondary",
-      label: "Choose Secondary",
-      cost: costs.chosenSecondary,
-    },
-    {
-      kind: "characteristic",
-      label: "Characteristic",
-      cost: costs.characteristic,
-    },
-  ];
-
-  return (
-    <div className="mt-4">
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <button
-            key={option.kind}
-            disabled={player.spp < option.cost}
-            onClick={() => setKind(option.kind)}
-            className={`rounded border px-3 py-2 ${
-              kind === option.kind
-                ? "border-bb-gold bg-bb-blood-red"
-                : "border-slate-600"
-            } disabled:opacity-40`}
-          >
-            {option.label} ({option.cost} SPP)
-          </button>
-        ))}
-      </div>
-
-      {kind === "characteristic" ? (
-        <div className="mt-4">
-          <button
-            onClick={rollCharacteristic}
-            disabled={characteristicRoll !== null}
-            className="rounded bg-bb-ink-blue px-4 py-2"
-          >
-            Roll D8
-          </button>
-          {characteristicRoll !== null && (
-            <>
-              <p className="my-3 text-lg">Rolled {characteristicRoll}</p>
-              <div className="flex flex-wrap gap-2">
-                {characteristicChoices(player, characteristicRoll).map(
-                  (stat) => (
-                    <button
-                      key={stat}
-                      onClick={() =>
-                        applyChoice({
-                          kind: "characteristic",
-                          roll: characteristicRoll,
-                          stat,
-                        })
-                      }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
-                    >
-                      Improve {stat}
-                    </button>
-                  )
-                )}
-              </div>
-              <p className="mt-4">
-                Or take a chosen skill at the spent Characteristic cost:
-              </p>
-              <SkillSelectors
-                access={access}
-                setAccess={setAccess}
-                category={category}
-                setCategory={setCategory}
-                categories={
-                  access === "primary"
-                    ? (player.primary ?? [])
-                    : (player.secondary ?? [])
-                }
-                skill={skill}
-                setSkill={setSkill}
-                skills={skills}
-              />
-              <button
-                disabled={!skill}
-                onClick={() =>
-                  skill &&
-                  applyChoice({
-                    kind: "characteristic-fallback",
-                    roll: characteristicRoll,
-                    skill,
-                    access,
-                  })
-                }
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
-              >
-                Confirm skill fallback
-              </button>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="mt-4">
-          <SkillSelectors
-            access={access}
-            setAccess={setAccess}
-            lockAccess
-            category={category}
-            setCategory={setCategory}
-            categories={categories}
-            skill={skill}
-            setSkill={setSkill}
-            skills={skills}
-          />
-          {kind === "random-primary" ? (
-            <>
-              <button
-                disabled={!category || !!randomCandidates}
-                onClick={rollRandom}
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
-              >
-                Roll two candidates
-              </button>
-              {randomCandidates && (
-                <div className="mt-3 flex gap-3">
-                  {[
-                    ...new Map(
-                      randomCandidates.map((candidate) => [
-                        candidate.skill,
-                        candidate,
-                      ])
-                    ).values(),
-                  ].map((candidate) => (
-                    <button
-                      key={candidate.skill}
-                      onClick={() =>
-                        applyChoice({
-                          kind: "random-primary",
-                          skill: candidate.skill,
-                        })
-                      }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
-                    >
-                      {candidate.firstD6}, {candidate.secondD6}:{" "}
-                      {candidate.skill}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              disabled={!skill}
-              onClick={() =>
-                skill &&
-                applyChoice({
-                  kind,
-                  skill,
-                } as AdvancementChoice)
-              }
-              className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
-            >
-              Confirm skill
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SkillSelectors({
-  access,
-  setAccess,
-  lockAccess = false,
-  category,
-  setCategory,
-  categories,
-  skill,
-  setSkill,
-  skills,
-}: {
-  access: SkillAccess;
-  setAccess: (access: SkillAccess) => void;
-  lockAccess?: boolean;
-  category: SkillCategory | "";
-  setCategory: (category: SkillCategory | "") => void;
-  categories: SkillCategory[];
-  skill: SkillType | "";
-  setSkill: (skill: SkillType | "") => void;
-  skills: SkillType[];
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap gap-3">
-      {!lockAccess && (
-        <select
-          value={access}
-          onChange={(event) => setAccess(event.target.value as SkillAccess)}
-          className="rounded bg-slate-950 p-2"
-        >
-          <option value="primary">Primary</option>
-          <option value="secondary">Secondary</option>
-        </select>
-      )}
-      <select
-        value={category}
-        onChange={(event) =>
-          setCategory(event.target.value as SkillCategory | "")
-        }
-        className="rounded bg-slate-950 p-2"
-      >
-        <option value="">Choose category</option>
-        {categories.map((item) => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
-      <select
-        value={skill}
-        disabled={!category}
-        onChange={(event) => setSkill(event.target.value as SkillType | "")}
-        className="rounded bg-slate-950 p-2 disabled:opacity-40"
-      >
-        <option value="">Choose skill</option>
-        {skills.map((item) => (
-          <option key={item} value={item}>
-            {item}
-            {SKILL_DEFINITIONS[item].category ? "" : ""}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

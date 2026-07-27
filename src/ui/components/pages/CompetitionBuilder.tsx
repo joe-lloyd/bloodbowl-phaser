@@ -11,11 +11,16 @@ import {
   CompetitionEntrant,
   CompetitionType,
   DEFAULT_LEAGUE_POINTS,
-  SharedTeam,
   TournamentFormat,
 } from "../../../competition/types";
-import { fetchSharedTeams } from "../../../firebase/sharedTeamRepository";
+import {
+  fetchAllCoachTeams,
+  OwnedTeam,
+} from "../../../firebase/cloudTeamRepository";
 import { loadTeams } from "../../../game/managers/TeamManager";
+import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { validateInsignificant } from "../../../game/rules/insignificant";
+import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import { Team } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
@@ -28,42 +33,49 @@ type Candidate = {
   id: string;
   label: string;
   team: Team;
-  source: "local" | "shared";
-  shared?: SharedTeam;
+  ownerUid?: string;
 };
 
+/**
+ * Every coach's team is added to a competition the same way — as a
+ * reference to a live team, whether it is the organizer's own or another
+ * coach's (shared-team-library: "no distinction between a 'shared' and a
+ * 'local' entrant source"). There is no publish/shared-copy step; other
+ * coaches' teams are read directly.
+ */
 export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [format, setFormat] = useState<TournamentFormat>("single-elimination");
   const [selected, setSelected] = useState<string[]>([]);
-  const [sharedTeams, setSharedTeams] = useState<SharedTeam[]>([]);
+  const [otherTeams, setOtherTeams] = useState<OwnedTeam[]>([]);
   const [error, setError] = useState<string | null>(null);
   const localTeams = useMemo(() => loadTeams(), []);
 
   useEffect(() => {
     if (!user) return;
-    void fetchSharedTeams()
-      .then(setSharedTeams)
-      .catch(() => setSharedTeams([]));
+    void fetchAllCoachTeams()
+      .then((owned) =>
+        setOtherTeams(owned.filter((entry) => entry.ownerUid !== user.uid))
+      )
+      .catch(() => setOtherTeams([]));
   }, [user]);
 
   const candidates: Candidate[] = [
     ...localTeams.map((team) => ({
-      id: `local:${team.id}`,
-      label: `${team.name} (${team.rosterName}) — local`,
+      id: `own:${team.id}`,
+      label: `${team.name} (${team.rosterName}) — your team`,
       team,
-      source: "local" as const,
+      ownerUid: user?.uid,
     })),
-    ...sharedTeams
-      .filter((shared) => !localTeams.some((team) => team.id === shared.teamId))
-      .map((shared) => ({
-        id: `shared:${shared.id}`,
-        label: `${shared.team.name} (${shared.ownerName}) — shared`,
-        team: shared.team,
-        source: "shared" as const,
-        shared,
+    ...otherTeams
+      .filter((owned) => !localTeams.some((team) => team.id === owned.team.id))
+      .map((owned) => ({
+        id: `coach:${owned.ownerUid}:${owned.team.id}`,
+        label: `${owned.team.name} (${owned.team.coachName || "Unnamed"}) — other coach`,
+        team: owned.team,
+        ownerUid: owned.ownerUid,
       })),
   ];
 
@@ -82,17 +94,35 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     if (!name.trim()) return setError("Give the competition a name.");
     if (chosen.length < 2) return setError("Select at least two teams.");
 
+    // Shared roster legality gates competition entry the same way it gates
+    // finalization and match selection (team-lifecycle-modes).
+    const illegal = chosen.filter((candidate) => {
+      try {
+        const teamRoster = getRosterByRosterName(candidate.team.rosterName);
+        return (
+          validateRosterLegality(candidate.team, teamRoster).length > 0 ||
+          !!validateInsignificant(candidate.team.players)
+        );
+      } catch {
+        return true;
+      }
+    });
+    if (illegal.length > 0) {
+      return setError(
+        `These teams are not legal for competition entry: ${illegal
+          .map((candidate) => candidate.team.name)
+          .join(", ")}`
+      );
+    }
+
     const entrants = seedEntrants(
       chosen.map((candidate) => ({
         id: candidate.id,
         teamId: candidate.team.id,
         name: candidate.team.name,
-        coachName:
-          candidate.shared?.ownerName ?? candidate.team.coachName ?? undefined,
+        coachName: candidate.team.coachName ?? undefined,
         rosterName: candidate.team.rosterName,
-        source: candidate.source,
-        sharedTeamId: candidate.shared?.id,
-        ownerUid: candidate.shared?.ownerUid,
+        ownerUid: candidate.ownerUid,
         team: structuredClone(candidate.team),
       }))
     ) as CompetitionEntrant[];
@@ -171,8 +201,10 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <section>
             <SectionTitle>Entrants and seeding</SectionTitle>
             <p className="font-body text-sm text-bb-muted-text mb-3">
-              Selection order becomes seed order. Published teams are captured
-              as snapshots, so later roster edits do not rewrite a season.
+              Selection order becomes seed order. Every team — your own or
+              another coach&apos;s — is captured as a snapshot when added, so
+              later roster edits do not rewrite a season already in
+              progress.
             </p>
             <div className="grid md:grid-cols-2 gap-3">
               {candidates.map((candidate) => {

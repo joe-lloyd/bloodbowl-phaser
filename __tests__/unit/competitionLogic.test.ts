@@ -14,7 +14,6 @@ function entrant(id: string, seed: number): CompetitionEntrant {
     name: `Team ${id}`,
     rosterName: "Human",
     seed,
-    source: "local",
     team: { id, name: `Team ${id}`, players: [] } as never,
   };
 }

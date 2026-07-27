@@ -146,7 +146,6 @@ function toEntrant(
     coachName: "Seed Coach",
     rosterName: team.rosterName,
     seed: 0, // reassigned by seedEntrants in plan order
-    source: "local",
     team: structuredClone(team),
   };
 }
