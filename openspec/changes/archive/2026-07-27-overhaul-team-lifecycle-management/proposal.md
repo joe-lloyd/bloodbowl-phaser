@@ -37,6 +37,10 @@ should be available from Manage Team whenever the coach is ready.
 
 - `shared-team-library`: remove publishing and shared snapshots in favor of authenticated
   read and owner-only write of live teams.
+- `post-match-summary`: mark pending/mandatory development after SPP confirmation without
+  hosting skill or characteristic assignment there; resolution moves to Manage Team, and
+  finishing post-match is no longer blocked on it (the mandatory-advance rule is enforced
+  at the next match launch instead).
 
 ## Impact
 
