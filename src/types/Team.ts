@@ -190,6 +190,13 @@ export interface Team {
   touchdowns: number;
   casualties: number;
 
+  /**
+   * Timestamp (ms) the team's first completed match was confirmed. Absence
+   * means the team is still in draft mode; once set it is never cleared —
+   * see src/game/rules/teamLifecycle.ts for the draft/active derivation.
+   */
+  firstMatchPlayedAt?: number;
+
   /** Development seed ownership; absent on coach-created teams. */
   seedMetadata?: SeedMetadata;
 

@@ -1,4 +1,6 @@
+import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
+import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import {
   BloodBowlTable,
   TableRow,
@@ -12,11 +14,19 @@ interface TeamRosterProps {
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
 }
 
+/**
+ * The team roster table — readable at the application's normal body-text
+ * scale (overhaul-team-lifecycle-management, team-lifecycle-modes). Column
+ * widths are declared once on the shared header/row `<colgroup>` so headers
+ * and values always line up, and the table scrolls horizontally on narrow
+ * viewports instead of shrinking text to fit.
+ */
 export function TeamRoster({
   team,
   onFirePlayer,
   onReorderPlayers,
 }: TeamRosterProps) {
+  const navigate = useNavigate();
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
   return (
@@ -24,23 +34,25 @@ export function TeamRoster({
       title={team.name.toUpperCase()}
       headers={[
         { label: "#", width: "5%" },
-        { label: "Name", width: "25%" },
-        { label: "Pos", width: "15%" },
+        { label: "Name", width: "22%" },
+        { label: "Pos", width: "13%" },
         { label: "Stats", width: "15%" },
-        { label: "Skills", width: "25%" },
-        { label: "Cost", width: "12%" },
-        { label: "", width: "8%" }, // Actions
+        { label: "Skills", width: "22%" },
+        { label: "Cost", width: "10%" },
+        { label: "", width: "13%" }, // Actions
       ]}
       variant="blue"
     >
       {Array.from({ length: 11 }).map((_, index) => {
         const slotNumber = index + 1;
         const player = team.players.find((p) => p.number === slotNumber);
+        const eligible = player ? canAdvance(player) : false;
+        const required = player ? mustAdvance(player) : false;
 
         return (
           <TableRow
             key={slotNumber}
-            className={`h-12 ${player ? "cursor-move" : ""}`}
+            className={player ? "cursor-move" : ""}
             draggable={!!player}
             onDragStart={(e) => {
               if (player) {
@@ -62,31 +74,56 @@ export function TeamRoster({
               onReorderPlayers(sourceSlot, slotNumber);
             }}
           >
-            <CustomTableCell className="text-xs text-center text-[#1d3860]/50 select-none">
+            <CustomTableCell className="text-sm text-center text-[#1d3860]/50 select-none">
               {slotNumber}
             </CustomTableCell>
 
             {player ? (
               <>
-                <TableCell className="text-xs font-bold text-[#1d3860]">
-                  {player.playerName}
+                <TableCell className="text-base font-bold text-[#1d3860]">
+                  <button
+                    className="text-left hover:underline"
+                    onClick={() =>
+                      navigate(`/build-team/${team.id}/player/${player.id}`)
+                    }
+                    title="View player development page"
+                  >
+                    {player.playerName}
+                  </button>
+                  {required ? (
+                    <span
+                      className="ml-2 rounded bg-[#8E1B1B] px-1.5 py-0.5 text-xs font-bold text-white"
+                      title="Must advance before another match"
+                    >
+                      Must advance
+                    </span>
+                  ) : eligible ? (
+                    <span
+                      className="ml-2 rounded bg-bb-gold px-1.5 py-0.5 text-xs font-bold text-[#1d3860]"
+                      title="Eligible to advance"
+                    >
+                      Can advance
+                    </span>
+                  ) : null}
                 </TableCell>
-                <TableCell className="text-xs">{player.positionName}</TableCell>
-                <TableCell className="text-[10px] font-mono whitespace-nowrap">
+                <TableCell className="text-base">
+                  {player.positionName}
+                </TableCell>
+                <TableCell className="text-sm font-mono whitespace-nowrap">
                   {player.stats.MA} {player.stats.ST} {player.stats.AG}+{" "}
                   {player.stats.PA}+ {player.stats.AV}+
                 </TableCell>
                 <TableCell
-                  className="text-[10px] italic max-w-[200px]"
+                  className="text-sm italic"
                   title={player.skills.map((s) => s.type).join(", ")}
                 >
                   {player.skills.map((s) => s.type).join(", ")}
                 </TableCell>
-                <TableCell className="text-xs">
+                <TableCell className="text-base">
                   {formatGold(player.cost)}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex items-center justify-end gap-2">
                     <span
                       className="text-[#1d3860] text-lg font-bold cursor-grab hover:text-bb-gold px-1 select-none"
                       title="Drag to Reorder"
@@ -106,7 +143,7 @@ export function TeamRoster({
             ) : (
               <TableCell
                 colSpan={6}
-                className="text-center italic text-[#1d3860]/30 text-xs py-3"
+                className="text-center italic text-[#1d3860]/30 text-sm py-3"
               >
                 Empty Slot
               </TableCell>

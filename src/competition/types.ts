@@ -20,10 +20,19 @@ export interface CompetitionEntrant {
   coachName?: string;
   rosterName: string;
   seed: number;
-  source: "shared" | "local";
-  sharedTeamId?: string;
+  /**
+   * The coach who owns `teamId`, when known — every entrant is added the
+   * same way, by referencing a coach's live team directly (shared-team-
+   * library: "no distinction between a 'shared' and a 'local' entrant
+   * source"). Absent for teams that only ever existed in local storage
+   * (no signed-in owner).
+   */
   ownerUid?: string;
-  /** Immutable roster snapshot used for every fixture in this competition. */
+  /**
+   * Roster snapshot captured when the entrant was added, used for every
+   * fixture in this competition — the season plays out against a fixed
+   * roster rather than the coach's live, still-editable team.
+   */
   team: Team;
 }
 
@@ -108,16 +117,6 @@ export interface TournamentDoc {
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;
-
-export interface SharedTeam {
-  id: string;
-  ownerUid: string;
-  ownerName: string;
-  teamId: string;
-  team: Team;
-  publishedAt: number;
-  updatedAt: number;
-}
 
 export const DEFAULT_LEAGUE_POINTS: LeaguePoints = {
   win: 3,

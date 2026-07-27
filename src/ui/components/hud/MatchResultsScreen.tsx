@@ -13,6 +13,7 @@ import {
   createPendingSkillSelection,
   eligibleSkillSelectionParticipants,
 } from "../../../game/progression/advancementModes";
+import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
 
 interface Props {
   visible: boolean;
@@ -257,6 +258,10 @@ export function MatchResultsScreen({ visible }: Props) {
         });
       }
       team.teamValue = calculateTeamValue(team);
+      // A confirmed post-match result is this team's completed match —
+      // stamp it active (idempotent; see teamLifecycle.ts). Abandoning
+      // before this point never reaches here, so it never activates.
+      stampFirstCompletedMatch(team);
       saveTeam(team);
     });
   };

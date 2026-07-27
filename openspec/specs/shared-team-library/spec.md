@@ -2,35 +2,43 @@
 
 ## Purpose
 
-Let team owners opt-in to publish teams to a shared collection that other coaches can read and reference as competition entrants, while keeping write access owner-only.
+Let any authenticated coach read another coach's live team directly — with no publish step and no separate copy — while keeping write access owner-only, and let competitions reference a coach's team by owner and team id.
 
 ## Requirements
 
-### Requirement: Publish a team to the shared library
-The system SHALL let a team's owner publish it to a shared collection, opt-in, without removing it from their private library. Publishing SHALL store a snapshot the owner can later refresh.
+### Requirement: A coach's teams are directly readable by other coaches
+A team stored under its owner's account SHALL be readable by any authenticated coach without any publish step. No copy of the team SHALL be created for sharing.
 
-#### Scenario: Owner publishes a team
-- **WHEN** an owner publishes one of their teams
-- **THEN** a shared copy becomes available to other coaches and the private team remains in the owner's library
+#### Scenario: Another coach reads a team without it being published
+- **WHEN** a coach browses another coach's teams
+- **THEN** they can view the full roster, and no shared copy exists anywhere
 
-#### Scenario: Owner refreshes a published team
-- **WHEN** an owner republishes a team they have edited
-- **THEN** the shared snapshot updates to the new version
+#### Scenario: What a reader sees is current
+- **WHEN** an owner's team changes after another coach viewed it
+- **THEN** the next read shows the current team, with no snapshot to refresh
 
 ### Requirement: Public read, owner-only write
-A shared team SHALL be readable by any authenticated coach and writable only by its owner. No non-owner SHALL be able to modify a shared team.
+A team SHALL be readable by any authenticated coach and writable only by its owner. No non-owner SHALL be able to modify another coach's team, whether directly or through a competition it is entered in.
 
-#### Scenario: Another coach reads a shared team
-- **WHEN** a coach opens another coach's shared team
+#### Scenario: Another coach reads a team
+- **WHEN** a coach opens another coach's team
 - **THEN** they can view the full roster but cannot edit or save changes to it
 
 #### Scenario: Non-owner write is rejected
-- **WHEN** a non-owner attempts to write to a shared team document
+- **WHEN** a non-owner attempts to write to another coach's team document
 - **THEN** the write is denied
 
-### Requirement: Discover and reference shared teams
-Leagues and tournaments SHALL be able to discover shared teams and reference them as entrants.
+#### Scenario: A competition organizer cannot edit an entrant's team
+- **WHEN** a competition organizer who does not own an entrant's team attempts to modify that team
+- **THEN** the write is denied
 
-#### Scenario: Add a shared team as an entrant
-- **WHEN** an organizer browses shared teams while building a competition
-- **THEN** they can select one and add it as an entrant
+### Requirement: Competitions reference the owner's team directly
+Leagues and tournaments SHALL add entrants by referencing a coach's team by owner and team id. There SHALL be no distinction between a "shared" and a "local" entrant source.
+
+#### Scenario: Adding an entrant from another coach
+- **WHEN** an organizer browses coaches and selects one of their teams while building a competition
+- **THEN** the entrant is added as a reference to that owner's team
+
+#### Scenario: A single entrant path
+- **WHEN** entrants are added from the organizer's own teams and from other coaches' teams
+- **THEN** both are stored identically as owner/team references
