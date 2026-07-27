@@ -59,7 +59,10 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   if (!isOpen || !followUpData) return null;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+    <div
+      data-testid="follow-up-dialog"
+      className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto"
+    >
       <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[400px] text-white shadow-2xl">
         <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
           Follow Up?
@@ -71,12 +74,14 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
         <div className="flex gap-4 justify-center">
           <button
+            data-testid="follow-up-yes"
             onClick={handleYes}
             className="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >
             YES
           </button>
           <button
+            data-testid="follow-up-no"
             onClick={handleNo}
             className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >

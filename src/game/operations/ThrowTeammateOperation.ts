@@ -74,6 +74,10 @@ export class ThrowTeammateOperation extends GameOperation {
     const teammate = gameService.getPlayerById(this.teammateId);
     if (!thrower?.gridPosition || !teammate?.gridPosition) return;
 
+    // The throw is happening — commit the declaration before anything else
+    // can be rolled or resolved.
+    gameService.commitAction(this.throwerId);
+
     // Eligibility: Standing thrower with the matching trait, a Standing,
     // Right-Stuff-eligible team-mate adjacent to them.
     const trait =
