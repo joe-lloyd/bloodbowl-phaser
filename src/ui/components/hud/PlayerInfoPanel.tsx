@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
-import { GameEventNames } from "../../../types/events";
+import { GameEventNames, InfoPanelSubject } from "../../../types/events";
 import { GamePhase } from "../../../types/GameState";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
@@ -10,6 +10,7 @@ import {
   effectiveMA,
   getDriveEffects,
 } from "../../../game/kickoff/driveEffects";
+import { SidelineCrewInfo } from "../../../game/presentation/sidelineStaff";
 
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
@@ -20,6 +21,9 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
+  const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(
+    null
+  );
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
   // During setup the panel stays on the last inspected player for the whole
@@ -34,11 +38,29 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   // Hover Events
   useEventBus(eventBus, GameEventNames.UI_ShowPlayerInfo, (player: Player) => {
     setHoveredPlayer(player);
+    setHoveredCrew(null);
   });
+
+  // A non-player subject (currently only sideline crew) fills the same
+  // panel slot as a hovered player, without disturbing the selection.
+  useEventBus(
+    eventBus,
+    GameEventNames.UI_ShowInfo,
+    (subject: InfoPanelSubject) => {
+      if (subject.kind === "player") {
+        setHoveredPlayer(subject.player);
+        setHoveredCrew(null);
+      } else {
+        setHoveredCrew(subject.crew);
+        setHoveredPlayer(null);
+      }
+    }
+  );
 
   useEventBus(eventBus, GameEventNames.UI_HidePlayerInfo, () => {
     if (phaseRef.current === GamePhase.SETUP) return;
     setHoveredPlayer(null);
+    setHoveredCrew(null);
   });
 
   // Selection Events
@@ -156,6 +178,32 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     );
   };
 
+  // A sideline crew figure (or the NO STAFF placeholder) renders name, its
+  // match effect, and the team's real count — no statline, skills, or
+  // player status, since it is not a player.
+  const renderCrewPanel = (crew: SidelineCrewInfo) => (
+    <div
+      key="sideline-crew"
+      className="w-full pointer-events-none transition-all duration-200 mb-4"
+    >
+      <div className="bg-[#2a2a3e]/95 border-2 border-yellow-400 rounded-lg p-3 shadow-lg text-white">
+        <div className="mb-2 border-b border-gray-600 pb-2">
+          <div className="text-lg font-bold text-yellow-400 leading-tight">
+            {crew.name}
+          </div>
+          {crew.type !== null && (
+            <div className="text-xs text-gray-400 mt-1">
+              {crew.count} on this team
+            </div>
+          )}
+        </div>
+        <div className="text-xs text-gray-200 leading-snug">
+          {crew.effect}
+        </div>
+      </div>
+    </div>
+  );
+
   // Helper to format stats with labels matching the original style
   const StatItem = ({
     label,
@@ -185,6 +233,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&
         renderPanel(hoveredPlayer, true)}
+      {hoveredCrew && renderCrewPanel(hoveredCrew)}
     </div>
   );
 };

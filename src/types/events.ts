@@ -10,6 +10,7 @@ import { Team } from "./Team";
 import { Player } from "./Player";
 import { BlockResult } from "../services/BlockResolutionService";
 import { BoardLabel } from "../game/presentation/boardLabels";
+import { SidelineCrewInfo } from "../game/presentation/sidelineStaff";
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -182,6 +183,10 @@ export enum GameEventNames {
   UI_Turnover = "ui:turnover",
   UI_ShowPlayerInfo = "ui:showPlayerInfo",
   UI_HidePlayerInfo = "ui:hidePlayerInfo",
+  /** Fills the info panel with a subject that may or may not be a player
+   *  (e.g. a sideline crew figure). `UI_ShowPlayerInfo` remains the player
+   *  path during migration; `UI_HidePlayerInfo` clears either. */
+  UI_ShowInfo = "ui:showInfo",
   UI_BlockDialog = "ui:blockDialog",
   UI_RollBlockDice = "ui:rollBlockDice",
   UI_BlockRollCancelled = "ui:blockRollCancelled",
@@ -723,6 +728,7 @@ export interface UIEvents {
   // Player Info
   [GameEventNames.UI_ShowPlayerInfo]: Player;
   [GameEventNames.UI_HidePlayerInfo]: void;
+  [GameEventNames.UI_ShowInfo]: InfoPanelSubject;
 
   // Block
   [GameEventNames.UI_BlockDialog]: {
@@ -882,6 +888,16 @@ export type ActionType =
   | "throwBomb"
   | "ballAndChain"
   | "forgoe";
+
+/**
+ * Discriminated subject for the info panel: a player, or a sideline crew
+ * figure (a staff type, or the empty-rail placeholder). Kept as a sibling of
+ * the `Player`-typed `UI_ShowPlayerInfo` payload rather than widening it, so
+ * existing player-only subscribers do not have to narrow a union.
+ */
+export type InfoPanelSubject =
+  | { kind: "player"; player: Player }
+  | { kind: "sidelineCrew"; crew: SidelineCrewInfo };
 
 /**
  * Helper type for event handlers
