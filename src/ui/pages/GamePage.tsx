@@ -20,6 +20,8 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../game/persistence/MatchSaveRepository";
+import { SoundManager } from "../sound/SoundManager";
+import { SoundSuite } from "../sound/SoundSuite";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -103,6 +105,17 @@ export function GamePage({
     eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
     return () => eventBus.off(GameEventNames.PhaseChanged, onPhaseChanged);
   }, [eventBus, fixtureContext, matchTeams]);
+
+  // Sound lives entirely in the UI layer: mounted once per game session,
+  // torn down on unmount so it never outlives this page (or a Strudel
+  // dependency reaches the engine/headless import chain).
+  useEffect(() => {
+    const manager = new SoundManager();
+    const suite = new SoundSuite(eventBus, manager);
+    void manager.init();
+    suite.mount();
+    return () => suite.dispose();
+  }, [eventBus]);
 
   useEffect(() => {
     // Get team data from props (online) or location state (local play)

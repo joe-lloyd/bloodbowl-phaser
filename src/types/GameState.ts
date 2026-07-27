@@ -61,6 +61,8 @@ export interface GameState {
     blockReplacement?: BlockReplacement;
     /** Set atomically when the accepted target command commits the attack. */
     blockReplacementUsed?: boolean;
+    /** Set once the declaration has become binding (see PlayerActionManager). */
+    committed?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */

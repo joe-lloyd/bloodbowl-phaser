@@ -68,6 +68,7 @@ export interface GameSnapshot {
     action: string | null;
     blockReplacement?: BlockReplacement;
     blockReplacementUsed?: boolean;
+    committed?: boolean;
   } | null;
   coachesEjected: string[];
   setup?: SetupState | null;

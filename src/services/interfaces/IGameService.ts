@@ -99,6 +99,13 @@ export interface IGameService {
   ): boolean;
   /** Cancel a declaration only before movement/attack commitment. */
   cancelAction(playerId: string): boolean;
+  /**
+   * Force the live declaration for this player to commit (idempotent): the
+   * once-per-turn flag is set and the declaration can no longer be released.
+   * Called at the moment an activation gate rolls, a die is rolled, or
+   * movement/an attack is spent — engine-internal, never a coach intent.
+   */
+  commitAction(playerId: string): void;
   movePlayer(playerId: string, path: { x: number; y: number }[]): Promise<void>;
   /** Leave the carried ball in a square vacated during this Move, no Turnover. */
   dropBallWithFumblerooski(
@@ -205,6 +212,8 @@ export interface IGameService {
   /** On-pitch team-mates of a player (any status), excluding the player. */
   getTeammates(playerId: string): Player[];
   getTeam(teamId: string): Team | undefined;
+  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+  getTeams(): [Team, Team];
   getMovementUsed(playerId: string): number;
   /**
    * End or continue a blocker's activation once the block resolved. A plain

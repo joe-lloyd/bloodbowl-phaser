@@ -154,7 +154,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+    <div
+      data-testid="block-dice-dialog"
+      className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto"
+    >
       <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
         <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
           BLOCK!
@@ -193,6 +196,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               {rollData.results.map((result, idx) => (
                 <button
                   key={idx}
+                  data-testid={`block-die-${idx}`}
+                  data-block-result={result.type}
                   onClick={() =>
                     proMode ? handleProReroll(idx) : handleSelectResult(result)
                   }
@@ -219,6 +224,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               <div className="flex justify-center gap-3 mt-3">
                 {rollData.teamRerollAvailable && (
                   <button
+                    data-testid="block-team-reroll"
                     onClick={handleTeamReroll}
                     className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 rounded text-xs font-bold text-white transition-colors"
                   >
@@ -287,6 +293,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           )}
           {!rollData && (
             <button
+              data-testid="block-roll-dice"
               onClick={handleRoll}
               disabled={isRolling}
               className="px-8 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
