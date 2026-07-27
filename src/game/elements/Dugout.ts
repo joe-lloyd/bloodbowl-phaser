@@ -405,6 +405,16 @@ export class Dugout extends Phaser.GameObjects.Container {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.scene as any).eventBus?.emit("ui:hidePlayerInfo");
     });
+    // Explicit click/tap, for Reserves/KO/Casualty alike — hover alone
+    // does not help on touch devices, and KO'd/Casualty players are never
+    // draggable so they would otherwise have no way to be inspected.
+    sprite.on("pointerdown", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.scene as any).eventBus?.emit(
+        GameEventNames.UI_ShowPlayerInfo,
+        player
+      );
+    });
 
     sprite.on("dragstart", () => {
       // Bring container to top
