@@ -39,6 +39,23 @@ export class DecisionService {
     return promise;
   }
 
+  /**
+   * Re-arm a decision that was already requested and persisted before a
+   * cold restore (a save/resume mid-Apothecary-decision, say). Unlike
+   * `request`, this does not await anything upstream — the original
+   * operation's call stack is gone after a reload, so `onAnswer` performs
+   * the decision's whole resolution directly rather than unblocking a
+   * suspended `await`. Does not re-emit DecisionRequested: the front end
+   * reconstructs the same pending state from the restored snapshot instead
+   * of reacting to a fresh event.
+   */
+  public seed(
+    request: DecisionRequest,
+    onAnswer: (answer: DecisionAnswer) => void
+  ): void {
+    this.current = { request, resolve: onAnswer };
+  }
+
   /** Resolve the pending decision; false when nothing is pending. */
   public answer(answer: DecisionAnswer): boolean {
     if (!this.current) return false;

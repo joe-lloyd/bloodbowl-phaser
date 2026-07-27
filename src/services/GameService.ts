@@ -89,6 +89,16 @@ import {
 } from "@/game/skills";
 import { moveAllowance } from "@/game/skills/movement";
 import { RerollSource } from "@/types/decisions";
+import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
+import {
+  calculateInducementBudgets,
+  expireDriveInducements,
+} from "@/game/inducements/rules";
+import { InducementSession } from "@/game/inducements/InducementSession";
+import {
+  buildSeventsInducementProfile,
+  Inducement,
+} from "@/types/Inducements";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import {
   driveEffectsEmpty,
@@ -369,6 +379,14 @@ export class GameService implements IGameService {
     if (this.state.phase === GamePhase.PLAY) {
       this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
     }
+
+    // A restored save may still have an unresolved Apothecary decision — the
+    // operation that requested it is long gone, so re-arm the decision
+    // channel directly rather than trying to resume a suspended await.
+    const pendingApothecary = this.state.inducements?.pendingApothecaryDecision;
+    if (pendingApothecary) {
+      resumeApothecaryDecision(this, eventBus, pendingApothecary);
+    }
   }
 
   // ===== State Queries =====
@@ -449,6 +467,107 @@ export class GameService implements IGameService {
     const pending = this.decisionService.pending();
     if (!pending || pending.type !== "interception") return false;
     return this.decisionService.answer({ playerId });
+  }
+
+  /** Answer a pending Apothecary decision (dialog or protocol reply). */
+  public answerApothecary(accept: boolean): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "apothecary") return false;
+    return this.decisionService.answer({ accept });
+  }
+
+  /** Commit a confirmed pregame inducement selection into match state. */
+  public commitInducements(
+    profile: import("@/types/Inducements").InducementRuleProfile,
+    budgets: Record<string, number>,
+    inventory: import("@/types/Inducements").InducementInventoryEntry[]
+  ): void {
+    const existing = this.state.inducements;
+    this.state.inducements = {
+      profile,
+      budgets: { ...budgets },
+      inventory: inventory.map((entry) => ({ ...entry })),
+      confirmed: { ...(existing?.confirmed ?? {}) },
+      apothecaryUsed: { ...(existing?.apothecaryUsed ?? {}) },
+      pendingApothecaryDecision: existing?.pendingApothecaryDecision,
+      decisionSeq: existing?.decisionSeq ?? 0,
+      prayerLog: existing?.prayerLog ?? [],
+    };
+  }
+
+  /**
+   * The pregame inducement negotiation, held here (not in the browser or
+   * the headless protocol layer) so local, online-host, and headless
+   * callers all validate against the exact same authoritative session
+   * regardless of which surface drives it.
+   */
+  private inducementSession: InducementSession | null = null;
+
+  private getOrCreateInducementSession(): InducementSession {
+    if (!this.inducementSession) {
+      const profile = buildSeventsInducementProfile({ advancedLeague: false });
+      const budgets = calculateInducementBudgets(this.team1, this.team2);
+      this.inducementSession = new InducementSession(profile, budgets);
+    }
+    return this.inducementSession;
+  }
+
+  getInducementOffer(): {
+    profile: import("@/types/Inducements").InducementRuleProfile;
+    budgets: Record<string, number>;
+    selections: Record<
+      string,
+      import("@/game/inducements/rules").InducementSelectionLine[]
+    >;
+    confirmed: Record<string, boolean>;
+  } {
+    const session = this.getOrCreateInducementSession();
+    return {
+      profile: session.getProfile(),
+      budgets: session.getBudgets(),
+      selections: {
+        [this.team1.id]: session.getSelection(this.team1.id),
+        [this.team2.id]: session.getSelection(this.team2.id),
+      },
+      confirmed: {
+        [this.team1.id]: session.isConfirmed(this.team1.id),
+        [this.team2.id]: session.isConfirmed(this.team2.id),
+      },
+    };
+  }
+
+  selectInducement(
+    teamId: string,
+    inducement: Inducement,
+    quantity: number
+  ): { ok: boolean; errors: string[] } {
+    return this.getOrCreateInducementSession().select(
+      teamId,
+      inducement,
+      quantity
+    );
+  }
+
+  removeInducement(
+    teamId: string,
+    inducement: Inducement
+  ): { ok: boolean; errors: string[] } {
+    return this.getOrCreateInducementSession().remove(teamId, inducement);
+  }
+
+  /** Confirm a team's pregame selection; commits the inventory once both have. */
+  confirmInducements(teamId: string): { ok: boolean; errors: string[] } {
+    const session = this.getOrCreateInducementSession();
+    const result = session.confirm(teamId);
+    if (!result.ok) return result;
+    if (session.bothConfirmed([this.team1.id, this.team2.id])) {
+      this.commitInducements(
+        session.getProfile(),
+        session.getBudgets(),
+        session.toInventory()
+      );
+    }
+    return result;
   }
 
   getTurnNumber(teamId: string): number {
@@ -1326,6 +1445,15 @@ export class GameService implements IGameService {
         });
       }
       this.state.driveEffects = emptyDriveEffects();
+    }
+
+    // Drive-scoped inducement uses (unlike match-scoped ones) refill at
+    // every new drive; the Apothecary's used flag is match-scoped and never
+    // reset here.
+    if (this.state.inducements) {
+      this.state.inducements.inventory = expireDriveInducements(
+        this.state.inducements.inventory
+      );
     }
 
     // Activation state must not leak into the next drive's setup — stale

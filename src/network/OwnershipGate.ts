@@ -62,6 +62,7 @@ const DECISION_REPLIES = new Set([
   "kickoff-place-player",
   "kickoff-confirm",
   "kickoff-skip",
+  "use-apothecary",
 ]);
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
@@ -83,6 +84,7 @@ export function decisionOwner(
     case "reroll":
     case "reaction":
     case "interception":
+    case "apothecary":
       // The deciding team rides on the decision itself
       return pending.chooserTeamId;
     case "push-direction":
@@ -100,7 +102,11 @@ export function checkOwnership(
   ctx: GateContext
 ): GateVerdict {
   // Queries never mutate — anyone may look
-  if (command.type === "state" || command.type === "legal-actions") {
+  if (
+    command.type === "state" ||
+    command.type === "legal-actions" ||
+    command.type === "offer-inducements"
+  ) {
     return allow;
   }
 
@@ -139,6 +145,15 @@ export function checkOwnership(
       : deny("not-your-player");
 
   switch (command.type) {
+    // Pregame inducement selection belongs to the affected team's coach,
+    // and (unlike play commands) has no "active team" turn structure yet.
+    case "select-inducement":
+    case "remove-inducement":
+    case "confirm-inducements":
+      return command.teamId === senderTeamId
+        ? allow
+        : deny("not-your-player");
+
     // Match ceremony is driven by the host
     case "coin-flip":
     case "start-setup":

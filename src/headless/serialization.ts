@@ -26,6 +26,7 @@ import { CompetitionContext } from "../competition/types";
 import { TurnManagerState } from "../game/managers/TurnManager";
 import { SetupState } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
+import { InducementsMatchState } from "../types/Inducements";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -85,6 +86,8 @@ export interface GameSnapshot {
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); absent on pre-feature saves. */
   bribes?: Record<string, number>;
+  /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
+  inducements?: InducementsMatchState;
 }
 
 export const MATCH_SAVE_VERSION = 1 as const;
@@ -155,6 +158,9 @@ export function serializeGameState(
       ? structuredClone(state.driveEffects)
       : undefined,
     bribes: state.bribes ? { ...state.bribes } : undefined,
+    inducements: state.inducements
+      ? structuredClone(state.inducements)
+      : undefined,
     setup: state.setup ? structuredClone(state.setup) : null,
     result: state.result ? { ...state.result } : undefined,
     teams: teams.map((team) => ({
@@ -210,6 +216,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? structuredClone(snapshot.driveEffects)
       : undefined,
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
+    inducements: snapshot.inducements
+      ? structuredClone(snapshot.inducements)
+      : undefined,
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
     result: snapshot.result ? { ...snapshot.result } : undefined,
   };

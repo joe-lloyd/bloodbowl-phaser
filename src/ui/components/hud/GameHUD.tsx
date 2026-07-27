@@ -20,6 +20,7 @@ import { BlockDiceDialog } from "./BlockDiceDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
 import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
+import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
@@ -30,6 +31,7 @@ import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { KickoffEventOverlay } from "./KickoffEventOverlay";
+import { InducementSelectionPanel } from "./InducementSelectionPanel";
 import { MatchOptionsMenu } from "./MatchOptionsMenu";
 import {
   computeMatchOptionsMenu,
@@ -55,6 +57,15 @@ export interface OnlineMatchMenuProps {
 interface GameHUDProps {
   eventBus: EventBus;
   mode?: "normal" | "sandbox";
+  /**
+   * Show the pre-match Sevens inducement selection panel before setup. Off
+   * by default so existing local/sandbox/competition flows are unaffected
+   * until a caller opts in (see GameService.getOrCreateInducementSession,
+   * which currently always resolves the non-Advanced-League Sevens profile
+   * — Advanced League is a per-team/competition setting introduced by the
+   * sibling add-team-advancement-modes change and not yet threaded here).
+   */
+  sevensInducementsEnabled?: boolean;
   onlineMenu?: OnlineMatchMenuProps;
 }
 
@@ -73,8 +84,15 @@ interface TurnData {
 export const GameHUD: React.FC<GameHUDProps> = ({
   eventBus,
   mode = "normal",
+  sevensInducementsEnabled = false,
   onlineMenu,
 }) => {
+  const [inducementsPending, setInducementsPending] = useState(
+    () =>
+      sevensInducementsEnabled &&
+      ServiceContainer.isInitialized() &&
+      !ServiceContainer.getInstance().gameService.getState().inducements
+  );
   const navigate = useNavigate();
   const [turnData, setTurnData] = useState<TurnData>({
     turnNumber: null,
@@ -298,7 +316,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <FollowUpDialog eventBus={eventBus} />
           <RerollDialog eventBus={eventBus} />
           <ReactionDialog eventBus={eventBus} />
+          <ApothecaryDialog eventBus={eventBus} />
           <InterceptionDialog eventBus={eventBus} />
+          {inducementsPending && (
+            <InducementSelectionPanel
+              onDone={() => setInducementsPending(false)}
+            />
+          )}
           <TurnoverOverlay eventBus={eventBus} />
           <MatchResultsScreen
             visible={turnData.phase === GamePhase.GAME_OVER}

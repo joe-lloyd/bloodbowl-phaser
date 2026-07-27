@@ -46,6 +46,8 @@ export interface DecisionPolicy {
   acceptInterceptions?: boolean;
   /** Follow up after pushes (default true). */
   followUp?: boolean;
+  /** Use an offered Apothecary (default false — most scenarios test the roll itself). */
+  useApothecary?: boolean;
   custom?(
     pending: PendingDecision,
     game: HeadlessGame
