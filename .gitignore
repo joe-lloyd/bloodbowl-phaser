@@ -39,3 +39,7 @@ lerna-debug.log*
 src/data/*.json
 
 .pnpm-store/
+
+# Agent git worktrees. Each is a full checkout with its own .git file and a
+# node_modules junction; none of it belongs in the repo.
+.claude/worktrees/
