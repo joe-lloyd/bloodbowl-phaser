@@ -6,6 +6,7 @@ import { SkillType } from "../../types/Skills";
 import { PlayerStatus } from "../../types/Player";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
+import { computeActionAvailability } from "../../game/rules/actionAvailability";
 import {
   RuleScenarioEntry,
   playSetup,
@@ -85,6 +86,36 @@ const activationOver = (
     GameEventNames.PlayerActivated,
     (d) => d === resolveRef(r.game, ref)
   );
+
+/**
+ * The contextual action menu's view of a player, computed exactly as the
+ * HUD computes it — so a scenario can assert what a coach is offered, not
+ * just what the engine accepts.
+ */
+const availabilityFor = (
+  r: ScriptResult,
+  ref: string,
+  hasMovedInAction: boolean
+) => {
+  const gs = r.game.ctx.gameService;
+  const player = playerOf(r, ref);
+  const state = gs.getState();
+  return computeActionAvailability({
+    player,
+    ballPosition: state.ballPosition ?? null,
+    opponents: gs.getOpponents(player.teamId),
+    teammates: gs.getTeammates(player.id),
+    reachable: gs.getAvailableMovements(player.id),
+    turn: state.turn,
+    hasMovedInAction,
+  });
+};
+
+/** The last command of the run was refused with this protocol reason. */
+const lastCommandRefused = (r: ScriptResult, reason: string): boolean => {
+  const last = r.responses[r.responses.length - 1];
+  return !!last && !last.ok && !!last.reason?.includes(reason);
+};
 
 export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
@@ -615,6 +646,124 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+      {
+        id: "stab-after-move-refused",
+        name: "A direct Stab may not follow a Move",
+        description:
+          "An Assassin that declares a Move and steps into contact is no longer offered the direct Stab Special Action, and the declaration is refused authoritatively — moving then attacking is what Blitz (with Stab) is for",
+        setup: playSetup({
+          team1Roster: RosterName.DARK_ELF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason: "Dark Elf Assassins begin with Stab.",
+          },
+        ],
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+          { type: "declare-action", playerId: "team1:0", action: "stab" },
+        ],
+        outcomes: [
+          {
+            id: "not-offered-or-accepted",
+            name: "Stab is absent from the menu and the declaration is refused",
+            matches: (r) => lastCommandRefused(r, "illegal-action-declaration"),
+            verify: (r) => {
+              // Standing where it stands, the Assassin has a legal Stab
+              // target — the ONLY thing withholding the button is the move.
+              assert(
+                availabilityFor(r, "team1:0", false).stab,
+                "the scenario must place a legal Stab target adjacent"
+              );
+              const moved = availabilityFor(r, "team1:0", true);
+              assert(
+                !moved.stab && moved.directBlockReplacements.length === 0,
+                "a moved player is offered no direct block-replacing attack"
+              );
+              // …and the engine refuses it too, leaving the Move intact.
+              const state = r.game.ctx.gameService.getState();
+              assert(
+                state.activePlayer?.id === resolveRef(r.game, "team1:0") &&
+                  state.activePlayer?.action === "move" &&
+                  !state.activePlayer?.blockReplacement,
+                "the refused Stab must leave the Move declaration untouched"
+              );
+              assert(
+                !stabArmourRolled(r),
+                "no Stab may be resolved after moving"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "stab-blitz-target-selection",
+        name: "Selecting the target of a declared Stab Blitz never blocks",
+        description:
+          "With Blitz (with Stab) declared and the Assassin moved into contact, selecting the target resolves the Stab; a normal Block against the same target is refused",
+        setup: playSetup({
+          team1Roster: RosterName.DARK_ELF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 12, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.STAB,
+            roster: RosterName.DARK_ELF,
+            positionName: "Assassin",
+            source: "roster-default",
+            reason: "Dark Elf Assassins begin with Stab.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:0",
+            action: "blitz",
+            blockReplacement: "stab",
+          },
+          { type: "move", playerId: "team1:0", path: [{ x: 11, y: 5 }] },
+          // The board click used to decay into this command; it must not.
+          { type: "block", attackerId: "team1:0", defenderId: "team2:0" },
+          // …the declared attack is what a target selection resolves.
+          { type: "stab", attackerId: "team1:0", defenderId: "team2:0" },
+        ],
+        outcomes: [
+          {
+            id: "stab-not-block",
+            name: "The Block is refused and the Stab resolves",
+            matches: (r) => stabArmourRolled(r),
+            verify: (r) => {
+              assert(
+                r.responses.some(
+                  (resp) =>
+                    !resp.ok && !!resp.reason?.includes("block-not-declared")
+                ),
+                "a normal Block must be refused while the Stab is declared"
+              );
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "no Block dice may be rolled or previewed"
+              );
+              assert(
+                activationOver(r, "team1:0"),
+                "the Stab ends the Assassin's activation"
+              );
+            },
+          },
+        ],
+      },
     ],
   },
   {
@@ -870,6 +1019,81 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               assert(
                 activationOver(r, "team1:4"),
                 "the Loony's activation ends after the attack"
+              );
+            },
+          },
+        ],
+      },
+      {
+        id: "chainsaw-illegal-target-refused",
+        name: "A declared Chainsaw refuses an illegal target",
+        description:
+          "Selecting a Prone opponent while Blitz (with Chainsaw) is declared is refused — it never decays into a Block — and the declaration, the movement and the unspent attack all survive",
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 4, x: 10, y: 5 }],
+          team2Placements: [
+            { playerIndex: 0, x: 12, y: 5 },
+            { playerIndex: 1, x: 12, y: 6, status: PlayerStatus.PRONE },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        skillProvenance: [
+          {
+            playerRef: "team1:4",
+            skill: SkillType.CHAINSAW,
+            roster: RosterName.GOBLIN,
+            positionName: "Loony",
+            source: "roster-default",
+            reason: "Goblin Looneys begin with Chainsaw.",
+          },
+        ],
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:4",
+            action: "blitz",
+            blockReplacement: "chainsaw",
+          },
+          { type: "move", playerId: "team1:4", path: [{ x: 11, y: 5 }] },
+          {
+            type: "special-action",
+            action: "chainsaw",
+            attackerId: "team1:4",
+            defenderId: "team2:1",
+          },
+        ],
+        outcomes: [
+          {
+            id: "refused-intact",
+            name: "The attack is refused and nothing is spent",
+            matches: (r) =>
+              lastCommandRefused(r, "illegal-special-action-target"),
+            verify: (r) => {
+              const gs = r.game.ctx.gameService;
+              const state = gs.getState();
+              const loonyId = resolveRef(r.game, "team1:4");
+              assert(
+                state.activePlayer?.id === loonyId &&
+                  state.activePlayer?.blockReplacement === "chainsaw" &&
+                  state.activePlayer?.blockReplacementUsed === false,
+                "the declaration survives an illegal target"
+              );
+              assert(
+                state.turn.movementUsed.get(loonyId) === 1,
+                "the refusal costs no extra movement"
+              );
+              assert(
+                !skillTriggered(r, SkillType.CHAINSAW),
+                "no Chainsaw attack may resolve against an illegal target"
+              );
+              assert(
+                !sawEvent(r, GameEventNames.BlockDiceRolled),
+                "the refusal must never decay into a Block"
+              );
+              assert(
+                playerAt(r, "team1:4", { x: 11, y: 5 }),
+                "the Loony keeps its square and its remaining movement"
               );
             },
           },

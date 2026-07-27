@@ -208,8 +208,11 @@ export function computeActionAvailability(
     ).length > 0;
   const special = (type: SkillType) =>
     hasSkill(player.skills, type) && adjacentStandingEnemy;
+  // A direct block-replacing Special Action is a no-move declaration, exactly
+  // like a standalone Block: once the activation has spent movement, the only
+  // way to attack is the Blitz variant (declared before moving).
   const directBlockReplacements =
-    player.status === PlayerStatus.ACTIVE
+    player.status === PlayerStatus.ACTIVE && !input.hasMovedInAction
       ? BLOCK_REPLACEMENTS.filter(
           (replacement) =>
             legalBlockReplacementTargets(player, opponents, replacement)
