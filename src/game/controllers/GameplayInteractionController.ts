@@ -25,6 +25,7 @@ import {
   BLOCK_REPLACEMENT_DEFINITIONS,
   blockReplacementForDirectAction,
 } from "../../types/BlockReplacement";
+import { legalBlockReplacementTargets } from "../rules/blockReplacements";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -1061,6 +1062,56 @@ export class GameplayInteractionController {
                   GameEventNames.UI_Notification,
                   "This Blitz has already used its Block \u2014 keep moving."
                 );
+                return;
+              }
+
+              // A declared, unspent block-replacing attack is what a target
+              // click resolves \u2014 never a Block. The declaration is read from
+              // the authoritative state (not the local step), so a re-selected
+              // player, a guest, and the host all take the same path.
+              const declaredReplacement =
+                state.activePlayer?.id === selectedPlayer.id &&
+                !state.activePlayer.blockReplacementUsed
+                  ? state.activePlayer.blockReplacement
+                  : undefined;
+
+              if (declaredReplacement) {
+                const label =
+                  BLOCK_REPLACEMENT_DEFINITIONS[declaredReplacement].label;
+                const legalTarget =
+                  legalBlockReplacementTargets(
+                    selectedPlayer,
+                    [playerAtSquare],
+                    declaredReplacement
+                  ).length > 0;
+                if (!legalTarget) {
+                  // Refuse by name: downgrading to a Block would spend the
+                  // one attack on something the coach did not choose. The
+                  // declaration and the remaining movement are untouched.
+                  this.eventBus.emit(
+                    GameEventNames.UI_Notification,
+                    `${label} cannot target ${playerAtSquare.playerName} \u2014 keep moving or end the activation.`
+                  );
+                  return;
+                }
+                this.isBusy = true;
+                try {
+                  if (declaredReplacement === "stab") {
+                    await this.gameService.stabPlayer(
+                      selectedPlayer.id,
+                      playerAtSquare.id
+                    );
+                  } else {
+                    await this.gameService.performSpecialAction(
+                      declaredReplacement,
+                      selectedPlayer.id,
+                      playerAtSquare.id
+                    );
+                  }
+                } finally {
+                  this.isBusy = false;
+                  this.deselectPlayer();
+                }
                 return;
               }
 

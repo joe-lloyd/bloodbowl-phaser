@@ -1372,6 +1372,22 @@ export class GameService implements IGameService {
 
     const directReplacement = blockReplacementForDirectAction(action);
     const blockReplacement = requestedReplacement ?? directReplacement;
+    // A direct Special Action is a no-move declaration, exactly like a
+    // standalone Block. Once this activation has spent movement the attack
+    // must have been declared as a Blitz before the move began — refuse here
+    // so a forged or stale command cannot bypass the availability gate.
+    if (directReplacement) {
+      const movementSpent =
+        (this.state.turn.movementUsed.get(playerId) ?? 0) > 0;
+      if (movementSpent) {
+        const label = BLOCK_REPLACEMENT_DEFINITIONS[directReplacement].label;
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `${activating.playerName} has already moved — ${label} must be declared as Blitz (with ${label}) before moving.`
+        );
+        return false;
+      }
+    }
     // Replacement declarations are immutable for the activation: neither a
     // forged replacement nor a normal action may swap one in or out after the
     // player has started. Preserve the engine's existing Move-then-Block
