@@ -91,13 +91,22 @@ export interface RuleConfig {
   /**
    * Why each scenario-only skill holder legally has the tested skill.
    * Roster defaults should not also grant the skill in the placement.
+   *
+   * `scenario-isolation` is the escape hatch the fixture gate honours: the
+   * grant is not rules-legal for this position, and the reason must say why
+   * the native fixture could not be used (usually because that player's
+   * other traits would change the very outcome under test).
    */
   skillProvenance?: {
     playerRef: PlayerRef;
     skill: SkillType;
     roster: RosterName;
     positionName: string;
-    source: "roster-default" | "primary-advancement" | "secondary-advancement";
+    source:
+      | "roster-default"
+      | "primary-advancement"
+      | "secondary-advancement"
+      | "scenario-isolation";
     reason: string;
   }[];
   outcomes: RuleOutcome[];

@@ -114,7 +114,7 @@ describe("post-match development resolved in Manage Team journey", () => {
     saveTeam(team);
 
     // Simulate the post-match screen awarding SPP (it no longer offers
-    // skill/characteristic assignment itself — see PostMatchProgression).
+    // skill/characteristic assignment itself — see MatchResultsScreen).
     player.spp = 10;
     saveTeam(team);
 

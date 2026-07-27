@@ -231,6 +231,9 @@ describe("full headless match", () => {
     expect(sawHalftime).toBe(true); // both halves were played
     expect(Object.keys(finalSnapshot.score)).toHaveLength(2);
     expect(commandCount).toBeLessThan(600);
+    // A normally completed match records its termination reason distinctly
+    // from a concession/forfeit, alongside the (untouched) played score.
+    expect(finalSnapshot.result).toEqual({ reason: "completed" });
   }, 60_000);
 
   it("the bot answers reroll/reaction decisions when a match raises them", async () => {

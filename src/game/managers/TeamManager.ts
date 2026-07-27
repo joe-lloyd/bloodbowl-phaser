@@ -101,8 +101,28 @@ export function loadTeams(): Team[] {
       player.secondary ??= [...(template?.secondary ?? [])];
       player.teamValue ??= 0;
     });
+    migrateAdvancementMode(team);
   });
   return teams;
+}
+
+/**
+ * Advancement mode migration (see team-advancement-modes): a legacy team
+ * with SPP or advancement history unambiguously belongs to Advanced League
+ * (the only mode that existed before), so it is migrated and locked
+ * automatically. A blank-slate legacy team has no unambiguous mode — it is
+ * left unset and must be chosen explicitly (TeamBuilder prompts for it)
+ * before the team may enter a competition or earn further progression.
+ */
+function migrateAdvancementMode(team: Team): void {
+  if (team.advancementMode) return;
+  const hasProgressionHistory = team.players.some(
+    (player) => (player.spp ?? 0) > 0 || (player.advancements?.length ?? 0) > 0
+  );
+  if (hasProgressionHistory) {
+    team.advancementMode = "advanced-league";
+    team.advancementModeLocked = true;
+  }
 }
 
 /**

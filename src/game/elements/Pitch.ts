@@ -773,6 +773,31 @@ export class Pitch {
     this.clearLayer("pass_zone");
     this.clearLayer("pass_line");
     this.clearLayer("pass_intercept");
+    this.clearLayer("handoff_target");
+  }
+
+  /**
+   * Highlight the legal team-mates during a Hand-off's targeting step — no
+   * Range Ruler, arrow, or interception preview, since a Hand-off never aims
+   * at a square. Self-clearing, so re-calling on every hover redraws in
+   * place instead of stacking.
+   */
+  public drawHandoffTargets(targets: { x: number; y: number }[]): void {
+    this.clearLayer("handoff_target");
+    targets.forEach((t) => {
+      const local = gridToPixel(t.x, t.y, this.squareSize);
+      const rect = this.scene.add.rectangle(
+        local.x,
+        local.y,
+        this.squareSize - 4,
+        this.squareSize - 4,
+        0x22c55e,
+        0.35
+      );
+      rect.setStrokeStyle(2, 0x22c55e, 0.9);
+      rect.setName("handoff_target");
+      this.container.add(rect);
+    });
   }
 
   /**

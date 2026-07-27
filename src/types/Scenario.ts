@@ -1,5 +1,5 @@
 import { GamePhase, SubPhase } from "./GameState";
-import { PlayerStatus, PlayerStats } from "./Player";
+import { PlayerStatus, PlayerStats, PlayerCondition } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
 
@@ -21,6 +21,8 @@ export interface PlayerPlacement {
   skills?: PlacementSkill[];
   /** Stat overrides for this scenario (e.g. ST 4 for a Break Tackle demo) */
   stats?: Partial<PlayerStats>;
+  /** Named conditions to seed (e.g. Distracted, to test a lost Tackle Zone) */
+  conditions?: PlayerCondition[];
 }
 
 export interface ScenarioSetup {

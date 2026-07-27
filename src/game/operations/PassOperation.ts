@@ -18,14 +18,16 @@ import {
 } from "../skills";
 
 /**
- * Ends the passer's activation once a Pass / Hand-off (and its catch/bounce)
- * has settled — a Pass Action ends the activation. Give and Go skips this after
- * a Quick Pass or a Hand-off (so long as no Turnover was caused), letting the
- * player continue their Move with any movement remaining. A turnover is latched
- * before the ball-settling flow goes idle, so this operation can suppress Give
- * and Go even before the delayed turn change occurs.
+ * Ends the passer's activation once a Pass or a Hand-off (and its
+ * catch/bounce) has settled — both actions end the activation. Give and Go
+ * skips this after a Quick Pass or a Hand-off (so long as no Turnover was
+ * caused), letting the player continue their Move with any movement
+ * remaining. A turnover is latched before the ball-settling flow goes idle,
+ * so this operation can suppress Give and Go even before the delayed turn
+ * change occurs. Shared with HandoffOperation, which queues it directly
+ * (a Hand-off never runs through PassOperation).
  */
-class FinishPassActivationOperation extends GameOperation {
+export class FinishPassActivationOperation extends GameOperation {
   public readonly name = "FinishPassActivation";
 
   constructor(
@@ -88,6 +90,10 @@ export class PassOperation extends GameOperation {
 
     const passer = gameService.getPlayerById(this.passerId);
     if (!passer || !passer.gridPosition) return;
+
+    // The throw is happening — commit the declaration (Pass or Handoff)
+    // before anything else can be rolled or resolved.
+    gameService.commitAction(this.passerId);
 
     console.log(
       `[PassOperation] Executing pass from ${passer.id} to ${this.targetX},${this.targetY}`
@@ -207,7 +213,6 @@ export class PassOperation extends GameOperation {
     await context.delay(1500);
 
     // 4. Handle Outcome
-    const declaredAction = gameService.getState().activePlayer?.action;
     if (result.fumbled && resultCtx.keepBall) {
       // Safe Pass: no fumble — the passer retains possession, their
       // activation ends, no turnover
@@ -283,11 +288,9 @@ export class PassOperation extends GameOperation {
             playerAtLanding.id,
             true,
             {
-              origin: declaredAction === "handoff" ? "handoff" : "pass",
+              origin: "pass",
               isPassTarget:
-                declaredAction !== "handoff" &&
-                landingPos.x === this.targetX &&
-                landingPos.y === this.targetY,
+                landingPos.x === this.targetX && landingPos.y === this.targetY,
             },
             {
               passerId: passer.id,
@@ -321,7 +324,7 @@ export class PassOperation extends GameOperation {
         if (divingCatcher) {
           context.flowManager.add(
             new CatchOperation(divingCatcher.id, true, {
-              origin: declaredAction === "handoff" ? "handoff" : "pass",
+              origin: "pass",
               divingCatch: true,
               landingPosition: landingPos,
             }),
@@ -346,11 +349,12 @@ export class PassOperation extends GameOperation {
     gameService.getState().ballPosition = result.finalPosition;
 
     // A Pass Action ends the activation once it settles. Give and Go keeps it
-    // open after a Quick Pass or a Hand-off. A latched Turnover bypasses it
-    // even while the ball-settling flow is still completing.
+    // open after a Quick Pass. A latched Turnover bypasses it even while the
+    // ball-settling flow is still completing. (A Hand-off's own exemption is
+    // computed by HandoffOperation — a Hand-off never reaches here.)
     const giveAndGoExempt =
       hasSkill(passer.skills, SkillType.GIVE_AND_GO) &&
-      (declaredAction === "handoff" || result.passType === "Quick Pass");
+      result.passType === "Quick Pass";
     context.flowManager.add(
       new FinishPassActivationOperation(this.passerId, giveAndGoExempt)
     );

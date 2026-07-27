@@ -55,12 +55,13 @@ describe("TouchdownPhaseHandler", () => {
     const eventBus = new EventBus();
     new SceneOrchestrator(makeScene() as never, makeGameService(), eventBus);
 
-    const notifications: string[] = [];
-    const log: string[] = [];
-    eventBus.on(GameEventNames.UI_Notification, (m) =>
-      notifications.push(m as string)
+    const entries: { category: string; headline: string; detail?: string }[] =
+      [];
+    eventBus.on(GameEventNames.UI_LogEntry, (m) =>
+      entries.push(
+        m as { category: string; headline: string; detail?: string }
+      )
     );
-    eventBus.on(GameEventNames.UI_GameLog, (m) => log.push(m as string));
 
     // The engine emits the phase change first, then the score.
     eventBus.emit(GameEventNames.PhaseChanged, {
@@ -79,13 +80,15 @@ describe("TouchdownPhaseHandler", () => {
       )
     ).toBe(false);
 
-    expect(notifications).toHaveLength(1);
-    expect(notifications[0]).toContain("Griff Oberwald");
-    expect(notifications[0]).toContain(team1.name);
-    expect(notifications[0]).toContain("2");
-    expect(notifications[0]).toContain("1");
-    // The same line is recorded in the match log, not just flashed on screen.
-    expect(log).toEqual(notifications);
+    // The scorer, their team and the score are recorded as a single durable
+    // log entry rather than a transient notification.
+    expect(entries).toHaveLength(1);
+    expect(entries[0].category).toBe("score");
+    expect(entries[0].headline).toBe("TOUCHDOWN!");
+    expect(entries[0].detail).toContain("Griff Oberwald");
+    expect(entries[0].detail).toContain(team1.name);
+    expect(entries[0].detail).toContain("2");
+    expect(entries[0].detail).toContain("1");
   });
 
   it("exits the previous handler before entering, and releases the scene after", () => {

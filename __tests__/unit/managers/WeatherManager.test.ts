@@ -44,6 +44,29 @@ describe("WeatherManager", () => {
       expect(weather).toBeDefined();
       expect(typeof weather).toBe("string");
     });
+
+    it("should record the roll, the named condition and its effect in the match log", () => {
+      manager.rollWeather();
+
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        GameEventNames.UI_LogEntry,
+        expect.objectContaining({
+          category: "weather",
+          headline: expect.any(String),
+          detail: expect.any(String),
+          roll: 7,
+        })
+      );
+    });
+
+    it("should never fall back to a bare notification toast", () => {
+      manager.rollWeather();
+
+      expect(mockEventBus.emit).not.toHaveBeenCalledWith(
+        GameEventNames.UI_Notification,
+        expect.anything()
+      );
+    });
   });
 
   describe("Get Current Weather", () => {

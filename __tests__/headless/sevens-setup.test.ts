@@ -212,6 +212,18 @@ describe("Sevens setup through the headless protocol", () => {
           (event.data as { penaltyFree?: boolean }).penaltyFree
       )
     ).toBe(true);
+
+    // The termination reason is tracked separately from the played score:
+    // a concession never invents a touchdown or mutates the scoreline.
+    expect(response.snapshot.result).toEqual({
+      reason: "concession",
+      concedingTeamId: game.ctx.team1.id,
+    });
+    expect(response.snapshot.score[game.ctx.team1.id] ?? 0).toBe(0);
+    expect(response.snapshot.score[game.ctx.team2.id] ?? 0).toBe(0);
+    expect(
+      response.events.some((event) => event.name === "touchdown")
+    ).toBe(false);
   });
 
   it("serializes setup phase, placements, decisions and restriction state", async () => {

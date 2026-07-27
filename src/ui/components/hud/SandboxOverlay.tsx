@@ -20,6 +20,9 @@ import { findSeed, RuleConfig } from "../../../game/rules-lab";
 import { SkillRegistry } from "../../../game/skills";
 import { SkillCategory, SkillType } from "../../../types/Skills";
 import { Button } from "../componentWarehouse/Button";
+import { ScenarioCasePanel } from "./ScenarioCasePanel";
+import { SCENARIO_CASES } from "../../../testing/cases";
+import { findScenarioCase } from "../../../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
 
 interface SandboxOverlayProps {
@@ -27,6 +30,8 @@ interface SandboxOverlayProps {
 }
 
 const CORE_TOPIC = "core";
+/** The E2E scenario-case explorer: what CI actually runs. */
+const CASE_TOPIC = "e2e-cases";
 
 /**
  * Rebuild the explorer's form state from the URL the scene maintains
@@ -48,6 +53,10 @@ function formStateFromUrl() {
   if (!scenarioId) return empty;
   if (SCENARIOS.some((s) => s.id === scenarioId)) {
     return { ...empty, topic: CORE_TOPIC, coreId: scenarioId };
+  }
+  // A scenario-case id — the reference a CI failure quotes.
+  if (findScenarioCase(SCENARIO_CASES, scenarioId)) {
+    return { ...empty, topic: CASE_TOPIC, configId: scenarioId };
   }
   if (findKickoffConfig(scenarioId)) {
     return {
@@ -191,6 +200,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
             Select Topic
           </option>
           <option value={CORE_TOPIC}>Core Rules</option>
+          <option value={CASE_TOPIC}>E2E Cases</option>
           <option value={KICKOFF_TOPIC}>{KICKOFF_TOPIC}</option>
           <option value={NEGATRAIT_TOPIC}>Negatraits</option>
           <option value={TRAIT_TOPIC}>Traits</option>
@@ -220,24 +230,30 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           </select>
         )}
 
+        {/* E2E cases: the same cases, variants and seeds CI runs */}
+        {topic === CASE_TOPIC && <ScenarioCasePanel eventBus={eventBus} />}
+
         {/* Level 2: Rule, badged implemented (✓) / inert (○) */}
-        {topic && topic !== CORE_TOPIC && topic !== KICKOFF_TOPIC && (
-          <select
-            aria-label="Sandbox rule"
-            value={skill}
-            onChange={(e) => pickSkill(e.target.value)}
-            className={selectClass}
-          >
-            <option value="" disabled>
-              Select Rule
-            </option>
-            {skillsInTopic(topic).map((type) => (
-              <option key={type} value={type}>
-                {SkillRegistry.has(type) ? "✓" : "○"} {type}
+        {topic &&
+          topic !== CORE_TOPIC &&
+          topic !== CASE_TOPIC &&
+          topic !== KICKOFF_TOPIC && (
+            <select
+              aria-label="Sandbox rule"
+              value={skill}
+              onChange={(e) => pickSkill(e.target.value)}
+              className={selectClass}
+            >
+              <option value="" disabled>
+                Select Rule
               </option>
-            ))}
-          </select>
-        )}
+              {skillsInTopic(topic).map((type) => (
+                <option key={type} value={type}>
+                  {SkillRegistry.has(type) ? "✓" : "○"} {type}
+                </option>
+              ))}
+            </select>
+          )}
 
         {/* Level 3: Configuration */}
         {(topic === KICKOFF_TOPIC || skill) &&
@@ -333,7 +349,11 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
         )}
 
         {scenarioInfo && (
-          <div className="text-xs bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1 font-mono text-bb-text">
+          <div
+            data-testid="sandbox-scenario-info"
+            data-scenario-seed={scenarioInfo.seed ?? ""}
+            className="text-xs bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1 font-mono text-bb-text"
+          >
             <div>
               Seed: <span className="font-bold">{scenarioInfo.seed ?? "—"}</span>
             </div>

@@ -4,6 +4,7 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   RuleScenarioEntry,
@@ -32,10 +33,10 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "horns-blitz-strength",
         name: "Horns on a Blitz block",
         description: "+1 Strength on the Blitz block yields a second die",
+        // Chaos Chosen Beastmen carry Horns on the roster.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 7, skills: [SkillType.HORNS] },
-          ],
+          team1Roster: RosterName.CHAOS_CHOSEN,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 7 }],
           team2Placements: [{ playerIndex: 0, x: 12, y: 7 }],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -353,12 +354,13 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 0, x: 4, y: 5 }, // passer
             { playerIndex: 1, x: 7, y: 5 }, // catcher (Quick Pass)
           ],
+          // A Chaos Dwarf Flamesmith has Disturbing Presence on the roster.
+          team2Roster: RosterName.CHAOS_DWARF,
           team2Placements: [
             {
               playerIndex: 0,
               x: 4,
               y: 8, // 3 squares from the passer — inside the aura, no marking
-              skills: [SkillType.DISTURBING_PRESENCE],
             },
           ],
           ballPosition: { x: 4, y: 5 },

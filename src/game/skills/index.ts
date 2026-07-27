@@ -253,6 +253,7 @@ export type TriggerHook =
   | "onCatch"
   | "onPassDeclared"
   | "onPassResult"
+  | "onHandoffDeclared"
   | "onInjuryRoll"
   | "onCasualty"
   | "onCasualtyRoll"
@@ -433,6 +434,7 @@ export type {
   CatchContext,
   PassDeclaredContext,
   PassResultContext,
+  HandoffDeclaredContext,
   InjuryRollContext,
   CasualtyContext,
   CasualtyRollContext,

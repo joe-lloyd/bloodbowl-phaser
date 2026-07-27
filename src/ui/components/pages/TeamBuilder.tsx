@@ -25,6 +25,8 @@ import { Button } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
+import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
 
@@ -264,6 +266,11 @@ export function TeamBuilder() {
 
     // Draft work may be persisted incomplete or illegal — only play and
     // competition entry require a valid roster (team-lifecycle-modes).
+    // Locking is a no-op until a mode has actually been chosen, so this is
+    // safe to call unconditionally on every save (team-advancement-modes:
+    // the mode is immutable from the moment it's first set).
+    lockAdvancementMode(team);
+
     const teams = TeamManager.loadTeams();
     const existingIndex = teams.findIndex((t) => t.id === team.id);
 
@@ -513,6 +520,12 @@ export function TeamBuilder() {
                   </div>
                 </div>
               </div>
+
+              <AdvancementModePanel
+                team={team}
+                roster={roster}
+                onChange={(next) => setTeam(next)}
+              />
 
               <TeamRoster
                 team={team}

@@ -343,6 +343,8 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "cancel-action", playerId });
     return true;
   }
+  /** Engine-internal (fired from Operations, which only ever run host-side). */
+  commitAction(_playerId: string): void {}
   async movePlayer(
     playerId: string,
     path: { x: number; y: number }[]
@@ -447,6 +449,17 @@ export class NetworkedGameService implements IGameService {
       playerId: passerId,
       x: targetX,
       y: targetY,
+    });
+    return { success: response.ok, result: response.reason };
+  }
+  async handOffBall(
+    passerId: string,
+    targetPlayerId: string
+  ): Promise<{ success: boolean; result?: string }> {
+    const response = await this.dispatch({
+      type: "handoff",
+      playerId: passerId,
+      targetId: targetPlayerId,
     });
     return { success: response.ok, result: response.reason };
   }

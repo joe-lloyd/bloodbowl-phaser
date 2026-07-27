@@ -20,6 +20,8 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../game/persistence/MatchSaveRepository";
+import { SoundManager } from "../sound/SoundManager";
+import { SoundSuite } from "../sound/SoundSuite";
 
 interface GamePageProps {
   eventBus: EventBus;
@@ -95,14 +97,31 @@ export function GamePage({
       void recordCompetitionFixture(fixtureContext, homeScore, awayScore, {
         home: gameService.getTeam(matchTeams.team1.id) ?? matchTeams.team1,
         away: gameService.getTeam(matchTeams.team2.id) ?? matchTeams.team2,
-      }).catch((error) => {
-        reportedRef.current = false;
-        console.error("Failed to record competition result:", error);
-      });
+      })
+        .then(() => {
+          eventBus.emit(GameEventNames.CompetitionResultRecorded, {
+            fixtureId: fixtureContext.fixtureId,
+          });
+        })
+        .catch((error) => {
+          reportedRef.current = false;
+          console.error("Failed to record competition result:", error);
+        });
     };
     eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
     return () => eventBus.off(GameEventNames.PhaseChanged, onPhaseChanged);
   }, [eventBus, fixtureContext, matchTeams]);
+
+  // Sound lives entirely in the UI layer: mounted once per game session,
+  // torn down on unmount so it never outlives this page (or a Strudel
+  // dependency reaches the engine/headless import chain).
+  useEffect(() => {
+    const manager = new SoundManager();
+    const suite = new SoundSuite(eventBus, manager);
+    void manager.init();
+    suite.mount();
+    return () => suite.dispose();
+  }, [eventBus]);
 
   useEffect(() => {
     // Get team data from props (online) or location state (local play)

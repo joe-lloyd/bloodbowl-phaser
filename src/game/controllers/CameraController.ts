@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { IEventBus } from "../../services/EventBus";
+import { GameEventNames } from "../../types/events";
 
 /**
  * CameraController - Manages dynamic camera movements
@@ -13,19 +15,36 @@ export class CameraController {
   private isTracking: boolean = false;
   private trackingTween?: Phaser.Tweens.Tween;
   private pitchBounds?: { x: number; y: number; width: number; height: number };
+  private eventBus?: IEventBus;
 
   constructor(
     scene: Phaser.Scene,
-    pitchBounds?: { x: number; y: number; width: number; height: number }
+    pitchBounds?: { x: number; y: number; width: number; height: number },
+    eventBus?: IEventBus
   ) {
     this.scene = scene;
     this.camera = scene.cameras.main;
     this.pitchBounds = pitchBounds;
+    this.eventBus = eventBus;
 
     // Store default camera position
     this.defaultX = this.camera.scrollX;
     this.defaultY = this.camera.scrollY;
     this.defaultZoom = this.camera.zoom;
+  }
+
+  /**
+   * Publish a camera-state change. Every move that takes the camera away
+   * from its neutral framing publishes "active"; reset() alone publishes
+   * "neutral". Consumers (e.g. BoardLabelOverlay) react to this single
+   * seam instead of any individual move, so a new camera move never needs
+   * its own overlay-side wiring.
+   */
+  private publishState(state: "neutral" | "active", duration: number): void {
+    this.eventBus?.emit(GameEventNames.Camera_StateChanged, {
+      state,
+      duration,
+    });
   }
 
   /**
@@ -72,6 +91,7 @@ export class CameraController {
     duration: number = 800
   ): void {
     this.isTracking = true;
+    this.publishState("active", duration);
 
     // Stop any existing tracking
     if (this.trackingTween) {
@@ -92,6 +112,7 @@ export class CameraController {
   public reset(duration: number = 800): Promise<void> {
     return new Promise((resolve) => {
       this.isTracking = false;
+      this.publishState("neutral", duration);
 
       // Stop following
       this.camera.stopFollow();
@@ -156,6 +177,7 @@ export class CameraController {
 
     return new Promise((resolve) => {
       this.isTracking = false;
+      this.publishState("active", duration);
       this.camera.stopFollow();
 
       this.scene.tweens.add({

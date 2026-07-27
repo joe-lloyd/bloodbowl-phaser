@@ -4,7 +4,8 @@
  */
 
 import { Team, RosterName } from "../../src/types/Team.js";
-import { PositionKeyWord, PlayerStatus } from "../../src/types/Player.js";
+import { PlayerStatus } from "../../src/types/Player.js";
+import { TeamFactory } from "../../src/game/TeamFactory";
 import { TeamBuilder, PlayerBuilder } from "../utils/test-builders";
 
 /**
@@ -22,142 +23,28 @@ export function createTestTeam(
 }
 
 /**
- * Create an Orc team with typical Orc roster
+ * Named teams from the production roster templates.
+ *
+ * These used to be hand-built player lists with copied stats and position
+ * *keywords* ("Lineman") standing in for position names ("Orc Lineman"). That
+ * drifted from the roster data and taught tests to expect players who do not
+ * exist. Both now go through the same factory the game uses, so a roster
+ * change reaches the tests instead of hiding from them.
  */
-export function createOrcTeam(): Team {
-  const team = new TeamBuilder()
-    .withName("Da Boyz")
-    .withRosterName(RosterName.ORC)
-    .withColors(0x00ff00, 0x000000)
-    .build();
-
-  // Add typical Orc roster
-  team.players = [
-    // 4 Linemen
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(1)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(2)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(3)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(4)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 5, ST: 3, AG: 3, PA: 5, AV: 10 })
-      .withCost(50000)
-      .build(),
-    // 2 Blitzers
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(5)
-      .withPosition(PositionKeyWord.BLITZER)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 10 })
-      .withCost(80000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(6)
-      .withPosition(PositionKeyWord.BLITZER)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 10 })
-      .withCost(80000)
-      .build(),
-    // 1 Thrower
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(7)
-      .withPosition(PositionKeyWord.THROWER)
-      .withStats({ MA: 5, ST: 3, AG: 3, PA: 3, AV: 9 })
-      .withCost(65000)
-      .build(),
-  ];
-
-  return team;
+export function createRosterTeam(
+  rosterName: RosterName,
+  name: string,
+  color = 0x00ff00
+): Team {
+  return TeamFactory.createTestTeam(rosterName, name, color);
 }
 
-/**
- * Create a Human team with typical Human roster
- */
+export function createOrcTeam(): Team {
+  return createRosterTeam(RosterName.ORC, "Da Boyz", 0x00ff00);
+}
+
 export function createHumanTeam(): Team {
-  const team = new TeamBuilder()
-    .withName("Reikland Reavers")
-    .withRosterName(RosterName.HUMAN)
-    .withColors(0x0000ff, 0xffffff)
-    .build();
-
-  // Add typical Human roster
-  team.players = [
-    // 4 Linemen
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(1)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(2)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(3)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
-      .withCost(50000)
-      .build(),
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(4)
-      .withPosition(PositionKeyWord.LINEMAN)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 })
-      .withCost(50000)
-      .build(),
-    // 1 Blitzer
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(5)
-      .withPosition(PositionKeyWord.BLITZER)
-      .withStats({ MA: 7, ST: 3, AG: 3, PA: 4, AV: 9 })
-      .withCost(85000)
-      .build(),
-    // 1 Catcher
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(6)
-      .withPosition(PositionKeyWord.CATCHER)
-      .withStats({ MA: 8, ST: 2, AG: 2, PA: 5, AV: 8 })
-      .withCost(65000)
-      .build(),
-    // 1 Thrower
-    new PlayerBuilder()
-      .withTeamId(team.id)
-      .withNumber(7)
-      .withPosition(PositionKeyWord.THROWER)
-      .withStats({ MA: 6, ST: 3, AG: 3, PA: 2, AV: 9 })
-      .withCost(80000)
-      .build(),
-  ];
-
-  return team;
+  return createRosterTeam(RosterName.HUMAN, "Reikland Reavers", 0x0000ff);
 }
 
 /**

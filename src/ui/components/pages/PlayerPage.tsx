@@ -26,9 +26,9 @@ const STAT_LABELS: Record<keyof PlayerStats, string> = {
  * flags who has pending development, it never assigns a skill directly.
  *
  * Advancement mode: this page always offers standard SPP spending. Matched
- * Play / Sevens Skill Selection modes are out of scope here — the codebase
- * has no team-level advancement mode yet (tracked separately as the
- * add-team-advancement-modes change); every team today advances by SPP.
+ * Play and Sevens Skill Selection teams don't earn SPP (see
+ * team-advancement-modes), so `canAdvance` naturally stays false for their
+ * players here — this page needs no separate mode check of its own.
  */
 export function PlayerPage() {
   const navigate = useNavigate();
@@ -255,6 +255,21 @@ export function PlayerPage() {
               team={team}
               rngService={rngService}
               onApplied={() => {
+                // Keep Manage Team's pending-development queue consistent
+                // with an advancement applied from this page directly —
+                // otherwise a resolved entry lingers and blocks the team's
+                // next required fixture (team-advancement-modes).
+                if (!mustAdvance(player)) {
+                  team.pendingDevelopment = (
+                    team.pendingDevelopment ?? []
+                  ).filter(
+                    (entry) =>
+                      !(
+                        entry.kind === "advanced-league-advancement" &&
+                        entry.playerId === player.id
+                      )
+                  );
+                }
                 saveTeam(team);
                 refresh();
               }}
