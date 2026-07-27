@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames } from "../../../types/events";
+import { GameEventNames, LogEntryCategory } from "../../../types/events";
 import {
   getActiveOnlineMatch,
   ChatMessage,
 } from "../../../network/OnlineMatch";
+import { ServiceContainer } from "../../../services/ServiceContainer";
 
 interface DiceLogProps {
   eventBus: EventBus;
 }
 
-interface RollEntry {
+/** A raw dice roll, rendered with its own value/description header. */
+interface DiceRow {
+  kind: "dice";
   id: string;
   rollType: string;
   diceType: string;
@@ -23,10 +26,46 @@ interface RollEntry {
   timestamp: number;
 }
 
+/** A durable log entry: a headline naming the result plus what it means. */
+interface EntryRow {
+  kind: "entry";
+  id: string;
+  category: LogEntryCategory;
+  headline: string;
+  detail?: string;
+  roll?: number | number[];
+  teamId?: string;
+  timestamp: number;
+}
+
+type LogRow = DiceRow | EntryRow;
+
 type Tab = "dice" | "chat";
 
+const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
+  weather: "Weather",
+  kickoff: "Kickoff",
+  skill: "Skill",
+  reroll: "Re-roll",
+  score: "Score",
+  drive: "Drive",
+  action: "Action",
+  info: "Info",
+};
+
+/** Resolve a player's team, when the game service is up, for attribution. */
+function teamIdForPlayer(playerId: string): string | undefined {
+  if (!ServiceContainer.isInitialized()) return undefined;
+  try {
+    return ServiceContainer.getInstance().gameService.getPlayerById(playerId)
+      ?.teamId;
+  } catch {
+    return undefined;
+  }
+}
+
 export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
-  const [logs, setLogs] = useState<RollEntry[]>([]);
+  const [logs, setLogs] = useState<LogRow[]>([]);
   const counterRef = React.useRef(0);
   const match = getActiveOnlineMatch();
   const [tab, setTab] = useState<Tab>("dice");
@@ -38,54 +77,69 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const tabRef = React.useRef<Tab>("dice");
   tabRef.current = tab;
 
-  const pushEntry = (entry: Omit<RollEntry, "id" | "timestamp">) => {
-    const timestamp = Date.now();
-    counterRef.current += 1;
-    const newEntry: RollEntry = {
-      id: `${timestamp}-${counterRef.current}`,
-      ...entry,
-      timestamp,
-    };
+  const pushRow = (row: LogRow) => {
     setLogs((prev) => {
       // Add new entry at the START (top) of the array
-      const updated = [newEntry, ...prev];
+      const updated = [row, ...prev];
       // Keep only the most recent 50 entries
       if (updated.length > 50) return updated.slice(0, 50);
       return updated;
     });
   };
 
+  const nextId = () => {
+    counterRef.current += 1;
+    return `${Date.now()}-${counterRef.current}`;
+  };
+
+  const pushEntry = (entry: Omit<DiceRow, "id" | "timestamp" | "kind">) => {
+    pushRow({ kind: "dice", id: nextId(), timestamp: Date.now(), ...entry });
+  };
+
+  const pushLogEntry = (entry: Omit<EntryRow, "id" | "timestamp" | "kind">) => {
+    pushRow({ kind: "entry", id: nextId(), timestamp: Date.now(), ...entry });
+  };
+
   useEventBus(eventBus, GameEventNames.DiceRoll, (data) => pushEntry(data));
   useEventBus(eventBus, GameEventNames.UI_GameLog, (description) => {
-    pushEntry({
-      rollType: "Match",
-      diceType: "event",
-      value: "Kickoff",
-      total: 0,
-      description,
-      resultState: "none",
+    pushLogEntry({ category: "kickoff", headline: description });
+  });
+
+  // The durable match log: every roll outcome authored by the rule that
+  // resolved it (weather, kickoff table, and anything else converted).
+  useEventBus(eventBus, GameEventNames.UI_LogEntry, (data) => {
+    pushLogEntry({
+      category: data.category,
+      headline: data.headline,
+      detail: data.detail,
+      roll: data.roll,
+      teamId: data.teamId,
     });
   });
 
-  // Skill activity: triggers and reroll usage read like rolls in the log
+  // Deprecated alias: a plain string becomes a low-priority "info" entry so
+  // nothing goes silent while call sites are migrated to UI_LogEntry.
+  useEventBus(eventBus, GameEventNames.UI_Notification, (text) => {
+    pushLogEntry({ category: "info", headline: text });
+  });
+
+  // Skill activity: triggers and reroll usage read like log entries, with
+  // the effect text authored by the rule that triggered — attributed to the
+  // acting player's team when the game service can resolve it.
   useEventBus(eventBus, GameEventNames.SkillTriggered, (data) => {
-    pushEntry({
-      rollType: "Skill",
-      diceType: "★",
-      value: data.skill,
-      total: 0,
-      description: data.effect,
-      resultState: "none",
+    pushLogEntry({
+      category: "skill",
+      headline: data.skill,
+      detail: data.effect,
+      teamId: teamIdForPlayer(data.playerId),
     });
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
-    pushEntry({
-      rollType: "Re-roll",
-      diceType: data.source === "team" ? "team" : "skill",
-      value: data.skill ?? "Team Re-roll",
-      total: data.after,
-      description: `${data.skill ?? "Team re-roll"} on the ${data.rollKind}: ${data.before} → ${data.after}`,
-      resultState: "none",
+    pushLogEntry({
+      category: "reroll",
+      headline: data.skill ?? "Team Re-roll",
+      detail: `${data.rollKind}: ${data.before} → ${data.after}`,
+      teamId: teamIdForPlayer(data.playerId),
     });
   });
 
@@ -175,10 +229,11 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 </div>
               )}
 
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className={`
+              {logs.map((log) =>
+                log.kind === "dice" ? (
+                  <div
+                    key={log.id}
+                    className={`
                                 relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
                                 ${getTeamColorClass(log.teamId)}
                                 ${
@@ -191,34 +246,70 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                                         : "!border-gray-500 !bg-gray-900/20"
                                 }
                             `}
-                >
-                  <div className="p-1.5">
-                    {/* Header Row: Type & Dice + Value */}
-                    <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
-                      <span className="font-bold uppercase tracking-wide text-bb-parchment">
-                        {log.rollType}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
-                          {log.diceType}
+                  >
+                    <div className="p-1.5">
+                      {/* Header Row: Type & Dice + Value */}
+                      <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
+                        <span className="font-bold uppercase tracking-wide text-bb-parchment">
+                          {log.rollType}
                         </span>
-                        <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
-                          {Array.isArray(log.value)
-                            ? `[${log.value.join(", ")}]`
-                            : log.value}
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
+                            {log.diceType}
+                          </span>
+                          <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
+                            {Array.isArray(log.value)
+                              ? `[${log.value.join(", ")}]`
+                              : log.value}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Result Row - Full Width Description */}
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-medium text-white/90 leading-snug">
+                          {log.description}
                         </span>
                       </div>
                     </div>
-
-                    {/* Result Row - Full Width Description */}
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-medium text-white/90 leading-snug">
-                        {log.description}
-                      </span>
+                  </div>
+                ) : (
+                  // Outcome entry: a durable record of a roll and what it meant —
+                  // headline names the result, detail states its effect on play.
+                  <div
+                    key={log.id}
+                    className={`
+                                relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
+                                ${getTeamColorClass(log.teamId)}
+                            `}
+                  >
+                    <div className="p-1.5">
+                      <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
+                        <span className="font-bold uppercase tracking-wide text-bb-parchment">
+                          {CATEGORY_LABELS[log.category]}
+                        </span>
+                        {log.roll !== undefined && (
+                          <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
+                            {Array.isArray(log.roll)
+                              ? `[${log.roll.join(", ")}]`
+                              : log.roll}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="text-xs font-bold text-white leading-snug">
+                          {log.headline}
+                        </span>
+                        {log.detail && (
+                          <span className="text-xs font-medium text-white/80 leading-snug">
+                            {log.detail}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
 
             {/* Fade Mask at Bottom */}

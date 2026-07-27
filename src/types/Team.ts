@@ -4,6 +4,67 @@
 
 import { Player, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
+import { SkillType } from "./Skills";
+
+/**
+ * A team's progression lifecycle, chosen once at creation and immutable
+ * thereafter (see setAdvancementMode). Matched Play grants a tier-based
+ * skill package before play; Advanced League earns/spends SPP normally;
+ * Sevens Skill Selection awards one random skill after each game and
+ * subjects experienced players to the Draft. Absent on teams created before
+ * this field existed until migrated or explicitly chosen (see TeamManager).
+ */
+export type TeamAdvancementMode =
+  | "matched-play"
+  | "advanced-league"
+  | "sevens-skill-selection";
+
+/** One Matched Play package skill allocated to a player before finalization. */
+export interface MatchedPlayAllocation {
+  playerId: string;
+  skill: SkillType;
+  /** Which package slot type was used. A Primary Skill may be taken in an
+   *  allowed Secondary slot ("primary-substitution"); a Secondary Skill may
+   *  only be taken in a Secondary slot. */
+  access: "primary" | "secondary";
+  usedSecondarySlot: boolean;
+}
+
+/** A player removed from the active roster by the post-game Draft. Retains
+ *  a full snapshot so career, match, and Draft history survive the removal
+ *  (see team-advancement-modes: "A drafted player may be referenced by
+ *  history"). */
+export interface DraftRecord {
+  id: string;
+  playerId: string;
+  playerName: string;
+  roll: number;
+  addedSkillCount: number;
+  valueIncrease: number;
+  matchId?: string;
+  removedAt: number;
+  /** Immutable snapshot of the player at the moment of removal. */
+  player: Player;
+}
+
+/** Durable, unresolved mode-specific development work created post-match.
+ *  Surfaced and resolved from Manage Team rather than the results screen. */
+export type PendingDevelopment =
+  | {
+      id: string;
+      kind: "advanced-league-advancement";
+      playerId: string;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      kind: "sevens-skill-selection";
+      matchId: string;
+      /** Frozen from match records: living participants eligible to be
+       *  chosen (Primary) or randomly selected (Secondary). */
+      eligibleParticipantIds: string[];
+      createdAt: number;
+    };
 
 /**
  * Team races/types
@@ -129,8 +190,27 @@ export interface Team {
   touchdowns: number;
   casualties: number;
 
+  /**
+   * Timestamp (ms) the team's first completed match was confirmed. Absence
+   * means the team is still in draft mode; once set it is never cleared —
+   * see src/game/rules/teamLifecycle.ts for the draft/active derivation.
+   */
+  firstMatchPlayedAt?: number;
+
   /** Development seed ownership; absent on coach-created teams. */
   seedMetadata?: SeedMetadata;
+
+  /** Immutable progression lifecycle; absent on unmigrated legacy teams. */
+  advancementMode?: TeamAdvancementMode;
+  /** True once the mode may no longer change (finalized or entered a
+   *  competition). See setAdvancementMode / lockAdvancementMode. */
+  advancementModeLocked?: boolean;
+  /** Matched Play only: package skills allocated to players before entry. */
+  matchedPlayAllocations?: MatchedPlayAllocation[];
+  /** Sevens Skill Selection / Matched Play: players poached by the Draft. */
+  draftHistory?: DraftRecord[];
+  /** Unresolved mode-specific development awaiting a Manage Team decision. */
+  pendingDevelopment?: PendingDevelopment[];
 }
 
 /**
@@ -155,7 +235,8 @@ export function createTeam(
   rosterName: RosterName,
   colors: TeamColors,
   rerollCost: number,
-  startingTreasury: number = 600000
+  startingTreasury: number = 600000,
+  advancementMode?: TeamAdvancementMode
 ): Team {
   return {
     id: `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -180,7 +261,40 @@ export function createTeam(
     draws: 0,
     touchdowns: 0,
     casualties: 0,
+    ...(advancementMode ? { advancementMode } : {}),
   };
+}
+
+/**
+ * Set or change a team's advancement mode. Immutable once locked (see
+ * lockAdvancementMode): a finalized team or one that has entered a
+ * competition may not convert between modes. Throws rather than silently
+ * ignoring the attempt so callers surface a clear refusal.
+ */
+export function setAdvancementMode(
+  team: Team,
+  mode: TeamAdvancementMode
+): void {
+  if (
+    team.advancementModeLocked &&
+    team.advancementMode &&
+    team.advancementMode !== mode
+  ) {
+    throw new Error(
+      "Advancement mode is immutable once the team is finalized or has entered a competition."
+    );
+  }
+  team.advancementMode = mode;
+}
+
+/** Finalize the mode choice: called on first save and on competition entry. */
+export function lockAdvancementMode(team: Team): void {
+  if (team.advancementMode) team.advancementModeLocked = true;
+}
+
+/** Unresolved development that should block launching another fixture. */
+export function hasBlockingPendingDevelopment(team: Team): boolean {
+  return (team.pendingDevelopment?.length ?? 0) > 0;
 }
 
 /**

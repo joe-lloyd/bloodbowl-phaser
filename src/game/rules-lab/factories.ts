@@ -51,6 +51,7 @@ export function skillRerollConfig(opts: {
   setup: ScenarioSetup;
   script: ScriptCommand[];
   seedSearch?: RuleConfig["seedSearch"];
+  skillProvenance?: RuleConfig["skillProvenance"];
   extraOutcomes?: RuleOutcome[];
 }): RuleConfig {
   const skill = String(opts.skill);
@@ -61,6 +62,7 @@ export function skillRerollConfig(opts: {
     setup: opts.setup,
     script: opts.script,
     seedSearch: opts.seedSearch,
+    skillProvenance: opts.skillProvenance,
     outcomes: [
       {
         id: "skill-reroll-offered",
@@ -96,6 +98,7 @@ export function blockConfig(opts: {
   decisionPolicy?: DecisionPolicy;
   rerolls?: RuleConfig["rerolls"];
   seedSearch?: RuleConfig["seedSearch"];
+  skillProvenance?: RuleConfig["skillProvenance"];
 }): RuleConfig {
   return {
     id: opts.id,
@@ -104,6 +107,7 @@ export function blockConfig(opts: {
     setup: opts.setup,
     rerolls: opts.rerolls,
     seedSearch: opts.seedSearch,
+    skillProvenance: opts.skillProvenance,
     script: [
       { type: "declare-action", playerId: opts.attacker, action: "block" },
       {

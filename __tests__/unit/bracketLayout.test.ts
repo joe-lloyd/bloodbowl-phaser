@@ -19,7 +19,6 @@ function entrants(count: number): CompetitionEntrant[] {
       teamId: `t${i + 1}`,
       name: `Team ${i + 1}`,
       rosterName: "Human",
-      source: "local" as const,
       team: { id: `t${i + 1}`, name: `Team ${i + 1}` } as Team,
     }))
   );

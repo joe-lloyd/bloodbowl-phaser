@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainMenu } from "./components/pages/MainMenu";
 import { TeamManagement } from "./components/pages/TeamManagement";
 import { TeamBuilder } from "./components/pages/TeamBuilder";
+import { PlayerPage } from "./components/pages/PlayerPage";
 import { TeamSelect } from "./components/pages/TeamSelect";
 import { SoundTest } from "./components/pages/SoundTest";
 import { OnlineLobby } from "./components/pages/OnlineLobby";
@@ -44,6 +45,10 @@ export function App({ eventBus }: AppProps) {
         <Route path="/build-team" element={<TeamManagement />} />
         <Route path="/build-team/new-team" element={<TeamBuilder />} />
         <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+        <Route
+          path="/build-team/:teamId/player/:playerId"
+          element={<PlayerPage />}
+        />
         <Route path="/shared-teams" element={<SharedTeamBrowser />} />
         <Route path="/leagues" element={<CompetitionHub type="league" />} />
         <Route

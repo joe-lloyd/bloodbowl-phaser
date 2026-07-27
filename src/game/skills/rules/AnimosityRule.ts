@@ -6,34 +6,41 @@
  * ends. Some players may have the Animosity (all) Trait, in which case they
  * will apply this rule to all of their team-mates."
  *
- * Rolled when the throw is attempted (the receiver is known then); the
- * refusal — activation over, ball kept, no turnover — is applied by
- * PassOperation.
+ * Rolled when the throw/hand-off is attempted (the receiver is known then);
+ * the refusal — activation over, ball kept, no turnover — is applied by
+ * PassOperation for a Pass, and by HandoffOperation for a Hand-off.
  */
 
 import { SkillType } from "../../../types/Skills";
-import { SkillRule } from "../SkillRule";
+import { Player } from "../../../types/Player";
+import { SkillRule, PassDeclaredContext, HandoffDeclaredContext } from "../SkillRule";
 import { matchesKeyword } from "./keywords";
+
+function rollAnimosity(
+  ctx: PassDeclaredContext | HandoffDeclaredContext,
+  self: Player,
+  verb: string
+): void {
+  if (self.id !== ctx.player.id) return;
+  if (!ctx.targetPlayer || !ctx.dice || ctx.refused) return;
+  const instance = self.skills.find((s) => s.type === SkillType.ANIMOSITY);
+  if (!matchesKeyword(ctx.targetPlayer, instance?.parameter)) return;
+
+  const check = ctx.dice.rollSkillCheck("Animosity", 2, 0, self.playerName);
+  if (check.success) return;
+  ctx.refused = true;
+  ctx.triggers.push({
+    playerId: self.id,
+    skill: SkillType.ANIMOSITY,
+    effect: `Animosity: refuses to ${verb} ${ctx.targetPlayer.playerName} — the activation ends`,
+  });
+}
 
 export const AnimosityRule: SkillRule = {
   onPassDeclared(ctx, self) {
-    if (self.id !== ctx.player.id) return;
-    if (!ctx.targetPlayer || !ctx.dice || ctx.refused) return;
-    const instance = self.skills.find((s) => s.type === SkillType.ANIMOSITY);
-    if (!matchesKeyword(ctx.targetPlayer, instance?.parameter)) return;
-
-    const check = ctx.dice.rollSkillCheck(
-      "Animosity",
-      2,
-      0,
-      self.playerName
-    );
-    if (check.success) return;
-    ctx.refused = true;
-    ctx.triggers.push({
-      playerId: self.id,
-      skill: SkillType.ANIMOSITY,
-      effect: `Animosity: refuses to throw to ${ctx.targetPlayer.playerName} — the activation ends`,
-    });
+    rollAnimosity(ctx, self, "throw to");
+  },
+  onHandoffDeclared(ctx, self) {
+    rollAnimosity(ctx, self, "hand off to");
   },
 };

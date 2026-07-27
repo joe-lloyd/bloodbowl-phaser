@@ -111,6 +111,9 @@ describe("GameHUD match options menu wiring", () => {
     vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
     vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
       gameService,
+      // GameHUD also mounts MatchResultsScreen, whose effects subscribe to
+      // this unconditionally (see match-results-screen).
+      eventBus,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
   });

@@ -10,6 +10,9 @@ import {
 import { createPlayer } from "../../../types/Player";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
+import { getTeamMode, isActiveTeam } from "../../../game/rules/teamLifecycle";
+import { canEdit } from "../../../game/rules/teamEditLegality";
+import { priceOf } from "../../../game/rules/teamPricing";
 import {
   getRosterByRosterName,
   getAvailableRosterNames,
@@ -22,6 +25,8 @@ import { Button } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
+import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
 
@@ -71,10 +76,16 @@ export function TeamBuilder() {
   }, [teamId]);
 
   const handleRaceChange = (race: RosterName) => {
-    if (!team || team.players.length > 0) {
-      if (team && team.players.length > 0) {
-        if (!confirm("Changing race will clear your roster. Continue?")) return;
-      }
+    if (!team) return;
+
+    const decision = canEdit(team, { type: "change-roster-type" });
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
+    }
+
+    if (team.players.length > 0) {
+      if (!confirm("Changing race will clear your roster. Continue?")) return;
     }
 
     setSelectedRace(race);
@@ -112,13 +123,24 @@ export function TeamBuilder() {
       return;
     }
 
+    const hireDecision = canEdit(team, { type: "hire-player" });
+    if (!hireDecision.allowed) {
+      alert(hireDecision.reason);
+      return;
+    }
+
     const roster = getRosterByRosterName(selectedRace);
     const template = roster.playerTemplates.find(
       (p) => p.positionName === positionName
     );
 
     if (!template) return;
-    if (team.treasury < template.cost) {
+    const price = priceOf(team, { type: "player", cost: template.cost });
+    if (price.amount == null) {
+      alert(price.reason ?? "This player cannot be hired.");
+      return;
+    }
+    if (team.treasury < price.amount) {
       alert("Not enough gold!");
       return;
     }
@@ -131,6 +153,7 @@ export function TeamBuilder() {
     }
 
     const player = createPlayer(template, team.id, playerNumber);
+    player.cost = price.amount;
 
     if (addPlayerToTeam(team, player)) {
       setTeam({ ...team });
@@ -140,11 +163,22 @@ export function TeamBuilder() {
   const handleFirePlayer = (playerId: string) => {
     if (!team) return;
 
+    const fireDecision = canEdit(team, { type: "fire-player" });
+    if (!fireDecision.allowed) {
+      alert(fireDecision.reason);
+      return;
+    }
+
     const player = team.players.find((p) => p.id === playerId);
     if (!player) return;
 
     team.players = team.players.filter((p) => p.id !== playerId);
-    team.treasury += Math.floor(player.cost); // Full refund
+    // Active teams have already fielded this player in a completed match;
+    // releasing them does not refund the purchase. Draft teams get a full
+    // refund since the roster is still being assembled.
+    if (!isActiveTeam(team)) {
+      team.treasury += Math.floor(player.cost);
+    }
     setTeam({ ...team });
   };
 
@@ -173,41 +207,69 @@ export function TeamBuilder() {
   const handleBuyReroll = () => {
     if (!team) return;
 
-    const roster = getRosterByRosterName(team.rosterName);
-    const cost = roster.rerollCost;
+    const decision = canEdit(team, { type: "buy-reroll" });
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
+    }
 
-    if (team.treasury >= cost) {
-      team.treasury -= cost;
+    const price = priceOf(team, { type: "reroll" });
+    if (price.amount != null && team.treasury >= price.amount) {
+      team.treasury -= price.amount;
       team.rerolls++;
       setTeam({ ...team });
     }
   };
 
-  const handleSave = () => {
-    if (!team || team.players.length < 7) {
-      alert("You need at least 7 players to save the team!");
+  const handleBuyDedicatedFan = () => {
+    if (!team) return;
+
+    const decision = canEdit(team, { type: "buy-dedicated-fans" });
+    if (!decision.allowed) {
+      alert(decision.reason);
       return;
     }
 
-    // Insignificant limit: a finished draft list may not have more players
-    // with the trait than without it (checked whole-list, not per hire).
+    const price = priceOf(team, { type: "dedicated-fan" });
+    if (price.amount == null) {
+      alert(price.reason);
+      return;
+    }
+    if (team.treasury >= price.amount) {
+      team.treasury -= price.amount;
+      team.dedicatedFans = (team.dedicatedFans ?? 0) + 1;
+      setTeam({ ...team });
+    }
+  };
+
+  /**
+   * Shared roster legality (roster size, Lineman rule, positional limits,
+   * budget), plus the whole-list Insignificant check — the same validator
+   * the development seeds and match/competition entry are checked against.
+   * A draft may be saved while this is non-empty (1.6): it is only a gate
+   * on finalizing for play or competition entry, never on persistence.
+   */
+  const rosterViolations = (): string[] => {
+    if (!team) return [];
+    const messages: string[] = [];
     const insignificantError = validateInsignificant(team.players);
-    if (insignificantError) {
-      alert(insignificantError);
-      return;
-    }
-
-    // Shared roster legality (positional limits, Lineman rule, budget) —
-    // the same validator the development seeds are checked against.
+    if (insignificantError) messages.push(insignificantError);
     const roster = getRosterByRosterName(team.rosterName);
-    const violations = validateRosterLegality(team, roster);
-    if (violations.length > 0) {
-      alert(
-        "This roster is not legal:\n" +
-          violations.map((v) => `• ${v.detail}`).join("\n")
-      );
-      return;
-    }
+    messages.push(
+      ...validateRosterLegality(team, roster).map((v) => v.detail)
+    );
+    return messages;
+  };
+
+  const handleSave = () => {
+    if (!team) return;
+
+    // Draft work may be persisted incomplete or illegal — only play and
+    // competition entry require a valid roster (team-lifecycle-modes).
+    // Locking is a no-op until a mode has actually been chosen, so this is
+    // safe to call unconditionally on every save (team-advancement-modes:
+    // the mode is immutable from the moment it's first set).
+    lockAdvancementMode(team);
 
     const teams = TeamManager.loadTeams();
     const existingIndex = teams.findIndex((t) => t.id === team.id);
@@ -271,7 +333,9 @@ export function TeamBuilder() {
   }
 
   const roster = getRosterByRosterName(selectedRace);
-  const canSave = team.players.length >= 7;
+  const mode = getTeamMode(team);
+  const active = mode === "active";
+  const violations = rosterViolations();
 
   return (
     <MinHeightContainer className="bg-bb-parchment !justify-start pb-12 mb-26">
@@ -280,6 +344,44 @@ export function TeamBuilder() {
       <ContentContainer className="!px-4 !pb-26">
         <div className="text-center mb-8">
           <Title>TEAM BUILDER</Title>
+        </div>
+
+        <div
+          className={`mb-6 rounded-lg border-2 p-4 font-body text-base ${
+            active
+              ? "border-bb-ink-blue bg-[#e0f0ff] text-[#1d3860]"
+              : "border-bb-gold bg-bb-warm-paper text-bb-text-dark"
+          }`}
+        >
+          <p className="font-heading text-lg font-bold uppercase tracking-wide">
+            {active ? "Active team" : "Draft team"}
+          </p>
+          {active ? (
+            <p className="mt-1">
+              This team has played its first match. Roster type is locked,
+              re-rolls now cost double roster price, and Dedicated Fans can no
+              longer be purchased. Eligible players may still be hired at
+              roster price.
+            </p>
+          ) : (
+            <p className="mt-1">
+              Draft teams may be edited freely and saved even while
+              incomplete, but must pass roster legality before they can be
+              selected for a match or entered in a competition.
+            </p>
+          )}
+          {violations.length > 0 && (
+            <div className="mt-3 border-t border-current/30 pt-3">
+              <p className="font-bold">
+                Not yet legal for play or competition entry:
+              </p>
+              <ul className="mt-1 list-disc pl-5">
+                {violations.map((detail, index) => (
+                  <li key={index}>{detail}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* 2 Column Layout - Hires & Team Sheet */}
@@ -317,8 +419,14 @@ export function TeamBuilder() {
                     Roster
                   </label>
                   <select
-                    className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md cursor-pointer"
+                    className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     value={selectedRace}
+                    disabled={active}
+                    title={
+                      active
+                        ? "Active teams cannot change roster type"
+                        : undefined
+                    }
                     onChange={(e) =>
                       handleRaceChange(e.target.value as RosterName)
                     }
@@ -413,6 +521,12 @@ export function TeamBuilder() {
                 </div>
               </div>
 
+              <AdvancementModePanel
+                team={team}
+                roster={roster}
+                onChange={(next) => setTeam(next)}
+              />
+
               <TeamRoster
                 team={team}
                 onFirePlayer={handleFirePlayer}
@@ -423,17 +537,21 @@ export function TeamBuilder() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
                 {/* Re-Rolls */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1d3860] uppercase">
-                    Re-Rolls ({formatGold(roster.rerollCost)})
+                  <span className="text-xs font-bold text-[#1d3860] uppercase">
+                    Re-Rolls ({formatGold(priceOf(team, { type: "reroll" }).amount ?? 0)}
+                    {active ? ", active price" : ""})
                   </span>
                   <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
                     <span className="font-bold text-[#1d3860]">
                       {team.rerolls}
                     </span>
                     <Button
-                      className="!m-0 !px-2 !py-0 !h-5 !text-[10px] !bg-[#1d3860] !text-white"
+                      className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
                       onClick={handleBuyReroll}
-                      disabled={team.treasury < roster.rerollCost}
+                      disabled={
+                        team.treasury <
+                        (priceOf(team, { type: "reroll" }).amount ?? Infinity)
+                      }
                     >
                       +
                     </Button>
@@ -441,11 +559,11 @@ export function TeamBuilder() {
                 </div>
                 {/* Apothecary */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1d3860] uppercase">
+                  <span className="text-xs font-bold text-[#1d3860] uppercase">
                     Apothecary (50k)
                   </span>
                   <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860] h-[38px]">
-                    <span className="text-xs text-[#1d3860]">
+                    <span className="text-sm text-[#1d3860]">
                       {team.apothecary ? "Yes" : "No"}
                     </span>
                     <input
@@ -459,20 +577,33 @@ export function TeamBuilder() {
                 </div>
                 {/* Dedicated Fans */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1d3860] uppercase">
+                  <span className="text-xs font-bold text-[#1d3860] uppercase">
                     Dedicated Fans
+                    {!active &&
+                      ` (${formatGold(priceOf(team, { type: "dedicated-fan" }).amount ?? 0)})`}
                   </span>
-                  <input
-                    type="number"
-                    value={team.dedicatedFans}
-                    onChange={(e) =>
-                      handleStatChange(
-                        "dedicatedFans",
-                        parseInt(e.target.value)
-                      )
-                    }
-                    className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
-                  />
+                  <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
+                    <span className="font-bold text-[#1d3860]">
+                      {team.dedicatedFans}
+                    </span>
+                    <Button
+                      className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
+                      onClick={handleBuyDedicatedFan}
+                      disabled={
+                        active ||
+                        team.treasury <
+                          (priceOf(team, { type: "dedicated-fan" }).amount ??
+                            Infinity)
+                      }
+                      title={
+                        active
+                          ? "Active teams cannot purchase Dedicated Fans"
+                          : undefined
+                      }
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
                 {/* Asst Coaches */}
                 <div className="flex flex-col gap-1">
@@ -519,12 +650,8 @@ export function TeamBuilder() {
             {team.players.length}/11 Players | TV:{" "}
             {formatGold(calculateTeamValue(team))}
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={!canSave}
-            className="text-xl px-8 shadow-lg"
-          >
-            Save Team {!canSave && `(${7 - team.players.length} more needed)`}
+          <Button onClick={handleSave} className="text-xl px-8 shadow-lg">
+            Save Team {violations.length > 0 && "(saved as incomplete draft)"}
           </Button>
         </div>
 
