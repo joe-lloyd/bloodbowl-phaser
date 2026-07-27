@@ -142,12 +142,13 @@ function toEntrant(
   return {
     id: seedEntrantId(competitionId, fixtureKey),
     teamId: team.id,
+    ownerUid: null,
     name: team.name,
     coachName: "Seed Coach",
+    coachUid: null,
     rosterName: team.rosterName,
     seed: 0, // reassigned by seedEntrants in plan order
     source: "local",
-    team: structuredClone(team),
   };
 }
 
@@ -266,6 +267,26 @@ function buildCompetition(
   return doc;
 }
 
+/**
+ * A team belongs to at most one ACTIVE competition (design.md decision 4).
+ * Draft and completed memberships may freely overlap the same team across
+ * plans (see the module docstring), so only "active" plans set the field.
+ */
+function markActiveMembership(
+  docs: CompetitionDoc[],
+  teamsByRoster: Map<RosterName, Team>
+): void {
+  for (const doc of docs) {
+    if (doc.status !== "active") continue;
+    for (const entrant of doc.entrants) {
+      const team = [...teamsByRoster.values()].find(
+        (candidate) => candidate.id === entrant.teamId
+      );
+      if (team) team.activeCompetitionId = doc.id;
+    }
+  }
+}
+
 /** All six lifecycle competitions, plus folded team records for history. */
 export function buildSeedCompetitions(teams: Team[]): CompetitionDoc[] {
   const teamsByRoster = new Map(teams.map((team) => [team.rosterName, team]));
@@ -273,6 +294,7 @@ export function buildSeedCompetitions(teams: Team[]): CompetitionDoc[] {
     buildCompetition(plan, teamsByRoster)
   );
   foldCompletedRecords(docs, teamsByRoster);
+  markActiveMembership(docs, teamsByRoster);
   return docs;
 }
 

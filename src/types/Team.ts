@@ -131,6 +131,13 @@ export interface Team {
 
   /** Development seed ownership; absent on coach-created teams. */
   seedMetadata?: SeedMetadata;
+
+  /**
+   * The single league or tournament this team is currently entered in, if
+   * any. Set on entry, refused when already set, cleared when that
+   * competition completes or the team withdraws (src/competition/logic.ts).
+   */
+  activeCompetitionId?: string;
 }
 
 /**

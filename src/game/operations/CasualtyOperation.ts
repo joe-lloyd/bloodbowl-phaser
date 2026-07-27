@@ -145,6 +145,10 @@ export class CasualtyOperation extends GameOperation {
       case CasualtyType.DEAD:
         player.injuries.push(InjuryType.DEAD);
         player.status = PlayerStatus.DEAD;
+        eventBus.emit(GameEventNames.PlayerKilled, {
+          causerId: this.causedById,
+          victimId: player.id,
+        });
         // Plague Ridden: a Block Action kill by the trait-holder against an
         // eligible opponent lets their coach add a Lineman to the Reserves.
         if (

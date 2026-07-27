@@ -3,8 +3,10 @@
  */
 
 import { Team, createTeam, RosterName, TeamColors } from "../../types/Team";
-import { getRosterByRosterName } from "../../data/RosterTemplates";
-import { migrateSkills } from "../../types/Skills";
+import {
+  dehydrateTeam,
+  readStoredTeam,
+} from "../../data/persistence/teamPersistence";
 import {
   cleanupDevelopmentSeedData,
   seedDevelopmentData,
@@ -18,16 +20,33 @@ const STORAGE_KEY = "bloodbowl_teams";
  * cloud-backed repository (src/firebase/cloudTeamRepository.ts). Both are
  * synchronous so every existing call site keeps working — the cloud repo is
  * a write-through in-memory cache over Firestore.
+ *
+ * Both backends persist the normalized `StoredTeam` shape
+ * (src/data/persistence/teamPersistence.ts) and read tolerantly: a document
+ * saved before normalization (or by the other backend, before this change)
+ * loads and hydrates the same way, and is rewritten normalized on its next
+ * save.
  */
 export interface TeamRepository {
   loadTeams(): Team[];
   saveTeams(teams: Team[]): void;
 }
 
+function hydrateAll(raw: unknown[]): Team[] {
+  return raw.map((entry) => {
+    const { team, warnings } = readStoredTeam(entry);
+    warnings.forEach((warning) => console.warn(`[TeamManager] ${warning}`));
+    return team;
+  });
+}
+
 const localRepository: TeamRepository = {
   saveTeams(teams: Team[]): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(teams.map(dehydrateTeam))
+      );
     } catch (error) {
       console.error("Failed to save teams:", error);
     }
@@ -36,7 +55,7 @@ const localRepository: TeamRepository = {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
-        return JSON.parse(data);
+        return hydrateAll(JSON.parse(data));
       }
     } catch (error) {
       console.error("Failed to load teams:", error);
@@ -65,39 +84,13 @@ export function saveTeams(teams: Team[]): void {
 }
 
 /**
- * Load teams from the active backend. Persisted skills may carry names
- * from before the 2025 catalog reconciliation — migrate them on the way in
- * so every loaded team speaks the current catalog.
+ * Load teams from the active backend. Hydration (src/data/persistence/
+ * teamPersistence.ts) already migrates legacy skill names, defaults
+ * progression fields, and resolves category access from the roster
+ * template, so every loaded team is ready to play as-is.
  */
 export function loadTeams(): Team[] {
-  const teams = activeRepository.loadTeams();
-  teams.forEach((team) => {
-    let roster: ReturnType<typeof getRosterByRosterName> | undefined;
-    try {
-      roster = team.rosterName
-        ? getRosterByRosterName(team.rosterName)
-        : undefined;
-    } catch {
-      // Legacy/test documents may predate rosterName. They still receive
-      // progression defaults; category access remains empty until edited.
-      roster = undefined;
-    }
-    team.players.forEach((player) => {
-      player.skills = migrateSkills(player.skills ?? []);
-      const template = roster?.playerTemplates.find(
-        (candidate) => candidate.positionName === player.positionName
-      );
-      player.spp ??= 0;
-      player.advancements ??= [];
-      player.level = player.advancements.length;
-      player.characteristicAdvances ??= {};
-      player.playerKind ??= "roster";
-      player.primary ??= [...(template?.primary ?? [])];
-      player.secondary ??= [...(template?.secondary ?? [])];
-      player.teamValue ??= 0;
-    });
-  });
-  return teams;
+  return activeRepository.loadTeams();
 }
 
 /**

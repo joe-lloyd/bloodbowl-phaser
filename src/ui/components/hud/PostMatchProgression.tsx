@@ -21,6 +21,7 @@ import {
   rollRandomPrimaryCandidates,
 } from "../../../game/progression/progression";
 import { MatchStatsSummary } from "../../../game/progression/MatchStats";
+import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
@@ -188,6 +189,7 @@ export function PostMatchProgression({ visible }: Props) {
   const confirmSpp = () => {
     try {
       const finalSummary = tracker.applySpp(teams);
+      foldMatchSummaryIntoCareers(teams, finalSummary);
       ownedTeams(teams).forEach(saveTeam);
       setSummary(finalSummary);
       setConfirmed(true);

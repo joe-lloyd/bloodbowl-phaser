@@ -8,13 +8,18 @@ export interface PlayerMatchStats {
   teamId: string;
   participated: boolean;
   completions: number;
+  /** Pass attempts, completed or not — feeds `careerStats.passesAttempted`. */
+  attempts: number;
   superbThrows: number;
   safeLandings: number;
   interceptions: number;
   casualties: number;
+  /** Casualties inflicted whose injury result was Dead — a subset of `casualties`. */
+  kills: number;
   touchdowns: number;
   mvps: number;
   blocks: number;
+  /** Squares moved (walked or rushed) — feeds `careerStats.squaresMoved`. */
   yards: number;
   injuriesSuffered: number;
   sppEarned: number;
@@ -48,10 +53,12 @@ function emptyStats(player: Player): PlayerMatchStats {
     teamId: player.teamId,
     participated: false,
     completions: 0,
+    attempts: 0,
     superbThrows: 0,
     safeLandings: 0,
     interceptions: 0,
     casualties: 0,
+    kills: 0,
     touchdowns: 0,
     mvps: 0,
     blocks: 0,
@@ -110,6 +117,10 @@ export class MatchStats {
     this.eventBus.on(GameEventNames.PlayerActivated, (playerId) =>
       this.participate(playerId)
     );
+    this.eventBus.on(GameEventNames.PassAttempted, ({ playerId }) => {
+      const stats = this.get(playerId);
+      if (stats) stats.attempts++;
+    });
     this.eventBus.on(GameEventNames.PassCompleted, ({ playerId }) => {
       const stats = this.get(playerId);
       if (stats) stats.completions++;
@@ -137,6 +148,11 @@ export class MatchStats {
         if (causer) causer.casualties++;
       }
     );
+    this.eventBus.on(GameEventNames.PlayerKilled, ({ causerId }) => {
+      if (!causerId) return;
+      const causer = this.get(causerId);
+      if (causer) causer.kills++;
+    });
     this.eventBus.on(GameEventNames.Touchdown, ({ scorerId }) => {
       if (!scorerId) return;
       const stats = this.get(scorerId);
@@ -236,7 +252,15 @@ export class MatchStats {
     }
     this.stats.clear();
     snapshot.players.forEach((stats) => {
-      this.stats.set(stats.playerId, { ...stats });
+      // A save captured before `attempts`/`kills` existed omits them at
+      // runtime even though the type says otherwise; default to zero
+      // rather than resuming into NaN counters.
+      const legacy = stats as Partial<PlayerMatchStats>;
+      this.stats.set(stats.playerId, {
+        ...stats,
+        attempts: legacy.attempts ?? 0,
+        kills: legacy.kills ?? 0,
+      });
     });
     this.applied = snapshot.applied;
   }

@@ -6,7 +6,10 @@ import {
   generateSingleElimination,
   seedEntrants,
 } from "../../../competition/logic";
-import { saveCompetition } from "../../../competition/repository";
+import {
+  findCompetitionById,
+  saveCompetition,
+} from "../../../competition/repository";
 import {
   CompetitionEntrant,
   CompetitionType,
@@ -15,7 +18,7 @@ import {
   TournamentFormat,
 } from "../../../competition/types";
 import { fetchSharedTeams } from "../../../firebase/sharedTeamRepository";
-import { loadTeams } from "../../../game/managers/TeamManager";
+import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
 import { Team } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
@@ -82,18 +85,42 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     if (!name.trim()) return setError("Give the competition a name.");
     if (chosen.length < 2) return setError("Select at least two teams.");
 
+    // A team belongs to at most one active competition. Only enforceable
+    // (and settable) here for teams this coach owns — a shared entrant's
+    // owner may not be reachable from this session, so it is best-effort
+    // for those (see design.md decision 4 / this change's PR notes).
+    const ownedChosen = chosen.filter(
+      (candidate) => candidate.source === "local"
+    );
+    for (const candidate of ownedChosen) {
+      const existingId = candidate.team.activeCompetitionId;
+      if (!existingId) continue;
+      const existing = await findCompetitionById(existingId);
+      setError(
+        `${candidate.team.name} is already entered in ` +
+          `${existing?.name ?? "another active competition"}.`
+      );
+      return;
+    }
+
     const entrants = seedEntrants(
       chosen.map((candidate) => ({
         id: candidate.id,
         teamId: candidate.team.id,
+        ownerUid:
+          candidate.source === "local"
+            ? (user?.uid ?? null)
+            : (candidate.shared?.ownerUid ?? null),
         name: candidate.team.name,
         coachName:
           candidate.shared?.ownerName ?? candidate.team.coachName ?? undefined,
+        coachUid:
+          candidate.source === "local"
+            ? (user?.uid ?? null)
+            : (candidate.shared?.ownerUid ?? null),
         rosterName: candidate.team.rosterName,
         source: candidate.source,
         sharedTeamId: candidate.shared?.id,
-        ownerUid: candidate.shared?.ownerUid,
-        team: structuredClone(candidate.team),
       }))
     ) as CompetitionEntrant[];
     const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -127,6 +154,10 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         : { ...base, type: "tournament" as const, format };
     try {
       await saveCompetition(competition);
+      ownedChosen.forEach((candidate) => {
+        candidate.team.activeCompetitionId = id;
+        saveTeam(candidate.team);
+      });
       const route = type === "league" ? "leagues" : "tournaments";
       navigate(`/${route}/${id}`);
     } catch (reason) {
@@ -171,17 +202,32 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <section>
             <SectionTitle>Entrants and seeding</SectionTitle>
             <p className="font-body text-sm text-bb-muted-text mb-3">
-              Selection order becomes seed order. Published teams are captured
-              as snapshots, so later roster edits do not rewrite a season.
+              Selection order becomes seed order. Entrants reference live
+              rosters, so advancement gained between fixtures carries into
+              the next one.
             </p>
             <div className="grid md:grid-cols-2 gap-3">
               {candidates.map((candidate) => {
                 const seed = selected.indexOf(candidate.id) + 1;
+                // A team already in an active competition cannot be entered
+                // into another (design.md decision 4) — only enforceable
+                // here for teams this coach owns; shown as a hint, not a
+                // hard block, for a shared team whose commitment cannot be
+                // verified from this session.
+                const committed =
+                  candidate.source === "local" &&
+                  !!candidate.team.activeCompetitionId;
                 return (
                   <button
                     key={candidate.id}
+                    disabled={committed}
                     onClick={() => toggle(candidate.id)}
-                    className={`text-left border-2 rounded-lg p-3 font-body ${
+                    title={
+                      committed
+                        ? "Already entered in an active competition"
+                        : undefined
+                    }
+                    className={`text-left border-2 rounded-lg p-3 font-body disabled:opacity-40 disabled:cursor-not-allowed ${
                       seed
                         ? "bg-bb-ink-blue text-white border-bb-gold"
                         : "bg-bb-warm-paper border-bb-divider"
@@ -189,6 +235,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   >
                     {seed ? `Seed ${seed}: ` : ""}
                     {candidate.label}
+                    {committed ? " (already entered elsewhere)" : ""}
                   </button>
                 );
               })}

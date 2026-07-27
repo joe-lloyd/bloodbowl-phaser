@@ -19,6 +19,10 @@ import { getDb } from "./config";
 import { subscribeToAuth } from "./auth";
 import { Team } from "../types/Team";
 import {
+  dehydrateTeam,
+  readStoredTeam,
+} from "../data/persistence/teamPersistence";
+import {
   TeamRepository,
   setTeamRepository,
   getLocalRepository,
@@ -30,14 +34,29 @@ function teamsCollection(uid: string) {
   return collection(getDb(), "users", uid, "teams");
 }
 
-/** Firestore rejects `undefined` fields; a JSON round-trip strips them. */
+/**
+ * Firestore rejects `undefined` fields; a JSON round-trip strips them. The
+ * document written is the normalized `StoredTeam` shape — see
+ * src/data/persistence/teamPersistence.ts.
+ */
 function toPlainDoc(team: Team): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(team));
+  return JSON.parse(JSON.stringify(dehydrateTeam(team)));
 }
 
+/**
+ * Reads tolerate both the normalized shape and the previous full-object
+ * shape; either way the result is a freshly hydrated `Team`, and the next
+ * save writes it back normalized.
+ */
 export async function fetchCloudTeams(uid: string): Promise<Team[]> {
   const snapshot = await getDocs(teamsCollection(uid));
-  return snapshot.docs.map((d) => d.data() as unknown as Team);
+  return snapshot.docs.map((d) => {
+    const { team, warnings } = readStoredTeam(d.data());
+    warnings.forEach((warning) =>
+      console.warn(`[cloudTeamRepository] ${warning}`)
+    );
+    return team;
+  });
 }
 
 async function writeCloudTeam(uid: string, team: Team): Promise<void> {
@@ -81,6 +100,19 @@ export class CloudTeamRepository implements TeamRepository {
       }
     }
   }
+}
+
+/**
+ * Optional backfill: force every one of a coach's cloud team documents
+ * through the reader and writer once, so a document that would otherwise
+ * sit untouched (and so never get the lazy on-next-save upgrade) is
+ * normalized without waiting for the coach to edit it. Safe to run
+ * repeatedly — an already-normalized document round-trips to itself.
+ */
+export async function backfillCloudTeams(uid: string): Promise<number> {
+  const teams = await fetchCloudTeams(uid);
+  await Promise.all(teams.map((team) => writeCloudTeam(uid, team)));
+  return teams.length;
 }
 
 /**

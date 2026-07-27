@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   setDoc,
 } from "firebase/firestore";
@@ -61,6 +62,18 @@ export async function fetchSharedTeams(): Promise<SharedTeam[]> {
         a.team.name.localeCompare(b.team.name) ||
         a.ownerName.localeCompare(b.ownerName)
     );
+}
+
+/** Fetch one published team by owner + team id — used to resolve a
+ *  competition entrant's `teamRef` for a coach who does not own the team. */
+export async function getSharedTeam(
+  ownerUid: string,
+  teamId: string
+): Promise<SharedTeam | null> {
+  const snapshot = await getDoc(
+    doc(sharedTeamsCollection(), sharedTeamId(ownerUid, teamId))
+  );
+  return snapshot.exists() ? (snapshot.data() as SharedTeam) : null;
 }
 
 export async function fetchPublishedTeamIds(

@@ -11,19 +11,33 @@ export interface CompetitionContext {
   fixtureId: string;
 }
 
+/**
+ * An entrant references a team; it never embeds one. `teamId` + `ownerUid`
+ * (null for a signed-out coach's local team) is the reference — the live
+ * roster is fetched by reference when a fixture is launched
+ * (src/competition/teamRefs.ts). `name`/`coachName`/`rosterName` are a
+ * display cache for rendering fixture lists and brackets without fetching
+ * every roster; they are refreshed opportunistically whenever a reader who
+ * can see the referenced team loads the competition. `coachUid` is the
+ * authoritative coach reference; `coachName` is its cached display name.
+ */
 export interface CompetitionEntrant {
   /** Stable id inside the competition. */
   id: string;
   teamId: string;
+  /** null for a signed-out coach's locally-stored team. */
+  ownerUid: string | null;
+  /** Cached display name — team name. Refreshed on load when readable. */
   name: string;
+  /** Cached display name for the coach; `coachUid` is authoritative. */
   coachName?: string;
+  coachUid?: string | null;
   rosterName: string;
   seed: number;
   source: "shared" | "local";
   sharedTeamId?: string;
-  ownerUid?: string;
-  /** Immutable roster snapshot used for every fixture in this competition. */
-  team: Team;
+  /** Set when the coach withdraws; fixtures and standings are untouched. */
+  withdrawn?: boolean;
 }
 
 export interface FixtureResult {

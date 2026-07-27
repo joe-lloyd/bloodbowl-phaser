@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
-import { recordCompetitionFixture } from "../../../competition/resultRecording";
+import {
+  recordCompetitionFixture,
+  withdrawFromCompetition,
+} from "../../../competition/resultRecording";
+import { fetchEntrantTeam, refreshEntrantDisplays } from "../../../competition/teamRefs";
+import { getTeamById } from "../../../game/managers/TeamManager";
 import {
   CompetitionContext,
   CompetitionDoc,
@@ -29,11 +34,18 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   const [competition, setCompetition] = useState<CompetitionDoc | null>(null);
   const [scores, setScores] = useState<DraftScores>({});
   const [error, setError] = useState<string | null>(null);
+  const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     void getCompetition(type, id)
-      .then(setCompetition)
+      .then((loaded) => {
+        if (!loaded) return setCompetition(loaded);
+        // Cached display names (team renames) refresh for whatever this
+        // reader can currently see; the refreshed copy is what renders.
+        const refreshed = refreshEntrantDisplays(loaded);
+        setCompetition(refreshed);
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : String(reason))
       );
@@ -89,7 +101,21 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
-  const launchLocal = (fixture: CompetitionFixture) => {
+  const withdraw = async (entrantId: string) => {
+    if (!window.confirm("Withdraw this team from the competition?")) return;
+    try {
+      const updated = await withdrawFromCompetition(
+        { competitionType: type, competitionId: competition.id },
+        entrantId
+      );
+      setCompetition(updated);
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const launchLocal = async (fixture: CompetitionFixture) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
@@ -101,29 +127,55 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     ) {
       return;
     }
-    clearMatchSave();
-    navigate("/play", {
-      state: {
-        team1: home.team,
-        team2: away.team,
-        competitionContext: contextFor(fixture),
-      },
-    });
+    setLaunching(true);
+    try {
+      const [team1, team2] = await Promise.all([
+        fetchEntrantTeam(home),
+        fetchEntrantTeam(away),
+      ]);
+      if (!team1 || !team2) {
+        setError("Could not load one of the entrants' rosters.");
+        return;
+      }
+      clearMatchSave();
+      navigate("/play", {
+        state: {
+          team1,
+          team2,
+          competitionContext: contextFor(fixture),
+        },
+      });
+    } finally {
+      setLaunching(false);
+    }
   };
 
-  const launchHosted = (fixture: CompetitionFixture) => {
+  const launchHosted = async (fixture: CompetitionFixture) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
-    navigate("/online/host", {
-      state: {
-        competitionFixture: {
-          context: contextFor(fixture),
-          homeTeam: home.team,
-          awayTeam: away.team,
+    setLaunching(true);
+    try {
+      const [homeTeam, awayTeam] = await Promise.all([
+        fetchEntrantTeam(home),
+        fetchEntrantTeam(away),
+      ]);
+      if (!homeTeam || !awayTeam) {
+        setError("Could not load one of the entrants' rosters.");
+        return;
+      }
+      navigate("/online/host", {
+        state: {
+          competitionFixture: {
+            context: contextFor(fixture),
+            homeTeam,
+            awayTeam,
+          },
         },
-      },
-    });
+      });
+    } finally {
+      setLaunching(false);
+    }
   };
 
   const isBracket =
@@ -141,14 +193,15 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         <div className="flex flex-wrap gap-2">
           <Button
             className="!text-sm !px-3 !py-2 !my-0"
-            onClick={() => launchLocal(fixture)}
+            disabled={launching}
+            onClick={() => void launchLocal(fixture)}
           >
             Play local
           </Button>
           <Button
             className="!text-sm !px-3 !py-2 !my-0"
-            disabled={!onlineAvailable || !user}
-            onClick={() => launchHosted(fixture)}
+            disabled={!onlineAvailable || !user || launching}
+            onClick={() => void launchHosted(fixture)}
           >
             Host online
           </Button>
@@ -259,6 +312,39 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             Champion: {champion.name}
           </span>
         </div>
+      )}
+
+      {competition.status === "active" && (
+        <section className="my-8">
+          <SectionTitle>Entrants</SectionTitle>
+          <div className="flex flex-wrap gap-2">
+            {competition.entrants.map((candidate) => {
+              const owned =
+                candidate.source === "local" &&
+                !!getTeamById(candidate.teamId);
+              return (
+                <div
+                  key={candidate.id}
+                  className={`flex items-center gap-2 border-2 rounded-lg px-3 py-2 font-body ${
+                    candidate.withdrawn
+                      ? "opacity-50 line-through border-bb-divider"
+                      : "border-bb-dark-gold bg-bb-warm-paper"
+                  }`}
+                >
+                  <span>{candidate.name}</span>
+                  {owned && !candidate.withdrawn && (
+                    <button
+                      onClick={() => void withdraw(candidate.id)}
+                      className="font-heading text-xs underline text-bb-deep-crimson"
+                    >
+                      Withdraw
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {(competition.type === "league" ||
