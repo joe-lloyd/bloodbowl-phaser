@@ -16,16 +16,17 @@ function draftTeam(rerollCost = 50000) {
 }
 
 describe("priceOf", () => {
-  it("draft re-rolls cost roster price", () => {
+  it("draft re-rolls cost double roster price", () => {
     const team = draftTeam(60000);
-    expect(priceOf(team, { type: "reroll" }).amount).toBe(60000);
+    expect(priceOf(team, { type: "reroll" }).amount).toBe(120000);
   });
 
-  it("active re-rolls cost exactly double roster price — the displayed price equals the charge", () => {
+  it("active re-rolls are refused, not merely priced", () => {
     const team = draftTeam(60000);
     stampFirstCompletedMatch(team, 1);
     const price = priceOf(team, { type: "reroll" });
-    expect(price.amount).toBe(120000);
+    expect(price.amount).toBeNull();
+    expect(price.reason).toMatch(/re-rolls/i);
   });
 
   it("draft Dedicated Fans are purchasable at a fixed cost", () => {

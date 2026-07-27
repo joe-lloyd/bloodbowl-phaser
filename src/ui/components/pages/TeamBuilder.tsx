@@ -25,7 +25,10 @@ import { Button } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
-import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import {
+  AdvancementModePanel,
+  AdvancementModeSelector,
+} from "../TeamBuilder/AdvancementModePanel";
 import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
@@ -359,9 +362,8 @@ export function TeamBuilder() {
           {active ? (
             <p className="mt-1">
               This team has played its first match. Roster type is locked,
-              re-rolls now cost double roster price, and Dedicated Fans can no
-              longer be purchased. Eligible players may still be hired at
-              roster price.
+              and re-rolls and Dedicated Fans can no longer be purchased.
+              Eligible players may still be hired at roster price.
             </p>
           ) : (
             <p className="mt-1">
@@ -521,6 +523,10 @@ export function TeamBuilder() {
                 </div>
               </div>
 
+              <div className="px-4 pb-4">
+                <AdvancementModeSelector team={team} onChange={setTeam} />
+              </div>
+
               <AdvancementModePanel
                 team={team}
                 roster={roster}
@@ -538,8 +544,9 @@ export function TeamBuilder() {
                 {/* Re-Rolls */}
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-bold text-[#1d3860] uppercase">
-                    Re-Rolls ({formatGold(priceOf(team, { type: "reroll" }).amount ?? 0)}
-                    {active ? ", active price" : ""})
+                    Re-Rolls
+                    {!active &&
+                      ` (${formatGold(priceOf(team, { type: "reroll" }).amount ?? 0)})`}
                   </span>
                   <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
                     <span className="font-bold text-[#1d3860]">
@@ -549,8 +556,14 @@ export function TeamBuilder() {
                       className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
                       onClick={handleBuyReroll}
                       disabled={
+                        active ||
                         team.treasury <
-                        (priceOf(team, { type: "reroll" }).amount ?? Infinity)
+                          (priceOf(team, { type: "reroll" }).amount ?? Infinity)
+                      }
+                      title={
+                        active
+                          ? "Active teams cannot purchase re-rolls"
+                          : undefined
                       }
                     >
                       +

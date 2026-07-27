@@ -5,7 +5,9 @@
  *
  * Draft teams may use every draft-only operation; once a team is active
  * (see teamLifecycle.ts) roster-type changes and draft-only edits are
- * refused, and player removal no longer refunds the purchase. Every refusal
+ * refused, and player removal no longer refunds the purchase. Re-rolls and
+ * Dedicated Fans in particular cannot be purchased at all once a team is
+ * active — see teamPricing.ts for the matching price refusal. Every refusal
  * carries a structured reason naming the rule so the UI can render it
  * verbatim instead of inventing its own copy.
  */
@@ -54,6 +56,8 @@ export function canEdit(team: Team, operation: TeamOperation): EditDecision {
       return refuse(
         "Active teams cannot change roster type once their first match is played."
       );
+    case "buy-reroll":
+      return refuse("Active teams cannot purchase re-rolls.");
     case "buy-dedicated-fans":
       return refuse("Active teams cannot purchase Dedicated Fans.");
     default:
