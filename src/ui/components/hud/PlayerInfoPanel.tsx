@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
+import { GamePhase } from "../../../types/GameState";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   effectiveAV,
@@ -21,6 +22,14 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
+  // During setup the panel stays on the last inspected player for the whole
+  // drag and after the drop, rather than clearing on pointer-out like the
+  // transient hover preview does during play.
+  const phaseRef = useRef<GamePhase | null>(null);
+
+  useEventBus(eventBus, GameEventNames.PhaseChanged, (data) => {
+    phaseRef.current = data.phase;
+  });
 
   // Hover Events
   useEventBus(eventBus, GameEventNames.UI_ShowPlayerInfo, (player: Player) => {
@@ -28,6 +37,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   });
 
   useEventBus(eventBus, GameEventNames.UI_HidePlayerInfo, () => {
+    if (phaseRef.current === GamePhase.SETUP) return;
     setHoveredPlayer(null);
   });
 

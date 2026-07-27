@@ -25,6 +25,15 @@ describe("ball & chain protocol round-trip", () => {
     setup: BC_CONFIG.setup,
   };
 
+  /**
+   * The config fields the real Goblin Fanatic, so its roster index is not 0.
+   * Read it from the config's own placement rather than pinning a number that
+   * moves whenever the Sevens composition changes.
+   */
+  const FANATIC_INDEX = BC_CONFIG.setup.team1Placements[0].playerIndex;
+  /** Any other placed Goblin, to keep the turn alive as a bystander. */
+  const BYSTANDER_INDEX = FANATIC_INDEX === 1 ? 2 : 1;
+
   it("lurches via the `ball-and-chain` command and ends the activation", async () => {
     const { seed } = await findSeed(BC_CONFIG, "auto-block");
     // A bystander keeps the turn from flipping so `hasPlayerActed` survives.
@@ -34,12 +43,12 @@ describe("ball & chain protocol round-trip", () => {
         ...scenario.setup,
         team1Placements: [
           ...scenario.setup.team1Placements,
-          { playerIndex: 1, x: 3, y: 9 },
+          { playerIndex: BYSTANDER_INDEX, x: 3, y: 9 },
         ],
       },
     };
     const game = new HeadlessGame({ scenario: withBystander, seed });
-    const fanaticId = game.ctx.team1.players[0].id;
+    const fanaticId = game.ctx.team1.players[FANATIC_INDEX].id;
 
     await game.execute({
       type: "declare-action",
@@ -59,7 +68,7 @@ describe("ball & chain protocol round-trip", () => {
 
   it("refuses a Standing Fanatic any action other than Ball & Chain", async () => {
     const game = new HeadlessGame({ scenario, seed: 1 });
-    const fanaticId = game.ctx.team1.players[0].id;
+    const fanaticId = game.ctx.team1.players[FANATIC_INDEX].id;
 
     const move = await game.execute({
       type: "declare-action",

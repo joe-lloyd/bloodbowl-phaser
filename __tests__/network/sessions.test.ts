@@ -425,6 +425,202 @@ describe("networked sessions", () => {
     await match.guest.sendCommand({ type: "kickoff-confirm" });
   });
 
+  async function findKickoffSeed(
+    event: KickoffEvent,
+    maxSeed = 400
+  ): Promise<number> {
+    for (let seed = 1; seed < maxSeed; seed++) {
+      const probe = new HeadlessGame({
+        scenario: kickoffInteractionScenario,
+        seed,
+      });
+      const response = await probe.execute({
+        type: "kick-ball",
+        playerId: probe.ctx.team1.players[0].id,
+        x: 14,
+        y: 5,
+      });
+      const result = response.events.find(
+        (e) => e.name === "kickoffResult"
+      )?.data as { event?: KickoffEvent } | undefined;
+      if (
+        result?.event === event &&
+        response.pendingDecision?.type === "kickoff-event"
+      ) {
+        return seed;
+      }
+      if (response.pendingDecision?.type === "kickoff-event") {
+        await probe.execute({ type: "kickoff-skip" });
+      }
+    }
+    throw new Error(`no seed found for ${event}`);
+  }
+
+  it("proxies a guest High Kick placement to the host and mirrors the board", async () => {
+    const seed = await findKickoffSeed(KickoffEvent.HIGH_KICK);
+    const match = createMatch({ scenario: kickoffInteractionScenario, seed });
+    const kicked = await match.host.executeLocal({
+      type: "kick-ball",
+      playerId: match.game.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    expect(kicked.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      event: KickoffEvent.HIGH_KICK,
+      chooserTeamId: match.guestTeamId,
+    });
+    const landing =
+      kicked.pendingDecision?.type === "kickoff-event"
+        ? kicked.pendingDecision.landingSquare
+        : undefined;
+    expect(landing).toBeDefined();
+
+    const receiver = match.game.ctx.team2.players.find(
+      (player) =>
+        player.gridPosition &&
+        (player.gridPosition.x !== landing!.x ||
+          player.gridPosition.y !== landing!.y)
+    )!;
+
+    const selected = await match.guest.sendCommand({
+      type: "kickoff-select-player",
+      playerId: receiver.id,
+    });
+    expect(selected.ok).toBe(true);
+
+    const placed = await match.guest.sendCommand({
+      type: "kickoff-place-player",
+      playerId: receiver.id,
+      x: landing!.x,
+      y: landing!.y,
+    });
+    expect(placed.ok).toBe(true);
+    expect(receiver.gridPosition).toEqual(landing);
+    expect(
+      placed.snapshot.teams
+        .find((team) => team.id === match.guestTeamId)
+        ?.players.find((player) => player.id === receiver.id)?.position
+    ).toEqual(landing);
+
+    await match.guest.sendCommand({ type: "kickoff-confirm" });
+  });
+
+  it("keeps Solid Defence host-native and blocks the non-owning guest", async () => {
+    const seed = await findKickoffSeed(KickoffEvent.SOLID_DEFENCE);
+    const match = createMatch({ scenario: kickoffInteractionScenario, seed });
+    const kicked = await match.host.executeLocal({
+      type: "kick-ball",
+      playerId: match.game.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    expect(kicked.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      event: KickoffEvent.SOLID_DEFENCE,
+      chooserTeamId: match.hostTeamId,
+    });
+
+    const kicker = match.game.ctx.team1.players[0];
+    const original = { ...kicker.gridPosition! };
+    const occupied = new Set(
+      [...match.game.ctx.team1.players, ...match.game.ctx.team2.players]
+        .filter((player) => player.gridPosition)
+        .map((player) => `${player.gridPosition!.x},${player.gridPosition!.y}`)
+    );
+    let destination: { x: number; y: number } | undefined;
+    for (let x = 0; x <= 6 && !destination; x += 1) {
+      for (let y = 0; y < 11; y += 1) {
+        if (!occupied.has(`${x},${y}`)) {
+          destination = { x, y };
+          break;
+        }
+      }
+    }
+    expect(destination).toBeDefined();
+
+    // The guest does not own this decision — its attempt to redeploy the
+    // kicking team's player must be rejected without mutating state.
+    const denied = await match.guest.sendCommand({
+      type: "kickoff-place-player",
+      playerId: kicker.id,
+      x: destination!.x,
+      y: destination!.y,
+    });
+    expect(denied.ok).toBe(false);
+    expect(denied.reason).toBe("not-your-decision");
+    expect(kicker.gridPosition).toEqual(original);
+
+    const placed = await match.host.executeLocal({
+      type: "kickoff-place-player",
+      playerId: kicker.id,
+      x: destination!.x,
+      y: destination!.y,
+    });
+    expect(placed.ok).toBe(true);
+    expect(kicker.gridPosition).toEqual(destination);
+
+    await match.host.executeLocal({ type: "kickoff-confirm" });
+    expect(match.broadcasts.length).toBeGreaterThan(0);
+  });
+
+  it("keeps Charge! host-native and blocks the non-owning guest's activation", async () => {
+    const seed = await findKickoffSeed(KickoffEvent.CHARGE);
+    const match = createMatch({ scenario: kickoffInteractionScenario, seed });
+    const kicked = await match.host.executeLocal({
+      type: "kick-ball",
+      playerId: match.game.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    expect(kicked.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      event: KickoffEvent.CHARGE,
+      chooserTeamId: match.hostTeamId,
+    });
+
+    const chargers = match.game.ctx.team1.players.slice(0, 2);
+    for (const player of chargers) {
+      const selected = await match.host.executeLocal({
+        type: "kickoff-select-player",
+        playerId: player.id,
+      });
+      expect(selected.ok).toBe(true);
+    }
+    const confirmed = await match.host.executeLocal({
+      type: "kickoff-confirm",
+    });
+    expect(confirmed.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      charge: { activePlayerId: chargers[0].id },
+    });
+
+    // The kicking (host) team owns every Charge activation — the guest may
+    // not act in its place even by naming one of the host's own players.
+    const deniedDeclare = await match.guest.sendCommand({
+      type: "declare-action",
+      playerId: chargers[0].id,
+      action: "move",
+    });
+    expect(deniedDeclare.ok).toBe(false);
+    expect(deniedDeclare.reason).toBe("not-your-decision");
+
+    const declared = await match.host.executeLocal({
+      type: "declare-action",
+      playerId: chargers[0].id,
+      action: "move",
+    });
+    expect(declared.ok).toBe(true);
+    const ended = await match.host.executeLocal({
+      type: "end-activation",
+      playerId: chargers[0].id,
+    });
+    expect(ended.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      charge: { activePlayerId: chargers[1].id },
+    });
+  });
+
   it("plays a complete match with every command crossing the wire", async () => {
     const { match, finalSnapshot, commandCount } =
       await playNetworkedMatch(2025);

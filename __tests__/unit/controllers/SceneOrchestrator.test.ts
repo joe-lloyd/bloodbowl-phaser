@@ -44,9 +44,9 @@ describe("SceneOrchestrator GAME_OVER handling", () => {
     const gameService = makeGameService(2, 1);
     new SceneOrchestrator(scene, gameService, eventBus);
 
-    const notifications: string[] = [];
-    eventBus.on(GameEventNames.UI_Notification, (msg) =>
-      notifications.push(msg as string)
+    const announcements: { headline: string; subtitle?: string }[] = [];
+    eventBus.on(GameEventNames.UI_Announce, (data) =>
+      announcements.push(data as { headline: string; subtitle?: string })
     );
 
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
@@ -58,22 +58,23 @@ describe("SceneOrchestrator GAME_OVER handling", () => {
       )
     ).toBe(false);
 
-    // The final result (winner + score) was surfaced to the HUD.
-    expect(notifications).toHaveLength(1);
-    expect(notifications[0]).toContain(team1.name);
-    expect(notifications[0]).toContain("2");
-    expect(notifications[0]).toContain("1");
+    // The final result (winner + score) was announced as full-time.
+    expect(announcements).toHaveLength(1);
+    expect(announcements[0].headline).toBe("Full Time");
+    expect(announcements[0].subtitle).toContain(team1.name);
+    expect(announcements[0].subtitle).toContain("2");
+    expect(announcements[0].subtitle).toContain("1");
   });
 
   it("announces a draw when scores are level", () => {
     const eventBus = new EventBus();
     new SceneOrchestrator(makeScene(), makeGameService(1, 1), eventBus);
-    const notifications: string[] = [];
-    eventBus.on(GameEventNames.UI_Notification, (msg) =>
-      notifications.push(msg as string)
+    const announcements: { subtitle?: string }[] = [];
+    eventBus.on(GameEventNames.UI_Announce, (data) =>
+      announcements.push(data as { subtitle?: string })
     );
 
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
-    expect(notifications[0].toLowerCase()).toContain("draw");
+    expect(announcements[0].subtitle?.toLowerCase()).toContain("draw");
   });
 });

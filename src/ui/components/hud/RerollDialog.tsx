@@ -46,7 +46,10 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     container?.gameService.getTeam(request.chooserTeamId)?.rerolls ?? 0;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+    <div
+      data-testid="reroll-dialog"
+      className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto"
+    >
       <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[440px] text-white shadow-2xl">
         <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
           Re-roll?
@@ -60,6 +63,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
         <div className="flex flex-col gap-3">
           {request.sources.includes("skill") && (
             <button
+              data-testid="reroll-use-skill"
               onClick={() => answer(true, "skill")}
               className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
@@ -68,6 +72,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
           )}
           {request.sources.includes("team") && (
             <button
+              data-testid="reroll-use-team"
               onClick={() => answer(true, "team")}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
@@ -75,6 +80,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
             </button>
           )}
           <button
+            data-testid="reroll-decline"
             onClick={() => answer(false)}
             className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >

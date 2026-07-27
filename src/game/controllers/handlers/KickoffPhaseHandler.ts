@@ -185,7 +185,8 @@ export class KickoffPhaseHandler implements PhaseHandler {
       }
     );
 
-    // Kickoff Result
+    // Kickoff Result: one durable log entry carrying the roll, the named
+    // event, and what it does — including what each team actually received.
     this.register(
       GameEventNames.KickoffResult,
       (data) => {
@@ -197,14 +198,12 @@ export class KickoffPhaseHandler implements PhaseHandler {
             )
           )
           .join("; ");
-        const logLine = `Kickoff ${data.roll} — ${data.event}: ${data.meaning}${
-          effects ? ` Result: ${effects}` : ""
-        }`;
-        this.eventBus.emit(GameEventNames.UI_GameLog, logLine);
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          `${data.roll}: ${data.event} — ${data.meaning}`
-        );
+        this.eventBus.emit(GameEventNames.UI_LogEntry, {
+          category: "kickoff",
+          headline: data.event,
+          detail: effects ? `${data.meaning} ${effects}` : data.meaning,
+          roll: data.roll,
+        });
       }
     );
 

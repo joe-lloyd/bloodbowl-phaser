@@ -55,6 +55,17 @@ const assetFiles = import.meta.glob("../data/assets/**/*.{png,jpg,gif}", {
  */
 export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
+
+  /**
+   * The live pitch, for anything that must map grid squares to canvas
+   * coordinates through the same geometry the game renders with — the E2E
+   * pitch page object reads this so its clicks land where the game thinks
+   * the square is, rather than on a second copy of the arithmetic.
+   */
+  public getPitch(): Pitch | undefined {
+    return this.pitch;
+  }
+
   public team1!: Team;
   public team2!: Team;
   public kickingTeam!: Team;
@@ -386,12 +397,16 @@ export class GameScene extends Phaser.Scene {
 
     // Initialize Camera Controller with pitch bounds
     const pitchContainer = this.pitch.getContainer();
-    this.cameraController = new CameraController(this, {
-      x: pitchContainer.x,
-      y: pitchContainer.y,
-      width: GameConfig.PITCH_PIXEL_WIDTH,
-      height: GameConfig.PITCH_PIXEL_HEIGHT,
-    });
+    this.cameraController = new CameraController(
+      this,
+      {
+        x: pitchContainer.x,
+        y: pitchContainer.y,
+        width: GameConfig.PITCH_PIXEL_WIDTH,
+        height: GameConfig.PITCH_PIXEL_HEIGHT,
+      },
+      this.eventBus
+    );
 
     // Camera keyboard shortcuts
     this.input.keyboard?.on("keydown-ZERO", () => {
@@ -759,12 +774,15 @@ export class GameScene extends Phaser.Scene {
     this.subscribe(GameEventNames.KORecoveryRolled, (data) => {
       const player = this.gameService.getPlayerById(data.playerId);
       const name = player?.playerName ?? data.playerId;
-      this.eventBus.emit(
-        GameEventNames.UI_Notification,
-        data.recovered
-          ? `${name} shakes it off and returns to the reserves! (rolled ${data.roll})`
-          : `${name} is still out cold. (rolled ${data.roll})`
-      );
+      this.eventBus.emit(GameEventNames.UI_LogEntry, {
+        category: "drive",
+        headline: data.recovered ? `${name} recovers!` : `${name} still out`,
+        detail: data.recovered
+          ? "Shakes it off and returns to the Reserves."
+          : "Still out cold.",
+        roll: data.roll,
+        teamId: player?.teamId,
+      });
     });
   }
 
@@ -923,7 +941,22 @@ export class GameScene extends Phaser.Scene {
       );
       this.input.setDraggable(sprite);
 
-      sprite.on("dragstart", () => sprite.setDepth(100));
+      // Hover shows the info panel the same way the dugout does; it clears
+      // on pointer-out during play, but setup keeps the last-shown player
+      // until another is inspected (see PlayerInfoPanel).
+      sprite.on("pointerover", () => {
+        this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
+      });
+      sprite.on("pointerout", () => {
+        this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
+      });
+
+      sprite.on("dragstart", () => {
+        sprite.setDepth(100);
+        // Reuses the placement controller's selection funnel so drag-start
+        // shows this player's info exactly like a dugout drag would.
+        this.placementController.selectPlayer(player.id);
+      });
       sprite.on(
         "drag",
         (_pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
@@ -987,6 +1020,16 @@ export class GameScene extends Phaser.Scene {
         this.eventBus.emit(GameEventNames.UI_Notification, data.reason);
         this.placementController.syncFromTeam();
         this.refreshDugouts();
+      }
+    );
+
+    // Setup player inspection: the controller resolves the full player on
+    // selection/drag-start; forward it to the shared bus so PlayerInfoPanel
+    // (which only listens on the scene's eventBus) receives it.
+    this.placementController.on(
+      GameEventNames.UI_ShowPlayerInfo,
+      (player: Player) => {
+        this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
       }
     );
   }

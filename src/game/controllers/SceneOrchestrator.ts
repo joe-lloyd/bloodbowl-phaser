@@ -227,14 +227,18 @@ export class SceneOrchestrator {
     const team2 = this.scene.team2;
     const score1 = this.gameService.getScore(team1.id);
     const score2 = this.gameService.getScore(team2.id);
-    const result =
+    const subtitle =
       score1 === score2
-        ? `Full time — ${team1.name} ${score1} : ${score2} ${team2.name} (draw)`
+        ? `${team1.name} ${score1} : ${score2} ${team2.name} (draw)`
         : score1 > score2
-          ? `Full time — ${team1.name} win ${score1} : ${score2}`
-          : `Full time — ${team2.name} win ${score2} : ${score1}`;
-    console.log(`[Orchestrator] Match complete. ${result}`);
-    this.eventBus.emit(GameEventNames.UI_Notification, result);
+          ? `${team1.name} win ${score1} : ${score2}`
+          : `${team2.name} win ${score2} : ${score1}`;
+    console.log(`[Orchestrator] Match complete. Full time — ${subtitle}`);
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "full-time",
+      headline: "Full Time",
+      subtitle,
+    });
   }
 
   public checkSetupCompleteness(): void {
