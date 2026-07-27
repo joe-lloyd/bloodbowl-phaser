@@ -60,6 +60,7 @@ export const REFERENCE_FIELDS = [
   "player2Id",
   "throwerId",
   "teammateId",
+  "targetId",
   "teamId",
   "kickingTeamId",
 ] as const;

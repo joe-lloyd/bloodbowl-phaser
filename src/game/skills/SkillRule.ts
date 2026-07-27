@@ -265,6 +265,21 @@ export interface PassDeclaredContext extends TriggerContextBase {
   downgradeAccurate?: boolean;
 }
 
+/**
+ * A Hand-off is declared, before the ball is transferred. There is no
+ * Passing Ability Test on a Hand-off, so this carries only what a Hand-off
+ * actually rolls for — Animosity's refusal check.
+ */
+export interface HandoffDeclaredContext extends TriggerContextBase {
+  player: Player;
+  targetPlayer: Player;
+  /**
+   * Refuse the hand-off outright: the activation ends, the ball stays put,
+   * no turnover (Animosity's 1).
+   */
+  refused?: boolean;
+}
+
 /** The Passing Ability Test has been rolled. */
 export interface PassResultContext extends TriggerContextBase {
   player: Player;
@@ -522,6 +537,11 @@ export interface SkillRule {
   onCatch?(ctx: CatchContext, self: Player): void | Promise<void>;
   onPassDeclared?(ctx: PassDeclaredContext, self: Player): void | Promise<void>;
   onPassResult?(ctx: PassResultContext, self: Player): void | Promise<void>;
+  /** A Hand-off is declared, before the ball is transferred (Animosity). */
+  onHandoffDeclared?(
+    ctx: HandoffDeclaredContext,
+    self: Player
+  ): void | Promise<void>;
   onBlockDeclared?(
     ctx: BlockDeclaredContext,
     self: Player

@@ -19,6 +19,10 @@ import {
   isRightStuffEligible,
   isThrowTeammateInRange,
 } from "../rules/throwTeammate";
+import {
+  legalHandoffTargets,
+  handoffTargetRefusalReason,
+} from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
 import { KickoffEvent } from "../kickoff/kickoffEvents";
 import {
@@ -672,25 +676,59 @@ export class GameplayInteractionController {
       );
     }
 
-    // PASS / HAND-OFF Execution (aiming step). A hand-off is resolved through
-    // the same throwBall path — PassOperation reads the declared action to
-    // apply the Quick-Pass/hand-off catch rules — so both complete here
-    // rather than reselecting the clicked team-mate.
+    // PASS Execution (aiming step): a Pass targets any square on the Range
+    // Ruler, thrown via PassOperation.
     if (
-      ((this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-        (this.currentActionMode === "handoff" &&
-          this.currentStepId === "handoff")) &&
+      this.currentActionMode === "pass" &&
+      this.currentStepId === "pass" &&
       this.selectedPlayerId
     ) {
-      console.log(
-        `[Interaction] Attempting ${this.currentActionMode} Execution...`
-      );
+      console.log("[Interaction] Attempting pass Execution...");
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
       }
       this.isBusy = true;
       try {
         await this.gameService.throwBall(this.selectedPlayerId, x, y);
+      } finally {
+        this.isBusy = false;
+        this.deselectPlayer();
+      }
+      return;
+    }
+
+    // HAND-OFF Execution (target-selection step): a Hand-off never aims —
+    // only a click on a legal team-mate resolves it, through handOffBall
+    // (a target id, never a square). Empty squares and illegal targets are
+    // ignored (refused by reason), never thrown.
+    if (
+      this.currentActionMode === "handoff" &&
+      this.currentStepId === "handoff" &&
+      this.selectedPlayerId
+    ) {
+      if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
+        return;
+      }
+      const hander = this.gameService.getPlayerById(this.selectedPlayerId);
+      if (!hander) return;
+      if (!playerAtSquare) {
+        // Empty square: nothing happens (no throw, no scatter).
+        return;
+      }
+      const reason = handoffTargetRefusalReason(hander, playerAtSquare);
+      if (reason) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot hand off to ${playerAtSquare.playerName}: ${reason}.`
+        );
+        return;
+      }
+      this.isBusy = true;
+      try {
+        await this.gameService.handOffBall(
+          this.selectedPlayerId,
+          playerAtSquare.id
+        );
       } finally {
         this.isBusy = false;
         this.deselectPlayer();
@@ -1239,9 +1277,6 @@ export class GameplayInteractionController {
     if (this.selectedPlayerId) {
       const isPassMode =
         (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
-        // A hand-off aims at an adjacent team-mate — same pass template/arrow.
-        (this.currentActionMode === "handoff" &&
-          this.currentStepId === "handoff") ||
         // A thrown Bomb aims like a Pass — same range template + arrow.
         (this.currentActionMode === "throwBomb" &&
           this.currentStepId === "bomb");
@@ -1295,6 +1330,24 @@ export class GameplayInteractionController {
             zone,
             threats
           );
+        }
+      } else if (
+        this.currentActionMode === "handoff" &&
+        this.currentStepId === "handoff"
+      ) {
+        // HAND-OFF MODE: highlight the legal team-mates. No Range Ruler,
+        // pass line, or interception preview — a Hand-off never aims.
+        this.pitch.clearPath();
+        this.pitch.clearPassVisualization();
+        const selectedPlayer = this.gameService.getPlayerById(
+          this.selectedPlayerId
+        );
+        if (selectedPlayer) {
+          const teammates = this.gameService.getTeammates(selectedPlayer.id);
+          const targets = legalHandoffTargets(selectedPlayer, teammates)
+            .filter((t) => !!t.gridPosition)
+            .map((t) => t.gridPosition!);
+          this.pitch.drawHandoffTargets(targets);
         }
       } else if (
         this.currentActionMode === "throwTeamMate" &&

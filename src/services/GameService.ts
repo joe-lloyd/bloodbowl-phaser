@@ -43,6 +43,8 @@ import {
   realTimeDelay,
 } from "@/game/core/GameFlowManager";
 import { PassOperation } from "@/game/operations/PassOperation";
+import { HandoffOperation } from "@/game/operations/HandoffOperation";
+import { isLegalHandoffTarget } from "@/game/rules/handoff";
 import {
   ClearPitchOperation,
   KORecoveryOperation,
@@ -1032,6 +1034,49 @@ export class GameService implements IGameService {
 
     // 3. Return success (The flow takes over)
     return { success: true, result: "Pass Started" };
+  }
+
+  /**
+   * Start Hand-off Action. Queues a HandoffOperation — no Passing Ability
+   * Test, no scatter, no interception. The ball is placed directly in the
+   * target team-mate's square and they make a single Catch attempt. Targets
+   * a player id, not a square: a Hand-off targets a person.
+   */
+  async handOffBall(
+    passerId: string,
+    targetPlayerId: string
+  ): Promise<{ success: boolean; result?: string }> {
+    if (this.state.phase !== GamePhase.PLAY) {
+      return { success: false, result: "Not in play phase" };
+    }
+
+    const passer = this.getPlayerById(passerId);
+    if (!passer || !passer.gridPosition) {
+      return { success: false, result: "Player not found" };
+    }
+
+    const hasBall = this.ballManager.hasBall(passerId);
+    if (!hasBall) {
+      const ballPos = this.state.ballPosition;
+      if (
+        !ballPos ||
+        ballPos.x !== passer.gridPosition.x ||
+        ballPos.y !== passer.gridPosition.y
+      ) {
+        return { success: false, result: "Player does not have ball" };
+      }
+    }
+
+    const target = this.getPlayerById(targetPlayerId);
+    if (!target || !target.gridPosition) {
+      return { success: false, result: "Target not found" };
+    }
+    if (!isLegalHandoffTarget(passer, target)) {
+      return { success: false, result: "Illegal hand-off target" };
+    }
+
+    this.flowManager.add(new HandoffOperation(passerId, targetPlayerId));
+    return { success: true, result: "Hand-off Started" };
   }
 
   async puntBall(
