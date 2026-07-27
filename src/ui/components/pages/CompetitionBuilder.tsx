@@ -6,7 +6,10 @@ import {
   generateSingleElimination,
   seedEntrants,
 } from "../../../competition/logic";
-import { saveCompetition } from "../../../competition/repository";
+import {
+  findCompetitionById,
+  saveCompetition,
+} from "../../../competition/repository";
 import {
   CompetitionEntrant,
   CompetitionType,
@@ -24,7 +27,7 @@ import {
   fetchAllCoachTeams,
   OwnedTeam,
 } from "../../../firebase/cloudTeamRepository";
-import { loadTeams } from "../../../game/managers/TeamManager";
+import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
@@ -116,6 +119,21 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     if (!name.trim()) return setError("Give the competition a name.");
     if (chosen.length < 2) return setError("Select at least two teams.");
 
+    // A team belongs to at most one active competition. Every candidate
+    // here carries a live team object — the organizer's own (local) or
+    // another coach's (read via fetchAllCoachTeams) — so this is
+    // enforceable for every entrant, not only the organizer's own.
+    for (const candidate of chosen) {
+      const existingId = candidate.team.activeCompetitionId;
+      if (!existingId) continue;
+      const existing = await findCompetitionById(existingId);
+      setError(
+        `${candidate.team.name} is already entered in ` +
+          `${existing?.name ?? "another active competition"}.`
+      );
+      return;
+    }
+
     // Shared roster legality gates competition entry the same way it gates
     // finalization and match selection (team-lifecycle-modes).
     const illegal = chosen.filter((candidate) => {
@@ -147,15 +165,22 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       return;
     }
 
+    // A cloud write to another coach's team is refused by Firestore rules
+    // (owner-only write) — only stamp `activeCompetitionId` on teams this
+    // coach actually owns.
+    const ownedChosen = chosen.filter(
+      (candidate) => candidate.ownerUid === user?.uid
+    );
+
     const entrants = seedEntrants(
       chosen.map((candidate) => ({
         id: candidate.id,
         teamId: candidate.team.id,
+        ownerUid: candidate.ownerUid ?? null,
         name: candidate.team.name,
         coachName: candidate.team.coachName ?? undefined,
+        coachUid: candidate.ownerUid ?? null,
         rosterName: candidate.team.rosterName,
-        ownerUid: candidate.ownerUid,
-        team: structuredClone(candidate.team),
       }))
     ) as CompetitionEntrant[];
     const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -190,6 +215,10 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         : { ...base, type: "tournament" as const, format };
     try {
       await saveCompetition(competition);
+      ownedChosen.forEach((candidate) => {
+        candidate.team.activeCompetitionId = id;
+        saveTeam(candidate.team);
+      });
       const route = type === "league" ? "leagues" : "tournaments";
       navigate(`/${route}/${id}`);
     } catch (reason) {
@@ -282,14 +311,18 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <section>
             <SectionTitle>Entrants and seeding</SectionTitle>
             <p className="font-body text-sm text-bb-muted-text mb-3">
-              Selection order becomes seed order. Every team — your own or
-              another coach&apos;s — is captured as a snapshot when added, so
-              later roster edits do not rewrite a season already in
-              progress.
+              Selection order becomes seed order. Entrants reference live
+              rosters, so advancement gained between fixtures carries into
+              the next one.
             </p>
             <div className="grid md:grid-cols-2 gap-3">
               {candidates.map((candidate) => {
                 const seed = selected.indexOf(candidate.id) + 1;
+                // A team already in an active competition cannot be entered
+                // into another (design.md decision 4). Every candidate here
+                // carries a live team object, own or another coach's, so
+                // this is enforceable uniformly rather than owned-only.
+                const committed = !!candidate.team.activeCompetitionId;
                 const compatibility = checkTeamCompatibility(
                   candidate.team,
                   profile
@@ -297,8 +330,14 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                 return (
                   <button
                     key={candidate.id}
+                    disabled={committed}
                     onClick={() => toggle(candidate.id)}
-                    className={`text-left border-2 rounded-lg p-3 font-body ${
+                    title={
+                      committed
+                        ? "Already entered in an active competition"
+                        : undefined
+                    }
+                    className={`text-left border-2 rounded-lg p-3 font-body disabled:opacity-40 disabled:cursor-not-allowed ${
                       seed
                         ? "bg-bb-ink-blue text-white border-bb-gold"
                         : compatibility.compatible
@@ -308,6 +347,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   >
                     {seed ? `Seed ${seed}: ` : ""}
                     {candidate.label}
+                    {committed ? " (already entered elsewhere)" : ""}
                     {!compatibility.compatible && (
                       <span className="block text-xs text-bb-deep-crimson mt-1">
                         {compatibility.reasons.join(" ")}

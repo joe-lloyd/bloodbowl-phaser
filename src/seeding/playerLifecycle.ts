@@ -95,13 +95,19 @@ export function careerStatsFor(
   remaining -= touchdowns * 3;
   const casualties = Math.floor(remaining / 2);
   remaining -= casualties * 2;
+  const completions = remaining; // 1 SPP each
   return {
     matches,
-    completions: remaining, // 1 SPP each
+    completions,
     interceptions: 0,
     casualties,
     touchdowns,
     mvps,
+    // Informational-only counters carry no SPP; seed fixtures pick
+    // plausible values that need not reconcile against sppEarned.
+    kills: 0,
+    squaresMoved: 0,
+    passesAttempted: completions,
     sppEarned,
   };
 }

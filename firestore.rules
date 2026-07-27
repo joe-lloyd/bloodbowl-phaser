@@ -26,8 +26,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Organizers control competition structure. Entrant owners may report a
-    // fixture result, but cannot rename a competition or replace its entrants.
+    // Organizers control competition structure (adding/removing entrants,
+    // renaming). Entrant owners may report a fixture result, refresh their
+    // own entrant's cached display fields (a renamed team, e.g.), and clear
+    // their own withdrawal — but cannot touch another coach's entrant or
+    // replace the entrant list itself. `entrants` is writable by
+    // participants because normalize-cloud-data-model replaced the embedded
+    // roster snapshot with a teamId/ownerUid reference plus this cache; the
+    // reference fields themselves are still organizer-only in practice
+    // since only the organizer can add/remove entrants at all.
     match /leagues/{leagueId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -36,7 +43,7 @@ service cloud.firestore {
         && (resource.data.organizerUid == request.auth.uid
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['fixtures', 'standings', 'status', 'updatedAt'])));
+              .hasOnly(['entrants', 'fixtures', 'standings', 'status', 'updatedAt'])));
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;
     }
@@ -49,7 +56,7 @@ service cloud.firestore {
         && (resource.data.organizerUid == request.auth.uid
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['fixtures', 'standings', 'status',
+              .hasOnly(['entrants', 'fixtures', 'standings', 'status',
                         'championEntrantId', 'updatedAt'])));
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;

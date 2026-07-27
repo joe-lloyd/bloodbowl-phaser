@@ -14,6 +14,7 @@ import {
   eligibleSkillSelectionParticipants,
 } from "../../../game/progression/advancementModes";
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
+import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 
 interface Props {
   visible: boolean;
@@ -271,6 +272,7 @@ export function MatchResultsScreen({ visible }: Props) {
       const concedingTeamId =
         result?.reason === "concession" ? result.concedingTeamId : undefined;
       const finalSummary = tracker.applySpp(teams, concedingTeamId);
+      foldMatchSummaryIntoCareers(teams, finalSummary);
       recordPendingDevelopment(`match-${Date.now()}`, finalSummary);
       setConfirmed(true);
       setError("");

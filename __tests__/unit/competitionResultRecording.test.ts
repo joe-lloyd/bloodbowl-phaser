@@ -43,10 +43,10 @@ describe("competition result orchestration", () => {
     const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
       id: `local:${snapshot.id}`,
       teamId: snapshot.id,
+      ownerUid: null,
       name: snapshot.name,
       rosterName: snapshot.rosterName,
       seed: index + 1,
-      team: snapshot,
     }));
     const fixtures = generateRoundRobin(entrants);
     const league: LeagueDoc = {

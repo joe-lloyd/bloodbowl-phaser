@@ -120,6 +120,14 @@ export interface Player {
 
   /** Career totals; absent for players who never played a recorded match. */
   careerStats?: PlayerCareerStats;
+
+  /**
+   * Set by hydration when a stored player's position no longer exists in
+   * its roster template. Progression, injuries and career stats are still
+   * intact; stats/skills/keywords/cost are placeholders. Never persisted —
+   * recomputed on every load so it always reflects the current templates.
+   */
+  hydrationWarning?: string;
 }
 
 /**
@@ -152,7 +160,9 @@ export interface PlayerAdvancement {
  * Career totals across all matches a player has appeared in. `sppEarned`
  * must equal the SPP table value of the stat lines (completion 1,
  * interception/casualty 2, touchdown 3, MVP 4) and, for progressed players,
- * the player's unspent SPP plus SPP spent on advancements.
+ * the player's unspent SPP plus SPP spent on advancements. `kills`,
+ * `squaresMoved` and `passesAttempted` are informational only — they carry
+ * no SPP value and are not part of that reconciliation.
  */
 export interface PlayerCareerStats {
   matches: number;
@@ -161,8 +171,27 @@ export interface PlayerCareerStats {
   casualties: number;
   touchdowns: number;
   mvps: number;
+  /** Casualties whose injury result was Dead — a subset of `casualties`. */
+  kills: number;
+  /** Squares moved (walked or rushed), summed across every match played. */
+  squaresMoved: number;
+  passesAttempted: number;
   sppEarned: number;
 }
+
+/** A career line with every counter at zero. */
+export const EMPTY_CAREER_STATS: PlayerCareerStats = {
+  matches: 0,
+  completions: 0,
+  interceptions: 0,
+  casualties: 0,
+  touchdowns: 0,
+  mvps: 0,
+  kills: 0,
+  squaresMoved: 0,
+  passesAttempted: 0,
+  sppEarned: 0,
+};
 
 /**
  * Player template for roster creation

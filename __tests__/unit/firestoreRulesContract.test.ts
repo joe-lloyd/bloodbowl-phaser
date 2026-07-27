@@ -29,10 +29,12 @@ describe("competition Firestore rule contract", () => {
     expect(rules).not.toContain("shared-teams");
   });
 
-  it("limits participant competition updates to result-derived fields", () => {
+  it("limits participant competition updates to result-derived fields and the entrant display cache", () => {
     expect(rules).toContain("match /leagues/{leagueId}");
     expect(rules).toContain("match /tournaments/{tournamentId}");
-    expect(rules).toContain(".hasOnly(['fixtures', 'standings', 'status'");
+    expect(rules).toContain(
+      ".hasOnly(['entrants', 'fixtures', 'standings', 'status'"
+    );
     expect(rules).toContain("'championEntrantId', 'updatedAt']");
   });
 });

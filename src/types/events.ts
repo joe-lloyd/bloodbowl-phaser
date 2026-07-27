@@ -46,6 +46,9 @@ export enum GameEventNames {
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
   PlayerCasualtyInflicted = "playerCasualtyInflicted",
+  /** A casualty's injury result was Dead — emitted once the result is known,
+   *  after PlayerCasualtyInflicted (whose roll comes first). */
+  PlayerKilled = "playerKilled",
   PlayerStoodUp = "playerStoodUp",
   /** A thrower performs a Throw / Kick Team-mate gesture (sprite lean/kick) */
   PlayerThrowGesture = "playerThrowGesture",
@@ -360,6 +363,10 @@ export interface GameEvents {
     victimId: string;
     cause: "block" | "special" | "dodge" | "crowd" | "lethal-flight";
     sppEligible: boolean;
+  };
+  [GameEventNames.PlayerKilled]: {
+    causerId?: string;
+    victimId: string;
   };
 
   // End of drive

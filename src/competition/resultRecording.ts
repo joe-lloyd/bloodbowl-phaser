@@ -96,5 +96,62 @@ export async function recordCompetitionFixture(
     if (away)
       updateTeamRecord(away, awayScore, homeScore, progressedTeams?.away);
   }
+
+  // A completed competition frees every entrant it holds: only the coaches
+  // whose teams are reachable from this session (their own library) can
+  // actually have the field cleared here — see clearActiveCompetition.
+  if (updated.status === "complete") {
+    updated.entrants.forEach((entrant) =>
+      clearActiveCompetition(entrant.teamId, updated.id)
+    );
+  }
   return updated;
+}
+
+/**
+ * A coach withdraws their own entrant: the entrant is marked withdrawn
+ * (fixtures and standings are untouched — see design.md decision 3, which
+ * gives up the immutable-snapshot property deliberately) and the team's
+ * active-competition association is cleared.
+ */
+export async function withdrawFromCompetition(
+  context: Pick<CompetitionContext, "competitionType" | "competitionId">,
+  entrantId: string
+): Promise<CompetitionDoc> {
+  const competition = await getCompetition(
+    context.competitionType,
+    context.competitionId
+  );
+  if (!competition) throw new Error("Competition not found.");
+  const entrant = competition.entrants.find(
+    (candidate) => candidate.id === entrantId
+  );
+  if (!entrant) throw new Error("Entrant not found.");
+
+  const updated: CompetitionDoc = {
+    ...competition,
+    entrants: competition.entrants.map((candidate) =>
+      candidate.id === entrantId ? { ...candidate, withdrawn: true } : candidate
+    ),
+    updatedAt: Date.now(),
+  };
+  await saveCompetition(updated);
+  clearActiveCompetition(entrant.teamId, competition.id);
+  return updated;
+}
+
+/**
+ * Clear `Team.activeCompetitionId` when it points at the given competition —
+ * used both when a competition completes and when a team withdraws. A no-op
+ * when the team is not reachable from this session (e.g. another coach's
+ * private library) or already points elsewhere.
+ */
+export function clearActiveCompetition(
+  teamId: string,
+  competitionId: string
+): void {
+  const team = getTeamById(teamId);
+  if (!team || team.activeCompetitionId !== competitionId) return;
+  delete team.activeCompetitionId;
+  saveTeam(team);
 }

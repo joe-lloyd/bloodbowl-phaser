@@ -402,8 +402,15 @@ function validateCompetition(doc: CompetitionDoc): SeedViolation[] {
   return violations;
 }
 
-/** The one-active-competition membership rule, across all seed docs. */
-function validateMembership(docs: CompetitionDoc[]): SeedViolation[] {
+/**
+ * The one-active-competition membership rule, across all seed docs: no team
+ * is active in more than one competition, and every team active in one
+ * records that competition's id on `Team.activeCompetitionId`.
+ */
+function validateMembership(
+  docs: CompetitionDoc[],
+  teams: Team[]
+): SeedViolation[] {
   const activeByTeam = new Map<string, string[]>();
   for (const doc of docs) {
     if (doc.status !== "active") continue;
@@ -414,12 +421,23 @@ function validateMembership(docs: CompetitionDoc[]): SeedViolation[] {
     }
   }
   const violations: SeedViolation[] = [];
+  const teamsById = new Map(teams.map((team) => [team.id, team]));
   for (const [teamId, competitions] of activeByTeam) {
     if (competitions.length > 1) {
       violations.push({
         area: "membership",
         subject: teamId,
         detail: `active in ${competitions.length} competitions: ${competitions.join(", ")}`,
+      });
+    }
+    const team = teamsById.get(teamId);
+    if (team && team.activeCompetitionId !== competitions[0]) {
+      violations.push({
+        area: "membership",
+        subject: teamId,
+        detail:
+          `activeCompetitionId ${team.activeCompetitionId ?? "(unset)"} ` +
+          `!== active competition ${competitions[0]}`,
       });
     }
   }
@@ -467,7 +485,9 @@ export function validateDevelopmentSeedData(
   for (const doc of competitions.filter(isSeedOwned)) {
     violations.push(...validateCompetition(doc));
   }
-  violations.push(...validateMembership(competitions.filter(isSeedOwned)));
+  violations.push(
+    ...validateMembership(competitions.filter(isSeedOwned), teams)
+  );
 
   return violations;
 }

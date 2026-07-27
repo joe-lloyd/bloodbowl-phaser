@@ -78,17 +78,27 @@ describe("competitionFixtures", () => {
   });
 
   it("assigns each team to at most one active competition", () => {
-    const { competitions } = build();
-    const activeByTeam = new Map<string, number>();
+    const { teams, competitions } = build();
+    const activeByTeam = new Map<string, string>();
     for (const doc of competitions.filter((d) => d.status === "active")) {
       for (const entrant of doc.entrants) {
-        activeByTeam.set(
-          entrant.teamId,
-          (activeByTeam.get(entrant.teamId) ?? 0) + 1
-        );
+        activeByTeam.set(entrant.teamId, doc.id);
       }
     }
-    expect([...activeByTeam.values()].every((count) => count <= 1)).toBe(true);
+    expect(activeByTeam.size).toBeGreaterThan(0);
+    // Team.activeCompetitionId records the same competition every active
+    // entrant's team is found in — the enforceable single-membership field.
+    for (const [teamId, competitionId] of activeByTeam) {
+      const team = teams.find((candidate) => candidate.id === teamId)!;
+      expect(team.activeCompetitionId).toBe(competitionId);
+    }
+    // Draft/complete competitions never set it — only "active" does.
+    const activeTeamIds = new Set(activeByTeam.keys());
+    for (const team of teams) {
+      if (!activeTeamIds.has(team.id)) {
+        expect(team.activeCompetitionId).toBeUndefined();
+      }
+    }
   });
 
   it("folds completed results into team records", () => {
@@ -139,13 +149,14 @@ describe("competitionFixtures", () => {
     expect(second.teams.map((t) => t.id)).toEqual(first.teams.map((t) => t.id));
   });
 
-  it("snapshots the entrant teams immutably", () => {
+  it("references the entrant team by id rather than embedding it", () => {
     const { teams, competitions } = build();
     const human = teams.find((t) => t.rosterName === RosterName.HUMAN)!;
     const entrant = competitions[0].entrants.find(
       (e) => e.teamId === human.id
     )!;
-    expect(entrant.team).not.toBe(human);
-    expect(entrant.team.id).toBe(human.id);
+    expect(entrant.teamId).toBe(human.id);
+    expect(entrant).not.toHaveProperty("team");
+    expect(entrant.ownerUid).toBeNull();
   });
 });

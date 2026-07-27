@@ -67,8 +67,8 @@ vi.mock("../../src/ui/components/hud/SandboxOverlay", () => ({
 vi.mock("../../src/ui/components/hud/KickoffEventOverlay", () => ({
   KickoffEventOverlay: () => null,
 }));
-vi.mock("../../src/ui/components/hud/PostMatchProgression", () => ({
-  PostMatchProgression: () => null,
+vi.mock("../../src/ui/components/hud/MatchResultsScreen", () => ({
+  MatchResultsScreen: () => null,
 }));
 
 const navigateMock = vi.fn();

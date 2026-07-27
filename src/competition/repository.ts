@@ -3,6 +3,29 @@ import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { CompetitionDoc, CompetitionType } from "./types";
 import { repairBracketLinkage } from "./logic";
 
+/**
+ * Before this change, a `CompetitionEntrant` embedded a full roster snapshot
+ * (`entrant.team`). The reader accepts that shape and converts it on read —
+ * dropping the embedded snapshot and filling the reference fields it
+ * predates — so a legacy document displays correctly and is written back in
+ * the reference-only shape the next time it saves (nothing here re-adds
+ * `team`, so it cannot resurface).
+ */
+function convertLegacyEntrants(competition: CompetitionDoc): CompetitionDoc {
+  let changed = false;
+  const entrants = competition.entrants.map((entrant) => {
+    const legacy = entrant as unknown as Record<string, unknown>;
+    if (!("team" in legacy) && "ownerUid" in legacy) return entrant;
+    changed = true;
+    const { team: _team, ...rest } = legacy;
+    return {
+      ...rest,
+      ownerUid: (legacy.ownerUid as string | null | undefined) ?? null,
+    } as CompetitionDoc["entrants"][number];
+  });
+  return changed ? { ...competition, entrants } : competition;
+}
+
 const LOCAL_STORAGE_KEY = "bloodbowl_competitions";
 
 type LocalStore = Record<string, CompetitionDoc>;
@@ -88,6 +111,15 @@ function withRepairedLinkage(
   return competition;
 }
 
+/** Every read-time conversion a stored competition document may need. */
+function normalizeOnRead(
+  competition: CompetitionDoc | null
+): CompetitionDoc | null {
+  return withRepairedLinkage(
+    competition ? convertLegacyEntrants(competition) : null
+  );
+}
+
 export async function getCompetition(
   type: CompetitionType,
   id: string
@@ -96,13 +128,43 @@ export async function getCompetition(
     try {
       const snapshot = await getDoc(doc(getDb(), collectionName(type), id));
       if (snapshot.exists()) {
-        return withRepairedLinkage(snapshot.data() as CompetitionDoc);
+        return normalizeOnRead(snapshot.data() as CompetitionDoc);
       }
     } catch {
       // A signed-out or offline competition may still exist locally.
     }
   }
-  return withRepairedLinkage(readLocal()[storageKey(type, id)] ?? null);
+  return normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
+}
+
+/**
+ * Look up a competition by id without knowing its type in advance — used to
+ * name the competition a team is already committed to (single
+ * active-competition enforcement, src/ui/components/pages/CompetitionBuilder.tsx).
+ */
+export async function findCompetitionById(
+  id: string
+): Promise<CompetitionDoc | null> {
+  return (await getCompetition("league", id)) ?? getCompetition("tournament", id);
+}
+
+/**
+ * Optional backfill: force every competition this uid can see through the
+ * reader (converting legacy embedded-roster entrants) and writer once, for
+ * a document that might otherwise sit untouched indefinitely. Safe to run
+ * repeatedly. Only organizer-writable documents are actually re-saved —
+ * see firestore.rules; a participant-only view is read-only here.
+ */
+export async function backfillCompetitions(
+  type: CompetitionType,
+  uid: string | null
+): Promise<number> {
+  const competitions = await listCompetitions(type, uid);
+  const organized = competitions.filter(
+    (competition) => !uid || competition.organizerUid === uid
+  );
+  await Promise.all(organized.map((competition) => saveCompetition(competition)));
+  return organized.length;
 }
 
 export async function listCompetitions(
@@ -127,5 +189,7 @@ export async function listCompetitions(
   [...local, ...remote].forEach((competition) =>
     combined.set(storageKey(competition.type, competition.id), competition)
   );
-  return [...combined.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...combined.values()]
+    .map((competition) => normalizeOnRead(competition)!)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
