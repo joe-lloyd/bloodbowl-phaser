@@ -387,6 +387,7 @@ export class SetupManager {
     if (concede) {
       this.state.phase = GamePhase.GAME_OVER;
       this.state.activeTeamId = null;
+      this.state.result = { reason: "concession", concedingTeamId: teamId };
       this.ensureSetupState().currentTeamId = null;
       this.eventBus.emit(GameEventNames.SetupConcessionResolved, {
         teamId,

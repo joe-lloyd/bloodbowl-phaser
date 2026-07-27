@@ -22,6 +22,7 @@ import { Button } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
+import { PlayerDevelopment } from "../TeamBuilder/PlayerDevelopment";
 
 // interface TeamBuilderProps {}
 
@@ -418,6 +419,8 @@ export function TeamBuilder() {
                 onFirePlayer={handleFirePlayer}
                 onReorderPlayers={handleReorderPlayers}
               />
+
+              <PlayerDevelopment team={team} onTeamChanged={setTeam} />
 
               {/* Team Meta Controls (Blue Theme) */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">

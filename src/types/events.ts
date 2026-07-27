@@ -154,6 +154,9 @@ export enum GameEventNames {
   UI_FormationsUpdated = "ui:formationsUpdated",
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
+  /** A competition fixture's result has been recorded exactly once; the
+   *  results screen uses this to show a recording confirmation. */
+  CompetitionResultRecorded = "competitionResultRecorded",
   /** The local coach cut the end-of-drive celebration/recovery beat short.
    *  Local only — it is a UI intent and never crosses the wire, so an online
    *  match plays the sequence at its fixed length for both coaches. */
@@ -505,6 +508,9 @@ export interface GameEvents {
   [GameEventNames.AwardedTouchdownAssigned]: {
     teamId: string;
     playerId: string;
+  };
+  [GameEventNames.CompetitionResultRecorded]: {
+    fixtureId: string;
   };
   [GameEventNames.InterceptionFailed]: {
     passerId: string;

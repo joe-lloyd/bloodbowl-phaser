@@ -7,7 +7,13 @@
  * (CLI, AI agents, saves, replays).
  */
 
-import { GameState, GamePhase, SubPhase, TurnData } from "../types/GameState";
+import {
+  GameState,
+  GamePhase,
+  SubPhase,
+  TurnData,
+  MatchResult,
+} from "../types/GameState";
 import { Team } from "../types/Team";
 import {
   PlayerStats,
@@ -71,6 +77,8 @@ export interface GameSnapshot {
   } | null;
   coachesEjected: string[];
   setup?: SetupState | null;
+  /** Absent until the match reaches GAME_OVER. */
+  result?: MatchResult;
   teams: TeamSnapshot[];
   /** Kickoff-event drive effects; absent on pre-feature saves (= empty). */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
@@ -147,6 +155,7 @@ export function serializeGameState(
       : undefined,
     bribes: state.bribes ? { ...state.bribes } : undefined,
     setup: state.setup ? structuredClone(state.setup) : null,
+    result: state.result ? { ...state.result } : undefined,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -201,6 +210,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       : undefined,
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
+    result: snapshot.result ? { ...snapshot.result } : undefined,
   };
 }
 

@@ -95,10 +95,16 @@ export function GamePage({
       void recordCompetitionFixture(fixtureContext, homeScore, awayScore, {
         home: gameService.getTeam(matchTeams.team1.id) ?? matchTeams.team1,
         away: gameService.getTeam(matchTeams.team2.id) ?? matchTeams.team2,
-      }).catch((error) => {
-        reportedRef.current = false;
-        console.error("Failed to record competition result:", error);
-      });
+      })
+        .then(() => {
+          eventBus.emit(GameEventNames.CompetitionResultRecorded, {
+            fixtureId: fixtureContext.fixtureId,
+          });
+        })
+        .catch((error) => {
+          reportedRef.current = false;
+          console.error("Failed to record competition result:", error);
+        });
     };
     eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
     return () => eventBus.off(GameEventNames.PhaseChanged, onPhaseChanged);
