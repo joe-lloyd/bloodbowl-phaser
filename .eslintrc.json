@@ -1,4 +1,5 @@
 {
+  "root": true,
   "ignorePatterns": ["__tests__", "dist", "node_modules", "refined-data-rules.ts", "refined-data-skills.ts"],
   "env": {
     "browser": true,
