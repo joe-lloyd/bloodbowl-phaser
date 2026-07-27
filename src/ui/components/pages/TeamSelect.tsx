@@ -33,6 +33,8 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
+  const [filter1, setFilter1] = useState("");
+  const [filter2, setFilter2] = useState("");
   const [progressionEnabled, setProgressionEnabled] = useState(false);
   const [pitchThemeId, setPitchThemeId] = useState<PitchThemeId>(
     DEFAULT_PITCH_THEME_ID
@@ -62,6 +64,20 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     }
     return issues;
   };
+
+  /** Case-insensitive substring match on team name or roster name, so a
+   *  coach with many saved teams can narrow either column's list down. */
+  const matchesFilter = (team: Team, filter: string): boolean => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      team.name.toLowerCase().includes(query) ||
+      team.rosterName.toLowerCase().includes(query)
+    );
+  };
+
+  const teams1 = teams.filter((team) => matchesFilter(team, filter1));
+  const teams2 = teams.filter((team) => matchesFilter(team, filter2));
 
   const pendingDevelopment = (team: Team) => team.players.filter(mustAdvance);
 
@@ -166,36 +182,52 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             <div className="text-center mb-5">
               <SectionTitle>Player 1</SectionTitle>
             </div>
-            {teams.map((team) => {
-              const issues = legalityIssues(team);
-              return (
-                <button
-                  key={team.id}
-                  disabled={issues.length > 0}
-                  title={
-                    issues.length > 0 ? issues.join("; ") : undefined
-                  }
-                  className={`
-                                    w-full p-4 my-2.5 text-white border-none rounded transition-all text-left font-body text-lg
-                                    ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
-                                    ${
-                                      selectedTeam1?.id === team.id
-                                        ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md"
-                                        : "bg-bb-blood-red"
-                                    }
-                                `}
-                  onClick={() => handleSelectTeam1(team)}
-                >
-                  <span className="font-heading font-bold uppercase">
-                    {team.name}
-                  </span>
-                  <span className="block text-sm opacity-90">
-                    {team.rosterName}
-                    {issues.length > 0 && " — illegal roster"}
-                  </span>
-                </button>
-              );
-            })}
+            <input
+              type="text"
+              value={filter1}
+              onChange={(e) => setFilter1(e.target.value)}
+              placeholder="Search team or roster..."
+              aria-label="Filter Player 1 teams"
+              className="w-full mb-3 p-2 rounded border border-bb-divider font-body text-sm focus:outline-none focus:ring-1 focus:ring-bb-gold"
+            />
+            <div className="max-h-96 overflow-y-auto pr-1">
+              {teams1.length === 0 ? (
+                <p className="text-center text-sm text-bb-muted-text font-body italic py-4">
+                  No teams match &quot;{filter1}&quot;.
+                </p>
+              ) : (
+                teams1.map((team) => {
+                  const issues = legalityIssues(team);
+                  return (
+                    <button
+                      key={team.id}
+                      disabled={issues.length > 0}
+                      title={
+                        issues.length > 0 ? issues.join("; ") : undefined
+                      }
+                      className={`
+                                        w-full px-3 py-2 my-1 text-white border-none rounded transition-all text-left font-body text-sm flex items-baseline gap-2
+                                        ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
+                                        ${
+                                          selectedTeam1?.id === team.id
+                                            ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-2 shadow-md"
+                                            : "bg-bb-blood-red"
+                                        }
+                                    `}
+                      onClick={() => handleSelectTeam1(team)}
+                    >
+                      <span className="font-heading font-bold uppercase truncate">
+                        {team.name}
+                      </span>
+                      <span className="text-xs opacity-90 whitespace-nowrap">
+                        {team.rosterName}
+                        {issues.length > 0 && " — illegal"}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           {/* VS */}
@@ -216,36 +248,52 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
             <div className="text-center mb-5">
               <SectionTitle>Player 2</SectionTitle>
             </div>
-            {teams.map((team) => {
-              const issues = legalityIssues(team);
-              return (
-                <button
-                  key={team.id}
-                  disabled={issues.length > 0}
-                  title={
-                    issues.length > 0 ? issues.join("; ") : undefined
-                  }
-                  className={`
-                                    w-full p-4 my-2.5 text-white border-none rounded transition-all text-left font-body text-lg
-                                    ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
-                                    ${
-                                      selectedTeam2?.id === team.id
-                                        ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-3 shadow-md"
-                                        : "bg-bb-blood-red"
-                                    }
-                                `}
-                  onClick={() => handleSelectTeam2(team)}
-                >
-                  <span className="font-heading font-bold uppercase">
-                    {team.name}
-                  </span>
-                  <span className="block text-sm opacity-90">
-                    {team.rosterName}
-                    {issues.length > 0 && " — illegal roster"}
-                  </span>
-                </button>
-              );
-            })}
+            <input
+              type="text"
+              value={filter2}
+              onChange={(e) => setFilter2(e.target.value)}
+              placeholder="Search team or roster..."
+              aria-label="Filter Player 2 teams"
+              className="w-full mb-3 p-2 rounded border border-bb-divider font-body text-sm focus:outline-none focus:ring-1 focus:ring-bb-gold"
+            />
+            <div className="max-h-96 overflow-y-auto pr-1">
+              {teams2.length === 0 ? (
+                <p className="text-center text-sm text-bb-muted-text font-body italic py-4">
+                  No teams match &quot;{filter2}&quot;.
+                </p>
+              ) : (
+                teams2.map((team) => {
+                  const issues = legalityIssues(team);
+                  return (
+                    <button
+                      key={team.id}
+                      disabled={issues.length > 0}
+                      title={
+                        issues.length > 0 ? issues.join("; ") : undefined
+                      }
+                      className={`
+                                        w-full px-3 py-2 my-1 text-white border-none rounded transition-all text-left font-body text-sm flex items-baseline gap-2
+                                        ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
+                                        ${
+                                          selectedTeam2?.id === team.id
+                                            ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-2 shadow-md"
+                                            : "bg-bb-blood-red"
+                                        }
+                                    `}
+                      onClick={() => handleSelectTeam2(team)}
+                    >
+                      <span className="font-heading font-bold uppercase truncate">
+                        {team.name}
+                      </span>
+                      <span className="text-xs opacity-90 whitespace-nowrap">
+                        {team.rosterName}
+                        {issues.length > 0 && " — illegal"}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 

@@ -26,6 +26,7 @@ import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
 import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import { TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
 import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
@@ -520,6 +521,8 @@ export function TeamBuilder() {
                   </div>
                 </div>
               </div>
+
+              <TeamStatsOverview team={team} />
 
               <AdvancementModePanel
                 team={team}
