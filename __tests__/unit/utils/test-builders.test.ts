@@ -7,6 +7,8 @@ import {
 import { RosterName } from "../../../src/types/Team.js";
 import { PositionKeyWord, PlayerStatus } from "../../../src/types/Player.js";
 import { GamePhase } from "../../../src/types/GameState.js";
+import { positionByPlayerIndex } from "../../../src/game/TeamFactory";
+import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
 import {
   createOrcTeam,
   createHumanTeam,
@@ -139,54 +141,43 @@ describe("Test Fixtures", () => {
       expect(team.players).toHaveLength(7);
     });
 
-    it("should create an Orc team with proper roster", () => {
+    // Both named fixtures come from the production roster templates now, so
+    // the assertions are about the roster data rather than a copied list:
+    // every player must be a real position of that roster, matching what the
+    // Sevens composition fields.
+    it("should create an Orc team from the production roster", () => {
       const team = createOrcTeam();
 
       expect(team.name).toBe("Da Boyz");
       expect(team.rosterName).toBe(RosterName.ORC);
       expect(team.players).toHaveLength(7);
-
-      // Check roster composition
-      const linemen = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.LINEMAN
-      );
-      const blitzers = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.BLITZER
-      );
-      const throwers = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.THROWER
+      expect(team.players.map((p) => p.positionName)).toEqual(
+        positionByPlayerIndex(RosterName.ORC)
       );
 
-      expect(linemen).toHaveLength(4);
-      expect(blitzers).toHaveLength(2);
-      expect(throwers).toHaveLength(1);
+      const roster = getRosterByRosterName(RosterName.ORC);
+      const known = new Set(roster.playerTemplates.map((t) => t.positionName));
+      expect(team.players.every((p) => known.has(p.positionName))).toBe(true);
     });
 
-    it("should create a Human team with proper roster", () => {
+    it("should create a Human team from the production roster", () => {
       const team = createHumanTeam();
 
       expect(team.name).toBe("Reikland Reavers");
       expect(team.rosterName).toBe(RosterName.HUMAN);
       expect(team.players).toHaveLength(7);
-
-      // Check roster composition
-      const linemen = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.LINEMAN
-      );
-      const blitzers = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.BLITZER
-      );
-      const catchers = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.CATCHER
-      );
-      const throwers = team.players.filter(
-        (p) => p.positionName === PositionKeyWord.THROWER
+      expect(team.players.map((p) => p.positionName)).toEqual(
+        positionByPlayerIndex(RosterName.HUMAN)
       );
 
-      expect(linemen).toHaveLength(4);
-      expect(blitzers).toHaveLength(1);
-      expect(catchers).toHaveLength(1);
-      expect(throwers).toHaveLength(1);
+      // Stats come from the template, not from a copy in the test fixture.
+      const roster = getRosterByRosterName(RosterName.HUMAN);
+      for (const player of team.players) {
+        const template = roster.playerTemplates.find(
+          (t) => t.positionName === player.positionName
+        )!;
+        expect(player.stats).toEqual(template.stats);
+      }
     });
   });
 

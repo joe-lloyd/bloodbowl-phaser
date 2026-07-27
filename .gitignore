@@ -4,10 +4,25 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+dist-e2e-online/
+
+# Firebase emulator scratch output
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+emulator.log
 
 # Test coverage
 coverage/
 .nyc_output/
+
+# Playwright E2E run output. Screenshot baselines under e2e/__screenshots__
+# ARE committed — only per-run artifacts and reports are ignored.
+e2e-results/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
 
 # Logs
 *.log

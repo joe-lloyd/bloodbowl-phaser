@@ -51,6 +51,8 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
           return (
             <button
               key={step.id}
+              data-testid={`action-step-${step.id}`}
+              data-active={isActive ? "true" : "false"}
               onClick={(e) => {
                 e.stopPropagation();
                 // Only allow navigating to past steps or current (future steps might need logic to unlock)

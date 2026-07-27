@@ -4,6 +4,7 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import {
@@ -369,17 +370,19 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description: "A failed pass offers the Pass skill re-roll",
         skill: SkillType.PASS,
         rollKind: "pass",
+        // The Amazon Python Warrior (index 1) is a roster Thrower with Pass.
         setup: playSetup({
+          team1Roster: RosterName.AMAZON,
           team1Placements: [
-            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.PASS] },
-            { playerIndex: 1, x: 7, y: 5 }, // catcher
+            { playerIndex: 1, x: 4, y: 5 },
+            { playerIndex: 2, x: 7, y: 5 }, // catcher
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 4, y: 5 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "pass" },
-          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+          { type: "declare-action", playerId: "team1:1", action: "pass" },
+          { type: "pass", playerId: "team1:1", x: 7, y: 5 },
         ],
       }),
     ],
@@ -431,17 +434,19 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "safe-pass-natural-one",
         name: "Natural 1 with Safe Pass",
         description: "No fumble: ball held, activation ends, no turnover",
+        // The Amazon Python Warrior (index 1) starts with Safe Pass.
         setup: playSetup({
+          team1Roster: RosterName.AMAZON,
           team1Placements: [
-            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.SAFE_PASS] },
-            { playerIndex: 1, x: 7, y: 5 },
+            { playerIndex: 1, x: 4, y: 5 },
+            { playerIndex: 2, x: 7, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 4, y: 5 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "pass" },
-          { type: "pass", playerId: "team1:0", x: 7, y: 5 },
+          { type: "declare-action", playerId: "team1:1", action: "pass" },
+          { type: "pass", playerId: "team1:1", x: 7, y: 5 },
         ],
         decisionPolicy: { acceptRerolls: false }, // keep the natural 1
         outcomes: [
@@ -880,15 +885,11 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Quick Pass to an empty square before Stab",
         description:
           "A lone carrier may use Dump-Off against a directly targeting Special Action even when no team-mate is available",
+        // The Dark Elf Assassin (index 0) brings Stab from the roster; only
+        // Dump-Off, which no fielded Sevens position starts with, is granted.
         setup: playSetup({
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: 10,
-              y: 5,
-              skills: [SkillType.STAB],
-            },
-          ],
+          team1Roster: RosterName.DARK_ELF,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [
             {
               playerIndex: 0,
@@ -1016,14 +1017,9 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 0, x: 4, y: 5 },
             { playerIndex: 1, x: 8, y: 5 },
           ],
-          team2Placements: [
-            {
-              playerIndex: 0,
-              x: 12,
-              y: 5,
-              skills: [SkillType.ON_THE_BALL],
-            },
-          ],
+          // The Amazon Python Warrior (index 1) has On the Ball natively.
+          team2Roster: RosterName.AMAZON,
+          team2Placements: [{ playerIndex: 1, x: 12, y: 5 }],
           ballPosition: { x: 4, y: 5 },
         }),
         script: [
@@ -1044,7 +1040,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (e) =>
                   e.name === GameEventNames.PlayerMoved &&
                   (e.data as { playerId?: string }).playerId ===
-                    r.game.ctx.team2.players[0].id
+                    r.game.ctx.team2.players[1].id
               ).length === 3,
             verify: (r) => {
               const moves = r.events
@@ -1053,7 +1049,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   ({ event }) =>
                     event.name === GameEventNames.PlayerMoved &&
                     (event.data as { playerId?: string }).playerId ===
-                      r.game.ctx.team2.players[0].id
+                      r.game.ctx.team2.players[1].id
                 );
               const passRoll = r.events.findIndex(
                 (event) =>
@@ -1083,16 +1079,13 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
             { playerIndex: 2, x: 6, y: 5 },
             { playerIndex: 3, x: 6, y: 6 },
           ],
+          // The Amazon Python Warrior (index 1) has On the Ball natively.
+          team2Roster: RosterName.AMAZON,
           team2Placements: [
-            {
-              playerIndex: 0,
-              x: 18,
-              y: 8,
-              skills: [SkillType.ON_THE_BALL],
-            },
-            { playerIndex: 1, x: 13, y: 4 },
-            { playerIndex: 2, x: 13, y: 5 },
-            { playerIndex: 3, x: 13, y: 6 },
+            { playerIndex: 1, x: 18, y: 8 },
+            { playerIndex: 2, x: 13, y: 4 },
+            { playerIndex: 3, x: 13, y: 5 },
+            { playerIndex: 4, x: 13, y: 6 },
           ],
           activeTeam: "team1",
           phase: GamePhase.KICKOFF,
@@ -1120,7 +1113,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 (event) =>
                   event.name === GameEventNames.PlayerMoved &&
                   (event.data as { playerId?: string }).playerId ===
-                    r.game.ctx.team2.players[0].id
+                    r.game.ctx.team2.players[1].id
               );
               const eventIndex = r.events.findIndex(
                 (event) =>
@@ -1134,7 +1127,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "the move must happen before the Kick-off Event roll"
               );
               assert(
-                playerOf(r, "team2:0").gridPosition!.x >= 13,
+                playerOf(r, "team2:1").gridPosition!.x >= 13,
                 "the receiving player may not enter the opposition half"
               );
             },

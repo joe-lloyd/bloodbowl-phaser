@@ -125,14 +125,15 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "decay-casualty",
         name: "Casualty against a Decay player",
         description: "+1 to the casualty roll",
+        // A Nurgle Rotter Lineman carries Decay on the roster.
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Roster: RosterName.NURGLE,
           team2Placements: [
             {
               playerIndex: 0,
               x: 11,
               y: 5,
-              skills: [SkillType.DECAY],
               stats: { AV: 4 }, // reach casualties often
             },
           ],
@@ -159,14 +160,16 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "regeneration-save",
         name: "Casualty with Regeneration",
         description: "A 4+ ignores the casualty; the player goes to Reserves",
+        // A Skeleton Lineman regenerates natively and keeps ST 3, so the
+        // attacker still rolls the single block die this outcome expects.
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Roster: RosterName.SHAMBLING_UNDEAD,
           team2Placements: [
             {
               playerIndex: 0,
               x: 11,
               y: 5,
-              skills: [SkillType.REGENERATION],
               stats: { AV: 4 },
             },
           ],
@@ -201,16 +204,16 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "titchy-dodge-bonus",
         name: "Dodge with Titchy",
         description: "+1 to the dodge Agility Test",
+        // The Ogre roster's Gnoblar Lineman (index 3) is Titchy by default.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 16, y: 4, skills: [SkillType.TITCHY] },
-          ],
+          team1Roster: RosterName.OGRE,
+          team1Placements: [{ playerIndex: 3, x: 16, y: 4 }],
           team2Placements: [{ playerIndex: 0, x: 16, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "move" },
-          { type: "move", playerId: "team1:0", path: [{ x: 15, y: 3 }] },
+          { type: "declare-action", playerId: "team1:3", action: "move" },
+          { type: "move", playerId: "team1:3", path: [{ x: 15, y: 3 }] },
         ],
         outcomes: [
           {
@@ -234,9 +237,8 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           "The Titchy player does not apply the -1 marking modifier to the dodge",
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
-          team2Placements: [
-            { playerIndex: 0, x: 11, y: 5, skills: [SkillType.TITCHY] },
-          ],
+          team2Roster: RosterName.OGRE,
+          team2Placements: [{ playerIndex: 3, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
@@ -268,10 +270,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-ignores-marking",
         name: "Marked dodge with Stunty",
         description: "No negative marking modifiers on the dodge",
+        // A Lizardmen Skink Lineman is Stunty on the roster and, unlike the
+        // Goblin/Gnoblar Stunties, carries no Right Stuff or Sidestep to
+        // muddy what the dodge modifier is proving.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.STUNTY] },
-          ],
+          team1Roster: RosterName.LIZARDMEN,
+          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
           ballPosition: { x: 1, y: 1 },
         }),
@@ -299,8 +303,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-injury-table",
         name: "Injury Roll against a Stunty player",
         description: "A 7 Knocks Out on the Stunty Injury Table",
+        // Skink Linemen are Stunty by roster and have no Thick Skull, which
+        // is what separates this config from stunty-thick-skull below.
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Roster: RosterName.LIZARDMEN,
           team2Placements: [
             {
               // playerIndex 1 keeps the name distinct from the attacker's, so
@@ -308,7 +315,6 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               playerIndex: 1,
               x: 11,
               y: 5,
-              skills: [SkillType.STUNTY],
               stats: { AV: 4 }, // break armour often
             },
           ],
@@ -361,22 +367,25 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "stunty-thick-skull",
         name: "Stunty and Thick Skull together",
         description: "KO only on the 8; the 7 is a Stunned result",
+        // The Black Orc roster's Goblin Bruiser has both Stunty and Thick
+        // Skull as starting skills — exactly the pairing under test.
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+          team2Roster: RosterName.BLACK_ORC,
           team2Placements: [
             {
-              // distinct name — see stunty-injury-table
-              playerIndex: 1,
+              // index 4 is the second Goblin Bruiser, so the defender's name
+              // stays distinct from anyone else rolling — see stunty-injury-table
+              playerIndex: 4,
               x: 11,
               y: 5,
-              skills: [SkillType.STUNTY, SkillType.THICK_SKULL],
               stats: { AV: 4 },
             },
           ],
           ballPosition: { x: 1, y: 1 },
         }),
         attacker: "team1:0",
-        defender: "team2:1",
+        defender: "team2:4",
         preferBlockResult: "pow",
         seedSearch: { from: 1, limit: 500 },
         outcomes: [
@@ -388,7 +397,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             id: "seven-is-stunned",
             name: "The 7 is only a Stunned result",
             matches: (r) =>
-              injuryTotal(r, "team2:1", 7) &&
+              injuryTotal(r, "team2:4", 7) &&
               r.events.filter(
                 (e) =>
                   e.name === GameEventNames.DiceRoll &&
@@ -426,16 +435,17 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "no-ball-pickup",
         name: "No Ball player enters the ball's square",
         description: "The pick-up automatically fails as a natural 1",
+        // The Goblin Loony (index 4) has No Ball on the roster — a Secret
+        // Weapon player who genuinely cannot handle the ball.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.NO_BALL] },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 4, x: 4, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 5, y: 5 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "move" },
-          { type: "move", playerId: "team1:0", path: [{ x: 5, y: 5 }] },
+          { type: "declare-action", playerId: "team1:4", action: "move" },
+          { type: "move", playerId: "team1:4", path: [{ x: 5, y: 5 }] },
         ],
         outcomes: [
           {
@@ -773,10 +783,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "unsteady-secure-ball",
         name: "Unsteady may not Secure the Ball",
         description: "Declaring a Secure the Ball Action is refused",
+        // A Necromantic Horror Zombie Lineman is Unsteady on the roster.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 4, y: 5, skills: [SkillType.UNSTEADY] },
-          ],
+          team1Roster: RosterName.NECROMANTIC_HORROR,
+          team1Placements: [{ playerIndex: 0, x: 4, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 5, y: 5 },
         }),
@@ -1115,10 +1125,12 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Throw Bomb Special Action",
         description:
           "A bomb thrown like a Pass; when it comes to rest it explodes, hitting the square it lands in (Armour Rolls all round). A Fumble blows up in the Bomber's own square — a Turnover.",
+        // The Goblin Bomma carries Bombardier on the roster, so the bomb is
+        // thrown by a player who really has it — Secret Weapon send-off and
+        // all — rather than by a Human Lineman who never could.
         setup: playSetup({
-          team1Placements: [
-            { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BOMBARDIER] },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 5, x: 10, y: 5 }],
           team2Placements: [
             // A Prone target auto-fails the Catch, so the bomb explodes on it.
             { playerIndex: 0, x: 13, y: 5, status: PlayerStatus.PRONE },
@@ -1126,8 +1138,8 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ballPosition: { x: 1, y: 1 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "throwBomb" },
-          { type: "throw-bomb", throwerId: "team1:0", x: 13, y: 5 },
+          { type: "declare-action", playerId: "team1:5", action: "throwBomb" },
+          { type: "throw-bomb", throwerId: "team1:5", x: 13, y: 5 },
         ],
         seedSearch: { from: 1, limit: 500 },
         outcomes: [
@@ -1137,7 +1149,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.BOMBARDIER) &&
               armourRolledFor(r, "team2:0") &&
-              playerStanding(r, "team1:0"),
+              playerStanding(r, "team1:5"),
             verify: (r) => {
               assert(
                 sawEvent(
@@ -1158,11 +1170,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "A Fumbled bomb blows up in the Bomber's own square",
             matches: (r) =>
               skillTriggered(r, SkillType.BOMBARDIER) &&
-              playerDown(r, "team1:0") &&
+              playerDown(r, "team1:5") &&
               turnoverHappened(r),
             verify: (r) => {
               assert(
-                playerDown(r, "team1:0"),
+                playerDown(r, "team1:5"),
                 "the Bomber is caught in their own blast"
               );
               assert(turnoverHappened(r), "a Fumbled bomb is a Turnover");
@@ -1180,16 +1192,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Ball & Chain lurches into a Standing player",
         description:
           "The Fanatic (ST 7) swings toward an End Zone and automatically Blocks the first Standing player it bumps into — its own action, no dodge required.",
+        // The Goblin Fanatic (index 6) is the real thing: Ball & Chain,
+        // ST 7, MA 3, No Ball and Secret Weapon all from the roster.
         setup: playSetup({
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: 10,
-              y: 5,
-              skills: [SkillType.BALL_AND_CHAIN],
-              stats: { ST: 7, MA: 3 },
-            },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
           team2Placements: [
             // A wall directly East, so any of the three template arrows lands
             // the Fanatic on a Standing opponent → an automatic Block.
@@ -1202,11 +1209,11 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         script: [
           {
             type: "declare-action",
-            playerId: "team1:0",
+            playerId: "team1:6",
             action: "ballAndChain",
           },
           // Facing East (toward the opponents' End Zone).
-          { type: "ball-and-chain", playerId: "team1:0", x: 1, y: 0 },
+          { type: "ball-and-chain", playerId: "team1:6", x: 1, y: 0 },
         ],
         seedSearch: { from: 1, limit: 500 },
         outcomes: [
@@ -1235,26 +1242,19 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Swinging toward the Sideline, the Fanatic can wander off the pitch and be hurt by the Crowd — a Turnover.",
         setup: playSetup({
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: 10,
-              y: 1,
-              skills: [SkillType.BALL_AND_CHAIN],
-              stats: { ST: 7, MA: 3 },
-            },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 6, x: 10, y: 1 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
           ballPosition: { x: 1, y: 5 },
         }),
         script: [
           {
             type: "declare-action",
-            playerId: "team1:0",
+            playerId: "team1:6",
             action: "ballAndChain",
           },
           // Facing North (toward the top Sideline at y = 0).
-          { type: "ball-and-chain", playerId: "team1:0", x: 0, y: -1 },
+          { type: "ball-and-chain", playerId: "team1:6", x: 0, y: -1 },
         ],
         seedSearch: { from: 1, limit: 500 },
         outcomes: [
@@ -1264,10 +1264,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) =>
               skillTriggered(r, SkillType.BALL_AND_CHAIN) &&
               turnoverHappened(r) &&
-              !playerOf(r, "team1:0").gridPosition,
+              !playerOf(r, "team1:6").gridPosition,
             verify: (r) => {
               assert(
-                !playerOf(r, "team1:0").gridPosition,
+                !playerOf(r, "team1:6").gridPosition,
                 "the Fanatic has left the pitch"
               );
               assert(turnoverHappened(r), "surfing the crowd is a Turnover");
@@ -1285,21 +1285,18 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         name: "Secret Weapon is Sent-off after the Drive",
         description:
           "A Secret Weapon that took part in the Drive is Sent-off when a touchdown ends that Drive",
+        // The Goblin Bomma (index 5) is a roster Secret Weapon that can still
+        // carry the ball, so it can score the touchdown that ends the Drive
+        // and then be Sent-off — the Loony's No Ball would block the run.
         setup: playSetup({
-          team1Placements: [
-            {
-              playerIndex: 0,
-              x: 18,
-              y: 5,
-              skills: [SkillType.SECRET_WEAPON],
-            },
-          ],
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 5, x: 18, y: 5 }],
           team2Placements: [{ playerIndex: 0, x: 10, y: 8 }],
           ballPosition: { x: 18, y: 5 },
         }),
         script: [
-          { type: "declare-action", playerId: "team1:0", action: "move" },
-          { type: "move", playerId: "team1:0", path: [{ x: 19, y: 5 }] },
+          { type: "declare-action", playerId: "team1:5", action: "move" },
+          { type: "move", playerId: "team1:5", path: [{ x: 19, y: 5 }] },
         ],
         outcomes: [
           {
@@ -1307,14 +1304,14 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "The Secret Weapon is removed before the next Drive",
             matches: (r) =>
               skillTriggered(r, SkillType.SECRET_WEAPON) &&
-              playerOf(r, "team1:0").status === PlayerStatus.REMOVED,
+              playerOf(r, "team1:5").status === PlayerStatus.REMOVED,
             verify: (r) => {
               assert(
-                playerOf(r, "team1:0").status === PlayerStatus.REMOVED,
+                playerOf(r, "team1:5").status === PlayerStatus.REMOVED,
                 "the Secret Weapon must be Sent-off"
               );
               assert(
-                !playerOf(r, "team1:0").gridPosition,
+                !playerOf(r, "team1:5").gridPosition,
                 "a Sent-off player must be off the pitch"
               );
             },
@@ -1332,12 +1329,16 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "When Stab causes a Casualty, Violent Innovator credits the attacker as the casualty causer for SPP",
         setup: playSetup({
+          // The Dark Elf Assassin brings Stab from the roster; only Violent
+          // Innovator itself — the rule under test — is granted, and no
+          // Sevens position starts with it.
+          team1Roster: RosterName.DARK_ELF,
           team1Placements: [
             {
               playerIndex: 0,
               x: 10,
               y: 5,
-              skills: [SkillType.STAB, SkillType.VIOLENT_INNOVATOR],
+              skills: [SkillType.VIOLENT_INNOVATOR],
             },
           ],
           team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 2 } }],

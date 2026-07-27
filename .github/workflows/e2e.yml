@@ -1,0 +1,190 @@
+name: E2E
+
+# The suite is split the way the projects are: the engine matrix is fast and
+# browser-free, so it runs as one job; the browser and visual lanes pay for
+# Chromium and are sharded. Blob reports from every shard are merged into one
+# HTML report, and coverage fragments are merged into one gap report.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CI: "1"
+
+jobs:
+  engine:
+    name: engine-scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # No browser install: this project never opens a page, and the guard in
+      # e2e/support/engineTest.ts fails the build if that ever changes.
+      - run: pnpm e2e:engine
+
+      - name: Upload coverage fragments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-fragments-engine
+          path: e2e-results/coverage-fragments/
+          retention-days: 7
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-engine
+          path: e2e-results/artifacts/
+          retention-days: 14
+
+  browser:
+    name: browser-gameplay (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Chromium is ~120MB; cache it on the pinned Playwright version so a
+      # normal run does not re-download it.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: browser-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install system deps only
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      # Playwright shards deterministically by test id, so each case runs
+      # exactly once across the matrix.
+      - run: pnpm e2e:browser -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-browser-${{ matrix.shard }}
+          path: e2e-results/blob/
+          retention-days: 7
+
+      - name: Upload coverage fragments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-fragments-browser-${{ matrix.shard }}
+          path: e2e-results/coverage-fragments/
+          retention-days: 7
+
+      - name: Upload failure diagnostics (traces, screenshots, videos, bundles)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-browser-${{ matrix.shard }}
+          path: e2e-results/artifacts/
+          retention-days: 14
+
+  visual:
+    name: visual-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: browser-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install system deps only
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      # Never `--update-snapshots` here: a baseline change must be a reviewed
+      # commit, not something CI does to itself.
+      - run: pnpm e2e:visual
+
+      - name: Upload actual/expected/diff images
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: e2e-results/artifacts/
+          retention-days: 14
+
+  report:
+    name: merged report and coverage
+    runs-on: ubuntu-latest
+    needs: [engine, browser, visual]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          path: e2e-results/blob
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-fragments-*
+          path: e2e-results/coverage-fragments
+          merge-multiple: true
+
+      - name: Merge Playwright reports
+        run: pnpm e2e:merge || true
+
+      # Fails only on gaps that are new since the committed baseline, so
+      # historical backfill does not block unrelated work.
+      - name: Coverage gap report
+        run: pnpm e2e:coverage:diff
+
+      - name: Upload merged report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

@@ -3,6 +3,7 @@
  */
 
 import { SkillType } from "../../types/Skills";
+import { RosterName } from "../../types/Team";
 import {
   PlayerStatus,
   PlayerCondition,
@@ -446,6 +447,20 @@ export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [
           ],
           ballPosition: { x: 10, y: 5 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team2:0",
+            skill: SkillType.SECRET_WEAPON,
+            roster: RosterName.GOBLIN,
+            positionName: "Loony",
+            source: "scenario-isolation",
+            reason:
+              "Saboteur needs a Secret Weapon carrier, but every fielded one " +
+              "(Loony, Bomma, Fanatic) is also Stunty — and the Stunty injury " +
+              "table turns this outcome's automatic KO into a casualty, hiding " +
+              "the rule under test. A plain lineman isolates the explosion.",
+          },
+        ],
         attacker: "team1:0",
         defender: "team2:0",
         preferBlockResult: "pow",

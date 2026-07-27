@@ -14,7 +14,25 @@
     "test:coverage": "vitest --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "e2e:install": "playwright install chromium",
+    "e2e": "playwright test",
+    "e2e:engine": "playwright test --project=engine-scenarios",
+    "e2e:browser": "playwright test --project=browser-gameplay",
+    "e2e:visual": "playwright test --project=visual-regression",
+    "e2e:online": "playwright test --project=online-emulator",
+    "e2e:case": "playwright test --grep",
+    "e2e:headed": "playwright test --project=browser-gameplay --headed",
+    "e2e:debug": "playwright test --project=browser-gameplay --debug",
+    "e2e:report": "playwright show-report e2e-results/html",
+    "e2e:trace": "playwright show-trace",
+    "e2e:merge": "playwright merge-reports --reporter=html,json e2e-results/blob",
+    "e2e:update-snapshots": "playwright test --project=visual-regression --update-snapshots",
+    "e2e:replay": "tsx scripts/e2e-replay.ts",
+    "e2e:seeds": "tsx scripts/e2e-seeds.ts",
+    "e2e:coverage": "tsx scripts/e2e-coverage.ts",
+    "e2e:coverage:baseline": "tsx scripts/e2e-coverage.ts --write-baseline",
+    "e2e:coverage:diff": "tsx scripts/e2e-coverage.ts --compare-baseline"
   },
   "dependencies": {
     "@strudel/core": "^1.2.5",
@@ -26,6 +44,7 @@
     "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "@types/node": "^20.10.5",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
