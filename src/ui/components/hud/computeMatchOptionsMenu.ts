@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { OpponentConnectionState } from "../../../firebase/lobby";
 
 /**
@@ -30,7 +31,9 @@ export interface MatchOptionsMenuConfirm {
   cancelLabel: string;
 }
 
-export interface MatchOptionsMenuEntry {
+export interface MatchOptionsMenuActionEntry {
+  /** Defaults to "action" — a plain labelled/selectable row. */
+  type?: "action";
   id: MatchOptionsMenuActionId;
   label: string;
   description?: string;
@@ -41,6 +44,22 @@ export interface MatchOptionsMenuEntry {
   /** Informational or currently unavailable — not selectable. */
   disabled?: boolean;
 }
+
+/**
+ * An entry that hosts an inline interactive control (e.g. the mute
+ * checkbox + volume slider) instead of a simple labelled action. Rendered
+ * directly inside the open menu — no nested popup, no `onSelect` routing.
+ */
+export interface MatchOptionsMenuPanelEntry {
+  type: "panel";
+  /** Unique among this menu's entries; not one of MatchOptionsMenuActionId since it's never "selected". */
+  id: string;
+  render: () => ReactNode;
+}
+
+export type MatchOptionsMenuEntry =
+  | MatchOptionsMenuActionEntry
+  | MatchOptionsMenuPanelEntry;
 
 export type MatchOptionsMenuContext =
   | { kind: "sandbox" }

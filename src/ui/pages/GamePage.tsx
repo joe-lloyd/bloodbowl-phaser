@@ -123,7 +123,12 @@ export function GamePage({
     const suite = new SoundSuite(eventBus, manager);
     void manager.init();
     suite.mount();
-    return () => suite.dispose();
+    return () => {
+      // Order matters: dispose() first so no more events can trigger new
+      // sound while stop() is halting what's already playing/scheduled.
+      suite.dispose();
+      manager.stop();
+    };
   }, [eventBus]);
 
   useEffect(() => {

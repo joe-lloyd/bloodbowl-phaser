@@ -48,6 +48,23 @@ const entry = (
   ...partial,
 });
 
+/**
+ * A small family of dice-roll note sequences — picked at random per trigger
+ * so consecutive rolls are audibly distinguishable rather than the exact
+ * same four-note "boom boom boom boom" every time. Every variant keeps the
+ * same voice/timbre (sine*4, quick decay) so it still reads as "a dice roll".
+ */
+export const DICE_ROLL_PATTERNS = [
+  "<c6 d6 e6 d6>",
+  "<d6 e6 f6 e6>",
+  "<e6 g6 a6 g6>",
+  "<c6 e6 d6 f6>",
+  "<a5 c6 b5 d6>",
+];
+
+export const pickDiceRollPattern = (): string =>
+  DICE_ROLL_PATTERNS[Math.floor(Math.random() * DICE_ROLL_PATTERNS.length)];
+
 export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   diceRoll: entry({
     name: "diceRoll",
@@ -56,7 +73,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
     minRetriggerMs: 150,
     durationMs: 250,
     gain: 0.6,
-    build: () => s("sine*4").n("<c6 d6 e6 d6>").decay(0.03).gain(0.6),
+    build: () => s("sine*4").n(pickDiceRollPattern()).decay(0.03).gain(0.6),
   }),
   blockImpact: entry({
     name: "blockImpact",

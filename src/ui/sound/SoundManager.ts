@@ -3,6 +3,7 @@ import {
   initAudioOnFirstClick,
   getAudioContext,
   initStrudel,
+  hush,
 } from "@strudel/web";
 
 export class SoundManager {
@@ -126,6 +127,14 @@ export class SoundManager {
     // Placeholder for SFX
   }
 
+  /**
+   * Halts everything currently scheduled on the shared `@strudel/web`
+   * scheduler: the tracked `currentCycle` (opening theme / gameplay theme)
+   * *and* any one-shot pattern still mid-flight from `playOneShot`, since
+   * every `Pattern.play()` call schedules onto the same global scheduler
+   * (see `hush()`/`repl.stop()` in `@strudel/web`). Safe to call whether or
+   * not anything is currently playing, and whether or not `init()` has run.
+   */
   public stop(): void {
     if (this.currentCycle) {
       console.log("SoundManager: Stopping cycle", this.currentCycle);
@@ -144,6 +153,14 @@ export class SoundManager {
         console.error("SoundManager: Error stopping cycle", e);
       }
       this.currentCycle = null;
+    }
+
+    if (this.isInitialized) {
+      try {
+        hush();
+      } catch (e) {
+        console.error("SoundManager: Error stopping scheduler", e);
+      }
     }
   }
 }

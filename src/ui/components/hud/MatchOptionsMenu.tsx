@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { MatchOptionsMenuEntry } from "./computeMatchOptionsMenu";
+import {
+  MatchOptionsMenuActionEntry,
+  MatchOptionsMenuEntry,
+} from "./computeMatchOptionsMenu";
 
 interface MatchOptionsMenuProps {
   entries: MatchOptionsMenuEntry[];
-  onSelect: (id: MatchOptionsMenuEntry["id"]) => void;
+  // Only ever invoked for action entries — panel entries manage their own
+  // interaction internally and never call onSelect.
+  onSelect: (id: MatchOptionsMenuActionEntry["id"]) => void;
 }
 
 /**
@@ -19,9 +24,8 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   onSelect,
 }) => {
   const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState<MatchOptionsMenuEntry | null>(
-    null
-  );
+  const [confirming, setConfirming] =
+    useState<MatchOptionsMenuActionEntry | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -69,7 +73,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
     triggerRef.current?.focus();
   };
 
-  const selectEntry = (entry: MatchOptionsMenuEntry) => {
+  const selectEntry = (entry: MatchOptionsMenuActionEntry) => {
     if (entry.disabled) return;
     if (entry.confirm) {
       setConfirming(entry);
@@ -164,35 +168,44 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
             </div>
           ) : (
             <ul className="flex flex-col gap-1">
-              {entries.map((entry, index) => (
-                <li key={entry.id}>
-                  <button
-                    ref={(el) => {
-                      if (!entry.disabled) itemRefs.current[index] = el;
-                    }}
-                    type="button"
-                    role="menuitem"
-                    disabled={entry.disabled}
-                    aria-disabled={entry.disabled || undefined}
-                    tabIndex={entry.disabled ? -1 : 0}
-                    onClick={() => selectEntry(entry)}
-                    className={`w-full rounded px-2 py-1.5 text-left text-sm font-heading transition-colors ${
-                      entry.disabled
-                        ? "cursor-default text-gray-400"
-                        : entry.destructive
-                          ? "text-red-300 hover:bg-red-900/60"
-                          : "text-bb-parchment hover:bg-slate-800"
-                    }`}
-                  >
-                    <div>{entry.label}</div>
-                    {entry.description && (
-                      <div className="text-xs font-body text-gray-400">
-                        {entry.description}
-                      </div>
-                    )}
-                  </button>
-                </li>
-              ))}
+              {entries.map((entry, index) => {
+                if (entry.type === "panel") {
+                  return (
+                    <li key={entry.id} className="px-2 py-1.5">
+                      {entry.render()}
+                    </li>
+                  );
+                }
+                return (
+                  <li key={entry.id}>
+                    <button
+                      ref={(el) => {
+                        if (!entry.disabled) itemRefs.current[index] = el;
+                      }}
+                      type="button"
+                      role="menuitem"
+                      disabled={entry.disabled}
+                      aria-disabled={entry.disabled || undefined}
+                      tabIndex={entry.disabled ? -1 : 0}
+                      onClick={() => selectEntry(entry)}
+                      className={`w-full rounded px-2 py-1.5 text-left text-sm font-heading transition-colors ${
+                        entry.disabled
+                          ? "cursor-default text-gray-400"
+                          : entry.destructive
+                            ? "text-red-300 hover:bg-red-900/60"
+                            : "text-bb-parchment hover:bg-slate-800"
+                      }`}
+                    >
+                      <div>{entry.label}</div>
+                      {entry.description && (
+                        <div className="text-xs font-body text-gray-400">
+                          {entry.description}
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
