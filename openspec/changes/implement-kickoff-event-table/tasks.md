@@ -64,3 +64,6 @@
 - [x] 7.9 Route Pitch Invasion through the canonical Stunned state so the affected model is sideways with the standard orange border, and add render/state regression coverage
 - [ ] 7.10 Add focused browser/headless/network regressions for all four interactive pitch-native flows and the corrected non-interactive feedback
 - [x] 7.11 Move the informational kickoff-event popup into the bottom-right temporary-menu area without covering the pitch interaction
+- [ ] 7.12 Take the Dodgy Snack -1 MA out of MA before Rushes: route every `moveAllowance`/`rushAllowance`/raw-`stats.MA` movement caller (`MovementValidator`, `GameplayInteractionController`, `PlayPhaseHandler`, `GameService`) through the drive-modified player view so an afflicted player moves MA-1 squares and keeps their full Rush allowance
+- [ ] 7.13 Make the movement preview, remaining-squares readout, and Rush-square highlighting agree with the reduced MA so the first Rush square is at MA-1, not raw MA
+- [ ] 7.14 Add a seeded scenario for an afflicted MA 6 player reaching 7 squares as 5 + 2 Rushes, plus a Sprint variant reaching 8 as 5 + 3 Rushes

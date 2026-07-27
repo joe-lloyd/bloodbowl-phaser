@@ -98,6 +98,14 @@ On a result of 11, both coaches SHALL roll a D6. The coach who rolled lowest —
 - **WHEN** the Dodgy Snack player roll is 2 or more
 - **THEN** that player's effective MA and AV are immediately each 1 lower in gameplay and visible state for the rest of the drive and return to normal when the drive ends
 
+#### Scenario: The MA reduction is taken before Rushes, not out of them
+- **WHEN** an afflicted player with MA 6 and no Sprint is moved
+- **THEN** the player may move 5 squares with no Rush roll and still has their full Rush allowance of 2 squares on top, for 7 squares in total — the reduction SHALL NOT be taken from the Rush allowance, leaving full MA followed by a single Rush
+
+#### Scenario: Sprint keeps its third Rush while afflicted
+- **WHEN** an afflicted player with Sprint is moved
+- **THEN** their Rush allowance is still 3 squares, taken after their reduced MA
+
 #### Scenario: A player is locked in the lavatory
 - **WHEN** the Dodgy Snack player roll is 1
 - **THEN** that player is placed in the Reserves box and cannot be fielded again during this drive
