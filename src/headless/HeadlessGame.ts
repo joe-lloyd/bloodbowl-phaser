@@ -167,6 +167,15 @@ export class HeadlessGame {
     return this.pending;
   }
 
+  /**
+   * Every event seen since the last command, in emission order. `execute()`
+   * clears this per command; a passive observer (the browser test bridge)
+   * never calls execute, so for it this is the whole match log.
+   */
+  public events(): EmittedEvent[] {
+    return [...this.eventLog];
+  }
+
   public async execute(command: unknown): Promise<CommandResponse> {
     const shapeError = this.validateShape(command);
     if (shapeError) return this.reject(shapeError);

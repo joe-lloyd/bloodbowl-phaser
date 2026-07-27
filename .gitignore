@@ -1,13 +1,32 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
-dist-ssr/
+# Build output. Root-anchored: an unanchored `dist/` also matches any
+# directory called `dist` anywhere in the tree.
+/dist/
+/dist-ssr/
+/dist-e2e-online/
 
-# Test coverage
-coverage/
+# Firebase emulator scratch output
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+emulator.log
+
+# Vitest coverage output. Root-anchored on purpose: an unanchored
+# `coverage/` silently swallowed src/testing/coverage/, so the whole E2E
+# coverage module was missing from the repo and only CI noticed.
+/coverage/
 .nyc_output/
+
+# Playwright E2E run output. Screenshot baselines under
+# e2e/visual/__screenshots__ ARE committed — only per-run artifacts and
+# reports are ignored.
+/e2e-results/
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright/
 
 # Logs
 *.log

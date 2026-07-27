@@ -14,53 +14,26 @@ import {
 import { Scenario } from "../../types/Scenario";
 import { Player, PlayerStatus } from "../../types/Player";
 import { RuleConfig, RuleOutcome, ScriptResult, DecisionPolicy } from "./types";
-
-const PLAYER_REF = /^(team1|team2):(\d+)$/;
+import { resolveReference, resolveCommandReferences } from "./references";
 
 /** Resolve "team1:0"-style refs to this run's player/team ids. */
 export function resolveRef(game: HeadlessGame, ref: string): string {
-  const match = PLAYER_REF.exec(ref);
-  if (match) {
-    const team = match[1] === "team1" ? game.ctx.team1 : game.ctx.team2;
-    const player = team.players[Number(match[2])];
-    if (!player) throw new Error(`no player for ref '${ref}'`);
-    return player.id;
-  }
-  if (ref === "team1") return game.ctx.team1.id;
-  if (ref === "team2") return game.ctx.team2.id;
-  return ref;
+  return resolveReference(game.ctx, ref);
 }
-
-const ID_FIELDS = [
-  "playerId",
-  "attackerId",
-  "defenderId",
-  "defender1Id",
-  "defender2Id",
-  "player1Id",
-  "player2Id",
-  "throwerId",
-  "teammateId",
-  "targetId",
-  "teamId",
-  "kickingTeamId",
-] as const;
 
 function resolveCommand(
   game: HeadlessGame,
   command: HeadlessCommand
 ): HeadlessCommand {
-  const resolved = { ...command } as Record<string, unknown>;
-  for (const field of ID_FIELDS) {
-    const value = resolved[field];
-    if (typeof value === "string") {
-      resolved[field] = resolveRef(game, value);
-    }
-  }
-  return resolved as HeadlessCommand;
+  return resolveCommandReferences(game.ctx, command);
 }
 
-function answerDecision(
+/**
+ * The reply a decision policy gives to a pending decision, or null to leave
+ * it pending and stop. Exported so the E2E engine adapter answers decisions
+ * exactly as the rule catalog does rather than growing a second policy.
+ */
+export function answerDecision(
   pending: PendingDecision,
   game: HeadlessGame,
   policy: DecisionPolicy

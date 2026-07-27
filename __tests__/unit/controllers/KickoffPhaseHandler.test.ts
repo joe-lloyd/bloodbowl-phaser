@@ -129,9 +129,23 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
     expect(scene.refreshDugouts).not.toHaveBeenCalled();
   });
 
-  it("writes team names rather than ids in kickoff outcomes", () => {
-    const logs: string[] = [];
-    eventBus.on(GameEventNames.UI_GameLog, (line) => logs.push(line));
+  it("records the kickoff table roll, event and effect as a match-log entry with team names rather than ids", () => {
+    const entries: {
+      category: string;
+      headline: string;
+      detail?: string;
+      roll?: number;
+    }[] = [];
+    eventBus.on(GameEventNames.UI_LogEntry, (data) =>
+      entries.push(
+        data as {
+          category: string;
+          headline: string;
+          detail?: string;
+          roll?: number;
+        }
+      )
+    );
 
     eventBus.emit(GameEventNames.KickoffResult, {
       roll: 6,
@@ -147,10 +161,15 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
       },
     });
 
-    expect(logs.at(-1)).toContain(
+    expect(entries).toHaveLength(1);
+    expect(entries[0].category).toBe("kickoff");
+    expect(entries[0].headline).toBe("Cheering Fans");
+    expect(entries[0].roll).toBe(6);
+    expect(entries[0].detail).toContain("Both coaches roll.");
+    expect(entries[0].detail).toContain(
       "Reikland Reavers: wins the Offensive Assist"
     );
-    expect(logs.at(-1)).toContain("Gouged Eye: loses the roll-off");
-    expect(logs.at(-1)).not.toContain("team1:");
+    expect(entries[0].detail).toContain("Gouged Eye: loses the roll-off");
+    expect(entries[0].detail).not.toContain("team1:");
   });
 });

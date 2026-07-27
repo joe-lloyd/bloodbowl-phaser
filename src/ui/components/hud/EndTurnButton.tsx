@@ -17,6 +17,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   }
   return (
     <button
+      data-testid="end-turn"
       onClick={onClick}
       disabled={disabled}
       className={`

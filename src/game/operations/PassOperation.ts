@@ -91,6 +91,10 @@ export class PassOperation extends GameOperation {
     const passer = gameService.getPlayerById(this.passerId);
     if (!passer || !passer.gridPosition) return;
 
+    // The throw is happening — commit the declaration (Pass or Handoff)
+    // before anything else can be rolled or resolved.
+    gameService.commitAction(this.passerId);
+
     console.log(
       `[PassOperation] Executing pass from ${passer.id} to ${this.targetX},${this.targetY}`
     );

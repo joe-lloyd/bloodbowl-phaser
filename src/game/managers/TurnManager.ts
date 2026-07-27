@@ -12,6 +12,11 @@ export interface TurnManagerState {
   turnoverInProgress: boolean;
 }
 
+/** Cosmetic-only stagger so "turn passes to X" and "X's turn" read as two
+ *  beats instead of the announcer instantly replacing one with the other —
+ *  the actual turn state below changes synchronously, unaffected. */
+const TURN_ANNOUNCE_DELAY_MS = 1100;
+
 export class TurnManager {
   private maxTurns: number = 6; // Sevens default
   private turnCounts: { [key: string]: number } = {};
@@ -155,6 +160,20 @@ export class TurnManager {
       this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
       this.eventBus.emit(GameEventNames.PlayerActivated, player.id);
     });
+
+    this.announceTurnStart(activeTeam.name, currentTurn);
+  }
+
+  /** Bookend a turn's start on the announcer — staggered so a preceding
+   *  "round passed" beat (see endTurn) has time to actually be seen. */
+  private announceTurnStart(teamName: string, turnNumber: number): void {
+    this.delay(TURN_ANNOUNCE_DELAY_MS).then(() => {
+      this.eventBus.emit(GameEventNames.UI_Announce, {
+        kind: "turn-started",
+        headline: `${teamName}'s Turn`,
+        subtitle: `Turn ${turnNumber}`,
+      });
+    });
   }
 
   public endTurn(): void {
@@ -180,6 +199,12 @@ export class TurnManager {
       }
     }
 
+    const nextTeam = nextTeamId === this.team1.id ? this.team1 : this.team2;
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "round-passed",
+      headline: `Turn Passes To ${nextTeam.name}`,
+    });
+
     this.startTurn(nextTeamId);
   }
 
@@ -204,6 +229,7 @@ export class TurnManager {
     if (this.state.turn.isHalf2) {
       this.state.phase = GamePhase.GAME_OVER;
       this.state.activeTeamId = null;
+      this.state.result ??= { reason: "completed" };
       this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
       return null;
     }
@@ -214,6 +240,10 @@ export class TurnManager {
 
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "halftime",
+      headline: "Halftime",
+    });
 
     return this.firstHalfKickingTeamId === this.team1.id
       ? this.team2.id

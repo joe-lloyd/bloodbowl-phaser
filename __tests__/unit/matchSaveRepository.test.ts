@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHeadlessGame } from "../../src/headless/createHeadlessGame";
-import { createMatchSave } from "../../src/headless/serialization";
+import {
+  createMatchSave,
+  deserializeGameState,
+  serializeGameState,
+} from "../../src/headless/serialization";
 import { SCENARIOS } from "../../src/data/scenarios";
 import {
   chooseNewestMatchSave,
@@ -92,6 +96,53 @@ describe("match save repository", () => {
     );
     expect(warning).toHaveBeenCalled();
     warning.mockRestore();
+  });
+
+  it("round-trips the match termination reason through a save/resume cycle", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 6 });
+    const state = game.gameService.getState();
+    state.result = { reason: "concession", concedingTeamId: game.team1.id };
+    state.score[game.team1.id] = 0;
+    state.score[game.team2.id] = 0;
+
+    const storage = new MemoryStorage();
+    const repository = new LocalStorageMatchSaveRepository(storage);
+    const save = createMatchSave({
+      state,
+      teams: [game.team1, game.team2],
+      drive: {
+        kickingTeamId: game.team1.id,
+        receivingTeamId: game.team2.id,
+      },
+      rng: game.rng.captureState(),
+      matchStats: game.matchStats.captureState(),
+      savedAt: 30,
+    });
+    repository.write(save);
+
+    const resumed = repository.read()!;
+    expect(resumed.snapshot.result).toEqual({
+      reason: "concession",
+      concedingTeamId: game.team1.id,
+    });
+
+    // The restored GameState carries the same fact, not just the snapshot —
+    // a reconnect/resume must never re-derive "completed" from a bare score.
+    const restoredState = deserializeGameState(resumed.snapshot);
+    expect(restoredState.result).toEqual({
+      reason: "concession",
+      concedingTeamId: game.team1.id,
+    });
+  });
+
+  it("serializeGameState/deserializeGameState round-trip an undefined result unchanged", () => {
+    const game = createHeadlessGame({ scenario: scrimmage, seed: 7 });
+    const snapshot = serializeGameState(game.gameService.getState(), [
+      game.team1,
+      game.team2,
+    ]);
+    expect(snapshot.result).toBeUndefined();
+    expect(deserializeGameState(snapshot).result).toBeUndefined();
   });
 
   it("selects the newest local/cloud save and retains the loser as conflict", () => {

@@ -3,6 +3,18 @@ import { GameState } from "@/types/GameState";
 import { ActionType, GameEventNames } from "@/types/events";
 import { BlockReplacement } from "@/types/BlockReplacement";
 
+/** Which term made a declaration binding — used to name a refusal. */
+export type CommitReason =
+  | "movement"
+  | "blockReplacement"
+  | "activated"
+  | "gate";
+
+export interface CommitStatus {
+  committed: boolean;
+  reason?: CommitReason;
+}
+
 export class PlayerActionManager {
   constructor(
     private eventBus: IEventBus,
@@ -22,7 +34,10 @@ export class PlayerActionManager {
       return false;
     }
 
-    // Set State
+    // Set State — provisional until committed (see commitAction). The
+    // team's once-per-turn flag is NOT set here; declaring an action must
+    // not spend it before a die is rolled, a square is moved, or the
+    // activation gate fires.
     this.state.activePlayer = {
       id: playerId,
       action: action,
@@ -30,9 +45,6 @@ export class PlayerActionManager {
         ? { blockReplacement, blockReplacementUsed: false }
         : {}),
     };
-
-    // Update Turn Flags
-    this.updateTurnFlags(action);
 
     // Emit Event
     this.eventBus.emit(
@@ -45,29 +57,67 @@ export class PlayerActionManager {
   }
 
   /**
+   * Whether the live declaration for this player is binding: movement
+   * spent, a block-replacement attack spent, the player already marked
+   * activated, or the activation gate has fired. The single predicate every
+   * release/redeclare/refusal path consults, so they can never drift apart.
+   */
+  public isActionCommitted(playerId: string): CommitStatus {
+    const active = this.state.activePlayer;
+    if (!active || active.id !== playerId) return { committed: false };
+    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > 0) {
+      return { committed: true, reason: "movement" };
+    }
+    if (active.blockReplacementUsed) {
+      return { committed: true, reason: "blockReplacement" };
+    }
+    if (this.state.turn.activatedPlayerIds.has(playerId)) {
+      return { committed: true, reason: "activated" };
+    }
+    if (active.committed) {
+      return { committed: true, reason: "gate" };
+    }
+    return { committed: false };
+  }
+
+  /** Human-readable refusal text for a commit reason. */
+  public static describeCommitReason(reason: CommitReason): string {
+    switch (reason) {
+      case "movement":
+        return "movement already used";
+      case "blockReplacement":
+        return "attack already spent";
+      case "activated":
+        return "already activated";
+      case "gate":
+        return "dice already rolled";
+    }
+  }
+
+  /**
+   * Commit the currently declared action for this player: the once-per-turn
+   * flag is set (if the action carries one) and the declaration becomes
+   * binding. Idempotent — safe to call from every trigger point (movement,
+   * block-replacement spend, activation gate roll, activation finalized)
+   * without checking which one actually fired first.
+   */
+  public commitAction(playerId: string): void {
+    const active = this.state.activePlayer;
+    if (!active || active.id !== playerId || active.committed) return;
+    active.committed = true;
+    this.updateTurnFlags(active.action);
+  }
+
+  /**
    * Cancel an uncommitted declaration. Once movement or the replacement
    * attack has committed, the team action remains spent.
    */
   public cancelAction(playerId: string): boolean {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return false;
-    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > 0) return false;
-    if (active.blockReplacementUsed) return false;
-    if (this.state.turn.activatedPlayerIds.has(playerId)) return false;
+    if (this.isActionCommitted(playerId).committed) return false;
 
     this.state.activePlayer = null;
-    if (active.action === "blitz") {
-      this.state.turn.hasBlitzed = false;
-    } else if (active.action === "pass") {
-      this.state.turn.hasPassed = false;
-    } else if (active.action === "handoff") {
-      this.state.turn.hasHandedOff = false;
-    } else if (active.action === "foul") {
-      this.state.turn.hasFouled = false;
-    } else if (active.action === "throwTeamMate") {
-      this.state.turn.hasPassed = false;
-    }
-    this.emitTurnFlags();
     return true;
   }
 
@@ -125,7 +175,7 @@ export class PlayerActionManager {
     return true;
   }
 
-  private updateTurnFlags(action: ActionType): void {
+  private updateTurnFlags(action: ActionType | string | null): void {
     const turn = this.state.turn;
     switch (action) {
       case "blitz":

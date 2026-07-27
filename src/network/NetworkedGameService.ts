@@ -343,6 +343,8 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "cancel-action", playerId });
     return true;
   }
+  /** Engine-internal (fired from Operations, which only ever run host-side). */
+  commitAction(_playerId: string): void {}
   async movePlayer(
     playerId: string,
     path: { x: number; y: number }[]

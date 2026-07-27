@@ -14,9 +14,16 @@ import {
   SharedTeam,
   TournamentFormat,
 } from "../../../competition/types";
+import {
+  assertEntrantsCompatible,
+  checkTeamCompatibility,
+  createRosterRuleProfile,
+  RosterRuleProfile,
+} from "../../../competition/rosterRules";
+import { createMatchedPlayPackage } from "../../../game/progression/advancementModes";
 import { fetchSharedTeams } from "../../../firebase/sharedTeamRepository";
 import { loadTeams } from "../../../game/managers/TeamManager";
-import { Team } from "../../../types/Team";
+import { Team, TeamAdvancementMode } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import ContentContainer from "../componentWarehouse/ContentContainer";
@@ -40,7 +47,22 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [sharedTeams, setSharedTeams] = useState<SharedTeam[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [useProfile, setUseProfile] = useState(false);
+  const [advancementMode, setAdvancementModeChoice] =
+    useState<TeamAdvancementMode>("advanced-league");
+  const [draftBudget, setDraftBudget] = useState(1_200_000);
   const localTeams = useMemo(() => loadTeams(), []);
+
+  const profile: RosterRuleProfile | undefined = useProfile
+    ? createRosterRuleProfile({
+        advancementMode,
+        draftBudget,
+        matchedPlayPackage:
+          advancementMode === "matched-play"
+            ? createMatchedPlayPackage()
+            : undefined,
+      })
+    : undefined;
 
   useEffect(() => {
     if (!user) return;
@@ -82,6 +104,16 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     if (!name.trim()) return setError("Give the competition a name.");
     if (chosen.length < 2) return setError("Select at least two teams.");
 
+    try {
+      assertEntrantsCompatible(
+        chosen.map((candidate) => candidate.team),
+        profile
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return;
+    }
+
     const entrants = seedEntrants(
       chosen.map((candidate) => ({
         id: candidate.id,
@@ -116,6 +148,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
       standings: computeStandings(entrants, fixtures),
       createdAt: now,
       updatedAt: now,
+      ...(profile ? { rosterProfile: profile } : {}),
     };
     const competition =
       type === "league"
@@ -169,6 +202,54 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           )}
 
           <section>
+            <SectionTitle>Roster rule profile</SectionTitle>
+            <label className="flex items-center gap-2 font-body mb-3">
+              <input
+                type="checkbox"
+                checked={useProfile}
+                onChange={(event) => setUseProfile(event.target.checked)}
+              />
+              Require an advancement mode, draft budget, and roster rules for
+              entrants (leave unchecked for an unrestricted legacy
+              competition)
+            </label>
+            {useProfile && (
+              <div className="flex flex-wrap gap-4 mb-3">
+                <label className="font-heading text-sm">
+                  Advancement mode
+                  <select
+                    value={advancementMode}
+                    onChange={(event) =>
+                      setAdvancementModeChoice(
+                        event.target.value as TeamAdvancementMode
+                      )
+                    }
+                    className="block mt-1 bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2 font-body"
+                  >
+                    <option value="advanced-league">Advanced League</option>
+                    <option value="matched-play">Matched Play</option>
+                    <option value="sevens-skill-selection">
+                      Sevens Skill Selection
+                    </option>
+                  </select>
+                </label>
+                <label className="font-heading text-sm">
+                  Draft budget (gold)
+                  <input
+                    type="number"
+                    step={10000}
+                    value={draftBudget}
+                    onChange={(event) =>
+                      setDraftBudget(Number(event.target.value) || 0)
+                    }
+                    className="block mt-1 bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2 font-body w-40"
+                  />
+                </label>
+              </div>
+            )}
+          </section>
+
+          <section>
             <SectionTitle>Entrants and seeding</SectionTitle>
             <p className="font-body text-sm text-bb-muted-text mb-3">
               Selection order becomes seed order. Published teams are captured
@@ -177,6 +258,10 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             <div className="grid md:grid-cols-2 gap-3">
               {candidates.map((candidate) => {
                 const seed = selected.indexOf(candidate.id) + 1;
+                const compatibility = checkTeamCompatibility(
+                  candidate.team,
+                  profile
+                );
                 return (
                   <button
                     key={candidate.id}
@@ -184,11 +269,18 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                     className={`text-left border-2 rounded-lg p-3 font-body ${
                       seed
                         ? "bg-bb-ink-blue text-white border-bb-gold"
-                        : "bg-bb-warm-paper border-bb-divider"
+                        : compatibility.compatible
+                          ? "bg-bb-warm-paper border-bb-divider"
+                          : "bg-bb-warm-paper border-bb-deep-crimson opacity-70"
                     }`}
                   >
                     {seed ? `Seed ${seed}: ` : ""}
                     {candidate.label}
+                    {!compatibility.compatible && (
+                      <span className="block text-xs text-bb-deep-crimson mt-1">
+                        {compatibility.reasons.join(" ")}
+                      </span>
+                    )}
                   </button>
                 );
               })}

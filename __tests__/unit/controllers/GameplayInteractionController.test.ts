@@ -134,6 +134,26 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("Player Selection", () => {
+    it("draws no tackle-zone squares for a Distracted opponent", () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+      // player2 (the only opponent) is Distracted — still Standing, but
+      // hasTackleZone must exclude them from the drawn overlay.
+      mockScene.team2.players = [
+        {
+          ...player2,
+          conditions: [{ type: "Distracted" }],
+        },
+      ];
+
+      controller.selectPlayer("p1");
+
+      expect(mockPitch.drawTackleZones).toHaveBeenCalledWith([]);
+    });
+
     it("should select player and show visuals if it is their turn", () => {
       mockGameService.getState.mockReturnValue({
         activeTeamId: team1Id,

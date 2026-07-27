@@ -94,6 +94,7 @@ import {
   driveEffectsEmpty,
   emptyDriveEffects,
   getDriveEffects,
+  withDriveModifiers,
 } from "@/game/kickoff/driveEffects";
 import {
   BlockReplacement,
@@ -105,6 +106,18 @@ import {
   isLegalBlockReplacementTarget,
   legalBlockReplacementTargets,
 } from "@/game/rules/blockReplacements";
+
+/** Actions that spend a team's once-per-turn allowance (Throw Team-mate
+ *  shares Pass's). Only these carry the release/commit rules of
+ *  `defer-action-commitment` — Move, Block, and the special actions have no
+ *  allowance at stake and keep the engine's free-replacement behaviour. */
+const ONCE_PER_TURN_ACTIONS = new Set<ActionType>([
+  "blitz",
+  "pass",
+  "handoff",
+  "foul",
+  "throwTeamMate",
+]);
 
 export class GameService implements IGameService {
   private state: GameState;
@@ -305,6 +318,7 @@ export class GameService implements IGameService {
       if (phase === GamePhase.GAME_OVER) {
         // Get the Ref bribes are match-scoped and never leave this match.
         this.state.bribes = {};
+        this.announceFullTime();
       }
     });
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
@@ -631,6 +645,9 @@ export class GameService implements IGameService {
     }
     this.blitzBlockUsed.delete(playerId);
     if (this.state.activePlayer?.id === playerId) {
+      // The activation being finalized commits the declaration — a Blitz
+      // ended without moving or rolling still spends the team's Blitz.
+      this.playerActionManager.commitAction(playerId);
       this.state.activePlayer = null;
     }
     this.turnManager.finishActivation(playerId);
@@ -681,7 +698,10 @@ export class GameService implements IGameService {
       // spent, and if any of the MA+rush budget is left, keep the player
       // active so the coach can keep moving (and Rush).
       this.blitzBlockUsed.add(attackerId);
-      if (this.getMovementUsed(attackerId) < moveAllowance(player)) {
+      if (
+        this.getMovementUsed(attackerId) <
+        moveAllowance(withDriveModifiers(player, this.state))
+      ) {
         this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
           playerId: attackerId,
         });
@@ -756,6 +776,10 @@ export class GameService implements IGameService {
       return;
     }
 
+    // The block is happening — commit the declaration (a Blitz declared and
+    // blocked without moving first still spends the team's Blitz).
+    this.playerActionManager.commitAction(attackerId);
+
     // The block at the end of a Blitz costs 1 movement. If that point is
     // beyond MA it's a Rush (GFI): roll it BEFORE the block — on a failure
     // the blitzer falls over in front of their target and no block happens.
@@ -765,9 +789,10 @@ export class GameService implements IGameService {
     ) {
       const attacker = this.getPlayerById(attackerId);
       if (attacker) {
+        const effectiveAttacker = withDriveModifiers(attacker, this.state);
         const used = this.state.turn.movementUsed.get(attackerId) || 0;
         const newUsed = used + 1;
-        if (newUsed > moveAllowance(attacker)) {
+        if (newUsed > moveAllowance(effectiveAttacker)) {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
             "No movement left to make the Blitz block!"
@@ -777,7 +802,7 @@ export class GameService implements IGameService {
         }
         this.state.turn.movementUsed.set(attackerId, newUsed);
 
-        if (newUsed > attacker.stats.MA) {
+        if (newUsed > effectiveAttacker.stats.MA) {
           // The Blitz block's rush may be rerolled (Sure Feet / team)
           const check = await withRerollOffer(
             { gameService: this, eventBus: this.eventBus },
@@ -1222,6 +1247,35 @@ export class GameService implements IGameService {
   }
 
   /**
+   * Full time, announced once from the single place every GAME_OVER
+   * transition passes through (headless CLI included, since this runs at
+   * the engine level rather than in a Phaser scene). States the played
+   * score and the actual outcome — win/draw, or concession/forfeit labelled
+   * as such — never an invented result.
+   */
+  private announceFullTime(): void {
+    const score1 = this.state.score[this.team1.id] ?? 0;
+    const score2 = this.state.score[this.team2.id] ?? 0;
+    const scoreline = `${this.team1.name} ${score1} : ${score2} ${this.team2.name}`;
+    const result = this.state.result;
+    let outcome: string;
+    if (result?.reason === "concession" || result?.reason === "forfeit") {
+      const conceding =
+        (result.concedingTeamId && this.getTeam(result.concedingTeamId)) ||
+        undefined;
+      const verb = result.reason === "concession" ? "conceded" : "forfeited";
+      outcome = conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
+    } else if (score1 === score2) {
+      outcome = "draw";
+    } else {
+      outcome = `${score1 > score2 ? this.team1.name : this.team2.name} win`;
+    }
+    const line = `FULL TIME — ${scoreline} (${outcome})`;
+    this.eventBus.emit(GameEventNames.UI_Notification, line);
+    this.eventBus.emit(GameEventNames.UI_GameLog, line);
+  }
+
+  /**
    * End of Drive Sequence (rulebook p.83): clear the pitch to the dugouts,
    * roll KO recovery, then restart with the given kicking team — no coin
    * flip after drive one. Runs as operations so the UI can pace each stage.
@@ -1390,7 +1444,9 @@ export class GameService implements IGameService {
     path: { x: number; y: number }[]
   ): Promise<void> {
     const context = this.getFlowContext();
-    return this.movementManager.movePlayer(playerId, path, context);
+    await this.movementManager.movePlayer(playerId, path, context);
+    // The first square moved commits the declared action.
+    this.playerActionManager.commitAction(playerId);
   }
 
   dropBallWithFumblerooski(
@@ -1423,7 +1479,9 @@ export class GameService implements IGameService {
   }
 
   async standUp(playerId: string): Promise<void> {
-    return this.movementManager.standUp(playerId);
+    await this.movementManager.standUp(playerId);
+    // Standing up spends movement — commits the declared action.
+    this.playerActionManager.commitAction(playerId);
   }
 
   async jumpPlayer(
@@ -1431,7 +1489,8 @@ export class GameService implements IGameService {
     target: { x: number; y: number }
   ): Promise<void> {
     const context = this.getFlowContext();
-    return this.movementManager.jumpPlayer(playerId, target, context);
+    await this.movementManager.jumpPlayer(playerId, target, context);
+    this.playerActionManager.commitAction(playerId);
   }
 
   declareAction(
@@ -1480,6 +1539,27 @@ export class GameService implements IGameService {
       (this.state.activePlayer.blockReplacement || blockReplacement)
     ) {
       return false;
+    }
+    // A live once-per-turn declaration (Blitz/Pass/Hand-off/Foul/Throw
+    // Team-mate — the only actions with a team allowance at stake) must
+    // release before this one takes over; a committed one refuses instead.
+    // Actions with no allowance (Move, Block, the special actions, …) keep
+    // the engine's existing free-replacement behaviour — e.g. Move-then-
+    // Block for the same player is not "changing your mind" about anything.
+    if (
+      this.state.activePlayer &&
+      ONCE_PER_TURN_ACTIONS.has(this.state.activePlayer.action as ActionType)
+    ) {
+      const existingId = this.state.activePlayer.id;
+      const status = this.playerActionManager.isActionCommitted(existingId);
+      if (status.committed) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason!)}.`
+        );
+        return false;
+      }
+      this.playerActionManager.cancelAction(existingId);
     }
     if (requestedReplacement && action !== "blitz") {
       if (directReplacement !== requestedReplacement) return false;
@@ -1710,6 +1790,10 @@ export class GameService implements IGameService {
     return this.playerActionManager.cancelAction(playerId);
   }
 
+  commitAction(playerId: string): void {
+    this.playerActionManager.commitAction(playerId);
+  }
+
   attemptPickup(player: Player, position: { x: number; y: number }): boolean {
     return this.ballManager.attemptPickup(player, position);
   }
@@ -1723,6 +1807,11 @@ export class GameService implements IGameService {
     if (this.team1.id === teamId) return this.team1;
     if (this.team2.id === teamId) return this.team2;
     return undefined;
+  }
+
+  /** Both teams in `team1`, `team2` order — the order snapshots use. */
+  public getTeams(): [Team, Team] {
+    return [this.team1, this.team2];
   }
 
   public async foulPlayer(
@@ -1975,14 +2064,18 @@ export class GameService implements IGameService {
     }
 
     const isBlitz = active.action === "blitz";
+    const effectiveAttacker = withDriveModifiers(attacker, this.state);
     let newMovementUsed: number | undefined;
     if (isBlitz) {
-      if (!this.state.turn.hasBlitzed || this.blitzBlockUsed.has(attackerId)) {
+      // The declaration may still be uncommitted here (the attack itself is
+      // what commits it) — only a Blitz block already spent this activation
+      // makes the command stale.
+      if (this.blitzBlockUsed.has(attackerId)) {
         return { accepted: false, proceed: false };
       }
       const used = this.state.turn.movementUsed.get(attackerId) ?? 0;
       newMovementUsed = used + 1;
-      if (newMovementUsed > moveAllowance(attacker)) {
+      if (newMovementUsed > moveAllowance(effectiveAttacker)) {
         return { accepted: false, proceed: false };
       }
     }
@@ -1990,10 +2083,11 @@ export class GameService implements IGameService {
     // Commitment boundary: all legality checks passed. From here the attack
     // and team Blitz are spent even if a required Rush subsequently fails.
     active.blockReplacementUsed = true;
+    this.playerActionManager.commitAction(attackerId);
     if (isBlitz && newMovementUsed !== undefined) {
       this.blitzBlockUsed.add(attackerId);
       this.state.turn.movementUsed.set(attackerId, newMovementUsed);
-      if (newMovementUsed > attacker.stats.MA) {
+      if (newMovementUsed > effectiveAttacker.stats.MA) {
         const check = await withRerollOffer(
           { gameService: this, eventBus: this.eventBus },
           attacker,

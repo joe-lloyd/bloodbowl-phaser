@@ -1,60 +1,46 @@
-import React from "react";
+import React, { useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
-import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames } from "@/types/events";
+import { SoundManager } from "../../sound/SoundManager";
+import { SoundSuite } from "../../sound/SoundSuite";
+import { CATALOG_ENTRIES } from "../../sound/catalog";
+import { BINDING_LABELS } from "../../sound/bindingLabels";
+import { useSoundSettings } from "../../sound/useSoundSettings";
 
 interface SoundTestProps {
   eventBus: EventBus;
 }
 
 export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
-  // Helper to get manager (auto-initializing with dummy data if needed)
-  const getSoundManager = () => {
-    if (!ServiceContainer.isInitialized()) {
-      // Create minimal explicit dummy teams to satisfy GameService requirements
-      const dummyTeam1 = {
-        id: "sound-test-1",
-        name: "Audio One",
-        roster: [],
-        colors: { primary: 0xff0000, secondary: 0xffffff },
-        players: [],
-      };
-      const dummyTeam2 = {
-        id: "sound-test-2",
-        name: "Audio Two",
-        roster: [],
-        colors: { primary: 0x0000ff, secondary: 0xffffff },
-        players: [],
-      };
+  const managerRef = useRef<SoundManager | null>(null);
+  const suiteRef = useRef<SoundSuite | null>(null);
+  const settings = useSoundSettings();
 
-      ServiceContainer.initialize(eventBus, dummyTeam1, dummyTeam2);
+  const getManager = () => {
+    if (!managerRef.current) {
+      managerRef.current = new SoundManager();
+      suiteRef.current = new SoundSuite(eventBus, managerRef.current);
     }
-
-    try {
-      return ServiceContainer.getInstance().soundManager;
-    } catch (e) {
-      console.error("Failed to get ServiceContainer", e);
-      return null;
-    }
+    return managerRef.current;
   };
 
   const handleInit = () => {
-    const mgr = getSoundManager();
-    if (mgr) {
-      mgr.init().then(() => console.log("SoundManager initialized manually"));
-    }
+    getManager()
+      .init()
+      .then(() => console.log("SoundManager initialized manually"));
   };
 
   const handlePlayMusic = () => {
-    getSoundManager()?.playOpeningTheme();
+    getManager().playOpeningTheme();
   };
 
   const handleStop = () => {
-    getSoundManager()?.stop();
+    getManager().stop();
   };
 
-  const handleSFX = (type: "dice" | "kick" | "whistle") => {
-    getSoundManager()?.playSFX(type);
+  const handlePlaySound = (name: (typeof CATALOG_ENTRIES)[number]["name"]) => {
+    getManager();
+    suiteRef.current?.play(name);
   };
 
   const handleBack = () => {
@@ -62,7 +48,7 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   };
 
   return (
-    <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center text-white z-50">
+    <div className="absolute inset-0 bg-gray-900 flex flex-col items-center overflow-y-auto text-white z-50 py-8">
       <h1 className="text-4xl font-bold mb-8 text-yellow-400">
         Audio Debug Dashboard
       </h1>
@@ -91,31 +77,62 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
         </div>
 
         <div className="flex flex-col gap-4 p-6 bg-gray-800 rounded-lg border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4">SFX Tests</h2>
-          <button
-            onClick={() => handleSFX("dice")}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-colors"
-          >
-            Test: Dice Roll
-          </button>
-          <button
-            onClick={() => handleSFX("kick")}
-            className="px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded font-bold transition-colors"
-          >
-            Test: Kick
-          </button>
-          <button
-            onClick={() => handleSFX("whistle")}
-            className="px-6 py-3 bg-teal-600 hover:bg-teal-500 rounded font-bold transition-colors"
-          >
-            Test: Whistle
-          </button>
+          <h2 className="text-2xl font-bold mb-4">Sound Settings</h2>
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={settings.muted}
+              onChange={(e) => settings.setMuted(e.target.checked)}
+            />
+            Mute all sound effects
+          </label>
+          <label className="flex flex-col gap-2">
+            Volume: {Math.round(settings.volume * 100)}%
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.volume}
+              onChange={(e) => settings.setVolume(Number(e.target.value))}
+            />
+          </label>
+          <p className="text-sm text-gray-400">
+            Persisted to localStorage; applied to every suite sound below.
+          </p>
+        </div>
+      </div>
+
+      <div className="w-full max-w-4xl p-6 bg-gray-800 rounded-lg border border-gray-700">
+        <h2 className="text-2xl font-bold mb-4">
+          Interaction Sound Catalog ({CATALOG_ENTRIES.length})
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {CATALOG_ENTRIES.map((sound) => (
+            <div
+              key={sound.name}
+              className="flex items-center justify-between gap-4 p-3 bg-gray-900 rounded border border-gray-700"
+            >
+              <div>
+                <div className="font-bold">{sound.label}</div>
+                <div className="text-xs text-gray-400">
+                  {BINDING_LABELS[sound.name].join(", ")}
+                </div>
+              </div>
+              <button
+                onClick={() => handlePlaySound(sound.name)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-colors shrink-0"
+              >
+                Play
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
       <button
         onClick={handleBack}
-        className="mt-8 text-gray-400 hover:text-white underline text-lg"
+        className="mt-8 mb-4 text-gray-400 hover:text-white underline text-lg"
       >
         ← Back to Main Menu
       </button>

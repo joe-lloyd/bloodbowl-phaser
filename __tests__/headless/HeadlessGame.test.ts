@@ -85,10 +85,13 @@ describe("HeadlessGame action protocol", () => {
     ).toBe(true);
 
     const summary = game.ctx.matchStats.summary(game.ctx.team1.players);
-    expect(
-      summary.players.find((entry) => entry.playerId === nominees[0].id)
-        ?.touchdowns
-    ).toBe(1);
+    const recipient = summary.players.find(
+      (entry) => entry.playerId === nominees[0].id
+    );
+    // The awarded touchdown is an SPP-only bonus (a concession rule), never
+    // a real scoring event — it must not inflate the touchdown statistic.
+    expect(recipient?.touchdowns).toBe(0);
+    expect(recipient?.awardedTouchdownSpp).toBe(1);
     expect(
       summary.players.reduce((total, entry) => total + entry.mvps, 0)
     ).toBe(1);
