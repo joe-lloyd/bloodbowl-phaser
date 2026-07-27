@@ -121,6 +121,10 @@ export enum GameEventNames {
   // Camera Events
   Camera_TrackBall = "camera:trackBall",
   Camera_Reset = "camera:reset",
+  /** The camera left or returned to its neutral framing. Driven by
+   *  CameraController itself (not per-call-site), so any camera move —
+   *  present or future — publishes this without new wiring. */
+  Camera_StateChanged = "camera:stateChanged",
 
   // UI Events
   UI_PlayerHired = "ui:playerHired",
@@ -152,8 +156,21 @@ export enum GameEventNames {
   UI_SetupComplete = "ui:setupcomplete",
   UI_SetupAction = "ui:setupAction",
   UI_FormationsUpdated = "ui:formationsUpdated",
+  /**
+   * @deprecated Kept as a compatibility alias while emitters are migrated to
+   * UI_LogEntry (see overhaul-match-announcements). A string sent here is
+   * wrapped into a low-priority ("info") log entry so nothing goes silent —
+   * new code should emit UI_LogEntry directly with a real category.
+   */
   UI_Notification = "ui:notification",
   UI_GameLog = "ui:gameLog",
+  /** A durable match-log record: a roll (optional) and the outcome it
+   *  produced, authored by the rule that resolved it. Lands in the Dice Log
+   *  and never expires on its own (subject only to the log's retention). */
+  UI_LogEntry = "ui:logEntry",
+  /** A large, centred, self-dismissing announcement reserved for structural
+   *  match transitions. The `kind` union is the only way to raise one. */
+  UI_Announce = "ui:announce",
   /** The local coach cut the end-of-drive celebration/recovery beat short.
    *  Local only — it is a UI intent and never crosses the wire, so an online
    *  match plays the sequence at its fixed length for both coaches. */
@@ -579,6 +596,11 @@ export interface GameEvents {
   [GameEventNames.Camera_Reset]: {
     duration?: number; // Optional reset duration
   };
+  [GameEventNames.Camera_StateChanged]: {
+    state: "neutral" | "active";
+    /** The camera's own transition duration, so consumers animate in step. */
+    duration: number;
+  };
 }
 
 /**
@@ -652,8 +674,25 @@ export interface UIEvents {
   };
 
   // Common UI
+  /** @deprecated see the enum member's doc comment. */
   [GameEventNames.UI_Notification]: string;
   [GameEventNames.UI_GameLog]: string;
+  [GameEventNames.UI_LogEntry]: {
+    category: LogEntryCategory;
+    /** Names the result, e.g. "Sweltering Heat", "Quick Snap". */
+    headline: string;
+    /** What the result means in play, authored by the resolving rule. */
+    detail?: string;
+    /** The roll that produced this outcome, when there was one. */
+    roll?: number | number[];
+    /** Set only when the outcome is attributable to one coach's team. */
+    teamId?: string;
+  };
+  [GameEventNames.UI_Announce]: {
+    kind: AnnouncementKind;
+    headline: string;
+    subtitle?: string;
+  };
   [GameEventNames.UI_SkipDriveSequence]: void;
 
   // Confirmation
@@ -792,6 +831,31 @@ export interface StateEvents {
  * All Events - Union of all event types
  */
 export type AllEvents = GameEvents & UIEvents & StateEvents;
+
+/**
+ * Categories for UI_LogEntry. "info" is the deprecated-alias catch-all for
+ * text that has not (yet) been authored with a richer category.
+ */
+export type LogEntryCategory =
+  | "weather"
+  | "kickoff"
+  | "skill"
+  | "reroll"
+  | "score"
+  | "drive"
+  | "action"
+  | "info";
+
+/**
+ * The closed set of structural transitions the announcer may show. This
+ * union is the only entry point — there is no way to raise an announcement
+ * outside these four kinds.
+ */
+export type AnnouncementKind =
+  | "turn-started"
+  | "round-passed"
+  | "halftime"
+  | "full-time";
 
 /**
  * Action types available in the game
