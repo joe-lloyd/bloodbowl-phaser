@@ -12,7 +12,10 @@
  * each; the concrete value lives on the Skill instance's `parameter`.
  */
 
-import rulebook from "../../docs/rulebook/skills.json";
+// The explicit import attribute keeps this loadable outside a bundler too:
+// Playwright's engine project runs the real modules under Node ESM, where a
+// bare JSON import is a hard error.
+import rulebook from "../../docs/rulebook/skills.json" with { type: "json" };
 
 /**
  * Skill categories
