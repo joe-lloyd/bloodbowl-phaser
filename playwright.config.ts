@@ -198,9 +198,9 @@ export default defineConfig({
               `--port ${ONLINE_PORT} --strictPort`,
             url: E2E_ONLINE_BASE_URL,
             reuseExistingServer: !isCI,
-            timeout: 240_000,
+            timeout: isCI ? 600_000 : 240_000,
             env: { E2E: "1" },
-            stdout: "ignore" as const,
+            stdout: isCI ? ("pipe" as const) : ("ignore" as const),
             stderr: "pipe" as const,
           },
         ]
@@ -231,9 +231,14 @@ function webServerForOfflineLanes() {
       `pnpm exec vite preview --mode e2e --port ${PORT} --strictPort`,
     url: E2E_BASE_URL,
     reuseExistingServer: !isCI,
-    timeout: 240_000,
+    // A cold CI runner builds Phaser, React and the whole app from scratch;
+    // 4 minutes was not enough and produced a bare "timed out" with no clue
+    // why. On a warm dev machine this is reached in seconds.
+    timeout: isCI ? 600_000 : 240_000,
     env: { E2E: "1" },
-    stdout: "ignore" as const,
+    // Piped in CI so a *build failure* shows up as the build's own error
+    // rather than as an unexplained webServer timeout.
+    stdout: isCI ? ("pipe" as const) : ("ignore" as const),
     stderr: "pipe" as const,
   };
 }

@@ -1,0 +1,23 @@
+{
+  "totals": {
+    "engine": {
+      "required": 436,
+      "covered": 426,
+      "excluded": 10,
+      "missing": 0
+    },
+    "browser": {
+      "required": 7,
+      "covered": 5,
+      "excluded": 2,
+      "missing": 0
+    },
+    "visual": {
+      "required": 0,
+      "covered": 0,
+      "excluded": 0,
+      "missing": 0
+    }
+  },
+  "gaps": []
+}
