@@ -109,4 +109,45 @@ describe("TeamSelect filtering", () => {
     expect(player2Column.textContent).toContain("River Vale Humans");
     expect(player2Column.textContent).not.toContain("Green Bay Orcs");
   });
+
+  it("matches on roster name alone, even when the query isn't in the team name", async () => {
+    const dwarfs = new TeamTestBuilder()
+      .withId("team-dwarfs")
+      .withName("Thunderfoot Warband")
+      .withRosterName(RosterName.DWARF)
+      .withPlayers(11)
+      .build();
+    const humans = new TeamTestBuilder()
+      .withId("team-humans-2")
+      .withName("River Vale Humans")
+      .withRosterName(RosterName.HUMAN)
+      .withPlayers(11)
+      .build();
+    saveTeams([dwarfs, humans]);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+
+    const filter1 = container.querySelector(
+      'input[aria-label="Filter Player 1 teams"]'
+    ) as HTMLInputElement;
+
+    // "dwarf" doesn't appear in either team's name — only in the Dwarf
+    // team's roster name — so this proves the roster-name branch of
+    // matchesFilter independently of the team-name branch.
+    await act(async () => {
+      typeInto(filter1, "dwarf");
+    });
+
+    const player1Column = filter1.closest(
+      "div.bg-bb-warm-paper"
+    ) as HTMLElement;
+    expect(player1Column.textContent).toContain("Thunderfoot Warband");
+    expect(player1Column.textContent).not.toContain("River Vale Humans");
+  });
 });
