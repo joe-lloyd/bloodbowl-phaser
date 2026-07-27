@@ -80,12 +80,24 @@ export function sppFromMatchStats(stats: PlayerMatchStats): number {
 export class MatchStats {
   private readonly stats = new Map<string, PlayerMatchStats>();
   private applied = false;
+  /** Only Advanced League teams earn SPP (see team-advancement-modes); a
+   *  team with no mode yet (unmigrated legacy team) defaults to earning SPP
+   *  so existing saves keep behaving as before this feature existed. */
+  private readonly sppEligibleTeamIds: Set<string>;
 
   constructor(
     private readonly eventBus: IEventBus,
     teams: Team[],
     public readonly progressionEnabled = false
   ) {
+    this.sppEligibleTeamIds = new Set(
+      teams
+        .filter(
+          (team) =>
+            !team.advancementMode || team.advancementMode === "advanced-league"
+        )
+        .map((team) => team.id)
+    );
     teams
       .flatMap((team) => team.players)
       .forEach((player) => {
@@ -205,7 +217,9 @@ export class MatchStats {
     const byId = new Map(players?.map((player) => [player.id, player]));
     const result = [...this.stats.values()].map((stats) => {
       const player = byId.get(stats.playerId);
-      const eligible = player?.playerKind !== "star";
+      const eligible =
+        player?.playerKind !== "star" &&
+        this.sppEligibleTeamIds.has(stats.teamId);
       return {
         ...stats,
         sppEarned:

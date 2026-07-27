@@ -19,6 +19,7 @@ import {
   clearMatchSave,
   readMatchSave,
 } from "../../../game/persistence/MatchSaveRepository";
+import { hasBlockingPendingDevelopment } from "../../../types/Team";
 
 type DraftScores = Record<string, { home: string; away: string }>;
 
@@ -89,10 +90,33 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
+  /** Match launch is refused when the profile requires development to be
+   *  resolved and either entrant still has pending work (see
+   *  team-advancement-modes: "Team development is completed from Manage
+   *  Team"). Legacy competitions (no profile) never block. */
+  const blockingDevelopment = (
+    home: ReturnType<typeof entrant>,
+    away: ReturnType<typeof entrant>
+  ): string | null => {
+    if (!competition.rosterProfile?.requireDevelopmentComplete) return null;
+    if (home && hasBlockingPendingDevelopment(home.team)) {
+      return `${home.name} has unresolved development — resolve it from Manage Team before this fixture.`;
+    }
+    if (away && hasBlockingPendingDevelopment(away.team)) {
+      return `${away.name} has unresolved development — resolve it from Manage Team before this fixture.`;
+    }
+    return null;
+  };
+
   const launchLocal = (fixture: CompetitionFixture) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
+    const blocked = blockingDevelopment(home, away);
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     if (
       readMatchSave() &&
       !window.confirm(
@@ -115,6 +139,11 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
+    const blocked = blockingDevelopment(home, away);
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     navigate("/online/host", {
       state: {
         competitionFixture: {
