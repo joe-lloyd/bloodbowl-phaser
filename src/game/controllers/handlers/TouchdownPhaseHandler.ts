@@ -63,7 +63,7 @@ export class TouchdownPhaseHandler implements PhaseHandler {
     });
   }
 
-  /** "TOUCHDOWN! <scorer> scores for <team> — 2 : 1", on screen and in the log. */
+  /** "TOUCHDOWN! <scorer> scores for <team> — 2 : 1", recorded in the log. */
   private announce(data: GameEventMap[GameEventNames.Touchdown]): void {
     const team = this.gameService.getTeam(data.teamId);
     const scorer = data.scorerId
@@ -77,9 +77,12 @@ export class TouchdownPhaseHandler implements PhaseHandler {
       ? `${scorer.playerName} scores for ${team?.name ?? data.teamId}`
       : `${team?.name ?? data.teamId} scores`;
 
-    const line = `TOUCHDOWN! ${who} — ${score}`;
-    this.eventBus.emit(GameEventNames.UI_Notification, line);
-    this.eventBus.emit(GameEventNames.UI_GameLog, line);
+    this.eventBus.emit(GameEventNames.UI_LogEntry, {
+      category: "score",
+      headline: "TOUCHDOWN!",
+      detail: `${who} — ${score}`,
+      teamId: data.teamId,
+    });
   }
 
   /**

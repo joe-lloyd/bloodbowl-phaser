@@ -77,6 +77,10 @@ export class ActivationGateOperation extends GameOperation {
     }
 
     for (const gate of ctx.gates) {
+      // The gate rolls whether it passes or fails — the declaration becomes
+      // binding here, before the die is even thrown, so a failed Bone Head
+      // (etc.) still spends the team's once-per-turn allowance.
+      gameService.commitAction(this.playerId);
       const dice = gameService.getDiceController();
       const doRoll = () => {
         const r = dice.rollSkillCheck(

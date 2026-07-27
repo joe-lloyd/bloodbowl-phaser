@@ -184,7 +184,11 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   return (
     <Shell>
       <Title className="text-4xl mb-2">Match Lobby</Title>
-      <p className="font-heading text-2xl tracking-[0.3em] text-bb-deep-crimson mb-8">
+      <p
+        data-testid="lobby-code"
+        data-code={lobby.code}
+        className="font-heading text-2xl tracking-[0.3em] text-bb-deep-crimson mb-8"
+      >
         CODE: {lobby.code}
       </p>
       {lobby.competitionContext && (

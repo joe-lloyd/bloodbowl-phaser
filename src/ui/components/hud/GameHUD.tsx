@@ -5,7 +5,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnIndicator } from "./TurnIndicator";
 import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
-import { NotificationFeed } from "./NotificationFeed";
+import { Announcer } from "./Announcer";
 import { GamePhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 
@@ -64,16 +64,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     hasHandedOff: null,
     hasFouled: null,
   });
-
-  const [notifications, setNotifications] = useState<
-    { id: string; text: string }[]
-  >([]);
-  const [queue, setQueue] = useState<{ id: string; text: string }[]>([]);
-  // De-dup identical messages arriving close together. Online, a notification
-  // derived from a game event can arrive twice on the peer — once as the
-  // host's broadcast UI_Notification and once re-derived locally from the
-  // re-emitted event. Same text within a short window is treated as one.
-  const recentNotifRef = React.useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const initHUD = () => {
@@ -163,55 +153,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     }));
   });
 
-  useEventBus(eventBus, GameEventNames.UI_Notification, (msg) => {
-    addNotification(msg);
-  });
-
-  // Process queue when notifications change
-  useEffect(() => {
-    if (notifications.length < 3 && queue.length > 0) {
-      const [next, ...rest] = queue;
-      setQueue(rest);
-
-      setNotifications((prev) => [...prev, next]);
-
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== next.id));
-      }, 3000);
-    }
-  }, [notifications.length, queue]);
-
-  const DEDUP_WINDOW_MS = 1500;
-
-  const addNotification = (text: string) => {
-    const now = Date.now();
-    const recent = recentNotifRef.current;
-    // Drop an identical message seen within the window (duplicate suppression)
-    if (recent.has(text) && now - (recent.get(text) ?? 0) < DEDUP_WINDOW_MS) {
-      return;
-    }
-    recent.set(text, now);
-    // Keep the dedup map small
-    if (recent.size > 20) {
-      for (const [k, t] of recent) {
-        if (now - t > DEDUP_WINDOW_MS) recent.delete(k);
-      }
-    }
-
-    const id = `${text}-${now}`;
-    setNotifications((prev) => {
-      if (prev.length < 3) {
-        setTimeout(() => {
-          setNotifications((current) => current.filter((n) => n.id !== id));
-        }, 3000);
-        return [...prev, { id, text }];
-      } else {
-        setQueue((q) => [...q, { id, text }]);
-        return prev;
-      }
-    });
-  };
-
   const handleEndTurn = () => {
     // Online: only the active coach may end their turn
     if (getActiveOnlineMatch()?.mayAct() === false) return;
@@ -291,11 +232,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             visible={turnData.phase === GamePhase.GAME_OVER}
           />
 
-          {/* Notification overlay — bottom-center, out of the board's way,
-              capped at 3 with de-duplication (see addNotification). */}
-          <div className="absolute inset-x-0 bottom-6 flex items-end justify-center pointer-events-none z-50">
-            <NotificationFeed messages={notifications} />
-          </div>
+          {/* Structural-transition announcer: turn started, round passed,
+              halftime, full time — a single centred takeover, not a feed. */}
+          <Announcer eventBus={eventBus} />
         </>
       }
     />

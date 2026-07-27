@@ -3,7 +3,7 @@ import {
   DodgeController,
   DodgeResult,
 } from "../../../src/game/controllers/DodgeController";
-import { Player, PlayerStatus } from "../../../src/types/Player";
+import { Player, PlayerCondition, PlayerStatus } from "../../../src/types/Player";
 
 describe("DodgeController", () => {
   let controller: DodgeController;
@@ -103,6 +103,27 @@ describe("DodgeController", () => {
 
       const modifier = controller.calculateDodgeModifiers(to, opponentsAtDest);
       expect(modifier).toBe(-2);
+    });
+
+    it("a Distracted opponent (still Standing) contributes no modifier", () => {
+      const to = { x: 6, y: 5 };
+      const opponentsAtDest: Player[] = [
+        {
+          id: "opp1",
+          gridPosition: { x: 7, y: 5 },
+          status: PlayerStatus.ACTIVE,
+          conditions: [{ type: PlayerCondition.DISTRACTED }],
+        } as Player,
+        {
+          id: "opp2",
+          gridPosition: { x: 6, y: 6 },
+          status: PlayerStatus.ACTIVE,
+        } as Player,
+      ];
+
+      const modifier = controller.calculateDodgeModifiers(to, opponentsAtDest);
+      // Only opp2 (not Distracted) marks the destination square.
+      expect(modifier).toBe(-1);
     });
   });
 
