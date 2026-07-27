@@ -22,6 +22,62 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "chain-push-grab-open",
+    name: "Chain Push Test - Grab (open square found)",
+    description:
+      "Black Orc attacker (Grab) blocks a defender with all three " +
+      "traditional push squares occupied but one of the other five " +
+      "Grab-widened squares open: Grab offers that square as an open-tier " +
+      "choice instead of chaining.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }], // Black Orc attacker (Grab)
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5 }, // block target
+        { playerIndex: 1, x: 9, y: 4 },
+        { playerIndex: 2, x: 11, y: 4 }, // traditional push square
+        { playerIndex: 3, x: 11, y: 5 }, // traditional push square
+        { playerIndex: 4, x: 9, y: 6 },
+        { playerIndex: 5, x: 10, y: 6 },
+        { playerIndex: 6, x: 11, y: 6 }, // traditional push square
+        // (10,4) intentionally left open: the only unoccupied square among
+        // the eight, reachable only via Grab.
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.BLACK_ORC,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
+    id: "chain-push-grab-boxed",
+    name: "Chain Push Test - Grab (fully boxed in)",
+    description:
+      "Black Orc attacker (Grab) blocks a defender who is fully boxed in " +
+      "on all eight adjacent squares: Grab finds no opening, so the push " +
+      "falls back to the normal three-square chain push.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 5 }, // Black Orc attacker (Grab)
+        { playerIndex: 1, x: 10, y: 4 }, // fills the 8th adjacent square
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5 }, // block target
+        { playerIndex: 1, x: 9, y: 4 },
+        { playerIndex: 2, x: 11, y: 4 }, // traditional push square
+        { playerIndex: 3, x: 11, y: 5 }, // traditional push square
+        { playerIndex: 4, x: 9, y: 6 },
+        { playerIndex: 5, x: 10, y: 6 },
+        { playerIndex: 6, x: 11, y: 6 }, // traditional push square
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.BLACK_ORC,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
     id: "crowd-surf",
     name: "Crowd Surf Test",
     description: "Sideline defender with blocked push squares - block to surf",
