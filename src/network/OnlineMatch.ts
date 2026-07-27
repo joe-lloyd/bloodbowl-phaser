@@ -122,6 +122,8 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_KickoffEventDeclareAction,
   GameEventNames.UI_KickoffEventConfirm,
   GameEventNames.UI_KickoffEventSkip,
+  // Presentation acknowledgements are local to each client's animation.
+  GameEventNames.UI_PresentationAcknowledged,
 ]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */

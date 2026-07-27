@@ -85,6 +85,14 @@ export enum GameEventNames {
   /** Crisp text (dugout headers, end-zone names) for the React overlay */
   UI_BoardLabels = "ui:boardLabels",
 
+  /**
+   * A rules operation resolved a kick/throw and is holding at a presentation
+   * boundary; the client plays it and replies with UI_PresentationAcknowledged.
+   */
+  PuntDeclared = "puntDeclared",
+  /** A client finished presenting a declared animation (id echoes the event). */
+  UI_PresentationAcknowledged = "ui:presentationAcknowledged",
+
   // Pass/Catch Events
   PassDeclared = "passDeclared",
   PassAttempted = "passAttempted",
@@ -413,6 +421,24 @@ export interface GameEvents {
     target: number;
   };
   [GameEventNames.WeatherChanged]: string;
+
+  /**
+   * Punt has rolled its direction and distance and knows where the ball will
+   * end up, but has not moved it yet. Emitted before ball placement/scatter so
+   * a graphical client can play the kick; the outcome carried here is final
+   * and is never re-rolled when the operation resumes.
+   */
+  [GameEventNames.PuntDeclared]: {
+    playerId: string;
+    presentationId: string;
+    from: { x: number; y: number };
+    direction: { x: number; y: number };
+    distance: number;
+    landing: { x: number; y: number };
+    /** The kick leaves the pitch and becomes a throw-in. */
+    intoCrowd: boolean;
+  };
+  [GameEventNames.UI_PresentationAcknowledged]: { id: string };
 
   // Pass/Catch Events
   [GameEventNames.PassDeclared]: {

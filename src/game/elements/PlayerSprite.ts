@@ -12,6 +12,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private teamTurnBorderVisible: boolean = false;
   private rosterName: string;
   private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
+  /** Badge shown while this player is the ball carrier (see setCarryingBall) */
+  private carrierMarker!: Phaser.GameObjects.Container;
 
   constructor(
     scene: Phaser.Scene,
@@ -58,6 +60,18 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.teamTurnBorder.setStrokeStyle(3, 0xffffff);
     this.teamTurnBorder.setVisible(false);
     this.add(this.teamTurnBorder);
+
+    // Carrier badge: an unambiguous "this player has the ball" marker that is
+    // derived from possession state, never from where a sprite happens to be.
+    this.carrierMarker = scene.add.container(16, -16);
+    const badge = scene.add.circle(0, 0, 9, 0x8b4513);
+    badge.setStrokeStyle(2, 0xffffff);
+    const lace = scene.add.graphics();
+    lace.lineStyle(1.5, 0xffffff);
+    lace.lineBetween(-5, 0, 5, 0);
+    this.carrierMarker.add([badge, lace]);
+    this.carrierMarker.setVisible(false);
+    this.add(this.carrierMarker);
 
     // CRITICAL: Initialize status visuals
     this.updateStatus();
@@ -245,6 +259,15 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       // a stunned model must not be made visually Standing by a turn reset.
       this.updateStatus();
     }
+  }
+
+  /**
+   * Show/hide the ball-carrier badge. Idempotent: driven purely by the
+   * resolved ball representation, so repeated reconciliation cannot leave two
+   * players marked as carrying.
+   */
+  public setCarryingBall(carrying: boolean): void {
+    this.carrierMarker.setVisible(carrying);
   }
 
   /**

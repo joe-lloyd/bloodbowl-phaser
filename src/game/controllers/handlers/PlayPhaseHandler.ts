@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
-import { IEventBus } from "../../../services/EventBus";
+import { GameEventMap, IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -96,6 +96,12 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Pass Attempted - Animate Ball
     this.register(GameEventNames.PassAttempted, (data) =>
       this.handlePassAnimation(data)
+    );
+
+    // Punt Declared - kick gesture + ball flight, then acknowledge so the
+    // paused PuntOperation resolves the (already rolled) outcome.
+    this.register(GameEventNames.PuntDeclared, (data) =>
+      this.handlePuntDeclaration(data)
     );
 
     // Bombardier: arc a bomb to its landing square, then blow it up.
@@ -260,9 +266,11 @@ export class PlayPhaseHandler implements PhaseHandler {
     // refresh: refreshing on on-pitch changes would snap every sprite to
     // its grid square and teleport a mid-animation mover.
     this.register(GameEventNames.PlayerStatusChanged, (player) => {
-      const sprite = this.scene["playerSprites"].get(player.id);
-      if (sprite) sprite.updateStatus();
-      if (!player.gridPosition) this.scene.refreshDugouts();
+      // One owner decides whether this player is still represented on the
+      // pitch or belongs to a dugout box (KO, casualty, sent off).
+      this.scene.reconcilePlayerLocation(player.id);
+      // A player who just left the pitch may have been standing on the ball.
+      this.scene.reconcileBallVisual();
     });
 
     this.register(GameEventNames.PlayerStoodUp, (data) => {
@@ -270,12 +278,17 @@ export class PlayPhaseHandler implements PhaseHandler {
       if (sprite) sprite.updateStatus();
     });
 
-    this.register(
-      GameEventNames.BallPlaced,
-      (data: { x: number; y: number }) => {
-        this.scene["placeBallVisual"](data.x, data.y);
-      }
-    );
+    // Ball possession is one mutually exclusive visual state: reconcile from
+    // canonical state instead of imperatively moving a sprite per event.
+    this.register(GameEventNames.BallPlaced, () => {
+      this.scene.reconcileBallVisual();
+    });
+
+    // A mid-route pickup (success or failure) decides possession before the
+    // rest of the route resolves — re-derive the loose ball / carrier marker.
+    this.register(GameEventNames.BallPickup, () => {
+      this.scene.reconcileBallVisual();
+    });
 
     // Fumble / Bounce
     this.register(
@@ -372,6 +385,41 @@ export class PlayPhaseHandler implements PhaseHandler {
           yoyo: true,
         });
       },
+    });
+  }
+
+  /**
+   * Present a declared Punt: the punter swings a kick and the ball flies to
+   * the resolved landing square. The operation is parked on this animation, so
+   * the acknowledgement must fire on every path (including "no sprite yet").
+   */
+  private handlePuntDeclaration(
+    data: GameEventMap[GameEventNames.PuntDeclared]
+  ): void {
+    const acknowledge = () =>
+      this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
+        id: data.presentationId,
+      });
+
+    this.scene["playerSprites"]
+      .get(data.playerId)
+      ?.animateKickGesture(Math.sign(data.direction.x) || 1);
+
+    const ballSprite = this.scene["ballSprite"];
+    const pitch = this.scene["pitch"];
+    if (!ballSprite || !pitch) {
+      acknowledge();
+      return;
+    }
+
+    const target = pitch.getPixelPosition(data.landing.x, data.landing.y);
+    this.scene.tweens.add({
+      targets: ballSprite,
+      x: target.x,
+      y: target.y,
+      duration: 500,
+      ease: "Quad.easeOut",
+      onComplete: acknowledge,
     });
   }
 

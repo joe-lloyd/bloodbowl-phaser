@@ -679,7 +679,13 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "second-block",
             name: "A standing pushed target draws a mandatory second Block",
-            matches: (r) => blockRollCount(r) >= 2,
+            // A Knocked Out player leaves the pitch immediately, so the
+            // follow-up adjacency this outcome asserts is only observable on
+            // a run where both players are still standing on the board.
+            matches: (r) =>
+              blockRollCount(r) >= 2 &&
+              !!playerOf(r, "team1:0").gridPosition &&
+              !!playerOf(r, "team2:0").gridPosition,
             verify: (r) => {
               // The blocker was forced to follow up out of its start square…
               assert(

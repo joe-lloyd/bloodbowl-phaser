@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660">
+  <rect width="1200" height="660" fill="#2d5016"/>
+  <rect width="60" height="660" fill="#ffffff" fill-opacity=".08"/>
+  <rect x="1140" width="60" height="660" fill="#ffffff" fill-opacity=".08"/>
+  <path d="M0 0V660M60 0V660M120 0V660M180 0V660M240 0V660M300 0V660M360 0V660M420 0V660M480 0V660M540 0V660M600 0V660M660 0V660M720 0V660M780 0V660M840 0V660M900 0V660M960 0V660M1020 0V660M1080 0V660M1140 0V660M1200 0V660M0 0H1200M0 60H1200M0 120H1200M0 180H1200M0 240H1200M0 300H1200M0 360H1200M0 420H1200M0 480H1200M0 540H1200M0 600H1200M0 660H1200" stroke="#ffffff" stroke-opacity=".28" fill="none"/>
+  <circle cx="390" cy="330" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3" opacity="1" data-player="t1-a"/>
+  <circle cx="390" cy="450" r="21" fill="#cc2222" stroke="#ffffff" stroke-width="3" opacity="1" data-player="t1-b"/>
+  <text class="box" data-player="t2-a" data-box="ko">t2-a</text>
+  <ellipse cx="570" cy="330" rx="24" ry="16" fill="#8b4513" stroke="#000000" stroke-width="1.5" data-ball="loose"/>
+</svg>
