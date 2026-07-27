@@ -78,6 +78,42 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "chain-push-grab-second-link",
+    name: "Chain Push Test - Grab does not propagate to second link",
+    description:
+      "Black Orc attacker (Grab) forces a first-link chain push (the " +
+      "defender is fully boxed in on all eight), landing on an occupant " +
+      "who is boxed on their own three traditional squares but has two " +
+      "openings elsewhere among their wider eight: the second push must " +
+      "still offer only the normal three squares, proving Grab does not " +
+      "propagate past the first push of the chain.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 9, y: 5 }, // Black Orc attacker (Grab)
+        { playerIndex: 1, x: 10, y: 4 }, // fills D0's 8th adjacent square
+        { playerIndex: 2, x: 12, y: 3 }, // boxes the second occupant's traditional squares
+        { playerIndex: 3, x: 12, y: 4 },
+        { playerIndex: 4, x: 11, y: 3 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5 }, // block target (D0), fully boxed in on all 8
+        { playerIndex: 1, x: 9, y: 4 },
+        { playerIndex: 2, x: 11, y: 4 }, // pushed here at link 0 -> the second-link occupant
+        { playerIndex: 3, x: 11, y: 5 },
+        { playerIndex: 4, x: 9, y: 6 },
+        { playerIndex: 5, x: 10, y: 6 },
+        { playerIndex: 6, x: 11, y: 6 },
+        // (10,3) and (12,5) intentionally left open: openings among the
+        // second occupant's wider eight squares that Grab must NOT use.
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.BLACK_ORC,
+      team2Roster: RosterName.BLACK_ORC,
+    },
+  },
+  {
     id: "crowd-surf",
     name: "Crowd Surf Test",
     description: "Sideline defender with blocked push squares - block to surf",
