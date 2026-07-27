@@ -302,15 +302,6 @@ export class GameScene extends Phaser.Scene {
       .setInteractive()
       .on("pointerdown", () => this.onBackgroundClick());
 
-    // Audio
-    // try {
-    //   const container = ServiceContainer.getInstance();
-    //   container.soundManager.init();
-    //   container.soundManager.playOpeningTheme();
-    // } catch (err) {
-    //   console.warn('Audio Init Failed', err);
-    // }
-
     // 2. Initialize Core Game Objects
     // Pitch centered horizontally, with fixed top margin
     const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
