@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { Team } from "../../../types/Team";
+import { calculateTeamValue, Team } from "../../../types/Team";
 import { MatchResult } from "../../../types/GameState";
 import { MatchStatsSummary } from "../../../game/progression/MatchStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { saveTeam } from "../../../game/managers/TeamManager";
+import { mustAdvance } from "../../../game/progression/progression";
+import {
+  createPendingSkillSelection,
+  eligibleSkillSelectionParticipants,
+} from "../../../game/progression/advancementModes";
 
 interface Props {
   visible: boolean;
@@ -208,12 +213,60 @@ export function MatchResultsScreen({ visible }: Props) {
     }
   };
 
+  /**
+   * Records mode-specific pending development but does NOT resolve it here:
+   * per team-advancement-modes, "the results screen SHALL NOT require
+   * direct skill assignment" — Advanced League advancements and Sevens
+   * Skill Selection awards are completed later from Manage Team.
+   */
+  const recordPendingDevelopment = (
+    matchId: string,
+    finalSummary: MatchStatsSummary
+  ) => {
+    ownedTeams(teams).forEach((team) => {
+      if (team.advancementMode === "sevens-skill-selection") {
+        const participantIds = finalSummary.players
+          .filter((stats) => stats.teamId === team.id && stats.participated)
+          .map((stats) => stats.playerId);
+        const eligible = eligibleSkillSelectionParticipants(
+          team,
+          participantIds
+        );
+        if (eligible.length > 0) {
+          createPendingSkillSelection(team, matchId, eligible);
+        }
+      } else if (
+        !team.advancementMode ||
+        team.advancementMode === "advanced-league"
+      ) {
+        team.players.filter(mustAdvance).forEach((player) => {
+          team.pendingDevelopment ??= [];
+          const already = team.pendingDevelopment.some(
+            (entry) =>
+              entry.kind === "advanced-league-advancement" &&
+              entry.playerId === player.id
+          );
+          if (!already) {
+            team.pendingDevelopment.push({
+              id: `pending-${matchId}-${player.id}`,
+              kind: "advanced-league-advancement",
+              playerId: player.id,
+              createdAt: Date.now(),
+            });
+          }
+        });
+      }
+      team.teamValue = calculateTeamValue(team);
+      saveTeam(team);
+    });
+  };
+
   const confirmSpp = () => {
     try {
       const concedingTeamId =
         result?.reason === "concession" ? result.concedingTeamId : undefined;
-      tracker.applySpp(teams, concedingTeamId);
-      ownedTeams(teams).forEach((team) => saveTeam(team));
+      const finalSummary = tracker.applySpp(teams, concedingTeamId);
+      recordPendingDevelopment(`match-${Date.now()}`, finalSummary);
       setConfirmed(true);
       setError("");
     } catch (cause) {

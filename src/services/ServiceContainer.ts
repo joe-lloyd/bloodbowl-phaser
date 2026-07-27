@@ -8,7 +8,6 @@
 import { IEventBus } from "./EventBus.js";
 import { GameService } from "./GameService.js";
 import { IGameService } from "./interfaces/IGameService.js";
-import { SoundManager } from "./SoundManager.js";
 import { Team } from "@/types/Team";
 import { GameState } from "@/types/GameState";
 
@@ -19,13 +18,16 @@ import {
   MatchStatsSnapshot,
 } from "../game/progression/MatchStats.js";
 import { TurnManagerState } from "../game/managers/TurnManager.js";
+import {
+  installBrowserTestBridge,
+  uninstallBrowserTestBridge,
+} from "../testing/browserBridge.js";
 
 export class ServiceContainer {
   private static instance: ServiceContainer | null = null;
 
   public readonly eventBus: IEventBus;
   public readonly gameService: IGameService;
-  public readonly soundManager: SoundManager;
   public readonly rngService: IRNGService;
   public readonly blockResolutionService: BlockResolutionService;
   public readonly matchStats: MatchStats;
@@ -44,9 +46,6 @@ export class ServiceContainer {
   ) {
     // Use shared EventBus
     this.eventBus = eventBus;
-
-    // Create Services
-    this.soundManager = new SoundManager();
 
     // Deterministic RNG initialization
     // Use provided seed if available, otherwise use timestamp
@@ -111,6 +110,18 @@ export class ServiceContainer {
       matchStatsState,
       turnManagerState
     );
+    // Development/test builds only — the installer compiles away in a
+    // production build, so this is a no-op there. It must run here, at the
+    // moment the engine exists, so the observer sees the whole match log.
+    installBrowserTestBridge({
+      eventBus: ServiceContainer.instance.eventBus,
+      gameService: ServiceContainer.instance.gameService as GameService,
+      rng: ServiceContainer.instance.rngService,
+      team1,
+      team2,
+      seed: seed ?? 0,
+      matchStats: ServiceContainer.instance.matchStats,
+    });
     return ServiceContainer.instance;
   }
 
@@ -138,6 +149,7 @@ export class ServiceContainer {
    * Reset the container (useful for testing)
    */
   static reset(): void {
+    uninstallBrowserTestBridge();
     ServiceContainer.instance = null;
   }
 }

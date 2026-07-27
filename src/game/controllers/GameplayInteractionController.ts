@@ -4,12 +4,13 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
 import { moveAllowance } from "../skills/movement";
+import { withDriveModifiers } from "../kickoff/driveEffects";
 import { pixelToGrid } from "../elements/GridUtils";
 import { jumpTargets, JumpTarget } from "../rules/jump";
 import { GameConfig } from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
-import { Player, PlayerStatus } from "@/types/Player";
+import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
@@ -1557,13 +1558,28 @@ export class GameplayInteractionController {
 
     if (!player) return;
 
-    // Check for previous incomplete activation
+    // Switching away from a live declaration: release it if nothing has
+    // committed (the team's allowance comes back, nobody is activated), or
+    // refuse the switch — the declaring player stays selected — once it has.
     if (this.selectedPlayerId && this.selectedPlayerId !== playerId) {
-      const prevUsed = this.gameService.getMovementUsed(this.selectedPlayerId);
-      const prevActed = this.gameService.hasPlayerActed(this.selectedPlayerId);
-
-      if (prevUsed > 0 && !prevActed) {
-        this.gameService.finishActivation(this.selectedPlayerId);
+      const prevId = this.selectedPlayerId;
+      const state = this.gameService.getState();
+      if (state.activePlayer?.id === prevId) {
+        if (!this.gameService.cancelAction(prevId)) {
+          this.eventBus.emit(
+            GameEventNames.UI_Notification,
+            "This action is already committed and cannot be released."
+          );
+          return;
+        }
+      } else {
+        // No live declaration lingers for the previous player, but movement
+        // spent outside a declaration must not leave their turn dangling.
+        const prevUsed = this.gameService.getMovementUsed(prevId);
+        const prevActed = this.gameService.hasPlayerActed(prevId);
+        if (prevUsed > 0 && !prevActed) {
+          this.gameService.finishActivation(prevId);
+        }
       }
     }
 
@@ -1583,6 +1599,7 @@ export class GameplayInteractionController {
     const state = this.gameService.getState();
     const player = this.gameService.getPlayerById(playerId);
     if (!player) return;
+    const effectivePlayer = withDriveModifiers(player, state);
 
     const chargePlayerId =
       this.gameService.getPhase() === GamePhase.KICKOFF
@@ -1601,7 +1618,7 @@ export class GameplayInteractionController {
 
         // If prone, they need to spend 3 MA to stand (or all MA if less than 3)
         if (player.status === "Prone") {
-          const standUpCost = Math.min(3, player.stats.MA);
+          const standUpCost = Math.min(3, effectivePlayer.stats.MA);
           used += standUpCost;
         }
 
@@ -1620,11 +1637,11 @@ export class GameplayInteractionController {
               : this.getSceneTeam1();
           const remainingAllowance = Math.max(
             0,
-            moveAllowance(player) - used - this.waypoints.length
+            moveAllowance(effectivePlayer) - used - this.waypoints.length
           );
           reachable = this.movementValidator
             .findReachableSquares(
-              { ...player, gridPosition: { ...lastNode } },
+              { ...effectivePlayer, gridPosition: { ...lastNode } },
               opponentTeam.players.filter((p) => p.gridPosition),
               team.players.filter((p) => p.gridPosition && p.id !== player.id)
             )
@@ -1634,7 +1651,7 @@ export class GameplayInteractionController {
           reachable = this.gameService.getAvailableMovements(playerId);
         }
 
-        const remainingSafeMA = Math.max(0, player.stats.MA - used);
+        const remainingSafeMA = Math.max(0, effectivePlayer.stats.MA - used);
 
         // Separate into Safe (<= RemainingMA) and Sprint (> RemainingMA)
         const safeMoves: { x: number; y: number }[] = [];
@@ -1664,8 +1681,8 @@ export class GameplayInteractionController {
       const tackleZones: { x: number; y: number }[] = [];
 
       opponents.forEach((op) => {
-        if (op.status === "Active" && op.gridPosition) {
-          // Assuming 'Active' implies standing
+        if (hasTackleZone(op) && op.gridPosition) {
+          // Standing and not Distracted — Distracted opponents draw none
           // Add 8 squares around
           for (let dx = -1; dx <= 1; dx++) {
             for (let dy = -1; dy <= 1; dy++) {
@@ -1716,6 +1733,10 @@ export class GameplayInteractionController {
     if (!this.selectedPlayerId) return;
     const player = this.gameService.getPlayerById(this.selectedPlayerId);
     if (!player) return;
+    const effectivePlayer = withDriveModifiers(
+      player,
+      this.gameService.getState()
+    );
 
     // Get Path for this segment
     const startPos =
@@ -1737,7 +1758,7 @@ export class GameplayInteractionController {
     const teammates = team.players.filter(
       (p) => p.gridPosition && p.id !== player.id
     );
-    const mockPlayer = { ...player, gridPosition: startPos };
+    const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
 
     const result = this.movementValidator.findPath(
       mockPlayer,
@@ -1753,7 +1774,7 @@ export class GameplayInteractionController {
 
       // Check TOTAL path length limit (Remaining MA + 2)
       const used = this.gameService.getMovementUsed(player.id);
-      const totalAllowance = moveAllowance(player);
+      const totalAllowance = moveAllowance(effectivePlayer);
       const remainingAllowance = Math.max(0, totalAllowance - used);
 
       const currentLen = this.waypoints.length;
@@ -1957,10 +1978,14 @@ export class GameplayInteractionController {
   ): void {
     const player = this.gameService.getPlayerById(playerId);
     if (!player) return;
+    const effectivePlayer = withDriveModifiers(
+      player,
+      this.gameService.getState()
+    );
 
     const totalSteps = path.length;
     const used = this.gameService.getMovementUsed(player.id);
-    const ma = player.stats.MA;
+    const ma = effectivePlayer.stats.MA;
     const remainingSafeMA = Math.max(0, ma - used);
 
     if (totalSteps > remainingSafeMA) {
@@ -1996,11 +2021,15 @@ export class GameplayInteractionController {
     // For now, simple draw
     const player = this.gameService.getPlayerById(this.selectedPlayerId);
     if (player && player.gridPosition) {
+      const effectivePlayer = withDriveModifiers(
+        player,
+        this.gameService.getState()
+      );
       const fullPath = [
         { x: player.gridPosition.x, y: player.gridPosition.y },
         ...this.waypoints,
       ];
-      this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
+      this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
     }
   }
 
@@ -2012,6 +2041,7 @@ export class GameplayInteractionController {
     // Don't draw preview if not active team
     const state = this.gameService.getState();
     if (state.activeTeamId !== player.teamId) return;
+    const effectivePlayer = withDriveModifiers(player, state);
 
     // Start from last waypoint
     const startPos =
@@ -2034,7 +2064,7 @@ export class GameplayInteractionController {
       (p) => p.gridPosition && p.id !== player.id
     );
 
-    const mockPlayer = { ...player, gridPosition: startPos };
+    const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
     const result = this.movementValidator.findPath(
       mockPlayer,
       x,
@@ -2052,7 +2082,7 @@ export class GameplayInteractionController {
         ...result.path,
       ];
       // TODO: Get rolls for full path
-      this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
+      this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
     } else {
       // Just draw existing waypoints if preview is invalid
       if (this.waypoints.length > 0) {
@@ -2060,7 +2090,7 @@ export class GameplayInteractionController {
           { x: player.gridPosition!.x, y: player.gridPosition!.y },
           ...this.waypoints,
         ];
-        this.pitch.drawMovementPath(fullPath, [], player.stats.MA);
+        this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
       } else {
         this.pitch.clearPath();
       }

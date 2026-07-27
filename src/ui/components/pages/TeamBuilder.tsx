@@ -22,7 +22,8 @@ import { Button } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
-import { PlayerDevelopment } from "../TeamBuilder/PlayerDevelopment";
+import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
 
@@ -190,6 +191,13 @@ export function TeamBuilder() {
       return;
     }
 
+    if (!team.advancementMode) {
+      alert(
+        "Choose an advancement mode (Matched Play, Advanced League, or Sevens Skill Selection) before saving."
+      );
+      return;
+    }
+
     // Insignificant limit: a finished draft list may not have more players
     // with the trait than without it (checked whole-list, not per hire).
     const insignificantError = validateInsignificant(team.players);
@@ -209,6 +217,8 @@ export function TeamBuilder() {
       );
       return;
     }
+
+    lockAdvancementMode(team);
 
     const teams = TeamManager.loadTeams();
     const existingIndex = teams.findIndex((t) => t.id === team.id);
@@ -272,7 +282,7 @@ export function TeamBuilder() {
   }
 
   const roster = getRosterByRosterName(selectedRace);
-  const canSave = team.players.length >= 7;
+  const canSave = team.players.length >= 7 && !!team.advancementMode;
 
   return (
     <MinHeightContainer className="bg-bb-parchment !justify-start pb-12 mb-26">
@@ -414,13 +424,17 @@ export function TeamBuilder() {
                 </div>
               </div>
 
+              <AdvancementModePanel
+                team={team}
+                roster={roster}
+                onChange={(next) => setTeam(next)}
+              />
+
               <TeamRoster
                 team={team}
                 onFirePlayer={handleFirePlayer}
                 onReorderPlayers={handleReorderPlayers}
               />
-
-              <PlayerDevelopment team={team} onTeamChanged={setTeam} />
 
               {/* Team Meta Controls (Blue Theme) */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
@@ -527,7 +541,12 @@ export function TeamBuilder() {
             disabled={!canSave}
             className="text-xl px-8 shadow-lg"
           >
-            Save Team {!canSave && `(${7 - team.players.length} more needed)`}
+            Save Team{" "}
+            {team.players.length < 7
+              ? `(${7 - team.players.length} more needed)`
+              : !team.advancementMode
+                ? "(choose an advancement mode)"
+                : ""}
           </Button>
         </div>
 

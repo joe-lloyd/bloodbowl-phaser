@@ -1,5 +1,6 @@
 import { Team } from "../types/Team";
 import { SeedMetadata } from "../types/seedMetadata";
+import { RosterRuleProfile } from "./rosterRules";
 
 export type CompetitionType = "league" | "tournament";
 export type TournamentFormat = "single-elimination" | "round-robin";
@@ -80,6 +81,10 @@ export interface LeagueDoc {
   updatedAt: number;
   /** Development seed ownership; absent on coach-created competitions. */
   seedMetadata?: SeedMetadata;
+  /** Versioned advancement-mode/budget/roster requirements, snapshotted at
+   *  creation (see competition-roster-rules). Absent = legacy competition:
+   *  compatibility is not enforced until the organizer edits/migrates it. */
+  rosterProfile?: RosterRuleProfile;
 }
 
 export interface TournamentDoc {
@@ -98,6 +103,8 @@ export interface TournamentDoc {
   updatedAt: number;
   /** Development seed ownership; absent on coach-created competitions. */
   seedMetadata?: SeedMetadata;
+  /** See LeagueDoc.rosterProfile. */
+  rosterProfile?: RosterRuleProfile;
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;

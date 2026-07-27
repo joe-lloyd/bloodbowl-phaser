@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Player } from "../../types/Player";
+import { Player, PlayerCondition, hasCondition } from "../../types/Player";
 
 /**
  * PlayerSprite - Visual representation of a player on the pitch
@@ -14,6 +14,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
   /** Badge shown while this player is the ball carrier (see setCarryingBall) */
   private carrierMarker!: Phaser.GameObjects.Container;
+  /** Marker shown while Distracted — a condition, not a status: the player
+   *  is still Standing, so this must read as distinct from Prone/Stunned. */
+  private distractedMarker!: Phaser.GameObjects.Container;
 
   constructor(
     scene: Phaser.Scene,
@@ -72,6 +75,20 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.carrierMarker.add([badge, lace]);
     this.carrierMarker.setVisible(false);
     this.add(this.carrierMarker);
+
+    // Distracted badge: a small purple swirl above the head — distinct from
+    // the white/yellow/orange status border, since Distracted is a condition
+    // a Standing player carries, not a status change.
+    this.distractedMarker = scene.add.container(-16, -16);
+    const swirl = scene.add.circle(0, 0, 8, 0x9b59b6);
+    swirl.setStrokeStyle(2, 0xffffff);
+    const dizzy = scene.add.graphics();
+    dizzy.lineStyle(1.5, 0xffffff);
+    dizzy.strokeCircle(-2, -1, 2.5);
+    dizzy.strokeCircle(3, 1, 2);
+    this.distractedMarker.add([swirl, dizzy]);
+    this.distractedMarker.setVisible(false);
+    this.add(this.distractedMarker);
 
     // CRITICAL: Initialize status visuals
     this.updateStatus();
@@ -201,6 +218,19 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         this.setVisible(true);
     }
     this.refreshTeamTurnBorder();
+    this.refreshDistractedMarker();
+  }
+
+  /**
+   * Distracted only ever matters for a Standing player (hasTackleZone already
+   * folds status in), but the marker just follows the condition directly —
+   * it clears itself the moment the condition does, on the next status sync.
+   */
+  private refreshDistractedMarker(): void {
+    if (!this.distractedMarker) return;
+    this.distractedMarker.setVisible(
+      hasCondition(this.player, PlayerCondition.DISTRACTED)
+    );
   }
 
   /**

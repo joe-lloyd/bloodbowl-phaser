@@ -26,6 +26,15 @@ describe("bombardier: throw bomb protocol round-trip", () => {
     setup: BOMB_CONFIG.setup,
   };
 
+  /**
+   * The config fields the real Goblin Bomma, so its roster index is not 0.
+   * Read it from the config's own placement rather than pinning a number that
+   * moves whenever the Sevens composition changes.
+   */
+  const BOMBER_INDEX = BOMB_CONFIG.setup.team1Placements[0].playerIndex;
+  /** A Goblin Lineman with no Bombardier, for the refusal case. */
+  const NON_BOMBER_INDEX = BOMBER_INDEX === 1 ? 2 : 1;
+
   it("throws a bomb via the `throw-bomb` command and ends the activation", async () => {
     // A seed that lands the bomb on target (no fumble → no turnover). A
     // bystander keeps team1's turn from flipping when the Bomber finishes, so
@@ -38,12 +47,12 @@ describe("bombardier: throw bomb protocol round-trip", () => {
         ...scenario.setup,
         team1Placements: [
           ...scenario.setup.team1Placements,
-          { playerIndex: 1, x: 5, y: 8 },
+          { playerIndex: NON_BOMBER_INDEX, x: 5, y: 8 },
         ],
       },
     };
     const game = new HeadlessGame({ scenario: withBystander, seed });
-    const bomberId = game.ctx.team1.players[0].id;
+    const bomberId = game.ctx.team1.players[BOMBER_INDEX].id;
 
     await game.execute({
       type: "declare-action",
@@ -69,11 +78,11 @@ describe("bombardier: throw bomb protocol round-trip", () => {
       description: "Only a Bombardier may declare a Throw Bomb Special Action",
       setup: {
         ...BOMB_CONFIG.setup,
-        team1Placements: [{ playerIndex: 0, x: 8, y: 5 }], // no Bombardier
+        team1Placements: [{ playerIndex: NON_BOMBER_INDEX, x: 8, y: 5 }],
       },
     };
     const game = new HeadlessGame({ scenario: noTrait, seed: 1 });
-    const bomberId = game.ctx.team1.players[0].id;
+    const bomberId = game.ctx.team1.players[NON_BOMBER_INDEX].id;
 
     const res = await game.execute({
       type: "declare-action",

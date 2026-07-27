@@ -23,6 +23,7 @@ import {
   publishTeam,
   unpublishTeam,
 } from "../../../firebase/sharedTeamRepository";
+import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -344,6 +345,11 @@ export function TeamManagement() {
                       )}
                     </div>
                   </div>
+
+                  <PendingDevelopmentPanel
+                    team={team}
+                    onChange={() => setTeams(loadTeams())}
+                  />
 
                   {/* Spacer to push buttons down */}
                   <div className="flex-1"></div>

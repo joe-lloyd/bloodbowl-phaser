@@ -14,6 +14,8 @@ import {
   findKickoffConfig,
   KICKOFF_TOPIC,
 } from "../data/kickoffScenarios";
+import { SCENARIO_CASES } from "../testing/cases";
+import { findScenarioCase } from "../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
 
 export class SandboxScene extends GameScene {
@@ -145,9 +147,33 @@ export class SandboxScene extends GameScene {
     seedOverride?: number,
     outcomeId?: string
   ): void {
-    // A core scenario id, or a rule-catalog configuration id
+    // A core scenario id, a scenario-case id, or a rule-catalog config id.
     let scenario = SCENARIOS.find((s) => s.id === scenarioId);
     let expectedOutcome: string | undefined;
+
+    // Scenario cases are the E2E unit: the sandbox loads the exact setup,
+    // roster fixture and committed seed a failing CI run used, so a reported
+    // "case/variant" is reproducible by pasting it into the URL.
+    const scenarioCase = findScenarioCase(SCENARIO_CASES, scenarioId);
+    if (!scenario && scenarioCase) {
+      const variant =
+        scenarioCase.variants.find((candidate) => candidate.id === outcomeId) ??
+        scenarioCase.variants[0];
+      scenario = {
+        id: scenarioCase.id,
+        name: `${scenarioCase.capability}: ${scenarioCase.name}`,
+        description: scenarioCase.description,
+        setup: {
+          ...scenarioCase.setup,
+          // Pin the rosters the case ran with; see the rule-config note below.
+          team1Roster: scenarioCase.setup.team1Roster ?? RosterName.HUMAN,
+          team2Roster: scenarioCase.setup.team2Roster ?? RosterName.HUMAN,
+        },
+        seed: variant.seed,
+      };
+      expectedOutcome = variant.expectedOutcome;
+    }
+
     if (!scenario) {
       const ruleConfig = findRuleConfig(scenarioId);
       const config = ruleConfig?.config ?? findKickoffConfig(scenarioId);
