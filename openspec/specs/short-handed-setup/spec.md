@@ -1,7 +1,7 @@
 # short-handed-setup Specification
 
 ## Purpose
-TBD - created by archiving change fix-drive-transition-lifecycle. Update Purpose after archive.
+Defines how a team with fewer than seven available players completes setup and kicks off: setup completion is "every available player placed", not "seven placed", and fielding availability (excluding KO, Casualty, and sent-off players) is distinct from the roster minimum used for team building.
 ## Requirements
 ### Requirement: Setup completes when every available player is placed
 A team's setup SHALL be complete when it has placed `min(7, availablePlayers)` players, where available players are those not knocked out, not casualties, and not sent off. Setup SHALL NOT require seven placed players when the team has fewer than seven available.

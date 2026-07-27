@@ -1,7 +1,7 @@
 # scene-lifecycle-teardown Specification
 
 ## Purpose
-TBD - created by archiving change fix-drive-transition-lifecycle. Update Purpose after archive.
+Defines what a match scene must release when it shuts down — phase handlers, event subscriptions, and service state — so a later match in the same browser session never delivers events to a destroyed scene, and so creating visuals on an inactive scene is a safe no-op rather than a crash.
 ## Requirements
 ### Requirement: A shut-down scene has no live event subscriptions
 When a match scene shuts down or is destroyed, its orchestrator, active phase handler, controllers, and every event-bus subscription they registered SHALL be removed. No handler holding a reference to that scene SHALL remain subscribed to the shared event bus.

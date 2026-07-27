@@ -1,7 +1,7 @@
 # match-state-visual-sync Specification
 
 ## Purpose
-TBD - created by archiving change fix-reported-match-bugs. Update Purpose after archive.
+Defines how the visible board is kept in step with authoritative match state: exactly one ball representation and one carrier marker, players drawn only where their record puts them, activation styling that survives a restore, and action presentation (such as the Punt kick) that resolves at the animation boundary rather than teleporting state.
 ## Requirements
 ### Requirement: Ball possession has one synchronized representation
 

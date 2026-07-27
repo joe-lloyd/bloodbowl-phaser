@@ -1,7 +1,7 @@
 # touchdown-sequence Specification
 
 ## Purpose
-TBD - created by archiving change fix-drive-transition-lifecycle. Update Purpose after archive.
+Defines what happens between a touchdown being scored and the end-of-drive sequence beginning: which component owns the scene during the celebration window, how the score is announced, and how the celebration hands off into `endDrive` rather than leaving the phase unhandled.
 ## Requirements
 ### Requirement: The TOUCHDOWN phase is owned by a handler
 Entering `GamePhase.TOUCHDOWN` SHALL activate a phase handler that owns the scene for the celebration window. No unhandled-phase warning SHALL be logged for TOUCHDOWN, and the scene SHALL NOT be left without an active handler while the score is being celebrated.
