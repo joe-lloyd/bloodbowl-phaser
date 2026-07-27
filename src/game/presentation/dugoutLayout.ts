@@ -1,12 +1,22 @@
 import { GameConfig } from "../../config/GameConfig";
 
+/**
+ * Column budget: `reservesCols` alone must cover MAX_ROSTER_SIZE (11, see
+ * GameConfig) pre-kickoff, so it never shrinks. KO and Casualty gave up one
+ * column each (10→8 slots — still generous; KO turnover is frequent and a
+ * roster capped at 11 realistically never has more than a handful of
+ * simultaneous casualties) to make room for Sent Off without pushing the
+ * dugout's `totalWidth` past what the fixed Phaser canvas can show — see the
+ * "stays on-canvas" test in pitchThemes.test.ts, which is the real invariant
+ * this budget must keep satisfying.
+ */
 export const DUGOUT_LAYOUT = {
   gridRows: 2,
   squareSize: GameConfig.SQUARE_SIZE,
   reservesCols: 6,
-  koCols: 5,
-  casualtyCols: 5,
-  sentOffCols: 2,
+  koCols: 4,
+  casualtyCols: 4,
+  sentOffCols: 1,
   sectionPad: 20,
   staffWidth: 180,
   gridOffsetX: 10,

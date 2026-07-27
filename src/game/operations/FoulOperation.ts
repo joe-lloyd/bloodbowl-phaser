@@ -9,6 +9,7 @@ import { SendOffOperation } from "./SendOffOperation";
 import { CasualtyOperation } from "./CasualtyOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { effectiveAV } from "../kickoff/driveEffects";
+import { offerApothecary } from "../inducements/apothecary";
 
 /**
  * Ends the fouler's activation once the Foul (and any send-off it queued) has
@@ -190,10 +191,21 @@ export class FoulOperation extends GameOperation {
           eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
           target.status = PlayerStatus.STUNNED;
           break;
-        case InjuryResult.KO:
+        case InjuryResult.KO: {
           eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-          movePlayerToBox(target, { box: "ko" }, eventBus);
+          // Matches InjuryOperation: an owned, unused Apothecary gets first
+          // say before the player leaves the pitch. Declining (or having
+          // none) falls through to the normal move below.
+          const patchedUp = await offerApothecary(gameService, eventBus, target, {
+            resultKind: "ko",
+            location: "pitch",
+            position: target.gridPosition,
+          });
+          if (!patchedUp) {
+            movePlayerToBox(target, { box: "ko" }, eventBus);
+          }
           break;
+        }
         case InjuryResult.CASUALTY:
           eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
           // Matches InjuryOperation: set status immediately, then hand off to

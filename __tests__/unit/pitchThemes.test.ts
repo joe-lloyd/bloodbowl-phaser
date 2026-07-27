@@ -76,10 +76,10 @@ describe("themed dugout presentation", () => {
     const top = getDugoutLayout(false);
     const bottom = getDugoutLayout(true);
 
-    // The Sent Off section (added for foul-injury-resolution) widens the
-    // dugout beyond the pitch's own pixel width — a deliberate, small
-    // (rare-case) footprint growth, not a layout regression. totalWidth is
-    // always every section plus the staff rail, for either orientation.
+    // Sent Off (added for foul-injury-resolution) is a fourth section, so
+    // KO/Casualty gave up a column each to make room for it — see
+    // DUGOUT_LAYOUT's comment. totalWidth is always every section plus the
+    // staff rail, for either orientation.
     const expectedSectionsWidth =
       top.sections.reserves.width +
       top.sections.ko.width +
@@ -122,6 +122,37 @@ describe("themed dugout presentation", () => {
         bottom.sections.casualty.width +
         bottom.sections.ko.width
     );
+  });
+
+  it("keeps every dugout section — including the new Sent Off one — on the fixed Phaser canvas, for every pitch theme", () => {
+    // Regression coverage for a real clipping bug: adding the Sent Off
+    // section once widened the dugout past GameConfig.CANVAS_WIDTH (the
+    // actual, fixed-size Phaser canvas) without anyone noticing, because the
+    // only width check in this file compared the dugout to itself. This
+    // reproduces GameScene's own positioning arithmetic
+    // (GameScene.ts buildBoard: `pitchX = (width - PITCH_PIXEL_WIDTH) / 2`,
+    // `topDugout.x = pitchX`, `bottomDugout.x = pitchX + PITCH_PIXEL_WIDTH -
+    // totalWidth`) so a widened dugout that would clip is caught here, not
+    // discovered by eye in the browser.
+    const pitchX = (GameConfig.CANVAS_WIDTH - GameConfig.PITCH_PIXEL_WIDTH) / 2;
+
+    for (const theme of PITCH_THEMES) {
+      // Layout geometry does not vary by theme (only colors, incl.
+      // theme.dugout.sentOff, do) — but every theme is iterated explicitly
+      // so a future theme-specific layout tweak cannot silently reintroduce
+      // the clip for just one of them.
+      expect(resolvePitchTheme(theme.id).id).toBe(theme.id);
+      const top = getDugoutLayout(false);
+      const bottom = getDugoutLayout(true);
+
+      const topRight = pitchX + top.totalWidth;
+      const bottomLeft = pitchX + GameConfig.PITCH_PIXEL_WIDTH - bottom.totalWidth;
+      const bottomRight = bottomLeft + bottom.totalWidth;
+
+      expect(topRight).toBeLessThanOrEqual(GameConfig.CANVAS_WIDTH);
+      expect(bottomLeft).toBeGreaterThanOrEqual(0);
+      expect(bottomRight).toBeLessThanOrEqual(GameConfig.CANVAS_WIDTH);
+    }
   });
 
   it("scales visible staff to team counts and caps every type", () => {
