@@ -19,6 +19,12 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
+      // Pinned explicitly (not relying on the caller's default) so this
+      // plain chain-push case is always Human vs. Human — no Grab, no skill
+      // modifiers — regardless of whatever rosters the sandbox currently
+      // has loaded. See chain-push-grab-* below for the Grab-holding cases.
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
     },
   },
   {

@@ -61,7 +61,6 @@ export class SoundSuite {
     this.bind(GameEventNames.PhaseChanged, (data) =>
       data.phase === GamePhase.GAME_OVER ? "endOfHalf" : null
     );
-    this.bind(GameEventNames.UI_ActionSelected, () => "uiClick");
   }
 
   dispose(): void {
@@ -118,14 +117,11 @@ export class SoundSuite {
     this.priorityLockLevel = entry.priority;
 
     if (entry.sampleUrl) {
-      this.playSample(entry.sampleUrl, entry.gain * settings.volume);
+      this.playSample(entry.sampleUrl, settings.volume);
       return;
     }
 
-    this.manager.playOneShot(
-      entry.build().gain(entry.gain * settings.volume),
-      entry.durationMs
-    );
+    this.manager.play(entry.build, entry.durationMs);
   }
 
   private playSample(url: string, volume: number): void {

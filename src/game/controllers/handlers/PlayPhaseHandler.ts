@@ -194,13 +194,17 @@ export class PlayPhaseHandler implements PhaseHandler {
       );
     });
 
-    // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die). Both
-    // re-emit BlockDiceRolled, so the dialog refreshes in place.
+    // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die, Brawler =
+    // the one Both Down die). All three re-emit BlockDiceRolled, so the
+    // dialog refreshes in place.
     this.register(GameEventNames.UI_TeamRerollBlock, (data) => {
       this.gameService.teamRerollBlock(data.attackerId);
     });
     this.register(GameEventNames.UI_ProRerollBlockDie, (data) => {
       this.gameService.proRerollBlockDie(data.attackerId, data.dieIndex);
+    });
+    this.register(GameEventNames.UI_BrawlerRerollBlockDie, (data) => {
+      this.gameService.brawlerRerollBlockDie(data.attackerId);
     });
 
     // Reroll/reaction dialog answers — resolve the paused roll path (or,

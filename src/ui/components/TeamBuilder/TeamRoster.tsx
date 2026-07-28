@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
+import { SKILL_DEFINITIONS } from "../../../types/Skills";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import {
   BloodBowlTable,
@@ -7,6 +8,7 @@ import {
   TableCell,
   CustomTableCell,
 } from "../componentWarehouse/BloodBowlTable";
+import { Tooltip } from "../componentWarehouse/Tooltip";
 
 interface TeamRosterProps {
   team: Team;
@@ -125,11 +127,22 @@ export function TeamRoster({
                   {player.stats.MA} {player.stats.ST} {player.stats.AG}+{" "}
                   {player.stats.PA}+ {player.stats.AV}+
                 </TableCell>
-                <TableCell
-                  className="text-sm italic"
-                  title={player.skills.map((s) => s.type).join(", ")}
-                >
-                  {player.skills.map((s) => s.type).join(", ")}
+                <TableCell className="text-sm italic">
+                  <div className="flex flex-wrap gap-1">
+                    {player.skills.map((skill, index) => (
+                      <span key={`${skill.type}-${index}`}>
+                        <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
+                          <span className="cursor-help underline decoration-dotted">
+                            {skill.type}
+                            {skill.parameter != null
+                              ? ` (${skill.parameter})`
+                              : ""}
+                          </span>
+                        </Tooltip>
+                        {index < player.skills.length - 1 ? "," : ""}
+                      </span>
+                    ))}
+                  </div>
                 </TableCell>
                 <TableCell className="text-base">
                   {formatGold(player.cost)}

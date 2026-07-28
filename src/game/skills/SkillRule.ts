@@ -128,7 +128,7 @@ export interface BlockDeclaredContext extends TriggerContextBase {
 export interface BlockDiceRolledContext extends TriggerContextBase {
   attacker: Player;
   defender: Player;
-  /** The rolled results; a rule may reroll dice in place (Brawler). */
+  /** The rolled results; a rule may reroll dice in place (Hatred). */
   results: BlockResult[];
   isAttackerChoice: boolean;
 }

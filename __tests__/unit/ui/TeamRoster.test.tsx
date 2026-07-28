@@ -3,7 +3,11 @@ import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamRoster } from "../../../src/ui/components/TeamBuilder/TeamRoster";
-import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
+import {
+  TeamBuilder as TeamTestBuilder,
+  PlayerBuilder,
+} from "../../utils/test-builders";
+import { SkillType, SKILL_DEFINITIONS, getSkill } from "../../../src/types/Skills";
 
 /**
  * Team Builder readability (overhaul-team-lifecycle-management,
@@ -171,5 +175,105 @@ describe("TeamRoster career-stat columns", () => {
     // never-played player.
     const zeroCells = cellTexts.filter((text) => text === "0");
     expect(zeroCells.length).toBe(6);
+  });
+});
+
+/**
+ * team-builder-rule-tooltips: "Hovering a rostered player's skill shows its
+ * rule text" / "Multiple skills are each independently hoverable" — each
+ * skill on a drafted player is its own hover target carrying only that
+ * skill's own rule text.
+ */
+describe("TeamRoster skill tooltips", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("renders each rostered player's skill as its own tooltip trigger with the skill's rule text", async () => {
+    const player = new PlayerBuilder().withNumber(1).build();
+    player.skills = [getSkill(SkillType.BLOCK), getSkill(SkillType.DODGE)];
+    const team = new TeamTestBuilder().withCustomPlayers([player]).build();
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const blockText = SKILL_DEFINITIONS[SkillType.BLOCK].text;
+    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
+
+    const tooltipPanels = Array.from(
+      container.querySelectorAll('[role="tooltip"]')
+    ).map((panel) => panel.textContent);
+
+    expect(tooltipPanels).toContain(blockText);
+    expect(tooltipPanels).toContain(dodgeText);
+    // Independent per-skill tooltips, not a single combined joined string.
+    expect(tooltipPanels.some((t) => t === `${blockText} ${dodgeText}`)).toBe(
+      false
+    );
+  });
+
+  /**
+   * team-builder-rule-tooltips: "Tabbing to a skill reveals its rule text"
+   * — the tooltip is keyboard-reachable, not mouse-only.
+   */
+  it("makes each skill's tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {
+    const player = new PlayerBuilder().withNumber(1).build();
+    player.skills = [getSkill(SkillType.BLOCK), getSkill(SkillType.DODGE)];
+    const team = new TeamTestBuilder().withCustomPlayers([player]).build();
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const triggers = Array.from(
+      container.querySelectorAll('span[tabindex="0"]')
+    );
+    expect(triggers.length).toBe(2);
+
+    triggers.forEach((trigger) => {
+      // Each trigger owns an aria-describedby pointing at its own
+      // role="tooltip" panel, so screen readers announce the right rule.
+      const describedBy = trigger.getAttribute("aria-describedby");
+      expect(describedBy).toBeTruthy();
+      const panel = container.querySelector(`#${describedBy}`);
+      expect(panel).toBeTruthy();
+      expect(panel?.getAttribute("role")).toBe("tooltip");
+
+      // Focus, not just hover, must be able to reveal the panel.
+      expect(panel?.className).toContain("group-focus:opacity-100");
+      expect(panel?.className).toContain("group-focus-within:opacity-100");
+
+      act(() => {
+        (trigger as HTMLElement).focus();
+      });
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });

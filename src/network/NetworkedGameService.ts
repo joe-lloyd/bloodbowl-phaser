@@ -248,6 +248,9 @@ export class NetworkedGameService implements IGameService {
   proRerollBlockDie(attackerId: string, dieIndex: number): void {
     this.send({ type: "pro-reroll-block", attackerId, dieIndex });
   }
+  brawlerRerollBlockDie(attackerId: string): void {
+    this.send({ type: "brawler-reroll-block", attackerId });
+  }
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }

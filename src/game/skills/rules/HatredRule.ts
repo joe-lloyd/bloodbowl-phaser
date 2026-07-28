@@ -3,8 +3,10 @@
  * a Block Action against a player with the same keyword as that shown in
  * brackets, this player may re-roll a single Player Down result."
  *
- * Mirrors Brawler: after the block dice land, the attacker's coach may
- * re-roll exactly one "skull" (Player Down) die in place.
+ * After the block dice land, the attacker's coach may re-roll exactly one
+ * "skull" (Player Down) die in place. (Brawler's Both Down re-roll used to
+ * work the same way via this hook; it is now a button on the block-dice
+ * decision instead — see BlockManager.brawlerRerollBlockDie.)
  */
 
 import { SkillType } from "../../../types/Skills";
