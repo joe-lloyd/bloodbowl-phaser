@@ -49,6 +49,16 @@ export interface ResyncPayload {
   pendingDecision: PendingDecision | null;
 }
 
+/**
+ * Cosmetic-only: "the player I currently have selected on my own team is
+ * X (or none)". Never mutates game state and is not part of the ordered/
+ * deduplicated command sequencing guarantees — the receiver just adopts the
+ * latest value it sees.
+ */
+export interface SelectionPayload {
+  playerId: string | null;
+}
+
 export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "hello"; payload: HelloPayload }
   | { kind: "command"; payload: CommandPayload }
@@ -58,6 +68,7 @@ export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "heartbeat"; payload: Record<string, never> }
   | { kind: "resync"; payload: ResyncPayload }
   | { kind: "resync-request"; payload: Record<string, never> }
+  | { kind: "selection"; payload: SelectionPayload }
 );
 
 export type EnvelopeKind = Envelope["kind"];

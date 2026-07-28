@@ -62,6 +62,30 @@ The host SHALL be able to send a resync envelope containing a full game snapshot
 - **WHEN** the guest receives a resync (or any broadcast/response) envelope mid-match
 - **THEN** querying the guest's replica for either team's turn number returns the same value the host would return for that team
 
+### Requirement: Selection-change envelope
+
+Either peer SHALL be able to send a lightweight "selection changed" envelope at any time, carrying the id of the player they currently have selected on their own controlled team, or none. This envelope is cosmetic (it drives only a live UI indicator, never engine state) and SHALL NOT participate in the ordered/deduplicated command-sequencing guarantees required for gameplay commands — a peer receiving it simply updates its display of the other coach's current selection to the latest value received. The receiver SHALL verify that a claimed player id actually belongs to the sending peer's own team before applying it; a claim naming a player outside the sender's team SHALL be discarded rather than displayed.
+
+#### Scenario: A selection change reaches the other peer
+
+- **WHEN** a coach selects one of their own controlled team's players
+- **THEN** the other peer receives a selection-change envelope naming that player
+
+#### Scenario: A deselection reaches the other peer
+
+- **WHEN** a coach deselects their currently selected player
+- **THEN** the other peer receives a selection-change envelope with no player
+
+#### Scenario: Selection envelopes do not affect gameplay state
+
+- **WHEN** a selection-change envelope is sent or received
+- **THEN** no game command executes and no snapshot or pending decision changes as a result
+
+#### Scenario: A claim naming another team's player is rejected
+
+- **WHEN** a peer sends a selection-change envelope naming a player that does not belong to that peer's own controlled team
+- **THEN** the receiver discards the claim and does not display it as a selection
+
 ### Requirement: Security-rule edge validation
 
 Firestore security rules SHALL restrict game-document writes to the match's members (plus claiming the empty guest seat as oneself while a lobby is open), restrict message writes to members, and require a message's sender field to match the authenticated writer. A callable Cloud Function MAY additionally validate lobby create/join and roster legality as optional hardening — it requires the Blaze plan, so the system SHALL be fully playable without it, and it SHALL NOT execute per-command game logic.

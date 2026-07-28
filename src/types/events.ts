@@ -36,6 +36,12 @@ export enum GameEventNames {
   PlayerActivated = "playerActivated",
   PlayerSelected = "playerSelected",
   PlayerDeselected = "playerDeselected",
+  /**
+   * Online only: the OTHER coach's own-team selection changed, as reported
+   * over the network's cosmetic "selection" envelope. Drives the remote
+   * player's red-ring indicator; never engine state, never crosses back out.
+   */
+  RemoteSelectionChanged = "remoteSelectionChanged",
   PlacementInvalid = "placementInvalid",
   SetupRestrictionsUpdated = "setupRestrictionsUpdated",
   SetupConcessionOffered = "setupConcessionOffered",
@@ -304,6 +310,7 @@ export interface GameEvents {
   };
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };
+  [GameEventNames.RemoteSelectionChanged]: { playerId: string | null };
   [GameEventNames.PlayerStatusChanged]: Player;
   [GameEventNames.Turnover]: { teamId: string };
 

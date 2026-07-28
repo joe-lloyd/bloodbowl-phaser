@@ -14,6 +14,7 @@ import {
   ChatPayload,
   HelloPayload,
   ResyncPayload,
+  SelectionPayload,
   SequenceTracker,
   PROTOCOL_VERSION,
 } from "./envelope";
@@ -31,6 +32,8 @@ export interface GuestSessionOptions {
   onResync?: (payload: ResyncPayload) => void;
   onChat?: (payload: ChatPayload, from: string) => void;
   onHello?: (payload: HelloPayload, from: string) => void;
+  /** The host's current own-team selection changed (cosmetic only). */
+  onSelection?: (payload: SelectionPayload, from: string) => void;
 }
 
 export class GuestSession {
@@ -66,6 +69,11 @@ export class GuestSession {
 
   async sendChat(text: string, senderName: string): Promise<void> {
     await this.send({ kind: "chat", payload: { text, senderName } });
+  }
+
+  /** Broadcast the guest's own current selection (cosmetic; fire-and-forget). */
+  async sendSelection(playerId: string | null): Promise<void> {
+    await this.send({ kind: "selection", payload: { playerId } });
   }
 
   async sendHello(payload?: Partial<HelloPayload>): Promise<void> {
@@ -124,6 +132,9 @@ export class GuestSession {
         break;
       case "hello":
         this.options.onHello?.(envelope.payload, envelope.from);
+        break;
+      case "selection":
+        this.options.onSelection?.(envelope.payload, envelope.from);
         break;
       case "heartbeat":
         // liveness handled in the resilience layer

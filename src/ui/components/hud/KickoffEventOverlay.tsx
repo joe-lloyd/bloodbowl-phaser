@@ -74,32 +74,37 @@ export function KickoffEventOverlay({
           {canAct ? instruction : `Waiting for ${team.name}'s coach…`}
         </p>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={!canAct || awaiting.size > 0}
-            onClick={() => {
-              service.skipKickoffEventStep();
-              refresh();
-            }}
-            className="rounded border border-white/30 px-4 py-2 disabled:opacity-40"
-          >
-            Skip
-          </button>
-          {!step.charge && (
+        {/* Skip/Confirm are the deciding coach's controls only — the other
+            coach is a passive spectator for this step and just watches the
+            result play out live on the board. */}
+        {canAct && (
+          <div className="mt-4 flex justify-end gap-2">
             <button
               type="button"
-              disabled={!canAct || awaiting.size > 0}
+              disabled={awaiting.size > 0}
               onClick={() => {
-                service.confirmKickoffEventStep();
+                service.skipKickoffEventStep();
                 refresh();
               }}
-              className="rounded bg-bb-gold px-4 py-2 font-bold text-black disabled:opacity-40"
+              className="rounded border border-white/30 px-4 py-2 disabled:opacity-40"
             >
-              Confirm
+              Skip
             </button>
-          )}
-        </div>
+            {!step.charge && (
+              <button
+                type="button"
+                disabled={awaiting.size > 0}
+                onClick={() => {
+                  service.confirmKickoffEventStep();
+                  refresh();
+                }}
+                className="rounded bg-bb-gold px-4 py-2 font-bold text-black disabled:opacity-40"
+              >
+                Confirm
+              </button>
+            )}
+          </div>
+        )}
     </section>
   );
 }

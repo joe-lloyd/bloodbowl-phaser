@@ -34,6 +34,7 @@ import {
 } from "../headless/serialization";
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
+import { getActiveOnlineMatch } from "../network/OnlineMatch";
 import {
   findBoardStateConflicts,
   isActivatedThisTurn,
@@ -94,6 +95,8 @@ export class GameScene extends Phaser.Scene {
   // State
   private playerSprites: Map<string, PlayerSprite> = new Map();
   private selectedPlayerId: string | null = null;
+  /** Online only: which player the OTHER coach currently has selected. */
+  private remoteSelectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
   protected ballSprite: Phaser.GameObjects.Container | null = null;
   private pendingKickoffData = null; // Stores kick data for scatter animation
@@ -460,13 +463,32 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.subscribe(GameEventNames.TurnStarted, (turnData) => {
-      // Reset all sprites and mark the active team with square borders
+      // Reset all sprites and mark the active team with square borders.
+      // Online only: never show the blanket "active team" white square for
+      // a team the local coach doesn't control — that's replaced by the
+      // single-player remote-selection red ring (see RemoteSelectionChanged).
+      const onlineMatch = getActiveOnlineMatch();
       this.playerSprites.forEach((sprite) => {
         sprite.setActivated(false);
-        sprite.setTeamTurnBorder(sprite.getPlayer().teamId === turnData.teamId);
+        const isMyTeam =
+          !onlineMatch || sprite.getPlayer().teamId === onlineMatch.myTeamId;
+        sprite.setTeamTurnBorder(
+          sprite.getPlayer().teamId === turnData.teamId && isMyTeam
+        );
       });
       // Reset selection
       this.gameplayController.deselectPlayer();
+      // A stale remote-selection ring (opponent disconnected mid-selection,
+      // or the turn simply ended without a drive-ending RefreshBoard) must
+      // not persist into the new turn.
+      this.setRemoteSelection(null);
+    });
+
+    // Online only: show a live indicator of which single opposing player
+    // the other coach currently has selected, in place of the blanket
+    // whole-team highlight suppressed above.
+    this.subscribe(GameEventNames.RemoteSelectionChanged, ({ playerId }) => {
+      this.setRemoteSelection(playerId);
     });
 
     // Camera event listeners
@@ -735,6 +757,7 @@ export class GameScene extends Phaser.Scene {
         sprite.setTeamTurnBorder(false);
         sprite.resetOrientation();
       });
+      this.setRemoteSelection(null);
       this.refreshDugouts();
     });
 
@@ -1359,6 +1382,26 @@ export class GameScene extends Phaser.Scene {
     const sprite = this.playerSprites.get(playerId);
     if (sprite) {
       sprite.unhighlight();
+    }
+  }
+
+  /**
+   * Online only: move the remote-selection red ring to whichever player the
+   * other coach currently has selected (or clear it). Independent of local
+   * selection highlighting — see PlayerSprite.setRemoteSelected.
+   */
+  public setRemoteSelection(playerId: string | null): void {
+    if (
+      this.remoteSelectedPlayerId &&
+      this.remoteSelectedPlayerId !== playerId
+    ) {
+      this.playerSprites
+        .get(this.remoteSelectedPlayerId)
+        ?.setRemoteSelected(false);
+    }
+    this.remoteSelectedPlayerId = playerId;
+    if (playerId) {
+      this.playerSprites.get(playerId)?.setRemoteSelected(true);
     }
   }
 }
