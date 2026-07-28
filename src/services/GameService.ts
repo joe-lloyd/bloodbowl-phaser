@@ -1447,6 +1447,11 @@ export class GameService implements IGameService {
       this.state.driveEffects = emptyDriveEffects();
     }
 
+    // The kickoff-roll-once guard is scoped to the drive that just ended;
+    // the next drive's kickoff must be free to roll.
+    this.state.kickoffResolution = undefined;
+    this.state.kickoffKickResolved = undefined;
+
     // Drive-scoped inducement uses (unlike match-scoped ones) refill at
     // every new drive; the Apothecary's used flag is match-scoped and never
     // reset here.

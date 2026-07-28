@@ -78,10 +78,12 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   useEventBus(eventBus, GameEventNames.PlayerStatusChanged, refresh);
   useEventBus(eventBus, GameEventNames.GameStateRestored, refresh);
 
-  // Logic:
-  // 1. If Selected exists, it is ALWAYS shown (Bottom Right 1).
-  // 2. If Hovered exists AND Hovered != Selected, it is shown as COMPARING (Bottom Right 2 - Stacked above).
-  // 3. If NO Selected, Hovered is shown normally (Bottom Right 1).
+  // Logic (top-to-bottom order: kickoff panel, selected, hovered — see
+  // GameHUD.tsx and the container's flex-col below):
+  // 1. If Selected exists, it is ALWAYS shown, above any hovered panel.
+  // 2. If Hovered exists AND Hovered != Selected, it is shown as COMPARING,
+  //    below the selected panel.
+  // 3. If NO Selected, Hovered is shown normally in the selected panel's slot.
 
   const renderPanel = (player: Player, isComparison: boolean) => {
     const borderColor = isComparison ? "border-yellow-400" : "border-white";
@@ -228,7 +230,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   );
 
   return (
-    <div className="w-full flex flex-col-reverse items-end">
+    <div className="w-full flex flex-col items-end">
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&

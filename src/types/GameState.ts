@@ -89,5 +89,37 @@ export interface GameState {
   inducements?: import("./Inducements").InducementsMatchState;
   /** Set once the match reaches GAME_OVER; absent beforehand. */
   result?: MatchResult;
+  /**
+   * The kickoff table result already resolved for the current drive, if
+   * any. Guards against rolling the table a second time for the same drive
+   * on a stale re-entry into ROLL_KICKOFF (page refresh, restore, or the
+   * KICKOFF phase being re-entered) — see
+   * `KickoffEventManager.rollAndResolve`. Cleared by `resetDriveState()` at
+   * the same end-of-drive teardown that clears `driveEffects`.
+   */
+  kickoffResolution?: {
+    roll: number;
+    event: import("../game/kickoff/kickoffEvents").KickoffEvent;
+    meaning: string;
+    outcome: import("../game/kickoff/kickoffEvents").KickoffEventOutcome;
+  };
+  /**
+   * Set the moment the current drive's kickoff deviation has been computed
+   * (before the kickoff table even rolls). `subPhase` stays `ROLL_KICKOFF`
+   * for the *entire* kickoff sequence — deviation, table roll, any
+   * interactive step (which can suspend indefinitely awaiting a coach), ball
+   * landing, placement — it only advances once play resumes. That means a
+   * refresh/restore or any other stale re-entry into the KICKOFF phase can
+   * land back on "Select Kicker & Target" no matter how far the original
+   * kick had progressed. This flag guards `BallManager.kickBall()` against
+   * recomputing deviation (and re-asking the On the Ball reaction) a second
+   * time for the same drive; `ballPosition` is already restored from the
+   * snapshot, so a re-entrant `kickBall()` replays from it instead of
+   * rolling fresh. Cleared by `resetDriveState()` alongside
+   * `kickoffResolution`.
+   */
+  kickoffKickResolved?: {
+    isTeam1Kicking: boolean;
+  };
 }
 import { BlockReplacement } from "./BlockReplacement";

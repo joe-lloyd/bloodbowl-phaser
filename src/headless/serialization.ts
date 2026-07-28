@@ -88,6 +88,20 @@ export interface GameSnapshot {
   bribes?: Record<string, number>;
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
+  /**
+   * The current drive's already-resolved kickoff table result, if any;
+   * absent on pre-feature saves. Persisted so a restore mid-kickoff
+   * reproduces the same event/outcome instead of rolling again — see
+   * `GameState.kickoffResolution`.
+   */
+  kickoffResolution?: GameState["kickoffResolution"];
+  /**
+   * The current drive's already-resolved kickoff deviation, if any; absent
+   * on pre-feature saves. Persisted so a restore mid-kickoff does not
+   * recompute deviation on a re-entrant `kickBall()` call — see
+   * `GameState.kickoffKickResolved`.
+   */
+  kickoffKickResolved?: GameState["kickoffKickResolved"];
 }
 
 export const MATCH_SAVE_VERSION = 1 as const;
@@ -161,6 +175,12 @@ export function serializeGameState(
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
+    kickoffResolution: state.kickoffResolution
+      ? structuredClone(state.kickoffResolution)
+      : undefined,
+    kickoffKickResolved: state.kickoffKickResolved
+      ? { ...state.kickoffKickResolved }
+      : undefined,
     setup: state.setup ? structuredClone(state.setup) : null,
     result: state.result ? { ...state.result } : undefined,
     teams: teams.map((team) => ({
@@ -218,6 +238,12 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
+      : undefined,
+    kickoffResolution: snapshot.kickoffResolution
+      ? structuredClone(snapshot.kickoffResolution)
+      : undefined,
+    kickoffKickResolved: snapshot.kickoffKickResolved
+      ? { ...snapshot.kickoffKickResolved }
       : undefined,
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
     result: snapshot.result ? { ...snapshot.result } : undefined,

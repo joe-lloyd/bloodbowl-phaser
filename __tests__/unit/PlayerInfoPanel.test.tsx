@@ -79,7 +79,7 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
       eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     });
     expect(container.innerHTML.trim()).toBe(
-      "<div class=\"w-full flex flex-col-reverse items-end\"></div>"
+      "<div class=\"w-full flex flex-col items-end\"></div>"
     );
   });
 
