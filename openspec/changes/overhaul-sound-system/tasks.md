@@ -21,11 +21,14 @@
 ## 4. Sandbox verification
 
 - [x] 4.1 Manually verify in sandbox mode (browser) that the relocated mute checkbox and volume slider now visibly affect playback, with `SandboxOverlay` no longer overlapping it
+      — **caveat:** verified in a real headless-Chromium (Playwright) run that `SandboxOverlay` no longer overlaps the control, the control renders inside Match Options with no floating popup, and clicking/dragging it writes through to the same `soundSettings` store `SoundSuite.trigger()` reads on every playback. **Not** verified by ear — this environment has no audio output, so whether playback is actually audibly muted/quieter was checked by code path (the same `settings.muted`/`settings.volume` gate `SoundSuite.trigger()` already used pre-relocation), not by listening.
 - [x] 4.2 If sandbox playback still ignores mute/volume after relocation, investigate whether sandbox mounts its own `SoundManager`/`SoundSuite` instance separately from the settings store, and fix the read path
+      — investigated: `GamePage.tsx` mounts exactly one `SoundManager`/`SoundSuite` pair per page visit regardless of `mode` ("normal" or "sandbox" both go through the same effect), and both read the same module-level `soundSettings` singleton. No separate instance exists; the corner-overlap was the actual cause, and relocation resolves it as design.md predicted. No code fix was needed here beyond the relocation itself.
 
 ## 5. Verification
 
 - [x] 5.1 Add/update a unit test asserting `SoundSuite.dispose()` stops tracked in-flight samples
 - [x] 5.2 Add/update a unit test asserting `SoundManager.stop()` halts the scheduler
 - [x] 5.3 Manually verify: leave a match mid-sound-effect, confirm silence; start a new match, confirm no bleed-through from the old one
+      — **caveat:** verified in a real headless-Chromium (Playwright) run that leaving the sandbox and re-entering throws no errors and the Match Options menu/controls remain functional afterward (i.e. `SoundManager.stop()`'s `hush()` call doesn't leave a dead scheduler behind). **Not** verified by ear — actual audible silence on leaving, and absence of audible bleed-through into a new match, were not confirmed by listening, only by the scheduler-halt/reinit code path and unit tests (5.1/5.2).
 - [x] 5.4 Run the full unit test suite and confirm no regressions

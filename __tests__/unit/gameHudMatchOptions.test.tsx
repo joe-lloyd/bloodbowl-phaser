@@ -398,4 +398,92 @@ describe("GameHUD match options menu wiring", () => {
     });
     expect(onForceAbandon).toHaveBeenCalledTimes(1);
   });
+
+  describe("sound settings panel (openspec: overhaul-sound-system)", () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it("relocates mute/volume into the Match Options menu: no floating popup, rendered inline, keyboard-reachable, and wired to the real settings store", async () => {
+      await act(async () => {
+        root.render(
+          <MemoryRouter>
+            <GameHUD eventBus={eventBus} mode="normal" />
+          </MemoryRouter>
+        );
+      });
+
+      // No standalone floating sound popup anywhere on the HUD before the
+      // menu is even opened.
+      expect(container.querySelector(".absolute.top-4.right-4")).toBeNull();
+
+      await openMenu();
+
+      const muteCheckbox = [
+        ...container.querySelectorAll<HTMLInputElement>(
+          'input[type="checkbox"]'
+        ),
+      ].find((el) => el.closest("label")?.textContent?.includes("Mute sound"))!;
+      const volumeSlider = container.querySelector<HTMLInputElement>(
+        'input[type="range"]'
+      )!;
+      expect(muteCheckbox).toBeTruthy();
+      expect(volumeSlider).toBeTruthy();
+      // It's an inline control, not a selectable/clickable menu action row.
+      expect(muteCheckbox.closest('[role="menuitem"]')).toBeNull();
+
+      // Reachable via Arrow-key navigation, not just present in the DOM:
+      // local/active-match context is [return-to-menu, abandon-match, panel],
+      // so the mute checkbox is two ArrowDowns past the initially-focused
+      // first action row.
+      const menuRoot = container.querySelector('[role="menu"]')!;
+      const firstItem = container.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]'
+      )!;
+      expect(document.activeElement).toBe(firstItem);
+      await act(async () => {
+        menuRoot.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+        );
+      });
+      await act(async () => {
+        menuRoot.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+        );
+      });
+      expect(document.activeElement).toBe(muteCheckbox);
+
+      // Reads/writes the same persisted store useSoundSettings/SoundToggle
+      // always used (task 3.4) — nothing new was invented for the relocation.
+      expect(muteCheckbox.checked).toBe(false);
+      await act(async () => {
+        muteCheckbox.click();
+      });
+      expect(muteCheckbox.checked).toBe(true);
+      expect(
+        JSON.parse(localStorage.getItem("bb-sound-settings")!).muted
+      ).toBe(true);
+
+      const nativeValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value"
+      )!.set!;
+      await act(async () => {
+        nativeValueSetter.call(volumeSlider, "0.25");
+        volumeSlider.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      expect(
+        JSON.parse(localStorage.getItem("bb-sound-settings")!).volume
+      ).toBeCloseTo(0.25);
+
+      // Closing the menu leaves no popup behind anywhere on the HUD.
+      await act(async () => {
+        menuRoot.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+        );
+      });
+      expect(container.querySelector('[role="menu"]')).toBeNull();
+      expect(container.querySelector(".absolute.top-4.right-4")).toBeNull();
+    });
+  });
 });

@@ -29,8 +29,20 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  itemRefs.current = new Array(entries.length).fill(null);
+
+  // Focus order is read straight from the live DOM rather than tracked in a
+  // parallel ref array — that's what lets a panel entry's own interactive
+  // children (the mute checkbox, the volume slider) join the same
+  // Arrow-key/Tab cycle as the plain action rows without the menu needing
+  // to know anything about what a panel renders.
+  const getFocusable = (): HTMLElement[] => {
+    if (!menuRef.current) return [];
+    return Array.from(
+      menuRef.current.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled])"
+      )
+    );
+  };
 
   // A confirm target that vanished (context changed under us) can't stay
   // pending — fall back to the plain menu list.
@@ -42,8 +54,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
 
   useEffect(() => {
     if (!open) return;
-    const firstEnabled = itemRefs.current.find(Boolean);
-    firstEnabled?.focus();
+    getFocusable()[0]?.focus();
   }, [open]);
 
   useEffect(() => {
@@ -89,15 +100,46 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       close();
       return;
     }
-    if (confirming) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const focusable = itemRefs.current.filter(
-        (el): el is HTMLButtonElement => el != null
-      );
+    if (event.key === "Tab") {
+      // The menu has no surrounding modal/dialog semantics to lean on, so
+      // Tab is trapped by hand: while the menu (or its confirm step) is
+      // open, Tab/Shift+Tab wraps within its own focusable elements rather
+      // than leaking focus out to whatever's next/previous in the page.
+      const focusable = getFocusable();
       if (focusable.length === 0) return;
       const currentIndex = focusable.indexOf(
-        document.activeElement as HTMLButtonElement
+        document.activeElement as HTMLElement
+      );
+      if (event.shiftKey) {
+        if (currentIndex <= 0) {
+          event.preventDefault();
+          focusable[focusable.length - 1].focus();
+        }
+      } else if (currentIndex === -1 || currentIndex === focusable.length - 1) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+      return;
+    }
+    if (confirming) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      // A focused <input type="range"> (the volume slider) already uses
+      // Up/Down natively to change its own value — once Arrow-key
+      // navigation has landed a coach there, those keys should adjust the
+      // slider, not immediately bounce focus off it again. Tab still moves
+      // on to the next focusable element.
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement && active.type === "range") {
+        return;
+      }
+      event.preventDefault();
+      // Includes a panel entry's own interactive children (see
+      // getFocusable), so Arrow keys can move focus into e.g. the mute
+      // checkbox/volume slider, not just cycle past them.
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const currentIndex = focusable.indexOf(
+        document.activeElement as HTMLElement
       );
       const delta = event.key === "ArrowDown" ? 1 : -1;
       const nextIndex =
@@ -168,7 +210,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
             </div>
           ) : (
             <ul className="flex flex-col gap-1">
-              {entries.map((entry, index) => {
+              {entries.map((entry) => {
                 if (entry.type === "panel") {
                   return (
                     <li key={entry.id} className="px-2 py-1.5">
@@ -179,9 +221,6 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                 return (
                   <li key={entry.id}>
                     <button
-                      ref={(el) => {
-                        if (!entry.disabled) itemRefs.current[index] = el;
-                      }}
                       type="button"
                       role="menuitem"
                       disabled={entry.disabled}

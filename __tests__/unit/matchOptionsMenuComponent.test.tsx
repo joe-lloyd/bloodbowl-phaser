@@ -56,6 +56,24 @@ describe("MatchOptionsMenu", () => {
     { id: "save-and-exit", label: "Save & Exit" },
   ];
 
+  // A panel entry (see openspec/changes/overhaul-sound-system) hosts an
+  // inline interactive control — here, a plain checkbox, so these tests
+  // stay about the menu shell's generic panel handling rather than
+  // coupling to what SoundToggle specifically renders.
+  const WITH_PANEL: MatchOptionsMenuEntry[] = [
+    { id: "return-to-menu", label: "Return to Main Menu" },
+    {
+      type: "panel",
+      id: "test-panel",
+      render: () => (
+        <label>
+          <input type="checkbox" aria-label="Test panel control" />
+          Test panel control
+        </label>
+      ),
+    },
+  ];
+
   it("is collapsed by default and opens on trigger click, focusing the first item", async () => {
     const onSelect = vi.fn();
     await act(async () => {
@@ -250,5 +268,128 @@ describe("MatchOptionsMenu", () => {
 
     expect(menu()).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  describe("panel entries", () => {
+    it("renders a panel entry's control inside the open menu, without menuitem semantics", async () => {
+      const onSelect = vi.fn();
+      await act(async () => {
+        root.render(
+          <MatchOptionsMenu entries={WITH_PANEL} onSelect={onSelect} />
+        );
+      });
+      await act(async () => {
+        trigger().click();
+      });
+
+      const control = container.querySelector<HTMLInputElement>(
+        'input[aria-label="Test panel control"]'
+      );
+      expect(control).not.toBeNull();
+      // It's an inline control, not a selectable action row.
+      expect(control!.closest('[role="menuitem"]')).toBeNull();
+
+      // Interacting with it never routes through onSelect — the panel
+      // manages its own state/behavior entirely.
+      await act(async () => {
+        control!.click();
+      });
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("ArrowDown navigation reaches the panel entry's control, not just past it", async () => {
+      const onSelect = vi.fn();
+      await act(async () => {
+        root.render(
+          <MatchOptionsMenu entries={WITH_PANEL} onSelect={onSelect} />
+        );
+      });
+      await act(async () => {
+        trigger().click();
+      });
+
+      // Opening focuses the first action row.
+      const actionItem = container.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]'
+      )!;
+      expect(document.activeElement).toBe(actionItem);
+
+      await act(async () => {
+        menu()!.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+        );
+      });
+
+      const control = container.querySelector<HTMLInputElement>(
+        'input[aria-label="Test panel control"]'
+      );
+      expect(document.activeElement).toBe(control);
+    });
+
+    it("Tab does not leak focus out of the open menu (focus trap)", async () => {
+      const onSelect = vi.fn();
+      await act(async () => {
+        root.render(
+          <MatchOptionsMenu entries={WITH_PANEL} onSelect={onSelect} />
+        );
+      });
+      await act(async () => {
+        trigger().click();
+      });
+
+      const control = container.querySelector<HTMLInputElement>(
+        'input[aria-label="Test panel control"]'
+      )!;
+      // The panel's control is the last focusable element in the menu —
+      // Tab from here would normally leave the menu (and the document, in
+      // this single-menu test tree) entirely without a trap.
+      control.focus();
+      expect(document.activeElement).toBe(control);
+
+      await act(async () => {
+        menu()!.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Tab", bubbles: true })
+        );
+      });
+
+      // Wrapped back to the first focusable element instead of escaping.
+      const actionItem = container.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]'
+      );
+      expect(document.activeElement).toBe(actionItem);
+      expect(menu()).not.toBeNull();
+    });
+
+    it("Shift+Tab from the first item wraps to the panel's control instead of leaving the menu", async () => {
+      const onSelect = vi.fn();
+      await act(async () => {
+        root.render(
+          <MatchOptionsMenu entries={WITH_PANEL} onSelect={onSelect} />
+        );
+      });
+      await act(async () => {
+        trigger().click();
+      });
+
+      const actionItem = container.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]'
+      )!;
+      expect(document.activeElement).toBe(actionItem);
+
+      await act(async () => {
+        menu()!.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Tab",
+            shiftKey: true,
+            bubbles: true,
+          })
+        );
+      });
+
+      const control = container.querySelector<HTMLInputElement>(
+        'input[aria-label="Test panel control"]'
+      );
+      expect(document.activeElement).toBe(control);
+    });
   });
 });
