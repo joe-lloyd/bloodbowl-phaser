@@ -13,9 +13,10 @@ export function numToHex(num: number): string {
 /**
  * Per-team stats grid: Team Value, Treasury, Roster count, Record.
  *
- * Lives on a team's detail page (team-management-layout: "Detailed team
- * stats live on the team detail page, not the overview") rather than the
- * Team Management overview cards.
+ * Shown on both the Team Management overview cards and a team's own detail
+ * page (team-management-layout: "Team overview cards show the per-team
+ * stats summary") — the overview needs it for at-a-glance browsing, and the
+ * detail page keeps it near the team's other stats.
  */
 export function TeamStatsOverview({ team }: { team: Team }) {
   return (

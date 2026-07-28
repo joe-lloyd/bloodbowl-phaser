@@ -21,7 +21,7 @@ import {
 } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
-import { numToHex } from "../TeamManagement/TeamStatsOverview";
+import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -301,60 +301,7 @@ export function TeamManagement() {
                     </div>
                   </div>
 
-                  {/* Career statistics — what a coach has achieved, per player */}
-                  <details className="mb-6 bg-black/20 rounded-lg border border-bb-dark-gold/30 p-4">
-                    <summary className="cursor-pointer text-xs uppercase font-bold text-bb-dark-gold tracking-wider">
-                      Career statistics
-                    </summary>
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="w-full text-xs text-bb-parchment font-body">
-                        <thead>
-                          <tr className="text-bb-dark-gold text-left">
-                            <th className="pr-2 pb-1">Player</th>
-                            <th className="px-2 pb-1 text-center">GP</th>
-                            <th className="px-2 pb-1 text-center">TD</th>
-                            <th className="px-2 pb-1 text-center">CMP</th>
-                            <th className="px-2 pb-1 text-center">CAS</th>
-                            <th className="px-2 pb-1 text-center">Kills</th>
-                            <th className="px-2 pb-1 text-center">MVP</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {team.players.map((rosterPlayer) => {
-                            const career = rosterPlayer.careerStats;
-                            return (
-                              <tr
-                                key={rosterPlayer.id}
-                                className="border-t border-bb-dark-gold/20"
-                              >
-                                <td className="pr-2 py-1">
-                                  #{rosterPlayer.number} {rosterPlayer.playerName}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.matches ?? 0}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.touchdowns ?? 0}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.completions ?? 0}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.casualties ?? 0}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.kills ?? 0}
-                                </td>
-                                <td className="px-2 py-1 text-center">
-                                  {career?.mvps ?? 0}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
+                  <TeamStatsOverview team={team} />
 
                   <PendingDevelopmentPanel
                     team={team}
