@@ -12,7 +12,10 @@
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { expectVisualCheckpoint, freezeAnimation } from "../support/visual";
-import { MOVEMENT_CASES } from "../../src/testing/cases";
+// Imports the `movement` section module directly, rather than the aggregate
+// registry — this is the movement section's own case data, mirroring
+// `__tests__/headless` per-section naming (see docs/E2E_TESTING.md).
+import { MOVEMENT_CASES } from "../../src/testing/cases/movement";
 import { PITCH_THEMES } from "../../src/game/presentation/pitchThemes";
 
 const scenarioCase = MOVEMENT_CASES[0];
