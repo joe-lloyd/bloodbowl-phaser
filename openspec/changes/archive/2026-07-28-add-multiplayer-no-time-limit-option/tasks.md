@@ -17,3 +17,7 @@
 ## 4. Docs / cleanup
 
 - [x] 4.1 Re-read `TurnClock.tsx` and `OnlineLobby.tsx` changes together to confirm no dead branches or duplicate "unlimited" concepts were introduced (per design.md's decision to reuse the existing null-deadline path).
+
+## 5. Review follow-up
+
+- [x] 5.1 (PR review, optional) Add an end-to-end test wiring `TurnClock` itself: given `turnSeconds = 0`, on `TurnStarted` the host writes a null deadline, the component renders nothing, and the host's expiry-enforcement effect never calls `endTurn` even after significant time passes. (`__tests__/unit/turnClockNoTimeLimit.test.tsx`.)
