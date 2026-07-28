@@ -145,7 +145,6 @@ export enum GameEventNames {
   UI_PlacePlayer = "ui:placePlayer",
   UI_RemovePlayer = "ui:removePlayer",
   UI_ConfirmSetup = "ui:confirmSetup",
-  UI_SceneChange = "ui:sceneChange",
   UI_LoadScenario = "ui:loadScenario",
   UI_StartGame = "ui:startGame",
   UI_StartCoinFlip = "ui:startCoinFlip",
@@ -651,11 +650,6 @@ export interface UIEvents {
   [GameEventNames.UI_RemovePlayer]: { playerId: string };
   [GameEventNames.UI_ConfirmSetup]: void;
 
-  // Navigation
-  [GameEventNames.UI_SceneChange]: {
-    scene: string;
-    data?: Record<string, unknown>;
-  };
   [GameEventNames.UI_LoadScenario]: {
     /** A core scenario id or a rule-catalog configuration id */
     scenarioId: string;

@@ -125,9 +125,9 @@ export function GamePage({
     suite.mount();
     return () => {
       // Order matters: dispose() first so no more events can trigger new
-      // sound while stop() is halting what's already playing/scheduled.
+      // sound while the manager tears down what's already playing/scheduled.
       suite.dispose();
-      manager.stop();
+      manager.dispose();
     };
   }, [eventBus]);
 
