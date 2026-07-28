@@ -8,7 +8,10 @@ Defines how the visible board is kept in step with authoritative match state: ex
 The game SHALL represent the ball as exactly one of a loose ball at a square or a ball
 carried by one player. When a pickup succeeds during a movement route, the loose-ball
 visual SHALL be removed, the carrier SHALL be marked as possessing the ball, and route
-execution SHALL continue from the pickup step using the updated state.
+execution SHALL continue from the pickup step using the updated state. When ball-position
+reconciliation runs in response to a networked event bundle (guest applying the host's
+play), it SHALL read state that already reflects that same bundle's authoritative
+snapshot — never a previously-applied bundle's state.
 
 #### Scenario: Mid-route pickup succeeds
 
@@ -27,6 +30,14 @@ execution SHALL continue from the pickup step using the updated state.
 
 - **WHEN** ball state is reconciled more than once without an intervening rules change
 - **THEN** exactly one ball representation remains
+
+#### Scenario: Guest's ball visual matches the bundle just applied
+
+- **WHEN** the guest receives a bundle whose events include a ball-position-changing
+  event (e.g. `BallPlaced`, `BallPickup`) alongside an updated snapshot
+- **THEN** the ball reconciliation triggered by that event renders the ball at the
+  position given in that same bundle's snapshot, not the position from the
+  previously-applied bundle
 
 ### Requirement: Knocked-out players leave the pitch immediately
 

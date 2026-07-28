@@ -132,4 +132,61 @@ describe("reported gameplay bugs (engine regressions)", () => {
     }
     expect(offered).toBe(true);
   });
+
+  it("force-ending a turn mid-activation clears the stale declaration so the next team can act", async () => {
+    // Regression for the online report "the timer hitting zero doesn't seem
+    // to end the turn properly": GameService.endTurn() (called directly by
+    // the online clock, and by a manual End Turn click) used to leave
+    // state.activePlayer set to the just-ended team's committed declaration.
+    // The next team's very first declareAction() was then refused by the
+    // "a live once-per-turn declaration must release first" guard, making
+    // the turn look like it never actually ended.
+    const scenario: Scenario = {
+      id: "force-end-turn-clears-declaration",
+      name: "Force end turn clears stale declaration",
+      description: "",
+      setup: {
+        team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+        team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
+        activeTeam: "team1",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 1, y: 1 },
+      },
+    };
+
+    const game = new HeadlessGame({ scenario, seed: 3 });
+    const attacker = game.snapshot().teams[0].players[0];
+    const nextMover = game.snapshot().teams[1].players[0];
+
+    // Declare and commit a once-per-turn action (Blitz), but never finish
+    // the activation — this is exactly the state a stalled/AFK coach leaves
+    // behind when the clock runs out on them.
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    expect(declared.ok).toBe(true);
+    const moved = await game.execute({
+      type: "move",
+      playerId: attacker.id,
+      path: [{ x: 11, y: 5 }],
+    });
+    expect(moved.ok).toBe(true);
+
+    // Force-end the turn mid-activation, as the online clock (and a manual
+    // End Turn click) do.
+    const ended = await game.execute({ type: "end-turn" });
+    expect(ended.ok).toBe(true);
+    expect(ended.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+
+    // The new active team's very first declaration must succeed.
+    const nextDeclared = await game.execute({
+      type: "declare-action",
+      playerId: nextMover.id,
+      action: "move",
+    });
+    expect(nextDeclared.ok).toBe(true);
+  });
 });

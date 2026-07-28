@@ -102,6 +102,16 @@ export interface GameSnapshot {
    * `GameState.kickoffKickResolved`.
    */
   kickoffKickResolved?: GameState["kickoffKickResolved"];
+  /**
+   * Per-team turn counters and drive/half kicking-team bookkeeping
+   * (`TurnManager`'s own state) — NOT part of `GameState`/`serializeGameState`
+   * proper, since it lives on `TurnManager`, not `state.turn` (which only
+   * ever describes the currently-active team's turn). Populated by
+   * `HeadlessGame.snapshot()` for the network layer, so a guest replica can
+   * restore it and report the correct per-team turn count instead of
+   * staying frozen at its initial value. Absent on pre-feature snapshots.
+   */
+  turnManager?: import("../game/managers/TurnManager").TurnManagerState;
 }
 
 export const MATCH_SAVE_VERSION = 1 as const;

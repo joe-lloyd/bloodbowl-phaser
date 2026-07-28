@@ -162,6 +162,14 @@ export enum GameEventNames {
   /** Online: re-render the pitch from the authoritative snapshot so a
    *  player watching the opponent's setup/placement sees it live. */
   UI_SyncBoard = "ui:syncBoard",
+  /** Online guest only: a sync-returning "optimistic" mutation (declare-
+   *  action, cancel-action, …) that NetworkedGameService reported as
+   *  succeeded was actually rejected by the host once the round trip
+   *  completed. The local interaction controller cannot trust its own
+   *  optimistic step-machine state after this — it must reconcile against
+   *  the (already snapshot-corrected) replica rather than keep pretending
+   *  the command it just sent took effect. */
+  NetworkCommandRejected = "network:commandRejected",
   UI_SetupComplete = "ui:setupcomplete",
   UI_SetupAction = "ui:setupAction",
   UI_FormationsUpdated = "ui:formationsUpdated",
@@ -687,6 +695,16 @@ export interface UIEvents {
   };
   [GameEventNames.UI_HideSetupControls]: void;
   [GameEventNames.UI_SyncBoard]: void;
+  [GameEventNames.NetworkCommandRejected]: {
+    /** The rejected command's `type`, e.g. "declare-action" */
+    commandType: string;
+    /** The player the command was declaring/cancelling/acting for, when the
+     *  command shape carries one (declare-action, cancel-action, block, …). */
+    playerId?: string;
+    /** The action the command tried to declare (declare-action only). */
+    action?: string;
+    reason: string;
+  };
   [GameEventNames.UI_SetupComplete]: boolean;
   [GameEventNames.UI_SetupAction]: { action: string; name?: string };
   /** The formations pickable for the team currently setting up */

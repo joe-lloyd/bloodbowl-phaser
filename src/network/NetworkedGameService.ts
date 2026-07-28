@@ -23,8 +23,10 @@ import { GamePhase, GameState, SubPhase } from "../types/GameState";
 import { Player } from "../types/Player";
 import { Team } from "../types/Team";
 import { BlockResult } from "../services/BlockResolutionService";
-import { ActionType } from "../types/events";
+import { ActionType, GameEventNames } from "../types/events";
 import { BlockReplacement } from "../types/BlockReplacement";
+import { IEventBus } from "../services/EventBus";
+import { movePlayerToBox } from "../game/rules/playerLocation";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -36,7 +38,11 @@ export class NetworkedGameService implements IGameService {
     /** Passive replica: never executes rules, only holds synced state */
     private readonly inner: GameService,
     private readonly dispatch: Dispatch,
-    private readonly pendingDecision: () => PendingDecision | null
+    private readonly pendingDecision: () => PendingDecision | null,
+    /** Notifies callers (GameplayInteractionController) that a command it
+     *  treated as optimistically successful was actually refused, so any
+     *  local step-machine state built on that assumption can reconcile. */
+    private readonly eventBus?: IEventBus
   ) {}
 
   private send(command: HeadlessCommand): void {
@@ -45,6 +51,23 @@ export class NetworkedGameService implements IGameService {
         console.warn(
           `[Networked] host rejected ${command.type}: ${response.reason}`
         );
+        // Sync-returning mutators below (declareAction, cancelAction, …)
+        // already told their caller "true" before this response arrived —
+        // that optimism only self-corrects the passive replica's DATA (via
+        // the resync/snapshot every response carries). Nothing else corrects
+        // UI-side state built directly on the optimistic return value, so
+        // surface the rejection explicitly.
+        const cmd = command as HeadlessCommand & {
+          playerId?: string;
+          attackerId?: string;
+          action?: string;
+        };
+        this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
+          commandType: command.type,
+          playerId: cmd.playerId ?? cmd.attackerId,
+          action: cmd.action,
+          reason: response.reason ?? "unknown",
+        });
       }
     });
   }
@@ -276,23 +299,34 @@ export class NetworkedGameService implements IGameService {
     // Optimistic: place immediately on the local replica so the board never
     // flashes back to the dugout while the command round-trips. The host's
     // response snapshot corrects/rolls back if the placement was illegal.
+    // Routed through movePlayerToBox (not a bare gridPosition assignment) so
+    // `status` moves to ACTIVE in the same step: leaving status stale (still
+    // Reserve, its value at the start of every setup) would make the guest's
+    // own "trust my in-flight setup state" snapshot guard in OnlineMatch
+    // restore that stale Reserve status forever, flipping a correctly-placed
+    // player's dugout box back to Reserves for the rest of their turn.
     const player = this.inner.getPlayerById(playerId);
-    if (player) player.gridPosition = { x, y };
+    if (player) movePlayerToBox(player, { box: "pitch", position: { x, y } });
     this.send({ type: "place-player", playerId, x, y });
     return true;
   }
   removePlayer(playerId: string): void {
+    // See placePlayer: keep status in lockstep with gridPosition so the
+    // guest's own optimistic state is never internally inconsistent.
     const player = this.inner.getPlayerById(playerId);
-    if (player) player.gridPosition = undefined;
+    if (player) movePlayerToBox(player, { box: "reserves" });
     this.send({ type: "remove-player", playerId });
   }
   swapPlayers(player1Id: string, player2Id: string): boolean {
     const a = this.inner.getPlayerById(player1Id);
     const b = this.inner.getPlayerById(player2Id);
     if (a && b) {
-      const tmp = a.gridPosition;
-      a.gridPosition = b.gridPosition;
-      b.gridPosition = tmp;
+      const posA = a.gridPosition;
+      const posB = b.gridPosition;
+      if (posB) movePlayerToBox(a, { box: "pitch", position: posB });
+      else movePlayerToBox(a, { box: "reserves" });
+      if (posA) movePlayerToBox(b, { box: "pitch", position: posA });
+      else movePlayerToBox(b, { box: "reserves" });
     }
     this.send({ type: "swap-players", player1Id, player2Id });
     return true;
@@ -308,13 +342,21 @@ export class NetworkedGameService implements IGameService {
     const team = this.inner.getTeam(teamId);
     const placedPlayerIds: string[] = [];
     if (team) {
-      team.players.forEach((player) => (player.gridPosition = undefined));
+      // Only clear players actually on the pitch: routing every player
+      // (including KO'd/injured/dead ones, who never hold a gridPosition)
+      // through movePlayerToBox(reserves) would wrongly stamp them Reserve.
+      team.players.forEach((player) => {
+        if (player.gridPosition) movePlayerToBox(player, { box: "reserves" });
+      });
       formation.slice(0, 7).forEach((position, index) => {
         const rosterIndex = Number.parseInt(position.playerId, 10);
         const player =
           team.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
         if (!player) return;
-        player.gridPosition = { x: position.x, y: position.y };
+        movePlayerToBox(player, {
+          box: "pitch",
+          position: { x: position.x, y: position.y },
+        });
         placedPlayerIds.push(player.id);
       });
     }
