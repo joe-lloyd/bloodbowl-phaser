@@ -88,6 +88,7 @@ export type HeadlessCommand =
   | { type: "ball-and-chain"; playerId: string; x: number; y: number }
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
+  | { type: "brawler-reroll-block"; attackerId: string }
   | {
       type: "special-action";
       action: Exclude<BlockReplacement, "stab"> | "gaze";
@@ -161,6 +162,8 @@ export type PendingDecision =
       teamRerollAvailable?: boolean;
       /** The attacker may Pro-re-roll one die before choosing. */
       proAvailable?: boolean;
+      /** The attacker may Brawler-re-roll the single Both Down die. */
+      brawlerAvailable?: boolean;
     }
   | {
       type: "push-direction";

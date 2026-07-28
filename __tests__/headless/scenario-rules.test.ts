@@ -549,8 +549,10 @@ describe("block-injury scenarios (seeded)", () => {
       attackerId: attacker.id,
       defenderId: defender.id,
     });
-    // A Brawler attacker (e.g. Black Orcs) is offered a Both Down re-roll;
-    // decline it so the seeded dice — and the advertised outcome — stand.
+    // A Hatred attacker is offered a Player Down re-roll; decline it so the
+    // seeded dice — and the advertised outcome — stand. (Brawler's Both Down
+    // re-roll is a button on the block-dice decision itself, not a separate
+    // reaction — simply not clicking it leaves the seeded dice alone.)
     if (rolled.pendingDecision?.type === "reaction") {
       rolled = await game.execute({ type: "use-reaction", accept: false });
     }

@@ -149,6 +149,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
   };
 
+  const handleBrawlerReroll = () => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
+    if (!data) return;
+    eventBus.emit(GameEventNames.UI_BrawlerRerollBlockDie, {
+      attackerId: data.attackerId,
+    });
+  };
+
   const handleCancel = () => {
     setIsOpen(false);
   };
@@ -220,7 +228,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                 ? "Pro: click a die to re-roll it (3+)"
                 : "Click a die to select the result"}
             </div>
-            {(rollData.teamRerollAvailable || rollData.proAvailable) && (
+            {(rollData.teamRerollAvailable ||
+              rollData.proAvailable ||
+              rollData.brawlerAvailable) && (
               <div className="flex justify-center gap-3 mt-3">
                 {rollData.teamRerollAvailable && (
                   <button
@@ -241,6 +251,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     }`}
                   >
                     {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
+                  </button>
+                )}
+                {rollData.brawlerAvailable && (
+                  <button
+                    data-testid="block-brawler-reroll"
+                    onClick={handleBrawlerReroll}
+                    className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 rounded text-xs font-bold text-white transition-colors"
+                  >
+                    BRAWLER: RE-ROLL 1 BOTH DOWN
                   </button>
                 )}
               </div>
