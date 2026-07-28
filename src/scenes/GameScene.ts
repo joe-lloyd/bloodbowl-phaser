@@ -478,6 +478,10 @@ export class GameScene extends Phaser.Scene {
       });
       // Reset selection
       this.gameplayController.deselectPlayer();
+      // A stale remote-selection ring (opponent disconnected mid-selection,
+      // or the turn simply ended without a drive-ending RefreshBoard) must
+      // not persist into the new turn.
+      this.setRemoteSelection(null);
     });
 
     // Online only: show a live indicator of which single opposing player

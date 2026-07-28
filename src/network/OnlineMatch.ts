@@ -162,6 +162,26 @@ export function nextSelectionToForward(
   return playerId;
 }
 
+/**
+ * Receiver-side guard for an incoming "selection" envelope: the claimed
+ * player must actually belong to the team the sender is expected to
+ * control. A peer's claims about its own state are never taken at face
+ * value — mirrors the trust model `OwnershipGate.checkOwnership` applies to
+ * `HeadlessCommand`s, just for this cosmetic-only channel instead of an
+ * engine mutation. `null` (a deselection) is always valid.
+ */
+export function isValidSelectionClaim(
+  playerId: string | null,
+  senderTeamId: string,
+  teams: Team[]
+): boolean {
+  if (playerId === null) return true;
+  const player = teams
+    .flatMap((team) => team.players)
+    .find((candidate) => candidate.id === playerId);
+  return player?.teamId === senderTeamId;
+}
+
 /** Buffers native host events and flushes them as one broadcast bundle. */
 class EventBroadcaster {
   private buffer: EmittedEvent[] = [];
@@ -391,8 +411,16 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       onGuestExecuteStart: () => broadcaster.pause(),
       onGuestExecuteEnd: () => broadcaster.resume(),
       // The guest's own-team selection changed — mirror it as a local
-      // "remote selection" indicator, never as engine state.
+      // "remote selection" indicator, never as engine state. The guest
+      // could claim any playerId, so verify it actually belongs to the
+      // guest's own team before trusting and re-emitting it.
       onSelection: (payload) => {
+        if (!isValidSelectionClaim(payload.playerId, team2.id, [team1, team2])) {
+          console.warn(
+            "[Online] rejected selection envelope: player is not on the guest's team"
+          );
+          return;
+        }
         eventBus.emit(GameEventNames.RemoteSelectionChanged, {
           playerId: payload.playerId,
         });
@@ -626,8 +654,16 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         }),
       onHello: checkHello,
       // The host's own-team selection changed — mirror it as a local
-      // "remote selection" indicator, never as engine state.
+      // "remote selection" indicator, never as engine state. The host could
+      // claim any playerId, so verify it actually belongs to the host's own
+      // team before trusting and re-emitting it.
       onSelection: (payload) => {
+        if (!isValidSelectionClaim(payload.playerId, team1.id, [team1, team2])) {
+          console.warn(
+            "[Online] rejected selection envelope: player is not on the host's team"
+          );
+          return;
+        }
         eventBus.emit(GameEventNames.RemoteSelectionChanged, {
           playerId: payload.playerId,
         });
