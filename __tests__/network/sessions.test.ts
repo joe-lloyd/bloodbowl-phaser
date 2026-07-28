@@ -1112,4 +1112,90 @@ describe("networked sessions", () => {
     host.close();
     guest.close();
   });
+
+  it("snapshots carry each team's real per-team turn count, not just the active team's", async () => {
+    // Regression for "the turn counter never goes up for the non-host": the
+    // guest's scoreboard reads getTurnNumber(teamId) for BOTH teams, backed
+    // by TurnManager.turnCounts — a field that lives outside GameState and
+    // must ride along on the snapshot as its own sidecar field.
+    const match = createMatch({ seed: 5, startingPhase: GamePhase.SETUP });
+    const { game, hostTeamId, guestTeamId } = match;
+
+    // startGame() starts the RECEIVING team's turn first; route each
+    // end-turn through whichever side actually owns the active turn (same
+    // routing `run()`/`senderSide()` use elsewhere in this file) so the
+    // ownership gate doesn't reject an out-of-turn call.
+    game.ctx.gameService.startGame(hostTeamId);
+    for (let i = 0; i < 2; i++) {
+      const active = game.ctx.gameService.getState().activeTeamId;
+      const response =
+        active === guestTeamId
+          ? await match.guest.sendCommand({ type: "end-turn" })
+          : await match.host.executeLocal({ type: "end-turn" });
+      expect(response.ok).toBe(true);
+    }
+
+    const snapshot = game.snapshot();
+    expect(snapshot.turnManager).toBeDefined();
+    expect(snapshot.turnManager!.turnCounts[hostTeamId]).toBe(
+      game.ctx.gameService.getTurnNumber(hostTeamId)
+    );
+    expect(snapshot.turnManager!.turnCounts[guestTeamId]).toBe(
+      game.ctx.gameService.getTurnNumber(guestTeamId)
+    );
+    expect(snapshot.turnManager!.turnCounts[hostTeamId]).toBeGreaterThan(0);
+    expect(snapshot.turnManager!.turnCounts[guestTeamId]).toBeGreaterThan(0);
+  });
+
+  it("a host force-ending the turn mid-activation does not block the guest's next declaration", async () => {
+    // Regression for "the timer hitting zero doesn't seem to end the turn
+    // properly": force-ending the turn (the online clock, or a manual End
+    // Turn click) used to leave a stale, committed state.activePlayer that
+    // refused the next team's very first declareAction() over the wire.
+    const forceEndScenario: Scenario = {
+      id: "online-force-end-turn",
+      name: "Online force end turn",
+      description:
+        "Host force-ends the turn mid-activation; the guest must be able to act immediately.",
+      setup: {
+        team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
+        team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
+        activeTeam: "team1",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 1, y: 1 },
+      },
+    };
+    const match = createMatch({ scenario: forceEndScenario, seed: 3 });
+    const attacker = match.game.ctx.team1.players[0];
+    const guestMover = match.game.ctx.team2.players[0];
+
+    const declared = await match.host.executeLocal({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    expect(declared.ok).toBe(true);
+    const moved = await match.host.executeLocal({
+      type: "move",
+      playerId: attacker.id,
+      path: [{ x: 11, y: 5 }],
+    });
+    expect(moved.ok).toBe(true);
+
+    // Force-end without ever finishing the activation — same GameService
+    // .endTurn() call the online clock (TurnClock) and the End Turn button
+    // both make directly, bypassing end-activation.
+    const ended = await match.host.executeLocal({ type: "end-turn" });
+    expect(ended.ok).toBe(true);
+    expect(ended.snapshot.activeTeamId).toBe(match.guestTeamId);
+    expect(ended.snapshot.activePlayer).toBeNull();
+
+    const guestDeclared = await match.guest.sendCommand({
+      type: "declare-action",
+      playerId: guestMover.id,
+      action: "move",
+    });
+    expect(guestDeclared.ok).toBe(true);
+  });
 });
