@@ -87,3 +87,29 @@ roles and names and SHALL support keyboard operation.
 - **WHEN** a Playwright test opens the menu, selects Return to Main Menu, and confirms
   using only keyboard input
 - **THEN** the same save and navigation behavior occurs as with pointer input
+
+### Requirement: The menu can host an inline control entry
+
+The Match Options menu SHALL support an entry that renders an inline interactive control
+(such as a mute checkbox and volume slider), in addition to its simple labelled actions.
+This entry SHALL NOT require the coach to leave the menu or open a separate popup to use
+it, and SHALL NOT permanently occupy the HUD outside the expanded menu. Such a control
+SHALL join the same keyboard navigation as the menu's other entries — reachable by Arrow
+key, with Tab/Shift+Tab kept within the open menu rather than leaking focus elsewhere on
+the page.
+
+#### Scenario: Sound control lives in the menu
+
+- **WHEN** the coach opens the Match Options menu
+- **THEN** a mute checkbox and volume slider are available as an entry inside that menu
+
+#### Scenario: No separate floating sound popup
+
+- **WHEN** the Match Options menu is closed
+- **THEN** no separate mute/volume popup is shown elsewhere on the HUD
+
+#### Scenario: Inline control is keyboard-reachable within the trapped menu
+
+- **WHEN** the coach opens the menu and presses Arrow keys to navigate its entries
+- **THEN** focus can reach the inline control's own interactive elements, and Tab does not
+  move focus outside the open menu
