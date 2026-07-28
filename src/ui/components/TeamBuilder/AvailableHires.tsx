@@ -1,5 +1,7 @@
 import { TeamRoster } from "../../../types/Team";
+import { SKILL_DEFINITIONS } from "../../../types/Skills";
 import { Button } from "../componentWarehouse/Button";
+import { Tooltip } from "../componentWarehouse/Tooltip";
 import {
   BloodBowlTable,
   TableRow,
@@ -57,11 +59,22 @@ export function AvailableHires({
             <TableCell className="text-sm text-center">
               {template.stats.AV}+
             </TableCell>
-            <TableCell
-              className="text-sm italic"
-              title={template.skills.map((s) => s.type).join(", ")}
-            >
-              {template.skills.map((s) => s.type).join(", ")}
+            <TableCell className="text-sm italic">
+              <div className="flex flex-wrap gap-1">
+                {template.skills.map((skill, index) => (
+                  <span key={`${skill.type}-${index}`}>
+                    <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
+                      <span className="cursor-help underline decoration-dotted">
+                        {skill.type}
+                        {skill.parameter != null
+                          ? ` (${skill.parameter})`
+                          : ""}
+                      </span>
+                    </Tooltip>
+                    {index < template.skills.length - 1 ? "," : ""}
+                  </span>
+                ))}
+              </div>
             </TableCell>
             <TableCell className="font-bold text-base">
               {formatGold(template.cost)}
