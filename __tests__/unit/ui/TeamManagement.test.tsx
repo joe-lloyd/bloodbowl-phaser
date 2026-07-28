@@ -7,11 +7,12 @@ import { saveTeams } from "../../../src/game/managers/TeamManager";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
 /**
- * team-management-layout: "Overview card omits the stats grid" — the Team
- * Value / Treasury / Roster / Record grid moved to the team detail page
- * (TeamBuilder), so the overview card no longer renders it. The
- * career-statistics <details> block is a separate, per-player feature that
- * stays on the overview and must keep working.
+ * team-management-layout: "Team overview cards show the per-team stats
+ * summary" — the Team Value / Treasury / Roster / Record grid is back on
+ * the overview card (reversing the earlier redesign-team-management-pages
+ * decision). Per-player career statistics moved the other way: off the
+ * overview and onto the team detail page's roster table, so the overview
+ * no longer renders that block.
  */
 describe("TeamManagement overview card", () => {
   let container: HTMLDivElement;
@@ -30,11 +31,12 @@ describe("TeamManagement overview card", () => {
     localStorage.clear();
   });
 
-  it("does not render the Team Value/Treasury/Roster/Record stats grid", async () => {
+  it("renders the Team Value/Treasury/Roster/Record stats grid", async () => {
     const team = new TeamTestBuilder()
       .withName("The Overview Orcs")
       .withPlayers(3)
       .withTreasury(60000)
+      .withStats(4, 1, 2)
       .build();
     saveTeams([team]);
 
@@ -47,11 +49,14 @@ describe("TeamManagement overview card", () => {
     });
 
     expect(container.textContent).toContain("The Overview Orcs");
-    expect(container.textContent).not.toContain("Team Value");
-    expect(container.textContent).not.toContain("Treasury");
+    expect(container.textContent).toContain("Team Value");
+    expect(container.textContent).toContain("Treasury");
+    expect(container.textContent).toContain("60k");
+    expect(container.textContent).toContain("3/11");
+    expect(container.textContent).toContain("4-2-1");
   });
 
-  it("still renders the Career statistics details block", async () => {
+  it("does not render the Career statistics block", async () => {
     const team = new TeamTestBuilder()
       .withName("The Overview Orcs")
       .withPlayers(3)
@@ -66,6 +71,6 @@ describe("TeamManagement overview card", () => {
       );
     });
 
-    expect(container.textContent).toContain("Career statistics");
+    expect(container.textContent).not.toContain("Career statistics");
   });
 });

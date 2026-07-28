@@ -83,3 +83,93 @@ describe("TeamRoster readability", () => {
     expect(cols.length).toBe(headerCells.length);
   });
 });
+
+/**
+ * team-management-layout: "Per-player career statistics are shown on the
+ * team detail page, not the overview" — the roster table on the team
+ * detail page carries each player's career stats as trailing columns.
+ */
+describe("TeamRoster career-stat columns", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("renders GP/TD/CMP/CAS/Kills/MVP headers and a player's career totals", async () => {
+    const team = new TeamTestBuilder().withPlayers(2).build();
+    team.players[0].careerStats = {
+      matches: 5,
+      completions: 4,
+      interceptions: 1,
+      casualties: 3,
+      touchdowns: 2,
+      mvps: 1,
+      kills: 1,
+      squaresMoved: 40,
+      passesAttempted: 6,
+      sppEarned: 12,
+    };
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const headerLabels = Array.from(
+      container.querySelectorAll("thead th")
+    ).map((th) => th.textContent);
+    expect(headerLabels).toEqual(
+      expect.arrayContaining(["GP", "TD", "CMP", "CAS", "Kills", "MVP"])
+    );
+
+    const firstRow = container.querySelector("tbody tr");
+    const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
+      (td) => td.textContent
+    );
+    expect(cellTexts).toEqual(
+      expect.arrayContaining(["5", "2", "4", "3", "1", "1"])
+    );
+  });
+
+  it("shows zero for a player who has never played a match", async () => {
+    const team = new TeamTestBuilder().withPlayers(1).build();
+    team.players[0].careerStats = undefined;
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const firstRow = container.querySelector("tbody tr");
+    const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
+      (td) => td.textContent
+    );
+    // Cost column ("0k") plus six zeroed career-stat columns for a
+    // never-played player.
+    const zeroCells = cellTexts.filter((text) => text === "0");
+    expect(zeroCells.length).toBe(6);
+  });
+});
