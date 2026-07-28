@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Team, calculateTeamValue } from "../../../types/Team";
+import { Team } from "../../../types/Team";
 import {
   loadTeams,
   deleteTeam,
@@ -21,6 +21,7 @@ import {
 } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
+import { numToHex } from "../TeamManagement/TeamStatsOverview";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -133,14 +134,6 @@ export function TeamManagement() {
     navigate("/");
   };
 
-  const formatGold = (amount: number): string => {
-    return `${(amount / 1000).toFixed(0)}k`;
-  };
-
-  const numToHex = (num: number): string => {
-    return "#" + num.toString(16).padStart(6, "0");
-  };
-
   return (
     <MinHeightContainer className="!justify-start">
       <Parchment $intensity="low" />
@@ -235,42 +228,6 @@ export function TeamManagement() {
                     <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight drop-shadow-md">
                       {team.name}
                     </h3>
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8 bg-black/20 p-6 rounded-lg border border-bb-dark-gold/30">
-                    <div>
-                      <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-                        Team Value
-                      </span>
-                      <span className="font-heading text-2xl text-bb-parchment">
-                        {formatGold(calculateTeamValue(team))}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-                        Treasury
-                      </span>
-                      <span className="font-heading text-2xl text-white">
-                        {formatGold(team.treasury)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-                        Roster
-                      </span>
-                      <span className="font-heading text-2xl text-white">
-                        {team.players.length}/11
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-                        Record
-                      </span>
-                      <span className="font-heading text-2xl text-white">
-                        {team.wins}-{team.draws}-{team.losses}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Team Photo - First 7 Players */}

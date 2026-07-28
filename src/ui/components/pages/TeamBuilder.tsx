@@ -26,6 +26,10 @@ import { Title } from "../componentWarehouse/Titles";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
 import { AdvancementModePanel } from "../TeamBuilder/AdvancementModePanel";
+import {
+  TeamStatsOverview,
+  formatGold,
+} from "../TeamManagement/TeamStatsOverview";
 import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
@@ -317,8 +321,6 @@ export function TeamBuilder() {
     setTeam({ ...team });
   };
 
-  const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
-
   if (!team) {
     return (
       <MinHeightContainer className="bg-bb-parchment">
@@ -520,6 +522,8 @@ export function TeamBuilder() {
                   </div>
                 </div>
               </div>
+
+              <TeamStatsOverview team={team} />
 
               <AdvancementModePanel
                 team={team}
