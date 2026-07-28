@@ -32,3 +32,11 @@ Reserves.
   setup zone
 - **THEN** the player is shown in the Reserves box, since they have genuinely left
   the pitch
+
+#### Scenario: A first-time placement does not get stuck showing Reserves
+
+- **WHEN** the guest, during their own setup turn, places a player from the
+  dugout onto a legal pitch square for the first time (not a reposition)
+- **THEN** the player's sprite shows only on the pitch for the rest of the
+  guest's turn — it does not become stuck rendering in the Reserves box even
+  as further snapshots arrive while the guest keeps setting up
