@@ -1221,6 +1221,21 @@ export class BlockManager {
       anyAdjacent.length > 0;
     const attacker = this.getPlayerById(this.chain!.attackerId);
 
+    // The wider Grab/Sidestep square set is what's in play for THIS push
+    // decision — name the skill in the match log so a square outside the
+    // usual three doesn't look arbitrary (rulebook p.135).
+    if (anyAdjacent.length > 0) {
+      const skill = sideStepApplies ? SkillType.SIDESTEP : SkillType.GRAB;
+      const holderId = sideStepApplies ? pushed.id : attacker?.id;
+      if (holderId) {
+        this.eventBus.emit(GameEventNames.SkillTriggered, {
+          playerId: holderId,
+          skill,
+          effect: `${skill}: this push is offered among all open adjacent squares, not just the usual three`,
+        });
+      }
+    }
+
     this.eventBus.emit(GameEventNames.UI_SelectPushDirection, {
       defenderId: pushed.id,
       validDirections: options,

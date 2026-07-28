@@ -29,6 +29,10 @@ import {
   AdvancementModePanel,
   AdvancementModeSelector,
 } from "../TeamBuilder/AdvancementModePanel";
+import {
+  TeamStatsOverview,
+  formatGold,
+} from "../TeamManagement/TeamStatsOverview";
 import { lockAdvancementMode } from "../../../types/Team";
 
 // interface TeamBuilderProps {}
@@ -320,8 +324,6 @@ export function TeamBuilder() {
     setTeam({ ...team });
   };
 
-  const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
-
   if (!team) {
     return (
       <MinHeightContainer className="bg-bb-parchment">
@@ -526,6 +528,8 @@ export function TeamBuilder() {
               <div className="px-4 pb-4">
                 <AdvancementModeSelector team={team} onChange={setTeam} />
               </div>
+
+              <TeamStatsOverview team={team} />
 
               <AdvancementModePanel
                 team={team}

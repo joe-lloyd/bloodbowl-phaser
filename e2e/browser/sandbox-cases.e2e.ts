@@ -10,7 +10,10 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { MOVEMENT_CASES } from "../../src/testing/cases";
+// Imports the `movement` section module directly, rather than the aggregate
+// registry — this is the movement section's own case data, mirroring
+// `__tests__/headless` per-section naming (see docs/E2E_TESTING.md).
+import { MOVEMENT_CASES } from "../../src/testing/cases/movement";
 import { GameApp } from "../support/pages/game";
 
 const scenarioCase = MOVEMENT_CASES[0];

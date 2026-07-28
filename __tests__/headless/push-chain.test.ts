@@ -3,12 +3,22 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
+import { SkillType } from "../../src/types/Skills";
 import { Scenario } from "../../src/types/Scenario";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { CommandResponse, PendingDecision } from "../../src/headless/protocol";
 
 const chainScenario = SCENARIOS.find((s) => s.id === "chain-push")!;
 const surfScenario = SCENARIOS.find((s) => s.id === "crowd-surf")!;
+const grabOpenScenario = SCENARIOS.find(
+  (s) => s.id === "chain-push-grab-open"
+)!;
+const grabBoxedScenario = SCENARIOS.find(
+  (s) => s.id === "chain-push-grab-boxed"
+)!;
+const grabSecondLinkScenario = SCENARIOS.find(
+  (s) => s.id === "chain-push-grab-second-link"
+)!;
 
 /**
  * Chain push of the blocker's own teammate into the crowd: the defender's
@@ -314,6 +324,164 @@ describe("crowd surf", () => {
         (p) => p.id === defender.id
       )!;
       expect(defenderAfter.position).toEqual({ x: 10, y: 0 });
+      return;
+    }
+    throw new Error("no push result found in seed range");
+  });
+});
+
+/**
+ * Grab (rulebook p.135): the Black Orc attacker's Grab widens the open tier
+ * to all eight on-pitch squares adjacent to the defender. These scenarios
+ * lock that already-correct behavior in place, per
+ * openspec/changes/fix-chain-push-grab-skill — Grab was never a code bug,
+ * just uncovered by a scenario/test until now.
+ */
+describe("Grab-assisted push", () => {
+  it("chain-push-grab-open: Grab offers the wider square as an open-tier choice", async () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const game = new HeadlessGame({ scenario: grabOpenScenario, seed });
+      const snap = game.snapshot();
+      const attacker = snap.teams[0].players[0]; // Black Orc, Grab, (9,5)
+      const defender = snap.teams[1].players[0]; // (10,5)
+
+      const pushed = await blockUntilPush(game, attacker.id, defender.id);
+      if (!pushed) continue;
+
+      // All three traditional squares are occupied, but (10,4) is open among
+      // the eight Grab squares -> offered as the sole open-tier choice.
+      const decision = expectPushDecision(pushed.pendingDecision);
+      expect(decision.options).toEqual([{ x: 10, y: 4 }]);
+
+      const raw = pushed.events.find(
+        (e) => e.name === GameEventNames.UI_SelectPushDirection
+      );
+      expect(
+        (raw?.data as { pushTier?: string } | undefined)?.pushTier
+      ).toBe("open");
+      return;
+    }
+    throw new Error("no push result found in seed range");
+  });
+
+  it("chain-push-grab-boxed: a fully boxed-in defender still chains over the normal three squares", async () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const game = new HeadlessGame({ scenario: grabBoxedScenario, seed });
+      const snap = game.snapshot();
+      const attacker = snap.teams[0].players[0]; // Black Orc, Grab, (9,5)
+      const defender = snap.teams[1].players[0]; // (10,5), boxed in on all 8
+
+      const pushed = await blockUntilPush(game, attacker.id, defender.id);
+      if (!pushed) continue;
+
+      // No opening anywhere among the eight Grab squares: falls back to the
+      // normal three-square chain push, exactly as without Grab.
+      const decision = expectPushDecision(pushed.pendingDecision);
+      expect(decision.options).toEqual(
+        expect.arrayContaining([
+          { x: 11, y: 4 },
+          { x: 11, y: 5 },
+          { x: 11, y: 6 },
+        ])
+      );
+      expect(decision.options).toHaveLength(3);
+
+      const raw = pushed.events.find(
+        (e) => e.name === GameEventNames.UI_SelectPushDirection
+      );
+      expect(
+        (raw?.data as { pushTier?: string } | undefined)?.pushTier
+      ).toBe("chain");
+      return;
+    }
+    throw new Error("no push result found in seed range");
+  });
+
+  it("chain-push-grab-second-link: a forced second push in the chain ignores Grab", async () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const game = new HeadlessGame({
+        scenario: grabSecondLinkScenario,
+        seed,
+      });
+      const snap = game.snapshot();
+      const attacker = snap.teams[0].players[0]; // Black Orc, Grab, (9,5)
+      const defender = snap.teams[1].players[0]; // D0, (10,5), boxed on all 8
+      const secondOccupant = snap.teams[1].players[2]; // (11,4), boxed on its own 3
+
+      const pushed = await blockUntilPush(game, attacker.id, defender.id);
+      if (!pushed) continue;
+
+      // Link 0: D0 is fully boxed in on all 8, so this is the normal
+      // three-square chain tier, same as chain-push-grab-boxed.
+      const first = expectPushDecision(pushed.pendingDecision);
+      expect(first.options).toEqual(
+        expect.arrayContaining([
+          { x: 11, y: 4 },
+          { x: 11, y: 5 },
+          { x: 11, y: 6 },
+        ])
+      );
+      expect(first.options).toHaveLength(3);
+      const firstRaw = pushed.events.find(
+        (e) => e.name === GameEventNames.UI_SelectPushDirection
+      );
+      expect(
+        (firstRaw?.data as { pushTier?: string } | undefined)?.pushTier
+      ).toBe("chain");
+
+      // Push into the occupied square at (11,4) -> forces a second link.
+      // The occupant there is boxed on its own three traditional squares
+      // (12,3),(12,4),(11,3), but (10,3) and (12,5) are open among its
+      // wider eight. If Grab propagated to this second push, those two
+      // squares would be offered as an "open" tier instead of the normal
+      // three-square "chain" tier.
+      const chained = await game.execute({
+        type: "choose-push-direction",
+        x: 11,
+        y: 4,
+      });
+      const second = expectPushDecision(chained.pendingDecision);
+      expect(second.defenderId).toBe(secondOccupant.id);
+      expect(second.attackerId).toBe(attacker.id); // still the same Grab-holding blocker
+      expect(second.options).toEqual(
+        expect.arrayContaining([
+          { x: 12, y: 3 },
+          { x: 12, y: 4 },
+          { x: 11, y: 3 },
+        ])
+      );
+      expect(second.options).toHaveLength(3);
+
+      const secondRaw = chained.events.find(
+        (e) => e.name === GameEventNames.UI_SelectPushDirection
+      );
+      expect(
+        (secondRaw?.data as { pushTier?: string } | undefined)?.pushTier
+      ).toBe("chain");
+      return;
+    }
+    throw new Error("no push result found in seed range");
+  });
+
+  it("names Grab in the match log when the wider square set is offered", async () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      const game = new HeadlessGame({ scenario: grabOpenScenario, seed });
+      const snap = game.snapshot();
+      const attacker = snap.teams[0].players[0];
+      const defender = snap.teams[1].players[0];
+
+      const pushed = await blockUntilPush(game, attacker.id, defender.id);
+      if (!pushed) continue;
+
+      const grabLogEntry = pushed.events.find(
+        (e) =>
+          e.name === GameEventNames.SkillTriggered &&
+          (e.data as { skill?: string }).skill === SkillType.GRAB &&
+          (e.data as { effect?: string }).effect
+            ?.toLowerCase()
+            .includes("usual three")
+      );
+      expect(grabLogEntry).toBeDefined();
       return;
     }
     throw new Error("no push result found in seed range");

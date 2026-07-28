@@ -1,9 +1,9 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus } from "../../types/Player";
 import { FlowContext } from "../core/GameFlowManager";
 import { ArgueTheCallOperation } from "./ArgueTheCallOperation";
+import { movePlayerToBox } from "../rules/playerLocation";
 
 /**
  * SendOffOperation
@@ -51,8 +51,10 @@ export class SendOffOperation extends GameOperation {
       }
     }
 
-    // 1. Remove Player
-    player.status = PlayerStatus.REMOVED;
+    // 1. Remove Player — through the single location seam, so the pitch
+    // square is released as the sent-off dugout entry is created and
+    // PlayerStatusChanged fires for the view to reconcile.
+    movePlayerToBox(player, { box: "sent-off" }, eventBus);
     eventBus.emit(
       GameEventNames.UI_Notification,
       `${player.playerName} is removed from the pitch.`

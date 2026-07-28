@@ -33,6 +33,7 @@ describe("pitch themes", () => {
       expect(theme.surface.bottom).toEqual(expect.any(Number));
       expect(theme.lines.grid).toEqual(expect.any(Number));
       expect(theme.dugout.panel).toEqual(expect.any(Number));
+      expect(theme.dugout.sentOff).toEqual(expect.any(Number));
     }
   });
 
@@ -74,35 +75,84 @@ describe("themed dugout presentation", () => {
   it("adds a staff rail without moving any legacy player-grid world slot", () => {
     const top = getDugoutLayout(false);
     const bottom = getDugoutLayout(true);
-    expect(top.totalWidth).toBe(GameConfig.PITCH_PIXEL_WIDTH);
-    expect(bottom.totalWidth).toBe(GameConfig.PITCH_PIXEL_WIDTH);
 
-    // Before the staff rail, the mirrored dugout was right-aligned with its
-    // 1020px section block. The new 180px left rail exactly replaces that
-    // former world offset, so every interactive grid starts at the same x.
-    const legacySectionsWidth =
-      GameConfig.PITCH_PIXEL_WIDTH - DUGOUT_LAYOUT.staffWidth;
-    const legacyMirroredWorldOffset =
-      GameConfig.PITCH_PIXEL_WIDTH - legacySectionsWidth;
-    const legacyGridStarts = {
-      reserves:
-        legacyMirroredWorldOffset +
-        bottom.sections.casualty.width +
-        bottom.sections.ko.width +
-        DUGOUT_LAYOUT.gridOffsetX,
-      ko:
-        legacyMirroredWorldOffset +
-        bottom.sections.casualty.width +
-        DUGOUT_LAYOUT.gridOffsetX,
-      casualty: legacyMirroredWorldOffset + DUGOUT_LAYOUT.gridOffsetX,
-    };
-    const themedGridStarts = {
-      reserves: bottom.sections.reserves.x + DUGOUT_LAYOUT.gridOffsetX,
-      ko: bottom.sections.ko.x + DUGOUT_LAYOUT.gridOffsetX,
-      casualty: bottom.sections.casualty.x + DUGOUT_LAYOUT.gridOffsetX,
-    };
-    expect(themedGridStarts).toEqual(legacyGridStarts);
+    // Sent Off (added for foul-injury-resolution) is a fourth section, so
+    // KO/Casualty gave up a column each to make room for it — see
+    // DUGOUT_LAYOUT's comment. totalWidth is always every section plus the
+    // staff rail, for either orientation.
+    const expectedSectionsWidth =
+      top.sections.reserves.width +
+      top.sections.ko.width +
+      top.sections.casualty.width +
+      top.sections.sentOff.width;
+    expect(top.totalWidth).toBe(
+      expectedSectionsWidth + DUGOUT_LAYOUT.staffWidth
+    );
+    expect(bottom.totalWidth).toBe(top.totalWidth);
+
+    // Non-mirrored: Reserves/KO/Casualty keep their original world slots —
+    // Sent Off is appended after Casualty, so it never shifts them.
+    expect(top.sections.reserves.x).toBe(0);
+    expect(top.sections.ko.x).toBe(top.sections.reserves.width);
+    expect(top.sections.casualty.x).toBe(
+      top.sections.reserves.width + top.sections.ko.width
+    );
+    expect(top.sections.sentOff.x).toBe(
+      top.sections.reserves.width +
+        top.sections.ko.width +
+        top.sections.casualty.width
+    );
     expect(top.sections.reserves.x + DUGOUT_LAYOUT.gridOffsetX).toBe(10);
+
+    // Mirrored: the staff rail sits on the left and the section order
+    // reverses (Sent Off, Casualty, KO, Reserves), keeping Reserves — the
+    // team-colored section — nearest the pitch on both sides.
+    expect(bottom.sections.sentOff.x).toBe(DUGOUT_LAYOUT.staffWidth);
+    expect(bottom.sections.casualty.x).toBe(
+      DUGOUT_LAYOUT.staffWidth + bottom.sections.sentOff.width
+    );
+    expect(bottom.sections.ko.x).toBe(
+      DUGOUT_LAYOUT.staffWidth +
+        bottom.sections.sentOff.width +
+        bottom.sections.casualty.width
+    );
+    expect(bottom.sections.reserves.x).toBe(
+      DUGOUT_LAYOUT.staffWidth +
+        bottom.sections.sentOff.width +
+        bottom.sections.casualty.width +
+        bottom.sections.ko.width
+    );
+  });
+
+  it("keeps every dugout section — including the new Sent Off one — on the fixed Phaser canvas, for every pitch theme", () => {
+    // Regression coverage for a real clipping bug: adding the Sent Off
+    // section once widened the dugout past GameConfig.CANVAS_WIDTH (the
+    // actual, fixed-size Phaser canvas) without anyone noticing, because the
+    // only width check in this file compared the dugout to itself. This
+    // reproduces GameScene's own positioning arithmetic
+    // (GameScene.ts buildBoard: `pitchX = (width - PITCH_PIXEL_WIDTH) / 2`,
+    // `topDugout.x = pitchX`, `bottomDugout.x = pitchX + PITCH_PIXEL_WIDTH -
+    // totalWidth`) so a widened dugout that would clip is caught here, not
+    // discovered by eye in the browser.
+    const pitchX = (GameConfig.CANVAS_WIDTH - GameConfig.PITCH_PIXEL_WIDTH) / 2;
+
+    for (const theme of PITCH_THEMES) {
+      // Layout geometry does not vary by theme (only colors, incl.
+      // theme.dugout.sentOff, do) — but every theme is iterated explicitly
+      // so a future theme-specific layout tweak cannot silently reintroduce
+      // the clip for just one of them.
+      expect(resolvePitchTheme(theme.id).id).toBe(theme.id);
+      const top = getDugoutLayout(false);
+      const bottom = getDugoutLayout(true);
+
+      const topRight = pitchX + top.totalWidth;
+      const bottomLeft = pitchX + GameConfig.PITCH_PIXEL_WIDTH - bottom.totalWidth;
+      const bottomRight = bottomLeft + bottom.totalWidth;
+
+      expect(topRight).toBeLessThanOrEqual(GameConfig.CANVAS_WIDTH);
+      expect(bottomLeft).toBeGreaterThanOrEqual(0);
+      expect(bottomRight).toBeLessThanOrEqual(GameConfig.CANVAS_WIDTH);
+    }
   });
 
   it("scales visible staff to team counts and caps every type", () => {

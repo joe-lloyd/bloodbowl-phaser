@@ -79,6 +79,37 @@ Cases live in `src/testing/cases/`. Three sources feed the registry:
 - **legacy** sandbox scenarios that carry a seed, promoted so they appear in
   the coverage report rather than being invisible.
 
+### Case organization is section-first
+
+Authored cases are organized **per gameplay section**, mirroring the naming
+of `__tests__/headless/*.test.ts` — the fast, non-Playwright per-section
+regression suite that already exists for every rule and mechanic (122 files:
+`push-chain.test.ts`, `handoff.test.ts`, `jump.test.ts`,
+`driveReset.test.ts`, `kickoff-events.test.ts`, `sevens-setup.test.ts`, and
+so on). That file is unaffected by how e2e cases are organized: it stays the
+place to look for direct, fast coverage of a section, and it keeps passing
+unchanged regardless of how the e2e case registry is filed.
+
+A case for a section goes in that section's module: `src/testing/cases/
+kickoff-events.ts` holds the cases `kickoff-events.test.ts` would also
+recognize, `src/testing/cases/drive-reset.ts` holds the drive-reset ones,
+and so on. When a case's section has no exact headless counterpart yet
+(`movement.ts`, `activation.ts`, `decisions.ts` are the current examples),
+it still gets its own module named after the capability it covers, rather
+than being dropped into one generic, non-section-aligned file.
+
+**Adding new coverage:** put a new case in the matching section's module
+(creating one named after the section if none exists yet), never in a
+catch-all file. If the behavior is worth a fast headless regression too,
+add it to the matching `__tests__/headless/<section>.test.ts` as well —
+the two are separate test styles for the same section, not a single format.
+
+`src/testing/cases/index.ts` assembles every section module into the
+`SCENARIO_CASES` registry the runners below consume; `fromRuleConfigs.ts`
+(the generated rule-catalog cases) and `scenarioCase/legacy.ts` (promoted
+sandbox scenarios) are separate, already-organized sources and are not part
+of this per-section split.
+
 ## Seeds are committed test data
 
 A variant names a seed. The suite **executes that seed** — it never searches.
@@ -281,7 +312,11 @@ any new gap at all.
 
 ## Adding a case
 
-1. Write it in `src/testing/cases/`, using the helpers in `helpers.ts`.
+1. Write it in `src/testing/cases/<section>.ts` — the module named after the
+   matching `__tests__/headless/<section>.test.ts` (or a new module named
+   after the section, if none exists) — using the helpers in `helpers.ts`.
+   Export it from that module's array and add the array to
+   `src/testing/cases/index.ts`'s `AUTHORED_CASES` list if it is a new module.
 2. Prefer a native roster fixture; if you must grant, write the reason.
 3. Give each materially different outcome its own variant, and find its seed
    with `pnpm e2e:seeds` (or a short script using `findVariantSeed`).

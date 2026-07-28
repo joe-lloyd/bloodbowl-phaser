@@ -960,6 +960,12 @@ export class GameplayInteractionController {
         this.isBusy = true;
         try {
           await this.gameService.foulPlayer(this.selectedPlayerId, x, y);
+          // foulPlayer only queues FoulOperation on GameService's own
+          // GameFlowManager (fire-and-forget); wait for that queue to fully
+          // drain — including any KO/Casualty/Send-Off consequence it
+          // triggers — before clearing the red target highlight, so it
+          // doesn't disappear before the foul has actually resolved.
+          await this.gameService.getFlowContext().flowManager.whenIdle();
         } finally {
           this.isBusy = false;
           this.deselectPlayer();

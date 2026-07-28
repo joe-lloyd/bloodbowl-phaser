@@ -6,7 +6,10 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { InjuryResult } from "../controllers/InjuryController";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
+import { CasualtyOperation } from "./CasualtyOperation";
+import { movePlayerToBox } from "../rules/playerLocation";
 import { effectiveAV } from "../kickoff/driveEffects";
+import { offerApothecary } from "../inducements/apothecary";
 
 /**
  * Ends the fouler's activation once the Foul (and any send-off it queued) has
@@ -179,18 +182,36 @@ export class FoulOperation extends GameOperation {
       const injuryController = gameService.getInjuryController();
       const result = injuryController.getInjuryResult(target, injuryTotal);
 
-      // Apply Injury Status
+      // Apply Injury Status — route KO/Casualty through the single
+      // movePlayerToBox seam (and the shared CasualtyOperation) that
+      // block-caused injuries already use, so the target's sprite leaves the
+      // pitch and PlayerStatusChanged fires exactly as it does for a block.
       switch (result) {
         case InjuryResult.STUNNED:
           eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
           target.status = PlayerStatus.STUNNED;
           break;
-        case InjuryResult.KO:
+        case InjuryResult.KO: {
           eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-          target.status = PlayerStatus.KO;
+          // Matches InjuryOperation: an owned, unused Apothecary gets first
+          // say before the player leaves the pitch. Declining (or having
+          // none) falls through to the normal move below.
+          const patchedUp = await offerApothecary(gameService, eventBus, target, {
+            resultKind: "ko",
+            location: "pitch",
+            position: target.gridPosition,
+          });
+          if (!patchedUp) {
+            movePlayerToBox(target, { box: "ko" }, eventBus);
+          }
           break;
+        }
         case InjuryResult.CASUALTY:
           eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
+          // Matches InjuryOperation: set status immediately, then hand off to
+          // CasualtyOperation for the casualty roll and the final
+          // movePlayerToBox(... "casualty" ...) that removes the target from
+          // the pitch.
           target.status = PlayerStatus.INJURED;
           eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
             causerId: fouler.id,
@@ -198,6 +219,10 @@ export class FoulOperation extends GameOperation {
             cause: "special",
             sppEligible: false,
           });
+          context.flowManager.add(
+            new CasualtyOperation(target.id, fouler.id, { cause: "special" }),
+            true
+          );
           break;
       }
     } else {
