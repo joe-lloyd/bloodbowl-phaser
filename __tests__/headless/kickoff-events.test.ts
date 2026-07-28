@@ -653,10 +653,101 @@ describe("Kickoff table resolves exactly once per drive (regression: reroll afte
   it("clears the guard at end-of-drive teardown so the next drive can roll", async () => {
     const { game } = await kick(5);
     expect(game.ctx.gameService.getState().kickoffResolution).toBeDefined();
+    expect(game.ctx.gameService.getState().kickoffKickResolved).toBeDefined();
 
     game.ctx.gameService.resetDriveState();
 
     expect(game.ctx.gameService.getState().kickoffResolution).toBeUndefined();
+    expect(game.ctx.gameService.getState().kickoffKickResolved).toBeUndefined();
+  });
+
+  it("a save/restore mid-kickoff replays the same landing square through the real kick-ball command (no re-deviation)", async () => {
+    // state.subPhase stays ROLL_KICKOFF for the *entire* kickoff sequence
+    // (deviation, table roll, any interactive step, landing, placement) —
+    // it only advances once play resumes. That means a refresh/restore, or
+    // any other stale re-entry into the KICKOFF phase, can land back on
+    // "Select Kicker & Target" no matter how far the original kick had
+    // progressed, and the browser's click handler unconditionally calls
+    // gameService.kickBall() again. Exercise that exact real path — not the
+    // otherwise-uncalled rollKickoff() shortcut — with an event whose
+    // interactive step is still genuinely open at save time (Charge!).
+    const found = await findEveryEvent();
+    const { game } = found.get(KickoffEvent.CHARGE)!;
+
+    expect(game.pendingDecision()?.type).toBe("kickoff-event");
+    const originalBallPosition = game.snapshot().ballPosition;
+    expect(originalBallPosition).not.toBeNull();
+    const originalResolution = game.ctx.gameService.getState().kickoffResolution;
+    expect(originalResolution?.event).toBe(KickoffEvent.CHARGE);
+    expect(game.ctx.gameService.getState().kickoffKickResolved).toEqual({
+      isTeam1Kicking: true,
+    });
+
+    const save = createMatchSave({
+      state: game.ctx.gameService.getState(),
+      teams: [game.ctx.team1, game.ctx.team2],
+      drive: {
+        kickingTeamId: game.ctx.team1.id,
+        receivingTeamId: game.ctx.team2.id,
+      },
+      rng: game.ctx.rng.captureState(),
+      matchStats: game.ctx.matchStats.captureState(),
+      turnManager: game.ctx.gameService.captureTurnManagerState(),
+    });
+
+    const resumed = new HeadlessGame({ matchSave: save });
+    expect(resumed.ctx.gameService.getState().kickoffKickResolved).toEqual({
+      isTeam1Kicking: true,
+    });
+    expect(resumed.snapshot().ballPosition).toEqual(originalBallPosition);
+
+    // Simulate the real bug vector: the coach picks a kicker and a
+    // DIFFERENT target square, and the browser issues the same "kick-ball"
+    // command a second time for this drive.
+    const differentTarget =
+      originalBallPosition!.x < 10
+        ? { x: originalBallPosition!.x + 3, y: originalBallPosition!.y }
+        : { x: originalBallPosition!.x - 3, y: originalBallPosition!.y };
+
+    const response = await resumed.execute({
+      type: "kick-ball",
+      playerId: resumed.ctx.team1.players[0].id,
+      x: differentTarget.x,
+      y: differentTarget.y,
+    });
+
+    expect(response.ok).toBe(true);
+
+    // No new deviation was rolled and no new kickoff-table roll was made.
+    const diceRollTypes = response.events
+      .filter((event) => event.name === GameEventNames.DiceRoll)
+      .map((event) => (event.data as { rollType?: string })?.rollType);
+    expect(diceRollTypes).not.toContain("Kickoff Deviate Direction");
+    expect(diceRollTypes).not.toContain("Kickoff Deviate Distance");
+    expect(diceRollTypes).not.toContain("Kickoff Event");
+
+    // The kickoff result reported is identical to the original resolution.
+    const replayedResult = response.events.find(
+      (event) => event.name === GameEventNames.KickoffResult
+    )?.data as KickoffResult | undefined;
+    expect(replayedResult?.roll).toBe(originalResolution!.roll);
+    expect(replayedResult?.event).toBe(originalResolution!.event);
+    expect(replayedResult?.outcome).toEqual(originalResolution!.outcome);
+
+    // The ball lands at the SAME square as the original resolution, not the
+    // new target — this is the exact divergence a skeptical review
+    // reproduced against the table-only guard (a different deviation roll
+    // landing the ball on a different square across the restore). Read the
+    // landing square off KickoffBallLanding rather than the final snapshot:
+    // this second execute() runs the whole sequence uninterrupted (Charge!'s
+    // interactive step isn't reopened on replay), so by the time it returns
+    // the ball has already been caught/bounced onward from the landing
+    // square — exactly as it would have with the original resolution too,
+    // just now completed in one call instead of pausing for the coach.
+    const landing = response.events.find(
+      (event) => event.name === GameEventNames.KickoffBallLanding
+    )?.data as { landingSquare: { x: number; y: number } | null } | undefined;
+    expect(landing?.landingSquare).toEqual(originalBallPosition);
   });
 });
 

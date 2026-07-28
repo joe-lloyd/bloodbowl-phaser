@@ -84,6 +84,37 @@ export class BallManager {
     // 1. Transition State
     this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.ROLL_KICKOFF);
 
+    // A drive's kickoff resolves exactly once. `subPhase` stays
+    // ROLL_KICKOFF for the whole kickoff sequence (see
+    // GameState.kickoffKickResolved), so a refresh/restore — or any other
+    // stale re-entry into the KICKOFF phase — can re-offer "Select Kicker &
+    // Target" no matter how far the original kick had progressed. If this
+    // drive's deviation has already been resolved, do not recompute it (or
+    // re-ask the On the Ball reaction): replay from the already-restored
+    // `ballPosition` instead. `resolveKickoffEvent()` below has its own,
+    // separate guard for the table roll.
+    if (this.state.kickoffKickResolved) {
+      this.pendingTouchback = this.state.ballPosition === null;
+      if (this.pendingTouchback) {
+        this.eventBus.emit(GameEventNames.UI_Notification, "Touchback!");
+      }
+      this.eventBus.emit(GameEventNames.BallKicked, {
+        playerId,
+        targetX,
+        targetY,
+        direction: 0,
+        distance: 0,
+        finalX: this.state.ballPosition?.x ?? targetX,
+        finalY: this.state.ballPosition?.y ?? targetY,
+        isTouchback: this.pendingTouchback,
+      });
+      await this.delay(900);
+      this.callbacks.onPhaseChange(GamePhase.KICKOFF, SubPhase.RESOLVE_KICKOFF);
+      await this.resolveKickoffEvent();
+      await this.finishKickoffResolution();
+      return;
+    }
+
     // Kick (p.130): a nominated kicker with the Kick skill lets their coach
     // halve the deviation to D3. The reduced deviation is always the safer
     // choice (the ball lands nearer the aim), so it is applied whenever the
@@ -118,6 +149,9 @@ export class BallManager {
     } else {
       this.state.ballPosition = { x: result.finalX, y: result.finalY };
     }
+    // This drive's deviation is now resolved — see the guard at the top of
+    // this method and GameState.kickoffKickResolved.
+    this.state.kickoffKickResolved = { isTeam1Kicking };
 
     // On the Ball's kick-off clause sits exactly here: deviation is known,
     // but no Kick-off Event has been rolled yet. Touchbacks suppress it.

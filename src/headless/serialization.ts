@@ -95,6 +95,13 @@ export interface GameSnapshot {
    * `GameState.kickoffResolution`.
    */
   kickoffResolution?: GameState["kickoffResolution"];
+  /**
+   * The current drive's already-resolved kickoff deviation, if any; absent
+   * on pre-feature saves. Persisted so a restore mid-kickoff does not
+   * recompute deviation on a re-entrant `kickBall()` call — see
+   * `GameState.kickoffKickResolved`.
+   */
+  kickoffKickResolved?: GameState["kickoffKickResolved"];
 }
 
 export const MATCH_SAVE_VERSION = 1 as const;
@@ -171,6 +178,9 @@ export function serializeGameState(
     kickoffResolution: state.kickoffResolution
       ? structuredClone(state.kickoffResolution)
       : undefined,
+    kickoffKickResolved: state.kickoffKickResolved
+      ? { ...state.kickoffKickResolved }
+      : undefined,
     setup: state.setup ? structuredClone(state.setup) : null,
     result: state.result ? { ...state.result } : undefined,
     teams: teams.map((team) => ({
@@ -231,6 +241,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       : undefined,
     kickoffResolution: snapshot.kickoffResolution
       ? structuredClone(snapshot.kickoffResolution)
+      : undefined,
+    kickoffKickResolved: snapshot.kickoffKickResolved
+      ? { ...snapshot.kickoffKickResolved }
       : undefined,
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
     result: snapshot.result ? { ...snapshot.result } : undefined,
