@@ -62,16 +62,17 @@ export function AvailableHires({
             <TableCell className="text-sm italic">
               <div className="flex flex-wrap gap-1">
                 {template.skills.map((skill, index) => (
-                  <Tooltip
-                    key={`${skill.type}-${index}`}
-                    content={SKILL_DEFINITIONS[skill.type].text}
-                  >
-                    <span className="cursor-help underline decoration-dotted">
-                      {skill.type}
-                      {skill.parameter != null ? ` (${skill.parameter})` : ""}
-                      {index < template.skills.length - 1 ? "," : ""}
-                    </span>
-                  </Tooltip>
+                  <span key={`${skill.type}-${index}`}>
+                    <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
+                      <span className="cursor-help underline decoration-dotted">
+                        {skill.type}
+                        {skill.parameter != null
+                          ? ` (${skill.parameter})`
+                          : ""}
+                      </span>
+                    </Tooltip>
+                    {index < template.skills.length - 1 ? "," : ""}
+                  </span>
                 ))}
               </div>
             </TableCell>

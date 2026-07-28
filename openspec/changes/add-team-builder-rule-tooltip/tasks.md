@@ -12,6 +12,13 @@
 
 - [x] 3.1 Add/extend component tests under `__tests__/unit/ui/` (following the `createRoot`/`act` pattern in `TeamRoster.test.tsx` and `TeamBuilder.test.tsx`) asserting each skill renders as its own hoverable element carrying that skill's rule text, for both `AvailableHires` and `TeamRoster`.
 
-## 4. Verification
+## 4. Keyboard accessibility (review follow-up)
 
-- [x] 4.1 Run the affected unit tests and confirm they pass.
+- [x] 4.1 Make `Tooltip`'s trigger keyboard-focusable (`tabIndex={0}`) and reveal the panel on focus (`group-focus`/`group-focus-within`) as well as hover; add `aria-describedby` linking the trigger to the `role="tooltip"` panel.
+- [x] 4.2 Move the separating comma between skill badges outside each `Tooltip` so hovering/focusing the punctuation doesn't also trigger the neighboring skill's tooltip.
+- [x] 4.3 Center the tooltip panel under its trigger instead of left-aligning it, to reduce edge-clipping inside the table's `overflow-x-auto` wrapper.
+- [x] 4.4 Add a test asserting keyboard focus (not just mouse hover) reveals a skill's tooltip.
+
+## 5. Verification
+
+- [x] 5.1 Run the affected unit tests and confirm they pass.

@@ -14,3 +14,10 @@ Wherever the Team Builder / draft page (`/build-team/:teamId`) lists a player's 
 #### Scenario: Multiple skills are each independently hoverable
 - **WHEN** a player or template has more than one skill
 - **THEN** each skill name is a separate hover target showing only that skill's own rule text, not a combined list
+
+### Requirement: Skill tooltips are keyboard-reachable
+Each skill/trait name on the Team Builder / draft page SHALL be reachable by keyboard focus (e.g. `Tab`), and focusing it SHALL reveal the same rule text a mouse hover would, so a coach navigating without a mouse can still read what a skill does.
+
+#### Scenario: Tabbing to a skill reveals its rule text
+- **WHEN** a coach tabs to a skill name listed in the Available Hires table or the current-roster table
+- **THEN** that skill's tooltip becomes visible, showing its full rulebook rule text

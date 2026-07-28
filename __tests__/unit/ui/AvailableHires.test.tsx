@@ -83,4 +83,41 @@ describe("AvailableHires skill tooltips", () => {
       false
     );
   });
+
+  /**
+   * team-builder-rule-tooltips: "Tabbing to a skill reveals its rule text"
+   * — the tooltip is keyboard-reachable, not mouse-only.
+   */
+  it("makes each hire's skill tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {
+    const roster = getRosterByRosterName(RosterName.AMAZON);
+
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={roster}
+          treasury={1_000_000}
+          onHirePlayer={() => {}}
+        />
+      );
+    });
+
+    const triggers = Array.from(
+      container.querySelectorAll('span[tabindex="0"]')
+    );
+    expect(triggers.length).toBeGreaterThan(0);
+
+    const [firstTrigger] = triggers;
+    const describedBy = firstTrigger.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    const panel = container.querySelector(`#${describedBy}`);
+    expect(panel).toBeTruthy();
+    expect(panel?.getAttribute("role")).toBe("tooltip");
+    expect(panel?.className).toContain("group-focus:opacity-100");
+    expect(panel?.className).toContain("group-focus-within:opacity-100");
+
+    act(() => {
+      (firstTrigger as HTMLElement).focus();
+    });
+    expect(document.activeElement).toBe(firstTrigger);
+  });
 });

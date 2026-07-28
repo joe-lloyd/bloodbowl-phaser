@@ -140,4 +140,50 @@ describe("TeamRoster skill tooltips", () => {
       false
     );
   });
+
+  /**
+   * team-builder-rule-tooltips: "Tabbing to a skill reveals its rule text"
+   * — the tooltip is keyboard-reachable, not mouse-only.
+   */
+  it("makes each skill's tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {
+    const player = new PlayerBuilder().withNumber(1).build();
+    player.skills = [getSkill(SkillType.BLOCK), getSkill(SkillType.DODGE)];
+    const team = new TeamTestBuilder().withCustomPlayers([player]).build();
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const triggers = Array.from(
+      container.querySelectorAll('span[tabindex="0"]')
+    );
+    expect(triggers.length).toBe(2);
+
+    triggers.forEach((trigger) => {
+      // Each trigger owns an aria-describedby pointing at its own
+      // role="tooltip" panel, so screen readers announce the right rule.
+      const describedBy = trigger.getAttribute("aria-describedby");
+      expect(describedBy).toBeTruthy();
+      const panel = container.querySelector(`#${describedBy}`);
+      expect(panel).toBeTruthy();
+      expect(panel?.getAttribute("role")).toBe("tooltip");
+
+      // Focus, not just hover, must be able to reveal the panel.
+      expect(panel?.className).toContain("group-focus:opacity-100");
+      expect(panel?.className).toContain("group-focus-within:opacity-100");
+
+      act(() => {
+        (trigger as HTMLElement).focus();
+      });
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
 });
