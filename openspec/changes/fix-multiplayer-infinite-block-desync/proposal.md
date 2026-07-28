@@ -22,7 +22,7 @@ A captured online-match console log showed a guest coach's Block action getting 
 
 - `src/network/NetworkedGameService.ts` — accepts an optional `IEventBus`; emits `NetworkCommandRejected` on any rejected command.
 - `src/network/OnlineMatch.ts` — passes the match's event bus into the guest's `NetworkedGameService`.
-- `src/game/controllers/GameplayInteractionController.ts` — new `onNetworkCommandRejected` handler, subscribed/unsubscribed alongside the controller's other listeners.
+- `src/game/controllers/GameplayInteractionController.ts` — new `onNetworkCommandRejected` handler (with an `interactionSeq`/`pendingCancelSeqByPlayer` staleness guard covering both the `declare-action` and `cancel-action` branches), subscribed/unsubscribed alongside the controller's other listeners.
 - `src/types/events.ts` — new `GameEventNames.NetworkCommandRejected` event and payload type.
+- `src/services/GameService.ts` — `declareAction()` also refuses a same-player redeclare when the live declaration's commit reason is `"gate"` (an activation-gate roll already fired), closing a narrow host-side gap found in review (see design.md's addendum). This is the one host-side rule change in this PR; it does not touch the once-per-turn guard or the Move-then-Block carve-out.
 - Tests: `__tests__/network/sessions.test.ts`, `__tests__/headless/defer-action-commitment.test.ts`, `__tests__/unit/controllers/GameplayInteractionController.test.ts`.
-- No engine rule behavior changes — the host's declare/cancel/commit logic (`PlayerActionManager`, `GameService.declareAction`, `ActivationGateOperation`) is untouched; this fix is entirely about keeping the guest's local UI honest about what the host actually accepted.

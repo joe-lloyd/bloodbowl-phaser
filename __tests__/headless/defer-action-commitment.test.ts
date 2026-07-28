@@ -37,6 +37,24 @@ const scenario = (id: string): Scenario => ({
   },
 });
 
+const bloodlustScenario = (id: string): Scenario => ({
+  id,
+  name: id,
+  description: id,
+  setup: {
+    team1Placements: [
+      { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BLOODLUST] },
+      { playerIndex: 1, x: 3, y: 8 },
+    ],
+    team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+    ballPosition: { x: 1, y: 1 },
+    activeTeam: "team1",
+    turn: 1,
+    phase: GamePhase.PLAY,
+    subPhase: SubPhase.TURN_RECEIVING,
+  },
+});
+
 const boneHeadScenario = (id: string): Scenario => ({
   id,
   name: id,
@@ -117,6 +135,87 @@ describe("defer-action-commitment", () => {
     expect(refused.ok).toBe(false);
     expect(refused.snapshot.turn.hasBlitzed).toBe(true);
     expect(refused.snapshot.activePlayer?.id).toBe(blitzerId);
+  });
+
+  // Follow-up from a PR review of fix-multiplayer-infinite-block-desync: the
+  // once-per-turn commit guard above only fires when the EXISTING declared
+  // action carries a team allowance (blitz/pass/handoff/foul/throwTeamMate).
+  // A player with an activation-gate skill (Bone Head, Bloodlust, …) commits
+  // their declaration the instant the gate fires — "before the die is even
+  // thrown" — regardless of which action they declared. Previously, if that
+  // action was Move/Block/a special action (none of which are once-per-turn),
+  // a same-player redeclare silently overwrote the committed declaration
+  // with NO refusal at all — worse than a rejection, since there's nothing
+  // to reconcile against. This closes that gap without touching the
+  // intentional Move-then-Block carve-out (see the next test).
+  it("a gate-committed declaration refuses ANY redeclare, not just once-per-turn ones", async () => {
+    const game = new HeadlessGame({
+      scenario: bloodlustScenario("gate-blocks-any-redeclare"),
+      seed: 1,
+    });
+    const playerId = game.ctx.team1.players[0].id;
+
+    let response = await game.execute({
+      type: "declare-action",
+      playerId,
+      action: "block",
+    });
+    expect(response.ok).toBe(true);
+
+    // Decline Bloodlust's downgrade-to-Move if offered, so the committed
+    // action is deterministically still "block".
+    if (response.pendingDecision?.type === "reaction") {
+      response = await game.execute({ type: "use-reaction", accept: false });
+    }
+    expect(game.snapshot().activePlayer).toMatchObject({
+      id: playerId,
+      action: "block",
+      committed: true,
+    });
+
+    // A stale/duplicate declare-action for the SAME player, arriving after
+    // the gate has committed, must be refused.
+    const redeclared = await game.execute({
+      type: "declare-action",
+      playerId,
+      action: "move",
+    });
+    expect(redeclared.ok).toBe(false);
+    // The original committed declaration survives untouched.
+    expect(game.snapshot().activePlayer).toMatchObject({
+      id: playerId,
+      action: "block",
+      committed: true,
+    });
+  });
+
+  it("Move-then-Block for the same player still works once real movement is spent (the gate-commit guard does not regress it)", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario("move-then-block-still-free"),
+      seed: 1,
+    });
+    const playerId = game.ctx.team1.players[0].id;
+
+    await game.execute({ type: "declare-action", playerId, action: "move" });
+    await game.execute({
+      type: "move",
+      playerId,
+      path: [{ x: 11, y: 5 }],
+    });
+    expect(game.ctx.gameService.getMovementUsed(playerId)).toBeGreaterThan(0);
+
+    // isActionCommitted() now reports "movement", not "gate" — the new
+    // gate-only guard must not refuse this intentionally-free redeclare.
+    const redeclared = await game.execute({
+      type: "declare-action",
+      playerId,
+      action: "block",
+    });
+    expect(redeclared.ok).toBe(true);
+    expect(game.snapshot().activePlayer).toMatchObject({
+      id: playerId,
+      action: "block",
+    });
   });
 
   it("Bone-head fails its gate: Distracted, activation ended, Blitz spent (5.3)", async () => {

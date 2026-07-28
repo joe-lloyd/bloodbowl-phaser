@@ -25,4 +25,12 @@
 
 - [x] 4.1 Run the three touched test files directly (pass)
 - [x] 4.2 Run the full test suite (`npm test` / pre-commit hook) before committing — 1349/1349 passed across 147 files
-- [x] 4.3 Confirm no host-side rule/commit behavior changed (design.md's Non-Goals)
+- [x] 4.3 Confirm no host-side rule/commit behavior changed (design.md's Non-Goals) — superseded by 5.2 below after review
+
+## 5. Review-round fixes
+
+- [x] 5.1 Add a staleness guard to `onNetworkCommandRejected`'s `cancel-action` branch (`interactionSeq` / `pendingCancelSeqByPlayer`), mirroring the `declare-action` branch's existing self-check, so a late cancel-action rejection cannot clobber newer local state
+- [x] 5.2 Close the once-per-turn redeclare guard's gap in `GameService.declareAction()`: refuse any same-player redeclare when the live declaration's commit reason is `"gate"`, regardless of once-per-turn status, without regressing the intentional Move-then-Block carve-out
+- [x] 5.3 Add regression tests: a stale cancel-action rejection is ignored once the coach has declared a new action for the same player, and once they've deselected/reselected; a gate-committed non-once-per-turn declaration refuses a same-player redeclare; Move-then-Block still works once real movement is spent
+- [x] 5.4 Document both fixes in design.md's addendum (what was found, why the chosen fix is scoped the way it is)
+- [x] 5.5 Re-run the full test suite — 1353/1353 passed across 147 files

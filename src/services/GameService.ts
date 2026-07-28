@@ -1684,6 +1684,29 @@ export class GameService implements IGameService {
     // Actions with no allowance (Move, Block, the special actions, …) keep
     // the engine's existing free-replacement behaviour — e.g. Move-then-
     // Block for the same player is not "changing your mind" about anything.
+    //
+    // Separately, an activation GATE roll (Bone Head, Bloodlust, …) makes
+    // the declaration binding the instant it fires, "before the die is even
+    // thrown" (see ActivationGateOperation) — the only rules-sanctioned way
+    // to change the declared action afterward is Bloodlust's own downgrade-
+    // to-Move reaction, resolved inline by that same operation, never a
+    // fresh declare-action. So a gate-committed declaration refuses ANY
+    // redeclare regardless of whether the action itself carries a
+    // once-per-turn allowance — this is distinct from (and checked before)
+    // the once-per-turn case above: isActionCommitted() reports "movement"
+    // instead of "gate" the moment real movement is spent, so the Move-
+    // then-Block carve-out above is untouched by this check.
+    if (this.state.activePlayer) {
+      const existingId = this.state.activePlayer.id;
+      const status = this.playerActionManager.isActionCommitted(existingId);
+      if (status.committed && status.reason === "gate") {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason)}.`
+        );
+        return false;
+      }
+    }
     if (
       this.state.activePlayer &&
       ONCE_PER_TURN_ACTIONS.has(this.state.activePlayer.action as ActionType)
