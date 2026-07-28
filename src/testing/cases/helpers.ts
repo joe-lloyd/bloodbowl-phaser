@@ -13,7 +13,9 @@ import {
   ExecutionLayer,
   ObservedRun,
   PlayerRef,
+  SemanticStep,
   SquareRef,
+  step,
 } from "../scenarioCase/types";
 import { parsePlayerRef } from "../../game/rules-lab/references";
 
@@ -295,6 +297,77 @@ export function emitted(
           [...new Set(observed.events.map((e) => e.name))].join(", ") || "none"
         }`
       );
+    },
+  };
+}
+
+// ----- Setup/kickoff/phase-flow helpers -----
+//
+// Shared by the setup- and kickoff-shaped cases (`kickoff-events.ts`,
+// `sevens-setup.ts`), which both need to place a legal seven and check it.
+
+/**
+ * Setup squares for a team, walking back from its line of scrimmage.
+ * `team1` sets up on the left (0-6) and faces right; `team2` mirrors it.
+ */
+export function setupSquares(
+  team: "team1" | "team2"
+): { x: number; y: number }[] {
+  const lineX = team === "team1" ? 6 : 13;
+  const back = (n: number) => (team === "team1" ? lineX - n : lineX + n);
+  return [
+    { x: lineX, y: 4 },
+    { x: lineX, y: 5 },
+    { x: lineX, y: 6 },
+    { x: back(1), y: 3 },
+    { x: back(1), y: 7 },
+    { x: back(2), y: 5 },
+    { x: back(3), y: 5 },
+  ];
+}
+
+/** `place-player` for all seven of a team, in roster order. */
+export function placeSeven(team: "team1" | "team2"): SemanticStep[] {
+  return setupSquares(team).map((square, index) =>
+    step(
+      {
+        type: "place-player",
+        playerId: `${team}:${index}`,
+        x: square.x,
+        y: square.y,
+      },
+      `place ${team}:${index} on (${square.x},${square.y})`
+    )
+  );
+}
+
+/** Every player of a team is on the pitch, inside its own half. */
+export function teamIsSetUp(
+  team: "team1" | "team2",
+  expectedCount = 7
+): ExpectedCheckpoint {
+  return {
+    id: `${team}-is-set-up`,
+    description: `${team} has ${expectedCount} players placed in its own half`,
+    layers: ["engine"],
+    assert(observed) {
+      const index = team === "team1" ? 0 : 1;
+      const placed = observed.snapshot.teams[index].players.filter(
+        (player) => player.position
+      );
+      checkpointAssert(
+        placed.length === expectedCount,
+        `${team} should have ${expectedCount} players on the pitch, has ${placed.length}`
+      );
+      for (const player of placed) {
+        const inOwnHalf =
+          team === "team1" ? player.position!.x <= 6 : player.position!.x >= 13;
+        checkpointAssert(
+          inOwnHalf,
+          `${player.name} is set up at ` +
+            `(${player.position!.x},${player.position!.y}), outside ${team}'s half`
+        );
+      }
     },
   };
 }
