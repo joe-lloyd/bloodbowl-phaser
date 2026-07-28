@@ -9,6 +9,7 @@ import {
   pauseClock,
   resumeClock,
   computeResume,
+  nextTurnDeadline,
 } from "../../firebase/lobby";
 import { OnlineMatch } from "../../network/OnlineMatch";
 import { AuthUser } from "../../firebase/auth";
@@ -41,7 +42,7 @@ const currentPhase = (): GamePhase | null =>
 export function TurnClock({ code, lobby, match, eventBus, user }: Props) {
   const timer = lobby.timer;
   const isHost = match.role === "host";
-  const turnMs = lobby.settings.turnSeconds * 1000;
+  const turnSeconds = lobby.settings.turnSeconds;
   const [now, setNow] = useState(Date.now());
   const endedForRef = useRef<number | null>(null);
 
@@ -66,15 +67,18 @@ export function TurnClock({ code, lobby, match, eventBus, user }: Props) {
     match.setClockPaused(!!timer?.pausedBy);
   }, [match, timer?.pausedBy]);
 
-  // Host: (re)set the deadline at the start of every play turn
+  // Host: (re)set the deadline at the start of every play turn. turnSeconds
+  // <= 0 is the "no time limit" sentinel (nextTurnDeadline returns null),
+  // so the clock UI and expiry enforcement both no-op below.
   useEffect(() => {
     if (!isHost) return;
-    const onTurn = () => void setTurnDeadline(code, Date.now() + turnMs);
+    const onTurn = () =>
+      void setTurnDeadline(code, nextTurnDeadline(turnSeconds, Date.now()));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     eventBus.on(GameEventNames.TurnStarted as any, onTurn);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return () => eventBus.off(GameEventNames.TurnStarted as any, onTurn);
-  }, [isHost, code, turnMs, eventBus]);
+  }, [isHost, code, turnSeconds, eventBus]);
 
   // Tick + host enforcement of expiry
   useEffect(() => {
