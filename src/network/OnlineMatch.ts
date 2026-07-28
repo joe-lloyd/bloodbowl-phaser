@@ -33,6 +33,7 @@ import {
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
+import { Player } from "../types/Player";
 import { BlockResult } from "../services/BlockResolutionService";
 import { HostSession } from "./HostSession";
 import { GuestSession } from "./GuestSession";
@@ -135,6 +136,32 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_PresentationAcknowledged,
 ]);
 
+/** Sentinel: this `PlayerSelected` event does not change what should be
+ *  broadcast as "my current selection" — either it's not my own team's
+ *  player (pure local inspection of the opponent) or it repeats the value
+ *  already sent. Distinct from `null`, which is itself a real value meaning
+ *  "I have nothing selected". */
+export const NO_CHANGE = Symbol("selection-no-change");
+
+/**
+ * Decide whether a local `PlayerSelected` event should be forwarded to the
+ * other coach as this coach's live selection indicator, and with what value.
+ * Pure and independently testable: only a coach's own controlled team's
+ * selection is ever meaningful to the other side (selecting an opponent's
+ * player to inspect it locally is not "my selection" and must never be
+ * broadcast), and repeats of the last forwarded value are suppressed.
+ */
+export function nextSelectionToForward(
+  myTeamId: string,
+  lastSent: string | null,
+  player: Player | null
+): string | null | typeof NO_CHANGE {
+  if (player && player.teamId !== myTeamId) return NO_CHANGE;
+  const playerId = player ? player.id : null;
+  if (playerId === lastSent) return NO_CHANGE;
+  return playerId;
+}
+
 /** Buffers native host events and flushes them as one broadcast bundle. */
 class EventBroadcaster {
   private buffer: EmittedEvent[] = [];
@@ -223,6 +250,30 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
 
   const transport =
     options.transport ?? new FirestoreTransport(lobby.code, user.uid);
+
+  /**
+   * Forward local selections of MY OWN controlled team's players to the
+   * other coach, deduped against the last value actually sent (decision
+   * logic lives in the pure, independently-testable `nextSelectionToForward`
+   * above). Selecting an opponent's player (pure local inspection) is never
+   * forwarded — only a coach's own actionable selection is meaningful to the
+   * other side, since it replaces the old blanket "whole team selectable"
+   * highlight with a single live indicator of what the other coach is
+   * actually doing.
+   */
+  const subscribeSelectionForwarding = (
+    send: (playerId: string | null) => void
+  ): (() => void) => {
+    let lastSent: string | null = null;
+    const handler = ({ player }: { player: Player | null }) => {
+      const next = nextSelectionToForward(myTeamId, lastSent, player);
+      if (next === NO_CHANGE) return;
+      lastSent = next;
+      send(next);
+    };
+    eventBus.on(GameEventNames.PlayerSelected, handler);
+    return () => eventBus.off(GameEventNames.PlayerSelected, handler);
+  };
 
   // Shared bits
   const chatLog: ChatMessage[] = [];
@@ -339,8 +390,18 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       // The guest's command response already carries these events
       onGuestExecuteStart: () => broadcaster.pause(),
       onGuestExecuteEnd: () => broadcaster.resume(),
+      // The guest's own-team selection changed — mirror it as a local
+      // "remote selection" indicator, never as engine state.
+      onSelection: (payload) => {
+        eventBus.emit(GameEventNames.RemoteSelectionChanged, {
+          playerId: payload.playerId,
+        });
+      },
     });
     void session.sendHello();
+    const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
+      (playerId) => void session.sendSelection(playerId)
+    );
 
     /** Host decision replies go through the protocol so pending-decision
      *  state stays consistent; the broadcast inside executeLocal already
@@ -457,6 +518,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       close: () => {
         persistNow(); // final save so a reload resumes where we left off
         broadcaster.close();
+        unsubscribeSelectionForwarding();
         session.close();
         transport.close();
       },
@@ -563,8 +625,18 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           ts: Date.now(),
         }),
       onHello: checkHello,
+      // The host's own-team selection changed — mirror it as a local
+      // "remote selection" indicator, never as engine state.
+      onSelection: (payload) => {
+        eventBus.emit(GameEventNames.RemoteSelectionChanged, {
+          playerId: payload.playerId,
+        });
+      },
     });
     void session.sendHello();
+    const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
+      (playerId) => void session.sendSelection(playerId)
+    );
 
     const dispatch = (command: HeadlessCommand): Promise<CommandResponse> =>
       session.sendCommand(command);
@@ -603,6 +675,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       // The guest holds no authoritative engine; the host persists state.
       saveState: () => {},
       close: () => {
+        unsubscribeSelectionForwarding();
         session.close();
         transport.close();
       },

@@ -1112,4 +1112,50 @@ describe("networked sessions", () => {
     host.close();
     guest.close();
   });
+
+  it("delivers a selection-change envelope host→guest and guest→host without touching game state", async () => {
+    const game = new HeadlessGame({ seed: 3, startingPhase: GamePhase.SETUP });
+    const [hostEnd, guestEnd] = createInMemoryTransportPair();
+    const hostSeenSelections: (string | null)[] = [];
+    const guestSeenSelections: (string | null)[] = [];
+
+    const host = new HostSession({
+      transport: hostEnd,
+      game,
+      hostTeamId: game.ctx.team1.id,
+      guestTeamId: game.ctx.team2.id,
+      selfId: "host-uid",
+      onSelection: (payload) => hostSeenSelections.push(payload.playerId),
+    });
+    const guest = new GuestSession({
+      transport: guestEnd,
+      selfId: "guest-uid",
+      onSelection: (payload) => guestSeenSelections.push(payload.playerId),
+    });
+
+    const before = JSON.stringify(game.snapshot());
+
+    // Host selects one of its own players; the guest sees it.
+    const hostPlayerId = game.ctx.team1.players[0].id;
+    await host.sendSelection(hostPlayerId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(guestSeenSelections).toEqual([hostPlayerId]);
+
+    // Guest selects one of its own players; the host sees it.
+    const guestPlayerId = game.ctx.team2.players[0].id;
+    await guest.sendSelection(guestPlayerId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hostSeenSelections).toEqual([guestPlayerId]);
+
+    // A deselection (null) crosses the wire the same way.
+    await guest.sendSelection(null);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(hostSeenSelections).toEqual([guestPlayerId, null]);
+
+    // Purely cosmetic: no game command executed, no state changed.
+    expect(JSON.stringify(game.snapshot())).toBe(before);
+
+    host.close();
+    guest.close();
+  });
 });

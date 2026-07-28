@@ -12,6 +12,14 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private teamTurnBorderVisible: boolean = false;
   private rosterName: string;
   private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
+  /**
+   * Online only: shows which single player the OTHER coach currently has
+   * selected. Deliberately a separate object from `selectionRing` (which is
+   * reused with a variable color for the LOCAL coach's own click-to-select/
+   * inspect/kickoff-eligible highlighting) so the two can never clobber or
+   * be confused with each other.
+   */
+  private remoteSelectionRing!: Phaser.GameObjects.Arc;
   /** Badge shown while this player is the ball carrier (see setCarryingBall) */
   private carrierMarker!: Phaser.GameObjects.Container;
   /** Marker shown while Distracted — a condition, not a status: the player
@@ -56,6 +64,14 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.selectionRing.setStrokeStyle(6, 0xffff00);
     this.selectionRing.setVisible(false);
     this.add(this.selectionRing);
+
+    // Remote-selection ring (red): the other coach's live selection, online
+    // only. Slightly larger radius than selectionRing so both can be seen
+    // at once without fully overlapping if they ever land on the same player.
+    this.remoteSelectionRing = scene.add.circle(0, 0, 24);
+    this.remoteSelectionRing.setStrokeStyle(4, 0xff3b30);
+    this.remoteSelectionRing.setVisible(false);
+    this.add(this.remoteSelectionRing);
 
     // Square border shown for every player of the active team; color keyed
     // to status (white standing, yellow prone, orange stunned)
@@ -316,6 +332,16 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   public unhighlight(): void {
     if (this.selectionRing) {
       this.selectionRing.setVisible(false);
+    }
+  }
+
+  /**
+   * Show/hide the remote-selection ring: whether the OTHER coach currently
+   * has this player selected. Independent of local highlight/selection.
+   */
+  public setRemoteSelected(active: boolean): void {
+    if (this.remoteSelectionRing) {
+      this.remoteSelectionRing.setVisible(active);
     }
   }
 

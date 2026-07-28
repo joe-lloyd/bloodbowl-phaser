@@ -2349,18 +2349,27 @@ export class GameplayInteractionController {
       );
     }
 
-    for (const player of eligible) {
-      this.scene.highlightPlayer(player.id, 0x38bdf8);
-      this.kickoffHighlightedPlayerIds.add(player.id);
-    }
-    for (const playerId of step.selectedPlayerIds) {
-      this.scene.highlightPlayer(playerId, 0xffd700);
-      this.kickoffHighlightedPlayerIds.add(playerId);
+    // Eligible/selected pitch highlights belong to the deciding coach's own
+    // interaction. A coach who cannot act in this step is a passive
+    // spectator: they see the owning coach's moves happen live on the board
+    // (via the normal PlayerMoved/PlayerPlaced events) without these circles
+    // implying they can click anything themselves.
+    if (canAct) {
+      for (const player of eligible) {
+        this.scene.highlightPlayer(player.id, 0x38bdf8);
+        this.kickoffHighlightedPlayerIds.add(player.id);
+      }
+      for (const playerId of step.selectedPlayerIds) {
+        this.scene.highlightPlayer(playerId, 0xffd700);
+        this.kickoffHighlightedPlayerIds.add(playerId);
+      }
     }
     if (step.charge?.activePlayerId) {
       this.selectedPlayerId = step.charge.activePlayerId;
-      this.scene.highlightPlayer(step.charge.activePlayerId, 0xffd700);
-      this.kickoffHighlightedPlayerIds.add(step.charge.activePlayerId);
+      if (canAct) {
+        this.scene.highlightPlayer(step.charge.activePlayerId, 0xffd700);
+        this.kickoffHighlightedPlayerIds.add(step.charge.activePlayerId);
+      }
     }
   }
 
