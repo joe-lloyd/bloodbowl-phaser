@@ -19,7 +19,13 @@ export type LogColor = "good" | "bad" | "neutral" | "warning" | "unknown";
 /** Roll types logged as plain dice rows that are never "good/bad for a
  *  team" — the outcome doesn't favor either side in a simple sense. These
  *  are the exact strings the emitting code uses (WeatherManager,
- *  KickoffEventManager, and every Coin Toss call site). */
+ *  KickoffEventManager, and every Coin Toss call site). Also true in
+ *  practice for Weather and Kickoff Event specifically: neither call site
+ *  attaches a `teamId` to the roll at all (in either online or solo play),
+ *  so even ignoring intent there's no per-team attribution to key
+ *  perspective coloring off. Coin Toss does carry a `teamId` (the winner),
+ *  but "who called heads" isn't a good/bad outcome for either side either
+ *  — it's forced neutral by category, same as the other two. */
 const NEUTRAL_ROLL_TYPES = new Set<string>([
   "Coin Toss",
   "Weather",
