@@ -26,19 +26,25 @@
 
 # new multiplayer items
 
-- when in setting up in multplayer and changing the position of a player they jump back to the reserves box for a split second, lets nmopt to that if they are dragged from on legal square to another legal square theres no reason fro them to flash into the reserve box for a second, i think its called optemistic rendering, because i know theres a moment when the player gets sent to the reserves becauise of the =firestore connection, but that looks like a bug in the game so stop that.
+- FIXED 2026-07-28 (fix-multiplayer-setup-optimistic-render, PR #36): when in setting up in multplayer and changing the position of a player they jump back to the reserves box for a split second, lets nmopt to that if they are dragged from on legal square to another legal square theres no reason fro them to flash into the reserve box for a second, i think its called optemistic rendering, because i know theres a moment when the player gets sent to the reserves becauise of the =firestore connection, but that looks like a bug in the game so stop that.
+  — root cause: repositioning an already-placed player fired a spurious extra "remove to reserves" network command alongside the real move, and a stale intermediate snapshot could briefly overwrite the correct position with that. The extra command is gone, and the guest's "trust my own in-flight setup" guard now also protects player status (not just position), covering both repositioning and first-time placement.
 
-- lets add a no timelimit option fro multiplayer as well so i can take more time testing stuff
+- FIXED 2026-07-28 (add-multiplayer-no-time-limit-option, PR #34): lets add a no timelimit option fro multiplayer as well so i can take more time testing stuff
+  — added "No time limit" to the online lobby's turn-timer options; when selected, no countdown or auto-end-turn applies for the whole match, on both clients.
 
-- when the kickoff table gets rolled a lot of the results require input from one player, that means that the skip and confitrm buttons should not be on the other players screen nor should the little selection circles they should just be left to the other coach and for examplke when solid defense is rolled and the deffending player move some players to a new legal setup they should just move in the other screen, or maybe we should have a red circle that shows what the other player is selecting and use that fro the whole game, so a player can see them interacting with each player on the other team. then we remove the select highlight from the whole opposing team and just show who is being selected etc (keep the yellow square and orange for the down status and keep the opacity fro players that already moved i just wanna get rid of the white square if its a team you are not controlling)
+- FIXED 2026-07-28 (redesign-multiplayer-selection-visibility, PR #37): when the kickoff table gets rolled a lot of the results require input from one player, that means that the skip and confitrm buttons should not be on the other players screen nor should the little selection circles they should just be left to the other coach and for examplke when solid defense is rolled and the deffending player move some players to a new legal setup they should just move in the other screen, or maybe we should have a red circle that shows what the other player is selecting and use that fro the whole game, so a player can see them interacting with each player on the other team. then we remove the select highlight from the whole opposing team and just show who is being selected etc (keep the yellow square and orange for the down status and keep the opacity fro players that already moved i just wanna get rid of the white square if its a team you are not controlling)
+  — kickoff-decision skip/confirm buttons and selection circles now only show for the coach who's actually deciding. Game-wide, the blanket white "whole opposing team is selectable" highlight is gone, replaced by a live red ring showing the one player the other coach currently has selected (broadcast over the network, validated so a claim can't name a player outside the sender's own team, cleared on turn change so it can't go stale). Yellow/orange down-status squares and moved-player opacity are untouched.
 
-- multiplayer the ball was on the wrong square so theres probably a seed issue we need to fix so they have teh same roll outcomes
+- FIXED 2026-07-28 (fix-multiplayer-state-sync-bugs, PR #38): multiplayer the ball was on the wrong square so theres probably a seed issue we need to fix so they have teh same roll outcomes
+  — not a seed issue (the host is the sole source of every dice outcome). The guest was replaying the host's events before applying that bundle's snapshot, so ball/status-reconciliation handlers rendered the previous bundle's stale position. Snapshot now applies first.
 
-- turncounter is not working on the non-host, it never goes up.
+- FIXED 2026-07-28 (fix-multiplayer-state-sync-bugs, PR #38): turncounter is not working on the non-host, it never goes up.
+  — the per-team turn count lived outside the data that got synced to the guest at all. It now rides along as a sidecar field on every synced snapshot.
 
-- the timer hiting zero doesnt seem to end the turn properly 
+- FIXED 2026-07-28 (fix-multiplayer-state-sync-bugs, PR #38): the timer hiting zero doesnt seem to end the turn properly 
+  — force-ending a turn (by the clock or a manual "End Turn" click) left a stale committed declaration behind that silently refused the next team's first action. Force-ending now finalizes that declaration before handing the turn over.
 
-- something fell out of sync and ended up causing infinite roll fro a block and skipped the bloodlust roll on the vampire. heres a full log dump
+- FIXED 2026-07-28 (fix-multiplayer-infinite-block-desync, PR #35): something fell out of sync and ended up causing infinite roll fro a block and skipped the bloodlust roll on the vampire. heres a full log dump
     react-dom_client.js?v=e52c6263:20103 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
     @strudel_web.js?v=e52c6263:546 🌀 @strudel/core loaded 🌀
     main.ts:26 ⚛️  React UI - Initialized!
@@ -628,4 +634,5 @@
     @strudel_web.js?v=e52c6263:3936 skip query: too late
     @strudel_web.js?v=e52c6263:3936 skip query: too late
     @strudel_web.js?v=e52c6263:3936 skip query: too late
+  — root cause confirmed: the guest's declare-action/cancel-action calls answered optimistically before the host's real verdict was known, and nothing reconciled the guest's local UI state when that verdict turned out to be a rejection — so a stale cancel-after-commit and a stale redeclare each got correctly refused by the host, but the guest's UI had already moved on as if they'd succeeded, leaving every further block attempt bouncing off "not declared" forever with the Bloodlust check never reached. The guest now reconciles (deselect/reselect, rebuild the menu from the authoritative state) whenever a rejection lands for a command its local state still matches. The exact literal action sequence from this log couldn't be reconstructed from the log alone, but the underlying mechanism is confirmed and locked in with an end-to-end test reproducing this exact rejection sequence (host rejected cancel-action / host rejected declare-action) through a real host/guest pair.
     @strudel_web.js?v=e52c6263:3936 skip query: too late
