@@ -164,3 +164,38 @@ from the sequence, not altered).
 ## Open Questions
 
 None — root cause is fully traced and the fix is scoped to two files plus tests.
+
+## Review follow-up: write-side regression found and fixed
+
+PR review (see PR #36) caught a real regression in decision 3's initial
+implementation: `shouldPreserveOwnSetup` is true for the guest's *entire* own
+setup turn, not just a brief race window. `captureSetupPlacements` /
+`restoreSetupPlacements` preserve `status` alongside `gridPosition` — but the
+guest's optimistic write paths in `NetworkedGameService`
+(`placePlayer`/`removePlayer`/`applySetupFormation`/`swapPlayers`) only ever
+patched `gridPosition` directly, never `status`. Every setup starts with every
+player's `status` at `Reserve` (`SetupManager.sanitizeTeam`). So for an
+ordinary **first-time placement** (not a reposition — status is already
+`ACTIVE` for those), the guard would capture the stale `Reserve` status before
+the authoritative snapshot corrected it to `ACTIVE`, then immediately restore
+that stale `Reserve` on top — permanently hiding a correctly, successfully
+placed player in the Reserves box (while still also rendering them on the
+pitch, since pitch rendering is keyed off `gridPosition` alone) for the rest
+of the guest's turn. Worse than the flash being fixed, and uncovered by the
+original tests (which only exercised reposition, where `status` never
+changes).
+
+**Fix:** route every optimistic write in `NetworkedGameService` through
+`movePlayerToBox` (`src/game/rules/playerLocation.ts`) — the same single seam
+the host's `SetupManager` already uses — instead of assigning `gridPosition`
+directly. This keeps `status` and `gridPosition` consistent at every point in
+time on the guest's optimistic replica, for every mutation (place, remove,
+formation load, swap), not just reposition. With the write side always
+internally consistent, capturing/restoring both fields in the read-side guard
+is correct in every case, not just the reposition one it was designed for.
+
+Locked in by a new test: "regression: a FIRST-TIME placement must not get
+stuck showing Reserves for the rest of the guest's turn" in
+`__tests__/network/onlineMatchSetupOptimistic.test.ts` — verified to fail
+against the pre-fix `NetworkedGameService` (stale `status` restored) and pass
+against the fix.

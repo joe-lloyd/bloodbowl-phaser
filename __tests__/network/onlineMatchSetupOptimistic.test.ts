@@ -17,6 +17,8 @@ import {
   captureSetupPlacements,
   restoreSetupPlacements,
 } from "../../src/network/OnlineMatch";
+import { NetworkedGameService } from "../../src/network/NetworkedGameService";
+import type { GameService } from "../../src/services/GameService";
 import { GamePhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { playerBoxOf } from "../../src/game/rules/playerLocation";
@@ -90,6 +92,62 @@ describe("OnlineMatch setup-placement optimistic preserve guard", () => {
 
     expect(player.gridPosition).toEqual({ x: 3, y: 5 });
     expect(player.status).toBe(PlayerStatus.ACTIVE);
+    expect(playerBoxOf(player)).toBe("pitch");
+  });
+
+  it("regression: a FIRST-TIME placement must not get stuck showing Reserves for the rest of the guest's turn", () => {
+    // This is the case the reposition-only tests above do not cover: at the
+    // start of every setup every player's status is Reserve (see
+    // SetupManager.sanitizeTeam). If the guest's optimistic write path only
+    // patched gridPosition (as it used to) and left status untouched, the
+    // preserve-guard would capture that stale Reserve status the moment
+    // *any* snapshot arrives during the guest's setup turn — not just a
+    // racing intermediate one — and reapply it forever, permanently hiding a
+    // freshly (and correctly) placed player back in the Reserves box even
+    // though gridPosition already points at the pitch.
+    const team = createTeamWithPlayersOnPitch("team-1");
+    team.players.forEach((player) => {
+      player.gridPosition = undefined;
+      player.status = PlayerStatus.RESERVE;
+    });
+    const player = team.players[0];
+
+    const fakeInner = {
+      getPlayerById: (id: string) => team.players.find((p) => p.id === id),
+    } as unknown as GameService;
+    const service = new NetworkedGameService(
+      fakeInner,
+      async () => ({
+        ok: true,
+        events: [],
+        snapshot: {} as never,
+        pendingDecision: null,
+      }),
+      () => null
+    );
+
+    // 1. Guest places a brand-new player on the pitch for the first time.
+    service.placePlayer(player.id, 3, 3);
+    expect(player.gridPosition).toEqual({ x: 3, y: 3 });
+    expect(player.status).toBe(PlayerStatus.ACTIVE);
+    expect(playerBoxOf(player)).toBe("pitch");
+
+    // 2. Some snapshot arrives during the guest's own setup turn (could be
+    //    this placement's own confirmation, or an unrelated broadcast) —
+    //    applyBundle's preserve guard captures the current (optimistic)
+    //    state before the snapshot is applied.
+    const saved = captureSetupPlacements(team);
+
+    // 3. The authoritative snapshot is applied — correctly, ACTIVE + same
+    //    square, exactly matching what the guest already has.
+    player.gridPosition = { x: 3, y: 3 };
+    player.status = PlayerStatus.ACTIVE;
+
+    // 4. The guard restores the captured state on top.
+    restoreSetupPlacements(team, saved);
+
+    expect(player.status).toBe(PlayerStatus.ACTIVE);
+    expect(player.gridPosition).toEqual({ x: 3, y: 3 });
     expect(playerBoxOf(player)).toBe("pitch");
   });
 

@@ -59,3 +59,24 @@
       match, reach setup, and drag an already-placed player across legal
       squares repeatedly, confirming no visible flash to the Reserves box on
       either tab.
+
+## 5. Review follow-up: write-side status regression (found in PR review)
+
+- [x] 5.1 Route every optimistic write in `src/network/NetworkedGameService.ts`
+      (`placePlayer`, `removePlayer`, `applySetupFormation`, `swapPlayers`)
+      through `movePlayerToBox` instead of assigning `gridPosition` directly,
+      so `status` always stays in lockstep with `gridPosition` on the guest's
+      local replica — not just for reposition. Fixes a regression where the
+      hardened preserve-guard (task 2.1) could permanently stick a
+      freshly-placed (first-time, not repositioned) player in the Reserves
+      box because `status` was stale (`Reserve`) at the moment the guard
+      captured it.
+- [x] 5.2 Add a regression test ("a FIRST-TIME placement must not get stuck
+      showing Reserves for the rest of the guest's turn") in
+      `__tests__/network/onlineMatchSetupOptimistic.test.ts`, driven through
+      `NetworkedGameService.placePlayer` itself (not a hand-rolled
+      gridPosition assignment) so it actually exercises the write path.
+      Verified it fails against the pre-fix code and passes against the fix.
+- [x] 5.3 Re-run the full test suite in the foreground and confirm no
+      regressions; re-typecheck (`tsc --noEmit`) and confirm no new errors
+      versus the pre-existing baseline.
