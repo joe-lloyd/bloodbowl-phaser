@@ -17,6 +17,10 @@ import {
 import { SCENARIO_CASES } from "../testing/cases";
 import { findScenarioCase } from "../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
+import {
+  SANDBOX_DEFAULT_TEAM1_ROSTER,
+  SANDBOX_DEFAULT_TEAM2_ROSTER,
+} from "./sandboxDefaultTeams";
 
 export class SandboxScene extends GameScene {
   constructor() {
@@ -50,14 +54,17 @@ export class SandboxScene extends GameScene {
         }
       );
     } else {
+      // Default to two different rosters (never a mirror-match) so the two
+      // sides are visually distinguishable at a glance without hovering
+      // over individual players.
       const team1 = TeamFactory.createTestTeam(
-        RosterName.BLACK_ORC,
-        "Test Black Orcs 1",
+        SANDBOX_DEFAULT_TEAM1_ROSTER,
+        "Test Humans",
         0x4169e1
       );
       const team2 = TeamFactory.createTestTeam(
-        RosterName.BLACK_ORC,
-        "Test Black Orcs 2",
+        SANDBOX_DEFAULT_TEAM2_ROSTER,
+        "Test Orcs",
         0xdc143c
       );
 
