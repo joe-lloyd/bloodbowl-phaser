@@ -174,6 +174,33 @@ describe("SoundManager", () => {
     expect(() => second.stop()).not.toThrow();
   });
 
+  it("dispose() removes the document-level gesture-unlock listeners init() attached — no leak across repeated page mounts", async () => {
+    const { SoundManager } = await import("../../src/ui/sound/SoundManager");
+    const ctx = new FakeAudioContext();
+    const manager = new SoundManager(() => ctx as never);
+
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+
+    await manager.init();
+    const addedTypes = addSpy.mock.calls
+      .filter(([, , opts]) => (opts as AddEventListenerOptions)?.once)
+      .map(([type]) => type);
+    expect(addedTypes).toEqual(
+      expect.arrayContaining(["pointerdown", "keydown"])
+    );
+
+    manager.dispose();
+
+    const removedTypes = removeSpy.mock.calls.map(([type]) => type);
+    expect(removedTypes).toEqual(
+      expect.arrayContaining(["pointerdown", "keydown"])
+    );
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
   it("play() never schedules anything before init() — dropped silently, not queued", async () => {
     const { SoundManager } = await import("../../src/ui/sound/SoundManager");
     const ctx = new FakeAudioContext();

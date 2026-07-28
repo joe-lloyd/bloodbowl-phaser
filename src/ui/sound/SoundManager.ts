@@ -24,6 +24,7 @@ export class SoundManager {
   private activeUnits = new Set<PlaybackUnit>();
   private unsubscribeSettings: (() => void) | null = null;
   private gestureListenerAttached = false;
+  private gestureResumeHandler: (() => void) | null = null;
   private readonly createContext: AudioContextFactory;
 
   constructor(createContext?: AudioContextFactory) {
@@ -129,6 +130,7 @@ export class SoundManager {
     this.stop();
     this.unsubscribeSettings?.();
     this.unsubscribeSettings = null;
+    this.detachGestureUnlock();
     if (this.ctx && this.ctx.state !== "closed") {
       this.ctx.close().catch((e) => {
         console.error("SoundManager: Error closing AudioContext", e);
@@ -151,8 +153,22 @@ export class SoundManager {
         console.error("SoundManager: Error resuming AudioContext", e);
       });
     };
+    this.gestureResumeHandler = resume;
     document.addEventListener("pointerdown", resume, { once: true });
     document.addEventListener("keydown", resume, { once: true });
+  }
+
+  /** Undoes attachGestureUnlock() — called from dispose() so a page that never received a gesture (e.g. left immediately) doesn't leak document-level listeners tied to this instance. */
+  private detachGestureUnlock(): void {
+    if (!this.gestureListenerAttached || typeof document === "undefined") {
+      return;
+    }
+    if (this.gestureResumeHandler) {
+      document.removeEventListener("pointerdown", this.gestureResumeHandler);
+      document.removeEventListener("keydown", this.gestureResumeHandler);
+    }
+    this.gestureListenerAttached = false;
+    this.gestureResumeHandler = null;
   }
 }
 
