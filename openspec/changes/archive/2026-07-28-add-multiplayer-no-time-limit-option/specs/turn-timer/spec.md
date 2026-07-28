@@ -1,10 +1,18 @@
-# turn-timer
+## MODIFIED Requirements
 
-## Purpose
+### Requirement: Host-configured timer settings
 
-Define the online match clock: a server-timestamp-anchored per-turn countdown both players see identically without per-second writes, host-enforced auto end-turn on expiry, a per-player timeout bank that pauses the game, and host-configured timer settings.
+The per-turn time limit and the initial timeout bank SHALL be set by the host in the lobby and applied equally to both players for the match. The per-turn time limit's options SHALL include a "no time limit" choice, in which case no per-turn countdown or auto end-turn applies for the match.
 
-## Requirements
+#### Scenario: Configured limits applied
+
+- **WHEN** the host sets the per-turn limit and timeout bank and starts the match
+- **THEN** both players' turn countdowns and timeout banks use those configured values
+
+#### Scenario: Host selects no time limit
+
+- **WHEN** the host selects "no time limit" for the per-turn limit and starts the match
+- **THEN** neither player sees a per-turn countdown for the rest of the match, and turns are never auto-ended for running out of time
 
 ### Requirement: Server-synced turn countdown
 
@@ -43,36 +51,3 @@ When the active turn's countdown reaches zero, the active player's turn SHALL en
 
 - **WHEN** a match is configured with "no time limit" and the active player takes an arbitrarily long time
 - **THEN** the host never force-ends their turn on account of time
-
-### Requirement: Per-player timeout bank that pauses the game
-
-Each player SHALL have a finite timeout bank (default five minutes) that they may spend to pause both the turn countdown and gameplay. While paused, the countdown SHALL freeze and commands SHALL be blocked for both players until the pausing player resumes or their bank is exhausted; elapsed pause time SHALL be deducted from that player's bank. A player SHALL NOT pause using time they no longer have.
-
-#### Scenario: Player pauses the clock
-
-- **WHEN** a player spends timeout to pause
-- **THEN** the countdown freezes, both players see the game paused and who paused it, and neither can act until resume
-
-#### Scenario: Pause time deducted
-
-- **WHEN** a player resumes after pausing
-- **THEN** the elapsed pause duration is subtracted from that player's timeout bank
-
-#### Scenario: Bank exhausted
-
-- **WHEN** a paused player's timeout bank reaches zero
-- **THEN** the game automatically resumes and that player can no longer pause
-
-### Requirement: Host-configured timer settings
-
-The per-turn time limit and the initial timeout bank SHALL be set by the host in the lobby and applied equally to both players for the match. The per-turn time limit's options SHALL include a "no time limit" choice, in which case no per-turn countdown or auto end-turn applies for the match.
-
-#### Scenario: Configured limits applied
-
-- **WHEN** the host sets the per-turn limit and timeout bank and starts the match
-- **THEN** both players' turn countdowns and timeout banks use those configured values
-
-#### Scenario: Host selects no time limit
-
-- **WHEN** the host selects "no time limit" for the per-turn limit and starts the match
-- **THEN** neither player sees a per-turn countdown for the rest of the match, and turns are never auto-ended for running out of time
