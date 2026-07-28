@@ -208,6 +208,7 @@ export enum GameEventNames {
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
+  UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
   UI_StepSelected = "ui:stepSelected",
 
   // Kickoff event step (owning coach only)
@@ -813,6 +814,8 @@ export interface UIEvents {
     attackerId: string;
     dieIndex: number;
   };
+  /** Spend Brawler on a block (re-roll the single Both Down die). */
+  [GameEventNames.UI_BrawlerRerollBlockDie]: { attackerId: string };
 
   [GameEventNames.UI_StepSelected]: {
     stepId: string;

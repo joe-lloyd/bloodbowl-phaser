@@ -167,11 +167,27 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
       blockConfig({
         id: "brawler-rerolls-both-down",
         name: "Brawler re-rolls a Both Down",
-        description: "A single Both Down die is re-rolled once",
+        description:
+          "The block popup offers a Brawler button whenever a die reads " +
+          "Both Down; clicking it re-rolls that single die once in place " +
+          "(no separate yes/no popup — see BlockManager.brawlerRerollBlockDie).",
         setup: faceOff([SkillType.BRAWLER], []), // ST 3 v 3 → one die
         attacker: "team1:0",
         defender: "team2:0",
         preferBlockResult: "both-down",
+        // Brawler is no longer an auto-offered reaction: the block-dice
+        // decision itself carries `brawlerAvailable`, and the coach spends it
+        // with an explicit "brawler-reroll-block" command (the popup button
+        // in the browser). Answer that first; the default handler then picks
+        // the (possibly re-rolled) result via preferBlockResult as usual.
+        decisionPolicy: {
+          custom: (pending) => {
+            if (pending.type === "block-dice" && pending.brawlerAvailable) {
+              return { type: "brawler-reroll-block", attackerId: pending.attackerId };
+            }
+            return undefined;
+          },
+        },
         outcomes: [
           {
             id: "both-down-rerolled",

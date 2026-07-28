@@ -371,8 +371,11 @@ export class BlockManager {
     const teamId = attackerId.split("-")[0];
     const results = this.diceController.rollBlockDice(numDice, teamId);
 
-    // Trigger point: dice rolled — a rule may reroll dice in place (Brawler's
-    // single Both Down) before the coach selects a result.
+    // Trigger point: dice rolled — a rule may reroll dice in place (Hatred's
+    // single Player Down) before the coach selects a result. Brawler's Both
+    // Down re-roll is instead offered as a button in the block popup itself
+    // (see blockRerollAvailability / brawlerRerollBlockDie below), so the
+    // coach sees the roll before choosing to spend it.
     if (attacker && defender) {
       const ctx: BlockDiceRolledContext = {
         attacker,
@@ -398,7 +401,7 @@ export class BlockManager {
       numDice,
       isAttackerChoice,
       results,
-      ...this.blockRerollAvailability(attacker),
+      ...this.blockRerollAvailability(attacker, results),
     };
 
     this.pendingBlockRoll = rollData;
@@ -546,14 +549,22 @@ export class BlockManager {
   }
 
   /** Which block-dice re-rolls the attacker may use right now. */
-  private blockRerollAvailability(attacker?: Player): {
+  private blockRerollAvailability(
+    attacker?: Player,
+    results: BlockResult[] = []
+  ): {
     teamRerollAvailable: boolean;
     proAvailable: boolean;
+    brawlerAvailable: boolean;
   } {
     const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     const arbiter = gs?.getRerollArbiter();
     if (!attacker || !gs || !arbiter) {
-      return { teamRerollAvailable: false, proAvailable: false };
+      return {
+        teamRerollAvailable: false,
+        proAvailable: false,
+        brawlerAvailable: false,
+      };
     }
     return {
       teamRerollAvailable: arbiter.teamRerollAvailable(attacker.teamId),
@@ -561,12 +572,15 @@ export class BlockManager {
         hasSkill(attacker.skills, SkillType.PRO) &&
         gs.getState().activePlayer?.id === attacker.id &&
         arbiter.onceAvailable(attacker, SkillType.PRO),
+      brawlerAvailable:
+        hasSkill(attacker.skills, SkillType.BRAWLER) &&
+        results.some((r) => r.type === "both-down"),
     };
   }
 
   /**
    * Team Re-roll on a block: re-roll ALL the dice. One re-roll per block, so
-   * Pro is locked out afterwards.
+   * Pro and Brawler are locked out afterwards.
    */
   public teamRerollBlock(attackerId: string): void {
     const pending = this.pendingBlockRoll;
@@ -596,6 +610,7 @@ export class BlockManager {
     });
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
+    pending.brawlerAvailable = false;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -642,6 +657,37 @@ export class BlockManager {
     }
     pending.proAvailable = false;
     pending.teamRerollAvailable = false;
+    pending.brawlerAvailable = false;
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+  }
+
+  /**
+   * Brawler on a block (2025 rulebook p.127): re-roll the single Both Down
+   * die. No skill check is needed — unlike Pro it just works — but it may
+   * only be used once per block, and (matching Pro/Team Re-roll's mutual
+   * exclusion) it locks out the other re-roll sources on this block.
+   */
+  public brawlerRerollBlockDie(attackerId: string): void {
+    const pending = this.pendingBlockRoll;
+    if (!pending || pending.attackerId !== attackerId) return;
+    if (!pending.brawlerAvailable) return;
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker || !hasSkill(attacker.skills, SkillType.BRAWLER)) return;
+    const index = pending.results.findIndex((r) => r.type === "both-down");
+    if (index < 0) return;
+
+    pending.results[index] = this.diceController.rollBlockDice(
+      1,
+      attacker.teamId
+    )[0];
+    this.eventBus.emit(GameEventNames.SkillTriggered, {
+      playerId: attackerId,
+      skill: SkillType.BRAWLER,
+      effect: "Brawler: re-rolled a Both Down",
+    });
+    pending.brawlerAvailable = false;
+    pending.teamRerollAvailable = false;
+    pending.proAvailable = false;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
