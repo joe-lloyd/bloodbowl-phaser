@@ -94,6 +94,15 @@ export class BallManager {
     // `ballPosition` instead. `resolveKickoffEvent()` below has its own,
     // separate guard for the table roll.
     if (this.state.kickoffKickResolved) {
+      // Trust the drive's already-resolved kicking side, not this call's
+      // parameter: a stale re-entrant command could in principle name a
+      // kicker from the opposing team (the browser can't produce this —
+      // isTeam1Kicking there is derived from the fixed kicking team — but
+      // the headless/online kick-ball command path takes it as a raw
+      // parameter). Getting this wrong wouldn't cause a re-deviation/re-roll
+      // (both guards check state, not isTeam1Kicking), but could misdirect
+      // the High Kick step or the Changing Weather scatter's touchback check.
+      this.isTeam1Kicking = this.state.kickoffKickResolved.isTeam1Kicking;
       this.pendingTouchback = this.state.ballPosition === null;
       if (this.pendingTouchback) {
         this.eventBus.emit(GameEventNames.UI_Notification, "Touchback!");
