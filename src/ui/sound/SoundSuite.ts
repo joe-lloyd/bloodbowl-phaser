@@ -21,6 +21,8 @@ export class SoundSuite {
   private lastPlayedAt = new Map<SoundName, number>();
   private priorityLockUntil = 0;
   private priorityLockLevel = -Infinity;
+  /** In-flight one-shot samples fired by playSample(), so dispose() can stop them. */
+  private activeSamples = new Set<HTMLAudioElement>();
 
   constructor(
     private readonly eventBus: IEventBus,
@@ -65,6 +67,19 @@ export class SoundSuite {
   dispose(): void {
     this.unsubs.forEach((unsub) => unsub());
     this.unsubs = [];
+
+    // Stop and release every in-flight one-shot sample — playSample() fires
+    // untracked `new Audio(url)` instances that would otherwise keep playing
+    // after the scene/page is gone.
+    this.activeSamples.forEach((audio) => {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch (e) {
+        console.error("SoundSuite: Error stopping sample on dispose", e);
+      }
+    });
+    this.activeSamples.clear();
   }
 
   /** Play a catalog entry directly — used by the audition board, bypassing event bindings. */
@@ -117,6 +132,10 @@ export class SoundSuite {
     try {
       const audio = new Audio(url);
       audio.volume = Math.min(1, Math.max(0, volume));
+      this.activeSamples.add(audio);
+      const release = () => this.activeSamples.delete(audio);
+      audio.addEventListener("ended", release);
+      audio.addEventListener("error", release);
       void audio.play();
     } catch (e) {
       console.error("SoundSuite: Error playing sample", e);

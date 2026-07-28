@@ -37,6 +37,7 @@ import {
   computeMatchOptionsMenu,
   MatchOptionsMenuActionId,
   MatchOptionsMenuContext,
+  MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
 import type { OpponentConnectionState } from "../../../firebase/lobby";
 
@@ -218,7 +219,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           }
         : { kind: "local", matchOver: turnData.phase === GamePhase.GAME_OVER };
 
-  const menuEntries = computeMatchOptionsMenu(menuContext);
+  // The mute/volume control used to be its own floating top-right popup
+  // (SoundToggle), sharing a corner with SandboxOverlay/TurnIndicator. It's
+  // now a "panel" entry appended to every context's menu — sound settings
+  // apply regardless of sandbox/local/online, so it isn't context-derived
+  // like the rest of computeMatchOptionsMenu's entries.
+  const menuEntries: MatchOptionsMenuEntry[] = [
+    ...computeMatchOptionsMenu(menuContext),
+    { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
+  ];
 
   // A failure here must never strand the coach mid-match with their state
   // silently discarded (e.g. a save cleared but the navigate away throwing) —
@@ -302,11 +311,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               turnNumber={turnData.turnNumber}
               phase={turnData.phase}
             />
-          </div>
-
-          {/* Sound mute/volume - Top Right */}
-          <div className="absolute top-4 right-4 z-50">
-            <SoundToggle />
           </div>
 
           {/* Full-screen overlays */}

@@ -11,5 +11,6 @@ declare module "@strudel/web" {
   export const initAudioOnFirstClick;
   export const getContext;
   export const initStrudel;
+  export const hush;
   // Add other exports as needed
 }
