@@ -983,6 +983,11 @@ export class GameService implements IGameService {
     this.blockManager.proRerollBlockDie(attackerId, dieIndex);
   }
 
+  /** Brawler on a block: re-roll the single Both Down die. */
+  brawlerRerollBlockDie(attackerId: string): void {
+    this.blockManager.brawlerRerollBlockDie(attackerId);
+  }
+
   public executePush(
     attackerId: string,
     defenderId: string,

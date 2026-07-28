@@ -145,7 +145,6 @@ export enum GameEventNames {
   UI_PlacePlayer = "ui:placePlayer",
   UI_RemovePlayer = "ui:removePlayer",
   UI_ConfirmSetup = "ui:confirmSetup",
-  UI_SceneChange = "ui:sceneChange",
   UI_LoadScenario = "ui:loadScenario",
   UI_StartGame = "ui:startGame",
   UI_StartCoinFlip = "ui:startCoinFlip",
@@ -208,6 +207,7 @@ export enum GameEventNames {
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
+  UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
   UI_StepSelected = "ui:stepSelected",
 
   // Kickoff event step (owning coach only)
@@ -651,11 +651,6 @@ export interface UIEvents {
   [GameEventNames.UI_RemovePlayer]: { playerId: string };
   [GameEventNames.UI_ConfirmSetup]: void;
 
-  // Navigation
-  [GameEventNames.UI_SceneChange]: {
-    scene: string;
-    data?: Record<string, unknown>;
-  };
   [GameEventNames.UI_LoadScenario]: {
     /** A core scenario id or a rule-catalog configuration id */
     scenarioId: string;
@@ -813,6 +808,8 @@ export interface UIEvents {
     attackerId: string;
     dieIndex: number;
   };
+  /** Spend Brawler on a block (re-roll the single Both Down die). */
+  [GameEventNames.UI_BrawlerRerollBlockDie]: { attackerId: string };
 
   [GameEventNames.UI_StepSelected]: {
     stepId: string;

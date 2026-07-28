@@ -23,5 +23,4 @@ export const BINDING_LABELS: Record<SoundName, string[]> = {
   foul: ["PlayerCasualtyInflicted (special)"],
   sendOff: ["PlayerStatusChanged (Removed)"],
   endOfHalf: ["DriveEnded (halftime)", "PhaseChanged (Game Over)"],
-  uiClick: ["UI_ActionSelected"],
 };

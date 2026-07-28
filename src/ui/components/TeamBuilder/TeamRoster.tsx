@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
+import { SKILL_DEFINITIONS } from "../../../types/Skills";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import {
   BloodBowlTable,
@@ -7,6 +8,7 @@ import {
   TableCell,
   CustomTableCell,
 } from "../componentWarehouse/BloodBowlTable";
+import { Tooltip } from "../componentWarehouse/Tooltip";
 
 interface TeamRosterProps {
   team: Team;
@@ -20,6 +22,12 @@ interface TeamRosterProps {
  * widths are declared once on the shared header/row `<colgroup>` so headers
  * and values always line up, and the table scrolls horizontally on narrow
  * viewports instead of shrinking text to fit.
+ *
+ * Also carries each player's career statistics (games played, touchdowns,
+ * completions, casualties, kills, MVPs) as trailing columns
+ * (team-management-layout: "Per-player career statistics are shown on the
+ * team detail page, not the overview") — this replaced a separate
+ * career-stats block that used to live on the Team Management overview page.
  */
 export function TeamRoster({
   team,
@@ -33,13 +41,19 @@ export function TeamRoster({
     <BloodBowlTable
       title={team.name.toUpperCase()}
       headers={[
-        { label: "#", width: "5%" },
-        { label: "Name", width: "22%" },
-        { label: "Pos", width: "13%" },
-        { label: "Stats", width: "15%" },
-        { label: "Skills", width: "22%" },
-        { label: "Cost", width: "10%" },
-        { label: "", width: "13%" }, // Actions
+        { label: "#", width: "4%" },
+        { label: "Name", width: "16%" },
+        { label: "Pos", width: "9%" },
+        { label: "Stats", width: "11%" },
+        { label: "Skills", width: "14%" },
+        { label: "Cost", width: "7%" },
+        { label: "GP", width: "5%", className: "text-center" },
+        { label: "TD", width: "5%", className: "text-center" },
+        { label: "CMP", width: "5%", className: "text-center" },
+        { label: "CAS", width: "5%", className: "text-center" },
+        { label: "Kills", width: "5%", className: "text-center" },
+        { label: "MVP", width: "5%", className: "text-center" },
+        { label: "", width: "9%" }, // Actions
       ]}
       variant="blue"
     >
@@ -113,14 +127,43 @@ export function TeamRoster({
                   {player.stats.MA} {player.stats.ST} {player.stats.AG}+{" "}
                   {player.stats.PA}+ {player.stats.AV}+
                 </TableCell>
-                <TableCell
-                  className="text-sm italic"
-                  title={player.skills.map((s) => s.type).join(", ")}
-                >
-                  {player.skills.map((s) => s.type).join(", ")}
+                <TableCell className="text-sm italic">
+                  <div className="flex flex-wrap gap-1">
+                    {player.skills.map((skill, index) => (
+                      <span key={`${skill.type}-${index}`}>
+                        <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
+                          <span className="cursor-help underline decoration-dotted">
+                            {skill.type}
+                            {skill.parameter != null
+                              ? ` (${skill.parameter})`
+                              : ""}
+                          </span>
+                        </Tooltip>
+                        {index < player.skills.length - 1 ? "," : ""}
+                      </span>
+                    ))}
+                  </div>
                 </TableCell>
                 <TableCell className="text-base">
                   {formatGold(player.cost)}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.matches ?? 0}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.touchdowns ?? 0}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.completions ?? 0}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.casualties ?? 0}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.kills ?? 0}
+                </TableCell>
+                <TableCell className="text-sm text-center">
+                  {player.careerStats?.mvps ?? 0}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
@@ -142,7 +185,7 @@ export function TeamRoster({
               </>
             ) : (
               <TableCell
-                colSpan={6}
+                colSpan={12}
                 className="text-center italic text-[#1d3860]/30 text-sm py-3"
               >
                 Empty Slot

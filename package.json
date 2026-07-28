@@ -36,8 +36,6 @@
     "e2e:coverage:diff": "tsx scripts/e2e-coverage.ts --compare-baseline"
   },
   "dependencies": {
-    "@strudel/core": "^1.2.5",
-    "@strudel/web": "^1.2.6",
     "firebase": "^12.16.0",
     "phaser": "^3.80.1",
     "react": "^19.2.1",

@@ -1,38 +1,55 @@
-import { note, s, stack } from "@strudel/web";
-import {
-  initAudioOnFirstClick,
-  getAudioContext,
-  initStrudel,
-  hush,
-} from "@strudel/web";
+import { PlaybackUnit } from "./synth";
+import { soundSettings, SoundSettings } from "./settings";
 
+type AudioContextFactory = () => AudioContext;
+
+/**
+ * Owns the shared `AudioContext` and a single master `GainNode` that every
+ * catalog effect's node graph connects to (directly or transitively). This
+ * replaces `@strudel/web`'s global pattern scheduler: there is no "current
+ * pattern" slot for two triggers to race over — every `play()` call builds
+ * and schedules its own independent nodes on the browser's own
+ * sample-accurate audio clock, so a rapid sequence of triggers can never
+ * silently replace/strand each other (the bug this replaces; see
+ * design.md).
+ *
+ * Mute/volume are wired straight into the master gain, so a settings change
+ * reaches sound already in flight, not just future triggers.
+ */
 export class SoundManager {
-  private isInitialized: boolean = false;
+  private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private isInitialized = false;
   private initPromise: Promise<void> | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private currentCycle: any = null;
+  private activeUnits = new Set<PlaybackUnit>();
+  private unsubscribeSettings: (() => void) | null = null;
+  private gestureListenerAttached = false;
+  private gestureResumeHandler: (() => void) | null = null;
+  private readonly createContext: AudioContextFactory;
 
-  constructor() {
-    console.log("SoundManager created.");
+  constructor(createContext?: AudioContextFactory) {
+    this.createContext = createContext ?? defaultCreateContext;
   }
 
   public async init(): Promise<void> {
     if (this.isInitialized) return;
     if (this.initPromise) return this.initPromise;
 
-    console.log("SoundManager: Initializing...");
-
     this.initPromise = (async () => {
-      // Initialize Strudel Runtime (scheduler, repl context)
-      initStrudel({
-        preload: true,
+      this.ctx = this.createContext();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = gainForSettings(soundSettings.get());
+      this.masterGain.connect(this.ctx.destination);
+
+      this.unsubscribeSettings = soundSettings.subscribe((settings) => {
+        if (this.masterGain) {
+          this.masterGain.gain.value = gainForSettings(settings);
+        }
       });
 
-      // Strudel needs a user interaction to start the AudioContext
-      await initAudioOnFirstClick();
+      this.attachGestureUnlock();
 
       this.isInitialized = true;
-      console.log("SoundManager: Init complete.");
     })();
 
     return this.initPromise;
@@ -42,125 +59,130 @@ export class SoundManager {
     return this.isInitialized;
   }
 
-  public async playOpeningTheme(): Promise<void> {
-    console.log("SoundManager: playOpeningTheme called");
-
-    // Wait for initialization if needed
-    if (!this.isInitialized) {
-      console.log("SoundManager: waiting for init...");
-      if (!this.initPromise) await this.init();
-      else await this.initPromise;
-    }
-
-    this.stop();
-
-    const ctx = getAudioContext();
-    if (ctx?.state === "suspended") {
-      console.warn(
-        "SoundManager: AudioContext is suspended! Waiting for resume..."
-      );
-      try {
-        await ctx.resume();
-        console.log("SoundManager: AudioContext Resumed");
-      } catch (e) {
-        console.warn("SoundManager: Resume failed", e);
-      }
-    }
-
-    // Justice / Gesaffelstein Style (All-Sine Version)
-    // Using only Sine waves to ensure zero console errors (bypassing PeriodicWave issues)
-    // We rely on Gain/Overdrive to create texture if possible, or just keep it clean/deep.
-
-    // 1. Heavy Kick
-    const kick = s("sine").n("c1").decay(0.1).gain(2.0);
-
-    // 2. Deep Bass (E1 G1)
-    // Sine wave at high gain can clip in the master sometimes, or just sounds deep.
-    const bass = note("E1 E1 E1 G1").s("sine").decay(0.2).gain(1.5);
-
-    // 3. Snare/Clap (Simulated)
-    // Mid-pitch sine drop
-    const snare = s("~ sine").n("c3").decay(0.05).gain(0.8);
-
-    // 4. High Hat
-    // High pitch blip
-    const hihat = s("sine*8").n("c6").decay(0.02).gain(0.3);
-
-    // Layer them
-    const track = stack(kick, bass, snare, hihat).fast(1.9); // ~114 BPM
-
-    console.log("SoundManager: Scheduling playback...");
-
-    this.currentCycle = track.play();
-    console.log("SoundManager: Playback scheduled. Cycle:", this.currentCycle);
-  }
-
-  public playGameplayTheme(): void {
-    this.stop();
-    // Placeholder for ambient
-  }
-
   /**
-   * Fire a one-shot pattern: schedule it, then stop it after `durationMs` so a
-   * single-hit pattern doesn't keep repeating every Strudel cycle. Dropped
-   * silently before the AudioContext is unlocked (first-click) — the suite
-   * queues nothing, per design.
+   * Build and immediately schedule a fresh, independent one-shot playback
+   * unit against the shared context/master gain. `durationMs` is used only
+   * to eventually drop the unit's bookkeeping reference from `activeUnits`
+   * — it never forces playback to stop early, so a late/early timer here
+   * cannot cut off or strand audio (unlike the old Strudel-based
+   * `playOneShot`, whose `setTimeout` *was* the only thing stopping
+   * playback).
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public playOneShot(pattern: any, durationMs: number): void {
-    if (!this.isInitialized || !pattern) return;
+  public play(
+    build: (ctx: AudioContext, dest: AudioNode) => PlaybackUnit,
+    durationMs: number
+  ): void {
+    if (!this.isInitialized || !this.ctx || !this.masterGain) return;
     try {
-      const cycle = pattern.play();
-      setTimeout(() => {
-        try {
-          if (typeof cycle?.stop === "function") cycle.stop();
-        } catch (e) {
-          console.error("SoundManager: Error stopping one-shot", e);
-        }
-      }, durationMs);
+      // stop() suspends the context as a failsafe; a later play() (e.g. the
+      // debug page's "Stop All" followed by another "Play") must revive it,
+      // since the one-time gesture-unlock listener has typically already
+      // fired and removed itself by then.
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {
+          // Best-effort — if this fails, the browser is still waiting on a
+          // user gesture, and the next real click/keydown resolves it.
+        });
+      }
+      const unit = build(this.ctx, this.masterGain);
+      this.activeUnits.add(unit);
+      setTimeout(
+        () => this.activeUnits.delete(unit),
+        Math.max(durationMs, 0) + 250
+      );
     } catch (e) {
-      console.error("SoundManager: Error playing one-shot", e);
+      console.error("SoundManager: Error playing sound", e);
     }
   }
 
-  public playSFX(_type: "dice" | "kick" | "whistle"): void {
-    // Placeholder for SFX
-  }
-
   /**
-   * Halts everything currently scheduled on the shared `@strudel/web`
-   * scheduler: the tracked `currentCycle` (opening theme / gameplay theme)
-   * *and* any one-shot pattern still mid-flight from `playOneShot`, since
-   * every `Pattern.play()` call schedules onto the same global scheduler
-   * (see `hush()`/`repl.stop()` in `@strudel/web`). Safe to call whether or
-   * not anything is currently playing, and whether or not `init()` has run.
+   * Halts every currently-tracked playback unit immediately (each unit's
+   * own `stop()` is idempotent, so this is safe to call even if some units
+   * already finished naturally) and suspends the shared `AudioContext`.
+   * Safe to call whether or not anything is currently playing, and whether
+   * or not `init()` has run.
    */
   public stop(): void {
-    if (this.currentCycle) {
-      console.log("SoundManager: Stopping cycle", this.currentCycle);
+    this.activeUnits.forEach((unit) => {
       try {
-        if (typeof this.currentCycle.stop === "function") {
-          this.currentCycle.stop();
-        } else if (typeof this.currentCycle.pause === "function") {
-          this.currentCycle.pause();
-        } else {
-          console.warn(
-            "SoundManager: Cycle object has no stop/pause method!",
-            this.currentCycle
-          );
-        }
+        unit.stop();
       } catch (e) {
-        console.error("SoundManager: Error stopping cycle", e);
+        console.error("SoundManager: Error stopping unit", e);
       }
-      this.currentCycle = null;
-    }
+    });
+    this.activeUnits.clear();
 
-    if (this.isInitialized) {
-      try {
-        hush();
-      } catch (e) {
-        console.error("SoundManager: Error stopping scheduler", e);
-      }
+    if (this.ctx && this.ctx.state === "running") {
+      this.ctx.suspend().catch((e) => {
+        console.error("SoundManager: Error suspending AudioContext", e);
+      });
     }
   }
+
+  /**
+   * Fully tears down this manager's `AudioContext` — called from page
+   * unmount alongside `stop()`. A new page mount always creates a fresh
+   * `SoundManager` (see GamePage.tsx), so nothing needs this instance to
+   * remain reusable afterward; closing (rather than merely suspending)
+   * avoids leaking `AudioContext`s across repeated match sessions.
+   */
+  public dispose(): void {
+    this.stop();
+    this.unsubscribeSettings?.();
+    this.unsubscribeSettings = null;
+    this.detachGestureUnlock();
+    if (this.ctx && this.ctx.state !== "closed") {
+      this.ctx.close().catch((e) => {
+        console.error("SoundManager: Error closing AudioContext", e);
+      });
+    }
+    this.ctx = null;
+    this.masterGain = null;
+    this.isInitialized = false;
+    this.initPromise = null;
+  }
+
+  /** Browsers require a user gesture before an AudioContext can produce audible sound; resume it on the first one rather than blocking init() on it. */
+  private attachGestureUnlock(): void {
+    if (this.gestureListenerAttached || typeof document === "undefined") {
+      return;
+    }
+    this.gestureListenerAttached = true;
+    const resume = () => {
+      this.ctx?.resume().catch((e) => {
+        console.error("SoundManager: Error resuming AudioContext", e);
+      });
+    };
+    this.gestureResumeHandler = resume;
+    document.addEventListener("pointerdown", resume, { once: true });
+    document.addEventListener("keydown", resume, { once: true });
+  }
+
+  /** Undoes attachGestureUnlock() — called from dispose() so a page that never received a gesture (e.g. left immediately) doesn't leak document-level listeners tied to this instance. */
+  private detachGestureUnlock(): void {
+    if (!this.gestureListenerAttached || typeof document === "undefined") {
+      return;
+    }
+    if (this.gestureResumeHandler) {
+      document.removeEventListener("pointerdown", this.gestureResumeHandler);
+      document.removeEventListener("keydown", this.gestureResumeHandler);
+    }
+    this.gestureListenerAttached = false;
+    this.gestureResumeHandler = null;
+  }
+}
+
+function gainForSettings(settings: SoundSettings): number {
+  return settings.muted ? 0 : settings.volume;
+}
+
+function defaultCreateContext(): AudioContext {
+  const Ctor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) {
+    throw new Error("Web Audio API is not available in this browser");
+  }
+  return new Ctor();
 }

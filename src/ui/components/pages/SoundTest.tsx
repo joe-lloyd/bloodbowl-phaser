@@ -1,6 +1,6 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { EventBus } from "../../../services/EventBus";
-import { GameEventNames } from "@/types/events";
 import { SoundManager } from "../../sound/SoundManager";
 import { SoundSuite } from "../../sound/SoundSuite";
 import { CATALOG_ENTRIES } from "../../sound/catalog";
@@ -15,24 +15,23 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   const managerRef = useRef<SoundManager | null>(null);
   const suiteRef = useRef<SoundSuite | null>(null);
   const settings = useSoundSettings();
+  const navigate = useNavigate();
 
   const getManager = () => {
     if (!managerRef.current) {
       managerRef.current = new SoundManager();
       suiteRef.current = new SoundSuite(eventBus, managerRef.current);
+      void managerRef.current.init();
     }
     return managerRef.current;
   };
 
-  const handleInit = () => {
-    getManager()
-      .init()
-      .then(() => console.log("SoundManager initialized manually"));
-  };
-
-  const handlePlayMusic = () => {
-    getManager().playOpeningTheme();
-  };
+  useEffect(() => {
+    return () => {
+      suiteRef.current?.dispose();
+      managerRef.current?.dispose();
+    };
+  }, []);
 
   const handleStop = () => {
     getManager().stop();
@@ -44,7 +43,7 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   };
 
   const handleBack = () => {
-    eventBus.emit(GameEventNames.UI_SceneChange, { scene: "MenuScene" });
+    navigate("/");
   };
 
   return (
@@ -53,29 +52,7 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
         Audio Debug Dashboard
       </h1>
 
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div className="flex flex-col gap-4 p-6 bg-gray-800 rounded-lg border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4">Music Controls</h2>
-          <button
-            onClick={handleInit}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors"
-          >
-            1. Initialize Audio Engine
-          </button>
-          <button
-            onClick={handlePlayMusic}
-            className="px-6 py-3 bg-green-600 hover:bg-green-500 rounded font-bold transition-colors"
-          >
-            2. Play Opening Theme (Sine)
-          </button>
-          <button
-            onClick={handleStop}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded font-bold transition-colors"
-          >
-            Stop All
-          </button>
-        </div>
-
+      <div className="grid grid-cols-1 max-w-md w-full gap-8 mb-8">
         <div className="flex flex-col gap-4 p-6 bg-gray-800 rounded-lg border border-gray-700">
           <h2 className="text-2xl font-bold mb-4">Sound Settings</h2>
           <label className="flex items-center gap-3">
@@ -98,8 +75,15 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
             />
           </label>
           <p className="text-sm text-gray-400">
-            Persisted to localStorage; applied to every suite sound below.
+            Persisted to localStorage; applied live to every suite sound
+            below, including sound already playing.
           </p>
+          <button
+            onClick={handleStop}
+            className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded font-bold transition-colors"
+          >
+            Stop All
+          </button>
         </div>
       </div>
 

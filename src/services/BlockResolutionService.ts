@@ -35,6 +35,8 @@ export interface BlockRollData {
   teamRerollAvailable?: boolean;
   /** Pro may re-roll ONE block die (attacker has Pro, unused, activating). */
   proAvailable?: boolean;
+  /** Brawler may re-roll the single Both Down die (attacker has Brawler). */
+  brawlerAvailable?: boolean;
 }
 
 /**

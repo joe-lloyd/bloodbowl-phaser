@@ -7,6 +7,12 @@ import {
   ChatMessage,
 } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import {
+  classifyDiceRowNature,
+  classifyEntryNature,
+  resolveDisplayColor,
+  LOG_COLOR_CLASSES,
+} from "./diceLogColor";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -42,6 +48,37 @@ type LogRow = DiceRow | EntryRow;
 
 type Tab = "dice" | "chat";
 
+const FONT_SCALE_STORAGE_KEY = "bb-dice-log-font-scale";
+const FONT_SCALE_MIN = 0.75;
+const FONT_SCALE_MAX = 2;
+const FONT_SCALE_STEP = 0.125;
+const FONT_SCALE_DEFAULT = 1;
+
+/** Read the last font scale the player chose, falling back to the default
+ *  when nothing's stored yet or storage isn't available (e.g. in tests). */
+function loadFontScale(): number {
+  try {
+    const raw = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    const parsed = raw ? parseFloat(raw) : NaN;
+    if (!Number.isFinite(parsed)) return FONT_SCALE_DEFAULT;
+    return clampFontScale(parsed);
+  } catch {
+    return FONT_SCALE_DEFAULT;
+  }
+}
+
+function saveFontScale(scale: number): void {
+  try {
+    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(scale));
+  } catch {
+    // Storage unavailable — the scale just won't survive a reload.
+  }
+}
+
+function clampFontScale(scale: number): number {
+  return Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, scale));
+}
+
 const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
   weather: "Weather",
   kickoff: "Kickoff",
@@ -68,7 +105,11 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const counterRef = React.useRef(0);
   const match = getActiveOnlineMatch();
+  // Solo/local play has no single "my team" — null tells the classifier to
+  // color every good/bad roll the same way regardless of who rolled it.
+  const perspectiveTeamId = match?.myTeamId ?? null;
   const [tab, setTab] = useState<Tab>("dice");
+  const [fontScale, setFontScale] = useState<number>(() => loadFontScale());
   const [chat, setChat] = useState<ChatMessage[]>(() =>
     match ? match.chatHistory() : []
   );
@@ -171,6 +212,16 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     setDraft("");
   };
 
+  const adjustFontScale = (delta: number) => {
+    setFontScale((prev) => {
+      const next = clampFontScale(
+        Math.round((prev + delta) * 1000) / 1000
+      );
+      saveFontScale(next);
+      return next;
+    });
+  };
+
   // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
     if (!teamId || typeof teamId !== "string")
@@ -212,9 +263,39 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
         ) : (
           <span className="font-heading text-bb-gold text-lg">DICE LOG</span>
         )}
-        <span className="text-xs text-gray-400">
-          {tab === "chat" ? match?.opponentName : "Recent Rolls"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">
+            {tab === "chat" ? match?.opponentName : "Recent Rolls"}
+          </span>
+          {tab === "dice" && (
+            <div
+              className="flex items-center gap-1"
+              title="Dice Log text size"
+            >
+              <button
+                type="button"
+                onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
+                disabled={fontScale <= FONT_SCALE_MIN}
+                className="w-5 h-5 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                aria-label="Decrease Dice Log text size"
+              >
+                A-
+              </button>
+              <span className="text-[10px] text-gray-400 w-8 text-center">
+                {Math.round(fontScale * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => adjustFontScale(FONT_SCALE_STEP)}
+                disabled={fontScale >= FONT_SCALE_MAX}
+                className="w-5 h-5 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                aria-label="Increase Dice Log text size"
+              >
+                A+
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Panel body */}
@@ -222,69 +303,87 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
         {tab === "dice" ? (
           <>
             {/* Scrollable Content - Scrollbar Hidden */}
-            <div className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-12">
+            <div
+              className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-12"
+              style={{ fontSize: `${fontScale}rem` }}
+            >
               {logs.length === 0 && (
-                <div className="text-gray-500 text-sm italic text-center p-2">
+                <div className="text-gray-500 text-[0.875em] italic text-center p-2">
                   No rolls yet...
                 </div>
               )}
 
-              {logs.map((log) =>
-                log.kind === "dice" ? (
-                  <div
-                    key={log.id}
-                    className={`
+              {logs.map((log) => {
+                if (log.kind === "dice") {
+                  const nature = classifyDiceRowNature(log);
+                  const color = resolveDisplayColor(
+                    nature,
+                    log.teamId,
+                    perspectiveTeamId
+                  );
+                  const colorClass =
+                    color === "unknown"
+                      ? "!border-gray-500 !bg-gray-900/20"
+                      : LOG_COLOR_CLASSES[color];
+                  return (
+                    <div
+                      key={log.id}
+                      className={`
                                 relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
                                 ${getTeamColorClass(log.teamId)}
-                                ${
-                                  log.resultState === "success"
-                                    ? "!border-green-500 !bg-green-900/20"
-                                    : log.resultState === "failure"
-                                      ? "!border-red-500 !bg-red-900/20"
-                                      : log.resultState === "fumble"
-                                        ? "!border-orange-500 !bg-orange-900/20"
-                                        : "!border-gray-500 !bg-gray-900/20"
-                                }
+                                ${colorClass}
                             `}
-                  >
-                    <div className="p-1.5">
-                      {/* Header Row: Type & Dice + Value */}
-                      <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
-                        <span className="font-bold uppercase tracking-wide text-bb-parchment">
-                          {log.rollType}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
-                            {log.diceType}
+                    >
+                      <div className="p-1.5">
+                        {/* Header Row: Type & Dice + Value */}
+                        <div className="flex justify-between items-center text-[0.6875em] text-gray-300 mb-0.5">
+                          <span className="font-bold uppercase tracking-wide text-bb-parchment">
+                            {log.rollType}
                           </span>
-                          <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
-                            {Array.isArray(log.value)
-                              ? `[${log.value.join(", ")}]`
-                              : log.value}
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
+                              {log.diceType}
+                            </span>
+                            <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
+                              {Array.isArray(log.value)
+                                ? `[${log.value.join(", ")}]`
+                                : log.value}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Result Row - Full Width Description */}
+                        <div className="flex justify-between items-start">
+                          <span className="text-[0.75em] font-medium text-white/90 leading-snug">
+                            {log.description}
                           </span>
                         </div>
                       </div>
-
-                      {/* Result Row - Full Width Description */}
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-white/90 leading-snug">
-                          {log.description}
-                        </span>
-                      </div>
                     </div>
-                  </div>
-                ) : (
-                  // Outcome entry: a durable record of a roll and what it meant —
-                  // headline names the result, detail states its effect on play.
+                  );
+                }
+
+                // Outcome entry: a durable record of a roll and what it meant —
+                // headline names the result, detail states its effect on play.
+                const nature = classifyEntryNature(log.category);
+                const color = resolveDisplayColor(
+                  nature,
+                  log.teamId,
+                  perspectiveTeamId
+                );
+                const colorClass =
+                  color === "unknown" ? "" : LOG_COLOR_CLASSES[color];
+                return (
                   <div
                     key={log.id}
                     className={`
                                 relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
                                 ${getTeamColorClass(log.teamId)}
+                                ${colorClass}
                             `}
                   >
                     <div className="p-1.5">
-                      <div className="flex justify-between items-center text-[11px] text-gray-300 mb-0.5">
+                      <div className="flex justify-between items-center text-[0.6875em] text-gray-300 mb-0.5">
                         <span className="font-bold uppercase tracking-wide text-bb-parchment">
                           {CATEGORY_LABELS[log.category]}
                         </span>
@@ -297,19 +396,19 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                         )}
                       </div>
                       <div className="flex flex-col items-start">
-                        <span className="text-xs font-bold text-white leading-snug">
+                        <span className="text-[0.75em] font-bold text-white leading-snug">
                           {log.headline}
                         </span>
                         {log.detail && (
-                          <span className="text-xs font-medium text-white/80 leading-snug">
+                          <span className="text-[0.75em] font-medium text-white/80 leading-snug">
                             {log.detail}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                )
-              )}
+                );
+              })}
             </div>
 
             {/* Fade Mask at Bottom */}
