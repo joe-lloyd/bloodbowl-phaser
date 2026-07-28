@@ -9,6 +9,7 @@ import {
   SeedFixtureError,
   buildAllSeedTeams,
   buildSeedTeam,
+  seedAdvancementMode,
   teamFixtureKey,
 } from "../../../src/seeding/teamFixtures";
 import { SEED_NAMESPACE, SEED_VERSION } from "../../../src/seeding/seedMeta";
@@ -71,6 +72,32 @@ describe("teamFixtures", () => {
       version: SEED_VERSION,
       fixtureKey: teamFixtureKey(RosterName.HUMAN),
     });
+  });
+
+  it("every seed team has an explicit, locked advancement mode", () => {
+    for (const team of teams) {
+      expect(team.advancementMode, team.rosterName).toBeDefined();
+      expect(team.advancementModeLocked, team.rosterName).toBe(true);
+    }
+  });
+
+  it("the seed catalog covers all three advancement modes", () => {
+    const modes = new Set(teams.map((team) => team.advancementMode));
+    expect(modes).toEqual(
+      new Set(["matched-play", "advanced-league", "sevens-skill-selection"])
+    );
+  });
+
+  it("progressed founders (Human/Orc/Dwarf/Skaven) are Advanced League", () => {
+    for (const rosterName of [
+      RosterName.HUMAN,
+      RosterName.ORC,
+      RosterName.DWARF,
+      RosterName.SKAVEN,
+    ]) {
+      expect(seedAdvancementMode(rosterName)).toBe("advanced-league");
+      expect(buildSeedTeam(rosterName).advancementMode).toBe("advanced-league");
+    }
   });
 
   it("fails with fixture-specific diagnostics", () => {

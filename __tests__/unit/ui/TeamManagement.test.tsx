@@ -68,4 +68,42 @@ describe("TeamManagement overview card", () => {
 
     expect(container.textContent).toContain("Career statistics");
   });
+
+  it("shows an advancement-mode pill for a team with a mode set", async () => {
+    const team = new TeamTestBuilder()
+      .withName("The Matched Play Marauders")
+      .withPlayers(3)
+      .build();
+    team.advancementMode = "matched-play";
+    saveTeams([team]);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamManagement />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.textContent).toContain("Matched Play");
+  });
+
+  it("shows no advancement-mode pill for a team without a mode", async () => {
+    const team = new TeamTestBuilder()
+      .withName("The Modeless Marauders")
+      .withPlayers(3)
+      .build();
+    delete team.advancementMode;
+    saveTeams([team]);
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamManagement />
+        </MemoryRouter>
+      );
+    });
+
+    expect(container.querySelector('[title="Advancement mode"]')).toBeNull();
+  });
 });
