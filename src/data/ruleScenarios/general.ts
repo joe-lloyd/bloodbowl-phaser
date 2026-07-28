@@ -7,6 +7,7 @@ import { SkillType } from "../../types/Skills";
 import { RosterName } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { GamePhase, SubPhase } from "../../types/GameState";
+import { PendingDecision } from "../../headless/protocol";
 import {
   RuleScenarioEntry,
   ScriptResult,
@@ -40,6 +41,15 @@ const blockRollCount = (r: ScriptResult): number =>
       e.name === GameEventNames.DiceRoll &&
       (e.data as { rollType?: string }).rollType === "Block Roll"
   ).length;
+
+/** Every `block-dice` pending decision the run raised, in order. */
+const blockDiceDecisions = (
+  r: ScriptResult
+): Extract<PendingDecision, { type: "block-dice" }>[] =>
+  r.decisions.filter(
+    (d): d is Extract<PendingDecision, { type: "block-dice" }> =>
+      d.type === "block-dice"
+  );
 
 /** Attacker team1:0 at (10,5) faces defender team2:0 at (11,5). */
 const faceOff = (
@@ -198,6 +208,90 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 blockRollCount(r) === 2,
                 "Brawler must roll a second block die"
               ),
+          },
+        ],
+      }),
+      blockConfig({
+        id: "brawler-double-both-down",
+        name: "Brawler re-rolls only ONE die when two show Both Down",
+        description:
+          "With 2 block dice and both reading Both Down, Brawler still " +
+          "re-rolls exactly the first one — the second die is left " +
+          "completely untouched and the button is gone afterward even " +
+          "though a Both Down still shows (BlockManager.brawlerRerollBlockDie " +
+          "uses findIndex, matching the FIRST both-down only).",
+        setup: playSetup({
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [SkillType.BRAWLER],
+              stats: { ST: 4 },
+            },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { ST: 2 } }],
+          ballPosition: { x: 1, y: 1 },
+        }), // ST 4 v 2 → two dice, attacker chooses
+        attacker: "team1:0",
+        defender: "team2:0",
+        preferBlockResult: "both-down",
+        decisionPolicy: {
+          custom: (pending) => {
+            if (pending.type === "block-dice" && pending.brawlerAvailable) {
+              return { type: "brawler-reroll-block", attackerId: pending.attackerId };
+            }
+            return undefined;
+          },
+        },
+        outcomes: [
+          {
+            id: "only-first-both-down-rerolled",
+            name: "Both dice start Both Down; only the first is re-rolled",
+            // The seed search needs BOTH initial dice to read Both Down —
+            // narrow to that exact shape so the outcome is unambiguous.
+            matches: (r) => {
+              const decisions = blockDiceDecisions(r);
+              const first = decisions[0];
+              return (
+                skillTriggered(r, SkillType.BRAWLER) &&
+                !!first &&
+                first.options.length === 2 &&
+                first.options.every((o) => o.type === "both-down")
+              );
+            },
+            verify: (r) => {
+              const decisions = blockDiceDecisions(r);
+              assert(
+                decisions.length >= 2,
+                "the block-dice decision must reappear after the Brawler re-roll"
+              );
+              const [before, after] = decisions;
+              assert(
+                before.options[0].type === "both-down" &&
+                  before.options[1].type === "both-down",
+                "both dice must start Both Down for this outcome"
+              );
+              // The SECOND die is untouched by BlockManager.brawlerRerollBlockDie
+              // (it re-rolls only the first index findIndex finds) — still
+              // exactly the same result it started as.
+              assert(
+                after.options[1].type === "both-down" &&
+                  after.options[1].icon === before.options[1].icon,
+                "the second Both Down die must be left exactly as rolled"
+              );
+              // Only one new die was drawn (the re-roll), not two.
+              assert(
+                blockRollCount(r) === 3,
+                "Brawler must draw exactly one extra block die, not two"
+              );
+              // Spent — no longer offered even though the untouched second
+              // die still legitimately reads Both Down.
+              assert(
+                after.brawlerAvailable === false,
+                "Brawler must not be offered again after its one use per block"
+              );
+            },
           },
         ],
       }),

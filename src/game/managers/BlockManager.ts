@@ -572,8 +572,16 @@ export class BlockManager {
         hasSkill(attacker.skills, SkillType.PRO) &&
         gs.getState().activePlayer?.id === attacker.id &&
         arbiter.onceAvailable(attacker, SkillType.PRO),
+      // Brawler's own trigger is "when this player declares a Block Action"
+      // (2025 rulebook p.127) — narrower than Pro's "during this player's
+      // activation", but the attacker of a block IS by construction the
+      // player who just declared it, so the two checks coincide in practice.
+      // Kept explicit (matching Pro) as defense-in-depth: it costs nothing
+      // today and guards against a future refactor where a block's attacker
+      // and the engine's active player could diverge.
       brawlerAvailable:
         hasSkill(attacker.skills, SkillType.BRAWLER) &&
+        gs.getState().activePlayer?.id === attacker.id &&
         results.some((r) => r.type === "both-down"),
     };
   }
@@ -672,7 +680,14 @@ export class BlockManager {
     if (!pending || pending.attackerId !== attackerId) return;
     if (!pending.brawlerAvailable) return;
     const attacker = this.getPlayerById(attackerId);
-    if (!attacker || !hasSkill(attacker.skills, SkillType.BRAWLER)) return;
+    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+    if (!attacker || !gs || !hasSkill(attacker.skills, SkillType.BRAWLER)) {
+      return;
+    }
+    // Defense-in-depth, matching Pro: re-derive eligibility rather than
+    // trusting the cached `pending.brawlerAvailable` flag alone (host
+    // authority — see proRerollBlockDie's identical re-check).
+    if (gs.getState().activePlayer?.id !== attacker.id) return;
     const index = pending.results.findIndex((r) => r.type === "both-down");
     if (index < 0) return;
 
