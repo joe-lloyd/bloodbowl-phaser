@@ -60,6 +60,7 @@ const mockGameService = {
   standUp: vi.fn(),
   finishActivation: vi.fn(),
   declareAction: vi.fn(),
+  cancelAction: vi.fn(),
   previewBlock: vi.fn(),
   hasPlayerActed: vi.fn(),
   getSubPhase: vi.fn(),
@@ -402,6 +403,192 @@ describe("GameplayInteractionController", () => {
       await (controller as any).onSquareClicked(10, 10);
 
       expect(mockGameService.throwBall).not.toHaveBeenCalled();
+    });
+  });
+
+  // Regression for the captured "infinite roll on a block, Bloodlust
+  // skipped" online bug: NetworkedGameService.declareAction()/cancelAction()
+  // answer optimistically (true) before the host has actually ruled, so
+  // onActionSelected/onCancelAction advance this local step-machine on an
+  // assumption that can turn out wrong. NetworkCommandRejected is how the
+  // (guest-only) network layer reports that the host actually refused a
+  // command this controller already treated as done; onNetworkCommandRejected
+  // must reconcile instead of leaving the coach stuck on a step the host
+  // never agreed to.
+  describe("Network command rejection reconciliation", () => {
+    beforeEach(() => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.declareAction.mockReturnValue(true);
+    });
+
+    it("resets the optimistic step-machine when the host rejects the declare-action it came from", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "blitz",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("blitz");
+      expect((controller as any).actionSteps.length).toBeGreaterThan(0);
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "declare-action",
+        playerId: "p1",
+        action: "blitz",
+        reason: "command-failed: illegal-action-declaration",
+      });
+
+      // Deselected (and immediately reselected fresh against the — now
+      // corrected — replica) rather than left claiming a Blitz the host
+      // never accepted: no stale "block" step for every future click to
+      // bounce off of.
+      expect((controller as any).currentActionMode).toBeNull();
+      expect((controller as any).actionSteps).toEqual([]);
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:notification",
+        expect.stringContaining("out of sync")
+      );
+    });
+
+    it("resets local state when a stale cancel-action is rejected (the action was actually still committed)", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+
+      // Go through the real optimistic cancel path (as an online guest's
+      // "Back" button does) so onCancelAction records the pending-cancel
+      // baseline onNetworkCommandRejected checks against.
+      mockGameService.cancelAction.mockReturnValue(true);
+      (controller as any).onCancelAction();
+      expect((controller as any).currentActionMode).toBeNull();
+
+      // ...the host's real (late) verdict: the cancel was actually refused.
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "p1",
+        reason: "command-failed: action-already-committed",
+      });
+
+      expect((controller as any).currentActionMode).toBeNull();
+      expect((controller as any).actionSteps).toEqual([]);
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:notification",
+        expect.stringContaining("out of sync")
+      );
+    });
+
+    it("does NOT reconcile a stale cancel-action rejection once the coach has moved on to a different action for the same player", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+
+      // Optimistic cancel (e.g. a mis-click on "Back")...
+      mockGameService.cancelAction.mockReturnValue(true);
+      (controller as any).onCancelAction();
+      expect((controller as any).currentActionMode).toBeNull();
+
+      // ...but before the host's rejection round-trips back, the coach
+      // declares a brand new action for the same player.
+      await (controller as any).onActionSelected({
+        action: "blitz",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("blitz");
+
+      // The stale rejection for the FIRST cancel now arrives late. It must
+      // not clobber the newer Blitz declaration the coach has since made —
+      // that would itself be a stale-response-resets-newer-state desync.
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "p1",
+        reason: "command-failed: action-already-committed",
+      });
+
+      expect((controller as any).currentActionMode).toBe("blitz");
+    });
+
+    it("does NOT reconcile a stale cancel-action rejection once the coach has deselected and reselected the player", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+
+      mockGameService.cancelAction.mockReturnValue(true);
+      (controller as any).onCancelAction();
+
+      // The coach moves on entirely: deselects, then selects the same
+      // player fresh (a legitimate new interaction, not a continuation of
+      // the earlier cancel).
+      controller.deselectPlayer();
+      controller.selectPlayer("p1");
+      const notificationCallsBefore = (
+        mockEventBus.emit as ReturnType<typeof vi.fn>
+      ).mock.calls.filter(
+        (call) =>
+          call[0] === "ui:notification" &&
+          typeof call[1] === "string" &&
+          call[1].includes("out of sync")
+      ).length;
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "p1",
+        reason: "command-failed: action-already-committed",
+      });
+
+      const notificationCallsAfter = (
+        mockEventBus.emit as ReturnType<typeof vi.fn>
+      ).mock.calls.filter(
+        (call) =>
+          call[0] === "ui:notification" &&
+          typeof call[1] === "string" &&
+          call[1].includes("out of sync")
+      ).length;
+      // No new "out of sync" reconciliation fired for the stale cancel.
+      expect(notificationCallsAfter).toBe(notificationCallsBefore);
+    });
+
+    it("ignores a rejection for a command that is not the current optimistic state", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+
+      // A stale rejection arriving for a DIFFERENT declared action (e.g. one
+      // already superseded locally) must not clobber current state.
+      (controller as any).onNetworkCommandRejected({
+        commandType: "declare-action",
+        playerId: "p1",
+        action: "blitz",
+        reason: "command-failed: illegal-action-declaration",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+    });
+
+    it("ignores a rejection for a different player than the one currently selected", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "some-other-player",
+        reason: "command-failed: action-already-committed",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
     });
   });
 

@@ -121,6 +121,21 @@ export class GameplayInteractionController {
   private multipleBlockFirstTargetId: string | null = null;
   private passController: PassController;
 
+  /**
+   * Online guest only. Bumped by every local mutation of
+   * currentActionMode/selectedPlayerId (selectPlayer, deselectPlayer, a
+   * successful onActionSelected). Used to detect whether the coach has
+   * moved on locally since an optimistic cancel-action was sent, so a
+   * rejection that arrives late for THAT cancel doesn't clobber whatever
+   * newer state the coach has since built — see onNetworkCommandRejected.
+   */
+  private interactionSeq = 0;
+  /** playerId -> interactionSeq at the moment a cancel-action's optimistic
+   *  local reset was applied. A rejection for that cancel only reconciles
+   *  if interactionSeq is still exactly this value — i.e. nothing local
+   *  happened for this player in between. */
+  private pendingCancelSeqByPlayer = new Map<string, number>();
+
   // Interaction Lock
   private isBusy: boolean = false;
 
@@ -182,6 +197,10 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.on(
+      GameEventNames.NetworkCommandRejected,
+      this.onNetworkCommandRejected
+    );
     this.eventBus.on(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
@@ -267,6 +286,13 @@ export class GameplayInteractionController {
     this.actionSteps = [];
     this.pitch.clearPassVisualization();
 
+    // Record the interaction "moment" this optimistic reset happened at —
+    // an online guest's cancelAction() always reports success immediately,
+    // so a late rejection needs a way to tell whether anything local has
+    // moved on since (see onNetworkCommandRejected).
+    this.interactionSeq++;
+    this.pendingCancelSeqByPlayer.set(this.selectedPlayerId, this.interactionSeq);
+
     // Notify UI to show default menu again
     // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
     const player = this.gameService.getPlayerById(this.selectedPlayerId);
@@ -276,6 +302,57 @@ export class GameplayInteractionController {
       // Also need to refresh visuals (ranges might have been hidden/changed)
       this.refreshPlayerVisualization(this.selectedPlayerId);
     }
+  };
+
+  /**
+   * Online guest only. NetworkedGameService's declareAction()/cancelAction()
+   * answer optimistically — "true" before the host has even seen the
+   * command — so onActionSelected/onCancelAction above already advanced
+   * currentActionMode/actionSteps/currentStepId by the time the real
+   * verdict arrives. When that verdict is a rejection, this local
+   * step-machine is now describing an action the host never accepted:
+   * left alone, every further click (e.g. an attempted Block) keeps
+   * bouncing off a step the host has no matching declaration for
+   * (repro: a Bloodlust-gated declaration commits host-side, a stale
+   * cancel is rejected, the guest UI resets anyway, the redeclare that
+   * follows is rejected too, yet the UI had already switched to the
+   * "block" step — every subsequent block attempt then loops forever on
+   * "block-not-declared"). Deselecting forces a clean reselect against the
+   * replica, which the same response already corrected via its snapshot.
+   *
+   * Both branches below must independently confirm the rejection still
+   * describes THIS controller's current optimistic state before touching
+   * anything — a late rejection for a command the coach has since moved
+   * past (declared something else, cancelled again, deselected) must be a
+   * no-op, or reconciliation would itself become a source of desync.
+   */
+  private onNetworkCommandRejected = (data: {
+    commandType: string;
+    playerId?: string;
+    action?: string;
+    reason: string;
+  }) => {
+    if (!this.selectedPlayerId || data.playerId !== this.selectedPlayerId) {
+      return;
+    }
+    const stale =
+      (data.commandType === "declare-action" &&
+        this.currentActionMode === data.action) ||
+      (data.commandType === "cancel-action" &&
+        this.pendingCancelSeqByPlayer.get(data.playerId) ===
+          this.interactionSeq);
+    if (!stale) return;
+
+    const playerId = this.selectedPlayerId;
+    this.pendingCancelSeqByPlayer.delete(playerId);
+    this.deselectPlayer();
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      "The board was out of sync — your last action wasn't accepted. Please reselect the player."
+    );
+    // Reselect so the menu rebuilds immediately against the now-corrected
+    // replica, rather than leaving the coach staring at an empty board.
+    this.selectPlayer(playerId);
   };
 
   private onStepSelected = (data: { stepId: string }) => {
@@ -405,6 +482,9 @@ export class GameplayInteractionController {
       this.currentActionMode = data.action;
       this.currentBlockReplacement = blockReplacement;
       this.hasMovedInAction = false;
+      // Local state moved on — invalidates any cancel-action rejection
+      // still in flight for this player (see onNetworkCommandRejected).
+      this.interactionSeq++;
 
       // Define steps based on action
       this.actionSteps = [];
@@ -1783,6 +1863,9 @@ export class GameplayInteractionController {
     this.actionSteps = [];
     this.hasMovedInAction = false;
     this.pitch.clearPassVisualization();
+    // Local state moved on — invalidates any cancel-action rejection still
+    // in flight for whichever player was selected before this.
+    this.interactionSeq++;
 
     // Notify UI
     this.eventBus.emit(GameEventNames.PlayerSelected, { player: null }); // OR add explicit deselect event
@@ -1974,6 +2057,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(
+      GameEventNames.NetworkCommandRejected,
+      this.onNetworkCommandRejected
+    );
     this.eventBus.off(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
