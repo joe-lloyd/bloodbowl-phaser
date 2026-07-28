@@ -225,10 +225,14 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       return false;
     }
 
-    // Remove player from previous position if placed
-    if (this.placedPlayers.has(playerId)) {
-      this.emit(GameEventNames.PlayerRemoved, playerId);
-    }
+    // Moving an already-placed player to a new square is one atomic move, not
+    // a removal followed by a placement: the engine's placePlayer already
+    // overwrites the previous position in a single step (see SetupManager /
+    // NetworkedGameService). Emitting PlayerRemoved here used to be purely
+    // local Map bookkeeping, but GameScene forwards it to the engine as a
+    // real "send to Reserves" — which online sends an extra, unnecessary
+    // remove-player command that can race the place-player command's
+    // response and briefly flash the player into the Reserves box.
 
     // Place player
     this.placedPlayers.set(playerId, { playerId, x: gridX, y: gridY });
