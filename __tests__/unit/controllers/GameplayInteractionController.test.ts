@@ -405,6 +405,106 @@ describe("GameplayInteractionController", () => {
     });
   });
 
+  // Regression for the captured "infinite roll on a block, Bloodlust
+  // skipped" online bug: NetworkedGameService.declareAction()/cancelAction()
+  // answer optimistically (true) before the host has actually ruled, so
+  // onActionSelected/onCancelAction advance this local step-machine on an
+  // assumption that can turn out wrong. NetworkCommandRejected is how the
+  // (guest-only) network layer reports that the host actually refused a
+  // command this controller already treated as done; onNetworkCommandRejected
+  // must reconcile instead of leaving the coach stuck on a step the host
+  // never agreed to.
+  describe("Network command rejection reconciliation", () => {
+    beforeEach(() => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.declareAction.mockReturnValue(true);
+    });
+
+    it("resets the optimistic step-machine when the host rejects the declare-action it came from", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "blitz",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("blitz");
+      expect((controller as any).actionSteps.length).toBeGreaterThan(0);
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "declare-action",
+        playerId: "p1",
+        action: "blitz",
+        reason: "command-failed: illegal-action-declaration",
+      });
+
+      // Deselected (and immediately reselected fresh against the — now
+      // corrected — replica) rather than left claiming a Blitz the host
+      // never accepted: no stale "block" step for every future click to
+      // bounce off of.
+      expect((controller as any).currentActionMode).toBeNull();
+      expect((controller as any).actionSteps).toEqual([]);
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:notification",
+        expect.stringContaining("out of sync")
+      );
+    });
+
+    it("resets local state when a stale cancel-action is rejected (the action was actually still committed)", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "p1",
+        reason: "command-failed: action-already-committed",
+      });
+
+      expect((controller as any).currentActionMode).toBeNull();
+      expect((controller as any).actionSteps).toEqual([]);
+    });
+
+    it("ignores a rejection for a command that is not the current optimistic state", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+
+      // A stale rejection arriving for a DIFFERENT declared action (e.g. one
+      // already superseded locally) must not clobber current state.
+      (controller as any).onNetworkCommandRejected({
+        commandType: "declare-action",
+        playerId: "p1",
+        action: "blitz",
+        reason: "command-failed: illegal-action-declaration",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+    });
+
+    it("ignores a rejection for a different player than the one currently selected", async () => {
+      controller.selectPlayer("p1");
+      await (controller as any).onActionSelected({
+        action: "move",
+        playerId: "p1",
+      });
+
+      (controller as any).onNetworkCommandRejected({
+        commandType: "cancel-action",
+        playerId: "some-other-player",
+        reason: "command-failed: action-already-committed",
+      });
+      expect((controller as any).currentActionMode).toBe("move");
+    });
+  });
+
   describe("Player Click Handling", () => {
     it("should redirect to onSquareClicked if in Pass Mode and clicking a player", () => {
       controller["currentActionMode"] = "pass";

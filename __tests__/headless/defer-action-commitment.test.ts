@@ -12,6 +12,12 @@ import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
 import { PlayerCondition } from "../../src/types/Player";
+import { EventBus } from "../../src/services/EventBus";
+import { GameEventNames } from "../../src/types/events";
+
+/** Flush the microtask queue past NetworkedGameService's fire-and-forget
+ *  `dispatch(...).then(...)` — a macrotask boundary guarantees it settled. */
+const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 
 const scenario = (id: string): Scenario => ({
   id,
@@ -209,5 +215,85 @@ describe("defer-action-commitment", () => {
       type: "cancel-action",
       playerId,
     });
+  });
+
+  // Regression for the captured "infinite roll on a block, Bloodlust
+  // skipped" bug report: NetworkedGameService.declareAction()/cancelAction()
+  // always answer their caller "true" the instant they're called — the real
+  // host verdict only arrives later, asynchronously. GameplayInteractionController
+  // builds its local action-mode/step-machine state directly off that
+  // optimistic "true", so when the host's real answer is a rejection
+  // (exactly what the log showed: cancel-action → action-already-committed,
+  // then declare-action → illegal-action-declaration, then block →
+  // block-not-declared), nothing told the controller its local state was
+  // now wrong — it kept believing a Block had been declared and every
+  // subsequent block attempt bounced off the host forever. The fix routes
+  // every rejection through NetworkCommandRejected so the controller can
+  // reconcile instead of drifting.
+  it("a rejected declare-action/cancel-action is surfaced via NetworkCommandRejected (regression: infinite-block desync)", async () => {
+    const local = createHeadlessGame({
+      scenario: scenario("network-rejection-reconcile"),
+      seed: 1,
+    });
+    const playerId = local.team1.players[0].id;
+
+    const dispatch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        reason: "command-failed: action-already-committed",
+      } as CommandResponse)
+      .mockResolvedValueOnce({
+        ok: false,
+        reason: "command-failed: illegal-action-declaration",
+      } as CommandResponse)
+      .mockResolvedValueOnce({ ok: true } as CommandResponse);
+
+    const eventBus = new EventBus();
+    const rejections: unknown[] = [];
+    eventBus.on(GameEventNames.NetworkCommandRejected, (data) =>
+      rejections.push(data)
+    );
+
+    const networked = new NetworkedGameService(
+      local.gameService,
+      dispatch,
+      () => null,
+      eventBus
+    );
+
+    // The guest's stale "Back" attempt: optimistically reports success...
+    expect(networked.cancelAction(playerId)).toBe(true);
+    await flushMicrotasks();
+    // ...but the host says the declaration was already committed (e.g. a
+    // Bloodlust gate fired first) — that must not be silently swallowed.
+    expect(rejections).toEqual([
+      {
+        commandType: "cancel-action",
+        playerId,
+        action: undefined,
+        reason: "command-failed: action-already-committed",
+      },
+    ]);
+
+    // The guest then tries to redeclare as if the cancel had gone through —
+    // again optimistically "true"...
+    expect(networked.declareAction(playerId, "blitz")).toBe(true);
+    await flushMicrotasks();
+    // ...and again the host refuses, this time distinctly.
+    expect(rejections).toEqual([
+      expect.anything(),
+      {
+        commandType: "declare-action",
+        playerId,
+        action: "blitz",
+        reason: "command-failed: illegal-action-declaration",
+      },
+    ]);
+
+    // A command the host actually accepts raises nothing new.
+    expect(networked.declareAction(playerId, "move")).toBe(true);
+    await flushMicrotasks();
+    expect(rejections).toHaveLength(2);
   });
 });

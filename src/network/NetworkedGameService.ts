@@ -23,8 +23,9 @@ import { GamePhase, GameState, SubPhase } from "../types/GameState";
 import { Player } from "../types/Player";
 import { Team } from "../types/Team";
 import { BlockResult } from "../services/BlockResolutionService";
-import { ActionType } from "../types/events";
+import { ActionType, GameEventNames } from "../types/events";
 import { BlockReplacement } from "../types/BlockReplacement";
+import { IEventBus } from "../services/EventBus";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -36,7 +37,11 @@ export class NetworkedGameService implements IGameService {
     /** Passive replica: never executes rules, only holds synced state */
     private readonly inner: GameService,
     private readonly dispatch: Dispatch,
-    private readonly pendingDecision: () => PendingDecision | null
+    private readonly pendingDecision: () => PendingDecision | null,
+    /** Notifies callers (GameplayInteractionController) that a command it
+     *  treated as optimistically successful was actually refused, so any
+     *  local step-machine state built on that assumption can reconcile. */
+    private readonly eventBus?: IEventBus
   ) {}
 
   private send(command: HeadlessCommand): void {
@@ -45,6 +50,23 @@ export class NetworkedGameService implements IGameService {
         console.warn(
           `[Networked] host rejected ${command.type}: ${response.reason}`
         );
+        // Sync-returning mutators below (declareAction, cancelAction, …)
+        // already told their caller "true" before this response arrived —
+        // that optimism only self-corrects the passive replica's DATA (via
+        // the resync/snapshot every response carries). Nothing else corrects
+        // UI-side state built directly on the optimistic return value, so
+        // surface the rejection explicitly.
+        const cmd = command as HeadlessCommand & {
+          playerId?: string;
+          attackerId?: string;
+          action?: string;
+        };
+        this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
+          commandType: command.type,
+          playerId: cmd.playerId ?? cmd.attackerId,
+          action: cmd.action,
+          reason: response.reason ?? "unknown",
+        });
       }
     });
   }

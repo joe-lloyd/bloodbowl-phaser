@@ -183,6 +183,10 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
     this.eventBus.on(
+      GameEventNames.NetworkCommandRejected,
+      this.onNetworkCommandRejected
+    );
+    this.eventBus.on(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
     );
@@ -276,6 +280,48 @@ export class GameplayInteractionController {
       // Also need to refresh visuals (ranges might have been hidden/changed)
       this.refreshPlayerVisualization(this.selectedPlayerId);
     }
+  };
+
+  /**
+   * Online guest only. NetworkedGameService's declareAction()/cancelAction()
+   * answer optimistically — "true" before the host has even seen the
+   * command — so onActionSelected/onCancelAction above already advanced
+   * currentActionMode/actionSteps/currentStepId by the time the real
+   * verdict arrives. When that verdict is a rejection, this local
+   * step-machine is now describing an action the host never accepted:
+   * left alone, every further click (e.g. an attempted Block) keeps
+   * bouncing off a step the host has no matching declaration for
+   * (repro: a Bloodlust-gated declaration commits host-side, a stale
+   * cancel is rejected, the guest UI resets anyway, the redeclare that
+   * follows is rejected too, yet the UI had already switched to the
+   * "block" step — every subsequent block attempt then loops forever on
+   * "block-not-declared"). Deselecting forces a clean reselect against the
+   * replica, which the same response already corrected via its snapshot.
+   */
+  private onNetworkCommandRejected = (data: {
+    commandType: string;
+    playerId?: string;
+    action?: string;
+    reason: string;
+  }) => {
+    if (!this.selectedPlayerId || data.playerId !== this.selectedPlayerId) {
+      return;
+    }
+    const stale =
+      (data.commandType === "declare-action" &&
+        this.currentActionMode === data.action) ||
+      data.commandType === "cancel-action";
+    if (!stale) return;
+
+    const playerId = this.selectedPlayerId;
+    this.deselectPlayer();
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      "The board was out of sync — your last action wasn't accepted. Please reselect the player."
+    );
+    // Reselect so the menu rebuilds immediately against the now-corrected
+    // replica, rather than leaving the coach staring at an empty board.
+    this.selectPlayer(playerId);
   };
 
   private onStepSelected = (data: { stepId: string }) => {
@@ -1974,6 +2020,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(
+      GameEventNames.NetworkCommandRejected,
+      this.onNetworkCommandRejected
+    );
     this.eventBus.off(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler

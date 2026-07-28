@@ -588,7 +588,12 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       seed,
       (inner: GameService): IGameService => {
         replica = inner;
-        return new NetworkedGameService(inner, dispatch, () => pending);
+        return new NetworkedGameService(
+          inner,
+          dispatch,
+          () => pending,
+          eventBus
+        );
       },
       lobby.settings.progressionEnabled ?? false
     );
