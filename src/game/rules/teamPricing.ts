@@ -3,11 +3,12 @@
  * Builder and Team Management so the price shown to a coach is always the
  * exact price the matching purchase command charges.
  *
- * Draft teams pay roster price for everything. Active teams pay double
- * roster price for re-rolls and cannot purchase Dedicated Fans at all
- * (see teamLifecycle.ts / teamEditLegality.ts). A legal active-team player
- * hire is still roster price — only re-rolls double and Dedicated Fans stop
- * — subject to the usual roster/budget limits enforced elsewhere.
+ * Draft teams pay roster price for everything, except re-rolls which cost
+ * double roster price at draft time. Active teams cannot purchase re-rolls
+ * or Dedicated Fans at all (see teamLifecycle.ts / teamEditLegality.ts). A
+ * legal active-team player hire is still roster price — only re-rolls and
+ * Dedicated Fans stop — subject to the usual roster/budget limits enforced
+ * elsewhere.
  */
 
 import { Team } from "../../types/Team";
@@ -44,8 +45,14 @@ export function priceOf(team: Team, item: PriceableItem): PriceResult {
 
   switch (item.type) {
     case "reroll": {
+      if (active) {
+        return {
+          amount: null,
+          reason: "Active teams cannot purchase re-rolls.",
+        };
+      }
       const rosterCost = rerollRosterCost(team);
-      return { amount: active ? rosterCost * 2 : rosterCost };
+      return { amount: rosterCost * 2 };
     }
     case "dedicated-fan":
       if (active) {

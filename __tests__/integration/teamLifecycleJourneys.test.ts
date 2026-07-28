@@ -76,7 +76,7 @@ describe("draft repair and legal finalization journey", () => {
 });
 
 describe("first-match activation and active management journey", () => {
-  it("locks roster type and doubles re-roll price once a team is active", () => {
+  it("locks roster type and refuses re-roll purchases once a team is active", () => {
     const team = newDraftTeam();
     for (let i = 0; i < 7; i++) {
       team.players.push(createPlayer(lineman, team.id, i + 1));
@@ -84,7 +84,10 @@ describe("first-match activation and active management journey", () => {
     saveTeam(team);
     expect(getTeamMode(team)).toBe("draft");
     expect(canEdit(team, { type: "change-roster-type" }).allowed).toBe(true);
-    expect(priceOf(team, { type: "reroll" }).amount).toBe(team.rerollCost);
+    expect(canEdit(team, { type: "buy-reroll" }).allowed).toBe(true);
+    expect(priceOf(team, { type: "reroll" }).amount).toBe(
+      team.rerollCost * 2
+    );
 
     // The team's first match is confirmed complete.
     stampFirstCompletedMatch(team);
@@ -98,9 +101,8 @@ describe("first-match activation and active management journey", () => {
     expect(canEdit(active, { type: "buy-dedicated-fans" }).allowed).toBe(
       false
     );
-    expect(priceOf(active, { type: "reroll" }).amount).toBe(
-      active.rerollCost * 2
-    );
+    expect(canEdit(active, { type: "buy-reroll" }).allowed).toBe(false);
+    expect(priceOf(active, { type: "reroll" }).amount).toBeNull();
     // Hiring an eligible player is still legal and still roster price.
     expect(canEdit(active, { type: "hire-player" }).allowed).toBe(true);
   });

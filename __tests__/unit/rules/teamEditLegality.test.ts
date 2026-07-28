@@ -22,7 +22,6 @@ describe("canEdit", () => {
       "hire-player",
       "fire-player",
       "reorder-players",
-      "buy-reroll",
       "buy-apothecary",
       "buy-dedicated-fans",
       "buy-coach",
@@ -30,6 +29,11 @@ describe("canEdit", () => {
     ] as const) {
       expect(canEdit(t, { type }).allowed).toBe(true);
     }
+  });
+
+  it("allows a draft team to buy a re-roll", () => {
+    const t = draftTeam();
+    expect(canEdit(t, { type: "buy-reroll" }).allowed).toBe(true);
   });
 
   it("refuses an active team's roster-type change with a named reason", () => {
@@ -51,8 +55,10 @@ describe("canEdit", () => {
     expect(canEdit(t, { type: "hire-player" }).allowed).toBe(true);
   });
 
-  it("still allows an active team to buy a re-roll", () => {
+  it("refuses an active team's re-roll purchase with a named reason", () => {
     const t = activeTeam();
-    expect(canEdit(t, { type: "buy-reroll" }).allowed).toBe(true);
+    const decision = canEdit(t, { type: "buy-reroll" });
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/re-rolls/i);
   });
 });
