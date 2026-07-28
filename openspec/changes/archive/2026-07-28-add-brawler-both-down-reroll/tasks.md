@@ -30,4 +30,10 @@
 ## 5. OpenSpec
 
 - [x] 5.1 Author proposal.md, design.md, specs deltas (`block-dice-rerolls` new, `skill-rules` modified), and this tasks.md.
-- [ ] 5.2 After PR review feedback (if any) is addressed, run `opsx:sync` to fold the delta specs into `openspec/specs/`, then `opsx:archive`.
+- [x] 5.2 After PR review feedback (if any) is addressed, run `opsx:sync` to fold the delta specs into `openspec/specs/`, then `opsx:archive`.
+
+## 6. PR review follow-ups
+
+- [x] 6.1 Add a headless rule-catalog test for two block dice simultaneously reading Both Down (`brawler-double-both-down` in `data/ruleScenarios/general.ts`), confirming only the first die is re-rolled, the second is untouched, exactly one extra die is drawn, and `brawlerAvailable` goes false afterward; committed seed discovered via `pnpm e2e:seeds --config brawler-double-both-down`.
+- [x] 6.2 Add `brawler-reroll-block` to the coverage/validation tracking lists `pro-reroll-block`/`team-reroll-block` are already in (`testing/coverage/inventory.ts`, `testing/scenarioCase/validate.ts`).
+- [x] 6.3 Investigate the `activePlayer` check asymmetry between `proAvailable` and `brawlerAvailable`; add the same check to `brawlerAvailable` and `brawlerRerollBlockDie` for consistency/defense-in-depth, documented with a comment (attacker is always the active player during a block's own dice window by construction, so this was not a live bug).
