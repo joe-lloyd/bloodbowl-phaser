@@ -746,6 +746,18 @@ export class GameService implements IGameService {
   }
 
   endTurn(): void {
+    // A turn can be force-ended (the online clock expiring, or a manual End
+    // Turn click) while a player's declaration is still live — declared and
+    // even committed (movement spent, a die rolled), but never finalized via
+    // finishActivation(). Left alone, that stale state.activePlayer survives
+    // into the next team's turn and declareAction()'s "a live once-per-turn
+    // declaration must release first" guard then refuses the NEXT team's
+    // very first declaration, making the turn look like it never ended.
+    // Finalize it the same way finishActivation() would.
+    if (this.state.activePlayer) {
+      this.playerActionManager.commitAction(this.state.activePlayer.id);
+      this.state.activePlayer = null;
+    }
     this.turnManager.endTurn();
   }
 

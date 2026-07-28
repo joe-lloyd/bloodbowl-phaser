@@ -4,6 +4,7 @@ import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { Pitch } from "../../src/game/elements/Pitch";
 import { Team, RosterName } from "../../src/types/Team";
 import { PositionKeyWord } from "../../src/types/Player";
+import { GameEventNames } from "../../src/types/events";
 
 // Mock Pitch
 const mockPitch = {
@@ -183,6 +184,49 @@ describe("PlayerPlacementController", () => {
 
       const placements = controller.getPlacements();
       expect(placements[0]).toEqual({ playerId: "p1", x: 2, y: 2 });
+    });
+
+    it("should emit only PlayerPlaced (never PlayerRemoved) when repositioning an already-placed player", () => {
+      // Regression test: dragging a placed player to a new legal square must
+      // be a single atomic move. Emitting PlayerRemoved here used to be
+      // forwarded by GameScene to the engine as a real "send to Reserves",
+      // which online sent an extra remove-player command that could race the
+      // place-player command's response and flash the player into the
+      // Reserves box.
+      // `phaser` is globally mocked (see __tests__/setup/vitest-setup.ts) with
+      // `emit` as a bare vi.fn() that never actually invokes `.on()`
+      // listeners, so assert directly against the emit spy's call log instead
+      // of registering a listener.
+      const emitSpy = controller.emit as unknown as ReturnType<typeof vi.fn>;
+      const eventsNamed = (name: string) =>
+        emitSpy.mock.calls.filter(([eventName]) => eventName === name);
+
+      controller.placePlayer("p1", 1, 1);
+      expect(eventsNamed(GameEventNames.PlayerRemoved)).toHaveLength(0);
+      expect(eventsNamed(GameEventNames.PlayerPlaced)).toHaveLength(1);
+
+      // The actual reposition under test: p1 is already on the pitch.
+      const result = controller.placePlayer("p1", 2, 2);
+
+      expect(result).toBe(true);
+      expect(eventsNamed(GameEventNames.PlayerRemoved)).toHaveLength(0);
+      const placedCalls = eventsNamed(GameEventNames.PlayerPlaced);
+      expect(placedCalls).toHaveLength(2);
+      expect(placedCalls[1][1]).toEqual({ playerId: "p1", x: 2, y: 2 });
+    });
+
+    it("removePlayer still emits PlayerRemoved for an actual off-pitch removal", () => {
+      const emitSpy = controller.emit as unknown as ReturnType<typeof vi.fn>;
+      const eventsNamed = (name: string) =>
+        emitSpy.mock.calls.filter(([eventName]) => eventName === name);
+
+      controller.placePlayer("p1", 1, 1);
+      controller.removePlayer("p1");
+
+      const removedCalls = eventsNamed(GameEventNames.PlayerRemoved);
+      expect(removedCalls).toHaveLength(1);
+      expect(removedCalls[0][1]).toBe("p1");
+      expect(controller.getPlacedCount()).toBe(0);
     });
   });
 

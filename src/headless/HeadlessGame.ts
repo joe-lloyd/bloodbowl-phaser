@@ -180,10 +180,15 @@ export class HeadlessGame {
   // ===== Public API =====
 
   public snapshot(): GameSnapshot {
-    return serializeGameState(this.ctx.gameService.getState(), [
+    const snapshot = serializeGameState(this.ctx.gameService.getState(), [
       this.ctx.team1,
       this.ctx.team2,
     ]);
+    // Sidecar field: per-team turn counters live on TurnManager, not
+    // GameState, so serializeGameState can't see them — attach here for
+    // the network layer (see GameSnapshot.turnManager).
+    snapshot.turnManager = this.ctx.gameService.captureTurnManagerState();
+    return snapshot;
   }
 
   public pendingDecision(): PendingDecision | null {
