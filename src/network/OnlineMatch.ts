@@ -476,18 +476,18 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       snapshot: GameSnapshot,
       pendingDecision: PendingDecision | null
     ) => {
-      // 1. Replay the host's events: animations, dialogs, dice log
-      for (const event of events) {
-        if (UI_INTENT_EVENTS.has(event.name)) continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        eventBus.emit(event.name as any, event.data as any);
-      }
-      // 2. Authoritative correction: snapshot overwrites the replica.
+      // 1. Authoritative correction FIRST: snapshot overwrites the replica.
       //    Exception: during MY own setup turn, my placements are optimistic
       //    and may not all be acknowledged yet (e.g. a formation loads 7 at
       //    once) — trust the local positions for my team so nothing flashes
       //    back. They reconcile with the host the moment setup is confirmed
       //    or the turn moves on (this guard goes false).
+      //    This must happen BEFORE the events below are replayed: several
+      //    event handlers (ball/status reconciliation) read fresh state via
+      //    gameService.getState() the instant they fire rather than from the
+      //    event payload — if the replica were still on the previous bundle's
+      //    state when they ran, they'd render stale results (e.g. the ball
+      //    snapping to where it was one bundle ago).
       if (replica) {
         const myTeam = myTeamId === team1.id ? team1 : team2;
         const preserveMySetup =
@@ -501,6 +501,22 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         if (saved) {
           myTeam.players.forEach((p) => (p.gridPosition = saved.get(p.id)));
         }
+        // Per-team turn counters (TurnManager.turnCounts) are not part of
+        // GameState/GameSnapshot proper — restore them from the sidecar
+        // field so the guest's scoreboard turn track (getTurnNumber per
+        // team) matches the host instead of staying frozen at its initial
+        // value for the whole match. Absent on pre-feature bundles.
+        if (snapshot.turnManager) {
+          replica.restoreTurnManagerState(snapshot.turnManager);
+        }
+      }
+
+      // 2. Replay the host's events: animations, dialogs, dice log — now
+      //    against up-to-date replica state (see comment above).
+      for (const event of events) {
+        if (UI_INTENT_EVENTS.has(event.name)) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        eventBus.emit(event.name as any, event.data as any);
       }
       pending = pendingDecision;
 
