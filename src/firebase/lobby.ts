@@ -46,7 +46,11 @@ export interface LobbyPlayer {
 }
 
 export interface LobbySettings {
-  /** Per-turn countdown, host-adjustable */
+  /**
+   * Per-turn countdown, host-adjustable. `0` is a sentinel meaning "no time
+   * limit" — the host writes a null `timer.deadline` each turn instead of an
+   * expiring one, so neither client shows a countdown or gets force-ended.
+   */
   turnSeconds: number;
   /** Each player's pause budget */
   timeoutBankMs: number;
@@ -382,6 +386,19 @@ export async function startMatch(
 }
 
 // ===== Turn clock =====
+
+/**
+ * Pure: the deadline the host should write at the start of a play turn.
+ * `turnSeconds <= 0` is the "no time limit" sentinel — returns `null` so the
+ * clock never renders or force-ends the turn for either client. Exposed for
+ * testing.
+ */
+export function nextTurnDeadline(
+  turnSeconds: number,
+  nowMs: number
+): number | null {
+  return turnSeconds > 0 ? nowMs + turnSeconds * 1000 : null;
+}
 
 /** Host: set the countdown deadline for the current play turn. */
 export async function setTurnDeadline(

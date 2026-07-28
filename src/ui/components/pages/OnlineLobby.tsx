@@ -337,7 +337,9 @@ function PlayerCard({
   );
 }
 
-function SettingsPanel({
+/** Exported for direct testing of the turn-timer / timeout-bank / progression
+ *  controls (see __tests__/unit/onlineLobbySettingsPanel.test.tsx). */
+export function SettingsPanel({
   settings,
   readOnly,
   onChange,
@@ -377,6 +379,8 @@ function SettingsPanel({
               {s / 60} min
             </option>
           ))}
+          {/* 0 is the "no time limit" sentinel — see LobbySettings.turnSeconds */}
+          <option value={0}>No time limit</option>
         </select>
       </div>
       <div className="flex justify-between items-center gap-4">
