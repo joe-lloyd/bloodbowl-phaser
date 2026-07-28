@@ -85,4 +85,38 @@ describe("playerLifecycle", () => {
     expect(careerSpp(stats)).toBe(38);
     expect(stats.mvps).toBeLessThanOrEqual(stats.matches);
   });
+
+  it("gives the seeded Matched Play team a partial event skill package", () => {
+    const teams = decorated();
+    const matchedPlayTeam = teams.find(
+      (t) => t.advancementMode === "matched-play"
+    )!;
+    expect(matchedPlayTeam).toBeDefined();
+
+    const recipient = matchedPlayTeam.players.find((p) =>
+      (p.advancements ?? []).some((a) => a.source === "matched-play-package")
+    )!;
+    expect(recipient).toBeDefined();
+    expect(recipient.careerStats?.sppEarned).toBe(0);
+    expect(recipient.spp).toBe(0);
+
+    // Allowance remaining: not every package slot on the team is spent.
+    const allocations = matchedPlayTeam.matchedPlayAllocations ?? [];
+    expect(allocations.length).toBeGreaterThan(0);
+    expect(allocations.length).toBeLessThan(3); // every roster tier's total allowance is 1 or 2
+  });
+
+  it("gives the seeded Sevens Skill Selection team a pending award", () => {
+    const teams = decorated();
+    const skillSelectionTeam = teams.find(
+      (t) => t.advancementMode === "sevens-skill-selection"
+    )!;
+    expect(skillSelectionTeam).toBeDefined();
+
+    const pending = (skillSelectionTeam.pendingDevelopment ?? []).find(
+      (entry) => entry.kind === "sevens-skill-selection"
+    );
+    expect(pending).toBeDefined();
+    expect(pending!.eligibleParticipantIds.length).toBeGreaterThan(0);
+  });
 });

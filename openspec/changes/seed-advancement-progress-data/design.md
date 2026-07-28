@@ -24,6 +24,14 @@ pill for advancement mode using the same visual pattern.
 - A compact advancement-mode pill appears on the Team Management overview
   card, next to the existing draft/active pill.
 
+- At least one seeded Matched Play team has a partial event-skill-package
+  allocation (some allowance used, some remaining), and one seeded Sevens
+  Skill Selection team has a pending post-game skill-selection award — real
+  in-progress state for each mode's own mechanic, not just the mode label —
+  so a coach can open the seed catalog and click straight into testing
+  either flow, matching the user's ask to test "the spending and adding new
+  skills setup as well as the other advancement types."
+
 **Non-Goals:**
 - No change to the advancement-mode *rules* themselves (package sizing, SPP
   costs, Draft resolution) — this is seed data + a read-only badge only.
@@ -33,6 +41,10 @@ pill for advancement mode using the same visual pattern.
   players sit on is unambiguously Advanced League.
 - Not touching the overview card's stats grid — that's a different,
   in-flight change (`team-management-layout`) on the same file.
+- Not putting advancement mode text into the team *name* — the user's note
+  floated this as an alternative to a pill ("or add something in the team
+  name so i can see"); the pill supersedes it (same visibility, without
+  fighting a coach's own naming or the card's name line for space).
 
 ## Decisions
 
@@ -58,6 +70,42 @@ pill for advancement mode using the same visual pattern.
   reusing `MODE_LABELS` directly — those are long, parenthetical strings
   ("Matched Play (event skill package)") sized for the mode-selector buttons,
   not a compact overview pill.
+- **What "in progress" concretely means per mode**: read from the existing
+  UI/rules code rather than invented:
+  - Matched Play: `AdvancementModePanel.tsx`'s `AdvancementModePanel` renders
+    whenever `team.advancementMode === "matched-play"` and shows
+    `matchedPlayPackageStatus` (used/totalAllowance) plus a form to allocate
+    the next skill. A team with zero allocations shows an *empty* form — a
+    team with one allocation already made (via `allocateMatchedPlaySkill`)
+    and allowance remaining shows both the already-taken skill *and* the
+    live "allocate another" form, exercising more of the flow.
+  - Sevens Skill Selection: the actual testable unit is a
+    `PendingDevelopment` entry of kind `"sevens-skill-selection"` — created
+    normally by `createPendingSkillSelection` after a match — which
+    `PendingDevelopmentPanel.tsx`'s `SkillSelectionEntry` renders on the Team
+    Management overview itself (no need to open the detail page). Seeding
+    calls that same `createPendingSkillSelection` helper directly with a
+    synthetic match id and a few eligible player ids, rather than
+    hand-building the `PendingDevelopment` object, so it can't drift from the
+    real shape.
+- **Which rosters get the demo state**: pick the *first* built team (by seed
+  catalog order) whose already-assigned `advancementMode` matches, i.e.
+  `teams.find(t => t.advancementMode === "matched-play")` /
+  `"sevens-skill-selection"` — this reads the mode directly off the team
+  object rather than re-deriving it from `seedAdvancementMode`, so
+  `playerLifecycle.ts` stays decoupled from `teamFixtures.ts`'s cycling
+  logic and can't silently pick the wrong roster if that cycle ever changes.
+  With the current cycle this resolves to Amazon (Matched Play) and
+  Bretonian (Sevens Skill Selection).
+- **Matched Play recipient still needs a legality-clean career line**: the
+  existing seed validator (`validateSeeds.ts`'s `validatePlayerProgression`)
+  treats any player with a stored advancement but no `careerStats` as
+  invalid — it predates mode-specific advancement sources and only knows the
+  SPP-reconciliation shape. Rather than special-case the validator for this
+  one demo player, the decorated recipient gets a zero-SPP `careerStats` line
+  via the existing `careerStatsFor(0, matches)` helper (a player who played
+  matches but earned no SPP-worthy stat lines — true for Matched Play, which
+  never earns SPP), satisfying the existing reconciliation checks unchanged.
 
 ## Risks / Trade-offs
 

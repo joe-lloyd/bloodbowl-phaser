@@ -28,3 +28,24 @@ legitimately earns spendable SPP.
 - **WHEN** a seeded team carries players with earned SPP or stored
   advancements (via the player lifecycle decorations)
 - **THEN** that team's advancement mode is `advanced-league`
+
+### Requirement: Matched Play and Sevens Skill Selection have real in-progress seed state
+
+At least one seeded Matched Play team SHALL have a partially-allocated event
+skill package (at least one player already awarded a package skill, and
+allowance remaining), and at least one seeded Sevens Skill Selection team
+SHALL have a pending post-game skill-selection award, so both modes'
+progression mechanics — not just the mode label — are directly testable from
+a clean seed refresh.
+
+#### Scenario: A Matched Play seed team has a partial package
+
+- **WHEN** the seeded Matched Play team is inspected
+- **THEN** at least one player already carries a `matched-play-package`
+  sourced advancement, and the team's package allowance is not fully spent
+
+#### Scenario: A Sevens Skill Selection seed team has pending work
+
+- **WHEN** the seeded Sevens Skill Selection team is inspected
+- **THEN** it carries a `pendingDevelopment` entry of kind
+  `"sevens-skill-selection"` with at least one eligible participant
