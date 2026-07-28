@@ -19,4 +19,4 @@
 
 ## 4. Spec sync
 
-- [ ] 4.1 Verify `openspec/changes/restore-team-overview-stats/specs/team-management-layout/spec.md` delta matches the implemented behavior before `opsx:sync`/`opsx:archive` (handled in a later session).
+- [x] 4.1 Verify `openspec/changes/restore-team-overview-stats/specs/team-management-layout/spec.md` delta matches the implemented behavior before `opsx:sync`/`opsx:archive` (handled in a later session).
