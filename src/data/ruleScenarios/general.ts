@@ -280,10 +280,13 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
                   after.options[1].icon === before.options[1].icon,
                 "the second Both Down die must be left exactly as rolled"
               );
-              // Only one new die was drawn (the re-roll), not two.
+              // rollBlockDice() emits exactly one "Block Roll" event per
+              // call regardless of numDice, so blockRollCount counts
+              // roll-calls, not individual dice: 1 for the initial 2-dice
+              // roll + 1 for the single-die Brawler re-roll = 2.
               assert(
-                blockRollCount(r) === 3,
-                "Brawler must draw exactly one extra block die, not two"
+                blockRollCount(r) === 2,
+                "Brawler must make exactly one extra block-dice roll call, not two"
               );
               // Spent — no longer offered even though the untouched second
               // die still legitimately reads Both Down.
