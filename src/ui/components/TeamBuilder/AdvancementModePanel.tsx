@@ -20,6 +20,14 @@ export const MODE_LABELS: Record<TeamAdvancementMode, string> = {
   "sevens-skill-selection": "Sevens Skill Selection (random skill + Draft)",
 };
 
+/** Compact labels for badges/pills (e.g. the Team Management overview card)
+ *  where `MODE_LABELS`' parenthetical detail is too long. */
+export const ADVANCEMENT_MODE_SHORT_LABELS: Record<TeamAdvancementMode, string> = {
+  "matched-play": "Matched Play",
+  "advanced-league": "Advanced League",
+  "sevens-skill-selection": "Skill Selection",
+};
+
 /** The practice/default package used when the team is not yet tied to a
  *  specific competition profile. Competitions may require a differently
  *  sized package — checkTeamCompatibility reports any shortfall against the

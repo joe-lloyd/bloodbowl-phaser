@@ -22,6 +22,7 @@ import {
 import { Title } from "../componentWarehouse/Titles";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
+import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 
 // Dynamic asset loading
 const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
@@ -219,6 +220,14 @@ export function TeamManagement() {
                                 title="Not yet legal for play or competition entry"
                               >
                                 Illegal
+                              </span>
+                            )}
+                            {team.advancementMode && (
+                              <span
+                                className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-bb-gold border border-bb-gold/50"
+                                title="Advancement mode"
+                              >
+                                {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
                               </span>
                             )}
                           </>

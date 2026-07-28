@@ -17,11 +17,13 @@
 import {
   RosterName,
   Team,
+  TeamAdvancementMode,
   TeamColors,
   TeamRoster,
   addPlayerToTeam,
   calculateTeamValue,
   createTeam,
+  lockAdvancementMode,
   purchaseApothecary,
   purchaseReroll,
 } from "../types/Team";
@@ -95,6 +97,37 @@ interface SquadPlan {
   picks: PlayerTemplate[];
   rerolls: number;
   apothecary: boolean;
+}
+
+/** Rosters `playerLifecycle.ts` decorates with real earned/spendable SPP and
+ *  stored advancements. Advanced League is the only mode that legitimately
+ *  earns SPP (team-advancement-modes: "Advanced League alone uses standard
+ *  SPP progression"), so these are pinned rather than left to the cycle. */
+const PROGRESSED_ADVANCED_LEAGUE_ROSTERS = new Set<RosterName>([
+  RosterName.HUMAN,
+  RosterName.ORC,
+  RosterName.DWARF,
+  RosterName.SKAVEN,
+]);
+
+/** Every other roster round-robins through all three modes (by declaration
+ *  order in RosterName) so the seed catalog exercises each mode's UI and
+ *  rules from a clean refresh. */
+const ADVANCEMENT_MODE_CYCLE: readonly TeamAdvancementMode[] = [
+  "matched-play",
+  "advanced-league",
+  "sevens-skill-selection",
+];
+
+/** Deterministic advancement mode for a seeded roster (see the module
+ *  doc-comment and development-seed-data: "Seed teams carry an explicit,
+ *  locked advancement mode"). */
+export function seedAdvancementMode(rosterName: RosterName): TeamAdvancementMode {
+  if (PROGRESSED_ADVANCED_LEAGUE_ROSTERS.has(rosterName)) {
+    return "advanced-league";
+  }
+  const index = Object.values(RosterName).indexOf(rosterName);
+  return ADVANCEMENT_MODE_CYCLE[index % ADVANCEMENT_MODE_CYCLE.length];
 }
 
 function isInsignificantTemplate(template: PlayerTemplate): boolean {
@@ -218,10 +251,12 @@ export function buildSeedTeam(rosterName: RosterName): Team {
     rosterName,
     SEED_TEAM_COLORS[rosterName] ?? { primary: 0x0000ff, secondary: 0xffffff },
     roster.rerollCost,
-    DRAFT_BUDGET
+    DRAFT_BUDGET,
+    seedAdvancementMode(rosterName)
   );
   team.id = seedTeamId(fixtureKey);
   team.seedMetadata = seedMetadata(fixtureKey);
+  lockAdvancementMode(team);
 
   plan.picks.forEach((template, index) => {
     const player = createPlayer(template, team.id, index + 1);

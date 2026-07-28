@@ -9,6 +9,13 @@
  * SPP (MVP 4, TD 3, casualty/interception 2, completion 1), so the stored
  * stat lines always reproduce the stored progression totals:
  *   careerStats.sppEarned === unspentSpp + Σ advancement sppCost
+ *
+ * Also decorates one seeded Matched Play team with a partial event skill
+ * package and one seeded Sevens Skill Selection team with a pending
+ * post-game award, so those two advancement modes (which never earn SPP —
+ * team-advancement-modes: "Advanced League alone uses standard SPP
+ * progression") have real in-progress state to test, not just their mode
+ * label (see decorateModeDemos below).
  */
 
 import { RosterName, Team, calculateTeamValue } from "../types/Team";
@@ -24,6 +31,12 @@ import {
   applyAdvancement,
   eligibleSkills,
 } from "../game/progression/progression";
+import {
+  allocateMatchedPlaySkill,
+  createMatchedPlayPackage,
+  createPendingSkillSelection,
+} from "../game/progression/advancementModes";
+import { getRosterByRosterName } from "../data/RosterTemplates";
 
 /** Pick a skill by index from the player's currently eligible list. */
 interface SkillPick {
@@ -229,6 +242,56 @@ export const TEAM_DECORATIONS: TeamDecorationPlan[] = [
 
 const STAFF_UNIT_COST = 10_000;
 
+/** Match count backing the Matched Play demo recipient's zero-SPP career
+ *  line — just enough to be a plausible "played a few games" history. */
+const MATCHED_PLAY_DEMO_MATCHES = 3;
+
+/**
+ * Give one player on a seeded Matched Play team an already-allocated event
+ * skill package slot, leaving allowance remaining, so the Matched Play
+ * panel (`AdvancementModePanel.tsx`) shows both an already-taken skill and
+ * a live "allocate another" form on a clean seed refresh — not just the
+ * mode label. Matched Play never earns SPP, so the recipient also gets a
+ * zero-SPP `careerStats` line (via the same `careerStatsFor` helper used
+ * elsewhere in this module) so the seed validator's SPP-reconciliation
+ * check still holds for this non-SPP-sourced advancement.
+ */
+function decorateMatchedPlayDemo(team: Team): void {
+  const recipient = team.players.find(
+    (player) => (player.primary ?? []).length > 0
+  );
+  if (!recipient) return;
+  const category = recipient.primary![0];
+  const skill = eligibleSkills(recipient, [category])[0];
+  if (!skill) return;
+
+  const roster = getRosterByRosterName(team.rosterName);
+  allocateMatchedPlaySkill(
+    team,
+    roster,
+    createMatchedPlayPackage(),
+    recipient,
+    skill,
+    "primary"
+  );
+  recipient.careerStats = careerStatsFor(0, MATCHED_PLAY_DEMO_MATCHES);
+  team.teamValue = calculateTeamValue(team);
+}
+
+/**
+ * Give a seeded Sevens Skill Selection team a pending post-game award — the
+ * actual testable unit for that mode (`PendingDevelopmentPanel.tsx`'s
+ * `SkillSelectionEntry`, rendered directly on the Team Management overview
+ * card). Built through the same `createPendingSkillSelection` helper the
+ * real post-match flow uses, with a synthetic match id, so it can't drift
+ * from the real shape.
+ */
+function decorateSkillSelectionDemo(team: Team): void {
+  const participantIds = team.players.slice(0, 3).map((player) => player.id);
+  if (participantIds.length === 0) return;
+  createPendingSkillSelection(team, "seed-demo-match", participantIds);
+}
+
 /**
  * Apply the decoration plans to the built seed teams (mutates in place).
  * Staff purchases are debited from the treasury at the standard 10k price;
@@ -278,4 +341,18 @@ export function decorateSeedTeams(teams: Team[]): void {
       0
     );
   }
+
+  // Give the other two advancement modes real in-progress state too, not
+  // just their mode label. Picking the first built team already assigned
+  // to each mode (rather than re-deriving from teamFixtures.ts's cycle)
+  // keeps this decoupled from that cycling logic.
+  const matchedPlayTeam = teams.find(
+    (team) => team.advancementMode === "matched-play"
+  );
+  if (matchedPlayTeam) decorateMatchedPlayDemo(matchedPlayTeam);
+
+  const skillSelectionTeam = teams.find(
+    (team) => team.advancementMode === "sevens-skill-selection"
+  );
+  if (skillSelectionTeam) decorateSkillSelectionDemo(skillSelectionTeam);
 }
