@@ -3,6 +3,9 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { SCENARIOS } from "../../src/data/scenarios";
 import { Inducement } from "../../src/types/Inducements";
 import { createMatchSave } from "../../src/headless/serialization";
+import { stabilizeIds } from "../../src/headless/createHeadlessGame";
+import { TeamFactory } from "../../src/game/TeamFactory";
+import { RosterName } from "../../src/types/Team";
 
 /**
  * Sevens pregame inducement selection over the headless protocol (tasks.md
@@ -17,18 +20,32 @@ function newGame(seed = 1): HeadlessGame {
 }
 
 describe("headless pregame inducement commands", () => {
-  it("offer-inducements reports the Sevens catalog with no Star Player", async () => {
+  it("offer-inducements reports each team's Sevens catalogue", async () => {
     const game = newGame();
     const response = await game.execute({ type: "offer-inducements" });
     expect(response.ok).toBe(true);
     const offer = response.inducementOffer!;
-    expect(offer.profile.starPlayersAllowed).toBe(false);
     expect(
-      offer.profile.catalog.some((e) => e.inducement === Inducement.STAR_PLAYER)
-    ).toBe(false);
-    expect(offer.profile.extraTeamTraining).toEqual({
-      price: 150_000,
-      maxCount: 8,
+      offer.catalogs[game.ctx.team1.id].map((e) => e.inducement)
+    ).toEqual([
+      Inducement.TEMP_AGENCY_CHEERLEADER,
+      Inducement.PART_TIME_ASSISTANT_COACH,
+      Inducement.BLITZERS_BEST_KEGS,
+      Inducement.PRAYERS_TO_NUFFLE,
+      Inducement.EXTRA_TEAM_TRAINING,
+      Inducement.BRIBE,
+      Inducement.WANDERING_APOTHECARY,
+      Inducement.HALFLING_MASTER_CHEF,
+      Inducement.DESPERATE_MEASURES,
+    ]);
+    expect(
+      offer.catalogs[game.ctx.team1.id].find(
+        (e) => e.inducement === Inducement.EXTRA_TEAM_TRAINING
+      )
+    ).toEqual({
+      inducement: Inducement.EXTRA_TEAM_TRAINING,
+      price: 125_000,
+      maxCount: 6,
     });
   });
 
@@ -62,15 +79,15 @@ describe("headless pregame inducement commands", () => {
     expect(response.reason).toContain("budget-exceeded");
   });
 
-  it("a ninth Extra Team Training is rejected even with a large budget", async () => {
+  it("a seventh Extra Team Training is rejected even with a large budget", async () => {
     const game = newGame();
     // Force a budget by inflating team2's treasury-independent TV (rerolls).
-    game.ctx.team2.rerolls = 6;
+    game.ctx.team2.rerolls = 12;
     const response = await game.execute({
       type: "select-inducement",
       teamId: game.ctx.team1.id,
       inducement: Inducement.EXTRA_TEAM_TRAINING,
-      quantity: 9,
+      quantity: 7,
     });
     expect(response.ok).toBe(false);
     expect(response.reason).toContain("quantity-exceeds-limit");
@@ -142,47 +159,8 @@ describe("headless pregame inducement commands", () => {
       ownerTeamId: game.ctx.team1.id,
       quantity: 1,
       remainingUses: 1,
-      price: 150_000,
+      price: 125_000,
     });
-  });
-
-  it("resetDriveState refills drive-scoped uses but leaves match-scoped ones alone", async () => {
-    const game = newGame();
-    game.ctx.team2.rerolls = 6;
-    await game.execute({
-      type: "select-inducement",
-      teamId: game.ctx.team1.id,
-      inducement: Inducement.EXTRA_TEAM_TRAINING,
-      quantity: 1,
-    });
-    await game.execute({ type: "confirm-inducements", teamId: game.ctx.team1.id });
-    await game.execute({ type: "confirm-inducements", teamId: game.ctx.team2.id });
-
-    const state = game.ctx.gameService.getState();
-    // Extra Team Training is match-scoped; simulate a drive-scoped grant
-    // alongside it to prove resetDriveState only refills the latter.
-    state.inducements!.inventory.push({
-      inducement: Inducement.WANDERING_APOTHECARY,
-      ownerTeamId: game.ctx.team1.id,
-      quantity: 1,
-      remainingUses: 0,
-      price: 50_000,
-      provenance: "free",
-      duration: "drive",
-    });
-    state.inducements!.inventory[0].remainingUses = 0; // spend the match-scoped one
-
-    game.ctx.gameService.resetDriveState();
-
-    const inventory = game.ctx.gameService.getState().inducements!.inventory;
-    const ett = inventory.find(
-      (e) => e.inducement === Inducement.EXTRA_TEAM_TRAINING
-    )!;
-    const drive = inventory.find(
-      (e) => e.inducement === Inducement.WANDERING_APOTHECARY
-    )!;
-    expect(ett.remainingUses).toBe(0); // match-scoped: still spent
-    expect(drive.remainingUses).toBe(1); // drive-scoped: refilled
   });
 
   it("a confirmed inventory survives save/restore without recharging", async () => {
@@ -213,5 +191,60 @@ describe("headless pregame inducement commands", () => {
     expect(inventory).toHaveLength(1);
     expect(inventory[0].remainingUses).toBe(1);
     expect(inventory[0].ownerTeamId).toBe(game.ctx.team1.id);
+  });
+});
+
+describe("Matched Play inducements (MP2)", () => {
+  function matchedPlayTeam(id: string) {
+    const team = stabilizeIds(
+      TeamFactory.createTestTeam(RosterName.HUMAN, id, 0xcc0000),
+      id
+    );
+    team.advancementMode = "matched-play";
+    return team;
+  }
+
+  it("brings the draft list's inducements into the match with no pregame step", () => {
+    const team1 = matchedPlayTeam("team1");
+    team1.draftInducements = [
+      { inducement: Inducement.BRIBE, quantity: 2 },
+    ];
+    const game = new HeadlessGame({
+      scenario: scrimmage,
+      seed: 1,
+      team1,
+      team2: matchedPlayTeam("team2"),
+    });
+
+    expect(game.ctx.gameService.getState().inducements?.inventory).toEqual([
+      {
+        inducement: Inducement.BRIBE,
+        ownerTeamId: "team1",
+        quantity: 2,
+        remainingUses: 2,
+        price: 200_000,
+        provenance: "purchased",
+      },
+    ]);
+  });
+
+  it("offers no petty cash, even to the lower-value team", async () => {
+    const team2 = matchedPlayTeam("team2");
+    team2.rerolls += 3;
+    const game = new HeadlessGame({
+      scenario: scrimmage,
+      seed: 1,
+      team1: matchedPlayTeam("team1"),
+      team2,
+    });
+
+    const response = await game.execute({
+      type: "select-inducement",
+      teamId: "team1",
+      inducement: Inducement.PRAYERS_TO_NUFFLE,
+      quantity: 1,
+    });
+
+    expect(response.reason).toBe("command-failed: budget-exceeded:5000>0");
   });
 });

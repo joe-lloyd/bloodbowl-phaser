@@ -15,8 +15,7 @@ import type {
 import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
 import type { SwoopFacing } from "../game/rules/throwTeammate";
-import { InducementRuleProfile } from "../types/Inducements";
-import { InducementSelectionLine } from "../game/inducements/rules";
+import { InducementOffer } from "../types/Inducements";
 
 export interface GridPosition {
   x: number;
@@ -296,10 +295,5 @@ export interface CommandResponse {
   /** Populated for the legal-actions query */
   legalActions?: LegalActions;
   /** Populated for the offer-inducements query */
-  inducementOffer?: {
-    profile: InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<string, InducementSelectionLine[]>;
-    confirmed: Record<string, boolean>;
-  };
+  inducementOffer?: InducementOffer;
 }

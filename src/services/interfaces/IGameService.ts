@@ -58,15 +58,7 @@ export interface IGameService {
     inventory: import("@/types/Inducements").InducementInventoryEntry[]
   ): void;
   /** The current pregame offer: catalog/budget plus each team's selection. */
-  getInducementOffer(): {
-    profile: import("@/types/Inducements").InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<
-      string,
-      import("@/game/inducements/rules").InducementSelectionLine[]
-    >;
-    confirmed: Record<string, boolean>;
-  };
+  getInducementOffer(): import("@/types/Inducements").InducementOffer;
   /** Set (or clear, at quantity 0) one line of a team's pregame selection. */
   selectInducement(
     teamId: string,

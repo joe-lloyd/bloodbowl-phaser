@@ -4,6 +4,7 @@
 
 import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
+import type { InducementSelectionLine } from "./Inducements";
 import { SkillCategory, SkillType } from "./Skills";
 import {
   APOTHECARY_COST,
@@ -254,6 +255,9 @@ export interface Team {
   advancementModeLocked?: boolean;
   /** Matched Play only: package skills allocated to players before entry. */
   matchedPlayAllocations?: MatchedPlayAllocation[];
+  /** Matched Play only (MP2): inducements bought onto the draft list from
+   *  the draft budget. They come with the team to every match. */
+  draftInducements?: InducementSelectionLine[];
   /** Sevens Skill Selection / Matched Play: players poached by the Draft. */
   draftHistory?: DraftRecord[];
   /** Unresolved mode-specific development awaiting a Manage Team decision. */

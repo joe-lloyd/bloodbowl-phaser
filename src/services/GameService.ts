@@ -97,10 +97,16 @@ import { RerollSource } from "@/types/decisions";
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import {
   calculateInducementBudgets,
-  expireDriveInducements,
+  draftListInventory,
 } from "@/game/inducements/rules";
+import { sevensInducementCatalog } from "@/game/inducements/catalog";
 import { InducementSession } from "@/game/inducements/InducementSession";
-import { buildSeventsInducementProfile, Inducement } from "@/types/Inducements";
+import {
+  buildSeventsInducementProfile,
+  emptyInducementsState,
+  Inducement,
+  InducementOffer,
+} from "@/types/Inducements";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import {
   driveEffectsEmpty,
@@ -394,6 +400,17 @@ export class GameService implements IGameService {
     // A restored save may still have an unresolved Apothecary decision — the
     // operation that requested it is long gone, so re-arm the decision
     // channel directly rather than trying to resume a suspended await.
+    // Matched Play inducements come on the draft list (MP2): there is no
+    // petty cash to negotiate, so they are in the match from the start.
+    const draftList = this.draftListInventory();
+    if (!this.state.inducements && draftList.length > 0) {
+      this.commitInducements(
+        buildSeventsInducementProfile({ advancedLeague: false }),
+        calculateInducementBudgets(this.team1, this.team2),
+        draftList
+      );
+    }
+
     const pendingApothecary = this.state.inducements?.pendingApothecaryDecision;
     if (pendingApothecary) {
       resumeApothecaryDecision(this, eventBus, pendingApothecary);
@@ -493,17 +510,21 @@ export class GameService implements IGameService {
     budgets: Record<string, number>,
     inventory: import("@/types/Inducements").InducementInventoryEntry[]
   ): void {
-    const existing = this.state.inducements;
     this.state.inducements = {
+      ...emptyInducementsState(),
+      ...this.state.inducements,
       profile,
       budgets: { ...budgets },
       inventory: inventory.map((entry) => ({ ...entry })),
-      confirmed: { ...(existing?.confirmed ?? {}) },
-      apothecaryUsed: { ...(existing?.apothecaryUsed ?? {}) },
-      pendingApothecaryDecision: existing?.pendingApothecaryDecision,
-      decisionSeq: existing?.decisionSeq ?? 0,
-      prayerLog: existing?.prayerLog ?? [],
     };
+  }
+
+  /** Both teams' Matched Play draft-list inducements (MP2). */
+  private draftListInventory() {
+    return [
+      ...draftListInventory(this.team1),
+      ...draftListInventory(this.team2),
+    ];
   }
 
   /**
@@ -518,24 +539,20 @@ export class GameService implements IGameService {
     if (!this.inducementSession) {
       const profile = buildSeventsInducementProfile({ advancedLeague: false });
       const budgets = calculateInducementBudgets(this.team1, this.team2);
-      this.inducementSession = new InducementSession(profile, budgets);
+      this.inducementSession = new InducementSession(profile, budgets, {
+        [this.team1.id]: sevensInducementCatalog(this.team1),
+        [this.team2.id]: sevensInducementCatalog(this.team2),
+      });
     }
     return this.inducementSession;
   }
 
-  getInducementOffer(): {
-    profile: import("@/types/Inducements").InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<
-      string,
-      import("@/game/inducements/rules").InducementSelectionLine[]
-    >;
-    confirmed: Record<string, boolean>;
-  } {
+  getInducementOffer(): InducementOffer {
     const session = this.getOrCreateInducementSession();
     return {
       profile: session.getProfile(),
       budgets: session.getBudgets(),
+      catalogs: session.getCatalogs(),
       selections: {
         [this.team1.id]: session.getSelection(this.team1.id),
         [this.team2.id]: session.getSelection(this.team2.id),
@@ -575,7 +592,7 @@ export class GameService implements IGameService {
       this.commitInducements(
         session.getProfile(),
         session.getBudgets(),
-        session.toInventory()
+        [...this.draftListInventory(), ...session.toInventory()]
       );
     }
     return result;
@@ -1656,15 +1673,6 @@ export class GameService implements IGameService {
     // the next drive's kickoff must be free to roll.
     this.state.kickoffResolution = undefined;
     this.state.kickoffKickResolved = undefined;
-
-    // Drive-scoped inducement uses (unlike match-scoped ones) refill at
-    // every new drive; the Apothecary's used flag is match-scoped and never
-    // reset here.
-    if (this.state.inducements) {
-      this.state.inducements.inventory = expireDriveInducements(
-        this.state.inducements.inventory
-      );
-    }
 
     // Activation state must not leak into the next drive's setup — stale
     // activatedPlayerIds left players "already gone" and blocked setup

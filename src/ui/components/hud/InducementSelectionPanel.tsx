@@ -44,11 +44,12 @@ export const InducementSelectionPanel: React.FC<
   const offer = container.gameService.getInducementOffer();
   const budget = offer.budgets[activeTeamId] ?? 0;
   const selection = offer.selections[activeTeamId] ?? [];
+  const catalog = offer.catalogs[activeTeamId] ?? [];
   const qtyOf = (inducement: Inducement) =>
     selection.find((line) => line.inducement === inducement)?.quantity ?? 0;
 
   const spend = selection.reduce((sum, line) => {
-    const entry = offer.profile.catalog.find(
+    const entry = catalog.find(
       (c) => c.inducement === line.inducement
     );
     return sum + (entry ? entry.price * line.quantity : 0);
@@ -95,7 +96,7 @@ export const InducementSelectionPanel: React.FC<
         </p>
 
         <div className="flex flex-col gap-3 mb-6">
-          {offer.profile.catalog.map((entry) => {
+          {catalog.map((entry) => {
             const qty = qtyOf(entry.inducement);
             return (
               <div

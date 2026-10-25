@@ -3,7 +3,7 @@
  * rules a pregame offer is built from and confirmed selections are checked
  * against. Pure functions: no engine/state dependency, so the browser,
  * headless, and online lobby all validate identically against the same
- * catalog (see design.md "Build offers from a competition rule profile").
+ * catalogue.
  */
 
 import { Team, calculateTeamValue } from "../../types/Team";
@@ -11,14 +11,9 @@ import {
   Inducement,
   InducementCatalogEntry,
   InducementInventoryEntry,
-  InducementRuleProfile,
+  InducementSelectionLine,
 } from "../../types/Inducements";
-
-/** One team's requested purchase — quantity 0 is legal (removes a line). */
-export interface InducementSelectionLine {
-  inducement: Inducement;
-  quantity: number;
-}
+import { sevensInducementCatalog } from "./catalog";
 
 export interface InducementValidationResult {
   valid: boolean;
@@ -28,9 +23,10 @@ export interface InducementValidationResult {
 
 /**
  * Petty cash: the lower-TV team's coach receives gold equal to the TV gap to
- * spend on inducements; the higher-TV (or equal) team receives none. Budgets
- * are resolved once, from both teams' TV at confirmation time, and
- * serialized verbatim rather than re-derived later.
+ * spend on inducements; the higher-TV (or equal) team receives none. A
+ * Matched Play team never gets petty cash (MP2): it buys inducements from
+ * its draft budget instead. Budgets are resolved once, from both teams' TV
+ * at confirmation time, and serialized verbatim rather than re-derived later.
  */
 export function calculateInducementBudgets(
   teamA: Team,
@@ -38,28 +34,28 @@ export function calculateInducementBudgets(
 ): Record<string, number> {
   const tvA = calculateTeamValue(teamA);
   const tvB = calculateTeamValue(teamB);
-  const gap = Math.abs(tvA - tvB);
-  if (tvA === tvB) return { [teamA.id]: 0, [teamB.id]: 0 };
-  return tvA < tvB
-    ? { [teamA.id]: gap, [teamB.id]: 0 }
-    : { [teamA.id]: 0, [teamB.id]: gap };
+  const pettyCash = (team: Team, own: number, other: number) =>
+    team.advancementMode === "matched-play" ? 0 : Math.max(0, other - own);
+  return {
+    [teamA.id]: pettyCash(teamA, tvA, tvB),
+    [teamB.id]: pettyCash(teamB, tvB, tvA),
+  };
 }
 
 function catalogEntry(
-  profile: InducementRuleProfile,
+  catalog: InducementCatalogEntry[],
   inducement: Inducement
 ): InducementCatalogEntry | undefined {
-  return profile.catalog.find((entry) => entry.inducement === inducement);
+  return catalog.find((entry) => entry.inducement === inducement);
 }
 
 /**
- * Validate a full selection (every requested line) against the profile's
- * catalog and a resolved budget. Runs identically whether the caller is a
- * trusted local UI or a submitted online/headless confirmation — "Purchases
- * are validated again when confirmed" (design.md).
+ * Validate a full selection (every requested line) against a team's
+ * catalogue and a resolved budget. Runs identically whether the caller is a
+ * trusted local UI or a submitted online/headless confirmation.
  */
 export function validateInducementSelection(
-  profile: InducementRuleProfile,
+  catalog: InducementCatalogEntry[],
   budget: number,
   selection: InducementSelectionLine[]
 ): InducementValidationResult {
@@ -72,7 +68,7 @@ export function validateInducementSelection(
       errors.push("star-players-unavailable-in-sevens");
       continue;
     }
-    const entry = catalogEntry(profile, line.inducement);
+    const entry = catalogEntry(catalog, line.inducement);
     if (!entry) {
       errors.push(`inducement-not-offered:${line.inducement}`);
       continue;
@@ -99,14 +95,14 @@ export function validateInducementSelection(
  * legal lines into inventory (so a rejected confirmation never reaches it).
  */
 export function toInventoryEntries(
-  profile: InducementRuleProfile,
+  catalog: InducementCatalogEntry[],
   ownerTeamId: string,
   selection: InducementSelectionLine[]
 ): InducementInventoryEntry[] {
   const entries: InducementInventoryEntry[] = [];
   for (const line of selection) {
     if (line.quantity <= 0) continue;
-    const entry = catalogEntry(profile, line.inducement);
+    const entry = catalogEntry(catalog, line.inducement);
     if (!entry) continue;
     entries.push({
       inducement: line.inducement,
@@ -115,19 +111,20 @@ export function toInventoryEntries(
       remainingUses: line.quantity,
       price: entry.price * line.quantity,
       provenance: "purchased",
-      duration: entry.duration,
     });
   }
   return entries;
 }
 
-/** Reset drive-scoped inducement uses back to full quantity at a new drive. */
-export function expireDriveInducements(
-  inventory: InducementInventoryEntry[]
-): InducementInventoryEntry[] {
-  return inventory.map((entry) =>
-    entry.duration === "drive"
-      ? { ...entry, remainingUses: entry.quantity }
-      : entry
+/**
+ * A Matched Play team's inducements bought onto its draft list (MP2). They
+ * come with the team to every match, so each match starts them fresh.
+ */
+export function draftListInventory(team: Team): InducementInventoryEntry[] {
+  if (team.advancementMode !== "matched-play") return [];
+  return toInventoryEntries(
+    sevensInducementCatalog(team),
+    team.id,
+    team.draftInducements ?? []
   );
 }
