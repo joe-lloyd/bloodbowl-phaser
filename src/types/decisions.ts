@@ -16,7 +16,8 @@ export type RerollableRollKind =
   | "pass"
   | "rush"
   | "jump"
-  | "activation";
+  | "activation"
+  | "gaze";
 
 export interface RerollDecisionRequest {
   type: "reroll";
