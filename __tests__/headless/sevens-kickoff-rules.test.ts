@@ -3,6 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
+import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { forceDice } from "../utils/test-helpers";
 
 /**
@@ -83,3 +84,27 @@ describe("K3: Time-Out", () => {
   });
 });
 
+
+
+describe("K5: High Kick", () => {
+  it("offers the step when the ball will land in the receiving half", async () => {
+    // Lands on (17,5); event 2 + 3 = 5.
+    const { response, landing } = await kick([5, 2, 2, 2, 3], { x: 15, y: 5 });
+
+    expect(response.pendingDecision).toMatchObject({
+      type: "kickoff-event",
+      event: KickoffEvent.HIGH_KICK,
+      chooserTeamId: "team2",
+      landingSquare: { x: 17, y: 5 },
+    });
+    expect(landing).toBeUndefined();
+  });
+
+  it("offers nothing when the ball will land in No Man's Land", async () => {
+    // Direction 4 is west: (13,5) deviates 1 square to (12,5).
+    const { response, landing } = await kick([4, 1, 1, 2, 3], { x: 13, y: 5 });
+
+    expect(response.pendingDecision?.type).not.toBe("kickoff-event");
+    expect(landing).toEqual({ x: 12, y: 5 });
+  });
+});

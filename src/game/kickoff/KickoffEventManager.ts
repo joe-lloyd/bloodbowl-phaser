@@ -206,6 +206,16 @@ export class KickoffEventManager {
     landingSquare: { x: number; y: number }
   ): Promise<void> {
     if (this.lastEvent !== KickoffEvent.HIGH_KICK) return;
+    // Sevens K5: only a ball landing between the receiving End Zone and
+    // Line of Scrimmage, never in No Man's Land.
+    const { x, y } = landingSquare;
+    if (!this.setupValidator.isInSetupZone(x, y, !isTeam1Kicking)) {
+      this.eventBus.emit(
+        GameEventNames.UI_GameLog,
+        "High Kick: the ball lands in No Man's Land, so no player may be placed under it."
+      );
+      return;
+    }
     const receivingTeamId = (isTeam1Kicking ? this.team2 : this.team1).id;
     await this.openStep(KickoffEvent.HIGH_KICK, receivingTeamId, 1, landingSquare);
   }

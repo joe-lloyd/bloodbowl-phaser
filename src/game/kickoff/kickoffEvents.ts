@@ -42,7 +42,7 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
   [KickoffEvent.SOLID_DEFENCE]:
     "The kicking coach may drag up to D3+1 Open players directly to new legal setup squares.",
   [KickoffEvent.HIGH_KICK]:
-    "One Open receiving player may be placed in the square the ball will land in.",
+    "If the ball will land between the receiving End Zone and Line of Scrimmage, one Open receiving player may be placed in that square. Not in No Man's Land.",
   [KickoffEvent.CHEERING_FANS]:
     "D6 + Cheerleaders per coach; the winner (or both on a tie) gets an extra Offensive Assist on the first Block of their next turn.",
   [KickoffEvent.BRILLIANT_COACHING]:
