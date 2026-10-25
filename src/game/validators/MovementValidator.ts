@@ -1,5 +1,5 @@
 import { Player, PlayerStatus } from "@/types/Player";
-import { moveAllowance } from "../skills/movement";
+import { moveAllowance, standUpCost } from "../skills/movement";
 import { GameConfig } from "@/config/GameConfig";
 
 export interface MovementResult {
@@ -174,11 +174,8 @@ export class MovementValidator {
     const startKey = `${start.x},${start.y}`;
 
     // Stand Up Logic
-    let stepsInternal = 0;
-    if (player.status === PlayerStatus.PRONE) {
-      // Cost to stand up is 3, or full MA if MA < 3
-      stepsInternal = player.stats.MA < 3 ? player.stats.MA : 3;
-    }
+    const stepsInternal =
+      player.status === PlayerStatus.PRONE ? standUpCost(player) : 0;
 
     gScore.set(startKey, 0); // Cost to reach start is 0, regardless of state? Or should it be cost?
     // Let's keep gScore as "movement points spent".
@@ -264,16 +261,19 @@ export class MovementValidator {
     player: Player,
     path: { x: number; y: number }[],
     opponents: Player[],
-    teammates: Player[] = []
+    teammates: Player[] = [],
+    /** Squares already spent this activation, by earlier commands */
+    movementUsed = 0
   ): MovementResult {
     const rolls: MovementRoll[] = [];
     const ma = player.stats.MA;
     let valid = true;
 
-    // Stand Up Logic
-    let stepsAccumulator = 0;
+    // MA and Rushes are per activation, so count from what earlier move
+    // commands spent, plus the stand-up cost if the player starts Prone.
+    let stepsAccumulator = movementUsed;
     if (player.status === PlayerStatus.PRONE) {
-      stepsAccumulator = player.stats.MA < 3 ? player.stats.MA : 3;
+      stepsAccumulator += standUpCost(player);
     }
 
     for (let i = 0; i < path.length - 1; i++) {

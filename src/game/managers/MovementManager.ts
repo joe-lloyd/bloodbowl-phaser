@@ -247,7 +247,8 @@ export class MovementManager {
       maView,
       [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
       oppTeam.players.filter((p) => p.gridPosition),
-      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id)
+      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id),
+      this.getMovementUsed(playerId)
     );
     if (!result.valid) {
       console.warn(`Invalid move attempted for player ${playerId}`);
