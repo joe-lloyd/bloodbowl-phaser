@@ -30,7 +30,7 @@ import {
   deserializeGameState,
   GameSnapshot,
 } from "../headless/serialization";
-import { GameEventNames } from "../types/events";
+import { GameEventNames, LOCAL_CAMERA_EVENTS } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
@@ -244,13 +244,6 @@ export function isValidSelectionClaim(
  * peer's scene re-derives its own camera triggers from the replayed game
  * events, gated by that viewer's own camera settings.
  */
-const LOCAL_ONLY_EVENTS = new Set<string>([
-  GameEventNames.Camera_TrackBall,
-  GameEventNames.Camera_TrackObject,
-  GameEventNames.Camera_Reset,
-  GameEventNames.Camera_StateChanged,
-  GameEventNames.UI_CameraSettingsChanged,
-]);
 
 /** Buffers native host events and flushes them as one broadcast bundle. */
 class EventBroadcaster {
@@ -287,7 +280,7 @@ class EventBroadcaster {
     if (
       this.paused ||
       UI_INTENT_EVENTS.has(name) ||
-      LOCAL_ONLY_EVENTS.has(name)
+      LOCAL_CAMERA_EVENTS.has(name)
     )
       return;
     this.buffer.push({ name, data });
@@ -681,7 +674,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       for (const event of events) {
         if (
           UI_INTENT_EVENTS.has(event.name) ||
-          LOCAL_ONLY_EVENTS.has(event.name)
+          LOCAL_CAMERA_EVENTS.has(event.name)
         )
           continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

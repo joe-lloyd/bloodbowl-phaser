@@ -471,8 +471,6 @@ export class GameScene extends Phaser.Scene {
       const sprite = this.playerSprites.get(playerId);
       if (sprite) {
         sprite.setActivated(true);
-        // Camera follow: track whoever is acting
-        this.eventBus.emit(GameEventNames.Camera_TrackObject, { sprite });
       }
     });
 

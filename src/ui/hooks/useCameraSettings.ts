@@ -23,14 +23,12 @@ export function useCameraSettings(eventBus: IEventBus) {
 
   const update = useCallback(
     (patch: Partial<CameraSettings>) => {
-      setSettings((prev) => {
-        const next = { ...prev, ...patch };
-        saveCameraSettings(next);
-        eventBus.emit(GameEventNames.UI_CameraSettingsChanged, next);
-        return next;
-      });
+      const next = { ...settings, ...patch };
+      setSettings(next);
+      saveCameraSettings(next);
+      eventBus.emit(GameEventNames.UI_CameraSettingsChanged, next);
     },
-    [eventBus]
+    [eventBus, settings]
   );
 
   return { settings, fitZoom, update };
