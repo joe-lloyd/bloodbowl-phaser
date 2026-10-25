@@ -3,6 +3,7 @@ import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { teamRerollsLeft } from "../../../game/teamRerolls";
 
 interface TeamRow {
   id: string;
@@ -51,7 +52,7 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
           color: hexColor(team.colors.primary),
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
-          rerolls: team.rerolls,
+          rerolls: teamRerollsLeft(state, team),
           freeRerolls: state.driveEffects?.freeRerolls[team.id] ?? 0,
           bribes: state.bribes?.[team.id] ?? 0,
           coach: online?.coachName(team.id),
@@ -69,6 +70,7 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
       GameEventNames.PhaseChanged,
       GameEventNames.GameStateRestored,
       GameEventNames.TeamUpdated,
+      GameEventNames.RerollUsed,
       GameEventNames.DriveEffectGranted,
       GameEventNames.DriveEffectExpired,
     ] as const;

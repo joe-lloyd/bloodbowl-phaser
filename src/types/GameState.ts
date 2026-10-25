@@ -83,6 +83,11 @@ export interface GameState {
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
   bribes?: Record<string, number>;
+  /**
+   * Team Re-rolls each team has spent this half; absent = none. The roster's
+   * purchased count is never spent (see game/teamRerolls.ts).
+   */
+  teamRerollsUsed?: Record<string, number>;
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */

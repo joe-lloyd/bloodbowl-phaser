@@ -4,6 +4,7 @@ import { Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { GameEventNames } from "../../types/events";
+import { replenishTeamRerolls } from "../teamRerolls";
 
 export interface TurnManagerState {
   turnCounts: Record<string, number>;
@@ -237,6 +238,7 @@ export class TurnManager {
     }
 
     this.state.turn.isHalf2 = true;
+    replenishTeamRerolls(this.state);
     this.turnCounts[this.team1.id] = 0;
     this.turnCounts[this.team2.id] = 0;
 

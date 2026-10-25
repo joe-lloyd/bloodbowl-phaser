@@ -27,6 +27,7 @@ import { TurnManagerState } from "../game/managers/TurnManager";
 import { SetupState } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
 import { InducementsMatchState } from "../types/Inducements";
+import { teamRerollsLeft } from "../game/teamRerolls";
 
 export interface TurnSnapshot {
   teamId: string;
@@ -58,6 +59,7 @@ export interface PlayerSnapshot {
 export interface TeamSnapshot {
   id: string;
   name: string;
+  /** Team Re-rolls left this half (not the roster's purchased count). */
   rerolls: number;
   players: PlayerSnapshot[];
 }
@@ -86,6 +88,8 @@ export interface GameSnapshot {
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); absent on pre-feature saves. */
   bribes?: Record<string, number>;
+  /** Team Re-rolls spent this half; absent on pre-feature saves (= none). */
+  teamRerollsUsed?: Record<string, number>;
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /**
@@ -182,6 +186,9 @@ export function serializeGameState(
       ? structuredClone(state.driveEffects)
       : undefined,
     bribes: state.bribes ? { ...state.bribes } : undefined,
+    teamRerollsUsed: state.teamRerollsUsed
+      ? { ...state.teamRerollsUsed }
+      : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -196,7 +203,7 @@ export function serializeGameState(
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
-      rerolls: team.rerolls,
+      rerolls: teamRerollsLeft(state, team),
       players: team.players.map((p) => ({
         id: p.id,
         name: p.playerName,
@@ -246,6 +253,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? structuredClone(snapshot.driveEffects)
       : undefined,
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
+    teamRerollsUsed: snapshot.teamRerollsUsed
+      ? { ...snapshot.teamRerollsUsed }
+      : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
       : undefined,

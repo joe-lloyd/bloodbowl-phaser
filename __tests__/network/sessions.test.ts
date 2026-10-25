@@ -1003,7 +1003,7 @@ describe("networked sessions", () => {
         source: "team",
       });
       expect(guestAttempt.ok).toBe(true);
-      expect(match.game.ctx.team2.rerolls).toBe(2);
+      expect(match.game.snapshot().teams[1].rerolls).toBe(2);
       return;
     }
     throw new Error("no failing pickup found in seed range");
