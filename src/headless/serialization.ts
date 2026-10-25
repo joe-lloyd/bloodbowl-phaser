@@ -7,6 +7,7 @@
  * (CLI, AI agents, saves, replays).
  */
 
+import type { Weather } from "../game/rules/weather";
 import {
   GameState,
   GamePhase,
@@ -70,7 +71,7 @@ export interface GameSnapshot {
   activeTeamId: string | null;
   turn: TurnSnapshot;
   score: Record<string, number>;
-  weather: string;
+  weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
     id: string;

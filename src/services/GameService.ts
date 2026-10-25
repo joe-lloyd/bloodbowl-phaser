@@ -45,6 +45,7 @@ import {
 import { PassOperation } from "@/game/operations/PassOperation";
 import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { isLegalHandoffTarget } from "@/game/rules/handoff";
+import { weatherEffects } from "@/game/rules/weather";
 import {
   ClearPitchOperation,
   KORecoveryOperation,
@@ -939,7 +940,7 @@ export class GameService implements IGameService {
               this.diceController.rollSkillCheck(
                 "Rush (GFI)",
                 2,
-                0,
+                weatherEffects(this.state.weather).rush,
                 attacker.playerName
               )
           );
@@ -2280,7 +2281,7 @@ export class GameService implements IGameService {
             this.diceController.rollSkillCheck(
               "Rush (GFI)",
               2,
-              0,
+              weatherEffects(this.state.weather).rush,
               attacker.playerName,
               attacker.teamId
             )

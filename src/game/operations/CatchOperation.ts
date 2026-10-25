@@ -4,6 +4,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { PlayerStatus } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
+import { weatherEffects } from "../rules/weather";
 import {
   foldTrigger,
   gatherParticipants,
@@ -66,11 +67,12 @@ export class CatchOperation extends GameOperation {
       player.gridPosition,
       opponents
     );
-    const modifiers = catchController.calculateModifiers(
-      player,
-      player.gridPosition,
-      opponents
-    );
+    const modifiers =
+      catchController.calculateModifiers(
+        player,
+        player.gridPosition,
+        opponents
+      ) + weatherEffects(gameService.getState().weather).ballHandling;
 
     // Trigger point: rules may adjust the catch (Extra Arms, Nerves of
     // Steel) or auto-fail it (No Ball)

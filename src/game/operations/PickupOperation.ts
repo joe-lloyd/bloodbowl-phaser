@@ -3,6 +3,7 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
+import { weatherEffects } from "../rules/weather";
 import {
   foldTrigger,
   gatherParticipants,
@@ -63,7 +64,9 @@ export class PickupOperation extends GameOperation {
     const pickupCtx: PickupContext = {
       player,
       marking: markingOpponents,
-      modifiers: -markingOpponents,
+      modifiers:
+        -markingOpponents +
+        weatherEffects(gameService.getState().weather).ballHandling,
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),

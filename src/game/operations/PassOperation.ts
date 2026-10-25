@@ -7,6 +7,7 @@ import { PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import { weatherEffects } from "../rules/weather";
 import { ArmourOperation } from "./ArmourOperation";
 import {
   foldTrigger,
@@ -154,7 +155,7 @@ export class PassOperation extends GameOperation {
       passType: passRange.type,
       targetPlayer,
       marking: markingOpponents,
-      modifiers: 0,
+      modifiers: weatherEffects(gameService.getState().weather).passingAbility,
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -534,6 +535,7 @@ export class PassOperation extends GameOperation {
     }
     if (eligible.length === 0) return false;
 
+    const rain = weatherEffects(gameService.getState().weather).ballHandling;
     // Marking is measured at each interceptor against the passing team.
     const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
     const candidates = eligible.map((e) => {
@@ -556,9 +558,9 @@ export class PassOperation extends GameOperation {
       }
       return {
         playerId: e.playerId,
-        base: e.modifier + vll,
+        base: e.modifier + vll + rain,
         marking,
-        modifier: e.modifier + vll - marking,
+        modifier: e.modifier + vll + rain - marking,
       };
     });
 

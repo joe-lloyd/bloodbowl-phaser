@@ -2,9 +2,10 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { GameEventNames } from "../../types/events";
 import { DiceController } from "../controllers/DiceController";
+import type { Weather } from "../rules/weather";
 
 /** Plain rulebook statement of what each weather result does (for the match log). */
-const WEATHER_EFFECT: Record<string, string> = {
+const WEATHER_EFFECT: Record<Weather, string> = {
   "Sweltering Heat":
     "After this drive, roll a D6 for each player who was on the pitch: on a 1 the player collapses from heat exhaustion and misses the rest of the match.",
   "Very Sunny": "The glare gives passers a -1 penalty to Passing rolls.",
@@ -22,9 +23,9 @@ export class WeatherManager {
     private diceController: DiceController
   ) {}
 
-  public rollWeather(): string {
+  public rollWeather(): Weather {
     const roll = this.diceController.roll2D6("Weather");
-    let weather = "Nice";
+    let weather: Weather = "Nice";
 
     switch (roll) {
       case 2:
@@ -57,7 +58,7 @@ export class WeatherManager {
     return weather;
   }
 
-  public getWeather(): string {
+  public getWeather(): Weather {
     return this.state.weather || "Nice";
   }
 }

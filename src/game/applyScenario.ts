@@ -85,7 +85,7 @@ export function applyScenario(
       [team1.id]: 0,
       [team2.id]: 0,
     },
-    weather: "Nice",
+    weather: scenario.setup.weather ?? "Nice",
     ballPosition: scenario.setup.ballPosition
       ? { ...scenario.setup.ballPosition }
       : null,

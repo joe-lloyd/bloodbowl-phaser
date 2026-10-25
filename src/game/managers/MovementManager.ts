@@ -38,6 +38,7 @@ import {
 } from "../skills/SkillRule";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { jumpTargets } from "../rules/jump";
+import { weatherEffects } from "../rules/weather";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -309,7 +310,7 @@ export class MovementManager {
         // Trigger point: rush declared — rules may modify it (Drunkard)
         const rushCtx: RushDeclaredContext = {
           player,
-          modifiers: 0,
+          modifiers: weatherEffects(this.state.weather).rush,
           triggers: [],
         };
         await foldTrigger("onRushDeclared", [player], rushCtx);
@@ -710,7 +711,7 @@ export class MovementManager {
     for (let i = 0; i < rushesNeeded; i++) {
       const rushCtx: RushDeclaredContext = {
         player,
-        modifiers: 0,
+        modifiers: weatherEffects(this.state.weather).rush,
         triggers: [],
       };
       await foldTrigger("onRushDeclared", [player], rushCtx);

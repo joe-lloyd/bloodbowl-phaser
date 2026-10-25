@@ -1,3 +1,4 @@
+import type { Weather } from "../game/rules/weather";
 export enum SubPhase {
   // SETUP Sub-Phases
   INTRO = "INTRO",
@@ -66,7 +67,7 @@ export interface GameState {
   activeTeamId: string | null;
   turn: TurnData;
   score: { [key: string]: number };
-  weather: string; // "Nice", "Pouring Rain", etc.
+  weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
     id: string;

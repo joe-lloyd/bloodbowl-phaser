@@ -12,6 +12,7 @@ import {
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { weatherEffects } from "../rules/weather";
 
 /**
  * Ends the thrower's activation once the Throw / Kick Team-mate (and any
@@ -212,7 +213,12 @@ export class ThrowTeammateOperation extends GameOperation {
 
       const test = gameService
         .getPassController()
-        .testAccuracy(thrower, passRange, marking, extra);
+        .testAccuracy(
+          thrower,
+          passRange,
+          marking,
+          extra + weatherEffects(gameService.getState().weather).passingAbility
+        );
       fumbled = test.fumbled;
       bullseye =
         this.mode === "throw" &&
