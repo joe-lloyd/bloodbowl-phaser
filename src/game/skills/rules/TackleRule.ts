@@ -10,9 +10,13 @@ import { SkillRule } from "../SkillRule";
 
 export const TackleRule: SkillRule = {
   onDodgeDeclared(ctx, self) {
-    // Fires only for a marker of the vacated square (the gather already
-    // limits participants to the dodger + those markers)
+    // Fires only for a marker of the vacated square. The dodge fold also
+    // gathers markers of the destination (for Titchy), so check adjacency.
     if (self.teamId === ctx.player.teamId) return;
+    if (!self.gridPosition) return;
+    const dx = Math.abs(self.gridPosition.x - ctx.from.x);
+    const dy = Math.abs(self.gridPosition.y - ctx.from.y);
+    if (dx > 1 || dy > 1) return;
     if (!ctx.skillRerollAllowed) return;
 
     ctx.skillRerollAllowed = false;
