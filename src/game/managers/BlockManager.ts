@@ -1548,10 +1548,13 @@ export class BlockManager {
    * Handle skull result (attacker down)
    */
   private handleSkull(attacker: Player): void {
+    const attackerHadBall = this.isOnBall(attacker);
     this.knockDownPlayer(attacker);
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
+      // A downed carrier drops the ball, as on a Both Down.
+      if (attackerHadBall) this.dropCarrierBall(attacker, flowManager);
       flowManager.add(new ArmourOperation(attacker.id), true);
     }
 

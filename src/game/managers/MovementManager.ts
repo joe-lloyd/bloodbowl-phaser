@@ -444,7 +444,7 @@ export class MovementManager {
 
           applyShadowFollow(vacatedSquare);
 
-          if (holdingBall && flowManager) {
+          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
           }
@@ -512,7 +512,7 @@ export class MovementManager {
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
-          if (holdingBall && flowManager) {
+          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
           }
@@ -827,13 +827,22 @@ export class MovementManager {
     }
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
     this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    if (holdingBall && flowManager) {
+    if ((holdingBall || this.isBallAt(fallSquare)) && flowManager) {
       gameService.setBallPosition(fallSquare.x, fallSquare.y);
       flowManager.add(new BounceOperation(fallSquare), true);
     }
     if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
     this.callbacks.onTurnover("Failed Jump");
     this.callbacks.onActivationFinished(playerId);
+  }
+
+  /** A player who falls onto the loose ball's square knocks it loose too. */
+  private isBallAt(square: { x: number; y: number }): boolean {
+    return (
+      !!this.state.ballPosition &&
+      this.state.ballPosition.x === square.x &&
+      this.state.ballPosition.y === square.y
+    );
   }
 
   private getPlayerById(playerId: string): Player | undefined {
