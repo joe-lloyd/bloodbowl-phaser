@@ -5,7 +5,9 @@
  * Knocked Out or casualty result, before the player's final placement
  * (design.md "Pause injury resolution for an owned Apothecary"). Declining
  * leaves the original result untouched; accepting always consumes the
- * Apothecary, whether or not the patch-up succeeds.
+ * Apothecary, whether or not the patch-up succeeds. A Wandering Apothecary
+ * or Plague Doctor inducement gives one more use each, spent after the
+ * team's own Apothecary.
  *
  * `applyApothecaryAnswer` is the single resolution routine, called both from
  * the live await (a fresh decision, mid-operation) and from a re-armed seed
@@ -24,8 +26,9 @@ import {
   ApothecaryDecisionRequest,
   ApothecaryLocation,
 } from "../../types/decisions";
-import { emptyInducementsState } from "../../types/Inducements";
+import { emptyInducementsState, Inducement } from "../../types/Inducements";
 import { movePlayerToBox } from "../rules/playerLocation";
+import { inducementUsesLeft, spendInducement } from "./inventory";
 import { confirmKill } from "../rules/plagueRidden";
 
 /** The record CasualtyOperation left on the player for each casualty. */
@@ -51,14 +54,49 @@ export function ensureInducementsState(
   return state.inducements;
 }
 
-/** True when this team has a Sevens Apothecary that hasn't been used yet. */
+/**
+ * Inducements a team may use "in the same manner as an Apothecary"
+ * (2025 rulebook p.149), spent after the team's own Apothecary.
+ */
+const APOTHECARY_INDUCEMENTS = [
+  Inducement.WANDERING_APOTHECARY,
+  Inducement.PLAGUE_DOCTOR,
+] as const;
+
+function ownApothecaryAvailable(
+  gameService: IGameService,
+  teamId: string
+): boolean {
+  return (
+    !!gameService.getTeam(teamId)?.apothecary &&
+    !gameService.getState().inducements?.apothecaryUsed?.[teamId]
+  );
+}
+
+/** True when this team has an Apothecary use left this match. */
 export function apothecaryAvailable(
   gameService: IGameService,
   teamId: string
 ): boolean {
-  const team = gameService.getTeam(teamId);
-  if (!team?.apothecary) return false;
-  return !gameService.getState().inducements?.apothecaryUsed?.[teamId];
+  const state = gameService.getState();
+  return (
+    ownApothecaryAvailable(gameService, teamId) ||
+    APOTHECARY_INDUCEMENTS.some(
+      (inducement) => inducementUsesLeft(state, teamId, inducement) > 0
+    )
+  );
+}
+
+/** Spend one Apothecary use: the team's own first, then an inducement. */
+function spendApothecary(gameService: IGameService, teamId: string): void {
+  if (ownApothecaryAvailable(gameService, teamId)) {
+    ensureInducementsState(gameService).apothecaryUsed[teamId] = true;
+    return;
+  }
+  const state = gameService.getState();
+  APOTHECARY_INDUCEMENTS.some((inducement) =>
+    spendInducement(state, teamId, inducement)
+  );
 }
 
 type ApothecaryOffer =
@@ -169,7 +207,7 @@ export function applyApothecaryAnswer(
     return;
   }
 
-  inducements.apothecaryUsed[request.chooserTeamId] = true;
+  spendApothecary(gameService, request.chooserTeamId);
 
   if (request.resultKind === "ko") {
     if (request.location === "pitch" && request.position) {

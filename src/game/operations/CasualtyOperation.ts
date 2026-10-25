@@ -15,6 +15,7 @@ import { foldTrigger, CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
+import { rerollFailedRegeneration } from "../inducements/regeneration";
 
 function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   switch (result) {
@@ -79,7 +80,10 @@ export class CasualtyOperation extends GameOperation {
     preCtx.triggers.forEach((t) =>
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
-    if (preCtx.regenerated) {
+    if (
+      preCtx.regenerated ||
+      rerollFailedRegeneration(gameService, eventBus, player)
+    ) {
       eventBus.emit(
         GameEventNames.UI_Notification,
         `${player.playerName} regenerates!`

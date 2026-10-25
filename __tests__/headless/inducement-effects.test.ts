@@ -4,12 +4,14 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { Scenario } from "../../src/types/Scenario";
 import { GameEventNames } from "../../src/types/events";
 import { Inducement, InducementSelectionLine } from "../../src/types/Inducements";
-import { PlayerStatus } from "../../src/types/Player";
+import { Player, PlayerStatus } from "../../src/types/Player";
 import { movePlayerToBox } from "../../src/game/rules/playerLocation";
 import { teamRerollsLeft } from "../../src/game/teamRerolls";
-import { SkillType, getSkill } from "../../src/types/Skills";
+import { SkillType, getSkill, hasSkill } from "../../src/types/Skills";
 import { GameOperation } from "../../src/game/core/GameOperation";
 import { ClearPitchOperation } from "../../src/game/operations/EndDriveOperations";
+import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
+import { RosterName } from "../../src/types/Team";
 import { forceDice } from "../utils/test-helpers";
 
 /**
@@ -282,6 +284,119 @@ describe("Bribes", () => {
 
     expect(response.pendingDecision).toBeNull();
     expect(fouler.status).toBe(PlayerStatus.REMOVED);
+  });
+});
+
+/** Give a player Regeneration unless their position already has it. */
+function regenerates(player: Player) {
+  if (!hasSkill(player.skills, SkillType.REGENERATION)) {
+    player.skills.push(getSkill(SkillType.REGENERATION));
+  }
+}
+
+function sceneFor(team1Roster: RosterName): Scenario {
+  return { ...foulScene, setup: { ...foulScene.setup, team1Roster } };
+}
+
+/** Injure team 1's first player with a forced 2D6 injury roll. */
+async function injure(game: HeadlessGame, dice: number[]) {
+  const player = game.ctx.team1.players[0];
+  forceDice(game.ctx.rng, dice);
+  await runUntilDecision(game, new InjuryOperation(player.id));
+  return player;
+}
+
+describe("Wandering Apothecary", () => {
+  it("patches up a team with no Apothecary of its own, once", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [
+      { inducement: Inducement.WANDERING_APOTHECARY, quantity: 1 },
+    ]);
+
+    const first = await injure(game, [4, 5]); // 9: Knocked-out
+    expect(game.pendingDecision()?.type).toBe("apothecary");
+    await game.execute({ type: "use-apothecary", accept: true });
+    expect(first.status).toBe(PlayerStatus.STUNNED);
+
+    game.ctx.team1.players[1].status = PlayerStatus.ACTIVE;
+    await runUntilDecision(
+      game,
+      new InjuryOperation(game.ctx.team1.players[1].id)
+    );
+    expect(game.pendingDecision()).toBeNull();
+  });
+
+  it("adds a second use to a team that has an Apothecary", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    game.ctx.team1.apothecary = true;
+    await induce(game, [
+      { inducement: Inducement.WANDERING_APOTHECARY, quantity: 1 },
+    ]);
+
+    await injure(game, [4, 5]);
+    await game.execute({ type: "use-apothecary", accept: true });
+    const second = game.ctx.team1.players[1];
+    forceDice(game.ctx.rng, [4, 5]);
+    await runUntilDecision(game, new InjuryOperation(second.id));
+    expect(game.pendingDecision()?.type).toBe("apothecary");
+    await game.execute({ type: "use-apothecary", accept: true });
+
+    expect(second.status).toBe(PlayerStatus.STUNNED);
+    expect(
+      game.ctx.gameService.getState().inducements?.inventory[0].remainingUses
+    ).toBe(0);
+  });
+});
+
+describe("Mortuary Assistant", () => {
+  it("re-rolls a failed Regeneration roll once per game", async () => {
+    const game = new HeadlessGame({
+      scenario: sceneFor(RosterName.SHAMBLING_UNDEAD),
+      seed: 1,
+    });
+    await induce(game, [
+      { inducement: Inducement.MORTUARY_ASSISTANT, quantity: 1 },
+    ]);
+    regenerates(game.ctx.team1.players[0]);
+    regenerates(game.ctx.team1.players[1]);
+
+    // 10: Badly Hurt; Regeneration 2 fails; the re-roll is a 5.
+    const first = await injure(game, [5, 5, 2, 5]);
+    expect(first.status).toBe(PlayerStatus.RESERVE);
+
+    const second = game.ctx.team1.players[1];
+    forceDice(game.ctx.rng, [5, 5, 2, 5]);
+    await runUntilDecision(game, new InjuryOperation(second.id));
+    expect(second.status).toBe(PlayerStatus.INJURED);
+  });
+});
+
+describe("Plague Doctor", () => {
+  it("re-rolls a failed Regeneration roll", async () => {
+    const game = new HeadlessGame({
+      scenario: sceneFor(RosterName.NURGLE),
+      seed: 1,
+    });
+    await induce(game, [{ inducement: Inducement.PLAGUE_DOCTOR, quantity: 1 }]);
+    regenerates(game.ctx.team1.players[0]);
+
+    const player = await injure(game, [5, 5, 3, 4]);
+
+    expect(player.status).toBe(PlayerStatus.RESERVE);
+  });
+
+  it("works as an Apothecary instead", async () => {
+    const game = new HeadlessGame({
+      scenario: sceneFor(RosterName.NURGLE),
+      seed: 1,
+    });
+    await induce(game, [{ inducement: Inducement.PLAGUE_DOCTOR, quantity: 1 }]);
+
+    const player = await injure(game, [4, 5]);
+    expect(game.pendingDecision()?.type).toBe("apothecary");
+    await game.execute({ type: "use-apothecary", accept: true });
+
+    expect(player.status).toBe(PlayerStatus.STUNNED);
   });
 });
 
