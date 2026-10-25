@@ -74,7 +74,7 @@ export interface HeadlessGameContext {
  * scripts and cross-run comparisons. Headless default teams get stable ids
  * (team1-player-3 etc.) so the same script replays on any machine.
  */
-function stabilizeIds(team: Team, stableId: string): Team {
+export function stabilizeIds(team: Team, stableId: string): Team {
   team.id = stableId;
   team.players.forEach((p) => {
     p.teamId = stableId;

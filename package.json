@@ -10,6 +10,8 @@
     "build:netlify": "vite build",
     "preview": "vite preview",
     "headless": "tsx src/headless/cli.ts",
+    "sim": "tsx src/simulation/cli.ts",
+    "sim:replay": "tsx src/simulation/cli.ts replay",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
