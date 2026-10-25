@@ -810,9 +810,8 @@ export class GameService implements IGameService {
   /**
    * End (or continue) a blocker's activation once their block has fully
    * resolved. A plain Block always ends the activation. A Blitz block does
-   * not: it costs one square of the move, marks the Blitz's block as spent,
-   * and — while any of the MA+rush budget remains and the blocker is still
-   * Standing — leaves the player active so the coach can keep moving (and
+   * not: while any of the MA+rush budget remains and the blocker is still
+   * Standing, the player stays active so the coach can keep moving (and
    * Rush). The normal movement auto-finish ends it once the budget is spent.
    */
   public finishBlockActivation(attackerId: string): void {
@@ -820,17 +819,9 @@ export class GameService implements IGameService {
     const isBlitz =
       this.state.activePlayer?.action === "blitz" &&
       this.state.activePlayer?.id === attackerId;
-    if (
-      player &&
-      isBlitz &&
-      player.status === PlayerStatus.ACTIVE &&
-      !this.blitzBlockUsed.has(attackerId)
-    ) {
-      // The Blitz block's own square is already charged in rollBlockDice; here
-      // we only decide whether the move continues. Mark the single block as
-      // spent, and if any of the MA+rush budget is left, keep the player
-      // active so the coach can keep moving (and Rush).
-      this.blitzBlockUsed.add(attackerId);
+    if (player && isBlitz && player.status === PlayerStatus.ACTIVE) {
+      // The Blitz block's square was charged, and the block marked spent, in
+      // rollBlockDice; here we only decide whether the move continues.
       if (
         this.getMovementUsed(attackerId) <
         moveAllowance(withDriveModifiers(player, this.state))
@@ -933,6 +924,9 @@ export class GameService implements IGameService {
           this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
           return;
         }
+        // The Blitz's one Block is spent the moment it is committed, whatever
+        // the dice later say (a Both Down with Block has no follow-up).
+        this.blitzBlockUsed.add(attackerId);
         this.state.turn.movementUsed.set(attackerId, newUsed);
 
         if (newUsed > effectiveAttacker.stats.MA) {

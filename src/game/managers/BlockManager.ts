@@ -1635,6 +1635,10 @@ export class BlockManager {
       } else {
         flowManager?.context.gameService.finishActivation(attacker.id);
       }
+    } else {
+      // The attacker stayed on their feet (Block) and nobody was pushed, so
+      // no follow-up prompt will complete the block: complete it here.
+      flowManager?.context.gameService.finishBlockActivation(attacker.id);
     }
   }
 
