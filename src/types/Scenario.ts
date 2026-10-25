@@ -24,6 +24,8 @@ export interface PlayerPlacement {
   stats?: Partial<PlayerStats>;
   /** Named conditions to seed (e.g. Distracted, to test a lost Tackle Zone) */
   conditions?: PlayerCondition[];
+  /** Make this player the team's Sevens Veteran (D8) for the scenario. */
+  veteran?: true;
 }
 
 export interface ScenarioSetup {

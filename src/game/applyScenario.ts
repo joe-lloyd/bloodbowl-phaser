@@ -20,6 +20,7 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     player.gridPosition = { x: p.x, y: p.y };
     player.status = p.status || PlayerStatus.ACTIVE;
     if (p.stats) Object.assign(player.stats, p.stats);
+    if (p.veteran) player.veteran = true;
     player.conditions = p.conditions?.length
       ? p.conditions.map((type) => ({ type }))
       : undefined;
