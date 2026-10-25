@@ -46,7 +46,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | M2 | A team that cannot put 3 on its Line of Scrimmage may concede without penalty, as in the rulebook. Otherwise every available player stands on the line. | ok |
 | M3 | Kick-off deviation distance is the lower of 2D6. The Kick skill's D3 still applies. | ok |
 | M4 | A kick that lands in No Man's Land is not a touchback. A touchback happens only when the ball leaves the pitch or crosses the kicking team's Line of Scrimmage. | ok |
-| M5 | Throw-in distance is D6+2 instead of 2D6. Everything else is unchanged. | differs: 2D6 |
+| M5 | Throw-in distance is D6+2 instead of 2D6. Everything else is unchanged. | ok |
 | M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | differs: 1 ejects the coach, 6 sways, 2 to 5 stays |
 
 ### Kick-off event table (2D6)

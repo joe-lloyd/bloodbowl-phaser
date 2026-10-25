@@ -507,8 +507,8 @@ export class BallManager {
   /**
    * Throw-in (rulebook p.73): the crowd throws the ball back from the last
    * square it occupied. D6 picks one of the three infield directions from
-   * the exit edge; the ball travels 2D6 squares (exit square counts as the
-   * first). Leaves the pitch again → repeat. Lands occupied → catch attempt;
+   * the exit edge; the ball travels D6+2 squares (Sevens rule M5; exit
+   * square counts as the first). Leaves the pitch again → repeat. Lands occupied → catch attempt;
    * lands empty → ball rests there.
    */
   public throwIn(from: { x: number; y: number }): void {
@@ -545,9 +545,7 @@ export class BallManager {
     const directionRoll = this.diceController.rollD6("Throw-in Direction");
     const dir = dirs[Math.floor((directionRoll - 1) / 2)];
 
-    const distance =
-      this.diceController.rollD6("Throw-in Distance") +
-      this.diceController.rollD6("Throw-in Distance");
+    const distance = this.diceController.rollD6("Throw-in Distance") + 2;
 
     // Exit square counts as the first square travelled
     const landing = {
