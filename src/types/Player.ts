@@ -117,6 +117,10 @@ export interface Player {
   // Cost (for team building)
   cost: number;
   teamValue: number;
+  /** Sevens Drafted Players (A6): times the coach paid to keep this player
+   *  after a pro team's offer. Each adds DRAFT_KEEP_VALUE_INCREASE to their
+   *  value. */
+  timesKeptFromDraft?: number;
 
   /** Career totals; absent for players who never played a recorded match. */
   careerStats?: PlayerCareerStats;
@@ -257,6 +261,10 @@ export enum TraitKeyWord {
 }
 
 export type KeyWord = RaceKeyWord | PositionKeyWord | TraitKeyWord;
+
+/** Sevens Drafted Players (A6): value a player gains each time the coach
+ *  pays to keep them. */
+export const DRAFT_KEEP_VALUE_INCREASE = 15_000;
 
 /**
  * Helper function to create a new player

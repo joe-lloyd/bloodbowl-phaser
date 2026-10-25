@@ -154,11 +154,11 @@ alternative.
 | ID | Rule | Status |
 | --- | --- | --- |
 | A1 | No SPP. After each game one player gains one randomly chosen skill. | ok |
-| A2 | For a Primary skill, the coach chooses any player who did not end the game as a Casualty and picks a Primary category. The coach names a skill, then the opponent, then the coach again. A D3 decides which of the three the player learns. | differs: the engine rolls the skill at random |
-| A3 | For a Secondary skill, the player is picked at random from those who did not end the game as a Casualty, and the skill is rolled at random, as on page 97 of the rulebook. | check |
-| A4 | Leader and Pro can never be gained this way. | check |
-| A5 | A Primary skill adds 10,000 to the player's value the first time and 20,000 after that. A Secondary skill adds 20,000, then 30,000. | check |
-| A6 | Drafted Players: after advancement, roll a D6 for each player with added skills. On a result at or under the number of added skills, a pro team makes an offer. Pay the player's current value from the Treasury to keep them, and their value rises by 15,000. Otherwise they leave. | differs: the engine removes the player and credits gold |
+| A2 | For a Primary skill, the coach chooses any player who did not end the game as a Casualty and picks a Primary category. The coach names a skill, then the opponent, then the coach again. A D3 decides which of the three the player learns. | ok: the three named skills must differ, and Manage Team asks each coach in turn |
+| A3 | For a Secondary skill, the player is picked at random from those who did not end the game as a Casualty, and the skill is rolled at random, as on page 97 of the rulebook. | ok: the coach picks one of the player's Secondary categories, rolls twice and keeps one, as page 97 says |
+| A4 | Leader and Pro can never be gained this way. | ok |
+| A5 | A Primary skill adds 10,000 to the player's value the first time and 20,000 after that. A Secondary skill adds 20,000, then 30,000. | ok |
+| A6 | Drafted Players: after advancement, roll a D6 for each player with added skills. On a result at or under the number of added skills, a pro team makes an offer. Pay the player's current value from the Treasury to keep them, and their value rises by 15,000. Otherwise they leave. | ok: an offer the Treasury cannot pay releases the player at once |
 
 ## 7. Matched Play
 
@@ -168,6 +168,6 @@ alternative.
 | MP2 | Inducements are bought straight from the draft budget with no petty cash. The team must still have at least 7 players. | differs: the engine uses petty cash |
 | MP3 | Dedicated Fans start at 0. | ok |
 | MP4 | Each roster sits in one of four tiers, using the Sevens tier list from the Designers' Commentary, as transcribed at [bloodbowlbase.ru](https://bloodbowlbase.ru/bb2025/spike_journal/issue_22/) under "Sevens team tiers". Tier 1: Amazon, Chaos Dwarf, Dark Elf, Elven Union, Human, High Elf, Necromantic Horror, Norse, Old World Alliance, Skaven, Wood Elf. Tier 2: Bretonnian, Dwarf, Imperial Nobility, Lizardmen, Nurgle, Orc, Shambling Undead, Tomb Kings, Vampire. Tier 3: Black Orc, Chaos Chosen, Chaos Renegade, Halfling, Khorne, Underworld Denizens. Tier 4: Gnome, Goblin, Ogre, Snotling. | ok |
-| MP5 | A team gets Skill Points equal to its tier number, from 1 for tier 1 to 4 for tier 4. | differs: the engine counts skills, not points |
-| MP6 | A Primary skill costs 1 point. A Secondary skill costs 2 points, and only one per team. Each player gets at most one added skill. At most two Elite skills per team. Purchased skills do not raise team value. | differs |
+| MP5 | A team gets Skill Points equal to its tier number, from 1 for tier 1 to 4 for tier 4. | ok |
+| MP6 | A Primary skill costs 1 point. A Secondary skill costs 2 points, and only one per team. Each player gets at most one added skill. At most two Elite skills per team. Purchased skills do not raise team value. | ok: Elite skills are Block, Dodge, Guard and Mighty Blow, as in the engine's rulebook list |
 | MP7 | No SPP and no advancement during Matched Play games. | ok |

@@ -22,7 +22,6 @@ import {
   createRosterRuleProfile,
   RosterRuleProfile,
 } from "../../../competition/rosterRules";
-import { createMatchedPlayPackage } from "../../../game/progression/advancementModes";
 import {
   fetchAllCoachTeams,
   OwnedTeam,
@@ -71,10 +70,6 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     ? createRosterRuleProfile({
         advancementMode,
         draftBudget,
-        matchedPlayPackage:
-          advancementMode === "matched-play"
-            ? createMatchedPlayPackage()
-            : undefined,
       })
     : undefined;
 

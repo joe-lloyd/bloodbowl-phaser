@@ -18,6 +18,7 @@
  */
 
 import {
+  DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
   KeyWord,
   Player,
@@ -56,6 +57,7 @@ export interface StoredPlayer {
   characteristicAdvances: Partial<Record<keyof PlayerStats, number>>;
   injuries: InjuryType[];
   careerStats?: PlayerCareerStats;
+  timesKeptFromDraft?: number;
 }
 
 /** A persisted team: resources, staff, history, and its stored players. */
@@ -138,6 +140,9 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       {},
     injuries: Array.isArray(raw.injuries) ? (raw.injuries as InjuryType[]) : [],
     careerStats: raw.careerStats as PlayerCareerStats | undefined,
+    ...(typeof raw.timesKeptFromDraft === "number"
+      ? { timesKeptFromDraft: raw.timesKeptFromDraft }
+      : {}),
   };
 }
 
@@ -227,10 +232,12 @@ export function hydratePlayer(
     .filter((skill): skill is Skill => skill !== null);
   const skills = [...templateSkills, ...advancementSkills];
 
-  const teamValue = (stored.advancements ?? []).reduce(
-    (sum, advancement) => sum + (advancement.valueIncrease ?? 0),
-    0
-  );
+  const teamValue =
+    (stored.advancements ?? []).reduce(
+      (sum, advancement) => sum + (advancement.valueIncrease ?? 0),
+      0
+    ) +
+    DRAFT_KEEP_VALUE_INCREASE * (stored.timesKeptFromDraft ?? 0);
 
   const player: Player = {
     id: stored.id,
@@ -255,6 +262,9 @@ export function hydratePlayer(
     cost,
     teamValue,
     careerStats: stored.careerStats,
+    ...(stored.timesKeptFromDraft
+      ? { timesKeptFromDraft: stored.timesKeptFromDraft }
+      : {}),
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   return player;
@@ -274,6 +284,9 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     characteristicAdvances: player.characteristicAdvances ?? {},
     injuries: player.injuries ?? [],
     ...(player.careerStats ? { careerStats: player.careerStats } : {}),
+    ...(player.timesKeptFromDraft
+      ? { timesKeptFromDraft: player.timesKeptFromDraft }
+      : {}),
   };
 }
 

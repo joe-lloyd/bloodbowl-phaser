@@ -11,7 +11,7 @@ import { saveTeam } from "../../../game/managers/TeamManager";
 import { mustAdvance } from "../../../game/progression/progression";
 import {
   createPendingSkillSelection,
-  eligibleSkillSelectionParticipants,
+  eligibleSkillSelectionPlayers,
 } from "../../../game/progression/advancementModes";
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
@@ -221,19 +221,10 @@ export function MatchResultsScreen({ visible }: Props) {
    * direct skill assignment" — Advanced League advancements and Sevens
    * Skill Selection awards are completed later from Manage Team.
    */
-  const recordPendingDevelopment = (
-    matchId: string,
-    finalSummary: MatchStatsSummary
-  ) => {
+  const recordPendingDevelopment = (matchId: string) => {
     ownedTeams(teams).forEach((team) => {
       if (team.advancementMode === "sevens-skill-selection") {
-        const participantIds = finalSummary.players
-          .filter((stats) => stats.teamId === team.id && stats.participated)
-          .map((stats) => stats.playerId);
-        const eligible = eligibleSkillSelectionParticipants(
-          team,
-          participantIds
-        );
+        const eligible = eligibleSkillSelectionPlayers(team);
         if (eligible.length > 0) {
           createPendingSkillSelection(team, matchId, eligible);
         }
@@ -273,7 +264,7 @@ export function MatchResultsScreen({ visible }: Props) {
         result?.reason === "concession" ? result.concedingTeamId : undefined;
       const finalSummary = tracker.applySpp(teams, concedingTeamId);
       foldMatchSummaryIntoCareers(teams, finalSummary);
-      recordPendingDevelopment(`match-${Date.now()}`, finalSummary);
+      recordPendingDevelopment(`match-${Date.now()}`);
       setConfirmed(true);
       setError("");
     } catch (cause) {

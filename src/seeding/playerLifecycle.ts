@@ -10,8 +10,8 @@
  * stat lines always reproduce the stored progression totals:
  *   careerStats.sppEarned === unspentSpp + Σ advancement sppCost
  *
- * Also decorates one seeded Matched Play team with a partial event skill
- * package and one seeded Sevens Skill Selection team with a pending
+ * Also decorates one seeded Matched Play team with a Skill Point purchase
+ * and one seeded Sevens Skill Selection team with a pending
  * post-game award, so those two advancement modes (which never earn SPP —
  * team-advancement-modes: "Advanced League alone uses standard SPP
  * progression") have real in-progress state to test, not just their mode
@@ -33,8 +33,8 @@ import {
 } from "../game/progression/progression";
 import {
   allocateMatchedPlaySkill,
-  createMatchedPlayPackage,
   createPendingSkillSelection,
+  eligibleSkillSelectionPlayers,
 } from "../game/progression/advancementModes";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 
@@ -247,8 +247,8 @@ const STAFF_UNIT_COST = 10_000;
 const MATCHED_PLAY_DEMO_MATCHES = 3;
 
 /**
- * Give one player on a seeded Matched Play team an already-allocated event
- * skill package slot, leaving allowance remaining, so the Matched Play
+ * Give one player on a seeded Matched Play team a Primary skill bought with
+ * a Skill Point, so the Matched Play
  * panel (`AdvancementModePanel.tsx`) shows both an already-taken skill and
  * a live "allocate another" form on a clean seed refresh — not just the
  * mode label. Matched Play never earns SPP, so the recipient also gets a
@@ -266,14 +266,7 @@ function decorateMatchedPlayDemo(team: Team): void {
   if (!skill) return;
 
   const roster = getRosterByRosterName(team.rosterName);
-  allocateMatchedPlaySkill(
-    team,
-    roster,
-    createMatchedPlayPackage(),
-    recipient,
-    skill,
-    "primary"
-  );
+  allocateMatchedPlaySkill(team, roster, recipient, skill, "primary");
   recipient.careerStats = careerStatsFor(0, MATCHED_PLAY_DEMO_MATCHES);
   team.teamValue = calculateTeamValue(team);
 }
@@ -287,9 +280,9 @@ function decorateMatchedPlayDemo(team: Team): void {
  * from the real shape.
  */
 function decorateSkillSelectionDemo(team: Team): void {
-  const participantIds = team.players.slice(0, 3).map((player) => player.id);
-  if (participantIds.length === 0) return;
-  createPendingSkillSelection(team, "seed-demo-match", participantIds);
+  const eligible = eligibleSkillSelectionPlayers(team);
+  if (eligible.length === 0) return;
+  createPendingSkillSelection(team, "seed-demo-match", eligible);
 }
 
 /**

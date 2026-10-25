@@ -4,14 +4,14 @@
 
 import { Player, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
-import { SkillType } from "./Skills";
+import { SkillCategory, SkillType } from "./Skills";
 
 /**
  * A team's progression lifecycle, chosen once at creation and immutable
- * thereafter (see setAdvancementMode). Matched Play grants a tier-based
- * skill package before play; Advanced League earns/spends SPP normally;
- * Sevens Skill Selection awards one random skill after each game and
- * subjects experienced players to the Draft. Absent on teams created before
+ * thereafter (see setAdvancementMode). Matched Play spends tier-based Skill
+ * Points before play; Advanced League earns/spends SPP normally; Sevens
+ * Skill Selection gives one player a skill after each game and lets pro
+ * teams make offers for experienced players (Drafted Players). Absent on teams created before
  * this field existed until migrated or explicitly chosen (see TeamManager).
  */
 export type TeamAdvancementMode =
@@ -19,28 +19,22 @@ export type TeamAdvancementMode =
   | "advanced-league"
   | "sevens-skill-selection";
 
-/** One Matched Play package skill allocated to a player before finalization. */
+/** One Matched Play skill bought with Skill Points before finalization. */
 export interface MatchedPlayAllocation {
   playerId: string;
   skill: SkillType;
-  /** Which package slot type was used. A Primary Skill may be taken in an
-   *  allowed Secondary slot ("primary-substitution"); a Secondary Skill may
-   *  only be taken in a Secondary slot. */
   access: "primary" | "secondary";
-  usedSecondarySlot: boolean;
 }
 
-/** A player removed from the active roster by the post-game Draft. Retains
- *  a full snapshot so career, match, and Draft history survive the removal
- *  (see team-advancement-modes: "A drafted player may be referenced by
- *  history"). */
+/** A player who left for a pro team after the post-game Drafted Players
+ *  roll (A6). Retains a full snapshot so career, match, and Draft history
+ *  survive the removal. */
 export interface DraftRecord {
   id: string;
   playerId: string;
   playerName: string;
   roll: number;
   addedSkillCount: number;
-  valueIncrease: number;
   matchId?: string;
   removedAt: number;
   /** Immutable snapshot of the player at the moment of removal. */
@@ -60,10 +54,48 @@ export type PendingDevelopment =
       id: string;
       kind: "sevens-skill-selection";
       matchId: string;
-      /** Frozen from match records: living participants eligible to be
-       *  chosen (Primary) or randomly selected (Secondary). */
+      /** Frozen at the end of the game: players who did not end it as a
+       *  Casualty, eligible to be chosen (Primary) or randomly selected
+       *  (Secondary). */
       eligibleParticipantIds: string[];
       createdAt: number;
+      /** Set once the coach has picked this game's route. */
+      progress?: SkillSelectionProgress;
+    }
+  | {
+      /** A6: a pro team offers for this player. The coach pays the
+       *  player's current value from the Treasury or releases them. */
+      id: string;
+      kind: "drafted-player-offer";
+      playerId: string;
+      roll: number;
+      addedSkillCount: number;
+      matchId: string;
+      createdAt: number;
+    };
+
+/** Two random rolls on the skill table and the skill they landed on. */
+export interface SkillRollCandidate {
+  skill: SkillType;
+  firstD6: number;
+  secondD6: number;
+}
+
+/** A Sevens Skill Selection in progress. Primary: the coach chose the player
+ *  and category, and skills are named coach, opponent, coach (A2).
+ *  Secondary: the player was picked at random, then the coach picks a
+ *  category and chooses one of two rolled skills (A3). */
+export type SkillSelectionProgress =
+  | {
+      route: "primary";
+      playerId: string;
+      category: SkillCategory;
+      named: SkillType[];
+    }
+  | {
+      route: "secondary";
+      playerId: string;
+      rolled?: { category: SkillCategory; candidates: SkillRollCandidate[] };
     };
 
 /**

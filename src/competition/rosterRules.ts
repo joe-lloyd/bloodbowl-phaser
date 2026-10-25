@@ -1,14 +1,10 @@
 /**
  * Competition roster rule profiles: every league/tournament declares a
- * versioned advancement mode, draft budget, roster constraints, and (for
- * Matched Play) skill package. A single compatibility validator is shared by
+ * versioned advancement mode, draft budget and roster constraints. A single compatibility validator is shared by
  * the entry UI (CompetitionBuilder) and the authoritative save path, so a
  * forged/bypassed entry is rejected the same way a UI attempt would be.
  */
-import {
-  MatchedPlaySkillPackage,
-  matchedPlayPackageStatus,
-} from "../game/progression/advancementModes";
+import { matchedPlaySkillViolations } from "../game/progression/advancementModes";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
 import { getRosterByRosterName } from "../data/RosterTemplates";
@@ -25,8 +21,6 @@ export interface RosterRuleProfile {
   advancementMode: TeamAdvancementMode;
   /** Maximum team value (gold) a legal entrant may have. */
   draftBudget: number;
-  /** Required when advancementMode is "matched-play". */
-  matchedPlayPackage?: MatchedPlaySkillPackage;
   /** When true (the default), a team with unresolved pending development
    *  (Skill Selection award, required Advanced League advancement) may not
    *  enter or launch a fixture until it is resolved from Manage Team. */
@@ -88,24 +82,8 @@ export function checkTeamCompatibility(
     const insignificantError = validateInsignificant(team.players);
     if (insignificantError) reasons.push(insignificantError);
 
-    if (
-      profile.advancementMode === "matched-play" &&
-      team.advancementMode === "matched-play"
-    ) {
-      if (!profile.matchedPlayPackage) {
-        reasons.push("Competition has no Matched Play package configured.");
-      } else {
-        const status = matchedPlayPackageStatus(
-          team,
-          roster,
-          profile.matchedPlayPackage
-        );
-        if (!status.complete) {
-          reasons.push(
-            `Matched Play package incomplete: ${status.used}/${status.totalAllowance} skills allocated.`
-          );
-        }
-      }
+    if (team.advancementMode === "matched-play") {
+      reasons.push(...matchedPlaySkillViolations(team, roster));
     }
   } catch (error) {
     reasons.push(error instanceof Error ? error.message : String(error));

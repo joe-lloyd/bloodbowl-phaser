@@ -7,17 +7,19 @@ import {
 } from "../../../types/Team";
 import {
   allocateMatchedPlaySkill,
-  createMatchedPlayPackage,
-  matchedPlayPackageStatus,
+  matchedPlaySkillStatus,
   removeMatchedPlayAllocation,
 } from "../../../game/progression/advancementModes";
-import { eligibleSkills } from "../../../game/progression/progression";
+import {
+  ELITE_SKILLS,
+  eligibleSkills,
+} from "../../../game/progression/progression";
 import { SkillCategory, SkillType } from "../../../types/Skills";
 
 export const MODE_LABELS: Record<TeamAdvancementMode, string> = {
-  "matched-play": "Matched Play (event skill package)",
+  "matched-play": "Matched Play (tier Skill Points)",
   "advanced-league": "Advanced League (SPP)",
-  "sevens-skill-selection": "Sevens Skill Selection (random skill + Draft)",
+  "sevens-skill-selection": "Sevens Skill Selection (one skill per game)",
 };
 
 /** Compact labels for badges/pills (e.g. the Team Management overview card)
@@ -27,12 +29,6 @@ export const ADVANCEMENT_MODE_SHORT_LABELS: Record<TeamAdvancementMode, string> 
   "advanced-league": "Advanced League",
   "sevens-skill-selection": "Skill Selection",
 };
-
-/** The practice/default package used when the team is not yet tied to a
- *  specific competition profile. Competitions may require a differently
- *  sized package — checkTeamCompatibility reports any shortfall against the
- *  competition's own numbers at entry time. */
-const DEFAULT_PACKAGE = createMatchedPlayPackage();
 
 interface Props {
   team: Team;
@@ -89,7 +85,8 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
     return null;
   }
 
-  const status = matchedPlayPackageStatus(team, roster, DEFAULT_PACKAGE);
+  const status = matchedPlaySkillStatus(team, roster);
+  const canBuySecondary = status.remaining >= 2 && status.secondaryCount === 0;
   const player = team.players.find((candidate) => candidate.id === playerId);
   const allocatedPlayerIds = new Set(
     (team.matchedPlayAllocations ?? []).map((allocation) => allocation.playerId)
@@ -102,20 +99,14 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
       ? (player.primary ?? [])
       : (player.secondary ?? [])
     : [];
-  const skills =
-    player && category ? eligibleSkills(player, [category]) : [];
+  const skills = (
+    player && category ? eligibleSkills(player, [category]) : []
+  ).filter((s) => status.eliteCount < 2 || !ELITE_SKILLS.has(s));
 
   const allocate = () => {
     if (!player || !skill) return;
     try {
-      allocateMatchedPlaySkill(
-        team,
-        roster,
-        DEFAULT_PACKAGE,
-        player,
-        skill,
-        access
-      );
+      allocateMatchedPlaySkill(team, roster, player, skill, access);
       onChange({ ...team });
       setPlayerId("");
       setCategory("");
@@ -141,12 +132,12 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
   return (
     <section className="mt-4 p-4 border-2 border-bb-dark-gold rounded-lg bg-bb-warm-paper">
       <h3 className="font-heading text-lg text-bb-ink-blue">
-        Event skill package: {status.used}/{status.totalAllowance} allocated
-        {status.complete ? " — complete" : ""}
+        Skill Points: {status.remaining} of {status.points} left
       </h3>
       <p className="text-xs text-bb-muted-text mb-2">
-        Up to {status.secondaryAllowance} of these may be a Secondary Skill; a
-        Primary Skill may always be taken instead. One added skill per player.
+        A Primary skill costs 1 point and a Secondary skill 2. At most one
+        Secondary skill and two Elite skills per team, and one skill per
+        player. These skills do not raise team value.
       </p>
 
       <ul className="text-sm mb-3">
@@ -172,7 +163,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
         })}
       </ul>
 
-      {status.used < status.totalAllowance && availablePlayers.length > 0 && (
+      {status.remaining > 0 && availablePlayers.length > 0 && (
         <div className="flex flex-wrap gap-2 items-center">
           <select
             aria-label="Package recipient"
@@ -201,8 +192,10 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
             }}
             className="rounded border border-bb-dark-gold p-2 text-sm"
           >
-            <option value="primary">Primary</option>
-            <option value="secondary">Secondary</option>
+            <option value="primary">Primary (1 point)</option>
+            {canBuySecondary && (
+              <option value="secondary">Secondary (2 points)</option>
+            )}
           </select>
           <select
             aria-label="Package category"
@@ -232,6 +225,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
             {skills.map((s) => (
               <option key={s} value={s}>
                 {s}
+                {ELITE_SKILLS.has(s) ? " (Elite)" : ""}
               </option>
             ))}
           </select>

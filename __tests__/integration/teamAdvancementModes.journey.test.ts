@@ -31,19 +31,22 @@ import { MatchStats } from "../../src/game/progression/MatchStats";
 import { GameEventNames } from "../../src/types/events";
 import {
   allocateMatchedPlaySkill,
-  confirmSkillSelectionAward,
-  createMatchedPlayPackage,
   createPendingSkillSelection,
-  eligibleSkillSelectionParticipants,
-  matchedPlayPackageStatus,
-  resolveDraft,
+  eligibleSkillSelectionPlayers,
+  keepDraftedPlayer,
+  matchedPlaySkillStatus,
+  nominatePrimarySkill,
+  releaseDraftedPlayer,
+  rollPrimarySelection,
+  skillSelectionDecision,
+  startPrimarySelection,
 } from "../../src/game/progression/advancementModes";
 import {
   checkTeamCompatibility,
   createRosterRuleProfile,
 } from "../../src/competition/rosterRules";
 import { applyAdvancement, mustAdvance } from "../../src/game/progression/progression";
-import { SkillType } from "../../src/types/Skills";
+import { SkillCategory, SkillType } from "../../src/types/Skills";
 
 function buildLegalTeam(name: string, mode: Team["advancementMode"]): Team {
   const team = createTeam(
@@ -127,33 +130,27 @@ describe("Advanced League journey", () => {
 });
 
 describe("Matched Play journey", () => {
-  it("allocates the event package, blocks entry until complete, then accepts the team", () => {
+  it("spends the tier's Skill Points, then plays without earning SPP", () => {
     const team = buildLegalTeam("MP Team", "matched-play");
     const roster = getRosterByRosterName(RosterName.HUMAN);
-    const pkg = createMatchedPlayPackage({
-      tierAllowance: { [roster.tier]: 2 },
-      secondaryAllowance: { [roster.tier]: 1 },
-    });
     const profile = createRosterRuleProfile({
       advancementMode: "matched-play",
-      matchedPlayPackage: pkg,
       draftBudget: 5_000_000,
     });
 
-    let compatibility = checkTeamCompatibility(team, profile);
-    expect(compatibility.compatible).toBe(false);
-    expect(compatibility.reasons.join(" ")).toMatch(/package incomplete/);
-
-    allocateMatchedPlaySkill(team, roster, pkg, team.players[0], SkillType.BLOCK, "primary");
-    allocateMatchedPlaySkill(team, roster, pkg, team.players[1], SkillType.GUARD, "secondary");
-    team.teamValue = calculateTeamValue(team);
-    expect(matchedPlayPackageStatus(team, roster, pkg).complete).toBe(true);
+    const valueBefore = calculateTeamValue(team);
+    allocateMatchedPlaySkill(team, roster, team.players[0], SkillType.BLOCK, "primary");
+    expect(matchedPlaySkillStatus(team, roster)).toMatchObject({
+      points: 1,
+      remaining: 0,
+    });
+    expect(calculateTeamValue(team)).toBe(valueBefore);
 
     lockAdvancementMode(team);
     saveTeam(team);
-
-    compatibility = checkTeamCompatibility(getTeamById(team.id)!, profile);
-    expect(compatibility.compatible).toBe(true);
+    expect(checkTeamCompatibility(getTeamById(team.id)!, profile).compatible).toBe(
+      true
+    );
 
     // Matched Play players never earn SPP from match play.
     const bus = new EventBus();
@@ -178,36 +175,33 @@ describe("Sevens Skill Selection journey", () => {
     const bus = new EventBus();
     const opponent = buildLegalTeam("Opponent", "advanced-league");
     const tracker = new MatchStats(bus, [team, opponent], true);
-    const [p1, p2, p3] = team.players;
+    const [p1] = team.players;
     bus.emit(GameEventNames.PlayerActivated, p1.id);
-    bus.emit(GameEventNames.PlayerActivated, p2.id);
-    bus.emit(GameEventNames.PlayerActivated, p3.id);
     bus.emit(GameEventNames.Touchdown, { teamId: team.id, score: 1, scorerId: p1.id });
-    const summary = tracker.applySpp([team, opponent]);
+    tracker.applySpp([team, opponent]);
     expect(p1.spp).toBe(0); // no SPP for this mode, even after a touchdown
 
-    // Post-match: freeze eligible participants and create the pending award.
-    const participantIds = summary.players
-      .filter((s) => s.teamId === team.id && s.participated)
-      .map((s) => s.playerId);
-    const eligible = eligibleSkillSelectionParticipants(team, participantIds);
-    expect(eligible.sort()).toEqual([p1.id, p2.id, p3.id].sort());
+    // Post-match: freeze the players who did not end as a Casualty.
+    const eligible = eligibleSkillSelectionPlayers(team);
+    expect(eligible).toHaveLength(7);
     createPendingSkillSelection(team, "match-1", eligible);
     saveTeam(team);
     expect(getTeamById(team.id)!.pendingDevelopment).toHaveLength(1);
 
-    // Manage Team: coach picks p1 for a Primary award (two random rolls
-    // would normally be offered; confirm one directly here).
-    confirmSkillSelectionAward(p1, SkillType.BLOCK, "primary", "match-1");
-    team.pendingDevelopment = [];
-    team.teamValue = calculateTeamValue(team);
-
-    // The post-game Draft then rolls for every player with added skills.
-    // p1 has 1 added skill; a roll of 1 drafts them, anything else keeps them.
-    const fixedRng = { rollDie: () => 6 }; // never drafted at this roll
-    const outcome = resolveDraft(team, fixedRng, "match-1");
-    expect(outcome.records).toHaveLength(0);
-    expect(team.players).toHaveLength(7);
+    // Manage Team: the coach takes the Primary route for p1; the coaches
+    // name three General skills in turn and a D3 picks one.
+    const [entry] = team.pendingDevelopment!;
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    expect(skillSelectionDecision(team, entry).type).toBe("choose-route");
+    startPrimarySelection(team, entry, p1.id, SkillCategory.GENERAL);
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 3 });
+    expect(result.skill).toBe(SkillType.TACKLE);
+    // p1 has one added skill, so the Draft D6 of 3 makes no offer.
+    expect(result.draft).toEqual({ offers: [], released: [] });
+    expect(team.pendingDevelopment).toEqual([]);
     saveTeam(team);
 
     const profile = createRosterRuleProfile({
@@ -219,14 +213,39 @@ describe("Sevens Skill Selection journey", () => {
     );
   });
 
-  it("drafts an experienced player away and credits exact compensation", () => {
+  it("keeps the 15,000 value rise of a player the coach paid to keep after a reload", () => {
+    const team = buildLegalTeam("SS Team 3", "sevens-skill-selection");
+    const p1 = team.players[0];
+    createPendingSkillSelection(team, "m1", [p1.id]);
+    const [entry] = team.pendingDevelopment!;
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    startPrimarySelection(team, entry, p1.id, SkillCategory.GENERAL);
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 1 });
+    keepDraftedPlayer(team, result.draft.offers[0]);
+    saveTeam(team);
+
+    const reloaded = getTeamById(team.id)!.players.find((p) => p.id === p1.id)!;
+    expect(reloaded.teamValue).toBe(25_000); // 10,000 first Primary + 15,000 kept
+  });
+
+  it("lets an experienced player go to a pro team for nothing", () => {
     const team = buildLegalTeam("SS Team 2", "sevens-skill-selection");
     const p1 = team.players[0];
-    confirmSkillSelectionAward(p1, SkillType.BLOCK, "primary", "m1"); // 30k elite
-    const rollOne = { rollDie: () => 1 }; // always <= addedSkillCount(1) -> drafted
-    const outcome = resolveDraft(team, rollOne, "m2");
-    expect(outcome.records).toHaveLength(1);
-    expect(outcome.goldCredited).toBe(30_000);
+    createPendingSkillSelection(team, "m1", [p1.id]);
+    const [entry] = team.pendingDevelopment!;
+    if (entry.kind !== "sevens-skill-selection") throw new Error(entry.kind);
+    startPrimarySelection(team, entry, p1.id, SkillCategory.GENERAL);
+    nominatePrimarySkill(team, entry, "coach", SkillType.BLOCK);
+    nominatePrimarySkill(team, entry, "opponent", SkillType.KICK);
+    nominatePrimarySkill(team, entry, "coach", SkillType.TACKLE);
+    const treasury = team.treasury;
+    const result = rollPrimarySelection(team, entry, { rollDie: () => 1 });
+    const [offer] = result.draft.offers;
+    releaseDraftedPlayer(team, offer);
+    expect(team.treasury).toBe(treasury);
     expect(team.players.find((p) => p.id === p1.id)).toBeUndefined();
     expect(team.draftHistory).toHaveLength(1);
   });
@@ -237,7 +256,7 @@ describe("Save/resume and cloud persistence round-trip", () => {
     const team = buildLegalTeam("Cloud Team", "sevens-skill-selection");
     lockAdvancementMode(team);
     createPendingSkillSelection(team, "match-9", [team.players[0].id]);
-    confirmSkillSelectionAward(team.players[1], SkillType.GUARD, "secondary", "m0");
+    allocateMatchedPlaySkill(team, { tier: 1 }, team.players[1], SkillType.BLOCK, "primary");
     saveTeam(team);
 
     // Simulate what CloudTeamRepository.saveTeams/loadTeams and Firestore's
@@ -252,7 +271,7 @@ describe("Save/resume and cloud persistence round-trip", () => {
     ]);
     expect(
       roundTripped.players[1].advancements.some(
-        (a: { name: string }) => a.name === SkillType.GUARD
+        (a: { name: string }) => a.name === SkillType.BLOCK
       )
     ).toBe(true);
   });
