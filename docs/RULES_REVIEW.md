@@ -74,23 +74,24 @@ Sevens changes these. [SEVENS_RULES.md](SEVENS_RULES.md) gives the rule for each
 1. **Purchased inducements do nothing.** Extra Team Training, the Wandering
    Apothecary and Bribes are bought and confirmed, and then never applied.
    Bribes from Get the Ref can never be spent either.
-2. **Injuries do not carry between league matches.** A loaded team marks
-   every player Reserve.
-   - Dead players stay on the roster.
-   - Miss Next Game players can play the next match.
-   - Niggling Injuries are never applied.
-   - A Lasting Injury always takes MA instead of rolling for which
-     characteristic to lose.
-   - Team value counts Dead and Miss Next Game players, and Dedicated Fans.
+2. **Injuries between league matches.** Fixed for Sevens: a Miss Next Game
+   player sits out the next league match and recovers, a dead player leaves
+   the roster, and team value counts neither, nor Dedicated Fans. Sevens has
+   no Niggling or Lasting Injuries. Still open: the seed teams and old saves
+   carry characteristic losses from before the Sevens tables, and loading
+   still applies them.
 3. **The team builder does not charge for staff.** Coaches and cheerleaders
    are free and unlimited, and the Apothecary ignores whether the roster
    allows one.
 4. **Argue the Call** is automatic, and a 6 cancels the turnover. Sevens uses
    amateur referees with a 1 in 3 chance.
 5. **League and builder details.** The penalty-free set-up concession still
-   wipes the conceding team's SPP. Dedicated Fans count toward team value,
-   cost 10,000 instead of 5,000, start at 0 instead of 1, and have no cap.
-   Several inducement prices and restrictions differ from the 2025 table.
+   wipes the conceding team's SPP. Dedicated Fans now follow Sevens D7: they
+   stay out of team value, cost 20,000, start at 1 in a league, stay within
+   1 to 5, and change after each league match. Players cannot be fired after
+   a match (L6), and short teams take on Journeymen (L2), who cannot yet be
+   hired after the match. Several inducement prices and restrictions differ
+   from the Sevens table.
 
 ### Wrong in rarer situations
 
@@ -110,8 +111,9 @@ Sevens changes these. [SEVENS_RULES.md](SEVENS_RULES.md) gives the rule for each
 
 ### Not implemented
 
-- Winnings, the Dedicated Fans roll, Expensive Mistakes and the rest of the
-  post-match treasury.
+- Winnings, Expensive Mistakes and the rest of the post-match treasury.
+- Seasons and the re-draft screen. The R1 to R3 steps exist as
+  `beginRedraft`, which nothing calls yet.
 - Conceding during play. Only the set-up concession exists.
 - Deflections, and their SPP.
 - Most team special rules: Swarming, Bribery and Corruption, Team Captain,

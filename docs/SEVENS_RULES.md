@@ -35,7 +35,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | ok: capped at 6, the top of the re-roll tracker |
 | D5 | Assistant Coaches and Cheerleaders cost 20,000 each, with at most 3 of each, at the draft or during a league. | ok |
 | D6 | An Apothecary costs 80,000 and needs a roster that allows one. At most one. | ok |
-| D7 | League teams start with Dedicated Fans 1 and can buy more at 20,000 each. Fans stay between 1 and 5. Matched Play teams start at 0. | ok: nothing changes Dedicated Fans after a game yet, so only the cap of 5 is enforced |
+| D7 | League teams start with Dedicated Fans 1 and can buy more at 20,000 each. Fans stay between 1 and 5. Matched Play teams start at 0. | ok: at full time a league team rolls for Dedicated Fans as on page 99 of the rulebook, then stays within 1 to 5. The result follows the played score, so a conceded 0-0 is a draw |
 | D8 | Choose one Lineman as the Veteran. The Veteran has MA -1 and one re-roll per game for a failed pick-up, catch, Pass Action, or a Block where the Veteran would be Knocked Down. | ok: a draft with a Lineman needs one; scenario test teams have none |
 
 ## 3. Match play
@@ -95,21 +95,27 @@ Where the magazine is silent, the engine does this:
   On a KO on the pitch the player stays Stunned; on a KO in the crowd the
   player goes to Reserves. On any casualty result the coach rolls a D6, and
   on a 4+ the player goes to Reserves. The rulebook's second Casualty Roll
-  has no Sevens equivalent, so the engine does not re-roll the 2D6.
+  has no Sevens equivalent, so the engine does not re-roll the 2D6. A
+  successful patch-up clears the casualty from the player's record. A Dead
+  result only counts as a kill, for Plague Ridden too, once the Apothecary
+  is declined or fails.
 - Seriously Hurt records Miss Next Game on the player and Dead records Dead.
-  Nothing yet makes a Miss Next Game player sit out the next league game or
-  takes a dead player off the roster.
+  In a league, a Miss Next Game player sits the next game out in the
+  Casualty box and the record is cleared as that game starts. A dead player
+  is removed from the roster the next time the team is loaded. Team value
+  leaves out both, as the rulebook's Current Team Value does. Matched Play
+  teams keep every player: injuries do not carry there.
 
 ## 4. League play
 
 | ID | Rule | Status |
 | --- | --- | --- |
 | L1 | The league runs as in the rulebook unless a rule here changes it. | ok |
-| L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | check |
+| L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. They leave after the game, since hiring them in the post-game has no screen yet |
 | L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | differs: different prices and limits, and purchases have no effect yet |
 | L4 | Prayers to Nuffle use the D8 table below. | missing |
 | L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | missing |
-| L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | check |
+| L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | ok: a team that has played is refused when it fires a player, and cannot sell back staff. The game has no Temporary Retirement |
 
 ### Prayers to Nuffle (D8)
 
@@ -141,9 +147,15 @@ Where the magazine is silent, the engine does this:
 
 | ID | Rule | Status |
 | --- | --- | --- |
-| R1 | Players due to miss the next game recover. Roll to lose Hatred as usual. Temporary retirement does not apply. | missing |
-| R2 | Emergency Call-ups: roll a D6 for each player with an added skill. On a 1 the player leaves the team. | missing |
-| R3 | The re-draft budget is 600,000 plus the Treasury plus 10,000 per win last season, capped at 750,000. | missing |
+| R1 | Players due to miss the next game recover. Roll to lose Hatred as usual. Temporary retirement does not apply. | ok in the rules: a gained Hatred is lost on a 4+ |
+| R2 | Emergency Call-ups: roll a D6 for each player with an added skill. On a 1 the player leaves the team. | ok in the rules |
+| R3 | The re-draft budget is 600,000 plus the Treasury plus 10,000 per win last season, capped at 750,000. | ok in the rules |
+
+`beginRedraft` in `src/game/rules/redraft.ts` runs R1, R2 and R3 in order.
+The game has no seasons and no re-draft screen, so nothing calls it yet. That
+screen would need the wins of the season just ended, and a way to re-hire
+players and staff from the budget onto a new Team Draft List. A player not
+re-hired is let go, which is not firing, so L6 does not stop it.
 
 ## 6. Advancement
 
