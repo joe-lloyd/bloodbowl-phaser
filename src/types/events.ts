@@ -12,15 +12,6 @@ import { BlockResult } from "../services/BlockResolutionService";
 import { BoardLabel } from "../game/presentation/boardLabels";
 import { SidelineCrewInfo } from "../game/presentation/sidelineStaff";
 
-/** Camera preferences and sprite references belong to one viewer only. */
-export const LOCAL_CAMERA_EVENTS: ReadonlySet<string> = new Set([
-  GameEventNames.Camera_TrackBall,
-  GameEventNames.Camera_TrackObject,
-  GameEventNames.Camera_Reset,
-  GameEventNames.Camera_StateChanged,
-  GameEventNames.UI_CameraSettingsChanged,
-]);
-
 /**
  * Game Events - Emitted by GameService/Phaser
  * React components subscribe to these to update UI
@@ -256,6 +247,15 @@ export enum GameEventNames {
  * Game Events - Emitted by GameService/Phaser
  * React components subscribe to these to update UI
  */
+/** Camera preferences and sprite references belong to one viewer only. */
+export const LOCAL_CAMERA_EVENTS: ReadonlySet<string> = new Set([
+  GameEventNames.Camera_TrackBall,
+  GameEventNames.Camera_TrackObject,
+  GameEventNames.Camera_Reset,
+  GameEventNames.Camera_StateChanged,
+  GameEventNames.UI_CameraSettingsChanged,
+]);
+
 export interface GameEvents {
   // Phase Management
   [GameEventNames.PhaseChanged]: {
