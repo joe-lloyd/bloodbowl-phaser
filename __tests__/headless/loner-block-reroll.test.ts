@@ -73,7 +73,7 @@ describe("Loner on a block-dice Team Re-roll", () => {
     expect(result.before).toEqual(["push"]);
     expect(result.lonerRoll).toBe(1);
     expect(result.after).toEqual(["push"]);
-    expect(result.game.ctx.team1.rerolls).toBe(2);
+    expect(result.game.snapshot().teams[0].rerolls).toBe(2);
     expect(result.rerollStillOffered).toBe(false);
   });
 
@@ -83,6 +83,6 @@ describe("Loner on a block-dice Team Re-roll", () => {
     expect(result.before).toEqual(["pow"]);
     expect(result.lonerRoll).toBe(5);
     expect(result.after).toEqual(["both-down"]);
-    expect(result.game.ctx.team1.rerolls).toBe(2);
+    expect(result.game.snapshot().teams[0].rerolls).toBe(2);
   });
 });
