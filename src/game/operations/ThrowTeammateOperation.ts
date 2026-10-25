@@ -185,8 +185,8 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // 2. Passing Ability Test (Strong Arm helps a THROW only).
     let fumbled = forcedFumble;
-    // Bullseye: a Superb Throw (a natural 6 on the Passing Ability Test) lands
-    // the team-mate dead on the target square — they do not Scatter. THROW only.
+    // Bullseye: a Superb Throw (a passed Passing Ability Test, or a natural
+    // 6) lands the team-mate on the target square with no Scatter.
     let bullseye = false;
     let superbThrow = false;
     if (!forcedFumble) {
@@ -222,7 +222,7 @@ export class ThrowTeammateOperation extends GameOperation {
       fumbled = test.fumbled;
       bullseye =
         this.mode === "throw" &&
-        test.roll === 6 &&
+        test.accurate &&
         hasSkill(thrower.skills, SkillType.BULLSEYE);
       superbThrow = test.accurate;
     }
@@ -346,14 +346,29 @@ export class ThrowTeammateOperation extends GameOperation {
         ),
         true
       );
-      gameService.triggerTurnover("Thrown player crashed");
+      // The thrown player Falls Over; "this will only cause a Turnover if the
+      // thrown player was holding the ball" (p.82).
+      this.finishLanding(
+        gameService,
+        context,
+        carriesBall,
+        "Thrown player crashed"
+      );
       return;
     }
 
+    // Landing modifiers (p.82): -1 after a Subpar Throw, -1 per opposition
+    // player Marking the landing square.
+    const landingMarkers = gameService
+      .getCatchController()
+      .countMarkingOpponents(
+        landing,
+        gameService.getOpponents(teammate.teamId)
+      );
     const land = dice.rollSkillCheck(
       "Landing",
       teammate.stats.AG,
-      landingBonus,
+      landingBonus - (superbThrow ? 0 : 1) - landingMarkers,
       teammate.playerName,
       teammate.teamId
     );
@@ -377,7 +392,7 @@ export class ThrowTeammateOperation extends GameOperation {
       return;
     }
 
-    // Failed the landing — Placed Prone, which is a Turnover.
+    // Failed the landing: the thrown player Falls Over.
     eventBus.emit(
       GameEventNames.UI_Notification,
       `${teammate.playerName} fails to land and is Prone!`
@@ -388,7 +403,26 @@ export class ThrowTeammateOperation extends GameOperation {
       context.flowManager.add(new BounceOperation({ ...landing }), true);
     }
     context.flowManager.add(new ArmourOperation(teammate.id), true);
-    gameService.triggerTurnover("Thrown player landed Prone");
+    this.finishLanding(
+      gameService,
+      context,
+      carriesBall,
+      "Thrown player landed Prone"
+    );
+  }
+
+  /** A Fall Over is a Turnover only when the thrown player held the ball. */
+  private finishLanding(
+    gameService: IGameService,
+    context: FlowContext,
+    carriedBall: boolean,
+    reason: string
+  ): void {
+    if (carriedBall) {
+      gameService.triggerTurnover(reason);
+      return;
+    }
+    context.flowManager.add(new FinishThrowTeammateOperation(this.throwerId));
   }
 
   /** Knock a player down: Prone, emit the knock-down + status events. */

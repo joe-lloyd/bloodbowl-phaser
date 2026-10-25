@@ -218,14 +218,14 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "lands-prone",
-            name: "Fails the landing — Prone, turnover",
+            name: "Fails the landing without the ball — Prone, no turnover",
             matches: (r) =>
               skillTriggered(r, SkillType.THROW_TEAM_MATE) &&
               saw(r, "fails to land"),
             verify: (r) =>
               assert(
-                turnoverHappened(r),
-                "a thrown player landing Prone is a turnover"
+                !turnoverHappened(r),
+                "a Fall Over without the ball is no turnover (p.82)"
               ),
           },
           {
@@ -312,21 +312,24 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ttm-crash",
         name: "Throw Team-mate — crash into an occupied square",
         description:
-          "When the thrown Gnoblar scatters onto an occupied square, both it and the occupant are Knocked Down and take an Armour Roll — a turnover",
+          "When the thrown Gnoblar scatters onto an occupied square, both it and the occupant are Knocked Down and take an Armour Roll — no turnover without the ball",
         setup: ttm({ mode: "throw", opponents: ring(14, 5) }),
         script: script("throw", 14, 5),
         seedSearch: { from: 1, limit: 1200 },
         outcomes: [
           {
             id: "crash-knocks-both-down",
-            name: "Both players crash to the ground — turnover",
+            name: "Both players crash to the ground — no turnover",
             matches: (r) => saw(r, "crashes into"),
             verify: (r) => {
               assert(
                 !playerStanding(r, MATE),
                 "the thrown player is Knocked Down in a crash"
               );
-              assert(turnoverHappened(r), "a crash is a turnover");
+              assert(
+                !turnoverHappened(r),
+                "a crash without the ball is no turnover (p.82)"
+              );
             },
           },
         ],
@@ -415,12 +418,15 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "kick-lands-prone",
-            name: "Kicked Gnoblar fails the landing — turnover",
+            name: "Kicked Gnoblar fails the landing — no turnover",
             matches: (r) =>
               skillTriggered(r, SkillType.KICK_TEAM_MATE) &&
               saw(r, "fails to land"),
             verify: (r) =>
-              assert(turnoverHappened(r), "landing Prone is a turnover"),
+              assert(
+                !turnoverHappened(r),
+                "a Fall Over without the ball is no turnover (p.82)"
+              ),
           },
           {
             id: "fumbled-kick-removes",
@@ -453,9 +459,13 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "kick-crash",
-            name: "Kicked player crashes — turnover",
+            name: "Kicked player crashes — no turnover",
             matches: (r) => saw(r, "crashes into"),
-            verify: (r) => assert(turnoverHappened(r), "a crash is a turnover"),
+            verify: (r) =>
+              assert(
+                !turnoverHappened(r),
+                "a crash without the ball is no turnover (p.82)"
+              ),
           },
         ],
       },
@@ -488,7 +498,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "Placed Prone on a failed landing roll",
             matches: (r) => saw(r, "fails to land"),
             verify: (r) =>
-              assert(turnoverHappened(r), "a failed landing is a turnover"),
+              assert(
+                !turnoverHappened(r),
+                "a failed landing without the ball is no turnover (p.82)"
+              ),
           },
         ],
       },
