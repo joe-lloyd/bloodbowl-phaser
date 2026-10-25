@@ -809,6 +809,12 @@ export class MovementManager {
           this.callbacks.onTouchdown?.(player.teamId, player.id);
           return;
         }
+      } else if (context && this.isBallAt(target)) {
+        // Landing on the loose ball: the Pick-up comes after the Jump. A
+        // failed Pick-up bounces the ball and causes the Turnover itself.
+        const pickupOp = new PickupOperation(playerId);
+        await pickupOp.execute(context);
+        if (!pickupOp.success) return;
       }
       if (preUsed + JUMP_COST >= moveAllowance(maView)) {
         this.callbacks.onActivationFinished(playerId);
