@@ -75,7 +75,7 @@ export class SandboxScene extends GameScene {
       team1.apothecary = true;
       team1.dedicatedFans = 2;
       team2.coaches = 1;
-      team2.cheerleaders = 4;
+      team2.cheerleaders = 2;
       team2.dedicatedFans = 1;
 
       // Initialize ServiceContainer MANUALLY since we skipped TeamSelectScene
