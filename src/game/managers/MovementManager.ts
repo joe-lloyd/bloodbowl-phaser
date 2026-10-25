@@ -78,9 +78,8 @@ export class MovementManager {
     const opponentTeam =
       player.teamId === this.team1.id ? this.team2 : this.team1;
 
-    const opponents = opponentTeam.players.filter(
-      (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
-    );
+    // Every positioned player blocks a square, whatever their status.
+    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
     const teammates = team.players.filter(
       (p) => p.gridPosition && p.id !== player.id
     );
@@ -241,10 +240,14 @@ export class MovementManager {
       (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
     );
 
+    // Occupancy needs every player on the pitch, Prone ones included;
+    // tackle zones inside validatePath still count Standing opponents only.
+    const ownTeam = player.teamId === this.team1.id ? this.team1 : this.team2;
     const result = this.movementValidator.validatePath(
       maView,
       [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
-      opponents
+      oppTeam.players.filter((p) => p.gridPosition),
+      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id)
     );
     if (!result.valid) {
       console.warn(`Invalid move attempted for player ${playerId}`);

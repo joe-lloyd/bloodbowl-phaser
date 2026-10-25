@@ -131,9 +131,10 @@ const offPitchMove: ScenarioCase = {
   }),
   steps: [
     step({ type: "declare-action", playerId: "team1:0", action: "move" }),
-    // (5,0) is on the top sideline; the engine must refuse the step north.
+    // (5,0) is on the top sideline; the step east stays on it. A path lists
+    // only the squares entered, never the mover's own square.
     step(
-      { type: "move", playerId: "team1:0", path: [{ x: 5, y: 0 }, { x: 6, y: 0 }] },
+      { type: "move", playerId: "team1:0", path: [{ x: 6, y: 0 }] },
       "walk along the sideline, staying on the pitch"
     ),
   ],
