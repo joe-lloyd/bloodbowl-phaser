@@ -199,8 +199,9 @@ export class ActivationGateOperation extends GameOperation {
           );
         }
         context.flowManager.add(
-          // A lash-out is not a Block Action — never arms Plague Ridden.
-          new ArmourOperation(victim.id, this.playerId, undefined, "special"),
+          // A lash-out is not a Block Action — never arms Plague Ridden —
+          // but the lasher must use Mighty Blow and Claws on it.
+          new ArmourOperation(victim.id, this.playerId, undefined, "lash-out"),
           true
         );
         if (hadBall) {

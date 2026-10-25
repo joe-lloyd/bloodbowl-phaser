@@ -28,8 +28,17 @@ import { Team } from "../../types/Team";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 
-/** How the casualty was inflicted — only a Block Action arms Plague Ridden. */
-export type CasualtyCause = "block" | "special" | "dodge" | "lethal-flight";
+/**
+ * How the casualty was inflicted — only a Block Action arms Plague Ridden.
+ * "lash-out" is an Animal Savagery team-mate knockdown: not a Block, but
+ * the book makes the player use Mighty Blow and Claws on it.
+ */
+export type CasualtyCause =
+  | "block"
+  | "special"
+  | "dodge"
+  | "lethal-flight"
+  | "lash-out";
 
 /**
  * A legal Plague Ridden target: NOT a Big Guy, and without the Decay,

@@ -6,6 +6,7 @@ import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { Player } from "../../types/Player";
+import { SkillType } from "../../types/Skills";
 import {
   foldTrigger,
   gatherParticipants,
@@ -39,8 +40,40 @@ export async function foldArmourRoll(
     triggers: [],
   };
   await foldTrigger("onArmourBreak", participants, ctx);
+  placeMightyBlow(ctx, effectiveAV(roll.player, gameService.getState()));
   ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
   return ctx;
+}
+
+/**
+ * Mighty Blow "may be applied after the roll has been made": once every
+ * rule has folded, the +N breaks armour if it can (and Iron Hard Skin has
+ * not locked out modifiers), otherwise it goes to the Injury Roll.
+ */
+function placeMightyBlow(ctx: ArmourBreakContext, av: number): void {
+  const blow = ctx.mightyBlow;
+  if (!blow) return;
+  const wouldFlip =
+    !ctx.forcedBreak &&
+    ctx.roll + ctx.armourModifier < av &&
+    ctx.roll + ctx.armourModifier + blow.bonus >= av;
+  const onArmour = wouldFlip && !ctx.modifiersLocked;
+  if (wouldFlip && ctx.modifiersLocked) {
+    ctx.triggers.push({
+      playerId: ctx.player.id,
+      skill: SkillType.IRON_HARD_SKIN,
+      effect: "Iron Hard Skin: armour roll modifiers cancelled",
+    });
+  }
+  if (onArmour) ctx.armourModifier += blow.bonus;
+  else ctx.injuryModifier += blow.bonus;
+  ctx.triggers.push({
+    playerId: blow.playerId,
+    skill: SkillType.MIGHTY_BLOW,
+    effect: onArmour
+      ? `Mighty Blow: +${blow.bonus} to the armour roll`
+      : `Mighty Blow: +${blow.bonus} saved for the injury roll`,
+  });
 }
 
 /** Whether a natural Armour Roll breaks armour once the fold has run. */
@@ -77,9 +110,10 @@ export class ArmourOperation extends GameOperation {
      */
     private fall?: { cause: "dodge"; vacatedSquare: { x: number; y: number } },
     /**
-     * What inflicted the knockdown — carried through to the Casualty Roll for
-     * Plague Ridden. Blocks are the default; a non-block causer (Breathe Fire,
-     * a lash-out) passes "special" so it does not arm the trait.
+     * What inflicted the knockdown — read by the armour rules (Mighty Blow
+     * and Claws need a Block) and carried through to the Casualty Roll for
+     * Plague Ridden. Blocks are the default; a non-block causer passes its
+     * own cause (Breathe Fire "special", Animal Savagery "lash-out").
      */
     private cause: CasualtyCause = "block"
   ) {
@@ -128,7 +162,7 @@ export class ArmourOperation extends GameOperation {
       {
         player,
         causedBy,
-        cause: this.fall?.cause ?? (causedBy ? "block" : undefined),
+        cause: this.fall?.cause ?? this.cause,
         vacatedSquare: this.fall?.vacatedSquare,
         roll,
         armourModifier: 0,

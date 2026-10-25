@@ -27,6 +27,7 @@ import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
 import { DiceController } from "../controllers/DiceController";
 import { InjuryResult, InjuryTableKind } from "../controllers/InjuryController";
+import type { CasualtyCause } from "../rules/plagueRidden";
 
 export interface SkillTriggerRecord {
   playerId: string;
@@ -314,8 +315,11 @@ export interface ArmourBreakContext extends TriggerContextBase {
   player: Player;
   /** The blocker who knocked this player down (block-path armour only) */
   causedBy?: Player;
-  /** What put the player down — "dodge" enables Arm Bar. */
-  cause?: "block" | "dodge" | "lethal-flight";
+  /**
+   * What put the player down — "block" enables Mighty Blow and Claws,
+   * "dodge" Arm Bar, "lethal-flight" Lethal Flight.
+   */
+  cause?: CasualtyCause;
   /** The square the player fell leaving (a failed Dodge/Leap/Jump). */
   vacatedSquare?: { x: number; y: number };
   /** Natural 2D6 total */
@@ -326,6 +330,13 @@ export interface ArmourBreakContext extends TriggerContextBase {
   injuryModifier: number;
   /** Break regardless of AV (Claws on 8+; cancelled by Iron Hard Skin) */
   forcedBreak?: boolean;
+  /**
+   * Mighty Blow's bonus, placed once every rule has folded: on the Armour
+   * Roll if that makes it break, otherwise on the Injury Roll. The book lets
+   * it be "applied after the roll has been made", so Claws or Iron Hard Skin
+   * folding later still steer it.
+   */
+  mightyBlow?: { playerId: string; bonus: number };
   /**
    * No opposition modifier may apply to this roll, including one chosen
    * after the fold (Dirty Player on a Foul). Set by Iron Hard Skin.
@@ -369,7 +380,7 @@ export interface InjuryRollContext extends TriggerContextBase {
 export interface CasualtyContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
-  cause?: "block" | "special" | "dodge" | "lethal-flight";
+  cause?: CasualtyCause;
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
 }

@@ -376,7 +376,13 @@ export interface GameEvents {
   [GameEventNames.PlayerCasualtyInflicted]: {
     causerId?: string;
     victimId: string;
-    cause: "block" | "special" | "dodge" | "crowd" | "lethal-flight";
+    cause:
+      | "block"
+      | "special"
+      | "dodge"
+      | "crowd"
+      | "lethal-flight"
+      | "lash-out";
     sppEligible: boolean;
   };
   [GameEventNames.PlayerKilled]: {
