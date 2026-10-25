@@ -3,13 +3,11 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { InjuryResult } from "../controllers/InjuryController";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
-import { CasualtyOperation } from "./CasualtyOperation";
-import { movePlayerToBox } from "../rules/playerLocation";
+import { InjuryOperation } from "./InjuryOperation";
+import { armourBroken, foldArmourRoll } from "./ArmourOperation";
 import { effectiveAV } from "../kickoff/driveEffects";
-import { offerApothecary } from "../inducements/apothecary";
 
 /**
  * Ends the fouler's activation once the Foul (and any send-off it queued) has
@@ -109,8 +107,8 @@ export class FoulOperation extends GameOperation {
     const foulerHasNoAssists =
       analysis.offensiveAssists.length === 0 &&
       analysis.defensiveAssists.length === 0;
-    // Assists are already folded into the effective AV target; the roll
-    // breaks the armour when its 2D6 total meets it.
+    // The dice log shows the assists folded into the AV target; whether the
+    // roll breaks is decided after the armour fold below.
     const avTarget = effectiveAV(target, gameService.getState()) - analysis.modifier;
     const announce = (skill: SkillType, effect: string) =>
       eventBus.emit(GameEventNames.SkillTriggered, {
@@ -119,14 +117,23 @@ export class FoulOperation extends GameOperation {
         effect,
       });
 
-    // 2. Armour Roll
+    // 2. Armour Roll. The assists are an opposition modifier, so the
+    // target's own armour rules (Iron Hard Skin) may cancel them. They do
+    // not read the natural roll, so a Lone Fouler re-roll reuses the fold.
     let armour = diceController.rollArmorCheck(
       avTarget,
       target.playerName,
       fouler.teamId
     );
     let rolls = armour.rolls;
-    let broken = rolls[0] + rolls[1] >= avTarget;
+    const armourCtx = await foldArmourRoll(context, [target], {
+      player: target,
+      roll: rolls[0] + rolls[1],
+      armourModifier: analysis.modifier,
+    });
+    const breaks = (bonus: number) =>
+      armourBroken(armourCtx, rolls[0] + rolls[1] + bonus, gameService);
+    let broken = breaks(0);
 
     // Lone Fouler: with no assists, re-roll a failed Armour Roll.
     if (
@@ -144,14 +151,15 @@ export class FoulOperation extends GameOperation {
         fouler.teamId
       );
       rolls = armour.rolls;
-      broken = rolls[0] + rolls[1] >= avTarget;
+      broken = breaks(0);
     }
 
     // Dirty Player: +1 after the roll, to Armour OR Injury. Prefer Armour
-    // when the +1 breaks it, otherwise hold it for the Injury Roll.
+    // when the +1 breaks it and the target allows armour modifiers,
+    // otherwise hold it for the Injury Roll.
     const dirtyPlayer = hasSkill(fouler.skills, SkillType.DIRTY_PLAYER);
     let dirtyUsedOnArmour = false;
-    if (dirtyPlayer && !broken && rolls[0] + rolls[1] + 1 >= avTarget) {
+    if (dirtyPlayer && !broken && !armourCtx.modifiersLocked && breaks(1)) {
       broken = true;
       dirtyUsedOnArmour = true;
       announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Armour Roll");
@@ -164,67 +172,28 @@ export class FoulOperation extends GameOperation {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       await context.delay(800);
 
-      // 3. Injury Roll
-      const injuryResultRaw = diceController.rollInjury(
+      // 3. Injury Roll. The Foul reads the dice for doubles, then hands the
+      // roll to the shared injury resolution (Thick Skull, Stunty, the
+      // Apothecary, the Casualty Roll).
+      const injury = diceController.rollInjury(
         target.playerName,
         fouler.teamId
       );
-      if (injuryResultRaw.rolls[0] === injuryResultRaw.rolls[1]) {
+      if (injury.rolls[0] === injury.rolls[1]) {
         spotted = true;
       }
 
-      let injuryTotal = injuryResultRaw.total;
-      if (dirtyPlayer && !dirtyUsedOnArmour) {
-        injuryTotal += 1;
+      const dirtyOnInjury = dirtyPlayer && !dirtyUsedOnArmour;
+      if (dirtyOnInjury) {
         announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Injury Roll");
       }
 
-      const injuryController = gameService.getInjuryController();
-      const result = injuryController.getInjuryResult(target, injuryTotal);
-
-      // Apply Injury Status — route KO/Casualty through the single
-      // movePlayerToBox seam (and the shared CasualtyOperation) that
-      // block-caused injuries already use, so the target's sprite leaves the
-      // pitch and PlayerStatusChanged fires exactly as it does for a block.
-      switch (result) {
-        case InjuryResult.STUNNED:
-          eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
-          target.status = PlayerStatus.STUNNED;
-          break;
-        case InjuryResult.KO: {
-          eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
-          // Matches InjuryOperation: an owned, unused Apothecary gets first
-          // say before the player leaves the pitch. Declining (or having
-          // none) falls through to the normal move below.
-          const patchedUp = await offerApothecary(gameService, eventBus, target, {
-            resultKind: "ko",
-            location: "pitch",
-            position: target.gridPosition,
-          });
-          if (!patchedUp) {
-            movePlayerToBox(target, { box: "ko" }, eventBus);
-          }
-          break;
-        }
-        case InjuryResult.CASUALTY:
-          eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
-          // Matches InjuryOperation: set status immediately, then hand off to
-          // CasualtyOperation for the casualty roll and the final
-          // movePlayerToBox(... "casualty" ...) that removes the target from
-          // the pitch.
-          target.status = PlayerStatus.INJURED;
-          eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
-            causerId: fouler.id,
-            victimId: target.id,
-            cause: "special",
-            sppEligible: false,
-          });
-          context.flowManager.add(
-            new CasualtyOperation(target.id, fouler.id, { cause: "special" }),
-            true
-          );
-          break;
-      }
+      await new InjuryOperation(target.id, {
+        roll: injury.total,
+        modifier: dirtyOnInjury ? 1 : 0,
+        causedById: fouler.id,
+        cause: "special",
+      }).execute(context);
     } else {
       eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
     }

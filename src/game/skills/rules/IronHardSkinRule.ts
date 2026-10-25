@@ -13,6 +13,7 @@ import { SkillRule } from "../SkillRule";
 export const IronHardSkinRule: SkillRule = {
   onArmourBreak(ctx, self) {
     if (self.id !== ctx.player.id) return;
+    ctx.modifiersLocked = true;
     if (ctx.armourModifier === 0 && !ctx.forcedBreak) return;
 
     ctx.armourModifier = 0;

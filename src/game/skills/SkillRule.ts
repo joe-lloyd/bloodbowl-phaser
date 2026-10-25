@@ -320,6 +320,11 @@ export interface ArmourBreakContext extends TriggerContextBase {
   injuryModifier: number;
   /** Break regardless of AV (Claws on 8+; cancelled by Iron Hard Skin) */
   forcedBreak?: boolean;
+  /**
+   * No opposition modifier may apply to this roll, including one chosen
+   * after the fold (Dirty Player on a Foul). Set by Iron Hard Skin.
+   */
+  modifiersLocked?: boolean;
   /** The unmodified outcome (roll vs AV) — recomputed after the fold */
   broken: boolean;
 }
