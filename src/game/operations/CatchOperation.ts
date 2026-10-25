@@ -1,7 +1,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { FlowContext } from "../core/GameFlowManager";
-import { PlayerStatus } from "../../types/Player";
+import { hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { weatherEffects } from "../rules/weather";
@@ -41,9 +41,11 @@ export class CatchOperation extends GameOperation {
     const player = gameService.getPlayerById(this.playerId);
     if (!player || !player.gridPosition) return;
 
-    if (player.status !== PlayerStatus.ACTIVE) {
+    // A Prone, Stunned or Distracted player "will automatically fail the
+    // Agility Test and the ball will Bounce" (p.76).
+    if (!hasTackleZone(player)) {
       console.log(
-        `[CatchOperation] Player ${player.playerName} is ${player.status} and cannot catch. Bouncing.`
+        `[CatchOperation] Player ${player.playerName} has no Tackle Zone and cannot catch. Bouncing.`
       );
       flowManager.add(
         new BounceOperation(player.gridPosition, !!this.options.kickoff),

@@ -329,7 +329,7 @@ export class PassOperation extends GameOperation {
             .filter(
               (candidate) =>
                 candidate.gridPosition &&
-                candidate.status === PlayerStatus.ACTIVE &&
+                hasTackleZone(candidate) &&
                 hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
                 Math.max(
                   Math.abs(candidate.gridPosition.x - landingPos.x),
