@@ -414,7 +414,7 @@ export class GameplayInteractionController {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         targets.length > 0
-          ? "Jump: click a highlighted landing square to leap over the player."
+          ? "Jump: click a highlighted landing square to leap over the adjacent square."
           : "No adjacent player to Jump over."
       );
       return;
