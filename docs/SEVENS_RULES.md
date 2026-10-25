@@ -167,7 +167,7 @@ alternative.
 | MP1 | Draft with 600,000, which events may raise. Unspent gold is lost. Sideline Staff and Inducements go on the draft list and are paid from the same budget. | check |
 | MP2 | Inducements are bought straight from the draft budget with no petty cash. The team must still have at least 7 players. | differs: the engine uses petty cash |
 | MP3 | Dedicated Fans start at 0. | ok |
-| MP4 | Each roster sits in one of four tiers. The Sevens tier list is not in the magazine; it is published in the Designers' Commentary on warhammer-community.com. | to source |
+| MP4 | Each roster sits in one of four tiers, using the Sevens tier list from the Designers' Commentary, as transcribed at [bloodbowlbase.ru](https://bloodbowlbase.ru/bb2025/spike_journal/issue_22/) under "Sevens team tiers". Tier 1: Amazon, Chaos Dwarf, Dark Elf, Elven Union, Human, High Elf, Necromantic Horror, Norse, Old World Alliance, Skaven, Wood Elf. Tier 2: Bretonnian, Dwarf, Imperial Nobility, Lizardmen, Nurgle, Orc, Shambling Undead, Tomb Kings, Vampire. Tier 3: Black Orc, Chaos Chosen, Chaos Renegade, Halfling, Khorne, Underworld Denizens. Tier 4: Gnome, Goblin, Ogre, Snotling. | ok |
 | MP5 | A team gets Skill Points equal to its tier number, from 1 for tier 1 to 4 for tier 4. | differs: the engine counts skills, not points |
 | MP6 | A Primary skill costs 1 point. A Secondary skill costs 2 points, and only one per team. Each player gets at most one added skill. At most two Elite skills per team. Purchased skills do not raise team value. | differs |
 | MP7 | No SPP and no advancement during Matched Play games. | ok |

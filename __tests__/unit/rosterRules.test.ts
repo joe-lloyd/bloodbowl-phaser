@@ -77,7 +77,7 @@ describe("competition roster rule profiles", () => {
 
   it("requires an incomplete Matched Play package to be finished before entry", () => {
     const team = legalHumanTeam("matched-play");
-    const pkg = createMatchedPlayPackage({ tierAllowance: { 2: 2 } });
+    const pkg = createMatchedPlayPackage({ tierAllowance: { 1: 2 } });
     const profile = createRosterRuleProfile({
       advancementMode: "matched-play",
       matchedPlayPackage: pkg,
