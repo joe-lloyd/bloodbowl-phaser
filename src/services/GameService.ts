@@ -1246,6 +1246,25 @@ export class GameService implements IGameService {
     if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
       return { success: false, result: "Player does not have Hail Mary Pass" };
     }
+    if (
+      targetX < 0 ||
+      targetY < 0 ||
+      targetX >= GameConfig.PITCH_WIDTH ||
+      targetY >= GameConfig.PITCH_HEIGHT
+    ) {
+      return { success: false, result: "Target is off the pitch" };
+    }
+    // "The declared square must be wholly underneath the maximum range of
+    // the Range Ruler" (p.74).
+    if (
+      !hailMary &&
+      PassController.rangeValue(passer.gridPosition, {
+        x: targetX,
+        y: targetY,
+      }) === null
+    ) {
+      return { success: false, result: "Target is beyond the Range Ruler" };
+    }
 
     // A Hail Mary is thrown as a Long Bomb, so a Blizzard refuses it too.
     const type = hailMary

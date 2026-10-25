@@ -26,7 +26,7 @@ function scenario(passerSkills: SkillType[]): Scenario {
       ],
       team2Placements: [
         { playerIndex: 0, x: 5, y: 1 },
-        { playerIndex: 1, x: 20, y: 13 },
+        { playerIndex: 1, x: 18, y: 9 },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
