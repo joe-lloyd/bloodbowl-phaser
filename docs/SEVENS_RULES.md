@@ -22,7 +22,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | --- | --- | --- |
 | P1 | The pitch is 20 squares long and 11 wide: an End Zone at each short edge, Wide Zones 2 squares wide on each long edge, and a Centre Field 7 squares wide. The magazine gives the widths; the length is counted from its pitch photo. | ok |
 | P2 | Two Lines of Scrimmage cross the pitch. The area between them is No Man's Land and includes the Wide Zone squares there. In the photo each half is 7 columns including the End Zone, which leaves 6 columns of No Man's Land. | ok |
-| P3 | Each half has one Trapdoor in one of its Wide Zones. Trapdoors only matter for the Treacherous Trapdoor prayer (L12). | missing |
+| P3 | Each half has one Trapdoor in one of its Wide Zones. Trapdoors only matter for the Treacherous Trapdoor prayer (L12). | ok: the photo puts them near (5,0-1) and (14,9-10); the engine uses the inner Wide Zone row, (5,1) in team 1's half and (14,9) in team 2's half (`TRAPDOOR_SQUARES` in GameConfig.ts) |
 | P4 | Six turns per half. The turn and re-roll trackers run to 6. | ok |
 
 ## 2. Drafting a team
@@ -113,8 +113,8 @@ Where the magazine is silent, the engine does this:
 | L1 | The league runs as in the rulebook unless a rule here changes it. | ok |
 | L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. They leave after the game, since hiring them in the post-game has no screen yet |
 | L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | ok: Prayers to Nuffle and Desperate Measures can be bought; their tables are L4 and L5. See the notes below the table for what each inducement does. |
-| L4 | Prayers to Nuffle use the D8 table below. | missing |
-| L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | missing |
+| L4 | Prayers to Nuffle use the D8 table below. | ok |
+| L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | ok, except Razzle-Dazzle and Magic Scroll, which are rolled and held but do nothing |
 | L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | ok: a team that has played is refused when it fires a player, and cannot sell back staff. The game has no Temporary Retirement |
 
 What each L3 inducement does in the engine, from the 2025 rulebook pages
@@ -142,29 +142,90 @@ What each L3 inducement does in the engine, from the 2025 rulebook pages
 
 ### Prayers to Nuffle (D8)
 
-| ID | Roll | Prayer |
-| --- | --- | --- |
-| L12 | 1 | Treacherous Trapdoor: whenever any player enters a Trapdoor square, roll a D6. On a 1 they fall through, take an injury roll as if pushed into the crowd, and a ball they carried bounces from the Trapdoor. |
-| L13 | 2 | Stiletto: a random player of yours gains Stab for the game. |
-| L14 | 3 | Iron Man: a player of your choice gains +1 AV for the game, to a maximum of 11+. |
-| L15 | 4 | Knuckle Dusters: a player of your choice gains Mighty Blow for the game. |
-| L16 | 5 | Blessing of Nuffle: a random player of yours gains Pro for the game. |
-| L17 | 6 | Moles Under the Pitch: opposition Rush rolls are at -1. |
-| L18 | 7 | Under Scrutiny: an opposition Foul that breaks armour is always Sent-off, double or not. |
-| L19 | 8 | Intensive Training: a random player of yours gains one Primary skill of your choice for the game. |
+| ID | Roll | Prayer | Status |
+| --- | --- | --- | --- |
+| L12 | 1 | Treacherous Trapdoor: whenever any player enters a Trapdoor square, roll a D6. On a 1 they fall through, take an injury roll as if pushed into the crowd, and a ball they carried bounces from the Trapdoor. | ok |
+| L13 | 2 | Stiletto: a random player of yours gains Stab for the game. | ok |
+| L14 | 3 | Iron Man: a player of your choice gains +1 AV for the game, to a maximum of 11+. | ok |
+| L15 | 4 | Knuckle Dusters: a player of your choice gains Mighty Blow for the game. | ok |
+| L16 | 5 | Blessing of Nuffle: a random player of yours gains Pro for the game. | ok |
+| L17 | 6 | Moles Under the Pitch: opposition Rush rolls are at -1. | ok |
+| L18 | 7 | Under Scrutiny: an opposition Foul that breaks armour is always Sent-off, double or not. | ok |
+| L19 | 8 | Intensive Training: a random player of yours gains one Primary skill of your choice for the game. | ok |
+
+Where the magazine is silent, the engine does this:
+
+- Prayers and Desperate Measures are rolled once, before the first set-up,
+  as soon as both coaches have confirmed their inducements. A prayer the
+  team already has is re-rolled, as on page 146 of the rulebook.
+- A random player is drawn from the team's players who can still play
+  this game: not a casualty or Sent-off. A player who already has
+  the skill gains nothing.
+- Iron Man offers only players below AV 11+. Knuckle Dusters offers only
+  players without Mighty Blow. Intensive Training offers every skill in the
+  player's Primary categories that they could legally take.
+- Every skill and characteristic a prayer grants is taken back at full
+  time, so it never reaches the roster.
+- A player enters a Trapdoor by a Move step, a Jump landing, a push or
+  chain push, a follow-up, or a thrown player's landing. The roll comes
+  before any pick-up on that square. Set-up, kick-off events and reaction
+  moves such as Shadowing, Diving Tackle and On the Ball do not roll.
+- Falling through a Trapdoor is a Turnover when the player belongs to the
+  active team, as a push into the crowd is. A Stunned result sends the
+  player to the Reserves, as in the crowd.
+- Moles Under the Pitch puts -1 on every Rush the other team makes. Both
+  teams can hold it.
+- Under Scrutiny still leaves the fouler their Argue the Call roll and
+  any Bribe, as for any Sent-off.
 
 ### Desperate Measures (D8)
 
-| ID | Roll | Measure | When it is used |
-| --- | --- | --- | --- |
-| L21 | 1 | You Dope!: one player gets +1 ST or +1 AG for the game. At the end of each drive they played, roll a D6: on 1 or 2 they are Knocked-out and cannot recover this end-of-drive. | after both set-ups, before the kick |
-| L22 | 2 | Razzle-Dazzle: the player declares two different Actions in one activation, at most one of which includes a Move. | when activating a player |
-| L23 | 3 | Hangover: one chosen opposition player misses the first drive. | before the first set-up |
-| L24 | 4 | Grudge Match: this player may Foul even if your team already has, and cannot be Sent-off for it. | when activating a player |
-| L25 | 5 | Set Piece: this Pass is Accurate on any 2+ whatever the passer's PA, and the receiver catches on any 2+ whatever their AG. | when a player passes |
-| L26 | 6 | Sports Espionage: after a Turnover resolves, your team gains two team re-rolls. They cannot re-roll the dice that caused that Turnover. | when your team suffers a Turnover |
-| L27 | 7 | Discarded Banana Skin: an opposition player entering one of your Tackle Zones is Placed Prone and their activation ends. It is a Turnover only if they held the ball. | when an opponent enters your Tackle Zone |
-| L28 | 8 | Magic Scroll: your team gets a free Sports-Wizard Inducement. | before set-up |
+| ID | Roll | Measure | When it is used | Status |
+| --- | --- | --- | --- | --- |
+| L21 | 1 | You Dope!: one player gets +1 ST or +1 AG for the game. At the end of each drive they played, roll a D6: on 1 or 2 they are Knocked-out and cannot recover this end-of-drive. | after both set-ups, before the kick | ok |
+| L22 | 2 | Razzle-Dazzle: the player declares two different Actions in one activation, at most one of which includes a Move. | when activating a player | missing: rolled and held, no effect |
+| L23 | 3 | Hangover: one chosen opposition player misses the first drive. | before the first set-up | ok |
+| L24 | 4 | Grudge Match: this player may Foul even if your team already has, and cannot be Sent-off for it. | when activating a player | ok |
+| L25 | 5 | Set Piece: this Pass is Accurate on any 2+ whatever the passer's PA, and the receiver catches on any 2+ whatever their AG. | when a player passes | ok |
+| L26 | 6 | Sports Espionage: after a Turnover resolves, your team gains two team re-rolls. They cannot re-roll the dice that caused that Turnover. | when your team suffers a Turnover | ok |
+| L27 | 7 | Discarded Banana Skin: an opposition player entering one of your Tackle Zones is Placed Prone and their activation ends. It is a Turnover only if they held the ball. | when an opponent enters your Tackle Zone | ok |
+| L28 | 8 | Magic Scroll: your team gets a free Sports-Wizard Inducement. | before set-up | missing: the engine has no Sports-Wizard, so it is rolled and held but does nothing |
+
+Where the magazine is silent, the engine does this:
+
+- Each measure is offered at its trigger point until it is used. A coach
+  may decline and keep it. Hangover has only the one trigger, so a declined
+  Hangover is never offered again.
+- You Dope! is offered before every kick-off. +1 AG improves the target by
+  one, down to 1+, and ST stops at 8. Only a doped player still on the
+  pitch when a drive ends rolls, and nobody rolls at full time.
+- Grudge Match is offered as a yes or no when the player makes their Foul.
+  A second Foul in one turn can only be declared on it and spends it. It
+  beats Under Scrutiny.
+- Set Piece is offered when a Pass is made, never a Hail Mary Pass. The
+  Pass is Accurate on a 2 or more and fumbled only on a natural 1, with no
+  modifiers. A team-mate catching that Pass catches on a 2 or more. Normal
+  re-rolls still apply.
+- Sports Espionage is offered once a Turnover in the team's own turn has
+  resolved, not after a touchdown. The two re-rolls count as Team Re-rolls
+  for the rest of the half and are lost at half time.
+- Discarded Banana Skin is offered when an opposing player's Move step
+  ends in a Tackle Zone of the holding team, after any Trapdoor roll and
+  before any pick-up. There is no Armour Roll. A ball on that square
+  Bounces either way; only a held ball makes it a Turnover.
+- Razzle-Dazzle is not implemented. An activation in the engine is one
+  declared Action that ends through a single finish path shared by every
+  Action, the Charge! kick-off and Bloodlust. A second Action in the same
+  activation needs its own declaration, movement and commit rules threaded
+  through that path, the protocol and the action menu.
+- Magic Scroll would need the rulebook's Sports-Wizard (page 149), with its
+  Fireball and Zap! spells, which the engine does not have.
+- Prayer and measure choices reach the browser as a dialog and the headless
+  protocol as an `inducement-choice` decision answered with
+  `choose-inducement`. Grudge Match, Set Piece, Sports Espionage and
+  Discarded Banana Skin are yes or no `reaction` decisions.
+- The simulator gives both teams 2 Prayers to Nuffle and 5 Desperate
+  Measures, free, in every match it plays.
 
 ## 5. Re-drafting between seasons
 
