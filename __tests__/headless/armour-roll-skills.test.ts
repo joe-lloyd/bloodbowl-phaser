@@ -132,3 +132,35 @@ describe("Mighty Blow and Claws", () => {
     });
   }
 });
+
+/** Kick-back 5, then armour 5+2 = 7 against AV 10 (the dice log shows 10 - 3). */
+const CHAINSAW_SEED = 5;
+
+describe("a Chainsaw Attack's armour roll", () => {
+  it("loses its +3 against Iron Hard Skin", async () => {
+    const { run, dice, skills, attacker, target } = session(
+      scenario(
+        { skills: [SkillType.CHAINSAW] },
+        { stats: { AV: 10 }, skills: [SkillType.IRON_HARD_SKIN] }
+      ),
+      CHAINSAW_SEED
+    );
+
+    await run({ type: "declare-action", playerId: attacker.id, action: "chainsaw" });
+    await run({
+      type: "special-action",
+      action: "chainsaw",
+      attackerId: attacker.id,
+      defenderId: target.id,
+    });
+
+    expect(dice()).toEqual([
+      "Chainsaw Kick-back (Human Lineman #1): 5 +0 = 5 (Target: 2+)",
+      "Human Lineman #1 Armor Check: 5+2 = 7 (AV: 7)",
+    ]);
+    expect(skills()).toContain(
+      "Iron Hard Skin: armour roll modifiers cancelled"
+    );
+    expect(target.status).toBe(PlayerStatus.ACTIVE);
+  });
+});

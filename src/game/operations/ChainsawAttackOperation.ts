@@ -6,7 +6,12 @@ import { SkillType } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
-import { ArmourOperation } from "./ArmourOperation";
+import {
+  ArmourOperation,
+  armourBroken,
+  foldArmourRoll,
+} from "./ArmourOperation";
+import { gatherParticipants } from "../skills";
 import { BounceOperation } from "./BounceOperation";
 
 /** Ends the wielder's activation once the Chainsaw Attack has settled. */
@@ -101,14 +106,26 @@ export class ChainsawAttackOperation extends GameOperation {
       return;
     }
 
-    // 2+: an Armour Roll against the target with a +3 modifier.
+    // 2+: an Armour Roll against the target with a +3 modifier. It is an
+    // opposition modifier, so the shared fold lets Iron Hard Skin cancel it.
     const armour = dice.rollArmorCheck(
       effectiveAV(target, gameService.getState()) - 3,
       target.playerName,
       attacker.teamId
     );
+    const armourCtx = await foldArmourRoll(
+      context,
+      gatherParticipants(attacker, target, []),
+      {
+        player: target,
+        causedBy: attacker,
+        cause: "special",
+        roll: armour.roll,
+        armourModifier: 3,
+      }
+    );
 
-    if (armour.broken) {
+    if (armourBroken(armourCtx, armour.roll, gameService)) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       target.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
@@ -116,6 +133,7 @@ export class ChainsawAttackOperation extends GameOperation {
       this.dropBallIfCarried(target, gameService, context);
       context.flowManager.add(
         new InjuryOperation(target.id, {
+          modifier: armourCtx.injuryModifier,
           causedById: attacker.id,
           cause: "special",
         }),
