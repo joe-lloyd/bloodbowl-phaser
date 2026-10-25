@@ -56,6 +56,10 @@ export interface TurnData {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  /** Each special throw is declared once per Turn, apart from the Pass. */
+  hasThrownTeamMate: boolean;
+  hasKickedTeamMate: boolean;
+  hasThrownBomb: boolean;
   movementUsed: Map<string, number>;
 }
 

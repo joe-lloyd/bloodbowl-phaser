@@ -166,6 +166,9 @@ export class GameService implements IGameService {
         hasPassed: false,
         hasHandedOff: false,
         hasFouled: false,
+        hasThrownTeamMate: false,
+        hasKickedTeamMate: false,
+        hasThrownBomb: false,
         movementUsed: new Map(),
       },
       score: {
@@ -295,7 +298,11 @@ export class GameService implements IGameService {
       this.delay
     );
 
-    this.playerActionManager = new PlayerActionManager(eventBus, this.state);
+    this.playerActionManager = new PlayerActionManager(
+      eventBus,
+      this.state,
+      (id) => this.getPlayerById(id)
+    );
 
     this.kickoffEventManager = new KickoffEventManager(
       eventBus,
@@ -1642,6 +1649,9 @@ export class GameService implements IGameService {
     this.state.turn.hasPassed = false;
     this.state.turn.hasHandedOff = false;
     this.state.turn.hasFouled = false;
+    this.state.turn.hasThrownTeamMate = false;
+    this.state.turn.hasKickedTeamMate = false;
+    this.state.turn.hasThrownBomb = false;
 
     // A drive can end mid-activation (touchdown, halftime), which skips
     // finishActivation — clear the Blitz block guard at this boundary too.
@@ -1749,6 +1759,12 @@ export class GameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
+    // Bombardier: "A player that declared a Throw Bomb Special Action may
+    // not perform a Move Action before throwing the bomb" (p.125).
+    const declared = this.state.activePlayer;
+    if (declared?.id === playerId && declared.action === "throwBomb") {
+      throw new Error("A bomber may not move before throwing the bomb");
+    }
     const context = this.getFlowContext();
     await this.movementManager.movePlayer(playerId, path, context);
     // The first square moved commits the declared action.

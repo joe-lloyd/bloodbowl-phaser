@@ -79,6 +79,9 @@ export function applyScenario(
       hasPassed: false,
       hasHandedOff: false,
       hasFouled: false,
+      hasThrownTeamMate: false,
+      hasKickedTeamMate: false,
+      hasThrownBomb: false,
       movementUsed: new Map(),
     },
     score: {

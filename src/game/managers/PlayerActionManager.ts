@@ -2,6 +2,8 @@ import { IEventBus } from "../../services/EventBus";
 import { GameState } from "@/types/GameState";
 import { ActionType, GameEventNames } from "@/types/events";
 import { BlockReplacement } from "@/types/BlockReplacement";
+import { Player } from "@/types/Player";
+import { SkillType, hasSkill } from "@/types/Skills";
 
 /** Which term made a declaration binding — used to name a refusal. */
 export type CommitReason =
@@ -18,7 +20,8 @@ export interface CommitStatus {
 export class PlayerActionManager {
   constructor(
     private eventBus: IEventBus,
-    private state: GameState
+    private state: GameState,
+    private getPlayer: (id: string) => Player | undefined
   ) {}
 
   /**
@@ -105,7 +108,7 @@ export class PlayerActionManager {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId || active.committed) return;
     active.committed = true;
-    this.updateTurnFlags(active.action);
+    this.updateTurnFlags(active.action, playerId);
   }
 
   /**
@@ -162,20 +165,47 @@ export class PlayerActionManager {
         // Action each Turn")
         break;
       case "throwTeamMate":
-        // Check if player has Right Stuff / Throw Team Mate traits (TODO)
-        // Also counts as Pass action usually? Or separate?
-        // BB2020: Throw Team Mate is a Special Action.
-        // "A team may only use this action once per turn."
-        // It usually consumes the Pass action for the turn?
-        // Rule check: "A team may not use a Pass action and a Throw Team-mate action in the same turn."
-        if (turn.hasPassed) return false;
+        // "Only a single Throw Team-mate Action can be declared each Turn"
+        // (p.55); a Kick Team-mate is its own once-per-Turn Special Action
+        // (p.131). Neither is a Pass.
+        if (!this.teamMateThrowLimit(playerId)) return false;
+        break;
+      case "throwBomb":
+        // Bombardier: "only one player can declare this Special Action
+        // each Turn" (p.125).
+        if (turn.hasThrownBomb) return false;
         break;
     }
 
     return true;
   }
 
-  private updateTurnFlags(action: ActionType | string | null): void {
+  /** Which unspent once-per-Turn limit this player's declaration uses. */
+  private teamMateThrowLimit(
+    playerId: string
+  ): "hasThrownTeamMate" | "hasKickedTeamMate" | null {
+    const player = this.getPlayer(playerId);
+    const turn = this.state.turn;
+    if (!player) return null;
+    if (
+      hasSkill(player.skills, SkillType.THROW_TEAM_MATE) &&
+      !turn.hasThrownTeamMate
+    ) {
+      return "hasThrownTeamMate";
+    }
+    if (
+      hasSkill(player.skills, SkillType.KICK_TEAM_MATE) &&
+      !turn.hasKickedTeamMate
+    ) {
+      return "hasKickedTeamMate";
+    }
+    return null;
+  }
+
+  private updateTurnFlags(
+    action: ActionType | string | null,
+    playerId: string
+  ): void {
     const turn = this.state.turn;
     switch (action) {
       case "blitz":
@@ -190,8 +220,13 @@ export class PlayerActionManager {
       case "foul":
         turn.hasFouled = true;
         break;
-      case "throwTeamMate":
-        turn.hasPassed = true; // Consumes pass?
+      case "throwTeamMate": {
+        const limit = this.teamMateThrowLimit(playerId);
+        if (limit) turn[limit] = true;
+        break;
+      }
+      case "throwBomb":
+        turn.hasThrownBomb = true;
         break;
     }
     // Emit event to update UI

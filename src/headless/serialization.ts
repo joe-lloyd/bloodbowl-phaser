@@ -39,6 +39,9 @@ export interface TurnSnapshot {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  hasThrownTeamMate: boolean;
+  hasKickedTeamMate: boolean;
+  hasThrownBomb: boolean;
   movementUsed: Record<string, number>;
 }
 
@@ -179,6 +182,9 @@ export function serializeGameState(
       hasPassed: state.turn.hasPassed,
       hasHandedOff: state.turn.hasHandedOff,
       hasFouled: state.turn.hasFouled,
+      hasThrownTeamMate: state.turn.hasThrownTeamMate,
+      hasKickedTeamMate: state.turn.hasKickedTeamMate,
+      hasThrownBomb: state.turn.hasThrownBomb,
       movementUsed,
     },
     score: { ...state.score },
@@ -243,6 +249,10 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     hasPassed: snapshot.turn.hasPassed,
     hasHandedOff: snapshot.turn.hasHandedOff,
     hasFouled: snapshot.turn.hasFouled,
+    // Snapshots recorded before these limits existed carry none of them.
+    hasThrownTeamMate: snapshot.turn.hasThrownTeamMate ?? false,
+    hasKickedTeamMate: snapshot.turn.hasKickedTeamMate ?? false,
+    hasThrownBomb: snapshot.turn.hasThrownBomb ?? false,
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
   };
 
