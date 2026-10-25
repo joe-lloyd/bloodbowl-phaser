@@ -668,7 +668,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "bloodlust-activation",
         name: "Bloodlust on activation",
         description:
-          "Below the threshold the coach may change the declared Action to a Move (the Thrall bite is out of scope)",
+          "Below the threshold the coach may change the declared Action to a Move",
         setup: playSetup({
           team1Placements: [
             {

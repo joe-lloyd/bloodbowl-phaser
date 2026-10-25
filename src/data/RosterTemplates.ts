@@ -2801,7 +2801,11 @@ const VAMPIRE_ROSTER: TeamRoster = {
   playerTemplates: [
     {
       positionName: "Thrall Lineman",
-      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.HUMAN],
+      keywords: [
+        RaceKeyWord.HUMAN,
+        PositionKeyWord.LINEMAN,
+        TraitKeyWord.THRALL,
+      ],
       cost: 40_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
       skills: [],

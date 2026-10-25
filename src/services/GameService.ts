@@ -66,6 +66,7 @@ import { ActivationGateOperation } from "@/game/operations/ActivationGateOperati
 import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
 import { ProjectileVomitOperation } from "@/game/operations/ProjectileVomitOperation";
 import { HypnoticGazeOperation } from "@/game/operations/HypnoticGazeOperation";
+import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
 import { ChompOperation } from "@/game/operations/ChompOperation";
 import { ChainsawAttackOperation } from "@/game/operations/ChainsawAttackOperation";
 import { FoulController } from "@/game/controllers/FoulController";
@@ -98,10 +99,7 @@ import {
   expireDriveInducements,
 } from "@/game/inducements/rules";
 import { InducementSession } from "@/game/inducements/InducementSession";
-import {
-  buildSeventsInducementProfile,
-  Inducement,
-} from "@/types/Inducements";
+import { buildSeventsInducementProfile, Inducement } from "@/types/Inducements";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import {
   driveEffectsEmpty,
@@ -694,7 +692,9 @@ export class GameService implements IGameService {
     return this.ballManager.kickoffBounceTouchback(to);
   }
 
-  getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null {
+  getKickoffEventStep():
+    | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
+    | null {
     return this.kickoffEventManager.getStep();
   }
 
@@ -774,6 +774,15 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
+    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
+    if (this.takeUnsatedBloodlust(playerId)) {
+      this.flowManager.add(
+        new BloodlustBiteOperation(playerId, "consequences", () =>
+          this.finishActivation(playerId)
+        )
+      );
+      return;
+    }
     // Charge! free activations end without touching the turn ledger — the
     // player may still activate normally when their team's turn begins.
     if (this.kickoffEventManager.isChargeActive()) {
@@ -806,6 +815,31 @@ export class GameService implements IGameService {
     }
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+  }
+
+  /** True once per failed Bloodlust activation; clears the mark. */
+  private takeUnsatedBloodlust(playerId: string): boolean {
+    const active = this.state.activePlayer;
+    if (active?.id !== playerId || !active.bloodlustUnsated) return false;
+    delete active.bloodlustUnsated;
+    return true;
+  }
+
+  /**
+   * Bloodlust: "If a player who failed this roll wants to perform a Pass
+   * Action, Hand-off Action, or score, then they must bite a Thrall Lineman
+   * before they perform the Action or score." Queues the bite ahead of
+   * `perform`; refusing leaves the ball where it is.
+   */
+  private biteBeforeBallAction(playerId: string, perform: () => void): void {
+    this.flowManager.add(
+      new BloodlustBiteOperation(playerId, "refuse", (sated) => {
+        if (sated) perform();
+        else if (this.state.activePlayer?.id === playerId) {
+          this.state.activePlayer.bloodlustUnsated = true;
+        }
+      })
+    );
   }
 
   /**
@@ -1127,8 +1161,17 @@ export class GameService implements IGameService {
 
     // Let the reaction chain fully settle (ball at rest, armour/injury rolls
     // done), give the turnover banner its moment, then end the turn once.
+    // A failed Bloodlust activation cut short still gets its bite.
     this.flowManager
       .whenIdle()
+      .then(() => {
+        const playerId = this.state.activePlayer?.id;
+        if (!playerId || !this.takeUnsatedBloodlust(playerId)) return;
+        this.flowManager.add(
+          new BloodlustBiteOperation(playerId, "consequences", () => {})
+        );
+        return this.flowManager.whenIdle();
+      })
       .then(() => this.delay(3000))
       .then(() => this.turnManager.completeTurnover());
   }
@@ -1196,7 +1239,14 @@ export class GameService implements IGameService {
     }
 
     // 2. Queue Operation
-    this.flowManager.add(new PassOperation(passerId, targetX, targetY));
+    const pass = new PassOperation(passerId, targetX, targetY);
+    if (this.takeUnsatedBloodlust(passerId)) {
+      this.biteBeforeBallAction(passerId, () =>
+        this.flowManager.add(pass, true)
+      );
+      return { success: true, result: "Bloodlust: bite before the pass" };
+    }
+    this.flowManager.add(pass);
 
     // 3. Return success (The flow takes over)
     return { success: true, result: "Pass Started" };
@@ -1241,7 +1291,14 @@ export class GameService implements IGameService {
       return { success: false, result: "Illegal hand-off target" };
     }
 
-    this.flowManager.add(new HandoffOperation(passerId, targetPlayerId));
+    const handoff = new HandoffOperation(passerId, targetPlayerId);
+    if (this.takeUnsatedBloodlust(passerId)) {
+      this.biteBeforeBallAction(passerId, () =>
+        this.flowManager.add(handoff, true)
+      );
+      return { success: true, result: "Bloodlust: bite before the hand-off" };
+    }
+    this.flowManager.add(handoff);
     return { success: true, result: "Hand-off Started" };
   }
 
@@ -1391,6 +1448,18 @@ export class GameService implements IGameService {
     // A drive ends at its first touchdown. A pickup in the end zone scores
     // from PickupOperation and the move that made it would score again.
     if (this.state.phase !== GamePhase.PLAY) return;
+    // Bloodlust: an unsated scorer must bite first; "if this player was in
+    // the opposing End Zone, no Touchdown is scored" when they do not.
+    if (scorerId && this.takeUnsatedBloodlust(scorerId)) {
+      this.flowManager.add(
+        new BloodlustBiteOperation(scorerId, "consequences", (sated) =>
+          sated
+            ? this.addTouchdown(teamId, scorerId)
+            : this.finishActivation(scorerId)
+        )
+      );
+      return;
+    }
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
     // Scored in the opponent's Turn (a push or a catch): that Turn ends with

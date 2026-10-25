@@ -78,6 +78,8 @@ export interface GameState {
     blockReplacementUsed?: boolean;
     /** Set once the declaration has become binding (see PlayerActionManager). */
     committed?: boolean;
+    /** Failed Bloodlust: must bite a Thrall Lineman (BloodlustBiteOperation). */
+    bloodlustUnsated?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */
