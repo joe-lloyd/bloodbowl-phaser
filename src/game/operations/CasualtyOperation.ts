@@ -6,11 +6,10 @@ import {
   CasualtyType,
   InjuryResult,
 } from "../controllers/InjuryController.js";
-import { SkillType } from "../../types/Skills";
 import {
   CasualtyCause,
+  confirmKill,
   plagueRiddenApplies,
-  addReserveLineman,
 } from "../rules/plagueRidden";
 import { foldTrigger, CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
@@ -104,72 +103,44 @@ export class CasualtyOperation extends GameOperation {
       case InjuryResult.DEAD:
         player.injuries.push(InjuryType.DEAD);
         player.status = PlayerStatus.DEAD;
-        eventBus.emit(GameEventNames.PlayerKilled, {
-          causerId: this.causedById,
-          victimId: player.id,
-        });
-        // Plague Ridden: a Block Action kill by the trait-holder against an
-        // eligible opponent lets their coach add a Lineman to the Reserves.
-        if (
-          causedBy &&
-          plagueRiddenApplies(causedBy, player, this.cause)
-        ) {
-          this.applyPlagueRidden(gameService, eventBus, causedBy, player);
-        }
         break;
     }
 
-    // A casualty leaves play for the Casualty box: clear its square and
-    // announce the status change so the pitch sprite is removed and the
-    // dugout re-renders it among the casualties (not left lying on the pitch).
-    // Every casualty gets first say from an owned, unused Apothecary before
-    // that final placement.
-    const patchedUp = await offerApothecary(gameService, eventBus, player, {
+    // Every casualty gets first say from an owned, unused Apothecary. A
+    // successful patch-up strikes the record above, and Plague Ridden counts
+    // only a kill the Apothecary did not save, so the kill is confirmed after
+    // that say: by the Apothecary resolution when one is offered, here when
+    // none is.
+    const kill =
+      result === InjuryResult.DEAD
+        ? {
+            killerId: this.causedById,
+            armsPlagueRidden:
+              !!causedBy && plagueRiddenApplies(causedBy, player, this.cause),
+          }
+        : undefined;
+    const offered = await offerApothecary(gameService, eventBus, player, {
       resultKind: "casualty",
       casualtyType: apothecaryCasualtyType(result),
+      ...kill,
     });
-    if (!patchedUp) {
-      this.removeFromPitch(eventBus, player);
-    }
-  }
+    if (offered) return;
 
-  /**
-   * Send a casualty off the pitch — through the one location seam, so the
-   * pitch square is released as the Casualty-box entry is created.
-   */
-  private removeFromPitch(
-    eventBus: import("../../services/EventBus").IEventBus,
-    player: import("../../types/Player").Player
-  ): void {
+    // Off to the Casualty box through the one location seam, so the pitch
+    // square is released as the Casualty-box entry is created.
     movePlayerToBox(
       player,
-      { box: "casualty", dead: player.status === PlayerStatus.DEAD },
+      { box: "casualty", dead: result === InjuryResult.DEAD },
       eventBus
     );
-  }
-
-  /** Spend Plague Ridden: mark it used and add a Lineman to the Reserves. */
-  private applyPlagueRidden(
-    gameService: IGameService,
-    eventBus: import("../../services/EventBus").IEventBus,
-    killer: import("../../types/Player").Player,
-    victim: import("../../types/Player").Player
-  ): void {
-    const team = gameService.getTeam(killer.teamId);
-    if (!team) return;
-    const reinforcement = addReserveLineman(team);
-    if (!reinforcement) return;
-
-    killer.plagueRiddenUsed = true;
-    eventBus.emit(GameEventNames.SkillTriggered, {
-      playerId: killer.id,
-      skill: SkillType.PLAGUE_RIDDEN,
-      effect: `Plague Ridden: ${victim.playerName}'s death summons ${reinforcement.playerName} to the Reserves`,
-    });
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Plague Ridden — ${killer.playerName} adds ${reinforcement.playerName} to the Reserves!`
-    );
-    eventBus.emit(GameEventNames.RefreshBoard);
+    if (kill) {
+      confirmKill(
+        gameService,
+        eventBus,
+        player,
+        kill.killerId,
+        kill.armsPlagueRidden
+      );
+    }
   }
 }

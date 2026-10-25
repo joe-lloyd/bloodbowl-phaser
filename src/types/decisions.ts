@@ -117,6 +117,10 @@ export interface ApothecaryDecisionRequest {
   position?: { x: number; y: number };
   /** Casualty only: which of the three eligible results was rolled. */
   casualtyType?: ApothecaryCasualtyType;
+  /** Dead only: who caused the kill, credited if the result stands. */
+  killerId?: string;
+  /** Dead only: the kill spends the killer's Plague Ridden if it stands. */
+  armsPlagueRidden?: boolean;
 }
 
 export interface ApothecaryDecisionAnswer {
