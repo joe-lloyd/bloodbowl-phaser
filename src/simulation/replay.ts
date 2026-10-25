@@ -11,7 +11,7 @@ import {
   createSimGame,
   summarize,
 } from "./runMatch";
-import { checkInvariants, InvariantViolation } from "./invariants";
+import { createRuleMonitor, InvariantViolation } from "./invariants";
 
 export interface ReplayResult {
   game: HeadlessGame;
@@ -52,6 +52,7 @@ export async function replayRecording(
   );
   let divergedAt: number | null = null;
   let executed = 0;
+  const monitor = createRuleMonitor();
   const violations: ReplayResult["violations"] = [];
   for (const [index, step] of recording.steps.entries()) {
     if (index > untilStep) break;
@@ -60,7 +61,8 @@ export async function replayRecording(
     executed++;
     if (response.ok !== step.ok && divergedAt === null) divergedAt = index;
     if (response.ok) {
-      for (const violation of checkInvariants(
+      for (const violation of monitor.observe(
+        step.command,
         before,
         response.snapshot,
         !!response.pendingDecision

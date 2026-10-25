@@ -13,7 +13,7 @@ import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
 import { enumerateDecision } from "./candidates";
 import { Coach } from "./coach";
-import { checkInvariants } from "./invariants";
+import { createRuleMonitor } from "./invariants";
 import { createCoachRng } from "./rng";
 
 export const RECORDING_FORMAT = "bb7-sim-recording" as const;
@@ -112,6 +112,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const findings: Finding[] = [];
   let kickingTeamId: string | null = null;
   /** Candidates refused in the current state, so a coach cannot retry them forever. */
+  const monitor = createRuleMonitor();
   let refused = new Set<string>();
 
   const teamIndex = (teamId: string): 0 | 1 =>
@@ -177,11 +178,14 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
 
       if (!response.ok) {
         const reason = response.reason ?? "unknown";
-        // HeadlessGame reports engine refusals as "command-failed: <code>";
-        // anything that is not a bare code is an exception message.
+        // HeadlessGame reports refusals and exceptions alike as
+        // "command-failed: <message>". Refusals read as codes or sentences
+        // ("illegal-stab-target", "Not enough movement to Jump"); a crash
+        // reads like a JavaScript runtime error.
         const engineError =
-          reason.startsWith("command-failed") &&
-          !/^command-failed: [a-z0-9:-]+$/.test(reason);
+          /TypeError|ReferenceError|RangeError|Cannot read propert|is not a function|is not defined|of undefined|of null/.test(
+            reason
+          );
         report(
           engineError ? "engine-error" : "rejected-candidate",
           `${command.type}:${reason.replace(/[0-9a-z-]+-player-\d+/g, "<player>").slice(0, 80)}`,
@@ -192,7 +196,8 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
         break;
       }
       refused = new Set();
-      for (const violation of checkInvariants(
+      for (const violation of monitor.observe(
+        command,
         before,
         response.snapshot,
         !!response.pendingDecision
