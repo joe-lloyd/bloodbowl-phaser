@@ -92,6 +92,8 @@ export interface GameSnapshot {
   bribes?: Record<string, number>;
   /** Team Re-rolls spent this half; absent on pre-feature saves (= none). */
   teamRerollsUsed?: Record<string, number>;
+  /** Unspent Leader Re-rolls this half; absent on pre-feature saves. */
+  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /**
@@ -191,6 +193,9 @@ export function serializeGameState(
     teamRerollsUsed: state.teamRerollsUsed
       ? { ...state.teamRerollsUsed }
       : undefined,
+    leaderRerolls: state.leaderRerolls
+      ? { ...state.leaderRerolls, teamIds: [...state.leaderRerolls.teamIds] }
+      : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -257,6 +262,12 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
     teamRerollsUsed: snapshot.teamRerollsUsed
       ? { ...snapshot.teamRerollsUsed }
+      : undefined,
+    leaderRerolls: snapshot.leaderRerolls
+      ? {
+          ...snapshot.leaderRerolls,
+          teamIds: [...snapshot.leaderRerolls.teamIds],
+        }
       : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)

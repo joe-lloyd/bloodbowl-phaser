@@ -15,17 +15,12 @@ import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import {
-  consumeFreeReroll,
-  freeRerollsFor,
-} from "../kickoff/driveEffects";
+import { consumeFreeReroll, freeRerollsFor } from "../kickoff/driveEffects";
 import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
 
 export class RerollArbiter {
   private usedSkill = new Set<string>();
   private usedTeam = new Set<string>();
-  private leaderRerolls = new Map<string, number>();
-  private initializedLeaderHalf: string | null = null;
 
   constructor(
     private state: GameState,
@@ -33,36 +28,40 @@ export class RerollArbiter {
     private eventBus?: IEventBus
   ) {}
 
-  /** Grant each eligible team one Leader Re-roll once at the start of a half. */
+  /**
+   * Grant each team with a Leader on the pitch one Leader Re-roll, once per
+   * half. The bank lives on GameState so saves and online sync carry it.
+   */
   public beginHalf(teamIds: string[]): void {
     const half = this.state.turn.isHalf2 ? "h2" : "h1";
-    if (this.initializedLeaderHalf === half) return;
-    this.initializedLeaderHalf = half;
-    this.leaderRerolls.clear();
-    for (const teamId of teamIds) {
-      if (this.hasOnPitchLeader(teamId)) {
-        this.leaderRerolls.set(teamId, 1);
-      }
-    }
+    if (this.state.leaderRerolls?.half === half) return;
+    this.state.leaderRerolls = {
+      half,
+      teamIds: teamIds.filter((teamId) => this.hasOnPitchLeader(teamId)),
+    };
   }
 
-  private hasOnPitchLeader(teamId: string): boolean {
-    return (
-      this.getTeam(teamId)?.players.some(
-        (player) =>
-          !!player.gridPosition && hasSkill(player.skills, SkillType.LEADER)
-      ) ?? false
+  private onPitchLeader(teamId: string): Player | undefined {
+    return this.getTeam(teamId)?.players.find(
+      (player) =>
+        !!player.gridPosition && hasSkill(player.skills, SkillType.LEADER)
     );
   }
 
+  private hasOnPitchLeader(teamId: string): boolean {
+    return !!this.onPitchLeader(teamId);
+  }
+
+  /**
+   * Usable only with a Leader on the pitch. A Knocked Out or unselected
+   * Leader just pauses it; Casualty or Sent-off Leaders never return this
+   * half, so once all are gone it is effectively lost.
+   */
   private leaderRerollAvailable(teamId: string): boolean {
-    if ((this.leaderRerolls.get(teamId) ?? 0) <= 0) return false;
-    if (!this.hasOnPitchLeader(teamId)) {
-      // The final Leader left play: the half's unspent Leader Re-roll is lost.
-      this.leaderRerolls.set(teamId, 0);
-      return false;
-    }
-    return true;
+    return (
+      !!this.state.leaderRerolls?.teamIds.includes(teamId) &&
+      this.hasOnPitchLeader(teamId)
+    );
   }
 
   /** One team turn = one key; usage sets reset naturally as turns advance. */
@@ -136,12 +135,10 @@ export class RerollArbiter {
     }
     const team = this.getTeam(teamId);
     if (team && spendTeamReroll(this.state, team)) return;
-    if (this.leaderRerollAvailable(teamId)) {
-      this.leaderRerolls.set(teamId, 0);
-      const leader = team?.players.find(
-        (player) =>
-          !!player.gridPosition && hasSkill(player.skills, SkillType.LEADER)
-      );
+    if (this.state.leaderRerolls && this.leaderRerollAvailable(teamId)) {
+      this.state.leaderRerolls.teamIds =
+        this.state.leaderRerolls.teamIds.filter((id) => id !== teamId);
+      const leader = this.onPitchLeader(teamId);
       if (leader) {
         this.eventBus?.emit(GameEventNames.SkillTriggered, {
           playerId: leader.id,

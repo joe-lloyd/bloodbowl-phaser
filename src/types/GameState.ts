@@ -91,6 +91,11 @@ export interface GameState {
    * purchased count is never spent (see game/teamRerolls.ts).
    */
   teamRerollsUsed?: Record<string, number>;
+  /**
+   * Leader Re-rolls granted for `half` and not yet spent, by team id;
+   * absent until the first half begins (see skills/RerollArbiter.ts).
+   */
+  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */
