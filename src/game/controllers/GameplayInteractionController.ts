@@ -7,7 +7,10 @@ import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { pixelToGrid } from "../elements/GridUtils";
 import { jumpTargets, JumpTarget } from "../rules/jump";
-import { GameConfig } from "../../config/GameConfig";
+import {
+  GameConfig,
+  isKickingTeamTerritory,
+} from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
@@ -2350,9 +2353,7 @@ export class GameplayInteractionController {
       // If clicking on a square (Target)
       // Validate Target (Must be opponent half)
       const isTeam1Kicking = this.scene.kickingTeam.id === this.scene.team1.id;
-      // Pitch width 20, minus the end zones its 18, divided by 3
-      // team one setup is 1-7, no mans land is 8-13, team two setup is 14-20
-      const isOpponentHalf = isTeam1Kicking ? x >= 7 : x <= 13;
+      const isOpponentHalf = !isKickingTeamTerritory(x, isTeam1Kicking);
 
       if (!isOpponentHalf) {
         // If they clicked an empty square in their own half

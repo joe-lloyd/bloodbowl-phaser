@@ -1,13 +1,65 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
-import { PlayerStatus } from "../../types/Player.js";
+import { Player, PlayerStatus } from "../../types/Player.js";
 import { InjuryResult } from "../controllers/InjuryController.js";
 import { CasualtyOperation } from "./CasualtyOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
+import { FlowContext } from "../core/GameFlowManager";
+
+/**
+ * Fold the rules' declared effects on an Injury Roll (table switch, KO
+ * downgrade), then resolve them together, so stacked skills stay
+ * independent. Blocks, fouls and the crowd all go through here.
+ */
+export async function resolveInjuryRoll(
+  context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
+  player: Player,
+  roll: number,
+  modifier: number,
+  causedBy?: Player
+): Promise<InjuryRollContext> {
+  const { gameService, eventBus, flowManager } = context;
+  const injuryController = gameService.getInjuryController();
+  const total = roll + modifier;
+  const ctx: InjuryRollContext = {
+    player,
+    causedBy,
+    roll,
+    modifier,
+    table: "standard",
+    result: injuryController.getInjuryResult(player, total),
+    decisions: gameService.getDecisionService(),
+    flow: flowManager,
+    arbiter: gameService.getRerollArbiter(),
+    dice: gameService.getDiceController(),
+    triggers: [],
+  };
+  await foldTrigger(
+    "onInjuryRoll",
+    causedBy ? [causedBy, player] : [player],
+    ctx
+  );
+
+  ctx.result = injuryController.getInjuryResult(player, total, ctx.table);
+  if (
+    ctx.koDowngrade &&
+    ctx.result === InjuryResult.KO &&
+    total === injuryController.lowestKO(ctx.table)
+  ) {
+    ctx.result = InjuryResult.STUNNED;
+    ctx.triggers.push(ctx.koDowngrade);
+  }
+  ctx.casualtyAutoBadlyHurt =
+    ctx.result === InjuryResult.CASUALTY &&
+    injuryController.isAutoBadlyHurt(ctx.table, total);
+
+  ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
+  return ctx;
+}
 
 /**
  * InjuryOperation
@@ -28,6 +80,8 @@ export class InjuryOperation extends GameOperation {
       causedById?: string;
       /** What inflicted the injury — "block" arms Plague Ridden downstream. */
       cause?: CasualtyCause;
+      /** Natural 2D6 total the caller already rolled (a Foul reads its doubles). */
+      roll?: number;
     } = {}
   ) {
     super();
@@ -53,50 +107,20 @@ export class InjuryOperation extends GameOperation {
     // Suspense delay
     await context.delay(800);
 
-    // 1. Roll 2D6 via DiceController
-    const roll = gameService
-      .getDiceController()
-      .roll2D6(`Injury Roll (${player.playerName})`);
+    // 1. Roll 2D6 via DiceController, unless the caller already rolled
+    const roll =
+      this.opts.roll ??
+      gameService
+        .getDiceController()
+        .roll2D6(`Injury Roll (${player.playerName})`);
 
-    // 2. Fold the rules' declared effects (table switch, KO downgrade),
-    // then resolve them together — stacked skills stay independent
-    const injuryController = gameService.getInjuryController();
-    const modifier = this.opts.modifier ?? 0;
-    const total = roll + modifier;
-    const ctx: InjuryRollContext = {
+    // 2. Fold the rules that act on the roll
+    const ctx = await resolveInjuryRoll(
+      context,
       player,
-      causedBy,
       roll,
-      modifier,
-      table: "standard",
-      result: injuryController.getInjuryResult(player, total),
-      decisions: gameService.getDecisionService(),
-      flow: flowManager,
-      arbiter: gameService.getRerollArbiter(),
-      dice: gameService.getDiceController(),
-      triggers: [],
-    };
-    await foldTrigger(
-      "onInjuryRoll",
-      causedBy ? [causedBy, player] : [player],
-      ctx
-    );
-
-    ctx.result = injuryController.getInjuryResult(player, total, ctx.table);
-    if (
-      ctx.koDowngrade &&
-      ctx.result === InjuryResult.KO &&
-      total === injuryController.lowestKO(ctx.table)
-    ) {
-      ctx.result = InjuryResult.STUNNED;
-      ctx.triggers.push(ctx.koDowngrade);
-    }
-    ctx.casualtyAutoBadlyHurt =
-      ctx.result === InjuryResult.CASUALTY &&
-      injuryController.isAutoBadlyHurt(ctx.table, total);
-
-    ctx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
+      this.opts.modifier ?? 0,
+      causedBy
     );
 
     // 3. Apply status

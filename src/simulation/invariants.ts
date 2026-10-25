@@ -6,6 +6,7 @@
  */
 
 import { GameSnapshot, PlayerSnapshot } from "../headless/serialization";
+import { HeadlessCommand } from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { GameConfig } from "../config/GameConfig";
@@ -129,7 +130,7 @@ export function checkInvariants(
     }
   }
 
-  if (after.turn.turnNumber > GameConfig.TURNS_PER_HALF + 1) {
+  if (after.turn.turnNumber > GameConfig.TURNS_PER_HALF) {
     fail(
       "turn-limit",
       `turn ${after.turn.turnNumber} exceeds ${GameConfig.TURNS_PER_HALF} per half`
@@ -147,4 +148,84 @@ export function checkInvariants(
   }
 
   return out;
+}
+
+/**
+ * Rules that need to know which command ran, or what happened over several
+ * commands: one Block per Blitz, a pass the passing team does not end up
+ * holding is a turnover, and nobody moves further than MA plus Rushes.
+ * Wraps checkInvariants, so a caller needs only this.
+ */
+export interface RuleMonitor {
+  observe(
+    command: HeadlessCommand,
+    before: GameSnapshot,
+    after: GameSnapshot,
+    decisionPending: boolean
+  ): InvariantViolation[];
+}
+
+export function createRuleMonitor(): RuleMonitor {
+  const blitzBlocks = new Map<string, number>();
+  /** The passing team while a Pass or Hand-off is still resolving. */
+  let passingTeam: string | null = null;
+
+  return {
+    observe(command, before, after, decisionPending) {
+      const out = checkInvariants(before, after, decisionPending);
+      const fail = (rule: string, message: string) =>
+        out.push({ rule, message });
+
+      if (command.type === "block" && before.activePlayer?.action === "blitz") {
+        const key = `${before.turn.isHalf2}-${before.turn.turnNumber}-${before.activeTeamId}-${command.attackerId}`;
+        const blocks = (blitzBlocks.get(key) ?? 0) + 1;
+        blitzBlocks.set(key, blocks);
+        if (blocks > 1) {
+          fail(
+            "one-block-per-blitz",
+            `${command.attackerId} made block ${blocks} in one Blitz`
+          );
+        }
+      }
+
+      if (command.type === "pass" || command.type === "handoff") {
+        passingTeam = before.activeTeamId;
+      }
+      if (passingTeam && !decisionPending) {
+        const team = passingTeam;
+        passingTeam = null;
+        const stillTheirTurn =
+          after.phase === GamePhase.PLAY && after.activeTeamId === team;
+        const holder = after.ballPosition
+          ? after.teams
+              .flatMap((t) => t.players)
+              .find(
+                (p) =>
+                  p.position?.x === after.ballPosition!.x &&
+                  p.position?.y === after.ballPosition!.y &&
+                  p.status === PlayerStatus.ACTIVE
+              )
+          : undefined;
+        if (stillTheirTurn && holder?.teamId !== team) {
+          fail(
+            "uncaught-pass-is-turnover",
+            `after a ${command.type} by ${team} the ball is ${holder ? `held by ${holder.id}` : "loose"} and it is still ${team}'s turn`
+          );
+        }
+      }
+
+      for (const player of after.teams.flatMap((t) => t.players)) {
+        const used = after.turn.movementUsed[player.id] ?? 0;
+        const allowance =
+          player.stats.MA + (player.skills.includes("Sprint") ? 3 : 2);
+        if (used > allowance) {
+          fail(
+            "movement-allowance",
+            `${player.id} has moved ${used} squares, allowance ${allowance}`
+          );
+        }
+      }
+      return out;
+    },
+  };
 }

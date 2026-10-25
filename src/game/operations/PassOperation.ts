@@ -4,6 +4,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
 import { PlayerStatus, hasTackleZone } from "../../types/Player";
+import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
 import { ArmourOperation } from "./ArmourOperation";
@@ -18,8 +19,11 @@ import {
 } from "../skills";
 
 /**
- * Ends the passer's activation once a Pass or a Hand-off (and its
- * catch/bounce) has settled — both actions end the activation. Give and Go
+ * Judges a Pass or a Hand-off once the ball is at rest (catch, bounces and
+ * throw-ins settled), then ends the passer's activation. If no Standing
+ * player of the passing team holds the ball, a Turnover is caused (2025
+ * rulebook p.75): the ball on the ground, or in an opponent's hands. A drop
+ * that bounces into a team-mate's hands is no Turnover (p.35). Give and Go
  * skips this after a Quick Pass or a Hand-off (so long as no Turnover was
  * caused), letting the player continue their Move with any movement
  * remaining. A turnover is latched before the ball-settling flow goes idle,
@@ -41,6 +45,18 @@ export class FinishPassActivationOperation extends GameOperation {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
+    const passer = gameService.getPlayerById(this.passerId);
+    const ball = gameService.getState().ballPosition;
+    const holder = ball ? gameService.getPlayerAt(ball.x, ball.y) : undefined;
+    if (
+      passer &&
+      gameService.getState().phase === GamePhase.PLAY &&
+      (holder?.teamId !== passer.teamId ||
+        holder.status !== PlayerStatus.ACTIVE)
+    ) {
+      // Latches at most once: a fumble or an interception already did.
+      gameService.triggerTurnover("Pass not caught");
+    }
     if (gameService.isTurnoverInProgress()) {
       // The visual turnover delay must not leave a command window in which
       // the passer can keep moving before the next turn starts.
@@ -49,7 +65,6 @@ export class FinishPassActivationOperation extends GameOperation {
     }
     if (gameService.getState().activePlayer?.id !== this.passerId) return;
     if (this.giveAndGoExempt) {
-      const passer = gameService.getPlayerById(this.passerId);
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: this.passerId,
         skill: SkillType.GIVE_AND_GO,
@@ -264,12 +279,6 @@ export class PassOperation extends GameOperation {
         eventBus.emit(GameEventNames.UI_Notification, "Accurate Pass!");
       } else {
         eventBus.emit(GameEventNames.UI_Notification, "Inaccurate Pass!");
-        // If inaccurate, it counts as a turnover?
-        // Rule: "If the pass was not accurate... turnover unless caught by a teammate"
-        // Turnover logic should probably wait until the ball settles?
-        // Actually, "A failed Pass is a Turnover... unless the ball is caught by a player from the moving team"
-        // So we trigger 'Pass Missed' turnover LATER if catch fails?
-        // For now, let's let the recursive logic run. If it lands empty -> Turnover.
       }
 
       // Update ball position to landing spot
@@ -286,7 +295,6 @@ export class PassOperation extends GameOperation {
         context.flowManager.add(
           new CatchOperation(
             playerAtLanding.id,
-            true,
             {
               origin: "pass",
               isPassTarget:
@@ -323,7 +331,7 @@ export class PassOperation extends GameOperation {
 
         if (divingCatcher) {
           context.flowManager.add(
-            new CatchOperation(divingCatcher.id, true, {
+            new CatchOperation(divingCatcher.id, {
               origin: "pass",
               divingCatch: true,
               landingPosition: landingPos,
@@ -337,10 +345,6 @@ export class PassOperation extends GameOperation {
             "Ball Lands in Empty Square"
           );
           context.flowManager.add(new BounceOperation(landingPos), true);
-
-          // If accurate pass lands empty -> Bounce -> Stop. Turnover?
-          // "If the ball is not caught, it is a Turnover."
-          gameService.triggerTurnover("Pass Incomplete");
         }
       }
     }

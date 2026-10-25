@@ -416,7 +416,7 @@ export function foldActionDeclared(ctx: ActionDeclaredContext): void {
 export { SkillRegistry } from "./SkillRegistry";
 export { RerollArbiter } from "./RerollArbiter";
 export { DecisionService } from "./DecisionService";
-export { withRerollOffer } from "./rerolls";
+export { withRerollOffer, spendTeamReroll } from "./rerolls";
 export type { RollLike, RerollDeps } from "./rerolls";
 export type {
   SkillRule,

@@ -10,7 +10,10 @@ import { KickoffController } from "../controllers/KickoffController";
 import { PickupController } from "../controllers/PickupController";
 import { BallMovementController } from "../controllers/BallMovementController";
 import { DiceController } from "../controllers/DiceController";
-import { GameConfig } from "../../config/GameConfig";
+import {
+  GameConfig,
+  isKickingTeamTerritory,
+} from "../../config/GameConfig";
 import { CatchOperation } from "../operations/CatchOperation";
 import { BounceOperation } from "../operations/BounceOperation";
 import { ReactionDecisionAnswer } from "../../types/decisions";
@@ -364,8 +367,8 @@ export class BallManager {
         to.x >= GameConfig.PITCH_WIDTH ||
         to.y < 0 ||
         to.y >= GameConfig.PITCH_HEIGHT;
-      const ownThird = this.isTeam1Kicking ? to.x < 7 : to.x > 13;
-      this.pendingTouchback = offPitch || ownThird;
+      this.pendingTouchback =
+        offPitch || isKickingTeamTerritory(to.x, this.isTeam1Kicking);
       this.state.ballPosition = this.pendingTouchback ? null : { ...to };
       this.eventBus.emit(GameEventNames.BallScattered, {
         from,
@@ -425,7 +428,7 @@ export class BallManager {
       const catcher = occupant ?? this.divingCatcherAt(landing);
       if (catcher) {
         this.callbacks.getFlowManager?.()?.add(
-          new CatchOperation(catcher.id, false, {
+          new CatchOperation(catcher.id, {
             origin: "kick-off",
             divingCatch: !occupant,
             landingPosition: landing,
@@ -566,14 +569,14 @@ export class BallManager {
       this.callbacks
         .getFlowManager?.()
         ?.add(
-          new CatchOperation(occupant.id, false, { origin: "throw-in" }),
+          new CatchOperation(occupant.id, { origin: "throw-in" }),
           true
         );
     } else {
       const catcher = this.divingCatcherAt(landing);
       if (catcher) {
         this.callbacks.getFlowManager?.()?.add(
-          new CatchOperation(catcher.id, false, {
+          new CatchOperation(catcher.id, {
             origin: "throw-in",
             divingCatch: true,
             landingPosition: landing,

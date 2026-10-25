@@ -1,6 +1,6 @@
 import { BallMovementController } from "./BallMovementController";
 import { DiceController } from "./DiceController";
-import { GameConfig } from "@/config/GameConfig";
+import { GameConfig, isKickingTeamTerritory } from "@/config/GameConfig";
 import { KICKOFF_TABLE, KickoffEvent } from "../kickoff/kickoffEvents";
 
 /**
@@ -81,11 +81,8 @@ export class KickoffController {
       finalPosition.y < 0 ||
       finalPosition.y >= GameConfig.PITCH_HEIGHT;
 
-    const isOwnThird = isTeam1Kicking
-      ? finalPosition.x < 7
-      : finalPosition.x > 13;
-
-    const isTouchback = isOffPitch || isOwnThird;
+    const isTouchback =
+      isOffPitch || isKickingTeamTerritory(finalPosition.x, isTeam1Kicking);
 
     return {
       finalX: finalPosition.x,

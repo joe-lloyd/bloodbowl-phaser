@@ -50,7 +50,8 @@ export class PickupOperation extends GameOperation {
     const catchController = gameService.getCatchController();
     const opponents = gameService.getOpponents(player.teamId);
 
-    // Pickup formula: AG Roll + 1 (for pickup) - 1 per Enemy Tackle Zone
+    // 2025 pick-up: Agility Test at -1 per opponent Marking the player, no
+    // base modifier
     const markingOpponents = catchController.countMarkingOpponents(
       player.gridPosition,
       opponents
@@ -62,7 +63,7 @@ export class PickupOperation extends GameOperation {
     const pickupCtx: PickupContext = {
       player,
       marking: markingOpponents,
-      modifiers: 1 - markingOpponents, // +1 base modifier for pickup
+      modifiers: -markingOpponents,
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),

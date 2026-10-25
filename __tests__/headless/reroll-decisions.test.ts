@@ -7,6 +7,7 @@ import { RerollArbiter } from "../../src/game/skills";
 import { GameState } from "../../src/types/GameState";
 import { Team } from "../../src/types/Team";
 import { Player } from "../../src/types/Player";
+import { teamRerollsLeft } from "../../src/game/teamRerolls";
 
 /**
  * Reroll machinery (RerollArbiter + DecisionService + protocol):
@@ -111,7 +112,7 @@ describe("reroll decisions (headless protocol)", () => {
       declined.events.filter((e) => e.name === GameEventNames.Turnover)
     ).toHaveLength(1);
     expect(declined.snapshot.activeTeamId).toBe(game.ctx.team2.id);
-    expect(game.ctx.team1.rerolls).toBe(3);
+    expect(game.snapshot().teams[0].rerolls).toBe(3);
     expect(
       declined.events.some((e) => e.name === GameEventNames.RerollUsed)
     ).toBe(false);
@@ -128,7 +129,7 @@ describe("reroll decisions (headless protocol)", () => {
       source: "team",
     });
     expect(accepted.ok).toBe(true);
-    expect(game.ctx.team1.rerolls).toBe(2);
+    expect(game.snapshot().teams[0].rerolls).toBe(2);
 
     const rerollUsed = accepted.events.find(
       (e) => e.name === GameEventNames.RerollUsed
@@ -194,7 +195,7 @@ describe("reroll decisions (headless protocol)", () => {
       if (!fell) continue; // dodge succeeded; try another seed
 
       expect(dodged.pendingDecision).toBeNull();
-      expect(game.ctx.team1.rerolls).toBe(2); // only the pickup spent one
+      expect(game.snapshot().teams[0].rerolls).toBe(2); // only the pickup spent one
       return;
     }
     throw new Error("no seed produced pickup-reroll-success + failed dodge");
@@ -232,7 +233,7 @@ describe("RerollArbiter constraint matrix", () => {
     ({ id, teamId }) as unknown as Player;
 
   it("team reroll: own turn only, bank > 0, once per turn, decrements", () => {
-    const team = { rerolls: 2 } as Team;
+    const team = { id: "t1", rerolls: 2 } as Team;
     const state = makeState("t1");
     const arbiter = new RerollArbiter(state, () => team);
 
@@ -240,7 +241,7 @@ describe("RerollArbiter constraint matrix", () => {
     expect(arbiter.teamRerollAvailable("t1")).toBe(true);
 
     arbiter.consumeTeamReroll("t1");
-    expect(team.rerolls).toBe(1);
+    expect(teamRerollsLeft(state, team)).toBe(1);
     expect(arbiter.teamRerollAvailable("t1")).toBe(false); // spent this turn
 
     state.turn.turnNumber = 2; // next turn: available again
@@ -248,7 +249,8 @@ describe("RerollArbiter constraint matrix", () => {
 
     arbiter.consumeTeamReroll("t1");
     state.turn.turnNumber = 3;
-    expect(team.rerolls).toBe(0);
+    expect(teamRerollsLeft(state, team)).toBe(0);
+    expect(team.rerolls).toBe(2); // the roster's purchased count is untouched
     expect(arbiter.teamRerollAvailable("t1")).toBe(false); // bank empty
   });
 

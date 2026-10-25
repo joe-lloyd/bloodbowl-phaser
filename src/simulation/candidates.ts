@@ -25,6 +25,10 @@ import { PassController } from "../game/controllers/PassController";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
+import { jumpTargets } from "../game/rules/jump";
+import { moveAllowance } from "../game/skills/movement";
+import { withDriveModifiers } from "../game/kickoff/driveEffects";
+import { hasSkill, SkillType } from "../types/Skills";
 
 export type CandidateKind =
   | "decision"
@@ -476,6 +480,37 @@ function stepCandidates(
       }
     }
 
+    const movesWithJumps =
+      action === "move" ||
+      action === "blitz" ||
+      action === "pass" ||
+      action === "handoff" ||
+      action === "foul";
+    if (
+      movesWithJumps &&
+      player.status === PlayerStatus.ACTIVE &&
+      gs.getMovementUsed(player.id) + 2 <=
+        moveAllowance(withDriveModifiers(player, state))
+    ) {
+      const others = [...gs.getTeammates(player.id), ...opponents];
+      const canJumpAnything =
+        hasSkill(player.skills, SkillType.LEAP) ||
+        hasSkill(player.skills, SkillType.POGO);
+      for (const target of jumpTargets(at, others, canJumpAnything, (x, y) =>
+        onPitch({ x, y })
+      )) {
+        step(
+          {
+            type: "jump",
+            playerId: player.id,
+            x: target.dest.x,
+            y: target.dest.y,
+          },
+          `${describePlayer(player)} jumps over ${square(target.over)} to ${square(target.dest)}`
+        );
+      }
+    }
+
     const canBlock =
       player.status === PlayerStatus.ACTIVE &&
       !replacementPending &&
@@ -514,13 +549,23 @@ function stepCandidates(
     }
 
     if (action === "pass" && carrying && !state.turn.hasPassed) {
-      for (const mate of gs.getTeammates(player.id)) {
-        if (!mate.gridPosition || mate.status !== PlayerStatus.ACTIVE) continue;
-        if (PassController.rangeValue(at, mate.gridPosition) === null) continue;
-        step(
-          { type: "pass", playerId: player.id, ...mate.gridPosition },
-          `${describePlayer(player)} passes to ${describePlayer(mate)}`
-        );
+      // Every in-range square, not just team-mates: passes to opponents and
+      // to empty grass are legal, and are where turnover rules get tested.
+      const everyone = [...gs.getTeammates(player.id), ...opponents];
+      for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+        for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+          if (x === at.x && y === at.y) continue;
+          if (PassController.rangeValue(at, { x, y }) === null) continue;
+          const there = everyone.find(
+            (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
+          );
+          step(
+            { type: "pass", playerId: player.id, x, y },
+            there
+              ? `${describePlayer(player)} passes to ${describePlayer(there)}`
+              : `${describePlayer(player)} passes to the empty square ${square({ x, y })}`
+          );
+        }
       }
     }
 

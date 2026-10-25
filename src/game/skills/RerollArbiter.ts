@@ -6,7 +6,7 @@
  * - a skill reroll is usable once per action (players activate once per team
  *   turn, so per-turn tracking keyed by player+skill is equivalent)
  * - a team reroll is usable once per team turn, only on that team's own
- *   turn, and spends one from the team's counter
+ *   turn, and spends one of the team's re-rolls for this half
  */
 
 import { GameState } from "../../types/GameState";
@@ -19,6 +19,7 @@ import {
   consumeFreeReroll,
   freeRerollsFor,
 } from "../kickoff/driveEffects";
+import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
 
 export class RerollArbiter {
   private usedSkill = new Set<string>();
@@ -80,9 +81,14 @@ export class RerollArbiter {
     if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return false;
     return (
       freeRerollsFor(this.state, teamId) > 0 ||
-      (this.getTeam(teamId)?.rerolls ?? 0) > 0 ||
+      this.teamRerollsLeftFor(teamId) > 0 ||
       this.leaderRerollAvailable(teamId)
     );
+  }
+
+  private teamRerollsLeftFor(teamId: string): number {
+    const team = this.getTeam(teamId);
+    return team ? teamRerollsLeft(this.state, team) : 0;
   }
 
   public consumeSkillReroll(player: Player, skill: SkillType): void {
@@ -129,10 +135,7 @@ export class RerollArbiter {
       return;
     }
     const team = this.getTeam(teamId);
-    if (team && team.rerolls > 0) {
-      team.rerolls -= 1;
-      return;
-    }
+    if (team && spendTeamReroll(this.state, team)) return;
     if (this.leaderRerollAvailable(teamId)) {
       this.leaderRerolls.set(teamId, 0);
       const leader = team?.players.find(

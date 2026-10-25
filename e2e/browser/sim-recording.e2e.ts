@@ -25,7 +25,7 @@ import { GameBridge } from "../support/pages/bridge";
 
 const RECORDING = fileURLToPath(
   new URL(
-    "../../__tests__/simulation/recordings/skull-drops-carried-ball.json",
+    "../../__tests__/simulation/recordings/failed-rush-onto-loose-ball.json",
     import.meta.url
   )
 );

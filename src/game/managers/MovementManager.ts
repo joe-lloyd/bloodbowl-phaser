@@ -247,7 +247,8 @@ export class MovementManager {
       maView,
       [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
       oppTeam.players.filter((p) => p.gridPosition),
-      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id)
+      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id),
+      this.getMovementUsed(playerId)
     );
     if (!result.valid) {
       console.warn(`Invalid move attempted for player ${playerId}`);
@@ -299,6 +300,67 @@ export class MovementManager {
 
     for (const step of path) {
       if (failed) break;
+
+      // A step that needs both a Rush and a Dodge rolls the Rush first
+      // (rulebook p.62), so a fall on the Rush never reaches the Dodge.
+      const totalUsed = preUsed + stepsTaken + 1;
+
+      if (totalUsed > maView.stats.MA) {
+        // Trigger point: rush declared — rules may modify it (Drunkard)
+        const rushCtx: RushDeclaredContext = {
+          player,
+          modifiers: 0,
+          triggers: [],
+        };
+        await foldTrigger("onRushDeclared", [player], rushCtx);
+        for (const t of rushCtx.triggers) {
+          this.eventBus.emit(GameEventNames.SkillTriggered, t);
+        }
+        const rollRush = () =>
+          this.diceController.rollSkillCheck(
+            "Rush (GFI)",
+            2,
+            rushCtx.modifiers,
+            player.playerName
+          );
+        // A failed rush may be rerolled (Sure Feet / team reroll)
+        const check = gameService
+          ? await withRerollOffer(
+              { gameService, eventBus: this.eventBus },
+              player,
+              "rush",
+              rollRush
+            )
+          : rollRush();
+
+        if (
+          !check.success &&
+          !steadyFootingSaves(player, this.diceController, this.eventBus)
+        ) {
+          failed = true;
+          currentPos = step;
+          player.gridPosition = currentPos;
+          player.status = PlayerStatus.PRONE;
+          this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+
+          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
+            gameService.setBallPosition(currentPos.x, currentPos.y);
+            flowManager.add(new BounceOperation(currentPos), true);
+          }
+
+          if (flowManager) {
+            flowManager.add(new ArmourOperation(playerId), true);
+          }
+
+          this.callbacks.onTurnover("Failed GFI");
+          stepsTaken++;
+          completedPath.push(step);
+          break;
+        }
+        // A failed Rush that Steady Footing saved keeps the player Standing:
+        // they move into the square and may keep going, no fall and no Turnover.
+      }
 
       if (this.dodgeController.isDodgeRequired(currentPos, opponents)) {
         // Trigger point: dodge declared — rules from the dodger AND the
@@ -471,63 +533,6 @@ export class MovementManager {
       }
 
       stepsTaken++;
-      const totalUsed = preUsed + stepsTaken;
-
-      if (totalUsed > maView.stats.MA) {
-        // Trigger point: rush declared — rules may modify it (Drunkard)
-        const rushCtx: RushDeclaredContext = {
-          player,
-          modifiers: 0,
-          triggers: [],
-        };
-        await foldTrigger("onRushDeclared", [player], rushCtx);
-        for (const t of rushCtx.triggers) {
-          this.eventBus.emit(GameEventNames.SkillTriggered, t);
-        }
-        const rollRush = () =>
-          this.diceController.rollSkillCheck(
-            "Rush (GFI)",
-            2,
-            rushCtx.modifiers,
-            player.playerName
-          );
-        // A failed rush may be rerolled (Sure Feet / team reroll)
-        const check = gameService
-          ? await withRerollOffer(
-              { gameService, eventBus: this.eventBus },
-              player,
-              "rush",
-              rollRush
-            )
-          : rollRush();
-
-        if (
-          !check.success &&
-          !steadyFootingSaves(player, this.diceController, this.eventBus)
-        ) {
-          failed = true;
-          currentPos = step;
-          player.gridPosition = currentPos;
-          player.status = PlayerStatus.PRONE;
-          this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-
-          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
-            gameService.setBallPosition(currentPos.x, currentPos.y);
-            flowManager.add(new BounceOperation(currentPos), true);
-          }
-
-          if (flowManager) {
-            flowManager.add(new ArmourOperation(playerId), true);
-          }
-
-          this.callbacks.onTurnover("Failed GFI");
-          completedPath.push(step);
-          break;
-        }
-        // A failed Rush that Steady Footing saved keeps the player Standing:
-        // they move into the square and may keep going, no fall and no Turnover.
-      }
 
       currentPos = step;
       player.gridPosition = currentPos;

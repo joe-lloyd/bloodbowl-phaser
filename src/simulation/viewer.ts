@@ -10,7 +10,7 @@ import { GameSnapshot } from "../headless/serialization";
 import { GameEventNames } from "../types/events";
 import { PlayerStatus } from "../types/Player";
 import { MatchRecording, createSimGame } from "./runMatch";
-import { checkInvariants } from "./invariants";
+import { createRuleMonitor } from "./invariants";
 
 /** Status codes kept short: the page holds one frame per step. */
 const STATUS_CODE: Partial<Record<PlayerStatus, string>> = {
@@ -163,15 +163,19 @@ export async function buildMatchDump(
       []
     ),
   ];
+  const monitor = createRuleMonitor();
   for (const step of recording.steps) {
     const before = game.snapshot();
     const response = await game.execute(step.command);
     const problems = response.ok
-      ? checkInvariants(
-          before,
-          response.snapshot,
-          !!response.pendingDecision
-        ).map((v) => `${v.rule}: ${v.message}`)
+      ? monitor
+          .observe(
+            step.command,
+            before,
+            response.snapshot,
+            !!response.pendingDecision
+          )
+          .map((v) => `${v.rule}: ${v.message}`)
       : [];
     frames.push(
       frameOf(

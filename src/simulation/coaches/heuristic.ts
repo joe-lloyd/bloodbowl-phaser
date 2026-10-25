@@ -196,7 +196,31 @@ function scoreStep(command: HeadlessCommand, board: Board): number {
       const gain =
         distanceToGoal(board, passer.teamId, passer.gridPosition!) -
         distanceToGoal(board, passer.teamId, target);
-      return gain * 8 - tackleZonesOn(board, passer.teamId, target) * 10;
+      const receiver = [
+        ...gs.getTeammates(passer.id),
+        ...gs.getOpponents(passer.teamId),
+      ].find(
+        (p) => p.gridPosition?.x === target.x && p.gridPosition?.y === target.y
+      );
+      // Only ever aim at a standing team-mate; anything else gives the ball away.
+      const aimPenalty =
+        receiver?.teamId === passer.teamId &&
+        receiver.status === PlayerStatus.ACTIVE
+          ? 0
+          : 200;
+      return (
+        gain * 8 - tackleZonesOn(board, passer.teamId, target) * 10 - aimPenalty
+      );
+    }
+    case "jump": {
+      // A Jump is an Agility test: worth it only to make real progress.
+      const player = gs.getPlayerById(command.playerId)!;
+      const to = { x: command.x, y: command.y };
+      return (
+        squareValue(player, to, board) -
+        squareValue(player, player.gridPosition!, board) -
+        25
+      );
     }
     case "foul":
       return 10;

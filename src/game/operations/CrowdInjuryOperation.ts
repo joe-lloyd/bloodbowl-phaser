@@ -13,6 +13,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
+import { resolveInjuryRoll } from "./InjuryOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
 
@@ -55,9 +56,12 @@ export class CrowdInjuryOperation extends GameOperation {
     const roll = gameService
       .getDiceController()
       .roll2D6(`Injury by the Crowd (${player.playerName})`);
-    const result = gameService
-      .getInjuryController()
-      .getInjuryResult(player, roll);
+    const { result, casualtyAutoBadlyHurt } = await resolveInjuryRoll(
+      context,
+      player,
+      roll,
+      0
+    );
 
     // A player in the crowd is off the pitch whatever the result — every
     // branch moves them through the one location seam (the trailing
@@ -92,7 +96,12 @@ export class CrowdInjuryOperation extends GameOperation {
           cause: "crowd",
           sppEligible: false,
         });
-        flowManager.add(new CasualtyOperation(this.playerId), true);
+        flowManager.add(
+          new CasualtyOperation(this.playerId, undefined, {
+            autoBadlyHurt: casualtyAutoBadlyHurt,
+          }),
+          true
+        );
         break;
     }
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);

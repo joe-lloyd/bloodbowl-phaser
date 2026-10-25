@@ -4,6 +4,7 @@ import { GameEventNames } from "@/types/events";
 import { RerollDecisionRequest, RerollSource } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { teamRerollsLeft } from "../../../game/teamRerolls";
 
 interface RerollDialogProps {
   eventBus: EventBus;
@@ -42,8 +43,11 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     ? ServiceContainer.getInstance()
     : null;
   const player = container?.gameService.getPlayerById(request.playerId);
-  const teamRerollsLeft =
-    container?.gameService.getTeam(request.chooserTeamId)?.rerolls ?? 0;
+  const chooserTeam = container?.gameService.getTeam(request.chooserTeamId);
+  const rerollsLeft =
+    container && chooserTeam
+      ? teamRerollsLeft(container.gameService.getState(), chooserTeam)
+      : 0;
 
   return (
     <div
@@ -76,7 +80,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
               onClick={() => answer(true, "team")}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
-              USE TEAM RE-ROLL ({teamRerollsLeft} left)
+              USE TEAM RE-ROLL ({rerollsLeft} left)
             </button>
           )}
           <button

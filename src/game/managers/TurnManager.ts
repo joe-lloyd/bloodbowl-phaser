@@ -4,6 +4,7 @@ import { Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { GameEventNames } from "../../types/events";
+import { replenishTeamRerolls } from "../teamRerolls";
 
 export interface TurnManagerState {
   turnCounts: Record<string, number>;
@@ -186,19 +187,16 @@ export class TurnManager {
     // stand-ups) are in place when that turn begins
     this.callbacks.onTurnEnding?.(currentTeamId);
 
-    const nextTeamId =
+    // Play alternates, but a team that has used all its turns never gets
+    // another: the other team plays on, and the half ends once both are out.
+    const otherTeamId =
       currentTeamId === this.team1.id ? this.team2.id : this.team1.id;
-
-    // Check if next team has turns left
-    const nextTeamTurnCount = this.turnCounts[nextTeamId] || 0;
-
-    if (nextTeamTurnCount >= this.maxTurns) {
-      // If both teams finished max turns, end half
-      const currentTeamTurnCount = this.turnCounts[currentTeamId];
-      if (currentTeamTurnCount >= this.maxTurns) {
-        this.endHalf();
-        return;
-      }
+    const nextTeamId = [otherTeamId, currentTeamId].find(
+      (teamId) => (this.turnCounts[teamId] ?? 0) < this.maxTurns
+    );
+    if (!nextTeamId) {
+      this.endHalf();
+      return;
     }
 
     const nextTeam = nextTeamId === this.team1.id ? this.team1 : this.team2;
@@ -208,6 +206,18 @@ export class TurnManager {
     });
 
     this.startTurn(nextTeamId);
+  }
+
+  /**
+   * A team that scores during its opponent's Turn skips its next Turn
+   * celebrating (2025 rulebook, "Scoring during your opponent's Turn"):
+   * its Turn Marker moves on without the Turn being played.
+   */
+  public skipNextTurn(teamId: string): void {
+    this.turnCounts[teamId] = Math.min(
+      this.maxTurns,
+      (this.turnCounts[teamId] ?? 0) + 1
+    );
   }
 
   /** Both teams have used every turn of the current half. */
@@ -237,6 +247,7 @@ export class TurnManager {
     }
 
     this.state.turn.isHalf2 = true;
+    replenishTeamRerolls(this.state);
     this.turnCounts[this.team1.id] = 0;
     this.turnCounts[this.team2.id] = 0;
 

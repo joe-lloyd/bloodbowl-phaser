@@ -126,22 +126,8 @@ export async function withRerollOffer<T extends RollLike>(
       skill: String(skillSource),
       effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
     });
-  } else {
-    // Loner-class rules may gate the spend; the reroll is lost either way
-    const gateCtx: TeamRerollGateContext = {
-      player,
-      dice: deps.gameService.getDiceController(),
-      allowed: true,
-      triggers: [],
-    };
-    for (const skill of player.skills) {
-      SkillRegistry.get(skill.type)?.onTeamRerollGate?.(gateCtx, player);
-    }
-    for (const t of gateCtx.triggers) {
-      deps.eventBus.emit(GameEventNames.SkillTriggered, t);
-    }
-    arbiter.consumeTeamReroll(player.teamId);
-    if (!gateCtx.allowed) return first;
+  } else if (!spendTeamReroll(deps, player)) {
+    return first;
   }
 
   const second = doRoll();
@@ -154,4 +140,26 @@ export async function withRerollOffer<T extends RollLike>(
     after: second.roll,
   });
   return second;
+}
+
+/**
+ * Spend the player's team's Team Re-roll. Loner-class rules may gate the
+ * spend; the re-roll is lost either way. Returns whether the dice may be
+ * re-rolled.
+ */
+export function spendTeamReroll(deps: RerollDeps, player: Player): boolean {
+  const gateCtx: TeamRerollGateContext = {
+    player,
+    dice: deps.gameService.getDiceController(),
+    allowed: true,
+    triggers: [],
+  };
+  for (const skill of player.skills) {
+    SkillRegistry.get(skill.type)?.onTeamRerollGate?.(gateCtx, player);
+  }
+  for (const t of gateCtx.triggers) {
+    deps.eventBus.emit(GameEventNames.SkillTriggered, t);
+  }
+  deps.gameService.getRerollArbiter().consumeTeamReroll(player.teamId);
+  return gateCtx.allowed;
 }

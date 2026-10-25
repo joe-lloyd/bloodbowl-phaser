@@ -5,12 +5,55 @@ import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { effectiveAV } from "../kickoff/driveEffects";
+import { Player } from "../../types/Player";
 import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
   ArmourBreakContext,
 } from "../skills";
+
+/**
+ * Fold the rules that act on an Armour Roll (Mighty Blow, Claws, Iron Hard
+ * Skin, ...) over the given participants, in order, and announce what they
+ * did. Blocks, falls and fouls go through here.
+ */
+export async function foldArmourRoll(
+  context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
+  participants: Player[],
+  roll: Pick<
+    ArmourBreakContext,
+    "player" | "causedBy" | "cause" | "vacatedSquare" | "roll" | "armourModifier"
+  >
+): Promise<ArmourBreakContext> {
+  const { gameService, eventBus, flowManager } = context;
+  const ctx: ArmourBreakContext = {
+    ...roll,
+    injuryModifier: 0,
+    broken:
+      roll.roll >= effectiveAV(roll.player, gameService.getState()),
+    decisions: gameService.getDecisionService(),
+    flow: flowManager,
+    arbiter: gameService.getRerollArbiter(),
+    dice: gameService.getDiceController(),
+    triggers: [],
+  };
+  await foldTrigger("onArmourBreak", participants, ctx);
+  ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
+  return ctx;
+}
+
+/** Whether a natural Armour Roll breaks armour once the fold has run. */
+export function armourBroken(
+  ctx: ArmourBreakContext,
+  roll: number,
+  gameService: IGameService
+): boolean {
+  return (
+    !!ctx.forcedBreak ||
+    roll + ctx.armourModifier >= effectiveAV(ctx.player, gameService.getState())
+  );
+}
 
 /**
  * ArmourOperation
@@ -68,21 +111,6 @@ export class ArmourOperation extends GameOperation {
       .roll2D6(`Armour Roll (${player.playerName})`);
 
     // 2. Trigger point: rules may modify the roll or force/cancel a break
-    const ctx: ArmourBreakContext = {
-      player,
-      causedBy,
-      cause: this.fall?.cause ?? (causedBy ? "block" : undefined),
-      vacatedSquare: this.fall?.vacatedSquare,
-      roll,
-      armourModifier: 0,
-      injuryModifier: 0,
-      broken: roll >= effectiveAV(player, gameService.getState()),
-      decisions: gameService.getDecisionService(),
-      flow: flowManager,
-      arbiter: gameService.getRerollArbiter(),
-      dice: gameService.getDiceController(),
-      triggers: [],
-    };
     const opponents = gameService.getOpponents(player.teamId);
     // Standing opponents adjacent to the fallen player, plus — for a failed
     // Dodge — those adjacent to the square they were leaving (Arm Bar).
@@ -90,22 +118,23 @@ export class ArmourOperation extends GameOperation {
       ...(player.gridPosition ? adjacentStanding(player.gridPosition, opponents) : []),
       ...(this.fall ? adjacentStanding(this.fall.vacatedSquare, opponents) : []),
     ];
-    await foldTrigger(
-      "onArmourBreak",
+    const ctx = await foldArmourRoll(
+      context,
       gatherParticipants(
         causedBy ?? player,
         causedBy ? player : undefined,
         nearby
       ),
-      ctx
+      {
+        player,
+        causedBy,
+        cause: this.fall?.cause ?? (causedBy ? "block" : undefined),
+        vacatedSquare: this.fall?.vacatedSquare,
+        roll,
+        armourModifier: 0,
+      }
     );
-    ctx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
-
-    const isBroken =
-      ctx.forcedBreak ||
-      roll + ctx.armourModifier >= effectiveAV(player, gameService.getState());
+    const isBroken = armourBroken(ctx, roll, gameService);
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
