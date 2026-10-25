@@ -86,11 +86,8 @@ export interface InducementSelectionLine {
 export interface InducementRuleProfile {
   /** Lookup/debug key, e.g. "sevens" or "sevens-advanced-league". */
   id: string;
-  /** Advanced League Sevens keeps Prayers to Nuffle results 10-13. */
   advancedLeague: boolean;
   starPlayersAllowed: boolean;
-  /** Prayers to Nuffle results that are rerolled until legal; empty = none. */
-  prayersRerollResults: number[];
 }
 
 /** The pregame offer: each team's catalogue, budget and current selection. */
@@ -102,26 +99,14 @@ export interface InducementOffer {
   confirmed: Record<string, boolean>;
 }
 
-/** Prayers to Nuffle results rerolled outside Advanced League (2025 p.36). */
-export const SEVENS_RESTRICTED_PRAYERS = [10, 11, 12, 13] as const;
-
-/**
- * Build the Sevens inducement rule profile. Prayers to Nuffle results
- * 10-13 are only rerolled outside Advanced League play, unless the
- * competition profile explicitly restricts them there too.
- */
+/** Build the Sevens inducement rule profile. */
 export function buildSeventsInducementProfile(opts: {
   advancedLeague: boolean;
-  /** Advanced League still restricting 10-13 is a competition-level override. */
-  restrictPrayersInAdvancedLeague?: boolean;
 }): InducementRuleProfile {
-  const restrictPrayers =
-    !opts.advancedLeague || opts.restrictPrayersInAdvancedLeague === true;
   return {
     id: opts.advancedLeague ? "sevens-advanced-league" : "sevens",
     advancedLeague: opts.advancedLeague,
     starPlayersAllowed: false,
-    prayersRerollResults: restrictPrayers ? [...SEVENS_RESTRICTED_PRAYERS] : [],
   };
 }
 

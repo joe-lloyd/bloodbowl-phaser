@@ -57,6 +57,26 @@ describe("Prayers to Nuffle (D8)", () => {
     expect(prayersOf(game, game.ctx.team2.id)).toEqual([]);
   });
 
+  it("rolls prayers bought through the pregame inducement commands", async () => {
+    const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
+    const team1 = game.ctx.team1;
+    game.ctx.team2.rerolls += 1; // a team value gap gives team 1 petty cash
+    const selected = await game.execute({
+      type: "select-inducement",
+      teamId: team1.id,
+      inducement: Inducement.PRAYERS_TO_NUFFLE,
+      quantity: 1,
+    });
+    expect(selected.ok).toBe(true);
+    forceDice(game.ctx.rng, [6]); // D8 6 = Moles Under the Pitch
+    await game.execute({ type: "confirm-inducements", teamId: team1.id });
+    await game.execute({ type: "confirm-inducements", teamId: game.ctx.team2.id });
+
+    expect(prayersOf(game, team1.id)).toEqual([
+      PrayerToNuffle.MOLES_UNDER_THE_PITCH,
+    ]);
+  });
+
   it("takes granted skills back at full time", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 1 });
     const team1 = game.ctx.team1;

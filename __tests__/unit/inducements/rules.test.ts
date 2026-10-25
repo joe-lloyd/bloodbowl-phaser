@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildSeventsInducementProfile,
-  Inducement,
-} from "../../../src/types/Inducements";
+import { Inducement } from "../../../src/types/Inducements";
 import {
   calculateInducementBudgets,
   toInventoryEntries,
@@ -161,26 +158,6 @@ describe("validateInducementSelection", () => {
     expect(result.errors).toEqual([
       "inducement-not-offered:Mortuary Assistant",
     ]);
-  });
-});
-
-describe("Prayers to Nuffle restriction by advancement mode", () => {
-  it("restricts 10-13 outside Advanced League", () => {
-    const profile = buildSeventsInducementProfile({ advancedLeague: false });
-    expect(profile.prayersRerollResults.sort()).toEqual([10, 11, 12, 13]);
-  });
-
-  it("keeps 10-13 legal in Advanced League by default", () => {
-    const profile = buildSeventsInducementProfile({ advancedLeague: true });
-    expect(profile.prayersRerollResults).toEqual([]);
-  });
-
-  it("a competition profile may still restrict 10-13 in Advanced League", () => {
-    const profile = buildSeventsInducementProfile({
-      advancedLeague: true,
-      restrictPrayersInAdvancedLeague: true,
-    });
-    expect(profile.prayersRerollResults.sort()).toEqual([10, 11, 12, 13]);
   });
 });
 
