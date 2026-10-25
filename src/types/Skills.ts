@@ -301,9 +301,10 @@ export const LEGACY_SKILL_NAMES: Record<
     type: SkillType.ANIMOSITY,
     parameter: "Dwarf and Human team-mates",
   },
+  // The 2025 roster's Animosity (Goblin): a keyword the matcher can find.
   "Animosity (Underworld Goblin Linemen)": {
     type: SkillType.ANIMOSITY,
-    parameter: "Underworld Goblin Linemen",
+    parameter: "Goblin",
   },
   "Animosity (Orc Lineman)": {
     type: SkillType.ANIMOSITY,
