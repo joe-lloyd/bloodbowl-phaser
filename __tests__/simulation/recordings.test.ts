@@ -17,25 +17,18 @@ import { GameSnapshot } from "../../src/headless/serialization";
  */
 const DIR = path.join(__dirname, "recordings");
 
-/** What each fixture's last step must now produce, read off the snapshot. */
-const EXPECTED_END: Record<string, (snapshot: GameSnapshot) => void> = {
-  // A Rush into the loose ball's square (5,7) failed. The ball stayed under
-  // the fallen player instead of bouncing. Now it bounces before the armour
-  // roll, which shifts the dice: the faller is KO'd off the pitch.
-  "failed-rush-onto-loose-ball.json": (snapshot) => {
-    expect(snapshot.ballPosition).toEqual({ x: 4, y: 7 });
-    expect(player(snapshot, "team1-player-2")).toMatchObject({
-      position: null,
-      status: "KO",
-    });
-  },
-};
-
-const player = (snapshot: GameSnapshot, id: string) =>
-  snapshot.teams.flatMap((t) => t.players).find((p) => p.id === id);
+/**
+ * What each fixture's last step must now produce, read off the snapshot.
+ * Empty for now: failed-rush-onto-loose-ball became
+ * __tests__/headless/failed-rush-onto-loose-ball.test.ts when the Sevens
+ * kick-off deviation changed the dice order.
+ */
+const EXPECTED_END: Record<string, (snapshot: GameSnapshot) => void> = {};
 
 describe("committed simulation recordings", () => {
-  const files = fs.readdirSync(DIR).filter((file) => file.endsWith(".json"));
+  const files = fs.existsSync(DIR)
+    ? fs.readdirSync(DIR).filter((file) => file.endsWith(".json"))
+    : [];
 
   it("has a fixture for every expectation", () => {
     expect(files.sort()).toEqual(Object.keys(EXPECTED_END).sort());
