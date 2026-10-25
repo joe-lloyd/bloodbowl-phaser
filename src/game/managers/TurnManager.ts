@@ -111,8 +111,10 @@ export class TurnManager {
   public startTurn(teamId: string): void {
     this.state.phase = GamePhase.PLAY;
     this.state.activeTeamId = teamId;
-    // A fresh turn always clears any stale turnover latch
+    // A fresh turn always clears any stale turnover latch, and any
+    // activation a turnover cut short: it belonged to the previous turn.
     this.turnoverInProgress = false;
+    this.state.activePlayer = null;
 
     if (this.driveKickingTeamId) {
       this.state.subPhase =

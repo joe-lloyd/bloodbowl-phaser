@@ -28,6 +28,10 @@ emulator.log
 /blob-report/
 /.playwright/
 
+# Simulation harness output (pnpm sim). Commit a recording deliberately by
+# copying it somewhere tracked; a run directory is scratch.
+/sim-results/
+
 # Logs
 *.log
 npm-debug.log*

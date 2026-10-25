@@ -52,7 +52,7 @@ export class MovementManager {
     private callbacks: {
       onTurnover: (reason: string) => void;
       onActivationFinished: (playerId: string) => void;
-      onTouchdown?: (teamId: string) => void;
+      onTouchdown?: (teamId: string, scorerId: string) => void;
     }
   ) {
     this.dodgeController = new DodgeController(diceController);
@@ -78,9 +78,8 @@ export class MovementManager {
     const opponentTeam =
       player.teamId === this.team1.id ? this.team2 : this.team1;
 
-    const opponents = opponentTeam.players.filter(
-      (p) => p.gridPosition && p.status === PlayerStatus.ACTIVE
-    );
+    // Every positioned player blocks a square, whatever their status.
+    const opponents = opponentTeam.players.filter((p) => p.gridPosition);
     const teammates = team.players.filter(
       (p) => p.gridPosition && p.id !== player.id
     );
@@ -241,10 +240,14 @@ export class MovementManager {
       (p) => p.status === PlayerStatus.ACTIVE && p.gridPosition
     );
 
+    // Occupancy needs every player on the pitch, Prone ones included;
+    // tackle zones inside validatePath still count Standing opponents only.
+    const ownTeam = player.teamId === this.team1.id ? this.team1 : this.team2;
     const result = this.movementValidator.validatePath(
       maView,
       [{ x: player.gridPosition!.x, y: player.gridPosition!.y }, ...path],
-      opponents
+      oppTeam.players.filter((p) => p.gridPosition),
+      ownTeam.players.filter((p) => p.gridPosition && p.id !== player.id)
     );
     if (!result.valid) {
       console.warn(`Invalid move attempted for player ${playerId}`);
@@ -441,7 +444,7 @@ export class MovementManager {
 
           applyShadowFollow(vacatedSquare);
 
-          if (holdingBall && flowManager) {
+          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
           }
@@ -509,7 +512,7 @@ export class MovementManager {
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
-          if (holdingBall && flowManager) {
+          if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
           }
@@ -586,7 +589,7 @@ export class MovementManager {
             ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
             ballJoinStep,
           });
-          this.callbacks.onTouchdown?.(player.teamId);
+          this.callbacks.onTouchdown?.(player.teamId, player.id);
           return Promise.resolve();
         }
       }
@@ -797,7 +800,7 @@ export class MovementManager {
         this.eventBus.emit(GameEventNames.BallPlaced, { ...target });
         const side = player.teamId === this.team1.id ? 1 : 2;
         if (isInEndZone(target, GameConfig.PITCH_WIDTH, side)) {
-          this.callbacks.onTouchdown?.(player.teamId);
+          this.callbacks.onTouchdown?.(player.teamId, player.id);
           return;
         }
       }
@@ -824,13 +827,22 @@ export class MovementManager {
     }
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
     this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    if (holdingBall && flowManager) {
+    if ((holdingBall || this.isBallAt(fallSquare)) && flowManager) {
       gameService.setBallPosition(fallSquare.x, fallSquare.y);
       flowManager.add(new BounceOperation(fallSquare), true);
     }
     if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
     this.callbacks.onTurnover("Failed Jump");
     this.callbacks.onActivationFinished(playerId);
+  }
+
+  /** A player who falls onto the loose ball's square knocks it loose too. */
+  private isBallAt(square: { x: number; y: number }): boolean {
+    return (
+      !!this.state.ballPosition &&
+      this.state.ballPosition.x === square.x &&
+      this.state.ballPosition.y === square.y
+    );
   }
 
   private getPlayerById(playerId: string): Player | undefined {

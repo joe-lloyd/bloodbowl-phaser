@@ -926,7 +926,10 @@ export class HeadlessGame {
         });
 
         const actions: ActionType[] = [];
-        if (p.status === PlayerStatus.PRONE) {
+        if (availability.ballAndChain) {
+          // A Standing Fanatic may declare nothing but Ball & Chain.
+          actions.push("ballAndChain");
+        } else if (p.status === PlayerStatus.PRONE) {
           // Standing up only costs movement, so every movement-based action
           // stays available to a prone player. Only plain Block is not.
           actions.push("standUp", "move");

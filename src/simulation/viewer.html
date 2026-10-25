@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #0b0f1e; --panel: #131a30; --line: #2a3352; --text: #e8e4d6; --muted: #8d93a8;
+    --gold: #e0b24a; --home: #d23a3a; --away: #3a6fd2; --grass: #2f6b2c; --grass2: #2a6227;
+    --bad: #ff6b6b; --good: #6bd38a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  h1 { font-size: 16px; margin: 0; font-weight: 600; color: var(--gold); letter-spacing: .02em; }
+  .score { display: flex; align-items: center; gap: 10px; font-size: 15px; margin-left: auto; }
+  .score b { font-size: 26px; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  .meta { color: var(--muted); font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 16px 18px; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  #status { display: flex; gap: 18px; padding: 10px 14px; flex-wrap: wrap; align-items: baseline; }
+  #status .big { font-size: 15px; font-weight: 600; }
+  #pitchWrap { padding: 10px; }
+  svg { width: 100%; height: auto; display: block; }
+  .controls { display: flex; gap: 6px; align-items: center; padding: 10px 14px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+  button, select { background: #1d2643; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button.primary { background: var(--gold); color: #1a1406; border-color: var(--gold); font-weight: 600; min-width: 74px; }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--gold); }
+  #stepNo { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; text-align: right; }
+  .dugouts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 14px 12px; font-size: 12px; color: var(--muted); }
+  .dugouts div b { color: var(--text); font-weight: 600; }
+  aside { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  #now { padding: 12px 14px; }
+  #now .label { font-size: 15px; font-weight: 600; }
+  #now .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #now ul { margin: 8px 0 0; padding-left: 18px; }
+  #now li { margin: 2px 0; }
+  #now li.to { color: var(--bad); font-weight: 600; }
+  #now li.td { color: var(--gold); font-weight: 700; }
+  .rejected { color: var(--bad); }
+  .problem { background: #3a1620; border: 1px solid var(--bad); color: #ffd0d0; border-radius: 6px; padding: 6px 8px; margin-top: 8px; font-size: 12px; }
+  #findings { padding: 10px 14px; border-color: var(--bad); }
+  #findings h2, #list h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; }
+  #findings a { color: #ffb3b3; cursor: pointer; text-decoration: underline; }
+  #list { padding: 10px 0 0; display: flex; flex-direction: column; min-height: 320px; max-height: 70vh; }
+  #list h2 { padding: 0 14px; }
+  #steps { overflow-y: auto; flex: 1; font-size: 12px; }
+  #steps div { padding: 3px 14px; cursor: pointer; display: grid; grid-template-columns: 44px 1fr; gap: 6px; border-left: 3px solid transparent; }
+  #steps div:hover { background: #1b2340; }
+  #steps div.cur { background: #262f52; border-left-color: var(--gold); }
+  #steps div.t0 span:last-child { color: #f3b0b0; }
+  #steps div.t1 span:last-child { color: #b3c8f5; }
+  #steps div.turnrow { color: var(--gold); font-weight: 600; cursor: default; background: #10162a; }
+  #steps div.bad span:last-child { color: var(--bad); }
+  #steps span:first-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #tip { position: fixed; pointer-events: none; background: #05070f; border: 1px solid var(--gold); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: none; max-width: 260px; z-index: 5; }
+  .help { color: var(--muted); font-size: 11px; padding: 0 14px 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <span class="meta" id="sub"></span>
+  <div class="score">
+    <span><span class="chip" style="background:var(--home)"></span><span id="homeName"></span></span>
+    <b id="homeScore">0</b><span class="meta">–</span><b id="awayScore">0</b>
+    <span><span class="chip" style="background:var(--away)"></span><span id="awayName"></span></span>
+  </div>
+</header>
+<main>
+  <section class="card">
+    <div id="status"></div>
+    <div id="pitchWrap"><svg id="pitch" viewBox="0 0 820 460" role="img" aria-label="Pitch"></svg></div>
+    <div class="dugouts"><div id="dug0"></div><div id="dug1"></div></div>
+    <div class="controls">
+      <button id="first" title="Start (Home)">⏮</button>
+      <button id="prevTurn" title="Previous turn (Shift+←)">« Turn</button>
+      <button id="prev" title="Back one step (←)">◀</button>
+      <button id="play" class="primary" title="Play / pause (Space)">▶ Play</button>
+      <button id="next" title="Forward one step (→)">▶</button>
+      <button id="nextTurn" title="Next turn (Shift+→)">Turn »</button>
+      <button id="nextTd" title="Next touchdown or turnover">Next big moment</button>
+      <select id="speed" title="Playback speed">
+        <option value="1">1 step/s</option><option value="3">3 steps/s</option>
+        <option value="6" selected>6 steps/s</option><option value="15">15 steps/s</option><option value="40">40 steps/s</option>
+      </select>
+      <input id="scrub" type="range" min="0" value="0">
+      <span id="stepNo"></span>
+    </div>
+    <div class="help">Space plays and pauses. ← and → step. Shift+← and Shift+→ jump a turn. Hover a player for their stats. The address bar keeps your step, so you can share it.</div>
+  </section>
+  <aside>
+    <div class="card" id="findings" hidden></div>
+    <div class="card" id="now"></div>
+    <div class="card" id="list"><h2>Every step</h2><div id="steps"></div></div>
+  </aside>
+</main>
+<div id="tip"></div>
+<script>
+const M = /*__MATCH_DATA__*/null;
+const SQ = 40, OX = 10, OY = 10, W = 20, H = 11;
+const $ = (id) => document.getElementById(id);
+const svg = $("pitch");
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  (parent || svg).appendChild(node);
+  return node;
+};
+const cx = (x) => OX + x * SQ + SQ / 2, cy = (y) => OY + y * SQ + SQ / 2;
+const TEAM = ["var(--home)", "var(--away)"];
+const STATUS = { A: "Standing", P: "Prone", S: "Stunned" };
+
+$("title").textContent = M.title;
+$("sub").textContent = `${M.coaches[0]} vs ${M.coaches[1]} · ${M.frames.length - 1} steps`;
+$("homeName").textContent = M.teamNames[0];
+$("awayName").textContent = M.teamNames[1];
+document.title = M.title;
+
+// Static pitch: grass stripes, end zones, scrimmage and wide-zone lines.
+for (let x = 0; x < W; x++) {
+  el("rect", { x: OX + x * SQ, y: OY, width: SQ, height: H * SQ, fill: x % 2 ? "var(--grass)" : "var(--grass2)" });
+}
+el("rect", { x: OX, y: OY, width: SQ, height: H * SQ, fill: "var(--home)", opacity: 0.55 });
+el("rect", { x: OX + (W - 1) * SQ, y: OY, width: SQ, height: H * SQ, fill: "var(--away)", opacity: 0.55 });
+for (let x = 0; x <= W; x++) el("line", { x1: OX + x * SQ, y1: OY, x2: OX + x * SQ, y2: OY + H * SQ, stroke: "#ffffff18" });
+for (let y = 0; y <= H; y++) el("line", { x1: OX, y1: OY + y * SQ, x2: OX + W * SQ, y2: OY + y * SQ, stroke: "#ffffff18" });
+for (const x of [7, 13]) el("line", { x1: OX + x * SQ, y1: OY, x2: OX + x * SQ, y2: OY + H * SQ, stroke: "#ffffffaa", "stroke-width": 2 });
+for (const y of [2, 9]) el("line", { x1: OX, y1: OY + y * SQ, x2: OX + W * SQ, y2: OY + y * SQ, stroke: "#ffffff55", "stroke-dasharray": "6 6" });
+el("rect", { x: OX, y: OY, width: W * SQ, height: H * SQ, fill: "none", stroke: "#ffffffcc", "stroke-width": 2 });
+const trails = el("g", {});
+const layer = el("g", {});
+
+const tokens = M.players.map((p, i) => {
+  const g = el("g", { "data-i": i, style: "cursor:help; transition: transform 160ms ease" }, layer);
+  const ring = el("circle", { r: 17, fill: "none", stroke: "var(--gold)", "stroke-width": 3, opacity: 0 }, g);
+  const body = el("circle", { r: 14, fill: TEAM[p.team], stroke: "#000a", "stroke-width": 1.5 }, g);
+  const num = el("text", { "text-anchor": "middle", "dominant-baseline": "central", "font-size": 12, "font-weight": 700, fill: "#fff" }, g);
+  num.textContent = p.number;
+  const mark = el("text", { x: 11, y: -10, "font-size": 10, "font-weight": 700, fill: "#fff", "text-anchor": "middle" }, g);
+  g.addEventListener("mousemove", (e) => showTip(e, i));
+  g.addEventListener("mouseleave", () => ($("tip").style.display = "none"));
+  return { g, ring, body, mark };
+});
+const ball = el("g", { style: "transition: transform 160ms ease" });
+el("ellipse", { rx: 7, ry: 5, fill: "#8a4b1d", stroke: "#f3d9a8", "stroke-width": 1.5 }, ball);
+el("line", { x1: -3, y1: 0, x2: 3, y2: 0, stroke: "#f3d9a8", "stroke-width": 1 }, ball);
+
+// Turn boundaries and step list.
+const turnStarts = [];
+let lastKey = "";
+const steps = $("steps");
+M.frames.forEach((f, i) => {
+  // A step belongs to the turn it was taken in: the state before it.
+  const before = M.frames[Math.max(0, i - 1)];
+  const key = `${before.half}-${before.turn}-${before.active}-${before.phase}`;
+  if (key !== lastKey && i > 0) {
+    turnStarts.push(i);
+    const row = document.createElement("div");
+    row.className = "turnrow";
+    row.innerHTML = `<span></span><span>${turnTitle(before)}</span>`;
+    steps.appendChild(row);
+  }
+  lastKey = key;
+  const row = document.createElement("div");
+  row.className = (f.team === null ? "" : "t" + f.team) + (!f.ok || f.problems.length ? " bad" : "");
+  row.dataset.i = i;
+  row.innerHTML = `<span>${i}</span><span></span>`;
+  row.lastChild.textContent = f.label + (f.ok ? "" : " (refused)");
+  row.addEventListener("click", () => go(i));
+  steps.appendChild(row);
+});
+const rows = [...steps.querySelectorAll("div[data-i]")];
+const bigMoments = M.frames.map((f, i) => (f.log.some((l) => l.startsWith("TOUCHDOWN") || l.startsWith("TURNOVER")) ? i : -1)).filter((i) => i >= 0);
+
+if (M.findings.length) {
+  const box = $("findings");
+  box.hidden = false;
+  box.innerHTML = `<h2>${M.findings.length} problem${M.findings.length > 1 ? "s" : ""} found in this match</h2>`;
+  M.findings.slice(0, 20).forEach((f) => {
+    const line = document.createElement("div");
+    line.innerHTML = `<a></a> <span class="meta"></span>`;
+    line.firstChild.textContent = `Step ${f.step + 1}`;
+    line.firstChild.addEventListener("click", () => go(f.step + 1));
+    line.lastChild.textContent = `${f.key}: ${f.message}`;
+    box.appendChild(line);
+  });
+}
+
+function turnTitle(f) {
+  if (f.phase !== "PLAY") return f.phase.replace("_", " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  const who = f.active === null ? "" : M.teamNames[f.active];
+  return `Half ${f.half}, turn ${f.turn}: ${who}`;
+}
+
+function showTip(e, i) {
+  const p = M.players[i], f = M.frames[cur], s = f.board[i];
+  const tip = $("tip");
+  tip.innerHTML = "";
+  const t = document.createElement("div");
+  t.innerHTML = `<b></b><div></div><div class="meta"></div><div></div>`;
+  t.children[0].textContent = `#${p.number} ${p.position}`;
+  t.children[1].textContent = p.stats;
+  t.children[2].textContent = p.skills.length ? p.skills.join(", ") : "No skills";
+  t.children[3].textContent = Array.isArray(s) ? `${STATUS[s[2]] || s[2]} at (${s[0]},${s[1]})` : s;
+  tip.appendChild(t);
+  tip.style.display = "block";
+  tip.style.left = e.clientX + 14 + "px";
+  tip.style.top = e.clientY + 14 + "px";
+}
+
+let cur = 0, timer = null;
+function render() {
+  const f = M.frames[cur], prev = M.frames[Math.max(0, cur - 1)];
+  $("homeScore").textContent = f.score[0];
+  $("awayScore").textContent = f.score[1];
+  $("scrub").value = cur;
+  $("stepNo").textContent = `step ${cur} / ${M.frames.length - 1}`;
+  const actor = f.active === null ? "–" : M.teamNames[f.active];
+  $("status").innerHTML = "";
+  for (const [text, cls] of [
+    [f.phase === "PLAY" ? `Half ${f.half} · Turn ${f.turn}` : f.phase.replace("_", " "), "big"],
+    [`To act: ${actor}`, ""],
+    [`Re-rolls ${f.rerolls[0]} / ${f.rerolls[1]}`, "meta"],
+    [f.ball ? `Ball (${f.ball[0]},${f.ball[1]})` : "Ball off the pitch", "meta"],
+  ]) {
+    const s = document.createElement("span");
+    s.className = cls;
+    s.textContent = text;
+    $("status").appendChild(s);
+  }
+
+  trails.innerHTML = "";
+  const dug = [[], []];
+  f.board.forEach((s, i) => {
+    const tk = tokens[i], p = M.players[i];
+    if (!Array.isArray(s)) {
+      tk.g.style.display = "none";
+      if (s !== "Reserve") dug[p.team].push(`#${p.number} ${s}`);
+      return;
+    }
+    tk.g.style.display = "";
+    tk.g.setAttribute("transform", `translate(${cx(s[0])},${cy(s[1])})`);
+    const down = s[2] !== "A";
+    tk.body.setAttribute("fill", s[2] === "S" ? "#555" : TEAM[p.team]);
+    tk.body.setAttribute("stroke-dasharray", down ? "4 3" : "");
+    tk.body.setAttribute("stroke", down ? "#fff" : "#000a");
+    tk.g.style.opacity = down ? 0.75 : 1;
+    tk.mark.textContent = s[2] === "P" ? "P" : s[2] === "S" ? "S" : "";
+    tk.ring.setAttribute("opacity", f.activePlayer === i ? 1 : 0);
+    const was = prev.board[i];
+    if (cur > 0 && Array.isArray(was) && (was[0] !== s[0] || was[1] !== s[1])) {
+      el("line", { x1: cx(was[0]), y1: cy(was[1]), x2: cx(s[0]), y2: cy(s[1]), stroke: "var(--gold)", "stroke-width": 3, "stroke-linecap": "round", opacity: 0.7 }, trails);
+    }
+  });
+  if (f.ball) {
+    ball.style.display = "";
+    ball.setAttribute("transform", `translate(${cx(f.ball[0]) + 11},${cy(f.ball[1]) + 11})`);
+  } else ball.style.display = "none";
+  for (const t of [0, 1]) {
+    $("dug" + t).innerHTML = `<b></b> <span></span>`;
+    $("dug" + t).firstChild.textContent = `${M.teamNames[t]}:`;
+    $("dug" + t).lastChild.textContent = dug[t].length ? dug[t].join(", ") : "nobody out injured";
+  }
+
+  const now = $("now");
+  now.innerHTML = `<div class="label"></div><div class="note"></div><ul></ul>`;
+  now.children[0].textContent = (f.team === null ? "" : M.teamNames[f.team] + ": ") + f.label;
+  now.children[1].textContent = [f.ok ? "" : `Refused by the engine: ${f.reason}`, f.note || ""].filter(Boolean).join(" · ");
+  if (!f.ok) now.children[1].className = "note rejected";
+  for (const line of f.log) {
+    const li = document.createElement("li");
+    li.textContent = line;
+    if (line.startsWith("TURNOVER")) li.className = "to";
+    if (line.startsWith("TOUCHDOWN")) li.className = "td";
+    now.children[2].appendChild(li);
+  }
+  if (!f.log.length) now.children[2].innerHTML = `<li class="meta">No dice this step.</li>`;
+  for (const p of f.problems) {
+    const d = document.createElement("div");
+    d.className = "problem";
+    d.textContent = "Rule broken: " + p;
+    now.appendChild(d);
+  }
+
+  rows.forEach((r) => r.classList.remove("cur"));
+  const row = rows[cur];
+  row.classList.add("cur");
+  const box = steps.getBoundingClientRect(), rb = row.getBoundingClientRect();
+  if (rb.top < box.top || rb.bottom > box.bottom) row.scrollIntoView({ block: "center" });
+  history.replaceState(null, "", "#step=" + cur);
+}
+function go(i) { cur = Math.max(0, Math.min(M.frames.length - 1, i)); render(); }
+function play(on) {
+  clearInterval(timer); timer = null;
+  $("play").textContent = on ? "⏸ Pause" : "▶ Play";
+  if (!on) return;
+  if (cur >= M.frames.length - 1) cur = 0;
+  timer = setInterval(() => { if (cur >= M.frames.length - 1) play(false); else go(cur + 1); }, 1000 / Number($("speed").value));
+}
+const nextOf = (list) => list.find((i) => i > cur) ?? M.frames.length - 1;
+const prevOf = (list) => [...list].reverse().find((i) => i < cur) ?? 0;
+$("scrub").max = M.frames.length - 1;
+$("scrub").addEventListener("input", (e) => go(Number(e.target.value)));
+$("first").onclick = () => go(0);
+$("prev").onclick = () => go(cur - 1);
+$("next").onclick = () => go(cur + 1);
+$("prevTurn").onclick = () => go(prevOf(turnStarts));
+$("nextTurn").onclick = () => go(nextOf(turnStarts));
+$("nextTd").onclick = () => go(nextOf(bigMoments));
+$("play").onclick = () => play(!timer);
+$("speed").onchange = () => timer && play(true);
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT") return;
+  if (e.key === " ") { e.preventDefault(); play(!timer); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); e.shiftKey ? go(nextOf(turnStarts)) : go(cur + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); e.shiftKey ? go(prevOf(turnStarts)) : go(cur - 1); }
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(M.frames.length - 1);
+});
+const fromHash = /step=(\d+)/.exec(location.hash);
+go(fromHash ? Number(fromHash[1]) : 0);
+</script>
+</body>
+</html>

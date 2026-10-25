@@ -12,6 +12,10 @@ Everything runs under Playwright, split into three projects:
 | `visual-regression` | A tagged subset of browser checkpoints that also compares screenshots. | ~40s |
 | `online-emulator` | **Opt-in.** Host/guest flows against the Firebase emulators. | ~1 min + emulator start |
 
+Scenario cases prove one rule at a time. To find what breaks when whole
+matches are played, use the simulation harness, `pnpm sim`: see
+[SIMULATION.md](SIMULATION.md).
+
 ---
 
 ## Setup

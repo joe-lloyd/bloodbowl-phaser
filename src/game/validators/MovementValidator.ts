@@ -125,12 +125,12 @@ export class MovementValidator {
         const key = `${neighbor.x},${neighbor.y}`;
         if (visited.has(key)) continue;
 
-        // Check occupation
+        // Check occupation. Prone and Stunned players block too: getting
+        // past one is a Jump, a separate action, never a plain step.
+        const occupants = [...opponents, ...teammates];
         if (
-          this.isOccupiedByStanding(neighbor.x, neighbor.y, [
-            ...opponents,
-            ...teammates,
-          ])
+          this.isOccupiedByStanding(neighbor.x, neighbor.y, occupants) ||
+          this.isOccupiedByProneOrStunned(neighbor.x, neighbor.y, occupants)
         ) {
           continue; // Cannot move THROUGH or INTO occupied square
         }
@@ -312,6 +312,16 @@ export class MovementValidator {
       const from = path[i];
       const to = path[i + 1];
 
+      // Every step is to an adjacent, on-pitch square no standing player
+      // holds; a step may never skip squares.
+      if (
+        Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)) !== 1 ||
+        !this.isInBounds(to.x, to.y) ||
+        this.isOccupiedByStanding(to.x, to.y, [...opponents, ...teammates])
+      ) {
+        valid = false;
+      }
+
       let moveCost = 1;
 
       // Jump Check
@@ -377,6 +387,19 @@ export class MovementValidator {
           square: to,
         });
       }
+    }
+
+    // A move may pass a Prone player (the legacy jump step above) but never
+    // end on one.
+    const end = path[path.length - 1];
+    if (
+      path.length > 1 &&
+      this.isOccupiedByProneOrStunned(end.x, end.y, [
+        ...opponents,
+        ...teammates,
+      ])
+    ) {
+      valid = false;
     }
 
     return {
