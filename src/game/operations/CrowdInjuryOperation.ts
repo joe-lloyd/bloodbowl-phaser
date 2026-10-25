@@ -13,6 +13,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { InjuryResult } from "../controllers/InjuryController";
 import { CasualtyOperation } from "./CasualtyOperation";
+import { BounceOperation } from "./BounceOperation";
 import { resolveInjuryRoll } from "./InjuryOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { offerApothecary } from "../inducements/apothecary";
@@ -28,7 +29,12 @@ export class CrowdInjuryOperation extends GameOperation {
      * by resolution time the activation may already have ended the turn,
      * so the active team can no longer be read from the game state.
      */
-    private isTurnover: boolean
+    private isTurnover: boolean,
+    /**
+     * Treacherous Trapdoor (L12): the player fell through the Trapdoor at
+     * `exitSquare` instead, so a ball they carried Bounces from it.
+     */
+    private trapdoor?: { carriedBall: boolean }
   ) {
     super();
   }
@@ -41,14 +47,17 @@ export class CrowdInjuryOperation extends GameOperation {
 
     // Ball carried off the pitch is thrown back in before injury drama
     const state = gameService.getState();
-    const carriedBall =
-      state.ballPosition &&
-      state.ballPosition.x === this.exitSquare.x &&
-      state.ballPosition.y === this.exitSquare.y;
+    const carriedBall = this.trapdoor
+      ? this.trapdoor.carriedBall
+      : state.ballPosition &&
+        state.ballPosition.x === this.exitSquare.x &&
+        state.ballPosition.y === this.exitSquare.y;
 
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `${player.playerName} is pushed into the crowd!`
+      this.trapdoor
+        ? `${player.playerName} falls through a Trapdoor!`
+        : `${player.playerName} is pushed into the crowd!`
     );
     await context.delay(800);
 
@@ -104,13 +113,18 @@ export class CrowdInjuryOperation extends GameOperation {
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);
     await context.delay(600);
 
-    if (carriedBall) {
+    if (carriedBall && this.trapdoor) {
+      gameService.setBallPosition(this.exitSquare.x, this.exitSquare.y);
+      flowManager.add(new BounceOperation(this.exitSquare), true);
+    } else if (carriedBall) {
       gameService.throwInBall(this.exitSquare);
     }
 
     // Active-team player surfed = turnover (latch absorbs duplicates)
     if (this.isTurnover) {
-      gameService.triggerTurnover("Pushed into the Crowd");
+      gameService.triggerTurnover(
+        this.trapdoor ? "Fell through a Trapdoor" : "Pushed into the Crowd"
+      );
     }
   }
 }

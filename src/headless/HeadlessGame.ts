@@ -35,6 +35,7 @@ import {
 } from "../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { Inducement } from "../types/Inducements";
+import { foulSpent } from "../game/inducements/matchInducements";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
@@ -113,6 +114,11 @@ const COMMAND_SHAPES: Record<
   "choose-interception": {},
   touchback: { playerId: "string" },
   "use-apothecary": { accept: "boolean" },
+  "choose-inducement": {
+    playerId: "string?",
+    skill: "string?",
+    stat: "string?",
+  },
   "offer-inducements": {},
   "select-inducement": {
     teamId: "string",
@@ -138,6 +144,7 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "choose-interception": "interception",
   touchback: "touchback",
   "use-apothecary": "apothecary",
+  "choose-inducement": "inducement-choice",
   "kickoff-select-player": "kickoff-event",
   "kickoff-move-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",
@@ -713,6 +720,23 @@ export class HeadlessGame {
         break;
       }
 
+      case "choose-inducement": {
+        const pending = this.takePending("inducement-choice");
+        const stat = cmd.stat;
+        if (
+          (stat !== undefined && stat !== "ST" && stat !== "AG") ||
+          !gs.answerInducementChoice({
+            playerId: cmd.playerId,
+            skill: cmd.skill,
+            stat,
+          })
+        ) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-inducement-choice");
+        }
+        break;
+      }
+
       // --- Sevens pregame inducements ---
       case "offer-inducements":
         // Handled as a query above `dispatch`; never reached here.
@@ -800,6 +824,16 @@ export class HeadlessGame {
           chooserTeamId: data.chooserTeamId,
           passerId: data.passerId,
           candidates: data.candidates,
+        };
+      } else if (data?.type === "inducement-choice") {
+        this.pending = {
+          type: "inducement-choice",
+          kind: data.kind,
+          chooserTeamId: data.chooserTeamId,
+          playerIds: [...data.playerIds],
+          ...(data.skills ? { skills: [...data.skills] } : {}),
+          ...(data.stats ? { stats: [...data.stats] } : {}),
+          optional: data.optional,
         };
       } else if (data?.type === "apothecary") {
         this.pending = {
@@ -941,9 +975,13 @@ export class HeadlessGame {
           opponents,
           teammates: gs.getTeammates(p.id),
           reachable,
-          turn: state.turn,
+          turn: {
+            ...state.turn,
+            hasFouled: foulSpent(state, activeTeam.id),
+          },
           hasMovedInAction: false,
         });
+        const canFoul = !foulSpent(state, activeTeam.id);
 
         const actions: ActionType[] = [];
         if (availability.ballAndChain) {
@@ -955,7 +993,7 @@ export class HeadlessGame {
           actions.push("standUp");
           if (availability.move) actions.push("move");
           if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (!state.turn.hasFouled) actions.push("foul");
+          if (canFoul) actions.push("foul");
         } else if (p.status === PlayerStatus.ACTIVE) {
           if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
@@ -963,7 +1001,7 @@ export class HeadlessGame {
           if (carriesBall && availability.pass) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
-          if (!state.turn.hasFouled && adjacentDown.length > 0)
+          if (canFoul && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
             if (!actions.includes(replacement)) actions.push(replacement);

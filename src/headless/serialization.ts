@@ -83,6 +83,7 @@ export interface GameSnapshot {
     blockReplacementUsed?: boolean;
     committed?: boolean;
     bloodlustUnsated?: boolean;
+    grudgeMatch?: boolean;
   } | null;
   setup?: SetupState | null;
   /** Absent until the match reaches GAME_OVER. */
@@ -100,6 +101,8 @@ export interface GameSnapshot {
   veteranRerollsUsed?: string[];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
+  /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
+  matchInducements?: GameState["matchInducements"];
   /**
    * The current drive's already-resolved kickoff table result, if any;
    * absent on pre-feature saves. Persisted so a restore mid-kickoff
@@ -208,6 +211,9 @@ export function serializeGameState(
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
+    matchInducements: state.matchInducements
+      ? structuredClone(state.matchInducements)
+      : undefined,
     kickoffResolution: state.kickoffResolution
       ? structuredClone(state.kickoffResolution)
       : undefined,
@@ -286,6 +292,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
+      : undefined,
+    matchInducements: snapshot.matchInducements
+      ? structuredClone(snapshot.matchInducements)
       : undefined,
     kickoffResolution: snapshot.kickoffResolution
       ? structuredClone(snapshot.kickoffResolution)

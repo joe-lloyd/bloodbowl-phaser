@@ -21,6 +21,7 @@ import { Team } from "../../types/Team";
 import { getDriveEffects } from "../kickoff/driveEffects";
 import { offerBribe } from "../inducements/bribes";
 import { DiceController } from "../controllers/DiceController";
+import { rollYouDopeCollapse } from "../inducements/matchInducements";
 import {
   assertSinglePlayerLocation,
   movePlayerToBox,
@@ -121,6 +122,23 @@ export class ClearPitchOperation extends GameOperation {
       this.anotherDrive && gameService.getState().weather === "Sweltering Heat"
         ? swelteringHeat(gameService.getTeams(), gameService.getDiceController())
         : [];
+
+    // You Dope! (L21): each doped player who played the drive rolls a D6;
+    // on 1 or 2 they are Knocked-out and skip this KO recovery.
+    if (this.anotherDrive) {
+      const collapsed = rollYouDopeCollapse(
+        gameService.getState(),
+        gameService.getDiceController(),
+        gameService.getTeams().flatMap((team) => team.players)
+      );
+      for (const player of collapsed) {
+        movePlayerToBox(player, { box: "ko" }, eventBus);
+        eventBus.emit(
+          GameEventNames.UI_GameLog,
+          `You Dope!: ${player.playerName} collapses and is Knocked-out`
+        );
+      }
+    }
 
     await context.delay(800);
 

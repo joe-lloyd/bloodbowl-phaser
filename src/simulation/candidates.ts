@@ -25,6 +25,7 @@ import {
   hasCondition,
 } from "../types/Player";
 import { ActionType } from "../types/events";
+import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PassController } from "../game/controllers/PassController";
 import { legalHandoffTargets } from "../game/rules/handoff";
@@ -290,6 +291,29 @@ function decisionCandidates(
         ),
         one({ type: "use-apothecary", accept: false }, "Keep the Apothecary"),
       ];
+    case "inducement-choice": {
+      // Every offered player, with every offered skill or characteristic;
+      // a Desperate Measure may also be kept for later.
+      const extras: { skill?: string; stat?: DopeStat }[] = pending.skills
+        ? pending.skills.map((skill) => ({ skill }))
+        : pending.stats
+          ? pending.stats.map((stat) => ({ stat }))
+          : [{}];
+      const out = pending.playerIds.flatMap((playerId) =>
+        extras.map((extra) =>
+          one(
+            { type: "choose-inducement", playerId, ...extra },
+            `${pending.kind}: ${name(playerId)}${extra.skill ? ` learns ${extra.skill}` : ""}${extra.stat ? ` gains +1 ${extra.stat}` : ""}`
+          )
+        )
+      );
+      if (pending.optional) {
+        out.push(
+          one({ type: "choose-inducement" }, `Keep ${pending.kind} for later`)
+        );
+      }
+      return out;
+    }
     case "kickoff-event":
       // Coach-owned kickoff steps (Blitz, Charge, Quick Snap, ...) are
       // optional; confirming an untouched step and skipping it both close it.

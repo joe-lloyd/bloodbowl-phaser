@@ -46,6 +46,10 @@ export interface IGameService {
   answerInterception(playerId?: string): boolean;
   /** Answer a pending Apothecary decision; false when none is pending */
   answerApothecary(accept: boolean): boolean;
+  /** Answer a pending Prayer or Desperate Measure choice. */
+  answerInducementChoice(
+    answer: import("@/types/decisions").InducementChoiceDecisionAnswer
+  ): boolean;
 
   // Sevens inducements
   /**

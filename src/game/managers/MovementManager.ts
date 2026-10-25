@@ -39,7 +39,14 @@ import {
 } from "../skills/SkillRule";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { jumpTargets } from "../rules/jump";
-import { weatherEffects } from "../rules/weather";
+import {
+  bananaSkinTeam,
+  offerMeasure,
+  rushModifier,
+  trapdoorOpens,
+} from "../inducements/matchInducements";
+import { DesperateMeasure } from "../inducements/desperateMeasures";
+import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { isSecuringBall } from "../rules/secureBall";
 
 export class MovementManager {
@@ -272,6 +279,10 @@ export class MovementManager {
     let heldFast = false;
     /** A Secure the Ball pick-up succeeded: the activation ends here. */
     let securedBall = false;
+    /** Treacherous Trapdoor: the mover fell through on their last step. */
+    let fellThrough = false;
+    /** Discarded Banana Skin: the mover is Placed Prone on their last step. */
+    let slipped = false;
     let stepsTaken = 0;
     const preUsed = this.getMovementUsed(playerId);
     const wasProne = player.status === PlayerStatus.PRONE;
@@ -321,7 +332,7 @@ export class MovementManager {
         // Trigger point: rush declared — rules may modify it (Drunkard)
         const rushCtx: RushDeclaredContext = {
           player,
-          modifiers: weatherEffects(this.state.weather).rush,
+          modifiers: rushModifier(this.state, player),
           triggers: [],
         };
         await foldTrigger("onRushDeclared", [player], rushCtx);
@@ -550,6 +561,35 @@ export class MovementManager {
       player.gridPosition = currentPos;
       completedPath.push(step);
 
+      // Treacherous Trapdoor (L12): entering the square may drop the player
+      // through it, before any pick-up on that square.
+      if (trapdoorOpens(this.state, this.diceController, player, step)) {
+        fellThrough = true;
+        break;
+      }
+
+      // Discarded Banana Skin (L27): an opponent entering a Tackle Zone of a
+      // team holding it may be Placed Prone there.
+      const bananaTeamId =
+        gameService && bananaSkinTeam(this.state, step, opponents);
+      if (
+        bananaTeamId &&
+        (await offerMeasure(
+          { gameService },
+          bananaTeamId,
+          player.id,
+          DesperateMeasure.DISCARDED_BANANA_SKIN,
+          `${player.playerName} steps into your Tackle Zone — throw down the Discarded Banana Skin?`
+        ))
+      ) {
+        slipped = true;
+        if (holdingBall) {
+          this.state.ballPosition = { ...step };
+          this.eventBus.emit(GameEventNames.BallPlaced, { ...step });
+        }
+        break;
+      }
+
       if (
         !holdingBall &&
         this.state.ballPosition &&
@@ -627,6 +667,27 @@ export class MovementManager {
       ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
       ballJoinStep,
     });
+
+    if (fellThrough) {
+      this.dropThroughTrapdoor(player, currentPos, holdingBall, flowManager);
+      return;
+    }
+    if (slipped) {
+      // Placed Prone: no Armour Roll. The activation ends, and it is a
+      // Turnover only when the player held the ball. A loose ball on the
+      // square (not yet picked up) Bounces as well, but is no Turnover.
+      player.status = PlayerStatus.PRONE;
+      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      if (this.isBallAt(currentPos)) {
+        flowManager?.add(new BounceOperation(currentPos), true);
+      }
+      if (holdingBall) {
+        this.callbacks.onTurnover("Slipped on a Banana Skin");
+      } else {
+        this.callbacks.onActivationFinished(playerId);
+      }
+      return;
+    }
 
     if (
       heldFast ||
@@ -729,7 +790,7 @@ export class MovementManager {
     for (let i = 0; i < rushesNeeded; i++) {
       const rushCtx: RushDeclaredContext = {
         player,
-        modifiers: weatherEffects(this.state.weather).rush,
+        modifiers: rushModifier(this.state, player),
         triggers: [],
       };
       await foldTrigger("onRushDeclared", [player], rushCtx);
@@ -876,6 +937,10 @@ export class MovementManager {
         ballPath: holdingBall ? [from, { ...target }] : undefined,
         ballJoinStep: 0,
       });
+      if (trapdoorOpens(this.state, this.diceController, player, target)) {
+        this.dropThroughTrapdoor(player, target, holdingBall, flowManager);
+        return;
+      }
       if (holdingBall) {
         gameService?.setBallPosition(target.x, target.y);
         this.state.ballPosition = { ...target };
@@ -926,6 +991,31 @@ export class MovementManager {
     if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
     this.callbacks.onTurnover("Failed Jump");
     this.callbacks.onActivationFinished(playerId);
+  }
+
+  /**
+   * Treacherous Trapdoor (L12): the player falls through and is injured
+   * exactly as if Pushed into the Crowd; a ball they carried Bounces from
+   * the Trapdoor. As with a crowd push, it is a Turnover.
+   */
+  private dropThroughTrapdoor(
+    player: Player,
+    square: { x: number; y: number },
+    holdingBall: boolean,
+    flowManager?: import("../core/GameFlowManager").GameFlowManager
+  ): void {
+    if (holdingBall) {
+      this.state.ballPosition = { ...square };
+      this.eventBus.emit(GameEventNames.BallPlaced, { ...square });
+    }
+    player.gridPosition = undefined;
+    flowManager?.add(
+      new CrowdInjuryOperation(player.id, { ...square }, false, {
+        carriedBall: holdingBall,
+      }),
+      true
+    );
+    this.callbacks.onTurnover("Fell through a Trapdoor");
   }
 
   /** A player who falls onto the loose ball's square knocks it loose too. */

@@ -29,6 +29,7 @@ import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { CatchOperation } from "../operations/CatchOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
+import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
@@ -1575,6 +1576,8 @@ export class BlockManager {
     this.chain = null;
 
     const flowManager = this.callbacks.getFlowManager?.();
+    /** Treacherous Trapdoor (L12): pushed players who fell through. */
+    const fellThrough = new Set<string>();
 
     for (let i = links.length - 1; i >= 0; i--) {
       const link = links[i];
@@ -1629,6 +1632,24 @@ export class BlockManager {
             : undefined,
       });
 
+      // Pushed onto a Trapdoor: fall through it, injured as if Pushed into
+      // the Crowd, a carried ball Bouncing from the Trapdoor.
+      if (trapdoorOpens(this.state, this.diceController, player, link.to)) {
+        fellThrough.add(link.playerId);
+        player.gridPosition = undefined;
+        if (flowManager) {
+          const isTurnover =
+            player.teamId === flowManager.context.gameService.getActiveTeamId();
+          flowManager.add(
+            new CrowdInjuryOperation(link.playerId, link.to, isTurnover, {
+              carriedBall: !!carriedBall,
+            }),
+            true
+          );
+        }
+        continue;
+      }
+
       // A standing carrier pushed into their scoring end zone still scores
       // (the original defender falls on POW, so no score for them)
       const knockedDown = isOriginalDefender && knockDownDefender;
@@ -1653,7 +1674,12 @@ export class BlockManager {
       }
       return;
     }
-    if (first && first.to !== null && knockDownDefender) {
+    if (
+      first &&
+      first.to !== null &&
+      knockDownDefender &&
+      !fellThrough.has(first.playerId)
+    ) {
       const defender = this.getPlayerById(first.playerId);
       if (defender) {
         this.knockDownPlayer(defender);
@@ -1684,6 +1710,7 @@ export class BlockManager {
     if (
       stripBall &&
       !knockDownDefender &&
+      !fellThrough.has(first?.playerId ?? "") &&
       flowManager &&
       first &&
       first.to !== null &&

@@ -6,7 +6,11 @@
 import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
-import type { RerollSource } from "../types/decisions";
+import type {
+  DopeStat,
+  InducementChoiceDecisionRequest,
+  RerollSource,
+} from "../types/decisions";
 import { GameSnapshot } from "./serialization";
 import type {
   ChargeBudget,
@@ -132,6 +136,13 @@ export type HeadlessCommand =
   | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
   | { type: "use-apothecary"; accept: boolean }
+  /** Answer a Prayer or Desperate Measure choice; no playerId declines. */
+  | {
+      type: "choose-inducement";
+      playerId?: string;
+      skill?: string;
+      stat?: DopeStat;
+    }
   // Sevens pregame inducements
   | { type: "offer-inducements" }
   | {
@@ -238,7 +249,9 @@ export type PendingDecision =
       location?: "pitch" | "crowd";
       position?: GridPosition;
       casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
-    };
+    }
+  /** A Prayer to Nuffle or Desperate Measure waits on its coach's pick. */
+  | InducementChoiceDecisionRequest;
 
 export interface EmittedEvent {
   name: string;

@@ -104,6 +104,19 @@ import { inducementCount } from "@/game/inducements/inventory";
 import { rollMasterChefs } from "@/game/inducements/masterChef";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import {
+  OfferYouDopeOperation,
+  ResolvePregameInducementsOperation,
+  getMatchInducements,
+  holdsMeasure,
+  offerMeasure,
+  revokeMatchGrants,
+  rushModifier,
+  trapdoorOpens,
+  validChoiceAnswer,
+} from "@/game/inducements/matchInducements";
+import { CrowdInjuryOperation } from "@/game/operations/CrowdInjuryOperation";
+import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
+import {
   buildSeventsInducementProfile,
   emptyInducementsState,
   Inducement,
@@ -345,6 +358,11 @@ export class GameService implements IGameService {
       if (phase === GamePhase.GAME_OVER) {
         // Get the Ref bribes are match-scoped and never leave this match.
         this.state.bribes = {};
+        // Prayer and Desperate Measure grants last for this game only.
+        revokeMatchGrants(this.state, [
+          ...this.team1.players,
+          ...this.team2.players,
+        ]);
         this.announceFullTime();
         this.updateDedicatedFans();
       }
@@ -506,6 +524,20 @@ export class GameService implements IGameService {
     return this.decisionService.answer({ accept });
   }
 
+  /**
+   * Answer a pending Prayer or Desperate Measure choice. False when none is
+   * pending or the answer is not one of the offered options.
+   */
+  public answerInducementChoice(
+    answer: import("@/types/decisions").InducementChoiceDecisionAnswer
+  ): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "inducement-choice") return false;
+    const valid = validChoiceAnswer(pending, answer);
+    if (!valid) return false;
+    return this.decisionService.answer(valid);
+  }
+
   /** Commit a confirmed pregame inducement selection into match state. */
   public commitInducements(
     profile: import("@/types/Inducements").InducementRuleProfile,
@@ -519,6 +551,16 @@ export class GameService implements IGameService {
       budgets: { ...budgets },
       inventory: inventory.map((entry) => ({ ...entry })),
     };
+    // Prayers and Desperate Measures are rolled once, before the first
+    // set-up (L4, L5).
+    const rollsOnTables = inventory.some(
+      (entry) =>
+        entry.inducement === Inducement.PRAYERS_TO_NUFFLE ||
+        entry.inducement === Inducement.DESPERATE_MEASURES
+    );
+    if (rollsOnTables && !getMatchInducements(this.state).rolled) {
+      this.flowManager.add(new ResolvePregameInducementsOperation());
+    }
   }
 
   /** Both teams' Matched Play draft-list inducements (MP2). */
@@ -690,6 +732,14 @@ export class GameService implements IGameService {
       phase: GamePhase.KICKOFF,
       subPhase: SubPhase.ROLL_KICKOFF,
     });
+    // You Dope! is offered after both set-ups, before the kick (L21).
+    if (
+      [this.team1, this.team2].some((team) =>
+        holdsMeasure(this.state, team.id, DesperateMeasure.YOU_DOPE)
+      )
+    ) {
+      this.flowManager.add(new OfferYouDopeOperation());
+    }
   }
 
   selectKicker(playerId: string): void {
@@ -1061,7 +1111,7 @@ export class GameService implements IGameService {
         this.diceController.rollSkillCheck(
           "Rush (GFI)",
           2,
-          weatherEffects(this.state.weather).rush,
+          rushModifier(this.state, attacker),
           attacker.playerName
         )
     );
@@ -1185,6 +1235,22 @@ export class GameService implements IGameService {
       ballJoinStep: 0,
     });
 
+    // Treacherous Trapdoor (L12): following up onto it may drop the blocker.
+    if (trapdoorOpens(this.state, this.diceController, attacker, targetSquare)) {
+      attacker.gridPosition = undefined;
+      this.flowManager.add(
+        new CrowdInjuryOperation(attackerId, { ...targetSquare }, false, {
+          carriedBall: !!carriedBall,
+        }),
+        true
+      );
+      // Decided now, as for a crowd push: the activation ends straight after.
+      if (attacker.teamId === this.state.activeTeamId) {
+        this.triggerTurnover("Fell through a Trapdoor");
+      }
+      return;
+    }
+
     // Following up onto a loose ball is entering its square — the player must
     // roll to pick it up. PickupOperation is the same path a move takes, so a
     // failed pickup bounces through BounceOperation (throw-in, catches) and
@@ -1231,8 +1297,43 @@ export class GameService implements IGameService {
         );
         return this.flowManager.whenIdle();
       })
+      .then(() => this.offerSportsEspionage())
       .then(() => this.delay(3000))
       .then(() => this.turnManager.completeTurnover());
+  }
+
+  /**
+   * Sports Espionage (L26): once the Turnover has resolved, the team that
+   * suffered it may gain two team re-rolls for the rest of the half. The
+   * dice that caused the Turnover are long settled by now.
+   */
+  private async offerSportsEspionage(): Promise<void> {
+    const team = this.state.activeTeamId
+      ? this.getTeam(this.state.activeTeamId)
+      : undefined;
+    if (
+      !team ||
+      !holdsMeasure(this.state, team.id, DesperateMeasure.SPORTS_ESPIONAGE)
+    ) {
+      return;
+    }
+    const playerId = this.state.activePlayer?.id ?? team.players[0]?.id;
+    if (!playerId) return;
+    const used = await offerMeasure(
+      { gameService: this },
+      team.id,
+      playerId,
+      DesperateMeasure.SPORTS_ESPIONAGE,
+      `${team.name} suffered a Turnover — use Sports Espionage for two team re-rolls?`
+    );
+    if (!used) return;
+    this.state.teamRerollsUsed ??= {};
+    this.state.teamRerollsUsed[team.id] =
+      (this.state.teamRerollsUsed[team.id] ?? 0) - 2;
+    this.eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `Sports Espionage: ${team.name} gains two team re-rolls`
+    );
   }
 
   isTurnoverInProgress(): boolean {
@@ -1724,9 +1825,14 @@ export class GameService implements IGameService {
   async rollKORecovery(
     beat: () => Promise<void> = () => Promise.resolve()
   ): Promise<void> {
+    // You Dope! collapses cannot recover this end of drive (L21).
+    const noRecovery = this.state.matchInducements?.noRecoveryPlayerIds ?? [];
     const knockedOut = [...this.team1.players, ...this.team2.players].filter(
-      (p) => p.status === PlayerStatus.KO
+      (p) => p.status === PlayerStatus.KO && !noRecovery.includes(p.id)
     );
+    if (this.state.matchInducements) {
+      this.state.matchInducements.noRecoveryPlayerIds = [];
+    }
 
     for (const player of knockedOut) {
       const roll = this.diceController.rollD6("KO Recovery");
@@ -2525,7 +2631,7 @@ export class GameService implements IGameService {
             this.diceController.rollSkillCheck(
               "Rush (GFI)",
               2,
-              weatherEffects(this.state.weather).rush,
+              rushModifier(this.state, attacker),
               attacker.playerName,
               attacker.teamId
             )

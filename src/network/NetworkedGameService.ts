@@ -156,6 +156,13 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "use-apothecary", accept });
     return true;
   }
+  answerInducementChoice(
+    answer: import("../types/decisions").InducementChoiceDecisionAnswer
+  ): boolean {
+    if (this.pendingDecision()?.type !== "inducement-choice") return false;
+    this.send({ type: "choose-inducement", ...answer });
+    return true;
+  }
   commitInducements(
     profile: import("../types/Inducements").InducementRuleProfile,
     budgets: Record<string, number>,

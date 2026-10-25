@@ -127,13 +127,52 @@ export interface ApothecaryDecisionAnswer {
   accept: boolean;
 }
 
+/**
+ * A Prayer to Nuffle or Desperate Measure that needs the coach to pick:
+ * Iron Man and Knuckle Dusters pick a player, Intensive Training picks a
+ * Primary skill for its random player, Hangover picks an opposition player
+ * and You Dope! picks a player and ST or AG. Desperate Measures may be
+ * declined and kept for later; prayers may not.
+ */
+export type InducementChoiceKind =
+  | "iron-man"
+  | "knuckle-dusters"
+  | "intensive-training"
+  | "hangover"
+  | "you-dope";
+
+export type DopeStat = "ST" | "AG";
+
+export interface InducementChoiceDecisionRequest {
+  type: "inducement-choice";
+  kind: InducementChoiceKind;
+  chooserTeamId: string;
+  /** Players the coach may pick; Intensive Training's single random player. */
+  playerIds: string[];
+  /** Intensive Training: the Primary skills the player may learn. */
+  skills?: string[];
+  /** You Dope!: the characteristics the coach may raise. */
+  stats?: DopeStat[];
+  /** True when the coach may decline and keep the measure for later. */
+  optional: boolean;
+}
+
+/** An answer with no playerId declines an optional choice. */
+export interface InducementChoiceDecisionAnswer {
+  playerId?: string;
+  skill?: string;
+  stat?: DopeStat;
+}
+
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
   | InterceptionDecisionRequest
-  | ApothecaryDecisionRequest;
+  | ApothecaryDecisionRequest
+  | InducementChoiceDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
   | InterceptionDecisionAnswer
-  | ApothecaryDecisionAnswer;
+  | ApothecaryDecisionAnswer
+  | InducementChoiceDecisionAnswer;

@@ -84,6 +84,8 @@ export interface GameState {
     committed?: boolean;
     /** Failed Bloodlust: must bite a Thrall Lineman (BloodlustBiteOperation). */
     bloodlustUnsated?: boolean;
+    /** A second Foul this turn, declared on the team's Grudge Match. */
+    grudgeMatch?: boolean;
   } | null;
   /** Kickoff-event effects scoped to the current drive; absent = none. */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
@@ -105,6 +107,8 @@ export interface GameState {
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */
   inducements?: import("./Inducements").InducementsMatchState;
+  /** Rolled Prayers to Nuffle and Desperate Measures; absent = none. */
+  matchInducements?: import("../game/inducements/matchInducements").MatchInducementsState;
   /** Set once the match reaches GAME_OVER; absent beforehand. */
   result?: MatchResult;
   /**

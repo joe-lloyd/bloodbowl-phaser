@@ -563,6 +563,13 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         executeAsHost({ type: "use-apothecary", accept });
         return true;
       },
+      answerInducementChoice: (
+        answer: import("../types/decisions").InducementChoiceDecisionAnswer
+      ) => {
+        if (game.pendingDecision()?.type !== "inducement-choice") return false;
+        executeAsHost({ type: "choose-inducement", ...answer });
+        return true;
+      },
       finishActivation: (playerId: string) => {
         if (swallowNextFinish === playerId) {
           swallowNextFinish = null;

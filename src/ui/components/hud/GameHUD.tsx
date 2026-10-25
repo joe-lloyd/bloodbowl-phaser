@@ -21,6 +21,7 @@ import { FollowUpDialog } from "./FollowUpDialog";
 import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
 import { ApothecaryDialog } from "./ApothecaryDialog";
+import { InducementChoiceDialog } from "./InducementChoiceDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
@@ -321,6 +322,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <RerollDialog eventBus={eventBus} />
           <ReactionDialog eventBus={eventBus} />
           <ApothecaryDialog eventBus={eventBus} />
+          <InducementChoiceDialog eventBus={eventBus} />
           <InterceptionDialog eventBus={eventBus} />
           {inducementsPending && (
             <InducementSelectionPanel

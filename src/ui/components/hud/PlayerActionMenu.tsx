@@ -1,4 +1,6 @@
 /* eslint-disable react/prop-types */
+import { holdsMeasure } from "../../../game/inducements/matchInducements";
+import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
 import React, { useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -158,7 +160,14 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
           hasBlitzed: !!turnData.hasBlitzed,
           hasPassed: !!turnData.hasPassed,
           hasHandedOff: !!turnData.hasHandedOff,
-          hasFouled: !!turnData.hasFouled,
+          // Grudge Match (L24) allows a second Foul this turn.
+          hasFouled:
+            !!turnData.hasFouled &&
+            !holdsMeasure(
+              gs.getState(),
+              selectedPlayer.teamId,
+              DesperateMeasure.GRUDGE_MATCH
+            ),
         },
         hasMovedInAction,
       });

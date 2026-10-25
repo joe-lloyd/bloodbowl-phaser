@@ -146,13 +146,26 @@ export interface MasterChefHalf {
   rerolls: Record<string, number>;
 }
 
-/** One resolved Prayers to Nuffle roll, including any rejected rerolls. */
+/** The Sevens Prayers to Nuffle table (D8), rules L12 to L19. */
+export enum PrayerToNuffle {
+  TREACHEROUS_TRAPDOOR = "Treacherous Trapdoor",
+  STILETTO = "Stiletto",
+  IRON_MAN = "Iron Man",
+  KNUCKLE_DUSTERS = "Knuckle Dusters",
+  BLESSING_OF_NUFFLE = "Blessing of Nuffle",
+  MOLES_UNDER_THE_PITCH = "Moles Under the Pitch",
+  UNDER_SCRUTINY = "Under Scrutiny",
+  INTENSIVE_TRAINING = "Intensive Training",
+}
+
+/** One resolved Prayers to Nuffle roll, including any re-rolled duplicates. */
 export interface PrayerRerollRecord {
   teamId: string;
-  /** Rolls rerolled for landing on a restricted result, in order rolled. */
+  /** Rolls re-rolled because the team already had that prayer, in order. */
   rejectedRolls: number[];
-  /** The final, accepted result. */
+  /** The final, accepted D8 result. */
   result: number;
+  prayer: PrayerToNuffle;
 }
 
 /**

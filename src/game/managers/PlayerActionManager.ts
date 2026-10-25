@@ -4,6 +4,7 @@ import { ActionType, GameEventNames } from "@/types/events";
 import { BlockReplacement } from "@/types/BlockReplacement";
 import { Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
+import { foulSpent } from "../inducements/matchInducements";
 
 /** Which term made a declaration binding — used to name a refusal. */
 export type CommitReason =
@@ -44,6 +45,10 @@ export class PlayerActionManager {
     this.state.activePlayer = {
       id: playerId,
       action: action,
+      // A second Foul this turn can only be the team's Grudge Match (L24).
+      ...(action === "foul" && this.state.turn.hasFouled
+        ? { grudgeMatch: true }
+        : {}),
       ...(blockReplacement
         ? { blockReplacement, blockReplacementUsed: false }
         : {}),
@@ -144,9 +149,11 @@ export class PlayerActionManager {
       case "handoff":
         if (turn.hasHandedOff) return false;
         break;
-      case "foul":
-        if (turn.hasFouled) return false;
+      case "foul": {
+        const fouler = this.getPlayer(playerId);
+        if (!fouler || foulSpent(this.state, fouler.teamId)) return false;
         break;
+      }
       case "move":
       case "block":
       case "multipleBlock":

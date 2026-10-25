@@ -63,6 +63,7 @@ const DECISION_REPLIES = new Set([
   "kickoff-confirm",
   "kickoff-skip",
   "use-apothecary",
+  "choose-inducement",
 ]);
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
@@ -85,6 +86,7 @@ export function decisionOwner(
     case "reaction":
     case "interception":
     case "apothecary":
+    case "inducement-choice":
       // The deciding team rides on the decision itself
       return pending.chooserTeamId;
     case "push-direction":
