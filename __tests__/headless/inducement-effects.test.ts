@@ -7,6 +7,9 @@ import { Inducement, InducementSelectionLine } from "../../src/types/Inducements
 import { PlayerStatus } from "../../src/types/Player";
 import { movePlayerToBox } from "../../src/game/rules/playerLocation";
 import { teamRerollsLeft } from "../../src/game/teamRerolls";
+import { SkillType, getSkill } from "../../src/types/Skills";
+import { GameOperation } from "../../src/game/core/GameOperation";
+import { ClearPitchOperation } from "../../src/game/operations/EndDriveOperations";
 import { forceDice } from "../utils/test-helpers";
 
 /**
@@ -72,6 +75,14 @@ async function induce(game: HeadlessGame, lines: InducementSelectionLine[]) {
   await game.execute({ type: "confirm-inducements", teamId: "team1" });
   await game.execute({ type: "confirm-inducements", teamId: "team2" });
   game.ctx.team2.rerolls -= 30;
+}
+
+/** Queue an operation and let it run until it settles or asks a coach. */
+async function runUntilDecision(game: HeadlessGame, op: GameOperation) {
+  game.ctx.gameService.flowManager.add(op, true);
+  for (let i = 0; i < 50 && !game.pendingDecision(); i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
 }
 
 async function kick(game: HeadlessGame, dice: number[]) {
@@ -152,6 +163,125 @@ describe("Blitzer's Best Kegs", () => {
 
     expect(ours.status).toBe(PlayerStatus.RESERVE);
     expect(theirs.status).toBe(PlayerStatus.KO);
+  });
+});
+
+/** Foul with a double 1 (armour holds, spotted) and a failed Argue (1). */
+async function spottedFoul(game: HeadlessGame, laterDice: number[] = []) {
+  forceDice(game.ctx.rng, [1, 1, 1, ...laterDice]);
+  const fouler = game.ctx.team1.players[0];
+  await game.execute({
+    type: "declare-action",
+    playerId: fouler.id,
+    action: "foul",
+  });
+  const response = await game.execute({
+    type: "foul",
+    playerId: fouler.id,
+    x: 11,
+    y: 5,
+  });
+  return { fouler, response };
+}
+
+describe("Bribes", () => {
+  it("are offered to the fouling coach once Argue the Call fails", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+
+    const { fouler, response } = await spottedFoul(game);
+
+    expect(response.pendingDecision).toMatchObject({
+      type: "reaction",
+      playerId: fouler.id,
+      chooserTeamId: "team1",
+      skill: "Bribe",
+    });
+  });
+
+  it("keep the player on the pitch with no Turnover on a 2+", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 2 }]);
+    const { fouler } = await spottedFoul(game, [2]);
+
+    const response = await game.execute({ type: "use-reaction", accept: true });
+
+    expect(fouler.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(fouler.status).toBe(PlayerStatus.ACTIVE);
+    expect(response.snapshot.activeTeamId).toBe("team1");
+    expect(
+      game.ctx.gameService.getState().inducements?.inventory[0].remainingUses
+    ).toBe(1);
+  });
+
+  it("are lost on a natural 1 and the player is still Sent-off", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+    const { fouler } = await spottedFoul(game, [1]);
+
+    const response = await game.execute({ type: "use-reaction", accept: true });
+
+    expect(fouler.gridPosition).toBeUndefined();
+    expect(fouler.status).toBe(PlayerStatus.REMOVED);
+    expect(response.snapshot.activeTeamId).toBe("team2");
+    expect(
+      game.ctx.gameService.getState().inducements?.inventory[0].remainingUses
+    ).toBe(0);
+  });
+
+  it("are kept when the coach declines", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+    const { fouler } = await spottedFoul(game);
+
+    await game.execute({ type: "use-reaction", accept: false });
+
+    expect(fouler.status).toBe(PlayerStatus.REMOVED);
+    expect(
+      game.ctx.gameService.getState().inducements?.inventory[0].remainingUses
+    ).toBe(1);
+  });
+
+  it("include the free Bribe from Get the Ref, spent first", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+    // What the Get the Ref kick-off result leaves on the match state.
+    game.ctx.gameService.getState().bribes = { team1: 1 };
+    const { fouler } = await spottedFoul(game, [6]);
+
+    await game.execute({ type: "use-reaction", accept: true });
+
+    const state = game.ctx.gameService.getState();
+    expect(fouler.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(state.bribes).toEqual({ team1: 0 });
+    expect(state.inducements?.inventory[0].remainingUses).toBe(1);
+  });
+
+  it("save a Secret Weapon from its end-of-drive Send-off", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+    await induce(game, [{ inducement: Inducement.BRIBE, quantity: 1 }]);
+    const weapon = game.ctx.team1.players[0];
+    weapon.skills.push(getSkill(SkillType.SECRET_WEAPON));
+
+    await runUntilDecision(game, new ClearPitchOperation("touchdown", "team1", true));
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      playerId: weapon.id,
+      skill: "Bribe",
+    });
+    forceDice(game.ctx.rng, [4]);
+    await game.execute({ type: "use-reaction", accept: true });
+
+    expect(weapon.status).toBe(PlayerStatus.RESERVE);
+  });
+
+  it("are not offered to a team without one", async () => {
+    const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
+
+    const { fouler, response } = await spottedFoul(game);
+
+    expect(response.pendingDecision).toBeNull();
+    expect(fouler.status).toBe(PlayerStatus.REMOVED);
   });
 });
 

@@ -19,6 +19,7 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { Player, PlayerStatus } from "../../types/Player";
 import { Team } from "../../types/Team";
 import { getDriveEffects } from "../kickoff/driveEffects";
+import { offerBribe } from "../inducements/bribes";
 import { DiceController } from "../controllers/DiceController";
 import {
   assertSinglePlayerLocation,
@@ -109,6 +110,7 @@ export class ClearPitchOperation extends GameOperation {
           skill: SkillType.SECRET_WEAPON,
           effect: "Secret Weapon: Sent-off at the end of the Drive",
         });
+        if (await offerBribe(gameService, eventBus, player)) continue;
         movePlayerToBox(player, { box: "sent-off" }, eventBus);
       }
     }

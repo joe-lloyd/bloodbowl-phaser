@@ -4,12 +4,15 @@ import { IGameService } from "../../services/interfaces/IGameService";
 import { FlowContext } from "../core/GameFlowManager";
 import { ArgueTheCallOperation } from "./ArgueTheCallOperation";
 import { movePlayerToBox } from "../rules/playerLocation";
+import { offerBribe } from "../inducements/bribes";
 
 /**
  * SendOffOperation
  *
  * Responsibility:
  * - Argue the Call (always worth it in Sevens: the coach is never ejected).
+ * - Offer a Bribe if the argument fails; one that works ends it here, with
+ *   no Turnover.
  * - Remove player if not saved by argument.
  * - Trigger turnover, whether or not the argument succeeded (rule M6).
  */
@@ -38,6 +41,11 @@ export class SendOffOperation extends GameOperation {
 
     const argueOp = new ArgueTheCallOperation();
     await argueOp.execute(context);
+
+    // A Bribe that works keeps the player on and causes no Turnover.
+    if (!argueOp.swayed && (await offerBribe(gameService, eventBus, player))) {
+      return;
+    }
 
     // 1. Remove Player unless the argument saved them — through the single
     // location seam, so the pitch square is released as the sent-off
