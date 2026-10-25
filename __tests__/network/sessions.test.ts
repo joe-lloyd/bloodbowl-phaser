@@ -581,8 +581,8 @@ describe("networked sessions", () => {
     await match.guest.sendCommand({ type: "kickoff-confirm" });
   });
 
-  it("keeps Solid Defence host-native and blocks the non-owning guest", async () => {
-    const seed = await findKickoffSeed(KickoffEvent.SOLID_DEFENCE);
+  it("keeps Alert Defence host-native and blocks the non-owning guest", async () => {
+    const seed = await findKickoffSeed(KickoffEvent.ALERT_DEFENCE);
     const match = createMatch({ scenario: kickoffInteractionScenario, seed });
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
@@ -592,48 +592,35 @@ describe("networked sessions", () => {
     });
     expect(kicked.pendingDecision).toMatchObject({
       type: "kickoff-event",
-      event: KickoffEvent.SOLID_DEFENCE,
+      event: KickoffEvent.ALERT_DEFENCE,
       chooserTeamId: match.hostTeamId,
     });
 
     const kicker = match.game.ctx.team1.players[0];
-    const original = { ...kicker.gridPosition! };
-    const occupied = new Set(
-      [...match.game.ctx.team1.players, ...match.game.ctx.team2.players]
-        .filter((player) => player.gridPosition)
-        .map((player) => `${player.gridPosition!.x},${player.gridPosition!.y}`)
-    );
-    let destination: { x: number; y: number } | undefined;
-    for (let x = 0; x <= 6 && !destination; x += 1) {
-      for (let y = 0; y < 11; y += 1) {
-        if (!occupied.has(`${x},${y}`)) {
-          destination = { x, y };
-          break;
-        }
-      }
-    }
-    expect(destination).toBeDefined();
+    expect(kicker.gridPosition).toEqual({ x: 5, y: 2 });
 
-    // The guest does not own this decision — its attempt to redeploy the
+    // The guest does not own this decision — its attempt to pick the
     // kicking team's player must be rejected without mutating state.
     const denied = await match.guest.sendCommand({
-      type: "kickoff-place-player",
+      type: "kickoff-select-player",
       playerId: kicker.id,
-      x: destination!.x,
-      y: destination!.y,
     });
     expect(denied.ok).toBe(false);
     expect(denied.reason).toBe("not-your-decision");
-    expect(kicker.gridPosition).toEqual(original);
 
-    const placed = await match.host.executeLocal({
-      type: "kickoff-place-player",
+    const selected = await match.host.executeLocal({
+      type: "kickoff-select-player",
       playerId: kicker.id,
-      x: destination!.x,
-      y: destination!.y,
     });
-    expect(placed.ok).toBe(true);
-    expect(kicker.gridPosition).toEqual(destination);
+    expect(selected.ok).toBe(true);
+    const moved = await match.host.executeLocal({
+      type: "kickoff-move-player",
+      playerId: kicker.id,
+      x: 6,
+      y: 1,
+    });
+    expect(moved.ok).toBe(true);
+    expect(kicker.gridPosition).toEqual({ x: 6, y: 1 });
 
     await match.host.executeLocal({ type: "kickoff-confirm" });
     expect(match.broadcasts.length).toBeGreaterThan(0);

@@ -51,7 +51,7 @@ describe("KickoffEventOverlay", () => {
     const services = ServiceContainer.initialize(eventBus, team1, team2);
 
     const step: KickoffEventStepState = {
-      event: KickoffEvent.SOLID_DEFENCE,
+      event: KickoffEvent.ALERT_DEFENCE,
       teamId: team1.id,
       selectionLimit: 2,
       selectedPlayerIds: [],
@@ -81,7 +81,7 @@ describe("KickoffEventOverlay", () => {
     // poll on mount) — KickoffEventStepStarted is what a real step-open does.
     await act(async () => {
       eventBus.emit(GameEventNames.KickoffEventStepStarted, {
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: "team-1",
         selectionLimit: 2,
       });
@@ -94,7 +94,7 @@ describe("KickoffEventOverlay", () => {
 
     await render(eventBus);
 
-    expect(container.textContent).toContain(KickoffEvent.SOLID_DEFENCE);
+    expect(container.textContent).toContain(KickoffEvent.ALERT_DEFENCE);
     const skip = [...container.querySelectorAll("button")].find(
       (b) => b.textContent === "Skip"
     );
@@ -112,7 +112,7 @@ describe("KickoffEventOverlay", () => {
 
     await render(eventBus);
 
-    expect(container.textContent).toContain(KickoffEvent.SOLID_DEFENCE);
+    expect(container.textContent).toContain(KickoffEvent.ALERT_DEFENCE);
     expect(container.querySelectorAll("button").length).toBe(0);
     expect(container.textContent).toContain("Waiting for");
   });

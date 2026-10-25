@@ -5,6 +5,7 @@ import { GameEventNames } from "../../../types/events";
 import {
   KICKOFF_EVENT_MEANING,
   KickoffEvent,
+  isOneSquareMoveEvent,
 } from "../../../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -46,13 +47,11 @@ export function KickoffEventOverlay({
   const instruction =
     awaiting.size > 0
       ? "Finish placing the highlighted player."
-      : step.event === KickoffEvent.QUICK_SNAP
+      : isOneSquareMoveEvent(step.event)
         ? "Click an eligible player on the pitch, then click one adjacent empty square."
         : step.event === KickoffEvent.HIGH_KICK
           ? `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`
-          : step.event === KickoffEvent.SOLID_DEFENCE
-            ? "Drag a highlighted Open player directly to a different legal setup square. Confirm when finished."
-            : step.charge
+          : step.charge
               ? `${activeChargePlayer?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`
               : "Click up to the limit on the pitch, then confirm to activate them in order.";
 

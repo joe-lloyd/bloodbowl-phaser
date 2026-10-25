@@ -8,7 +8,6 @@ import { PlayerStatus } from "../../../src/types/Player";
 const mockScene = {
   highlightPlayer: vi.fn(),
   unhighlightPlayer: vi.fn(),
-  setKickoffSolidDefenceDragPlayers: vi.fn(),
   add: {
     rectangle: vi.fn(),
     container: vi.fn(),
@@ -803,10 +802,10 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("Kickoff event pitch interaction", () => {
-    it("enables Solid Defence dragging without selecting on click", () => {
+    it("moves a selected Alert Defence player to an adjacent pitch square", () => {
       mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
       mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: team1Id,
         selectionLimit: 2,
         selectedPlayerIds: [],
@@ -815,38 +814,24 @@ describe("GameplayInteractionController", () => {
       });
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getTeam.mockReturnValue(mockScene.team1);
-      mockScene.team2.players = [];
 
-      (controller as any).syncKickoffStepInteraction();
       controller.handlePlayerClick(player1.id);
+      (controller as any).onSquareClicked(6, 5);
 
-      expect(
-        mockScene.setKickoffSolidDefenceDragPlayers
-      ).toHaveBeenLastCalledWith([player1.id]);
-      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
+      expect(mockGameService.selectKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id
+      );
+      expect(mockGameService.moveKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id,
+        6,
+        5
+      );
       expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
     });
 
-    it("does not use click-to-place during Solid Defence", () => {
-      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+    it("marks already-moved Alert Defence players as selected", () => {
       mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
-        teamId: team1Id,
-        selectionLimit: 2,
-        selectedPlayerIds: [],
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-      });
-
-      (controller as any).onSquareClicked(4, 4);
-
-      expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
-      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
-    });
-
-    it("removes already-redeployed Solid Defence players from drag eligibility", () => {
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: team1Id,
         selectionLimit: 2,
         selectedPlayerIds: [player1.id],
@@ -857,9 +842,10 @@ describe("GameplayInteractionController", () => {
 
       (controller as any).syncKickoffStepInteraction();
 
-      expect(
-        mockScene.setKickoffSolidDefenceDragPlayers
-      ).toHaveBeenLastCalledWith([]);
+      expect(mockScene.highlightPlayer).not.toHaveBeenCalledWith(
+        player1.id,
+        0x38bdf8
+      );
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith(
         player1.id,
         0xffd700

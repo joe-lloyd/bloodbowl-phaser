@@ -34,7 +34,7 @@ function resultEvent(result: ScriptResult): KickoffEvent | undefined {
 export const KICKOFF_EXAMPLE_SEEDS: Record<KickoffEvent, number> = {
   [KickoffEvent.GET_THE_REF]: 13,
   [KickoffEvent.TIME_OUT]: 4,
-  [KickoffEvent.SOLID_DEFENCE]: 23,
+  [KickoffEvent.ALERT_DEFENCE]: 23,
   [KickoffEvent.HIGH_KICK]: 15,
   [KickoffEvent.CHEERING_FANS]: 3,
   [KickoffEvent.BRILLIANT_COACHING]: 12,

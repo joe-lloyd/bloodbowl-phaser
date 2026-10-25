@@ -28,7 +28,7 @@ import {
   handoffTargetRefusalReason,
 } from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
-import { KickoffEvent } from "../kickoff/kickoffEvents";
+import { KickoffEvent, isOneSquareMoveEvent } from "../kickoff/kickoffEvents";
 import {
   BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
@@ -2276,10 +2276,6 @@ export class GameplayInteractionController {
       const mayAct = getActiveOnlineMatch()?.mayAct() ?? true;
       if (!mayAct) return;
 
-      // Solid Defence is intentionally drag-only. A click or pointer-down is
-      // part of beginning that drag and must never select/remove the player.
-      if (eventStep.event === KickoffEvent.SOLID_DEFENCE) return;
-
       if (
         playerAtSquare &&
         playerAtSquare.teamId === eventStep.teamId &&
@@ -2313,27 +2309,27 @@ export class GameplayInteractionController {
       }
 
       if (this.selectedPlayerId) {
-        const applied =
-          eventStep.event === KickoffEvent.QUICK_SNAP
-            ? this.gameService.moveKickoffEventPlayer(
-                this.selectedPlayerId,
-                x,
-                y
-              )
-            : this.gameService.placeKickoffEventPlayer(
-                this.selectedPlayerId,
-                x,
-                y
-              );
+        const oneSquare = isOneSquareMoveEvent(eventStep.event);
+        const applied = oneSquare
+          ? this.gameService.moveKickoffEventPlayer(
+              this.selectedPlayerId,
+              x,
+              y
+            )
+          : this.gameService.placeKickoffEventPlayer(
+              this.selectedPlayerId,
+              x,
+              y
+            );
         if (applied) {
           this.selectedPlayerId = null;
           this.syncKickoffStepInteraction();
         } else {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
-            eventStep.event === KickoffEvent.QUICK_SNAP
-              ? "Quick Snap: choose one adjacent empty pitch square."
-              : "Solid Defence: choose a legal empty setup square."
+            oneSquare
+              ? `${eventStep.event}: choose one adjacent empty pitch square.`
+              : `${eventStep.event}: place the player on the landing square.`
           );
         }
       }
@@ -2411,16 +2407,13 @@ export class GameplayInteractionController {
 
   /**
    * Keep kickoff interaction visible on the board itself. Open eligible
-   * players are blue; selected/current players are gold. Solid Defence also
-   * enables setup-style dragging for eligible players without removing them
-   * from the pitch.
+   * players are blue; selected/current players are gold.
    */
   private syncKickoffStepInteraction(): void {
     for (const playerId of this.kickoffHighlightedPlayerIds) {
       this.scene.unhighlightPlayer(playerId);
     }
     this.kickoffHighlightedPlayerIds.clear();
-    this.scene.setKickoffSolidDefenceDragPlayers([]);
 
     const step = this.gameService.getKickoffEventStep();
     if (!step) return;
@@ -2450,12 +2443,6 @@ export class GameplayInteractionController {
           ) === 1
         );
     });
-
-    if (step.event === KickoffEvent.SOLID_DEFENCE && canAct) {
-      this.scene.setKickoffSolidDefenceDragPlayers(
-        eligible.map((player) => player.id)
-      );
-    }
 
     // Eligible/selected pitch highlights belong to the deciding coach's own
     // interaction. A coach who cannot act in this step is a passive

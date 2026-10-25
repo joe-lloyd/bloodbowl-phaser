@@ -8,7 +8,7 @@
 export enum KickoffEvent {
   GET_THE_REF = "Get the Ref",
   TIME_OUT = "Time-Out",
-  SOLID_DEFENCE = "Solid Defence",
+  ALERT_DEFENCE = "Alert Defence",
   HIGH_KICK = "High Kick",
   CHEERING_FANS = "Cheering Fans",
   BRILLIANT_COACHING = "Brilliant Coaching",
@@ -22,7 +22,7 @@ export enum KickoffEvent {
 export const KICKOFF_TABLE: Record<number, KickoffEvent> = {
   2: KickoffEvent.GET_THE_REF,
   3: KickoffEvent.TIME_OUT,
-  4: KickoffEvent.SOLID_DEFENCE,
+  4: KickoffEvent.ALERT_DEFENCE,
   5: KickoffEvent.HIGH_KICK,
   6: KickoffEvent.CHEERING_FANS,
   7: KickoffEvent.BRILLIANT_COACHING,
@@ -39,8 +39,8 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
     "Each team gains one Bribe, usable until the end of the match.",
   [KickoffEvent.TIME_OUT]:
     "If the kicking team's marker is on turn 5 or 6, both markers move back one space; otherwise both move forward one.",
-  [KickoffEvent.SOLID_DEFENCE]:
-    "The kicking coach may drag up to D3+1 Open players directly to new legal setup squares.",
+  [KickoffEvent.ALERT_DEFENCE]:
+    "The kicking coach may move up to D3+1 of their Open players one square each in any direction, even into No Man's Land.",
   [KickoffEvent.HIGH_KICK]:
     "If the ball will land between the receiving End Zone and Line of Scrimmage, one Open receiving player may be placed in that square. Not in No Man's Land.",
   [KickoffEvent.CHEERING_FANS]:
@@ -61,11 +61,21 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
 
 /** Events that open an interactive step for a coach before play resumes. */
 export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
-  KickoffEvent.SOLID_DEFENCE,
+  KickoffEvent.ALERT_DEFENCE,
   KickoffEvent.HIGH_KICK,
   KickoffEvent.QUICK_SNAP,
   KickoffEvent.CHARGE,
 ]);
+
+/**
+ * Alert Defence (kicking coach) and Quick Snap (receiving coach) both move
+ * chosen Open players exactly one square each.
+ */
+export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
+  return (
+    event === KickoffEvent.ALERT_DEFENCE || event === KickoffEvent.QUICK_SNAP
+  );
+}
 
 /** Which coach an interactive event belongs to. */
 export function kickoffEventOwner(
@@ -74,7 +84,7 @@ export function kickoffEventOwner(
   receivingTeamId: string
 ): string {
   switch (event) {
-    case KickoffEvent.SOLID_DEFENCE:
+    case KickoffEvent.ALERT_DEFENCE:
     case KickoffEvent.CHARGE:
       return kickingTeamId;
     case KickoffEvent.HIGH_KICK:

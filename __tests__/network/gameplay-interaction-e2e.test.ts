@@ -61,7 +61,6 @@ function makeSceneMocks(team1: unknown, team2: unknown) {
   const scene = {
     highlightPlayer: vi.fn(),
     unhighlightPlayer: vi.fn(),
-    setKickoffSolidDefenceDragPlayers: vi.fn(),
     team1,
     team2,
     add: { rectangle: vi.fn(), container: vi.fn() },

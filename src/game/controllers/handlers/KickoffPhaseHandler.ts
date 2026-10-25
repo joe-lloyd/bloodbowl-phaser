@@ -119,7 +119,7 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
     // Interactive kickoff events mutate normal player state while the play
     // phase handler is not installed. Mirror its board/status listeners here
-    // so Quick Snap, Solid Defence, High Kick and Pitch Invasion are visible
+    // so Quick Snap, Alert Defence, High Kick and Pitch Invasion are visible
     // immediately instead of only appearing after the first normal turn.
     this.register(GameEventNames.PlayerMoved, (data) => {
       const sprite = this.scene["playerSprites"].get(data.playerId);
