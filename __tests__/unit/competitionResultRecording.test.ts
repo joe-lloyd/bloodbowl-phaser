@@ -85,6 +85,53 @@ describe("competition result orchestration", () => {
     });
   });
 
+  it("keeps the Dedicated Fans each team ended the game on", async () => {
+    const teams = [team("home3"), team("away3")];
+    saveTeams(teams);
+    const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
+      id: `local:${snapshot.id}`,
+      teamId: snapshot.id,
+      ownerUid: null,
+      name: snapshot.name,
+      rosterName: snapshot.rosterName,
+      seed: index + 1,
+    }));
+    const fixtures = generateRoundRobin(entrants);
+    const league: LeagueDoc = {
+      id: "season3",
+      type: "league",
+      name: "Season3",
+      organizerUid: null,
+      participantUids: [],
+      status: "active",
+      entrants,
+      fixtures,
+      standings: computeStandings(entrants, fixtures),
+      points: { win: 3, draw: 1, loss: 0 },
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await saveCompetition(league);
+
+    await recordCompetitionFixture(
+      {
+        competitionType: "league",
+        competitionId: league.id,
+        fixtureId: fixtures[0].id,
+      },
+      1,
+      0,
+      {
+        home: { ...teams[0], dedicatedFans: 3 },
+        away: { ...teams[1], dedicatedFans: 1 },
+      }
+    );
+
+    const saved = loadTeams();
+    expect(saved.find((t) => t.id === "home3")?.dedicatedFans).toBe(3);
+    expect(saved.find((t) => t.id === "away3")?.dedicatedFans).toBe(1);
+  });
+
   it("activates both teams on their first recorded fixture (team-lifecycle-modes)", async () => {
     const teams = [team("home2"), team("away2")];
     saveTeams(teams);

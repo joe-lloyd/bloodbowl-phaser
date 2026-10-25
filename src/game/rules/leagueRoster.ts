@@ -1,5 +1,6 @@
 /**
- * League roster carry-over between games (docs/SEVENS_RULES.md I4, I5, L2).
+ * League roster carry-over between games (docs/SEVENS_RULES.md I4, I5, L2)
+ * and the post-game Dedicated Fans roll (D7).
  *
  * The Sevens injury tables record Seriously Hurt as Miss Next Game and Dead
  * on the player. Before a league game the player due to miss it sits in the
@@ -20,6 +21,7 @@ import { Team, isLeagueMode } from "../../types/Team";
 import { SkillType, getSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { movePlayerToBox } from "./playerLocation";
+import { MAX_DEDICATED_FANS, MIN_DEDICATED_FANS } from "./sevensPrices";
 
 /** L2: Journeymen fill a league team up to this many available players. */
 export const JOURNEYMEN_FILL_TO = 7;
@@ -80,6 +82,37 @@ function nextFreeNumber(team: Team): number {
   let number = 1;
   while (used.has(number)) number++;
   return number;
+}
+
+export type GameOutcome = "win" | "draw" | "loss";
+
+/**
+ * Update Dedicated Fans in the post-game sequence (2025 rulebook p.99): a
+ * win adds one on a D6 at or over the current fans, a loss takes one away
+ * on a D6 under them, and a draw changes nothing. Sevens keeps league fans
+ * between 1 and 5 (D7). Matched Play has no post-game, so nothing is rolled.
+ */
+export function updateDedicatedFans(
+  team: Team,
+  outcome: GameOutcome,
+  rollD6: () => number
+): void {
+  if (!isLeagueMode(team.advancementMode)) return;
+  let fans = team.dedicatedFans;
+  switch (outcome) {
+    case "win":
+      if (rollD6() >= fans) fans++;
+      break;
+    case "loss":
+      if (rollD6() < fans) fans--;
+      break;
+    case "draw":
+      break;
+  }
+  team.dedicatedFans = Math.min(
+    MAX_DEDICATED_FANS,
+    Math.max(MIN_DEDICATED_FANS, fans)
+  );
 }
 
 /**

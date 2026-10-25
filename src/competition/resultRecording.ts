@@ -37,6 +37,8 @@ function updateTeamRecord(
         teamValue: updated.teamValue,
       };
     });
+    // Rolled in the post-game sequence at full time (leagueRoster.ts).
+    team.dedicatedFans = progressedTeam.dedicatedFans;
   }
   team.touchdowns = (team.touchdowns ?? 0) + ownScore;
   if (ownScore > opponentScore) team.wins = (team.wins ?? 0) + 1;

@@ -118,6 +118,7 @@ import {
   isLegalBlockReplacementTarget,
   legalBlockReplacementTargets,
 } from "@/game/rules/blockReplacements";
+import { updateDedicatedFans } from "@/game/rules/leagueRoster";
 
 /** Actions that spend a team's once-per-turn allowance (Throw Team-mate
  *  shares Pass's). Only these carry the release/commit rules of
@@ -337,6 +338,7 @@ export class GameService implements IGameService {
         // Get the Ref bribes are match-scoped and never leave this match.
         this.state.bribes = {};
         this.announceFullTime();
+        this.updateDedicatedFans();
       }
     });
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
@@ -1575,6 +1577,25 @@ export class GameService implements IGameService {
     const line = `FULL TIME — ${scoreline} (${outcome})`;
     this.eventBus.emit(GameEventNames.UI_Notification, line);
     this.eventBus.emit(GameEventNames.UI_GameLog, line);
+  }
+
+  /**
+   * Post-game Update Dedicated Fans for both teams, on the played score: a
+   * concession never invents a result, so a conceded 0-0 is a draw.
+   */
+  private updateDedicatedFans(): void {
+    const dice = this.diceController;
+    for (const team of [this.team1, this.team2]) {
+      const own = this.state.score[team.id] ?? 0;
+      const other =
+        this.state.score[
+          team.id === this.team1.id ? this.team2.id : this.team1.id
+        ] ?? 0;
+      const outcome = own > other ? "win" : own < other ? "loss" : "draw";
+      updateDedicatedFans(team, outcome, () =>
+        dice.rollD6(`Dedicated Fans (${team.name})`, team.id)
+      );
+    }
   }
 
   /**

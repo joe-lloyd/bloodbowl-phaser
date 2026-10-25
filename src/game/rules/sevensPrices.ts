@@ -21,3 +21,4 @@ export const APOTHECARY_COST = 80_000;
 /** D7: league teams start on 1 and stay within 1-5. */
 export const DEDICATED_FAN_COST = 20_000;
 export const MAX_DEDICATED_FANS = 5;
+export const MIN_DEDICATED_FANS = 1;
