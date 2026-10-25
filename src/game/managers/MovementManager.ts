@@ -52,7 +52,7 @@ export class MovementManager {
     private callbacks: {
       onTurnover: (reason: string) => void;
       onActivationFinished: (playerId: string) => void;
-      onTouchdown?: (teamId: string) => void;
+      onTouchdown?: (teamId: string, scorerId: string) => void;
     }
   ) {
     this.dodgeController = new DodgeController(diceController);
@@ -589,7 +589,7 @@ export class MovementManager {
             ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
             ballJoinStep,
           });
-          this.callbacks.onTouchdown?.(player.teamId);
+          this.callbacks.onTouchdown?.(player.teamId, player.id);
           return Promise.resolve();
         }
       }
@@ -800,7 +800,7 @@ export class MovementManager {
         this.eventBus.emit(GameEventNames.BallPlaced, { ...target });
         const side = player.teamId === this.team1.id ? 1 : 2;
         if (isInEndZone(target, GameConfig.PITCH_WIDTH, side)) {
-          this.callbacks.onTouchdown?.(player.teamId);
+          this.callbacks.onTouchdown?.(player.teamId, player.id);
           return;
         }
       }

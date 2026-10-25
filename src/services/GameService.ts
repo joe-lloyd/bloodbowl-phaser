@@ -357,7 +357,8 @@ export class GameService implements IGameService {
         onTurnover: (reason: string) => this.triggerTurnover(reason),
         onActivationFinished: (playerId: string) =>
           this.finishActivation(playerId),
-        onTouchdown: (teamId: string) => this.addTouchdown(teamId),
+        onTouchdown: (teamId: string, scorerId: string) =>
+          this.addTouchdown(teamId, scorerId),
       }
     );
 
@@ -1358,6 +1359,9 @@ export class GameService implements IGameService {
   // ===== Score Management =====
 
   addTouchdown(teamId: string, scorerId?: string): void {
+    // A drive ends at its first touchdown. A pickup in the end zone scores
+    // from PickupOperation and the move that made it would score again.
+    if (this.state.phase !== GamePhase.PLAY) return;
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
     this.state.phase = GamePhase.TOUCHDOWN;
