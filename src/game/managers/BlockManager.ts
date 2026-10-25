@@ -43,6 +43,7 @@ import {
   BlockDeclaredContext,
   BlockDiceRolledContext,
   PushContext,
+  spendTeamReroll,
 } from "../skills";
 import { PassController } from "../controllers/PassController";
 
@@ -588,34 +589,34 @@ export class BlockManager {
 
   /**
    * Team Re-roll on a block: re-roll ALL the dice. One re-roll per block, so
-   * Pro and Brawler are locked out afterwards.
+   * Pro and Brawler are locked out afterwards. A failed Loner roll spends
+   * the re-roll and leaves the original dice standing.
    */
   public teamRerollBlock(attackerId: string): void {
     const pending = this.pendingBlockRoll;
     if (!pending || pending.attackerId !== attackerId) return;
     const attacker = this.getPlayerById(attackerId);
-    const arbiter = this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.getRerollArbiter();
+    const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
     if (
       !attacker ||
-      !arbiter ||
-      !arbiter.teamRerollAvailable(attacker.teamId)
+      !gameService ||
+      !gameService.getRerollArbiter().teamRerollAvailable(attacker.teamId)
     ) {
       return;
     }
-    arbiter.consumeTeamReroll(attacker.teamId);
-    pending.results = this.diceController.rollBlockDice(
-      pending.numDice,
-      attacker.teamId
-    );
-    this.eventBus.emit(GameEventNames.RerollUsed, {
-      playerId: attackerId,
-      source: "team",
-      rollKind: "block",
-      before: 0,
-      after: 0,
-    });
+    if (spendTeamReroll({ gameService, eventBus: this.eventBus }, attacker)) {
+      pending.results = this.diceController.rollBlockDice(
+        pending.numDice,
+        attacker.teamId
+      );
+      this.eventBus.emit(GameEventNames.RerollUsed, {
+        playerId: attackerId,
+        source: "team",
+        rollKind: "block",
+        before: 0,
+        after: 0,
+      });
+    }
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
