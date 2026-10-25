@@ -18,7 +18,12 @@ import {
   PendingDecision,
 } from "../headless/protocol";
 import { GamePhase, SubPhase } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStatus,
+  hasCondition,
+} from "../types/Player";
 import { ActionType } from "../types/events";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PassController } from "../game/controllers/PassController";
@@ -494,6 +499,8 @@ function stepCandidates(
     if (
       movesWithJumps &&
       player.status === PlayerStatus.ACTIVE &&
+      !hasCondition(player, PlayerCondition.ROOTED) &&
+      !hasCondition(player, PlayerCondition.CHOMPED) &&
       gs.getMovementUsed(player.id) + 2 <=
         moveAllowance(withDriveModifiers(player, state))
     ) {
