@@ -954,7 +954,7 @@ export class HeadlessGame {
           if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
           if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (carriesBall && !state.turn.hasPassed) actions.push("pass");
+          if (carriesBall && availability.pass) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
           if (!state.turn.hasFouled && adjacentDown.length > 0)

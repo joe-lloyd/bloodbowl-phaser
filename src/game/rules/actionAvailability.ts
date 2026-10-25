@@ -173,11 +173,15 @@ export function computeActionAvailability(
     !turn.hasFouled &&
     !input.hasMovedInAction &&
     downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
-  const pass = !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
+  // My Ball: "may not declare Pass Actions, Hand-off Actions" (2025 p.132).
+  const myBall = hasSkill(player.skills, SkillType.MY_BALL);
+  const pass =
+    !myBall && !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
   // Reachability form: a legal final square exists that is adjacent to a
   // Standing, Tackle-Zone-holding team-mate. Possession is not required to
   // declare — canHaveBall already covers "reachable within movement".
   const handoff =
+    !myBall &&
     !turn.hasHandedOff &&
     !input.hasMovedInAction &&
     canHaveBall &&
