@@ -49,6 +49,21 @@ export function isKickingTeamTerritory(
     : x >= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
 }
 
+/**
+ * Trapdoors (P3): one in a Wide Zone of each half, placed from the pitch
+ * photo in Spike! Journal 22. Each sits on the inner Wide Zone row: the top
+ * Wide Zone of team 1's half and the bottom Wide Zone of team 2's half.
+ * They only matter under the Treacherous Trapdoor prayer.
+ */
+export const TRAPDOOR_SQUARES: readonly { x: number; y: number }[] = [
+  { x: 5, y: 1 },
+  { x: 14, y: 9 },
+];
+
+export function isTrapdoorSquare(x: number, y: number): boolean {
+  return TRAPDOOR_SQUARES.some((square) => square.x === x && square.y === y);
+}
+
 export function getWideZone(y: number): "top" | "bottom" | null {
   const { top, bottom } = SEVENS_GEOMETRY.WIDE_ZONE_ROWS;
   if (y >= top.min && y <= top.max) return "top";

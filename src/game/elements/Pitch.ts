@@ -1,5 +1,9 @@
 import Phaser from "phaser";
-import { GameConfig, SEVENS_GEOMETRY } from "../../config/GameConfig";
+import {
+  GameConfig,
+  SEVENS_GEOMETRY,
+  TRAPDOOR_SQUARES,
+} from "../../config/GameConfig";
 import { getPitchPresentation, PitchTheme } from "../presentation/pitchThemes";
 import { gridToPixel } from "./GridUtils";
 
@@ -60,6 +64,7 @@ export class Pitch {
 
     this.drawEndZones();
     this.drawWideZones();
+    this.drawTrapdoors();
     this.drawGrid();
     this.drawFieldMarkings();
   }
@@ -237,6 +242,39 @@ export class Pitch {
     );
     graphics.lineBetween(0, topY, pitchWidth, topY);
     graphics.lineBetween(0, bottomY, this.width * this.squareSize, bottomY);
+
+    this.container.add(graphics);
+  }
+
+  /**
+   * Trapdoors (P3): a wooden hatch inset in each Trapdoor square, framed in
+   * the theme's line colour so it reads on every surface.
+   */
+  private drawTrapdoors(): void {
+    const graphics = this.scene.add.graphics();
+    graphics.setName("pitch_trapdoors");
+    const inset = Math.round(this.squareSize * 0.14);
+    const size = this.squareSize - inset * 2;
+
+    for (const square of TRAPDOOR_SQUARES) {
+      const left = square.x * this.squareSize + inset;
+      const top = square.y * this.squareSize + inset;
+      graphics.fillStyle(0x3b2a1a, 0.85);
+      graphics.fillRect(left, top, size, size);
+      // Planks, then the frame and a ring handle.
+      graphics.lineStyle(2, 0x1f150c, 0.9);
+      for (let i = 1; i < 4; i++) {
+        const y = top + (size * i) / 4;
+        graphics.lineBetween(left, y, left + size, y);
+      }
+      graphics.lineStyle(
+        this.theme.lines.majorWidth,
+        this.theme.lines.major,
+        this.theme.lines.majorAlpha
+      );
+      graphics.strokeRect(left, top, size, size);
+      graphics.strokeCircle(left + size / 2, top + size / 2, size * 0.12);
+    }
 
     this.container.add(graphics);
   }
