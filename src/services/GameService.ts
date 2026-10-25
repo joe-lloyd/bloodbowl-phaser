@@ -100,6 +100,7 @@ import {
   draftListInventory,
 } from "@/game/inducements/rules";
 import { sevensInducementCatalog } from "@/game/inducements/catalog";
+import { inducementCount } from "@/game/inducements/inventory";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import {
   buildSeventsInducementProfile,
@@ -1715,7 +1716,13 @@ export class GameService implements IGameService {
 
     for (const player of knockedOut) {
       const roll = this.diceController.rollD6("KO Recovery");
-      const recovered = roll >= 4;
+      // Blitzer's Best Kegs: +1 per Keg to the owner's recovery rolls.
+      const kegs = inducementCount(
+        this.state,
+        player.teamId,
+        Inducement.BLITZERS_BEST_KEGS
+      );
+      const recovered = roll + kegs >= 4;
       this.eventBus.emit(GameEventNames.KORecoveryRolled, {
         playerId: player.id,
         roll,

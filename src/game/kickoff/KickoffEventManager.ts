@@ -17,6 +17,8 @@ import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import { DiceController } from "../controllers/DiceController";
 import { WeatherManager } from "../managers/WeatherManager";
+import { inducementCount } from "../inducements/inventory";
+import { Inducement } from "@/types/Inducements";
 import { GameConfig } from "@/config/GameConfig";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
@@ -314,7 +316,9 @@ export class KickoffEventManager {
   private resolveCheeringFans(ctx: KickoffEventResolverContext): void {
     const { winners } = this.staffRollOff(
       "Cheering Fans",
-      (team) => team.cheerleaders,
+      (team) =>
+        team.cheerleaders +
+        inducementCount(this.state, team.id, Inducement.TEMP_AGENCY_CHEERLEADER),
       [ctx.kickingTeam, ctx.receivingTeam]
     );
     for (const team of winners) {
@@ -338,7 +342,13 @@ export class KickoffEventManager {
   private resolveBrilliantCoaching(ctx: KickoffEventResolverContext): void {
     const { winners } = this.staffRollOff(
       "Brilliant Coaching",
-      (team) => team.coaches,
+      (team) =>
+        team.coaches +
+        inducementCount(
+          this.state,
+          team.id,
+          Inducement.PART_TIME_ASSISTANT_COACH
+        ),
       [ctx.kickingTeam, ctx.receivingTeam]
     );
     for (const team of winners) {
