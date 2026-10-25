@@ -941,6 +941,7 @@ export class HeadlessGame {
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (carriesBall && !state.turn.hasPassed) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
+          if (availability.secureBall) actions.push("secureBall");
           if (!state.turn.hasFouled && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {

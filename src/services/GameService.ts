@@ -46,6 +46,7 @@ import { PassOperation } from "@/game/operations/PassOperation";
 import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { isLegalHandoffTarget } from "@/game/rules/handoff";
 import { weatherEffects } from "@/game/rules/weather";
+import { canSecureBall, isSecuringBall } from "@/game/rules/secureBall";
 import {
   ClearPitchOperation,
   KORecoveryOperation,
@@ -782,6 +783,21 @@ export class GameService implements IGameService {
       return;
     }
     this.blitzBlockUsed.delete(playerId);
+    // Secure the Ball: "this Move Action must finish on a square containing
+    // a ball otherwise a Turnover is caused". A pick-up on the ball ends the
+    // activation holding it; a failed one has already turned over.
+    const securer = this.getPlayerById(playerId);
+    const ball = this.state.ballPosition;
+    if (
+      isSecuringBall(this.state, playerId) &&
+      !(
+        ball &&
+        securer?.gridPosition?.x === ball.x &&
+        securer.gridPosition.y === ball.y
+      )
+    ) {
+      this.triggerTurnover("Secure the Ball ended off the ball");
+    }
     if (this.state.activePlayer?.id === playerId) {
       // The activation being finalized commits the declaration — a Blitz
       // ended without moving or rolling still spends the team's Blitz.
@@ -1815,6 +1831,18 @@ export class GameService implements IGameService {
         `${activating.playerName} is Rooted and cannot Move!`
       );
       return false;
+    }
+    if (activating && action === "secureBall") {
+      const others = [...this.team1.players, ...this.team2.players].filter(
+        (p) => p.id !== activating.id && p.gridPosition
+      );
+      if (!canSecureBall(activating, this.state.ballPosition, others)) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Secure the Ball needs a loose ball with no Standing opponent within 2 squares"
+        );
+        return false;
+      }
     }
 
     // A player who is down cannot plain-Block: standing up costs movement,

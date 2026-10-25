@@ -40,6 +40,7 @@ import {
 import { SkillType, hasSkill } from "../../types/Skills";
 import { jumpTargets } from "../rules/jump";
 import { weatherEffects } from "../rules/weather";
+import { isSecuringBall } from "../rules/secureBall";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -262,6 +263,8 @@ export class MovementManager {
     let failed = false;
     /** Tentacles held the dodger — the activation ends where they stand */
     let heldFast = false;
+    /** A Secure the Ball pick-up succeeded: the activation ends here. */
+    let securedBall = false;
     let stepsTaken = 0;
     const preUsed = this.getMovementUsed(playerId);
     const wasProne = player.status === PlayerStatus.PRONE;
@@ -573,6 +576,8 @@ export class MovementManager {
           this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
           ballFrom = { ...currentPos };
           ballJoinStep = completedPath.length;
+          // Secure the Ball: the activation ends on the pick-up.
+          securedBall = isSecuringBall(this.state, playerId);
         }
       }
 
@@ -600,6 +605,7 @@ export class MovementManager {
           return Promise.resolve();
         }
       }
+      if (securedBall) break;
     }
 
     player.gridPosition = currentPos;
@@ -615,7 +621,11 @@ export class MovementManager {
       ballJoinStep,
     });
 
-    if (heldFast || preUsed + stepsTaken >= moveAllowance(maView)) {
+    if (
+      heldFast ||
+      securedBall ||
+      preUsed + stepsTaken >= moveAllowance(maView)
+    ) {
       // Tentacles ends the activation where the player stands (no turnover)
       this.callbacks.onActivationFinished(playerId);
     }
@@ -874,6 +884,10 @@ export class MovementManager {
         const pickupOp = new PickupOperation(playerId);
         await pickupOp.execute(context);
         if (!pickupOp.success) return;
+        if (isSecuringBall(this.state, playerId)) {
+          this.callbacks.onActivationFinished(playerId);
+          return;
+        }
       }
       if (preUsed + JUMP_COST >= moveAllowance(maView)) {
         this.callbacks.onActivationFinished(playerId);

@@ -16,6 +16,7 @@ import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
+import { canSecureBall } from "./secureBall";
 import { GameConfig } from "../../config/GameConfig";
 import {
   BlockReplacement,
@@ -271,7 +272,9 @@ export function computeActionAvailability(
     handoff,
     foul,
     standUp: isProne,
-    secureBall: ballReachable && !holdsBall,
+    secureBall:
+      ballReachable &&
+      canSecureBall(player, ballPosition, [...opponents, ...teammates]),
     stab: directBlockReplacements.includes("stab"),
     breatheFire: directBlockReplacements.includes("breatheFire"),
     vomit: directBlockReplacements.includes("vomit"),
