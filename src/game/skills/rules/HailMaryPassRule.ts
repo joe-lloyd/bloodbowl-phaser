@@ -7,15 +7,10 @@
  * throw as a Long Bomb, and treating any result of an Accurate Pass as an
  * Inaccurate Pass. A Hail Mary Pass cannot be Intercepted."
  *
- * Modelled on the passer's onPassDeclared fold: the throw cannot be
- * Intercepted (suppressInterception) and any Accurate result is downgraded to
- * Inaccurate (downgradeAccurate → the ball scatters from the target square).
- *
- * The engine already treats an out-of-range target as a Long Bomb for the PA
- * test, so a long Hail Mary is a Long Bomb by construction; forcing the -3
- * Long-Bomb modifier for a SHORT Hail Mary is not modelled (a short Hail Mary
- * is never advantageous, so this is a benign gap). The Throw Bomb clause lands
- * with the Bombardier subsystem.
+ * The coach opts in per throw (the `hailMary` flag on the pass command).
+ * PassController throws a declared Hail Mary as a Long Bomb and downgrades an
+ * Accurate result; this rule stops the throw being Intercepted. The Throw
+ * Bomb clause lands with the Bombardier subsystem.
  */
 
 import { SkillType } from "../../../types/Skills";
@@ -25,9 +20,8 @@ import { Player } from "../../../types/Player";
 export const HailMaryPassRule: SkillRule = {
   onPassDeclared(ctx: PassDeclaredContext, self: Player): void {
     // Only the passer's own Hail Mary Pass applies.
-    if (self.id !== ctx.player.id) return;
+    if (self.id !== ctx.player.id || !ctx.hailMary) return;
     ctx.suppressInterception = true;
-    ctx.downgradeAccurate = true;
     ctx.triggers.push({
       playerId: self.id,
       skill: SkillType.HAIL_MARY_PASS,

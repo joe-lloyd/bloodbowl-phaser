@@ -2,6 +2,7 @@ import { GamePhase, SubPhase } from "./GameState";
 import { PlayerStatus, PlayerStats, PlayerCondition } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
+import type { Weather } from "../game/rules/weather";
 
 /**
  * A skill to grant a placement — either the bare type, or a type plus its
@@ -35,6 +36,8 @@ export interface ScenarioSetup {
   subPhase: SubPhase;
   team1Roster?: RosterName;
   team2Roster?: RosterName;
+  /** Weather in effect; Perfect Conditions ("Nice") when omitted. */
+  weather?: Weather;
 }
 
 export interface Scenario {

@@ -8,6 +8,7 @@ import {
 } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
+import { withRerollOffer } from "../skills";
 
 /** Ends the gazer's activation once the gaze has resolved. */
 class FinishGazeOperation extends GameOperation {
@@ -29,7 +30,7 @@ class FinishGazeOperation extends GameOperation {
  * but never after the gaze — the activation ends either way. Against an
  * adjacent Standing opposition player: roll a D6. On a 1-2 nothing
  * happens; on a 3+ the target becomes Distracted (no Tackle Zone until
- * next activated). Never a turnover.
+ * next activated). Never a turnover. A failed roll may be re-rolled.
  */
 export class HypnoticGazeOperation extends GameOperation {
   public readonly name = "HypnoticGazeOperation";
@@ -68,12 +69,19 @@ export class HypnoticGazeOperation extends GameOperation {
     });
     await context.delay(600);
 
-    const check = dice.rollSkillCheck(
-      "Hypnotic Gaze",
-      3,
-      0,
-      attacker.playerName,
-      attacker.teamId
+    // An ordinary D6, so the coach may spend a re-roll on a 1-2.
+    const check = await withRerollOffer(
+      { gameService, eventBus },
+      attacker,
+      "gaze",
+      () =>
+        dice.rollSkillCheck(
+          "Hypnotic Gaze",
+          3,
+          0,
+          attacker.playerName,
+          attacker.teamId
+        )
     );
     if (check.success) {
       addCondition(target, PlayerCondition.DISTRACTED);

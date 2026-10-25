@@ -59,6 +59,20 @@ describe("WeatherManager", () => {
       );
     });
 
+    it("states the Sweltering Heat rule as the rulebook gives it", () => {
+      mockDiceController.roll2D6.mockReturnValue(2);
+      manager.rollWeather();
+
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        GameEventNames.UI_LogEntry,
+        expect.objectContaining({
+          headline: "Sweltering Heat",
+          detail:
+            "At the end of each drive, roll a D3: each coach picks that many of their players on the pitch at random, and they miss the next drive in the Reserves.",
+        })
+      );
+    });
+
     it("should never fall back to a bare notification toast", () => {
       manager.rollWeather();
 

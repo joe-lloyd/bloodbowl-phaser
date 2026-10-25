@@ -113,6 +113,8 @@ export interface IGameService {
   /** Touchback: receiving coach hands the ball to one of their players */
   awardTouchback(playerId: string): boolean;
   isTouchbackPending(): boolean;
+  /** A loose kick-off ball bounced out of the receiving half: Touchback. */
+  kickoffBounceTouchback(to: { x: number; y: number }): boolean;
   /** Interactive Sevens kickoff event currently awaiting its owning coach. */
   getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null;
   selectKickoffEventPlayer(playerId: string): boolean;
@@ -182,12 +184,14 @@ export interface IGameService {
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void;
+  ): void | Promise<void>;
 
+  /** `hailMary`: the coach declares the throw as a Hail Mary Pass. */
   throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary?: boolean
   ): Promise<{ success: boolean; result?: string }>;
   /**
    * Hand-off Action: no Passing Ability Test, no scatter, no interception —
@@ -209,7 +213,8 @@ export interface IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: import("../../game/rules/throwTeammate").SwoopFacing
   ): Promise<void>;
   /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
   throwBomb(throwerId: string, x: number, y: number): Promise<void>;
@@ -266,6 +271,8 @@ export interface IGameService {
    * Block ends it; a Blitz block keeps the player active while MA+rush remains.
    */
   finishBlockActivation(playerId: string): void;
+  /** Charge a Blitz block's square of movement (Rush if needed). */
+  chargeBlitzBlockSquare(attackerId: string): Promise<boolean>;
   /** The single block a Blitz allows has been spent this activation. */
   hasUsedBlitzBlock(playerId: string): boolean;
   getAvailableMovements(

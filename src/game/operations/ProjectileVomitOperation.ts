@@ -7,6 +7,8 @@ import { FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
+import { foldArmourRoll } from "./ArmourOperation";
+import { gatherParticipants } from "../skills";
 
 /** Ends the vomiter's activation once everything has settled. */
 class FinishVomitOperation extends GameOperation {
@@ -84,14 +86,27 @@ export class ProjectileVomitOperation extends GameOperation {
         : `${target.playerName} is drenched!`
     );
 
-    // Unmodifiable Armour Roll: straight 2D6 vs AV, no skill fold
     const armour = dice.rollArmorCheck(
       effectiveAV(victim, gameService.getState()),
       victim.playerName,
       attacker.teamId
     );
-    if (armour.broken) {
-      this.knockDown(context, victim, selfHit ? undefined : attacker);
+    // Unmodifiable: the fold runs, but only the natural roll vs AV counts.
+    const causedBy = selfHit ? undefined : attacker;
+    const armourCtx = await foldArmourRoll(
+      context,
+      gatherParticipants(causedBy ?? victim, causedBy ? victim : undefined, []),
+      {
+        player: victim,
+        causedBy,
+        cause: "special",
+        knockedDown: false,
+        roll: armour.roll,
+        armourModifier: 0,
+      }
+    );
+    if (armourCtx.broken) {
+      this.knockDown(context, victim, causedBy, armourCtx.injuryModifier);
       if (selfHit) {
         gameService.triggerTurnover("Knocked Down by their own bile");
       }
@@ -105,7 +120,8 @@ export class ProjectileVomitOperation extends GameOperation {
   private knockDown(
     context: FlowContext,
     victim: Player,
-    causedBy?: Player
+    causedBy: Player | undefined,
+    injuryModifier: number
   ): void {
     const gameService = context.gameService as IGameService;
     const eventBus = context.eventBus;
@@ -125,10 +141,10 @@ export class ProjectileVomitOperation extends GameOperation {
       );
     }
     context.flowManager.add(
-      new InjuryOperation(
-        victim.id,
-        causedBy ? { causedById: causedBy.id, cause: "special" } : undefined
-      ),
+      new InjuryOperation(victim.id, {
+        modifier: injuryModifier,
+        ...(causedBy ? { causedById: causedBy.id, cause: "special" } : {}),
+      }),
       true
     );
   }

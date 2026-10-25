@@ -22,7 +22,10 @@ export interface PlayerDriveModifiers {
   maModifier?: number;
   /** Additive AV adjustment for this drive (Dodgy Snack: -1). */
   avModifier?: number;
-  /** The player cannot be fielded again this drive (Dodgy Snack roll of 1). */
+  /**
+   * The player cannot be fielded this drive (Dodgy Snack roll of 1, or
+   * fainted in Sweltering Heat at the end of the previous drive).
+   */
   confinedToReserves?: boolean;
 }
 
@@ -107,7 +110,7 @@ export function effectiveAV(player: Player, state: GameState): number {
   return Math.max(2, player.stats.AV + modifier);
 }
 
-/** Dodgy Snack: the player must stay in the Reserves for this drive. */
+/** Dodgy Snack or Sweltering Heat: the player stays in the Reserves this drive. */
 export function isConfinedToReserves(player: Player, state: GameState): boolean {
   return (
     getDriveEffects(state).playerModifiers[player.id]?.confinedToReserves ===

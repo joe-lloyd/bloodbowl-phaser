@@ -41,8 +41,8 @@ import { BounceOperation } from "./BounceOperation";
  *   coach-facing choice can layer on later without changing the engine).
  * - bloodlust: the coach may downgrade the declared action to a Move
  *   Action; a declared Blitz still counts as the turn's Blitz (the flag was
- *   consumed at declaration). The end-of-activation Thrall bite is NOT
- *   enforced — no roster fields Thrall Linemen yet (see design).
+ *   consumed at declaration). The activation is marked unsated, and
+ *   BloodlustBiteOperation settles the Thrall bite when it ends.
  */
 export class ActivationGateOperation extends GameOperation {
   public readonly name = "ActivationGate";
@@ -199,8 +199,9 @@ export class ActivationGateOperation extends GameOperation {
           );
         }
         context.flowManager.add(
-          // A lash-out is not a Block Action — never arms Plague Ridden.
-          new ArmourOperation(victim.id, this.playerId, undefined, "special"),
+          // A lash-out is not a Block Action — never arms Plague Ridden —
+          // but the lasher must use Mighty Blow and Claws on it.
+          new ArmourOperation(victim.id, this.playerId, undefined, "lash-out"),
           true
         );
         if (hadBall) {
@@ -212,7 +213,7 @@ export class ActivationGateOperation extends GameOperation {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: player.id,
           skill: gate.skill,
-          effect: `${gate.skill}: the thirst takes hold — the coach may change the action to a Move (the Thrall bite clause is not enforced: no Thrall Linemen roster)`,
+          effect: `${gate.skill}: the thirst takes hold — the coach may change the action to a Move`,
         });
         const decisions = gameService.getDecisionService();
         const answer = (await decisions.request({
@@ -222,15 +223,16 @@ export class ActivationGateOperation extends GameOperation {
           skill: gate.skill,
           prompt: `${player.playerName} fails the Bloodlust roll — change the declared action to a Move Action?`,
         })) as ReactionDecisionAnswer;
+        const state = gameService.getState();
         if (answer.accept) {
-          gameService.getState().activePlayer = {
-            id: this.playerId,
-            action: "move",
-          };
+          state.activePlayer = { id: this.playerId, action: "move" };
           eventBus.emit(
             GameEventNames.UI_Notification,
             `${player.playerName} will Move instead`
           );
+        }
+        if (state.activePlayer?.id === this.playerId) {
+          state.activePlayer.bloodlustUnsated = true;
         }
         return; // the activation continues either way
       }

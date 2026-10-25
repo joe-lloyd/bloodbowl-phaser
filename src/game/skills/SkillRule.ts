@@ -27,6 +27,7 @@ import { RerollArbiter } from "./RerollArbiter";
 import { GameOperation } from "../core/GameOperation";
 import { DiceController } from "../controllers/DiceController";
 import { InjuryResult, InjuryTableKind } from "../controllers/InjuryController";
+import type { CasualtyCause } from "../rules/plagueRidden";
 
 export interface SkillTriggerRecord {
   playerId: string;
@@ -148,6 +149,12 @@ export interface PushContext extends TriggerContextBase {
    * first).
    */
   blockerIgnoresReactions: boolean;
+  /**
+   * This player is being Chain Pushed, not pushed by the Block itself. Only
+   * their own rules fold, and those reacting to a Block "performed against
+   * them" (Taunt) stay out.
+   */
+  chainPush?: boolean;
   /** Set true to refuse the push entirely (Stand Firm) */
   refused: boolean;
   /** Deny the blocker their follow-up into the vacated square (Fend). */
@@ -235,6 +242,8 @@ export interface CatchContext extends TriggerContextBase {
 export interface PassDeclaredContext extends TriggerContextBase {
   player: Player;
   passType: string;
+  /** The coach declared this throw as a Hail Mary Pass. */
+  hailMary: boolean;
   /** Opponents marking the passer */
   marking: number;
   /** Extra modifier added to the PA test (Accurate, Nerves of Steel, …) */
@@ -258,11 +267,6 @@ export interface PassDeclaredContext extends TriggerContextBase {
    * Very Long Legs interceptor.
    */
   cloudBurster?: boolean;
-  /**
-   * An Accurate result is treated as Inaccurate — the ball scatters from the
-   * target square (Hail Mary Pass).
-   */
-  downgradeAccurate?: boolean;
 }
 
 /**
@@ -308,10 +312,19 @@ export interface ArmourBreakContext extends TriggerContextBase {
   player: Player;
   /** The blocker who knocked this player down (block-path armour only) */
   causedBy?: Player;
-  /** What put the player down — "dodge" enables Arm Bar. */
-  cause?: "block" | "dodge" | "lethal-flight";
+  /**
+   * What put the player down — "block" enables Mighty Blow and Claws,
+   * "dodge" Arm Bar, "lethal-flight" Lethal Flight.
+   */
+  cause?: CasualtyCause;
   /** The square the player fell leaving (a failed Dodge/Leap/Jump). */
   vacatedSquare?: { x: number; y: number };
+  /**
+   * The roll is for a player who was Knocked Down or Fell Over (Chainsaw's
+   * +3 against its owner), not for a Foul or a special action's attack on
+   * a Standing player.
+   */
+  knockedDown: boolean;
   /** Natural 2D6 total */
   roll: number;
   /** Net armour-roll modifier (Mighty Blow; cleared by Iron Hard Skin) */
@@ -320,6 +333,13 @@ export interface ArmourBreakContext extends TriggerContextBase {
   injuryModifier: number;
   /** Break regardless of AV (Claws on 8+; cancelled by Iron Hard Skin) */
   forcedBreak?: boolean;
+  /**
+   * Mighty Blow's bonus, placed once every rule has folded: on the Armour
+   * Roll if that makes it break, otherwise on the Injury Roll. The book lets
+   * it be "applied after the roll has been made", so Claws or Iron Hard Skin
+   * folding later still steer it.
+   */
+  mightyBlow?: { playerId: string; bonus: number };
   /**
    * No opposition modifier may apply to this roll, including one chosen
    * after the fold (Dirty Player on a Foul). Set by Iron Hard Skin.
@@ -363,7 +383,7 @@ export interface InjuryRollContext extends TriggerContextBase {
 export interface CasualtyContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
-  cause?: "block" | "special" | "dodge" | "lethal-flight";
+  cause?: CasualtyCause;
   /** Set true to ignore the casualty and go to Reserves (Regeneration) */
   regenerated?: boolean;
 }
@@ -477,7 +497,18 @@ export interface JumpDeclaredContext extends TriggerContextBase {
   negativeModifier: number;
   /** Flat additions to the Agility Test (Very Long Legs +1). */
   bonusModifier: number;
+  /**
+   * The jumper is held fast: they never leave the square, no Agility Test
+   * is rolled, and their activation ends, with no Turnover (Tentacles).
+   */
+  escapeCancelled?: boolean;
 }
+
+/**
+ * The Jump Agility Test has been rolled and any re-rolls applied. Markers
+ * of the vacated square may still react (Diving Tackle).
+ */
+export type JumpResolvedContext = Omit<DodgeResolvedContext, "followInto">;
 
 /**
  * A player with MA < 3 rolls to stand up (4+, natural 1 fails); rules may
@@ -579,6 +610,8 @@ export interface SkillRule {
   onRushDeclared?(ctx: RushDeclaredContext, self: Player): void | Promise<void>;
   /** A Jump/Leap Agility Test is about to be rolled (Leap, Pogo, Very Long Legs). */
   onJumpDeclared?(ctx: JumpDeclaredContext, self: Player): void | Promise<void>;
+  /** The Jump test is final; markers of the vacated square react (Diving Tackle). */
+  onJumpResolved?(ctx: JumpResolvedContext, self: Player): void | Promise<void>;
   /** An MA < 3 player rolls to stand up (Timmm-ber!). */
   onStandUpRoll?(ctx: StandUpRollContext, self: Player): void | Promise<void>;
   /**

@@ -3,12 +3,15 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
+import { weatherEffects } from "../rules/weather";
 import {
   foldTrigger,
   gatherParticipants,
   adjacentStanding,
   PickupContext,
+  withRerollOffer,
 } from "../skills";
+import { isSecuringBall } from "../rules/secureBall";
 
 /**
  * PickupOperation
@@ -63,7 +66,9 @@ export class PickupOperation extends GameOperation {
     const pickupCtx: PickupContext = {
       player,
       marking: markingOpponents,
-      modifiers: -markingOpponents,
+      modifiers:
+        -markingOpponents +
+        weatherEffects(gameService.getState().weather).ballHandling,
       decisions: gameService.getDecisionService(),
       flow: flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -94,6 +99,21 @@ export class PickupOperation extends GameOperation {
       });
       this.success = false;
       roll = 1;
+    } else if (isSecuringBall(gameService.getState(), this.playerId)) {
+      // Secure the Ball: no Agility Test, a D6 for 2+. Sure Hands may not
+      // re-roll it; a team re-roll still may.
+      const check = await withRerollOffer(
+        { gameService, eventBus },
+        player,
+        "pickup",
+        () =>
+          gameService
+            .getDiceController()
+            .rollSkillCheck("Secure the Ball", 2, 0, player.playerName),
+        { skillAllowed: false }
+      );
+      this.success = check.success;
+      roll = check.roll;
     } else {
       // 2. Execute Agility Test
       const agilityTest = new AgilityTestOperation(

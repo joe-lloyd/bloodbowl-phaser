@@ -17,6 +17,7 @@ import { RosterName } from "../../types/Team";
 import { PlayerStats } from "../../types/Player";
 import { GameEventNames } from "../../types/events";
 import { ScenarioSetup } from "../../types/Scenario";
+import { SwoopFacing } from "../../game/rules/throwTeammate";
 import {
   RuleScenarioEntry,
   playSetup,
@@ -52,6 +53,14 @@ const rolled = (r: Result, type: string): boolean =>
     GameEventNames.DiceRoll,
     (d) => (d as { rollType?: string }).rollType === type
   );
+
+/** How many Landing rolls the run made. */
+const landingRolls = (r: Result): number =>
+  r.events.filter(
+    (e) =>
+      e.name === GameEventNames.DiceRoll &&
+      !!(e.data as { rollType?: string }).rollType?.startsWith("Landing")
+  ).length;
 
 interface TtmOpts {
   mode: "throw" | "kick";
@@ -113,7 +122,8 @@ const script = (
   mode: "throw" | "kick",
   x: number,
   y: number,
-  mateRef: string = MATE
+  mateRef: string = MATE,
+  swoopFacing?: SwoopFacing
 ) => [
   {
     type: "declare-action" as const,
@@ -127,6 +137,7 @@ const script = (
     x,
     y,
     mode,
+    ...(swoopFacing ? { swoopFacing } : {}),
   },
 ];
 
@@ -218,14 +229,14 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "lands-prone",
-            name: "Fails the landing — Prone, turnover",
+            name: "Fails the landing without the ball — Prone, no turnover",
             matches: (r) =>
               skillTriggered(r, SkillType.THROW_TEAM_MATE) &&
               saw(r, "fails to land"),
             verify: (r) =>
               assert(
-                turnoverHappened(r),
-                "a thrown player landing Prone is a turnover"
+                !turnoverHappened(r),
+                "a Fall Over without the ball is no turnover (p.82)"
               ),
           },
           {
@@ -312,21 +323,24 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ttm-crash",
         name: "Throw Team-mate — crash into an occupied square",
         description:
-          "When the thrown Gnoblar scatters onto an occupied square, both it and the occupant are Knocked Down and take an Armour Roll — a turnover",
+          "When the thrown Gnoblar scatters onto an occupied square, both it and the occupant are Knocked Down and take an Armour Roll — no turnover without the ball",
         setup: ttm({ mode: "throw", opponents: ring(14, 5) }),
         script: script("throw", 14, 5),
         seedSearch: { from: 1, limit: 1200 },
         outcomes: [
           {
             id: "crash-knocks-both-down",
-            name: "Both players crash to the ground — turnover",
+            name: "Both players crash to the ground — no turnover",
             matches: (r) => saw(r, "crashes into"),
             verify: (r) => {
               assert(
                 !playerStanding(r, MATE),
                 "the thrown player is Knocked Down in a crash"
               );
-              assert(turnoverHappened(r), "a crash is a turnover");
+              assert(
+                !turnoverHappened(r),
+                "a crash without the ball is no turnover (p.82)"
+              );
             },
           },
         ],
@@ -415,12 +429,15 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "kick-lands-prone",
-            name: "Kicked Gnoblar fails the landing — turnover",
+            name: "Kicked Gnoblar fails the landing — no turnover",
             matches: (r) =>
               skillTriggered(r, SkillType.KICK_TEAM_MATE) &&
               saw(r, "fails to land"),
             verify: (r) =>
-              assert(turnoverHappened(r), "landing Prone is a turnover"),
+              assert(
+                !turnoverHappened(r),
+                "a Fall Over without the ball is no turnover (p.82)"
+              ),
           },
           {
             id: "fumbled-kick-removes",
@@ -453,9 +470,13 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "kick-crash",
-            name: "Kicked player crashes — turnover",
+            name: "Kicked player crashes — no turnover",
             matches: (r) => saw(r, "crashes into"),
-            verify: (r) => assert(turnoverHappened(r), "a crash is a turnover"),
+            verify: (r) =>
+              assert(
+                !turnoverHappened(r),
+                "a crash without the ball is no turnover (p.82)"
+              ),
           },
         ],
       },
@@ -488,7 +509,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "Placed Prone on a failed landing roll",
             matches: (r) => saw(r, "fails to land"),
             verify: (r) =>
-              assert(turnoverHappened(r), "a failed landing is a turnover"),
+              assert(
+                !turnoverHappened(r),
+                "a failed landing without the ball is no turnover (p.82)"
+              ),
           },
         ],
       },
@@ -568,23 +592,23 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
     skill: SkillType.SWOOP,
     configs: [
       {
-        id: "swoop-scatter",
-        name: "Swoop scatter template",
+        id: "swoop-template",
+        name: "Swoop throw-in template",
         description:
-          "A thrower with Swoop scatters the thrown Gnoblar using the tighter throw-in template (a single step) instead of the standard 3-square Scatter template",
-        setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.SWOOP] }),
-        script: script("throw", 14, 5),
+          "A thrown Gnoblar with Swoop travels by the Throw-in Template (a D6 direction, then a D6 distance) instead of Scattering",
+        setup: ttm({ mode: "throw", extraMateSkills: [SkillType.SWOOP] }),
+        script: script("throw", 14, 5, MATE, "east"),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
             id: "swoop-applies",
-            name: "Swoop's tighter scatter is used",
+            name: "The template replaces the Scatter",
             matches: (r) =>
               skillTriggered(r, SkillType.SWOOP) && saw(r, "lands safely"),
             verify: (r) => {
               assert(
-                rolled(r, "Bounce"),
-                "Swoop uses a single throw-in-template scatter step"
+                rolled(r, "Swoop Direction") && rolled(r, "Swoop Distance"),
+                "Swoop rolls a template direction and a distance"
               );
               assert(
                 !rolled(r, "Scatter"),
@@ -595,24 +619,21 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
         ],
       },
       {
-        id: "swoop-landing-bonus",
-        name: "Swoop landing +1",
-        description:
-          "Swoop adds +1 to the Right Stuff landing roll of the thrown Gnoblar",
-        setup: ttm({ mode: "throw", extraThrowerSkills: [SkillType.SWOOP] }),
-        script: script("throw", 14, 5),
+        id: "swoop-landing-reroll",
+        name: "Swoop landing re-roll",
+        description: "A Swooping Gnoblar may re-roll the Agility Test to land",
+        setup: ttm({ mode: "throw", extraMateSkills: [SkillType.SWOOP] }),
+        script: script("throw", 14, 5, MATE, "east"),
         seedSearch: { from: 1, limit: 800 },
         outcomes: [
           {
-            id: "landing-plus-one",
-            name: "The landing roll gets +1",
-            matches: (r) =>
-              skillTriggered(r, SkillType.SWOOP) &&
-              skillCheckDiff(r, "Landing") === 1,
+            id: "landing-rerolled",
+            name: "A failed landing is rolled again",
+            matches: (r) => landingRolls(r) === 2,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Landing") === 1,
-                "Swoop adds +1 to the landing roll"
+                landingRolls(r) === 2,
+                "Swoop re-rolls the failed landing once"
               ),
           },
         ],

@@ -31,3 +31,14 @@ export function isThrowTeammateInRange(
   const value = PassController.rangeValue(from, to);
   return value === 0 || value === 1;
 }
+
+/**
+ * The way a Swooping player points the Throw-in Template: toward one of the
+ * two End Zones (west, east) or either Sideline (north, south).
+ */
+export const SWOOP_FACINGS = ["north", "east", "south", "west"] as const;
+export type SwoopFacing = (typeof SWOOP_FACINGS)[number];
+
+export function isSwoopFacing(value: unknown): value is SwoopFacing {
+  return SWOOP_FACINGS.some((facing) => facing === value);
+}

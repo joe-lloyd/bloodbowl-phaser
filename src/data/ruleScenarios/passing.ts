@@ -701,7 +701,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "pass" },
-          { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+          { type: "pass", playerId: "team1:0", x: 10, y: 5, hailMary: true },
         ],
         seedSearch: { from: 1, limit: 200 },
         outcomes: [
@@ -734,7 +734,7 @@ export const PASSING_RULE_SCENARIOS: RuleScenarioEntry[] = [
         }),
         script: [
           { type: "declare-action", playerId: "team1:0", action: "pass" },
-          { type: "pass", playerId: "team1:0", x: 8, y: 5 },
+          { type: "pass", playerId: "team1:0", x: 8, y: 5, hailMary: true },
         ],
         decisionPolicy: { acceptRerolls: false },
         seedSearch: { from: 1, limit: 500 },

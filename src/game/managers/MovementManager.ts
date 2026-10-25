@@ -35,9 +35,12 @@ import {
   RushDeclaredContext,
   StandUpRollContext,
   JumpDeclaredContext,
+  JumpResolvedContext,
 } from "../skills/SkillRule";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { jumpTargets } from "../rules/jump";
+import { weatherEffects } from "../rules/weather";
+import { isSecuringBall } from "../rules/secureBall";
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -67,6 +70,13 @@ export class MovementManager {
   ): { x: number; y: number; cost?: number }[] {
     const player = this.getPlayerById(playerId);
     if (!player || player.teamId !== this.state.activeTeamId) return [];
+    // Rooted and Chomped players may not leave their square.
+    if (
+      hasCondition(player, PlayerCondition.ROOTED) ||
+      hasCondition(player, PlayerCondition.CHOMPED)
+    ) {
+      return [];
+    }
 
     const used = this.getMovementUsed(playerId);
     const ma = driveEffectiveMA(player, this.state);
@@ -260,6 +270,8 @@ export class MovementManager {
     let failed = false;
     /** Tentacles held the dodger — the activation ends where they stand */
     let heldFast = false;
+    /** A Secure the Ball pick-up succeeded: the activation ends here. */
+    let securedBall = false;
     let stepsTaken = 0;
     const preUsed = this.getMovementUsed(playerId);
     const wasProne = player.status === PlayerStatus.PRONE;
@@ -309,7 +321,7 @@ export class MovementManager {
         // Trigger point: rush declared — rules may modify it (Drunkard)
         const rushCtx: RushDeclaredContext = {
           player,
-          modifiers: 0,
+          modifiers: weatherEffects(this.state.weather).rush,
           triggers: [],
         };
         await foldTrigger("onRushDeclared", [player], rushCtx);
@@ -571,6 +583,8 @@ export class MovementManager {
           this.state.ballPosition = { x: currentPos.x, y: currentPos.y };
           ballFrom = { ...currentPos };
           ballJoinStep = completedPath.length;
+          // Secure the Ball: the activation ends on the pick-up.
+          securedBall = isSecuringBall(this.state, playerId);
         }
       }
 
@@ -598,6 +612,7 @@ export class MovementManager {
           return Promise.resolve();
         }
       }
+      if (securedBall) break;
     }
 
     player.gridPosition = currentPos;
@@ -613,7 +628,11 @@ export class MovementManager {
       ballJoinStep,
     });
 
-    if (heldFast || preUsed + stepsTaken >= moveAllowance(maView)) {
+    if (
+      heldFast ||
+      securedBall ||
+      preUsed + stepsTaken >= moveAllowance(maView)
+    ) {
       // Tentacles ends the activation where the player stands (no turnover)
       this.callbacks.onActivationFinished(playerId);
     }
@@ -710,7 +729,7 @@ export class MovementManager {
     for (let i = 0; i < rushesNeeded; i++) {
       const rushCtx: RushDeclaredContext = {
         player,
-        modifiers: 0,
+        modifiers: weatherEffects(this.state.weather).rush,
         triggers: [],
       };
       await foldTrigger("onRushDeclared", [player], rushCtx);
@@ -774,19 +793,77 @@ export class MovementManager {
       dice: this.diceController,
       triggers: [],
     };
-    await foldTrigger("onJumpDeclared", [player], jumpCtx);
+    // Markers of the vacated square fold first (Tentacles, Prehensile Tail),
+    // so the jumper's own Leap or Pogo sees every negative modifier.
+    const leftMarkers = adjacentStanding(from, opponents);
+    await foldTrigger("onJumpDeclared", leftMarkers, jumpCtx);
+    if (!jumpCtx.escapeCancelled) {
+      await foldTrigger("onJumpDeclared", [player], jumpCtx);
+    }
     jumpCtx.triggers.forEach((t) =>
       this.eventBus.emit(GameEventNames.SkillTriggered, t)
     );
+    // Tentacles held the jumper: no Agility Test, no move, and the
+    // activation ends, with no Turnover.
+    if (jumpCtx.escapeCancelled) {
+      this.callbacks.onActivationFinished(playerId);
+      return;
+    }
     const modifier = jumpCtx.negativeModifier + jumpCtx.bonusModifier;
 
-    const check = this.diceController.rollSkillCheck(
-      "Jump",
-      player.stats.AG,
-      modifier,
-      player.playerName
-    );
+    const rollJump = () =>
+      this.diceController.rollSkillCheck(
+        "Jump",
+        player.stats.AG,
+        modifier,
+        player.playerName
+      );
+    const rolled = gameService
+      ? await withRerollOffer(
+          { gameService, eventBus: this.eventBus },
+          player,
+          "jump",
+          rollJump
+        )
+      : rollJump();
     this.state.turn.movementUsed.set(playerId, preUsed + JUMP_COST);
+
+    // Markers of the vacated square react after any re-rolls (Diving Tackle).
+    const resolvedCtx: JumpResolvedContext = {
+      player,
+      from,
+      to: { ...target },
+      naturalRoll: rolled.roll,
+      target: player.stats.AG,
+      modifiers: modifier,
+      success: rolled.success,
+      decisions: gameService?.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService?.getRerollArbiter(),
+      dice: this.diceController,
+      triggers: [],
+    };
+    await foldTrigger("onJumpResolved", leftMarkers, resolvedCtx);
+    resolvedCtx.triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+    const check = { success: resolvedCtx.success, roll: rolled.roll };
+    if (resolvedCtx.proneInVacated) {
+      const diver = opponents.find((p) => p.id === resolvedCtx.proneInVacated);
+      if (diver?.gridPosition) {
+        const diverFrom = { ...diver.gridPosition };
+        diver.gridPosition = { ...from };
+        diver.status = PlayerStatus.PRONE;
+        this.eventBus.emit(GameEventNames.PlayerMoved, {
+          playerId: diver.id,
+          from: diverFrom,
+          to: { ...from },
+          path: [diverFrom, { ...from }],
+          ballJoinStep: 0,
+        });
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, diver);
+      }
+    }
 
     if (check.success) {
       player.gridPosition = { ...target };
@@ -806,6 +883,16 @@ export class MovementManager {
         const side = player.teamId === this.team1.id ? 1 : 2;
         if (isInEndZone(target, GameConfig.PITCH_WIDTH, side)) {
           this.callbacks.onTouchdown?.(player.teamId, player.id);
+          return;
+        }
+      } else if (context && this.isBallAt(target)) {
+        // Landing on the loose ball: the Pick-up comes after the Jump. A
+        // failed Pick-up bounces the ball and causes the Turnover itself.
+        const pickupOp = new PickupOperation(playerId);
+        await pickupOp.execute(context);
+        if (!pickupOp.success) return;
+        if (isSecuringBall(this.state, playerId)) {
+          this.callbacks.onActivationFinished(playerId);
           return;
         }
       }

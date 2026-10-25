@@ -262,6 +262,9 @@ export class NetworkedGameService implements IGameService {
     // Online Blitz continuation is not wired; end the activation as before.
     this.finishActivation(playerId);
   }
+  chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
+    return this.inner.chargeBlitzBlockSquare(attackerId);
+  }
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
   }
@@ -535,13 +538,15 @@ export class NetworkedGameService implements IGameService {
   async throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
     const response = await this.dispatch({
       type: "pass",
       playerId: passerId,
       x: targetX,
       y: targetY,
+      ...(hailMary ? { hailMary } : {}),
     });
     return { success: response.ok, result: response.reason };
   }
@@ -581,7 +586,8 @@ export class NetworkedGameService implements IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: import("../game/rules/throwTeammate").SwoopFacing
   ): Promise<void> {
     await this.dispatch({
       type: "throw-teammate",
@@ -589,6 +595,7 @@ export class NetworkedGameService implements IGameService {
       teammateId,
       x,
       y,
+      ...(swoopFacing ? { swoopFacing } : {}),
       mode,
     });
   }
@@ -656,6 +663,9 @@ export class NetworkedGameService implements IGameService {
   resetDriveState(): void {}
   async rollKORecovery(): Promise<void> {}
   throwInBall(): void {}
+  kickoffBounceTouchback(): boolean {
+    return false;
+  }
   setBallPosition(): void {}
   attemptPickup(): boolean {
     return false;

@@ -7,7 +7,11 @@ import { GameConfig } from "@/config/GameConfig";
 export class BounceOperation extends GameOperation {
   public readonly name = "BounceOperation";
 
-  constructor(private startPosition: { x: number; y: number }) {
+  constructor(
+    private startPosition: { x: number; y: number },
+    /** The ball is still the kick-off: it has not yet been caught or come to rest. */
+    private kickoff: boolean = false
+  ) {
     super();
   }
 
@@ -48,6 +52,13 @@ export class BounceOperation extends GameOperation {
     await context.delay(200); // Wait for bounce anim
 
     // 3. Validation
+    // A kick-off bounce out of the receiving half is a Touchback (p.52).
+    if (
+      this.kickoff &&
+      gameService.kickoffBounceTouchback({ x: newX, y: newY })
+    ) {
+      return;
+    }
     // Check constraints (Out of bounds?)
     if (
       newX < 0 ||
@@ -72,7 +83,10 @@ export class BounceOperation extends GameOperation {
       // Attempt Catch (a dropped bounce is not a turnover by itself)
       eventBus.emit(GameEventNames.UI_Notification, "Ball hits player!");
       flowManager.add(
-        new CatchOperation(playerAtSquare.id, { origin: "bounce" }),
+        new CatchOperation(playerAtSquare.id, {
+          origin: "bounce",
+          kickoff: this.kickoff,
+        }),
         true
       );
     } else {

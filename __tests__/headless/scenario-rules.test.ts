@@ -472,11 +472,11 @@ describe("turnover ownership", () => {
   });
 });
 
-describe("stunned recovery at turn start", () => {
+describe("stunned recovery at turn end", () => {
   const stunnedRecoveryScenario: Scenario = {
     id: "stunned-recovery",
     name: "Stunned recovery",
-    description: "stunned players roll to prone at their team's turn start",
+    description: "stunned players roll to prone at their team's turn end",
     setup: {
       team1Placements: [{ playerIndex: 0, x: 5, y: 5 }],
       team2Placements: [
@@ -489,7 +489,7 @@ describe("stunned recovery at turn start", () => {
     },
   };
 
-  it("a stunned player becomes prone but already-activated when their turn starts", async () => {
+  it("a stunned player stays stunned and misses their team's turn", async () => {
     const game = new HeadlessGame({ scenario: stunnedRecoveryScenario, seed: 1 });
     const snap = game.snapshot();
     const stunned = snap.teams[1].players[0];
@@ -500,13 +500,13 @@ describe("stunned recovery at turn start", () => {
     expect(ended.ok).toBe(true);
     expect(ended.snapshot.activeTeamId).toBe(snap.teams[1].id);
 
-    // The stunned player rolled face-up…
+    // The stunned player is still face-down for their whole turn…
     const stunnedAfter = ended.snapshot.teams[1].players.find(
       (p) => p.id === stunned.id
     )!;
-    expect(stunnedAfter.status).toBe(PlayerStatus.PRONE);
+    expect(stunnedAfter.status).toBe(PlayerStatus.STUNNED);
 
-    // …but has missed their action this turn
+    // …and misses their action this turn
     const declined = await game.execute({
       type: "declare-action",
       playerId: stunned.id,
@@ -604,13 +604,13 @@ describe("block-injury scenarios (seeded)", () => {
     };
   }
 
-  it("block-injury-stun: defender is stunned, then recovers prone at their turn start", async () => {
+  it("block-injury-stun: defender is stunned, and stays so as their turn starts", async () => {
     const result = await runInjuryChain("block-injury-stun");
     expect(result.notifications).toContain("STUNNED!");
     // The attacker was their team's last player, so the turn flipped to the
-    // defender's team — whose turn start rolls the stunned player face-up
+    // defender's team. The stunned player rolls over at that turn's end.
     expect(result.activeTeamId).toBe(result.defenderTeamId);
-    expect(result.defenderStatus).toBe(PlayerStatus.PRONE);
+    expect(result.defenderStatus).toBe(PlayerStatus.STUNNED);
   });
 
   it("block-injury-ko: defender is knocked out", async () => {

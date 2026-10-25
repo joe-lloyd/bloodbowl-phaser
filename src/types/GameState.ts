@@ -1,3 +1,4 @@
+import type { Weather } from "../game/rules/weather";
 export enum SubPhase {
   // SETUP Sub-Phases
   INTRO = "INTRO",
@@ -55,6 +56,10 @@ export interface TurnData {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  /** Each special throw is declared once per Turn, apart from the Pass. */
+  hasThrownTeamMate: boolean;
+  hasKickedTeamMate: boolean;
+  hasThrownBomb: boolean;
   movementUsed: Map<string, number>;
 }
 
@@ -66,7 +71,7 @@ export interface GameState {
   activeTeamId: string | null;
   turn: TurnData;
   score: { [key: string]: number };
-  weather: string; // "Nice", "Pouring Rain", etc.
+  weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
     id: string;
@@ -77,6 +82,8 @@ export interface GameState {
     blockReplacementUsed?: boolean;
     /** Set once the declaration has become binding (see PlayerActionManager). */
     committed?: boolean;
+    /** Failed Bloodlust: must bite a Thrall Lineman (BloodlustBiteOperation). */
+    bloodlustUnsated?: boolean;
   } | null;
   coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */
@@ -88,6 +95,11 @@ export interface GameState {
    * purchased count is never spent (see game/teamRerolls.ts).
    */
   teamRerollsUsed?: Record<string, number>;
+  /**
+   * Leader Re-rolls granted for `half` and not yet spent, by team id;
+   * absent until the first half begins (see skills/RerollArbiter.ts).
+   */
+  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */

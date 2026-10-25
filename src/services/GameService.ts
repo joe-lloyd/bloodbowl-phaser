@@ -45,6 +45,8 @@ import {
 import { PassOperation } from "@/game/operations/PassOperation";
 import { HandoffOperation } from "@/game/operations/HandoffOperation";
 import { isLegalHandoffTarget } from "@/game/rules/handoff";
+import { weatherEffects } from "@/game/rules/weather";
+import { canSecureBall, isSecuringBall } from "@/game/rules/secureBall";
 import {
   ClearPitchOperation,
   KORecoveryOperation,
@@ -64,6 +66,7 @@ import { ActivationGateOperation } from "@/game/operations/ActivationGateOperati
 import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
 import { ProjectileVomitOperation } from "@/game/operations/ProjectileVomitOperation";
 import { HypnoticGazeOperation } from "@/game/operations/HypnoticGazeOperation";
+import { BloodlustBiteOperation } from "@/game/operations/BloodlustBiteOperation";
 import { ChompOperation } from "@/game/operations/ChompOperation";
 import { ChainsawAttackOperation } from "@/game/operations/ChainsawAttackOperation";
 import { FoulController } from "@/game/controllers/FoulController";
@@ -71,6 +74,7 @@ import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
 import { PuntOperation } from "@/game/operations/PuntOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
+import { SwoopFacing, isSwoopFacing } from "@/game/rules/throwTeammate";
 import { BombardierOperation } from "@/game/operations/BombardierOperation";
 import { BallAndChainOperation } from "@/game/operations/BallAndChainOperation";
 import { IRNGService } from "./rng/RNGService.js";
@@ -96,10 +100,7 @@ import {
   expireDriveInducements,
 } from "@/game/inducements/rules";
 import { InducementSession } from "@/game/inducements/InducementSession";
-import {
-  buildSeventsInducementProfile,
-  Inducement,
-} from "@/types/Inducements";
+import { buildSeventsInducementProfile, Inducement } from "@/types/Inducements";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import {
   driveEffectsEmpty,
@@ -165,6 +166,9 @@ export class GameService implements IGameService {
         hasPassed: false,
         hasHandedOff: false,
         hasFouled: false,
+        hasThrownTeamMate: false,
+        hasKickedTeamMate: false,
+        hasThrownBomb: false,
         movementUsed: new Map(),
       },
       score: {
@@ -294,7 +298,11 @@ export class GameService implements IGameService {
       this.delay
     );
 
-    this.playerActionManager = new PlayerActionManager(eventBus, this.state);
+    this.playerActionManager = new PlayerActionManager(
+      eventBus,
+      this.state,
+      (id) => this.getPlayerById(id)
+    );
 
     this.kickoffEventManager = new KickoffEventManager(
       eventBus,
@@ -688,7 +696,13 @@ export class GameService implements IGameService {
     return this.ballManager.isTouchbackPending();
   }
 
-  getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null {
+  kickoffBounceTouchback(to: { x: number; y: number }): boolean {
+    return this.ballManager.kickoffBounceTouchback(to);
+  }
+
+  getKickoffEventStep():
+    | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
+    | null {
     return this.kickoffEventManager.getStep();
   }
 
@@ -768,6 +782,15 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
+    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
+    if (this.takeUnsatedBloodlust(playerId)) {
+      this.flowManager.add(
+        new BloodlustBiteOperation(playerId, "consequences", () =>
+          this.finishActivation(playerId)
+        )
+      );
+      return;
+    }
     // Charge! free activations end without touching the turn ledger — the
     // player may still activate normally when their team's turn begins.
     if (this.kickoffEventManager.isChargeActive()) {
@@ -777,6 +800,21 @@ export class GameService implements IGameService {
       return;
     }
     this.blitzBlockUsed.delete(playerId);
+    // Secure the Ball: "this Move Action must finish on a square containing
+    // a ball otherwise a Turnover is caused". A pick-up on the ball ends the
+    // activation holding it; a failed one has already turned over.
+    const securer = this.getPlayerById(playerId);
+    const ball = this.state.ballPosition;
+    if (
+      isSecuringBall(this.state, playerId) &&
+      !(
+        ball &&
+        securer?.gridPosition?.x === ball.x &&
+        securer.gridPosition.y === ball.y
+      )
+    ) {
+      this.triggerTurnover("Secure the Ball ended off the ball");
+    }
     if (this.state.activePlayer?.id === playerId) {
       // The activation being finalized commits the declaration — a Blitz
       // ended without moving or rolling still spends the team's Blitz.
@@ -785,6 +823,31 @@ export class GameService implements IGameService {
     }
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+  }
+
+  /** True once per failed Bloodlust activation; clears the mark. */
+  private takeUnsatedBloodlust(playerId: string): boolean {
+    const active = this.state.activePlayer;
+    if (active?.id !== playerId || !active.bloodlustUnsated) return false;
+    delete active.bloodlustUnsated;
+    return true;
+  }
+
+  /**
+   * Bloodlust: "If a player who failed this roll wants to perform a Pass
+   * Action, Hand-off Action, or score, then they must bite a Thrall Lineman
+   * before they perform the Action or score." Queues the bite ahead of
+   * `perform`; refusing leaves the ball where it is.
+   */
+  private biteBeforeBallAction(playerId: string, perform: () => void): void {
+    this.flowManager.add(
+      new BloodlustBiteOperation(playerId, "refuse", (sated) => {
+        if (sated) perform();
+        else if (this.state.activePlayer?.id === playerId) {
+          this.state.activePlayer.bloodlustUnsated = true;
+        }
+      })
+    );
   }
 
   /**
@@ -815,6 +878,14 @@ export class GameService implements IGameService {
    * Rush). The normal movement auto-finish ends it once the budget is spent.
    */
   public finishBlockActivation(attackerId: string): void {
+    // Pile Driver's free Foul comes first, on a Blitz as on a Block.
+    if (
+      this.blockManager.offerPileDriver(attackerId, () =>
+        this.finishBlockActivation(attackerId)
+      )
+    ) {
+      return;
+    }
     const player = this.getPlayerById(attackerId);
     const isBlitz =
       this.state.activePlayer?.action === "blitz" &&
@@ -904,65 +975,15 @@ export class GameService implements IGameService {
     // blocked without moving first still spends the team's Blitz).
     this.playerActionManager.commitAction(attackerId);
 
-    // The block at the end of a Blitz costs 1 movement. If that point is
-    // beyond MA it's a Rush (GFI): roll it BEFORE the block — on a failure
-    // the blitzer falls over in front of their target and no block happens.
+    // The block at the end of a Blitz costs 1 movement (see
+    // chargeBlitzBlockSquare). The Blitz's one Block is spent the moment it
+    // is committed, whatever the dice later say.
     if (
       this.state.activePlayer?.action === "blitz" &&
       this.state.activePlayer.id === attackerId
     ) {
-      const attacker = this.getPlayerById(attackerId);
-      if (attacker) {
-        const effectiveAttacker = withDriveModifiers(attacker, this.state);
-        const used = this.state.turn.movementUsed.get(attackerId) || 0;
-        const newUsed = used + 1;
-        if (newUsed > moveAllowance(effectiveAttacker)) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "No movement left to make the Blitz block!"
-          );
-          this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-          return;
-        }
-        // The Blitz's one Block is spent the moment it is committed, whatever
-        // the dice later say (a Both Down with Block has no follow-up).
-        this.blitzBlockUsed.add(attackerId);
-        this.state.turn.movementUsed.set(attackerId, newUsed);
-
-        if (newUsed > effectiveAttacker.stats.MA) {
-          // The Blitz block's rush may be rerolled (Sure Feet / team)
-          const check = await withRerollOffer(
-            { gameService: this, eventBus: this.eventBus },
-            attacker,
-            "rush",
-            () =>
-              this.diceController.rollSkillCheck(
-                "Rush (GFI)",
-                2,
-                0,
-                attacker.playerName
-              )
-          );
-          if (!check.success) {
-            attacker.status = PlayerStatus.PRONE;
-            this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-              playerId: attackerId,
-            });
-            this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
-            if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
-              this.flowManager.add(
-                new BounceOperation(attacker.gridPosition),
-                true
-              );
-            }
-            this.flowManager.add(new ArmourOperation(attackerId), true);
-            // The block never happens — release any dialog waiting on dice
-            this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-            this.triggerTurnover("Failed GFI on Blitz block");
-            return;
-          }
-        }
-      }
+      if (!(await this.chargeBlitzBlockSquare(attackerId))) return;
+      this.blitzBlockUsed.add(attackerId);
     }
 
     await this.blockManager.rollBlockDice(
@@ -971,6 +992,61 @@ export class GameService implements IGameService {
       numDice,
       isAttackerChoice
     );
+  }
+
+  /**
+   * Charge the square of movement a Block costs during a Blitz: the Blitz's
+   * own block, and Frenzy's second block (2025 p.128: "performing a second
+   * Block Action will also cost the player a square of movement. If this
+   * player has no movement left, then they must Rush. If this player cannot
+   * Rush then they cannot perform the second Block Action."). A point beyond
+   * MA is a Rush, rolled BEFORE the block: on a failure the blitzer falls
+   * over in front of their target. Returns whether the block may go ahead.
+   */
+  public async chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker) return false;
+    const effectiveAttacker = withDriveModifiers(attacker, this.state);
+    const newUsed = (this.state.turn.movementUsed.get(attackerId) || 0) + 1;
+    if (newUsed > moveAllowance(effectiveAttacker)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "No movement left to make the Blitz block!"
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return false;
+    }
+    this.state.turn.movementUsed.set(attackerId, newUsed);
+    if (newUsed <= effectiveAttacker.stats.MA) return true;
+
+    // The Blitz block's rush may be rerolled (Sure Feet / team)
+    const check = await withRerollOffer(
+      { gameService: this, eventBus: this.eventBus },
+      attacker,
+      "rush",
+      () =>
+        this.diceController.rollSkillCheck(
+          "Rush (GFI)",
+          2,
+          weatherEffects(this.state.weather).rush,
+          attacker.playerName
+        )
+    );
+    if (check.success) return true;
+
+    attacker.status = PlayerStatus.PRONE;
+    this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
+      playerId: attackerId,
+    });
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
+    if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
+      this.flowManager.add(new BounceOperation(attacker.gridPosition), true);
+    }
+    this.flowManager.add(new ArmourOperation(attackerId), true);
+    // The block never happens — release any dialog waiting on dice
+    this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+    this.triggerTurnover("Failed GFI on Blitz block");
+    return false;
   }
 
   async resolveBlock(
@@ -996,14 +1072,14 @@ export class GameService implements IGameService {
     this.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
-  public executePush(
+  public async executePush(
     attackerId: string,
     defenderId: string,
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void {
-    this.blockManager.executePush(
+  ): Promise<void> {
+    await this.blockManager.executePush(
       attackerId,
       defenderId,
       direction,
@@ -1106,8 +1182,17 @@ export class GameService implements IGameService {
 
     // Let the reaction chain fully settle (ball at rest, armour/injury rolls
     // done), give the turnover banner its moment, then end the turn once.
+    // A failed Bloodlust activation cut short still gets its bite.
     this.flowManager
       .whenIdle()
+      .then(() => {
+        const playerId = this.state.activePlayer?.id;
+        if (!playerId || !this.takeUnsatedBloodlust(playerId)) return;
+        this.flowManager.add(
+          new BloodlustBiteOperation(playerId, "consequences", () => {})
+        );
+        return this.flowManager.whenIdle();
+      })
       .then(() => this.delay(3000))
       .then(() => this.turnManager.completeTurnover());
   }
@@ -1130,7 +1215,8 @@ export class GameService implements IGameService {
   async throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
     // NOTE: Signature kept async for compatibility, but it resolves immediately
     // while the operation runs in background/flow.
@@ -1163,8 +1249,54 @@ export class GameService implements IGameService {
       }
     }
 
+    // Hail Mary Pass: "they may declare any square on the pitch as the
+    // target square rather than using the Range Ruler" (2025 rulebook p.129).
+    if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
+      return { success: false, result: "Player does not have Hail Mary Pass" };
+    }
+    if (
+      targetX < 0 ||
+      targetY < 0 ||
+      targetX >= GameConfig.PITCH_WIDTH ||
+      targetY >= GameConfig.PITCH_HEIGHT
+    ) {
+      return { success: false, result: "Target is off the pitch" };
+    }
+    // "The declared square must be wholly underneath the maximum range of
+    // the Range Ruler" (p.74).
+    if (
+      !hailMary &&
+      PassController.rangeValue(passer.gridPosition, {
+        x: targetX,
+        y: targetY,
+      }) === null
+    ) {
+      return { success: false, result: "Target is beyond the Range Ruler" };
+    }
+
+    // A Hail Mary is thrown as a Long Bomb, so a Blizzard refuses it too.
+    const type = hailMary
+      ? "Long Bomb"
+      : this.passController.measureRange(passer.gridPosition, {
+          x: targetX,
+          y: targetY,
+        }).type;
+    if (!weatherEffects(this.state.weather).passTypes.includes(type)) {
+      return {
+        success: false,
+        result: `${this.state.weather}: only a Quick or Short Pass may be attempted`,
+      };
+    }
+
     // 2. Queue Operation
-    this.flowManager.add(new PassOperation(passerId, targetX, targetY));
+    const pass = new PassOperation(passerId, targetX, targetY, hailMary);
+    if (this.takeUnsatedBloodlust(passerId)) {
+      this.biteBeforeBallAction(passerId, () =>
+        this.flowManager.add(pass, true)
+      );
+      return { success: true, result: "Bloodlust: bite before the pass" };
+    }
+    this.flowManager.add(pass);
 
     // 3. Return success (The flow takes over)
     return { success: true, result: "Pass Started" };
@@ -1209,7 +1341,14 @@ export class GameService implements IGameService {
       return { success: false, result: "Illegal hand-off target" };
     }
 
-    this.flowManager.add(new HandoffOperation(passerId, targetPlayerId));
+    const handoff = new HandoffOperation(passerId, targetPlayerId);
+    if (this.takeUnsatedBloodlust(passerId)) {
+      this.biteBeforeBallAction(passerId, () =>
+        this.flowManager.add(handoff, true)
+      );
+      return { success: true, result: "Bloodlust: bite before the hand-off" };
+    }
+    this.flowManager.add(handoff);
     return { success: true, result: "Hand-off Started" };
   }
 
@@ -1359,6 +1498,18 @@ export class GameService implements IGameService {
     // A drive ends at its first touchdown. A pickup in the end zone scores
     // from PickupOperation and the move that made it would score again.
     if (this.state.phase !== GamePhase.PLAY) return;
+    // Bloodlust: an unsated scorer must bite first; "if this player was in
+    // the opposing End Zone, no Touchdown is scored" when they do not.
+    if (scorerId && this.takeUnsatedBloodlust(scorerId)) {
+      this.flowManager.add(
+        new BloodlustBiteOperation(scorerId, "consequences", (sated) =>
+          sated
+            ? this.addTouchdown(teamId, scorerId)
+            : this.finishActivation(scorerId)
+        )
+      );
+      return;
+    }
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
     // Scored in the opponent's Turn (a push or a catch): that Turn ends with
@@ -1440,7 +1591,8 @@ export class GameService implements IGameService {
     this.flowManager.add(
       new ClearPitchOperation(
         halfOver ? "halftime" : reason,
-        halftimeKickingTeamId ?? nextKickingTeamId
+        halftimeKickingTeamId ?? nextKickingTeamId,
+        halftimeKickingTeamId !== null
       )
     );
     this.flowManager.add(new KORecoveryOperation());
@@ -1497,6 +1649,9 @@ export class GameService implements IGameService {
     this.state.turn.hasPassed = false;
     this.state.turn.hasHandedOff = false;
     this.state.turn.hasFouled = false;
+    this.state.turn.hasThrownTeamMate = false;
+    this.state.turn.hasKickedTeamMate = false;
+    this.state.turn.hasThrownBomb = false;
 
     // A drive can end mid-activation (touchdown, halftime), which skips
     // finishActivation — clear the Blitz block guard at this boundary too.
@@ -1604,6 +1759,12 @@ export class GameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
+    // Bombardier: "A player that declared a Throw Bomb Special Action may
+    // not perform a Move Action before throwing the bomb" (p.125).
+    const declared = this.state.activePlayer;
+    if (declared?.id === playerId && declared.action === "throwBomb") {
+      throw new Error("A bomber may not move before throwing the bomb");
+    }
     const context = this.getFlowContext();
     await this.movementManager.movePlayer(playerId, path, context);
     // The first square moved commits the declared action.
@@ -1664,10 +1825,9 @@ export class GameService implements IGameService {
       return this.chargeDeclareAction(playerId, action);
     }
 
-    // Must be activatable at all: active team, on-pitch, standing or prone,
-    // and not already activated this turn (stunned recovery marks players
-    // as activated). The browser checks this before calling; the headless
-    // protocol relies on this guard.
+    // Must be activatable at all: active team, on-pitch, standing or prone
+    // (never Stunned), and not already activated this turn. The browser
+    // checks this before calling; the headless protocol relies on this guard.
     if (!this.canActivate(playerId)) return false;
 
     const activating = this.getPlayerById(playerId);
@@ -1798,6 +1958,18 @@ export class GameService implements IGameService {
         `${activating.playerName} is Rooted and cannot Move!`
       );
       return false;
+    }
+    if (activating && action === "secureBall") {
+      const others = [...this.team1.players, ...this.team2.players].filter(
+        (p) => p.id !== activating.id && p.gridPosition
+      );
+      if (!canSecureBall(activating, this.state.ballPosition, others)) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          "Secure the Ball needs a loose ball with no Standing opponent within 2 squares"
+        );
+        return false;
+      }
     }
 
     // A player who is down cannot plain-Block: standing up costs movement,
@@ -2048,7 +2220,8 @@ export class GameService implements IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: SwoopFacing
   ): Promise<void> {
     if (
       this.state.phase !== GamePhase.PLAY &&
@@ -2071,9 +2244,27 @@ export class GameService implements IGameService {
 
     const resolved: "throw" | "kick" =
       mode ?? (canKick && !canThrow ? "kick" : "throw");
+    // Swoop is the thrown player's skill, and using it is their choice.
+    if (swoopFacing !== undefined) {
+      if (!isSwoopFacing(swoopFacing)) {
+        throw new Error(`Unknown Swoop facing: ${String(swoopFacing)}`);
+      }
+      const teammate = this.getPlayerById(teammateId);
+      if (!teammate || !hasSkill(teammate.skills, SkillType.SWOOP)) {
+        throw new Error("The thrown player does not have Swoop");
+      }
+    }
+
 
     this.flowManager.add(
-      new ThrowTeammateOperation(throwerId, teammateId, x, y, resolved)
+      new ThrowTeammateOperation(
+        throwerId,
+        teammateId,
+        x,
+        y,
+        resolved,
+        swoopFacing
+      )
     );
   }
 
@@ -2280,7 +2471,7 @@ export class GameService implements IGameService {
             this.diceController.rollSkillCheck(
               "Rush (GFI)",
               2,
-              0,
+              weatherEffects(this.state.weather).rush,
               attacker.playerName,
               attacker.teamId
             )

@@ -140,7 +140,8 @@ export async function buildMatchDump(
   const game = createSimGame(
     recording.seed,
     recording.rosters,
-    recording.rerolls
+    recording.rerolls,
+    recording.lineup
   );
   const start = game.snapshot();
   const players: DumpPlayer[] = start.teams.flatMap((team, t) =>

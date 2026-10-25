@@ -11,6 +11,8 @@ export interface TurnManagerState {
   driveKickingTeamId: string | null;
   firstHalfKickingTeamId: string | null;
   turnoverInProgress: boolean;
+  /** Absent in saves made before Stunned players rolled over at turn end. */
+  stunnedAtTurnStart?: string[];
 }
 
 /** Cosmetic-only stagger so "turn passes to X" and "X's turn" read as two
@@ -24,6 +26,8 @@ export class TurnManager {
   private driveKickingTeamId: string | null = null;
   private firstHalfKickingTeamId: string | null = null;
   private turnoverInProgress: boolean = false;
+  /** Active-team players who started this turn Stunned; they roll over at its end. */
+  private stunnedAtTurnStart: string[] = [];
   private activationValidator: ActivationValidator = new ActivationValidator();
 
   constructor(
@@ -62,6 +66,7 @@ export class TurnManager {
       driveKickingTeamId: this.driveKickingTeamId,
       firstHalfKickingTeamId: this.firstHalfKickingTeamId,
       turnoverInProgress: this.turnoverInProgress,
+      stunnedAtTurnStart: [...this.stunnedAtTurnStart],
     };
   }
 
@@ -73,6 +78,7 @@ export class TurnManager {
     this.driveKickingTeamId = snapshot.driveKickingTeamId;
     this.firstHalfKickingTeamId = snapshot.firstHalfKickingTeamId;
     this.turnoverInProgress = snapshot.turnoverInProgress;
+    this.stunnedAtTurnStart = [...(snapshot.stunnedAtTurnStart ?? [])];
   }
 
   public startGame(kickingTeamId: string): void {
@@ -140,29 +146,20 @@ export class TurnManager {
       hasPassed: false,
       hasHandedOff: false,
       hasFouled: false,
+      hasThrownTeamMate: false,
+      hasKickedTeamMate: false,
+      hasThrownBomb: false,
       movementUsed: new Map(),
     };
 
-    // Stunned players recover at the start of their team's turn: they roll
-    // face-up (Prone) but have missed their action — counted as already
-    // activated for this turn (rulebook p.32).
+    // A player who starts the turn Stunned cannot be activated
+    // (ActivationValidator) and rolls over at the end of it (endTurn).
     const activeTeam = teamId === this.team1.id ? this.team1 : this.team2;
-    const recovered = activeTeam.players.filter(
-      (p) => p.status === PlayerStatus.STUNNED && p.gridPosition
-    );
-    recovered.forEach((player) => {
-      player.status = PlayerStatus.PRONE;
-      this.state.turn.activatedPlayerIds.add(player.id);
-    });
+    this.stunnedAtTurnStart = activeTeam.players
+      .filter((p) => p.status === PlayerStatus.STUNNED && p.gridPosition)
+      .map((p) => p.id);
 
     this.eventBus.emit(GameEventNames.TurnStarted, this.state.turn as TurnData);
-
-    // Emitted AFTER TurnStarted: its listeners reset all activation visuals,
-    // which would wipe the recovered players' "already activated" marker
-    recovered.forEach((player) => {
-      this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-      this.eventBus.emit(GameEventNames.PlayerActivated, player.id);
-    });
 
     this.announceTurnStart(activeTeam.name, currentTurn);
   }
@@ -182,6 +179,23 @@ export class TurnManager {
   public endTurn(): void {
     const currentTeamId = this.state.activeTeamId;
     if (!currentTeamId) return;
+
+    // "At the end of each team's turn, any players on their team that
+    // started that turn Stunned will automatically roll over and become
+    // Prone" (2025 rulebook, Stunned). Stunned mid-turn waits a turn.
+    const endingTeam =
+      currentTeamId === this.team1.id ? this.team1 : this.team2;
+    for (const player of endingTeam.players) {
+      if (
+        this.stunnedAtTurnStart.includes(player.id) &&
+        player.status === PlayerStatus.STUNNED &&
+        player.gridPosition
+      ) {
+        player.status = PlayerStatus.PRONE;
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
+      }
+    }
+    this.stunnedAtTurnStart = [];
 
     // Fires before the next turn starts, so its effects (Pick-Me-Up
     // stand-ups) are in place when that turn begins

@@ -105,6 +105,7 @@ describe("GameplayInteractionController", () => {
     gridPosition: { x: 5, y: 5 },
     stats: { MA: 6 },
     status: "Active",
+    skills: [],
   };
   const player2 = {
     id: "p2",
@@ -280,10 +281,12 @@ describe("GameplayInteractionController", () => {
     beforeEach(async () => {
       mockGameService.getState.mockReturnValue({
         activeTeamId: team1Id,
+        weather: "Nice",
       } as GameState);
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.declareAction.mockReturnValue(true);
+      mockGameService.throwBall.mockResolvedValue({ success: true });
 
       // Simulate generic Action Selected flow
       controller.selectPlayer("p1");
@@ -336,7 +339,7 @@ describe("GameplayInteractionController", () => {
 
       // Click target
       (controller as any).onSquareClicked(10, 5);
-      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5);
+      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5, false);
     });
 
     it("should switch back to 'move' and allow movement", () => {

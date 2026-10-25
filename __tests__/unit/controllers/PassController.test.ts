@@ -184,6 +184,7 @@ describe("PassController", () => {
         gridPosition: { x, y },
         stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
         status,
+        skills: [],
       }) as Player;
 
     it("overlaps a square lying on the straight ruler", () => {

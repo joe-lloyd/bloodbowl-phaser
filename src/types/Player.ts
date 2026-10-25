@@ -252,6 +252,8 @@ export enum PositionKeyWord {
 export enum TraitKeyWord {
   BIG_GUY = "Big Guy",
   UNDEAD = "Undead",
+  /** Vampire Thrall Linemen: the team-mates a failed Bloodlust may bite. */
+  THRALL = "Thrall",
 }
 
 export type KeyWord = RaceKeyWord | PositionKeyWord | TraitKeyWord;

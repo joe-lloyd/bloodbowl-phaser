@@ -1,6 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { Player, hasTackleZone } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { BallMovementController } from "./BallMovementController";
 import { DiceController } from "./DiceController";
 import { withRerollOffer } from "../skills";
@@ -106,8 +107,11 @@ export class PassController {
 
   public measureRange(
     from: { x: number; y: number },
-    to: { x: number; y: number }
+    to: { x: number; y: number },
+    /** Hail Mary Pass: "treating the throw as a Long Bomb" at any range. */
+    hailMary = false
   ): PassRange {
+    if (hailMary) return PassController.PASS_RANGES[3];
     const value = PassController.rangeValue(from, to);
     // Out of range → treat as the hardest throw for the PA test.
     return PassController.PASS_RANGES[value ?? 3];
@@ -191,10 +195,10 @@ export class PassController {
     rerollDeps?: import("../skills").RerollDeps,
     /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
     extraModifier: number = 0,
-    /** Hail Mary Pass: an Accurate result is treated as Inaccurate. */
-    forceInaccurate: boolean = false
+    /** Hail Mary Pass: a Long Bomb whose Accurate result is Inaccurate. */
+    hailMary: boolean = false
   ): Promise<PassResult> {
-    const passRange = this.measureRange(from, to);
+    const passRange = this.measureRange(from, to, hailMary);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
     // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
     const rollAccuracy = () => {
@@ -211,7 +215,7 @@ export class PassController {
       : rollAccuracy();
     // Hail Mary Pass: an Accurate result becomes Inaccurate (it still flies,
     // but scatters from the target square).
-    const effectiveAccurate = accuracyTest.accurate && !forceInaccurate;
+    const effectiveAccurate = accuracyTest.accurate && !hailMary;
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 
@@ -378,6 +382,8 @@ export class PassController {
       // A player that has lost its Tackle Zone (Prone/Stunned/Distracted)
       // may not intercept.
       if (!pos || !hasTackleZone(opponent)) continue;
+      // No Ball: "may not attempt to Intercept a Pass" (p.132).
+      if (hasSkill(opponent.skills, SkillType.NO_BALL)) continue;
       // The passer's own square and the landing square never intercept.
       if (pos.x === from.x && pos.y === from.y) continue;
       if (pos.x === landing.x && pos.y === landing.y) continue;
@@ -436,12 +442,14 @@ export class PassController {
     return squares;
   }
 
-  public getAllRanges(from: {
-    x: number;
-    y: number;
-  }): Map<PassType, { x: number; y: number }[]> {
+  public getAllRanges(
+    from: { x: number; y: number },
+    /** The ranges the weather allows (Blizzard: Quick and Short only). */
+    allowed?: readonly PassType[]
+  ): Map<PassType, { x: number; y: number }[]> {
     const ranges = new Map<PassType, { x: number; y: number }[]>();
     for (const passRange of PassController.PASS_RANGES) {
+      if (allowed && !allowed.includes(passRange.type)) continue;
       ranges.set(passRange.type, this.getSquaresInRange(from, passRange.type));
     }
     return ranges;

@@ -7,6 +7,7 @@
  * (CLI, AI agents, saves, replays).
  */
 
+import type { Weather } from "../game/rules/weather";
 import {
   GameState,
   GamePhase,
@@ -38,6 +39,9 @@ export interface TurnSnapshot {
   hasPassed: boolean;
   hasHandedOff: boolean;
   hasFouled: boolean;
+  hasThrownTeamMate: boolean;
+  hasKickedTeamMate: boolean;
+  hasThrownBomb: boolean;
   movementUsed: Record<string, number>;
 }
 
@@ -70,7 +74,7 @@ export interface GameSnapshot {
   activeTeamId: string | null;
   turn: TurnSnapshot;
   score: Record<string, number>;
-  weather: string;
+  weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
     id: string;
@@ -78,6 +82,7 @@ export interface GameSnapshot {
     blockReplacement?: BlockReplacement;
     blockReplacementUsed?: boolean;
     committed?: boolean;
+    bloodlustUnsated?: boolean;
   } | null;
   coachesEjected: string[];
   setup?: SetupState | null;
@@ -90,6 +95,8 @@ export interface GameSnapshot {
   bribes?: Record<string, number>;
   /** Team Re-rolls spent this half; absent on pre-feature saves (= none). */
   teamRerollsUsed?: Record<string, number>;
+  /** Unspent Leader Re-rolls this half; absent on pre-feature saves. */
+  leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /**
@@ -175,6 +182,9 @@ export function serializeGameState(
       hasPassed: state.turn.hasPassed,
       hasHandedOff: state.turn.hasHandedOff,
       hasFouled: state.turn.hasFouled,
+      hasThrownTeamMate: state.turn.hasThrownTeamMate,
+      hasKickedTeamMate: state.turn.hasKickedTeamMate,
+      hasThrownBomb: state.turn.hasThrownBomb,
       movementUsed,
     },
     score: { ...state.score },
@@ -188,6 +198,9 @@ export function serializeGameState(
     bribes: state.bribes ? { ...state.bribes } : undefined,
     teamRerollsUsed: state.teamRerollsUsed
       ? { ...state.teamRerollsUsed }
+      : undefined,
+    leaderRerolls: state.leaderRerolls
+      ? { ...state.leaderRerolls, teamIds: [...state.leaderRerolls.teamIds] }
       : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
@@ -236,6 +249,10 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     hasPassed: snapshot.turn.hasPassed,
     hasHandedOff: snapshot.turn.hasHandedOff,
     hasFouled: snapshot.turn.hasFouled,
+    // Snapshots recorded before these limits existed carry none of them.
+    hasThrownTeamMate: snapshot.turn.hasThrownTeamMate ?? false,
+    hasKickedTeamMate: snapshot.turn.hasKickedTeamMate ?? false,
+    hasThrownBomb: snapshot.turn.hasThrownBomb ?? false,
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
   };
 
@@ -255,6 +272,12 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     bribes: snapshot.bribes ? { ...snapshot.bribes } : undefined,
     teamRerollsUsed: snapshot.teamRerollsUsed
       ? { ...snapshot.teamRerollsUsed }
+      : undefined,
+    leaderRerolls: snapshot.leaderRerolls
+      ? {
+          ...snapshot.leaderRerolls,
+          teamIds: [...snapshot.leaderRerolls.teamIds],
+        }
       : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)

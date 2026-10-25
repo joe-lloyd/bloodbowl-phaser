@@ -7,6 +7,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { weatherEffects } from "../rules/weather";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
 
 /** Ends the Bomber's activation once the bomb (and its blast) has settled. */
@@ -118,7 +119,12 @@ export class BombardierOperation extends GameOperation {
       opponents
     );
     const range = passController.measureRange(thrower.gridPosition, target);
-    const test = passController.testAccuracy(thrower, range, marking);
+    const test = passController.testAccuracy(
+      thrower,
+      range,
+      marking,
+      weatherEffects(gameService.getState().weather).passingAbility
+    );
 
     // 2. Fumble — the bomb explodes in the thrower's own square, no Bounce.
     if (test.fumbled) {

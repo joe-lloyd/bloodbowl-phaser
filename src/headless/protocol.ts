@@ -13,6 +13,7 @@ import type {
 } from "../game/kickoff/KickoffEventManager";
 import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
+import type { SwoopFacing } from "../game/rules/throwTeammate";
 import { InducementRuleProfile } from "../types/Inducements";
 import { InducementSelectionLine } from "../game/inducements/rules";
 
@@ -69,7 +70,14 @@ export type HeadlessCommand =
       defender1Id: string;
       defender2Id: string;
     }
-  | { type: "pass"; playerId: string; x: number; y: number }
+  | {
+      type: "pass";
+      playerId: string;
+      x: number;
+      y: number;
+      /** Throw as a Hail Mary Pass: any square, a Long Bomb, never Accurate. */
+      hailMary?: boolean;
+    }
   | { type: "punt"; playerId: string; x: number; y: number }
   /** Hand-off targets a team-mate id, not a square — a Hand-off never aims. */
   | { type: "handoff"; playerId: string; targetId: string }
@@ -83,6 +91,11 @@ export type HeadlessCommand =
       y: number;
       /** "throw" | "kick"; inferred from the thrower's traits when omitted */
       mode?: "throw" | "kick";
+      /**
+       * Swoop: the thrown player travels by the Throw-in Template facing
+       * this way instead of Scattering. Omit to Scatter as normal.
+       */
+      swoopFacing?: SwoopFacing;
     }
   | { type: "throw-bomb"; throwerId: string; x: number; y: number }
   | { type: "ball-and-chain"; playerId: string; x: number; y: number }

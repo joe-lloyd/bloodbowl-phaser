@@ -7,6 +7,8 @@ import { FlowContext } from "../core/GameFlowManager";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { InjuryOperation } from "./InjuryOperation";
 import { BounceOperation } from "./BounceOperation";
+import { foldArmourRoll } from "./ArmourOperation";
+import { gatherParticipants } from "../skills";
 
 /**
  * Ends the stabber's activation once the stab (and any injury/casualty it
@@ -34,10 +36,10 @@ class FinishStabOperation extends GameOperation {
  * Stab has been performed — including when it replaced the Block of a
  * Blitz Action. Never a turnover.
  *
- * The unmodifiable Armour Roll is rolled directly (no skill fold): armour
- * modifiers like Mighty Blow or Claws never apply. The Injury Roll is a
- * normal one — injury-side rules (Stunty table, Thick Skull, Regeneration)
- * work as usual.
+ * The Armour Roll goes through the shared armour fold like any other, but
+ * only its unmodified outcome counts: no armour modifier, Mighty Blow or
+ * Claws ever applies. The Injury Roll is a normal one — injury-side rules
+ * (Stunty table, Thick Skull, Regeneration) work as usual.
  */
 export class StabOperation extends GameOperation {
   public readonly name = "StabOperation";
@@ -81,14 +83,26 @@ export class StabOperation extends GameOperation {
 
     await context.delay(800);
 
-    // Unmodifiable Armour Roll: straight 2D6 vs AV, no skill fold
     const armour = diceController.rollArmorCheck(
       effectiveAV(target, gameService.getState()),
       target.playerName,
       attacker.teamId
     );
+    // Unmodifiable: the fold runs, but only the natural roll vs AV counts.
+    const armourCtx = await foldArmourRoll(
+      context,
+      gatherParticipants(attacker, target, []),
+      {
+        player: target,
+        causedBy: attacker,
+        cause: "special",
+        knockedDown: false,
+        roll: armour.roll,
+        armourModifier: 0,
+      }
+    );
 
-    if (armour.broken) {
+    if (armourCtx.broken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
       target.status = PlayerStatus.PRONE;
       eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId: target.id });
@@ -107,6 +121,7 @@ export class StabOperation extends GameOperation {
       }
       context.flowManager.add(
         new InjuryOperation(target.id, {
+          modifier: armourCtx.injuryModifier,
           causedById: attacker.id,
           cause: "special",
         }),

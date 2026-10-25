@@ -12,8 +12,9 @@ import { SkillRule } from "../SkillRule";
 export const ClawsRule: SkillRule = {
   onArmourBreak(ctx, self) {
     if (!ctx.causedBy || self.id !== ctx.causedBy.id) return;
+    if (ctx.cause !== "block" && ctx.cause !== "lash-out") return;
     if (ctx.roll < 8) return;
-    if (ctx.roll >= ctx.player.stats.AV) return; // broke anyway
+    if (ctx.broken) return; // broke anyway
 
     ctx.forcedBreak = true;
     ctx.triggers.push({

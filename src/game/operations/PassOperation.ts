@@ -7,7 +7,9 @@ import { PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
+import { weatherEffects } from "../rules/weather";
 import { ArmourOperation } from "./ArmourOperation";
+import { isOnPitch } from "../controllers/BallMovementController";
 import {
   foldTrigger,
   gatherParticipants,
@@ -93,7 +95,8 @@ export class PassOperation extends GameOperation {
   constructor(
     private passerId: string,
     private targetX: number,
-    private targetY: number
+    private targetY: number,
+    private hailMary = false
   ) {
     super();
   }
@@ -128,10 +131,11 @@ export class PassOperation extends GameOperation {
 
     // Trigger point: pass declared — rules adjust the PA test (Accurate,
     // Cannoneer by range; Nerves of Steel cancels marking)
-    const passRange = passController.measureRange(passer.gridPosition, {
-      x: this.targetX,
-      y: this.targetY,
-    });
+    const passRange = passController.measureRange(
+      passer.gridPosition,
+      { x: this.targetX, y: this.targetY },
+      this.hailMary
+    );
     const targetPlayer = gameService
       .getTeammates(this.passerId)
       .find(
@@ -152,9 +156,10 @@ export class PassOperation extends GameOperation {
     const passCtx: PassDeclaredContext = {
       player: passer,
       passType: passRange.type,
+      hailMary: this.hailMary,
       targetPlayer,
       marking: markingOpponents,
-      modifiers: 0,
+      modifiers: weatherEffects(gameService.getState().weather).passingAbility,
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -192,7 +197,7 @@ export class PassOperation extends GameOperation {
       markingOpponents,
       { gameService, eventBus }, // failed passes may offer a reroll
       passCtx.modifiers,
-      passCtx.downgradeAccurate // Hail Mary: Accurate → Inaccurate
+      this.hailMary
     );
 
     // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
@@ -275,82 +280,88 @@ export class PassOperation extends GameOperation {
         ));
       if (intercepted) return;
 
-      if (result.success) {
+      if (result.accurate) {
         eventBus.emit(GameEventNames.UI_Notification, "Accurate Pass!");
       } else {
         eventBus.emit(GameEventNames.UI_Notification, "Inaccurate Pass!");
       }
 
-      // Update ball position to landing spot
-      (gameService as any).setBallPosition(landingPos.x, landingPos.y);
-
-      // Check landing
-      const playerAtLanding = gameService.getPlayerAt(
-        landingPos.x,
-        landingPos.y
-      );
-
-      if (playerAtLanding) {
-        // Attempt Catch
-        context.flowManager.add(
-          new CatchOperation(
-            playerAtLanding.id,
-            {
-              origin: "pass",
-              isPassTarget:
-                landingPos.x === this.targetX && landingPos.y === this.targetY,
-            },
-            {
-              passerId: passer.id,
-              passerTeamId: passer.teamId,
-              accurate: result.accurate,
-            }
-          ),
-          true
-        );
+      if (!isOnPitch(landingPos)) {
+        // The scatter path ends at the first square off the pitch; the
+        // crowd throws the ball in from the square before it (p.77).
+        const path = result.scatterPath ?? [];
+        eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
+        gameService.throwInBall(path[path.length - 2]);
       } else {
-        const divingCatcher = [
-          ...(gameService.getTeam(passer.teamId)?.players ?? []),
-          ...opponents,
-        ]
-          .filter(
-            (candidate) =>
-              candidate.gridPosition &&
-              candidate.status === PlayerStatus.ACTIVE &&
-              hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
-              Math.max(
-                Math.abs(candidate.gridPosition.x - landingPos.x),
-                Math.abs(candidate.gridPosition.y - landingPos.y)
-              ) === 1
-          )
-          .sort(
-            (a, b) =>
-              a.gridPosition!.y - b.gridPosition!.y ||
-              a.gridPosition!.x - b.gridPosition!.x
-          )[0];
+        // Update ball position to landing spot
+        gameService.setBallPosition(landingPos.x, landingPos.y);
 
-        if (divingCatcher) {
+        // Check landing
+        const playerAtLanding = gameService.getPlayerAt(
+          landingPos.x,
+          landingPos.y
+        );
+
+        if (playerAtLanding) {
+          // Attempt Catch
           context.flowManager.add(
-            new CatchOperation(divingCatcher.id, {
-              origin: "pass",
-              divingCatch: true,
-              landingPosition: landingPos,
-            }),
+            new CatchOperation(
+              playerAtLanding.id,
+              {
+                origin: "pass",
+                isPassTarget:
+                  landingPos.x === this.targetX &&
+                  landingPos.y === this.targetY,
+              },
+              {
+                passerId: passer.id,
+                passerTeamId: passer.teamId,
+                accurate: result.accurate,
+              }
+            ),
             true
           );
         } else {
-          // Land in empty square -> Bounce
-          eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Ball Lands in Empty Square"
-          );
-          context.flowManager.add(new BounceOperation(landingPos), true);
+          const divingCatcher = [
+            ...(gameService.getTeam(passer.teamId)?.players ?? []),
+            ...opponents,
+          ]
+            .filter(
+              (candidate) =>
+                candidate.gridPosition &&
+                hasTackleZone(candidate) &&
+                hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
+                Math.max(
+                  Math.abs(candidate.gridPosition.x - landingPos.x),
+                  Math.abs(candidate.gridPosition.y - landingPos.y)
+                ) === 1
+            )
+            .sort(
+              (a, b) =>
+                a.gridPosition!.y - b.gridPosition!.y ||
+                a.gridPosition!.x - b.gridPosition!.x
+            )[0];
+
+          if (divingCatcher) {
+            context.flowManager.add(
+              new CatchOperation(divingCatcher.id, {
+                origin: "pass",
+                divingCatch: true,
+                landingPosition: landingPos,
+              }),
+              true
+            );
+          } else {
+            // Land in empty square -> Bounce
+            eventBus.emit(
+              GameEventNames.UI_Notification,
+              "Ball Lands in Empty Square"
+            );
+            context.flowManager.add(new BounceOperation(landingPos), true);
+          }
         }
       }
     }
-
-    // Update State
-    gameService.getState().ballPosition = result.finalPosition;
 
     // A Pass Action ends the activation once it settles. Give and Go keeps it
     // open after a Quick Pass. A latched Turnover bypasses it even while the
@@ -534,6 +545,7 @@ export class PassOperation extends GameOperation {
     }
     if (eligible.length === 0) return false;
 
+    const rain = weatherEffects(gameService.getState().weather).ballHandling;
     // Marking is measured at each interceptor against the passing team.
     const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
     const candidates = eligible.map((e) => {
@@ -554,11 +566,15 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
+      // Extra Arms: +1 to "Catch, Pick Up or Intercept the ball" (p.128).
+      const extraArms = hasSkill(interceptor.skills, SkillType.EXTRA_ARMS)
+        ? 1
+        : 0;
       return {
         playerId: e.playerId,
-        base: e.modifier + vll,
+        base: e.modifier + vll + rain + extraArms,
         marking,
-        modifier: e.modifier + vll - marking,
+        modifier: e.modifier + vll + rain + extraArms - marking,
       };
     });
 

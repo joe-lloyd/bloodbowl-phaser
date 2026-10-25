@@ -1,4 +1,14 @@
 import { DiceController } from "./DiceController";
+import { GameConfig } from "@/config/GameConfig";
+
+export function isOnPitch(square: { x: number; y: number }): boolean {
+  return (
+    square.x >= 0 &&
+    square.y >= 0 &&
+    square.x < GameConfig.PITCH_WIDTH &&
+    square.y < GameConfig.PITCH_HEIGHT
+  );
+}
 
 /**
  * BallMovementController
@@ -31,7 +41,9 @@ export class BallMovementController {
 
   /**
    * Calculate a scatter path (3 squares in random directions)
-   * used for Inaccurate Pass.
+   * used for Inaccurate Pass. The path stops at the first square off the
+   * pitch: the ball leaves play there and is thrown in from the square
+   * before it (p.77), so it can never scatter back on.
    * @param position Starting position
    * @returns Array of positions (the path)
    */
@@ -48,6 +60,7 @@ export class BallMovementController {
     for (const direction of rolls) {
       currentPos = this.calculateOffsetPosition(currentPos, direction, 1);
       path.push(currentPos);
+      if (!isOnPitch(currentPos)) break;
     }
 
     return path;

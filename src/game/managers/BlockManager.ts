@@ -75,17 +75,21 @@ class CrowdSurfFollowUpOperation extends GameOperation {
  * Ends the blocker's activation once the push chain (and any armour/injury
  * rolls it queued) has fully settled. Queued at the BACK of the flow so the
  * turn only flips after those rolls apply — used when no follow-up prompt
- * will fire to end the activation (Fend denied the follow-up).
+ * will fire to end the activation (Fend denied the follow-up). Pile Driver
+ * and Hit and Run still get their turn first.
  */
 class FinishActivationOperation extends GameOperation {
   public readonly name = "FinishActivation";
 
-  constructor(private attackerId: string) {
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string
+  ) {
     super();
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.attackerId);
+  async execute(_context: FlowContext): Promise<void> {
+    this.manager.endBlockActivation(this.attackerId);
   }
 }
 
@@ -123,19 +127,25 @@ class FrenzyOperation extends GameOperation {
     private manager: BlockManager,
     private attackerId: string,
     private defenderId: string,
-    private vacatedSquare: { x: number; y: number },
+    /** Null when the target stood firm: nothing to follow up into. */
+    private vacatedSquare: { x: number; y: number } | null,
     private targetStanding: boolean
   ) {
     super();
   }
 
   async execute(context: FlowContext): Promise<void> {
-    // Let the Push Back animation land before the blocker follows up…
-    await context.delay(300);
-    // Frenzy forces the follow-up into the vacated square.
-    await context.gameService.followUpPush(this.attackerId, this.vacatedSquare);
-    // …and let that follow-up move finish before the second Block window opens.
-    await context.delay(450);
+    if (this.vacatedSquare) {
+      // Let the Push Back animation land before the blocker follows up…
+      await context.delay(300);
+      // Frenzy forces the follow-up into the vacated square.
+      await context.gameService.followUpPush(
+        this.attackerId,
+        this.vacatedSquare
+      );
+      // …and let that follow-up move finish before the second Block window opens.
+      await context.delay(450);
+    }
     await this.manager.frenzySecondBlock(
       this.attackerId,
       this.defenderId,
@@ -271,6 +281,8 @@ export class BlockManager {
   ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
+    // A knockdown from an earlier block never carries into this one.
+    this.pileDriverTargets.delete(attackerId);
 
     // Dump-Off interrupts the declaration and completes its Quick Pass before
     // the targeting Block proceeds to its dice.
@@ -873,7 +885,7 @@ export class BlockManager {
     }
 
     if (pushCtx.refused) {
-      this.resolveRefusedPush(attacker, defender, knockDownDefender);
+      this.resolveRefusedPush(attacker, defender, knockDownDefender, frenzy);
       return;
     }
 
@@ -889,6 +901,7 @@ export class BlockManager {
       sideStepPush: pushCtx.sideStepPush,
       forceFollowUp: pushCtx.forceFollowUp,
       frenzy,
+      blockerIgnoresReactions: pushCtx.blockerIgnoresReactions,
       links: [],
     };
     this.requestPushDecision(attacker.gridPosition!, defender);
@@ -896,12 +909,15 @@ export class BlockManager {
 
   /**
    * A refused push (Stand Firm): nobody moves, so there is no chain and no
-   * follow-up. POW results still knock the defender down — in place.
+   * follow-up. POW results still knock the defender down — in place. Stand
+   * Firm "will not prevent a player with the Frenzy Skill from performing a
+   * second Block Action, so long as this player is still Standing" (p.136).
    */
   private resolveRefusedPush(
     attacker: Player,
     defender: Player,
-    knockDownDefender: boolean
+    knockDownDefender: boolean,
+    frenzy: boolean
   ): void {
     const flowManager = this.callbacks.getFlowManager?.();
 
@@ -922,6 +938,13 @@ export class BlockManager {
           flowManager.add(new BounceOperation(pos), true);
         }
       }
+    }
+
+    if (frenzy && !knockDownDefender && flowManager) {
+      flowManager.add(
+        new FrenzyOperation(this, attacker.id, defender.id, null, true)
+      );
+      return;
     }
 
     // No square was vacated, so the follow-up prompt never fires — end the
@@ -948,17 +971,14 @@ export class BlockManager {
         ?.context.gameService.finishActivation(attackerId);
       return;
     }
-    const attacker = this.getPlayerById(attackerId);
-    const pileDriverTarget = this.pileDriverTargets.get(attackerId);
-    this.pileDriverTargets.delete(attackerId);
     if (
-      attacker &&
-      pileDriverTarget &&
-      attacker.status === PlayerStatus.ACTIVE
+      this.offerPileDriver(attackerId, () =>
+        this.endBlockActivation(attackerId)
+      )
     ) {
-      flowManager.add(new PileDriverOperation(attackerId, pileDriverTarget));
       return;
     }
+    const attacker = this.getPlayerById(attackerId);
     if (
       attacker &&
       attacker.status === PlayerStatus.ACTIVE &&
@@ -969,6 +989,24 @@ export class BlockManager {
       return;
     }
     flowManager.context.gameService.finishActivation(attackerId);
+  }
+
+  /**
+   * Pile Driver (p.133): once the Block has fully resolved, a blocker who
+   * Knocked Down their target "may perform a free Foul Action" against it.
+   * Queues the optional Foul and returns true; `resume` carries on with the
+   * activation when the coach declines or the Foul is no longer possible.
+   */
+  public offerPileDriver(attackerId: string, resume: () => void): boolean {
+    const targetId = this.pileDriverTargets.get(attackerId);
+    this.pileDriverTargets.delete(attackerId);
+    const flowManager = this.callbacks.getFlowManager?.();
+    const attacker = this.getPlayerById(attackerId);
+    if (!targetId || !flowManager || attacker?.status !== PlayerStatus.ACTIVE) {
+      return false;
+    }
+    flowManager.add(new PileDriverOperation(attackerId, targetId, resume));
+    return true;
   }
 
   /** Pending chain-push state between push-direction decisions */
@@ -983,8 +1021,10 @@ export class BlockManager {
     stripBall?: boolean;
     /** Grab: the blocker picks any unoccupied square adjacent to the target */
     grabPush?: boolean;
-    /** Sidestep: the PUSHED player's coach picks any adjacent unoccupied square */
+    /** Sidestep: the player pushed in the current link picks the square */
     sideStepPush?: boolean;
+    /** Juggernaut on a Blitz: Stand Firm is cancelled down the whole chain */
+    blockerIgnoresReactions?: boolean;
     /** Taunt / Frenzy: the blocker must follow up — no follow-up choice offered */
     forceFollowUp?: boolean;
     /** Frenzy's FIRST block: force follow-up + a mandatory second block. */
@@ -1139,12 +1179,23 @@ export class BlockManager {
       defender?.status === PlayerStatus.ACTIVE &&
       adjacent
     ) {
+      // During a Blitz the second block costs a square too, Rushing if
+      // needed; without one there is no second block.
+      const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+      if (
+        this.isBlitzBlock(attacker) &&
+        gs &&
+        !(await gs.chargeBlitzBlockSquare(attackerId))
+      ) {
+        if (attacker.status === PlayerStatus.ACTIVE) {
+          gs.finishActivation(attackerId);
+        }
+        return;
+      }
       this.frenzyExtraFor = attackerId;
       await this.startBlock(attackerId, defenderId);
     } else {
-      this.callbacks
-        .getFlowManager?.()
-        ?.context.gameService.finishActivation(attackerId);
+      this.endBlockActivation(attackerId);
     }
   }
 
@@ -1255,13 +1306,13 @@ export class BlockManager {
     const isOccupied = (x: number, y: number) =>
       this.getPlayerAt(x, y) !== undefined;
 
-    // Grab / Sidestep (first push only): any unoccupied square adjacent to
-    // the target — Grab hands the choice to the blocker, Sidestep to the
-    // PUSHED player's coach. Both fall back to the normal push if the
-    // target is fully boxed in (the skill "cannot be used").
+    // Grab (first push only) / Sidestep (any link): any unoccupied square
+    // adjacent to the pushed player — Grab hands the choice to the blocker,
+    // Sidestep to the PUSHED player's coach. Both fall back to the normal
+    // push if the target is fully boxed in (the skill "cannot be used").
+    const grabApplies = !!this.chain?.grabPush && this.chain.links.length === 0;
     const anyAdjacent =
-      (this.chain?.grabPush || this.chain?.sideStepPush) &&
-      this.chain.links.length === 0
+      grabApplies || this.chain?.sideStepPush
         ? this.blockResolutionService.getGrabPushOptions(
             pushed.gridPosition!,
             isOccupied
@@ -1278,9 +1329,7 @@ export class BlockManager {
           );
 
     const sideStepApplies =
-      !!this.chain?.sideStepPush &&
-      this.chain.links.length === 0 &&
-      anyAdjacent.length > 0;
+      !!this.chain?.sideStepPush && anyAdjacent.length > 0;
     const attacker = this.getPlayerById(this.chain!.attackerId);
 
     // The wider Grab/Sidestep square set is what's in play for THIS push
@@ -1325,13 +1374,13 @@ export class BlockManager {
    * Off-pitch target: pushed into the crowd. Otherwise the chain is
    * complete and all links apply, innermost first.
    */
-  public executePush(
+  public async executePush(
     attackerId: string,
     defenderId: string,
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void {
+  ): Promise<void> {
     const defender = this.getPlayerById(defenderId);
     if (!defender || !defender.gridPosition) return;
 
@@ -1364,12 +1413,74 @@ export class BlockManager {
     const occupant = this.getPlayerAt(direction.x, direction.y);
     if (occupant && occupant.id !== defenderId) {
       // Chain push: the occupant is pushed as if by the incoming player;
-      // the blocking coach keeps choosing directions
+      // the blocking coach keeps choosing directions. The occupant's own
+      // push reactions apply: Stand Firm "including during a Chain Push"
+      // (p.136) and Sidestep "for any reason" (p.135).
+      const reaction = await this.foldChainPush(occupant);
+      if (!this.chain) return;
+      if (reaction.refused) {
+        this.refuseChain();
+        return;
+      }
+      this.chain.sideStepPush = reaction.sideStepPush;
       this.requestPushDecision(from, occupant);
       return;
     }
 
     this.applyChain(followUp);
+  }
+
+  /**
+   * Fold the chain-pushed player's own push reactions. Only their rules run:
+   * the blocker's (Grab, Strip Ball, Eye Gouge) act on the Block's target,
+   * and Taunt reacts to a Block "performed against them".
+   */
+  private async foldChainPush(
+    pushed: Player
+  ): Promise<Pick<PushContext, "refused" | "sideStepPush">> {
+    const chain = this.chain!;
+    const attacker = this.getPlayerById(chain.attackerId)!;
+    const ctx: PushContext = {
+      attacker,
+      pushed,
+      resultType: chain.resultType,
+      isBlitz: this.isBlitzBlock(attacker),
+      pushedHasBall: this.isOnBall(pushed),
+      blockerIgnoresReactions: !!chain.blockerIgnoresReactions,
+      chainPush: true,
+      refused: false,
+      preventFollowUp: false,
+      stripBall: false,
+      grabPush: false,
+      sideStepPush: false,
+      forceFollowUp: false,
+      decisions: this.decisions(),
+      flow: this.callbacks.getFlowManager?.(),
+      triggers: [],
+    };
+    await foldTrigger("onPush", [pushed], ctx);
+    this.announce(ctx.triggers);
+    return ctx;
+  }
+
+  /**
+   * A chain-pushed player stood firm: the player pushed into them cannot
+   * move, so nobody in the chain moves. The Block's target is treated as
+   * having refused the push itself (a POW still knocks them down in place).
+   */
+  private refuseChain(): void {
+    const chain = this.chain!;
+    this.chain = null;
+    const attacker = this.getPlayerById(chain.attackerId);
+    const defender = this.getPlayerById(chain.links[0].playerId);
+    if (!attacker || !defender) return;
+    this.resolveRefusedPush(
+      attacker,
+      defender,
+      chain.knockDownDefender ??
+        (chain.resultType === "pow" || chain.resultType === "pow-dodge"),
+      !!chain.frenzy
+    );
   }
 
   /** Apply all chain links innermost-first, then knockdown/follow-up. */
@@ -1532,7 +1643,7 @@ export class BlockManager {
         new ForcedFollowUpOperation(attackerId, first.from),
         true
       );
-      flowManager?.add(new FinishActivationOperation(attackerId));
+      flowManager?.add(new FinishActivationOperation(this, attackerId));
     } else if (preventFollowUp && first && first.to !== null) {
       // Fend denied the blocker their follow-up: no follow-up prompt will
       // fire, so end the activation once any queued armour/injury rolls have
@@ -1540,7 +1651,7 @@ export class BlockManager {
       if (this.multipleBlockState?.attackerId === attackerId) {
         this.queueMultipleBlockContinuation(attackerId);
       } else {
-        flowManager?.add(new FinishActivationOperation(attackerId));
+        flowManager?.add(new FinishActivationOperation(this, attackerId));
       }
     }
   }
@@ -1596,6 +1707,13 @@ export class BlockManager {
 
     if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
     if (ctx.defenderKnockedDown) this.knockDownPlayer(defender);
+    if (
+      ctx.defenderKnockedDown &&
+      !ctx.placedProne &&
+      hasSkill(attacker.skills, SkillType.PILE_DRIVER)
+    ) {
+      this.pileDriverTargets.set(attacker.id, defender.id);
+    }
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {

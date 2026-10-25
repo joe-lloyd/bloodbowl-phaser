@@ -10,10 +10,9 @@
  * count as the one Blitz action for the Turn."
  *
  * The downgrade choice is applied by ActivationGateOperation (the Blitz
- * flag was already consumed at declaration, matching the book). The
- * end-of-activation Thrall Lineman bite — turnover, Distracted, and
- * dropped ball when no Thrall is bitten — is NOT enforced: no roster
- * fields Thrall Linemen yet (see the change's design open question).
+ * flag was already consumed at declaration, matching the book). The Thrall
+ * Lineman bite, and the Turnover, Distracted and dropped ball without one,
+ * are settled by BloodlustBiteOperation.
  */
 
 import { SkillType } from "../../../types/Skills";

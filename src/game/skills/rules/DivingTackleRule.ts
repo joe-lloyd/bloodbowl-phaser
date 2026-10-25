@@ -51,4 +51,8 @@ export const DivingTackleRule: SkillRule = {
       effect: `Diving Tackle: -2 brings ${ctx.player.playerName} down`,
     });
   },
+  // A jumper leaving the Tackle Zone gets the same dive.
+  onJumpResolved(ctx, self) {
+    return DivingTackleRule.onDodgeResolved?.(ctx, self);
+  },
 };

@@ -3,6 +3,7 @@ import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
+import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { pixelToGrid } from "../elements/GridUtils";
@@ -413,7 +414,7 @@ export class GameplayInteractionController {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         targets.length > 0
-          ? "Jump: click a highlighted landing square to leap over the player."
+          ? "Jump: click a highlighted landing square to leap over the adjacent square."
           : "No adjacent player to Jump over."
       );
       return;
@@ -770,12 +771,30 @@ export class GameplayInteractionController {
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
       }
+      // The browser has no Hail Mary toggle yet: a passer with the skill
+      // throws one only at a square beyond the Range Ruler.
+      const passer = this.gameService.getPlayerById(this.selectedPlayerId);
+      const hailMary =
+        !!passer?.gridPosition &&
+        hasSkill(passer.skills, SkillType.HAIL_MARY_PASS) &&
+        PassController.rangeValue(passer.gridPosition, { x, y }) === null;
       this.isBusy = true;
+      let thrown = true;
       try {
-        await this.gameService.throwBall(this.selectedPlayerId, x, y);
+        const result = await this.gameService.throwBall(
+          this.selectedPlayerId,
+          x,
+          y,
+          hailMary
+        );
+        // A refused target (a Long Pass in a Blizzard) keeps the aim open.
+        thrown = result.success;
+        if (!thrown) {
+          this.eventBus.emit(GameEventNames.UI_Notification, result.result);
+        }
       } finally {
         this.isBusy = false;
-        this.deselectPlayer();
+        if (thrown) this.deselectPlayer();
       }
       return;
     }
@@ -1380,7 +1399,8 @@ export class GameplayInteractionController {
         if (selectedPlayer && selectedPlayer.gridPosition) {
           // Draw pass zones
           const ranges = this.passController.getAllRanges(
-            selectedPlayer.gridPosition
+            selectedPlayer.gridPosition,
+            weatherEffects(this.gameService.getState().weather).passTypes
           );
           this.pitch.drawPassZones(selectedPlayer.gridPosition, ranges);
 
@@ -2615,7 +2635,7 @@ export class GameplayInteractionController {
       this.pushResultType = "";
       this.clearAllInteractionHighlights();
 
-      this.gameService.executePush(
+      void this.gameService.executePush(
         attackerId,
         defenderId,
         { x, y },

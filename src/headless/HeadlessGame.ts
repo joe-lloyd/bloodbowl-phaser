@@ -41,7 +41,14 @@ const COMMAND_SHAPES: Record<
   string,
   Record<
     string,
-    "string" | "number" | "boolean" | "path" | "formation" | "string-array"
+    | "string"
+    | "number"
+    | "boolean"
+    | "boolean?"
+    | "string?"
+    | "path"
+    | "formation"
+    | "string-array"
   >
 > = {
   "coin-flip": {},
@@ -71,7 +78,7 @@ const COMMAND_SHAPES: Record<
     defender1Id: "string",
     defender2Id: "string",
   },
-  pass: { playerId: "string", x: "number", y: "number" },
+  pass: { playerId: "string", x: "number", y: "number", hailMary: "boolean?" },
   punt: { playerId: "string", x: "number", y: "number" },
   handoff: { playerId: "string", targetId: "string" },
   foul: { playerId: "string", x: "number", y: "number" },
@@ -81,6 +88,7 @@ const COMMAND_SHAPES: Record<
     teammateId: "string",
     x: "number",
     y: "number",
+    swoopFacing: "string?",
   },
   "throw-bomb": { throwerId: "string", x: "number", y: "number" },
   "ball-and-chain": { playerId: "string", x: "number", y: "number" },
@@ -507,7 +515,12 @@ export class HeadlessGame {
         await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
         break;
       case "pass": {
-        const result = await gs.throwBall(cmd.playerId, cmd.x, cmd.y);
+        const result = await gs.throwBall(
+          cmd.playerId,
+          cmd.x,
+          cmd.y,
+          cmd.hailMary ?? false
+        );
         if (!result.success) {
           throw new Error(result.result || "pass-failed");
         }
@@ -537,7 +550,8 @@ export class HeadlessGame {
           cmd.teammateId,
           cmd.x,
           cmd.y,
-          cmd.mode
+          cmd.mode,
+          cmd.swoopFacing
         );
         break;
       case "throw-bomb":
@@ -622,7 +636,7 @@ export class HeadlessGame {
           this.pending = pending;
           throw new Error("invalid-push-direction");
         }
-        gs.executePush(
+        await gs.executePush(
           pending.attackerId,
           pending.defenderId,
           { x: cmd.x, y: cmd.y },
@@ -932,15 +946,17 @@ export class HeadlessGame {
         } else if (p.status === PlayerStatus.PRONE) {
           // Standing up only costs movement, so every movement-based action
           // stays available to a prone player. Only plain Block is not.
-          actions.push("standUp", "move");
+          actions.push("standUp");
+          if (availability.move) actions.push("move");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (!state.turn.hasFouled) actions.push("foul");
         } else if (p.status === PlayerStatus.ACTIVE) {
-          actions.push("move");
+          if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
           if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (carriesBall && !state.turn.hasPassed) actions.push("pass");
+          if (carriesBall && availability.pass) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
+          if (availability.secureBall) actions.push("secureBall");
           if (!state.turn.hasFouled && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
@@ -1133,6 +1149,11 @@ export class HeadlessGame {
           value.every((entry) => typeof entry === "string");
         if (!isStringArray) {
           return `malformed-command: '${field}' must be a non-empty string[]`;
+        }
+      } else if (kind === "boolean?" || kind === "string?") {
+        const base = kind.slice(0, -1);
+        if (value !== undefined && typeof value !== base) {
+          return `malformed-command: '${field}' must be a ${base} when given`;
         }
       } else if (typeof value !== kind) {
         return `malformed-command: '${field}' must be a ${kind}`;

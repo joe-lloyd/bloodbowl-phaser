@@ -14,8 +14,9 @@ import { Player } from "../../../types/Player";
 
 export const ChainsawRule: SkillRule = {
   onArmourBreak(ctx: ArmourBreakContext, self: Player): void {
-    // Only the downed Chainsaw player's own armour roll is affected.
-    if (self.id !== ctx.player.id) return;
+    // Only the downed Chainsaw player's own armour roll is affected, and
+    // only when they went down: a Foul on them is no knockdown.
+    if (self.id !== ctx.player.id || !ctx.knockedDown) return;
     ctx.armourModifier += 3;
     ctx.triggers.push({
       playerId: self.id,

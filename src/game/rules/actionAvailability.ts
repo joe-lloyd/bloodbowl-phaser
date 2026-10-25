@@ -12,10 +12,17 @@
  * they use plain adjacency.
  */
 
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStatus,
+  hasCondition,
+  hasTackleZone,
+} from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
+import { canSecureBall } from "./secureBall";
 import { GameConfig } from "../../config/GameConfig";
 import {
   BlockReplacement,
@@ -166,11 +173,15 @@ export function computeActionAvailability(
     !turn.hasFouled &&
     !input.hasMovedInAction &&
     downEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
-  const pass = !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
+  // My Ball: "may not declare Pass Actions, Hand-off Actions" (2025 p.132).
+  const myBall = hasSkill(player.skills, SkillType.MY_BALL);
+  const pass =
+    !myBall && !turn.hasPassed && !input.hasMovedInAction && canHaveBall;
   // Reachability form: a legal final square exists that is adjacent to a
   // Standing, Tackle-Zone-holding team-mate. Possession is not required to
   // declare — canHaveBall already covers "reachable within movement".
   const handoff =
+    !myBall &&
     !turn.hasHandedOff &&
     !input.hasMovedInAction &&
     canHaveBall &&
@@ -260,18 +271,27 @@ export function computeActionAvailability(
     isStanding(player) &&
     canHaveBall;
 
+  // Rooted (Take Root) and Chomped players may not leave their square, so
+  // no Move Action, Jump or Secure the Ball (2025 rulebook, Take Root).
+  const heldInPlace =
+    hasCondition(player, PlayerCondition.ROOTED) ||
+    hasCondition(player, PlayerCondition.CHOMPED);
+
   return {
-    move: true,
+    move: !heldInPlace,
     block,
     multipleBlock,
-    jump,
+    jump: jump && !heldInPlace,
     blitz,
     pass,
     punt,
     handoff,
     foul,
     standUp: isProne,
-    secureBall: ballReachable && !holdsBall,
+    secureBall:
+      !heldInPlace &&
+      ballReachable &&
+      canSecureBall(player, ballPosition, [...opponents, ...teammates]),
     stab: directBlockReplacements.includes("stab"),
     breatheFire: directBlockReplacements.includes("breatheFire"),
     vomit: directBlockReplacements.includes("vomit"),

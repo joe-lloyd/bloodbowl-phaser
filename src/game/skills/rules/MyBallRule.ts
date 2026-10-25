@@ -17,14 +17,14 @@ import { SkillRule } from "../SkillRule";
 
 export const MyBallRule: SkillRule = {
   onActionDeclared(ctx, self) {
-    if (!ctx.hasBall) return;
-    if (
-      ctx.action !== "pass" &&
-      ctx.action !== "handoff" &&
-      ctx.action !== "throwTeamMate"
-    ) {
-      return;
-    }
+    // Pass and Hand-off are barred outright, so the ball cannot be picked up
+    // mid-action and then given away. Throwing a team-mate only gives up the
+    // ball when this player holds it.
+    const givesUpBall =
+      ctx.action === "pass" ||
+      ctx.action === "handoff" ||
+      (ctx.action === "throwTeamMate" && ctx.hasBall);
+    if (!givesUpBall) return;
     ctx.refused = true;
     ctx.triggers.push({
       playerId: self.id,

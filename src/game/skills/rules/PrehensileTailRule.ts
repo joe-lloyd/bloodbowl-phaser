@@ -7,6 +7,8 @@
  *
  * `self` may mark the vacated or the destination square; only a marker of
  * the vacated square applies. Applies -1 once, even with several tails.
+ * A Jump folds only markers of the vacated square, ahead of the jumper, so
+ * Leap and Pogo see the tail's -1 among the Jump's negative modifiers.
  */
 
 import { SkillType } from "../../../types/Skills";
@@ -29,6 +31,17 @@ export const PrehensileTailRule: SkillRule = {
       playerId: self.id,
       skill: SkillType.PREHENSILE_TAIL,
       effect: "Prehensile Tail: -1 to the dodge",
+    });
+  },
+  onJumpDeclared(ctx, self) {
+    if (self.teamId === ctx.player.teamId) return;
+    if (ctx.triggers.some((t) => t.skill === SkillType.PREHENSILE_TAIL)) return;
+
+    ctx.negativeModifier -= 1;
+    ctx.triggers.push({
+      playerId: self.id,
+      skill: SkillType.PREHENSILE_TAIL,
+      effect: "Prehensile Tail: -1 to the Jump",
     });
   },
 };

@@ -79,13 +79,16 @@ export function applyScenario(
       hasPassed: false,
       hasHandedOff: false,
       hasFouled: false,
+      hasThrownTeamMate: false,
+      hasKickedTeamMate: false,
+      hasThrownBomb: false,
       movementUsed: new Map(),
     },
     score: {
       [team1.id]: 0,
       [team2.id]: 0,
     },
-    weather: "Nice",
+    weather: scenario.setup.weather ?? "Nice",
     ballPosition: scenario.setup.ballPosition
       ? { ...scenario.setup.ballPosition }
       : null,

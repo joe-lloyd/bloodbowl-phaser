@@ -72,6 +72,14 @@ export const SEVENS_COMPOSITIONS: Partial<
   // Rotters have Primary Mutation access, making Monstrous Mouth a
   // legal advancement for scenario fixtures that document the grant.
   [RosterName.NURGLE]: [{ position: "Rotter Lineman", count: 7 }],
+  // Snotling Linemen are Insignificant and may not outnumber the rest, so
+  // three of them, with the four non-Linemen Sevens allows.
+  [RosterName.SNOTLING]: [
+    { position: "Pump Wagon", count: 1 },
+    { position: "Trained Troll", count: 1 },
+    { position: "Stilty Runna", count: 2 },
+    { position: "Snotling Lineman", count: 3 },
+  ],
 };
 
 /**

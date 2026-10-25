@@ -18,7 +18,12 @@ import {
   PendingDecision,
 } from "../headless/protocol";
 import { GamePhase, SubPhase } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStatus,
+  hasCondition,
+} from "../types/Player";
 import { ActionType } from "../types/events";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PassController } from "../game/controllers/PassController";
@@ -27,7 +32,10 @@ import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
 import { jumpTargets } from "../game/rules/jump";
 import { moveAllowance } from "../game/skills/movement";
-import { withDriveModifiers } from "../game/kickoff/driveEffects";
+import {
+  isConfinedToReserves,
+  withDriveModifiers,
+} from "../game/kickoff/driveEffects";
 import { hasSkill, SkillType } from "../types/Skills";
 
 export type CandidateKind =
@@ -316,6 +324,8 @@ async function setupCandidates(
         p.status === PlayerStatus.PRONE ||
         p.status === PlayerStatus.STUNNED
     )
+    // Sweltering Heat and similar drive effects bench players for a drive.
+    .filter((p) => !isConfinedToReserves(p, gs.getState()))
     .sort((a, b) => b.stats.ST - a.stats.ST || a.number - b.number);
 
   return new FormationManager()
@@ -489,6 +499,8 @@ function stepCandidates(
     if (
       movesWithJumps &&
       player.status === PlayerStatus.ACTIVE &&
+      !hasCondition(player, PlayerCondition.ROOTED) &&
+      !hasCondition(player, PlayerCondition.CHOMPED) &&
       gs.getMovementUsed(player.id) + 2 <=
         moveAllowance(withDriveModifiers(player, state))
     ) {

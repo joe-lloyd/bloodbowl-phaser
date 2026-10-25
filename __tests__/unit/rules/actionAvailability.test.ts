@@ -11,6 +11,7 @@ const P = (over: Partial<Player>): Player =>
     status: PlayerStatus.ACTIVE,
     hasActed: false,
     skills: [],
+    keywords: [],
     stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
     ...over,
   }) as Player;

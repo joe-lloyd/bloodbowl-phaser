@@ -13,6 +13,7 @@ import {
 import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
+import { isConfinedToReserves } from "../kickoff/driveEffects";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -615,12 +616,14 @@ export class SetupManager {
   }
 
   private isEligible(player: Player): boolean {
-    return ![
-      PlayerStatus.KO,
-      PlayerStatus.INJURED,
-      PlayerStatus.DEAD,
-      PlayerStatus.REMOVED,
-    ].includes(player.status);
+    return (
+      ![
+        PlayerStatus.KO,
+        PlayerStatus.INJURED,
+        PlayerStatus.DEAD,
+        PlayerStatus.REMOVED,
+      ].includes(player.status) && !isConfinedToReserves(player, this.state)
+    );
   }
 
   private getTeam(teamId: string): Team | undefined {

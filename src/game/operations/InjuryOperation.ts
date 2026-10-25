@@ -82,6 +82,8 @@ export class InjuryOperation extends GameOperation {
       cause?: CasualtyCause;
       /** Natural 2D6 total the caller already rolled (a Foul reads its doubles). */
       roll?: number;
+      /** Any Casualty is Badly Hurt, no Casualty Roll (a Bloodlust bite). */
+      casualtyIsBadlyHurt?: boolean;
     } = {}
   ) {
     super();
@@ -164,7 +166,8 @@ export class InjuryOperation extends GameOperation {
         // Trigger Casualty Operation
         flowManager.add(
           new CasualtyOperation(this.playerId, this.opts.causedById, {
-            autoBadlyHurt: ctx.casualtyAutoBadlyHurt,
+            autoBadlyHurt:
+              ctx.casualtyAutoBadlyHurt || this.opts.casualtyIsBadlyHurt,
             cause: this.opts.cause,
           }),
           true

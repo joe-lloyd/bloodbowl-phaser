@@ -774,7 +774,7 @@ const DWARF_ROSTER: TeamRoster = {
         getSkill(SkillType.BLOCK),
         getSkill(SkillType.DAUNTLESS),
         getSkill(SkillType.FRENZY),
-        getSkill(SkillType.HATRED),
+        getSkill(SkillType.HATRED, "Troll"),
         getSkill(SkillType.THICK_SKULL),
       ],
       maxAllowed: 2,
@@ -2061,7 +2061,7 @@ const OLD_WORLD_ALLIANCE_ROSTER: TeamRoster = {
         getSkill(SkillType.BLOCK),
         getSkill(SkillType.DAUNTLESS),
         getSkill(SkillType.FRENZY),
-        getSkill(SkillType.HATRED),
+        getSkill(SkillType.HATRED, "Troll"),
         getSkill(SkillType.THICK_SKULL),
       ],
       maxAllowed: 1,
@@ -2682,7 +2682,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
       keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.SKAVEN],
       cost: 50_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 8 },
-      skills: [getSkill(SkillType.ANIMOSITY, "Underworld Goblin Linemen")],
+      skills: [getSkill(SkillType.ANIMOSITY, "Goblin")],
       maxAllowed: 3,
       primary: [
         SkillCategory.DEVIOUS,
@@ -2697,7 +2697,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
       cost: 80_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 2, AV: 8 },
       skills: [
-        getSkill(SkillType.ANIMOSITY, "Underworld Goblin Linemen"),
+        getSkill(SkillType.ANIMOSITY, "Goblin"),
         getSkill(SkillType.PASS),
         getSkill(SkillType.SURE_HANDS),
       ],
@@ -2719,7 +2719,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
       cost: 85_000,
       stats: { MA: 9, ST: 2, AG: 2, PA: 4, AV: 8 },
       skills: [
-        getSkill(SkillType.ANIMOSITY, "Underworld Goblin Linemen"),
+        getSkill(SkillType.ANIMOSITY, "Goblin"),
         getSkill(SkillType.DODGE),
         getSkill(SkillType.STAB),
       ],
@@ -2738,7 +2738,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
       cost: 90_000,
       stats: { MA: 8, ST: 3, AG: 3, PA: 5, AV: 9 },
       skills: [
-        getSkill(SkillType.ANIMOSITY, "Underworld Goblin Linemen"),
+        getSkill(SkillType.ANIMOSITY, "Goblin"),
         getSkill(SkillType.BLOCK),
         getSkill(SkillType.STRIP_BALL),
       ],
@@ -2801,7 +2801,11 @@ const VAMPIRE_ROSTER: TeamRoster = {
   playerTemplates: [
     {
       positionName: "Thrall Lineman",
-      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.HUMAN],
+      keywords: [
+        RaceKeyWord.HUMAN,
+        PositionKeyWord.LINEMAN,
+        TraitKeyWord.THRALL,
+      ],
       cost: 40_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
       skills: [],
