@@ -656,6 +656,9 @@ export class NetworkedGameService implements IGameService {
   resetDriveState(): void {}
   async rollKORecovery(): Promise<void> {}
   throwInBall(): void {}
+  kickoffBounceTouchback(): boolean {
+    return false;
+  }
   setBallPosition(): void {}
   attemptPickup(): boolean {
     return false;

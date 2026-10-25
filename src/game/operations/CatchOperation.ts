@@ -23,6 +23,8 @@ export class CatchOperation extends GameOperation {
       isPassTarget?: boolean;
       divingCatch?: boolean;
       landingPosition?: { x: number; y: number };
+      /** The ball is still the kick-off, so a bounce out of the receiving half is a Touchback. */
+      kickoff?: boolean;
     } = {},
     private pass?: {
       passerId: string;
@@ -43,7 +45,10 @@ export class CatchOperation extends GameOperation {
       console.log(
         `[CatchOperation] Player ${player.playerName} is ${player.status} and cannot catch. Bouncing.`
       );
-      flowManager.add(new BounceOperation(player.gridPosition), true);
+      flowManager.add(
+        new BounceOperation(player.gridPosition, !!this.options.kickoff),
+        true
+      );
       return;
     }
 
@@ -148,7 +153,8 @@ export class CatchOperation extends GameOperation {
       // Bounce from this square
       flowManager.add(
         new BounceOperation(
-          this.options.landingPosition ?? player.gridPosition
+          this.options.landingPosition ?? player.gridPosition,
+          !!this.options.kickoff
         ),
         true
       );

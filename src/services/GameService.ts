@@ -689,6 +689,10 @@ export class GameService implements IGameService {
     return this.ballManager.isTouchbackPending();
   }
 
+  kickoffBounceTouchback(to: { x: number; y: number }): boolean {
+    return this.ballManager.kickoffBounceTouchback(to);
+  }
+
   getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null {
     return this.kickoffEventManager.getStep();
   }

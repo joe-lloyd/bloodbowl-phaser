@@ -412,16 +412,7 @@ export class BallManager {
 
     if (this.pendingTouchback) {
       this.pendingTouchback = false;
-      this.touchbackTeamId = this.state.activeTeamId;
-      if (this.touchbackTeamId) {
-        this.eventBus.emit(GameEventNames.TouchbackAwarded, {
-          teamId: this.touchbackTeamId,
-        });
-        this.eventBus.emit(
-          GameEventNames.UI_Notification,
-          "Touchback! Choose any of your players to take the ball."
-        );
-      }
+      this.awardTouchbackToReceivers();
     } else if (this.state.ballPosition) {
       const landing = { ...this.state.ballPosition };
       const occupant = this.playerAt(landing);
@@ -432,6 +423,7 @@ export class BallManager {
             origin: "kick-off",
             divingCatch: !occupant,
             landingPosition: landing,
+            kickoff: true,
           }),
           true
         );
@@ -440,9 +432,41 @@ export class BallManager {
         // only after the airborne animation and kickoff table resolution.
         this.callbacks
           .getFlowManager?.()
-          ?.add(new BounceOperation(landing), true);
+          ?.add(new BounceOperation(landing, true), true);
       }
     }
+  }
+
+  /**
+   * The kick-off ball is still loose after landing: a bounce that leaves
+   * the pitch or crosses into the kicking team's half is a Touchback.
+   * Returns true when it was, with the receiving coach now to choose.
+   */
+  public kickoffBounceTouchback(to: { x: number; y: number }): boolean {
+    const offPitch =
+      to.x < 0 ||
+      to.x >= GameConfig.PITCH_WIDTH ||
+      to.y < 0 ||
+      to.y >= GameConfig.PITCH_HEIGHT;
+    if (!offPitch && !isKickingTeamTerritory(to.x, this.isTeam1Kicking)) {
+      return false;
+    }
+    this.state.ballPosition = null;
+    this.awardTouchbackToReceivers();
+    return true;
+  }
+
+  /** Play has started, so the active team is the receiving team. */
+  private awardTouchbackToReceivers(): void {
+    this.touchbackTeamId = this.state.activeTeamId;
+    if (!this.touchbackTeamId) return;
+    this.eventBus.emit(GameEventNames.TouchbackAwarded, {
+      teamId: this.touchbackTeamId,
+    });
+    this.eventBus.emit(
+      GameEventNames.UI_Notification,
+      "Touchback! Choose any of your players to take the ball."
+    );
   }
 
   /**

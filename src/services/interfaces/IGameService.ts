@@ -113,6 +113,8 @@ export interface IGameService {
   /** Touchback: receiving coach hands the ball to one of their players */
   awardTouchback(playerId: string): boolean;
   isTouchbackPending(): boolean;
+  /** A loose kick-off ball bounced out of the receiving half: Touchback. */
+  kickoffBounceTouchback(to: { x: number; y: number }): boolean;
   /** Interactive Sevens kickoff event currently awaiting its owning coach. */
   getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null;
   selectKickoffEventPlayer(playerId: string): boolean;
