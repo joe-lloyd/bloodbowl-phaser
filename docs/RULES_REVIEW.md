@@ -39,26 +39,42 @@ The simulation harness learned the rules it was missing, so it now finds each
 of these: passes to any square, Jumps, one Block per Blitz, a turnover check
 after every pass, and the movement allowance.
 
+### Second pass
+
+Each of these also has a test that fails on the old engine, and every
+change follows the 2025 rulebook text.
+
+| Area | Fix |
+| --- | --- |
+| Weather | Very Sunny, Pouring Rain, Blizzard and Sweltering Heat now change rolls, from one weather table in `src/game/rules/weather.ts`. A Blizzard refuses Long Passes and Long Bombs. |
+| Kick-off | A kick-off that bounces back over the line or off the pitch is a touchback. |
+| Passing | Hail Mary Pass is a choice, and a pass beyond the Range Ruler is refused without it. An inaccurate pass that leaves the pitch is thrown in from the last square it was on. No Ball players may not intercept, and Extra Arms gives +1. Distracted players cannot catch. |
+| Throw Team-mate | It has its own once-per-turn limit, and Kick Team-mate does not use it. The landing roll counts marking and a Subpar Throw. A failed landing is a turnover only with the ball. Swoop belongs to the thrown player. Bullseye works on any Superb Throw. |
+| Bombardier | No move before the throw, and one bomb per turn. |
+| Movement | A Jump onto the ball needs a Pick-up. Jumps can be re-rolled, and Prehensile Tail, Diving Tackle and Tentacles affect them. Leap and Pogo can cross an empty square. |
+| Movement | A Rooted or Chomped player is offered no Move, Jump or squares. |
+| Secure the Ball | A plain 2+ roll, with no Sure Hands re-roll. |
+| Match flow | Stunned players turn over at the end of their own team's turn. |
+| Blocking | Frenzy's second block follows a Stand Firm, and costs a square on a Blitz. Stand Firm and Sidestep work during a chain push. Pile Driver is optional and works on a Blitz. |
+| Armour | Mighty Blow and Claws apply only to Block knockdowns. Stab, Chainsaw and Projectile Vomit respect Iron Hard Skin and the other armour skills. Chainsaw's +3 against its owner applies only after a knockdown or fall. |
+| Skills | A failed Bloodlust bites an adjacent Thrall, or causes a turnover and Distracted. Hypnotic Gaze can be re-rolled. The Leader re-roll survives a KO and is saved and synced. |
+| Skills | My Ball players may never declare a Pass or Hand-off. |
+| Roster data | The Troll Slayer's Hatred (Troll) and the Underworld Skaven's Animosity (Goblin) now fire. The generated Snotling test team is legal. |
+
+Simulated matches now field a legal line-up for every roster, with up to
+four positionals, instead of mostly Linemen. That is how the Rooted and My
+Ball bugs surfaced.
+
 ## Still open
 
-### Fix before release
+### Waiting on the Spike! 22 comparison
 
-These change results in normal play.
+Sevens changes these, so they are on hold until the magazine text is read.
 
-1. **Weather does nothing.** It is rolled and shown, but no roll reads it.
-   - Very Sunny: -1 to passes.
-   - Pouring Rain: -1 to pick-ups, catches and interceptions.
-   - Blizzard: -1 to Rush, and only Quick or Short passes.
-   - Sweltering Heat: D3 random players miss the next drive.
-2. **Bloodlust has no penalty.** On a failed roll the player should bite an
-   adjacent Thrall or cause a turnover and become Distracted. Every Vampire
-   position has Bloodlust.
-3. **Purchased inducements do nothing.** Extra Team Training, the Wandering
+1. **Purchased inducements do nothing.** Extra Team Training, the Wandering
    Apothecary and Bribes are bought and confirmed, and then never applied.
    Bribes from Get the Ref can never be spent either.
-4. **A kick-off that bounces back over the line or off the pitch is not a
-   touchback.**
-5. **Injuries do not carry between league matches.** A loaded team marks
+2. **Injuries do not carry between league matches.** A loaded team marks
    every player Reserve.
    - Dead players stay on the roster.
    - Miss Next Game players can play the next match.
@@ -66,74 +82,31 @@ These change results in normal play.
    - A Lasting Injury always takes MA instead of rolling for which
      characteristic to lose.
    - Team value counts Dead and Miss Next Game players, and Dedicated Fans.
-6. **The team builder does not charge for staff.** Coaches and cheerleaders
+3. **The team builder does not charge for staff.** Coaches and cheerleaders
    are free and unlimited, and the Apothecary ignores whether the roster
-   allows one. The generated Snotling test team is illegal: seven
-   Insignificant Linemen.
-7. **Hatred and Animosity data.**
-   - The Troll Slayer's Hatred has no target, so it never fires.
-   - Underworld Skaven Animosity names "Underworld Goblin Linemen", which
-     matches no keyword.
+   allows one.
+4. **Argue the Call** is automatic, and a 6 cancels the turnover. Sevens uses
+   amateur referees with a 1 in 3 chance.
+5. **League and builder details.** The penalty-free set-up concession still
+   wipes the conceding team's SPP. Dedicated Fans count toward team value,
+   cost 10,000 instead of 5,000, start at 0 instead of 1, and have no cap.
+   Several inducement prices and restrictions differ from the 2025 table.
 
 ### Wrong in rarer situations
 
-**Throwing and passing**
-
-- Hail Mary Pass is forced on every pass; it should be optional.
-- Pass targets beyond the range ruler are accepted without Hail Mary.
-- An inaccurate pass can scatter off the pitch and back on instead of being
-  thrown in.
-- No Ball players may intercept, and Extra Arms gives no +1 to Intercept.
-- Throw Team-mate and Kick Team-mate:
-  - They share the once-per-turn Pass limit.
-  - Swoop is read from the thrower, not the thrown player.
-  - Bullseye needs a natural 6.
-  - The landing roll ignores marking.
-  - Every failed landing is a turnover, even without the ball.
-- Throw Bomb allows a move before the throw.
-
-**Movement**
-
-- Jumping onto the loose ball picks it up with no roll.
-- A Jump offers no re-roll, and Prehensile Tail, Diving Tackle and Tentacles
-  never affect it.
-- Leap and Pogo cannot cross an empty square.
-- Secure the Ball uses the normal pick-up and offers the Sure Hands re-roll.
-  The rulebook makes it a 2+ roll with no Sure Hands.
-
-**Blocking and fouling**
-
-- Stand Firm stops Frenzy's second block, and Stand Firm and Sidestep are not
-  offered during a chain push.
-- Frenzy's second block during a Blitz costs no movement.
-- Pile Driver is forced on a Block and never fires on a Blitz.
-- Mighty Blow and Claws apply to knockdowns that are not Blocks, such as
-  Breathe Fire.
-- Stab, Chainsaw and Projectile Vomit roll armour outside the shared rules,
-  so Iron Hard Skin is skipped there.
-- Chainsaw's +3 armour against its owner now also applies when the owner is
-  fouled. The rulebook says "Knocked Down or Falls Over", so this is doubtful.
-- Argue the Call is automatic, and a 6 cancels the turnover.
-
-**Other skills**
-
-- Hypnotic Gaze offers no re-roll.
-- Leader's re-roll is lost for good when the Leader is KO'd. No starting
-  roster has Leader.
+- A Jump may land on any square next to the jumped player that is not next
+  to the jumper, which is five squares on a diagonal; the engine offers three.
+- A thrown team-mate who crashes ends in the occupant's square instead of
+  bouncing, and one thrown off the pitch is held at the edge instead of going
+  into the crowd.
+- A fumbled Throw Team-mate drops the team-mate Prone and rolls injury; the
+  text has them bounce from the thrower's square and try to land.
+- The action menu still offers Throw Team-mate or Throw Bomb after the
+  once-per-turn limit is spent; the engine refuses the declaration.
 - Dump-off skips interception and the pass skills.
-
-**Match flow**
-
-- Stunned players turn Prone at the start of their team's turn, not the end.
-- The Leader re-roll bank is not saved or synced online.
-
-**League and builder**
-
-- The penalty-free set-up concession still wipes the conceding team's SPP.
-- Dedicated Fans count toward team value, cost 10,000 instead of 5,000, start
-  at 0 instead of 1, and have no cap.
-- Several inducement prices and team restrictions differ from the 2025 table,
-  for example the Wandering Apothecary and the Halfling Master Chef.
+- The browser has no Hail Mary toggle or Swoop direction choice yet: it
+  throws a Hail Mary only beyond the Range Ruler, and Swoop scatters normally.
+- `pnpm e2e:seeds --refresh --config X` wipes every other committed seed.
 
 ### Not implemented
 
@@ -142,7 +115,8 @@ These change results in normal play.
 - Conceding during play. Only the set-up concession exists.
 - Deflections, and their SPP.
 - Most team special rules: Swarming, Bribery and Corruption, Team Captain,
-  Masters of Undeath, the Favoured of rules, and the one-big-guy limit.
+  Masters of Undeath, the Favoured of rules, and the one-big-guy limit in
+  the team builder.
 
 ## Claims the rulebook overturned
 
