@@ -356,6 +356,7 @@ export class PlayPhaseHandler implements PhaseHandler {
           ? sprite.animateThrow(pixelPath)
           : sprite.animateMovement(pixelPath);
         flight.then(() => {
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 600 });
           this.scene.refreshDugouts();
           // Check follow up
           if (data.followUpData) {
@@ -395,6 +396,9 @@ export class PlayPhaseHandler implements PhaseHandler {
       y: p1.y,
       duration: 1000,
       ease: "Quad.easeInOut",
+      onComplete: () => {
+        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 600 });
+      },
       onStart: () => {
         this.scene.tweens.add({
           targets: this.scene["ballSprite"],
@@ -464,7 +468,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y =
+          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),

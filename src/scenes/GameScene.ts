@@ -507,10 +507,14 @@ export class GameScene extends Phaser.Scene {
 
     // Camera event listeners
     this.subscribe(GameEventNames.Camera_TrackObject, ({ sprite }) => {
-      this.cameraController.trackObject(sprite);
+      if (sprite instanceof Phaser.GameObjects.GameObject) {
+        this.cameraController.trackObject(sprite);
+      }
     });
     this.subscribe(GameEventNames.Camera_TrackBall, ({ ballSprite }) => {
-      this.cameraController.trackObject(ballSprite);
+      if (ballSprite instanceof Phaser.GameObjects.GameObject) {
+        this.cameraController.trackObject(ballSprite);
+      }
     });
     this.subscribe(GameEventNames.Camera_Reset, ({ duration }) => {
       this.cameraController.reset(duration ?? 800);
@@ -518,8 +522,10 @@ export class GameScene extends Phaser.Scene {
     this.subscribe(GameEventNames.UI_CameraSettingsChanged, (settings) => {
       this.cameraController.setRestingZoom(settings.zoom);
       this.cameraController.setFollowIntensity(settings.followIntensity);
-      if (!this.cameraController.isFollowEnabled() ||
-          !this.cameraController.getIsTracking()) {
+      if (
+        !this.cameraController.isFollowEnabled() ||
+        !this.cameraController.getIsTracking()
+      ) {
         this.cameraController.reset(400);
       }
     });
@@ -1275,7 +1281,10 @@ export class GameScene extends Phaser.Scene {
    */
   public reconcileBallVisual(): void {
     const players = [...this.team1.players, ...this.team2.players];
-    const ball = resolveBallRepresentation(this.gameService.getState(), players);
+    const ball = resolveBallRepresentation(
+      this.gameService.getState(),
+      players
+    );
 
     if (ball.kind === "none") {
       this.ballSprite?.destroy();

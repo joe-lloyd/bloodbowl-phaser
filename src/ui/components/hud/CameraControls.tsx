@@ -14,15 +14,13 @@ const ZOOM_STEP = 0.1;
  * resting zoom (in/out + fit whole pitch) and a follow-intensity slider
  * from Off through Light to Close. Persisted to localStorage; local only.
  */
-export const CameraControls: React.FC<CameraControlsProps> = ({
-  eventBus,
-}) => {
+export const CameraControls: React.FC<CameraControlsProps> = ({ eventBus }) => {
   const { settings, fitZoom, update } = useCameraSettings(eventBus);
   const minZoom = fitZoom ?? 0.5;
 
   const setZoom = (zoom: number) => {
     const clamped = Math.min(MAX_CAMERA_ZOOM, Math.max(minZoom, zoom));
-    update({ zoom: Math.round(clamped * 100) / 100 });
+    update({ zoom: Math.max(minZoom, Math.round(clamped * 100) / 100) });
   };
 
   const followLabel =
@@ -81,10 +79,10 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
           onChange={(e) =>
             update({ followIntensity: parseFloat(e.target.value) })
           }
-          className="flex-1 accent-bb-gold"
+          className="min-w-0 flex-1 accent-bb-gold"
           aria-label="Follow intensity"
         />
-        <span className="w-10 text-right text-xs text-bb-parchment">
+        <span className="w-10 shrink-0 text-right text-xs text-bb-parchment">
           {followLabel}
         </span>
       </div>

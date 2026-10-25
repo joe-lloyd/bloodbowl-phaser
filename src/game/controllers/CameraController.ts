@@ -283,6 +283,8 @@ export class CameraController {
     preZoomDuration: number = 500,
     trackDuration?: number
   ): Promise<void> {
+    if (!this.isFollowEnabled()) return;
+
     // First, zoom to the pre-zoom target (e.g., kicker)
     await this.panTo(preZoomTarget.x, preZoomTarget.y, preZoomDuration);
     await this.zoomTo(preZoom, preZoomDuration);
