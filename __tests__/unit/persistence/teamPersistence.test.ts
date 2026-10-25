@@ -12,6 +12,7 @@ import {
   getRosterByRosterName,
 } from "../../../src/data/RosterTemplates";
 import { createPlayer, InjuryType, Player } from "../../../src/types/Player";
+import { Inducement } from "../../../src/types/Inducements";
 import {
   calculateTeamValue,
   createTeam,
@@ -163,5 +164,22 @@ describe("team hydration and the tolerant reader", () => {
     const resaved = dehydrateTeam(reloaded);
     expect(resaved.schemaVersion).toBe(TEAM_SCHEMA_VERSION);
     expect(resaved.players[0]).not.toHaveProperty("stats");
+  });
+});
+
+describe("Matched Play draft-list inducements (MP2)", () => {
+  it("survive a save and reload, dropping anything that is not an inducement", () => {
+    const team = buildTeam(RosterName.HUMAN);
+    team.advancementMode = "matched-play";
+    team.draftInducements = [{ inducement: Inducement.BRIBE, quantity: 2 }];
+    const stored = JSON.parse(JSON.stringify(dehydrateTeam(team)));
+    stored.draftInducements.push({ inducement: "Gold Bar", quantity: 1 });
+    stored.draftInducements.push({ inducement: "Bribe", quantity: -1 });
+
+    const { team: reloaded } = hydrateStoredTeam(stored);
+
+    expect(reloaded.draftInducements).toEqual([
+      { inducement: Inducement.BRIBE, quantity: 2 },
+    ]);
   });
 });

@@ -40,6 +40,7 @@ import {
 } from "../../types/Team";
 import { SeedMetadata } from "../../types/seedMetadata";
 import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
+import { Inducement, InducementSelectionLine } from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
 
@@ -95,7 +96,36 @@ export interface StoredTeam {
   advancementModeLocked?: boolean;
   pendingDevelopment?: PendingDevelopment[];
   matchedPlayAllocations?: MatchedPlayAllocation[];
+  draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
+}
+
+const INDUCEMENTS = new Set<string>(Object.values(Inducement));
+
+function isInducement(value: unknown): value is Inducement {
+  return typeof value === "string" && INDUCEMENTS.has(value);
+}
+
+/** Keep only well-formed draft-list lines: a known inducement, quantity >= 1. */
+function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((line: unknown) => {
+    if (
+      typeof line !== "object" ||
+      line === null ||
+      !("inducement" in line) ||
+      !("quantity" in line)
+    ) {
+      return [];
+    }
+    const { inducement, quantity } = line;
+    return isInducement(inducement) &&
+      typeof quantity === "number" &&
+      Number.isInteger(quantity) &&
+      quantity > 0
+      ? [{ inducement, quantity }]
+      : [];
+  });
 }
 
 /**
@@ -359,6 +389,9 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
             raw.matchedPlayAllocations as MatchedPlayAllocation[],
         }
       : {}),
+    ...(Array.isArray(raw.draftInducements)
+      ? { draftInducements: parseDraftInducements(raw.draftInducements) }
+      : {}),
     ...(Array.isArray(raw.draftHistory)
       ? { draftHistory: raw.draftHistory as DraftRecord[] }
       : {}),
@@ -409,6 +442,9 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.matchedPlayAllocations
       ? { matchedPlayAllocations: team.matchedPlayAllocations }
+      : {}),
+    ...(team.draftInducements
+      ? { draftInducements: team.draftInducements }
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
   };

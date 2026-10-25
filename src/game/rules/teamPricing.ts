@@ -6,11 +6,14 @@
  * Sevens prices are the same at the draft and during a league (docs/
  * SEVENS_RULES.md D4-D7): re-rolls 100,000 up to 6, Assistant Coaches and
  * Cheerleaders 20,000 up to 3 each, one Apothecary at 80,000 when the
- * roster allows it, and Dedicated Fans 20,000 each up to 5.
+ * roster allows it, and Dedicated Fans 20,000 each up to 5. A Matched Play
+ * team also buys inducements onto its draft list (MP2).
  */
 
 import { Team } from "../../types/Team";
+import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
+import { sevensInducementCatalog } from "../inducements/catalog";
 import {
   APOTHECARY_COST,
   ASSISTANT_COACH_COST,
@@ -28,7 +31,8 @@ export type StaffItem =
   | { type: "apothecary" }
   | { type: "dedicated-fan" }
   | { type: "coach" }
-  | { type: "cheerleader" };
+  | { type: "cheerleader" }
+  | { type: "inducement"; inducement: Inducement };
 
 export type PriceableItem = StaffItem | { type: "player"; cost: number };
 
@@ -86,6 +90,29 @@ export function priceOf(team: Team, item: PriceableItem): PriceResult {
       );
     case "cheerleader":
       return capped(team.cheerleaders, MAX_CHEERLEADERS, CHEERLEADER_COST, "Cheerleaders");
+    case "inducement": {
+      if (team.advancementMode !== "matched-play") {
+        return {
+          amount: null,
+          reason: "Only Matched Play teams buy inducements at the draft.",
+        };
+      }
+      const entry = sevensInducementCatalog(team).find(
+        (line) => line.inducement === item.inducement
+      );
+      if (!entry) {
+        return {
+          amount: null,
+          reason: `${team.rosterName} teams cannot buy ${item.inducement}.`,
+        };
+      }
+      return capped(
+        draftInducementCount(team, item.inducement),
+        entry.maxCount,
+        entry.price,
+        item.inducement
+      );
+    }
     case "player":
       // Eligible hires — draft or active — cost roster price.
       return { amount: item.cost };
@@ -120,6 +147,24 @@ export function purchase(team: Team, item: StaffItem): PriceResult {
     case "cheerleader":
       team.cheerleaders++;
       break;
+    case "inducement": {
+      const lines = (team.draftInducements ??= []);
+      const line = lines.find((l) => l.inducement === item.inducement);
+      if (line) line.quantity++;
+      else lines.push({ inducement: item.inducement, quantity: 1 });
+      break;
+    }
   }
   return price;
+}
+
+/** How many of `inducement` a Matched Play team has on its draft list. */
+export function draftInducementCount(
+  team: Team,
+  inducement: Inducement
+): number {
+  return (
+    team.draftInducements?.find((line) => line.inducement === inducement)
+      ?.quantity ?? 0
+  );
 }

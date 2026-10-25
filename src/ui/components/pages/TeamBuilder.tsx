@@ -14,9 +14,11 @@ import { getTeamMode, isActiveTeam } from "../../../game/rules/teamLifecycle";
 import { canEdit } from "../../../game/rules/teamEditLegality";
 import {
   StaffItem,
+  draftInducementCount,
   priceOf,
   purchase,
 } from "../../../game/rules/teamPricing";
+import { sevensInducementCatalog } from "../../../game/inducements/catalog";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import { chooseVeteran } from "../../../game/rules/veteran";
 import {
@@ -569,6 +571,27 @@ export function TeamBuilder() {
                   onBuy={handleBuy}
                 />
               </div>
+
+              {/* Matched Play buys inducements from the draft budget (MP2) */}
+              {team.advancementMode === "matched-play" && (
+                <div className="p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
+                  <span className="text-sm font-bold text-[#1d3860] uppercase">
+                    Inducements on the draft list
+                  </span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                    {sevensInducementCatalog(team).map((entry) => (
+                      <StaffCounter
+                        key={entry.inducement}
+                        label={entry.inducement}
+                        count={draftInducementCount(team, entry.inducement)}
+                        team={team}
+                        item={{ type: "inducement", inducement: entry.inducement }}
+                        onBuy={handleBuy}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

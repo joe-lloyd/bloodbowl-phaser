@@ -8,6 +8,7 @@ import {
 } from "../../../src/types/Team";
 import { priceOf, purchase } from "../../../src/game/rules/teamPricing";
 import { stampFirstCompletedMatch } from "../../../src/game/rules/teamLifecycle";
+import { Inducement } from "../../../src/types/Inducements";
 
 function draftTeam(
   rosterName: RosterName = RosterName.HUMAN,
@@ -171,5 +172,55 @@ describe("players", () => {
     expect(priceOf(activeTeam(), { type: "player", cost: 70000 }).amount).toBe(
       70000
     );
+  });
+});
+
+describe("Matched Play inducements on the draft list (MP2)", () => {
+  const bribe = { type: "inducement", inducement: Inducement.BRIBE } as const;
+
+  it("buys a Bribe from the draft budget onto the draft list", () => {
+    const team = draftTeam(RosterName.HUMAN, "matched-play");
+    expect(purchase(team, bribe)).toEqual({ amount: 100_000 });
+    expect(team.draftInducements).toEqual([
+      { inducement: Inducement.BRIBE, quantity: 1 },
+    ]);
+    expect(team.treasury).toBe(1_900_000);
+  });
+
+  it("charges the roster's price and stops at the catalogue limit", () => {
+    const team = draftTeam(RosterName.GOBLIN, "matched-play");
+    purchase(team, bribe);
+    purchase(team, bribe);
+    expect(team.treasury).toBe(1_900_000);
+    expect(priceOf(team, bribe)).toEqual({
+      amount: null,
+      reason: "A team may have at most 2 Bribe.",
+    });
+  });
+
+  it("refuses a league team, which uses petty cash instead", () => {
+    const team = draftTeam(RosterName.HUMAN, "advanced-league");
+    expect(purchase(team, bribe).amount).toBeNull();
+    expect(team.draftInducements).toBeUndefined();
+  });
+
+  it("refuses an inducement the roster cannot buy", () => {
+    const team = draftTeam(RosterName.HUMAN, "matched-play");
+    expect(
+      priceOf(team, {
+        type: "inducement",
+        inducement: Inducement.MORTUARY_ASSISTANT,
+      })
+    ).toEqual({
+      amount: null,
+      reason: "Human teams cannot buy Mortuary Assistant.",
+    });
+  });
+
+  it("does not count toward team value", () => {
+    const team = draftTeam(RosterName.HUMAN, "matched-play");
+    const before = calculateTeamValue(team);
+    purchase(team, bribe);
+    expect(calculateTeamValue(team)).toBe(before);
   });
 });
