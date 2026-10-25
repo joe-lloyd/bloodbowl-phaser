@@ -16,6 +16,7 @@ import {
 } from "../types/Team";
 import { createPlayer, PlayerTemplate, TraitKeyWord } from "../types/Player";
 import { getRosterByRosterName } from "../data/RosterTemplates";
+import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import {
   isLinemanPosition,
   MAX_NON_LINEMEN,
@@ -108,5 +109,6 @@ export function createLineupTeam(
   lineupTemplates(rosterName).forEach((template, index) => {
     addPlayerToTeam(team, createPlayer(template, team.id, index + 1));
   });
+  chooseFirstLinemanAsVeteran(team);
   return team;
 }

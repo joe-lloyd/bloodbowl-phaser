@@ -9,11 +9,14 @@ import {
   CustomTableCell,
 } from "../componentWarehouse/BloodBowlTable";
 import { Tooltip } from "../componentWarehouse/Tooltip";
+import { isLinemanPosition } from "../../../game/rules/rosterLegality";
 
 interface TeamRosterProps {
   team: Team;
   onFirePlayer: (playerId: string) => void;
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
+  /** Draft teams only: make this Lineman the Veteran (D8). */
+  onChooseVeteran?: (playerId: string) => void;
 }
 
 /**
@@ -33,6 +36,7 @@ export function TeamRoster({
   team,
   onFirePlayer,
   onReorderPlayers,
+  onChooseVeteran,
 }: TeamRosterProps) {
   const navigate = useNavigate();
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
@@ -118,6 +122,25 @@ export function TeamRoster({
                     >
                       Can advance
                     </span>
+                  ) : null}
+                  {player.veteran ? (
+                    <span
+                      data-testid="veteran-badge"
+                      className="ml-2 rounded bg-[#1d3860] px-1.5 py-0.5 text-xs font-bold text-white"
+                      title="MA -1. Once per game: re-roll a failed pick-up, catch or Pass Action roll, or block dice that would Knock this player Down."
+                    >
+                      Veteran
+                    </span>
+                  ) : onChooseVeteran &&
+                    isLinemanPosition(player.keywords) ? (
+                    <button
+                      data-testid="choose-veteran"
+                      className="ml-2 rounded border border-[#1d3860] px-1.5 py-0.5 text-xs font-bold text-[#1d3860] hover:bg-[#1d3860] hover:text-white"
+                      onClick={() => onChooseVeteran(player.id)}
+                      title="Make this Lineman the team's Veteran (MA -1)"
+                    >
+                      Make Veteran
+                    </button>
                   ) : null}
                 </TableCell>
                 <TableCell className="text-base">

@@ -8,6 +8,7 @@
  *   - no position above its roster template maximum (maxAllowed)
  *   - every player's position exists on the roster template
  *   - treasury never negative (purchases fit the draft budget)
+ *   - a draft with a Lineman has exactly one Veteran, a Lineman (D8)
  *
  * The Insignificant limit is enforced separately (src/game/rules/
  * insignificant.ts) — it is a whole-list trait check, not positional
@@ -16,6 +17,7 @@
 
 import { Team, TeamRoster } from "../../types/Team";
 import { PositionKeyWord } from "../../types/Player";
+import { isDraftTeam } from "./teamLifecycle";
 
 export const MIN_ROSTER_PLAYERS = 7;
 export const MAX_ROSTER_PLAYERS = 11;
@@ -82,6 +84,24 @@ export function validateRosterLegality(
         detail: `${count} × ${positionName} (roster max ${template.maxAllowed})`,
       });
     }
+  }
+
+  // D8: a draft with a Lineman names exactly one Lineman as its Veteran. A
+  // league team whose Veteran has left simply has none.
+  const veterans = players.filter((player) => player.veteran);
+  const hasLineman = players.length > nonLinemen.length;
+  if (
+    isDraftTeam(team) &&
+    hasLineman &&
+    (veterans.length !== 1 || !isLinemanPosition(veterans[0].keywords))
+  ) {
+    violations.push({
+      rule: "veteran",
+      detail:
+        veterans.length === 0
+          ? "no Veteran chosen (pick one Lineman)"
+          : `${veterans.length} Veterans (must be exactly one Lineman)`,
+    });
   }
 
   if (team.treasury < 0) {

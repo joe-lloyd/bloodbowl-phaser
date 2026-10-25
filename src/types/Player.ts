@@ -126,6 +126,12 @@ export interface Player {
   careerStats?: PlayerCareerStats;
 
   /**
+   * Sevens D8: the team's Veteran Lineman. `stats.MA` already carries the
+   * Veteran's -1 (see src/game/rules/veteran.ts). Absent on everyone else.
+   */
+  veteran?: true;
+
+  /**
    * Set by hydration when a stored player's position no longer exists in
    * its roster template. Progression, injuries and career stats are still
    * intact; stats/skills/keywords/cost are placeholders. Never persisted —

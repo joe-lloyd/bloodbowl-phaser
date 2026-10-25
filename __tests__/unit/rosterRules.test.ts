@@ -8,6 +8,7 @@ import { SkillType } from "../../src/types/Skills";
 import { createTeam, RosterName, Team } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
+import { chooseVeteran } from "../../src/game/rules/veteran";
 
 function legalHumanTeam(mode?: Team["advancementMode"]): Team {
   const team = createTeam(
@@ -26,6 +27,7 @@ function legalHumanTeam(mode?: Team["advancementMode"]): Team {
     team.players.push(createPlayer(template, team.id, i + 1));
     team.treasury -= template.cost;
   }
+  chooseVeteran(team, team.players[0].id);
   return team;
 }
 

@@ -165,15 +165,18 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
     const decreases = player.injuries.filter(
       (injury) => STAT_DECREASE_INJURIES[injury] === stat
     ).length;
+    // The Veteran (D8) plays at MA -1.
+    const veteranPenalty = stat === "MA" && player.veteran ? 1 : 0;
     const expected =
       player.baseStats[stat] +
       improvementDirection(stat) * advances -
-      improvementDirection(stat) * decreases;
+      improvementDirection(stat) * decreases -
+      veteranPenalty;
     if (player.stats[stat] !== expected) {
       violations.push({
         area: "progression",
         subject,
-        detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries`,
+        detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries -${veteranPenalty} Veteran`,
       });
     }
     const maximum = CHARACTERISTIC_MAXIMUMS[stat];

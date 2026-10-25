@@ -47,6 +47,7 @@ import {
 } from "../../src/competition/rosterRules";
 import { applyAdvancement, mustAdvance } from "../../src/game/progression/progression";
 import { SkillCategory, SkillType } from "../../src/types/Skills";
+import { chooseVeteran } from "../../src/game/rules/veteran";
 
 function buildLegalTeam(name: string, mode: Team["advancementMode"]): Team {
   const team = createTeam(
@@ -66,6 +67,7 @@ function buildLegalTeam(name: string, mode: Team["advancementMode"]): Team {
     team.players.push(player);
     team.treasury -= lineman.cost;
   }
+  chooseVeteran(team, team.players[0].id);
   team.teamValue = calculateTeamValue(team);
   return team;
 }

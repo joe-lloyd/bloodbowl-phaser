@@ -19,10 +19,13 @@ describe("generated test teams", () => {
   it.each(getAvailableRosterNames())("%s is a legal draft list", (name) => {
     const team = TeamFactory.createTestTeam(name, "Test", 0);
 
+    // Scenario teams carry no Veteran (D8) on purpose: scenarios address
+    // players by index and rely on the printed stat lines, and the
+    // Veteran's MA -1 would change them. Every other rule applies.
     expect(
-      validateRosterLegality(team, getRosterByRosterName(name)).map(
-        (v) => `${v.rule}: ${v.detail}`
-      )
+      validateRosterLegality(team, getRosterByRosterName(name))
+        .filter((v) => v.rule !== "veteran")
+        .map((v) => `${v.rule}: ${v.detail}`)
     ).toEqual([]);
     expect(validateInsignificant(team.players)).toBeNull();
   });

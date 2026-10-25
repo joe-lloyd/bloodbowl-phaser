@@ -58,6 +58,8 @@ export interface StoredPlayer {
   injuries: InjuryType[];
   careerStats?: PlayerCareerStats;
   timesKeptFromDraft?: number;
+  /** Sevens D8 Veteran; hydration applies its MA -1. */
+  veteran?: true;
 }
 
 /** A persisted team: resources, staff, history, and its stored players. */
@@ -143,6 +145,7 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
     ...(typeof raw.timesKeptFromDraft === "number"
       ? { timesKeptFromDraft: raw.timesKeptFromDraft }
       : {}),
+    ...(raw.veteran === true ? { veteran: true } : {}),
   };
 }
 
@@ -216,6 +219,7 @@ export function hydratePlayer(
     const direction = isInvertedStat(stat) ? -1 : 1;
     stats[stat] = baseStats[stat] + direction * advances - direction * decreases;
   }
+  if (stored.veteran) stats.MA -= 1;
 
   // Advancement records predate this change too: `name` may still carry a
   // pre-2025-catalog-reconciliation skill name. `migrateSkill` resolves it
@@ -267,6 +271,7 @@ export function hydratePlayer(
       : {}),
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
+  if (stored.veteran) player.veteran = true;
   return player;
 }
 
@@ -287,6 +292,7 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     ...(player.timesKeptFromDraft
       ? { timesKeptFromDraft: player.timesKeptFromDraft }
       : {}),
+    ...(player.veteran ? { veteran: true } : {}),
   };
 }
 

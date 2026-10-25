@@ -15,6 +15,7 @@ import {
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
 import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
+import { chooseVeteran } from "../../src/game/rules/veteran";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import {
   getTeamMode,
@@ -68,6 +69,10 @@ describe("draft repair and legal finalization journey", () => {
     // Repair: hire two more Linemen to reach 7.
     persisted.players.push(createPlayer(lineman, persisted.id, 6));
     persisted.players.push(createPlayer(lineman, persisted.id, 7));
+    expect(
+      validateRosterLegality(persisted, humanRoster).map((v) => v.rule)
+    ).toEqual(["veteran"]);
+    chooseVeteran(persisted, persisted.players[0].id);
     saveTeam(persisted);
 
     const repaired = loadTeams().find((t) => t.id === team.id)!;

@@ -18,6 +18,7 @@ import {
   purchase,
 } from "../../../game/rules/teamPricing";
 import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
+import { chooseVeteran } from "../../../game/rules/veteran";
 import {
   getRosterByRosterName,
   getAvailableRosterNames,
@@ -190,6 +191,16 @@ export function TeamBuilder() {
     // refund since the roster is still being assembled.
     if (!isActiveTeam(team)) {
       team.treasury += Math.floor(player.cost);
+    }
+    setTeam({ ...team });
+  };
+
+  const handleChooseVeteran = (playerId: string) => {
+    if (!team) return;
+    const decision = chooseVeteran(team, playerId);
+    if (!decision.allowed) {
+      alert(decision.reason);
+      return;
     }
     setTeam({ ...team });
   };
@@ -502,6 +513,7 @@ export function TeamBuilder() {
                 team={team}
                 onFirePlayer={handleFirePlayer}
                 onReorderPlayers={handleReorderPlayers}
+                onChooseVeteran={active ? undefined : handleChooseVeteran}
               />
 
               {/* Team Meta Controls (Blue Theme) */}

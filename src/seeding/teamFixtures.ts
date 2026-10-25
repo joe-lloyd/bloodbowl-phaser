@@ -35,6 +35,7 @@ import {
 import { validateInsignificant } from "../game/rules/insignificant";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { purchase } from "../game/rules/teamPricing";
+import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import { APOTHECARY_COST, TEAM_REROLL_COST } from "../game/rules/sevensPrices";
 import { rosterSlug, seedMetadata, seedTeamId } from "./seedMeta";
 
@@ -271,6 +272,7 @@ export function buildSeedTeam(rosterName: RosterName): Team {
   });
   for (let i = 0; i < plan.rerolls; i++) purchase(team, { type: "reroll" });
   if (plan.apothecary) purchase(team, { type: "apothecary" });
+  chooseFirstLinemanAsVeteran(team);
 
   team.teamValue = calculateTeamValue(team);
 
