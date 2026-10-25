@@ -22,6 +22,7 @@ import { createInMemoryTransportPair } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
 import { decisionOwner, checkOwnership } from "../../src/network/OwnershipGate";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
+import { forceDice } from "../utils/test-helpers";
 
 interface Match {
   game: HeadlessGame;
@@ -532,8 +533,9 @@ describe("networked sessions", () => {
   }
 
   it("proxies a guest High Kick placement to the host and mirrors the board", async () => {
-    const seed = await findKickoffSeed(KickoffEvent.HIGH_KICK);
-    const match = createMatch({ scenario: kickoffInteractionScenario, seed });
+    const match = createMatch({ scenario: kickoffInteractionScenario, seed: 1 });
+    // Deviates east 2 squares to the empty (16,5), then High Kick (2 + 3).
+    forceDice(match.game.ctx.rng, [5, 2, 2, 2, 3]);
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
       playerId: match.game.ctx.team1.players[0].id,
