@@ -70,9 +70,10 @@ const opening: ScenarioCase = {
     {
       id: "team1-kicks",
       name: "team1 kicks off",
-      // This seed lands the kick on target; a kick that deviates out would
-      // raise a touchback instead, which `match-touchback-award` owns.
-      seed: 1,
+      // This seed lands the kick on target and rolls an interactive event;
+      // a kick that deviates out would raise a touchback instead, which
+      // `match-touchback-award` owns.
+      seed: 2,
       expectedOutcome:
         "both teams set up legally, team1 kicks on target, and the kickoff event resolves",
     },
