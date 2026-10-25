@@ -101,6 +101,7 @@ import {
 } from "@/game/inducements/rules";
 import { sevensInducementCatalog } from "@/game/inducements/catalog";
 import { inducementCount } from "@/game/inducements/inventory";
+import { rollMasterChefs } from "@/game/inducements/masterChef";
 import { InducementSession } from "@/game/inducements/InducementSession";
 import {
   buildSeventsInducementProfile,
@@ -618,7 +619,18 @@ export class GameService implements IGameService {
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
+    this.rollMasterChefs();
     this.setupManager.startSetup(startingTeamId);
+  }
+
+  /** Halfling Master Chefs cook once per half, before its first Kick-off. */
+  private rollMasterChefs(): void {
+    rollMasterChefs(
+      this.state,
+      [this.team1, this.team2],
+      this.diceController,
+      this.eventBus
+    );
   }
 
   placePlayer(playerId: string, x: number, y: number): boolean {
@@ -772,6 +784,8 @@ export class GameService implements IGameService {
   }
 
   startGame(kickingTeamId: string): void {
+    // A match that began past setup (a scenario) has its chef cook here.
+    this.rollMasterChefs();
     this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
     this.turnManager.startGame(kickingTeamId);
   }

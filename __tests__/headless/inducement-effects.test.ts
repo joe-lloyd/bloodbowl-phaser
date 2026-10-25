@@ -400,6 +400,45 @@ describe("Plague Doctor", () => {
   });
 });
 
+describe("Halfling Master Chef", () => {
+  it("moves a team re-roll from the opposition for each 4+ on 3D6, each half", async () => {
+    const game = new HeadlessGame({ scenario: kickoff, seed: 1 });
+    game.ctx.team1.rerolls = 2;
+    await induce(game, [
+      { inducement: Inducement.HALFLING_MASTER_CHEF, quantity: 1 },
+    ]);
+    game.ctx.team2.rerolls = 3;
+    const state = game.ctx.gameService.getState();
+
+    // Event 1 + 2 = Time-Out (no dice); the chef then rolls 4, 6 and 1.
+    const response = await kick(game, [5, 1, 1, 1, 2, 4, 6, 1]);
+
+    expect(
+      response.events
+        .filter((event) => event.name === GameEventNames.DiceRoll)
+        .map((event) => (event.data as { rollType: string }).rollType)
+        .filter((rollType) => rollType.startsWith("Halfling Master Chef"))
+    ).toEqual(["Halfling Master Chef (Home Team)"]);
+    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(4);
+    expect(teamRerollsLeft(state, game.ctx.team2)).toBe(1);
+
+    // Half-time: the swing lapses and the chef rolls again, three 1s.
+    forceDice(game.ctx.rng, [1, 1, 1]);
+    game.ctx.gameService.endHalf();
+    for (let i = 0; i < 50 && state.phase !== GamePhase.SETUP; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect(state.phase).toBe(GamePhase.SETUP);
+    expect(teamRerollsLeft(state, game.ctx.team1)).toBe(2);
+    expect(teamRerollsLeft(state, game.ctx.team2)).toBe(3);
+    expect(state.inducements?.masterChef).toEqual({
+      half: "h2",
+      rerolls: { team1: 0, team2: 0 },
+    });
+  });
+});
+
 describe("Extra Team Training", () => {
   it("adds a team re-roll for each half", async () => {
     const game = new HeadlessGame({ scenario: foulScene, seed: 1 });
