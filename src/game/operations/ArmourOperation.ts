@@ -117,7 +117,7 @@ export class ArmourOperation extends GameOperation {
     private fall?: { cause: "dodge"; vacatedSquare: { x: number; y: number } },
     /**
      * What inflicted the knockdown — read by the armour rules (Mighty Blow
-     * and Claws need a Block) and carried through to the Casualty Roll for
+     * and Claws need a Block) and carried through to the casualty for
      * Plague Ridden. Blocks are the default; a non-block causer passes its
      * own cause (Breathe Fire "special", Animal Savagery "lash-out").
      */

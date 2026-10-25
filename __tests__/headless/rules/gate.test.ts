@@ -62,7 +62,6 @@ describe("rule coverage gate", () => {
         SkillType.CLAWS,
         SkillType.CLOUD_BURSTER,
         SkillType.DAUNTLESS,
-        SkillType.DECAY,
         SkillType.DEFENSIVE,
         SkillType.DIRTY_PLAYER,
         SkillType.DISTURBING_PRESENCE,
@@ -150,7 +149,7 @@ describe("rule coverage gate", () => {
         SkillType.WRESTLE,
       ].sort()
     );
-    expect(cov.implemented).toBe(107);
+    expect(cov.implemented).toBe(106);
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 

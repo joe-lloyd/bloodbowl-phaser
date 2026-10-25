@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
-import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { GameOperation } from "../../src/game/core/GameOperation";
 import { SCENARIOS } from "../../src/data/scenarios";
@@ -114,10 +113,11 @@ describe("Sevens Apothecary decision", () => {
     expect(player.gridPosition).toBeUndefined();
   });
 
-  for (const [rollTotal, label, initialStatus] of [
-    [3, "Badly Hurt", PlayerStatus.INJURED],
-    [9, "Seriously Hurt", PlayerStatus.INJURED],
-    [16, "Dead", PlayerStatus.DEAD],
+  // Sevens injury table totals (docs/SEVENS_RULES.md I3-I5).
+  for (const [rollTotal, label, casualtyType, initialStatus] of [
+    [10, "Badly Hurt", "badly-hurt", PlayerStatus.INJURED],
+    [11, "Seriously Hurt", "seriously-hurt", PlayerStatus.INJURED],
+    [12, "Dead", "dead", PlayerStatus.DEAD],
   ] as const) {
     it(`offers a patch-up for ${label} and succeeds on a 4+ roll`, async () => {
       const game = newGame();
@@ -125,15 +125,16 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
+        "roll2D6"
       ).mockReturnValue(rollTotal);
       vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(4); // success
 
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       const pending = game.pendingDecision();
       expect(pending?.type).toBe("apothecary");
       if (pending?.type === "apothecary") {
         expect(pending.resultKind).toBe("casualty");
+        expect(pending.casualtyType).toBe(casualtyType);
       }
 
       await answer(game, true);
@@ -146,11 +147,11 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
+        "roll2D6"
       ).mockReturnValue(rollTotal);
       vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(2); // fail
 
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       await answer(game, true);
 
       expect(player.status).toBe(initialStatus);
@@ -162,22 +163,6 @@ describe("Sevens Apothecary decision", () => {
       ).toBe(true);
     });
   }
-
-  it("Serious Injury and Lasting Injury are not eligible for a patch-up", async () => {
-    for (const roll of [11, 13]) {
-      const game = newGame();
-      game.ctx.team1.apothecary = true;
-      const player = game.ctx.team1.players[0];
-      vi.spyOn(
-        game.ctx.gameService.getDiceController(),
-        "rollD16"
-      ).mockReturnValue(roll);
-
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
-      expect(game.pendingDecision()).toBeNull();
-      expect(player.status).toBe(PlayerStatus.INJURED);
-    }
-  });
 
   it("is offered once per match: a used Apothecary offers nothing further", async () => {
     const game = newGame();
@@ -217,9 +202,9 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
-      ).mockReturnValue(3);
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+        "roll2D6"
+      ).mockReturnValue(10);
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       const response = await answer(game, true);
       return JSON.stringify(response.snapshot);
     };

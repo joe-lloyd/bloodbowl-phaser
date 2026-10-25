@@ -1,6 +1,7 @@
 /**
- * Plague Ridden (2025 rulebook) — a passive trait resolved on the Casualty
- * Roll of a Block Action.
+ * Plague Ridden (2025 rulebook) — a passive trait resolved on the casualty
+ * of a Block Action. Sevens has no Casualty Roll, so the Dead result is the
+ * injury table's 12 (docs/SEVENS_RULES.md I5).
  *
  *   "Once per game, when a player with this Trait causes a Casualty against an
  *    opposition player as a result of a Block Action, and that player suffers

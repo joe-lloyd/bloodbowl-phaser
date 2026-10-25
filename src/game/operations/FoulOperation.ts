@@ -175,7 +175,7 @@ export class FoulOperation extends GameOperation {
 
       // 3. Injury Roll. The Foul reads the dice for doubles, then hands the
       // roll to the shared injury resolution (Thick Skull, Stunty, the
-      // Apothecary, the Casualty Roll).
+      // Apothecary, the Sevens casualty results).
       const injury = diceController.rollInjury(
         target.playerName,
         fouler.teamId

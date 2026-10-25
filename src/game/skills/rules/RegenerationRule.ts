@@ -4,6 +4,9 @@
  * player suffers the Casualty; make the Casualty Roll as normal. On a 4+,
  * this player regenerates and ignores the Casualty ... and is instead
  * placed in their team's Reserves Box."
+ *
+ * Sevens has no Casualty Roll: the save comes before the injury table's
+ * casualty result is applied.
  */
 
 import { SkillType } from "../../../types/Skills";

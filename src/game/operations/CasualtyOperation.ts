@@ -2,31 +2,29 @@ import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService.js";
 import { InjuryType, PlayerStatus } from "../../types/Player.js";
-import { CasualtyType } from "../controllers/InjuryController.js";
+import {
+  CasualtyType,
+  InjuryResult,
+} from "../controllers/InjuryController.js";
 import { SkillType } from "../../types/Skills";
 import {
   CasualtyCause,
   plagueRiddenApplies,
   addReserveLineman,
 } from "../rules/plagueRidden";
-import { foldTrigger, CasualtyContext, CasualtyRollContext } from "../skills";
+import { foldTrigger, CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
 
-/** The three casualty results a Sevens Apothecary may patch up. */
-function eligibleApothecaryCasualty(
-  result: CasualtyType
-): ApothecaryCasualtyType | undefined {
+function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
   switch (result) {
-    case CasualtyType.BADLY_HURT:
+    case InjuryResult.BADLY_HURT:
       return "badly-hurt";
-    case CasualtyType.SERIOUSLY_HURT:
+    case InjuryResult.SERIOUSLY_HURT:
       return "seriously-hurt";
-    case CasualtyType.DEAD:
+    case InjuryResult.DEAD:
       return "dead";
-    default:
-      return undefined;
   }
 }
 
@@ -34,22 +32,20 @@ function eligibleApothecaryCasualty(
  * CasualtyOperation
  *
  * Responsibility:
- * - Offer pre-roll saves (Regeneration) via the casualty trigger
- * - Execute Casualty Roll (D16), letting rules modify it (Decay)
- * - Determine specific permanent injury and update player state
+ * - Offer saves (Regeneration) via the casualty trigger
+ * - Apply the Sevens injury table's casualty result (I3-I5). There is no
+ *   Casualty Roll and no Lasting Injury.
+ * - Offer the Apothecary before the player leaves for the Casualty box
  */
 export class CasualtyOperation extends GameOperation {
   public readonly name = "CasualtyOperation";
 
   constructor(
     private playerId: string,
+    private result: CasualtyType,
     private causedById?: string,
-    private opts: {
-      /** No Casualty Roll — automatically Badly Hurt (Stunty's 9). */
-      autoBadlyHurt?: boolean;
-      /** What inflicted the casualty — "block" can arm Plague Ridden. */
-      cause?: CasualtyCause;
-    } = {}
+    /** What inflicted the casualty — "block" can arm Plague Ridden. */
+    private cause?: CasualtyCause
   ) {
     super();
   }
@@ -65,11 +61,11 @@ export class CasualtyOperation extends GameOperation {
       ? gameService.getPlayerById(this.causedById)
       : undefined;
 
-    // Trigger point: a rule may save the player before the roll
+    // Trigger point: a rule may save the player before the result applies
     const preCtx: CasualtyContext = {
       player,
       causedBy,
-      cause: this.opts.cause,
+      cause: this.cause,
       decisions: gameService.getDecisionService(),
       flow: context.flowManager,
       arbiter: gameService.getRerollArbiter(),
@@ -93,74 +89,19 @@ export class CasualtyOperation extends GameOperation {
       return;
     }
 
-    if (this.opts.autoBadlyHurt) {
-      // Stunty's 9: no Casualty Roll is made — automatically Badly Hurt
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        `Result: ${CasualtyType.BADLY_HURT}`
-      );
-      player.injuries.push(InjuryType.BADLY_HURT);
-      this.removeFromPitch(eventBus, player);
-      return;
-    }
-
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Casualty Roll for ${player.playerName}`
-    );
-
-    // Suspense delay
-    await context.delay(800);
-
-    // 1. Roll D16 via DiceController
-    const roll = gameService
-      .getDiceController()
-      .rollD16(`Casualty Roll (${player.playerName})`);
-
-    // 2. Trigger point: rules may modify the casualty roll (Decay +1)
-    const rollCtx: CasualtyRollContext = {
-      player,
-      causedBy,
-      roll,
-      modifier: 0,
-      decisions: gameService.getDecisionService(),
-      flow: context.flowManager,
-      arbiter: gameService.getRerollArbiter(),
-      dice: gameService.getDiceController(),
-      triggers: [],
-    };
-    await foldTrigger(
-      "onCasualtyRoll",
-      causedBy ? [causedBy, player] : [player],
-      rollCtx
-    );
-    rollCtx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
-
-    const injuryController = gameService.getInjuryController();
-    const result = injuryController.getCasualtyResult(
-      rollCtx.roll + rollCtx.modifier
-    );
-
+    const result = this.result;
     eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
 
-    // 3. Apply to player permanent injuries
+    // Record the result on the player: Badly Hurt is out for this game only,
+    // Seriously Hurt also misses the next league game, Dead leaves the roster.
     switch (result) {
-      case CasualtyType.BADLY_HURT:
+      case InjuryResult.BADLY_HURT:
         player.injuries.push(InjuryType.BADLY_HURT);
         break;
-      case CasualtyType.SERIOUSLY_HURT:
+      case InjuryResult.SERIOUSLY_HURT:
         player.injuries.push(InjuryType.MISS_NEXT_GAME);
         break;
-      case CasualtyType.SERIOUS_INJURY:
-        player.injuries.push(InjuryType.NIGGLING_INJURY);
-        break;
-      case CasualtyType.LASTING_INJURY:
-        // For simplicity, pick a stat. Real logic would roll another D6 or similar.
-        player.injuries.push(InjuryType.STAT_DECREASE_MA);
-        break;
-      case CasualtyType.DEAD:
+      case InjuryResult.DEAD:
         player.injuries.push(InjuryType.DEAD);
         player.status = PlayerStatus.DEAD;
         eventBus.emit(GameEventNames.PlayerKilled, {
@@ -171,7 +112,7 @@ export class CasualtyOperation extends GameOperation {
         // eligible opponent lets their coach add a Lineman to the Reserves.
         if (
           causedBy &&
-          plagueRiddenApplies(causedBy, player, this.opts.cause)
+          plagueRiddenApplies(causedBy, player, this.cause)
         ) {
           this.applyPlagueRidden(gameService, eventBus, causedBy, player);
         }
@@ -181,16 +122,12 @@ export class CasualtyOperation extends GameOperation {
     // A casualty leaves play for the Casualty box: clear its square and
     // announce the status change so the pitch sprite is removed and the
     // dugout re-renders it among the casualties (not left lying on the pitch).
-    // Badly Hurt / Seriously Hurt / Dead get first say from an owned,
-    // unused Apothecary before that final placement (Serious/Lasting Injury
-    // are not eligible — the underlying casualty table is unchanged).
-    const eligible = eligibleApothecaryCasualty(result);
-    const patchedUp =
-      eligible !== undefined &&
-      (await offerApothecary(gameService, eventBus, player, {
-        resultKind: "casualty",
-        casualtyType: eligible,
-      }));
+    // Every casualty gets first say from an owned, unused Apothecary before
+    // that final placement.
+    const patchedUp = await offerApothecary(gameService, eventBus, player, {
+      resultKind: "casualty",
+      casualtyType: apothecaryCasualtyType(result),
+    });
     if (!patchedUp) {
       this.removeFromPitch(eventBus, player);
     }

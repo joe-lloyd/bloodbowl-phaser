@@ -56,7 +56,7 @@ export class CrowdInjuryOperation extends GameOperation {
     const roll = gameService
       .getDiceController()
       .roll2D6(`Injury by the Crowd (${player.playerName})`);
-    const { result, casualtyAutoBadlyHurt } = await resolveInjuryRoll(
+    const { result } = await resolveInjuryRoll(
       context,
       player,
       roll,
@@ -88,7 +88,9 @@ export class CrowdInjuryOperation extends GameOperation {
         }
         break;
       }
-      case InjuryResult.CASUALTY:
+      case InjuryResult.BADLY_HURT:
+      case InjuryResult.SERIOUSLY_HURT:
+      case InjuryResult.DEAD:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         movePlayerToBox(player, { box: "casualty" });
         eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
@@ -96,12 +98,7 @@ export class CrowdInjuryOperation extends GameOperation {
           cause: "crowd",
           sppEligible: false,
         });
-        flowManager.add(
-          new CasualtyOperation(this.playerId, undefined, {
-            autoBadlyHurt: casualtyAutoBadlyHurt,
-          }),
-          true
-        );
+        flowManager.add(new CasualtyOperation(this.playerId, result), true);
         break;
     }
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);
