@@ -280,10 +280,12 @@ describe("GameplayInteractionController", () => {
     beforeEach(async () => {
       mockGameService.getState.mockReturnValue({
         activeTeamId: team1Id,
+        weather: "Nice",
       } as GameState);
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
       mockGameService.declareAction.mockReturnValue(true);
+      mockGameService.throwBall.mockResolvedValue({ success: true });
 
       // Simulate generic Action Selected flow
       controller.selectPlayer("p1");

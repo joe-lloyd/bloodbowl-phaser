@@ -1164,6 +1164,17 @@ export class GameService implements IGameService {
       }
     }
 
+    const { type } = this.passController.measureRange(passer.gridPosition, {
+      x: targetX,
+      y: targetY,
+    });
+    if (!weatherEffects(this.state.weather).passTypes.includes(type)) {
+      return {
+        success: false,
+        result: `${this.state.weather}: only a Quick or Short Pass may be attempted`,
+      };
+    }
+
     // 2. Queue Operation
     this.flowManager.add(new PassOperation(passerId, targetX, targetY));
 

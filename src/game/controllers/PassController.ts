@@ -436,12 +436,14 @@ export class PassController {
     return squares;
   }
 
-  public getAllRanges(from: {
-    x: number;
-    y: number;
-  }): Map<PassType, { x: number; y: number }[]> {
+  public getAllRanges(
+    from: { x: number; y: number },
+    /** The ranges the weather allows (Blizzard: Quick and Short only). */
+    allowed?: readonly PassType[]
+  ): Map<PassType, { x: number; y: number }[]> {
     const ranges = new Map<PassType, { x: number; y: number }[]>();
     for (const passRange of PassController.PASS_RANGES) {
+      if (allowed && !allowed.includes(passRange.type)) continue;
       ranges.set(passRange.type, this.getSquaresInRange(from, passRange.type));
     }
     return ranges;

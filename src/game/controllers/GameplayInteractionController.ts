@@ -3,6 +3,7 @@ import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { Pitch } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
+import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { pixelToGrid } from "../elements/GridUtils";
@@ -771,11 +772,21 @@ export class GameplayInteractionController {
         return;
       }
       this.isBusy = true;
+      let thrown = true;
       try {
-        await this.gameService.throwBall(this.selectedPlayerId, x, y);
+        const result = await this.gameService.throwBall(
+          this.selectedPlayerId,
+          x,
+          y
+        );
+        // A refused target (a Long Pass in a Blizzard) keeps the aim open.
+        thrown = result.success;
+        if (!thrown) {
+          this.eventBus.emit(GameEventNames.UI_Notification, result.result);
+        }
       } finally {
         this.isBusy = false;
-        this.deselectPlayer();
+        if (thrown) this.deselectPlayer();
       }
       return;
     }
@@ -1380,7 +1391,8 @@ export class GameplayInteractionController {
         if (selectedPlayer && selectedPlayer.gridPosition) {
           // Draw pass zones
           const ranges = this.passController.getAllRanges(
-            selectedPlayer.gridPosition
+            selectedPlayer.gridPosition,
+            weatherEffects(this.gameService.getState().weather).passTypes
           );
           this.pitch.drawPassZones(selectedPlayer.gridPosition, ranges);
 

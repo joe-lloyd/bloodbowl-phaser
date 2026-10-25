@@ -4,6 +4,8 @@
  * "Nice" is the engine's name for Perfect Conditions.
  */
 
+import type { PassType } from "../controllers/PassController";
+
 export type Weather =
   | "Sweltering Heat"
   | "Very Sunny"
@@ -18,15 +20,15 @@ export interface WeatherEffects {
   ballHandling: number;
   /** Added to every Rush. */
   rush: number;
-  /** Long Passes and Long Bombs may be attempted. */
-  longPasses: boolean;
+  /** The ranges a Pass Action may be attempted at. */
+  passTypes: readonly PassType[];
 }
 
 const NO_EFFECT: WeatherEffects = {
   passingAbility: 0,
   ballHandling: 0,
   rush: 0,
-  longPasses: true,
+  passTypes: ["Quick Pass", "Short Pass", "Long Pass", "Long Bomb"],
 };
 
 export function weatherEffects(weather: Weather): WeatherEffects {
@@ -36,7 +38,11 @@ export function weatherEffects(weather: Weather): WeatherEffects {
     case "Pouring Rain":
       return { ...NO_EFFECT, ballHandling: -1 };
     case "Blizzard":
-      return { ...NO_EFFECT, rush: -1, longPasses: false };
+      return {
+        ...NO_EFFECT,
+        rush: -1,
+        passTypes: ["Quick Pass", "Short Pass"],
+      };
     case "Sweltering Heat":
     case "Nice":
       return NO_EFFECT;
