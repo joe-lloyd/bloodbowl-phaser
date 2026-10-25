@@ -566,11 +566,15 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
+      // Extra Arms: +1 to "Catch, Pick Up or Intercept the ball" (p.128).
+      const extraArms = hasSkill(interceptor.skills, SkillType.EXTRA_ARMS)
+        ? 1
+        : 0;
       return {
         playerId: e.playerId,
-        base: e.modifier + vll + rain,
+        base: e.modifier + vll + rain + extraArms,
         marking,
-        modifier: e.modifier + vll + rain - marking,
+        modifier: e.modifier + vll + rain + extraArms - marking,
       };
     });
 

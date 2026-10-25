@@ -1,6 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { Player, hasTackleZone } from "@/types/Player";
 import { GameEventNames } from "../../types/events";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { BallMovementController } from "./BallMovementController";
 import { DiceController } from "./DiceController";
 import { withRerollOffer } from "../skills";
@@ -381,6 +382,8 @@ export class PassController {
       // A player that has lost its Tackle Zone (Prone/Stunned/Distracted)
       // may not intercept.
       if (!pos || !hasTackleZone(opponent)) continue;
+      // No Ball: "may not attempt to Intercept a Pass" (p.132).
+      if (hasSkill(opponent.skills, SkillType.NO_BALL)) continue;
       // The passer's own square and the landing square never intercept.
       if (pos.x === from.x && pos.y === from.y) continue;
       if (pos.x === landing.x && pos.y === landing.y) continue;
