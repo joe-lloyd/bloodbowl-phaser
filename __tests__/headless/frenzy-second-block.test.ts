@@ -88,3 +88,62 @@ describe("Frenzy against Stand Firm", () => {
     expect(defender.gridPosition).toEqual({ x: 11, y: 5 });
   });
 });
+
+/**
+ * MA 1 blitzers. Blocking from the start square spends the one square of
+ * MA. Starting two squares back, the blitzer moves one square and Rushes
+ * one, so the Blitz block itself is the second and last Rush.
+ */
+const ADJACENT_BLITZ_SEED = 11;
+const EXHAUSTED_BLITZ_SEED = 11;
+
+describe("Frenzy's second Block during a Blitz", () => {
+  it("costs a square, so a blitzer out of movement must Rush", async () => {
+    const { game, run, dice, attacker, defender } = session(
+      scenario({ stats: { MA: 1 } }, {}),
+      ADJACENT_BLITZ_SEED
+    );
+
+    await run({ type: "declare-action", playerId: attacker.id, action: "blitz" });
+    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({ type: "choose-block-result", index: 0 });
+    const second = await run({ type: "choose-push-direction", x: 12, y: 5 });
+
+    expect(dice()).toEqual([
+      "Rolled 1 block dice: push",
+      "Rush (GFI) (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
+      "Rolled 1 block dice: push",
+    ]);
+    expect(second.pendingDecision).toMatchObject({ type: "block-dice" });
+    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(2);
+  });
+
+  it("cannot happen when the blitzer has no Rush left", async () => {
+    const { game, run, dice, attacker, defender } = session(
+      scenario({ x: 8, stats: { MA: 1 } }, {}),
+      EXHAUSTED_BLITZ_SEED
+    );
+
+    await run({ type: "declare-action", playerId: attacker.id, action: "blitz" });
+    await run({
+      type: "move",
+      playerId: attacker.id,
+      path: [
+        { x: 9, y: 5 },
+        { x: 10, y: 5 },
+      ],
+    });
+    await run({ type: "block", attackerId: attacker.id, defenderId: defender.id });
+    await run({ type: "choose-block-result", index: 0 });
+    const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
+
+    expect(dice()).toEqual([
+      "Rush (GFI) (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
+      "Rush (GFI) (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
+      "Rolled 1 block dice: push",
+    ]);
+    expect(after.pendingDecision).toBeNull();
+    expect(attacker.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(3);
+  });
+});

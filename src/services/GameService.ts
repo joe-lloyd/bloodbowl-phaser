@@ -959,65 +959,15 @@ export class GameService implements IGameService {
     // blocked without moving first still spends the team's Blitz).
     this.playerActionManager.commitAction(attackerId);
 
-    // The block at the end of a Blitz costs 1 movement. If that point is
-    // beyond MA it's a Rush (GFI): roll it BEFORE the block — on a failure
-    // the blitzer falls over in front of their target and no block happens.
+    // The block at the end of a Blitz costs 1 movement (see
+    // chargeBlitzBlockSquare). The Blitz's one Block is spent the moment it
+    // is committed, whatever the dice later say.
     if (
       this.state.activePlayer?.action === "blitz" &&
       this.state.activePlayer.id === attackerId
     ) {
-      const attacker = this.getPlayerById(attackerId);
-      if (attacker) {
-        const effectiveAttacker = withDriveModifiers(attacker, this.state);
-        const used = this.state.turn.movementUsed.get(attackerId) || 0;
-        const newUsed = used + 1;
-        if (newUsed > moveAllowance(effectiveAttacker)) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "No movement left to make the Blitz block!"
-          );
-          this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-          return;
-        }
-        // The Blitz's one Block is spent the moment it is committed, whatever
-        // the dice later say (a Both Down with Block has no follow-up).
-        this.blitzBlockUsed.add(attackerId);
-        this.state.turn.movementUsed.set(attackerId, newUsed);
-
-        if (newUsed > effectiveAttacker.stats.MA) {
-          // The Blitz block's rush may be rerolled (Sure Feet / team)
-          const check = await withRerollOffer(
-            { gameService: this, eventBus: this.eventBus },
-            attacker,
-            "rush",
-            () =>
-              this.diceController.rollSkillCheck(
-                "Rush (GFI)",
-                2,
-                weatherEffects(this.state.weather).rush,
-                attacker.playerName
-              )
-          );
-          if (!check.success) {
-            attacker.status = PlayerStatus.PRONE;
-            this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
-              playerId: attackerId,
-            });
-            this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
-            if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
-              this.flowManager.add(
-                new BounceOperation(attacker.gridPosition),
-                true
-              );
-            }
-            this.flowManager.add(new ArmourOperation(attackerId), true);
-            // The block never happens — release any dialog waiting on dice
-            this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-            this.triggerTurnover("Failed GFI on Blitz block");
-            return;
-          }
-        }
-      }
+      if (!(await this.chargeBlitzBlockSquare(attackerId))) return;
+      this.blitzBlockUsed.add(attackerId);
     }
 
     await this.blockManager.rollBlockDice(
@@ -1026,6 +976,61 @@ export class GameService implements IGameService {
       numDice,
       isAttackerChoice
     );
+  }
+
+  /**
+   * Charge the square of movement a Block costs during a Blitz: the Blitz's
+   * own block, and Frenzy's second block (2025 p.128: "performing a second
+   * Block Action will also cost the player a square of movement. If this
+   * player has no movement left, then they must Rush. If this player cannot
+   * Rush then they cannot perform the second Block Action."). A point beyond
+   * MA is a Rush, rolled BEFORE the block: on a failure the blitzer falls
+   * over in front of their target. Returns whether the block may go ahead.
+   */
+  public async chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
+    const attacker = this.getPlayerById(attackerId);
+    if (!attacker) return false;
+    const effectiveAttacker = withDriveModifiers(attacker, this.state);
+    const newUsed = (this.state.turn.movementUsed.get(attackerId) || 0) + 1;
+    if (newUsed > moveAllowance(effectiveAttacker)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "No movement left to make the Blitz block!"
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return false;
+    }
+    this.state.turn.movementUsed.set(attackerId, newUsed);
+    if (newUsed <= effectiveAttacker.stats.MA) return true;
+
+    // The Blitz block's rush may be rerolled (Sure Feet / team)
+    const check = await withRerollOffer(
+      { gameService: this, eventBus: this.eventBus },
+      attacker,
+      "rush",
+      () =>
+        this.diceController.rollSkillCheck(
+          "Rush (GFI)",
+          2,
+          weatherEffects(this.state.weather).rush,
+          attacker.playerName
+        )
+    );
+    if (check.success) return true;
+
+    attacker.status = PlayerStatus.PRONE;
+    this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
+      playerId: attackerId,
+    });
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
+    if (this.ballManager.hasBall(attackerId) && attacker.gridPosition) {
+      this.flowManager.add(new BounceOperation(attacker.gridPosition), true);
+    }
+    this.flowManager.add(new ArmourOperation(attackerId), true);
+    // The block never happens — release any dialog waiting on dice
+    this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+    this.triggerTurnover("Failed GFI on Blitz block");
+    return false;
   }
 
   async resolveBlock(

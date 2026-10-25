@@ -262,6 +262,9 @@ export class NetworkedGameService implements IGameService {
     // Online Blitz continuation is not wired; end the activation as before.
     this.finishActivation(playerId);
   }
+  chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
+    return this.inner.chargeBlitzBlockSquare(attackerId);
+  }
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
   }

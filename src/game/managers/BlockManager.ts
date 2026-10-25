@@ -1158,6 +1158,19 @@ export class BlockManager {
       defender?.status === PlayerStatus.ACTIVE &&
       adjacent
     ) {
+      // During a Blitz the second block costs a square too, Rushing if
+      // needed; without one there is no second block.
+      const gs = this.callbacks.getFlowManager?.()?.context.gameService;
+      if (
+        this.isBlitzBlock(attacker) &&
+        gs &&
+        !(await gs.chargeBlitzBlockSquare(attackerId))
+      ) {
+        if (attacker.status === PlayerStatus.ACTIVE) {
+          gs.finishActivation(attackerId);
+        }
+        return;
+      }
       this.frenzyExtraFor = attackerId;
       await this.startBlock(attackerId, defenderId);
     } else {
