@@ -190,9 +190,9 @@ describe("CameraController", () => {
       expect(mockTweens.add).toHaveBeenCalledWith(
         expect.objectContaining({
           zoom: 2.0,
-          // Same framing, re-centered for the new zoom
-          scrollX: 960 - 1920 / 2 / 2.0,
-          scrollY: 540 - 1080 / 2 / 2.0,
+          // Phaser zooms around the viewport center; scroll is unscaled.
+          scrollX: 0,
+          scrollY: 0,
         })
       );
     });

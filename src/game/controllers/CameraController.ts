@@ -41,10 +41,8 @@ export class CameraController {
     // The resting view starts as the captured default framing
     this.defaultZoom = this.camera.zoom;
     this.restingZoom = this.camera.zoom;
-    this.restingCenterX =
-      this.camera.scrollX + this.camera.width / 2 / this.camera.zoom;
-    this.restingCenterY =
-      this.camera.scrollY + this.camera.height / 2 / this.camera.zoom;
+    this.restingCenterX = this.camera.scrollX + this.camera.width / 2;
+    this.restingCenterY = this.camera.scrollY + this.camera.height / 2;
   }
 
   /**
@@ -138,8 +136,8 @@ export class CameraController {
   public panTo(x: number, y: number, duration: number = 800): Promise<void> {
     return new Promise((resolve) => {
       // Calculate scroll position to center on target
-      const scrollX = x - this.camera.width / 2 / this.camera.zoom;
-      const scrollY = y - this.camera.height / 2 / this.camera.zoom;
+      const scrollX = x - this.camera.width / 2;
+      const scrollY = y - this.camera.height / 2;
 
       this.scene.tweens.add({
         targets: this.camera,
@@ -189,7 +187,12 @@ export class CameraController {
   public reset(duration: number = 800): Promise<void> {
     return new Promise((resolve) => {
       this.isTracking = false;
-      this.publishState("neutral", duration);
+      this.publishState(
+        Math.abs(this.restingZoom - this.defaultZoom) < 0.001
+          ? "neutral"
+          : "active",
+        duration
+      );
 
       // Stop following
       this.camera.stopFollow();
@@ -202,9 +205,8 @@ export class CameraController {
       this.scene.tweens.add({
         targets: this.camera,
         zoom: this.restingZoom,
-        scrollX: this.restingCenterX - this.camera.width / 2 / this.restingZoom,
-        scrollY:
-          this.restingCenterY - this.camera.height / 2 / this.restingZoom,
+        scrollX: this.restingCenterX - this.camera.width / 2,
+        scrollY: this.restingCenterY - this.camera.height / 2,
         duration: duration,
         ease: Phaser.Math.Easing.Cubic.InOut,
         onComplete: () => resolve(),
@@ -261,8 +263,8 @@ export class CameraController {
       this.scene.tweens.add({
         targets: this.camera,
         zoom: zoom,
-        scrollX: centerX - this.camera.width / 2 / zoom,
-        scrollY: centerY - this.camera.height / 2 / zoom,
+        scrollX: centerX - this.camera.width / 2,
+        scrollY: centerY - this.camera.height / 2,
         duration: duration,
         ease: Phaser.Math.Easing.Cubic.InOut,
         onComplete: () => resolve(),

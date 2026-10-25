@@ -359,8 +359,8 @@ export class GameScene extends Phaser.Scene {
       if (this.isSetupActive) {
         // Direct Pitch Highlight for Setup
         const pitchContainer = this.pitch.getContainer();
-        const localX = pointer.x - pitchContainer.x;
-        const localY = pointer.y - pitchContainer.y;
+        const localX = pointer.worldX - pitchContainer.x;
+        const localY = pointer.worldY - pitchContainer.y;
 
         // Theme-independent pitch bounds.
         if (
@@ -503,6 +503,14 @@ export class GameScene extends Phaser.Scene {
     // whole-team highlight suppressed above.
     this.subscribe(GameEventNames.RemoteSelectionChanged, ({ playerId }) => {
       this.setRemoteSelection(playerId);
+    });
+
+    // Return to the chosen view even when activation ends without movement.
+    this.subscribe(GameEventNames.UI_EndActivation, () => {
+      this.cameraController.reset(600);
+    });
+    this.subscribe(GameEventNames.TurnStarted, () => {
+      this.cameraController.reset(600);
     });
 
     // Camera event listeners
