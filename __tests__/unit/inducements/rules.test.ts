@@ -32,7 +32,7 @@ describe("calculateInducementBudgets", () => {
     expect(budgets[rich.id]).toBe(0);
     expect(budgets[cheap.id]).toBeGreaterThan(0);
     expect(budgets[cheap.id]).toBe(
-      rich.rerolls * rich.rerollCost - cheap.rerolls * cheap.rerollCost
+      (rich.rerolls - cheap.rerolls) * 100_000
     );
   });
 

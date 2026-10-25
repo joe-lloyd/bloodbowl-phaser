@@ -12,7 +12,12 @@ import { validateInsignificant } from "../../../game/rules/insignificant";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { getTeamMode, isActiveTeam } from "../../../game/rules/teamLifecycle";
 import { canEdit } from "../../../game/rules/teamEditLegality";
-import { priceOf } from "../../../game/rules/teamPricing";
+import {
+  StaffItem,
+  priceOf,
+  purchase,
+} from "../../../game/rules/teamPricing";
+import { APOTHECARY_COST } from "../../../game/rules/sevensPrices";
 import {
   getRosterByRosterName,
   getAvailableRosterNames,
@@ -211,42 +216,14 @@ export function TeamBuilder() {
     }
   };
 
-  const handleBuyReroll = () => {
+  const handleBuy = (item: StaffItem) => {
     if (!team) return;
-
-    const decision = canEdit(team, { type: "buy-reroll" });
-    if (!decision.allowed) {
-      alert(decision.reason);
+    const result = purchase(team, item);
+    if (result.amount == null) {
+      alert(result.reason);
       return;
     }
-
-    const price = priceOf(team, { type: "reroll" });
-    if (price.amount != null && team.treasury >= price.amount) {
-      team.treasury -= price.amount;
-      team.rerolls++;
-      setTeam({ ...team });
-    }
-  };
-
-  const handleBuyDedicatedFan = () => {
-    if (!team) return;
-
-    const decision = canEdit(team, { type: "buy-dedicated-fans" });
-    if (!decision.allowed) {
-      alert(decision.reason);
-      return;
-    }
-
-    const price = priceOf(team, { type: "dedicated-fan" });
-    if (price.amount == null) {
-      alert(price.reason);
-      return;
-    }
-    if (team.treasury >= price.amount) {
-      team.treasury -= price.amount;
-      team.dedicatedFans = (team.dedicatedFans ?? 0) + 1;
-      setTeam({ ...team });
-    }
+    setTeam({ ...team });
   };
 
   /**
@@ -295,32 +272,16 @@ export function TeamBuilder() {
     navigate("/build-team");
   };
 
-  // Handlers for Meta fields
-  const handleStatChange = (field: keyof Team, value: number) => {
-    if (!team) return;
-    // Basic clamp to 0
-    const newVal = Math.max(0, value);
-
-    // Special logic for Rerolls (cost money) - disabled here to use the main handler, or simplified
-    // We'll stick to displaying them here for editing "league stats" if needed,
-    // but for draft, only Rerolls affect Treasury usually.
-    // For now, let's allow editing these fields directly as "Team Meta"
-
-    setTeam({
-      ...team,
-      [field]: newVal,
-    });
-  };
-
   const handleApothecaryToggle = () => {
     if (!team) return;
-    if (!team.apothecary && team.treasury >= 50000) {
-      team.treasury -= 50000;
-      team.apothecary = true;
-    } else if (team.apothecary) {
-      team.treasury += 50000;
-      team.apothecary = false;
+    if (!team.apothecary) {
+      handleBuy({ type: "apothecary" });
+      return;
     }
+    // A draft team may still change its mind and get the gold back.
+    if (isActiveTeam(team)) return;
+    team.treasury += APOTHECARY_COST;
+    team.apothecary = false;
     setTeam({ ...team });
   };
 
@@ -363,9 +324,9 @@ export function TeamBuilder() {
           </p>
           {active ? (
             <p className="mt-1">
-              This team has played its first match. Roster type is locked,
-              and re-rolls and Dedicated Fans can no longer be purchased.
-              Eligible players may still be hired at roster price.
+              This team has played its first match. Roster type is locked.
+              Eligible players may still be hired at roster price, and
+              re-rolls and Sideline Staff at their usual prices.
             </p>
           ) : (
             <p className="mt-1">
@@ -545,39 +506,17 @@ export function TeamBuilder() {
 
               {/* Team Meta Controls (Blue Theme) */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
-                {/* Re-Rolls */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-[#1d3860] uppercase">
-                    Re-Rolls
-                    {!active &&
-                      ` (${formatGold(priceOf(team, { type: "reroll" }).amount ?? 0)})`}
-                  </span>
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                    <span className="font-bold text-[#1d3860]">
-                      {team.rerolls}
-                    </span>
-                    <Button
-                      className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
-                      onClick={handleBuyReroll}
-                      disabled={
-                        active ||
-                        team.treasury <
-                          (priceOf(team, { type: "reroll" }).amount ?? Infinity)
-                      }
-                      title={
-                        active
-                          ? "Active teams cannot purchase re-rolls"
-                          : undefined
-                      }
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
+                <StaffCounter
+                  label="Re-Rolls"
+                  count={team.rerolls}
+                  team={team}
+                  item={{ type: "reroll" }}
+                  onBuy={handleBuy}
+                />
                 {/* Apothecary */}
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-bold text-[#1d3860] uppercase">
-                    Apothecary (50k)
+                    Apothecary ({formatGold(APOTHECARY_COST)})
                   </span>
                   <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860] h-[38px]">
                     <span className="text-sm text-[#1d3860]">
@@ -587,69 +526,39 @@ export function TeamBuilder() {
                       type="checkbox"
                       checked={team.apothecary}
                       onChange={handleApothecaryToggle}
-                      disabled={!team.apothecary && team.treasury < 50000}
+                      disabled={
+                        team.apothecary
+                          ? active
+                          : team.treasury <
+                            (priceOf(team, { type: "apothecary" }).amount ??
+                              Infinity)
+                      }
+                      title={priceOf(team, { type: "apothecary" }).reason}
                       className="h-4 w-4 accent-[#1d3860]"
                     />
                   </div>
                 </div>
-                {/* Dedicated Fans */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-[#1d3860] uppercase">
-                    Dedicated Fans
-                    {!active &&
-                      ` (${formatGold(priceOf(team, { type: "dedicated-fan" }).amount ?? 0)})`}
-                  </span>
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-                    <span className="font-bold text-[#1d3860]">
-                      {team.dedicatedFans}
-                    </span>
-                    <Button
-                      className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
-                      onClick={handleBuyDedicatedFan}
-                      disabled={
-                        active ||
-                        team.treasury <
-                          (priceOf(team, { type: "dedicated-fan" }).amount ??
-                            Infinity)
-                      }
-                      title={
-                        active
-                          ? "Active teams cannot purchase Dedicated Fans"
-                          : undefined
-                      }
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-                {/* Asst Coaches */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1d3860] uppercase">
-                    Asst. Coaches (10k)
-                  </span>
-                  <input
-                    type="number"
-                    value={team.coaches}
-                    onChange={(e) =>
-                      handleStatChange("coaches", parseInt(e.target.value))
-                    }
-                    className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
-                  />
-                </div>
-                {/* Cheerleaders */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-[#1d3860] uppercase">
-                    Cheerleaders (10k)
-                  </span>
-                  <input
-                    type="number"
-                    value={team.cheerleaders}
-                    onChange={(e) =>
-                      handleStatChange("cheerleaders", parseInt(e.target.value))
-                    }
-                    className="w-full p-2 text-right text-xs font-bold text-[#1d3860] border border-[#1d3860] rounded focus:outline-none"
-                  />
-                </div>
+                <StaffCounter
+                  label="Dedicated Fans"
+                  count={team.dedicatedFans}
+                  team={team}
+                  item={{ type: "dedicated-fan" }}
+                  onBuy={handleBuy}
+                />
+                <StaffCounter
+                  label="Asst. Coaches"
+                  count={team.coaches}
+                  team={team}
+                  item={{ type: "coach" }}
+                  onBuy={handleBuy}
+                />
+                <StaffCounter
+                  label="Cheerleaders"
+                  count={team.cheerleaders}
+                  team={team}
+                  item={{ type: "cheerleader" }}
+                  onBuy={handleBuy}
+                />
               </div>
             </div>
           </div>
@@ -676,5 +585,44 @@ export function TeamBuilder() {
         <div className="h-40"></div>
       </ContentContainer>
     </MinHeightContainer>
+  );
+}
+
+/** A team asset bought one at a time, with its price and a "+" button. The
+ *  price and any refusal come from priceOf, so a reached limit shows as a
+ *  disabled button whose tooltip names it. */
+function StaffCounter({
+  label,
+  count,
+  team,
+  item,
+  onBuy,
+}: {
+  label: string;
+  count: number;
+  team: Team;
+  item: StaffItem;
+  onBuy: (item: StaffItem) => void;
+}) {
+  const price = priceOf(team, item);
+  const affordable = price.amount != null && team.treasury >= price.amount;
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-bold text-[#1d3860] uppercase">
+        {label}
+        {price.amount != null && ` (${formatGold(price.amount)})`}
+      </span>
+      <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
+        <span className="font-bold text-[#1d3860]">{count}</span>
+        <Button
+          className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
+          onClick={() => onBuy(item)}
+          disabled={!affordable}
+          title={price.reason}
+        >
+          +
+        </Button>
+      </div>
+    </div>
   );
 }

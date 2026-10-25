@@ -1,8 +1,8 @@
 /**
  * Development seed team fixtures: every supported roster gets one legal team
  * built through the same purchasing and pricing helpers the team builder
- * uses (createTeam / createPlayer / addPlayerToTeam / purchaseReroll /
- * purchaseApothecary / calculateTeamValue), then checked by the shared
+ * uses (createTeam / createPlayer / addPlayerToTeam / purchase /
+ * calculateTeamValue), then checked by the shared
  * roster-legality validator.
  *
  * Finances are derived, never assigned: each team starts from the 600k
@@ -24,8 +24,6 @@ import {
   calculateTeamValue,
   createTeam,
   lockAdvancementMode,
-  purchaseApothecary,
-  purchaseReroll,
 } from "../types/Team";
 import { PlayerTemplate, createPlayer } from "../types/Player";
 import { SkillType, hasSkill } from "../types/Skills";
@@ -36,6 +34,8 @@ import {
 } from "../game/rules/rosterLegality";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { getRosterByRosterName } from "../data/RosterTemplates";
+import { purchase } from "../game/rules/teamPricing";
+import { APOTHECARY_COST, TEAM_REROLL_COST } from "../game/rules/sevensPrices";
 import { rosterSlug, seedMetadata, seedTeamId } from "./seedMeta";
 
 export const DRAFT_BUDGET = 600_000;
@@ -194,8 +194,8 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   let apothecary = roster.apothecary;
   const totalCost = () =>
     picks.reduce((sum, t) => sum + t.cost, 0) +
-    rerolls * roster.rerollCost +
-    (apothecary ? 50_000 : 0);
+    rerolls * TEAM_REROLL_COST +
+    (apothecary ? APOTHECARY_COST : 0);
 
   const insignificantOk = (squad: PlayerTemplate[]) => {
     const insignificant = squad.filter(isInsignificantTemplate).length;
@@ -269,8 +269,8 @@ export function buildSeedTeam(rosterName: RosterName): Team {
       ]);
     }
   });
-  for (let i = 0; i < plan.rerolls; i++) purchaseReroll(team);
-  if (plan.apothecary) purchaseApothecary(team);
+  for (let i = 0; i < plan.rerolls; i++) purchase(team, { type: "reroll" });
+  if (plan.apothecary) purchase(team, { type: "apothecary" });
 
   team.teamValue = calculateTeamValue(team);
 

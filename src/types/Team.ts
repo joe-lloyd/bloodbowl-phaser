@@ -5,6 +5,12 @@
 import { Player, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
 import { SkillCategory, SkillType } from "./Skills";
+import {
+  APOTHECARY_COST,
+  ASSISTANT_COACH_COST,
+  CHEERLEADER_COST,
+  TEAM_REROLL_COST,
+} from "../game/rules/sevensPrices";
 
 /**
  * A team's progression lifecycle, chosen once at creation and immutable
@@ -206,7 +212,9 @@ export interface Team {
   treasury: number; // Current Gold available
   startingTreasury: number; // Initial Treasury (usually 600k for Sevens)
   rerolls: number; // Team re-rolls purchased
-  rerollCost: number; // Cost per re-roll (race-specific)
+  /** The roster's rulebook re-roll price. Sevens ignores it: every team
+   *  pays TEAM_REROLL_COST (see src/game/rules/teamPricing.ts). */
+  rerollCost: number;
 
   // Staff
   apothecary: boolean; // Has apothecary?
@@ -293,7 +301,7 @@ export function createTeam(
     apothecary: false,
     coaches: 0,
     cheerleaders: 0,
-    dedicatedFans: 0,
+    dedicatedFans: startingDedicatedFans(advancementMode),
     teamValue: 0,
     wins: 0,
     losses: 0,
@@ -323,7 +331,21 @@ export function setAdvancementMode(
       "Advancement mode is immutable once the team is finalized or has entered a competition."
     );
   }
+  team.dedicatedFans +=
+    startingDedicatedFans(mode) - startingDedicatedFans(team.advancementMode);
   team.advancementMode = mode;
+}
+
+/** D7: league teams start with Dedicated Fans 1, Matched Play teams with 0. */
+export function startingDedicatedFans(mode?: TeamAdvancementMode): number {
+  switch (mode) {
+    case undefined:
+    case "matched-play":
+      return 0;
+    case "advanced-league":
+    case "sevens-skill-selection":
+      return 1;
+  }
 }
 
 /** Finalize the mode choice: called on first save and on competition entry. */
@@ -347,14 +369,12 @@ export function calculateTeamValue(team: Team): number {
     value += player.cost + (player.teamValue ?? 0);
   });
 
-  // Re-rolls
-  value += team.rerolls * team.rerollCost;
-
-  // Staff
-  if (team.apothecary) value += 50000;
-  value += team.coaches * 10000;
-  value += team.cheerleaders * 10000;
-  value += team.dedicatedFans * 10000;
+  // Re-rolls and Sideline Staff count at their Sevens prices. Dedicated
+  // Fans are not part of Team Value.
+  value += team.rerolls * TEAM_REROLL_COST;
+  if (team.apothecary) value += APOTHECARY_COST;
+  value += team.coaches * ASSISTANT_COACH_COST;
+  value += team.cheerleaders * CHEERLEADER_COST;
 
   return value;
 }
@@ -412,37 +432,5 @@ export function addPlayerToTeam(team: Team, player: Player): boolean {
 
   team.players.push(player);
   team.treasury -= player.cost;
-  return true;
-}
-
-/**
- * Purchase team re-roll
- */
-export function purchaseReroll(team: Team): boolean {
-  const cost = team.rerollCost;
-  if (!canAfford(team, cost)) {
-    return false;
-  }
-
-  team.rerolls++;
-  team.treasury -= cost;
-  return true;
-}
-
-/**
- * Purchase apothecary
- */
-export function purchaseApothecary(team: Team): boolean {
-  if (team.apothecary) {
-    return false; // Already have one
-  }
-
-  const cost = 50000;
-  if (!canAfford(team, cost)) {
-    return false;
-  }
-
-  team.apothecary = true;
-  team.treasury -= cost;
   return true;
 }

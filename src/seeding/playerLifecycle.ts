@@ -20,6 +20,11 @@
 
 import { RosterName, Team, calculateTeamValue } from "../types/Team";
 import {
+  ASSISTANT_COACH_COST,
+  CHEERLEADER_COST,
+  DEDICATED_FAN_COST,
+} from "../game/rules/sevensPrices";
+import {
   InjuryType,
   Player,
   PlayerCareerStats,
@@ -240,8 +245,6 @@ export const TEAM_DECORATIONS: TeamDecorationPlan[] = [
   },
 ];
 
-const STAFF_UNIT_COST = 10_000;
-
 /** Match count backing the Matched Play demo recipient's zero-SPP career
  *  line — just enough to be a plausible "played a few games" history. */
 const MATCHED_PLAY_DEMO_MATCHES = 3;
@@ -312,10 +315,9 @@ export function decorateSeedTeams(teams: Team[]): void {
 
     if (plan.staff) {
       const staffCost =
-        ((plan.staff.coaches ?? 0) +
-          (plan.staff.cheerleaders ?? 0) +
-          (plan.staff.dedicatedFans ?? 0)) *
-        STAFF_UNIT_COST;
+        (plan.staff.coaches ?? 0) * ASSISTANT_COACH_COST +
+        (plan.staff.cheerleaders ?? 0) * CHEERLEADER_COST +
+        (plan.staff.dedicatedFans ?? 0) * DEDICATED_FAN_COST;
       if (team.treasury >= staffCost) {
         team.coaches += plan.staff.coaches ?? 0;
         team.cheerleaders += plan.staff.cheerleaders ?? 0;
