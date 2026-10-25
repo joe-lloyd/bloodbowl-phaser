@@ -251,6 +251,9 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
     case "use-reaction":
     case "use-apothecary":
       return command.accept ? 1 : 0;
+    case "choose-inducement":
+      // Use a Desperate Measure as soon as it is offered.
+      return command.playerId ? 1 : 0;
     case "choose-interception":
       return command.playerId ? 1 : 0;
     case "touchback": {

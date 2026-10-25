@@ -9,7 +9,11 @@ import { EmittedEvent } from "../headless/protocol";
 import { GameSnapshot } from "../headless/serialization";
 import { GameEventNames } from "../types/events";
 import { PlayerStatus } from "../types/Player";
-import { MatchRecording, createSimGame } from "./runMatch";
+import {
+  MatchRecording,
+  createSimGame,
+  grantSimInducements,
+} from "./runMatch";
 import { createRuleMonitor } from "./invariants";
 
 /** Status codes kept short: the page holds one frame per step. */
@@ -143,6 +147,7 @@ export async function buildMatchDump(
     recording.rerolls,
     recording.lineup
   );
+  if (recording.inducements) await grantSimInducements(game);
   const start = game.snapshot();
   const players: DumpPlayer[] = start.teams.flatMap((team, t) =>
     team.players.map((p) => ({
