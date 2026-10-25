@@ -428,7 +428,7 @@ export class KickoffEventManager {
     for (const team of afflicted) {
       const player = this.randomPitchPlayer(team, "Pitch Invasion player");
       if (!player) continue;
-      // Placed Prone and Stunned (recovers at that team's next turn start).
+      // Placed Stunned: rolls over at the end of that team's next turn.
       player.status = PlayerStatus.STUNNED;
       this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
         playerId: player.id,

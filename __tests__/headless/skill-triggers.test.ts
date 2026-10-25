@@ -161,9 +161,10 @@ describe("flow-altering effects via the operation queue (3.3)", () => {
     });
     await new Promise((resolve) => setImmediate(resolve));
 
-    // The base both-down outcome is unchanged...
+    // The base both-down outcome is unchanged (seed 5 breaks the
+    // defender's armour: Stunned, and still Stunned as team 2's turn starts)...
     expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(defender.status).toBe(PlayerStatus.STUNNED);
     // ...and the extra step ran via the queue, announced as a trigger
     expect(notifications).toContain("extra-step-ran");
     expect(skillEvents).toHaveLength(1);
@@ -231,8 +232,9 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     await game.execute({ type: "use-reaction", accept: false });
     await resolveDone;
 
+    // Seed 5 breaks the defender's armour: Stunned, not yet rolled over.
     expect(attacker.status).toBe(PlayerStatus.PRONE);
-    expect(defender.status).toBe(PlayerStatus.PRONE);
+    expect(defender.status).toBe(PlayerStatus.STUNNED);
   });
 });
 

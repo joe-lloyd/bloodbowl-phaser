@@ -1697,10 +1697,9 @@ export class GameService implements IGameService {
       return this.chargeDeclareAction(playerId, action);
     }
 
-    // Must be activatable at all: active team, on-pitch, standing or prone,
-    // and not already activated this turn (stunned recovery marks players
-    // as activated). The browser checks this before calling; the headless
-    // protocol relies on this guard.
+    // Must be activatable at all: active team, on-pitch, standing or prone
+    // (never Stunned), and not already activated this turn. The browser
+    // checks this before calling; the headless protocol relies on this guard.
     if (!this.canActivate(playerId)) return false;
 
     const activating = this.getPlayerById(playerId);
