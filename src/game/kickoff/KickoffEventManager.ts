@@ -234,8 +234,8 @@ export class KickoffEventManager {
 
   private resolveTimeOut(ctx: KickoffEventResolverContext): void {
     const kickingTurn = this.callbacks.getTurnNumber(ctx.kickingTeam.id);
-    // Markers on 4-6 move back one (the half gets longer); otherwise forward.
-    const delta = kickingTurn >= 4 && kickingTurn <= 6 ? -1 : 1;
+    // Sevens K3: markers on 5 or 6 move back one; otherwise forward.
+    const delta = kickingTurn >= 5 ? -1 : 1;
     this.callbacks.moveTurnMarkers(delta);
     for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
       grantEffect(

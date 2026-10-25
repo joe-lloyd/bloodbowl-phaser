@@ -70,3 +70,16 @@ describe("M3: kick-off deviation", () => {
     expect(landing).toEqual({ x: 17, y: 5 });
   });
 });
+describe("K3: Time-Out", () => {
+  it.each([
+    [4, 5],
+    [5, 4],
+    [6, 5],
+  ])("moves the kicking team's marker from turn %i to %i", async (turn, after) => {
+    // Event 1 + 2 = 3 is Time-Out.
+    const { game } = await kick([5, 1, 1, 1, 2], { x: 15, y: 5 }, turn);
+
+    expect(game.ctx.gameService.getTurnNumber("team1")).toBe(after);
+  });
+});
+

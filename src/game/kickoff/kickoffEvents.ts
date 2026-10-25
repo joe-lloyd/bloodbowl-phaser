@@ -38,7 +38,7 @@ export const KICKOFF_EVENT_MEANING: Record<KickoffEvent, string> = {
   [KickoffEvent.GET_THE_REF]:
     "Each team gains one Bribe, usable until the end of the match.",
   [KickoffEvent.TIME_OUT]:
-    "If the kicking team's marker is on turn 4-6, both markers move back one space; otherwise both move forward one.",
+    "If the kicking team's marker is on turn 5 or 6, both markers move back one space; otherwise both move forward one.",
   [KickoffEvent.SOLID_DEFENCE]:
     "The kicking coach may drag up to D3+1 Open players directly to new legal setup squares.",
   [KickoffEvent.HIGH_KICK]:

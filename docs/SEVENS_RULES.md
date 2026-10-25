@@ -54,7 +54,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | ID | Roll | Event | Status |
 | --- | --- | --- | --- |
 | K2 | 2 | Get the Ref: each team gets a free Bribe that lasts until the end of the game. | ok |
-| K3 | 3 | Time-Out: if the kicking team's marker is on turn 5 or 6, both markers go back one; otherwise both go forward one. | differs: the engine moves back on turns 4 to 6 |
+| K3 | 3 | Time-Out: if the kicking team's marker is on turn 5 or 6, both markers go back one; otherwise both go forward one. | ok |
 | K4 | 4 | Alert Defence: the kicking coach picks up to D3+1 Open players. Each may move one square in any direction, even into No Man's Land. | differs: the engine runs Solid Defence, a re-set-up inside the team's own half |
 | K5 | 5 | High Kick: if the ball will land between the receiving End Zone and the receiving Line of Scrimmage, one Open receiving player may be placed on the landing square. Not in No Man's Land. | check that the engine refuses a landing square in No Man's Land |
 | K6 | 6 | Cheering Fans: D6 plus Cheerleaders each. The higher coach, or both on a tie, gets an extra Offensive Assist on the first Block of their next turn. | ok |
