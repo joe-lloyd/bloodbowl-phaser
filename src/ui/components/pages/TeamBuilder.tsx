@@ -185,13 +185,10 @@ export function TeamBuilder() {
     const player = team.players.find((p) => p.id === playerId);
     if (!player) return;
 
+    // Only a draft team may let a player go (L6), and it gets a full refund
+    // since the roster is still being assembled.
     team.players = team.players.filter((p) => p.id !== playerId);
-    // Active teams have already fielded this player in a completed match;
-    // releasing them does not refund the purchase. Draft teams get a full
-    // refund since the roster is still being assembled.
-    if (!isActiveTeam(team)) {
-      team.treasury += Math.floor(player.cost);
-    }
+    team.treasury += Math.floor(player.cost);
     setTeam({ ...team });
   };
 

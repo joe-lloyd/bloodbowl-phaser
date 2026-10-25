@@ -34,6 +34,14 @@ describe("canEdit", () => {
     expect(decision.reason).toMatch(/roster type/i);
   });
 
+  it("refuses to fire a player once the team has played (L6)", () => {
+    const decision = canEdit(activeTeam(), { type: "fire-player" });
+    expect(decision).toEqual({
+      allowed: false,
+      reason: "Sevens teams cannot fire players after a game.",
+    });
+  });
+
   it("still allows an active team to hire an eligible player", () => {
     const t = activeTeam();
     expect(canEdit(t, { type: "hire-player" }).allowed).toBe(true);

@@ -4,11 +4,12 @@
  * two surfaces never diverge on what a coach may currently do to a team.
  *
  * Draft teams may use every draft-only operation; once a team is active
- * (see teamLifecycle.ts) roster-type changes are refused, and player removal
- * no longer refunds the purchase. Re-rolls and Sideline Staff are on sale at
- * the same Sevens prices for draft and active teams, so their limits live in
- * teamPricing.ts. Every refusal carries a structured reason naming the rule
- * so the UI can render it verbatim instead of inventing its own copy.
+ * (see teamLifecycle.ts) roster-type changes are refused, and so is firing a
+ * player (Sevens L6). Re-rolls and Sideline Staff are on sale at the same
+ * Sevens prices for draft and active teams, so their limits live in
+ * teamPricing.ts; an active team can never sell them back. Every refusal
+ * carries a structured reason naming the rule so the UI can render it
+ * verbatim instead of inventing its own copy.
  */
 
 import { Team } from "../../types/Team";
@@ -38,12 +39,24 @@ const ALLOWED: EditDecision = { allowed: true };
  * validateRosterLegality). Active teams refuse roster-type changes.
  */
 export function canEdit(team: Team, operation: TeamOperation): EditDecision {
-  if (isActiveTeam(team) && operation.type === "change-roster-type") {
-    return {
-      allowed: false,
-      reason:
-        "Active teams cannot change roster type once their first match is played.",
-    };
+  if (!isActiveTeam(team)) return ALLOWED;
+  switch (operation.type) {
+    case "change-roster-type":
+      return {
+        allowed: false,
+        reason:
+          "Active teams cannot change roster type once their first match is played.",
+      };
+    case "fire-player":
+      return {
+        allowed: false,
+        reason: "Sevens teams cannot fire players after a game.",
+      };
+    case "rename":
+    case "hire-player":
+    case "reorder-players":
+    case "select-for-match":
+    case "enter-competition":
+      return ALLOWED;
   }
-  return ALLOWED;
 }
