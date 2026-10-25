@@ -167,3 +167,34 @@ them:
 - Extra Team Training at 150,000.
 - The 7 to 11 player and four-non-Lineman roster limits.
 - Doubled re-roll prices at draft.
+
+## The official Sevens rules: Spike! Journal Issue 22
+
+Games Workshop published the official Sevens rules in
+[Spike! Journal Issue 22](https://www.warhammer.com/en-US/shop/blood-bowl-spike-issue-22-2026-eng),
+a 32-page magazine released in August 2026. It builds on the 2025 rulebook
+and changes a few things. The full text is not public. These differences come
+from the
+[designer's notes](https://www.warhammer-community.com/en-gb/articles/f0owm2ar/designers-notes-on-blood-bowl-sevens/)
+and a
+[review](https://spruesandbrews.com/2026/08/08/blood-bowl-sevens-and-big-guys-review-spike-issue-22/),
+and need checking against the magazine itself:
+
+| Rule | Spike! 22 | This game |
+| --- | --- | --- |
+| Team budget | 600,000 | to check |
+| Non-Lineman players | at most 4 | at most 4 |
+| Team re-rolls | 100,000 each | doubled at draft |
+| Veteran | one Lineman per team, slower, with a once-per-game re-roll | missing |
+| Advancement | no SPP; after each game one player gains a random skill. For Primary, you pick two, the opponent picks one, a D3 decides. | SPP and level-ups |
+| Injuries | two new tables, standard and Stunty | 2025 tables |
+| Injury cover | a player may be signed to cover an injury elsewhere and miss your game | missing |
+| Kick-off | its own kick-off table; kick-offs and throw-ins travel less far | its own table, to compare |
+| Referees | amateur: 1 in 3 chance when arguing a send-off | 2025 Argue the Call |
+| Pitch | smaller, with a No Man's Land in the centre | 20 by 11, six-column neutral zone |
+| Turns | six per half | six per half |
+
+Until the magazine text is compared line by line, these open items stay on
+hold, because Sevens changes them: purchased inducements, league injuries,
+the team builder's staff and prices, team value, Argue the Call and
+progression.
