@@ -33,7 +33,7 @@ class FinishBallAndChainOperation extends GameOperation {
  * The eight compass directions, clockwise from North, so a ±1 index step is a
  * 45° rotation (the throw-in template's two side arrows).
  */
-const DIRS: { x: number; y: number }[] = [
+export const DIRS: { x: number; y: number }[] = [
   { x: 0, y: -1 }, // N
   { x: 1, y: -1 }, // NE
   { x: 1, y: 0 }, // E

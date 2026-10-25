@@ -213,7 +213,8 @@ export interface IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: import("../../game/rules/throwTeammate").SwoopFacing
   ): Promise<void>;
   /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
   throwBomb(throwerId: string, x: number, y: number): Promise<void>;

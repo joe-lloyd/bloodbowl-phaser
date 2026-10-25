@@ -45,6 +45,7 @@ const COMMAND_SHAPES: Record<
     | "number"
     | "boolean"
     | "boolean?"
+    | "string?"
     | "path"
     | "formation"
     | "string-array"
@@ -87,6 +88,7 @@ const COMMAND_SHAPES: Record<
     teammateId: "string",
     x: "number",
     y: "number",
+    swoopFacing: "string?",
   },
   "throw-bomb": { throwerId: "string", x: "number", y: "number" },
   "ball-and-chain": { playerId: "string", x: "number", y: "number" },
@@ -548,7 +550,8 @@ export class HeadlessGame {
           cmd.teammateId,
           cmd.x,
           cmd.y,
-          cmd.mode
+          cmd.mode,
+          cmd.swoopFacing
         );
         break;
       case "throw-bomb":
@@ -1146,9 +1149,10 @@ export class HeadlessGame {
         if (!isStringArray) {
           return `malformed-command: '${field}' must be a non-empty string[]`;
         }
-      } else if (kind === "boolean?") {
-        if (value !== undefined && typeof value !== "boolean") {
-          return `malformed-command: '${field}' must be a boolean when given`;
+      } else if (kind === "boolean?" || kind === "string?") {
+        const base = kind.slice(0, -1);
+        if (value !== undefined && typeof value !== base) {
+          return `malformed-command: '${field}' must be a ${base} when given`;
         }
       } else if (typeof value !== kind) {
         return `malformed-command: '${field}' must be a ${kind}`;

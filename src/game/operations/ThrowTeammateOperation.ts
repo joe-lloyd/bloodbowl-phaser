@@ -6,9 +6,19 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
 import {
+  SwoopFacing,
   isRightStuffEligible,
   isThrowTeammateInRange,
 } from "../rules/throwTeammate";
+import { DIRS } from "./BallAndChainOperation";
+
+/** Index into the clockwise DIRS compass for each Swoop facing. */
+const FACING_INDEX: Record<SwoopFacing, number> = {
+  north: 0,
+  east: 2,
+  south: 4,
+  west: 6,
+};
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -42,14 +52,15 @@ class FinishThrowTeammateOperation extends GameOperation {
  *   3. On a Fumble: a THROW drops the team-mate Prone in the thrower's square
  *      and injures them; a KICK removes the team-mate and injures them. Both
  *      cause a Turnover.
- *   4. On a success the team-mate scatters from the aim square (Swoop uses the
- *      tighter throw-in template) and makes a Right Stuff landing roll (+1 with
- *      Swoop): success = land Standing, failure = land Prone. Landing on an
- *      occupied square knocks BOTH players down (a crash).
+ *   4. On a success the team-mate scatters from the aim square (a Swooping
+ *      team-mate may travel by the Throw-in Template instead, and re-roll the
+ *      landing) and makes a Right Stuff landing roll: success = land
+ *      Standing, failure = land Prone. Landing on an occupied square knocks
+ *      BOTH players down (a crash).
  *   5. A Throw Team-mate ending with the thrown player Prone / injured / off
  *      the pitch causes a Turnover; landing Standing in an empty square does not.
  *
- * The eat roll, Strong Arm and Swoop are read directly off the thrower's
+ * The eat roll and Strong Arm are read directly off the thrower's
  * skills here (like BallManager reads Kick) rather than via a fold — only the
  * thrower's own profile matters and there is no reacting coach.
  */
@@ -61,7 +72,8 @@ export class ThrowTeammateOperation extends GameOperation {
     private teammateId: string,
     private aimX: number,
     private aimY: number,
-    private mode: "throw" | "kick"
+    private mode: "throw" | "kick",
+    private swoopFacing?: SwoopFacing
   ) {
     super();
   }
@@ -260,7 +272,8 @@ export class ThrowTeammateOperation extends GameOperation {
     }
 
     // 4. Scatter the thrown player from the aim square, then land them.
-    const swoop = hasSkill(thrower.skills, SkillType.SWOOP);
+    // Swoop: the thrown player chose the Throw-in Template over a Scatter.
+    let swooped = false;
     const movement = gameService.getBallMovementController();
     let landing: { x: number; y: number };
     if (bullseye) {
@@ -271,14 +284,22 @@ export class ThrowTeammateOperation extends GameOperation {
         effect: "Bullseye: a Superb Throw lands on target with no scatter",
       });
       landing = { x: this.aimX, y: this.aimY };
-    } else if (swoop) {
-      // Swoop: the tighter throw-in template — a single scatter step.
+    } else if (this.swoopFacing) {
       eventBus.emit(GameEventNames.SkillTriggered, {
-        playerId: thrower.id,
+        playerId: teammate.id,
         skill: SkillType.SWOOP,
-        effect: "Swoop: throw-in template scatter and +1 to landing",
+        effect: `Swoop: travels by the Throw-in Template facing ${this.swoopFacing}`,
       });
-      landing = movement.bounce({ x: this.aimX, y: this.aimY });
+      swooped = true;
+      // Throw-in Template: 1-2 left arrow, 3-4 straight, 5-6 right arrow.
+      const roll = dice.rollD6("Swoop Direction", teammate.teamId);
+      const distance = dice.rollD6("Swoop Distance", teammate.teamId);
+      const offset = roll <= 2 ? -1 : roll <= 4 ? 0 : 1;
+      const dir = DIRS[(FACING_INDEX[this.swoopFacing] + offset + 8) % 8];
+      landing = {
+        x: this.aimX + dir.x * distance,
+        y: this.aimY + dir.y * distance,
+      };
     } else {
       const path = movement.scatter({ x: this.aimX, y: this.aimY });
       landing = path[path.length - 1];
@@ -316,9 +337,6 @@ export class ThrowTeammateOperation extends GameOperation {
 
     // Give the flight time to play before the landing resolves.
     await context.delay(600);
-
-    // Right Stuff landing roll: an Agility Test, +1 with Swoop.
-    const landingBonus = swoop ? 1 : 0;
 
     if (occupant && occupant.id !== teammate.id) {
       // Crash: both players are knocked down and take an Armour Roll.
@@ -365,13 +383,24 @@ export class ThrowTeammateOperation extends GameOperation {
         landing,
         gameService.getOpponents(teammate.teamId)
       );
-    const land = dice.rollSkillCheck(
-      "Landing",
-      teammate.stats.AG,
-      landingBonus - (superbThrow ? 0 : 1) - landingMarkers,
-      teammate.playerName,
-      teammate.teamId
-    );
+    const rollLanding = () =>
+      dice.rollSkillCheck(
+        "Landing",
+        teammate.stats.AG,
+        (superbThrow ? 0 : -1) - landingMarkers,
+        teammate.playerName,
+        teammate.teamId
+      );
+    let land = rollLanding();
+    if (!land.success && swooped) {
+      // A failed re-roll never leaves the player worse off, so take it.
+      eventBus.emit(GameEventNames.SkillTriggered, {
+        playerId: teammate.id,
+        skill: SkillType.SWOOP,
+        effect: "Swoop: re-rolls the landing",
+      });
+      land = rollLanding();
+    }
 
     if (land.success) {
       eventBus.emit(

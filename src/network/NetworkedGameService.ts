@@ -586,7 +586,8 @@ export class NetworkedGameService implements IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: import("../game/rules/throwTeammate").SwoopFacing
   ): Promise<void> {
     await this.dispatch({
       type: "throw-teammate",
@@ -594,6 +595,7 @@ export class NetworkedGameService implements IGameService {
       teammateId,
       x,
       y,
+      ...(swoopFacing ? { swoopFacing } : {}),
       mode,
     });
   }

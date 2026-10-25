@@ -74,6 +74,7 @@ import { FoulOperation } from "@/game/operations/FoulOperation";
 import { StabOperation } from "@/game/operations/StabOperation";
 import { PuntOperation } from "@/game/operations/PuntOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
+import { SwoopFacing, isSwoopFacing } from "@/game/rules/throwTeammate";
 import { BombardierOperation } from "@/game/operations/BombardierOperation";
 import { BallAndChainOperation } from "@/game/operations/BallAndChainOperation";
 import { IRNGService } from "./rng/RNGService.js";
@@ -2203,7 +2204,8 @@ export class GameService implements IGameService {
     teammateId: string,
     x: number,
     y: number,
-    mode?: "throw" | "kick"
+    mode?: "throw" | "kick",
+    swoopFacing?: SwoopFacing
   ): Promise<void> {
     if (
       this.state.phase !== GamePhase.PLAY &&
@@ -2226,9 +2228,27 @@ export class GameService implements IGameService {
 
     const resolved: "throw" | "kick" =
       mode ?? (canKick && !canThrow ? "kick" : "throw");
+    // Swoop is the thrown player's skill, and using it is their choice.
+    if (swoopFacing !== undefined) {
+      if (!isSwoopFacing(swoopFacing)) {
+        throw new Error(`Unknown Swoop facing: ${String(swoopFacing)}`);
+      }
+      const teammate = this.getPlayerById(teammateId);
+      if (!teammate || !hasSkill(teammate.skills, SkillType.SWOOP)) {
+        throw new Error("The thrown player does not have Swoop");
+      }
+    }
+
 
     this.flowManager.add(
-      new ThrowTeammateOperation(throwerId, teammateId, x, y, resolved)
+      new ThrowTeammateOperation(
+        throwerId,
+        teammateId,
+        x,
+        y,
+        resolved,
+        swoopFacing
+      )
     );
   }
 
