@@ -120,6 +120,7 @@ export class ChainsawAttackOperation extends GameOperation {
         player: target,
         causedBy: attacker,
         cause: "special",
+        knockedDown: false,
         roll: armour.roll,
         armourModifier: 3,
       }

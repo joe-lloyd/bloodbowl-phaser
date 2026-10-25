@@ -164,3 +164,25 @@ describe("a Chainsaw Attack's armour roll", () => {
     expect(target.status).toBe(PlayerStatus.ACTIVE);
   });
 });
+
+/** Foul armour 5+2 = 7 against AV 9. */
+const FOUL_SEED = 2;
+
+describe("a Chainsaw owner's own armour", () => {
+  it("takes no +3 when they are Fouled rather than Knocked Down", async () => {
+    const { run, dice, skills, attacker, target } = session(
+      scenario(
+        {},
+        { status: PlayerStatus.PRONE, skills: [SkillType.CHAINSAW] }
+      ),
+      FOUL_SEED
+    );
+
+    await run({ type: "declare-action", playerId: attacker.id, action: "foul" });
+    await run({ type: "foul", playerId: attacker.id, x: 11, y: 5 });
+
+    expect(dice()).toEqual(["Human Lineman #1 Armor Check: 5+2 = 7 (AV: 9)"]);
+    expect(skills()).toEqual([]);
+    expect(target.status).toBe(PlayerStatus.PRONE);
+  });
+});

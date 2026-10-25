@@ -96,6 +96,7 @@ export class StabOperation extends GameOperation {
         player: target,
         causedBy: attacker,
         cause: "special",
+        knockedDown: false,
         roll: armour.roll,
         armourModifier: 0,
       }

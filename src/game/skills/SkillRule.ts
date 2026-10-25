@@ -322,6 +322,12 @@ export interface ArmourBreakContext extends TriggerContextBase {
   cause?: CasualtyCause;
   /** The square the player fell leaving (a failed Dodge/Leap/Jump). */
   vacatedSquare?: { x: number; y: number };
+  /**
+   * The roll is for a player who was Knocked Down or Fell Over (Chainsaw's
+   * +3 against its owner), not for a Foul or a special action's attack on
+   * a Standing player.
+   */
+  knockedDown: boolean;
   /** Natural 2D6 total */
   roll: number;
   /** Net armour-roll modifier (Mighty Blow; cleared by Iron Hard Skin) */

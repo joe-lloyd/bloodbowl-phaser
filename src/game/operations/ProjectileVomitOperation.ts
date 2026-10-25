@@ -100,6 +100,7 @@ export class ProjectileVomitOperation extends GameOperation {
         player: victim,
         causedBy,
         cause: "special",
+        knockedDown: false,
         roll: armour.roll,
         armourModifier: 0,
       }

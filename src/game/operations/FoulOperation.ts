@@ -128,6 +128,7 @@ export class FoulOperation extends GameOperation {
     let rolls = armour.rolls;
     const armourCtx = await foldArmourRoll(context, [target], {
       player: target,
+      knockedDown: false,
       roll: rolls[0] + rolls[1],
       armourModifier: analysis.modifier,
     });

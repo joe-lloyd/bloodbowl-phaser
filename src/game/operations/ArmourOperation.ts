@@ -17,14 +17,20 @@ import {
 /**
  * Fold the rules that act on an Armour Roll (Mighty Blow, Claws, Iron Hard
  * Skin, ...) over the given participants, in order, and announce what they
- * did. Blocks, falls and fouls go through here.
+ * did. Blocks, falls, fouls and special-action attacks go through here.
  */
 export async function foldArmourRoll(
   context: Pick<FlowContext, "gameService" | "eventBus" | "flowManager">,
   participants: Player[],
   roll: Pick<
     ArmourBreakContext,
-    "player" | "causedBy" | "cause" | "vacatedSquare" | "roll" | "armourModifier"
+    | "player"
+    | "causedBy"
+    | "cause"
+    | "vacatedSquare"
+    | "knockedDown"
+    | "roll"
+    | "armourModifier"
   >
 ): Promise<ArmourBreakContext> {
   const { gameService, eventBus, flowManager } = context;
@@ -164,6 +170,7 @@ export class ArmourOperation extends GameOperation {
         causedBy,
         cause: this.fall?.cause ?? this.cause,
         vacatedSquare: this.fall?.vacatedSquare,
+        knockedDown: true,
         roll,
         armourModifier: 0,
       }
