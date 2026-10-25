@@ -17,11 +17,6 @@ export class CatchOperation extends GameOperation {
 
   constructor(
     private playerId: string,
-    /**
-     * Only a dropped pass/hand-off is a turnover; a dropped bounce or
-     * throw-in is not (the original loss already caused one if due).
-     */
-    private turnoverOnDrop: boolean = true,
     private options: {
       origin?: "pass" | "handoff" | "throw-in" | "kick-off" | "bounce";
       isPassTarget?: boolean;
@@ -155,15 +150,8 @@ export class CatchOperation extends GameOperation {
         ),
         true
       );
-
-      // Turnover?
-      // If it was a Pass/Handoff by Active Team, dropping it is a Turnover.
-      if (
-        this.turnoverOnDrop &&
-        gameService.getActiveTeamId() === player.teamId
-      ) {
-        gameService.triggerTurnover("Dropped Ball");
-      }
+      // A dropped pass or hand-off is judged once the ball is at rest, by
+      // FinishPassActivationOperation: a team-mate may still catch it.
     }
   }
 }

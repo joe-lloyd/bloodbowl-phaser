@@ -538,7 +538,7 @@ export class BlockManager {
       result.finalPosition.y
     );
     if (landingPlayer) {
-      await new CatchOperation(landingPlayer.id, false, {
+      await new CatchOperation(landingPlayer.id, {
         origin: "pass",
         isPassTarget:
           !!receiver && landingPlayer.id === receiver.id && result.accurate,

@@ -428,7 +428,7 @@ export class BallManager {
       const catcher = occupant ?? this.divingCatcherAt(landing);
       if (catcher) {
         this.callbacks.getFlowManager?.()?.add(
-          new CatchOperation(catcher.id, false, {
+          new CatchOperation(catcher.id, {
             origin: "kick-off",
             divingCatch: !occupant,
             landingPosition: landing,
@@ -569,14 +569,14 @@ export class BallManager {
       this.callbacks
         .getFlowManager?.()
         ?.add(
-          new CatchOperation(occupant.id, false, { origin: "throw-in" }),
+          new CatchOperation(occupant.id, { origin: "throw-in" }),
           true
         );
     } else {
       const catcher = this.divingCatcherAt(landing);
       if (catcher) {
         this.callbacks.getFlowManager?.()?.add(
-          new CatchOperation(catcher.id, false, {
+          new CatchOperation(catcher.id, {
             origin: "throw-in",
             divingCatch: true,
             landingPosition: landing,

@@ -197,7 +197,7 @@ export class PuntOperation extends GameOperation {
     const landingPlayer = gameService.getPlayerAt(landing.x, landing.y);
     if (landingPlayer) {
       flowManager.add(
-        new CatchOperation(landingPlayer.id, false, { origin: "throw-in" }),
+        new CatchOperation(landingPlayer.id, { origin: "throw-in" }),
         true
       );
       flowManager.add(

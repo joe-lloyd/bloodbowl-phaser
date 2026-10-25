@@ -79,14 +79,13 @@ export class HandoffOperation extends GameOperation {
     // No roll, no scatter: the ball is simply placed in the target's hands.
     gameService.setBallPosition(target.gridPosition.x, target.gridPosition.y);
 
-    // The receiving Catch — a dropped hand-off bounces and is a turnover
-    // under the normal rules, same as a dropped pass. `accurate: true`
+    // The receiving Catch. A dropped hand-off bounces, and is judged once
+    // at rest by FinishPassActivationOperation, same as a pass. `accurate: true`
     // marks a caught hand-off as a completion (match-stats' completions
     // counter), same as a completed pass.
     flowManager.add(
       new CatchOperation(
         target.id,
-        true,
         { origin: "handoff" },
         { passerId: passer.id, passerTeamId: passer.teamId, accurate: true }
       ),
