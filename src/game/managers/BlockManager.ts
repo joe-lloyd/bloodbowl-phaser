@@ -75,17 +75,21 @@ class CrowdSurfFollowUpOperation extends GameOperation {
  * Ends the blocker's activation once the push chain (and any armour/injury
  * rolls it queued) has fully settled. Queued at the BACK of the flow so the
  * turn only flips after those rolls apply — used when no follow-up prompt
- * will fire to end the activation (Fend denied the follow-up).
+ * will fire to end the activation (Fend denied the follow-up). Pile Driver
+ * and Hit and Run still get their turn first.
  */
 class FinishActivationOperation extends GameOperation {
   public readonly name = "FinishActivation";
 
-  constructor(private attackerId: string) {
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string
+  ) {
     super();
   }
 
-  async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.attackerId);
+  async execute(_context: FlowContext): Promise<void> {
+    this.manager.endBlockActivation(this.attackerId);
   }
 }
 
@@ -277,6 +281,8 @@ export class BlockManager {
   ): Promise<void> {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
+    // A knockdown from an earlier block never carries into this one.
+    this.pileDriverTargets.delete(attackerId);
 
     // Dump-Off interrupts the declaration and completes its Quick Pass before
     // the targeting Block proceeds to its dice.
@@ -965,17 +971,14 @@ export class BlockManager {
         ?.context.gameService.finishActivation(attackerId);
       return;
     }
-    const attacker = this.getPlayerById(attackerId);
-    const pileDriverTarget = this.pileDriverTargets.get(attackerId);
-    this.pileDriverTargets.delete(attackerId);
     if (
-      attacker &&
-      pileDriverTarget &&
-      attacker.status === PlayerStatus.ACTIVE
+      this.offerPileDriver(attackerId, () =>
+        this.endBlockActivation(attackerId)
+      )
     ) {
-      flowManager.add(new PileDriverOperation(attackerId, pileDriverTarget));
       return;
     }
+    const attacker = this.getPlayerById(attackerId);
     if (
       attacker &&
       attacker.status === PlayerStatus.ACTIVE &&
@@ -986,6 +989,24 @@ export class BlockManager {
       return;
     }
     flowManager.context.gameService.finishActivation(attackerId);
+  }
+
+  /**
+   * Pile Driver (p.133): once the Block has fully resolved, a blocker who
+   * Knocked Down their target "may perform a free Foul Action" against it.
+   * Queues the optional Foul and returns true; `resume` carries on with the
+   * activation when the coach declines or the Foul is no longer possible.
+   */
+  public offerPileDriver(attackerId: string, resume: () => void): boolean {
+    const targetId = this.pileDriverTargets.get(attackerId);
+    this.pileDriverTargets.delete(attackerId);
+    const flowManager = this.callbacks.getFlowManager?.();
+    const attacker = this.getPlayerById(attackerId);
+    if (!targetId || !flowManager || attacker?.status !== PlayerStatus.ACTIVE) {
+      return false;
+    }
+    flowManager.add(new PileDriverOperation(attackerId, targetId, resume));
+    return true;
   }
 
   /** Pending chain-push state between push-direction decisions */
@@ -1174,9 +1195,7 @@ export class BlockManager {
       this.frenzyExtraFor = attackerId;
       await this.startBlock(attackerId, defenderId);
     } else {
-      this.callbacks
-        .getFlowManager?.()
-        ?.context.gameService.finishActivation(attackerId);
+      this.endBlockActivation(attackerId);
     }
   }
 
@@ -1291,8 +1310,7 @@ export class BlockManager {
     // adjacent to the pushed player — Grab hands the choice to the blocker,
     // Sidestep to the PUSHED player's coach. Both fall back to the normal
     // push if the target is fully boxed in (the skill "cannot be used").
-    const grabApplies =
-      !!this.chain?.grabPush && this.chain.links.length === 0;
+    const grabApplies = !!this.chain?.grabPush && this.chain.links.length === 0;
     const anyAdjacent =
       grabApplies || this.chain?.sideStepPush
         ? this.blockResolutionService.getGrabPushOptions(
@@ -1625,7 +1643,7 @@ export class BlockManager {
         new ForcedFollowUpOperation(attackerId, first.from),
         true
       );
-      flowManager?.add(new FinishActivationOperation(attackerId));
+      flowManager?.add(new FinishActivationOperation(this, attackerId));
     } else if (preventFollowUp && first && first.to !== null) {
       // Fend denied the blocker their follow-up: no follow-up prompt will
       // fire, so end the activation once any queued armour/injury rolls have
@@ -1633,7 +1651,7 @@ export class BlockManager {
       if (this.multipleBlockState?.attackerId === attackerId) {
         this.queueMultipleBlockContinuation(attackerId);
       } else {
-        flowManager?.add(new FinishActivationOperation(attackerId));
+        flowManager?.add(new FinishActivationOperation(this, attackerId));
       }
     }
   }
@@ -1689,6 +1707,13 @@ export class BlockManager {
 
     if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
     if (ctx.defenderKnockedDown) this.knockDownPlayer(defender);
+    if (
+      ctx.defenderKnockedDown &&
+      !ctx.placedProne &&
+      hasSkill(attacker.skills, SkillType.PILE_DRIVER)
+    ) {
+      this.pileDriverTargets.set(attacker.id, defender.id);
+    }
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {

@@ -870,6 +870,14 @@ export class GameService implements IGameService {
    * Rush). The normal movement auto-finish ends it once the budget is spent.
    */
   public finishBlockActivation(attackerId: string): void {
+    // Pile Driver's free Foul comes first, on a Blitz as on a Block.
+    if (
+      this.blockManager.offerPileDriver(attackerId, () =>
+        this.finishBlockActivation(attackerId)
+      )
+    ) {
+      return;
+    }
     const player = this.getPlayerById(attackerId);
     const isBlitz =
       this.state.activePlayer?.action === "blitz" &&
