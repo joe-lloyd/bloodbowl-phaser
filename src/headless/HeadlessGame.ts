@@ -41,7 +41,13 @@ const COMMAND_SHAPES: Record<
   string,
   Record<
     string,
-    "string" | "number" | "boolean" | "path" | "formation" | "string-array"
+    | "string"
+    | "number"
+    | "boolean"
+    | "boolean?"
+    | "path"
+    | "formation"
+    | "string-array"
   >
 > = {
   "coin-flip": {},
@@ -71,7 +77,7 @@ const COMMAND_SHAPES: Record<
     defender1Id: "string",
     defender2Id: "string",
   },
-  pass: { playerId: "string", x: "number", y: "number" },
+  pass: { playerId: "string", x: "number", y: "number", hailMary: "boolean?" },
   punt: { playerId: "string", x: "number", y: "number" },
   handoff: { playerId: "string", targetId: "string" },
   foul: { playerId: "string", x: "number", y: "number" },
@@ -507,7 +513,12 @@ export class HeadlessGame {
         await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
         break;
       case "pass": {
-        const result = await gs.throwBall(cmd.playerId, cmd.x, cmd.y);
+        const result = await gs.throwBall(
+          cmd.playerId,
+          cmd.x,
+          cmd.y,
+          cmd.hailMary ?? false
+        );
         if (!result.success) {
           throw new Error(result.result || "pass-failed");
         }
@@ -1134,6 +1145,10 @@ export class HeadlessGame {
           value.every((entry) => typeof entry === "string");
         if (!isStringArray) {
           return `malformed-command: '${field}' must be a non-empty string[]`;
+        }
+      } else if (kind === "boolean?") {
+        if (value !== undefined && typeof value !== "boolean") {
+          return `malformed-command: '${field}' must be a boolean when given`;
         }
       } else if (typeof value !== kind) {
         return `malformed-command: '${field}' must be a ${kind}`;

@@ -106,8 +106,11 @@ export class PassController {
 
   public measureRange(
     from: { x: number; y: number },
-    to: { x: number; y: number }
+    to: { x: number; y: number },
+    /** Hail Mary Pass: "treating the throw as a Long Bomb" at any range. */
+    hailMary = false
   ): PassRange {
+    if (hailMary) return PassController.PASS_RANGES[3];
     const value = PassController.rangeValue(from, to);
     // Out of range → treat as the hardest throw for the PA test.
     return PassController.PASS_RANGES[value ?? 3];
@@ -191,10 +194,10 @@ export class PassController {
     rerollDeps?: import("../skills").RerollDeps,
     /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
     extraModifier: number = 0,
-    /** Hail Mary Pass: an Accurate result is treated as Inaccurate. */
-    forceInaccurate: boolean = false
+    /** Hail Mary Pass: a Long Bomb whose Accurate result is Inaccurate. */
+    hailMary: boolean = false
   ): Promise<PassResult> {
-    const passRange = this.measureRange(from, to);
+    const passRange = this.measureRange(from, to, hailMary);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
     // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
     const rollAccuracy = () => {
@@ -211,7 +214,7 @@ export class PassController {
       : rollAccuracy();
     // Hail Mary Pass: an Accurate result becomes Inaccurate (it still flies,
     // but scatters from the target square).
-    const effectiveAccurate = accuracyTest.accurate && !forceInaccurate;
+    const effectiveAccurate = accuracyTest.accurate && !hailMary;
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 

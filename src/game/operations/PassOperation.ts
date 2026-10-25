@@ -94,7 +94,8 @@ export class PassOperation extends GameOperation {
   constructor(
     private passerId: string,
     private targetX: number,
-    private targetY: number
+    private targetY: number,
+    private hailMary = false
   ) {
     super();
   }
@@ -129,10 +130,11 @@ export class PassOperation extends GameOperation {
 
     // Trigger point: pass declared — rules adjust the PA test (Accurate,
     // Cannoneer by range; Nerves of Steel cancels marking)
-    const passRange = passController.measureRange(passer.gridPosition, {
-      x: this.targetX,
-      y: this.targetY,
-    });
+    const passRange = passController.measureRange(
+      passer.gridPosition,
+      { x: this.targetX, y: this.targetY },
+      this.hailMary
+    );
     const targetPlayer = gameService
       .getTeammates(this.passerId)
       .find(
@@ -153,6 +155,7 @@ export class PassOperation extends GameOperation {
     const passCtx: PassDeclaredContext = {
       player: passer,
       passType: passRange.type,
+      hailMary: this.hailMary,
       targetPlayer,
       marking: markingOpponents,
       modifiers: weatherEffects(gameService.getState().weather).passingAbility,
@@ -193,7 +196,7 @@ export class PassOperation extends GameOperation {
       markingOpponents,
       { gameService, eventBus }, // failed passes may offer a reroll
       passCtx.modifiers,
-      passCtx.downgradeAccurate // Hail Mary: Accurate → Inaccurate
+      this.hailMary
     );
 
     // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
@@ -276,7 +279,7 @@ export class PassOperation extends GameOperation {
         ));
       if (intercepted) return;
 
-      if (result.success) {
+      if (result.accurate) {
         eventBus.emit(GameEventNames.UI_Notification, "Accurate Pass!");
       } else {
         eventBus.emit(GameEventNames.UI_Notification, "Inaccurate Pass!");

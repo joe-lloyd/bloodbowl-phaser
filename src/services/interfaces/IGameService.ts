@@ -186,10 +186,12 @@ export interface IGameService {
     followUp: boolean
   ): void | Promise<void>;
 
+  /** `hailMary`: the coach declares the throw as a Hail Mary Pass. */
   throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary?: boolean
   ): Promise<{ success: boolean; result?: string }>;
   /**
    * Hand-off Action: no Passing Ability Test, no scatter, no interception —

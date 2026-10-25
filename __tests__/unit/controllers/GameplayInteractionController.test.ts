@@ -105,6 +105,7 @@ describe("GameplayInteractionController", () => {
     gridPosition: { x: 5, y: 5 },
     stats: { MA: 6 },
     status: "Active",
+    skills: [],
   };
   const player2 = {
     id: "p2",
@@ -338,7 +339,7 @@ describe("GameplayInteractionController", () => {
 
       // Click target
       (controller as any).onSquareClicked(10, 5);
-      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5);
+      expect(mockGameService.throwBall).toHaveBeenCalledWith("p1", 10, 5, false);
     });
 
     it("should switch back to 'move' and allow movement", () => {

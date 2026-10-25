@@ -1207,7 +1207,8 @@ export class GameService implements IGameService {
   async throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
     // NOTE: Signature kept async for compatibility, but it resolves immediately
     // while the operation runs in background/flow.
@@ -1240,10 +1241,19 @@ export class GameService implements IGameService {
       }
     }
 
-    const { type } = this.passController.measureRange(passer.gridPosition, {
-      x: targetX,
-      y: targetY,
-    });
+    // Hail Mary Pass: "they may declare any square on the pitch as the
+    // target square rather than using the Range Ruler" (2025 rulebook p.129).
+    if (hailMary && !hasSkill(passer.skills, SkillType.HAIL_MARY_PASS)) {
+      return { success: false, result: "Player does not have Hail Mary Pass" };
+    }
+
+    // A Hail Mary is thrown as a Long Bomb, so a Blizzard refuses it too.
+    const type = hailMary
+      ? "Long Bomb"
+      : this.passController.measureRange(passer.gridPosition, {
+          x: targetX,
+          y: targetY,
+        }).type;
     if (!weatherEffects(this.state.weather).passTypes.includes(type)) {
       return {
         success: false,
@@ -1252,7 +1262,7 @@ export class GameService implements IGameService {
     }
 
     // 2. Queue Operation
-    const pass = new PassOperation(passerId, targetX, targetY);
+    const pass = new PassOperation(passerId, targetX, targetY, hailMary);
     if (this.takeUnsatedBloodlust(passerId)) {
       this.biteBeforeBallAction(passerId, () =>
         this.flowManager.add(pass, true)

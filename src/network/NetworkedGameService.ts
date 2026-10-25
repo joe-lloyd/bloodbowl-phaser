@@ -538,13 +538,15 @@ export class NetworkedGameService implements IGameService {
   async throwBall(
     passerId: string,
     targetX: number,
-    targetY: number
+    targetY: number,
+    hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
     const response = await this.dispatch({
       type: "pass",
       playerId: passerId,
       x: targetX,
       y: targetY,
+      ...(hailMary ? { hailMary } : {}),
     });
     return { success: response.ok, result: response.reason };
   }

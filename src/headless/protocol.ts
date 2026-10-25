@@ -69,7 +69,14 @@ export type HeadlessCommand =
       defender1Id: string;
       defender2Id: string;
     }
-  | { type: "pass"; playerId: string; x: number; y: number }
+  | {
+      type: "pass";
+      playerId: string;
+      x: number;
+      y: number;
+      /** Throw as a Hail Mary Pass: any square, a Long Bomb, never Accurate. */
+      hailMary?: boolean;
+    }
   | { type: "punt"; playerId: string; x: number; y: number }
   /** Hand-off targets a team-mate id, not a square — a Hand-off never aims. */
   | { type: "handoff"; playerId: string; targetId: string }

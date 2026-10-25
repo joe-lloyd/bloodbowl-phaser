@@ -242,6 +242,8 @@ export interface CatchContext extends TriggerContextBase {
 export interface PassDeclaredContext extends TriggerContextBase {
   player: Player;
   passType: string;
+  /** The coach declared this throw as a Hail Mary Pass. */
+  hailMary: boolean;
   /** Opponents marking the passer */
   marking: number;
   /** Extra modifier added to the PA test (Accurate, Nerves of Steel, …) */
@@ -265,11 +267,6 @@ export interface PassDeclaredContext extends TriggerContextBase {
    * Very Long Legs interceptor.
    */
   cloudBurster?: boolean;
-  /**
-   * An Accurate result is treated as Inaccurate — the ball scatters from the
-   * target square (Hail Mary Pass).
-   */
-  downgradeAccurate?: boolean;
 }
 
 /**

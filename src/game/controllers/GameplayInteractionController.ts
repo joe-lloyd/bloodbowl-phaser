@@ -771,13 +771,21 @@ export class GameplayInteractionController {
       if (playerAtSquare && playerAtSquare.id === this.selectedPlayerId) {
         return;
       }
+      // The browser has no Hail Mary toggle yet: a passer with the skill
+      // throws one only at a square beyond the Range Ruler.
+      const passer = this.gameService.getPlayerById(this.selectedPlayerId);
+      const hailMary =
+        !!passer?.gridPosition &&
+        hasSkill(passer.skills, SkillType.HAIL_MARY_PASS) &&
+        PassController.rangeValue(passer.gridPosition, { x, y }) === null;
       this.isBusy = true;
       let thrown = true;
       try {
         const result = await this.gameService.throwBall(
           this.selectedPlayerId,
           x,
-          y
+          y,
+          hailMary
         );
         // A refused target (a Long Pass in a Blizzard) keeps the aim open.
         thrown = result.success;
