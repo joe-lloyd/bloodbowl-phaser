@@ -574,7 +574,7 @@ export const GENERAL_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "kick-deviation-d3",
         name: "Kick halves the kickoff deviation",
         description:
-          "A nominated kicker with Kick deviates the ball only D3 squares instead of the usual D6",
+          "A nominated kicker with Kick deviates the ball only D3 squares instead of the lower of 2D6",
         setup: {
           // Team 1's line of scrimmage is x=6; the kicker must stand at
           // least one square back from it (here x=4), with team-mates on

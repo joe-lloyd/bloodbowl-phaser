@@ -110,6 +110,22 @@ export class DiceController {
     return total;
   }
 
+  /** Roll 2D6 and keep the lower die (Sevens kick-off deviation). */
+  public rollLowerOf2D6(reason: string, teamId?: string): number {
+    const rolls = this.rng.rollMultipleDice(2, 6);
+    const lower = Math.min(rolls[0], rolls[1]);
+    this.emitDiceRoll({
+      rollType: reason,
+      diceType: "2d6",
+      value: rolls,
+      total: lower,
+      description: `${reason}: ${rolls.join(", ")} (lower: ${lower})`,
+      resultState: "none",
+      teamId,
+    });
+    return lower;
+  }
+
   /**
    * Roll a D8 (8-sided die)
    * Used for scatter/bounce directions

@@ -19,7 +19,7 @@ export function isOnPitch(square: { x: number; y: number }): boolean {
  * IN_SCOPE:
  * - scatter(startPos): 3x d8 logic (Inaccurate Pass). Returns path.
  * - bounce(startPos): 1x d8 logic (Fumble, Failed Catch). Returns new pos.
- * - deviate(startPos): d8 dir + d6 dist (Kickoff). Returns new pos.
+ * - deviate(startPos): d8 dir + lower of 2D6 dist (Kickoff). Returns new pos.
  *
  * OUT_OF_SCOPE:
  * - Knowing *why* the ball is moving.
@@ -67,8 +67,8 @@ export class BallMovementController {
   }
 
   /**
-   * Calculate deviation (d8 direction + d6 distance)
-   * used for Kickoff.
+   * Calculate deviation (d8 direction + the lower of 2D6 distance, Sevens
+   * rule M3) used for Kickoff.
    * @param position Starting position (target square)
    * @returns New position (landing square)
    */
@@ -80,10 +80,10 @@ export class BallMovementController {
     // 1. Roll Direction (d8)
     const direction = this.diceController.rollD8("Kickoff Deviate Direction");
 
-    // 2. Roll Distance (D6, or D3 with the Kick skill)
+    // 2. Roll Distance (lower of 2D6, or D3 with the Kick skill)
     const distance = useKickD3
       ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)")
-      : this.diceController.rollD6("Kickoff Deviate Distance");
+      : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance");
 
     return this.calculateOffsetPosition(position, direction, distance);
   }

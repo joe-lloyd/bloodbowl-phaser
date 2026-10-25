@@ -11,6 +11,7 @@ describe("BallMovementController", () => {
       rollD8: vi.fn(),
       rollMultipleD8: vi.fn(),
       rollD6: vi.fn(),
+      rollLowerOf2D6: vi.fn(),
     };
 
     controller = new BallMovementController(mockDiceController);
@@ -57,19 +58,19 @@ describe("BallMovementController", () => {
   });
 
   describe("Deviate", () => {
-    it("should roll direction and distance", () => {
+    it("should roll direction and the lower of 2D6 for distance", () => {
       mockDiceController.rollD8.mockReturnValue(1);
-      mockDiceController.rollD6.mockReturnValue(3);
+      mockDiceController.rollLowerOf2D6.mockReturnValue(3);
 
       const result = controller.deviate({ x: 5, y: 5 });
 
       expect(mockDiceController.rollD8).toHaveBeenCalledWith(
         expect.stringContaining("Direction")
       );
-      expect(mockDiceController.rollD6).toHaveBeenCalledWith(
+      expect(mockDiceController.rollLowerOf2D6).toHaveBeenCalledWith(
         expect.stringContaining("Distance")
       );
-      expect(result).toBeDefined();
+      expect(result).toEqual({ x: 2, y: 2 });
     });
   });
 });

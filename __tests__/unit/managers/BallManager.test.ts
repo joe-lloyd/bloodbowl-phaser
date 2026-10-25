@@ -62,6 +62,7 @@ describe("BallManager", () => {
       rollD8: vi.fn().mockReturnValue(1),
       rollD6: vi.fn().mockReturnValue(3), // Default to 3, not 1
       roll2D6: vi.fn().mockReturnValue(7),
+      rollLowerOf2D6: vi.fn().mockReturnValue(3),
       rollSkillCheck: vi.fn().mockReturnValue({ success: true, roll: 3 }),
     };
 
@@ -96,7 +97,7 @@ describe("BallManager", () => {
       manager.kickBall(true, "p1", 10, 5);
 
       expect(mockDiceController.rollD8).toHaveBeenCalled();
-      expect(mockDiceController.rollD6).toHaveBeenCalled();
+      expect(mockDiceController.rollLowerOf2D6).toHaveBeenCalled();
     });
 
     it("should update ball position", () => {

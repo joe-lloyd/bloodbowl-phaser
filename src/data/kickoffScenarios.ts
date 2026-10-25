@@ -34,15 +34,15 @@ function resultEvent(result: ScriptResult): KickoffEvent | undefined {
 export const KICKOFF_EXAMPLE_SEEDS: Record<KickoffEvent, number> = {
   [KickoffEvent.GET_THE_REF]: 13,
   [KickoffEvent.TIME_OUT]: 4,
-  [KickoffEvent.SOLID_DEFENCE]: 3,
-  [KickoffEvent.HIGH_KICK]: 17,
-  [KickoffEvent.CHEERING_FANS]: 2,
-  [KickoffEvent.BRILLIANT_COACHING]: 8,
-  [KickoffEvent.CHANGING_WEATHER]: 11,
-  [KickoffEvent.QUICK_SNAP]: 25,
-  [KickoffEvent.CHARGE]: 1,
-  [KickoffEvent.DODGY_SNACK]: 7,
-  [KickoffEvent.PITCH_INVASION]: 156,
+  [KickoffEvent.SOLID_DEFENCE]: 23,
+  [KickoffEvent.HIGH_KICK]: 5,
+  [KickoffEvent.CHEERING_FANS]: 3,
+  [KickoffEvent.BRILLIANT_COACHING]: 12,
+  [KickoffEvent.CHANGING_WEATHER]: 10,
+  [KickoffEvent.QUICK_SNAP]: 7,
+  [KickoffEvent.CHARGE]: 2,
+  [KickoffEvent.DODGY_SNACK]: 19,
+  [KickoffEvent.PITCH_INVASION]: 1,
 };
 
 const EVENT_OUTCOMES: RuleOutcome[] = Object.entries(KICKOFF_TABLE).map(
