@@ -123,19 +123,25 @@ class FrenzyOperation extends GameOperation {
     private manager: BlockManager,
     private attackerId: string,
     private defenderId: string,
-    private vacatedSquare: { x: number; y: number },
+    /** Null when the target stood firm: nothing to follow up into. */
+    private vacatedSquare: { x: number; y: number } | null,
     private targetStanding: boolean
   ) {
     super();
   }
 
   async execute(context: FlowContext): Promise<void> {
-    // Let the Push Back animation land before the blocker follows up…
-    await context.delay(300);
-    // Frenzy forces the follow-up into the vacated square.
-    await context.gameService.followUpPush(this.attackerId, this.vacatedSquare);
-    // …and let that follow-up move finish before the second Block window opens.
-    await context.delay(450);
+    if (this.vacatedSquare) {
+      // Let the Push Back animation land before the blocker follows up…
+      await context.delay(300);
+      // Frenzy forces the follow-up into the vacated square.
+      await context.gameService.followUpPush(
+        this.attackerId,
+        this.vacatedSquare
+      );
+      // …and let that follow-up move finish before the second Block window opens.
+      await context.delay(450);
+    }
     await this.manager.frenzySecondBlock(
       this.attackerId,
       this.defenderId,
@@ -873,7 +879,7 @@ export class BlockManager {
     }
 
     if (pushCtx.refused) {
-      this.resolveRefusedPush(attacker, defender, knockDownDefender);
+      this.resolveRefusedPush(attacker, defender, knockDownDefender, frenzy);
       return;
     }
 
@@ -896,12 +902,15 @@ export class BlockManager {
 
   /**
    * A refused push (Stand Firm): nobody moves, so there is no chain and no
-   * follow-up. POW results still knock the defender down — in place.
+   * follow-up. POW results still knock the defender down — in place. Stand
+   * Firm "will not prevent a player with the Frenzy Skill from performing a
+   * second Block Action, so long as this player is still Standing" (p.136).
    */
   private resolveRefusedPush(
     attacker: Player,
     defender: Player,
-    knockDownDefender: boolean
+    knockDownDefender: boolean,
+    frenzy: boolean
   ): void {
     const flowManager = this.callbacks.getFlowManager?.();
 
@@ -922,6 +931,13 @@ export class BlockManager {
           flowManager.add(new BounceOperation(pos), true);
         }
       }
+    }
+
+    if (frenzy && !knockDownDefender && flowManager) {
+      flowManager.add(
+        new FrenzyOperation(this, attacker.id, defender.id, null, true)
+      );
+      return;
     }
 
     // No square was vacated, so the follow-up prompt never fires — end the
