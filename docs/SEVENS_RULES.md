@@ -32,11 +32,11 @@ with SPP instead of the official Sevens advancement in section 6.
 | D1 | The draft budget is 600,000. Unspent gold goes to the Treasury in a league and is lost in Matched Play. | ok for the budget; check what happens to unspent gold |
 | D2 | A team has 7 to 11 permanently hired players. League injuries may take it below 7. | ok |
 | D3 | At most 4 players without the Lineman keyword. Each position's own limit still applies. | ok |
-| D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | differs: the engine charges twice the roster price at the draft and does not sell re-rolls to active teams |
-| D5 | Assistant Coaches and Cheerleaders cost 20,000 each, with at most 3 of each, at the draft or during a league. | differs: 10,000 each with no cap |
-| D6 | An Apothecary costs 80,000 and needs a roster that allows one. At most one. | differs: 50,000, and the roster permission is ignored |
-| D7 | League teams start with Dedicated Fans 1 and can buy more at 20,000 each. Fans stay between 1 and 5. Matched Play teams start at 0. | differs: 10,000 each, starting at 0, with no cap |
-| D8 | Choose one Lineman as the Veteran. The Veteran has MA -1 and one re-roll per game for a failed pick-up, catch, Pass Action, or a Block where the Veteran would be Knocked Down. | missing |
+| D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | ok: capped at 6, the top of the re-roll tracker |
+| D5 | Assistant Coaches and Cheerleaders cost 20,000 each, with at most 3 of each, at the draft or during a league. | ok |
+| D6 | An Apothecary costs 80,000 and needs a roster that allows one. At most one. | ok |
+| D7 | League teams start with Dedicated Fans 1 and can buy more at 20,000 each. Fans stay between 1 and 5. Matched Play teams start at 0. | ok: nothing changes Dedicated Fans after a game yet, so only the cap of 5 is enforced |
+| D8 | Choose one Lineman as the Veteran. The Veteran has MA -1 and one re-roll per game for a failed pick-up, catch, Pass Action, or a Block where the Veteran would be Knocked Down. | ok: a draft with a Lineman needs one; scenario test teams have none |
 
 ## 3. Match play
 
