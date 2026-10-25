@@ -186,9 +186,9 @@ and need checking against the magazine itself:
 | Non-Lineman players | at most 4 | at most 4 |
 | Team re-rolls | 100,000 each | doubled at draft |
 | Veteran | one Lineman per team, slower, with a once-per-game re-roll | missing |
-| Advancement | no SPP; after each game one player gains a random skill. For Primary, you pick two, the opponent picks one, a D3 decides. | SPP and level-ups |
+| Advancement | no SPP; after each game one player gains a random skill. For Primary, you pick two, the opponent picks one, a D3 decides. | a per-team switch: Matched Play, Advanced League with SPP, or Sevens Skill Selection, one random skill per game. Compare how the skill is chosen. |
 | Injuries | two new tables, standard and Stunty | 2025 tables |
-| Injury cover | a player may be signed to cover an injury elsewhere and miss your game | missing |
+| Injury cover | a player may be signed to cover an injury elsewhere and miss your game | the Draft: a D6 per player with added skills, at or under their skill count and they leave for gold. Compare. |
 | Kick-off | its own kick-off table; kick-offs and throw-ins travel less far | its own table, to compare |
 | Referees | amateur: 1 in 3 chance when arguing a send-off | 2025 Argue the Call |
 | Pitch | smaller, with a No Man's Land in the centre | 20 by 11, six-column neutral zone |
@@ -196,5 +196,6 @@ and need checking against the magazine itself:
 
 Until the magazine text is compared line by line, these open items stay on
 hold, because Sevens changes them: purchased inducements, league injuries,
-the team builder's staff and prices, team value, Argue the Call and
-progression.
+the team builder's staff and prices, team value and Argue the Call. The
+progression switch stays: Advanced League with SPP remains a choice
+alongside the official Sevens advancement.
