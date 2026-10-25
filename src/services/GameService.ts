@@ -1361,6 +1361,16 @@ export class GameService implements IGameService {
     if (this.state.phase !== GamePhase.PLAY) return;
     this.state.score[teamId] = (this.state.score[teamId] || 0) + 1;
 
+    // Scored in the opponent's Turn (a push or a catch): that Turn ends with
+    // the drive, and the scorers skip their next Turn celebrating.
+    if (this.state.activeTeamId && this.state.activeTeamId !== teamId) {
+      this.turnManager.skipNextTurn(teamId);
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${this.getTeam(teamId)?.name ?? "The scorers"} skip their next turn celebrating!`
+      );
+    }
+
     this.state.phase = GamePhase.TOUCHDOWN;
     this.state.subPhase = SubPhase.SCORING;
 
