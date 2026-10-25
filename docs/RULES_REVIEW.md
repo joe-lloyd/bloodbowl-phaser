@@ -71,9 +71,11 @@ Ball bugs surfaced.
 
 Sevens changes these. [SEVENS_RULES.md](SEVENS_RULES.md) gives the rule for each.
 
-1. **Purchased inducements do nothing.** Extra Team Training, the Wandering
-   Apothecary and Bribes are bought and confirmed, and then never applied.
-   Bribes from Get the Ref can never be spent either.
+1. **Purchased inducements.** Fixed for everything except the two tables:
+   the catalogue follows L3, and each inducement now works in the match,
+   including Bribes from Get the Ref. Prayers to Nuffle and Desperate
+   Measures can be bought, but their tables (L4, L5) are not in yet.
+   Simulated matches never buy inducements, so only the tests cover them.
 2. **Injuries between league matches.** Fixed for Sevens: a Miss Next Game
    player sits out the next league match and recovers, a dead player leaves
    the roster, and team value counts neither, nor Dedicated Fans. Sevens has
@@ -90,8 +92,7 @@ Sevens changes these. [SEVENS_RULES.md](SEVENS_RULES.md) gives the rule for each
    stay out of team value, cost 20,000, start at 1 in a league, stay within
    1 to 5, and change after each league match. Players cannot be fired after
    a match (L6), and short teams take on Journeymen (L2), who cannot yet be
-   hired after the match. Several inducement prices and restrictions differ
-   from the Sevens table.
+   hired after the match.
 
 ### Wrong in rarer situations
 

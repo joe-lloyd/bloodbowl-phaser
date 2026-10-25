@@ -112,10 +112,33 @@ Where the magazine is silent, the engine does this:
 | --- | --- | --- |
 | L1 | The league runs as in the rulebook unless a rule here changes it. | ok |
 | L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. They leave after the game, since hiring them in the post-game has no screen yet |
-| L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | differs: different prices and limits, and purchases have no effect yet |
+| L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | ok: Prayers to Nuffle and Desperate Measures can be bought; their tables are L4 and L5. See the notes below the table for what each inducement does. |
 | L4 | Prayers to Nuffle use the D8 table below. | missing |
 | L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | missing |
 | L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | ok: a team that has played is refused when it fires a player, and cannot sell back staff. The game has no Temporary Retirement |
+
+What each L3 inducement does in the engine, from the 2025 rulebook pages
+147 to 149:
+
+- Temp Agency Cheerleaders and Part-time Assistant Coaches add 1 each to
+  the Cheering Fans and Brilliant Coaching rolls.
+- Each Blitzer's Best Keg adds 1 to its team's KO recovery rolls.
+- Each Extra Team Training adds a team re-roll to every half. The re-roll
+  tracker runs to 6 (P4), so a team never starts a half with more than 6.
+- A Bribe is offered when Argue the Call fails, and when a Secret Weapon
+  is Sent-off at the end of a drive. On a 2+ the player stays and there is
+  no Turnover; on a 1 the Bribe is lost. Free Bribes from Get the Ref are
+  spent before bought ones.
+- A Wandering Apothecary or a Plague Doctor is one more Apothecary use,
+  spent after the team's own Apothecary.
+- A Mortuary Assistant or a Plague Doctor re-rolls one failed
+  Regeneration roll. The engine always takes the re-roll, Mortuary
+  Assistant first.
+- A Halfling Master Chef rolls three D6 at the start of each half, before
+  its first Kick-off. Each 4+ moves one team re-roll from the opposition
+  to the chef's team for that half. The opposition cannot drop below 0.
+- Plague Doctor needs Favoured of Nurgle on the roster itself, so a Chaos
+  Renegade team that could pick Nurgle is not offered one.
 
 ### Prayers to Nuffle (D8)
 
@@ -177,7 +200,7 @@ alternative.
 | ID | Rule | Status |
 | --- | --- | --- |
 | MP1 | Draft with 600,000, which events may raise. Unspent gold is lost. Sideline Staff and Inducements go on the draft list and are paid from the same budget. | check |
-| MP2 | Inducements are bought straight from the draft budget with no petty cash. The team must still have at least 7 players. | differs: the engine uses petty cash |
+| MP2 | Inducements are bought straight from the draft budget with no petty cash. The team must still have at least 7 players. | ok: the Team Builder adds them to the draft list, they come with the team to every match, and they do not count toward team value. A Matched Play team gets no petty cash. A purchase cannot be undone in the builder yet. |
 | MP3 | Dedicated Fans start at 0. | ok |
 | MP4 | Each roster sits in one of four tiers, using the Sevens tier list from the Designers' Commentary, as transcribed at [bloodbowlbase.ru](https://bloodbowlbase.ru/bb2025/spike_journal/issue_22/) under "Sevens team tiers". Tier 1: Amazon, Chaos Dwarf, Dark Elf, Elven Union, Human, High Elf, Necromantic Horror, Norse, Old World Alliance, Skaven, Wood Elf. Tier 2: Bretonnian, Dwarf, Imperial Nobility, Lizardmen, Nurgle, Orc, Shambling Undead, Tomb Kings, Vampire. Tier 3: Black Orc, Chaos Chosen, Chaos Renegade, Halfling, Khorne, Underworld Denizens. Tier 4: Gnome, Goblin, Ogre, Snotling. | ok |
 | MP5 | A team gets Skill Points equal to its tier number, from 1 for tier 1 to 4 for tier 4. | ok |
