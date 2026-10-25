@@ -7,7 +7,7 @@ import type { Weather } from "../rules/weather";
 /** Plain rulebook statement of what each weather result does (for the match log). */
 const WEATHER_EFFECT: Record<Weather, string> = {
   "Sweltering Heat":
-    "After this drive, roll a D6 for each player who was on the pitch: on a 1 the player collapses from heat exhaustion and misses the rest of the match.",
+    "At the end of each drive, roll a D3: each coach picks that many of their players on the pitch at random, and they miss the next drive in the Reserves.",
   "Very Sunny": "The glare gives passers a -1 penalty to Passing rolls.",
   Nice: "Perfect conditions — no effect on play.",
   "Pouring Rain":

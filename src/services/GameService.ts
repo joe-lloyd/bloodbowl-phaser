@@ -1452,7 +1452,8 @@ export class GameService implements IGameService {
     this.flowManager.add(
       new ClearPitchOperation(
         halfOver ? "halftime" : reason,
-        halftimeKickingTeamId ?? nextKickingTeamId
+        halftimeKickingTeamId ?? nextKickingTeamId,
+        halftimeKickingTeamId !== null
       )
     );
     this.flowManager.add(new KORecoveryOperation());

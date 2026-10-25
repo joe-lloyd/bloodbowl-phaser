@@ -7,8 +7,8 @@
  *   2. KORecoveryOperation   - D6 per KO'd player, 4+ recovers to Reserves
  *   3. StartNextDriveOperation - setup for the next drive (no coin flip)
  *
- * Secret Weapons and End of Drive weather effects are ordering points only
- * for now; they gain behavior in later changes.
+ * ClearPitchOperation also sends off Secret Weapons and, before a further
+ * drive, resolves Sweltering Heat (the only End of Drive weather effect).
  */
 
 import { GameOperation } from "../core/GameOperation";
@@ -16,7 +16,10 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
+import { Team } from "../../types/Team";
+import { getDriveEffects } from "../kickoff/driveEffects";
+import { DiceController } from "../controllers/DiceController";
 import {
   assertSinglePlayerLocation,
   movePlayerToBox,
@@ -73,7 +76,9 @@ export class ClearPitchOperation extends GameOperation {
 
   constructor(
     private reason: "touchdown" | "halftime",
-    private nextKickingTeamId: string
+    private nextKickingTeamId: string,
+    /** False at full time: End of Drive effects only prepare a next drive. */
+    private anotherDrive: boolean
   ) {
     super();
   }
@@ -108,11 +113,51 @@ export class ClearPitchOperation extends GameOperation {
       }
     }
 
+    // End of Drive Effects: Sweltering Heat picks from the players still on
+    // the pitch, so choose them before the pitch is cleared.
+    const fainted =
+      this.anotherDrive && gameService.getState().weather === "Sweltering Heat"
+        ? swelteringHeat(gameService.getTeams(), gameService.getDiceController())
+        : [];
+
     await context.delay(800);
 
     gameService.resetDriveState();
+    // Marked after the reset, which clears the ending drive's effects; this
+    // one lasts through the next drive.
+    const effects = getDriveEffects(gameService.getState());
+    for (const player of fainted) {
+      effects.playerModifiers[player.id] = { confinedToReserves: true };
+      eventBus.emit(GameEventNames.DriveEffectGranted, {
+        teamId: player.teamId,
+        effect: "sweltering-heat",
+        detail: `${player.playerName} faints in the heat and misses the next drive`,
+      });
+    }
     assertSinglePlayerLocation(players, "ClearPitchOperation");
   }
+}
+
+/**
+ * Sweltering Heat: one coach rolls a D3, then each coach randomly selects
+ * that many of their players on the pitch. Each pick is a D16, rerolled when
+ * it falls outside a whole multiple of the pool so every player is as likely.
+ */
+function swelteringHeat(teams: Team[], dice: DiceController): Player[] {
+  const count = dice.rollD3("Sweltering Heat");
+  return teams.flatMap((team) => {
+    const pool = team.players.filter((p) => !!p.gridPosition);
+    const picked: Player[] = [];
+    while (picked.length < count && pool.length > 0) {
+      const accepted = Math.floor(16 / pool.length) * pool.length;
+      let roll: number;
+      do {
+        roll = dice.rollD16(`Sweltering Heat — ${team.name}`, team.id);
+      } while (roll > accepted);
+      picked.push(...pool.splice((roll - 1) % pool.length, 1));
+    }
+    return picked;
+  });
 }
 
 export class KORecoveryOperation extends GameOperation {
