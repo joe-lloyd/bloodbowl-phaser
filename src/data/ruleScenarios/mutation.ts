@@ -111,7 +111,8 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
       {
         id: "prehensile-tail-dodge",
         name: "Dodge out of a Prehensile Tail zone",
-        description: "-1 to the Agility Test for leaving the tail's tackle zone",
+        description:
+          "-1 to the Agility Test for leaving the tail's tackle zone",
         setup: playSetup({
           team1Placements: [{ playerIndex: 0, x: 16, y: 4 }],
           team2Placements: [
@@ -156,9 +157,7 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Placements: [
             { playerIndex: 0, x: 10, y: 5, skills: [SkillType.CLAWS] },
           ],
-          team2Placements: [
-            { playerIndex: 0, x: 11, y: 5, stats: { AV: 10 } },
-          ],
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5, stats: { AV: 10 } }],
           ballPosition: { x: 1, y: 1 },
         }),
         attacker: "team1:0",
@@ -327,14 +326,14 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "marking-ignored",
-            name: "Pick-up keeps its +1 despite the marker",
+            name: "Pick-up loses nothing to the marker",
             matches: (r) =>
               skillTriggered(r, SkillType.BIG_HAND) &&
-              skillCheckDiff(r, "Pickup") === 1,
+              skillCheckDiff(r, "Pickup") === 0,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Pickup") === 1,
-                "net modifier must be +1 (base +1, marker cancelled)"
+                skillCheckDiff(r, "Pickup") === 0,
+                "net modifier must be 0 (marker cancelled)"
               ),
           },
         ],
@@ -407,14 +406,14 @@ export const MUTATION_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "plus-one-applied",
-            name: "+2 net on the pick-up (base +1, Extra Arms +1)",
+            name: "+1 net on the pick-up from Extra Arms",
             matches: (r) =>
               skillTriggered(r, SkillType.EXTRA_ARMS) &&
-              skillCheckDiff(r, "Pickup") === 2,
+              skillCheckDiff(r, "Pickup") === 1,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Pickup") === 2,
-                "net modifier must be +2"
+                skillCheckDiff(r, "Pickup") === 1,
+                "net modifier must be +1"
               ),
           },
         ],
