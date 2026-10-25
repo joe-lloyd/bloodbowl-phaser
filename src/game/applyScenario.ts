@@ -93,6 +93,5 @@ export function applyScenario(
       ? { ...scenario.setup.ballPosition }
       : null,
     activePlayer: null,
-    coachesEjected: [],
   };
 }

@@ -9,10 +9,9 @@ import { movePlayerToBox } from "../rules/playerLocation";
  * SendOffOperation
  *
  * Responsibility:
- * - Check if coach can argue.
- * - If so, potentially run ArgueTheCallOperation.
+ * - Argue the Call (always worth it in Sevens: the coach is never ejected).
  * - Remove player if not saved by argument.
- * - Trigger turnover.
+ * - Trigger turnover, whether or not the argument succeeded (rule M6).
  */
 export class SendOffOperation extends GameOperation {
   public readonly name = "SendOffOperation";
@@ -37,28 +36,19 @@ export class SendOffOperation extends GameOperation {
     );
     await context.delay(1000);
 
-    const state = gameService.getState();
-    const canArgue = !state.coachesEjected.includes(player.teamId);
+    const argueOp = new ArgueTheCallOperation();
+    await argueOp.execute(context);
 
-    if (canArgue) {
-      // In a real game, we'd ask the player here.
-      // For now, we auto-argue if possible (simplified sequence).
-      const argueOp = new ArgueTheCallOperation(player.teamId);
-      await argueOp.execute(context);
-
-      if ((context as any).argueSucceeded) {
-        return; // Saved!
-      }
+    // 1. Remove Player unless the argument saved them — through the single
+    // location seam, so the pitch square is released as the sent-off
+    // dugout entry is created and PlayerStatusChanged fires for the view.
+    if (!argueOp.swayed) {
+      movePlayerToBox(player, { box: "sent-off" }, eventBus);
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${player.playerName} is removed from the pitch.`
+      );
     }
-
-    // 1. Remove Player — through the single location seam, so the pitch
-    // square is released as the sent-off dugout entry is created and
-    // PlayerStatusChanged fires for the view to reconcile.
-    movePlayerToBox(player, { box: "sent-off" }, eventBus);
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${player.playerName} is removed from the pitch.`
-    );
 
     // 2. Trigger Turnover
     gameService.triggerTurnover(this.reason);

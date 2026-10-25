@@ -84,7 +84,6 @@ export interface GameSnapshot {
     committed?: boolean;
     bloodlustUnsated?: boolean;
   } | null;
-  coachesEjected: string[];
   setup?: SetupState | null;
   /** Absent until the match reaches GAME_OVER. */
   result?: MatchResult;
@@ -193,7 +192,6 @@ export function serializeGameState(
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
-    coachesEjected: [...state.coachesEjected],
     driveEffects: state.driveEffects
       ? structuredClone(state.driveEffects)
       : undefined,
@@ -270,7 +268,6 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    coachesEjected: [...snapshot.coachesEjected],
     driveEffects: snapshot.driveEffects
       ? structuredClone(snapshot.driveEffects)
       : undefined,

@@ -178,7 +178,6 @@ export class GameService implements IGameService {
       weather: "Nice",
       ballPosition: null, // Ball not placed yet
       activePlayer: null,
-      coachesEjected: [],
       setup: undefined,
     };
   }
