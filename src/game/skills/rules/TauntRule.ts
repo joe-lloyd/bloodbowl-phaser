@@ -14,7 +14,7 @@ import { ReactionDecisionAnswer } from "../../../types/decisions";
 
 export const TauntRule: SkillRule = {
   async onPush(ctx, self) {
-    if (self.id !== ctx.pushed.id) return;
+    if (self.id !== ctx.pushed.id || ctx.chainPush) return;
     if (ctx.refused || ctx.forceFollowUp) return;
     if (ctx.preventFollowUp) return; // Fend already denied the follow-up
     if (!ctx.decisions) return;

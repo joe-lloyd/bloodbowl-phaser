@@ -895,6 +895,7 @@ export class BlockManager {
       sideStepPush: pushCtx.sideStepPush,
       forceFollowUp: pushCtx.forceFollowUp,
       frenzy,
+      blockerIgnoresReactions: pushCtx.blockerIgnoresReactions,
       links: [],
     };
     this.requestPushDecision(attacker.gridPosition!, defender);
@@ -999,8 +1000,10 @@ export class BlockManager {
     stripBall?: boolean;
     /** Grab: the blocker picks any unoccupied square adjacent to the target */
     grabPush?: boolean;
-    /** Sidestep: the PUSHED player's coach picks any adjacent unoccupied square */
+    /** Sidestep: the player pushed in the current link picks the square */
     sideStepPush?: boolean;
+    /** Juggernaut on a Blitz: Stand Firm is cancelled down the whole chain */
+    blockerIgnoresReactions?: boolean;
     /** Taunt / Frenzy: the blocker must follow up — no follow-up choice offered */
     forceFollowUp?: boolean;
     /** Frenzy's FIRST block: force follow-up + a mandatory second block. */
@@ -1271,13 +1274,14 @@ export class BlockManager {
     const isOccupied = (x: number, y: number) =>
       this.getPlayerAt(x, y) !== undefined;
 
-    // Grab / Sidestep (first push only): any unoccupied square adjacent to
-    // the target — Grab hands the choice to the blocker, Sidestep to the
-    // PUSHED player's coach. Both fall back to the normal push if the
-    // target is fully boxed in (the skill "cannot be used").
+    // Grab (first push only) / Sidestep (any link): any unoccupied square
+    // adjacent to the pushed player — Grab hands the choice to the blocker,
+    // Sidestep to the PUSHED player's coach. Both fall back to the normal
+    // push if the target is fully boxed in (the skill "cannot be used").
+    const grabApplies =
+      !!this.chain?.grabPush && this.chain.links.length === 0;
     const anyAdjacent =
-      (this.chain?.grabPush || this.chain?.sideStepPush) &&
-      this.chain.links.length === 0
+      grabApplies || this.chain?.sideStepPush
         ? this.blockResolutionService.getGrabPushOptions(
             pushed.gridPosition!,
             isOccupied
@@ -1294,9 +1298,7 @@ export class BlockManager {
           );
 
     const sideStepApplies =
-      !!this.chain?.sideStepPush &&
-      this.chain.links.length === 0 &&
-      anyAdjacent.length > 0;
+      !!this.chain?.sideStepPush && anyAdjacent.length > 0;
     const attacker = this.getPlayerById(this.chain!.attackerId);
 
     // The wider Grab/Sidestep square set is what's in play for THIS push
@@ -1341,13 +1343,13 @@ export class BlockManager {
    * Off-pitch target: pushed into the crowd. Otherwise the chain is
    * complete and all links apply, innermost first.
    */
-  public executePush(
+  public async executePush(
     attackerId: string,
     defenderId: string,
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void {
+  ): Promise<void> {
     const defender = this.getPlayerById(defenderId);
     if (!defender || !defender.gridPosition) return;
 
@@ -1380,12 +1382,74 @@ export class BlockManager {
     const occupant = this.getPlayerAt(direction.x, direction.y);
     if (occupant && occupant.id !== defenderId) {
       // Chain push: the occupant is pushed as if by the incoming player;
-      // the blocking coach keeps choosing directions
+      // the blocking coach keeps choosing directions. The occupant's own
+      // push reactions apply: Stand Firm "including during a Chain Push"
+      // (p.136) and Sidestep "for any reason" (p.135).
+      const reaction = await this.foldChainPush(occupant);
+      if (!this.chain) return;
+      if (reaction.refused) {
+        this.refuseChain();
+        return;
+      }
+      this.chain.sideStepPush = reaction.sideStepPush;
       this.requestPushDecision(from, occupant);
       return;
     }
 
     this.applyChain(followUp);
+  }
+
+  /**
+   * Fold the chain-pushed player's own push reactions. Only their rules run:
+   * the blocker's (Grab, Strip Ball, Eye Gouge) act on the Block's target,
+   * and Taunt reacts to a Block "performed against them".
+   */
+  private async foldChainPush(
+    pushed: Player
+  ): Promise<Pick<PushContext, "refused" | "sideStepPush">> {
+    const chain = this.chain!;
+    const attacker = this.getPlayerById(chain.attackerId)!;
+    const ctx: PushContext = {
+      attacker,
+      pushed,
+      resultType: chain.resultType,
+      isBlitz: this.isBlitzBlock(attacker),
+      pushedHasBall: this.isOnBall(pushed),
+      blockerIgnoresReactions: !!chain.blockerIgnoresReactions,
+      chainPush: true,
+      refused: false,
+      preventFollowUp: false,
+      stripBall: false,
+      grabPush: false,
+      sideStepPush: false,
+      forceFollowUp: false,
+      decisions: this.decisions(),
+      flow: this.callbacks.getFlowManager?.(),
+      triggers: [],
+    };
+    await foldTrigger("onPush", [pushed], ctx);
+    this.announce(ctx.triggers);
+    return ctx;
+  }
+
+  /**
+   * A chain-pushed player stood firm: the player pushed into them cannot
+   * move, so nobody in the chain moves. The Block's target is treated as
+   * having refused the push itself (a POW still knocks them down in place).
+   */
+  private refuseChain(): void {
+    const chain = this.chain!;
+    this.chain = null;
+    const attacker = this.getPlayerById(chain.attackerId);
+    const defender = this.getPlayerById(chain.links[0].playerId);
+    if (!attacker || !defender) return;
+    this.resolveRefusedPush(
+      attacker,
+      defender,
+      chain.knockDownDefender ??
+        (chain.resultType === "pow" || chain.resultType === "pow-dodge"),
+      !!chain.frenzy
+    );
   }
 
   /** Apply all chain links innermost-first, then knockdown/follow-up. */

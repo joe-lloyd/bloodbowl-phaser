@@ -148,6 +148,12 @@ export interface PushContext extends TriggerContextBase {
    * first).
    */
   blockerIgnoresReactions: boolean;
+  /**
+   * This player is being Chain Pushed, not pushed by the Block itself. Only
+   * their own rules fold, and those reacting to a Block "performed against
+   * them" (Taunt) stay out.
+   */
+  chainPush?: boolean;
   /** Set true to refuse the push entirely (Stand Firm) */
   refused: boolean;
   /** Deny the blocker their follow-up into the vacated square (Fend). */

@@ -2627,7 +2627,7 @@ export class GameplayInteractionController {
       this.pushResultType = "";
       this.clearAllInteractionHighlights();
 
-      this.gameService.executePush(
+      void this.gameService.executePush(
         attackerId,
         defenderId,
         { x, y },

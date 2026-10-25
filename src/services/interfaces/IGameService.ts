@@ -184,7 +184,7 @@ export interface IGameService {
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void;
+  ): void | Promise<void>;
 
   throwBall(
     passerId: string,

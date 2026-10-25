@@ -622,7 +622,7 @@ export class HeadlessGame {
           this.pending = pending;
           throw new Error("invalid-push-direction");
         }
-        gs.executePush(
+        await gs.executePush(
           pending.attackerId,
           pending.defenderId,
           { x: cmd.x, y: cmd.y },

@@ -1051,14 +1051,14 @@ export class GameService implements IGameService {
     this.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
-  public executePush(
+  public async executePush(
     attackerId: string,
     defenderId: string,
     direction: { x: number; y: number },
     resultType: string,
     followUp: boolean
-  ): void {
-    this.blockManager.executePush(
+  ): Promise<void> {
+    await this.blockManager.executePush(
       attackerId,
       defenderId,
       direction,
