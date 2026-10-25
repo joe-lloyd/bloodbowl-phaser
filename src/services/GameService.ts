@@ -58,6 +58,7 @@ import {
 import { isInEndZone } from "@/game/elements/GridUtils";
 import { GameConfig } from "@/config/GameConfig";
 import { BounceOperation } from "@/game/operations/BounceOperation";
+import { PickupOperation } from "@/game/operations/PickupOperation";
 import { ArmourOperation } from "@/game/operations/ArmourOperation";
 import { ActivationGateOperation } from "@/game/operations/ActivationGateOperation";
 import { BreatheFireOperation } from "@/game/operations/BreatheFireOperation";
@@ -1077,17 +1078,19 @@ export class GameService implements IGameService {
     });
 
     // Following up onto a loose ball is entering its square — the player must
-    // roll to pick it up (a failed pickup bounces the ball and is a turnover,
-    // handled by attemptPickup). Without this the player just stood on the
-    // ball holding nothing.
+    // roll to pick it up. PickupOperation is the same path a move takes, so a
+    // failed pickup bounces through BounceOperation (throw-in, catches) and
+    // is a turnover. Without this the player just stood on the ball holding
+    // nothing.
     const looseBallHere =
       !carriedBall &&
       this.state.ballPosition &&
       this.state.ballPosition.x === targetSquare.x &&
       this.state.ballPosition.y === targetSquare.y;
     if (looseBallHere) {
-      const pickedUp = this.attemptPickup(attacker, targetSquare);
-      if (!pickedUp) return; // failed pickup already bounced + turned over
+      const pickup = new PickupOperation(attackerId);
+      await pickup.execute(this.getFlowContext());
+      if (!pickup.success) return; // the bounce and turnover are queued
     }
 
     this.checkForTouchdown(attackerId);
