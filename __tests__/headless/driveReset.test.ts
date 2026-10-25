@@ -259,15 +259,16 @@ describe("drive reset", () => {
     snap = game.snapshot();
     expect(snap.phase).toBe(GamePhase.KICKOFF);
 
-    // team2 kicks deep into team1's half so the ball actually lands on pitch.
+    // team2 kicks across its Line of Scrimmage (column 13) towards team1.
+    // Seed 5 deviates it five squares south-west, to (5,9), on the pitch.
     const kicker = snap.teams
       .find((t) => t.id === team2Id)!
       .players.find((p) => p.position)!;
     const kicked = await game.execute({
       type: "kick-ball",
       playerId: kicker.id,
-      x: 18,
-      y: 5,
+      x: 10,
+      y: 4,
     });
     expect(kicked.ok).toBe(true);
 

@@ -35,6 +35,20 @@ export function getLineOfScrimmageX(isTeam1: boolean): number {
     : SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
 }
 
+/**
+ * A kick-off that comes down on or behind the kicking team's Line of
+ * Scrimmage is in the kicking team's own territory: a Touchback. A kick
+ * target must lie beyond it.
+ */
+export function isKickingTeamTerritory(
+  x: number,
+  isTeam1Kicking: boolean
+): boolean {
+  return isTeam1Kicking
+    ? x <= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1
+    : x >= SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2;
+}
+
 export function getWideZone(y: number): "top" | "bottom" | null {
   const { top, bottom } = SEVENS_GEOMETRY.WIDE_ZONE_ROWS;
   if (y >= top.min && y <= top.max) return "top";
