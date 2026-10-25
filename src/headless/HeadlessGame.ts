@@ -21,7 +21,11 @@ import {
   GridPosition,
 } from "./protocol";
 import { serializeGameState, GameSnapshot } from "./serialization";
-import { GameEventNames, ActionType } from "../types/events";
+import {
+  GameEventNames,
+  ActionType,
+  LOCAL_CAMERA_EVENTS,
+} from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
@@ -710,7 +714,10 @@ export class HeadlessGame {
       }
       case "remove-inducement": {
         this.assertTeam(cmd.teamId);
-        const result = gs.removeInducement(cmd.teamId, cmd.inducement as Inducement);
+        const result = gs.removeInducement(
+          cmd.teamId,
+          cmd.inducement as Inducement
+        );
         if (!result.ok) throw new Error(result.errors.join(","));
         break;
       }
@@ -727,6 +734,7 @@ export class HeadlessGame {
 
   private subscribeToAllEvents(): void {
     Object.values(GameEventNames).forEach((name) => {
+      if (LOCAL_CAMERA_EVENTS.has(name)) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.ctx.eventBus.on(name as any, (data: any) => {
         this.eventLog.push({ name, data });
@@ -858,9 +866,7 @@ export class HeadlessGame {
       selectedPlayerIds: [...step.selectedPlayerIds],
       movedPlayerIds: [...step.movedPlayerIds],
       awaitingPlacement: [...step.awaitingPlacement],
-      landingSquare: step.landingSquare
-        ? { ...step.landingSquare }
-        : undefined,
+      landingSquare: step.landingSquare ? { ...step.landingSquare } : undefined,
       charge: step.charge
         ? {
             queue: [...step.charge.queue],

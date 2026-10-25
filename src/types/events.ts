@@ -130,6 +130,9 @@ export enum GameEventNames {
 
   // Camera Events
   Camera_TrackBall = "camera:trackBall",
+  /** Generalized follow trigger (superset of Camera_TrackBall): carries the
+   *  sprite to follow — the acting player or the ball. */
+  Camera_TrackObject = "camera:trackObject",
   Camera_Reset = "camera:reset",
   /** The camera left or returned to its neutral framing. Driven by
    *  CameraController itself (not per-call-site), so any camera move —
@@ -223,6 +226,8 @@ export enum GameEventNames {
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
   UI_StepSelected = "ui:stepSelected",
+  /** Local camera preferences changed (per viewer; never synced online). */
+  UI_CameraSettingsChanged = "ui:cameraSettingsChanged",
 
   // Kickoff event step (owning coach only)
   UI_KickoffEventSelectPlayer = "ui:kickoffEventSelectPlayer",
@@ -242,6 +247,15 @@ export enum GameEventNames {
  * Game Events - Emitted by GameService/Phaser
  * React components subscribe to these to update UI
  */
+/** Camera preferences and sprite references belong to one viewer only. */
+export const LOCAL_CAMERA_EVENTS: ReadonlySet<string> = new Set([
+  GameEventNames.Camera_TrackBall,
+  GameEventNames.Camera_TrackObject,
+  GameEventNames.Camera_Reset,
+  GameEventNames.Camera_StateChanged,
+  GameEventNames.UI_CameraSettingsChanged,
+]);
+
 export interface GameEvents {
   // Phase Management
   [GameEventNames.PhaseChanged]: {
@@ -627,6 +641,11 @@ export interface GameEvents {
     ballSprite: unknown; // Phaser.GameObjects.Container
     animationDuration: number; // How long to track the ball
   };
+  [GameEventNames.Camera_TrackObject]: {
+    /** The object to follow (player sprite, ball sprite, …) */
+    sprite: unknown; // Phaser.GameObjects.GameObject
+    animationDuration?: number; // How long the followed animation runs
+  };
   [GameEventNames.Camera_Reset]: {
     duration?: number; // Optional reset duration
   };
@@ -859,6 +878,13 @@ export interface UIEvents {
   };
   [GameEventNames.UI_KickoffEventConfirm]: void;
   [GameEventNames.UI_KickoffEventSkip]: void;
+  /** Local camera preferences changed (per viewer; never synced online). */
+  [GameEventNames.UI_CameraSettingsChanged]: {
+    /** Resting zoom the camera returns to after tracked action. */
+    zoom: number;
+    /** 0 = follow off … 1 = close chase. */
+    followIntensity: number;
+  };
 }
 
 /**

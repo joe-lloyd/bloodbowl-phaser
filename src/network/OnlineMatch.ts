@@ -30,7 +30,7 @@ import {
   deserializeGameState,
   GameSnapshot,
 } from "../headless/serialization";
-import { GameEventNames } from "../types/events";
+import { GameEventNames, LOCAL_CAMERA_EVENTS } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
@@ -237,6 +237,13 @@ export function isValidSelectionClaim(
     .find((candidate) => candidate.id === playerId);
   return player?.teamId === senderTeamId;
 }
+/**
+ * View-local events that must never cross the wire: the camera is a
+ * per-viewer concern (each coach controls their own), and the track
+ * payloads carry live Phaser sprites, which are not serializable. Each
+ * peer's scene re-derives its own camera triggers from the replayed game
+ * events, gated by that viewer's own camera settings.
+ */
 
 /** Buffers native host events and flushes them as one broadcast bundle. */
 class EventBroadcaster {
@@ -270,7 +277,12 @@ class EventBroadcaster {
   }
 
   private record(name: string, data: unknown): void {
-    if (this.paused || UI_INTENT_EVENTS.has(name)) return;
+    if (
+      this.paused ||
+      UI_INTENT_EVENTS.has(name) ||
+      LOCAL_CAMERA_EVENTS.has(name)
+    )
+      return;
     this.buffer.push({ name, data });
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -471,7 +483,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       // could claim any playerId, so verify it actually belongs to the
       // guest's own team before trusting and re-emitting it.
       onSelection: (payload) => {
-        if (!isValidSelectionClaim(payload.playerId, team2.id, [team1, team2])) {
+        if (
+          !isValidSelectionClaim(payload.playerId, team2.id, [team1, team2])
+        ) {
           console.warn(
             "[Online] rejected selection envelope: player is not on the guest's team"
           );
@@ -639,9 +653,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       if (replica) {
         const myTeam = myTeamId === team1.id ? team1 : team2;
         const preserveMySetup = shouldPreserveOwnSetup(snapshot, myTeamId);
-        const saved = preserveMySetup
-          ? captureSetupPlacements(myTeam)
-          : null;
+        const saved = preserveMySetup ? captureSetupPlacements(myTeam) : null;
         applySnapshotToTeams(snapshot, [team1, team2]);
         Object.assign(replica.getState(), deserializeGameState(snapshot));
         if (saved) {
@@ -660,7 +672,11 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       // 2. Replay the host's events: animations, dialogs, dice log — now
       //    against up-to-date replica state (see comment above).
       for (const event of events) {
-        if (UI_INTENT_EVENTS.has(event.name)) continue;
+        if (
+          UI_INTENT_EVENTS.has(event.name) ||
+          LOCAL_CAMERA_EVENTS.has(event.name)
+        )
+          continue;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         eventBus.emit(event.name as any, event.data as any);
       }
@@ -730,7 +746,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       // claim any playerId, so verify it actually belongs to the host's own
       // team before trusting and re-emitting it.
       onSelection: (payload) => {
-        if (!isValidSelectionClaim(payload.playerId, team1.id, [team1, team2])) {
+        if (
+          !isValidSelectionClaim(payload.playerId, team1.id, [team1, team2])
+        ) {
           console.warn(
             "[Online] rejected selection envelope: player is not on the host's team"
           );

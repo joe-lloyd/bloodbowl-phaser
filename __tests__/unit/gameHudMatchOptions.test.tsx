@@ -73,12 +73,14 @@ vi.mock("../../src/ui/components/hud/MatchResultsScreen", () => ({
 
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("react-router-dom")>();
+  const actual = await importOriginal<typeof import("react-router-dom")>();
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-import { GameHUD, OnlineMatchMenuProps } from "../../src/ui/components/hud/GameHUD";
+import {
+  GameHUD,
+  OnlineMatchMenuProps,
+} from "../../src/ui/components/hud/GameHUD";
 
 describe("GameHUD match options menu wiring", () => {
   let container: HTMLDivElement;
@@ -156,9 +158,7 @@ describe("GameHUD match options menu wiring", () => {
     });
 
     await openMenu();
-    expect(
-      container.textContent
-    ).toContain("Abandon Match");
+    expect(container.textContent).toContain("Abandon Match");
     await clickEntry("Return to Main Menu");
 
     expect(clearSpy).not.toHaveBeenCalled();
@@ -425,7 +425,7 @@ describe("GameHUD match options menu wiring", () => {
         ),
       ].find((el) => el.closest("label")?.textContent?.includes("Mute sound"))!;
       const volumeSlider = container.querySelector<HTMLInputElement>(
-        'input[type="range"]'
+        '[role="menu"] input[type="range"]'
       )!;
       expect(muteCheckbox).toBeTruthy();
       expect(volumeSlider).toBeTruthy();
@@ -437,9 +437,8 @@ describe("GameHUD match options menu wiring", () => {
       // so the mute checkbox is two ArrowDowns past the initially-focused
       // first action row.
       const menuRoot = container.querySelector('[role="menu"]')!;
-      const firstItem = container.querySelector<HTMLButtonElement>(
-        '[role="menuitem"]'
-      )!;
+      const firstItem =
+        container.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
       expect(document.activeElement).toBe(firstItem);
       await act(async () => {
         menuRoot.dispatchEvent(
@@ -460,9 +459,9 @@ describe("GameHUD match options menu wiring", () => {
         muteCheckbox.click();
       });
       expect(muteCheckbox.checked).toBe(true);
-      expect(
-        JSON.parse(localStorage.getItem("bb-sound-settings")!).muted
-      ).toBe(true);
+      expect(JSON.parse(localStorage.getItem("bb-sound-settings")!).muted).toBe(
+        true
+      );
 
       const nativeValueSetter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,

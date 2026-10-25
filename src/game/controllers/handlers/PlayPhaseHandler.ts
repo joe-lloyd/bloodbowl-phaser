@@ -87,8 +87,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       // Logic moved from SceneOrchestrator
       const sprite = this.scene["playerSprites"].get(data.playerId);
       if (sprite) {
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite: sprite, // Track passer initially
+        this.eventBus.emit(GameEventNames.Camera_TrackObject, {
+          sprite, // Track passer initially
           animationDuration: 800,
         });
       }
@@ -331,6 +331,10 @@ export class PlayPhaseHandler implements PhaseHandler {
     if (data.path && data.path.length > 0) {
       const sprite = this.scene["playerSprites"].get(data.playerId);
       if (sprite) {
+        // Camera follow: track the moving player (the ball walks with a
+        // carrier; pass/kick hand the follow off to the ball separately)
+        this.eventBus.emit(GameEventNames.Camera_TrackObject, { sprite });
+
         const pixelPath = data.path.map((step: any) =>
           this.scene["pitch"].getPixelPosition(step.x, step.y)
         );
@@ -352,6 +356,7 @@ export class PlayPhaseHandler implements PhaseHandler {
           ? sprite.animateThrow(pixelPath)
           : sprite.animateMovement(pixelPath);
         flight.then(() => {
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 600 });
           this.scene.refreshDugouts();
           // Check follow up
           if (data.followUpData) {
@@ -374,6 +379,12 @@ export class PlayPhaseHandler implements PhaseHandler {
 
     this.scene["placeBallVisual"](data.from.x, data.from.y);
 
+    // Camera follow: the ball is now the thing in motion — hand the follow
+    // off from the passer to the ball for its whole flight.
+    this.eventBus.emit(GameEventNames.Camera_TrackObject, {
+      sprite: ballSprite,
+    });
+
     const p1 = this.scene["pitch"].getPixelPosition(
       data.finalPosition.x,
       data.finalPosition.y
@@ -385,6 +396,9 @@ export class PlayPhaseHandler implements PhaseHandler {
       y: p1.y,
       duration: 1000,
       ease: "Quad.easeInOut",
+      onComplete: () => {
+        this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 600 });
+      },
       onStart: () => {
         this.scene.tweens.add({
           targets: this.scene["ballSprite"],
@@ -454,7 +468,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y =
+          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),

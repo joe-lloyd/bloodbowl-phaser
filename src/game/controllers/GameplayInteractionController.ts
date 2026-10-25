@@ -291,7 +291,10 @@ export class GameplayInteractionController {
     // so a late rejection needs a way to tell whether anything local has
     // moved on since (see onNetworkCommandRejected).
     this.interactionSeq++;
-    this.pendingCancelSeqByPlayer.set(this.selectedPlayerId, this.interactionSeq);
+    this.pendingCancelSeqByPlayer.set(
+      this.selectedPlayerId,
+      this.interactionSeq
+    );
 
     // Notify UI to show default menu again
     // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
@@ -683,8 +686,8 @@ export class GameplayInteractionController {
     gridY: number;
   } {
     const pitchContainer = this.pitch.getContainer();
-    const localX = pointer.x - pitchContainer.x;
-    const localY = pointer.y - pitchContainer.y;
+    const localX = pointer.worldX - pitchContainer.x;
+    const localY = pointer.worldY - pitchContainer.y;
 
     const pitchW = 26 * 60;
     const pitchH = 15 * 60;
@@ -2077,7 +2080,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
-    this.eventBus.off(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
+    this.eventBus.off(
+      GameEventNames.PlayerRemoved,
+      this.kickoffStepSyncHandler
+    );
     this.eventBus.off(
       GameEventNames.PlayerSelected,
       this.kickoffPlayerSelectedHandler
@@ -2427,7 +2433,7 @@ export class GameplayInteractionController {
             Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
             Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
           ) === 1
-        );
+      );
     });
 
     if (step.event === KickoffEvent.SOLID_DEFENCE && canAct) {

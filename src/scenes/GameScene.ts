@@ -22,6 +22,10 @@ import { GameplayInteractionController } from "../game/controllers/GameplayInter
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
 import {
+  loadCameraSettings,
+  registerCameraFitZoom,
+} from "../config/cameraSettings";
+import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
   resolvePitchTheme,
@@ -355,8 +359,8 @@ export class GameScene extends Phaser.Scene {
       if (this.isSetupActive) {
         // Direct Pitch Highlight for Setup
         const pitchContainer = this.pitch.getContainer();
-        const localX = pointer.x - pitchContainer.x;
-        const localY = pointer.y - pitchContainer.y;
+        const localX = pointer.worldX - pitchContainer.x;
+        const localY = pointer.worldY - pitchContainer.y;
 
         // Theme-independent pitch bounds.
         if (
@@ -401,6 +405,14 @@ export class GameScene extends Phaser.Scene {
       },
       this.eventBus
     );
+
+    // Per-viewer camera preferences (localStorage): resting zoom + follow
+    // intensity, applied before any play so the camera starts at rest.
+    const cameraSettings = loadCameraSettings();
+    this.cameraController.setRestingZoom(cameraSettings.zoom);
+    this.cameraController.setFollowIntensity(cameraSettings.followIntensity);
+    registerCameraFitZoom(this.cameraController.getFitZoom());
+    this.cameraController.reset(0);
 
     // Camera keyboard shortcuts
     this.input.keyboard?.on("keydown-ZERO", () => {
@@ -491,33 +503,38 @@ export class GameScene extends Phaser.Scene {
       this.setRemoteSelection(playerId);
     });
 
+    // Return to the chosen view even when activation ends without movement.
+    this.subscribe(GameEventNames.UI_EndActivation, () => {
+      this.cameraController.reset(600);
+    });
+    this.subscribe(GameEventNames.TurnStarted, () => {
+      this.cameraController.reset(600);
+    });
+
     // Camera event listeners
-    this.subscribe(
-      GameEventNames.Camera_TrackBall,
-      async (data: { ballSprite; animationDuration: number }) => {
-        if (this.cameraController && data.ballSprite) {
-          // First, smoothly pan to the ball position
-          const ballPos = { x: data.ballSprite.x, y: data.ballSprite.y };
-          await this.cameraController.panTo(ballPos.x, ballPos.y, 500);
-
-          // Then zoom in and start tracking
-          await this.cameraController.zoomTo(2.5, 400);
-          this.cameraController.trackObject(data.ballSprite, 2.5, 0);
-
-          // Auto-reset removed to allow manual control via Camera_Reset events
-          // and support chained animations (e.g. Pass Declared -> Pass Flight -> Bounce)
-        }
+    this.subscribe(GameEventNames.Camera_TrackObject, ({ sprite }) => {
+      if (sprite instanceof Phaser.GameObjects.GameObject) {
+        this.cameraController.trackObject(sprite);
       }
-    );
-
-    this.subscribe(
-      GameEventNames.Camera_Reset,
-      (data: { duration?: number }) => {
-        if (this.cameraController) {
-          this.cameraController.reset(data.duration || 800);
-        }
+    });
+    this.subscribe(GameEventNames.Camera_TrackBall, ({ ballSprite }) => {
+      if (ballSprite instanceof Phaser.GameObjects.GameObject) {
+        this.cameraController.trackObject(ballSprite);
       }
-    );
+    });
+    this.subscribe(GameEventNames.Camera_Reset, ({ duration }) => {
+      this.cameraController.reset(duration ?? 800);
+    });
+    this.subscribe(GameEventNames.UI_CameraSettingsChanged, (settings) => {
+      this.cameraController.setRestingZoom(settings.zoom);
+      this.cameraController.setFollowIntensity(settings.followIntensity);
+      if (
+        !this.cameraController.isFollowEnabled() ||
+        !this.cameraController.getIsTracking()
+      ) {
+        this.cameraController.reset(400);
+      }
+    });
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
@@ -1270,7 +1287,10 @@ export class GameScene extends Phaser.Scene {
    */
   public reconcileBallVisual(): void {
     const players = [...this.team1.players, ...this.team2.players];
-    const ball = resolveBallRepresentation(this.gameService.getState(), players);
+    const ball = resolveBallRepresentation(
+      this.gameService.getState(),
+      players
+    );
 
     if (ball.kind === "none") {
       this.ballSprite?.destroy();
