@@ -9,6 +9,7 @@ import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
 import { ArmourOperation } from "./ArmourOperation";
+import { isOnPitch } from "../controllers/BallMovementController";
 import {
   foldTrigger,
   gatherParticipants,
@@ -285,76 +286,82 @@ export class PassOperation extends GameOperation {
         eventBus.emit(GameEventNames.UI_Notification, "Inaccurate Pass!");
       }
 
-      // Update ball position to landing spot
-      (gameService as any).setBallPosition(landingPos.x, landingPos.y);
-
-      // Check landing
-      const playerAtLanding = gameService.getPlayerAt(
-        landingPos.x,
-        landingPos.y
-      );
-
-      if (playerAtLanding) {
-        // Attempt Catch
-        context.flowManager.add(
-          new CatchOperation(
-            playerAtLanding.id,
-            {
-              origin: "pass",
-              isPassTarget:
-                landingPos.x === this.targetX && landingPos.y === this.targetY,
-            },
-            {
-              passerId: passer.id,
-              passerTeamId: passer.teamId,
-              accurate: result.accurate,
-            }
-          ),
-          true
-        );
+      if (!isOnPitch(landingPos)) {
+        // The scatter path ends at the first square off the pitch; the
+        // crowd throws the ball in from the square before it (p.77).
+        const path = result.scatterPath ?? [];
+        eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
+        gameService.throwInBall(path[path.length - 2]);
       } else {
-        const divingCatcher = [
-          ...(gameService.getTeam(passer.teamId)?.players ?? []),
-          ...opponents,
-        ]
-          .filter(
-            (candidate) =>
-              candidate.gridPosition &&
-              candidate.status === PlayerStatus.ACTIVE &&
-              hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
-              Math.max(
-                Math.abs(candidate.gridPosition.x - landingPos.x),
-                Math.abs(candidate.gridPosition.y - landingPos.y)
-              ) === 1
-          )
-          .sort(
-            (a, b) =>
-              a.gridPosition!.y - b.gridPosition!.y ||
-              a.gridPosition!.x - b.gridPosition!.x
-          )[0];
+        // Update ball position to landing spot
+        gameService.setBallPosition(landingPos.x, landingPos.y);
 
-        if (divingCatcher) {
+        // Check landing
+        const playerAtLanding = gameService.getPlayerAt(
+          landingPos.x,
+          landingPos.y
+        );
+
+        if (playerAtLanding) {
+          // Attempt Catch
           context.flowManager.add(
-            new CatchOperation(divingCatcher.id, {
-              origin: "pass",
-              divingCatch: true,
-              landingPosition: landingPos,
-            }),
+            new CatchOperation(
+              playerAtLanding.id,
+              {
+                origin: "pass",
+                isPassTarget:
+                  landingPos.x === this.targetX &&
+                  landingPos.y === this.targetY,
+              },
+              {
+                passerId: passer.id,
+                passerTeamId: passer.teamId,
+                accurate: result.accurate,
+              }
+            ),
             true
           );
         } else {
-          // Land in empty square -> Bounce
-          eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Ball Lands in Empty Square"
-          );
-          context.flowManager.add(new BounceOperation(landingPos), true);
+          const divingCatcher = [
+            ...(gameService.getTeam(passer.teamId)?.players ?? []),
+            ...opponents,
+          ]
+            .filter(
+              (candidate) =>
+                candidate.gridPosition &&
+                candidate.status === PlayerStatus.ACTIVE &&
+                hasSkill(candidate.skills, SkillType.DIVING_CATCH) &&
+                Math.max(
+                  Math.abs(candidate.gridPosition.x - landingPos.x),
+                  Math.abs(candidate.gridPosition.y - landingPos.y)
+                ) === 1
+            )
+            .sort(
+              (a, b) =>
+                a.gridPosition!.y - b.gridPosition!.y ||
+                a.gridPosition!.x - b.gridPosition!.x
+            )[0];
+
+          if (divingCatcher) {
+            context.flowManager.add(
+              new CatchOperation(divingCatcher.id, {
+                origin: "pass",
+                divingCatch: true,
+                landingPosition: landingPos,
+              }),
+              true
+            );
+          } else {
+            // Land in empty square -> Bounce
+            eventBus.emit(
+              GameEventNames.UI_Notification,
+              "Ball Lands in Empty Square"
+            );
+            context.flowManager.add(new BounceOperation(landingPos), true);
+          }
         }
       }
     }
-
-    // Update State
-    gameService.getState().ballPosition = result.finalPosition;
 
     // A Pass Action ends the activation once it settles. Give and Go keeps it
     // open after a Quick Pass. A latched Turnover bypasses it even while the
