@@ -27,7 +27,10 @@ import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
 import { jumpTargets } from "../game/rules/jump";
 import { moveAllowance } from "../game/skills/movement";
-import { withDriveModifiers } from "../game/kickoff/driveEffects";
+import {
+  isConfinedToReserves,
+  withDriveModifiers,
+} from "../game/kickoff/driveEffects";
 import { hasSkill, SkillType } from "../types/Skills";
 
 export type CandidateKind =
@@ -316,6 +319,8 @@ async function setupCandidates(
         p.status === PlayerStatus.PRONE ||
         p.status === PlayerStatus.STUNNED
     )
+    // Sweltering Heat and similar drive effects bench players for a drive.
+    .filter((p) => !isConfinedToReserves(p, gs.getState()))
     .sort((a, b) => b.stats.ST - a.stats.ST || a.number - b.number);
 
   return new FormationManager()

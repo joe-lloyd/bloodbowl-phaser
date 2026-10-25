@@ -9,12 +9,19 @@ import { stabilizeIds } from "../headless/createHeadlessGame";
 import { HeadlessCommand } from "../headless/protocol";
 import { GameSnapshot } from "../headless/serialization";
 import { TeamFactory } from "../game/TeamFactory";
+import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
 import { enumerateDecision } from "./candidates";
 import { Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
 import { createCoachRng } from "./rng";
+
+/**
+ * "test-team" is TeamFactory's test team, mostly Linemen; "sevens-lineup"
+ * fields each roster's positionals (see lineups.ts).
+ */
+export type Lineup = "test-team" | "sevens-lineup";
 
 export const RECORDING_FORMAT = "bb7-sim-recording" as const;
 
@@ -59,6 +66,8 @@ export interface MatchRecording {
   rosters: [RosterName, RosterName];
   coaches: [string, string];
   rerolls: number;
+  /** Which teams were fielded; absent on recordings made before line-ups. */
+  lineup?: Lineup;
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
@@ -82,16 +91,13 @@ const DEFAULT_MAX_COMMANDS = 6000;
 export function createSimGame(
   seed: number,
   rosters: [RosterName, RosterName],
-  rerolls: number
+  rerolls: number,
+  lineup: Lineup = "test-team"
 ): HeadlessGame {
-  const team1 = stabilizeIds(
-    TeamFactory.createTestTeam(rosters[0], "Home", 0xcc0000),
-    "team1"
-  );
-  const team2 = stabilizeIds(
-    TeamFactory.createTestTeam(rosters[1], "Away", 0x0000cc),
-    "team2"
-  );
+  const build =
+    lineup === "sevens-lineup" ? createLineupTeam : TeamFactory.createTestTeam;
+  const team1 = stabilizeIds(build(rosters[0], "Home", 0xcc0000), "team1");
+  const team2 = stabilizeIds(build(rosters[1], "Away", 0x0000cc), "team2");
   team1.rerolls = rerolls;
   team2.rerolls = rerolls;
   return new HeadlessGame({
@@ -106,7 +112,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const rerolls = spec.rerolls ?? 3;
   const coachSeed = spec.coachSeed ?? spec.seed;
   const maxCommands = spec.maxCommands ?? DEFAULT_MAX_COMMANDS;
-  const game = createSimGame(spec.seed, spec.rosters, rerolls);
+  const game = createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];
   const findings: Finding[] = [];
@@ -249,6 +255,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     rosters: spec.rosters,
     coaches: [spec.coaches[0].name, spec.coaches[1].name],
     rerolls,
+    lineup: "sevens-lineup",
     steps,
     final: summarize(final),
     findings,

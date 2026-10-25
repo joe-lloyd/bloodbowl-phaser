@@ -37,6 +37,13 @@ export function parseRecording(text: string): MatchRecording {
   ) {
     throw new Error("recording is missing seed, rosters or steps");
   }
+  if (
+    value.lineup !== undefined &&
+    value.lineup !== "test-team" &&
+    value.lineup !== "sevens-lineup"
+  ) {
+    throw new Error(`unknown lineup "${String(value.lineup)}"`);
+  }
   return value as MatchRecording;
 }
 
@@ -48,7 +55,8 @@ export async function replayRecording(
   const game = createSimGame(
     recording.seed,
     recording.rosters,
-    recording.rerolls
+    recording.rerolls,
+    recording.lineup
   );
   let divergedAt: number | null = null;
   let executed = 0;
