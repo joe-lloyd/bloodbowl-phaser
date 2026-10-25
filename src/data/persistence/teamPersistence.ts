@@ -41,6 +41,7 @@ import {
 import { SeedMetadata } from "../../types/seedMetadata";
 import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../RosterTemplates";
+import { staysOnRoster } from "../../game/rules/leagueRoster";
 
 export const TEAM_SCHEMA_VERSION = 1;
 
@@ -362,6 +363,7 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
       ? { draftHistory: raw.draftHistory as DraftRecord[] }
       : {}),
   };
+  team.players = team.players.filter((player) => staysOnRoster(team, player));
   team.teamValue = calculateTeamValue(team);
   return { team, warnings };
 }

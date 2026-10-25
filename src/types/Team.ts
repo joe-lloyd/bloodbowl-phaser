@@ -2,7 +2,7 @@
  * Team types and interfaces for Blood Bowl Sevens
  */
 
-import { Player, PlayerTemplate } from "./Player";
+import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
 import { SkillCategory, SkillType } from "./Skills";
 import {
@@ -336,16 +336,24 @@ export function setAdvancementMode(
   team.advancementMode = mode;
 }
 
-/** D7: league teams start with Dedicated Fans 1, Matched Play teams with 0. */
-export function startingDedicatedFans(mode?: TeamAdvancementMode): number {
+/**
+ * League teams carry injuries between games and run the post-game sequence.
+ * Matched Play teams and unmigrated legacy teams do neither.
+ */
+export function isLeagueMode(mode?: TeamAdvancementMode): boolean {
   switch (mode) {
     case undefined:
     case "matched-play":
-      return 0;
+      return false;
     case "advanced-league":
     case "sevens-skill-selection":
-      return 1;
+      return true;
   }
+}
+
+/** D7: league teams start with Dedicated Fans 1, Matched Play teams with 0. */
+export function startingDedicatedFans(mode?: TeamAdvancementMode): number {
+  return isLeagueMode(mode) ? 1 : 0;
 }
 
 /** Finalize the mode choice: called on first save and on competition entry. */
@@ -359,15 +367,36 @@ export function hasBlockingPendingDevelopment(team: Team): boolean {
 }
 
 /**
- * Calculate team value
+ * Whether a player can play the team's next game: not already in the
+ * Casualty box, which before kick-off means sitting this game out, and in a
+ * league not due to Miss Next Game or Dead.
+ */
+export function playsNextGame(team: Team, player: Player): boolean {
+  if (
+    player.status === PlayerStatus.INJURED ||
+    player.status === PlayerStatus.DEAD
+  ) {
+    return false;
+  }
+  return !(
+    isLeagueMode(team.advancementMode) &&
+    (player.injuries.includes(InjuryType.MISS_NEXT_GAME) ||
+      player.injuries.includes(InjuryType.DEAD))
+  );
+}
+
+/**
+ * The team's Current Team Value: every player who can play the next game,
+ * plus re-rolls and Sideline Staff.
  */
 export function calculateTeamValue(team: Team): number {
   let value = 0;
 
-  // Player costs
-  team.players.forEach((player) => {
-    value += player.cost + (player.teamValue ?? 0);
-  });
+  team.players
+    .filter((player) => playsNextGame(team, player))
+    .forEach((player) => {
+      value += player.cost + (player.teamValue ?? 0);
+    });
 
   // Re-rolls and Sideline Staff count at their Sevens prices. Dedicated
   // Fans are not part of Team Value.

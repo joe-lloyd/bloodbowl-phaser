@@ -14,6 +14,7 @@ import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
+import { readyForLeagueGame } from "../rules/leagueRoster";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -53,6 +54,7 @@ export class SetupManager {
       movePlayerToBox(player, { box: "reserves" });
       player.hasActed = false;
     });
+    readyForLeagueGame(team);
   }
 
   /**
