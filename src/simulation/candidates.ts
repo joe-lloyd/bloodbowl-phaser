@@ -216,6 +216,14 @@ function decisionCandidates(
           )
         );
       }
+      if (pending.veteranRerollAvailable) {
+        out.push(
+          one(
+            { type: "veteran-reroll-block", attackerId: pending.attackerId },
+            "Spend the Veteran's re-roll on the block dice"
+          )
+        );
+      }
       return out;
     }
     case "push-direction":

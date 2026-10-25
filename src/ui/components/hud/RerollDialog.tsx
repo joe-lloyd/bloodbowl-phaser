@@ -83,6 +83,15 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
               USE TEAM RE-ROLL ({rerollsLeft} left)
             </button>
           )}
+          {request.sources.includes("veteran") && (
+            <button
+              data-testid="reroll-use-veteran"
+              onClick={() => answer(true, "veteran")}
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
+            >
+              USE VETERAN RE-ROLL (once per game)
+            </button>
+          )}
           <button
             data-testid="reroll-decline"
             onClick={() => answer(false)}

@@ -6,6 +6,7 @@
 import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
+import type { RerollSource } from "../types/decisions";
 import { GameSnapshot } from "./serialization";
 import type {
   ChargeBudget,
@@ -102,6 +103,7 @@ export type HeadlessCommand =
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | { type: "brawler-reroll-block"; attackerId: string }
+  | { type: "veteran-reroll-block"; attackerId: string }
   | {
       type: "special-action";
       action: Exclude<BlockReplacement, "stab"> | "gaze";
@@ -125,7 +127,7 @@ export type HeadlessCommand =
       type: "use-reroll";
       accept: boolean;
       /** Which source to spend; defaults to the first offered */
-      source?: "skill" | "team" | "pro";
+      source?: RerollSource;
     }
   | { type: "use-reaction"; accept: boolean }
   | { type: "choose-interception"; playerId?: string }
@@ -177,6 +179,8 @@ export type PendingDecision =
       proAvailable?: boolean;
       /** The attacker may Brawler-re-roll the single Both Down die. */
       brawlerAvailable?: boolean;
+      /** The attacking Veteran may re-roll all the dice, once per game. */
+      veteranRerollAvailable?: boolean;
     }
   | {
       type: "push-direction";
@@ -204,7 +208,7 @@ export type PendingDecision =
       chooserTeamId: string;
       rollKind: string;
       /** Available sources, skill first when both may be spent */
-      sources: ("skill" | "team" | "pro")[];
+      sources: RerollSource[];
       skill?: string;
       /** The failed die result */
       roll: number;

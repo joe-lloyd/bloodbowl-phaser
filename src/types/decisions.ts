@@ -5,8 +5,11 @@
  * skills work identically in local and online play.
  */
 
-/** "pro" = Pro's die-level reroll (3+ usage roll, locks out other sources). */
-export type RerollSource = "skill" | "team" | "pro";
+/**
+ * "pro" = Pro's die-level reroll (3+ usage roll, locks out other sources).
+ * "veteran" = the Sevens Veteran's once-per-game re-roll (D8).
+ */
+export type RerollSource = "skill" | "team" | "pro" | "veteran";
 
 /** Roll kinds a reroll can be offered for ("activation" = negatrait gates). */
 export type RerollableRollKind =

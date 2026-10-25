@@ -37,6 +37,8 @@ export interface BlockRollData {
   proAvailable?: boolean;
   /** Brawler may re-roll the single Both Down die (attacker has Brawler). */
   brawlerAvailable?: boolean;
+  /** The attacking Veteran may re-roll ALL the dice, once per game (D8). */
+  veteranRerollAvailable?: boolean;
 }
 
 /**

@@ -95,6 +95,7 @@ const COMMAND_SHAPES: Record<
   "team-reroll-block": { attackerId: "string" },
   "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "brawler-reroll-block": { attackerId: "string" },
+  "veteran-reroll-block": { attackerId: "string" },
   "special-action": {
     action: "string",
     attackerId: "string",
@@ -129,6 +130,7 @@ const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
   "team-reroll-block": "block-dice",
   "pro-reroll-block": "block-dice",
   "brawler-reroll-block": "block-dice",
+  "veteran-reroll-block": "block-dice",
   "choose-push-direction": "push-direction",
   "choose-follow-up": "follow-up",
   "use-reroll": "reroll",
@@ -614,6 +616,9 @@ export class HeadlessGame {
       case "brawler-reroll-block":
         gs.brawlerRerollBlockDie(cmd.attackerId);
         break;
+      case "veteran-reroll-block":
+        gs.veteranRerollBlock(cmd.attackerId);
+        break;
       case "choose-block-result": {
         const pending = this.takePending("block-dice");
         if (cmd.index < 0 || cmd.index >= pending.options.length) {
@@ -827,6 +832,7 @@ export class HeadlessGame {
         teamRerollAvailable: data.teamRerollAvailable,
         proAvailable: data.proAvailable,
         brawlerAvailable: data.brawlerAvailable,
+        veteranRerollAvailable: data.veteranRerollAvailable,
       };
     } else if (name === GameEventNames.UI_SelectPushDirection) {
       this.pending = {

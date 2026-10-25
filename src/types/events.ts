@@ -222,6 +222,7 @@ export enum GameEventNames {
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
+  UI_VeteranRerollBlock = "ui:veteranRerollBlock",
   UI_StepSelected = "ui:stepSelected",
 
   // Kickoff event step (owning coach only)
@@ -351,7 +352,7 @@ export interface GameEvents {
 
   [GameEventNames.RerollUsed]: {
     playerId: string;
-    source: "skill" | "team" | "pro";
+    source: import("./decisions").RerollSource;
     rollKind: string;
     skill?: string;
     /** Die result before and after the reroll */
@@ -841,6 +842,8 @@ export interface UIEvents {
   };
   /** Spend Brawler on a block (re-roll the single Both Down die). */
   [GameEventNames.UI_BrawlerRerollBlockDie]: { attackerId: string };
+  /** Spend the Veteran's once-per-game re-roll on all the block dice. */
+  [GameEventNames.UI_VeteranRerollBlock]: { attackerId: string };
 
   [GameEventNames.UI_StepSelected]: {
     stepId: string;

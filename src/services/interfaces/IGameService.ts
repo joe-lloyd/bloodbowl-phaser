@@ -178,6 +178,7 @@ export interface IGameService {
   proRerollBlockDie(attackerId: string, dieIndex: number): void;
   /** Brawler on a block: re-roll the single Both Down die. */
   brawlerRerollBlockDie(attackerId: string): void;
+  veteranRerollBlock(attackerId: string): void;
   executePush(
     attackerId: string,
     defenderId: string,

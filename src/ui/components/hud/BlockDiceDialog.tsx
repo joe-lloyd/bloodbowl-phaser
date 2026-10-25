@@ -157,6 +157,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
   };
 
+  const handleVeteranReroll = () => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
+    if (!data) return;
+    eventBus.emit(GameEventNames.UI_VeteranRerollBlock, {
+      attackerId: data.attackerId,
+    });
+  };
+
   const handleCancel = () => {
     setIsOpen(false);
   };
@@ -230,7 +238,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
             </div>
             {(rollData.teamRerollAvailable ||
               rollData.proAvailable ||
-              rollData.brawlerAvailable) && (
+              rollData.brawlerAvailable ||
+              rollData.veteranRerollAvailable) && (
               <div className="flex justify-center gap-3 mt-3">
                 {rollData.teamRerollAvailable && (
                   <button
@@ -260,6 +269,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 rounded text-xs font-bold text-white transition-colors"
                   >
                     BRAWLER: RE-ROLL 1 BOTH DOWN
+                  </button>
+                )}
+                {rollData.veteranRerollAvailable && (
+                  <button
+                    data-testid="block-veteran-reroll"
+                    onClick={handleVeteranReroll}
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 rounded text-xs font-bold text-white transition-colors"
+                  >
+                    VETERAN RE-ROLL (all dice, once per game)
                   </button>
                 )}
               </div>

@@ -206,6 +206,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.UI_BrawlerRerollBlockDie, (data) => {
       this.gameService.brawlerRerollBlockDie(data.attackerId);
     });
+    this.register(GameEventNames.UI_VeteranRerollBlock, (data) => {
+      this.gameService.veteranRerollBlock(data.attackerId);
+    });
 
     // Reroll/reaction dialog answers — resolve the paused roll path (or,
     // on the guest / online host, route the reply over the protocol)

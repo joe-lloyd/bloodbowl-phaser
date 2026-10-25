@@ -100,6 +100,8 @@ export interface GameState {
    * absent until the first half begins (see skills/RerollArbiter.ts).
    */
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
+  /** Veterans (D8) who have spent their once-per-game re-roll; absent = none. */
+  veteranRerollsUsed?: string[];
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */

@@ -1072,6 +1072,11 @@ export class GameService implements IGameService {
     this.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
+  /** Veteran on a block: re-roll all the dice, once per game (D8). */
+  veteranRerollBlock(attackerId: string): void {
+    this.blockManager.veteranRerollBlock(attackerId);
+  }
+
   public async executePush(
     attackerId: string,
     defenderId: string,
