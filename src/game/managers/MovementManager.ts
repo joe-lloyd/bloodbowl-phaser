@@ -35,6 +35,7 @@ import {
   RushDeclaredContext,
   StandUpRollContext,
   JumpDeclaredContext,
+  JumpResolvedContext,
 } from "../skills/SkillRule";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { jumpTargets } from "../rules/jump";
@@ -775,19 +776,77 @@ export class MovementManager {
       dice: this.diceController,
       triggers: [],
     };
-    await foldTrigger("onJumpDeclared", [player], jumpCtx);
+    // Markers of the vacated square fold first (Tentacles, Prehensile Tail),
+    // so the jumper's own Leap or Pogo sees every negative modifier.
+    const leftMarkers = adjacentStanding(from, opponents);
+    await foldTrigger("onJumpDeclared", leftMarkers, jumpCtx);
+    if (!jumpCtx.escapeCancelled) {
+      await foldTrigger("onJumpDeclared", [player], jumpCtx);
+    }
     jumpCtx.triggers.forEach((t) =>
       this.eventBus.emit(GameEventNames.SkillTriggered, t)
     );
+    // Tentacles held the jumper: no Agility Test, no move, and the
+    // activation ends, with no Turnover.
+    if (jumpCtx.escapeCancelled) {
+      this.callbacks.onActivationFinished(playerId);
+      return;
+    }
     const modifier = jumpCtx.negativeModifier + jumpCtx.bonusModifier;
 
-    const check = this.diceController.rollSkillCheck(
-      "Jump",
-      player.stats.AG,
-      modifier,
-      player.playerName
-    );
+    const rollJump = () =>
+      this.diceController.rollSkillCheck(
+        "Jump",
+        player.stats.AG,
+        modifier,
+        player.playerName
+      );
+    const rolled = gameService
+      ? await withRerollOffer(
+          { gameService, eventBus: this.eventBus },
+          player,
+          "jump",
+          rollJump
+        )
+      : rollJump();
     this.state.turn.movementUsed.set(playerId, preUsed + JUMP_COST);
+
+    // Markers of the vacated square react after any re-rolls (Diving Tackle).
+    const resolvedCtx: JumpResolvedContext = {
+      player,
+      from,
+      to: { ...target },
+      naturalRoll: rolled.roll,
+      target: player.stats.AG,
+      modifiers: modifier,
+      success: rolled.success,
+      decisions: gameService?.getDecisionService(),
+      flow: flowManager,
+      arbiter: gameService?.getRerollArbiter(),
+      dice: this.diceController,
+      triggers: [],
+    };
+    await foldTrigger("onJumpResolved", leftMarkers, resolvedCtx);
+    resolvedCtx.triggers.forEach((t) =>
+      this.eventBus.emit(GameEventNames.SkillTriggered, t)
+    );
+    const check = { success: resolvedCtx.success, roll: rolled.roll };
+    if (resolvedCtx.proneInVacated) {
+      const diver = opponents.find((p) => p.id === resolvedCtx.proneInVacated);
+      if (diver?.gridPosition) {
+        const diverFrom = { ...diver.gridPosition };
+        diver.gridPosition = { ...from };
+        diver.status = PlayerStatus.PRONE;
+        this.eventBus.emit(GameEventNames.PlayerMoved, {
+          playerId: diver.id,
+          from: diverFrom,
+          to: { ...from },
+          path: [diverFrom, { ...from }],
+          ballJoinStep: 0,
+        });
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, diver);
+      }
+    }
 
     if (check.success) {
       player.gridPosition = { ...target };

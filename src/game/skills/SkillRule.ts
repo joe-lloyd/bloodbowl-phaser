@@ -477,7 +477,18 @@ export interface JumpDeclaredContext extends TriggerContextBase {
   negativeModifier: number;
   /** Flat additions to the Agility Test (Very Long Legs +1). */
   bonusModifier: number;
+  /**
+   * The jumper is held fast: they never leave the square, no Agility Test
+   * is rolled, and their activation ends, with no Turnover (Tentacles).
+   */
+  escapeCancelled?: boolean;
 }
+
+/**
+ * The Jump Agility Test has been rolled and any re-rolls applied. Markers
+ * of the vacated square may still react (Diving Tackle).
+ */
+export type JumpResolvedContext = Omit<DodgeResolvedContext, "followInto">;
 
 /**
  * A player with MA < 3 rolls to stand up (4+, natural 1 fails); rules may
@@ -579,6 +590,8 @@ export interface SkillRule {
   onRushDeclared?(ctx: RushDeclaredContext, self: Player): void | Promise<void>;
   /** A Jump/Leap Agility Test is about to be rolled (Leap, Pogo, Very Long Legs). */
   onJumpDeclared?(ctx: JumpDeclaredContext, self: Player): void | Promise<void>;
+  /** The Jump test is final; markers of the vacated square react (Diving Tackle). */
+  onJumpResolved?(ctx: JumpResolvedContext, self: Player): void | Promise<void>;
   /** An MA < 3 player rolls to stand up (Timmm-ber!). */
   onStandUpRoll?(ctx: StandUpRollContext, self: Player): void | Promise<void>;
   /**

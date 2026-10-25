@@ -260,6 +260,7 @@ export type TriggerHook =
   | "onActivationDeclared"
   | "onRushDeclared"
   | "onJumpDeclared"
+  | "onJumpResolved"
   | "onStandUpRoll";
 
 /**
