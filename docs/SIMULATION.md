@@ -95,6 +95,29 @@ Also recorded as findings:
 - at full time, every touchdown on the scoreboard is credited to a scorer in
   the match statistics, so progression awards the SPP.
 
+## Watch a match
+
+`--html` writes a playback page next to every recording, plus an
+`index.html` that links them all. It keeps every match unless `--record`
+says otherwise.
+
+```bash
+pnpm sim --games 20 --html --out sim-results/watch
+pnpm sim:replay <recording.json> --html match.html   # one match
+```
+
+Each page is a single file that opens from disk. It draws the pitch and
+plays the match back step by step, with play, pause, speed, a scrubber, and
+jumps to the next turn or the next touchdown or turnover. Beside the pitch it
+shows each step's dice and notices, the full step list, and any rule the
+step broke. Hover a player for their stats and skills. The address keeps the
+step (`#step=120`), so a link points at a moment. Jev's probability and
+confidence for each pick appear under the step.
+
+To browse pages in htmlify on old-mac, copy a run's folder into
+`~/htmlify/bloodbowl/` and rebuild the indexes, as described in the HomeLab
+repository's `old-mac/htmlify/README.md`.
+
 ## Investigate a finding
 
 ```bash
@@ -147,5 +170,6 @@ on purpose, as with committed seeds.
 | `src/simulation/runMatch.ts` | One match, its findings and its recording |
 | `src/simulation/invariants.ts` | Rules checked after every command |
 | `src/simulation/replay.ts` | Replay, trim, and match-save export |
+| `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index |
 | `src/simulation/cli.ts` | `pnpm sim` and `pnpm sim:replay` |
 | `__tests__/simulation/` | Harness test and committed recordings |

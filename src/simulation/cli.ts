@@ -10,6 +10,8 @@
  *   pnpm sim:replay <match>.json --step 120          state after step 120
  *   pnpm sim:replay <match>.json --save-at 120 --save-out save.json
  *   pnpm sim:replay <match>.json --step 120 --trim-out fixture.json   regression fixture
+ *   pnpm sim:replay <match>.json --html match.html     playback page
+ *   pnpm sim --games 20 --html                       playback pages + index.html
  *
  * Writes `summary.json` plus one recording per match with findings (or every
  * match with `--record all`) to `--out`. Exits non-zero when any match broke
@@ -32,6 +34,7 @@ import {
 } from "./replay";
 import { createCoachRng } from "./rng";
 import { serializeMatchSave } from "../headless/serialization";
+import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "./viewer";
 
 const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
@@ -53,6 +56,8 @@ interface RunOptions {
   record: "all" | "failures" | "none";
   concurrency: number;
   strict: boolean;
+  /** Write a playback page next to every recording, plus an index. */
+  html: boolean;
 }
 
 function fail(message: string): never {
@@ -91,7 +96,9 @@ function parseRunOptions(argv: string[]): RunOptions {
     record: "failures",
     concurrency: 1,
     strict: false,
+    html: false,
   };
+  let recordChosen = false;
   const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -124,6 +131,7 @@ function parseRunOptions(argv: string[]): RunOptions {
         if (record !== "all" && record !== "failures" && record !== "none")
           fail("--record all | failures | none");
         options.record = record;
+        recordChosen = true;
         break;
       }
       case "--concurrency":
@@ -131,6 +139,9 @@ function parseRunOptions(argv: string[]): RunOptions {
         break;
       case "--strict":
         options.strict = true;
+        break;
+      case "--html":
+        options.html = true;
         break;
       case "--help":
         process.stdout.write(`${HELP}\n`);
@@ -143,6 +154,8 @@ function parseRunOptions(argv: string[]): RunOptions {
   if (!Number.isInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  // Pages are for watching matches, so keep every match unless told otherwise.
+  if (options.html && !recordChosen) options.record = "all";
   return options;
 }
 
@@ -157,6 +170,8 @@ const HELP = `Usage: pnpm sim [options]
   --record <mode>      all | failures | none (default failures)
   --concurrency <n>    matches in flight at once; useful with jev (default 1)
   --strict             also fail on rejected-candidate findings
+  --html               write a playback page per recorded match and an
+                       index.html (records every match unless --record says otherwise)
 jev needs TYPESAFE_API_KEY in the environment.`;
 
 function makeCoach(name: CoachName, jevStats: JevStats[]): Coach {
@@ -199,7 +214,6 @@ async function runBatch(options: RunOptions): Promise<number> {
   const matches: MatchSummary[] = [];
   const findings: (Finding & { file: string | null; seed: number })[] = [];
   const commandCounts: Record<string, number> = {};
-  const labels = new Set<string>();
   let next = 0;
   let done = 0;
   const started = Date.now();
@@ -245,11 +259,16 @@ async function runBatch(options: RunOptions): Promise<number> {
           )
         : null;
       if (file) fs.writeFileSync(file, JSON.stringify(recording));
+      if (file && options.html) {
+        fs.writeFileSync(
+          file.replace(/\.json$/, ".html"),
+          renderMatchHtml(await buildMatchDump(recording))
+        );
+      }
       for (const step of recording.steps) {
         if (step.ok)
           commandCounts[step.command.type] =
             (commandCounts[step.command.type] ?? 0) + 1;
-        labels.add(step.label.replace(/#\d+.*$/, "").trim());
       }
       for (const finding of recording.findings)
         findings.push({ ...finding, file, seed });
@@ -332,6 +351,27 @@ async function runBatch(options: RunOptions): Promise<number> {
     findings: grouped,
     perMatch: matches.sort((a, b) => a.seed - b.seed),
   };
+  if (options.html) {
+    fs.writeFileSync(
+      path.join(options.out, "index.html"),
+      renderIndexHtml({
+        title: `Simulation: ${options.home} vs ${options.away}, ${options.games} matches from seed ${options.seed}`,
+        coaches: [options.home, options.away],
+        matches: matches.flatMap((m) =>
+          m.file
+            ? [
+                {
+                  ...m,
+                  page: path.basename(m.file).replace(/\.json$/, ".html"),
+                },
+              ]
+            : []
+        ),
+        commandCoverage: commandCounts,
+        findings: grouped,
+      })
+    );
+  }
   fs.writeFileSync(
     path.join(options.out, "summary.json"),
     JSON.stringify(summary, null, 2)
@@ -447,6 +487,12 @@ async function replay(argv: string[]): Promise<number> {
     process.stdout.write(
       `  invariant broken at step ${violation.step}: ${violation.rule}: ${violation.message}\n`
     );
+  }
+
+  const htmlOut = flag("--html");
+  if (htmlOut) {
+    fs.writeFileSync(htmlOut, renderMatchHtml(await buildMatchDump(recording)));
+    process.stdout.write(`playback page written to ${htmlOut}\n`);
   }
 
   const trimOut = flag("--trim-out");
