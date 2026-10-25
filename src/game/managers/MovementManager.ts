@@ -70,6 +70,13 @@ export class MovementManager {
   ): { x: number; y: number; cost?: number }[] {
     const player = this.getPlayerById(playerId);
     if (!player || player.teamId !== this.state.activeTeamId) return [];
+    // Rooted and Chomped players may not leave their square.
+    if (
+      hasCondition(player, PlayerCondition.ROOTED) ||
+      hasCondition(player, PlayerCondition.CHOMPED)
+    ) {
+      return [];
+    }
 
     const used = this.getMovementUsed(playerId);
     const ma = driveEffectiveMA(player, this.state);

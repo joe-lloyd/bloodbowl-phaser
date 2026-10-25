@@ -946,11 +946,12 @@ export class HeadlessGame {
         } else if (p.status === PlayerStatus.PRONE) {
           // Standing up only costs movement, so every movement-based action
           // stays available to a prone player. Only plain Block is not.
-          actions.push("standUp", "move");
+          actions.push("standUp");
+          if (availability.move) actions.push("move");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (!state.turn.hasFouled) actions.push("foul");
         } else if (p.status === PlayerStatus.ACTIVE) {
-          actions.push("move");
+          if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (carriesBall && !state.turn.hasPassed) actions.push("pass");

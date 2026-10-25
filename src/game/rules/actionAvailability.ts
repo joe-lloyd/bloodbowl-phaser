@@ -12,7 +12,13 @@
  * they use plain adjacency.
  */
 
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStatus,
+  hasCondition,
+  hasTackleZone,
+} from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { isRightStuffEligible } from "./throwTeammate";
 import { jumpTargets } from "./jump";
@@ -261,11 +267,17 @@ export function computeActionAvailability(
     isStanding(player) &&
     canHaveBall;
 
+  // Rooted (Take Root) and Chomped players may not leave their square, so
+  // no Move Action, Jump or Secure the Ball (2025 rulebook, Take Root).
+  const heldInPlace =
+    hasCondition(player, PlayerCondition.ROOTED) ||
+    hasCondition(player, PlayerCondition.CHOMPED);
+
   return {
-    move: true,
+    move: !heldInPlace,
     block,
     multipleBlock,
-    jump,
+    jump: jump && !heldInPlace,
     blitz,
     pass,
     punt,
@@ -273,6 +285,7 @@ export function computeActionAvailability(
     foul,
     standUp: isProne,
     secureBall:
+      !heldInPlace &&
       ballReachable &&
       canSecureBall(player, ballPosition, [...opponents, ...teammates]),
     stab: directBlockReplacements.includes("stab"),
