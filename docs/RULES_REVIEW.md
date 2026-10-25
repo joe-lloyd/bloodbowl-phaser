@@ -67,32 +67,24 @@ Ball bugs surfaced.
 
 ## Still open
 
-### Covered by the Sevens rule set
+### Sevens rules from Spike! 22
 
-Sevens changes these. [SEVENS_RULES.md](SEVENS_RULES.md) gives the rule for each.
+[SEVENS_RULES.md](SEVENS_RULES.md) lists every Sevens rule and its status.
+Inducements, league injuries, staff prices, Argue the Call, Dedicated Fans,
+Journeymen and firing now follow it. Still open there:
 
-1. **Purchased inducements.** Fixed for everything except the two tables:
-   the catalogue follows L3, and each inducement now works in the match,
-   including Bribes from Get the Ref. Prayers to Nuffle and Desperate
-   Measures can be bought, but their tables (L4, L5) are not in yet.
-   Simulated matches never buy inducements, so only the tests cover them.
-2. **Injuries between league matches.** Fixed for Sevens: a Miss Next Game
-   player sits out the next league match and recovers, a dead player leaves
-   the roster, and team value counts neither, nor Dedicated Fans. Sevens has
-   no Niggling or Lasting Injuries. Still open: the seed teams and old saves
-   carry characteristic losses from before the Sevens tables, and loading
-   still applies them.
-3. **The team builder does not charge for staff.** Coaches and cheerleaders
-   are free and unlimited, and the Apothecary ignores whether the roster
-   allows one.
-4. **Argue the Call** is automatic, and a 6 cancels the turnover. Sevens uses
-   amateur referees with a 1 in 3 chance.
-5. **League and builder details.** The penalty-free set-up concession still
-   wipes the conceding team's SPP. Dedicated Fans now follow Sevens D7: they
-   stay out of team value, cost 20,000, start at 1 in a league, stay within
-   1 to 5, and change after each league match. Players cannot be fired after
-   a match (L6), and short teams take on Journeymen (L2), who cannot yet be
-   hired after the match.
+- Razzle-Dazzle and Magic Scroll are rolled and held but do nothing. A
+  second Action needs its own declaration rules, and the engine has no
+  Sports-Wizard.
+- There are no screens for re-drafting between seasons or for hiring
+  Journeymen after a game. The re-draft rules exist as a tested function.
+- Seed teams and old saves still carry characteristic losses from before
+  the Sevens injury tables, and loading still applies them.
+- The penalty-free set-up concession still wipes the conceding team's SPP.
+- In an online match the opponent cannot name their Primary skill choice,
+  because only the owner sees Manage Team. Hot-seat play works.
+- Simulated teams get Prayers and Desperate Measures for free but buy no
+  other inducements, so only the tests cover those.
 
 ### Wrong in rarer situations
 
