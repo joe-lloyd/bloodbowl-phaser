@@ -269,6 +269,12 @@ def rig_tree(c):
     mesh_object("trunk_low", cylinder(0.42, 0.75, 0.85), "wood", bodyj, (0, 0, 0.35))
     mesh_object("trunk", cylinder(0.36, 1.5, 0.85), "wood", chest, (0, 0, 1.4))
     mesh_object("bark_kit", box(0.5, 0.06, 0.5), "kit1", chest, (0, -0.33, 0.8))
+    # a face in the bark: glowing knot eyes under a heavy brow, and a dark mouth
+    mesh_object("brow", box(0.5, 0.14, 0.09), "wood", chest, (0, -0.33, 1.42), rotation=(0.2, 0, 0))
+    for sx in (1, -1):
+        mesh_object(f"knot_eye_{sx}", box(0.1, 0.04, 0.07), "glow", chest, (0.12 * sx, -0.335, 1.33))
+    mesh_object("nose_burl", sphere(0.07), "wood", chest, (0, -0.37, 1.22))
+    mesh_object("mouth", box(0.26, 0.04, 0.06), "dark", chest, (0, -0.33, 1.08))
     for k, (x, y, z, s) in enumerate(((0.25, 0.1, 1.75, 0.42), (-0.3, 0.05, 1.7, 0.38), (0.0, 0.2, 1.95, 0.45),
                                       (0.1, -0.2, 1.8, 0.32))):
         mesh_object(f"leaves_{k}", sphere(s), "leaf", chest, (x, y, z), scale=(1, 1, 0.8))
