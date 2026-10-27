@@ -132,7 +132,7 @@ def rig_biped(c):
     root.scale = (b["scale"],) * 3
     bodyj = joint("body", root, (0, 0, b["hip"]))
     chest = joint("chest", bodyj, (0, 0, b["chest"]))
-    head = joint("head", chest, (0, -0.1 * min(1.0, b["hunch"] * 3), b["neck"]))
+    head = joint("head", chest, (0, -0.1 * min(1.0, b["hunch"] * 3) - 0.2 * b["hunch"], b["neck"]))  # hunched heads jut forward
     head.scale = (b["head_scale"],) * 3
     c.j.update(root=root, body=bodyj, chest=chest, head=head)
     tw, td, th, lw = c.tw, c.td, c.th, c.lw

@@ -328,7 +328,7 @@ def pose_idle(f, n):
     spread = 0.3                       # each leg swings this far out
     thigh = -0.72                      # thighs forward of the hips
     knee = 1.22 + 0.07 * s             # knees breathe with the body
-    lean = 0.3 + hunch + 0.03 * s
+    lean = 0.3 + hunch * 0.45 + 0.03 * s  # more lean buried big guys' heads in their chests
     return {
         "body": R(rx=tilt, rz=0.04 * c, dx=0.025 * c, dz=stance_drop(thigh, knee, spread)),
         "chest": R(rx=lean, rz=-0.05 * c),

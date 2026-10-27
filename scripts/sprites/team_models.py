@@ -99,8 +99,8 @@ MODELS = {
                     colors=dict(skin=SKIN["chaos_dwarf"], hair=(0.06, 0.05, 0.06))),
     "bull_centaur": M("dwarf", ["face:dwarf", "beard:braided", "helmet:tophat:bronze", "pads:plate:bronze",
                                 "tail:bull"], rig="centaur",
-                      shape=dict(length=1.1, height=0.62, width=0.42, hide="skin", scale=1.1, head_scale=1.05),
-                      colors=dict(skin=SKIN["chaos_dwarf"], hair=(0.06, 0.05, 0.06))),
+                      shape=dict(length=1.1, height=0.62, width=0.42, hide="fur", scale=1.1, head_scale=1.05),
+                      colors=dict(skin=SKIN["chaos_dwarf"], hair=(0.06, 0.05, 0.06), fur=(0.2, 0.13, 0.1))),
 
     # -------------------------------------------------- chaos renegades
     "renegade_lineman": M("human", ["face:human", "helmet:spiked:metal", "pads:spiked", "number", "tattoos"],
