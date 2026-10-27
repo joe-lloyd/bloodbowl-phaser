@@ -301,7 +301,13 @@ export class TurnManager {
     );
 
     if (!hasActions) {
-      this.delay(500).then(() => this.endTurn());
+      // The coach may press End Turn inside the delay; ending again then
+      // would skip the opponent's whole turn.
+      const turn = this.state.turn;
+      this.delay(500).then(() => {
+        if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
+          this.endTurn();
+      });
     }
   }
 
