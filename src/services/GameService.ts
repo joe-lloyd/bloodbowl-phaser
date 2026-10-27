@@ -2042,6 +2042,21 @@ export class GameService implements IGameService {
     if (this.state.activePlayer) {
       const existingId = this.state.activePlayer.id;
       const status = this.playerActionManager.isActionCommitted(existingId);
+      // Nor may a player who has started the activation switch to another
+      // Action: moving, or standing up, then declaring a Block would be a
+      // Blitz that never spent the team's Blitz (and, from Prone, a free
+      // Jump Up).
+      if (
+        status.committed &&
+        existingId === playerId &&
+        this.state.activePlayer.action !== action
+      ) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason!)}.`
+        );
+        return false;
+      }
       if (status.committed && status.reason === "gate") {
         this.eventBus.emit(
           GameEventNames.UI_Notification,

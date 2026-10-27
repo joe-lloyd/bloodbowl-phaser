@@ -503,9 +503,11 @@ function stepCandidates(
       );
     }
 
+    // A stood-up player moves on under the same declaration; a Prone one
+    // must stand first.
     if (
       action !== "block" &&
-      action !== "standUp" &&
+      !(action === "standUp" && player.status === PlayerStatus.PRONE) &&
       action !== "ballAndChain" &&
       !isDirectReplacement(action)
     ) {
