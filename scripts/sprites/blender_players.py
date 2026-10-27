@@ -54,7 +54,7 @@ STYLES = {
         rim_width=0.55,
         palette=dict(cloth=(0.26, 0.24, 0.32), leather=(0.2, 0.16, 0.2), boot=(0.08, 0.07, 0.1),
                      metal=(0.1, 0.1, 0.13), skin=(0.8, 0.58, 0.52), orc_skin=(0.34, 0.66, 0.42)),
-        kit=dict(human=("visor",), orc=("visor", "bald")),
+        kit=dict(human=("visor",), orc=("visor", "bald"), elf=("visor",)),
     ),
     "ritual": dict(
         size="hi",
@@ -78,13 +78,34 @@ STYLES = {
     ),
 }
 
-# Body plan per race. Lengths in metres; the human hips stand at 1.0.
+# Body plan per race. Lengths in metres; the human hips stand at 1.0. `head`
+# picks the head builder; the flags add race-specific parts.
 RACES = {
-    "human": dict(hip=1.0, thigh=0.44, shin=0.3, chest=0.1, torso=(0.52, 0.32, 0.5), neck=0.62,
-                  shoulder=0.34, pad=0.17, arm=0.085, upper=0.34, fore=0.3, fist=0.095, hunch=0.0),
-    "orc": dict(hip=0.86, thigh=0.38, shin=0.26, chest=0.08, torso=(0.68, 0.42, 0.52), neck=0.6,
-                shoulder=0.44, pad=0.19, arm=0.12, upper=0.36, fore=0.36, fist=0.14, hunch=0.2, scale=1.12),
+    "human": dict(hip=1.0, thigh=0.44, chest=0.1, torso=(0.52, 0.32, 0.5), neck=0.62, shoulder=0.34,
+                  pad=0.17, arm=0.085, upper=0.34, fore=0.3, fist=0.095, hunch=0.0, head="human"),
+    "orc": dict(hip=0.86, thigh=0.38, chest=0.08, torso=(0.68, 0.42, 0.52), neck=0.6, shoulder=0.44,
+                pad=0.19, arm=0.12, upper=0.36, fore=0.36, fist=0.14, hunch=0.2, scale=1.12, head="orc",
+                bare_arms=True),
+    "elf": dict(hip=1.1, thigh=0.5, chest=0.1, torso=(0.42, 0.27, 0.54), neck=0.64, shoulder=0.28,
+                pad=0.13, arm=0.068, upper=0.36, fore=0.33, fist=0.075, hunch=0.0, head="elf",
+                skin=(0.86, 0.7, 0.62), hair=(0.98, 0.86, 0.48)),
+    "witch_elf": dict(hip=1.04, thigh=0.47, chest=0.09, torso=(0.38, 0.25, 0.48), neck=0.6, shoulder=0.25,
+                      pad=0, arm=0.062, upper=0.33, fore=0.3, fist=0.07, hunch=0.05, head="witch_elf",
+                      skin=(0.84, 0.8, 0.9), hair=(0.96, 0.96, 1.0), bare_arms=True, bracers=True),
+    "goblin": dict(hip=0.52, thigh=0.22, chest=0.05, torso=(0.34, 0.25, 0.3), neck=0.36, shoulder=0.21,
+                   pad=0.1, arm=0.055, upper=0.22, fore=0.21, fist=0.07, hunch=0.25, head="goblin",
+                   head_scale=1.3, skin=(0.48, 0.66, 0.3), bare_arms=True),
+    "gnome": dict(hip=0.52, thigh=0.22, chest=0.05, torso=(0.44, 0.34, 0.34), neck=0.38, shoulder=0.26,
+                  pad=0.1, arm=0.066, upper=0.22, fore=0.2, fist=0.075, hunch=0.05, head="gnome",
+                  head_scale=1.2, skin=(0.88, 0.62, 0.52), hair=(0.94, 0.93, 0.9)),
+    "vampire": dict(hip=1.06, thigh=0.48, chest=0.1, torso=(0.48, 0.3, 0.52), neck=0.62, shoulder=0.31,
+                    pad=0.12, arm=0.072, upper=0.35, fore=0.32, fist=0.08, hunch=0.0, head="vampire",
+                    skin=(0.88, 0.88, 0.95), hair=(0.07, 0.06, 0.1), cape=True),
 }
+
+# ry that swings a limb away from the body. The left side sits at +X, and a
+# positive rotation about Y swings a hanging limb toward -X, so left is negative.
+OUT = {"l": -1.0, "r": 1.0}
 
 MASK_COLOR = {"kit1": (1, 0, 0), "kit2": (0, 1, 0)}
 STATE = {}  # race body plan in use, read by the poses
@@ -237,30 +258,118 @@ def joint(name, parent, location):
 # ------------------------------------------------------------------- build
 
 
+def head_human(h, r, extras):
+    mesh_object("face", sphere(0.15), "skin", h, (0, -0.06, 0.12), scale=(0.85, 0.8, 0.95))
+    if "great_helm" in extras:
+        mesh_object("helmet", cylinder(0.19, 0.36), "metal", h, (0, 0.0, 0.38))
+        mesh_object("helm_top", sphere(0.19), "metal", h, (0, 0, 0.38), scale=(1, 1, 0.45))
+        mesh_object("eye_slit", box(0.26, 0.04, 0.035), "boot", h, (0, -0.185, 0.2))
+        mesh_object("crest", box(0.04, 0.34, 0.12), "kit2", h, (0, 0, 0.47))
+        return
+    mesh_object("helmet", sphere(0.2), "kit2", h, (0, 0.03, 0.2), scale=(1.0, 1.05, 0.95))
+    mesh_object("stripe", box(0.07, 0.42, 0.04), "kit1", h, (0, 0.03, 0.384))
+    if "cage" in extras:
+        mesh_object("cage", box(0.26, 0.04, 0.03), "metal", h, (0, -0.19, 0.08))
+        mesh_object("cage_v", box(0.03, 0.04, 0.16), "metal", h, (0, -0.2, 0.12))
+
+
+def head_orc(h, r, extras):
+    mesh_object("face", sphere(0.17), "skin", h, (0, -0.08, 0.1), scale=(1.15, 0.95, 0.9))
+    mesh_object("jaw", box(0.28, 0.2, 0.12), "skin", h, (0, -0.12, 0.0))
+    for sx in (1, -1):
+        mesh_object(f"tusk_{sx}", cone(0.03, 0.1), "cloth", h, (0.09 * sx, -0.2, 0.04))
+    if "bald" in extras:
+        mesh_object("dome", sphere(0.17), "skin", h, (0, -0.02, 0.22), scale=(1.0, 1.05, 0.95))
+        mesh_object("mohawk", box(0.06, 0.34, 0.12), "hair", h, (0, 0.0, 0.38))
+        for sx in (1, -1):
+            mesh_object(f"ear_{sx}", cone(0.05, 0.18), "skin", h, (0.15 * sx, 0.0, 0.2), rotation=(0, 1.3 * sx, 0))
+    else:
+        mesh_object("helmet", sphere(0.18), "kit2", h, (0, 0.03, 0.22), scale=(1.0, 1.05, 0.8))
+        mesh_object("stripe", box(0.07, 0.4, 0.04), "kit1", h, (0, 0.03, 0.36))
+    if "horns" in extras:
+        for sx in (1, -1):
+            mesh_object(f"horn_{sx}", cone(0.05, 0.26), "cloth", h, (0.16 * sx, 0.02, 0.3), rotation=(0, 0.7 * sx, 0))
+
+
+def head_elf(h, r, extras):
+    mesh_object("face", sphere(0.14), "skin", h, (0, -0.05, 0.13), scale=(0.8, 0.8, 1.02))
+    mesh_object("helmet", sphere(0.18), "kit2", h, (0, 0.03, 0.23), scale=(0.95, 1.08, 0.85))
+    mesh_object("fin", box(0.03, 0.36, 0.1), "kit1", h, (0, 0.04, 0.38))
+    mesh_object("ponytail", box(0.09, 0.07, 0.42), "hair", h, (0, 0.2, 0.02), rotation=(-0.35, 0, 0))
+    for sx in (1, -1):
+        mesh_object(f"ear_{sx}", cone(0.035, 0.22), "skin", h, (0.13 * sx, -0.02, 0.15), rotation=(-0.3, 1.1 * sx, 0))
+
+
+def head_witch_elf(h, r, extras):
+    mesh_object("face", sphere(0.14), "skin", h, (0, -0.05, 0.13), scale=(0.8, 0.8, 1.0))
+    mesh_object("hair_cap", sphere(0.16), "hair", h, (0, 0.04, 0.2), scale=(1.0, 1.05, 0.95))
+    spikes = [(0, -0.9), (0.5, -0.7), (-0.5, -0.7), (0.9, -0.3), (-0.9, -0.3), (0.3, -1.4), (-0.3, -1.4)]
+    for k, (ry, rx) in enumerate(spikes):
+        mesh_object(f"spike_{k}", cone(0.06, 0.34), "hair", h, (0, 0.08, 0.24), rotation=(rx, ry, 0))
+    for sx in (1, -1):
+        mesh_object(f"ear_{sx}", cone(0.035, 0.24), "skin", h, (0.12 * sx, -0.02, 0.15), rotation=(-0.4, 1.15 * sx, 0))
+
+
+def head_goblin(h, r, extras):
+    mesh_object("face", sphere(0.16), "skin", h, (0, -0.04, 0.12), scale=(1.0, 0.95, 0.9))
+    mesh_object("nose", cone(0.045, 0.17), "skin", h, (0, -0.16, 0.1), rotation=(1.75, 0, 0))
+    for sx in (1, -1):
+        mesh_object(f"ear_{sx}", cone(0.06, 0.34), "skin", h, (0.13 * sx, 0.0, 0.16), rotation=(-0.2, 1.25 * sx, 0))
+    mesh_object("helmet", sphere(0.22), "kit2", h, (0, 0.03, 0.2), scale=(1.0, 1.0, 0.82))
+    mesh_object("stripe", box(0.07, 0.45, 0.04), "kit1", h, (0, 0.03, 0.375))
+
+
+def head_gnome(h, r, extras):
+    mesh_object("face", sphere(0.15), "skin", h, (0, -0.04, 0.12))
+    mesh_object("nose", sphere(0.065), "skin", h, (0, -0.17, 0.1))
+    mesh_object("beard", sphere(0.16), "hair", h, (0, -0.1, -0.02), scale=(1.0, 0.75, 1.25))
+    mesh_object("hat", cone(0.18, 0.5), "kit2", h, (0, 0.02, 0.2), rotation=(-0.3, 0, 0))
+    mesh_object("hat_band", cylinder(0.185, 0.06), "kit1", h, (0, 0.02, 0.26))
+    mesh_object("goggles", box(0.28, 0.06, 0.07), "metal", h, (0, -0.14, 0.26))
+
+
+def head_vampire(h, r, extras):
+    mesh_object("face", sphere(0.15), "skin", h, (0, -0.05, 0.12), scale=(0.82, 0.82, 1.04))
+    mesh_object("hair", sphere(0.165), "hair", h, (0, 0.03, 0.19), scale=(1.0, 1.08, 0.82))
+    mesh_object("widows_peak", cone(0.05, 0.1), "hair", h, (0, -0.15, 0.25), rotation=(2.6, 0, 0))
+    for sx in (1, -1):
+        mesh_object(f"eye_{sx}", box(0.05, 0.02, 0.025), "eyes", h, (0.05 * sx, -0.165, 0.15))
+
+
+HEADS = {"human": head_human, "orc": head_orc, "elf": head_elf, "witch_elf": head_witch_elf,
+         "goblin": head_goblin, "gnome": head_gnome, "vampire": head_vampire}
+
+
 def build(race, style_name):
     style = STYLES[style_name]
     r = RACES[race]
+    leg = r["hip"] - 0.08  # hip joint to sole
     STATE.clear()
-    STATE.update(r)
+    STATE.update(r, leg=leg)
     for coll in (bpy.data.objects, bpy.data.meshes, bpy.data.materials, bpy.data.lights, bpy.data.cameras, bpy.data.worlds):
         for block in list(coll):
             coll.remove(block)
 
     pal = dict(style["palette"])
-    skin = pal.pop("orc_skin") if race == "orc" else pal["skin"]
-    pal.pop("orc_skin", None)
-    pal.update(skin=skin, kit1=KIT_GREY, kit2=KIT_GREY)
+    orc_skin = pal.pop("orc_skin")
+    pal["skin"] = orc_skin if race == "orc" else r.get("skin", pal["skin"])
+    pal["hair"] = r.get("hair", (0.08, 0.07, 0.1))
+    pal.update(kit1=KIT_GREY, kit2=KIT_GREY)
     for part, color in pal.items():
         toon_material(part, color, style)
         mask_material(f"mask_{part}", MASK_COLOR.get(part, (0, 0, 0)), style)
-    extras = style["kit"][race]
+    new_material("eyes")[2].inputs["Color"].default_value = (1.0, 0.08, 0.1, 1)  # glows, never shaded
+    new_material("mask_eyes")[2].inputs["Color"].default_value = (0, 0, 0, 1)
+    extras = style["kit"].get(race, ())
 
     root = joint("root", None, (0, 0, 0))
+    root.scale = (r.get("scale", 1.0),) * 3
     body = joint("body", root, (0, 0, r["hip"]))
     chest = joint("chest", body, (0, 0, r["chest"]))
-    root.scale = (r.get("scale", 1.0),) * 3
-    head = joint("head", chest, (0, -0.1 * (r["hunch"] > 0), r["neck"]))
+    head = joint("head", chest, (0, -0.1 * (r["hunch"] > 0.1), r["neck"]))
+    head.scale = (r.get("head_scale", 1.0),) * 3
     tw, td, th = r["torso"]
+    lw = tw / 0.52  # limb thickness follows torso width
 
     mesh_object("pelvis", box(tw * 0.88, td * 0.92, 0.28), "cloth", body, (0, 0, -0.04))
     mesh_object("belt", box(tw * 0.92, td, 0.06), "leather", body, (0, 0, 0.1))
@@ -270,60 +379,39 @@ def build(race, style_name):
     if "tabard" in extras:
         mesh_object("tabard_f", box(tw * 0.5, 0.03, 0.5), "kit2", body, (0, -td / 2 - 0.02, -0.18))
         mesh_object("tabard_b", box(tw * 0.5, 0.03, 0.42), "kit2", body, (0, td / 2 + 0.02, -0.14))
-    for side, sx in (("l", 1), ("r", -1)):
-        pad = mesh_object(f"pad_{side}", sphere(r["pad"]), "kit2", chest,
-                          (r["shoulder"] * 0.86 * sx, 0, th), scale=(1.1, 1.0, 0.62))
-        if race == "orc":
-            for k, (dx, dy) in enumerate(((0, 0), (0.08, 0.06), (-0.04, -0.08))):
-                mesh_object(f"spike_{side}{k}", cone(0.045, 0.16), "metal", pad, (dx * sx / 1.1, dy, 0.14 / 0.62),
-                            scale=(1 / 1.1, 1, 1 / 0.62))
+    if r.get("cape"):
+        mesh_object("collar", box(tw * 0.95, 0.05, 0.3), "kit2", chest, (0, td / 2, th + 0.1), rotation=(-0.25, 0, 0))
+        mesh_object("cape", box(tw * 1.0, 0.03, 0.85), "kit2", chest, (0, td / 2 + 0.06, th - 0.32), rotation=(-0.12, 0, 0))
+    if r["pad"]:
+        for side, sx in (("l", 1), ("r", -1)):
+            pad = mesh_object(f"pad_{side}", sphere(r["pad"]), "kit2", chest,
+                              (r["shoulder"] * 0.86 * sx, 0, th), scale=(1.1, 1.0, 0.62))
+            if race == "orc":
+                for k, (dx, dy) in enumerate(((0, 0), (0.08, 0.06), (-0.04, -0.08))):
+                    mesh_object(f"spike_{side}{k}", cone(0.045, 0.16), "metal", pad, (dx * sx / 1.1, dy, 0.14 / 0.62),
+                                scale=(1 / 1.1, 1, 1 / 0.62))
 
     mesh_object("neck", cylinder(0.08 * (1.4 if race == "orc" else 1), 0.14), "skin", head, (0, 0, 0.1))
-    if race == "orc":
-        mesh_object("face", sphere(0.17), "skin", head, (0, -0.08, 0.1), scale=(1.15, 0.95, 0.9))
-        mesh_object("jaw", box(0.28, 0.2, 0.12), "skin", head, (0, -0.12, 0.0))
-        for sx in (1, -1):
-            mesh_object(f"tusk_{sx}", cone(0.03, 0.1), "cloth", head, (0.09 * sx, -0.2, 0.04))
-    else:
-        mesh_object("face", sphere(0.15), "skin", head, (0, -0.06, 0.12), scale=(0.85, 0.8, 0.95))
-
-    if "great_helm" in extras:
-        mesh_object("helmet", cylinder(0.19, 0.36), "metal", head, (0, 0.0, 0.38))
-        mesh_object("helm_top", sphere(0.19), "metal", head, (0, 0, 0.38), scale=(1, 1, 0.45))
-        mesh_object("eye_slit", box(0.26, 0.04, 0.035), "boot", head, (0, -0.185, 0.2))
-        mesh_object("crest", box(0.04, 0.34, 0.12), "kit2", head, (0, 0, 0.47))
-    elif "bald" in extras:
-        mesh_object("dome", sphere(0.17), "skin", head, (0, -0.02, 0.22), scale=(1.0, 1.05, 0.95))
-        mesh_object("mohawk", box(0.06, 0.34, 0.12), "boot", head, (0, 0.0, 0.38))
-        for sx in (1, -1):
-            mesh_object(f"ear_{sx}", cone(0.05, 0.18), "skin", head, (0.15 * sx, 0.0, 0.2), rotation=(0, -1.3 * sx, 0))
-    else:
-        helm_r = 0.2 if race == "human" else 0.18
-        mesh_object("helmet", sphere(helm_r), "kit2", head, (0, 0.03, 0.2 + (0.02 if race == "orc" else 0)),
-                    scale=(1.0, 1.05, 0.95 if race == "human" else 0.8))
-        mesh_object("stripe", box(0.07, 0.42, 0.04), "kit1", head, (0, 0.03, 0.2 + helm_r * 0.92))
-    if "horns" in extras:
-        for sx in (1, -1):
-            mesh_object(f"horn_{sx}", cone(0.05, 0.26), "cloth", head, (0.16 * sx, 0.02, 0.3), rotation=(0, -0.7 * sx, 0))
-    if "cage" in extras:
-        mesh_object("cage", box(0.26, 0.04, 0.03), "metal", head, (0, -0.19, 0.08))
-        mesh_object("cage_v", box(0.03, 0.04, 0.16), "metal", head, (0, -0.2, 0.12))
+    HEADS[r["head"]](head, r, extras)
     if "visor" in extras:
-        mesh_object("visor", box(0.34, 0.08, 0.09), "metal", head, (0, -0.15 if race == "human" else -0.17, 0.2),
-                    scale=(1, 1, 1))
+        mesh_object("visor", box(0.34, 0.08, 0.09), "metal", head, (0, -0.15 if race != "orc" else -0.17, 0.2))
 
     for side, sx in (("l", 1), ("r", -1)):
         sh = joint(f"shoulder_{side}", chest, (r["shoulder"] * sx, 0, th * 0.92))
         el = joint(f"elbow_{side}", sh, (0, 0, -r["upper"]))
-        mesh_object(f"upper_arm_{side}", cylinder(r["arm"], r["upper"], 1.15), "kit1" if race == "human" else "skin", sh)
+        mesh_object(f"upper_arm_{side}", cylinder(r["arm"], r["upper"], 1.15), "skin" if r.get("bare_arms") else "kit1", sh)
         mesh_object(f"forearm_{side}", cylinder(r["arm"] * 0.9, r["fore"]), "skin", el)
         mesh_object(f"glove_{side}", sphere(r["fist"]), "leather", el, (0, 0, -r["fore"] - r["fist"] * 0.4))
+        if r.get("bracers"):
+            mesh_object(f"bracer_{side}", cylinder(r["arm"] * 1.15, r["fore"] * 0.55), "kit2", el, (0, 0, -r["fore"] * 0.35))
+            mesh_object(f"blade_{side}", cone(0.03, 0.16), "metal", el, (0.06 * sx, 0, -r["fore"] * 0.55), rotation=(0, 1.4 * sx, 0))
 
-        hip = joint(f"hip_{side}", body, (0.13 * sx * tw / 0.52, 0, -0.08))
+        hip = joint(f"hip_{side}", body, (0.13 * sx * lw, 0, -0.08))
         kn = joint(f"knee_{side}", hip, (0, 0, -r["thigh"]))
-        mesh_object(f"thigh_{side}", cylinder(0.1 * tw / 0.52, r["thigh"], 1.1), "cloth", hip)
-        mesh_object(f"shin_{side}", cylinder(0.085 * tw / 0.52, r["shin"]), "boot", kn)
-        mesh_object(f"boot_{side}", box(0.17 * tw / 0.52, 0.3, 0.14), "boot", kn, (0, -0.05, -(r["hip"] - 0.08 - r["thigh"]) + 0.07))
+        ankle = joint(f"ankle_{side}", kn, (0, 0, -(leg - r["thigh"]) + 0.07))
+        mesh_object(f"thigh_{side}", cylinder(0.1 * lw, r["thigh"], 1.1), "cloth", hip)
+        mesh_object(f"shin_{side}", cylinder(0.085 * lw, leg - r["thigh"] - 0.14), "boot", kn)
+        mesh_object(f"boot_{side}", box(0.17 * lw, 0.3 * lw, 0.14), "boot", ankle, (0, -0.05 * lw, 0))
 
     setup_scene(style)
     return {"objects": len(bpy.data.objects)}
@@ -368,7 +456,15 @@ def setup_scene(style):
 
 
 def set_pose(pose):
-    """pose maps joint name -> (rx, ry, rz, dx, dy, dz) offsets from rest."""
+    """pose maps joint name -> (rx, ry, rz, dx, dy, dz) offsets from rest.
+
+    Ankles are not posed directly: each one cancels the pitch of the body,
+    hip and knee above it, so boots stay flat on the ground.
+    """
+    pose = dict(pose)
+    for side in ("l", "r"):
+        pitch = sum(pose.get(j, R())[0] for j in ("body", f"hip_{side}", f"knee_{side}"))
+        pose[f"ankle_{side}"] = R(rx=-pitch)
     for ob in bpy.data.objects:
         if "rest" not in ob:
             continue
@@ -393,39 +489,56 @@ def R(rx=0, ry=0, rz=0, dx=0, dy=0, dz=0):
     return (rx, ry, rz, dx, dy, dz)
 
 
+def stance_drop(thigh, knee, spread):
+    """How far the hips sink so bent, spread legs still reach the ground.
+
+    thigh is the thigh's angle from vertical (negative swings forward) and
+    knee the bend at the knee, both in world terms.
+    """
+    l1 = STATE["thigh"]
+    l2 = STATE["leg"] - l1
+    reach = (l1 * math.cos(thigh) + l2 * math.cos(thigh + knee)) * math.cos(spread)
+    return reach - STATE["leg"]
+
+
 def pose_idle(f, n):
-    """Ready stance: breathing, weight shift, hands flexing."""
+    """Ready stance: feet wide, knees bent, chest over the toes, hands out to block."""
     p = 2 * math.pi * f / n
     s, c = math.sin(p), math.cos(p)
-    knee = 0.28 + 0.06 * s
     hunch = STATE["hunch"]
+    tilt = 0.12 + hunch * 0.3          # pelvis tips forward
+    spread = 0.3                       # each leg swings this far out
+    thigh = -0.72                      # thighs forward of the hips
+    knee = 1.22 + 0.07 * s             # knees breathe with the body
+    lean = 0.3 + hunch + 0.03 * s
     return {
-        "body": R(rx=0.05 + hunch * 0.3, ry=0.03 * c, dz=-0.05 - 0.025 * s, dx=0.02 * c),
-        "chest": R(rx=0.04 + hunch + 0.04 * s, ry=-0.03 * c),
-        "head": R(rx=-0.05 - hunch - 0.03 * s, rz=0.12 * c),
-        "shoulder_l": R(rx=-0.25 + 0.06 * s, ry=0.32 + 0.04 * c),
-        "shoulder_r": R(rx=-0.25 + 0.06 * s, ry=-0.32 - 0.04 * c),
-        "elbow_l": R(rx=-0.9 - 0.1 * c),
-        "elbow_r": R(rx=-0.9 - 0.1 * s),
-        "hip_l": R(rx=-0.35 - 0.03 * s, ry=0.12),
-        "hip_r": R(rx=-0.35 - 0.03 * s, ry=-0.12),
-        "knee_l": R(rx=knee + 0.25),
-        "knee_r": R(rx=knee + 0.25),
+        "body": R(rx=tilt, rz=0.04 * c, dx=0.025 * c, dz=stance_drop(thigh, knee, spread)),
+        "chest": R(rx=lean, rz=-0.05 * c),
+        "head": R(rx=-(tilt + lean) + 0.05, rz=0.2 * math.sin(p)),
+        "hip_l": R(rx=thigh - tilt, ry=OUT["l"] * spread),
+        "hip_r": R(rx=thigh - tilt, ry=OUT["r"] * spread),
+        "knee_l": R(rx=knee),
+        "knee_r": R(rx=knee),
+        "shoulder_l": R(rx=-0.8 + 0.05 * s, ry=OUT["l"] * (0.55 + 0.04 * c)),
+        "shoulder_r": R(rx=-0.8 + 0.05 * s, ry=OUT["r"] * (0.55 - 0.04 * c)),
+        "elbow_l": R(rx=-1.05 - 0.1 * c),
+        "elbow_r": R(rx=-1.05 - 0.1 * s),
     }
 
 
 def pose_run(f, n):
     p = 2 * math.pi * f / n
     s = math.sin(p)
+    k = STATE["leg"] / 0.92
     knee_l = 0.25 + 1.1 * max(0.0, math.sin(p + math.pi / 2))
     knee_r = 0.25 + 1.1 * max(0.0, math.sin(p - math.pi / 2))
     hunch = STATE["hunch"]
     return {
-        "body": R(rx=0.22 + hunch * 0.3, dz=0.06 * abs(math.cos(p)) - 0.06, rz=0.08 * s),
+        "body": R(rx=0.22 + hunch * 0.3, dz=(0.06 * abs(math.cos(p)) - 0.06) * k, rz=0.08 * s),
         "chest": R(rx=0.22 + hunch * 0.5, rz=-0.16 * s),
         "head": R(rx=-0.35 - hunch * 0.6, rz=0.08 * s),
-        "shoulder_l": R(rx=0.75 * s, ry=0.15),
-        "shoulder_r": R(rx=-0.75 * s, ry=-0.15),
+        "shoulder_l": R(rx=0.75 * s, ry=OUT["l"] * 0.15),
+        "shoulder_r": R(rx=-0.75 * s, ry=OUT["r"] * 0.15),
         "elbow_l": R(rx=-1.4),
         "elbow_r": R(rx=-1.4),
         "hip_l": R(rx=-0.8 * s - 0.15),
@@ -438,6 +551,7 @@ def pose_run(f, n):
 def pose_block(f, n):
     """Shoulder charge: crouch, drive forward, recover."""
     t = f / (n - 1)
+    k = STATE["leg"] / 0.92
     keys = [
         (0.0, (0.12, 0.0, -0.05, 0.1, -0.2, -0.5, 0.3)),
         (0.25, (0.35, 0.12, -0.18, 0.25, -0.9, -0.9, 0.9)),
@@ -447,15 +561,15 @@ def pose_block(f, n):
     ]
     lean, fwd, drop, chest, arm, hip, knee = lerp_keys(keys, t)
     return {
-        "body": R(rx=lean, dy=fwd, dz=drop),
+        "body": R(rx=lean, dy=fwd * k, dz=drop * k),
         "chest": R(rx=chest + STATE["hunch"] * 0.5, rz=0.35 * chest),
         "head": R(rx=-lean - 0.1 - STATE["hunch"]),
-        "shoulder_l": R(rx=arm, ry=0.3),
-        "shoulder_r": R(rx=arm * 0.6, ry=-0.5),
+        "shoulder_l": R(rx=arm, ry=OUT["l"] * 0.3),
+        "shoulder_r": R(rx=arm * 0.6, ry=OUT["r"] * 0.5),
         "elbow_l": R(rx=-0.5),
         "elbow_r": R(rx=-1.3),
-        "hip_l": R(rx=hip - 0.3, ry=0.1),
-        "hip_r": R(rx=-hip * 0.2 + 0.3, ry=-0.1),
+        "hip_l": R(rx=hip - 0.3, ry=OUT["l"] * 0.1),
+        "hip_r": R(rx=-hip * 0.2 + 0.3, ry=OUT["r"] * 0.1),
         "knee_l": R(rx=knee + 0.3),
         "knee_r": R(rx=knee),
     }
@@ -477,12 +591,12 @@ def pose_fall(f, n):
         "body": R(rx=rot, dy=back, dz=drop),
         "chest": R(rx=-0.1),
         "head": R(rx=0.35 * min(1.0, t * 2)),
-        "shoulder_l": R(rx=arm, ry=0.5),
-        "shoulder_r": R(rx=arm * 0.85, ry=-0.6),
+        "shoulder_l": R(rx=arm, ry=OUT["l"] * 0.5),
+        "shoulder_r": R(rx=arm * 0.85, ry=OUT["r"] * 0.6),
         "elbow_l": R(rx=-0.4),
         "elbow_r": R(rx=-0.7),
-        "hip_l": R(rx=-0.6 - knee * 0.5, ry=0.15),
-        "hip_r": R(rx=-0.2, ry=-0.15),
+        "hip_l": R(rx=-0.6 - knee * 0.5, ry=OUT["l"] * 0.15),
+        "hip_r": R(rx=-0.2, ry=OUT["r"] * 0.15),
         "knee_l": R(rx=knee + 0.4),
         "knee_r": R(rx=knee * 0.4),
     }

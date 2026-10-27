@@ -34,8 +34,18 @@ const PATH = [[12, 6], [11, 5], [10, 4], [9, 4]];  // ends beside the carrier on
 const BALL_HOPS = [[8, 5], [7, 6], [6, 6]];
 const BALL_PEAKS = [46, 18];
 const HAND = 34;
-const HUMANS = [CARRIER.concat("ne"), [9, 3, "e"], [9, 7, "e"], [6, 7, "e"], [6, 2, "se"], [5, 5, "e"], [4, 8, "ne"]];
-const ORCS = [PATH[0].concat("nw"), [10, 3, "w"], [10, 8, "w"], [11, 4, "w"], [12, 2, "sw"], [13, 8, "w"], [15, 5, "w"]];
+// Squares and facings for both sides. The first home player carries the
+// ball and the first away player is the blitzer.
+const HOME_SPOTS = [CARRIER.concat("ne"), [9, 3, "e"], [9, 7, "e"], [6, 7, "e"], [6, 2, "se"], [5, 5, "e"], [4, 8, "ne"]];
+const AWAY_SPOTS = [PATH[0].concat("nw"), [10, 3, "w"], [10, 8, "w"], [11, 4, "w"], [12, 2, "sw"], [13, 8, "w"], [15, 5, "w"]];
+const squad = (spots, races) => spots.map(([x, y, dir], i) => ({ race: races[i % races.length], x, y, dir }));
+const DEFAULT_TEAMS = { home: squad(HOME_SPOTS, ["human"]), away: squad(AWAY_SPOTS, ["orc"]) };
+const MIXED_TEAMS = {
+  home: squad(HOME_SPOTS, ["human", "elf", "vampire", "gnome", "human", "elf", "gnome"]),
+  away: squad(AWAY_SPOTS, ["orc", "goblin", "witch_elf", "orc", "goblin", "witch_elf", "orc"]),
+};
+const teamsOf = (style) => style.teams || DEFAULT_TEAMS;
+const racesOf = (teams) => [...new Set([...teams.home, ...teams.away].map((p) => p.race))];
 
 // ------------------------------------------------------------------ helpers
 
@@ -81,9 +91,21 @@ function onHud(scene, obj) {
 }
 
 function hud(scene, x, y, str, style) {
-  const t = onHud(scene, scene.add.text(x, y, str, style)).setDepth(10000);
+  const t = onHud(scene, scene.add.text(x, y, str, style)).setDepth(10000).setPadding(6, 4, 14, 4);  // room for italic overhang
   if (style.spacing && t.setLetterSpacing) t.setLetterSpacing(style.spacing);
   return t;
+}
+
+function loadRaces(scene, style, races) {
+  for (const race of races)
+    for (const layer of LAYERS)
+      scene.load.atlas(`${race}-${layer}`, `sprites/${style}/${race}/${layer}.png`, `sprites/${style}/${race}/${layer}.json`);
+  scene.load.json("meta", `sprites/${style}/${races[0]}/meta.json`);
+}
+
+function originOf(scene) {
+  const [[, size]] = Object.entries(scene.cache.json.get("meta").sizes);
+  return [size.anchor[0] / size.frame, size.anchor[1] / size.frame];
 }
 
 // -------------------------------------------------------------------- scene
@@ -95,18 +117,12 @@ class StyleFrame extends Phaser.Scene {
   }
 
   preload() {
-    for (const race of ["human", "orc"])
-      for (const layer of LAYERS)
-        this.load.atlas(`${race}-${layer}`, `sprites/${this.style.key}/${race}/${layer}.png`,
-          `sprites/${this.style.key}/${race}/${layer}.json`);
-    this.load.json("meta", `sprites/${this.style.key}/human/meta.json`);
+    loadRaces(this, this.style.key, racesOf(teamsOf(this.style)));
   }
 
   create() {
     const S = this.style;
-    const meta = this.cache.json.get("meta");
-    const [[, size]] = Object.entries(meta.sizes);
-    this.origin = [size.anchor[0] / size.frame, size.anchor[1] / size.frame];
+    this.origin = originOf(this);
     this.cameras.main.setBackgroundColor(S.bg);
     const focus = iso(10.5, 6);
     this.cameras.main.centerOn(focus.x, focus.y - 20);
@@ -118,10 +134,11 @@ class StyleFrame extends Phaser.Scene {
 
     S.pitch(this);
     this.players = [];
-    HUMANS.forEach(([gx, gy, dir], i) => this.players.push(this.makePlayer("human", gx, gy, dir, i)));
-    ORCS.forEach(([gx, gy, dir], i) => this.players.push(this.makePlayer("orc", gx, gy, dir, i + 7)));
+    const teams = teamsOf(S);
+    teams.home.forEach((p, i) => this.players.push(this.makePlayer("home", p, i)));
+    teams.away.forEach((p, i) => this.players.push(this.makePlayer("away", p, i + 7)));
     this.carrier = this.players[0];
-    this.blitzer = this.players[7];
+    this.blitzer = this.players[teams.home.length];
     this.ball = this.makeBall();
     S.effects(this);
     S.hud(this);
@@ -132,9 +149,9 @@ class StyleFrame extends Phaser.Scene {
     this.resetMatch();
   }
 
-  makePlayer(race, gx, gy, dir, i) {
+  makePlayer(team, { race, x: gx, y: gy, dir }, i) {
     const S = this.style;
-    const kit = S.kits[race];
+    const kit = S.kits[team];
     const shadow = S.shadow(this, kit);
     const sprites = LAYERS.map((layer, k) => {
       const s = this.add.sprite(0, 0, `${race}-${layer}`, "idle/s/0")
@@ -262,7 +279,7 @@ class StyleFrame extends Phaser.Scene {
 
 const NEON = {
   key: "neon", scale: 2, ballScale: 2, bg: "#06050b", hitstop: 160,
-  kits: { human: [0xff2a9d, 0x4a3a5c], orc: [0x23e6ff, 0x24414f] },
+  kits: { home: [0xff2a9d, 0x4a3a5c], away: [0x23e6ff, 0x24414f] },
   shadow(scene, kit) {
     const g = scene.add.graphics().setDepth(2);
     g.fillStyle(0x000000, 0.5).fillEllipse(0, 0, 44, 20);
@@ -345,7 +362,7 @@ const NEON = {
 
 const RITUAL = {
   key: "ritual", scale: 1, ballScale: 2, bg: "#0b0d0c", hitstop: 260,
-  kits: { human: [0xd9d0b8, 0x8f9894], orc: [0x8e1b12, 0x3a3533] },
+  kits: { home: [0xd9d0b8, 0x8f9894], away: [0x8e1b12, 0x3a3533] },
   shadow(scene) {
     return scene.add.ellipse(0, 0, 50, 22, 0x000000, 0.45).setDepth(2);
   },
@@ -468,7 +485,7 @@ const RITUAL = {
 
 const LEAGUE = {
   key: "league", scale: 1, ballScale: 2, bg: "#dfe7e1", hitstop: 420,
-  kits: { human: [0x86c5b0, 0xf4f1e8], orc: [0xe8661a, 0x7a4220] },
+  kits: { home: [0x86c5b0, 0xf4f1e8], away: [0xe8661a, 0x7a4220] },
   shadow(scene) {
     return scene.add.ellipse(0, 0, 48, 20, 0x1d3a2a, 0.28).setDepth(2);
   },
@@ -560,6 +577,73 @@ const LEAGUE = {
 };
 
 const STYLES = { neon: NEON, ritual: RITUAL, league: LEAGUE };
+
+// ------------------------------------------------------------------ roster
+
+const ROSTER = [
+  ["human", "Human lineman", "home"], ["orc", "Orc lineman", "away"], ["elf", "Elf lineman", "home"],
+  ["witch_elf", "Witch elf", "away"], ["goblin", "Goblin", "away"], ["gnome", "Gnome", "home"],
+  ["vampire", "Vampire", "home"],
+];
+const DIRS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"];
+const ROSTER_H = 380;
+
+/** Every race side by side on its own square, turning through all 8 facings. */
+class Roster extends Phaser.Scene {
+  constructor() {
+    super({ key: "roster" });
+    this.anim = "idle";
+    this.turning = true;
+  }
+
+  preload() { loadRaces(this, "neon", ROSTER.map(([race]) => race)); }
+
+  create() {
+    const origin = originOf(this);
+    this.cameras.main.setBackgroundColor("#06050b");
+    const gap = VIEW_W / ROSTER.length;
+    const y = 270, k = 1.5;  // the lineup shows sprites at 3×, half again the pitch size
+    const g = this.add.graphics();
+    this.cards = ROSTER.map(([race, name, team], i) => {
+      const x = gap * (i + 0.5);
+      const kit = NEON.kits[team];
+      const tile = [[x, y - TH * k / 2], [x + TW * k / 2, y], [x, y + TH * k / 2], [x - TW * k / 2, y]].map(([px, py]) => ({ x: px, y: py }));
+      g.fillStyle(0x120f1e).fillPoints(tile, true).lineStyle(1, 0xff2a9d, 0.35).strokePoints(tile, true);
+      g.fillStyle(0x000000, 0.5).fillEllipse(x, y, 66, 30).lineStyle(3, kit[0], 0.9).strokeEllipse(x, y, 78, 36);
+      const sprites = LAYERS.map((layer, j) => {
+        const s = this.add.sprite(x, y, `${race}-${layer}`, "idle/se/0").setOrigin(origin[0], origin[1]).setScale(2 * k);
+        if (j > 0) s.setTint(kit[j - 1]);
+        return s;
+      });
+      this.add.text(x, y + 64, name.toUpperCase(), {
+        fontFamily: "Futura, Avenir Next Condensed, sans-serif", fontSize: "15px", color: hex(kit[0]), fontStyle: "bold",
+      }).setOrigin(0.5, 0);
+      return { sprites, phase: i * 333 };
+    });
+    this.cameras.main.postFX.addBloom(0xffffff, 1, 1, 0.8, 0.6, 4);
+    this.clock = 0;
+  }
+
+  update(_, dt) {
+    this.clock += dt;
+    const dir = this.turning ? DIRS[Math.floor(this.clock / 1400) % 8] : "se";
+    const n = FRAMES[this.anim];
+    const cycle = LOOPS[this.anim] ? Infinity : (n / FPS[this.anim]) * 1000 + 900;
+    for (const c of this.cards) {
+      const ms = LOOPS[this.anim] ? this.clock + c.phase : this.clock % cycle;
+      const name = `${this.anim}/${dir}/${frameAt(this.anim, ms)}`;
+      for (const s of c.sprites) s.setFrame(name);
+    }
+  }
+}
+
+function startRoster(parent) {
+  return new Phaser.Game({
+    type: Phaser.WEBGL, parent, width: VIEW_W, height: ROSTER_H, pixelArt: true, roundPixels: true,
+    backgroundColor: "#06050b", scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_HORIZONTALLY },
+    scene: Roster,
+  });
+}
 const games = {};
 
 function start(key) {
@@ -580,4 +664,4 @@ function start(key) {
   return games[key];
 }
 
-window.styleFrames = { start, games, T_HIT };
+window.styleFrames = { start, games, T_HIT, STYLES, MIXED_TEAMS, startRoster };
