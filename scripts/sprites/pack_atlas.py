@@ -3,9 +3,10 @@
     python3 scripts/sprites/pack_atlas.py SHEETS_DIR OUT_DIR
 
 SHEETS_DIR is one player's build_sheets output (it holds meta.json and a
-folder per size). For each layer (base, kit1, kit2) this writes
+folder per size). For each size and layer (base, kit1, kit2) this writes
 OUT_DIR/<layer>.png and OUT_DIR/<layer>.json in Phaser's JSON-hash atlas
-format. Every frame is cropped to its visible pixels and keeps its offset in
+format. With more than one size, each size gets its own OUT_DIR/<size>/.
+Every frame is cropped to its visible pixels and keeps its offset in
 spriteSourceSize, so a sprite's origin stays on the feet. Frame names are
 "<anim>/<direction>/<frame>".
 """
@@ -20,10 +21,9 @@ ATLAS_WIDTH = 2048
 PAD = 1
 
 
-def frames(sheets, layer):
+def frames(sheets, layer, size):
     meta = json.loads((sheets / "meta.json").read_text())
-    (size, info), = meta["sizes"].items()
-    px = info["frame"]
+    px = meta["sizes"][size]["frame"]
     for anim, n in meta["animations"].items():
         sheet = Image.open(sheets / size / f"{anim}_{layer}.png")
         for row, d in enumerate(meta["directions"]):
@@ -48,10 +48,16 @@ def pack(items):
 
 
 def main(sheets, out):
-    out.mkdir(parents=True, exist_ok=True)
     meta = json.loads((sheets / "meta.json").read_text())
+    for size in meta["sizes"]:
+        pack_size(sheets, out / size if len(meta["sizes"]) > 1 else out, size)
+    (out / "meta.json").write_text(json.dumps(meta, indent=2))
+
+
+def pack_size(sheets, out, size):
+    out.mkdir(parents=True, exist_ok=True)
     for layer in ("base", "kit1", "kit2"):
-        placed, height = pack(list(frames(sheets, layer)))
+        placed, height = pack(list(frames(sheets, layer, size)))
         atlas = Image.new("RGBA", (ATLAS_WIDTH, height))
         data = {}
         for name, img, box, px, x, y in placed:
@@ -65,7 +71,6 @@ def main(sheets, out):
             }
         atlas.save(out / f"{layer}.png", optimize=True)
         (out / f"{layer}.json").write_text(json.dumps({"frames": data, "meta": {"image": f"{layer}.png", "scale": "1"}}))
-    (out / "meta.json").write_text(json.dumps(meta, indent=2))
 
 
 if __name__ == "__main__":
