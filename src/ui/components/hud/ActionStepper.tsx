@@ -123,6 +123,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
 
         {/* End Activation - Always available */}
         <button
+          data-testid="action-end-activation"
           onClick={(e) => {
             e.stopPropagation();
             eventBus.emit(GameEventNames.UI_EndActivation);
