@@ -89,12 +89,18 @@ async function openCoach(side: Side): Promise<Coach> {
       size: { width: 1440, height: 900 },
     },
   });
+  // Time every envelope on both sides (see FirestoreTransport)
+  await context.addInitScript(() => localStorage.setItem("bb_debug_net", "1"));
   const page = await context.newPage();
   const rec = recorder(side);
   page.on("dialog", (dialog) => dialog.accept());
   page.on("pageerror", (error) => rec.log(`PAGEERROR ${error.message}`));
   page.on("console", (message) => {
     const text = message.text();
+    if (/\[Net\]/.test(text)) {
+      appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
+      return;
+    }
     if (/\[Online\]|\[Networked\]|rejected|resync/i.test(text))
       rec.log(`console ${text.slice(0, 300)}`);
   });

@@ -24,6 +24,18 @@ import { getDb } from "../firebase/config";
 import { Envelope } from "./envelope";
 import { Transport } from "./transport";
 
+/** `localStorage.bb_debug_net = "1"` logs every envelope with its timing. */
+function traceNet(direction: "send" | "recv", envelope: Envelope): void {
+  try {
+    if (localStorage.getItem("bb_debug_net") !== "1") return;
+  } catch {
+    return;
+  }
+  console.debug(
+    `[Net] ${direction} ${envelope.kind} seq=${envelope.seq} sent=${envelope.ts} now=${Date.now()}`
+  );
+}
+
 export class FirestoreTransport implements Transport {
   private readonly handlers = new Set<(envelope: Envelope) => void>();
   private stopListening: () => void = () => {};
@@ -68,12 +80,14 @@ export class FirestoreTransport implements Transport {
       if (change.type !== "added") continue;
       const envelope = change.doc.data() as Envelope;
       if (envelope.from === this.selfId) continue;
+      traceNet("recv", envelope);
       this.handlers.forEach((handler) => handler(envelope));
     }
   }
 
   async send(envelope: Envelope): Promise<void> {
     await this.live;
+    traceNet("send", envelope);
     await addDoc(
       collection(getDb(), "games", this.matchCode, "messages"),
       // Firestore rejects undefined fields; envelopes are JSON-safe already
