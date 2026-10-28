@@ -130,7 +130,15 @@ test("a full Sevens match, built and played through the UI", async ({
       continue;
     }
 
-    if (await answerDialog(page, app, i, rec)) continue;
+    // A dialog click that misses (an overlay passing over it) is retried
+    // next step, like any other failed move
+    const answered = await answerDialog(page, app, i, rec).catch(
+      (e: Error) => {
+        log(`${i} dialog failed: ${e.message.split("\n")[0]}`);
+        return true;
+      }
+    );
+    if (answered) continue;
 
     const next = await brainNext(page);
     if (next.over) {
