@@ -1026,4 +1026,73 @@ describe("GameplayInteractionController", () => {
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p2");
     });
   });
+
+  describe("switching players mid-activation", () => {
+    const teammate = {
+      id: "p3",
+      teamId: team1Id,
+      gridPosition: { x: 2, y: 2 },
+      stats: { MA: 6 },
+      status: "Active",
+      skills: [],
+    };
+    const byId = (id: string) =>
+      ({ p1: player1, p2: player2, p3: teammate })[id as "p1"];
+    const stateWith = (active: object | null) =>
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        activePlayer: active,
+      } as unknown as GameState);
+
+    beforeEach(() => {
+      mockGameService.getPlayerById.mockImplementation(byId);
+      mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team1Id);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+      mockGameService.canActivate.mockReturnValue(true);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+      mockGameService.getMovementUsed.mockReturnValue(3);
+    });
+
+    it("ends the moving player's activation when the coach picks another of theirs", () => {
+      stateWith({ id: "p1", action: "move", committed: true });
+      controller.handlePlayerClick("p3");
+      expect(mockGameService.finishActivation).toHaveBeenCalledWith("p1");
+      expect(mockScene.highlightPlayer).toHaveBeenLastCalledWith("p3");
+    });
+
+    it("releases a declaration nothing has happened on yet", () => {
+      stateWith({ id: "p1", action: "blitz", committed: false });
+      controller.handlePlayerClick("p3");
+      expect(mockGameService.cancelAction).toHaveBeenCalledWith("p1");
+      expect(mockGameService.finishActivation).not.toHaveBeenCalled();
+    });
+
+    it("leaves the activation alone when the coach looks at an opponent", () => {
+      stateWith({ id: "p1", action: "move", committed: true });
+      controller.selectPlayer("p2");
+      expect(mockGameService.finishActivation).not.toHaveBeenCalled();
+      expect(mockGameService.cancelAction).not.toHaveBeenCalled();
+    });
+
+    it("carries on with the player who moved when they are clicked again", async () => {
+      stateWith({ id: "p1", action: "move", committed: true });
+      controller.handlePlayerClick("p1");
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      mockMovementValidator.analyzePath.mockReturnValue({
+        requiresDodge: false,
+      });
+      await (controller as any).onSquareClicked(6, 5);
+      await (controller as any).onSquareClicked(6, 5);
+      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+        { x: 6, y: 5 },
+      ]);
+      expect(mockGameService.declareAction).not.toHaveBeenCalled();
+    });
+  });
 });
