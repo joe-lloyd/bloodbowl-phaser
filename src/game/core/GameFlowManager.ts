@@ -20,8 +20,43 @@ import { GameOperation } from "./GameOperation";
  */
 export type DelayProvider = (ms: number) => Promise<void>;
 
-export const realTimeDelay: DelayProvider = (ms) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+/** Engine pacing delays still running, for whenEngineQuiet. */
+let runningDelays = 0;
+const quietWaiters: (() => void)[] = [];
+
+export const realTimeDelay: DelayProvider = (ms) => {
+  runningDelays++;
+  return new Promise((resolve) =>
+    setTimeout(() => {
+      runningDelays--;
+      resolve();
+      if (runningDelays === 0) quietWaiters.splice(0).forEach((wake) => wake());
+    }, ms)
+  );
+};
+
+/**
+ * Resolves once no engine pacing delay is running and the code after the
+ * last one has run: the state will not change again until something new
+ * happens. Online lockstep waits for this before checking or running a
+ * command, because the two machines run the same delays at different
+ * moments. A decision the engine is paused on is not a delay, so this
+ * does not wait for it. Gives up after `maxMs`.
+ */
+export async function whenEngineQuiet(maxMs = 3000): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    if (runningDelays > 0) {
+      await Promise.race([
+        new Promise<void>((resolve) => quietWaiters.push(resolve)),
+        new Promise((resolve) => setTimeout(resolve, deadline - Date.now())),
+      ]);
+    }
+    // Let the code that follows the last delay run
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (runningDelays === 0) return;
+  }
+}
 
 export const noDelay: DelayProvider = () => Promise.resolve();
 

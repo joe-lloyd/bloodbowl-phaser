@@ -14,6 +14,7 @@
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { CommandResponse, HeadlessCommand } from "../headless/protocol";
 import { stateChecksum } from "../headless/checksum";
+import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import {
   applySnapshotToTeams,
   deserializeGameState,
@@ -96,11 +97,15 @@ export class LockstepSession {
         this.gateContext()
       );
       if (!verdict.allowed) return this.rejection(verdict.reason);
+      await whenEngineQuiet();
       const before = stateChecksum(this.options.game);
       const response = await this.options.game.execute(command);
       if (!response.ok) return response;
       this.applied++;
       this.options.onApplied?.(command, true);
+      // The checksum after the command's own paced flow has played out,
+      // which is what the other engine will also reach
+      await whenEngineQuiet();
       void this.send({
         kind: "command",
         payload: { command, before, after: stateChecksum(this.options.game) },
@@ -208,6 +213,9 @@ export class LockstepSession {
   ): Promise<void> {
     if (this.awaitingResync) return; // the resync replaces it
     const { game } = this.options;
+    // This engine may still be playing out the previous command's paced
+    // flow (a turnover, the half-time sequence); let it finish first
+    await whenEngineQuiet();
     const mine = stateChecksum(game);
     if (mine !== before) {
       this.desync(`before ${command.type}: ${mine} here, ${before} there`);
@@ -226,6 +234,7 @@ export class LockstepSession {
     const response = await game.execute(command);
     this.applied++;
     this.options.onApplied?.(command, false);
+    await whenEngineQuiet();
     const now = stateChecksum(game);
     if (!response.ok || now !== after) {
       this.desync(

@@ -1,3 +1,4 @@
+import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -33,8 +34,7 @@ export class SetupManager {
     private callbacks: {
       onKickoffRequested: () => void;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
-      new Promise((resolve) => setTimeout(resolve, ms))
+    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.syncPlacedPlayers(team1);
     this.syncPlacedPlayers(team2);
