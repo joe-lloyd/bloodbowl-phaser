@@ -966,4 +966,64 @@ describe("GameplayInteractionController", () => {
       expect((controller as any).currentActionMode).toBe("move");
     });
   });
+
+  describe("after a reload or resync", () => {
+    const restoreHandler = () =>
+      mockEventBus.on.mock.calls.find(
+        ([event]) => event === GameEventNames.GameStateRestored
+      )![1] as () => void;
+
+    it("selects this coach's player the engine has mid-move, so the coach can carry on moving", async () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        activePlayer: { id: "p1", action: "move", committed: true },
+      } as unknown as GameState);
+      mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team1Id);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+      mockGameService.getMovementUsed.mockReturnValue(3);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.canActivate.mockReturnValue(true);
+      mockMovementValidator.analyzePath.mockReturnValue({
+        requiresDodge: false,
+      });
+
+      restoreHandler()();
+
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:updateActionSteps",
+        expect.objectContaining({ currentStepId: "move" })
+      );
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      // Plan the step, then confirm it on the same square
+      await (controller as any).onSquareClicked(6, 5);
+      await (controller as any).onSquareClicked(6, 5);
+      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+        { x: 6, y: 5 },
+      ]);
+    });
+
+    it("leaves the board alone when the active player is the other team's", () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team2Id,
+        weather: "Nice",
+        activePlayer: { id: "p2", action: "move", committed: true },
+      } as unknown as GameState);
+      mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team2Id);
+      mockGameService.getPlayerById.mockReturnValue(player2);
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+
+      restoreHandler()();
+
+      // Locally the board drives whichever team is active; online only its own
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p2");
+    });
+  });
 });

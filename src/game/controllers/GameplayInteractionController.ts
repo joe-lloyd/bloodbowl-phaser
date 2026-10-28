@@ -214,6 +214,10 @@ export class GameplayInteractionController {
       this.resumeBlitzMoveHandler
     );
     this.eventBus.on(
+      GameEventNames.GameStateRestored,
+      this.resumeActivePlayer
+    );
+    this.eventBus.on(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler
     );
@@ -497,147 +501,7 @@ export class GameplayInteractionController {
       blockReplacement ?? undefined
     );
     if (success) {
-      // Set action mode state
-      this.currentActionMode = data.action;
-      this.currentBlockReplacement = blockReplacement;
-      this.hasMovedInAction = false;
-      // Local state moved on — invalidates any cancel-action rejection
-      // still in flight for this player (see onNetworkCommandRejected).
-      this.interactionSeq++;
-
-      // Define steps based on action
-      this.actionSteps = [];
-
-      switch (data.action) {
-        case "stab":
-        case "breatheFire":
-        case "vomit":
-        case "gaze":
-        case "chomp":
-        case "chainsaw":
-          // Single-target special action: pick an adjacent Standing opponent
-          this.actionSteps = [{ id: "target", label: "Select Target" }];
-          break;
-        case "pass":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "pass", label: "Pass" },
-          ];
-          break;
-        case "punt":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "punt", label: "Punt (pick direction)" },
-          ];
-          break;
-        case "throwBomb":
-          // A Bomber may not Move before throwing: one step, aim at any square.
-          this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
-          break;
-        case "ballAndChain":
-          // The Fanatic's only action: pick a facing (a click direction).
-          this.actionSteps = [
-            { id: "swing", label: "Swing (pick a direction)" },
-          ];
-          break;
-        case "blitz":
-          this.actionSteps = blockReplacement
-            ? [
-                { id: "move", label: "Move" },
-                {
-                  id: "target",
-                  label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
-                },
-              ]
-            : [
-                { id: "move", label: "Move" },
-                { id: "block", label: "Block" },
-              ];
-          break;
-        case "handoff":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "handoff", label: "Handoff" },
-          ];
-          break;
-        case "foul":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "foul", label: "Foul" },
-          ];
-          break;
-        case "block":
-          // A standalone Block: pick an adjacent Standing opponent to block.
-          this.actionSteps = [{ id: "block", label: "Block" }];
-          break;
-        case "multipleBlock":
-          this.multipleBlockFirstTargetId = null;
-          this.actionSteps = [
-            { id: "multipleBlock", label: "Select Two Targets" },
-          ];
-          break;
-        case "throwTeamMate":
-          this.ttmTeammateId = null;
-          // Move first (optional), then throw: in the throw step the first
-          // click picks the adjacent Right-Stuff team-mate, the second aims.
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "throw", label: "Throw Team-mate" },
-          ];
-          break;
-        // Secure Ball logic? Usually automatic, but stepper requested.
-        case "secureBall":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "secure", label: "Secure Ball" },
-          ];
-          break;
-        default:
-          // Move: walk by clicking squares, or Jump over an adjacent downed
-          // player via the Jump step (you can jump at any point in the move).
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "jump", label: "Jump" },
-          ];
-          break;
-      }
-
-      // The opening step is always the action's own first step. Deriving it
-      // from the list (rather than assuming "move") keeps single-step actions
-      // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
-      // their click handler actually matches; a hard-coded "move" left them
-      // on a step no branch claimed, so their clicks fell through.
-      const defaultStep = this.actionSteps[0]?.id ?? "move";
-
-      // A prone player stands up first — same activation, costs movement
-      const declarer = this.gameService.getPlayerById(data.playerId);
-      if (declarer?.status === PlayerStatus.PRONE) {
-        this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
-        this.currentStepId = "standup";
-      } else {
-        this.currentStepId = defaultStep;
-      }
-
-      // Emit Step Info
-      this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-        steps: this.actionSteps,
-        currentStepId: this.currentStepId,
-      });
-
-      // Emit ActionModeChanged event for UI (Legacy?)
-      this.eventBus.emit(GameEventNames.ActionModeChanged, {
-        playerId: data.playerId,
-        action: data.action,
-        blockReplacement: blockReplacement ?? undefined,
-        autoSelectMove: true,
-      });
-
-      // Don't call selectPlayer here - it causes PlayerSelected event
-      // which resets the action mode we just set!
-      // The player is already selected, no need to refresh
-
-      // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
-      this.refreshPlayerVisualization(data.playerId);
+      this.enterActionMode(data.playerId, data.action, blockReplacement);
     } else {
       console.log("Failed to declare action:", data.action);
       this.eventBus.emit(
@@ -645,6 +509,181 @@ export class GameplayInteractionController {
         `Cannot declare ${data.action} (Already used?)`
       );
     }
+  };
+
+  /**
+   * Put the board into a declared action: its steps, its opening step and
+   * the movement overlay. Used when the coach declares, and when a restore
+   * hands back a player the engine already has mid-action.
+   */
+  private enterActionMode(
+    playerId: string,
+    action: import("@/types/events").ActionType,
+    blockReplacement: BlockReplacement | null
+  ): void {
+    // Set action mode state
+    this.currentActionMode = action;
+    this.currentBlockReplacement = blockReplacement;
+    this.hasMovedInAction = false;
+    // Local state moved on — invalidates any cancel-action rejection
+    // still in flight for this player (see onNetworkCommandRejected).
+    this.interactionSeq++;
+
+    // Define steps based on action
+    this.actionSteps = [];
+
+    switch (action) {
+      case "stab":
+      case "breatheFire":
+      case "vomit":
+      case "gaze":
+      case "chomp":
+      case "chainsaw":
+        // Single-target special action: pick an adjacent Standing opponent
+        this.actionSteps = [{ id: "target", label: "Select Target" }];
+        break;
+      case "pass":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "pass", label: "Pass" },
+        ];
+        break;
+      case "punt":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "punt", label: "Punt (pick direction)" },
+        ];
+        break;
+      case "throwBomb":
+        // A Bomber may not Move before throwing: one step, aim at any square.
+        this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
+        break;
+      case "ballAndChain":
+        // The Fanatic's only action: pick a facing (a click direction).
+        this.actionSteps = [
+          { id: "swing", label: "Swing (pick a direction)" },
+        ];
+        break;
+      case "blitz":
+        this.actionSteps = blockReplacement
+          ? [
+              { id: "move", label: "Move" },
+              {
+                id: "target",
+                label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
+              },
+            ]
+          : [
+              { id: "move", label: "Move" },
+              { id: "block", label: "Block" },
+            ];
+        break;
+      case "handoff":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "handoff", label: "Handoff" },
+        ];
+        break;
+      case "foul":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "foul", label: "Foul" },
+        ];
+        break;
+      case "block":
+        // A standalone Block: pick an adjacent Standing opponent to block.
+        this.actionSteps = [{ id: "block", label: "Block" }];
+        break;
+      case "multipleBlock":
+        this.multipleBlockFirstTargetId = null;
+        this.actionSteps = [
+          { id: "multipleBlock", label: "Select Two Targets" },
+        ];
+        break;
+      case "throwTeamMate":
+        this.ttmTeammateId = null;
+        // Move first (optional), then throw: in the throw step the first
+        // click picks the adjacent Right-Stuff team-mate, the second aims.
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "throw", label: "Throw Team-mate" },
+        ];
+        break;
+      // Secure Ball logic? Usually automatic, but stepper requested.
+      case "secureBall":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "secure", label: "Secure Ball" },
+        ];
+        break;
+      default:
+        // Move: walk by clicking squares, or Jump over an adjacent downed
+        // player via the Jump step (you can jump at any point in the move).
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "jump", label: "Jump" },
+        ];
+        break;
+    }
+
+    // The opening step is always the action's own first step. Deriving it
+    // from the list (rather than assuming "move") keeps single-step actions
+    // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
+    // their click handler actually matches; a hard-coded "move" left them
+    // on a step no branch claimed, so their clicks fell through.
+    const defaultStep = this.actionSteps[0]?.id ?? "move";
+
+    // A prone player stands up first — same activation, costs movement
+    const declarer = this.gameService.getPlayerById(playerId);
+    if (declarer?.status === PlayerStatus.PRONE) {
+      this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
+      this.currentStepId = "standup";
+    } else {
+      this.currentStepId = defaultStep;
+    }
+
+    // Emit Step Info
+    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+      steps: this.actionSteps,
+      currentStepId: this.currentStepId,
+    });
+
+    // Emit ActionModeChanged event for UI (Legacy?)
+    this.eventBus.emit(GameEventNames.ActionModeChanged, {
+      playerId: playerId,
+      action: action,
+      blockReplacement: blockReplacement ?? undefined,
+      autoSelectMove: true,
+    });
+
+    // Don't call selectPlayer here - it causes PlayerSelected event
+    // which resets the action mode we just set!
+    // The player is already selected, no need to refresh
+
+    // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
+    this.refreshPlayerVisualization(playerId);
+  }
+
+  /**
+   * After a reload or a resync the engine may hold one of this coach's
+   * players mid-action while the board has nothing selected, so clicks on
+   * the pitch did nothing. Select that player again and resume its action.
+   */
+  private resumeActivePlayer = () => {
+    const active = this.gameService.getState().activePlayer;
+    const player = active ? this.gameService.getPlayerById(active.id) : null;
+    if (!active?.action || !player) return;
+    if (this.gameService.hasPlayerActed(active.id)) return;
+    const online = getActiveOnlineMatch();
+    if (online && online.myTeamId !== player.teamId) return;
+    if (this.gameService.getActiveTeamId() !== player.teamId) return;
+    this.selectPlayer(active.id);
+    this.enterActionMode(
+      active.id,
+      active.action as import("@/types/events").ActionType,
+      active.blockReplacement ?? null
+    );
+    this.hasMovedInAction = this.gameService.getMovementUsed(active.id) > 0;
   };
 
   public handlePointerDown(
@@ -2102,6 +2141,10 @@ export class GameplayInteractionController {
     this.eventBus.off(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
+    );
+    this.eventBus.off(
+      GameEventNames.GameStateRestored,
+      this.resumeActivePlayer
     );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
     this.eventBus.off(GameEventNames.DecisionResolved, this.onDecisionResolved);
