@@ -127,10 +127,10 @@
   .tip b { font: 700 11px/1 var(--cond); letter-spacing: 2px; text-transform: uppercase; }
 
   /* mockup controls, out of the way at the very bottom */
-  .mock { left: 50%; top: 104px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 5px 8px;
+  .mock { left: 50%; top: 104px; transform: translateX(-50%); display: flex; white-space: nowrap; gap: 6px; align-items: center; padding: 5px 8px;
     font-size: 12px; color: var(--dim); opacity: .55; transition: opacity .15s; }
   .mock:hover { opacity: 1; }
-  .mock button { background: #24212c; color: var(--text); border: 1px solid #3a3646; border-radius: 6px; padding: 3px 9px; font: inherit; cursor: pointer; }
+  .mock button { white-space: nowrap; background: #24212c; color: var(--text); border: 1px solid #3a3646; border-radius: 6px; padding: 3px 9px; font: inherit; cursor: pointer; }
   .mock button[aria-pressed="true"] { background: var(--home); border-color: var(--home); color: #14000b; }
   .mock a { color: var(--dim); }
 
@@ -166,6 +166,28 @@
   .theme-bloodbowl .endturn button { color: var(--gold); font: 700 17px/1 var(--cond); letter-spacing: 2px; }
   .theme-bloodbowl .endturn:hover { box-shadow: 0 0 16px rgba(217, 180, 90, 0.45); }
   .theme-bloodbowl .mock button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #1a1006; }
+  /* dice popover */
+  .dice-pop { left: 50%; top: 50%; width: 560px; transform: translate(-50%, -50%); padding: 0; overflow: hidden;
+    transition: opacity .2s ease, transform .22s cubic-bezier(.2,.9,.3,1.2); }
+  .dice-pop.show-later { opacity: 0; transform: translate(-50%, -46%) scale(.96); }
+  .dice-head, .dice-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 14px; }
+  .dice-head { border-bottom: 1px solid var(--line); }
+  .dice-foot { border-top: 1px solid var(--line); }
+  .dice-team { font: 700 13px/1 var(--cond); letter-spacing: 2px; text-transform: uppercase; }
+  .dice-title { color: var(--dim); font-size: 13px; }
+  .dice-stage { height: 300px; background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.07), transparent 70%); }
+  .dice-result { font: italic 22px/1.1 var(--punch); color: #fff; }
+  .dice-pop.picking .dice-result { color: var(--amber); }
+  .dice-seed { color: var(--dim); font: 11px/1 var(--mono); }
+  .theme-bloodbowl .dice-stage { background: radial-gradient(ellipse at 50% 45%, rgba(120, 78, 36, .45), rgba(30, 18, 8, .2) 75%); }
+  .theme-bloodbowl .dice-result { font-style: normal; font-weight: 700; color: var(--gold); }
+  .fair { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 420px; padding: 14px 16px; }
+  .fair .bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; align-items: end; height: 120px; margin: 12px 0 6px; }
+  .fair .bars div { background: var(--home); border-radius: 3px 3px 0 0; position: relative; }
+  .fair .bars span { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; font: 12px var(--mono); color: var(--dim); }
+  .fair p { margin: 22px 0 0; font-size: 13px; color: var(--dim); }
+  .fair button { margin-top: 10px; }
+
   .theme-bloodbowl .ok { color: #9fd36a; } .theme-bloodbowl .bad { color: #e2574c; }
 </style>
 </head>
@@ -211,7 +233,11 @@
     · Card
     <button data-mode="docked" aria-pressed="true">Docked</button>
     <button data-mode="beside" aria-pressed="false">Beside player</button>
-    · <a href="../stadium-2026-10-28/index.html">stadium page</a>
+    · Dice
+    <button data-roll="dodge">Dodge 3+</button>
+    <button data-roll="armour">Armour</button>
+    <button data-roll="their-block">Their block</button>
+    <button data-roll="fair">Fairness</button>
   </div>
 
   <div class="panel toast" id="toast"></div>
@@ -246,6 +272,10 @@
   <div class="panel endturn"><button id="endturn">END TURN</button></div>
 </div>
 
+<script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/", "cannon-es": "./vendor/cannon-es.js" } }
+</script>
+<script type="module" src="dice.js"></script>
 <script src="../stadium-2026-10-28/phaser.min.js"></script>
 <script src="match.js"></script>
 </body>

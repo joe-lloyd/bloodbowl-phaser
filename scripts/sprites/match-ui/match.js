@@ -179,7 +179,8 @@ class Match extends Phaser.Scene {
       downAt = null;
       if (dragged) return;
       const hit = over.length ? this.players.find((pl) => pl.sprites[0] === over[0]) : null;
-      if (hit && hit.side === "home" && !hit.box && hit.status !== "used") select(hit);
+      if (hit && ui.selected && hit.side === "away" && !hit.box && blockDice(ui.selected, hit)) block(ui.selected, hit);
+      else if (hit && hit.side === "home" && !hit.box && hit.status !== "used") select(hit);
       else if (!hit) select(null);
     });
     this.input.on("wheel", (p, _o, _dx, dy) => {
@@ -313,14 +314,90 @@ function showCards() {
     requestAnimationFrame(() => el.classList.add("show"));
   }
   // block preview when your selected player eyes an adjacent opponent
-  const adjacent = s && h && h.side === "away" && !h.box && Math.max(Math.abs(Math.floor(h.gx) - Math.floor(s.gx)), Math.abs(Math.floor(h.gy) - Math.floor(s.gy))) === 1;
-  if (adjacent) {
-    const st = POSITIONS[s.model][1][1], ht = POSITIONS[h.model][1][1];
-    const dice = st === ht ? "1 DIE" : st * 2 <= ht || ht * 2 <= st ? "3 DICE" : "2 DICE";
-    const who = st === ht ? "" : st > ht ? ", you choose" : ", they choose";
-    vs.innerHTML = `<div class="dice" style="color:${st >= ht ? "#7dffb0" : "#ff7a85"}">${dice}${who}</div><div class="why">Block · ST ${st} against ${ht} · right-click for assists</div>`;
+  const blk = s && h && blockDice(s, h);
+  if (blk) {
+    const word = blk.count === 1 ? "1 DIE" : `${blk.count} DICE`;
+    const who = blk.count === 1 ? "" : blk.chooser === "you" ? ", you choose" : ", they choose";
+    vs.innerHTML = `<div class="dice" style="color:${blk.chooser === "you" ? "#7dffb0" : "#ff7a85"}">${word}${who}</div><div class="why">Block · ST ${blk.st} against ${blk.ht} · click to block</div>`;
     vs.classList.add("show");
   } else vs.classList.remove("show");
+}
+
+/** Block dice between two adjacent players, or null if they aren't adjacent opponents. */
+function blockDice(s, h) {
+  if (h.side === s.side || h.box || Math.max(Math.abs(Math.floor(h.gx) - Math.floor(s.gx)), Math.abs(Math.floor(h.gy) - Math.floor(s.gy))) !== 1) return null;
+  const st = POSITIONS[s.model][1][1], ht = POSITIONS[h.model][1][1];
+  const count = st === ht ? 1 : st * 2 <= ht || ht * 2 <= st ? 3 : 2;
+  return { st, ht, count, chooser: st >= ht ? "you" : "them" };
+}
+
+// ------------------------------------------------------------------- dice
+
+const RACES = { home: "human", away: "orc" };
+function diceTeam(side) {
+  const scene = window.game.scene.getScene("match");
+  const kit = scene.d.kits[side];
+  return { key: `${ui.theme}-${side}`, name: side === "home" ? "Altdorf Lancers" : "Gutrippa Ladz", race: RACES[side], kit, ink: hex(kit[1]) };
+}
+
+function logLine(html) {
+  const li = document.createElement("li");
+  li.innerHTML = html;
+  document.querySelector(".log ol").appendChild(li);
+  document.querySelector(".log .last").innerHTML = html;
+}
+
+let rolling = false;
+async function throwDice(spec) {
+  if (rolling || !window.Dice) return null;
+  rolling = true;
+  try {
+    return await window.Dice.roll({ theme: ui.theme, ...spec });
+  } finally {
+    rolling = false;
+  }
+}
+
+async function block(s, h) {
+  const b = blockDice(s, h);
+  const r = await throwDice({ kind: "block", count: b.count, team: diceTeam("home"), chooser: b.chooser,
+    title: `#${s.num} ${s.name} blocks #${h.num} ${h.name} · ${b.count} ${b.count > 1 ? "dice" : "die"}` });
+  if (!r) return;
+  const face = r.faces[r.chosen];
+  const good = face === "Defender Down" || face === "Defender Stumbles" || face === "Push";
+  logLine(`<span class="${good ? "ok" : "bad"}">${good ? "✓" : "✗"}</span> ${s.name} block: ${face.toLowerCase()}`);
+}
+
+const ROLLS = {
+  dodge: () => ({ kind: "d6", count: 1, target: 3, team: diceTeam("home"), title: "Dodge · needs 3+" }),
+  armour: () => ({ kind: "d6", count: 2, target: 11, team: diceTeam("home"), title: "Armour on Skarsnag · AV 10+, beat it to break" }),
+  "their-block": () => ({ kind: "block", count: 2, chooser: "them", team: diceTeam("away"), title: "#6 Grimgut blocks #3 Mattias Roon · 2 dice" }),
+};
+
+async function demoRoll(name) {
+  if (name === "fair") return showFairness();
+  const spec = ROLLS[name]();
+  const r = await throwDice(spec);
+  if (!r) return;
+  const total = r.values.reduce((a, v) => a + v, 0);
+  if (spec.kind === "block") logLine(`<span class="bad">✗</span> Grimgut block: ${r.faces[r.chosen].toLowerCase()}`);
+  else logLine(`<span class="${total >= spec.target ? "ok" : "bad"}">${total >= spec.target ? "✓" : "✗"}</span> ${spec.title.split(" ·")[0]} rolled ${r.values.join(" + ")}`);
+}
+
+function showFairness() {
+  document.querySelector(".fair")?.remove();
+  const f = window.Dice.fairness();
+  const max = Math.max(...f.counts);
+  const pass = f.chi2 < 11.07;
+  const box = document.createElement("div");
+  box.className = "panel fair";
+  box.innerHTML = `<b>${f.n.toLocaleString()} d6 from the same generator</b>
+    <div class="bars">${f.counts.map((c, i) => `<div style="height:${(c / max) * 100}%"><span>${i + 1}</span></div>`).join("")}</div>
+    <p>Counts ${f.counts.map((c) => c.toLocaleString()).join(" · ")}. Chi-square ${f.chi2.toFixed(2)} on 5 degrees of freedom:
+    ${pass ? "even, as a fair die should be" : "outside the 95% band, which a fair die does 1 time in 20"}. The 3D dice only ever show these numbers.</p>
+    <button>Close</button>`;
+  box.querySelector("button").addEventListener("click", () => box.remove());
+  document.querySelector(".hud").appendChild(box);
 }
 
 function select(pl) {
@@ -391,6 +468,7 @@ async function boot() {
   }));
   document.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () =>
     toast(`${b.dataset.act} picked for #${ui.selected.num} ${ui.selected.name}. In the game the pitch would now show the targets.`)));
+  document.querySelectorAll("[data-roll]").forEach((b) => b.addEventListener("click", () => demoRoll(b.dataset.roll)));
   $("endturn").addEventListener("click", () => toast("End turn asks to confirm while players are still unactivated."));
   addEventListener("keydown", (e) => { if (e.key === "Escape") select(null); });
 }
