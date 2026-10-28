@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   computeStandings,
@@ -26,7 +26,8 @@ import {
   fetchAllCoachTeams,
   OwnedTeam,
 } from "../../../firebase/cloudTeamRepository";
-import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
+import { saveTeam } from "../../../game/managers/TeamManager";
+import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
@@ -64,7 +65,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [advancementMode, setAdvancementModeChoice] =
     useState<TeamAdvancementMode>("advanced-league");
   const [draftBudget, setDraftBudget] = useState(1_200_000);
-  const localTeams = useMemo(() => loadTeams(), []);
+  const [localTeams] = useTeamLibrary();
 
   const profile: RosterRuleProfile | undefined = useProfile
     ? createRosterRuleProfile({

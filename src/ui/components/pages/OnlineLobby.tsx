@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
@@ -6,7 +6,7 @@ import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import { Title, Subtitle } from "../componentWarehouse/Titles";
 import { useAuth } from "../../hooks/useAuth";
-import { loadTeams } from "../../../game/managers/TeamManager";
+import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import {
   LobbyDoc,
   LobbySettings,
@@ -53,7 +53,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     } | null
   )?.competitionFixture;
 
-  const myTeams = useMemo(() => (user ? loadTeams() : []), [user]);
+  const [library] = useTeamLibrary();
+  const myTeams = user ? library : [];
 
   // Host mode: resume the user's existing match if any, else create one.
   // A player may only have one active match at a time, so we never spawn a

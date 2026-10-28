@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import {
-  loadTeams,
   deleteTeam,
   seedAllRosterTeams,
   deleteAllSeedTeams,
@@ -20,6 +18,7 @@ import {
   SecondaryButton,
 } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
+import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
@@ -89,12 +88,8 @@ function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
 }
 
 export function TeamManagement() {
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, reloadTeams] = useTeamLibrary();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    setTeams(loadTeams());
-  }, []);
 
   const handleCreateTeam = () => {
     navigate("/build-team/new-team");
@@ -107,7 +102,7 @@ export function TeamManagement() {
   const handleDeleteTeam = (teamId: string) => {
     if (confirm("Are you sure you want to delete this team?")) {
       deleteTeam(teamId);
-      setTeams(loadTeams());
+      reloadTeams();
     }
   };
 
@@ -116,7 +111,7 @@ export function TeamManagement() {
       confirm("This will create sample teams for all roster types. Continue?")
     ) {
       seedAllRosterTeams();
-      setTeams(loadTeams());
+      reloadTeams();
     }
   };
 
@@ -127,7 +122,7 @@ export function TeamManagement() {
       )
     ) {
       deleteAllSeedTeams();
-      setTeams(loadTeams());
+      reloadTeams();
     }
   };
 
@@ -314,7 +309,7 @@ export function TeamManagement() {
 
                   <PendingDevelopmentPanel
                     team={team}
-                    onChange={() => setTeams(loadTeams())}
+                    onChange={() => reloadTeams()}
                   />
 
                   {/* Spacer to push buttons down */}
