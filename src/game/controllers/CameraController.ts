@@ -161,6 +161,28 @@ export class CameraController {
     this.focus(this.pitch.getPixelPosition(x, y), duration);
   }
 
+  /**
+   * Frame a group of squares, such as the acting team and the ball, as close
+   * as the action framing allows while keeping every one in view. The extra
+   * padding keeps them clear of the HUD panels in the window's corners.
+   */
+  public focusSquares(
+    squares: { x: number; y: number }[],
+    duration = MOVE_MS
+  ): void {
+    if (this.manual || squares.length === 0) return;
+    const { centre, zoom } = this.frame(
+      squares.map((s) => this.pitch.getPixelPosition(s.x, s.y)),
+      1.6
+    );
+    const fitted = Math.max(
+      this.overviewFraming().zoom,
+      Math.min(zoom, this.actionZoom())
+    );
+    this.glide(centre, fitted, duration);
+    this.publishState("active", duration);
+  }
+
   /** Keep a moving object (the ball in flight) in the middle of the frame. */
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
     if (this.manual || reducedMotion()) return;

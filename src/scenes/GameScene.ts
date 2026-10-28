@@ -467,6 +467,11 @@ export class GameScene extends Phaser.Scene {
     this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
       if (!player?.gridPosition || this.isSetupActive) return;
       this.cameraController.release();
+      // The kicker aims anywhere in the other half: keep it all in view
+      if (this.gameService.getPhase() === GamePhase.KICKOFF) {
+        this.cameraController.overview();
+        return;
+      }
       this.cameraController.focusSquare(
         player.gridPosition.x,
         player.gridPosition.y
@@ -480,14 +485,21 @@ export class GameScene extends Phaser.Scene {
       // Setup wants both benches in view for dragging players on.
       if (phase === GamePhase.SETUP) this.cameraController.reset();
     });
-    this.subscribe(GameEventNames.TurnStarted, () => {
+    // A new turn frames the acting team with the ball, so every player the
+    // coach may move is in view (the ball alone left the team off screen
+    // when it lay in the other half)
+    this.subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
       this.cameraController.release();
       const ball = resolveBallRepresentation(this.gameService.getState(), [
         ...this.team1.players,
         ...this.team2.players,
       ]);
-      if (ball.kind === "none") this.cameraController.overview();
-      else this.cameraController.focusSquare(ball.square.x, ball.square.y);
+      const acting = [...this.team1.players, ...this.team2.players]
+        .filter((p) => p.teamId === teamId && p.gridPosition)
+        .map((p) => p.gridPosition!);
+      const squares = ball.kind === "none" ? acting : [...acting, ball.square];
+      if (squares.length === 0) this.cameraController.overview();
+      else this.cameraController.focusSquares(squares);
     });
 
     // The board is built: the loading screen can go, as the camera comes in.
