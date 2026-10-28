@@ -39,6 +39,20 @@ function inspect(): UxFinding[] {
     );
   };
 
+  // A page that scrolls can bring a control below the fold into view
+  const pageScrolls =
+    (document.scrollingElement?.scrollHeight ?? 0) > vh + 4;
+  // An open dialog is meant to cover everything behind it
+  const insideModal = (el: Element | null): boolean => {
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (style.position !== "fixed" && style.position !== "absolute") continue;
+      const r = node.getBoundingClientRect();
+      if (r.width * r.height >= vw * vh * 0.8) return true;
+    }
+    return false;
+  };
+
   // Controls: buttons, selects, inputs, links
   const controls = [
     ...document.querySelectorAll(
@@ -47,10 +61,12 @@ function inspect(): UxFinding[] {
   ].filter(shown);
   for (const el of controls) {
     const r = el.getBoundingClientRect();
-    if (r.right > vw + 1 || r.bottom > vh + 1 || r.left < -1 || r.top < -1) {
+    const belowFold = r.bottom > vh + 1 || r.top < -1;
+    if (r.right > vw + 1 || r.left < -1 || (belowFold && !pageScrolls)) {
       findings.push({ kind: "offscreen", detail: label(el) });
       continue;
     }
+    if (belowFold) continue;
     if (Math.min(r.width, r.height) < 24 && !(el as HTMLButtonElement).disabled) {
       findings.push({
         kind: "tiny",
@@ -59,7 +75,13 @@ function inspect(): UxFinding[] {
     }
     // Is the middle of the control actually reachable by a click?
     const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    if (hit && hit !== el && !el.contains(hit) && !hit.contains(el)) {
+    if (
+      hit &&
+      hit !== el &&
+      !el.contains(hit) &&
+      !hit.contains(el) &&
+      !insideModal(hit)
+    ) {
       findings.push({
         kind: "covered",
         detail: `${label(el)} under ${label(hit)}`,
