@@ -9,6 +9,9 @@ Layouts differ only in where the two dugouts sit:
     far     both dugouts side by side along the far sideline
     facing  home dugout on the far sideline, away dugout on the near one
     ends    one dugout behind each end zone
+    corners home on the far sideline in the home half, away on the near
+            sideline in the away half, so each bench is in its own half and
+            the two sit at opposite corners
 
 The camera is the player camera: orthographic, 30 degrees up, turned 45, at
 the same pixels per metre, so the sprites from render_models.py stand on the
@@ -389,6 +392,12 @@ def build(layout):
         boards(b, -1.5 * S, 4.2 * S, 2.0, (0, -1), SPONSORS[:2])
         boards(b, 15.8 * S, 21.5 * S, 2.0, (0, -1), SPONSORS[2:4])
         boards(b, -H, 0, -2.0, (1, 0), SPONSORS[:4])
+    elif layout == "corners":
+        dugout(b, "home", -1, -1, (1, 0), (0, -1), far=True)
+        dugout(b, "away", 10, ROWS + 1, (1, 0), (0, 1), far=False)
+        far_side_front = 4.2 * S
+        boards(b, 10.4 * S, 21.5 * S, 2.0, (0, -1), SPONSORS[:3])
+        boards(b, -H, 0, -2.0, (1, 0), SPONSORS[3:])
     elif layout == "ends":
         dugout(b, "home", -1, 0, (0, 1), (-1, 0), far=True)
         dugout(b, "away", COLS + 1, 0, (0, 1), (1, 0), far=False)
@@ -397,7 +406,7 @@ def build(layout):
     else:
         raise ValueError(layout)
 
-    near_side = -H - (5.2 * S if layout == "facing" else 2.6)
+    near_side = -H - (5.2 * S if layout in ("facing", "corners") else 2.6)
     near_end = W + (5.2 * S if layout == "ends" else 2.6)
     span_x0, span_x1 = far_end_front - 1, near_end + 1
     # far sideline: the main stand, tall, with a roof

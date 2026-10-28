@@ -19,7 +19,7 @@ const BENCH = {
 };
 const LYING = new Set(["ko", "injured"]);
 
-const view = { layout: "far", size: "lo", glow: true, grid: false, game: null };
+const view = { layout: "corners", size: "lo", glow: true, grid: false, game: null };
 
 function facingToward(dx, dy) {
   const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));   // e = 0, s = 2, w = 4, n = -2

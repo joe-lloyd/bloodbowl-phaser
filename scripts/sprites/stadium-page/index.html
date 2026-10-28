@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Stadium and dugouts: three layouts</title>
+<title>Stadium and dugouts: four layouts</title>
 <style>
   :root { color-scheme: dark; --bg: #0b0a10; --line: #2c2936; --text: #dedce6; --dim: #8f8c9c; --pink: #ff2a9d; }
   * { box-sizing: border-box; }
@@ -24,6 +24,7 @@
   #viewer canvas { image-rendering: pixelated; display: block; }
   .about { max-width: 92ch; }
   .about p { margin: 6px 0; }
+  a { color: #ff7ac4; }
   ul { padding-left: 20px; }
   li { margin: 4px 0; }
   code { background: #221f2a; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
@@ -32,11 +33,12 @@
 <body>
 <main>
   <h1>Stadium and dugouts</h1>
-  <p class="dim">The neon pitch with its stands, crowd, floodlights and both dugouts, rendered in Blender with the player camera. Every dugout has a box for reserves, KO, injured and sent off, on the same squares as the pitch. Three layouts for where the dugouts go. Drag to pan and scroll to zoom.</p>
+  <p class="dim">The neon pitch with its stands, crowd, floodlights and both dugouts, rendered in Blender with the player camera. Every dugout has a box for reserves, KO, injured and sent off, on the same squares as the pitch. Four layouts for where the dugouts go. Drag to pan and scroll to zoom.</p>
 
   <div class="controls">
     <span>Layout</span>
-    <button data-layout="far" aria-pressed="true">Far side</button>
+    <button data-layout="corners" aria-pressed="true">Corners</button>
+    <button data-layout="far" aria-pressed="false">Far side</button>
     <button data-layout="facing" aria-pressed="false">Facing</button>
     <button data-layout="ends" aria-pressed="false">Ends</button>
     <span>Show</span>
@@ -54,9 +56,13 @@
   <div id="viewer"></div>
 
   <section class="about">
-    <div data-about="far">
+    <div data-about="corners">
+      <h2>Corners</h2>
+      <p>Facing, but each dugout moved into its own half: home on the far sideline at the home end, away on the near sideline at the away end. The benches sit at opposite corners, like a real ground, and reserves walk straight onto their own half. The near dugout still has painted labels instead of a back wall. The <a href="../match-ui-2026-10-28/index.html">match UI mockup</a> uses this layout.</p>
+    </div>
+    <div data-about="far" hidden>
       <h2>Far side</h2>
-      <p>Both dugouts sit along the far sideline, each on its own half, with the two reserve boxes meeting at halfway. The near sides only get three low rows of seats, so nothing ever stands between the camera and a player. Both dugouts get a back wall with neon signs and read at the same size. This is my pick.</p>
+      <p>Both dugouts sit along the far sideline, each on its own half, with the two reserve boxes meeting at halfway. The near sides only get three low rows of seats, so nothing ever stands between the camera and a player. Both dugouts get a back wall with neon signs and read at the same size.</p>
     </div>
     <div data-about="facing" hidden>
       <h2>Facing</h2>
