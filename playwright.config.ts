@@ -122,7 +122,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     // The match camera cuts instead of gliding, so canvas points are still
     // between clicks even when software WebGL renders a few frames a second.
-    reducedMotion: "reduce",
+    contextOptions: { reducedMotion: "reduce" },
     deviceScaleFactor: 1,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
