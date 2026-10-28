@@ -467,6 +467,35 @@ describe("SoundSuite plays recorded samples", () => {
     expect(source.stopped).toBe(true);
   });
 
+  it("rattles dice only for rolls that are not thrown as 3D dice", async () => {
+    const { ctx, manager } = await setup(serveAll);
+    const { SoundSuite } = await import("../../src/ui/sound/SoundSuite");
+    const { EventBus } = await import("../../src/services/EventBus");
+    const { GameEventNames } = await import("../../src/types/events");
+    const bus = new EventBus();
+    new SoundSuite(bus, manager).mount();
+    const roll = (diceType: string, value: number) =>
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Test",
+        diceType,
+        value,
+        total: value,
+        description: "",
+      });
+    const rattles = () =>
+      playedBuffers(ctx).filter((b) => b.url.includes("dice-roll")).length;
+
+    // A D6 lands in the 3D tray, which knocks as it lands
+    roll("1d6", 4);
+    await settle();
+    expect(rattles()).toBe(0);
+
+    // A D8 has no 3D die, so the rattle plays
+    roll("1d8", 5);
+    await settle();
+    expect(rattles()).toBe(1);
+  });
+
   it("every catalog sample exists under public/", async () => {
     const { existsSync } = await import("node:fs");
     const { SAMPLE_URLS } = await import("../../src/ui/sound/catalog");

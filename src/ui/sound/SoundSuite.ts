@@ -5,6 +5,7 @@ import { PlayerStatus } from "../../types/Player";
 import { CATALOG, SoundName } from "./catalog";
 import { SoundManager } from "./SoundManager";
 import { soundSettings } from "./settings";
+import { isThrownIn3D } from "../dice/thrownDice";
 
 type Unsubscribe = () => void;
 
@@ -28,7 +29,10 @@ export class SoundSuite {
   ) {}
 
   mount(): void {
-    this.bind(GameEventNames.DiceRoll, () => "diceRoll");
+    // Rolls thrown as 3D dice sound their own knocks as they land
+    this.bind(GameEventNames.DiceRoll, (roll) =>
+      isThrownIn3D(roll.diceType) ? null : "diceRoll"
+    );
     this.bind(GameEventNames.BlockDiceRolled, () => "blockImpact");
     this.bind(GameEventNames.PlayerPushedIntoCrowd, () => "pushback");
     this.bind(GameEventNames.PlayerKnockedDown, () => "knockdown");

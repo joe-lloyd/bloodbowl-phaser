@@ -5,6 +5,7 @@ import { ServiceContainer } from "../../../services/ServiceContainer";
 import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
 import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceTeam } from "../../dice/diceScene";
+import { isBlockDice, isD6 } from "../../dice/thrownDice";
 
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
@@ -27,11 +28,11 @@ export function toDice(
   event: RollEvent
 ): Omit<DiceRoll, "team" | "neon"> | null {
   const values = ([] as (number | string)[]).concat(event.value);
-  if (/block/i.test(event.diceType)) {
+  if (isBlockDice(event.diceType)) {
     const faces = values.map((v) => BLOCK_VALUE[String(v)]);
     return faces.every(Boolean) ? { kind: "block", values: faces } : null;
   }
-  if (/^\d*d6$/i.test(event.diceType)) {
+  if (isD6(event.diceType)) {
     const pips = values.map(Number);
     return pips.every((v) => v >= 1 && v <= 6)
       ? { kind: "d6", values: pips }
