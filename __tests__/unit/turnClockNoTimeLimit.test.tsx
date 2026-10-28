@@ -37,6 +37,9 @@ vi.mock("../../src/services/ServiceContainer", () => ({
         getPhase: () => "PLAY",
         // The host's turn: the active coach keeps the clock
         getActiveTeamId: () => "host-team",
+        getState: () => ({
+          turn: { teamId: "host-team", turnNumber: 1, isHalf2: false },
+        }),
         endTurn: hoisted.endTurnMock,
       },
     }),
@@ -114,7 +117,11 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
       eventBus.emit(GameEventNames.TurnStarted, {} as never);
     });
 
-    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledWith(code, null);
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledWith(
+      code,
+      null,
+      "host-team:1:1"
+    );
   });
 
   it("renders nothing for a no-limit match", async () => {

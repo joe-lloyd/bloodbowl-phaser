@@ -312,6 +312,8 @@ async function step(coach: Coach, i: number): Promise<string | null> {
   const { page, app, rec } = coach;
   if (await clickIf(page, /^READY — FLIP COIN$/)) return "ready for the toss";
   if (await clickIf(page, /^RECEIVE$/)) return "chose to receive";
+  // At full time nobody may act, so look for it before asking that
+  if ((await brainNext(page).catch(() => null))?.over) return "over";
   if (!(await mayAct(coach))) return null;
   const before = JSON.stringify(await engineView(page));
   if (await riskyMoveConfirm(page, rec)) {
