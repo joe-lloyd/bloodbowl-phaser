@@ -1,0 +1,1925 @@
+{
+ "directions": [
+  "s",
+  "se",
+  "e",
+  "ne",
+  "n",
+  "nw",
+  "w",
+  "sw"
+ ],
+ "models": {
+  "amazon_eagle": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "amazon_jaguar": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "amazon_piranha": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "amazon_python": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "anointed_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "anointed_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "assassin": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "beastman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "beer_boar": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "berserker": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "big_un": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "black_orc": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "bloater": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "bloodseeker": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "bloodspawn": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "bodyguard": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "bomma": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "bret_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "bret_squire": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "bret_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "bull_centaur": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "chameleon_skink": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "chaos_chosen": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "chaos_dwarf": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "chaos_ogre": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "chaos_troll": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "de_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "de_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "de_runner": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "deathroller": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "doom_diver": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "dwarf_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "dwarf_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "dwarf_runner": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "fanatic": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "flamesmith": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "flesh_golem": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "fun_hoppa": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "fungus_flinga": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "ghoul": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "gnoblar": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "gnome_beastmaster": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "gnome_illusionist": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "gnome_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "goblin_bruiser": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "goblin_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "goblin_underworld": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "grail_knight": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "gutter_runner": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "halfling_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "halfling_hefty": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "halfling_hopeful": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "he_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "he_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "he_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "he_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "hobgoblin": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "hobgoblin_stabba": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "human_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "human_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "human_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "human_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "imperial_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "imperial_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "khorngor": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "kroxigor": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "loony": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "marauder": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "minotaur": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "mummy": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "noble_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "norse_raider": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "ogre": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "ogre_blocker": {
+   "anchor": [
+    96.0,
+    109.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 192,
+   "ppu": 25
+  },
+  "ogre_runt": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "ooligan": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "orc_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "orc_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "orc_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "pestigor": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "pogoer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "pump_wagon": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "rat_ogre": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "rat_ogre_mutant": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "renegade_dark_elf": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "renegade_goblin": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "renegade_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "renegade_orc": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "renegade_skaven": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "renegade_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "rotspawn": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "rotter": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "saurus": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "skaven_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "skaven_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "skaven_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "skeleton": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "skink": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "snotling": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "snotling_underworld": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "stilty_runna": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "thrall": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "tk_skeleton": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "tomb_guardian": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "treeman": {
+   "anchor": [
+    112.0,
+    125.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 224,
+   "ppu": 25
+  },
+  "treeman_loren": {
+   "anchor": [
+    112.0,
+    125.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 224,
+   "ppu": 25
+  },
+  "troll": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "troll_slayer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "troll_underworld": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "ulfwerener": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "union_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "union_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "union_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "union_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "valkyrie": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "vampire_blitzer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "vampire_runner": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "vampire_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "vargheist": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "wardancer": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "we_catcher": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "we_lineman": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "we_thrower": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "werewolf": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "wight": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "witch_elf": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "woodland_fox": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  },
+  "wraith": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "yhetee": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "zombie": {
+   "anchor": [
+    48.0,
+    61.42
+   ],
+   "animations": {
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 96,
+   "ppu": 25
+  }
+ },
+ "positions": {
+  "Amazon": {
+   "Eagle Warrior": "amazon_eagle",
+   "Jaguar Warrior": "amazon_jaguar",
+   "Piranha Warrior": "amazon_piranha",
+   "Python Warrior": "amazon_python"
+  },
+  "Black Orc": {
+   "Black Orc": "black_orc",
+   "Goblin Bruiser": "goblin_bruiser",
+   "Trained Troll": "troll"
+  },
+  "Bretonian": {
+   "Bretonian Knight Catcher": "bret_catcher",
+   "Bretonian Knight Thrower": "bret_thrower",
+   "Bretonian Squire": "bret_squire",
+   "Grail Knight": "grail_knight"
+  },
+  "Chaos Chosen": {
+   "Beastmen": "beastman",
+   "Chaos Chosen": "chaos_chosen",
+   "Chaos Ogre": "chaos_ogre",
+   "Chaos Troll": "chaos_troll",
+   "Minotaur": "minotaur"
+  },
+  "Chaos Dwarf": {
+   "Bull Centaur Blitzer": "bull_centaur",
+   "Chaos Dwarf Blocker": "chaos_dwarf",
+   "Chaos Dwarf Flamesmith": "flamesmith",
+   "Hobgoblin Lineman": "hobgoblin",
+   "Hobgoblin Sneaky Stabbas": "hobgoblin_stabba",
+   "Minotaur": "minotaur"
+  },
+  "Chaos Renegade": {
+   "Renegade Dark Elf": "renegade_dark_elf",
+   "Renegade Goblin": "renegade_goblin",
+   "Renegade Human Thrower": "renegade_thrower",
+   "Renegade Lineman": "renegade_lineman",
+   "Renegade Minotaur": "minotaur",
+   "Renegade Ogre": "chaos_ogre",
+   "Renegade Orc": "renegade_orc",
+   "Renegade Rat Ogre": "rat_ogre",
+   "Renegade Skaven": "renegade_skaven",
+   "Renegade Troll": "chaos_troll"
+  },
+  "Dark Elf": {
+   "Assassin": "assassin",
+   "Dark Elf Blitzer": "de_blitzer",
+   "Dark Elf Lineman": "de_lineman",
+   "Dark Elf Runner": "de_runner",
+   "Witch Elf": "witch_elf"
+  },
+  "Dwarf": {
+   "Deathroller": "deathroller",
+   "Dwarf Blitzer": "dwarf_blitzer",
+   "Dwarf Lineman": "dwarf_lineman",
+   "Dwarf Runner": "dwarf_runner",
+   "Troll Slayer": "troll_slayer"
+  },
+  "Elven Union": {
+   "Union Blitzer": "union_blitzer",
+   "Union Catcher": "union_catcher",
+   "Union Lineman": "union_lineman",
+   "Union Thrower": "union_thrower"
+  },
+  "Gnome": {
+   "Altern Forest Treeman": "treeman",
+   "Gnome Beastmaster": "gnome_beastmaster",
+   "Gnome Illusionist": "gnome_illusionist",
+   "Gnome Lineman": "gnome_lineman",
+   "Woodland Fox": "woodland_fox"
+  },
+  "Goblin": {
+   "'Ooligan": "ooligan",
+   "Bomma": "bomma",
+   "Doom Diver": "doom_diver",
+   "Fanatic": "fanatic",
+   "Goblin Lineman": "goblin_lineman",
+   "Loony": "loony",
+   "Pogoer": "pogoer",
+   "Trained Troll": "troll"
+  },
+  "Halfling": {
+   "Altern Forest Treeman": "treeman",
+   "Halfling Catcher": "halfling_catcher",
+   "Halfling Hefty": "halfling_hefty",
+   "Halfling Hopeful": "halfling_hopeful"
+  },
+  "High Elf": {
+   "High Elf Blitzer": "he_blitzer",
+   "High Elf Catcher": "he_catcher",
+   "High Elf Lineman": "he_lineman",
+   "High Elf Thrower": "he_thrower"
+  },
+  "Human": {
+   "Halfling Hopeful": "halfling_hopeful",
+   "Human Blitzer": "human_blitzer",
+   "Human Catcher": "human_catcher",
+   "Human Lineman": "human_lineman",
+   "Human Thrower": "human_thrower",
+   "Ogre": "ogre"
+  },
+  "Imperial Nobility": {
+   "Bodyguard": "bodyguard",
+   "Imperial Lineman": "imperial_lineman",
+   "Imperial Thrower": "imperial_thrower",
+   "Noble Blitzer": "noble_blitzer",
+   "Ogre": "ogre"
+  },
+  "Khorne": {
+   "Bloodborn Marauder": "marauder",
+   "Bloodseeker": "bloodseeker",
+   "Bloodspawn": "bloodspawn",
+   "Khorngor": "khorngor"
+  },
+  "Lizardmen": {
+   "Chameleon Skink": "chameleon_skink",
+   "Kroxigor": "kroxigor",
+   "Saurus Blocker": "saurus",
+   "Skink Lineman": "skink"
+  },
+  "Necromantic Horror": {
+   "Flesh Golem": "flesh_golem",
+   "Ghoul Runner": "ghoul",
+   "Werewolf": "werewolf",
+   "Wraith": "wraith",
+   "Zombie Lineman": "zombie"
+  },
+  "Norse": {
+   "Beer Boar": "beer_boar",
+   "Norse Berserker": "berserker",
+   "Norse Raider Lineman": "norse_raider",
+   "Ulfwerener": "ulfwerener",
+   "Valkyrie": "valkyrie",
+   "Yhetee": "yhetee"
+  },
+  "Nurgle": {
+   "Bloater": "bloater",
+   "Pestigor": "pestigor",
+   "Rotspawn": "rotspawn",
+   "Rotter Lineman": "rotter"
+  },
+  "Ogre": {
+   "Gnoblar Lineman": "gnoblar",
+   "Ogre Blocker": "ogre_blocker",
+   "Ogre Runt Punter": "ogre_runt"
+  },
+  "Old World Alliance": {
+   "Altern Forest Treeman": "treeman",
+   "Dwarf Blitzer": "dwarf_blitzer",
+   "Dwarf Lineman": "dwarf_lineman",
+   "Dwarf Runner": "dwarf_runner",
+   "Halfling Hopeful": "halfling_hopeful",
+   "Human Blitzer": "human_blitzer",
+   "Human Catcher": "human_catcher",
+   "Human Lineman": "human_lineman",
+   "Human Thrower": "human_thrower",
+   "Ogre": "ogre",
+   "Troll Slayer": "troll_slayer"
+  },
+  "Orc": {
+   "Big Un Blocker": "big_un",
+   "Goblin Lineman": "goblin_lineman",
+   "Orc Blitzer": "orc_blitzer",
+   "Orc Lineman": "orc_lineman",
+   "Orc Thrower": "orc_thrower",
+   "Untrained Troll": "troll"
+  },
+  "Shambiling Undead": {
+   "Ghoul Runner": "ghoul",
+   "Mummy": "mummy",
+   "Skeleton Lineman": "skeleton",
+   "Wight Blitzer": "wight",
+   "Zombie Lineman": "zombie"
+  },
+  "Skaven": {
+   "Gutter Runner": "gutter_runner",
+   "Rat Ogre": "rat_ogre",
+   "Skaven Blitzer": "skaven_blitzer",
+   "Skaven Lineman": "skaven_lineman",
+   "Skaven Thrower": "skaven_thrower"
+  },
+  "Snotling": {
+   "Fun-hoppa": "fun_hoppa",
+   "Fungus Flinga": "fungus_flinga",
+   "Pump Wagon": "pump_wagon",
+   "Snotling Lineman": "snotling",
+   "Stilty Runna": "stilty_runna",
+   "Trained Troll": "troll"
+  },
+  "Tomb Kings": {
+   "Anointed Blitzer": "anointed_blitzer",
+   "Anointed Thrower": "anointed_thrower",
+   "Skeleton Lineman": "tk_skeleton",
+   "Tomb Guardian": "tomb_guardian"
+  },
+  "Underworld Denizens": {
+   "Gutter Runner": "gutter_runner",
+   "Mutant Rat Ogre": "rat_ogre_mutant",
+   "Skaven Blitzer": "skaven_blitzer",
+   "Skaven Clanrat": "skaven_lineman",
+   "Skaven Thrower": "skaven_thrower",
+   "Underworld Goblin Lineman": "goblin_underworld",
+   "Underworld Snotling": "snotling_underworld",
+   "Underworld Troll": "troll_underworld"
+  },
+  "Vampire": {
+   "Thrall Lineman": "thrall",
+   "Vampire Blitzer": "vampire_blitzer",
+   "Vampire Runner": "vampire_runner",
+   "Vampire Thrower": "vampire_thrower",
+   "Vargheist": "vargheist"
+  },
+  "Wood Elf": {
+   "Loren Forest Treeman": "treeman_loren",
+   "Wardancer": "wardancer",
+   "Wood Elf Catcher": "we_catcher",
+   "Wood Elf Lineman": "we_lineman",
+   "Wood Elf Thrower": "we_thrower"
+  }
+ }
+}
