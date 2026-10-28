@@ -469,6 +469,10 @@ export class GameScene extends Phaser.Scene {
       if (this.isSetupActive) return;
       this.cameraController.focusSquare(to.x, to.y, 900);
     });
+    this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
+      // Setup wants both benches in view for dragging players on.
+      if (phase === GamePhase.SETUP) this.cameraController.reset();
+    });
     this.subscribe(GameEventNames.TurnStarted, () => {
       this.cameraController.release();
       const ball = resolveBallRepresentation(this.gameService.getState(), [
@@ -479,8 +483,9 @@ export class GameScene extends Phaser.Scene {
       else this.cameraController.focusSquare(ball.square.x, ball.square.y);
     });
 
-    // The board is built: the loading screen can go.
+    // The board is built: the loading screen can go, as the camera comes in.
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
+    if (!this.resumedMatch) this.cameraController.intro();
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);

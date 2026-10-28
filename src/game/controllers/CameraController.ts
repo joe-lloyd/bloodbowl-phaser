@@ -115,6 +115,26 @@ export class CameraController {
     });
   }
 
+  /**
+   * The opening shot: the whole stadium, then a slow glide down onto the
+   * pitch while the loading screen fades.
+   */
+  public intro(duration = 2200): void {
+    const { width, height } = this.camera.getBounds();
+    this.snap(
+      this.frame(
+        [
+          { x: 0, y: 0 },
+          { x: width, y: height },
+        ],
+        1
+      )
+    );
+    const { centre, zoom } = this.overviewFraming();
+    this.camera.zoomTo(zoom, duration, "Cubic.easeInOut", true);
+    this.camera.pan(centre.x, centre.y, duration, "Cubic.easeInOut", true);
+  }
+
   /** The whole pitch and both benches. */
   public overview(duration = MOVE_MS): void {
     const { centre, zoom } = this.overviewFraming();
