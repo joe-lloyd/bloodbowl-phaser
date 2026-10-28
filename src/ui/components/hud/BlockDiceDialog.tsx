@@ -282,13 +282,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
             keyboard or a screen reader. */}
         {rollData ? (
           <div className="mb-6">
-            <div className="sr-only">
+            <div className="flex justify-center gap-2">
               {rollData.results.map((result, idx) => (
                 <button
                   key={idx}
                   data-testid={`block-die-${idx}`}
                   data-block-result={result.type}
                   onClick={() => pickRef.current?.(idx)}
+                  // Hidden until a keyboard focuses it, then a plain button
+                  className="sr-only focus:not-sr-only focus:rounded focus:border focus:border-yellow-400 focus:px-3 focus:py-1 focus:text-xs focus:font-bold"
                 >
                   {proMode ? `Re-roll ${result.label}` : result.label}
                 </button>

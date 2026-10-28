@@ -485,11 +485,22 @@ export class GameScene extends Phaser.Scene {
       // Setup wants both benches in view for dragging players on.
       if (phase === GamePhase.SETUP) this.cameraController.reset();
     });
+    // A loaded scenario or a resumed match shows the whole board first; the
+    // turn start that follows the restore keeps the overview
+    let restored = false;
+    this.subscribe(GameEventNames.GameStateRestored, () => {
+      restored = true;
+    });
     // A new turn frames the acting team with the ball, so every player the
     // coach may move is in view (the ball alone left the team off screen
     // when it lay in the other half)
     this.subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
       this.cameraController.release();
+      if (restored) {
+        restored = false;
+        this.cameraController.overview();
+        return;
+      }
       const ball = resolveBallRepresentation(this.gameService.getState(), [
         ...this.team1.players,
         ...this.team2.players,
