@@ -56,6 +56,14 @@ export class DecisionService {
     this.current = { request, resolve: onAnswer };
   }
 
+  /**
+   * Forget the pending decision without answering it: the state it belonged
+   * to has been replaced (an online resync), so its roll path never resumes.
+   */
+  public abandon(): void {
+    this.current = null;
+  }
+
   /** Resolve the pending decision; false when nothing is pending. */
   public answer(answer: DecisionAnswer): boolean {
     if (!this.current) return false;

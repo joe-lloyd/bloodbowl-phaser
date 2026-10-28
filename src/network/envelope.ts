@@ -7,36 +7,27 @@
  * duplicated here.
  */
 
-import { HeadlessCommand, CommandResponse, PendingDecision } from "../headless/protocol";
-import { GameSnapshot } from "../headless/serialization";
+import { HeadlessCommand, PendingDecision } from "../headless/protocol";
 import { Team } from "../types/Team";
+import { GameSnapshot } from "../headless/serialization";
+import { RNGState } from "../services/rng/RNGService";
+import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export interface HelloPayload {
   protocolVersion: number;
-  /** The sender's serialized team (optional — teams travel in the lobby doc) */
-  team?: Team;
-  /** Host→guest only: the match seed */
-  seed?: number;
+  /** Commands the sender's engine has run; the side with more is ahead. */
+  applied: number;
+  checksum: string;
 }
 
+/** One coach's command, with their state's checksum before and after. */
 export interface CommandPayload {
   command: HeadlessCommand;
-}
-
-export interface ResponsePayload {
-  /** seq of the command envelope this responds to */
-  commandSeq: number;
-  response: CommandResponse;
-}
-
-/** A host-initiated action's result, pushed so the guest spectates live. */
-export interface BroadcastPayload {
-  /** Absent for event-batch broadcasts (host played natively) */
-  command?: HeadlessCommand;
-  response: CommandResponse;
+  before: string;
+  after: string;
 }
 
 export interface ChatPayload {
@@ -44,9 +35,15 @@ export interface ChatPayload {
   senderName: string;
 }
 
-export interface ResyncPayload {
+/** Everything a side needs to rebuild the other's engine exactly. */
+export interface LockstepState {
   snapshot: GameSnapshot;
-  pendingDecision: PendingDecision | null;
+  /** Players' stats and skills can change mid-match (inducements). */
+  teams: [Team, Team];
+  pending: PendingDecision | null;
+  rng: RNGState;
+  matchStats: MatchStatsSnapshot;
+  applied: number;
 }
 
 /**
@@ -62,11 +59,9 @@ export interface SelectionPayload {
 export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "hello"; payload: HelloPayload }
   | { kind: "command"; payload: CommandPayload }
-  | { kind: "response"; payload: ResponsePayload }
-  | { kind: "broadcast"; payload: BroadcastPayload }
   | { kind: "chat"; payload: ChatPayload }
   | { kind: "heartbeat"; payload: Record<string, never> }
-  | { kind: "resync"; payload: ResyncPayload }
+  | { kind: "resync"; payload: LockstepState }
   | { kind: "resync-request"; payload: Record<string, never> }
   | { kind: "selection"; payload: SelectionPayload }
 );

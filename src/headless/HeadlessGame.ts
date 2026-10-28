@@ -194,6 +194,15 @@ export class HeadlessGame {
   }
 
   /**
+   * Take on another engine's state wholesale (an online resync): drop any
+   * decision this engine was paused on and show the other's instead.
+   */
+  public adoptPending(pending: PendingDecision | null): void {
+    this.ctx.gameService.getDecisionService().abandon();
+    this.pending = pending;
+  }
+
+  /**
    * Every event seen since the last command, in emission order. `execute()`
    * clears this per command; a passive observer (the browser test bridge)
    * never calls execute, so for it this is the whole match log.
