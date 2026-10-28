@@ -343,7 +343,11 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
     await coach.page.reload();
   } else if (kind === "away") {
     // The tab closes; the coach comes back to the match later
+    const before = coach.page.video();
     await coach.page.close();
+    await before
+      ?.saveAs(`${OUT}/${coach.side}-before-${what}.webm`)
+      .catch((error: Error) => mainLog(`video not saved: ${error.message}`));
     await host.page.waitForTimeout(ms);
     coach.page = await coach.context.newPage();
     coach.app = new GameApp(coach.page);
