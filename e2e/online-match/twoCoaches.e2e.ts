@@ -15,6 +15,7 @@
  * screenshot from each side.
  */
 import {
+  expect,
   test,
   chromium,
   Browser,
@@ -384,11 +385,16 @@ test("an online match between two machines stays in sync", async () => {
   for (const coach of [host, guest]) {
     const select = coach.page.locator("select").first();
     await select.selectOption({ index: 1 });
-    await coach.page.getByRole("button", { name: "Ready!" }).click();
+    // Ready unlocks once the pick has made the round trip through Firestore
+    const ready = coach.page.getByRole("button", { name: "Ready!" });
+    await expect(ready).toBeEnabled({ timeout: 30_000 });
+    await ready.click();
   }
   await host.rec.shot(host.page, "lobby");
   await guest.rec.shot(guest.page, "lobby");
-  await host.page.getByRole("button", { name: "Start Match" }).click();
+  const start = host.page.getByRole("button", { name: "Start Match" });
+  await expect(start).toBeEnabled({ timeout: 30_000 });
+  await start.click();
   await host.page.waitForURL(/\/online\/play\//, { timeout: 30_000 });
   await guest.page.waitForURL(/\/online\/play\//, { timeout: 30_000 });
   // Only the host may read the seed; the lobby both read must not carry it
