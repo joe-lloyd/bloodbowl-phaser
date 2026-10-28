@@ -1135,6 +1135,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.ballSprite?.active) {
       this.tweens.killTweensOf(this.ballSprite);
+      this.ballSprite.stopFlight();
       this.ballSprite.setPosition(pos.x, pos.y);
       // A re-used ball looks the same as a fresh one: no kick-off fade.
       this.ballSprite.setAlpha(1);

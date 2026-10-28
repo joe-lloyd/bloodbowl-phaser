@@ -17,6 +17,9 @@ export class BallSprite extends Phaser.GameObjects.Container {
   private ball: Phaser.GameObjects.Container;
   private shadow: Phaser.GameObjects.Ellipse;
   private heightM = 0;
+  /** The flight in progress, so a new flight or a placement can end it. */
+  private flight: { tween: Phaser.Tweens.Tween; settle: () => void } | null =
+    null;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -62,11 +65,11 @@ export class BallSprite extends Phaser.GameObjects.Container {
     to: { x: number; y: number },
     opts: { duration: number; apex: number; endHeight?: number; ease?: string }
   ): Promise<void> {
-    this.scene.tweens.killTweensOf(this);
+    this.stopFlight();
     const from = { x: this.x, y: this.y, h: this.heightM };
     const end = opts.endHeight ?? 0;
     return new Promise((resolve) => {
-      this.scene.tweens.addCounter({
+      const tween = this.scene.tweens.addCounter({
         from: 0,
         to: 1,
         duration: opts.duration,
@@ -80,12 +83,30 @@ export class BallSprite extends Phaser.GameObjects.Container {
             from.h + (end - from.h) * t + 4 * opts.apex * t * (1 - t)
           );
         },
-        onComplete: () => {
-          this.ball.rotation = 0;
-          resolve();
-        },
+        onComplete: () => settle(),
       });
+      const settle = () => {
+        if (this.flight?.tween === tween) this.flight = null;
+        this.ball.rotation = 0;
+        resolve();
+      };
+      this.flight = { tween, settle };
     });
+  }
+
+  /**
+   * End the flight in progress where it is. The counter tween drives this
+   * container from outside, so killTweensOf(ball) never reached it: an old
+   * flight kept moving the ball after the engine had put it somewhere else,
+   * which left a thrown-in ball drawn on the square it went out from.
+   * Whoever awaited the flight still gets their answer.
+   */
+  public stopFlight(): void {
+    const flight = this.flight;
+    if (!flight) return;
+    this.flight = null;
+    flight.tween.stop();
+    flight.settle();
   }
 
   /** A short hop on landing. */
