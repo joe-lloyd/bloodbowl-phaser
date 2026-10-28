@@ -25,7 +25,13 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     actionTimeout: 4_000,
-    viewport: { width: 1440, height: 900 },
+    // FULLGAME_VIEWPORT=1280x720 plays the match on a smaller screen
+    viewport: (() => {
+      const [width, height] = (process.env.FULLGAME_VIEWPORT ?? "1440x900")
+        .split("x")
+        .map(Number);
+      return { width, height };
+    })(),
     video: { mode: "on", size: { width: 1440, height: 900 } },
     launchOptions: process.env.PW_CHROMIUM
       ? { executablePath: process.env.PW_CHROMIUM }
