@@ -12,7 +12,12 @@ import { Page } from "@playwright/test";
 import { appendFileSync } from "node:fs";
 
 export interface UxFinding {
-  kind: "covered" | "offscreen" | "tiny" | "panels-overlap" | "players-offscreen";
+  kind:
+    | "covered"
+    | "offscreen"
+    | "tiny"
+    | "panels-overlap"
+    | "players-offscreen";
   detail: string;
 }
 
@@ -22,9 +27,14 @@ function inspect(): UxFinding[] {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const label = (el: Element) => {
-    const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+    const text = (el.textContent ?? "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
     const id = el.getAttribute("data-testid");
-    return id ? `${id}${text ? ` "${text}"` : ""}` : `${el.tagName.toLowerCase()} "${text}"`;
+    return id
+      ? `${id}${text ? ` "${text}"` : ""}`
+      : `${el.tagName.toLowerCase()} "${text}"`;
   };
   const shown = (el: Element) => {
     const style = getComputedStyle(el);
@@ -40,11 +50,14 @@ function inspect(): UxFinding[] {
   };
 
   // A page that scrolls can bring a control below the fold into view
-  const pageScrolls =
-    (document.scrollingElement?.scrollHeight ?? 0) > vh + 4;
+  const pageScrolls = (document.scrollingElement?.scrollHeight ?? 0) > vh + 4;
   // An open dialog is meant to cover everything behind it
   const insideModal = (el: Element | null): boolean => {
-    for (let node = el; node && node !== document.body; node = node.parentElement) {
+    for (
+      let node = el;
+      node && node !== document.body;
+      node = node.parentElement
+    ) {
       const style = getComputedStyle(node);
       if (style.position !== "fixed" && style.position !== "absolute") continue;
       const r = node.getBoundingClientRect();
@@ -67,14 +80,20 @@ function inspect(): UxFinding[] {
       continue;
     }
     if (belowFold) continue;
-    if (Math.min(r.width, r.height) < 24 && !(el as HTMLButtonElement).disabled) {
+    if (
+      Math.min(r.width, r.height) < 24 &&
+      !(el as HTMLButtonElement).disabled
+    ) {
       findings.push({
         kind: "tiny",
         detail: `${label(el)} ${Math.round(r.width)}x${Math.round(r.height)}`,
       });
     }
     // Is the middle of the control actually reachable by a click?
-    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const hit = document.elementFromPoint(
+      r.left + r.width / 2,
+      r.top + r.height / 2
+    );
     if (
       hit &&
       hit !== el &&
@@ -93,7 +112,8 @@ function inspect(): UxFinding[] {
   const panels = [...document.querySelectorAll("#root *")].filter((el) => {
     if (!shown(el)) return false;
     const style = getComputedStyle(el);
-    if (style.position !== "absolute" && style.position !== "fixed") return false;
+    if (style.position !== "absolute" && style.position !== "fixed")
+      return false;
     const r = el.getBoundingClientRect();
     if (r.width < 120 || r.height < 40 || r.width > vw * 0.9) return false;
     const bg = style.backgroundColor;
@@ -120,15 +140,20 @@ function inspect(): UxFinding[] {
   }
 
   // The acting team's players: can the coach see them to click them?
-  const bridge = (window as unknown as {
-    __bbTestBridge?: {
-      phase(): { phase: string; activeTeamId: string | null };
-      snapshot(): {
-        teams: { id: string; players: { position?: { x: number; y: number } | null }[] }[];
+  const bridge = (
+    window as unknown as {
+      __bbTestBridge?: {
+        phase(): { phase: string; activeTeamId: string | null };
+        snapshot(): {
+          teams: {
+            id: string;
+            players: { position?: { x: number; y: number } | null }[];
+          }[];
+        };
+        squareToCanvas(x: number, y: number): { x: number; y: number } | null;
       };
-      squareToCanvas(x: number, y: number): { x: number; y: number } | null;
-    };
-  }).__bbTestBridge;
+    }
+  ).__bbTestBridge;
   const canvas = document.querySelector("#game-container canvas");
   if (bridge && canvas) {
     const { phase, activeTeamId } = bridge.phase();
@@ -146,7 +171,16 @@ function inspect(): UxFinding[] {
         const top = document.elementFromPoint(x, y);
         return top !== null && top !== canvas;
       });
-      if (onPitch.length && hidden.length * 2 >= onPitch.length) {
+      // A dialog covers the board on purpose while it is open
+      const dialogUp = onPitch.some((p) => {
+        const pt = bridge.squareToCanvas(p.position!.x, p.position!.y);
+        return pt
+          ? insideModal(
+              document.elementFromPoint(box.left + pt.x, box.top + pt.y)
+            )
+          : false;
+      });
+      if (!dialogUp && onPitch.length && hidden.length * 2 >= onPitch.length) {
         findings.push({
           kind: "players-offscreen",
           detail: `${hidden.length}/${onPitch.length} of the acting team out of view`,
@@ -169,10 +203,13 @@ export function createUxProbe(page: Page, out: string, viewport: string) {
         if (seen.has(key)) continue;
         seen.add(key);
         const shotName = `ux-${f.kind}-${seen.size}`;
-        await page.screenshot({ path: `${out}/${shotName}.png` }).catch(() => {});
+        await page
+          .screenshot({ path: `${out}/${shotName}.png` })
+          .catch(() => {});
         appendFileSync(
           `${out}/ux.jsonl`,
-          JSON.stringify({ viewport, step, ...f, shot: `${shotName}.png` }) + "\n"
+          JSON.stringify({ viewport, step, ...f, shot: `${shotName}.png` }) +
+            "\n"
         );
       }
     },
