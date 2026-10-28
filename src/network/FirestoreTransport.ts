@@ -11,9 +11,14 @@ import {
   addDoc,
   collection,
   DocumentChange,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
+  Timestamp,
+  where,
 } from "firebase/firestore";
 import { getDb } from "../firebase/config";
 import { Envelope } from "./envelope";
@@ -21,9 +26,10 @@ import { Transport } from "./transport";
 
 export class FirestoreTransport implements Transport {
   private readonly handlers = new Set<(envelope: Envelope) => void>();
-  private readonly stopListening: () => void;
-  /** Resolves once the listener has passed the log written before this page
-   *  loaded. Sends wait for it, so no reply to them can land in that log. */
+  private stopListening: () => void = () => {};
+  private closed = false;
+  /** Resolves once the listener covers everything after the existing log.
+   *  Sends wait for it, so no reply to them can be missed. */
   private readonly live: Promise<void>;
 
   constructor(
@@ -31,28 +37,29 @@ export class FirestoreTransport implements Transport {
     /** Own sender id — own messages are echoed by Firestore and skipped */
     private readonly selfId: string
   ) {
-    const messages = query(
-      collection(getDb(), "games", matchCode, "messages"),
-      orderBy("ts", "asc")
+    this.live = this.listen();
+  }
+
+  /**
+   * Listen only for messages written after the newest one already in the
+   * log. A match writes over a thousand messages, each carrying a full
+   * snapshot, and a page that loaded the whole log on every reload fell
+   * minutes behind. The hello handshake brings both sides up to date with
+   * a resync instead. Messages are ordered by the server's clock: the two
+   * coaches' clocks can disagree by seconds.
+   */
+  private async listen(): Promise<void> {
+    const messages = collection(getDb(), "games", this.matchCode, "messages");
+    const newest = await getDocs(
+      query(messages, orderBy("at", "desc"), limit(1))
     );
-    // The first server snapshot is the log written before this page loaded.
-    // Replaying it would re-run old commands under a fresh seq tracker; the
-    // hello handshake brings both sides up to date with a resync instead.
-    // Metadata changes are included so an empty log still marks the start.
-    let isLive = false;
-    let markLive = () => {};
-    this.live = new Promise((resolve) => (markLive = resolve));
+    const since = (newest.docs[0]?.get("at") as Timestamp | undefined) ?? null;
+    if (this.closed) return;
     this.stopListening = onSnapshot(
-      messages,
-      { includeMetadataChanges: true },
-      (snapshot) => {
-        if (!isLive) {
-          isLive = !snapshot.metadata.fromCache;
-          if (isLive) markLive();
-          return;
-        }
-        this.deliver(snapshot.docChanges());
-      }
+      since
+        ? query(messages, where("at", ">", since), orderBy("at", "asc"))
+        : query(messages, orderBy("at", "asc")),
+      (snapshot) => this.deliver(snapshot.docChanges())
     );
   }
 
@@ -70,7 +77,7 @@ export class FirestoreTransport implements Transport {
     await addDoc(
       collection(getDb(), "games", this.matchCode, "messages"),
       // Firestore rejects undefined fields; envelopes are JSON-safe already
-      JSON.parse(JSON.stringify(envelope))
+      { ...JSON.parse(JSON.stringify(envelope)), at: serverTimestamp() }
     );
   }
 
@@ -80,6 +87,7 @@ export class FirestoreTransport implements Transport {
   }
 
   close(): void {
+    this.closed = true;
     this.stopListening();
     this.handlers.clear();
   }

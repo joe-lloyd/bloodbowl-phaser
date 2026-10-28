@@ -1,32 +1,51 @@
 /**
- * FirestoreTransport against a stand-in onSnapshot: a page load must not
- * replay the match's message log, and nothing it sends may be written
- * before its listener is past that log.
+ * FirestoreTransport against a stand-in Firestore: a page load must not
+ * download or replay the match's message log, and nothing it sends may be
+ * written before its listener covers what comes next.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Envelope } from "../../../src/network/envelope";
 
 type Listener = (snapshot: {
-  metadata: { fromCache: boolean };
   docChanges(): { type: string; doc: { data(): Envelope } }[];
 }) => void;
 
 const firestore = vi.hoisted(() => ({
   listener: null as Listener | null,
-  written: [] as Envelope[],
+  /** The query the listener was attached with, as plain parts */
+  listened: [] as unknown[],
+  newestAt: null as number | null,
+  written: [] as Record<string, unknown>[],
+  newestLookup: Promise.resolve(),
 }));
 
 vi.mock("../../../src/firebase/config", () => ({ getDb: () => ({}) }));
 vi.mock("firebase/firestore", () => ({
-  collection: () => ({}),
-  query: () => ({}),
-  orderBy: () => ({}),
-  onSnapshot: (_query: unknown, _options: unknown, listener: Listener) => {
+  collection: () => "messages",
+  query: (...parts: unknown[]) => parts,
+  orderBy: (field: string, dir: string) => ["orderBy", field, dir],
+  where: (field: string, op: string, value: unknown) => [
+    "where",
+    field,
+    op,
+    value,
+  ],
+  limit: (n: number) => ["limit", n],
+  serverTimestamp: () => "server-time",
+  getDocs: async () => {
+    await firestore.newestLookup;
+    return {
+      docs:
+        firestore.newestAt === null ? [] : [{ get: () => firestore.newestAt }],
+    };
+  },
+  onSnapshot: (listened: unknown[], listener: Listener) => {
+    firestore.listened = listened;
     firestore.listener = listener;
     return () => {};
   },
-  addDoc: async (_collection: unknown, data: Envelope) => {
+  addDoc: async (_collection: unknown, data: Record<string, unknown>) => {
     firestore.written.push(data);
   },
 }));
@@ -42,9 +61,8 @@ const envelope = (seq: number, from = "host-uid"): Envelope => ({
   ts: seq,
 });
 
-function snapshot(fromCache: boolean, envelopes: Envelope[]) {
+function arrive(envelopes: Envelope[]) {
   firestore.listener!({
-    metadata: { fromCache },
     docChanges: () =>
       envelopes.map((data) => ({ type: "added", doc: { data: () => data } })),
   });
@@ -54,41 +72,51 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
   firestore.listener = null;
+  firestore.listened = [];
+  firestore.newestAt = null;
   firestore.written = [];
+  firestore.newestLookup = Promise.resolve();
 });
 
 describe("FirestoreTransport", () => {
-  it("skips the log written before the page loaded and delivers what follows", async () => {
+  it("listens only for messages after the newest one in the log", async () => {
+    firestore.newestAt = 1234;
     const transport = new FirestoreTransport("CODE", "guest-uid");
+    await flush();
+
+    expect(firestore.listened).toContainEqual(["where", "at", ">", 1234]);
     const received: number[] = [];
     transport.subscribe((incoming) => received.push(incoming.seq));
-
-    snapshot(true, [envelope(1)]); // local cache
-    snapshot(false, [envelope(2), envelope(3)]); // the server's view of the log
-    snapshot(false, [envelope(4), envelope(5, "guest-uid")]);
-
+    arrive([envelope(4), envelope(5, "guest-uid")]);
     expect(received).toEqual([4]);
   });
 
-  it("an empty log still opens the stream", async () => {
+  it("an empty log listens from the start", async () => {
     const transport = new FirestoreTransport("CODE", "guest-uid");
+    await flush();
+
+    expect(firestore.listened).not.toContainEqual(
+      expect.arrayContaining(["where"])
+    );
     const received: number[] = [];
     transport.subscribe((incoming) => received.push(incoming.seq));
-
-    snapshot(false, []);
-    snapshot(false, [envelope(1)]);
-
+    arrive([envelope(1)]);
     expect(received).toEqual([1]);
   });
 
-  it("holds sends until the listener is past the old log", async () => {
+  it("holds sends until the listener is attached, and stamps them with the server's time", async () => {
+    let lookedUp = () => {};
+    firestore.newestLookup = new Promise((resolve) => (lookedUp = resolve));
     const transport = new FirestoreTransport("CODE", "guest-uid");
     const sent = transport.send(envelope(1, "guest-uid"));
     await flush();
     expect(firestore.written).toEqual([]);
 
-    snapshot(false, []);
+    lookedUp();
     await sent;
-    expect(firestore.written.map((written) => written.seq)).toEqual([1]);
+    expect(firestore.written).toEqual([
+      expect.objectContaining({ seq: 1, at: "server-time" }),
+    ]);
+    expect(firestore.listener).not.toBeNull();
   });
 });
