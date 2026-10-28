@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { Pitch } from "../elements/Pitch";
+import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
 
 type Point = { x: number; y: number };
@@ -10,13 +11,6 @@ type Point = { x: number; y: number };
 const ACTION_ZOOM = 1.75;
 const MOVE_MS = 700;
 
-/** Coaches who ask the OS for less motion get cuts instead of glides. */
-function reducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 /**
  * CameraController: the match camera.

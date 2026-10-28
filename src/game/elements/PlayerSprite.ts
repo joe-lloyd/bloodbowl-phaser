@@ -12,6 +12,7 @@ import {
   modelFor,
   textureKey,
 } from "../presentation/playerArt";
+import { prefersReducedMotion } from "../presentation/motion";
 
 /** How a player is drawn: which roster's models, in which kit and style, facing where. */
 export interface PlayerLook {
@@ -68,6 +69,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private headY = -60;
   /** Set while the sprite sits in a dugout box, where KO'd and injured players lie down. */
   private dugoutPose: "standing" | "lying" | null = null;
+  /** Reduced motion: stand still instead of breathing. */
+  private stillIdle = prefersReducedMotion();
 
   constructor(
     scene: Phaser.Scene,
@@ -195,7 +198,11 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         FPS[this.anim]
     );
     const index =
-      this.anim === "fall" ? Math.min(step, count - 1) : step % count;
+      this.anim === "fall"
+        ? Math.min(step, count - 1)
+        : this.anim === "idle" && this.stillIdle
+          ? 0
+          : step % count;
     const name = frameName(this.anim, this.facing, index);
     if (name !== this.shownFrame) {
       this.shownFrame = name;
