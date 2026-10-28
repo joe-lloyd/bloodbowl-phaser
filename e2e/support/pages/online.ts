@@ -21,25 +21,26 @@ export class OnlinePage {
    */
   async signIn(): Promise<void> {
     const popupPromise = this.page.waitForEvent("popup");
-    await this.page.getByRole("button", { name: /sign in with google/i }).click();
+    await this.page
+      .getByRole("button", { name: /sign in with google/i })
+      .click();
     const popup = await popupPromise;
     await popup.waitForLoadState();
 
-    const addAccount = popup.getByRole("button", { name: /add new account/i });
-    if (await addAccount.isVisible().catch(() => false)) {
-      await addAccount.click();
-    }
+    // The emulator's page renders after load, slowly when it has just
+    // started: wait for each button rather than checking once.
+    await popup
+      .getByRole("button", { name: /add new account/i })
+      .click({ timeout: 20_000 });
     // The emulator pre-fills a random identity; "Sign in with Google.com"
     // completes it.
-    const autoGenerate = popup.getByRole("button", {
-      name: /auto.?generate user information/i,
-    });
-    if (await autoGenerate.isVisible().catch(() => false)) {
-      await autoGenerate.click();
-    }
+    await popup
+      .getByRole("button", { name: /auto.?generate user information/i })
+      .click({ timeout: 10_000 })
+      .catch(() => undefined);
     await popup
       .getByRole("button", { name: /sign in with google\.com/i })
-      .click();
+      .click({ timeout: 20_000 });
     await popup.waitForEvent("close").catch(() => undefined);
 
     // The menu swaps the sign-in button for the coach editor once auth lands.
