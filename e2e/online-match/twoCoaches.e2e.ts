@@ -348,7 +348,8 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
     await before
       ?.saveAs(`${OUT}/${coach.side}-before-${what}.webm`)
       .catch((error: Error) => mainLog(`video not saved: ${error.message}`));
-    await host.page.waitForTimeout(ms);
+    // Not a page wait: the page that would wait may be the one just closed
+    await new Promise((resolve) => setTimeout(resolve, ms));
     coach.page = await coach.context.newPage();
     coach.app = new GameApp(coach.page);
     watch(coach.page, coach.side, coach.rec);
