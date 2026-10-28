@@ -114,6 +114,8 @@ async function openCoach(side: Side): Promise<Coach> {
     }
   });
   const page = await context.newPage();
+  // One clock (this machine's) for when each recording starts
+  appendFileSync(`${OUT}/video-starts.log`, `${side} 0 ${Date.now()}\n`);
   const rec = recorder(side);
   watch(page, side, rec);
   return {
@@ -286,12 +288,22 @@ const mayAct = (coach: Coach) =>
  * coach would plan its next move from the board before the last one.
  */
 async function settled(coach: Coach, before: string, ms = 6000) {
-  const deadline = Date.now() + ms;
-  while (Date.now() < deadline) {
-    if (JSON.stringify(await engineView(coach.page)) !== before) return;
-    await coach.page.waitForTimeout(200);
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    if (JSON.stringify(await engineView(coach.page)) !== before) {
+      appendFileSync(
+        `${OUT}/latency.log`,
+        `${coach.side} ${Date.now() - start}\n`
+      );
+      return;
+    }
+    await coach.page.waitForTimeout(50);
   }
 }
+
+const MACHINE = { host: "HOST · old-mac", guest: "GUEST · Hasaki" };
+const overlay = (coach: Coach) =>
+  brainCall(coach.page, "installOverlay", MACHINE[coach.side]).catch(() => {});
 
 /** One move by this coach, if it is theirs to make. Returns what it did. */
 async function step(coach: Coach, i: number): Promise<string | null> {
@@ -351,11 +363,16 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
     // Not a page wait: the page that would wait may be the one just closed
     await new Promise((resolve) => setTimeout(resolve, ms));
     coach.page = await coach.context.newPage();
+    appendFileSync(
+      `${OUT}/video-starts.log`,
+      `${coach.side} ${what} ${Date.now()}\n`
+    );
     coach.app = new GameApp(coach.page);
     watch(coach.page, coach.side, coach.rec);
     await coach.page.goto(`/online/play/${code}`);
   }
   await coach.page.waitForTimeout(4000);
+  await overlay(coach);
   await coach.rec.shot(coach.page, `after-${what}`);
 }
 
@@ -364,6 +381,8 @@ test("an online match between two machines stays in sync", async () => {
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${OUT}/match.log`, "");
   writeFileSync(`${OUT}/divergences.jsonl`, "");
+  writeFileSync(`${OUT}/latency.log`, "");
+  writeFileSync(`${OUT}/video-starts.log`, "");
 
   const host = await openCoach("host");
   const guest = await openCoach("guest");
@@ -462,6 +481,7 @@ test("an online match between two machines stays in sync", async () => {
     mainLog(
       `SEED ${coach.side} sees ${JSON.stringify(await brainCall(coach.page, "probeSeed", code))}`
     );
+  for (const coach of [host, guest]) await overlay(coach);
 
   // ---- Play ----
   let moves = 0;

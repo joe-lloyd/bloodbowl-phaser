@@ -32,7 +32,7 @@ function traceNet(direction: "send" | "recv", envelope: Envelope): void {
     return;
   }
   console.debug(
-    `[Net] ${direction} ${envelope.kind} seq=${envelope.seq} sent=${envelope.ts} now=${Date.now()}`
+    `[Net] ${direction} ${envelope.kind} seq=${envelope.seq} sent=${envelope.ts} now=${Date.now()} bytes=${JSON.stringify(envelope).length}`
   );
 }
 

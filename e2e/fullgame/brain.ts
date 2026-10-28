@@ -246,3 +246,32 @@ export function view() {
     .trim();
   return { players, ball, hud };
 }
+
+/**
+ * A strip along the bottom of the page for the recording: which side this
+ * is, this machine's clock to the millisecond, and whether this coach may
+ * act. Two recordings line up by the clock; the strip shows whose move it is.
+ */
+export function installOverlay(label: string) {
+  const id = "bb-recording-strip";
+  document.getElementById(id)?.remove();
+  const strip = document.createElement("div");
+  strip.id = id;
+  strip.style.cssText =
+    "position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:99999;" +
+    "font:600 22px/1.2 ui-monospace,Menlo,monospace;padding:6px 16px;border-radius:8px;" +
+    "background:rgba(5,8,14,0.88);color:#e6e1d6;border:2px solid #444;pointer-events:none";
+  document.body.appendChild(strip);
+  const tick = () => {
+    if (!strip.isConnected) return;
+    const match = getActiveOnlineMatch();
+    const acting = match?.mayAct() ?? false;
+    const now = new Date();
+    const clock = `${now.toLocaleTimeString("en-GB")}.${String(now.getMilliseconds()).padStart(3, "0")}`;
+    strip.textContent = `${label}  ${clock}  ${acting ? "YOUR MOVE" : "WAITING"}`;
+    strip.style.borderColor = acting ? "#3fbf6a" : "#c9a227";
+    strip.style.color = acting ? "#9cf0b4" : "#f1d27a";
+    requestAnimationFrame(tick);
+  };
+  tick();
+}
