@@ -427,11 +427,22 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     });
 
     // Persist the authoritative snapshot so the match survives a reload /
-    // "save for later". Throttled to keep Firestore writes cheap; flushed
-    // explicitly on saveState()/close.
+    // "save for later". Throttled to keep Firestore writes cheap, but saved
+    // at every change of turn so a reload loses at most the current turn;
+    // flushed explicitly on saveState()/close.
     let lastPersist = 0;
+    let persistedTurn = "";
+    const turnKey = () => {
+      const { phase, turn } = native.getState();
+      return `${phase}:${turn.teamId}:${turn.turnNumber}`;
+    };
+    const persistSoon = () => {
+      if (turnKey() !== persistedTurn || Date.now() - lastPersist > 15_000)
+        persistNow();
+    };
     const persistNow = () => {
       lastPersist = Date.now();
+      persistedTurn = turnKey();
       void persistSnapshot(lobby.code, game.snapshot(), {
         rng: container.rngService.captureState(),
         matchStats: container.matchStats.captureState(),
@@ -442,7 +453,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
 
     const broadcaster = new EventBroadcaster(eventBus, (events) => {
       void session.broadcastEvents(events);
-      if (Date.now() - lastPersist > 15_000) persistNow();
+      persistSoon();
     });
 
     const session = new HostSession({
@@ -459,6 +470,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           ts: Date.now(),
         }),
       onGuestApplied: () => {
+        persistSoon();
         // Render the guest's setup placements on the host's board (the scene
         // doesn't render PlayerPlaced for the opponent). Play renders via
         // the engine's own events, so limit this to setup.
@@ -508,6 +520,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         return response;
       } finally {
         broadcaster.resume();
+        persistSoon();
       }
     };
     const executeAsHost = (command: HeadlessCommand) => {
