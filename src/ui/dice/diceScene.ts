@@ -501,11 +501,25 @@ function getRenderer(): THREE.WebGLRenderer {
   return renderer;
 }
 
+/** Throws share one renderer, so they take turns. */
+let lane: Promise<unknown> = Promise.resolve();
+
 /**
  * Play a roll into `host` and resolve once the dice have settled. Returns
  * the values read back off the top faces, which always equal `roll.values`.
+ * A throw asked for while another is in the air starts when it lands.
  */
 export function playRoll(
+  host: HTMLElement,
+  roll: DiceRoll,
+  opts: { sound: boolean }
+): Promise<number[]> {
+  const run = lane.then(() => throwDice(host, roll, opts));
+  lane = run.catch(() => undefined);
+  return run;
+}
+
+function throwDice(
   host: HTMLElement,
   roll: DiceRoll,
   opts: { sound: boolean }

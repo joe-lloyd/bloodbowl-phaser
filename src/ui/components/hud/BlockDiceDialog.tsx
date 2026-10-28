@@ -8,6 +8,8 @@ import {
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { BLOCK_VALUE, teamLook } from "./DiceTray";
+import { soundSettings } from "../../sound/settings";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -38,7 +40,18 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const [chosen, setChosen] = useState<string | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
-  const [rollData, setRollData] = useState<BlockRollData | null>(null);
+  const [rollData, setRollDataNow] = useState<BlockRollData | null>(null);
+  // Each new set of dice is thrown in 3D first; the faces to pick from show
+  // only once they have come to rest
+  const [throwSeq, setThrowSeq] = useState(0);
+  const [throwing, setThrowing] = useState(false);
+  const throwHost = useRef<HTMLDivElement>(null);
+  const setRollData = (roll: BlockRollData | null) => {
+    setRollDataNow(roll);
+    if (!roll) return;
+    setThrowing(true);
+    setThrowSeq((n) => n + 1);
+  };
   // A forced block (Frenzy's second Block) arrives already rolled; hold its
   // dice behind a ROLL button so the coach still triggers the reveal.
   const [heldDice, setHeldDice] = useState<BlockRollData | null>(null);
@@ -143,6 +156,45 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
+
+  useEffect(() => {
+    if (!throwSeq || !rollData) return;
+    let live = true;
+    const done = () => {
+      if (live) setThrowing(false);
+    };
+    const values = rollData.results.map((r) => BLOCK_VALUE[r.type]);
+    const attacker = ServiceContainer.isInitialized()
+      ? ServiceContainer.getInstance().gameService.getPlayerById(
+          rollData.attackerId
+        )
+      : undefined;
+    const team = teamLook(attacker?.teamId);
+    if (!throwHost.current || !team || !values.every(Boolean)) {
+      done();
+      return;
+    }
+    // Never leave the coach without their dice if the throw cannot play
+    const fallback = setTimeout(done, 6000);
+    void import("../../dice/diceScene")
+      .then((scene) =>
+        scene.playRoll(
+          throwHost.current!,
+          { kind: "block", values, team, neon: false },
+          { sound: !soundSettings.get().muted }
+        )
+      )
+      .catch((error) => console.warn("[DiceTray] block throw failed", error))
+      .finally(() => {
+        clearTimeout(fallback);
+        done();
+      });
+    return () => {
+      live = false;
+      clearTimeout(fallback);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [throwSeq]);
 
   if (!isOpen || !data) return null;
 
@@ -260,7 +312,19 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         </div>
 
         {/* Dice Results Area */}
-        {rollData ? (
+        {rollData && (
+          // The thrown dice stay in view once they land, above the faces
+          <div
+            ref={throwHost}
+            data-testid="block-dice-throw"
+            className="h-32 w-full overflow-hidden rounded"
+          />
+        )}
+        {rollData && throwing ? (
+          <div className="mb-6 text-center text-sm text-slate-400 italic">
+            Rolling…
+          </div>
+        ) : rollData ? (
           <div className="mb-6">
             <div className="flex justify-center gap-4 mb-4">
               {rollData.results.map((result, idx) => (
