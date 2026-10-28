@@ -391,6 +391,10 @@ test("an online match between two machines stays in sync", async () => {
     guest.rec
   );
 
+  // A saved team reaches the cloud in the background; a reload any sooner
+  // would lose it
+  await host.page.waitForTimeout(3000);
+
   // ---- Lobby ----
   const signedIn = (coach: Coach) =>
     coach.page
