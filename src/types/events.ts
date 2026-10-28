@@ -9,7 +9,6 @@ import { GamePhase, GameState, SubPhase } from "./GameState";
 import { Team } from "./Team";
 import { Player } from "./Player";
 import { BlockResult } from "../services/BlockResolutionService";
-import { BoardLabel } from "../game/presentation/boardLabels";
 import { SidelineCrewInfo } from "../game/presentation/sidelineStaff";
 
 /**
@@ -95,7 +94,8 @@ export enum GameEventNames {
   GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
   /** Crisp text (dugout headers, end-zone names) for the React overlay */
-  UI_BoardLabels = "ui:boardLabels",
+  /** Match assets loading: 0..1, for the loading screen. */
+  UI_LoadProgress = "ui:loadProgress",
 
   /**
    * A rules operation resolved a kick/throw and is holding at a presentation
@@ -635,7 +635,7 @@ export interface GameEvents {
   [GameEventNames.RefreshBoard]: void;
   /** Board text (dugout section headers, sideline crew, end-zone team names)
    *  positioned in canvas design space for the React overlay to draw crisply. */
-  [GameEventNames.UI_BoardLabels]: { labels: BoardLabel[] };
+  [GameEventNames.UI_LoadProgress]: { progress: number };
   [GameEventNames.ScenarioLoaded]: {
     name: string;
     seed?: number;
@@ -644,8 +644,10 @@ export interface GameEvents {
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {
-    ballSprite: unknown; // Phaser.GameObjects.Container
-    animationDuration: number; // How long to track the ball
+    /** Follow this player, or the ball when absent. Plain data: every bus
+     *  event is recorded and cloned, so it must not carry display objects. */
+    playerId?: string;
+    animationDuration: number; // How long to track
   };
   [GameEventNames.Camera_Reset]: {
     duration?: number; // Optional reset duration

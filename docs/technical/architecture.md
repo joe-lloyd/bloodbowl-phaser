@@ -39,8 +39,9 @@ src/
 │
 ├── game/                # Game-specific components
 │   ├── GameStateManager.ts      # Core state management
-│   ├── Pitch.ts                 # Game board rendering
-│   ├── PlayerSprite.ts          # Player visualization
+│   ├── Stadium.ts               # Pre-rendered stadium backdrop
+│   ├── Pitch.ts                 # Isometric board overlays (highlights, paths)
+│   ├── PlayerSprite.ts          # Tinted atlas sprite with idle/run/fall
 │   ├── PlayerInfoPanel.ts       # Player stats display
 │   └── setup/                   # Setup phase controllers
 │       ├── CoinFlipController.ts

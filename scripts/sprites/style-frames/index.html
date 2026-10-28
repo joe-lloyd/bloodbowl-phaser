@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Style frames: three directions on an isometric pitch, 27 October 2026</title>
+<style>
+  :root { color-scheme: dark; --bg: #141416; --panel: #1f1f23; --line: #34343a; --text: #dcdde0; --dim: #8d8d96; --accent: #e6c84a; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); }
+  body { margin: 0; font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 1340px; margin: 0 auto; padding: 34px 22px 80px; }
+  h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  h2 { color: #fff; font-size: 21px; margin: 42px 0 10px; }
+  h3 { color: #fff; font-size: 16px; margin: 0 0 6px; }
+  p, li { max-width: 80ch; }
+  .dim { color: var(--dim); }
+  .stills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0 8px; }
+  .stills button { padding: 0; border: 2px solid transparent; border-radius: 8px; background: #000; cursor: pointer; text-align: left; color: var(--text); font: inherit; overflow: hidden; }
+  .stills button[aria-pressed="true"] { border-color: var(--accent); }
+  .stills img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; image-rendering: pixelated; }
+  .stills span { display: block; padding: 8px 12px; background: var(--panel); font-size: 15px; }
+  .frame { background: #000; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+  .frame > div { width: 100%; aspect-ratio: 16 / 9; }
+  .frame > div[hidden] { display: none; }
+  .frame canvas { image-rendering: pixelated; }
+  .controls { display: flex; gap: 8px; margin: 10px 0 0; align-items: center; }
+  .controls button { background: #2c2c32; color: var(--text); border: 1px solid #45454d; border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+  .controls span { color: var(--dim); font-size: 14px; }
+  .guide { display: none; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 18px; }
+  .guide.on { display: grid; }
+  .card { background: var(--panel); border-radius: 8px; padding: 16px 18px; }
+  .card ul { margin: 0; padding-left: 20px; }
+  .card li { margin: 4px 0; font-size: 15px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+  .swatches i { width: 38px; height: 38px; border-radius: 6px; border: 1px solid #ffffff22; }
+  .verdict { background: var(--panel); border-left: 3px solid var(--accent); padding: 14px 18px; border-radius: 6px; }
+  .verdict p { margin: 0 0 8px; } .verdict p:last-child { margin: 0; }
+  code { background: #2a2a30; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Style frames</h1>
+  <p class="dim">27 October 2026 · three directions drawn from your reference list, each on an isometric pitch</p>
+  <p>A style frame is a mock screenshot of the finished game, made before the game exists. All three frames play the same moment. An orc blitzer runs three squares and blocks the human ball carrier. The carrier goes down and the ball bounces loose. Only the style changes: pitch, light, pixels, type, effects, and how each frame handles the hit. The players are the Blender test figures, a human and a new orc, rendered from an isometric camera in 8 directions.</p>
+
+  <div class="stills">
+    <button data-style="neon" aria-pressed="true"><img src="stills/neon.png" alt="Neon bloodsport still at the moment of the hit"><span>Neon bloodsport</span></button>
+    <button data-style="ritual" aria-pressed="false"><img src="stills/ritual.png" alt="Cursed ritual still at the moment of the hit"><span>Cursed ritual</span></button>
+    <button data-style="league" aria-pressed="false"><img src="stills/league.png" alt="The League still at the moment of the hit"><span>The League</span></button>
+  </div>
+
+  <div class="frame">
+    <div id="frame-neon"></div>
+    <div id="frame-ritual" hidden></div>
+    <div id="frame-league" hidden></div>
+  </div>
+  <div class="controls">
+    <button id="pause">Pause</button>
+    <button id="hit">Show the hit</button>
+    <span>The loop runs 8 seconds. Only the selected frame runs.</span>
+  </div>
+
+  <section class="guide on" data-guide="neon">
+    <div class="card">
+      <h3>Neon bloodsport</h3>
+      <p>Blood Bowl as an illegal 80s night broadcast. Hotline Miami, Drive and Doom.</p>
+      <ul>
+        <li>Chunky pixels: sprites render at 96 px and display at 2×, like Hotline Miami.</li>
+        <li>The pitch is near black. Light comes from the kits and the lines.</li>
+        <li>Two hard edge lights on every player, magenta from the left and cyan from the right.</li>
+        <li>Each team gets one neon colour and a glowing ring under every player.</li>
+        <li>A hit freezes the action for 160 ms, then shakes the screen and flashes it pink.</li>
+        <li>Blood stays on the pitch for the whole match.</li>
+        <li>VHS scanlines and a tape counter. The loop restarts as a rewind.</li>
+        <li>Type: Impact for shouts, Menlo for the tape, Brush Script in hot pink for the title, as in Drive.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Palette</h3>
+      <div class="swatches"><i style="background:#06050b"></i><i style="background:#120f1e"></i><i style="background:#ff2a9d"></i><i style="background:#23e6ff"></i><i style="background:#e8f6ff"></i><i style="background:#c4123f"></i></div>
+      <h3>Risks</h3>
+      <ul>
+        <li>Two neon teams are easy to tell apart. Thirty might not be. Kits need a fixed set of neon colours per team.</li>
+        <li>Full-screen bloom costs GPU time on phones.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="guide" data-guide="ritual">
+    <div class="card">
+      <h3>Cursed ritual</h3>
+      <p>Blood Bowl as an ancient rite in a ruined arena. Dark Souls 3, Silent Hill f, Resident Evil and The Last of Us.</p>
+      <ul>
+        <li>Finer pixels: sprites render at 192 px and display at 1×, closer to classic Resident Evil's pre-rendered look.</li>
+        <li>The pitch is cracked flagstone with moss and old stains, and the edges crumble into darkness.</li>
+        <li>Colour is drained by 35%. Blood red is the only strong colour.</li>
+        <li>Braziers give warm firelight and a red edge light on every player.</li>
+        <li>Fog drifts over the players and ash falls all the time.</li>
+        <li>Knights in great helms and tabards. Orcs in horned helms.</li>
+        <li>A hit lands slowly: a 260 ms freeze, a dark band and "BROKEN" fading in, in the style of Dark Souls' "YOU DIED".</li>
+        <li>A boss-style bar shows the blitzer's movement draining as he runs.</li>
+        <li>Type: Optima in spaced capitals. The loop restarts with a slow fade to black.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Palette</h3>
+      <div class="swatches"><i style="background:#0b0d0c"></i><i style="background:#3a403c"></i><i style="background:#8f9894"></i><i style="background:#d9d0b8"></i><i style="background:#8e1b12"></i><i style="background:#ff7a2a"></i></div>
+      <h3>Risks</h3>
+      <ul>
+        <li>Fog and a dark palette fight readability. Ball, players and squares must never vanish into the murk.</li>
+        <li>Slow, heavy pacing suits single hits but may drag over a 16-turn match.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="guide" data-guide="league">
+    <div class="card">
+      <h3>The League</h3>
+      <p>Blood Bowl run by a calm, clinical corporation. Severance, Strange Darling and Drive.</p>
+      <ul>
+        <li>Finer pixels at 1×, with clean daylight and teal shadows, like a warm 35mm film stock.</li>
+        <li>A bright, perfect pitch set in a pale office floor of carpet tiles.</li>
+        <li>Pale teal and white kits for one team, saturated orange and brown for the other.</li>
+        <li>Film grain and 2.39:1 letterbox bars. Subtitles narrate politely.</li>
+        <li>A hit is a 420 ms freeze frame. Then an incident panel slides in, and a few bright red drops stay on the grass.</li>
+        <li>The loop restarts with a chapter card, as in Strange Darling.</li>
+        <li>Type: Helvetica Neue for the League, and Rockwell and Didot for the chapter cards.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Palette</h3>
+      <div class="swatches"><i style="background:#dfe7e1"></i><i style="background:#48a543"></i><i style="background:#86c5b0"></i><i style="background:#f4f1e8"></i><i style="background:#e8661a"></i><i style="background:#e0141e"></i></div>
+      <h3>Risks</h3>
+      <ul>
+        <li>The joke lives in the text and the menus. On the pitch alone it can look like a plain, bright sports game.</li>
+        <li>The letterbox costs about a quarter of the screen height on a board game that needs space.</li>
+      </ul>
+    </div>
+  </section>
+
+  <h2>What I would decide next</h2>
+  <div class="verdict">
+    <p>Pick the frame whose hit you liked most. The hit is where these three really differ, and it's what players will see hundreds of times a match.</p>
+    <p>The parts also mix. The League's menus, subtitles and chapter cards could sit on top of either pitch. The ritual's fog and braziers could be a night-match theme in the neon game. Tell me which pitch, which hit and which menu tone, and I'll make one combined frame and start a one-page style guide from it.</p>
+  </div>
+
+  <h2>How it was made</h2>
+  <p><code>scripts/sprites/blender_players.py</code> builds both races in Blender on Jellybingus and renders them in each style. It uses an isometric camera, 30° up and turned 45°, so squares become 2:1 diamonds. That was 2,880 frames in about 3 minutes. <code>build_sheets.py</code> splits the kit layers and <code>pack_atlas.py</code> crops and packs them into Phaser atlases: 50 MB of GPU memory for all six player types. <code>style-frames/frames.js</code> is the Phaser 3.90 scene shared by all three frames.</p>
+  <p class="dim">These are still test figures built from simple shapes, and the poses are generated by code. One mid-fall frame of the neon orc clips one pixel at the frame edge.</p>
+</main>
+<script src="phaser.min.js"></script>
+<script src="frames.js"></script>
+<script>
+  let current = "neon";
+  function show(key) {
+    current = key;
+    document.querySelectorAll(".stills button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.style === key)));
+    document.querySelectorAll(".frame > div").forEach((d) => (d.hidden = d.id !== `frame-${key}`));
+    document.querySelectorAll(".guide").forEach((g) => g.classList.toggle("on", g.dataset.guide === key));
+    styleFrames.start(key);
+    syncPause();
+  }
+  function scene() { const g = styleFrames.games[current]; return g && g.scene.getScene(current); }
+  function syncPause() { const s = scene(); document.getElementById("pause").textContent = s && s.paused ? "Play" : "Pause"; }
+  document.querySelectorAll(".stills button").forEach((b) => b.addEventListener("click", () => show(b.dataset.style)));
+  document.getElementById("pause").addEventListener("click", () => { const s = scene(); if (s) { s.paused = !s.paused; syncPause(); } });
+  document.getElementById("hit").addEventListener("click", () => { const s = scene(); if (s) { s.holdAt(styleFrames.T_HIT + 700); syncPause(); } });
+  show("neon");
+</script>
+</body>
+</html>

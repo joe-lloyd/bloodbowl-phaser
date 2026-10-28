@@ -156,14 +156,16 @@ test.describe("core turn interactions", () => {
 });
 
 test.describe("presentation", () => {
-  // Themes are chosen by URL and must survive into the rendered pitch and
-  // across a reload — a theme that resets on refresh looks like a bug.
+  // Match styles are chosen by URL and must survive into the rendered match
+  // and across a reload — a style that resets on refresh looks like a bug.
   for (const theme of PITCH_THEMES) {
-    test(`pitch theme '${theme.id}' loads and persists across a reload`, async ({
+    test(`match style '${theme.id}' loads and persists across a reload`, async ({
       page,
     }) => {
       const app = new GameApp(page);
-      await page.goto(`/sand-box?scenario=basic-scrimmage&seed=1&theme=${theme.id}`);
+      await page.goto(
+        `/sand-box?scenario=basic-scrimmage&seed=1&theme=${theme.id}`
+      );
       await app.pitch.waitForCanvas();
       await app.sandbox.waitForScenarioLoaded();
 
@@ -180,24 +182,26 @@ test.describe("presentation", () => {
     });
   }
 
-  test("the dugouts and sidelines render alongside the pitch", async ({
+  test("the stadium fills the window with the pitch inside it", async ({
     page,
   }) => {
     const app = new GameApp(page);
     await app.sandbox.open({ scenario: "basic-scrimmage", seed: 1 });
 
-    // The board labels are DOM overlays over the canvas, so they are
-    // assertable without pixels.
-    await expect(page.getByText("RESERVES").first()).toBeVisible();
-    await expect(page.getByText("KNOCKED OUT").first()).toBeVisible();
-    await expect(page.getByText("CASUALTIES").first()).toBeVisible();
-
-    // The canvas is tall enough to include the dugouts above and below the
-    // playing surface.
+    // The canvas is the whole window; the match camera frames the pitch and
+    // both dugouts inside it (the dugout boxes are baked into the stadium).
     const canvasBox = (await app.pitch.canvas.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(canvasBox.width).toBeCloseTo(viewport.width, -1);
+    expect(canvasBox.height).toBeCloseTo(viewport.height, -1);
+
     const pitchRect = await app.pitch.pitchViewportRect();
-    expect(pitchRect.y).toBeGreaterThan(canvasBox.y);
-    expect(pitchRect.y + pitchRect.height).toBeLessThan(
+    expect(pitchRect.x).toBeGreaterThanOrEqual(canvasBox.x);
+    expect(pitchRect.y).toBeGreaterThanOrEqual(canvasBox.y);
+    expect(pitchRect.x + pitchRect.width).toBeLessThanOrEqual(
+      canvasBox.x + canvasBox.width
+    );
+    expect(pitchRect.y + pitchRect.height).toBeLessThanOrEqual(
       canvasBox.y + canvasBox.height
     );
   });

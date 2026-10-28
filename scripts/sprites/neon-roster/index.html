@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Neon bloodsport: seven players, 27 October 2026</title>
+<style>
+  :root { color-scheme: dark; --bg: #0c0b10; --panel: #19171f; --line: #2e2b38; --text: #dedce6; --dim: #8f8c9c; --pink: #ff2a9d; --cyan: #23e6ff; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); }
+  body { margin: 0; font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 1340px; margin: 0 auto; padding: 34px 22px 80px; }
+  h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  h2 { color: #fff; font-size: 21px; margin: 40px 0 10px; }
+  p, li { max-width: 80ch; }
+  .dim { color: var(--dim); }
+  .stage { background: #000; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #roster { width: 100%; aspect-ratio: 1280 / 380; }
+  #frame-neon { width: 100%; aspect-ratio: 16 / 9; }
+  canvas { image-rendering: pixelated; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; align-items: center; }
+  .controls button { background: #26232e; color: var(--text); border: 1px solid #3d394a; border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+  .controls button[aria-pressed="true"] { background: var(--pink); border-color: var(--pink); color: #12000a; }
+  .controls span { color: var(--dim); font-size: 14px; margin: 0 4px; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .notes div { background: var(--panel); border-radius: 8px; padding: 12px 16px; font-size: 15px; }
+  .notes b { color: #fff; }
+  .home { color: var(--pink); } .away { color: var(--cyan); }
+  code { background: #24212c; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Neon bloodsport: seven players</h1>
+  <p class="dim">27 October 2026 · the neon direction with a new ready stance and seven player types</p>
+  <p>Every player now idles in a ready stance: feet wide, knees bent, chest over the toes, hands out in front to block. The old idle had the feet and arms pulled inward. That came from a sign error in the pose code, where "swing out" actually swung the limbs in. That's fixed for every animation, and the boots now stay flat on the ground.</p>
+
+  <h2>The roster</h2>
+  <div class="stage"><div id="roster"></div></div>
+  <div class="controls">
+    <span>Animation</span>
+    <button data-anim="idle" aria-pressed="true">Idle</button>
+    <button data-anim="run" aria-pressed="false">Run</button>
+    <button data-anim="block" aria-pressed="false">Block</button>
+    <button data-anim="fall" aria-pressed="false">Fall</button>
+    <span>Facing</span>
+    <button id="turn" aria-pressed="true">Turning</button>
+  </div>
+
+  <h2>On the pitch</h2>
+  <p>The same block as before, now with mixed squads. <span class="home">Pink</span>: humans, elves, vampires and gnomes. <span class="away">Cyan</span>: orcs, goblins and witch elves. Real Blood Bowl teams are one race, so these squads are mixed only to show every model next to the others.</p>
+  <div class="stage"><div id="frame-neon"></div></div>
+  <div class="controls">
+    <button id="pause">Pause</button>
+    <button id="hit">Show the hit</button>
+    <span>The loop runs 8 seconds.</span>
+  </div>
+
+  <h2>Notes per player</h2>
+  <div class="notes" id="notes">
+    <div><b>Human lineman.</b> The reference model. The wide stance, pads and visor read well. From the front it looks too much like the elf and vampire, so it needs one stronger feature, such as a bigger helmet.</div>
+    <div><b>Orc lineman.</b> Reads instantly: wide, hunched, with a mohawk and spiked pads. The strongest silhouette of the seven.</div>
+    <div><b>Elf lineman.</b> Taller and thinner than the human, with a helmet fin and a ponytail. At sprite size it still looks like a slim human. Longer limbs or a taller crest would set it apart.</div>
+    <div><b>Witch elf.</b> The spiked white hair reads from every angle, and without pads she looks lean and fast. The blades on her bracers are too small to see yet.</div>
+    <div><b>Goblin.</b> Half height, with huge ears and an oversized helmet. Clear at a glance. The long nose disappears under the helmet.</div>
+    <div><b>Gnome.</b> The tall hat makes him unmistakable, and the beard reads from the front. The best of the small players.</div>
+    <div><b>Vampire.</b> The cape and collar only show from the side and from behind. From the front he looks like a pale human. A taller collar would fix that.</div>
+  </div>
+
+  <h2>What's next</h2>
+  <ul>
+    <li>Silhouettes for the human, elf and vampire, so each one is recognisable as a solid black shape at sprite size. The orc, goblin, gnome and witch elf already pass that test.</li>
+    <li>Real models. These are still simple shapes on a shared skeleton. The next step up is sculpted meshes with proper rigs, starting with whichever race you want to see first.</li>
+    <li>The block and fall still use their first-pass poses. Now that the idle reads well, those two deserve the same treatment.</li>
+  </ul>
+
+  <h2>How it was made</h2>
+  <p><code>scripts/sprites/blender_players.py</code> holds one body plan and one head builder per race. They share a skeleton, the four animations and the neon light rig. Rendering 3,360 frames for seven races took under four minutes on Jellybingus. <code>style-frames/frames.js</code> holds both the roster and the pitch scene.</p>
+</main>
+<script src="phaser.min.js"></script>
+<script src="frames.js"></script>
+<script>
+  const roster = styleFrames.startRoster("roster");
+  const rosterScene = () => roster.scene.getScene("roster");
+  document.querySelectorAll("[data-anim]").forEach((b) => b.addEventListener("click", () => {
+    rosterScene().anim = b.dataset.anim;
+    rosterScene().clock = 0;
+    document.querySelectorAll("[data-anim]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+  }));
+  document.getElementById("turn").addEventListener("click", (e) => {
+    const s = rosterScene();
+    s.turning = !s.turning;
+    e.target.setAttribute("aria-pressed", String(s.turning));
+    e.target.textContent = s.turning ? "Turning" : "Facing the camera";
+  });
+
+  styleFrames.STYLES.neon.teams = styleFrames.MIXED_TEAMS;
+  const pitch = styleFrames.start("neon");
+  const pitchScene = () => pitch.scene.getScene("neon");
+  const pause = document.getElementById("pause");
+  pause.addEventListener("click", () => { const s = pitchScene(); s.paused = !s.paused; pause.textContent = s.paused ? "Play" : "Pause"; });
+  document.getElementById("hit").addEventListener("click", () => { pitchScene().holdAt(styleFrames.T_HIT + 700); pause.textContent = "Play"; });
+</script>
+</body>
+</html>

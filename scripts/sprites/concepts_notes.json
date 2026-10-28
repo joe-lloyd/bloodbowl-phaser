@@ -1,0 +1,21 @@
+{
+  "intro": "<p style=\"margin:0\">Seven players, five styles, two takes each. These are image-model sketches made to find a vibe, not finished art. Each one took about 13 seconds on the 3090, so a style we like can be redrawn fast with tighter prompts. My pick is at the bottom, after the grid.</p>",
+  "styles": {
+    "grimdark": "Oil-painting look with mud, rain and muted colour, one bold kit colour each. It has the most Warhammer feel and suits menus, loading screens and team cards. It does not survive shrinking to a 60 px square, because all its detail is in brushwork and lighting.",
+    "pixel": "Pixel-art game sprites. Open one to see it shrunk 8× to its real pixel grid. The figures are the most consistent across races and already look like something on the pitch. They stand front-on and stiff, so they show the palette and silhouette, not the pose.",
+    "toy": "Chunky vinyl-figure proportions: big heads, stubby legs, huge hands. This is the closest match to what Blender would actually build. Big heads and hands are what survive at sprite size, and the humour fits Blood Bowl. It goes too cute on some takes, such as the purple goblin witch elf and the gremlin vampire in take B.",
+    "anime": "Cel-shaded with bold lines and action poses. It is great for humans, elves and the vampire, and weak for orcs, goblins and gnomes. The anime model does not know those races well, and the second gnome came out as a pile-up of three figures.",
+    "sketch": "Graphite design sheets. They read best for armour shape and silhouette, which is what a modeller needs. They are a working tool, not a game style."
+  },
+  "verdict": "<p>For the game itself I would go with the <b>chunky toy</b> proportions rendered through the <b>pixel</b> pipeline from the last test. The toy figures give big heads, big hands and clear silhouettes that still read at 80 px, and they carry the slapstick tone Blood Bowl needs. Pixel rendering gives the look a single, consistent finish across 30 teams.</p><p>Use <b>grimdark</b> paintings for the menus, team pages and loading screens. The contrast between a painted grimdark menu and cartoon violence on the pitch is very Blood Bowl.</p>",
+  "characters": {
+    "orc": "The strongest across every style. The spiked shoulder plates and horned helm make a silhouette that will read at any size.",
+    "human": "Every style drifted into modern American football, with numbered jerseys and plastic helmets. That mix of NFL kit and fantasy armour is a real Blood Bowl look, so decide whether you want it. If not, the prompt needs \"medieval\" and no jersey numbers.",
+    "elf": "Reads as elegant in every style. \"Winged helm\" gave the sketch actual wings, so the helmet needs a better description.",
+    "witch_elf": "Purple, white hair and war paint read instantly. The best takes are the grimdark crouch and the anime pounce. The toy style turns her into a goblin, so she needs less exaggerated proportions than the others.",
+    "goblin": "Great in every style, and the toy and pixel versions especially. The oversized helmet is the gag that makes the character.",
+    "gnome": "\"Round red nose\" turned him into a garden gnome with a clown nose. That is funny, but probably not a Blood Bowl gnome. The pointed cap reads well. Next time drop the nose and lean into the tinkerer goggles.",
+    "vampire": "Pale face, slicked hair, black and crimson armour. Grimdark and anime nail the predator. The toy take B is a cute gremlin, so the vampire wants normal proportions with only the head enlarged."
+  },
+  "method": "<p><code>scripts/sprites/concepts.py</code> sends each prompt to ComfyUI on Jellybingus through an SSH tunnel. The painting, pixel, toy and sketch styles use Juggernaut XL v9, and the pixel style adds the pixel-art XL LoRA. The anime style uses NoobAI XL 1.1. Every image is 832 × 1216, 30 steps, with fixed seeds, so any image can be redrawn exactly. <code>scripts/sprites/concepts_page.py</code> builds this page. These are vibe references only. Nothing here goes into the game as an asset.</p>"
+}

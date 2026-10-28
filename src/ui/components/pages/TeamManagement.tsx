@@ -22,51 +22,7 @@ import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
-
-// Dynamic asset loading
-const assetFiles = import.meta.glob("../../../data/assets/**/*.{png,jpg,gif}", {
-  eager: true,
-  query: "?url",
-  import: "default",
-});
-
-// interface TeamManagementProps {
-//   eventBus: EventBus;
-// }
-
-/**
- * Get player sprite image URL from assets
- */
-function getPlayerSpriteUrl(
-  rosterName: string,
-  positionName: string
-): string | null {
-  // Normalize roster and position names
-  const rosterKey = rosterName.toLowerCase().replace(/\s+/g, "-");
-  const posKey = positionName.toLowerCase().replace(/\s+/g, "-");
-
-  // Try to find matching asset
-  for (const path in assetFiles) {
-    const url = assetFiles[path];
-    const parts = path.split("/");
-    const filename = parts.pop();
-    const folder = parts.pop();
-
-    if (folder && filename) {
-      const folderNorm = folder.toLowerCase().replace(/\s+/g, "-");
-      const nameIdx = filename.lastIndexOf(".");
-      const name = nameIdx !== -1 ? filename.substring(0, nameIdx) : filename;
-      const nameNorm = name.toLowerCase().replace(/\s+/g, "-");
-
-      // Check if folder matches roster and filename matches position
-      if (folderNorm === rosterKey && nameNorm === posKey) {
-        return url as string;
-      }
-    }
-  }
-
-  return null;
-}
+import { PlayerPortrait } from "../common/PlayerPortrait";
 
 /**
  * Team Management Component
@@ -240,63 +196,34 @@ export function TeamManagement() {
                       Starting Lineup
                     </div>
                     <div className="flex justify-center gap-3 flex-wrap">
-                      {team.players.slice(0, 7).map((player) => {
-                        const spriteUrl = getPlayerSpriteUrl(
-                          team.rosterName,
-                          player.positionName
-                        );
-
-                        return (
-                          <div
-                            key={player.id}
-                            className="flex flex-col items-center group"
-                            title={`#${player.number} ${player.playerName} - ${player.positionName}`}
-                          >
-                            {/* Player Sprite or Icon */}
-                            <div className="relative w-14 h-14 flex items-center justify-center transition-all group-hover:scale-110">
-                              {spriteUrl ? (
-                                <>
-                                  {/* Player Sprite Image */}
-                                  <img
-                                    src={spriteUrl}
-                                    alt={player.positionName}
-                                    className="w-full h-full object-contain drop-shadow-lg"
-                                  />
-                                  {/* Player Number Badge */}
-                                  <div
-                                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-bb-dark-gold flex items-center justify-center text-[10px] font-bold shadow-md"
-                                    style={{
-                                      backgroundColor: numToHex(
-                                        team.colors.primary
-                                      ),
-                                      color: numToHex(team.colors.secondary),
-                                    }}
-                                  >
-                                    {player.number}
-                                  </div>
-                                </>
-                              ) : (
-                                /* Fallback: Number Badge */
-                                <div
-                                  className="w-12 h-12 rounded-full border-2 border-bb-dark-gold/50 flex items-center justify-center text-lg font-bold shadow-md"
-                                  style={{
-                                    backgroundColor: numToHex(
-                                      team.colors.primary
-                                    ),
-                                    color: numToHex(team.colors.secondary),
-                                  }}
-                                >
-                                  {player.number}
-                                </div>
-                              )}
-                            </div>
-                            {/* Position Label */}
-                            <div className="text-[9px] text-bb-dark-gold/70 mt-1 text-center font-bold uppercase tracking-tight max-w-[56px] truncate">
-                              {player.positionName.split(" ")[0]}
+                      {team.players.slice(0, 7).map((player) => (
+                        <div
+                          key={player.id}
+                          className="flex flex-col items-center group"
+                          title={`#${player.number} ${player.playerName} - ${player.positionName}`}
+                        >
+                          <div className="relative transition-all group-hover:scale-110">
+                            <PlayerPortrait
+                              rosterName={team.rosterName}
+                              positionName={player.positionName}
+                              colors={team.colors}
+                              size={64}
+                            />
+                            <div
+                              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-bb-dark-gold flex items-center justify-center text-[10px] font-bold shadow-md"
+                              style={{
+                                backgroundColor: numToHex(team.colors.primary),
+                                color: numToHex(team.colors.secondary),
+                              }}
+                            >
+                              {player.number}
                             </div>
                           </div>
-                        );
-                      })}
+                          <div className="text-[9px] text-bb-dark-gold/70 mt-1 text-center font-bold uppercase tracking-tight max-w-[64px] truncate">
+                            {player.positionName.split(" ")[0]}
+                          </div>
+                        </div>
+                      ))}
                       {team.players.length < 7 && (
                         <div className="flex items-center justify-center text-bb-dark-gold/30 text-xs italic px-2">
                           +{7 - team.players.length} more needed

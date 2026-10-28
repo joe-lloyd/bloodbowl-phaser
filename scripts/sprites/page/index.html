@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite test: a Blender lineman in Phaser, 25 October 2026</title>
+<style>
+  :root { color-scheme: dark; --bg: #1e1e1e; --panel: #262626; --line: #3a3a3a; --text: #dcddde; --dim: #8e8e8e; --accent: #e6c84a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 36px 22px 80px; }
+  h1 { color: #fff; font-size: 28px; margin: 0 0 6px; }
+  h2 { color: #fff; font-size: 20px; margin: 44px 0 10px; }
+  p, li { max-width: 72ch; }
+  .dim { color: var(--dim); }
+  .verdict { background: var(--panel); border-left: 3px solid var(--accent); padding: 14px 18px; border-radius: 6px; margin: 20px 0; }
+  .stage { background: #111; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  #game canvas { display: block; margin: 0 auto; image-rendering: pixelated; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; align-items: center; }
+  button { background: #333; color: var(--text); border: 1px solid #4a4a4a; border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+  .controls .label { color: var(--dim); font-size: 14px; margin-right: 2px; }
+  .grid { display: grid; grid-template-columns: 70px repeat(8, 1fr); gap: 4px; align-items: center; background: #2d5016; padding: 10px; border-radius: 8px; }
+  .grid .hd { color: #e8f0d8; font-size: 13px; text-align: center; }
+  .grid .rowname { color: #e8f0d8; font-size: 14px; }
+  .grid canvas { width: 100%; image-rendering: pixelated; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .pair figure { margin: 0; }
+  .pair img { width: 100%; border-radius: 6px; border: 1px solid var(--line); background: #fff; }
+  figcaption { color: var(--dim); font-size: 14px; margin-top: 6px; }
+  table { border-collapse: collapse; margin: 10px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 500; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  code { background: #2c2c2c; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  .sheet { overflow-x: auto; background: #2d5016; border-radius: 8px; padding: 8px; }
+  .sheet img { image-rendering: pixelated; display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sprite test: a Blender lineman in Phaser</h1>
+  <p class="dim">25 October 2026 · one test figure, four animations, eight facings, rendered on Jellybingus</p>
+
+  <div class="verdict">
+    <p style="margin:0">It works, and the pipeline is cheap. A 3D figure rendered from a fixed camera reads clearly as a pixel sprite on the 60 px squares. Team colours come from tinting at runtime, so one set of renders covers every team. All 960 frames rendered in 56 seconds. The open questions are about taste, not feasibility: which pixel density you prefer, and how much modelling each race needs.</p>
+  </div>
+
+  <h2>Live on a pitch</h2>
+  <p>This is Phaser 3.90, the version in the lockfile. The squares are 60 px in the game's pitch green, like the real game. Six players idle out of step. A red lineman runs a route square by square, then blocks a blue player, who goes down and later gets back up. Switch the pixel density and the team colours below.</p>
+  <div class="stage">
+    <div id="game"></div>
+    <div class="controls">
+      <span class="label">Pixels</span>
+      <button data-size="lo" aria-pressed="true">Chunky: 80 px frames at 2×</button>
+      <button data-size="hi" aria-pressed="false">Fine: 160 px frames at 1×</button>
+      <span class="label" style="margin-left:14px">Kits</span>
+      <button id="recolour">Swap team colours</button>
+      <button id="pause" aria-pressed="false">Pause</button>
+    </div>
+  </div>
+
+  <h2>Every animation, every facing</h2>
+  <p>Each row is an animation and each column a facing, in the chunky density at 2×. The fall holds its last frame for a moment before it loops.</p>
+  <div class="grid" id="matrix"></div>
+
+  <h2>The model and the game today</h2>
+  <div class="pair">
+    <figure><img src="beauty.png" alt="The test lineman rendered smoothly at high resolution"><figcaption>The test figure at full resolution, before pixelation. It is 38 primitive parts on a joint hierarchy, like a miniature on pins. Kit is neutral grey because the game tints it.</figcaption></figure>
+    <figure><img src="current-look.png" alt="Screenshot of the current match view" style="background:#111"><figcaption>The current match view, where players are drawn shapes with a number.</figcaption></figure>
+  </div>
+
+  <h2>How it was made</h2>
+  <ol>
+    <li><code>scripts/sprites/blender_lineman.py</code> runs inside Blender 5.1 on Jellybingus. It builds the figure, an orthographic camera 38° above the pitch, a sun and a toon material. The material steps the lighting into three flat bands.</li>
+    <li>Poses are pure functions of animation and frame number, so there are no keyframes to manage. The script turns the figure through eight facings and renders each frame twice. The colour pass has the kit in grey. The mask pass marks primary kit red and secondary kit green.</li>
+    <li>Anti-aliasing is off (filter size 0), so every pixel is a hard pixel straight from the renderer. There is no downscaling.</li>
+    <li><code>scripts/sprites/build_sheets.py</code> adds a 1 px dark outline. It then splits each frame into a base layer and two kit layers, and packs one sheet per animation with a row per facing.</li>
+    <li>In Phaser each player is three stacked sprites on the same frame, with <code>setTint()</code> on the two kit layers. The origin sits on the feet anchor that Blender reports, so feet land on the square centre at any facing.</li>
+  </ol>
+
+  <table>
+    <tr><th>Measure</th><th class="n">Chunky (80 px)</th><th class="n">Fine (160 px)</th></tr>
+    <tr><td>Frames per player type</td><td class="n">240 × 3 layers</td><td class="n">240 × 3 layers</td></tr>
+    <tr><td>PNG download</td><td class="n">424 KB</td><td class="n">1.3 MB</td></tr>
+    <tr><td>GPU memory, sheets as rendered</td><td class="n">18 MB</td><td class="n">74 MB</td></tr>
+    <tr><td>GPU memory, trimmed atlas</td><td class="n">4 MB</td><td class="n">16 MB</td></tr>
+    <tr><td>GPU memory, trimmed with one palette layer</td><td class="n">1.4 MB</td><td class="n">5 MB</td></tr>
+  </table>
+  <p class="dim">Render time: 960 frames (both sizes, both passes) in 56 s on the RTX 3090 with EEVEE. About 78% of each frame is empty, which is why trimming matters.</p>
+
+  <h2>What the test showed</h2>
+  <ul>
+    <li>The look holds up. At the chunky density, the helmet, pads and kit colours read at a glance. The figure stands about 75 px tall on a 60 px square and overlaps the square behind it, the way a miniature does. Faces are a few pixels, so silhouette and kit carry identity, not features.</li>
+    <li>Tinting works. One set of renders covers every team. The grey kit keeps its three light bands under any tint, as the colour swap shows.</li>
+    <li>Eight facings fit Blood Bowl. A player can only move or block toward one of eight neighbouring squares, so eight facings cover every move with no in-between angles.</li>
+    <li>The camera angle is a compromise. The pitch is drawn straight down but the figures are seen from 38°. It looks fine to me, much like a top-down board with miniatures on it. Your eye is the real test.</li>
+    <li>Memory needs a packed atlas before scaling up. The raw sheets waste most of their pixels. Trimming the empty space, and replacing the two kit layers with one palette-swap shader, cuts a player type from 18 MB to about 1.4 MB at the chunky density.</li>
+  </ul>
+
+  <h2>What this test skipped</h2>
+  <ul>
+    <li>The figure is rigid primitives with procedural poses. Real players need sculpted, skinned meshes and keyframed animation, either by hand or retargeted from a motion library.</li>
+    <li>There is no ball-carrying, pass, catch, dodge or stand-up animation yet. The stand-up here is the fall played backwards.</li>
+    <li>Nothing touches the game code. <code>PlayerSprite</code> would swap its drawn shapes for these three sprites. The rings, markers and grid clicks would stay as they are.</li>
+    <li>The scale question stays open: 30 teams and 158 position images. The plan from the research note still applies: about eight to ten shared body rigs, with a shared animation set per rig and parts swapped per position.</li>
+  </ul>
+
+  <h2>Raw sheets</h2>
+  <p>The base layer and both kit layers for the run animation in the chunky density, unscaled. Rows are facings s, se, e, ne, n, nw, w, sw.</p>
+  <div class="sheet"><img src="sheets/lo/run_base.png" alt="run base sheet"></div>
+  <div class="sheet" style="margin-top:6px"><img src="sheets/lo/run_kit1.png" alt="run primary kit sheet"></div>
+  <div class="sheet" style="margin-top:6px"><img src="sheets/lo/run_kit2.png" alt="run secondary kit sheet"></div>
+</main>
+
+<script src="phaser.min.js"></script>
+<script>
+const META = {
+  directions: ["s", "se", "e", "ne", "n", "nw", "w", "sw"],
+  animations: { idle: 8, run: 8, block: 6, fall: 8 },
+  sizes: { hi: { frame: 160, anchor: [80, 104.43], scale: 1 }, lo: { frame: 80, anchor: [40, 52.21], scale: 2 } },
+};
+const FPS = { idle: 6, run: 12, block: 12, fall: 12 };
+const LOOPS = { idle: true, run: true, block: false, fall: false };
+const PARTS = ["base", "kit1", "kit2"];
+const SQ = 60, COLS = 12, ROWS = 7;
+const KITS = [
+  [[0xb22228, 0xe6c846], [0x2850aa, 0xebebeb]],
+  [[0x2e7d32, 0xf2f2f2], [0x5b2a86, 0xd4a017]],
+  [[0x222222, 0xd23c3c], [0xe0e0e0, 0x1f6fb2]],
+];
+
+/** Direction name for a step of (dx, dy) on the grid, y down the screen. */
+function facing(dx, dy) {
+  const names = { "0,1": "s", "1,1": "se", "1,0": "e", "1,-1": "ne", "0,-1": "n", "-1,-1": "nw", "-1,0": "w", "-1,1": "sw" };
+  return names[`${Math.sign(dx)},${Math.sign(dy)}`] || "s";
+}
+
+/** Frame index for an animation at a given elapsed time. */
+function frameAt(anim, elapsedMs, reverse) {
+  const n = META.animations[anim];
+  let f = Math.floor((elapsedMs / 1000) * FPS[anim]);
+  f = LOOPS[anim] ? f % n : Math.min(f, n - 1);
+  return reverse ? n - 1 - f : f;
+}
+
+let size = "lo", kitSet = 0, paused = false;
+
+class Pitch extends Phaser.Scene {
+  preload() {
+    for (const s of ["lo", "hi"]) {
+      const px = META.sizes[s].frame;
+      for (const anim of Object.keys(META.animations))
+        for (const part of PARTS)
+          this.load.spritesheet(`${s}-${anim}-${part}`, `sheets/${s}/${anim}_${part}.png`, { frameWidth: px, frameHeight: px });
+    }
+  }
+
+  create() {
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x2d5016, 0x2d5016, 0x244714, 0x244714, 1).fillRect(0, 0, COLS * SQ, ROWS * SQ);
+    g.fillStyle(0x6f8f3f, 0.07);
+    for (let x = 1; x < COLS; x += 2) g.fillRect(x * SQ, 0, SQ, ROWS * SQ);
+    g.lineStyle(1, 0xffffff, 0.3);
+    for (let x = 0; x <= COLS; x++) g.lineBetween(x * SQ, 0, x * SQ, ROWS * SQ);
+    for (let y = 0; y <= ROWS; y++) g.lineBetween(0, y * SQ, COLS * SQ, y * SQ);
+
+    this.players = [];
+    const spots = [
+      [0, 2, 2, "se"], [0, 3, 5, "e"], [0, 5, 1, "s"],
+      [1, 8, 2, "w"], [1, 9, 4, "sw"], [1, 7, 5, "nw"],
+    ];
+    for (const [team, x, y, dir] of spots) this.players.push(this.makePlayer(team, x, y, dir));
+    this.runner = this.players[0];
+    this.target = this.players[4];
+    this.clock = 0;
+    this.script = this.buildScript();
+    this.applySize();
+  }
+
+  makePlayer(team, x, y, dir) {
+    const c = this.add.container(0, 0);
+    const shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28);
+    const sprites = PARTS.map(() => this.add.sprite(0, 0, "lo-idle-base", 0));
+    c.add([shadow, ...sprites]);
+    const p = { team, c, sprites, gx: x, gy: y, dir, anim: "idle", t0: -Math.random() * 2000, reverse: false };
+    this.place(p, x, y);
+    return p;
+  }
+
+  place(p, gx, gy) {
+    p.c.setPosition(gx * SQ + SQ / 2, gy * SQ + SQ / 2);
+    p.c.setDepth(p.c.y);
+  }
+
+  play(p, anim, reverse = false) {
+    p.anim = anim; p.t0 = this.clock; p.reverse = reverse;
+  }
+
+  /** The demo's choreography: run a route, block, the target falls, both reset. */
+  buildScript() {
+    const route = [[3, 2], [4, 3], [5, 3], [6, 3], [7, 4], [8, 4]];
+    const steps = [];
+    let from = [2, 2];
+    for (const to of route) { steps.push({ kind: "move", from, to, ms: 330 }); from = to; }
+    steps.push({ kind: "block", ms: 520 });
+    steps.push({ kind: "wait", ms: 2200 });
+    steps.push({ kind: "standup", ms: 700 });
+    steps.push({ kind: "wait", ms: 900 });
+    const back = [...route].reverse().slice(1).concat([[2, 2]]);
+    from = route[route.length - 1];
+    for (const to of back) { steps.push({ kind: "move", from, to, ms: 330 }); from = to; }
+    steps.push({ kind: "face", dir: "se", ms: 1500 });
+    return steps;
+  }
+
+  runScript() {
+    const total = this.script.reduce((a, s) => a + s.ms, 0);
+    let t = this.clock % total, i = 0;
+    while (t >= this.script[i].ms) { t -= this.script[i].ms; i++; }
+    if (i === this.stepIndex) return { step: this.script[i], t };
+    this.stepIndex = i;
+    const step = this.script[i], r = this.runner, b = this.target;
+    if (step.kind === "move") {
+      r.dir = facing(step.to[0] - step.from[0], step.to[1] - step.from[1]);
+      if (r.anim !== "run") this.play(r, "run");
+    } else if (step.kind === "block") {
+      r.dir = facing(b.gx - r.gx, b.gy - r.gy);
+      b.dir = facing(r.gx - b.gx, r.gy - b.gy);
+      this.play(r, "block");
+      this.fallAt = this.clock + 250;
+    } else if (step.kind === "standup") {
+      this.play(b, "fall", true);
+      this.play(r, "idle");
+    } else if (step.kind === "wait" && b.anim === "fall" && b.reverse) {
+      this.play(b, "idle");
+    } else if (step.kind === "face") {
+      r.dir = step.dir; this.play(r, "idle");
+    } else if (step.kind === "wait") {
+      this.play(r, "idle");
+    }
+    return { step, t };
+  }
+
+  update(_, dt) {
+    if (paused) return;
+    this.clock += dt;
+    const { step, t } = this.runScript();
+    if (step.kind === "move") {
+      const u = t / step.ms;
+      const gx = step.from[0] + (step.to[0] - step.from[0]) * u;
+      const gy = step.from[1] + (step.to[1] - step.from[1]) * u;
+      this.place(this.runner, gx, gy);
+      [this.runner.gx, this.runner.gy] = u > 0.5 ? step.to : step.from;
+    }
+    if (this.fallAt && this.clock >= this.fallAt) { this.play(this.target, "fall"); this.fallAt = null; }
+
+    const kit = KITS[kitSet];
+    for (const p of this.players) {
+      const n = META.animations[p.anim];
+      const row = META.directions.indexOf(p.dir);
+      const frame = row * n + frameAt(p.anim, this.clock - p.t0, p.reverse);
+      p.sprites.forEach((s, i) => {
+        s.setTexture(`${size}-${p.anim}-${PARTS[i]}`, frame);
+        if (i > 0) s.setTint(kit[p.team][i - 1]);
+      });
+    }
+  }
+
+  applySize() {
+    const m = META.sizes[size];
+    for (const p of this.players)
+      p.sprites.forEach((s) => s.setOrigin(m.anchor[0] / m.frame, m.anchor[1] / m.frame).setScale(m.scale));
+  }
+}
+
+const game = new Phaser.Game({
+  type: Phaser.WEBGL,
+  parent: "game",
+  width: COLS * SQ,
+  height: ROWS * SQ,
+  pixelArt: true,
+  backgroundColor: "#111111",
+  scene: Pitch,
+});
+
+document.querySelectorAll("button[data-size]").forEach((b) => b.addEventListener("click", () => {
+  size = b.dataset.size;
+  document.querySelectorAll("button[data-size]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+  game.scene.getScene("default")?.applySize();
+}));
+document.getElementById("recolour").addEventListener("click", () => { kitSet = (kitSet + 1) % KITS.length; drawMatrix.kit = kitSet; });
+document.getElementById("pause").addEventListener("click", (e) => {
+  paused = !paused; e.target.setAttribute("aria-pressed", String(paused)); e.target.textContent = paused ? "Play" : "Pause";
+});
+
+// Animation matrix: plain canvases, composited the same way Phaser tints.
+const matrix = document.getElementById("matrix");
+matrix.appendChild(document.createElement("div"));
+for (const d of META.directions) { const h = document.createElement("div"); h.className = "hd"; h.textContent = d.toUpperCase(); matrix.appendChild(h); }
+const cells = [];
+const images = {};
+for (const anim of Object.keys(META.animations)) {
+  const name = document.createElement("div"); name.className = "rowname"; name.textContent = anim; matrix.appendChild(name);
+  for (const part of PARTS) { const img = new Image(); img.src = `sheets/lo/${anim}_${part}.png`; images[`${anim}-${part}`] = img; }
+  for (const d of META.directions) {
+    const cv = document.createElement("canvas"); cv.width = cv.height = 80; matrix.appendChild(cv);
+    cells.push({ cv, anim, row: META.directions.indexOf(d) });
+  }
+}
+const scratch = document.createElement("canvas"); scratch.width = scratch.height = 80;
+function drawMatrix(now) {
+  const kit = KITS[drawMatrix.kit || 0][0];
+  for (const { cv, anim, row } of cells) {
+    const n = META.animations[anim];
+    const hold = LOOPS[anim] ? 0 : 1200;
+    const cycle = (n / FPS[anim]) * 1000 + hold;
+    const f = frameAt(anim, LOOPS[anim] ? now : now % cycle);
+    const ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, 80, 80);
+    PARTS.forEach((part, i) => {
+      const img = images[`${anim}-${part}`];
+      if (!img.complete) return;
+      if (i === 0) { ctx.drawImage(img, f * 80, row * 80, 80, 80, 0, 0, 80, 80); return; }
+      const s = scratch.getContext("2d");
+      s.globalCompositeOperation = "source-over"; s.clearRect(0, 0, 80, 80);
+      s.drawImage(img, f * 80, row * 80, 80, 80, 0, 0, 80, 80);
+      s.globalCompositeOperation = "multiply"; s.fillStyle = "#" + kit[i - 1].toString(16).padStart(6, "0"); s.fillRect(0, 0, 80, 80);
+      s.globalCompositeOperation = "destination-in"; s.drawImage(img, f * 80, row * 80, 80, 80, 0, 0, 80, 80);
+      ctx.drawImage(scratch, 0, 0);
+    });
+  }
+  requestAnimationFrame(drawMatrix);
+}
+requestAnimationFrame(drawMatrix);
+</script>
+</body>
+</html>

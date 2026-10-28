@@ -4,9 +4,7 @@ import { Player, PlayerStatus } from "../../types/Player";
 import { SetupValidator } from "../validators/SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
-import { pixelToGrid } from "../elements/GridUtils";
-import { centeredHitArea } from "../elements/InteractiveHitArea";
-import { GameConfig } from "../../config/GameConfig";
+import { playerHitArea } from "../elements/InteractiveHitArea";
 import { GameEventNames } from "../../types/events";
 
 /**
@@ -59,7 +57,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
         // config only re-enables input — the hitArea here is a fallback for
         // sprites that were never made interactive
         sprite.setInteractive({
-          hitArea: centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
+          hitArea: playerHitArea(sprite),
           hitAreaCallback: Phaser.Geom.Rectangle.Contains,
           draggable: true,
         });
@@ -94,12 +92,7 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           const worldX = matrix.tx;
           const worldY = matrix.ty;
 
-          // Adjust for pitch position
-          const pitchContainer = this.pitch.getContainer();
-          const localX = worldX - pitchContainer.x;
-          const localY = worldY - pitchContainer.y;
-
-          const gridPos = pixelToGrid(localX, localY, GameConfig.SQUARE_SIZE);
+          const gridPos = this.pitch.worldToGrid(worldX, worldY);
           this.placePlayer(playerId, gridPos.x, gridPos.y);
 
           // Snap the dugout sprite back to its slot; an invalid drop (off

@@ -365,6 +365,7 @@ export function TeamBuilder() {
           <div className="col-span-12 space-y-6">
             <AvailableHires
               roster={roster}
+              colors={team.colors}
               treasury={team.treasury}
               onHirePlayer={handleHirePlayer}
             />
