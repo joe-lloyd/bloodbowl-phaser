@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Stadium and dugouts: three layouts</title>
+<style>
+  :root { color-scheme: dark; --bg: #0b0a10; --line: #2c2936; --text: #dedce6; --dim: #8f8c9c; --pink: #ff2a9d; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { padding: 20px 26px 60px; max-width: 1600px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; color: #fff; }
+  h2 { font-size: 18px; color: #fff; margin: 26px 0 8px; }
+  .dim { color: var(--dim); }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0 10px; }
+  .controls span { color: var(--dim); font-size: 13px; margin: 0 4px 0 12px; }
+  .controls span:first-child { margin-left: 0; }
+  .controls button { background: #24212c; color: var(--text); border: 1px solid #3a3646; border-radius: 6px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .controls button[aria-pressed="true"] { background: var(--pink); border-color: var(--pink); color: #14000b; }
+  #viewer { height: 74vh; min-height: 480px; background: #04030a; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: grab; }
+  #viewer:active { cursor: grabbing; }
+  #viewer canvas { image-rendering: pixelated; display: block; }
+  .about { max-width: 92ch; }
+  .about p { margin: 6px 0; }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  code { background: #221f2a; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stadium and dugouts</h1>
+  <p class="dim">The neon pitch with its stands, crowd, floodlights and both dugouts, rendered in Blender with the player camera. Every dugout has a box for reserves, KO, injured and sent off, on the same squares as the pitch. Three layouts for where the dugouts go. Drag to pan and scroll to zoom.</p>
+
+  <div class="controls">
+    <span>Layout</span>
+    <button data-layout="far" aria-pressed="true">Far side</button>
+    <button data-layout="facing" aria-pressed="false">Facing</button>
+    <button data-layout="ends" aria-pressed="false">Ends</button>
+    <span>Show</span>
+    <button data-focus="stadium">Stadium</button>
+    <button data-focus="pitch">Pitch</button>
+    <button data-focus="home">Home dugout</button>
+    <button data-focus="away">Away dugout</button>
+    <span>Pixels</span>
+    <button data-size="lo" aria-pressed="true">Game</button>
+    <button data-size="hi" aria-pressed="false">Detail</button>
+    <span>Overlay</span>
+    <button id="grid" aria-pressed="false">Squares</button>
+    <button id="glow" aria-pressed="true">Glow</button>
+  </div>
+  <div id="viewer"></div>
+
+  <section class="about">
+    <div data-about="far">
+      <h2>Far side</h2>
+      <p>Both dugouts sit along the far sideline, each on its own half, with the two reserve boxes meeting at halfway. The near sides only get three low rows of seats, so nothing ever stands between the camera and a player. Both dugouts get a back wall with neon signs and read at the same size. This is my pick.</p>
+    </div>
+    <div data-about="facing" hidden>
+      <h2>Facing</h2>
+      <p>Home on the far sideline and away on the near one, like two coaches across the table. The near dugout can't have a back wall, because the wall would hide its own players, so its labels are painted on the ground and read smaller. Home gets the better view.</p>
+    </div>
+    <div data-about="ends" hidden>
+      <h2>Ends</h2>
+      <p>A dugout behind each end zone, so each team's bench is behind the line it defends. An end zone is 11 squares wide, the same as a dugout. The near one has the same problem as in Facing. The stadium is the widest of the three, so the camera has to pull out further to see both benches.</p>
+    </div>
+
+    <h2>What's baked and what isn't</h2>
+    <ul>
+      <li>The stadium is one image per layout. Anything in team colours, such as the crowd's shirts, the seats, the end zones and the reserve box outlines, comes out of a second mask render as its own layer, and Phaser tints it per match. Here it uses the Human and Orc kits from the all-teams page.</li>
+      <li>KO is amber, injured is red and sent off is violet for every team, so they read the same in every match.</li>
+      <li>The scoreboard screen is baked blank. The score and turn on it are live text.</li>
+      <li>Squares are 2.8 m, the same as the all-teams page, and the dugout squares are the same size as the pitch's. A player can walk from the pitch into the dugout without changing scale. The squares overlay shows both.</li>
+      <li>The players lying in the KO and injured boxes use the last frame of the fall animation. Only four models have one so far.</li>
+      <li>Game pixels are 25 per metre, shown at 2×. Detail is 50 per metre.</li>
+      <li>Everything comes from <code>scripts/sprites/stadium.py</code>. A layout re-renders in about 40 seconds.</li>
+    </ul>
+  </section>
+</main>
+<script src="phaser.min.js"></script>
+<script src="stadium.js"></script>
+</body>
+</html>
