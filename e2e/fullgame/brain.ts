@@ -14,6 +14,7 @@ import {
 import { createCoachRng } from "../../src/simulation/rng";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameConfig } from "../../src/config/GameConfig";
+import { getActiveOnlineMatch } from "../../src/network/OnlineMatch";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -22,15 +23,19 @@ const rng = createCoachRng(7);
 
 function attach(): HeadlessGame {
   const c = ServiceContainer.getInstance();
-  const gs = c.gameService as unknown as Record<string, unknown>;
+  // Online, the guest's service forwards every mutation to the host; read
+  // its local replica instead so enumerating moves never sends anything.
+  const gs = ((c.gameService as unknown as { inner?: unknown }).inner ??
+    c.gameService) as Record<string, unknown>;
+  const teams = getActiveOnlineMatch()?.teams;
   game = new HeadlessGame({
     autoStartOnReady: false,
     ctx: {
       eventBus: c.eventBus,
-      gameService: c.gameService as never,
+      gameService: gs as never,
       rng: c.rngService,
-      team1: gs.team1 as never,
-      team2: gs.team2 as never,
+      team1: (teams?.team1 ?? gs.team1) as never,
+      team2: (teams?.team2 ?? gs.team2) as never,
       seed: 0,
       matchStats: c.matchStats,
     },
@@ -53,6 +58,12 @@ export async function next(dialogOpen = false) {
   const held = g as unknown as { pending: { type: string } | null };
   if (!dialogOpen && held.pending && DIALOG_DECISIONS.has(held.pending.type))
     held.pending = null;
+  // Online, the match knows the decision both sides are waiting on.
+  const online = getActiveOnlineMatch();
+  if (online) {
+    held.pending = online.pendingDecision() as never;
+    if (!online.mayAct()) return { over: false, waiting: true };
+  }
   answered = held.pending;
   const snapshot = g.snapshot();
   if (snapshot.subPhase === SubPhase.SETUP_KICKING)
@@ -146,6 +157,24 @@ export async function next(dialogOpen = false) {
   };
 }
 
+/** Online: can this page's coach read the seed? Only the host should. */
+export async function probeSeed(code: string) {
+  const { fetchHostState, fetchLobby } =
+    await import("../../src/firebase/lobby");
+  const lobbySeed = (await fetchLobby(code))?.seed ?? null;
+  try {
+    const state = await fetchHostState(code);
+    return { lobbySeed, hostState: state ? "readable" : "missing" };
+  } catch (error) {
+    return { lobbySeed, hostState: `denied (${(error as Error).message})` };
+  }
+}
+
+/** Online: may this page's coach act now? Locally one page plays both teams. */
+export function mayAct(): boolean {
+  return getActiveOnlineMatch()?.mayAct() ?? true;
+}
+
 export function noteKicker(teamId: string) {
   kickingTeamId = teamId;
 }
@@ -161,4 +190,50 @@ export function clearPending() {
   // the first is being resolved.
   const held = game as unknown as { pending: unknown } | null;
   if (held && held.pending === answered) held.pending = null;
+}
+
+/** Where the canvas draws each player and the ball, as pitch squares. */
+export function view() {
+  type Sprite = { x: number; y: number; angle: number; visible: boolean };
+  const scene = (
+    window as unknown as {
+      game?: { scene: { getScene(key: string): Record<string, unknown> } };
+    }
+  ).game?.scene.getScene("GameScene") as
+    | {
+        playerSprites?: Map<string, Sprite>;
+        ballSprite?: Sprite | null;
+        getPitch?: () => {
+          getPixelPosition(x: number, y: number): { x: number; y: number };
+        };
+      }
+    | undefined;
+  const pitch = scene?.getPitch?.();
+  if (!scene?.playerSprites || !pitch) return null;
+  const a = pitch.getPixelPosition(0, 0);
+  const b = pitch.getPixelPosition(1, 1);
+  const square = (sprite: Sprite) => {
+    const x = Math.round((sprite.x - a.x) / (b.x - a.x));
+    const y = Math.round((sprite.y - a.y) / (b.y - a.y));
+    const onPitch =
+      sprite.visible &&
+      x >= 0 &&
+      y >= 0 &&
+      x < GameConfig.PITCH_WIDTH &&
+      y < GameConfig.PITCH_HEIGHT;
+    return onPitch ? `${x},${y}` : "off";
+  };
+  const players: Record<string, string> = {};
+  scene.playerSprites.forEach((sprite, id) => {
+    players[id] = square(sprite) + (sprite.angle !== 0 ? " down" : "");
+  });
+  const ball = scene.ballSprite ? square(scene.ballSprite) : "none";
+  // The scoreboard has no test id; its header reads MATCH.
+  const header = [...document.querySelectorAll("span")].find(
+    (span) => span.textContent === "MATCH"
+  );
+  const hud = (header?.parentElement?.parentElement?.textContent ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { players, ball, hud };
 }

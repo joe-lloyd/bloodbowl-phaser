@@ -12,9 +12,20 @@
  * uses. The log and screenshots land in FULLGAME_OUT; the video lands in
  * the Playwright output folder.
  */
-import { test, Page, Locator } from "@playwright/test";
+import { test, Page } from "@playwright/test";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
+import {
+  answerDialog,
+  brainCall,
+  brainNext,
+  buildTeam,
+  clickIf,
+  perform,
+  riskyMoveConfirm,
+  visible,
+  visibleButtons,
+} from "./driver";
 
 const OUT = process.env.FULLGAME_OUT ?? "e2e-results/fullgame-shots";
 const LOG = `${OUT}/drive.log`;
@@ -22,109 +33,9 @@ const MAX_ITER = Number(process.env.MAX_ITER ?? 4000);
 const log = (line: string) => appendFileSync(LOG, line + "\n");
 const shot = (page: Page, n: string) =>
   page.screenshot({ path: `${OUT}/${n}.png` });
-
-async function visible(l: Locator): Promise<boolean> {
-  return l
-    .first()
-    .isVisible()
-    .catch(() => false);
-}
-
-async function buildTeam(
-  page: Page,
-  name: string,
-  roster: string,
-  hires: string[]
-) {
-  await page.goto("/build-team/new-team");
-  await page.getByPlaceholder("Enter Team Name").fill(name);
-  await page.locator("select").first().selectOption(roster);
-  await page.getByPlaceholder("Coach Name").fill(`${name} coach`);
-  await page.getByRole("button", { name: /Sevens Skill Selection/ }).click();
-  for (const pos of hires) {
-    await page
-      .getByRole("row")
-      .filter({ hasText: pos })
-      .getByRole("button", { name: "HIRE" })
-      .click();
-    await page.waitForTimeout(150);
-  }
-  await page.getByRole("button", { name: "Make Veteran" }).first().click();
-  const reroll = page
-    .locator("div.flex.flex-col.gap-1")
-    .filter({ has: page.locator("span", { hasText: /^Re-Rolls/ }) })
-    .getByRole("button", { name: "+" });
-  while (await reroll.isEnabled()) await reroll.click();
-  await page.mouse.wheel(0, 3000);
-  await page.waitForTimeout(800);
-  await shot(page, `team-${roster}`);
-  await page.getByRole("button", { name: /Save Team/ }).click();
-  await page.waitForURL(/\/build-team$/);
-}
-
-type Next = {
-  over: boolean;
-  phase?: string;
-  subPhase?: string | null;
-  pending?: { type: string } | null;
-  teamId?: string;
-  team1Id?: string;
-  candidate?: {
-    kind: string;
-    label: string;
-    commands: Record<string, unknown>[];
-  } | null;
-};
-
-const brainNext = (page: Page): Promise<Next> =>
-  page.evaluate(async (BRAIN) => {
-    const m = await import(/* @vite-ignore */ BRAIN);
-    return m.next();
-  }, BRAIN);
-
-const brainCall = (page: Page, fn: string, arg?: string) =>
-  page.evaluate(
-    async ([f, a, BRAIN]) => {
-      const m = await import(/* @vite-ignore */ BRAIN);
-      return m[f](a);
-    },
-    [fn, arg, BRAIN] as const
-  );
+const rec = { log, shot };
 
 let turnShots = 0;
-/** Served by the Vite dev server, so the page imports the same engine modules. */
-const BRAIN = "/e2e/fullgame/brain.ts";
-const BLOCK_RANK = ["pow", "pow-dodge", "push", "both-down", "skull"];
-
-/** Click any visible button whose name matches. */
-async function clickIf(page: Page, name: RegExp): Promise<boolean> {
-  const b = page.getByRole("button", { name });
-  if (await visible(b)) {
-    await b.first().click();
-    return true;
-  }
-  return false;
-}
-
-/** The HUD asks before a Dodge or Rush; the coach already chose to take it. */
-async function riskyMoveConfirm(page: Page): Promise<boolean> {
-  const b = page.getByRole("button", { name: /^(Dodge!|Rush!|Sprint!)$/ });
-  if (!(await visible(b))) return false;
-  log(`  confirmed ${await b.first().innerText()}`);
-  await b.first().click();
-  await page.waitForTimeout(400);
-  return true;
-}
-
-async function visibleButtons(page: Page): Promise<string[]> {
-  return page.evaluate(() =>
-    [...document.querySelectorAll("button")]
-      .filter((b) => (b as HTMLElement).offsetParent !== null)
-      .map((b) =>
-        (b.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)
-      )
-  );
-}
 
 test("a full Sevens match, built and played through the UI", async ({
   page,
@@ -138,24 +49,36 @@ test("a full Sevens match, built and played through the UI", async ({
   // ---- Draft both teams in the team builder ----
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
-  await buildTeam(page, "Reikland Reavers", "Human", [
-    "Human Lineman",
-    "Human Lineman",
-    "Human Lineman",
-    "Human Lineman",
-    "Human Blitzer",
-    "Human Catcher",
-    "Human Thrower",
-  ]);
-  await buildTeam(page, "Gouged Eye", "Orc", [
-    "Orc Lineman",
-    "Orc Lineman",
-    "Orc Lineman",
-    "Orc Lineman",
-    "Blitzer",
-    "Blitzer",
-    "Thrower",
-  ]);
+  await buildTeam(
+    page,
+    "Reikland Reavers",
+    "Human",
+    [
+      "Human Lineman",
+      "Human Lineman",
+      "Human Lineman",
+      "Human Lineman",
+      "Human Blitzer",
+      "Human Catcher",
+      "Human Thrower",
+    ],
+    rec
+  );
+  await buildTeam(
+    page,
+    "Gouged Eye",
+    "Orc",
+    [
+      "Orc Lineman",
+      "Orc Lineman",
+      "Orc Lineman",
+      "Orc Lineman",
+      "Blitzer",
+      "Blitzer",
+      "Thrower",
+    ],
+    rec
+  );
   await shot(page, "manage");
 
   // ---- Pick the fixture ----
@@ -192,81 +115,13 @@ test("a full Sevens match, built and played through the UI", async ({
       await page.waitForTimeout(2500);
       continue;
     }
-    if (await riskyMoveConfirm(page)) continue;
+    if (await riskyMoveConfirm(page, rec)) continue;
     if (await clickIf(page, /^RECEIVE$/)) {
       log(`${i} chose receive`);
       continue;
     }
 
-    const blockDialog = app.hud.blockDiceDialog();
-    if (await visible(blockDialog)) {
-      const roll = page.getByTestId("block-roll-dice");
-      if (await visible(roll)) {
-        await roll.click();
-        await page.waitForTimeout(900);
-        continue;
-      }
-      const faces = await blockDialog
-        .locator("[data-block-result]")
-        .evaluateAll((els) =>
-          els.map((e) => e.getAttribute("data-block-result") ?? "")
-        );
-      const best = Math.min(
-        ...faces.map((f) => BLOCK_RANK.indexOf(f)).filter((r) => r >= 0)
-      );
-      for (const rr of [
-        "block-veteran-reroll",
-        "block-brawler-reroll",
-        "block-team-reroll",
-      ]) {
-        const b = page.getByTestId(rr);
-        if (best >= 3 && (await visible(b)) && (await b.isEnabled())) {
-          log(`${i} block dice ${faces.join(",")} -> ${rr}`);
-          await b.click();
-          await page.waitForTimeout(900);
-          break;
-        }
-      }
-      const after = await blockDialog
-        .locator("[data-block-result]")
-        .evaluateAll((els) =>
-          els.map((e) => e.getAttribute("data-block-result") ?? "")
-        );
-      if (after.length === 0) continue;
-      const ranks = after.map((f) => BLOCK_RANK.indexOf(f));
-      const pick = ranks.indexOf(Math.min(...ranks.filter((r) => r >= 0)));
-      log(`${i} block dice ${after.join(",")} pick ${after[pick]}`);
-      await app.hud.chooseBlockDie(Math.max(0, pick)).catch(() => {});
-      await page.waitForTimeout(600);
-      continue;
-    }
-    if (await visible(app.hud.followUpDialog())) {
-      await app.hud.answerFollowUp(true).catch(() => {});
-      log(`${i} follow up`);
-      continue;
-    }
-    if (await visible(app.hud.rerollDialog())) {
-      const order = [
-        "reroll-use-veteran",
-        "reroll-use-skill",
-        "reroll-use-team",
-        "reroll-decline",
-      ];
-      for (const id of order) {
-        const b = page.getByTestId(id);
-        if ((await visible(b)) && (await b.isEnabled())) {
-          log(`${i} reroll dialog -> ${id}`);
-          await b.click();
-          break;
-        }
-      }
-      continue;
-    }
-    if (await visible(app.hud.reactionDialog())) {
-      await app.hud.answerReaction(true).catch(() => {});
-      log(`${i} reaction yes`);
-      continue;
-    }
+    if (await answerDialog(page, app, i, rec)) continue;
 
     const next = await brainNext(page);
     if (next.over) {
@@ -325,7 +180,7 @@ test("a full Sevens match, built and played through the UI", async ({
     }
     if (next.phase === "PLAY") kicked = false;
     try {
-      await perform(page, app, c.commands, next);
+      await perform(page, app, c.commands, next, rec);
       if (next.pending) await brainCall(page, "clearPending");
     } catch (e) {
       const msg = (e as Error).message;
@@ -421,177 +276,3 @@ test("a full Sevens match, built and played through the UI", async ({
   await page.waitForTimeout(1000);
   await shot(page, "final-manage");
 });
-
-async function perform(
-  page: Page,
-  app: GameApp,
-  commands: Record<string, unknown>[],
-  next: Next
-) {
-  for (const command of commands) {
-    const t = command.type as string;
-    switch (t) {
-      case "coin-flip":
-        await clickIf(page, /^FLIP COIN$/);
-        break;
-      case "choose-kick-or-receive":
-      case "kick-or-receive":
-        await clickIf(page, /^RECEIVE$/);
-        break;
-      case "apply-formation":
-      case "place-player":
-      case "auto-setup":
-      case "confirm-setup":
-      case "setup": {
-        // The setup controls: pick a preset, load it, confirm.
-        const select = page
-          .locator("select")
-          .filter({ has: page.locator("optgroup[label=Presets]") });
-        const options = await select
-          .locator("optgroup[label=Presets] option")
-          .allTextContents();
-        const want = options.find((o) => /balanced/i.test(o)) ?? options[0];
-        await select.selectOption(want);
-        await clickIf(page, /LOAD/);
-        await page.waitForTimeout(600);
-        await clickIf(page, /CONFIRM SETUP/);
-        await page.waitForTimeout(1200);
-        return;
-      }
-      case "kick-ball": {
-        await app.pitch.clickPlayer(command.playerId as string);
-        await page.waitForTimeout(300);
-        await app.pitch.clickSquare({
-          x: command.x as number,
-          y: command.y as number,
-        });
-        await page.waitForTimeout(300);
-        await clickIf(page, /KICK|CONFIRM/i);
-        await brainCall(page, "noteKicker", next.teamId);
-        await page.waitForTimeout(2500);
-        break;
-      }
-      case "declare-action":
-        await app.hud.declareAction(
-          command.playerId as string,
-          command.action as string
-        );
-        break;
-      case "move": {
-        const path = command.path as { x: number; y: number }[];
-        for (const sq of [...path, path.at(-1)!]) {
-          if (await riskyMoveConfirm(page)) break;
-          await app.pitch.clickSquare(sq);
-          await page.waitForTimeout(150);
-        }
-        await riskyMoveConfirm(page);
-        await page.waitForTimeout(700);
-        const snap = await app.bridge.snapshot();
-        const mover = snap.teams
-          .flatMap((t) => t.players)
-          .find((p) => p.id === command.playerId);
-        const to = path.at(-1)!;
-        if (
-          !mover?.position ||
-          mover.position.x !== to.x ||
-          mover.position.y !== to.y
-        )
-          log(
-            `  MOVE MISSED: wanted ${to.x},${to.y} got ${JSON.stringify(mover?.position)} status=${mover?.status} active=${JSON.stringify(snap.activePlayer)}`
-          );
-        break;
-      }
-      case "jump":
-        await app.pitch.clickSquare({
-          x: command.x as number,
-          y: command.y as number,
-        });
-        break;
-      case "stand-up":
-        await app.hud.declareAction(command.playerId as string, "standUp");
-        break;
-      case "block":
-        await app.pitch.clickPlayer(command.defenderId as string);
-        await page.waitForTimeout(500);
-        break;
-      case "pass":
-      case "handoff":
-      case "foul":
-        if (
-          t === "pass" &&
-          (await visible(page.getByTestId("action-step-pass")))
-        )
-          await app.hud.selectActionStep("pass").catch(() => {});
-        await app.pitch.clickSquare({
-          x: command.x as number,
-          y: command.y as number,
-        });
-        await page.waitForTimeout(900);
-        break;
-      case "end-activation": {
-        const b = page.getByRole("button", { name: "End Activation" });
-        if (await visible(b)) await b.click();
-        else {
-          // The menu closes after a move; reopen it on the active player.
-          const active = (await app.bridge.snapshot()).activePlayer as {
-            id?: string;
-            playerId?: string;
-          } | null;
-          const id = active?.playerId ?? active?.id;
-          if (id) await app.pitch.clickPlayer(id);
-          await page.waitForTimeout(300);
-          if (await visible(b)) await b.click();
-          else
-            log(
-              `  end-activation not offered; buttons=${JSON.stringify(await visibleButtons(page))}`
-            );
-        }
-        break;
-      }
-      case "end-turn":
-        await shot(page, `turn-${String(++turnShots).padStart(2, "0")}`);
-        const before = (await app.bridge.events()).length;
-        // A team with nobody left to activate ends its own turn after 500 ms.
-        await page.waitForTimeout(700);
-        if ((await app.bridge.phase()).activeTeamId !== next.teamId) {
-          log("   turn already ended by itself");
-          break;
-        }
-        await app.hud.endTurn().click();
-        await page.waitForTimeout(1200);
-        if (process.env.DEBUG_COACH)
-          log(
-            `   end-turn events: ${(await app.bridge.events(before))
-              .map((e) => e.name)
-              .join(", ")
-              .slice(0, 1500)}`
-          );
-        break;
-      case "choose-push-direction":
-      case "touchback":
-        await (t === "touchback"
-          ? app.pitch.clickPlayer(command.playerId as string)
-          : app.pitch.clickSquare({
-              x: command.x as number,
-              y: command.y as number,
-            }));
-        break;
-      case "kickoff-confirm":
-        if (!(await clickIf(page, /CONFIRM|DONE|CONTINUE/i)))
-          await clickIf(page, /SKIP/i);
-        break;
-      case "kickoff-skip":
-        if (!(await clickIf(page, /SKIP/i)))
-          await clickIf(page, /CONFIRM|DONE|CONTINUE/i);
-        break;
-      default:
-        log(
-          `  no UI mapping for ${t}: buttons=${JSON.stringify(await visibleButtons(page))}`
-        );
-        await shot(page, `unmapped-${t}`);
-        // Try the obvious dialog answer.
-        await clickIf(page, /^(YES|USE|CONFIRM|OK|CONTINUE)/i);
-    }
-    await page.waitForTimeout(150);
-  }
-}

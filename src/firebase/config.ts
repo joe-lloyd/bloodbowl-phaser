@@ -57,11 +57,17 @@ function init(): void {
 
   // Local emulators (firebase emulators:start) — opt in via env flag
   const env = (import.meta as unknown as { env?: Record<string, string> }).env;
+  // The port overrides let a match between two machines reach emulators
+  // forwarded to other local ports.
   if (env?.VITE_FIREBASE_USE_EMULATORS === "true") {
-    connectAuthEmulator(auth, "http://127.0.0.1:9099", {
+    const authPort = env.VITE_FIREBASE_AUTH_EMULATOR_PORT || "9099";
+    const firestorePort = Number(
+      env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT || 8080
+    );
+    connectAuthEmulator(auth, `http://127.0.0.1:${authPort}`, {
       disableWarnings: true,
     });
-    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    connectFirestoreEmulator(db, "127.0.0.1", firestorePort);
   }
 }
 
