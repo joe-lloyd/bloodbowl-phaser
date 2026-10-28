@@ -80,6 +80,15 @@ describe("online dialogs", () => {
     } as unknown as BlockRollData;
     await act(async () => eventBus.emit(GameEventNames.BlockDiceRolled, roll));
     expect(container.innerHTML).toContain("block-dice-dialog");
+    // The dice are thrown first; the faces follow once they come to rest
+    // (here at once, as the test page has no WebGL to throw them with)
+    for (
+      let i = 0;
+      i < 60 && !container.textContent?.includes("The other coach is choosing");
+      i++
+    ) {
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    }
     expect(container.textContent).toContain("The other coach is choosing");
 
     await act(async () =>

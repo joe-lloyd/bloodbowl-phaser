@@ -675,17 +675,9 @@ export class GameplayInteractionController {
     const active = this.gameService.getState().activePlayer;
     const player = active ? this.gameService.getPlayerById(active.id) : null;
     if (!active?.action || !player) return;
-    if (this.gameService.hasPlayerActed(active.id)) return;
     const online = getActiveOnlineMatch();
     if (online && online.myTeamId !== player.teamId) return;
-    if (this.gameService.getActiveTeamId() !== player.teamId) return;
     this.selectPlayer(active.id);
-    this.enterActionMode(
-      active.id,
-      active.action as import("@/types/events").ActionType,
-      active.blockReplacement ?? null
-    );
-    this.hasMovedInAction = this.gameService.getMovementUsed(active.id) > 0;
   };
 
   public handlePointerDown(
@@ -1770,28 +1762,28 @@ export class GameplayInteractionController {
 
     if (!player) return;
 
-    // Switching away from a live declaration: release it if nothing has
-    // committed (the team's allowance comes back, nobody is activated), or
-    // refuse the switch — the declaring player stays selected — once it has.
-    if (this.selectedPlayerId && this.selectedPlayerId !== playerId) {
+    // Choosing another of the acting team's players ends the one who was
+    // acting, as in the rules: a declaration with nothing done yet is
+    // released (the team's allowance comes back), anything further ends
+    // that player's activation. Looking at an opponent changes nothing.
+    const state = this.gameService.getState();
+    const active = state.activePlayer;
+    const ownTeamsTurn = state.activeTeamId === player.teamId;
+    if (active && active.id !== playerId && ownTeamsTurn) {
+      if (active.committed) this.gameService.finishActivation(active.id);
+      else this.gameService.cancelAction(active.id);
+    } else if (
+      !active &&
+      this.selectedPlayerId &&
+      this.selectedPlayerId !== playerId
+    ) {
+      // Movement spent outside a declaration must not leave a turn dangling
       const prevId = this.selectedPlayerId;
-      const state = this.gameService.getState();
-      if (state.activePlayer?.id === prevId) {
-        if (!this.gameService.cancelAction(prevId)) {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "This action is already committed and cannot be released."
-          );
-          return;
-        }
-      } else {
-        // No live declaration lingers for the previous player, but movement
-        // spent outside a declaration must not leave their turn dangling.
-        const prevUsed = this.gameService.getMovementUsed(prevId);
-        const prevActed = this.gameService.hasPlayerActed(prevId);
-        if (prevUsed > 0 && !prevActed) {
-          this.gameService.finishActivation(prevId);
-        }
+      if (
+        this.gameService.getMovementUsed(prevId) > 0 &&
+        !this.gameService.hasPlayerActed(prevId)
+      ) {
+        this.gameService.finishActivation(prevId);
       }
     }
 
@@ -1803,6 +1795,24 @@ export class GameplayInteractionController {
 
     // UI Selection Event
     this.eventBus.emit(GameEventNames.PlayerSelected, { player });
+
+    // The player still mid-action (selected again after clicking away, or
+    // after a reload): carry on with that action where it was left
+    const resumed = this.gameService.getState().activePlayer;
+    if (
+      resumed?.id === playerId &&
+      resumed.action &&
+      ownTeamsTurn &&
+      !this.gameService.hasPlayerActed(playerId)
+    ) {
+      this.enterActionMode(
+        playerId,
+        resumed.action as import("@/types/events").ActionType,
+        resumed.blockReplacement ?? null
+      );
+      this.hasMovedInAction = this.gameService.getMovementUsed(playerId) > 0;
+      return;
+    }
 
     this.refreshPlayerVisualization(playerId);
   }

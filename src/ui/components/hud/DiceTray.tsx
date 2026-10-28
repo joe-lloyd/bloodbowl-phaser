@@ -9,7 +9,7 @@ import type { DiceRoll, DiceTeam } from "../../dice/diceScene";
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
 /** Block result names in the order the 3D block die numbers its faces. */
-const BLOCK_VALUE: Record<string, number> = {
+export const BLOCK_VALUE: Record<string, number> = {
   skull: 1,
   "both-down": 2,
   push: 3,
@@ -45,7 +45,7 @@ export function toDice(
  * catches, Rush, bounces) carry no team; the coach whose turn it is makes
  * nearly all of them, armour and injury included, so they use that team.
  */
-function teamLook(teamId?: string): DiceTeam | null {
+export function teamLook(teamId?: string): DiceTeam | null {
   if (!ServiceContainer.isInitialized()) return null;
   const { gameService } = ServiceContainer.getInstance();
   const rollerId = teamId ?? gameService.getActiveTeamId();
@@ -63,14 +63,19 @@ function teamLook(teamId?: string): DiceTeam | null {
 
 interface Queued {
   roll: DiceRoll;
-  label: string;
+  /** What is being rolled, shown while the dice are in the air */
+  title: string;
+  /** The outcome, shown only once they have come to rest */
+  result: string;
   teamName: string;
+  settled: boolean;
 }
 
 /**
- * The dice tray: every D6 and block roll the engine makes is thrown as real
- * 3D dice, in the rolling team's colours, in a small tray at the top of the
- * screen. It only shows rolls; the numbers come from the engine's own RNG
+ * The dice tray: every D6 roll the engine makes is thrown as real 3D dice,
+ * in the rolling team's colours, in a small tray at the top of the screen.
+ * The outcome shows only once the dice have come to rest. Block dice are
+ * thrown in the block dialog instead. It only shows rolls; the numbers come from the engine's own RNG
  * and the tray never decides anything. Rolls queue so none overlap.
  */
 export function DiceTray({
@@ -101,6 +106,7 @@ export function DiceTray({
         await scene.playRoll(host.current, next.roll, {
           sound: !soundSettings.get().muted,
         });
+        setCurrent({ ...next, settled: true });
         await new Promise((r) => setTimeout(r, HOLD_MS));
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
@@ -111,14 +117,17 @@ export function DiceTray({
     const onRoll = (event: RollEvent) => {
       const dice = toDice(event);
       const team = teamLook(event.teamId);
-      if (!dice || !team) return;
+      // The block dialog throws block dice itself
+      if (!dice || dice.kind === "block" || !team) return;
       const teamName =
         ServiceContainer.getInstance().gameService.getTeam(team.key)?.name ??
         "";
       queue.current.push({
         roll: { ...dice, team, neon },
-        label: event.description || event.rollType,
+        title: event.rollType,
+        result: event.description || event.rollType,
         teamName,
+        settled: false,
       });
       // Never fall far behind the game: keep the latest few.
       while (queue.current.length > MAX_QUEUE) queue.current.shift();
@@ -145,7 +154,9 @@ export function DiceTray({
         >
           {current?.teamName}
         </span>
-        <span className="truncate text-xs text-gray-300">{current?.label}</span>
+        <span className="truncate text-xs text-gray-300">
+          {current?.settled ? current.result : current?.title}
+        </span>
       </div>
       <div ref={host} className="h-[180px] w-full" />
     </div>
