@@ -127,6 +127,15 @@ export class HostSession {
   // ===== Incoming =====
 
   private receive(envelope: Envelope): void {
+    // A hello opens a new guest page whose seq starts again at 1. Send it
+    // the authoritative state: covers the first connection and a reload.
+    if (envelope.kind === "hello") {
+      this.seq.acceptFrom(envelope.from, envelope.seq);
+      this.options.onHello?.(envelope.payload, envelope.from);
+      void this.enqueue(() => this.sendResync());
+      return;
+    }
+
     // The host is authoritative: duplicates are dropped, but a gap in guest
     // commands needs no host-side recovery (the guest never got a response
     // and will resync/retry) — just accept the stream from here.
@@ -144,9 +153,6 @@ export class HostSession {
         break;
       case "chat":
         this.options.onChat?.(envelope.payload, envelope.from);
-        break;
-      case "hello":
-        this.options.onHello?.(envelope.payload, envelope.from);
         break;
       case "selection":
         this.options.onSelection?.(envelope.payload, envelope.from);
@@ -221,9 +227,8 @@ export class HostSession {
   ): Promise<void> {
     await this.options.transport.send({
       ...partial,
-      seq: this.seq.nextOutgoing(),
+      ...this.seq.stamp(),
       from: this.options.selfId,
-      ts: Date.now(),
     } as Envelope);
   }
 }

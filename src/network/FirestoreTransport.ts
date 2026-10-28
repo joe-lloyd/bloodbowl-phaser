@@ -10,6 +10,7 @@
 import {
   addDoc,
   collection,
+  DocumentChange,
   onSnapshot,
   orderBy,
   query,
@@ -21,6 +22,9 @@ import { Transport } from "./transport";
 export class FirestoreTransport implements Transport {
   private readonly handlers = new Set<(envelope: Envelope) => void>();
   private readonly stopListening: () => void;
+  /** Resolves once the listener has passed the log written before this page
+   *  loaded. Sends wait for it, so no reply to them can land in that log. */
+  private readonly live: Promise<void>;
 
   constructor(
     private readonly matchCode: string,
@@ -31,17 +35,38 @@ export class FirestoreTransport implements Transport {
       collection(getDb(), "games", matchCode, "messages"),
       orderBy("ts", "asc")
     );
-    this.stopListening = onSnapshot(messages, (snapshot) => {
-      for (const change of snapshot.docChanges()) {
-        if (change.type !== "added") continue;
-        const envelope = change.doc.data() as Envelope;
-        if (envelope.from === this.selfId) continue;
-        this.handlers.forEach((handler) => handler(envelope));
+    // The first server snapshot is the log written before this page loaded.
+    // Replaying it would re-run old commands under a fresh seq tracker; the
+    // hello handshake brings both sides up to date with a resync instead.
+    // Metadata changes are included so an empty log still marks the start.
+    let isLive = false;
+    let markLive = () => {};
+    this.live = new Promise((resolve) => (markLive = resolve));
+    this.stopListening = onSnapshot(
+      messages,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        if (!isLive) {
+          isLive = !snapshot.metadata.fromCache;
+          if (isLive) markLive();
+          return;
+        }
+        this.deliver(snapshot.docChanges());
       }
-    });
+    );
+  }
+
+  private deliver(changes: DocumentChange[]): void {
+    for (const change of changes) {
+      if (change.type !== "added") continue;
+      const envelope = change.doc.data() as Envelope;
+      if (envelope.from === this.selfId) continue;
+      this.handlers.forEach((handler) => handler(envelope));
+    }
   }
 
   async send(envelope: Envelope): Promise<void> {
+    await this.live;
     await addDoc(
       collection(getDb(), "games", this.matchCode, "messages"),
       // Firestore rejects undefined fields; envelopes are JSON-safe already

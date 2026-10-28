@@ -456,13 +456,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           eventBus.emit(GameEventNames.UI_SyncBoard);
         }
       },
-      onHello: (payload) => {
-        checkHello(payload);
-        // The guest just (re)connected: push the authoritative snapshot so
-        // it catches up to the host's exact state — covers initial sync and
-        // a guest that reloaded mid-match.
-        void session.sendResync();
-      },
+      onHello: checkHello,
       // The guest's command response already carries these events
       onGuestExecuteStart: () => broadcaster.pause(),
       onGuestExecuteEnd: () => broadcaster.resume(),

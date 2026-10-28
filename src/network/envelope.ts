@@ -80,10 +80,17 @@ export type EnvelopeKind = Envelope["kind"];
  */
 export class SequenceTracker {
   private nextOut = 1;
+  private lastTs = 0;
   private lastIn = new Map<string, number>();
 
-  nextOutgoing(): number {
-    return this.nextOut++;
+  /**
+   * The next outgoing seq and send time. Firestore orders the log by `ts`
+   * and breaks ties by random doc id, so two sends in one millisecond could
+   * swap; each stamp is at least 1 ms after the previous one.
+   */
+  stamp(): { seq: number; ts: number } {
+    this.lastTs = Math.max(Date.now(), this.lastTs + 1);
+    return { seq: this.nextOut++, ts: this.lastTs };
   }
 
   classifyIncoming(from: string, seq: number): "ok" | "duplicate" | "gap" {
@@ -94,7 +101,8 @@ export class SequenceTracker {
     return kind;
   }
 
-  /** After a resync the receiver accepts the stream from wherever it is. */
+  /** After a resync, or a hello opening a new session on the other side
+   *  (a page load restarts its seq at 1), accept the stream from here. */
   acceptFrom(from: string, seq: number): void {
     this.lastIn.set(from, seq);
   }

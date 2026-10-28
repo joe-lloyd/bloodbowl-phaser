@@ -44,6 +44,9 @@ export class GuestSession {
     (response: CommandResponse) => void
   >();
   private resyncInFlight = false;
+  /** Set when the host's page restarted: commands the old host never
+   *  answered are released by the next resync. */
+  private releaseOnResync = false;
 
   constructor(private readonly options: GuestSessionOptions) {
     this.unsubscribe = options.transport.subscribe((envelope) =>
@@ -53,7 +56,7 @@ export class GuestSession {
 
   /** Send a command to the host; resolves with the host's response. */
   sendCommand(command: HeadlessCommand): Promise<CommandResponse> {
-    const seq = this.seq.nextOutgoing();
+    const { seq, ts } = this.seq.stamp();
     const promise = new Promise<CommandResponse>((resolve) => {
       this.awaitingResponse.set(seq, resolve);
     });
@@ -62,7 +65,7 @@ export class GuestSession {
       payload: { command },
       seq,
       from: this.options.selfId,
-      ts: Date.now(),
+      ts,
     });
     return promise;
   }
@@ -102,6 +105,18 @@ export class GuestSession {
       this.seq.acceptFrom(envelope.from, envelope.seq);
       this.resyncInFlight = false;
       this.options.onResync?.(envelope.payload);
+      if (this.releaseOnResync) this.releaseUnanswered(envelope.payload);
+      return;
+    }
+
+    // A hello opens a new host page whose seq starts again at 1. Its state
+    // is whatever it last saved, so ask for it instead of trusting ours.
+    if (envelope.kind === "hello") {
+      this.seq.acceptFrom(envelope.from, envelope.seq);
+      this.options.onHello?.(envelope.payload, envelope.from);
+      this.releaseOnResync = this.awaitingResponse.size > 0;
+      this.resyncInFlight = false;
+      void this.requestResync();
       return;
     }
 
@@ -130,9 +145,6 @@ export class GuestSession {
       case "chat":
         this.options.onChat?.(envelope.payload, envelope.from);
         break;
-      case "hello":
-        this.options.onHello?.(envelope.payload, envelope.from);
-        break;
       case "selection":
         this.options.onSelection?.(envelope.payload, envelope.from);
         break;
@@ -144,14 +156,30 @@ export class GuestSession {
     }
   }
 
+  /** The restarted host never saw these commands: refuse them so the UI
+   *  stops waiting, with the state the host actually holds. */
+  private releaseUnanswered(state: ResyncPayload): void {
+    this.releaseOnResync = false;
+    const unanswered = [...this.awaitingResponse.values()];
+    this.awaitingResponse.clear();
+    unanswered.forEach((resolve) =>
+      resolve({
+        ok: false,
+        reason: "host-restarted",
+        events: [],
+        snapshot: state.snapshot,
+        pendingDecision: state.pendingDecision,
+      })
+    );
+  }
+
   private async send(
     partial: Omit<Envelope, "seq" | "from" | "ts">
   ): Promise<void> {
     await this.options.transport.send({
       ...partial,
-      seq: this.seq.nextOutgoing(),
+      ...this.seq.stamp(),
       from: this.options.selfId,
-      ts: Date.now(),
     } as Envelope);
   }
 }
