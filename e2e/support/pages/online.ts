@@ -20,7 +20,8 @@ export class OnlinePage {
    * keeps host and guest genuinely distinct coaches.
    */
   async signIn(): Promise<void> {
-    const popupPromise = this.page.waitForEvent("popup");
+    // Firebase talks to the auth emulator before it opens the popup
+    const popupPromise = this.page.waitForEvent("popup", { timeout: 30_000 });
     await this.page
       .getByRole("button", { name: /sign in with google/i })
       .click();
