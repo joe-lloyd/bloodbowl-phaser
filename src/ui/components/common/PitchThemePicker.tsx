@@ -1,5 +1,4 @@
 import {
-  colorToCss,
   PITCH_THEMES,
   PitchThemeId,
   resolvePitchTheme,
@@ -27,9 +26,9 @@ export function PitchThemePicker({
   return (
     <div
       role="group"
-      aria-label="Pitch theme"
+      aria-label="Match style"
       className={`grid gap-3 ${
-        compact ? "grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-4"
+        compact ? "grid-cols-2" : "sm:grid-cols-2"
       }`}
     >
       {PITCH_THEMES.map((theme) => {
@@ -50,23 +49,16 @@ export function PitchThemePicker({
               }`}
           >
             <span
-              className="relative block h-12 border-b border-black/30"
+              className="relative block aspect-video border-b border-black/30 bg-cover bg-center"
               style={{
-                background: `linear-gradient(180deg, ${colorToCss(
-                  theme.surface.top
-                )}, ${colorToCss(theme.surface.bottom)})`,
+                backgroundColor: theme.swatch.ground,
+                backgroundImage: `url(${theme.stadiumPath}/preview.webp)`,
               }}
             >
               <span
-                className="absolute inset-y-0 left-0 w-3 opacity-80"
-                style={{ backgroundColor: colorToCss(theme.endZones.left) }}
+                className="absolute inset-x-0 bottom-0 h-1"
+                style={{ backgroundColor: theme.swatch.trim }}
               />
-              <span
-                className="absolute inset-y-0 right-0 w-3 opacity-80"
-                style={{ backgroundColor: colorToCss(theme.endZones.right) }}
-              />
-              <span className="absolute inset-y-0 left-1/2 border-l-2 border-white/70" />
-              <span className="absolute inset-x-0 top-1/2 border-t border-white/25" />
             </span>
             <span className="block bg-bb-warm-paper px-3 py-2">
               <span className="block font-heading text-sm uppercase text-bb-text-dark">

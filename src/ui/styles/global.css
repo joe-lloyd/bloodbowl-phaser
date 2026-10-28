@@ -69,13 +69,16 @@
   /* pointer-events: none; handled by react root overlay usually, but here these are empty divs for structure */
 }
 
-/* Override previous game-container styles */
+/* The match canvas fills the window; the HUD floats over it. */
 #game-container {
-  width: 100%;
-  height: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+}
+
+#game-container canvas {
+  display: block;
+  image-rendering: pixelated;
 }
 
 /* HUD Grid Layout */

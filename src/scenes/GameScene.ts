@@ -1,10 +1,11 @@
 import Phaser from "phaser";
 import { Pitch } from "../game/elements/Pitch";
-import { GameConfig } from "../config/GameConfig";
-import { PlayerSprite } from "../game/elements/PlayerSprite";
+import { PlayerSprite, PLAYER_DEPTH } from "../game/elements/PlayerSprite";
 import { BallSprite } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
-import { centeredHitArea } from "../game/elements/InteractiveHitArea";
+import { playerHitArea } from "../game/elements/InteractiveHitArea";
+import { preloadStadium, Stadium } from "../game/elements/Stadium";
+import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -16,7 +17,6 @@ import { GameEventNames } from "../types/events";
 import { SetupValidator } from "../game/validators/SetupValidator";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PlayerPlacementController } from "../game/controllers/PlayerPlacementController";
-import { pixelToGrid } from "../game/elements/GridUtils";
 import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
@@ -26,7 +26,6 @@ import {
   PitchThemeId,
   resolvePitchTheme,
 } from "../game/presentation/pitchThemes";
-import { BoardLabel } from "../game/presentation/boardLabels";
 import {
   createMatchSave,
   MatchSave,
@@ -42,20 +41,13 @@ import {
   resolvePlayerLocation,
 } from "../game/presentation/boardState";
 
-// Assets
-// Dynamic loading via import.meta.glob
-const assetFiles = import.meta.glob("../data/assets/**/*.{png,jpg,gif}", {
-  eager: true,
-  query: "?url",
-  import: "default",
-});
-
 /**
  * Game Scene - Unified scene for Setup and Gameplay
  * Game Scene - Unified scene for Setup and Gameplay
  */
 export class GameScene extends Phaser.Scene {
   private pitch!: Pitch;
+  private stadium!: Stadium;
 
   /**
    * The live pitch, for anything that must map grid squares to canvas
@@ -280,64 +272,44 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Dynamic Asset Loading
-    // Key format: "asset_[roster]_[position]" (normalized to kebab-case)
-    for (const path in assetFiles) {
-      const url = assetFiles[path];
-
-      // Parse Path: ../data/assets/[roster]/[filename]
-      const parts = path.split("/");
-      const filename = parts.pop();
-      const folder = parts.pop(); // Roster name (folder)
-
-      if (folder && filename) {
-        const nameIdx = filename.lastIndexOf(".");
-        const name = nameIdx !== -1 ? filename.substring(0, nameIdx) : filename;
-
-        // Normalize: lowercase, replace spaces with dashes (though folder usually has dashes)
-        const rosterKey = folder.toLowerCase().replace(/\s+/g, "-");
-        const posKey = name.toLowerCase().replace(/\s+/g, "-");
-
-        const key = `asset_${rosterKey}_${posKey}`;
-        this.load.image(key, url as string);
-      }
-    }
+    // Only the art this match needs: the stadium in the chosen style and the
+    // models for both rosters. Progress drives the loading screen.
+    preloadStadium(this, this.pitchThemeId);
+    preloadPlayerArt(
+      this,
+      this.pitchThemeId,
+      [this.team1, this.team2].flatMap((team) =>
+        team.players.map((p) => ({
+          rosterName: team.rosterName,
+          positionName: p.positionName,
+        }))
+      )
+    );
+    this.load.on(Phaser.Loader.Events.PROGRESS, (progress: number) =>
+      this.eventBus?.emit(GameEventNames.UI_LoadProgress, { progress })
+    );
   }
 
   create(): void {
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
+    // 1. The stadium, with team 1 as home (left end zone, far dugout).
+    this.stadium = new Stadium(this, this.pitchThemeId, {
+      home: this.team1.colors.primary,
+      away: this.team2.colors.primary,
+    });
 
-    // 1. Background (Interactive for deselect)
-    // 1. Background (Interactive for deselect)
+    // A click on nothing deselects. Behind everything, over the whole stadium.
     this.add
-      .rectangle(0, 0, width, height, 0x0a0a1e)
+      .rectangle(0, 0, this.stadium.width, this.stadium.height, 0x000000, 0)
       .setOrigin(0)
+      .setDepth(-1)
       .setInteractive()
       .on("pointerdown", () => this.onBackgroundClick());
 
-    // 2. Initialize Core Game Objects
-    // Pitch centered horizontally, with fixed top margin
-    const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
-    const pitchY = GameConfig.TOP_UI_HEIGHT;
-    this.pitch = new Pitch(this, pitchX, pitchY, this.pitchThemeId, {
-      left: this.team1.colors.primary,
-      right: this.team2.colors.primary,
-    });
+    // 2. The overlay layer, anchored on the far corner of square (0, 0).
+    const origin = this.stadium.origin;
+    this.pitch = new Pitch(this, origin.x, origin.y);
 
-    // Dice Log
-    // Dice Log - Moved to React
-    // this.diceLog = new DiceLog(this, 10, height - 350);
-
-    // Pitch interaction for Play Phase
-
-    // 3. Initialize Dugouts (Top and Bottom)
-    console.log(`[GameScene] Screen Dims: ${width}x${height}`);
-    console.log(
-      `[GameScene] Pitch Y: ${pitchY}, Pitch Height: ${GameConfig.PITCH_PIXEL_HEIGHT}`
-    );
-
-    this.createDugouts(pitchX, pitchY);
+    this.createDugouts();
 
     this.movementValidator = new MovementValidator();
 
@@ -354,18 +326,8 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (this.isSetupActive) {
         // Direct Pitch Highlight for Setup
-        const pitchContainer = this.pitch.getContainer();
-        const localX = pointer.x - pitchContainer.x;
-        const localY = pointer.y - pitchContainer.y;
-
-        // Theme-independent pitch bounds.
-        if (
-          localX >= 0 &&
-          localX < GameConfig.PITCH_PIXEL_WIDTH &&
-          localY >= 0 &&
-          localY < GameConfig.PITCH_PIXEL_HEIGHT
-        ) {
-          const gridPos = pixelToGrid(localX, localY, GameConfig.SQUARE_SIZE);
+        const gridPos = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
+        if (this.pitch.isOnPitch(gridPos)) {
           this.pitch.highlightHoverSquare(gridPos.x, gridPos.y);
         } else {
           this.pitch.clearHover();
@@ -389,20 +351,16 @@ export class GameScene extends Phaser.Scene {
 
     this.initializeControllers();
 
-    // Initialize Camera Controller with pitch bounds
-    const pitchContainer = this.pitch.getContainer();
     this.cameraController = new CameraController(
       this,
-      {
-        x: pitchContainer.x,
-        y: pitchContainer.y,
-        width: GameConfig.PITCH_PIXEL_WIDTH,
-        height: GameConfig.PITCH_PIXEL_HEIGHT,
-      },
-      this.eventBus
+      this.pitch,
+      { width: this.stadium.width, height: this.stadium.height },
+      Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
+      this.eventBus,
+      this.pitchThemeId
     );
 
-    // Camera keyboard shortcuts
+    // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.
     this.input.keyboard?.on("keydown-ZERO", () => {
       this.cameraController.reset(600);
     });
@@ -491,33 +449,35 @@ export class GameScene extends Phaser.Scene {
       this.setRemoteSelection(playerId);
     });
 
-    // Camera event listeners
-    this.subscribe(
-      GameEventNames.Camera_TrackBall,
-      async (data: { ballSprite; animationDuration: number }) => {
-        if (this.cameraController && data.ballSprite) {
-          // First, smoothly pan to the ball position
-          const ballPos = { x: data.ballSprite.x, y: data.ballSprite.y };
-          await this.cameraController.panTo(ballPos.x, ballPos.y, 500);
-
-          // Then zoom in and start tracking
-          await this.cameraController.zoomTo(2.5, 400);
-          this.cameraController.trackObject(data.ballSprite, 2.5, 0);
-
-          // Auto-reset removed to allow manual control via Camera_Reset events
-          // and support chained animations (e.g. Pass Declared -> Pass Flight -> Bounce)
-        }
-      }
-    );
-
-    this.subscribe(
-      GameEventNames.Camera_Reset,
-      (data: { duration?: number }) => {
-        if (this.cameraController) {
-          this.cameraController.reset(data.duration || 800);
-        }
-      }
-    );
+    // The match camera follows the game: see CameraController.
+    this.subscribe(GameEventNames.Camera_TrackBall, (data) => {
+      const target = data.ballSprite as Phaser.GameObjects.GameObject | null;
+      if (target) this.cameraController.follow(target);
+    });
+    this.subscribe(GameEventNames.Camera_Reset, (data) => {
+      this.cameraController.reset(data.duration || 800);
+    });
+    this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
+      if (!player?.gridPosition || this.isSetupActive) return;
+      this.cameraController.release();
+      this.cameraController.focusSquare(
+        player.gridPosition.x,
+        player.gridPosition.y
+      );
+    });
+    this.subscribe(GameEventNames.PlayerMoved, ({ to }) => {
+      if (this.isSetupActive) return;
+      this.cameraController.focusSquare(to.x, to.y, 900);
+    });
+    this.subscribe(GameEventNames.TurnStarted, () => {
+      this.cameraController.release();
+      const ball = resolveBallRepresentation(this.gameService.getState(), [
+        ...this.team1.players,
+        ...this.team2.players,
+      ]);
+      if (ball.kind === "none") this.cameraController.overview();
+      else this.cameraController.focusSquare(ball.square.x, ball.square.y);
+    });
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
@@ -525,6 +485,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private shutdown(): void {
+    this.stadium?.destroy();
     this.autosave?.dispose();
     this.autosave = null;
     // Remove all listeners attached by this scene
@@ -591,119 +552,34 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createDugouts(pitchX: number, pitchY: number): void {
+  /**
+   * The two benches, on the stadium's dugout squares: team 1 in the home
+   * dugout on the far touchline, team 2 in the away one on the near side.
+   * Each faces the pitch.
+   */
+  private createDugouts(): void {
     if (!this.isSceneLive("createDugouts")) return;
-    // Top Dugout (Team 1)
-    // Placed at the very top of the canvas (y=0)
-    // Dugout height is ~150px. Pitch starts at TOP_UI_HEIGHT (160px).
-    const topDugoutY = 0;
-    const topDugout = new Dugout(
-      this,
-      pitchX,
-      topDugoutY,
-      this.team1,
-      150,
-      false,
-      this.pitchThemeId
-    );
-    topDugout.setDepth(10);
-    this.dugouts.set(this.team1.id, topDugout);
-
-    // Bottom Dugout (Team 2)
-    // Placed below Pitch.
-    // Pitch ends at pitchY + PITCH_PIXEL_HEIGHT.
-    // Add 10px padding.
-    const bottomDugoutY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT + 10;
-
-    // Team 2 plays the right side: mirror so reserves sit on the right,
-    // and right-align the whole dugout with the pitch's right edge
-    const bottomDugout = new Dugout(
-      this,
-      pitchX,
-      bottomDugoutY,
-      this.team2,
-      150,
-      true,
-      this.pitchThemeId
-    );
-    bottomDugout.x =
-      pitchX + GameConfig.PITCH_PIXEL_WIDTH - bottomDugout.getTotalWidth();
-    bottomDugout.setDepth(10); // Ensure dugout container is above background
-    this.dugouts.set(this.team2.id, bottomDugout);
-
-    // Wire up drags
-    [topDugout, bottomDugout].forEach((d) => {
-      d.setDragCallbacks(
+    const toWorld = (gx: number, gy: number) =>
+      this.pitch.getPointPosition(gx, gy);
+    const benches = [
+      [this.team1, this.stadium.meta.dugouts.home, "s"],
+      [this.team2, this.stadium.meta.dugouts.away, "n"],
+    ] as const;
+    for (const [team, squares, facing] of benches) {
+      const dugout = new Dugout(
+        this,
+        team,
+        squares,
+        toWorld,
+        this.pitchThemeId,
+        facing
+      );
+      dugout.setDragCallbacks(
         (id) => this.onDugoutDragStart(id),
         (id, x, y) => this.onDugoutDragEnd(id, x, y)
       );
-    });
-
-    this.emitBoardLabels(pitchX, pitchY, topDugout, bottomDugout);
-  }
-
-  /**
-   * Publish all board text (dugout headers, sideline crew, end-zone team
-   * names) in canvas design coordinates for the React overlay to render as
-   * crisp DOM text. Called whenever the dugouts are (re)built.
-   */
-  private emitBoardLabels(
-    pitchX: number,
-    pitchY: number,
-    top: Dugout,
-    bottom: Dugout
-  ): void {
-    const labels: BoardLabel[] = [];
-
-    const addDugout = (dugout: Dugout, prefix: string) => {
-      dugout.getLabels().forEach((label, i) => {
-        labels.push({
-          ...label,
-          id: `${prefix}-${i}`,
-          x: label.x + dugout.x,
-          y: label.y + dugout.y,
-        });
-      });
-    };
-    addDugout(top, `dugout-${this.team1.id}`);
-    addDugout(bottom, `dugout-${this.team2.id}`);
-
-    // End-zone team names: rotated, centred in the single-square end zones.
-    // team1 defends the left end zone, team2 the right (matching the dugouts).
-    const midY = pitchY + GameConfig.PITCH_PIXEL_HEIGHT / 2;
-    const half = GameConfig.SQUARE_SIZE / 2;
-    // The zone fill already carries the team colour, so the name itself is a
-    // light parchment for legibility over any team colour. The two names are
-    // mirror-rotated so each reads upward from its own touchline.
-    const endZone = (
-      id: string,
-      team: Team,
-      x: number,
-      rotation: number
-    ): BoardLabel => ({
-      id,
-      text: team.name,
-      x,
-      y: midY,
-      size: 30,
-      weight: "bold",
-      align: "center",
-      rotation,
-      color: "#f6efdd",
-      opacity: 0.95,
-      tracking: 3,
-    });
-    labels.push(endZone("endzone-left", this.team1, pitchX + half, 90));
-    labels.push(
-      endZone(
-        "endzone-right",
-        this.team2,
-        pitchX + GameConfig.PITCH_PIXEL_WIDTH - half,
-        -90
-      )
-    );
-
-    this.eventBus.emit(GameEventNames.UI_BoardLabels, { labels });
+      this.dugouts.set(team.id, dugout);
+    }
   }
 
   /**
@@ -713,12 +589,9 @@ export class GameScene extends Phaser.Scene {
    * rendering the previous roster's reserves. Rebuild to follow the swap.
    */
   private rebuildDugouts(): void {
-    const width = this.cameras.main.width;
-    const pitchX = (width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
-    const pitchY = GameConfig.TOP_UI_HEIGHT;
     this.dugouts.forEach((d) => d.destroy());
     this.dugouts.clear();
-    this.createDugouts(pitchX, pitchY);
+    this.createDugouts();
   }
 
   private initializeControllers(): void {
@@ -894,14 +767,11 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(
-        centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
-        Phaser.Geom.Rectangle.Contains
-      );
+      sprite.setInteractive(playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
       this.input.setDraggable(sprite);
 
       sprite.on("dragstart", () => {
-        sprite.setDepth(100);
+        sprite.setDepth(10_000);
       });
       sprite.on(
         "drag",
@@ -910,14 +780,7 @@ export class GameScene extends Phaser.Scene {
         }
       );
       sprite.on("dragend", () => {
-        sprite.setDepth(10);
-        const matrix = sprite.getWorldTransformMatrix();
-        const pitchContainer = this.pitch.getContainer();
-        const grid = pixelToGrid(
-          matrix.tx - pitchContainer.x,
-          matrix.ty - pitchContainer.y,
-          GameConfig.SQUARE_SIZE
-        );
+        const grid = this.pitch.worldToGrid(sprite.x, sprite.y);
         const moved = this.gameService.placeKickoffEventPlayer(
           playerId,
           grid.x,
@@ -949,10 +812,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(
-        centeredHitArea(sprite, GameConfig.SQUARE_SIZE),
-        Phaser.Geom.Rectangle.Contains
-      );
+      sprite.setInteractive(playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
       this.input.setDraggable(sprite);
 
       // Hover shows the info panel the same way the dugout does; it clears
@@ -966,7 +826,7 @@ export class GameScene extends Phaser.Scene {
       });
 
       sprite.on("dragstart", () => {
-        sprite.setDepth(100);
+        sprite.setDepth(10_000);
         // Reuses the placement controller's selection funnel so drag-start
         // shows this player's info exactly like a dugout drag would.
         this.placementController.selectPlayer(player.id);
@@ -978,14 +838,7 @@ export class GameScene extends Phaser.Scene {
         }
       );
       sprite.on("dragend", () => {
-        sprite.setDepth(10);
-        const matrix = sprite.getWorldTransformMatrix();
-        const pitchContainer = this.pitch.getContainer();
-        const grid = pixelToGrid(
-          matrix.tx - pitchContainer.x,
-          matrix.ty - pitchContainer.y,
-          GameConfig.SQUARE_SIZE
-        );
+        const grid = this.pitch.worldToGrid(sprite.x, sprite.y);
         const moved = this.placementController.placePlayer(
           player.id,
           grid.x,
@@ -1102,20 +955,16 @@ export class GameScene extends Phaser.Scene {
         const sprite = this.playerSprites.get(player.id)!;
         sprite.setPosition(pos.x, pos.y);
         sprite.setVisible(true);
-        sprite.setDepth(10);
       } else {
-        const team = player.teamId === this.team1.id ? this.team1 : this.team2;
-        const teamColor = team.colors.primary;
-        // Pass rosterName for asset lookup
-        const sprite = new PlayerSprite(
-          this,
-          pos.x,
-          pos.y,
-          player,
-          teamColor,
-          team.rosterName
-        );
-        sprite.setDepth(10);
+        const isTeam1 = player.teamId === this.team1.id;
+        const team = isTeam1 ? this.team1 : this.team2;
+        // Each side faces the end zone it attacks.
+        const sprite = new PlayerSprite(this, pos.x, pos.y, player, {
+          rosterName: team.rosterName,
+          colors: team.colors,
+          style: this.pitchThemeId,
+          facing: isTeam1 ? "e" : "w",
+        });
         this.playerSprites.set(player.id, sprite);
       }
     });
@@ -1187,11 +1036,7 @@ export class GameScene extends Phaser.Scene {
   private onDugoutDragEnd(playerId: string, x: number, y: number): void {
     // If we are in setup, check if dropped on pitch
     if (this.isSetupActive) {
-      const pitchContainer = this.pitch.getContainer();
-      const localX = x - pitchContainer.x;
-      const localY = y - pitchContainer.y;
-      const gridPos = pixelToGrid(localX, localY, 60);
-
+      const gridPos = this.pitch.worldToGrid(x, y);
       this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
     }
   }
@@ -1249,7 +1094,7 @@ export class GameScene extends Phaser.Scene {
       this.ballSprite.setPosition(pos.x, pos.y);
       // Reset the airborne/kickoff treatment so a re-used ball looks the same
       // as a freshly created one.
-      this.ballSprite.setScale(0.5);
+      this.ballSprite.setScale(1);
       this.ballSprite.setAlpha(1);
       this.ballSprite.setVisible(true);
     } else {
@@ -1259,7 +1104,7 @@ export class GameScene extends Phaser.Scene {
     // CRITICAL: Add ball to SCENE ROOT (not pitch container)
     // This puts it in the same rendering context as players
     // Players are at depth 10, so ball at depth 100 will render on top
-    this.ballSprite.setDepth(100);
+    this.ballSprite.setDepth(PLAYER_DEPTH + pos.y + 1);
   }
 
   /**

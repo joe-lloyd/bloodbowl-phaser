@@ -1,101 +1,136 @@
 import Phaser from "phaser";
 import { Player, PlayerCondition, hasCondition } from "../../types/Player";
+import { TeamColors } from "../../types/Team";
+import { PitchThemeId } from "../presentation/pitchThemes";
+import {
+  Animation,
+  Facing,
+  LAYERS,
+  facingForStep,
+  frameName,
+  modelArt,
+  modelFor,
+  textureKey,
+} from "../presentation/playerArt";
+
+/** How a player is drawn: which roster's models, in which kit and style, facing where. */
+export interface PlayerLook {
+  rosterName: string;
+  colors: TeamColors;
+  style: PitchThemeId;
+  facing: Facing;
+}
+
+const FPS: Record<Animation, number> = { idle: 6, run: 12, fall: 14 };
+/** Ground rings are drawn as flattened ellipses so they lie on the pitch. */
+const RING = { w: 66, h: 30 };
+/** Depth band for players: above the pitch overlays, sorted by screen y. */
+export const PLAYER_DEPTH = 100;
 
 /**
- * PlayerSprite - Visual representation of a player on the pitch
+ * PlayerSprite: one player on the pitch or in a dugout.
+ *
+ * The container sits on the player's feet. Inside it, ground markers (team
+ * turn ring, selection rings) lie flat under the feet, and `figure` holds the
+ * three tinted atlas layers so gestures can lean or lift the figure without
+ * moving the markers. Animation frames advance on the scene's update tick so
+ * the three layers always show the same frame.
  */
 export class PlayerSprite extends Phaser.GameObjects.Container {
   private player: Player;
-
+  private look: PlayerLook;
+  private model: string;
+  private figure: Phaser.GameObjects.Container;
+  private layers: Phaser.GameObjects.Sprite[] = [];
   private numberText: Phaser.GameObjects.Text;
-  private teamTurnBorder!: Phaser.GameObjects.Rectangle;
-  private teamTurnBorderVisible: boolean = false;
-  private rosterName: string;
-  private selectionRing!: Phaser.GameObjects.Arc; // Dedicated selection indicator
+  private teamTurnBorder: Phaser.GameObjects.Ellipse;
+  private teamTurnBorderVisible = false;
+  private selectionRing: Phaser.GameObjects.Ellipse;
   /**
    * Online only: shows which single player the OTHER coach currently has
-   * selected. Deliberately a separate object from `selectionRing` (which is
-   * reused with a variable color for the LOCAL coach's own click-to-select/
-   * inspect/kickoff-eligible highlighting) so the two can never clobber or
-   * be confused with each other.
+   * selected. A separate object from `selectionRing`, which the local coach's
+   * own highlighting reuses with different colours, so the two never clash.
    */
-  private remoteSelectionRing!: Phaser.GameObjects.Arc;
-  /** Badge shown while this player is the ball carrier (see setCarryingBall) */
-  private carrierMarker!: Phaser.GameObjects.Container;
-  /** Marker shown while Distracted — a condition, not a status: the player
-   *  is still Standing, so this must read as distinct from Prone/Stunned. */
-  private distractedMarker!: Phaser.GameObjects.Container;
+  private remoteSelectionRing: Phaser.GameObjects.Ellipse;
+  /** Ball shown over the head while this player carries it. */
+  private carrierMarker: Phaser.GameObjects.Container;
+  /** Distracted is a condition of a Standing player, so it gets its own mark. */
+  private distractedMarker: Phaser.GameObjects.Container;
+  /** Stars over a Stunned player, who lies like a Prone one. */
+  private stunnedMarker: Phaser.GameObjects.Text;
+
+  private anim: Animation = "idle";
+  private facing: Facing;
+  private animStart = 0;
+  private phase = Math.random() * 1000;
+  private shownFrame = "";
+  /** Top of the head relative to the feet, for markers. */
+  private headY = -60;
+  /** Set while the sprite sits in a dugout box, where KO'd and injured players lie down. */
+  private dugoutPose: "standing" | "lying" | null = null;
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     player: Player,
-    teamColor: number,
-    rosterName: string
+    look: PlayerLook
   ) {
     super(scene, x, y);
-
     this.player = player;
-    this.rosterName = rosterName;
+    this.look = look;
+    this.facing = look.facing;
+    this.model = modelFor(look.rosterName, player.positionName);
 
-    // Create player shape based on position
-    this.createPlayerShape(scene, player.positionName, teamColor);
+    // Shadow and ground rings first, so the figure draws over them.
+    const shadow = scene.add.ellipse(0, 0, 44, 18, 0x000000, 0.35);
+    this.teamTurnBorder = scene.add.ellipse(0, 0, RING.w, RING.h);
+    this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.4);
+    this.teamTurnBorder.setVisible(false);
+    this.selectionRing = scene.add.ellipse(0, 0, RING.w + 6, RING.h + 3);
+    this.selectionRing.setStrokeStyle(4, 0xffff00);
+    this.selectionRing.setVisible(false);
+    this.remoteSelectionRing = scene.add.ellipse(
+      0,
+      0,
+      RING.w + 14,
+      RING.h + 7
+    );
+    this.remoteSelectionRing.setStrokeStyle(3, 0xff3b30);
+    this.remoteSelectionRing.setVisible(false);
+    this.add([
+      shadow,
+      this.teamTurnBorder,
+      this.selectionRing,
+      this.remoteSelectionRing,
+    ]);
 
-    // Create player number
-    this.numberText = scene.add.text(0, 0, player.number.toString(), {
-      fontSize: "14px",
+    this.figure = scene.add.container(0, 0);
+    this.add(this.figure);
+    this.buildFigure();
+
+    this.numberText = scene.add.text(0, 10, player.number.toString(), {
+      fontFamily: "Georgia, serif",
+      fontSize: "12px",
       color: "#ffffff",
       fontStyle: "bold",
+      stroke: "#000000",
+      strokeThickness: 3,
     });
-    this.numberText.setOrigin(0.5);
+    this.numberText.setOrigin(0.5, 0);
     this.add(this.numberText);
 
-    this.setSize(32, 32);
-    this.setSize(32, 32);
-    // Players are NOT interactive directly; we rely on grid clicks.
-    // this.setInteractive(...) REMOVED
-    this.setDepth(10); // Ensure players are above dugouts
-
-    // Create Selection Ring (Hidden by default)
-    // Slightly larger than player; double-thick so selection reads over the
-    // team-turn square borders
-    this.selectionRing = scene.add.circle(0, 0, 20);
-    this.selectionRing.setStrokeStyle(6, 0xffff00);
-    this.selectionRing.setVisible(false);
-    this.add(this.selectionRing);
-
-    // Remote-selection ring (red): the other coach's live selection, online
-    // only. Slightly larger radius than selectionRing so both can be seen
-    // at once without fully overlapping if they ever land on the same player.
-    this.remoteSelectionRing = scene.add.circle(0, 0, 24);
-    this.remoteSelectionRing.setStrokeStyle(4, 0xff3b30);
-    this.remoteSelectionRing.setVisible(false);
-    this.add(this.remoteSelectionRing);
-
-    // Square border shown for every player of the active team; color keyed
-    // to status (white standing, yellow prone, orange stunned)
-    this.teamTurnBorder = scene.add.rectangle(0, 0, 56, 56);
-    this.teamTurnBorder.setStrokeStyle(3, 0xffffff);
-    this.teamTurnBorder.setVisible(false);
-    this.add(this.teamTurnBorder);
-
-    // Carrier badge: an unambiguous "this player has the ball" marker that is
-    // derived from possession state, never from where a sprite happens to be.
-    this.carrierMarker = scene.add.container(16, -16);
-    const badge = scene.add.circle(0, 0, 9, 0x8b4513);
-    badge.setStrokeStyle(2, 0xffffff);
+    this.carrierMarker = scene.add.container(0, this.headY - 12);
+    const ball = scene.add.ellipse(0, 0, 16, 11, 0x8b4513);
+    ball.setStrokeStyle(2, 0xffffff);
     const lace = scene.add.graphics();
     lace.lineStyle(1.5, 0xffffff);
-    lace.lineBetween(-5, 0, 5, 0);
-    this.carrierMarker.add([badge, lace]);
+    lace.lineBetween(-4, 0, 4, 0);
+    this.carrierMarker.add([ball, lace]);
     this.carrierMarker.setVisible(false);
     this.add(this.carrierMarker);
 
-    // Distracted badge: a small purple swirl above the head — distinct from
-    // the white/yellow/orange status border, since Distracted is a condition
-    // a Standing player carries, not a status change.
-    this.distractedMarker = scene.add.container(-16, -16);
+    this.distractedMarker = scene.add.container(0, this.headY - 12);
     const swirl = scene.add.circle(0, 0, 8, 0x9b59b6);
     swirl.setStrokeStyle(2, 0xffffff);
     const dizzy = scene.add.graphics();
@@ -106,133 +141,144 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.distractedMarker.setVisible(false);
     this.add(this.distractedMarker);
 
-    // CRITICAL: Initialize status visuals
-    this.updateStatus();
+    this.stunnedMarker = scene.add.text(0, -26, "★ ★", {
+      fontSize: "13px",
+      color: "#ffd84a",
+      stroke: "#000000",
+      strokeThickness: 3,
+    });
+    this.stunnedMarker.setOrigin(0.5);
+    this.stunnedMarker.setVisible(false);
+    this.add(this.stunnedMarker);
 
+    this.setSize(56, 80);
+    this.setDepth(PLAYER_DEPTH + y);
+    this.updateStatus(false);
+
+    scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
+    this.once(Phaser.GameObjects.Events.DESTROY, () =>
+      scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this)
+    );
     scene.add.existing(this);
   }
 
-  private createPlayerShape(
-    scene: Phaser.Scene,
-    position: string,
-    color: number
-  ): void {
-    const pos = position.toLowerCase();
-
-    // 1. Try Dynamic Asset Lookup
-    // Key: asset_[roster]_[position]
-    // Normalize: lowercase, spaces -> dashes
-    const rosterKey = this.rosterName.toLowerCase().replace(/\s+/g, "-");
-    const posKey = pos.replace(/\s+/g, "-");
-    const assetKey = `asset_${rosterKey}_${posKey}`;
-
-    let texture = assetKey;
-    if (!scene.textures.exists(texture)) {
-      // Try plural folder name? (black-orc -> black-orcs)
-      // This is a naive check but covers common cases like "Black Orc" -> "black-orcs"
-      const pluralKey = `asset_${rosterKey}s_${posKey}`;
-      if (scene.textures.exists(pluralKey)) {
-        texture = pluralKey;
-      }
-    }
-
-    if (scene.textures.exists(texture)) {
-      // Render Sprite ONLY (No base shape)
-      const sprite = scene.add.sprite(0, -5, texture);
-
-      const maxHeight = 40; // Max height for sprite
-      const scale = maxHeight / sprite.height;
-      sprite.setScale(Math.min(scale, 1));
-
-      this.add(sprite);
-      this.shape = sprite;
-
-      // Ensure number is on top
-      this.bringToTop(this.numberText);
+  /** The three tinted layers, or a plain token if the art never loaded. */
+  private buildFigure(): void {
+    const art = modelArt(this.model);
+    const base = textureKey(this.look.style, this.model, "base");
+    if (!this.scene.textures.exists(base)) {
+      const token = this.scene.add.circle(
+        0,
+        -18,
+        16,
+        this.look.colors.primary
+      );
+      token.setStrokeStyle(2, 0xffffff);
+      this.figure.add(token);
+      this.headY = -36;
       return;
     }
-
-    // 2. Fallback: Shape Logic
-    // Lineman: Circle
-    // Blitzer: Square
-    // Thrower: Triangle
-    // Catcher: Diamond (Rotated Square)
-    // Big Guy (Troll, Ogre, etc): Hexagon (Large Circle/Polygon)
-
-    if (pos.includes("blitzer")) {
-      // Square
-      const rect = scene.add.rectangle(0, 0, 28, 28, color);
-      rect.setStrokeStyle(2, 0xffffff);
-      this.add(rect);
-      this.shape = rect;
-    } else if (pos.includes("thrower")) {
-      // Triangle
-      const triangle = scene.add.triangle(0, 0, 0, -14, 14, 14, -14, 14, color);
-      triangle.setStrokeStyle(2, 0xffffff);
-      triangle.setOrigin(0);
-      this.add(triangle);
-      this.shape = triangle;
-    } else if (pos.includes("catcher") || pos.includes("runner")) {
-      // Diamond
-      const rect = scene.add.rectangle(0, 0, 24, 24, color);
-      rect.setStrokeStyle(2, 0xffffff);
-      rect.setAngle(45);
-      this.add(rect);
-      this.shape = rect;
-    } else if (
-      pos.includes("troll") ||
-      pos.includes("ogre") ||
-      pos.includes("treeman")
-    ) {
-      // Big Guy - Hexagon (approximated by large circle for now, or polygon)
-      const hex = scene.add.polygon(
+    const tints = [
+      null,
+      this.look.colors.primary,
+      this.look.colors.secondary,
+    ] as const;
+    this.layers = LAYERS.map((layer, i) => {
+      const sprite = this.scene.add.sprite(
         0,
         0,
-        [-10, -16, 10, -16, 16, 0, 10, 16, -10, 16, -16, 0],
-        color
+        textureKey(this.look.style, this.model, layer),
+        frameName("idle", this.facing, 0)
       );
-      hex.setStrokeStyle(2, 0xffffff);
-      hex.setOrigin(0);
-      this.add(hex);
-      this.shape = hex;
-    } else {
-      // Default (Lineman) - Circle
-      const circle = scene.add.circle(0, 0, 16, color);
-      circle.setStrokeStyle(2, 0xffffff);
-      this.add(circle);
-      this.shape = circle;
+      sprite.setOrigin(art.anchor[0] / art.frame, art.anchor[1] / art.frame);
+      const tint = tints[i];
+      if (tint !== null) sprite.setTint(tint);
+      return sprite;
+    });
+    this.figure.add(this.layers);
+    // Head height from the standing frame's trimmed top edge.
+    // A trimmed frame's y is where its pixels start inside the untrimmed frame.
+    this.headY = this.layers[0].frame.y - art.anchor[1];
+  }
+
+  /** Advance the current animation; called every frame by the scene. */
+  private tick(time: number): void {
+    if (!this.layers.length || !this.visible) return;
+    const count = modelArt(this.model).animations[this.anim] ?? 1;
+    const step = Math.floor(
+      ((time - this.animStart + (this.anim === "fall" ? 0 : this.phase)) /
+        1000) *
+        FPS[this.anim]
+    );
+    const index =
+      this.anim === "fall" ? Math.min(step, count - 1) : step % count;
+    const name = frameName(this.anim, this.facing, index);
+    if (name !== this.shownFrame) {
+      this.shownFrame = name;
+      for (const layer of this.layers) layer.setFrame(name);
+    }
+    this.setDepth(PLAYER_DEPTH + this.y);
+  }
+
+  private play(anim: Animation, fromStart = true): void {
+    if (this.anim === anim && !fromStart) return;
+    this.anim = anim;
+    this.animStart = this.scene.time.now;
+    if (anim === "fall" && !fromStart) {
+      // Already down (a restored board): show the last frame at once.
+      this.animStart -= 10_000;
     }
   }
 
-  // Helper to access the shape for effects
-  private shape!:
-    | Phaser.GameObjects.Shape
-    | Phaser.GameObjects.Arc
-    | Phaser.GameObjects.Sprite; // Arc is for Circle
+  /** Pose for a dugout box: reserves stand, KO'd and injured players lie. */
+  public setDugoutPose(pose: "standing" | "lying"): void {
+    this.dugoutPose = pose;
+    this.updateStatus(false);
+  }
+
+  public setFacing(facing: Facing): void {
+    this.facing = facing;
+  }
+
+  public getFacing(): Facing {
+    return this.facing;
+  }
+
+  private isDown(): boolean {
+    return this.player.status === "Prone" || this.player.status === "Stunned";
+  }
 
   /**
-   * Update player status visual (prone, stunned, etc.)
+   * Update player status visual (prone, stunned, etc.). A player who goes
+   * down plays the fall; one who was already down, or a fresh sprite, just
+   * lies there.
    */
-  public updateStatus(): void {
+  public updateStatus(animate = true): void {
+    if (this.dugoutPose) {
+      this.setVisible(true);
+      this.figure.setAlpha(1);
+      this.play(this.dugoutPose === "lying" ? "fall" : "idle", false);
+      this.stunnedMarker.setVisible(false);
+      this.teamTurnBorder.setVisible(false);
+      this.distractedMarker.setVisible(false);
+      return;
+    }
     switch (this.player.status) {
-      case "Prone":
-        this.shape.setAlpha(0.6);
-        this.setAngle(90); // Lay down
-        break;
-      case "Stunned":
-        this.shape.setAlpha(0.4);
-        this.setAngle(90);
-        break;
       case "KO":
       case "Injured":
       case "Dead":
         this.setVisible(false);
         break;
       default:
-        this.shape.setAlpha(1.0);
-        this.setAngle(0);
         this.setVisible(true);
+        if (this.isDown()) {
+          if (this.anim !== "fall") this.play("fall", animate);
+        } else if (this.anim === "fall") {
+          this.play("idle");
+        }
+        this.figure.setAlpha(1);
     }
+    this.stunnedMarker.setVisible(this.player.status === "Stunned");
     this.refreshTeamTurnBorder();
     this.refreshDistractedMarker();
   }
@@ -243,25 +289,24 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * it clears itself the moment the condition does, on the next status sync.
    */
   private refreshDistractedMarker(): void {
-    if (!this.distractedMarker) return;
     this.distractedMarker.setVisible(
       hasCondition(this.player, PlayerCondition.DISTRACTED)
     );
   }
 
   /**
-   * Reset the sprite's laid-down rotation to upright. Used by the end-of-drive
-   * teardown: a player left Prone (rendered rotated 90°) returns to the dugout
-   * for the next drive, so its sprite must not carry the rotation into the
-   * fresh drive when it is re-placed on the pitch.
+   * Stand the player back up and face them down the pitch again. Used by the
+   * end-of-drive teardown, so nobody lies on the turf into the next drive.
    */
   public resetOrientation(): void {
-    this.setAngle(0);
+    this.figure.setAngle(0);
+    this.facing = this.look.facing;
+    if (!this.isDown()) this.play("idle");
     this.refreshTeamTurnBorder();
   }
 
   /**
-   * Show/hide the active-team square border. Color reflects status:
+   * Show/hide the active-team ring. Colour reflects status:
    * standing = white, prone (down) = yellow, stunned = orange. Opacity
    * (setActivated) continues to show who has already gone.
    */
@@ -271,46 +316,37 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   private refreshTeamTurnBorder(): void {
-    if (!this.teamTurnBorder) return;
-
-    // Standing players get a deliberately subtle marker; status colors pop
     if (this.player.status === "Stunned") {
-      this.teamTurnBorder.setStrokeStyle(3, 0xffa500, 0.9); // orange
+      this.teamTurnBorder.setStrokeStyle(3, 0xffa500, 0.9);
     } else if (this.player.status === "Prone") {
-      this.teamTurnBorder.setStrokeStyle(3, 0xffff00, 0.9); // yellow
+      this.teamTurnBorder.setStrokeStyle(3, 0xffff00, 0.9);
     } else {
-      this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.35); // standing
+      this.teamTurnBorder.setStrokeStyle(2, 0xffffff, 0.4);
     }
-    // Border rotates with the container when a player is laid down; counter
-    // the container angle so the square stays axis-aligned on the grid
-    this.teamTurnBorder.setAngle(-this.angle);
-    // Down-state borders are status information, not turn information. Keep
-    // them visible even during kickoff (when no normal team turn border is
-    // active) so Pitch Invasion immediately reads as prone/stunned.
+    // Down-state rings are status information, not turn information, so
+    // they stay visible even when no team turn is running (kick-off).
     this.teamTurnBorder.setVisible(
-      this.teamTurnBorderVisible ||
-        this.player.status === "Prone" ||
-        this.player.status === "Stunned"
+      this.teamTurnBorderVisible || this.isDown()
     );
   }
 
   /**
-   * Set activated visual state (greyscale/dimmed)
+   * Set activated visual state (dimmed)
    */
   public setActivated(activated: boolean): void {
     if (activated) {
-      this.shape.setAlpha(0.5); // Dim the player
+      this.figure.setAlpha(0.55);
     } else {
-      // Restore the alpha/rotation dictated by the canonical player status;
-      // a stunned model must not be made visually Standing by a turn reset.
-      this.updateStatus();
+      // Restore what the canonical status dictates; a turn reset must not
+      // stand a stunned model up.
+      this.updateStatus(false);
     }
   }
 
   /**
-   * Show/hide the ball-carrier badge. Idempotent: driven purely by the
-   * resolved ball representation, so repeated reconciliation cannot leave two
-   * players marked as carrying.
+   * Show/hide the ball over the carrier's head. Idempotent: driven purely by
+   * the resolved ball representation, so repeated reconciliation cannot leave
+   * two players marked as carrying.
    */
   public setCarryingBall(carrying: boolean): void {
     this.carrierMarker.setVisible(carrying);
@@ -320,19 +356,15 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * Highlight this player
    */
   public highlight(color: number): void {
-    if (this.selectionRing) {
-      this.selectionRing.setStrokeStyle(3, color);
-      this.selectionRing.setVisible(true);
-    }
+    this.selectionRing.setStrokeStyle(4, color);
+    this.selectionRing.setVisible(true);
   }
 
   /**
    * Remove highlight
    */
   public unhighlight(): void {
-    if (this.selectionRing) {
-      this.selectionRing.setVisible(false);
-    }
+    this.selectionRing.setVisible(false);
   }
 
   /**
@@ -340,9 +372,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * has this player selected. Independent of local highlight/selection.
    */
   public setRemoteSelected(active: boolean): void {
-    if (this.remoteSelectionRing) {
-      this.remoteSelectionRing.setVisible(active);
-    }
+    this.remoteSelectionRing.setVisible(active);
   }
 
   /**
@@ -352,56 +382,40 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     return this.player;
   }
 
+  /** Screen offset from the feet to just above the head. */
+  public getHeadOffset(): number {
+    return this.headY;
+  }
+
   /**
-   * Animate movement along a path
+   * Run along a path of world pixel positions, turning to face each step.
    */
   public async animateMovement(
     path: { x: number; y: number }[]
   ): Promise<void> {
     if (path.length === 0) return;
-
-    // Remove unused import if not already removed in previous step (I will remove it in a separate block if strictly needed, but I can do it here if I replace the top too. I'll stick to the method for now).
-
+    this.play("run");
     return new Promise((resolve) => {
-      // 1. Start "Jogging" Bob (Tweening the internal shape up/down)
-      const bobTween = this.scene.tweens.add({
-        targets: this.shape,
-        y: "-=4", // Bob up slightly
-        duration: 90, // Fast bob
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
-
-      // slightly tilt forward for "running" pose
-      this.shape.setAngle(5);
-
-      // Map path steps to tween configurations
-      const tweenConfigs = path.map((step) => {
+      let from = { x: this.x, y: this.y };
+      const tweens = path.map((step) => {
+        const start = from;
+        from = step;
         return {
           x: step.x,
           y: step.y,
-          duration: 180, // Much faster (was 300)
-          ease: "Linear", // Linear path, but bob adds the organic feel
+          duration: 200,
+          ease: "Linear",
+          onStart: () => {
+            const facing = facingForStep(step.x - start.x, step.y - start.y);
+            if (facing) this.facing = facing;
+          },
         };
       });
-
-      // Use modern Phaser 3 chain
       this.scene.tweens.chain({
         targets: this,
-        tweens: tweenConfigs,
+        tweens,
         onComplete: () => {
-          // Stop Bobbing
-          bobTween.stop();
-
-          // Reset Pose
-          this.scene.tweens.add({
-            targets: this.shape,
-            y: 0,
-            angle: 0,
-            duration: 150,
-          });
-
+          if (!this.isDown()) this.play("idle");
           resolve();
         },
       });
@@ -410,35 +424,27 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
   /**
    * Throw arc — used when a player is thrown (Throw Team-mate). The container
-   * slides to the destination while the inner shape rises and grows (height),
-   * spins, then squashes on landing, so it reads as a projectile rather than a
-   * jog. `path` is in pixel coordinates (like animateMovement).
+   * slides to the destination while the figure rises and tumbles, then lands
+   * with a squash. `path` is in world pixels, like animateMovement.
    */
-  public async animateThrow(
-    path: { x: number; y: number }[]
-  ): Promise<void> {
+  public async animateThrow(path: { x: number; y: number }[]): Promise<void> {
     if (path.length === 0) return;
     const dest = path[path.length - 1];
-    const duration = 550;
-
+    const duration = 650;
     return new Promise((resolve) => {
-      // Rise then fall (fake height) and grow then shrink (fake distance).
       this.scene.tweens.add({
-        targets: this.shape,
-        y: -36,
-        scale: 1.5,
+        targets: this.figure,
+        y: -70,
         duration: duration / 2,
         ease: "Sine.easeOut",
         yoyo: true,
       });
-      // Spin through the air.
       this.scene.tweens.add({
-        targets: this.shape,
+        targets: this.figure,
         angle: 360,
         duration,
         ease: "Linear",
       });
-      // Carry the whole sprite to the landing square.
       this.scene.tweens.add({
         targets: this,
         x: dest.x,
@@ -446,14 +452,12 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
         duration,
         ease: "Sine.easeInOut",
         onComplete: () => {
-          this.shape.setAngle(0);
-          this.shape.setScale(1);
-          this.shape.y = 0;
-          // Landing squash.
+          this.figure.setAngle(0);
+          this.figure.y = 0;
           this.scene.tweens.add({
-            targets: this.shape,
-            scaleY: 0.7,
-            scaleX: 1.2,
+            targets: this.figure,
+            scaleY: 0.75,
+            scaleX: 1.15,
             duration: 90,
             yoyo: true,
             onComplete: () => resolve(),
@@ -464,32 +468,29 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Throw gesture — the thrower tips forward a little toward the target, as if
-   * launching a team-mate, then rocks back upright. `dir` is +1 to the right,
-   * -1 to the left. Fire-and-forget (the throw resolves on its own timer).
+   * Throw gesture — lean toward the target, then rock back upright. `dir` is
+   * +1 to the right of the screen, -1 to the left. Fire-and-forget.
    */
   public animateThrowGesture(dir = 1): void {
     this.scene.tweens.chain({
-      targets: this.shape,
+      targets: this.figure,
       tweens: [
-        { angle: dir * 22, duration: 130, ease: "Sine.easeOut" }, // lean into it
-        { angle: 0, duration: 220, ease: "Sine.easeInOut" }, // rock back upright
+        { angle: dir * 16, duration: 130, ease: "Sine.easeOut" },
+        { angle: 0, duration: 220, ease: "Sine.easeInOut" },
       ],
     });
   }
 
   /**
-   * Kick gesture — a quick wind-up then a swing so the sprite's lower body
-   * kicks out toward the target, then settles upright. `dir` is +1 right, -1
-   * left. Sharper and larger than the throw lean so it reads as a kick.
+   * Kick gesture — wind up, swing, settle. `dir` is +1 right, -1 left.
    */
   public animateKickGesture(dir = 1): void {
     this.scene.tweens.chain({
-      targets: this.shape,
+      targets: this.figure,
       tweens: [
-        { angle: -dir * 8, duration: 90, ease: "Sine.easeOut" }, // wind up
-        { angle: dir * 26, duration: 110, ease: "Back.easeOut" }, // kick
-        { angle: 0, duration: 200, ease: "Sine.easeInOut" }, // settle
+        { angle: -dir * 8, duration: 90, ease: "Sine.easeOut" },
+        { angle: dir * 20, duration: 110, ease: "Back.easeOut" },
+        { angle: 0, duration: 200, ease: "Sine.easeInOut" },
       ],
     });
   }
@@ -500,21 +501,18 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    */
   public playCelebrateAnimation(): Promise<void> {
     return new Promise((resolve) => {
-      // Add random delay for "chaos"
       const startDelay = Math.random() * 500;
-      const duration = 100 + Math.random() * 50; // Randomize speed slightly
-
+      const duration = 110 + Math.random() * 50;
       this.scene.time.delayedCall(startDelay, () => {
         this.scene.tweens.add({
-          targets: this.shape,
-          y: "-=10", // Jump higher than jog
-          duration: duration,
+          targets: this.figure,
+          y: -16,
+          duration,
           yoyo: true,
-          repeat: 3, // Jump 3 times
-          ease: "Sine.easeInOut",
+          repeat: 3,
+          ease: "Sine.easeOut",
           onComplete: () => {
-            // Ensure reset
-            this.shape.y = 0;
+            this.figure.y = 0;
             resolve();
           },
         });

@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EventBus } from "../../services/EventBus";
-import { GameConfig } from "../../config/GameConfig";
 import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD, OnlineMatchMenuProps } from "../components/hud/GameHUD";
-import { BoardLabelOverlay } from "../components/hud/BoardLabelOverlay";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 import { CompetitionContext } from "../../competition/types";
@@ -148,12 +146,16 @@ export function GamePage({
     }
 
     // Initialize Phaser game
+    // WebGL: team kits are tinted onto the sprites and stadium at runtime,
+    // which the canvas renderer cannot do. The canvas fills the window and
+    // the match camera frames the board inside it.
     const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.CANVAS,
-      width: GameConfig.CANVAS_WIDTH,
-      height: GameConfig.CANVAS_HEIGHT,
+      type: Phaser.WEBGL,
+      width: window.innerWidth,
+      height: window.innerHeight,
       parent: "game-container",
       backgroundColor: "#000000",
+      pixelArt: true,
       scene:
         mode === "sandbox"
           ? [BootScene, SandboxScene]
@@ -166,10 +168,8 @@ export function GamePage({
         },
       },
       scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.NO_CENTER,
-        width: GameConfig.CANVAS_WIDTH,
-        height: GameConfig.CANVAS_HEIGHT,
       },
     };
 
@@ -235,10 +235,7 @@ export function GamePage({
   return (
     <div className="w-full h-full relative">
       {/* Phaser canvas container */}
-      <div id="game-container" className="w-full h-full" />
-
-      {/* Crisp board text (dugout headers, end-zone names) over the canvas */}
-      <BoardLabelOverlay eventBus={eventBus} />
+      <div id="game-container" />
 
       {/* Game HUD overlay */}
       <GameHUD eventBus={eventBus} mode={mode} onlineMenu={onlineMenu} />

@@ -1,0 +1,7 @@
+time	step	what	why	evidence	result
+11:44	setup	Worktree t3/isometric-facelift from origin/main 37b7d1c	User asked for a branch off main; old worktree was 39 commits behind	git worktree add	done
+11:44	projection	gridToPixel/pixelToGrid become the isometric transform of the Blender camera (70px square diagonal)	One seam for every grid<->pixel conversion; sprites and stadium were rendered with that camera	__tests__/unit/elements/GridUtils.iso.test.ts 5 pass	done
+11:44	styles	Pitch themes classic/mud/astro/wasteland replaced by bloodbowl (default) and neon; legacy ids resolve to default	App menus are already Blood Bowl styled; user asked for multiple pickable styles	pitchThemes.ts	done
+11:44	renderer	Phaser CANVAS->WEBGL, FIT 1300x1000 -> RESIZE full window, pixelArt	Kit tints need WebGL; dynamic camera needs a free canvas	sandbox loads in browser	done
+11:44	dugouts	Dugout boxes come from the stadium render (reserves 4x3, KO 3x3, injured 3x3, sent off 1x3); sideline crew rail and DOM board labels removed	Labels and boxes are baked into the stadium	sandbox shows reserves in both dugouts	done
+11:44	types	main already has ~60 tsc errors; tracked as baseline /tmp/tsc-main.txt and only new ones fixed	pnpm build runs tsc so build already fails on main	diff vs baseline empty	done

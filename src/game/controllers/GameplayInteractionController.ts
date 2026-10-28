@@ -6,7 +6,6 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
-import { pixelToGrid } from "../elements/GridUtils";
 import { jumpTargets, JumpTarget } from "../rules/jump";
 import {
   GameConfig,
@@ -686,22 +685,16 @@ export class GameplayInteractionController {
     gridX: number;
     gridY: number;
   } {
-    const pitchContainer = this.pitch.getContainer();
-    const localX = pointer.x - pitchContainer.x;
-    const localY = pointer.y - pitchContainer.y;
-
-    const pitchW = 26 * 60;
-    const pitchH = 15 * 60;
-    const m = marginSquares * 60;
-
+    // World coordinates: the camera pans and zooms, so screen x/y won't do.
+    const grid = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
+    const m = marginSquares;
     if (
-      localX >= -m &&
-      localX <= pitchW + m &&
-      localY >= -m &&
-      localY <= pitchH + m
+      grid.x >= -m &&
+      grid.x <= GameConfig.PITCH_WIDTH - 1 + m &&
+      grid.y >= -m &&
+      grid.y <= GameConfig.PITCH_HEIGHT - 1 + m
     ) {
-      const gridPos = pixelToGrid(localX, localY, 60);
-      return { valid: true, gridX: gridPos.x, gridY: gridPos.y };
+      return { valid: true, gridX: grid.x, gridY: grid.y };
     }
     return { valid: false, gridX: -1, gridY: -1 };
   }

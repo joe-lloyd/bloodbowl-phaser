@@ -124,11 +124,11 @@ describe("PlayerPlacementController", () => {
       controller.enablePlacement(team, true, dugoutSprites);
 
       const sprite1 = dugoutSprites.get("p1");
-      // Draggable, with a full-grid-square hit area supplied
+      // Draggable, with a hit area over the standing figure
       expect(sprite1?.setInteractive).toHaveBeenCalledWith(
         expect.objectContaining({
           draggable: true,
-          hitArea: expect.objectContaining({ width: 60, height: 60 }),
+          hitArea: expect.objectContaining({ width: 56, height: 82 }),
         })
       );
       expect(sprite1?.setAlpha).toHaveBeenCalledWith(1);

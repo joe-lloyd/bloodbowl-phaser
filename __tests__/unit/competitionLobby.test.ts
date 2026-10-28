@@ -43,9 +43,9 @@ describe("hosted competition fixtures", () => {
     expect(created.competitionContext).toEqual(context);
     expect(created.players.host.team?.id).toBe("home");
     expect(created.fixtureTeams?.away.id).toBe("away");
-    expect(created.settings.pitchThemeId).toBe("classic");
+    expect(created.settings.pitchThemeId).toBe("bloodbowl");
     expect(setDocMock.mock.calls[0][1]).toMatchObject({
-      settings: { pitchThemeId: "classic" },
+      settings: { pitchThemeId: "bloodbowl" },
       competitionContext: context,
       fixtureTeams: {
         home: { id: "home" },
