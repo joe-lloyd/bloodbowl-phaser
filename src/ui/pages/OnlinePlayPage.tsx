@@ -245,6 +245,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           match={match}
           eventBus={eventBus}
           user={user}
+          opponentAway={!!opponentUid && connection !== "online"}
         />
       )}
 

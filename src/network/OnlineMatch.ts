@@ -64,6 +64,10 @@ export interface OnlineMatch {
   /** Human label for the waiting overlay when mayAct() is false */
   waitingLabel(): string;
   pendingDecision(): PendingDecision | null;
+  /** The team that owns the pending decision, if one is open. */
+  decidingTeamId(): string | null;
+  /** Run one of this coach's commands (e.g. a decision's default answer). */
+  run(command: HeadlessCommand): Promise<CommandResponse>;
   sendChat(text: string): void;
   onChatMessage(listener: (message: ChatMessage) => void): () => void;
   chatHistory(): ChatMessage[];
@@ -362,6 +366,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     activeTeamId: () => engine!.getActiveTeamId(),
     phase: () => engine!.getPhase(),
     runProgressionCommand: runOwn,
+    run: runOwn,
     saveState: saveNow,
     close: () => {
       unsubscribeSelectionForwarding();
@@ -381,6 +386,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     runProgressionCommand(
       command: ProgressionCommand
     ): Promise<CommandResponse>;
+    run(command: HeadlessCommand): Promise<CommandResponse>;
     saveState: () => void;
     close: () => void;
   }): OnlineMatch {
@@ -409,6 +415,19 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       coachName: (teamId: string) => coachNames[teamId],
       teams: { team1, team2 },
       pendingDecision: parts.pendingDecision,
+      decidingTeamId(): string | null {
+        const pending = parts.pendingDecision();
+        if (!pending) return null;
+        return (
+          decisionOwner(pending, {
+            activeTeamId: parts.activeTeamId(),
+            pendingDecision: pending,
+            teamIdOfPlayer: teamOf,
+            hostTeamId: team1.id,
+          }) ?? null
+        );
+      },
+      run: parts.run,
       mayAct(): boolean {
         if (clockPaused) return false; // clock paused — nobody acts
         const pending = parts.pendingDecision();

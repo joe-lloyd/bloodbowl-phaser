@@ -61,6 +61,7 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     myTeamId: "host-team",
     coachName: () => "Host Coach",
     pendingDecision: () => null,
+    decidingTeamId: () => null,
     setClockPaused: vi.fn(),
   } as unknown as OnlineMatch;
 
