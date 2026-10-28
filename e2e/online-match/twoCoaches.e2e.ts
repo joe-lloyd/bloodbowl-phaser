@@ -490,7 +490,14 @@ test("an online match between two machines stays in sync", async () => {
   mainLog(`moves=${moves} checks=${checks} divergences=${divergences}`);
 
   for (const coach of [host, guest]) {
+    // A remote browser's video only reaches this machine through saveAs
+    const video = coach.page.video();
     await coach.context.close();
+    await video
+      ?.saveAs(`${OUT}/${coach.side}.webm`)
+      .catch((error: Error) =>
+        mainLog(`video ${coach.side} not saved: ${error.message}`)
+      );
     await coach.browser.close();
   }
 });

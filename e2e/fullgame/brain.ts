@@ -60,6 +60,8 @@ export async function next(dialogOpen = false) {
     held.pending = null;
   // Online, the match knows the decision both sides are waiting on.
   const online = getActiveOnlineMatch();
+  if (online && g.snapshot().phase === GamePhase.GAME_OVER)
+    return { over: true };
   if (online) {
     held.pending = online.pendingDecision() as never;
     if (!online.mayAct()) return { over: false, waiting: true };
