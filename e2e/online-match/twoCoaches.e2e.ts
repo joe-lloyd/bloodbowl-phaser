@@ -383,7 +383,18 @@ test("an online match between two machines stays in sync", async () => {
   await new OnlinePage(guest.page).joinGame(code);
   await new OnlinePage(guest.page).expectInLobby(code);
   for (const coach of [host, guest]) {
-    const select = coach.page.locator("select").first();
+    // The coach's own team picker, not the pitch picker beside it
+    const team = coach === host ? "Reikland Reavers" : "Gouged Eye";
+    const select = coach.page
+      .locator("select")
+      .filter({ has: coach.page.locator("option", { hasText: team }) });
+    await select.waitFor({ timeout: 30_000 }).catch(async (error) => {
+      coach.rec.log(
+        `lobby without ${team}: ${(await coach.page.locator("body").innerText()).replace(/\s+/g, " ").slice(0, 600)}`
+      );
+      await coach.rec.shot(coach.page, "lobby-no-team");
+      throw error;
+    });
     await select.selectOption({ index: 1 });
     // Ready unlocks once the pick has made the round trip through Firestore
     const ready = coach.page.getByRole("button", { name: "Ready!" });
