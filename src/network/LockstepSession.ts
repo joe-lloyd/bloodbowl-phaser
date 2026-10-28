@@ -233,6 +233,26 @@ export class LockstepSession {
 
   private desync(detail: string): void {
     console.warn(`[Lockstep] desync ${detail}`);
+    // With network tracing on, show what this side holds, to compare
+    try {
+      if (localStorage.getItem("bb_debug_net") === "1") {
+        const s = this.options.game.snapshot();
+        console.warn(
+          `[Lockstep] state ${JSON.stringify({
+            phase: s.phase,
+            subPhase: s.subPhase,
+            active: s.activeTeamId,
+            setup: s.setup,
+            weather: s.weather,
+            players: s.teams.map((t) =>
+              t.players.map((p) => [p.position?.x, p.position?.y, p.status])
+            ),
+          })}`
+        );
+      }
+    } catch {
+      // no storage in tests
+    }
     this.options.onDesync?.(detail);
     void this.requestResync();
   }

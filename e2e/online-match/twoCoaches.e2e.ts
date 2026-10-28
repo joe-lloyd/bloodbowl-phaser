@@ -78,6 +78,8 @@ function watch(page: Page, side: Side, rec: Recorder) {
   page.on("pageerror", (error) => rec.log(`PAGEERROR ${error.message}`));
   page.on("console", (message) => {
     const text = message.text();
+    if (/\[Lockstep\]/.test(text))
+      appendFileSync(`${OUT}/lockstep-${side}.log`, `${Date.now()} ${text}\n`);
     if (/\[Net\]/.test(text)) {
       appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
       return;
