@@ -26,6 +26,7 @@ import {
   visible,
   visibleButtons,
 } from "./driver";
+import { createUxProbe } from "./uxProbe";
 
 const OUT = process.env.FULLGAME_OUT ?? "e2e-results/fullgame-shots";
 const LOG = `${OUT}/drive.log`;
@@ -45,9 +46,14 @@ test("a full Sevens match, built and played through the UI", async ({
   page.on("dialog", (d) => d.accept());
   page.on("pageerror", (e) => log(`PAGEERROR ${e.message}`));
   const app = new GameApp(page);
+  const size = page.viewportSize();
+  const ux = process.env.UX_PROBE
+    ? createUxProbe(page, OUT, `${size?.width}x${size?.height}`)
+    : null;
 
   // ---- Draft both teams in the team builder ----
   await page.goto("/");
+  await ux?.probe("main menu");
   await page.evaluate(() => localStorage.clear());
   await buildTeam(
     page,
@@ -80,6 +86,7 @@ test("a full Sevens match, built and played through the UI", async ({
     rec
   );
   await shot(page, "manage");
+  await ux?.probe("manage team");
 
   // ---- Pick the fixture ----
   await page.goto("/select-team");
@@ -93,6 +100,7 @@ test("a full Sevens match, built and played through the UI", async ({
     .click();
   await page.getByRole("checkbox").check();
   await shot(page, "select");
+  await ux?.probe("team select");
   await page.getByRole("button", { name: /Start Game/ }).click();
   await app.bridge.waitForReady();
   await page
@@ -108,6 +116,7 @@ test("a full Sevens match, built and played through the UI", async ({
   let failures = 0;
   for (let i = 0; i < MAX_ITER; i++) {
     await page.waitForTimeout(120);
+    await ux?.probe(`step ${i}`);
 
     // DOM dialogs come first: in the browser they are the decision.
     if (await clickIf(page, /^FLIP COIN$/)) {
@@ -121,7 +130,15 @@ test("a full Sevens match, built and played through the UI", async ({
       continue;
     }
 
-    if (await answerDialog(page, app, i, rec)) continue;
+    // A dialog click that misses (an overlay passing over it) is retried
+    // next step, like any other failed move
+    const answered = await answerDialog(page, app, i, rec).catch(
+      (e: Error) => {
+        log(`${i} dialog failed: ${e.message.split("\n")[0]}`);
+        return true;
+      }
+    );
+    if (answered) continue;
 
     const next = await brainNext(page);
     if (next.over) {
@@ -197,6 +214,8 @@ test("a full Sevens match, built and played through the UI", async ({
     }
   }
 
+  if (ux)
+    writeFileSync(`${OUT}/ux-summary.json`, JSON.stringify(ux.summary(), null, 2));
   await page.waitForTimeout(3000);
   await shot(page, "end");
   log(`fallbacks=${fallbacks}`);

@@ -21,17 +21,25 @@ export interface SoundCatalogEntry {
   name: SoundName;
   /** Human label for the audition board. */
   label: string;
-  /** Builds and immediately schedules a fresh, independent one-shot playback unit against the shared AudioContext/master gain. Every call allocates its own node graph — see synth.ts. */
+  /** Recorded variants in public/assets/sounds/; each trigger plays one at random. See CREDITS.md there. */
+  samples: SampleUrls;
+  /** Synthesized stand-in, played only when the chosen sample failed to load or decode. Every call allocates its own node graph, see synth.ts. */
   build: (ctx: AudioContext, dest: AudioNode) => PlaybackUnit;
-  /** Optional recorded sample (from public/assets/sounds/) that takes precedence over synthesis. */
-  sampleUrl?: string;
-  /** How long the effect takes to fully decay — used only for bookkeeping cleanup, never to force-stop playback (each unit stops itself on the AudioContext's own clock). */
+  /** How long the synthesized fallback takes to fully decay, used only for bookkeeping cleanup, never to force-stop playback (each unit stops itself on the AudioContext's own clock). */
   durationMs: number;
   /** Higher priority sounds interrupt/suppress lower-priority ones that land in the same instant. */
   priority: number;
   /** Minimum time between two triggers of this same sound. */
   minRetriggerMs: number;
 }
+
+/** At least one sample URL. */
+export type SampleUrls = readonly [string, ...string[]];
+
+const sounds = (name: string, ...more: string[]): SampleUrls => [
+  `/assets/sounds/${name}.mp3`,
+  ...more.map((n) => `/assets/sounds/${n}.mp3`),
+];
 
 const entry = (
   partial: Omit<SoundCatalogEntry, "durationMs"> &
@@ -48,6 +56,7 @@ export const pickDiceRollTapCount = (): number =>
 export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   diceRoll: entry({
     name: "diceRoll",
+    samples: sounds("dice-roll-1", "dice-roll-2", "dice-roll-3"),
     label: "Dice Roll",
     priority: 10,
     minRetriggerMs: 150,
@@ -85,6 +94,12 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   blockImpact: entry({
     name: "blockImpact",
+    samples: sounds(
+      "block-impact-1",
+      "block-impact-2",
+      "block-impact-3",
+      "block-impact-4"
+    ),
     label: "Block Impact",
     priority: 45,
     minRetriggerMs: 250,
@@ -117,6 +132,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   pushback: entry({
     name: "pushback",
+    samples: sounds("pushback-1", "pushback-2"),
     label: "Pushback",
     priority: 35,
     minRetriggerMs: 250,
@@ -133,6 +149,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   knockdown: entry({
     name: "knockdown",
+    samples: sounds("knockdown-1", "knockdown-2"),
     label: "Knockdown",
     priority: 50,
     minRetriggerMs: 300,
@@ -158,6 +175,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   kickoff: entry({
     name: "kickoff",
+    samples: sounds("kickoff"),
     label: "Kick-off",
     priority: 30,
     minRetriggerMs: 400,
@@ -183,6 +201,12 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   ballBounce: entry({
     name: "ballBounce",
+    samples: sounds(
+      "ball-bounce-1",
+      "ball-bounce-2",
+      "ball-bounce-3",
+      "ball-bounce-4"
+    ),
     label: "Ball Bounce",
     priority: 20,
     minRetriggerMs: 150,
@@ -199,6 +223,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   catch: entry({
     name: "catch",
+    samples: sounds("catch-1", "catch-2"),
     label: "Catch",
     priority: 25,
     minRetriggerMs: 150,
@@ -224,6 +249,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   fumble: entry({
     name: "fumble",
+    samples: sounds("fumble"),
     label: "Fumble",
     priority: 40,
     minRetriggerMs: 300,
@@ -240,6 +266,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   pass: entry({
     name: "pass",
+    samples: sounds("pass-1", "pass-2"),
     label: "Pass",
     priority: 20,
     minRetriggerMs: 200,
@@ -256,6 +283,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   turnoverWhistle: entry({
     name: "turnoverWhistle",
+    samples: sounds("whistle-short"),
     label: "Turnover",
     priority: 80,
     minRetriggerMs: 800,
@@ -282,6 +310,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   touchdown: entry({
     name: "touchdown",
+    samples: sounds("touchdown"),
     label: "Touchdown",
     priority: 100,
     minRetriggerMs: 1500,
@@ -314,6 +343,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   koInjury: entry({
     name: "koInjury",
+    samples: sounds("ko-injury"),
     label: "KO / Injury",
     priority: 60,
     minRetriggerMs: 500,
@@ -341,6 +371,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   foul: entry({
     name: "foul",
+    samples: sounds("whistle-double"),
     label: "Foul",
     priority: 70,
     minRetriggerMs: 500,
@@ -366,6 +397,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   sendOff: entry({
     name: "sendOff",
+    samples: sounds("whistle-long"),
     label: "Send-off",
     priority: 90,
     minRetriggerMs: 800,
@@ -385,6 +417,7 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
   }),
   endOfHalf: entry({
     name: "endOfHalf",
+    samples: sounds("whistle-final"),
     label: "End of Half/Game",
     priority: 90,
     minRetriggerMs: 2000,
@@ -403,3 +436,8 @@ export const CATALOG: Record<SoundName, SoundCatalogEntry> = {
 };
 
 export const CATALOG_ENTRIES: SoundCatalogEntry[] = Object.values(CATALOG);
+
+/** Every recorded sample the catalog can play, for preloading. */
+export const SAMPLE_URLS: readonly string[] = CATALOG_ENTRIES.flatMap(
+  (entry) => entry.samples
+);

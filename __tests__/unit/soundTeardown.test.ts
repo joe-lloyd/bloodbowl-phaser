@@ -9,6 +9,16 @@ beforeEach(() => {
   } catch {
     // Storage unavailable — nothing to clear.
   }
+  // SoundManager.init() preloads every catalog sample. Serve each URL's own
+  // name as its body so FakeAudioContext.decodeAudioData can tag the buffer.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => new Response(url))
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 /**
@@ -95,6 +105,11 @@ class FakeAudioContext {
   createBiquadFilter = vi.fn(() => new FakeBiquadFilterNode());
   createBuffer = vi.fn((_channels: number, length: number) => ({
     getChannelData: () => new Float32Array(length),
+  }));
+  /** Hands back a fake buffer tagged with the URL that was fetched. */
+  decodeAudioData = vi.fn(async (data: ArrayBuffer) => ({
+    url: new TextDecoder().decode(data),
+    duration: 0.4,
   }));
   resume = vi.fn(async () => {
     this.state = "running";
@@ -225,9 +240,8 @@ describe("SoundManager mute/volume apply live", () => {
     const manager = new SoundManager(() => ctx as never);
     await manager.init();
 
-    const masterGain = (
-      manager as unknown as { masterGain: FakeGainNode }
-    ).masterGain;
+    const masterGain = (manager as unknown as { masterGain: FakeGainNode })
+      .masterGain;
     expect(masterGain.gain.value).toBeCloseTo(0.42);
   });
 
@@ -247,9 +261,8 @@ describe("SoundManager mute/volume apply live", () => {
 
     soundSettings.setMuted(true);
 
-    const masterGain = (
-      manager as unknown as { masterGain: FakeGainNode }
-    ).masterGain;
+    const masterGain = (manager as unknown as { masterGain: FakeGainNode })
+      .masterGain;
     expect(masterGain.gain.value).toBe(0);
 
     soundSettings.setMuted(false);
@@ -269,9 +282,8 @@ describe("SoundManager mute/volume apply live", () => {
 
     soundSettings.setVolume(0.9);
 
-    const masterGain = (
-      manager as unknown as { masterGain: FakeGainNode }
-    ).masterGain;
+    const masterGain = (manager as unknown as { masterGain: FakeGainNode })
+      .masterGain;
     expect(masterGain.gain.value).toBeCloseTo(0.9);
   });
 });
@@ -330,7 +342,7 @@ describe("SoundManager: concurrent triggers cannot strand or replace each other"
   });
 });
 
-describe("SoundSuite.dispose", () => {
+describe("SoundSuite plays recorded samples", () => {
   const fakeEventBus: IEventBus = {
     on: vi.fn(),
     off: vi.fn(),
@@ -338,133 +350,167 @@ describe("SoundSuite.dispose", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
-  let originalAudio: typeof Audio;
+  /** Lets fetch() and decodeAudioData() promises settle. */
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-  beforeEach(() => {
-    originalAudio = globalThis.Audio;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (globalThis as any).Audio = FakeAudio;
-  });
+  /** Decoded samples handed to buffer sources; the synth's noise buffers carry no url. */
+  const playedBuffers = (ctx: FakeAudioContext) =>
+    ctx.createBufferSource.mock.results
+      .map((result) => result.value.buffer)
+      .filter(
+        (buffer): buffer is { url: string; duration: number } =>
+          typeof buffer?.url === "string"
+      );
+
+  async function setup(fetchImpl: (url: string) => Promise<Response>) {
+    vi.resetModules();
+    vi.stubGlobal("fetch", vi.fn(fetchImpl));
+    const { soundSettings } = await import("../../src/ui/sound/settings");
+    soundSettings.setMuted(false);
+    soundSettings.setVolume(0.8);
+    const { SoundSuite } = await import("../../src/ui/sound/SoundSuite");
+    const { SoundManager } = await import("../../src/ui/sound/SoundManager");
+    const ctx = new FakeAudioContext();
+    const manager = new SoundManager(() => ctx as never);
+    await manager.init();
+    await settle();
+    return {
+      ctx,
+      manager,
+      soundSettings,
+      suite: new SoundSuite(fakeEventBus, manager),
+    };
+  }
+
+  const serveAll = async (url: string) => new Response(url);
 
   afterEach(() => {
-    globalThis.Audio = originalAudio;
-    vi.doUnmock("../../src/ui/sound/catalog");
+    vi.restoreAllMocks();
     vi.resetModules();
   });
 
-  it("stops and releases every in-flight sample it fired, not just its event bindings", async () => {
-    vi.doMock("../../src/ui/sound/catalog", async (importOriginal) => {
-      const actual =
-        await importOriginal<typeof import("../../src/ui/sound/catalog")>();
-      return {
-        ...actual,
-        CATALOG: {
-          ...actual.CATALOG,
-          diceRoll: {
-            ...actual.CATALOG.diceRoll,
-            sampleUrl: "fake://dice-roll.mp3",
-          },
-        },
-      };
-    });
+  it("init() fetches and decodes every catalog sample once", async () => {
+    const { ctx } = await setup(serveAll);
+    const { SAMPLE_URLS } = await import("../../src/ui/sound/catalog");
 
-    const { SoundSuite } = await import("../../src/ui/sound/SoundSuite");
-    const { SoundManager } = await import("../../src/ui/sound/SoundManager");
-    const suite = new SoundSuite(
-      fakeEventBus,
-      new SoundManager(() => new FakeAudioContext() as never)
+    expect(fetch).toHaveBeenCalledTimes(SAMPLE_URLS.length);
+    expect(ctx.decodeAudioData).toHaveBeenCalledTimes(SAMPLE_URLS.length);
+  });
+
+  it("plays the decoded touchdown sample, not the synth", async () => {
+    const { ctx, suite } = await setup(serveAll);
+
+    suite.play("touchdown");
+    await settle();
+
+    expect(playedBuffers(ctx)).toEqual([
+      { url: "/assets/sounds/touchdown.mp3", duration: 0.4 },
+    ]);
+    expect(ctx.createOscillator).not.toHaveBeenCalled();
+  });
+
+  it("picks among the variants of a sound at random", async () => {
+    const { ctx, suite } = await setup(serveAll);
+    const random = vi.spyOn(Math, "random");
+
+    random.mockReturnValue(0);
+    suite.play("ballBounce");
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    random.mockReturnValue(0.99);
+    suite.play("ballBounce");
+    await settle();
+
+    expect(playedBuffers(ctx).map((buffer) => buffer.url)).toEqual([
+      "/assets/sounds/ball-bounce-1.mp3",
+      "/assets/sounds/ball-bounce-4.mp3",
+    ]);
+  });
+
+  it("falls back to the synth when a sample fails to load", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { ctx, suite } = await setup(async (url) =>
+      url.endsWith("/touchdown.mp3")
+        ? new Response("", { status: 404 })
+        : new Response(url)
     );
 
-    suite.play("diceRoll");
+    suite.play("touchdown");
+    await settle();
 
-    const activeSamples = (
-      suite as unknown as { activeSamples: Set<FakeAudio> }
-    ).activeSamples;
-    expect(activeSamples.size).toBe(1);
-    const [audio] = [...activeSamples];
-    expect(audio.paused).toBe(false);
+    expect(playedBuffers(ctx)).toEqual([]);
+    expect(ctx.createOscillator).toHaveBeenCalled();
+  });
 
-    suite.dispose();
+  it("stays silent while muted", async () => {
+    const { ctx, soundSettings, suite } = await setup(serveAll);
+    soundSettings.setMuted(true);
 
-    expect(audio.paused).toBe(true);
-    expect(activeSamples.size).toBe(0);
-  }, 15000);
+    suite.play("touchdown");
+    await settle();
 
-  it("removes a sample from tracking once it finishes on its own (ended)", async () => {
-    vi.doMock("../../src/ui/sound/catalog", async (importOriginal) => {
-      const actual =
-        await importOriginal<typeof import("../../src/ui/sound/catalog")>();
-      return {
-        ...actual,
-        CATALOG: {
-          ...actual.CATALOG,
-          diceRoll: {
-            ...actual.CATALOG.diceRoll,
-            sampleUrl: "fake://dice-roll.mp3",
-          },
-        },
-      };
-    });
+    expect(playedBuffers(ctx)).toEqual([]);
+    soundSettings.setMuted(false);
+  });
 
+  it("manager.stop() halts a sample that is still playing", async () => {
+    const { ctx, manager, suite } = await setup(serveAll);
+
+    suite.play("touchdown");
+    await settle();
+    const source = ctx.createBufferSource.mock.results[0]
+      .value as FakeBufferSourceNode;
+    expect(source.stopped).toBe(false);
+
+    manager.stop();
+
+    expect(source.stopped).toBe(true);
+  });
+
+  it("rattles dice only for rolls that are not thrown as 3D dice", async () => {
+    const { ctx, manager } = await setup(serveAll);
     const { SoundSuite } = await import("../../src/ui/sound/SoundSuite");
-    const { SoundManager } = await import("../../src/ui/sound/SoundManager");
-    const suite = new SoundSuite(
-      fakeEventBus,
-      new SoundManager(() => new FakeAudioContext() as never)
+    const { EventBus } = await import("../../src/services/EventBus");
+    const { GameEventNames } = await import("../../src/types/events");
+    const bus = new EventBus();
+    new SoundSuite(bus, manager).mount();
+    const roll = (diceType: string, value: number) =>
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Test",
+        diceType,
+        value,
+        total: value,
+        description: "",
+      });
+    const rattles = () =>
+      playedBuffers(ctx).filter((b) => b.url.includes("dice-roll")).length;
+
+    // A D6 lands in the 3D tray, which knocks as it lands
+    roll("1d6", 4);
+    await settle();
+    expect(rattles()).toBe(0);
+
+    // A D8 has no 3D die, so the rattle plays
+    roll("1d8", 5);
+    await settle();
+    expect(rattles()).toBe(1);
+  });
+
+  it("every catalog sample exists under public/", async () => {
+    const { existsSync } = await import("node:fs");
+    const { SAMPLE_URLS } = await import("../../src/ui/sound/catalog");
+
+    const missing = SAMPLE_URLS.filter(
+      (url) => !existsSync(`${process.cwd()}/public${url}`)
     );
 
-    suite.play("diceRoll");
-    const activeSamples = (
-      suite as unknown as { activeSamples: Set<FakeAudio> }
-    ).activeSamples;
-    expect(activeSamples.size).toBe(1);
-    const [audio] = [...activeSamples];
-
-    audio._emit("ended");
-
-    expect(activeSamples.size).toBe(0);
-  }, 15000);
+    expect(missing).toEqual([]);
+  });
 });
-
-// Deterministic stand-in for the browser's Audio element: exposes just
-// enough (play/pause/addEventListener/an `_emit` test helper) to prove
-// SoundSuite tracks and releases instances correctly.
-class FakeAudio {
-  paused = true;
-  currentTime = 0;
-  volume = 1;
-  src: string;
-  private listeners = new Map<string, Array<() => void>>();
-
-  constructor(src: string) {
-    this.src = src;
-  }
-
-  addEventListener(event: string, handler: () => void): void {
-    const handlers = this.listeners.get(event) ?? [];
-    handlers.push(handler);
-    this.listeners.set(event, handlers);
-  }
-
-  play(): Promise<void> {
-    this.paused = false;
-    return Promise.resolve();
-  }
-
-  pause(): void {
-    this.paused = true;
-  }
-
-  _emit(event: string): void {
-    this.listeners.get(event)?.forEach((handler) => handler());
-  }
-}
 
 describe("dice-roll sound variation", () => {
   it("randomizes the tap count within a small range so consecutive rolls aren't identical", async () => {
-    const { pickDiceRollTapCount } = await import(
-      "../../src/ui/sound/catalog"
-    );
+    const { pickDiceRollTapCount } = await import("../../src/ui/sound/catalog");
     for (let i = 0; i < 30; i++) {
       const count = pickDiceRollTapCount();
       expect(count).toBeGreaterThanOrEqual(3);
@@ -473,9 +519,7 @@ describe("dice-roll sound variation", () => {
   });
 
   it("varies across enough calls that two rolls in a row aren't guaranteed identical", async () => {
-    const { pickDiceRollTapCount } = await import(
-      "../../src/ui/sound/catalog"
-    );
+    const { pickDiceRollTapCount } = await import("../../src/ui/sound/catalog");
     const results = new Set(
       Array.from({ length: 50 }, () => pickDiceRollTapCount())
     );

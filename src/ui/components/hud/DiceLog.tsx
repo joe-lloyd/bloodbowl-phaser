@@ -276,7 +276,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 type="button"
                 onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
                 disabled={fontScale <= FONT_SCALE_MIN}
-                className="w-5 h-5 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                className="w-7 h-7 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
                 aria-label="Decrease Dice Log text size"
               >
                 A-
@@ -288,7 +288,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 type="button"
                 onClick={() => adjustFontScale(FONT_SCALE_STEP)}
                 disabled={fontScale >= FONT_SCALE_MAX}
-                className="w-5 h-5 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                className="w-7 h-7 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
                 aria-label="Increase Dice Log text size"
               >
                 A+

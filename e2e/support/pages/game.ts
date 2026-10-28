@@ -223,7 +223,7 @@ export class HudPage {
     if (await roll.isVisible().catch(() => false)) {
       await roll.click();
     }
-    // The faces are what the caller is about to click.
+    // The dice are up; their keyboard buttons are what the caller uses next.
     await expect(this.page.getByTestId("block-die-0")).toBeVisible();
   }
 
@@ -237,13 +237,18 @@ export class HudPage {
       die.first(),
       `no '${resultType}' die was rolled — the seed may have drifted`
     ).toBeVisible();
-    await die.first().click();
+    // The dice are clicked in the 3D tray; these buttons are the keyboard
+    // way to the same choice
+    await die.first().focus();
+    await die.first().press("Enter");
   }
 
   /** Choose whichever die is at this index, regardless of its face. */
   async chooseBlockDie(index: number): Promise<void> {
     await expect(this.blockDiceDialog()).toBeVisible();
-    await this.page.getByTestId(`block-die-${index}`).click();
+    const die = this.page.getByTestId(`block-die-${index}`);
+    await die.focus();
+    await die.press("Enter");
   }
 }
 

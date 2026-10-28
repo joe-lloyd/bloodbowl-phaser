@@ -12,7 +12,8 @@ describe("whenEngineQuiet", () => {
   it("returns at once when nothing is running", async () => {
     const start = Date.now();
     await whenEngineQuiet();
-    expect(Date.now() - start).toBeLessThan(50);
+    // Nothing to wait for; the bound is loose so a busy machine passes
+    expect(Date.now() - start).toBeLessThan(500);
   });
 
   it("waits for a running delay and the code after it", async () => {

@@ -4,7 +4,9 @@ import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
 import { soundSettings } from "../../sound/settings";
-import type { DiceRoll, DiceTeam } from "../../dice/diceScene";
+import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
+import type { BlockRollData } from "../../../services/BlockResolutionService";
+import { isBlockDice, isD6 } from "../../dice/thrownDice";
 
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
@@ -16,7 +18,7 @@ export const BLOCK_VALUE: Record<string, number> = {
   "pow-dodge": 5,
   pow: 6,
 };
-const HOLD_MS = 900;
+const HOLD_MS = 1800;
 const MAX_QUEUE = 3;
 
 /**
@@ -27,11 +29,11 @@ export function toDice(
   event: RollEvent
 ): Omit<DiceRoll, "team" | "neon"> | null {
   const values = ([] as (number | string)[]).concat(event.value);
-  if (/block/i.test(event.diceType)) {
+  if (isBlockDice(event.diceType)) {
     const faces = values.map((v) => BLOCK_VALUE[String(v)]);
     return faces.every(Boolean) ? { kind: "block", values: faces } : null;
   }
-  if (/^\d*d6$/i.test(event.diceType)) {
+  if (isD6(event.diceType)) {
     const pips = values.map(Number);
     return pips.every((v) => v >= 1 && v <= 6)
       ? { kind: "d6", values: pips }
@@ -69,14 +71,22 @@ interface Queued {
   result: string;
   teamName: string;
   settled: boolean;
+  /** Block dice: held until a result is chosen; the face of each die */
+  block?: string[];
 }
 
+/** How long a chosen block die stays forward before the tray clears. */
+const CHOSEN_MS = 1200;
+
 /**
- * The dice tray: every D6 roll the engine makes is thrown as real 3D dice,
- * in the rolling team's colours, in a small tray at the top of the screen.
- * The outcome shows only once the dice have come to rest. Block dice are
- * thrown in the block dialog instead. It only shows rolls; the numbers come from the engine's own RNG
- * and the tray never decides anything. Rolls queue so none overlap.
+ * The dice tray: the one place every roll is thrown, D6s and block dice
+ * alike, as real 3D dice in the rolling team's colours, at the bottom
+ * centre clear of the turn indicator, the clock and the corner panels.
+ * The dice tumble, land, then lift up toward the coach with their result
+ * face forward; the outcome text shows only then. Block dice stay up until
+ * a result is chosen, and the coach chooses by clicking a lifted die (the
+ * block dialog applies the choice). The tray only shows rolls; the numbers
+ * come from the engine's own RNG. Rolls queue so none overlap.
  */
 export function DiceTray({
   eventBus,
@@ -92,59 +102,136 @@ export function DiceTray({
   const neon = resolvePitchTheme(styleId).bloom;
 
   useEffect(() => {
+    let shown: Queued | null = null;
+    let throwing: DiceThrow | null = null;
+    // Ends the hold on the dice now up, so the next roll can play
+    let release: (() => void) | null = null;
+
     const playNext = async () => {
       const next = queue.current.shift();
       if (!next || !host.current) {
         playing.current = false;
+        shown = null;
+        throwing?.stop();
+        throwing = null;
         setCurrent(null);
         return;
       }
       playing.current = true;
+      shown = next;
       setCurrent(next);
       try {
         const scene = await import("../../dice/diceScene");
-        await scene.playRoll(host.current, next.roll, {
+        const handle = scene.playRoll(host.current, next.roll, {
           sound: !soundSettings.get().muted,
         });
+        throwing = handle;
+        if (next.block) {
+          handle.onPick((index) =>
+            eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
+          );
+        }
+        await handle.landed;
         setCurrent({ ...next, settled: true });
-        await new Promise((r) => setTimeout(r, HOLD_MS));
+        await new Promise<void>((resolve) => {
+          release = resolve;
+          if (!next.block) setTimeout(resolve, HOLD_MS);
+        });
+        release = null;
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
       }
       void playNext();
     };
 
+    const enqueue = (item: Queued, first = false) => {
+      if (first) queue.current.unshift(item);
+      else queue.current.push(item);
+      // Never fall far behind the game: keep the latest few.
+      while (queue.current.length > MAX_QUEUE) queue.current.pop();
+      if (!playing.current) void playNext();
+    };
+
     const onRoll = (event: RollEvent) => {
       const dice = toDice(event);
       const team = teamLook(event.teamId);
-      // The block dialog throws block dice itself
+      // Block dice come from BlockDiceRolled, which has the whole set even
+      // when a Pro re-roll rolls only one of them
       if (!dice || dice.kind === "block" || !team) return;
-      const teamName =
-        ServiceContainer.getInstance().gameService.getTeam(team.key)?.name ??
-        "";
-      queue.current.push({
+      enqueue({
         roll: { ...dice, team, neon },
         title: event.rollType,
         result: event.description || event.rollType,
-        teamName,
+        teamName: teamName(team.key),
         settled: false,
       });
-      // Never fall far behind the game: keep the latest few.
-      while (queue.current.length > MAX_QUEUE) queue.current.shift();
-      if (!playing.current) void playNext();
     };
+
+    const onBlockRolled = (payload: BlockRollData) => {
+      const faces = payload.results.map((r) => r.type);
+      const values = faces.map((face) => BLOCK_VALUE[face]);
+      const attacker = ServiceContainer.isInitialized()
+        ? ServiceContainer.getInstance().gameService.getPlayerById(
+            payload.attackerId
+          )
+        : undefined;
+      const team = teamLook(attacker?.teamId);
+      if (!team || !values.every(Boolean)) return;
+      // A block is the decision on the table: it goes before older D6s,
+      // and a re-roll replaces the dice still up
+      enqueue(
+        {
+          roll: { kind: "block", values, team, neon },
+          title: `Block: ${faces.length} ${faces.length === 1 ? "die" : "dice"}`,
+          result: payload.results.map((r) => r.label).join(" · "),
+          teamName: teamName(team.key),
+          settled: false,
+          block: faces,
+        },
+        true
+      );
+      release?.();
+    };
+
+    const onResolved = ({
+      type,
+      result,
+    }: {
+      type: string;
+      result?: string;
+    }) => {
+      if (type !== "block-dice" || !shown?.block) return;
+      const index = result ? shown.block.indexOf(result) : -1;
+      throwing?.mark(index >= 0 ? index : null);
+      const ending = release;
+      setTimeout(() => ending?.(), CHOSEN_MS);
+    };
+    const onCancelled = () => {
+      if (shown?.block) release?.();
+    };
+
     eventBus.on(GameEventNames.DiceRoll, onRoll);
-    return () => eventBus.off(GameEventNames.DiceRoll, onRoll);
+    eventBus.on(GameEventNames.BlockDiceRolled, onBlockRolled);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
+    eventBus.on(GameEventNames.UI_BlockRollCancelled, onCancelled);
+    return () => {
+      eventBus.off(GameEventNames.DiceRoll, onRoll);
+      eventBus.off(GameEventNames.BlockDiceRolled, onBlockRolled);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
+      eventBus.off(GameEventNames.UI_BlockRollCancelled, onCancelled);
+      throwing?.stop();
+    };
   }, [eventBus, neon]);
 
   const color = current
     ? `#${current.roll.team.primary.toString(16).padStart(6, "0")}`
     : undefined;
+  const pickable = !!current?.block && current.settled;
   return (
     <div
       data-testid="dice-tray"
-      className={`pointer-events-none absolute left-1/2 top-20 z-[110] w-[420px] max-w-[80vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
-        current ? "opacity-100" : "-translate-y-2 opacity-0"
+      className={`pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
+        current ? "opacity-100" : "translate-y-2 opacity-0"
       }`}
     >
       <div className="flex items-baseline justify-between gap-3 border-b border-bb-gold/40 px-3 py-1.5">
@@ -158,7 +245,17 @@ export function DiceTray({
           {current?.settled ? current.result : current?.title}
         </span>
       </div>
-      <div ref={host} className="h-[180px] w-full" />
+      <div
+        ref={host}
+        data-testid="dice-tray-dice"
+        className={`h-[180px] w-full ${pickable ? "pointer-events-auto" : ""}`}
+      />
     </div>
   );
+}
+
+function teamName(teamId: string): string {
+  return ServiceContainer.isInitialized()
+    ? (ServiceContainer.getInstance().gameService.getTeam(teamId)?.name ?? "")
+    : "";
 }

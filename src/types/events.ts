@@ -213,6 +213,8 @@ export enum GameEventNames {
   UI_BlockDialog = "ui:blockDialog",
   UI_RollBlockDice = "ui:rollBlockDice",
   UI_BlockRollCancelled = "ui:blockRollCancelled",
+  /** A lifted block die was clicked in the dice tray. */
+  UI_BlockDieClicked = "ui:blockDieClicked",
   UI_SelectPushDirection = "ui:selectPushDirection",
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
@@ -810,6 +812,7 @@ export interface UIEvents {
   /** The requested block roll will not happen (illegal, no movement left,
    * rush declined/failed) — dialogs waiting on dice must close. */
   [GameEventNames.UI_BlockRollCancelled]: void;
+  [GameEventNames.UI_BlockDieClicked]: { index: number };
 
   [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;

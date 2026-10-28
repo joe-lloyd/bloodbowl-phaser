@@ -53,7 +53,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
+    <div className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto">
       <div className="bg-slate-900 border-2 border-red-500 rounded-lg p-6 w-[440px] text-white shadow-2xl">
         <h2 className="text-2xl font-black text-center text-red-400 mb-4 uppercase tracking-wider glow-text">
           Interception!
