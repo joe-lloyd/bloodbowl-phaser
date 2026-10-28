@@ -262,14 +262,34 @@ async function compare(
 const mayAct = (coach: Coach) =>
   brainCall(coach.page, "mayAct").catch(() => false) as Promise<boolean>;
 
+/**
+ * Wait until this coach's page shows the result of what it just did. The
+ * guest's moves make a round trip to the host first; without this the
+ * coach would plan its next move from the board before the last one.
+ */
+async function settled(coach: Coach, before: string, ms = 6000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (JSON.stringify(await engineView(coach.page)) !== before) return;
+    await coach.page.waitForTimeout(200);
+  }
+}
+
 /** One move by this coach, if it is theirs to make. Returns what it did. */
 async function step(coach: Coach, i: number): Promise<string | null> {
   const { page, app, rec } = coach;
   if (await clickIf(page, /^READY — FLIP COIN$/)) return "ready for the toss";
   if (await clickIf(page, /^RECEIVE$/)) return "chose to receive";
   if (!(await mayAct(coach))) return null;
-  if (await riskyMoveConfirm(page, rec)) return "confirmed a risky move";
-  if (await answerDialog(page, app, i, rec)) return "answered a dialog";
+  const before = JSON.stringify(await engineView(page));
+  if (await riskyMoveConfirm(page, rec)) {
+    await settled(coach, before);
+    return "confirmed a risky move";
+  }
+  if (await answerDialog(page, app, i, rec)) {
+    await settled(coach, before);
+    return "answered a dialog";
+  }
 
   const next = await brainNext(page);
   if (next.over) return "over";
@@ -284,8 +304,10 @@ async function step(coach: Coach, i: number): Promise<string | null> {
   rec.log(
     `${i} ${next.phase}/${next.subPhase ?? "-"} ${next.pending?.type ?? ""} :: ${c.label}`
   );
+  const board = JSON.stringify(await engineView(page));
   await perform(page, app, c.commands, next, rec);
   if (next.pending) await brainCall(page, "clearPending");
+  await settled(coach, board);
   return c.label;
 }
 
