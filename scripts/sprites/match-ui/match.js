@@ -2,8 +2,22 @@
 // instead of two sidebars. Hover a player for their card, click one of yours
 // to select it and see its reach and the action bar, then hover an opponent
 // for the block preview. Nothing here plays a real game.
+//
+// Two looks share the same layout and code: neon, and a Blood Bowl one with
+// its own stadium, player renders and kits. Each theme's data.json says
+// where its sprites live, relative to the theme's root.
 
-const STADIUM = "../stadium-2026-10-28/";
+const THEMES = {
+  bloodbowl: {
+    root: "bloodbowl/", bloom: false, bg: "#0b0805", move: 0xfff2c8, rush: 0xffc23a, reachAlpha: [0.2, 0.18],
+    score: { fontFamily: "Georgia, serif", fontStyle: "bold", color: "#e8c46a" },
+  },
+  neon: {
+    root: "../stadium-2026-10-28/", bloom: true, bg: "#04030a", move: 0x3dff9a, rush: 0xffb81e, reachAlpha: [0.13, 0.11],
+    score: { fontFamily: "Impact, Haettenschweiler, sans-serif", fontStyle: "italic", color: "#f4f0ff" },
+  },
+};
+const theme = () => THEMES[ui.theme];
 const PPU = 50;
 const LAYERS = ["base", "kit1", "kit2"];
 const FPS = 6, FRAMES = 8, FALL_LAST = 7;
@@ -54,7 +68,7 @@ const BOX_TIPS = {
   injured: "Injured · out for the rest of the game", "sent off": "Sent off · out for the rest of the game",
 };
 
-const ui = { mode: "docked", selected: null, hovered: null };
+const ui = { mode: "docked", selected: null, hovered: null, theme: location.hash === "#neon" ? "neon" : "bloodbowl" };
 const $ = (id) => document.getElementById(id);
 const hex = (c) => "#" + c.toString(16).padStart(6, "0");
 
@@ -81,13 +95,14 @@ class Match extends Phaser.Scene {
   }
 
   preload() {
-    for (const l of ["base", "home", "away"]) this.load.image(`st-${l}`, `${STADIUM}stadium/corners/lo/${l}.webp`);
+    const base = theme().root;
+    for (const l of ["base", "home", "away"]) this.load.image(`st-${l}`, `${base}stadium/corners/lo/${l}.webp`);
     const idle = new Set(), fall = new Set();
     for (const side of ["home", "away"])
       for (const [, , m, , st] of ROSTER[side]) (st === "ko" || st === "inj" ? fall : idle).add(m);
-    const root = STADIUM + this.d.idle_root;
+    const root = base + this.d.idle_root;
     for (const m of idle) for (const l of LAYERS) this.load.atlas(`idle-${m}-${l}`, `${root}/${m}/lo/${l}.png`, `${root}/${m}/lo/${l}.json`);
-    for (const m of fall) for (const l of LAYERS) this.load.atlas(`fall-${m}-${l}`, `${STADIUM}falls/${m}/lo/${l}.png`, `${STADIUM}falls/${m}/lo/${l}.json`);
+    for (const m of fall) for (const l of LAYERS) this.load.atlas(`fall-${m}-${l}`, `${base}falls/${m}/lo/${l}.png`, `${base}falls/${m}/lo/${l}.json`);
   }
 
   create() {
@@ -137,16 +152,16 @@ class Match extends Phaser.Scene {
   scoreboard() {
     const [gx, gy, z] = this.lay.screen;
     const p = this.at(gx, gy, z);
-    const style = (color, size = "80px") => ({ fontFamily: "Impact, Haettenschweiler, sans-serif", fontSize: size, color, fontStyle: "italic" });
+    const style = (color) => ({ ...theme().score, fontSize: "80px", color });
     this.add.text(p.x - 120, p.y, "HUMAN", style(hex(this.d.kits.home[0]))).setOrigin(1, 0.5).setDepth(5);
-    this.add.text(p.x, p.y, "1 : 0", style("#f4f0ff")).setOrigin(0.5).setDepth(5);
+    this.add.text(p.x, p.y, "1 : 0", style(theme().score.color)).setOrigin(0.5).setDepth(5);
     this.add.text(p.x + 120, p.y, "ORC", style(hex(this.d.kits.away[0]))).setOrigin(0, 0.5).setDepth(5);
   }
 
   setupInput() {
     const cam = this.cameras.main;
-    cam.setBackgroundColor("#04030a");
-    cam.postFX.addBloom(0xffffff, 1, 1, 0.7, 0.55, 4);
+    cam.setBackgroundColor(theme().bg);
+    if (theme().bloom) cam.postFX.addBloom(0xffffff, 1, 1, 0.7, 0.55, 4);
     let downAt = null;
     this.input.on("pointerdown", (p) => { downAt = { x: p.x, y: p.y }; });
     this.input.on("pointermove", (p) => {
@@ -213,7 +228,8 @@ class Match extends Phaser.Scene {
       for (let y = 0; y < this.lay.rows; y++) {
         const d = Math.max(Math.abs(x - sx), Math.abs(y - sy));
         if (!d || d > ma + 2 || this.occupied(x, y)) continue;
-        this.diamond(g, x, y, d <= ma ? 0x3dff9a : 0xffb81e, d <= ma ? 0.13 : 0.11);
+        const t = theme();
+        this.diamond(g, x, y, d <= ma ? t.move : t.rush, t.reachAlpha[d <= ma ? 0 : 1]);
       }
   }
 
@@ -341,15 +357,33 @@ function toast(html) {
   toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
 }
 
-async function boot() {
-  const data = await (await fetch(STADIUM + "data.json")).json();
-  for (const [side, done] of [["home", 3], ["away", 2]])
-    $(`pips-${side}`).innerHTML = Array.from({ length: 6 }, (_, i) => `<span class="pip${i < done ? " on" : ""}"></span>`).join("");
+/** (Re)start the game in the current theme; the HUD restyles through a body class. */
+async function start() {
+  const data = await (await fetch(theme().root + "data.json")).json();
+  if (window.game) window.game.destroy(true);
+  ui.selected = ui.hovered = null;
+  ["card-a", "card-b", "versus", "actions"].forEach((id) => $(id).classList.remove("show"));
+  document.body.className = `theme-${ui.theme}`;
+  document.querySelectorAll("[data-theme]").forEach((o) => o.setAttribute("aria-pressed", String(o.dataset.theme === ui.theme)));
+  const css = (c) => hex(c);
+  document.body.style.setProperty("--home", css(data.kits.home[0]));
+  document.body.style.setProperty("--away", css(data.kits.away[0]));
   window.game = new Phaser.Game({
     type: Phaser.WEBGL, parent: "viewer", width: innerWidth, height: innerHeight,
-    pixelArt: true, backgroundColor: "#04030a", scale: { mode: Phaser.Scale.RESIZE },
+    pixelArt: true, backgroundColor: theme().bg, scale: { mode: Phaser.Scale.RESIZE },
     scene: new Match(data),
   });
+}
+
+async function boot() {
+  for (const [side, done] of [["home", 3], ["away", 2]])
+    $(`pips-${side}`).innerHTML = Array.from({ length: 6 }, (_, i) => `<span class="pip${i < done ? " on" : ""}"></span>`).join("");
+  document.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => {
+    ui.theme = b.dataset.theme;
+    history.replaceState(null, "", "#" + ui.theme);
+    start();
+  }));
+  start();
   document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
     ui.mode = b.dataset.mode;
     document.querySelectorAll("[data-mode]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));

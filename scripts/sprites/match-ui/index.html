@@ -133,6 +133,40 @@
   .mock button { background: #24212c; color: var(--text); border: 1px solid #3a3646; border-radius: 6px; padding: 3px 9px; font: inherit; cursor: pointer; }
   .mock button[aria-pressed="true"] { background: var(--home); border-color: var(--home); color: #14000b; }
   .mock a { color: var(--dim); }
+
+  /* Blood Bowl: dark leather panels with gold trim, serif capitals, blood red for actions */
+  body.theme-bloodbowl {
+    --bg: #0b0805; --glass: linear-gradient(180deg, rgba(46, 29, 16, 0.95), rgba(22, 14, 8, 0.95));
+    --line: rgba(201, 161, 74, 0.32); --text: #f1e5c6; --dim: #b39b72; --gold: #d9b45a; --blood: #a3191f;
+    --cond: Copperplate, "Copperplate Gothic Bold", "Trajan Pro", Georgia, serif;
+    --punch: Georgia, "Times New Roman", serif; --mono: Georgia, serif;
+  }
+  .theme-bloodbowl .panel { background: var(--glass); border: 1px solid #7a5a26; border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(217, 180, 90, 0.18), 0 6px 22px rgba(0, 0, 0, 0.55); }
+  .theme-bloodbowl .score .nums { font-weight: 700; font-style: normal; color: var(--gold); text-shadow: 0 2px 0 #000; }
+  .theme-bloodbowl .score .team { font-weight: 700; }
+  .theme-bloodbowl .turn-flag { background: var(--blood); color: var(--gold); border: 1px solid var(--gold); font-family: var(--cond); }
+  .theme-bloodbowl .pip { height: 8px; width: 8px; border-radius: 50%; border: 1px solid rgba(217, 180, 90, 0.5); background: none; }
+  .theme-bloodbowl .home .pip.on, .theme-bloodbowl .away .pip.on { background: var(--gold); box-shadow: none; border-color: var(--gold); }
+  .theme-bloodbowl .chip.home { border-left: 4px solid var(--home); }
+  .theme-bloodbowl .chip.away { border-right: 4px solid var(--away); }
+  .theme-bloodbowl .rr { color: var(--gold) !important; }
+  .theme-bloodbowl .card .bar { height: 5px; box-shadow: none !important; border-bottom: 1px solid var(--gold); }
+  .theme-bloodbowl .card .num { font-weight: 700; font-style: normal; }
+  .theme-bloodbowl .card .who { font-family: Georgia, serif; font-size: 16px; }
+  .theme-bloodbowl .stat { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(217, 180, 90, 0.35); border-radius: 3px; }
+  .theme-bloodbowl .stat b { font-family: Georgia, serif; color: var(--gold); }
+  .theme-bloodbowl .skill { background: rgba(217, 180, 90, 0.1); border-color: rgba(217, 180, 90, 0.35); border-radius: 3px; font-family: Georgia, serif; }
+  .theme-bloodbowl .skill.neg { background: rgba(163, 25, 31, 0.25); border-color: rgba(220, 70, 60, 0.5); }
+  .theme-bloodbowl .status { font-family: var(--cond); border-radius: 2px; }
+  .theme-bloodbowl .versus .dice { font-weight: 700; font-style: normal; color: var(--gold) !important; }
+  .theme-bloodbowl .actions button { font-family: var(--cond); }
+  .theme-bloodbowl .actions button:hover { background: rgba(163, 25, 31, 0.5); border-color: var(--gold); }
+  .theme-bloodbowl .endturn { background: linear-gradient(180deg, #b21c22, #6e0d11); border-color: var(--gold); }
+  .theme-bloodbowl .endturn button { color: var(--gold); font: 700 17px/1 var(--cond); letter-spacing: 2px; }
+  .theme-bloodbowl .endturn:hover { box-shadow: 0 0 16px rgba(217, 180, 90, 0.45); }
+  .theme-bloodbowl .mock button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #1a1006; }
+  .theme-bloodbowl .ok { color: #9fd36a; } .theme-bloodbowl .bad { color: #e2574c; }
 </style>
 </head>
 <body>
@@ -171,7 +205,10 @@
   </div>
 
   <div class="panel mock">
-    Mockup · card
+    Style
+    <button data-theme="bloodbowl" aria-pressed="true">Blood Bowl</button>
+    <button data-theme="neon" aria-pressed="false">Neon</button>
+    · Card
     <button data-mode="docked" aria-pressed="true">Docked</button>
     <button data-mode="beside" aria-pressed="false">Beside player</button>
     · <a href="../stadium-2026-10-28/index.html">stadium page</a>

@@ -38,11 +38,11 @@ def fits(px):
     return True
 
 
-def render_models(ids, out_root, sizes=("lo", "hi")):
+def render_models(ids, out_root, sizes=("lo", "hi"), style="neon"):
     done = []
     for model_id in ids:
         t = time.time()
-        build_model(MODELS[model_id])
+        build_model(MODELS[model_id], style)
         lo = next((px for px in FRAME_STEPS if fits(px)), FRAME_STEPS[-1])
         for size in sizes:
             px = lo if size == "lo" else lo * 2

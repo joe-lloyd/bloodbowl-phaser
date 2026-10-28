@@ -1,6 +1,10 @@
-"""Build the neon stadium around a Sevens pitch and render it as one backdrop.
+"""Build the stadium around a Sevens pitch and render it as one backdrop.
 
-    blender.exe -b --factory-startup --python stadium.py -- OUT_DIR layout
+    blender.exe -b --factory-startup --python stadium.py -- OUT_DIR layout [theme]
+
+The theme is "neon" (the default) or "bloodbowl": the same geometry in a
+night-club palette, or as a timber and stone ground in daylight with team
+banners and painted labels in a serif face.
 
 One layout per run: a third layout in the same session rendered black.
 
@@ -47,7 +51,6 @@ g = {"__name__": "stadium_helpers"}
 with open(os.path.join(HERE, "blender_players.py")) as fh:
     exec(fh.read(), g)
 
-STYLE = g["STYLES"]["neon"]
 PX_PER_UNIT = g["PX_PER_UNIT"]
 S = 2.8                     # SQUARE_M in team_models.py
 COLS, ROWS = 20, 11
@@ -95,6 +98,51 @@ PARTS = {
     "neon_injured": ("flat", (1.0, 0.12, 0.16), None),
     "neon_off": ("flat", (0.7, 0.4, 1.0), None),
 }
+PARTS.update(banner_home=("toon", (0.5, 0.5, 0.5), "home"), banner_away=("toon", (0.5, 0.5, 0.5), "away"))  # only Blood Bowl hangs banners
+
+# Blood Bowl recolours the same parts. The neon_* names are just trims here:
+# pink is blood red, cyan is ink, white is gold, and the lamps are braziers.
+BLOODBOWL_PARTS = {
+    "ground": ("toon", (0.006, 0.009, 0.004), None),
+    "label": ("flat", (0.86, 0.74, 0.48), None),
+    "apron": ("toon", (0.1, 0.065, 0.035), None),
+    "turf_a": ("toon", (0.075, 0.2, 0.04), None),
+    "turf_b": ("toon", (0.1, 0.26, 0.055), None),
+    "zone_home": ("toon", (0.22, 0.22, 0.22), "home"),
+    "zone_away": ("toon", (0.22, 0.22, 0.22), "away"),
+    "dug_floor": ("toon", (0.11, 0.065, 0.032), None),
+    "dug_tile": ("toon", (0.16, 0.1, 0.05), None),
+    "concrete": ("toon", (0.2, 0.18, 0.15), None),
+    "riser": ("toon", (0.09, 0.075, 0.06), None),
+    "wall": ("toon", (0.15, 0.13, 0.1), None),
+    "metal": ("toon", (0.16, 0.09, 0.045), None),
+    "seat": ("toon", (0.2, 0.12, 0.055), None),
+    "seat_home": ("toon", (0.3, 0.3, 0.3), "home"),
+    "seat_away": ("toon", (0.3, 0.3, 0.3), "away"),
+    "fan_home": ("toon", (0.36, 0.36, 0.36), "home"),
+    "fan_away": ("toon", (0.36, 0.36, 0.36), "away"),
+    "fan_dark": ("toon", (0.06, 0.045, 0.03), None),
+    "fan_grey": ("toon", (0.3, 0.25, 0.18), None),
+    "line": ("flat", (0.86, 0.86, 0.8), None),
+    "board": ("toon", (0.62, 0.52, 0.34), None),
+    "screen": ("toon", (0.08, 0.05, 0.025), None),
+    "lamp": ("flat", (1.0, 0.5, 0.1), None),
+    "neon_pink": ("toon", (0.42, 0.03, 0.03), None),
+    "neon_cyan": ("toon", (0.05, 0.03, 0.02), None),
+    "neon_white": ("toon", (0.8, 0.55, 0.14), None),
+    "neon_ko": ("flat", (0.85, 0.6, 0.06), None),
+    "neon_injured": ("flat", (0.62, 0.04, 0.04), None),
+    "neon_off": ("flat", (0.3, 0.12, 0.5), None),
+}
+THEMES = {
+    "neon": dict(parts=PARTS, light="neon", background=(0.0015, 0.0012, 0.0025), font=None, banners=False, label=None,
+                 labels=LABELS),
+    "bloodbowl": dict(parts={**PARTS, **BLOODBOWL_PARTS}, light="bloodbowl", background=(0.006, 0.004, 0.003),
+                      font="C:/Windows/Fonts/georgiab.ttf", banners=True, label="label",
+                      labels={**LABELS, "ko": "KO'D", "injured": "CASUALTIES"}),
+}
+THEME = THEMES["neon"]
+
 BOX_NEON = {"ko": "neon_ko", "injured": "neon_injured", "sent off": "neon_off"}
 MASK = {"home": (1, 0, 0), "away": (0, 1, 0), None: (0, 0, 0)}
 
@@ -143,6 +191,8 @@ class Builder:
             cu.align_x = align
             cu.align_y = "BOTTOM"
             cu.extrude = extrude
+            if THEME["font"]:
+                cu.font = bpy.data.fonts.load(THEME["font"], check_existing=True)
             ob = add_object(part, cu)
             ob.location = at
             ob.rotation_euler = Euler(tuple(math.radians(a) for a in rotation))
@@ -157,10 +207,11 @@ def add_object(part, data):
 
 
 def make_materials():
-    for part, (kind, color, mask) in PARTS.items():
+    style = g["STYLES"][THEME["light"]]
+    for part, (kind, color, mask) in THEME["parts"].items():
         if kind == "toon":
-            g["toon_material"](part, color, STYLE)
-            g["mask_material"](f"mask_{part}", MASK[mask], STYLE)
+            g["toon_material"](part, color, style)
+            g["mask_material"](f"mask_{part}", MASK[mask], style)
         else:
             for name, c in ((part, color), (f"mask_{part}", MASK[mask])):
                 mat, _, emit = g["new_material"](name)
@@ -235,15 +286,16 @@ def dugout(b, side, gx0, gy0, along, depth, far):
             for j in range(DUGOUT_ROWS):
                 rect("dug_tile", i + k, j, i + k + 1, j + 1, 0.095, 0.11, inset=0.24)
         mid_i = i + n / 2
+        label = THEME["labels"][name]
         if far:
             # neon sign on the back wall, facing the pitch, which only far dugouts have
             x, y = corner(mid_i, DUGOUT_ROWS + 0.035)
             rot = (90, 0, 0) if dy else (90, 0, 90)
-            b.text(neon, LABELS[name], G(x, y, 1.0), 1.0 if n > 1 else 0.5, rot, extrude=0.03)
+            b.text(THEME["label"] or neon, label, G(x, y, 1.0), label_size(label, n, 1.0), rot, extrude=0.03)
         else:
             # painted on the apron between pitch and dugout, reading screen-right
             x, y = corner(mid_i, -0.08)
-            b.text(neon, LABELS[name], G(x, y, 0.03), 1.4 if n > 1 else 0.6, (0, 0, 0) if ay == 0 else (0, 0, 90))
+            b.text(THEME["label"] or neon, label, G(x, y, 0.03), label_size(label, n, 1.4), (0, 0, 0) if ay == 0 else (0, 0, 90))
         i += n
     if far:
         rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 2.2)
@@ -253,6 +305,12 @@ def dugout(b, side, gx0, gy0, along, depth, far):
     else:
         rect("wall", -0.3, DUGOUT_ROWS + 0.05, length + 0.3, DUGOUT_ROWS + 0.25, 0.0, 0.35)
         rect(f"neon_{side}", -0.3, DUGOUT_ROWS + 0.0, length + 0.3, DUGOUT_ROWS + 0.05, 0.3, 0.36)
+
+
+def label_size(label, squares, most):
+    """Letter height that keeps a label inside its box: about 0.62 of a height per letter."""
+    longest = max(len(line) for line in label.split("\n"))
+    return min(most, squares * S * 0.85 / (0.62 * longest), 0.6 if squares == 1 else most)
 
 
 # -------------------------------------------------------------------- stands
@@ -359,6 +417,28 @@ def tower(b, x, y):
             b.box("lamp", (cx - 0.4, cy - 0.4, z), (cx + 0.4, cy + 0.4, z + 0.85))
 
 
+def banners(b, x0, x1, wall, out, top, kit_of):
+    """Team flags on timber poles along the top of a stand's back wall, every six metres.
+
+    They fly above the wall because anything hung on its face hides behind
+    the back rows of the crowd from this camera.
+    """
+    along_x = out[0] == 0
+    sgn = out[1] if along_x else out[0]
+    face = wall + sgn * 0.2
+    t = x0 + 3
+    while t < x1 - 2:
+        part = f"banner_{kit_of(t)}"
+        for p, (t0, t1, z0, z1, d) in (("metal", (t - 0.1, t + 0.1, top, top + 4.6, 0.1)),
+                                       ("neon_white", (t - 0.18, t + 0.18, top + 4.6, top + 4.9, 0.18)),
+                                       (part, (t + 0.1, t + 1.7, top + 2.4, top + 4.4, 0.04))):
+            if along_x:
+                b.box(p, (t0, face - d, z0), (t1, face + d, z1))
+            else:
+                b.box(p, (face - d, t0, z0), (face + d, t1, z1))
+        t += 6
+
+
 def scoreboard(b, x, y):
     """Big screen on legs in the far corner, square to the camera."""
     for k in (-1, 1):
@@ -408,6 +488,9 @@ def build(layout):
 
     near_side = -H - (5.2 * S if layout in ("facing", "corners") else 2.6)
     near_end = W + (5.2 * S if layout == "ends" else 2.6)
+    # apron out to the far stands, so no bare ground shows between boards and seats
+    b.box("apron", (far_end_front - 1, S, -0.05), (near_end, far_side_front, 0.0))
+    b.box("apron", (far_end_front, -H - S, -0.05), (-S, S, 0.0))
     span_x0, span_x1 = far_end_front - 1, near_end + 1
     # far sideline: the main stand, tall, with a roof
     d_side = stand(b, rng, far_end_front - 16, near_end + 10, far_side_front, (0, 1), 18, 0.6, half)
@@ -416,6 +499,11 @@ def build(layout):
     # near sides: a few low rows so nothing tall stands in front of the pitch
     stand(b, rng, far_end_front - 4, near_end, near_side, (0, -1), 3, 0.25, half, back=False)
     stand(b, rng, near_side, min(far_side_front, S), near_end, (1, 0), 3, 0.25, lambda t: "away", back=False)
+    if THEME["banners"]:
+        # wall tops, from stand(): base + rows * step + 1.8
+        banners(b, far_end_front - 16, near_end + 10, far_side_front + d_side, (0, 1), 0.6 + 18 * 0.48 + 1.8, half)
+        d_end = 0.3 + 14 * 0.85
+        banners(b, near_side - 10, far_side_front, far_end_front - d_end, (-1, 0), 0.6 + 14 * 0.48 + 1.8, lambda t: "home")
     tower(b, far_end_front - 16, near_side - 6)
     tower(b, near_end + 8, far_side_front + d_side + 4)
     screen = (far_end_front - 14, far_side_front + d_side + 3)
@@ -481,7 +569,7 @@ def render_layout(layout, out_dir, sizes=("lo", "hi")):
         for kind in ("color", "mask"):
             assign_pass(kind)
             scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (
-                (0.0015, 0.0012, 0.0025, 1) if kind == "color" else (0, 0, 0, 1))
+                (*THEME["background"], 1) if kind == "color" else (0, 0, 0, 1))
             scene.render.filepath = os.path.join(out_dir, f"{size}_{kind}.png")
             bpy.ops.render.render(write_still=True)
     with open(os.path.join(out_dir, "meta.json"), "w") as fh:
@@ -491,9 +579,10 @@ def render_layout(layout, out_dir, sizes=("lo", "hi")):
 
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:]
-    out, layout = args
+    out, layout = args[:2]
+    THEME = THEMES[args[2] if len(args) > 2 else "neon"]
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob)
-    g["setup_scene"](STYLE)
+    g["setup_scene"](g["STYLES"][THEME["light"]])
     make_materials()
     print("stadium", layout, render_layout(layout, os.path.join(out, layout)))

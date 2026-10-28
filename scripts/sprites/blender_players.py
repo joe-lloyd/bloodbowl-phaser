@@ -61,6 +61,17 @@ STYLES = {
                      metal=(0.2, 0.2, 0.25), skin=(0.8, 0.58, 0.52), orc_skin=(0.34, 0.66, 0.42)),
         kit=dict(human=("visor",), orc=("visor", "bald"), elf=("visor",)),
     ),
+    # Tabletop Blood Bowl: warm afternoon sun, one soft warm edge from behind.
+    "bloodbowl": dict(
+        size="lo",
+        ramp=[(0.0, (0.5, 0.44, 0.44)), (0.3, (0.84, 0.79, 0.72)), (0.7, (1.04, 1.0, 0.9))],
+        sun=dict(energy=2.8, color=(1.0, 0.95, 0.85), rot=(40, 0, 130)),
+        rims=[((0.6, 1.4, 0.3), (1.0, 0.88, 0.66))],
+        rim_width=0.72,
+        palette=dict(cloth=(0.46, 0.4, 0.32), leather=(0.4, 0.25, 0.14), boot=(0.12, 0.08, 0.06),
+                     metal=(0.42, 0.42, 0.46), skin=(0.8, 0.58, 0.52), orc_skin=(0.34, 0.66, 0.42)),
+        kit=dict(human=("cage", "number"), orc=("number", "bald")),
+    ),
     "ritual": dict(
         size="hi",
         ramp=[(0.0, (0.18, 0.21, 0.2)), (0.32, (0.48, 0.5, 0.47)), (0.72, (0.82, 0.82, 0.78))],
