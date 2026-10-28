@@ -34,7 +34,11 @@ export class Pitch {
     this.container.setDepth(5);
   }
 
-  /** A filled diamond over one square, centred on the square. */
+  /**
+   * A filled diamond over one square, centred on the square. Some rules
+   * helpers still scan a board larger than the Sevens pitch, so squares off
+   * the pitch are drawn nowhere rather than out in the stands.
+   */
   private diamond(
     gridX: number,
     gridY: number,
@@ -42,6 +46,7 @@ export class Pitch {
     alpha: number,
     inset = 0
   ): SquareMarker {
+    if (!this.isOnPitch({ x: gridX, y: gridY })) return this.offPitchMarker();
     const w = ISO.tileWidth * (1 - 2 * inset);
     const h = ISO.tileHeight * (1 - 2 * inset);
     const centre = gridToPixel(gridX, gridY);
@@ -54,6 +59,17 @@ export class Pitch {
     );
     this.container.add(shape);
     return shape;
+  }
+
+  /** An invisible stand-in for a square off the pitch, so callers keep one type. */
+  private offPitchMarker(): SquareMarker {
+    // Half alpha like a plain highlight, so clearHighlights sweeps it up too.
+    const marker = this.scene.add
+      .polygon(0, 0, [0, 0], 0, 0)
+      .setAlpha(0.5)
+      .setVisible(false);
+    this.container.add(marker);
+    return marker;
   }
 
   /**

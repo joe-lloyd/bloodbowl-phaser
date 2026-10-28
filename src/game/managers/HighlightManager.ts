@@ -1,3 +1,4 @@
+import { GameConfig } from "../../config/GameConfig";
 import { Pitch, SquareMarker } from "../elements/Pitch";
 
 /**
@@ -173,8 +174,8 @@ export class HighlightManager {
     };
 
     // Highlight all squares on the pitch with appropriate colors
-    for (let x = 0; x < 26; x++) {
-      for (let y = 0; y < 15; y++) {
+    for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
         // Skip the thrower's square
         if (x === fromX && y === fromY) continue;
 
