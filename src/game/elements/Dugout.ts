@@ -71,7 +71,9 @@ export class Dugout {
     );
     this.playerSprites.forEach((sprite) => sprite.setVisible(false));
 
-    for (const box of Object.keys(BOX_SQUARES) as (keyof typeof BOX_SQUARES)[]) {
+    for (const box of Object.keys(
+      BOX_SQUARES
+    ) as (keyof typeof BOX_SQUARES)[]) {
       const players = this.team.players.filter((p) => playerBoxOf(p) === box);
       const slots = this.squares[BOX_SQUARES[box]];
       players.forEach((player, index) => {
@@ -110,7 +112,9 @@ export class Dugout {
         sprite.setPosition(at.x, at.y);
       }
     }
-    sprite.setDugoutPose(box === "ko" || box === "casualty" ? "lying" : "standing");
+    sprite.setDugoutPose(
+      box === "ko" || box === "casualty" ? "lying" : "standing"
+    );
     sprite.setVisible(true);
   }
 
@@ -146,7 +150,10 @@ export class Dugout {
 
     // This FIRST setInteractive decides the hit area forever (Phaser ignores
     // hit areas on re-enable), so it must be the right one.
-    sprite.setInteractive(playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
+    sprite.setInteractive(
+      playerHitArea(sprite),
+      Phaser.Geom.Rectangle.Contains
+    );
     sprite.input!.cursor = "pointer";
     this.scene.input.setDraggable(sprite);
 

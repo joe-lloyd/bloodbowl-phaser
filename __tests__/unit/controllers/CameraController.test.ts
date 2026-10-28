@@ -111,7 +111,12 @@ describe("CameraController", () => {
   it("follows a moving object and stops when asked", () => {
     const ball = {};
     ctx.controller.follow(ball as never);
-    expect(ctx.camera.startFollow).toHaveBeenCalledWith(ball, false, 0.08, 0.08);
+    expect(ctx.camera.startFollow).toHaveBeenCalledWith(
+      ball,
+      false,
+      0.08,
+      0.08
+    );
     ctx.controller.stopFollow();
     expect(ctx.camera.stopFollow).toHaveBeenCalled();
   });

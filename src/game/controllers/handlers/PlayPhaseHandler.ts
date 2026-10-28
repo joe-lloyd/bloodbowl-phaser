@@ -364,7 +364,9 @@ export class PlayPhaseHandler implements PhaseHandler {
   }
 
   /** A pass: an arc from the thrower's hands, higher the longer the throw. */
-  private handlePassAnimation(data: any): void {
+  private handlePassAnimation(
+    data: GameEventMap[GameEventNames.PassAttempted]
+  ): void {
     if (!this.scene["ballSprite"]) return;
     this.scene["placeBallVisual"](data.from.x, data.from.y, CARRIED_HEIGHT);
     const ball = this.scene["ballSprite"] as BallSprite;
@@ -442,7 +444,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y =
+          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),

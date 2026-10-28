@@ -79,52 +79,82 @@
 
 ### Canvas Configuration
 
-- **Base dimensions**: 1920x1080 (16:9 aspect ratio)
-- **Scale mode**: FIT (maintains aspect ratio)
-- **Positioning**: Centered both horizontally and vertically
+- **Renderer**: WebGL. Team kits are tinted onto sprites and the stadium at
+  runtime, which the canvas renderer cannot do.
+- **Size**: the canvas fills the window (`Phaser.Scale.RESIZE`), with
+  `pixelArt` on so the pre-rendered art scales by whole pixels.
+- **Camera**: `CameraController` frames the board. The overview fits the
+  pitch and both dugouts; selecting a player, a move, a pass or a kick-off
+  closes in on the action. The mouse wheel zooms around the cursor and a
+  right- or middle-button drag pans. A manual move holds the camera until
+  the next turn or selection; `0` or `1` returns to the overview.
 
 ### React Overlay
 
-- **Position**: Fixed, full viewport
+- **Position**: Fixed, full viewport, over the canvas
 - **Pointer events**: Only on interactive elements
-- **Z-index**: 1000 (above canvas)
+- **Layout**: floating stacks in the four corners (`HUDLayout`): the score
+  top left, match options and the kick-off panel top right, the player card
+  and dice log bottom left, the action menu and End Turn bottom right. The
+  middle of the screen is left to the board.
+- **Loading**: `LoadingScreen` covers the window with both team names in
+  their colours until the stadium and sprites have loaded.
 
-### Responsive Strategy
+## The isometric board
 
-- Canvas scales proportionally using Phaser.Scale.FIT
-- React UI uses viewport units and matches canvas bounds
-- Both canvas and UI center together for perfect alignment
+The match is drawn isometrically with the same camera the art was rendered
+with in Blender: orthographic, 30 degrees above the ground, turned 45
+degrees. A grid square is 2.8 m and the art is 25 px per metre, so a
+square is a 99 x 49.5 px diamond. Grid x runs down-right on screen and grid y
+down-left.
 
-## Match Presentation Themes
+- `gridToPixel` and `pixelToGrid` in `GridUtils.ts` are the only projection.
+  Everything that turns a square into a screen point, or a click into a
+  square, goes through them (`Pitch.getPixelPosition`, `Pitch.worldToGrid`).
+- `Stadium` draws the pre-rendered backdrop: grass, lines, end zones, stands,
+  crowd and both dugouts' boxes. Its `meta.json` says where the far corner of
+  square (0, 0) lands in the image, which is where `Pitch` puts its overlay
+  container.
+- `Pitch` draws only what changes in play: highlights, reach, paths, pass
+  previews, tackle zones. Squares are diamonds.
+- Players and the ball depth-sort by screen y, so nearer figures overlap
+  farther ones.
 
-The pitch and dugouts share one fixed presentation catalog in
-`src/game/presentation/pitchThemes.ts`. The starter themes are Classic Grass,
-Midden Mud, Doomdome Astro, and Ash Wastes.
+## Match styles
 
-- A theme may change only surface, zone, line, and dugout colours/details.
-- `GameConfig.PITCH_WIDTH`, `PITCH_HEIGHT`, `SQUARE_SIZE`, offsets, and
-  `gridToPixel`/`pixelToGrid` remain the geometry source of truth.
-- All themes render from Phaser primitives. Optional texture keys are overlays
-  and must never be required for a usable field.
-- The surface stays low contrast behind players and the ball; grid and major
-  setup lines remain the strongest pitch marks.
-- End zones use distinct cool/warm treatments, wide zones have a restrained
-  tint, and the centre/setup lines retain clear hierarchy.
+A match style is a pre-rendered stadium, a render of every player model in
+that style's light, and a few colours for what Phaser draws on top. The
+catalogue is `src/game/presentation/pitchThemes.ts`; the id is still called a
+pitch theme because saves and online lobbies store it under that name.
 
-The shared React `PitchThemePicker` is used for local match setup and the
-online lobby. Online guests display the host's persisted lobby setting.
+- **Blood Bowl** (the default): a timber and stone ground on a sunny
+  afternoon, team flags over the stands, serif labels on the dugouts.
+- **Neon**: a night-club arena with black turf, glowing lines and bloom.
 
-### Dugout and sideline
+Both styles share the board geometry, so a style changes only how the match
+looks. Ids from before the styles (classic, mud, astro, wasteland) load as
+the default. The shared `PitchThemePicker` shows a thumbnail of each stadium
+for local match setup and the online lobby; online guests display the host's
+choice.
 
-Each dugout spans the same 1200px width as the pitch. The existing 1020px
-reserve/KO/casualty section block keeps its original world coordinates; the
-remaining 180px is a non-interactive sideline staff rail.
+### Players
 
-- Reserves use the team primary colour.
-- KO and casualty sections use theme-specific amber/red accents.
-- Assistant coaches, cheerleaders, the apothecary, and dedicated fans render
-  as compact primitive sprites in the staff rail.
-- Visible staff are capped per type, and staff never overlap player slots.
+Each roster position maps to a model in
+`src/game/presentation/spriteManifest.json`, generated by
+`scripts/sprites/build_game_assets.py`. A model is rendered in eight facings
+with idle, run and fall animations, and split into three layers: the figure,
+and its primary and secondary kit pixels in grey, which Phaser tints with the
+team's colours. `PlayerSprite` stacks the three layers, runs while moving,
+plays the fall when a player goes down and lies there while prone or stunned.
+`PlayerPortrait` draws the same art in React for the team builder and roster.
+
+### Dugouts
+
+Each team's dugout is baked into the stadium: reserves (4 x 3 squares), KO
+(3 x 3), injured (3 x 3) and sent off (1 x 3), on the same squares as the
+pitch. Team 1's is on the far touchline in its own half, team 2's on the near
+touchline in its own half, so the benches sit at opposite corners. Reserves
+stand facing the pitch; KO'd and injured players lie in their boxes.
 
 ## Fantasy Theme Elements
 

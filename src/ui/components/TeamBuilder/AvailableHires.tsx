@@ -78,9 +78,7 @@ export function AvailableHires({
                     <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
                       <span className="cursor-help underline decoration-dotted">
                         {skill.type}
-                        {skill.parameter != null
-                          ? ` (${skill.parameter})`
-                          : ""}
+                        {skill.parameter != null ? ` (${skill.parameter})` : ""}
                       </span>
                     </Tooltip>
                     {index < template.skills.length - 1 ? "," : ""}

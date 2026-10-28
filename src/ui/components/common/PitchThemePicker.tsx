@@ -27,9 +27,7 @@ export function PitchThemePicker({
     <div
       role="group"
       aria-label="Match style"
-      className={`grid gap-3 ${
-        compact ? "grid-cols-2" : "sm:grid-cols-2"
-      }`}
+      className={`grid gap-3 ${compact ? "grid-cols-2" : "sm:grid-cols-2"}`}
     >
       {PITCH_THEMES.map((theme) => {
         const active = selected === theme.id;

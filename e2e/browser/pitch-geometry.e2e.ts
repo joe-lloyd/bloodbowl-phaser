@@ -100,6 +100,7 @@ test.describe("pitch geometry and the test bridge", () => {
     );
     expect(surface).not.toContain("execute");
     expect(surface).toEqual([
+      "cameraMoving",
       "canvasSize",
       "events",
       "pendingDecision",

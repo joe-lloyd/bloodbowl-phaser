@@ -7,10 +7,7 @@ import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { jumpTargets, JumpTarget } from "../rules/jump";
-import {
-  GameConfig,
-  isKickingTeamTerritory,
-} from "../../config/GameConfig";
+import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
@@ -294,7 +291,10 @@ export class GameplayInteractionController {
     // so a late rejection needs a way to tell whether anything local has
     // moved on since (see onNetworkCommandRejected).
     this.interactionSeq++;
-    this.pendingCancelSeqByPlayer.set(this.selectedPlayerId, this.interactionSeq);
+    this.pendingCancelSeqByPlayer.set(
+      this.selectedPlayerId,
+      this.interactionSeq
+    );
 
     // Notify UI to show default menu again
     // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
@@ -2093,7 +2093,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
-    this.eventBus.off(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
+    this.eventBus.off(
+      GameEventNames.PlayerRemoved,
+      this.kickoffStepSyncHandler
+    );
     this.eventBus.off(
       GameEventNames.PlayerSelected,
       this.kickoffPlayerSelectedHandler
@@ -2441,7 +2444,7 @@ export class GameplayInteractionController {
             Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
             Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
           ) === 1
-        );
+      );
     });
 
     if (step.event === KickoffEvent.SOLID_DEFENCE && canAct) {

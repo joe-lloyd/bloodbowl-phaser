@@ -17,7 +17,11 @@ const css = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
  * fades away. GameScene reports loader progress, and 1 once the board is
  * built.
  */
-export function LoadingScreen({ eventBus, teams, styleId }: LoadingScreenProps) {
+export function LoadingScreen({
+  eventBus,
+  teams,
+  styleId,
+}: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [gone, setGone] = useState(false);
   const style = resolvePitchTheme(styleId);

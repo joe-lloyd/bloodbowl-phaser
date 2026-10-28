@@ -90,12 +90,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.selectionRing = scene.add.ellipse(0, 0, RING.w + 6, RING.h + 3);
     this.selectionRing.setStrokeStyle(4, 0xffff00);
     this.selectionRing.setVisible(false);
-    this.remoteSelectionRing = scene.add.ellipse(
-      0,
-      0,
-      RING.w + 14,
-      RING.h + 7
-    );
+    this.remoteSelectionRing = scene.add.ellipse(0, 0, RING.w + 14, RING.h + 7);
     this.remoteSelectionRing.setStrokeStyle(3, 0xff3b30);
     this.remoteSelectionRing.setVisible(false);
     this.carrierMarker = scene.add.ellipse(0, 0, RING.w - 10, RING.h - 5);
@@ -123,7 +118,6 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     });
     this.numberText.setOrigin(0.5, 0);
     this.add(this.numberText);
-
 
     this.distractedMarker = scene.add.container(0, this.headY - 12);
     const swirl = scene.add.circle(0, 0, 8, 0x9b59b6);
@@ -162,12 +156,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     const art = modelArt(this.model);
     const base = textureKey(this.look.style, this.model, "base");
     if (!this.scene.textures.exists(base)) {
-      const token = this.scene.add.circle(
-        0,
-        -18,
-        16,
-        this.look.colors.primary
-      );
+      const token = this.scene.add.circle(0, -18, 16, this.look.colors.primary);
       token.setStrokeStyle(2, 0xffffff);
       this.figure.add(token);
       this.headY = -36;
@@ -320,9 +309,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     }
     // Down-state rings are status information, not turn information, so
     // they stay visible even when no team turn is running (kick-off).
-    this.teamTurnBorder.setVisible(
-      this.teamTurnBorderVisible || this.isDown()
-    );
+    this.teamTurnBorder.setVisible(this.teamTurnBorderVisible || this.isDown());
   }
 
   /**

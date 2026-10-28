@@ -1,10 +1,7 @@
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
-import {
-  GameEventMap,
-  IEventBus,
-} from "../../../services/EventBus";
+import { GameEventMap, IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { BallSprite } from "../../elements/BallSprite";
 
@@ -88,54 +85,48 @@ export class KickoffPhaseHandler implements PhaseHandler {
     });
 
     // Kickoff: Ball kicked animation
-    this.register(
-      GameEventNames.BallKicked,
-      (data) => {
-        // Logic matched from SceneOrchestrator
-        let startX = data.targetX;
-        let startY = data.targetY;
+    this.register(GameEventNames.BallKicked, (data) => {
+      // Logic matched from SceneOrchestrator
+      let startX = data.targetX;
+      let startY = data.targetY;
 
-        if (data.playerId && this.scene["playerSprites"].has(data.playerId)) {
-          const kicker = this.gameService.getPlayerById(data.playerId);
-          if (kicker && kicker.gridPosition) {
-            startX = kicker.gridPosition.x;
-            startY = kicker.gridPosition.y;
-          }
+      if (data.playerId && this.scene["playerSprites"].has(data.playerId)) {
+        const kicker = this.gameService.getPlayerById(data.playerId);
+        if (kicker && kicker.gridPosition) {
+          startX = kicker.gridPosition.x;
+          startY = kicker.gridPosition.y;
         }
-
-        this.scene["placeBallVisual"](startX, startY, 0.3);
-        this.kickoffSceneState().pendingKickoffData = data;
-        this.ballIsAirborne = true;
-
-        // The kick: the ball climbs high and comes to hang over the square
-        // it deviated to while the kick-off table (including interactive
-        // steps) resolves; the shadow on the turf marks the landing. The
-        // camera rides along with it.
-        const ball = this.ball();
-        if (!ball) return;
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite: ball,
-          animationDuration: 1400,
-        });
-        void ball.flyTo(
-          this.scene["pitch"].getPixelPosition(data.finalX, data.finalY),
-          {
-            duration: 1400,
-            apex: 6,
-            endHeight: KickoffPhaseHandler.HANG_HEIGHT,
-            ease: "Sine.easeOut",
-          }
-        );
       }
-    );
 
-    this.register(
-      GameEventNames.KickoffAirbornePositionChanged,
-      ({ x, y }) => {
-        if (!this.ballIsAirborne) return;
-        this.moveAirborneBallTo(x, y);
-      }
-    );
+      this.scene["placeBallVisual"](startX, startY, 0.3);
+      this.kickoffSceneState().pendingKickoffData = data;
+      this.ballIsAirborne = true;
+
+      // The kick: the ball climbs high and comes to hang over the square
+      // it deviated to while the kick-off table (including interactive
+      // steps) resolves; the shadow on the turf marks the landing. The
+      // camera rides along with it.
+      const ball = this.ball();
+      if (!ball) return;
+      this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+        ballSprite: ball,
+        animationDuration: 1400,
+      });
+      void ball.flyTo(
+        this.scene["pitch"].getPixelPosition(data.finalX, data.finalY),
+        {
+          duration: 1400,
+          apex: 6,
+          endHeight: KickoffPhaseHandler.HANG_HEIGHT,
+          ease: "Sine.easeOut",
+        }
+      );
+    });
+
+    this.register(GameEventNames.KickoffAirbornePositionChanged, ({ x, y }) => {
+      if (!this.ballIsAirborne) return;
+      this.moveAirborneBallTo(x, y);
+    });
 
     // Interactive kickoff events mutate normal player state while the play
     // phase handler is not installed. Mirror its board/status listeners here
@@ -202,25 +193,22 @@ export class KickoffPhaseHandler implements PhaseHandler {
 
     // Kickoff Result: one durable log entry carrying the roll, the named
     // event, and what it does — including what each team actually received.
-    this.register(
-      GameEventNames.KickoffResult,
-      (data) => {
-        const effects = Object.entries(data.outcome.perTeam)
-          .flatMap(([teamId, lines]) =>
-            lines.map(
-              (line) =>
-                `${this.gameService.getTeam(teamId)?.name ?? teamId}: ${line}`
-            )
+    this.register(GameEventNames.KickoffResult, (data) => {
+      const effects = Object.entries(data.outcome.perTeam)
+        .flatMap(([teamId, lines]) =>
+          lines.map(
+            (line) =>
+              `${this.gameService.getTeam(teamId)?.name ?? teamId}: ${line}`
           )
-          .join("; ");
-        this.eventBus.emit(GameEventNames.UI_LogEntry, {
-          category: "kickoff",
-          headline: data.event,
-          detail: effects ? `${data.meaning} ${effects}` : data.meaning,
-          roll: data.roll,
-        });
-      }
-    );
+        )
+        .join("; ");
+      this.eventBus.emit(GameEventNames.UI_LogEntry, {
+        category: "kickoff",
+        headline: data.event,
+        detail: effects ? `${data.meaning} ${effects}` : data.meaning,
+        roll: data.roll,
+      });
+    });
 
     this.register(GameEventNames.KickoffSequenceCompleted, () => {
       this.ballIsAirborne = false;

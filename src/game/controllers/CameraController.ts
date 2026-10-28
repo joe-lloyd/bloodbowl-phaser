@@ -138,7 +138,12 @@ export class CameraController {
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
     if (this.manual) return;
     this.following = target;
-    this.camera.zoomTo(zoom ?? this.actionZoom() * 0.85, 400, "Sine.easeOut", true);
+    this.camera.zoomTo(
+      zoom ?? this.actionZoom() * 0.85,
+      400,
+      "Sine.easeOut",
+      true
+    );
     this.camera.startFollow(target, false, 0.08, 0.08);
     this.publishState("active", 400);
   }
@@ -196,8 +201,10 @@ export class CameraController {
     const onMove = (pointer: Phaser.Input.Pointer) => {
       if (!pointer.rightButtonDown() && !pointer.middleButtonDown()) return;
       this.takeOver();
-      this.camera.scrollX -= (pointer.x - pointer.prevPosition.x) / this.camera.zoom;
-      this.camera.scrollY -= (pointer.y - pointer.prevPosition.y) / this.camera.zoom;
+      this.camera.scrollX -=
+        (pointer.x - pointer.prevPosition.x) / this.camera.zoom;
+      this.camera.scrollY -=
+        (pointer.y - pointer.prevPosition.y) / this.camera.zoom;
     };
     input.on("wheel", onWheel);
     input.on("pointermove", onMove);

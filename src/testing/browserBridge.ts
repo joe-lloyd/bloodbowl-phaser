@@ -44,18 +44,25 @@ export interface BrowserTestBridge {
   /** The decision the game is waiting on, if any. */
   pendingDecision(): PendingDecision | null;
   /** Current phase / sub-phase, without parsing the snapshot. */
-  phase(): { phase: string; subPhase: string | null; activeTeamId: string | null };
+  phase(): {
+    phase: string;
+    subPhase: string | null;
+    activeTeamId: string | null;
+  };
   /** The Phaser scene keys currently active, for scene-transition assertions. */
   scenes(): string[];
   /** Both teams in `team1`, `team2` order, for stable reference resolution. */
   teams(): [BridgeTeam, BridgeTeam];
   /**
-   * The centre of a grid square in Phaser canvas coordinates, straight from
-   * the live `Pitch`. The E2E pitch page object converts this to a viewport
-   * point, so canvas clicks use the game's own geometry rather than a second
-   * copy of the offset arithmetic. Null before a pitch exists.
+   * The centre of a grid square in canvas coordinates: the live `Pitch`'s
+   * world position, through the match camera's current scroll and zoom. The
+   * E2E pitch page object converts this to a viewport point, so canvas
+   * clicks use the game's own geometry rather than a second copy of the
+   * projection. Null before a pitch exists.
    */
   squareToCanvas(gridX: number, gridY: number): { x: number; y: number } | null;
+  /** True while the match camera is panning or zooming, when canvas points move. */
+  cameraMoving(): boolean;
   /**
    * The *live* design-space canvas size. Deliberately read from the running
    * Phaser scale manager rather than `GameConfig`: the scale manager fits the
@@ -108,9 +115,19 @@ function cloneTeam(team: HeadlessGameContext["team1"]): BridgeTeam {
 }
 
 /** The shape of a running scene the bridge is willing to look at. */
+interface BridgeCamera {
+  zoom: number;
+  worldView: { x: number; y: number };
+  panEffect: { isRunning: boolean };
+  zoomEffect: { isRunning: boolean };
+}
+
 interface BridgeScene {
   scene: { key: string };
-  getPitch?: () => { getPixelPosition(x: number, y: number): { x: number; y: number } } | undefined;
+  cameras?: { main?: BridgeCamera };
+  getPitch?: () =>
+    | { getPixelPosition(x: number, y: number): { x: number; y: number } }
+    | undefined;
 }
 
 interface BridgePhaserGame {
@@ -144,7 +161,8 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
   const bridge: BrowserTestBridge = {
     version: TEST_BRIDGE_VERSION,
     snapshot: () => structuredClone(game.snapshot()),
-    events: (sinceIndex = 0) => structuredClone(game.events().slice(sinceIndex)),
+    events: (sinceIndex = 0) =>
+      structuredClone(game.events().slice(sinceIndex)),
     pendingDecision: () => structuredClone(game.pendingDecision()),
     phase: () => {
       const snapshot = game.snapshot();
@@ -159,10 +177,22 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
     squareToCanvas: (gridX, gridY) => {
       for (const scene of activeScenes()) {
         const pitch = scene.getPitch?.();
-        if (pitch) return { ...pitch.getPixelPosition(gridX, gridY) };
+        if (!pitch) continue;
+        const world = pitch.getPixelPosition(gridX, gridY);
+        const cam = scene.cameras?.main;
+        if (!cam) return { ...world };
+        return {
+          x: (world.x - cam.worldView.x) * cam.zoom,
+          y: (world.y - cam.worldView.y) * cam.zoom,
+        };
       }
       return null;
     },
+    cameraMoving: () =>
+      activeScenes().some((scene) => {
+        const cam = scene.cameras?.main;
+        return !!cam && (cam.panEffect.isRunning || cam.zoomEffect.isRunning);
+      }),
     canvasSize: () => {
       const scale = phaserGame()?.scale;
       return {

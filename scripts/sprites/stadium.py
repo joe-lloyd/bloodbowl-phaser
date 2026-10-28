@@ -356,6 +356,11 @@ def stand(b, rng, x0, x1, front, out, rows, base, kit_of, back=True):
     depth = 0.3 + rows * tread
     top = base + rows * step
     if back:
+        # team cloths draped over the front wall, toward the pitch
+        t = x0 + 4
+        while t < x1 - 3:
+            place(t - 1.3, t + 1.3, -0.08, -0.02, 0.15, base + 0.46, f"banner_{kit_of(t) or 'home'}")
+            t += 9
         place(x0, x1, depth, depth + 0.4, 0, top + 1.8, "wall")
         place(x0, x1, depth - 0.02, depth + 0.4, top + 1.7, top + 1.8, "neon_pink" if sgn > 0 else "neon_cyan")
     return depth
@@ -369,10 +374,60 @@ def fan(b, rng, place, t0, t1, d0, z, kit):
     lean = rng.uniform(-0.05, 0.08)
     place(c - 0.21, c + 0.21, d0 + 0.42 + lean, d0 + 0.72 + lean, z + 0.3, z + 0.86, shirt)
     place(c - 0.12, c + 0.12, d0 + 0.45 + lean, d0 + 0.69 + lean, z + 0.86, z + 1.12, skin)
-    if rng.random() < 0.3:
+    roll = rng.random()
+    if roll < 0.06 and kit:
+        # a team flag on a pole, held up over the heads in front
+        place(c + 0.18, c + 0.24, d0 + 0.5, d0 + 0.56, z + 0.8, z + 2.4, "metal")
+        place(c + 0.24, c + 0.95, d0 + 0.5, d0 + 0.54, z + 1.9, z + 2.4, f"banner_{kit}")
+    elif roll < 0.34:
         for sx in (-1, 1):
             a = c + sx * 0.24
             place(a - 0.05, a + 0.05, d0 + 0.5, d0 + 0.6, z + 0.75, z + 1.3, shirt)
+
+
+def corner(b, rng, cx, cy, sx, sy, rows, base, kit, back=True):
+    """Seating that wraps the corner where two stands meet, at (cx, cy).
+
+    The stands run away from the corner along +-X and +-Y; (sx, sy) points
+    into the corner square between them. Each row is an L-shaped band, so it
+    lines up with the same row of both stands and the rake turns the corner
+    instead of stopping short or overlapping.
+    """
+    tread, step = 0.85, 0.48
+
+    def at(dx0, dx1, dy0, dy1, z0, z1, part):
+        b.box(part, (cx + sx * dx0, cy + sy * dy0, z0), (cx + sx * dx1, cy + sy * dy1, z1))
+
+    at(0, 0.3, 0, 0.3, 0, base + 0.5, "wall")
+    for r in range(rows):
+        a0 = 0.3 + r * tread
+        a1 = a0 + tread
+        z = base + r * step
+        # leg A runs along y out to the band's outer edge; leg B along x up to its inner edge
+        for dx0, dx1, dy0, dy1 in ((a0, a1, 0, a1), (0, a0, a0, a1)):
+            at(dx0, dx1, dy0, dy1, 0, z, "riser")
+            at(dx0, dx1, dy0, dy1, z, z + 0.04, "concrete")
+        seat = {"home": "seat_home", "away": "seat_away"}.get(kit, "seat")
+        legs = (
+            (a1, lambda t0, t1, d0, d1, z0, z1, part: at(d0, d1, t0, t1, z0, z1, part)),
+            (a0, lambda t0, t1, d0, d1, z0, z1, part: at(t0, t1, d0, d1, z0, z1, part)),
+        )
+        for length, place in legs:
+            t = 0.35
+            while t < length - 0.5:
+                place(t, t + 0.5, a0 + 0.35, a0 + 0.75, z + 0.04, z + 0.3, seat)
+                place(t, t + 0.5, a0 + 0.68, a0 + 0.78, z + 0.3, z + 0.7, seat)
+                if rng.random() < 0.82:
+                    fan(b, rng, place, t, t + 0.5, a0, z, kit)
+                t += 0.62
+    depth = 0.3 + rows * tread
+    top = base + rows * step
+    if back:
+        lip = "neon_pink"
+        at(depth, depth + 0.4, 0, depth + 0.4, 0, top + 1.8, "wall")
+        at(0, depth, depth, depth + 0.4, 0, top + 1.8, "wall")
+        at(depth - 0.02, depth + 0.4, 0, depth + 0.4, top + 1.7, top + 1.8, lip)
+        at(0, depth, depth - 0.02, depth + 0.4, top + 1.7, top + 1.8, lip)
 
 
 def boards(b, x0, x1, at, normal, sponsors):
@@ -491,19 +546,28 @@ def build(layout):
     # apron out to the far stands, so no bare ground shows between boards and seats
     b.box("apron", (far_end_front - 1, S, -0.05), (near_end, far_side_front, 0.0))
     b.box("apron", (far_end_front, -H - S, -0.05), (-S, S, 0.0))
-    span_x0, span_x1 = far_end_front - 1, near_end + 1
-    # far sideline: the main stand, tall, with a roof
-    d_side = stand(b, rng, far_end_front - 16, near_end + 10, far_side_front, (0, 1), 18, 0.6, half)
-    # far end: home end behind the home end zone
-    stand(b, rng, near_side - 10, far_side_front, far_end_front, (-1, 0), 14, 0.6, lambda t: "home")
-    # near sides: a few low rows so nothing tall stands in front of the pitch
-    stand(b, rng, far_end_front - 4, near_end, near_side, (0, -1), 3, 0.25, half, back=False)
-    stand(b, rng, near_side, min(far_side_front, S), near_end, (1, 0), 3, 0.25, lambda t: "away", back=False)
+    # The bowl around the pitch: tall stands on the two far sides, joined by
+    # a corner section; a few low rows on the near sides, which would
+    # otherwise stand between the camera and the pitch; low corners between.
+    XL, XR, YB, YT = far_end_front, near_end, near_side, far_side_front
+    TALL, LOW = 16, 3
+    home, away = (lambda t: "home"), (lambda t: "away")
+    d_side = stand(b, rng, XL, XR, YT, (0, 1), TALL, 0.6, half)
+    stand(b, rng, YB, YT, XL, (-1, 0), TALL, 0.6, home)
+    corner(b, rng, XL, YT, -1, 1, TALL, 0.6, "home")
+    stand(b, rng, XL, XR, YB, (0, -1), LOW, 0.25, half, back=False)
+    # the near end stand stops short of a far-side dugout that reaches past the end line
+    near_end_top = YT if layout in ("corners", "facing") else min(YT, S)
+    stand(b, rng, YB, near_end_top, XR, (1, 0), LOW, 0.25, away, back=False)
+    corner(b, rng, XL, YB, -1, -1, LOW, 0.25, "home", back=False)
+    corner(b, rng, XR, YB, 1, -1, LOW, 0.25, "away", back=False)
+    if near_end_top == YT:
+        corner(b, rng, XR, YT, 1, 1, LOW, 0.25, "away", back=False)
     if THEME["banners"]:
         # wall tops, from stand(): base + rows * step + 1.8
-        banners(b, far_end_front - 16, near_end + 10, far_side_front + d_side, (0, 1), 0.6 + 18 * 0.48 + 1.8, half)
-        d_end = 0.3 + 14 * 0.85
-        banners(b, near_side - 10, far_side_front, far_end_front - d_end, (-1, 0), 0.6 + 14 * 0.48 + 1.8, lambda t: "home")
+        top = 0.6 + TALL * 0.48 + 1.8
+        banners(b, XL, XR, YT + d_side, (0, 1), top, half)
+        banners(b, YB, YT, XL - d_side, (-1, 0), top, home)
     tower(b, far_end_front - 16, near_side - 6)
     tower(b, near_end + 8, far_side_front + d_side + 4)
     screen = (far_end_front - 14, far_side_front + d_side + 3)

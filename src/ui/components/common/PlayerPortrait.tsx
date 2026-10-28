@@ -90,8 +90,7 @@ export function PlayerPortrait({
     // Crop to the standing figure, square, with a pixel of air around it.
     const first = layers[0].frames[frameName("idle", "se", 0)];
     if (!first) return;
-    const side =
-      Math.max(first.frame.w, first.frame.h) + 4;
+    const side = Math.max(first.frame.w, first.frame.h) + 4;
     const ox = first.spriteSourceSize.x + first.frame.w / 2 - side / 2;
     const oy = first.spriteSourceSize.y + first.frame.h - side + 2;
     el.width = el.height = side;

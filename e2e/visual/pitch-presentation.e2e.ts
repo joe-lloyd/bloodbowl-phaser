@@ -40,7 +40,9 @@ test.describe("pitch presentation @visual", () => {
     });
   });
 
-  test("a scenario-case board, with its own committed seed", async ({ page }) => {
+  test("a scenario-case board, with its own committed seed", async ({
+    page,
+  }) => {
     const app = new GameApp(page);
     await app.sandbox.open({
       scenario: scenarioCase.id,
@@ -88,47 +90,22 @@ test.describe("pitch presentation @visual", () => {
   });
 });
 
-test.describe("pitch themes @visual", () => {
-  // One baseline per registered theme: the themes are the presentation
-  // contract most likely to drift, and each is cheap to capture.
+test.describe("match styles @visual", () => {
+  // One baseline per match style: each is a different stadium render and
+  // sprite set, so each is its own presentation contract.
   for (const theme of PITCH_THEMES) {
-    test(`theme: ${theme.id}`, async ({ page }) => {
+    test(`style: ${theme.id}`, async ({ page }) => {
       const app = new GameApp(page);
       const url = `/sand-box?scenario=basic-scrimmage&seed=1&theme=${theme.id}`;
       await page.goto(url);
       await app.pitch.waitForCanvas();
-
-      // A theme's optional texture overlay is only added if the texture has
-      // already loaded when `Pitch` is constructed, so a cold first visit can
-      // legitimately render without it. Wait for the texture, then reload:
-      // the second visit builds the pitch from cache and is deterministic.
-      const textureKey = theme.surface.textureKey;
-      if (textureKey) {
-        await page
-          .waitForFunction(
-            (key) =>
-              (
-                window as unknown as {
-                  game?: { textures?: { exists(k: string): boolean } };
-                }
-              ).game?.textures?.exists(key) === true,
-            textureKey,
-            { timeout: 15_000 }
-          )
-          .catch(() => {
-            // A theme with no shipped binary keeps its primitive fallback,
-            // which is itself a stable baseline — carry on either way.
-          });
-        await page.goto(url);
-        await app.pitch.waitForCanvas();
-      }
 
       await app.sandbox.waitForScenarioLoaded();
       const snapshot = await app.bridge.snapshot();
       expect(snapshot.teams[0].players[0].position).toEqual({ x: 9, y: 5 });
 
       await freezeAnimation(page);
-      await expectVisualCheckpoint(page, `pitch-theme-${theme.id}`, page, {
+      await expectVisualCheckpoint(page, `match-style-${theme.id}`, page, {
         clip: await app.pitch.pitchViewportRect(),
       });
     });

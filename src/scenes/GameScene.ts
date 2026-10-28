@@ -770,7 +770,10 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
+      sprite.setInteractive(
+        playerHitArea(sprite),
+        Phaser.Geom.Rectangle.Contains
+      );
       this.input.setDraggable(sprite);
 
       sprite.on("dragstart", () => {
@@ -815,7 +818,10 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
+      sprite.setInteractive(
+        playerHitArea(sprite),
+        Phaser.Geom.Rectangle.Contains
+      );
       this.input.setDraggable(sprite);
 
       // Hover shows the info panel the same way the dugout does; it clears
@@ -1117,7 +1123,10 @@ export class GameScene extends Phaser.Scene {
    */
   public reconcileBallVisual(): void {
     const players = [...this.team1.players, ...this.team2.players];
-    const ball = resolveBallRepresentation(this.gameService.getState(), players);
+    const ball = resolveBallRepresentation(
+      this.gameService.getState(),
+      players
+    );
 
     if (ball.kind === "none") {
       this.ballSprite?.destroy();
