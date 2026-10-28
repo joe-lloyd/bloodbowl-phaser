@@ -150,12 +150,13 @@ describe("online host resume", () => {
       seed: 5,
     });
     const gameService = ServiceContainer.getInstance().gameService;
-    const flushed = () => new Promise((resolve) => setTimeout(resolve, 400));
+    const flushed = () => new Promise((resolve) => setTimeout(resolve, 200));
 
     saves.turns.length = 0;
     // The host's turn (team1 is active): ending it is the host's command
     gameService.endTurn();
-    await flushed();
+    // The command waits for the engine's paced flow before it runs
+    for (let i = 0; i < 25 && saves.turns.length === 0; i++) await flushed();
 
     expect(saves.turns.length).toBe(1);
     match.close();

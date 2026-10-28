@@ -1,3 +1,4 @@
+import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase, TurnData } from "@/types/GameState";
 import { Team } from "@/types/Team";
@@ -42,8 +43,7 @@ export class TurnManager {
       /** Fired as a turn ends, before the next begins (Pick-Me-Up). */
       onTurnEnding?: (endingTeamId: string) => void;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
-      new Promise((resolve) => setTimeout(resolve, ms))
+    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.turnCounts[team1.id] = 0;
     this.turnCounts[team2.id] = 0;

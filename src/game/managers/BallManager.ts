@@ -1,3 +1,4 @@
+import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { Team } from "@/types/Team";
@@ -63,8 +64,7 @@ export class BallManager {
       /** Changing Weather / Perfect Conditions adds Scatter (3). */
       consumeWeatherScatterPending?: () => boolean;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
-      new Promise((resolve) => setTimeout(resolve, ms))
+    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     // Instantiate controllers with DiceController
     this.movementController = new BallMovementController(this.diceController);
