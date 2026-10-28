@@ -479,9 +479,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         }
       },
       onHello: checkHello,
-      // The guest's command response already carries these events
-      onGuestExecuteStart: () => broadcaster.pause(),
-      onGuestExecuteEnd: () => broadcaster.resume(),
+      // A command's response already carries the events it emitted
+      onExecuteStart: () => broadcaster.pause(),
+      onExecuteEnd: () => broadcaster.resume(),
       // The guest's own-team selection changed — mirror it as a local
       // "remote selection" indicator, never as engine state. The guest
       // could claim any playerId, so verify it actually belongs to the
@@ -504,12 +504,11 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     );
 
     /** Host decision replies go through the protocol so pending-decision
-     *  state stays consistent; the broadcast inside executeLocal already
-     *  delivers the events, so the broadcaster pauses meanwhile. */
+     *  state stays consistent; the broadcast inside executeLocal delivers
+     *  the events. */
     const executeOnHost = async (
       command: HeadlessCommand
     ): Promise<CommandResponse> => {
-      broadcaster.pause();
       try {
         const response = await session.executeLocal(command);
         if (!response.ok) {
@@ -519,7 +518,6 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         }
         return response;
       } finally {
-        broadcaster.resume();
         persistSoon();
       }
     };

@@ -171,4 +171,34 @@ describe("online session recovery", () => {
     expect([...stamps].sort((a, b) => a - b)).toEqual(stamps);
     guest.close();
   });
+
+  it("frees the host's event stream as soon as its own command has run, not after the network send", async () => {
+    const game = new HeadlessGame({ scenario: guestToMove, seed: 5 });
+    let delivered = () => {};
+    const slowWire: Transport = {
+      // A write to Firestore that has not come back yet
+      send: () => new Promise((resolve) => (delivered = resolve)),
+      subscribe: () => () => {},
+      close() {},
+    };
+    const calls: string[] = [];
+    const session = new HostSession({
+      transport: slowWire,
+      game,
+      hostTeamId: game.ctx.team1.id,
+      guestTeamId: game.ctx.team2.id,
+      selfId: "host-uid",
+      onExecuteStart: () => calls.push("start"),
+      onExecuteEnd: () => calls.push("end"),
+    });
+
+    const done = session.executeLocal({ type: "state" });
+    await settle();
+    // Anything the engine emits while the send is in flight must still be
+    // broadcast, so the pause has to be over by now
+    expect(calls).toEqual(["start", "end"]);
+    delivered();
+    await done;
+    session.close();
+  });
 });

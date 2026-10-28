@@ -40,10 +40,11 @@ export interface HostSessionOptions {
   onHello?: (payload: HelloPayload, from: string) => void;
   /** The guest's current own-team selection changed (cosmetic only). */
   onSelection?: (payload: SelectionPayload, from: string) => void;
-  /** Bracket guest-command execution (e.g. to pause the event broadcaster
-   *  so the guest doesn't see its own command's events twice) */
-  onGuestExecuteStart?: () => void;
-  onGuestExecuteEnd?: () => void;
+  /** Bracket each command's execution, so the event broadcaster can pause:
+   *  those events already travel in the command's response. Only the
+   *  execution: the engine may still emit while the response is sent. */
+  onExecuteStart?: () => void;
+  onExecuteEnd?: () => void;
 }
 
 export class HostSession {
@@ -69,7 +70,7 @@ export class HostSession {
       if (!verdict.allowed) {
         return this.rejection(verdict.reason);
       }
-      const response = await this.options.game.execute(command);
+      const response = await this.execute(command);
       await this.send({ kind: "broadcast", payload: { command, response } });
       return response;
     });
@@ -177,12 +178,7 @@ export class HostSession {
     );
     let response: CommandResponse;
     if (verdict.allowed) {
-      this.options.onGuestExecuteStart?.();
-      try {
-        response = await this.options.game.execute(command);
-      } finally {
-        this.options.onGuestExecuteEnd?.();
-      }
+      response = await this.execute(command);
     } else {
       response = this.rejection(verdict.reason);
     }
@@ -194,6 +190,15 @@ export class HostSession {
   }
 
   // ===== Helpers =====
+
+  private async execute(command: HeadlessCommand): Promise<CommandResponse> {
+    this.options.onExecuteStart?.();
+    try {
+      return await this.options.game.execute(command);
+    } finally {
+      this.options.onExecuteEnd?.();
+    }
+  }
 
   private gateContext(): GateContext {
     const gameService = this.options.game.ctx.gameService;
