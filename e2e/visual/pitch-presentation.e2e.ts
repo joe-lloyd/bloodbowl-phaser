@@ -40,9 +40,7 @@ test.describe("pitch presentation @visual", () => {
     });
   });
 
-  test("a scenario-case board, with its own committed seed", async ({
-    page,
-  }) => {
+  test("a scenario-case board, with its own committed seed", async ({ page }) => {
     const app = new GameApp(page);
     await app.sandbox.open({
       scenario: scenarioCase.id,

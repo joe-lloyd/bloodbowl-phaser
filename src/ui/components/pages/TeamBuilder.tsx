@@ -262,7 +262,9 @@ export function TeamBuilder() {
     const insignificantError = validateInsignificant(team.players);
     if (insignificantError) messages.push(insignificantError);
     const roster = getRosterByRosterName(team.rosterName);
-    messages.push(...validateRosterLegality(team, roster).map((v) => v.detail));
+    messages.push(
+      ...validateRosterLegality(team, roster).map((v) => v.detail)
+    );
     return messages;
   };
 
@@ -361,15 +363,15 @@ export function TeamBuilder() {
           </p>
           {active ? (
             <p className="mt-1">
-              This team has played its first match. Roster type is locked, and
-              re-rolls and Dedicated Fans can no longer be purchased. Eligible
-              players may still be hired at roster price.
+              This team has played its first match. Roster type is locked,
+              and re-rolls and Dedicated Fans can no longer be purchased.
+              Eligible players may still be hired at roster price.
             </p>
           ) : (
             <p className="mt-1">
-              Draft teams may be edited freely and saved even while incomplete,
-              but must pass roster legality before they can be selected for a
-              match or entered in a competition.
+              Draft teams may be edited freely and saved even while
+              incomplete, but must pass roster legality before they can be
+              selected for a match or entered in a competition.
             </p>
           )}
           {violations.length > 0 && (

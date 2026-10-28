@@ -44,11 +44,7 @@ export interface BrowserTestBridge {
   /** The decision the game is waiting on, if any. */
   pendingDecision(): PendingDecision | null;
   /** Current phase / sub-phase, without parsing the snapshot. */
-  phase(): {
-    phase: string;
-    subPhase: string | null;
-    activeTeamId: string | null;
-  };
+  phase(): { phase: string; subPhase: string | null; activeTeamId: string | null };
   /** The Phaser scene keys currently active, for scene-transition assertions. */
   scenes(): string[];
   /** Both teams in `team1`, `team2` order, for stable reference resolution. */
@@ -161,8 +157,7 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
   const bridge: BrowserTestBridge = {
     version: TEST_BRIDGE_VERSION,
     snapshot: () => structuredClone(game.snapshot()),
-    events: (sinceIndex = 0) =>
-      structuredClone(game.events().slice(sinceIndex)),
+    events: (sinceIndex = 0) => structuredClone(game.events().slice(sinceIndex)),
     pendingDecision: () => structuredClone(game.pendingDecision()),
     phase: () => {
       const snapshot = game.snapshot();

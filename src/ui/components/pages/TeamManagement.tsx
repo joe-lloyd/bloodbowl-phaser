@@ -21,10 +21,7 @@ import {
 } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
-import {
-  numToHex,
-  TeamStatsOverview,
-} from "../TeamManagement/TeamStatsOverview";
+import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
@@ -186,11 +183,7 @@ export function TeamManagement() {
                                 className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-bb-gold border border-bb-gold/50"
                                 title="Advancement mode"
                               >
-                                {
-                                  ADVANCEMENT_MODE_SHORT_LABELS[
-                                    team.advancementMode
-                                  ]
-                                }
+                                {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
                               </span>
                             )}
                           </>

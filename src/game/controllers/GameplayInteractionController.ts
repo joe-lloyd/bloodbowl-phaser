@@ -7,7 +7,10 @@ import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { jumpTargets, JumpTarget } from "../rules/jump";
-import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
+import {
+  GameConfig,
+  isKickingTeamTerritory,
+} from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";

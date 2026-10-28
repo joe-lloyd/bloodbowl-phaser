@@ -1,7 +1,10 @@
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
-import { GameEventMap, IEventBus } from "../../../services/EventBus";
+import {
+  GameEventMap,
+  IEventBus,
+} from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { BallSprite } from "../../elements/BallSprite";
 
@@ -85,18 +88,20 @@ export class KickoffPhaseHandler implements PhaseHandler {
     });
 
     // Kickoff: Ball kicked animation
-    this.register(GameEventNames.BallKicked, (data) => {
-      // Logic matched from SceneOrchestrator
-      let startX = data.targetX;
-      let startY = data.targetY;
+    this.register(
+      GameEventNames.BallKicked,
+      (data) => {
+        // Logic matched from SceneOrchestrator
+        let startX = data.targetX;
+        let startY = data.targetY;
 
-      if (data.playerId && this.scene["playerSprites"].has(data.playerId)) {
-        const kicker = this.gameService.getPlayerById(data.playerId);
-        if (kicker && kicker.gridPosition) {
-          startX = kicker.gridPosition.x;
-          startY = kicker.gridPosition.y;
+        if (data.playerId && this.scene["playerSprites"].has(data.playerId)) {
+          const kicker = this.gameService.getPlayerById(data.playerId);
+          if (kicker && kicker.gridPosition) {
+            startX = kicker.gridPosition.x;
+            startY = kicker.gridPosition.y;
+          }
         }
-      }
 
       this.scene["placeBallVisual"](startX, startY, 0.3);
       this.kickoffSceneState().pendingKickoffData = data;
@@ -123,10 +128,13 @@ export class KickoffPhaseHandler implements PhaseHandler {
       );
     });
 
-    this.register(GameEventNames.KickoffAirbornePositionChanged, ({ x, y }) => {
-      if (!this.ballIsAirborne) return;
-      this.moveAirborneBallTo(x, y);
-    });
+    this.register(
+      GameEventNames.KickoffAirbornePositionChanged,
+      ({ x, y }) => {
+        if (!this.ballIsAirborne) return;
+        this.moveAirborneBallTo(x, y);
+      }
+    );
 
     // Interactive kickoff events mutate normal player state while the play
     // phase handler is not installed. Mirror its board/status listeners here

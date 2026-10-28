@@ -444,8 +444,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y =
-          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),
