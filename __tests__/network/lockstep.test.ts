@@ -20,6 +20,8 @@ import {
 } from "../../src/network/transport";
 import { Envelope } from "../../src/network/envelope";
 import { HeadlessCommand } from "../../src/headless/protocol";
+import { GamePhase } from "../../src/types/GameState";
+import { GameEventNames } from "../../src/types/events";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -183,4 +185,53 @@ describe("lockstep sessions", () => {
     expect(after.appliedCommands()).toBe(host.appliedCommands());
     void guestGame;
   }, 120_000);
+
+  it("rolls the opening weather on both engines with the start of setup", async () => {
+    const make = () =>
+      new HeadlessGame({ seed: 8128, startingPhase: GamePhase.SETUP });
+    const hostGame = make();
+    const guestGame = new HeadlessGame({
+      seed: 8128,
+      startingPhase: GamePhase.SETUP,
+      team1: structuredClone(hostGame.ctx.team1),
+      team2: structuredClone(hostGame.ctx.team2),
+    });
+    const [hostEnd, guestEnd] = createInMemoryTransportPair();
+    const ids = {
+      hostTeamId: hostGame.ctx.team1.id,
+      myTeamId: hostGame.ctx.team1.id,
+      peerTeamId: hostGame.ctx.team2.id,
+    };
+    const host = new LockstepSession({
+      ...ids,
+      transport: hostEnd,
+      game: hostGame,
+      selfId: "host-uid",
+    });
+    const guest = new LockstepSession({
+      ...ids,
+      myTeamId: ids.peerTeamId,
+      peerTeamId: ids.myTeamId,
+      transport: guestEnd,
+      game: guestGame,
+      selfId: "guest-uid",
+    });
+    const rolls: string[] = [];
+    hostGame.ctx.eventBus.on(
+      GameEventNames.DiceRoll,
+      (roll: { rollType: string }) => rolls.push(roll.rollType)
+    );
+
+    const started = await host.run({
+      type: "start-setup",
+      kickingTeamId: hostGame.ctx.team1.id,
+      rollWeather: true,
+    });
+    await settle(host, guest);
+
+    expect(started.ok).toBe(true);
+    expect(rolls.some((type) => /weather/i.test(type))).toBe(true);
+    expect(guestGame.snapshot().weather).toBe(hostGame.snapshot().weather);
+    expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+  });
 });

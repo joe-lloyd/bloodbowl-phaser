@@ -54,7 +54,7 @@ const COMMAND_SHAPES: Record<
   >
 > = {
   "coin-flip": {},
-  "start-setup": { kickingTeamId: "string" },
+  "start-setup": { kickingTeamId: "string", rollWeather: "boolean?" },
   "place-player": { playerId: "string", x: "number", y: "number" },
   "remove-player": { playerId: "string" },
   "swap-players": { player1Id: "string", player2Id: "string" },
@@ -339,6 +339,7 @@ export class HeadlessGame {
       case "start-setup":
         this.assertTeam(cmd.kickingTeamId);
         this.kickingTeamId = cmd.kickingTeamId;
+        if (cmd.rollWeather) gs.rollInitialWeather();
         gs.startSetup(cmd.kickingTeamId);
         break;
       case "place-player":
