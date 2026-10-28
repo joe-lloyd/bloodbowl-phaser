@@ -781,6 +781,18 @@ export class GameScene extends Phaser.Scene {
       this.syncPlayerStatuses();
     });
 
+    // Online: the other coach's move, drawn as one line while the player
+    // runs it, then cleared
+    let otherMoveTimer: ReturnType<typeof setTimeout> | null = null;
+    this.subscribe(GameEventNames.UI_ShowOtherCoachMove, ({ from, path, ma }) => {
+      this.pitch.drawMovementPath([from, ...path], [], ma);
+      if (otherMoveTimer) clearTimeout(otherMoveTimer);
+      otherMoveTimer = setTimeout(
+        () => this.pitch.clearPath(),
+        600 + path.length * 350
+      );
+    });
+
     // Touchdown celebration: the scoring team's players on the pitch jump
     this.subscribe(GameEventNames.Touchdown, (data) => {
       this.playerSprites.forEach((sprite) => {

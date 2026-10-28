@@ -319,6 +319,17 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         playerId: payload.playerId,
       });
     },
+    // Show where the other coach's player is running, the whole way
+    onPeerCommand: (command) => {
+      if (command.type !== "move") return;
+      const player = engine!.getPlayerById(command.playerId);
+      if (!player?.gridPosition) return;
+      eventBus.emit(GameEventNames.UI_ShowOtherCoachMove, {
+        from: { ...player.gridPosition },
+        path: command.path,
+        ma: player.stats.MA,
+      });
+    },
     // The board does not draw the other coach's setup placements by
     // itself; redraw it after each setup command.
     onApplied: () => {

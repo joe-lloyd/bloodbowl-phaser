@@ -43,6 +43,8 @@ export interface LockstepSessionOptions {
   onHello?: (payload: HelloPayload, from: string) => void;
   onChat?: (payload: ChatPayload, from: string) => void;
   onSelection?: (payload: SelectionPayload, from: string) => void;
+  /** The other coach's command is about to run on this engine. */
+  onPeerCommand?: (command: HeadlessCommand) => void;
   /** After any command ran on this engine, this coach's or the other's. */
   onApplied?: (command: HeadlessCommand, own: boolean) => void;
   /** The engine was rebuilt from the other side's full state. */
@@ -220,6 +222,7 @@ export class LockstepSession {
       this.desync(`${command.type} refused here: ${verdict.reason}`);
       return;
     }
+    this.options.onPeerCommand?.(command);
     const response = await game.execute(command);
     this.applied++;
     this.options.onApplied?.(command, false);

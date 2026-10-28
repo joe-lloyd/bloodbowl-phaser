@@ -234,4 +234,41 @@ describe("lockstep sessions", () => {
     expect(guestGame.snapshot().weather).toBe(hostGame.snapshot().weather);
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
   });
+
+  it("hands the other coach's move to the watcher before it runs, so the whole path can be drawn", async () => {
+    const { recording, guestGame, host, guest, guestEnd } = await pair(4242);
+    guest.close(); // the watcher below takes its place
+    const seen: { from?: unknown; path: unknown }[] = [];
+    const watcher = new LockstepSession({
+      transport: guestEnd,
+      game: guestGame,
+      selfId: "guest-uid",
+      myTeamId: guestGame.ctx.team2.id,
+      peerTeamId: guestGame.ctx.team1.id,
+      hostTeamId: guestGame.ctx.team1.id,
+      onPeerCommand: (command) => {
+        if (command.type !== "move") return;
+        const player = guestGame.ctx.gameService.getPlayerById(
+          command.playerId
+        );
+        seen.push({
+          from: player?.gridPosition && { ...player.gridPosition },
+          path: command.path,
+        });
+      },
+    });
+    for (const step of recording.steps) {
+      if (step.command.type === "move" && seen.length) break;
+      const response = await host.run(step.command);
+      if (!response.ok) await watcher.run(step.command);
+      await settle(host, watcher);
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    const [first] = seen;
+    // Before the run: the player still stands where the path starts from
+    expect(first.from).toBeDefined();
+    expect(first.from).not.toEqual(
+      (first.path as { x: number; y: number }[]).at(-1)
+    );
+  }, 120_000);
 });

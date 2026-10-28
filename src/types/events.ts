@@ -163,6 +163,8 @@ export enum GameEventNames {
   UI_HideSetupControls = "ui:hideSetupControls",
   /** Online: re-render the pitch from the authoritative snapshot so a
    *  player watching the opponent's setup/placement sees it live. */
+  /** Online: draw the other coach's whole move path while it plays out */
+  UI_ShowOtherCoachMove = "ui:showOtherCoachMove",
   UI_SyncBoard = "ui:syncBoard",
   /** Online guest only: a sync-returning "optimistic" mutation (declare-
    *  action, cancel-action, …) that NetworkedGameService reported as
@@ -714,6 +716,11 @@ export interface UIEvents {
   [GameEventNames.UI_HideSetupControls]: void;
   /** `positions`: redraw where everyone stands too, not only statuses —
    *  after a resync, which may have rewound the match. */
+  [GameEventNames.UI_ShowOtherCoachMove]: {
+    from: { x: number; y: number };
+    path: { x: number; y: number }[];
+    ma: number;
+  };
   [GameEventNames.UI_SyncBoard]: { positions: true } | void;
   [GameEventNames.NetworkCommandRejected]: {
     /** The rejected command's `type`, e.g. "declare-action" */
