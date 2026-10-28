@@ -72,6 +72,21 @@ function recorder(side: Side): Recorder {
   };
 }
 
+/** Log what a coach's page reports, and accept its dialogs. */
+function watch(page: Page, side: Side, rec: Recorder) {
+  page.on("dialog", (dialog) => dialog.accept());
+  page.on("pageerror", (error) => rec.log(`PAGEERROR ${error.message}`));
+  page.on("console", (message) => {
+    const text = message.text();
+    if (/\[Net\]/.test(text)) {
+      appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
+      return;
+    }
+    if (/\[Online\]|\[Networked\]|rejected|resync/i.test(text))
+      rec.log(`console ${text.slice(0, 300)}`);
+  });
+}
+
 async function openCoach(side: Side): Promise<Coach> {
   const remote = side === "guest" ? process.env.GUEST_WS : undefined;
   const browser = remote
@@ -93,17 +108,7 @@ async function openCoach(side: Side): Promise<Coach> {
   await context.addInitScript(() => localStorage.setItem("bb_debug_net", "1"));
   const page = await context.newPage();
   const rec = recorder(side);
-  page.on("dialog", (dialog) => dialog.accept());
-  page.on("pageerror", (error) => rec.log(`PAGEERROR ${error.message}`));
-  page.on("console", (message) => {
-    const text = message.text();
-    if (/\[Net\]/.test(text)) {
-      appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
-      return;
-    }
-    if (/\[Online\]|\[Networked\]|rejected|resync/i.test(text))
-      rec.log(`console ${text.slice(0, 300)}`);
-  });
+  watch(page, side, rec);
   return {
     side,
     browser,
@@ -335,7 +340,7 @@ async function disrupt(what: string, host: Coach, guest: Coach, code: string) {
     await host.page.waitForTimeout(ms);
     coach.page = await coach.context.newPage();
     coach.app = new GameApp(coach.page);
-    coach.page.on("dialog", (dialog) => dialog.accept());
+    watch(coach.page, coach.side, coach.rec);
     await coach.page.goto(`/online/play/${code}`);
   }
   await coach.page.waitForTimeout(4000);
