@@ -645,7 +645,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     const applyBundle = (
       events: EmittedEvent[],
       snapshot: GameSnapshot,
-      pendingDecision: PendingDecision | null
+      pendingDecision: PendingDecision | null,
+      resync = false
     ) => {
       // 1. Authoritative correction FIRST: snapshot overwrites the replica.
       //    Exception: during MY own setup turn, my placements are optimistic
@@ -721,8 +722,13 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       //    PlayerPlaced); in play it reconciles status visuals (down/up/
       //    stunned) that a missed event would otherwise leave stale — the
       //    scene handler keeps it position-safe during play. Movement itself
-      //    still animates via the replayed events above.
-      eventBus.emit(GameEventNames.UI_SyncBoard);
+      //    still animates via the replayed events above. A resync has no
+      //    events to animate and may have rewound the match (a reloaded host
+      //    resumes from its last save), so it redraws positions too.
+      eventBus.emit(
+        GameEventNames.UI_SyncBoard,
+        resync ? { positions: true } : undefined
+      );
     };
 
     const session = new GuestSession({
@@ -741,7 +747,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           payload.response.pendingDecision
         ),
       onResync: (payload) =>
-        applyBundle([], payload.snapshot, payload.pendingDecision),
+        applyBundle([], payload.snapshot, payload.pendingDecision, true),
       onChat: (payload) =>
         pushChat({
           text: payload.text,

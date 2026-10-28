@@ -710,7 +710,9 @@ export interface UIEvents {
     status?: import("./SetupTypes").SetupTeamStatus;
   };
   [GameEventNames.UI_HideSetupControls]: void;
-  [GameEventNames.UI_SyncBoard]: void;
+  /** `positions`: redraw where everyone stands too, not only statuses —
+   *  after a resync, which may have rewound the match. */
+  [GameEventNames.UI_SyncBoard]: { positions: true } | void;
   [GameEventNames.NetworkCommandRejected]: {
     /** The rejected command's `type`, e.g. "declare-action" */
     commandType: string;

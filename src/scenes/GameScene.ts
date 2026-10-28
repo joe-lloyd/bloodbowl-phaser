@@ -766,13 +766,19 @@ export class GameScene extends Phaser.Scene {
     // reconcile status visuals (down/up/stunned/off-pitch): a full refresh
     // would snap a mid-animation mover to its grid square, but updateStatus
     // touches only alpha/angle/visibility, never position — so it's safe and
-    // catches any status-change event the watcher missed.
-    this.subscribe(GameEventNames.UI_SyncBoard, () => {
+    // catches any status-change event the watcher missed. A resync asks for
+    // positions as well: nothing is animating, and it may have rewound.
+    this.subscribe(GameEventNames.UI_SyncBoard, (data) => {
       if (this.gameService.getPhase() === GamePhase.SETUP) {
         this.refreshDugouts();
-      } else {
-        this.syncPlayerStatuses();
+        return;
       }
+      if (data?.positions) {
+        this.refreshDugouts();
+        const ball = this.gameService.getState().ballPosition;
+        if (ball) this.placeBallVisual(ball.x, ball.y);
+      }
+      this.syncPlayerStatuses();
     });
 
     // Touchdown celebration: the scoring team's players on the pitch jump

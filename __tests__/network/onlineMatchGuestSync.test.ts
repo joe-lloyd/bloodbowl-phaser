@@ -207,4 +207,24 @@ describe("OnlineMatch guest bundle application", () => {
 
     expect(prompts).toEqual([]);
   });
+
+  it("asks the board to redraw positions on a resync, which can rewind the match", async () => {
+    const { baseSnapshot, broadcast, hostEnd } = bootGuestMatch();
+    const eventBus = ServiceContainer.getInstance().eventBus;
+    const syncs: unknown[] = [];
+    eventBus.on(GameEventNames.UI_SyncBoard, (data) => syncs.push(data));
+
+    // A normal move: positions animate, the board only reconciles statuses
+    await broadcast(baseSnapshot);
+    // A reloaded host's state, perhaps from before the last few moves
+    await hostEnd.send({
+      kind: "resync",
+      payload: { snapshot: baseSnapshot, pendingDecision: null },
+      seq: 50,
+      from: "host-uid",
+      ts: Date.now(),
+    });
+
+    expect(syncs).toEqual([undefined, { positions: true }]);
+  });
 });
