@@ -114,6 +114,14 @@ export async function next(dialogOpen = false) {
         )
           return score + 25;
       }
+      // A crowd square in the corner sits under the dugout panel, where
+      // the driver's click cannot reach it
+      if (
+        c.type === "choose-push-direction" &&
+        ((c as { y?: number }).y! < 0 ||
+          (c as { y?: number }).y! >= GameConfig.PITCH_HEIGHT)
+      )
+        return score - 50;
       if (c.type === "declare-action" && c.action === "blitz")
         return score + 40;
       if (c.type === "declare-action" && c.action === "block")
