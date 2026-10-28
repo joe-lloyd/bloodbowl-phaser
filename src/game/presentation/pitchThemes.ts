@@ -36,8 +36,8 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     name: "Blood Bowl",
     description:
       "A timber and stone ground on a sunny afternoon, team flags over the stands.",
-    stadiumPath: "stadium/bloodbowl",
-    spritePath: "sprites/bloodbowl",
+    stadiumPath: "/stadium/bloodbowl",
+    spritePath: "/sprites/bloodbowl",
     bloom: false,
     background: 0x0b0805,
     reach: { move: 0xfff2c8, rush: 0xffc23a },
@@ -48,8 +48,8 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     name: "Neon",
     description:
       "A night-club arena: black turf, glowing lines and a crowd lit in team colours.",
-    stadiumPath: "stadium/neon",
-    spritePath: "sprites/neon",
+    stadiumPath: "/stadium/neon",
+    spritePath: "/sprites/neon",
     bloom: true,
     background: 0x04030a,
     reach: { move: 0x3dff9a, rush: 0xffb81e },
