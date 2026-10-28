@@ -3,6 +3,7 @@ import { GameplayInteractionController } from "../../../src/game/controllers/Gam
 import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust path if needed
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
 import { PlayerStatus } from "../../../src/types/Player";
+import { GameEventNames } from "../../../src/types/events";
 
 // Mock dependencies
 const mockScene = {
@@ -188,6 +189,31 @@ describe("GameplayInteractionController", () => {
 
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
       expect(mockPitch.drawRangeOverlay).not.toHaveBeenCalled(); // Should NOT show ranges
+    });
+  });
+
+  describe("a push the other coach picks", () => {
+    // Online, the push arrows reach both boards; only the attacker picks
+    const handler = (name: string) =>
+      mockEventBus.on.mock.calls.find(([event]) => event === name)?.[1];
+
+    it("frees the board once the push is settled", () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+
+      handler(GameEventNames.UI_SelectPushDirection)({
+        validDirections: [{ x: 7, y: 7 }],
+        defenderId: "p2",
+        attackerId: "p9",
+      });
+      handler(GameEventNames.DecisionResolved)?.({ type: "push-direction" });
+      controller.handlePlayerClick("p1");
+
+      expect(mockGameService.executePush).not.toHaveBeenCalled();
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
   });
 

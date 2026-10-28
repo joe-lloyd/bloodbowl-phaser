@@ -1171,6 +1171,10 @@ export class GameService implements IGameService {
     resultType: string,
     followUp: boolean
   ): Promise<void> {
+    // Before the push: a chain push asks for the next direction from inside
+    this.eventBus.emit(GameEventNames.DecisionResolved, {
+      type: "push-direction",
+    });
     await this.blockManager.executePush(
       attackerId,
       defenderId,

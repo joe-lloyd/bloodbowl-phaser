@@ -195,6 +195,7 @@ export class GameplayInteractionController {
       GameEventNames.UI_SelectPushDirection,
       this.pushDirectionHandler
     );
+    this.eventBus.on(GameEventNames.DecisionResolved, this.onDecisionResolved);
 
     // Listen for player actions (Blitz, Stand Up)
     this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
@@ -231,6 +232,17 @@ export class GameplayInteractionController {
     // setting up the next drive
     this.eventBus.on(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
   }
+
+  /** Online, the other coach may pick the push; free this board then. */
+  private onDecisionResolved = ({ type }: { type: string }) => {
+    if (type !== "push-direction" || !this.pushSelectionActive) return;
+    this.pushSelectionActive = false;
+    this.pushValidDirections = [];
+    this.pushDefenderId = "";
+    this.pushAttackerId = "";
+    this.pushResultType = "";
+    this.clearAllInteractionHighlights();
+  };
 
   private onPhaseChangedReset = (data: { phase: GamePhase }) => {
     if (data.phase === GamePhase.PLAY) {
@@ -2089,6 +2101,7 @@ export class GameplayInteractionController {
       this.resumeBlitzMoveHandler
     );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
+    this.eventBus.off(GameEventNames.DecisionResolved, this.onDecisionResolved);
     this.eventBus.off(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler

@@ -367,6 +367,7 @@ export interface GameEvents {
     type:
       | import("./decisions").DecisionRequest["type"]
       | "block-dice"
+      | "push-direction"
       | "follow-up";
   };
 
