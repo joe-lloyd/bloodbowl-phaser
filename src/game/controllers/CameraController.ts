@@ -8,7 +8,7 @@ import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
 type Point = { x: number; y: number };
 
 /** How much closer than the overview the camera sits on the action. */
-const ACTION_ZOOM = 1.75;
+const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
 
 

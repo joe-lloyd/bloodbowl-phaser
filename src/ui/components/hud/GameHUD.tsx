@@ -304,7 +304,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       bottomLeft={
         <>
           <PlayerInfoPanel eventBus={eventBus} />
-          <div className="h-[26vh] w-full">
+          <div className="h-[22vh] max-h-[220px] min-h-[120px] w-full">
             <DiceLog eventBus={eventBus} />
           </div>
         </>
