@@ -71,6 +71,12 @@ export interface LobbySettings {
  */
 export interface TimerState {
   deadline: number | null;
+  /**
+   * The turn `deadline` was written for (see turnClockKey). The new active
+   * coach's write takes a moment to come back, and until it does the old
+   * turn's deadline must not end the new turn.
+   */
+  turn?: string | null;
   pausedBy: string | null;
   pausedAt: number | null;
   /** uid -> remaining pause budget (ms) */
@@ -487,9 +493,13 @@ export function nextTurnDeadline(
 /** Host: set the countdown deadline for the current play turn. */
 export async function setTurnDeadline(
   code: string,
-  deadline: number | null
+  deadline: number | null,
+  turn: string | null
 ): Promise<void> {
-  await updateDoc(lobbyRef(code), { "timer.deadline": deadline });
+  await updateDoc(lobbyRef(code), {
+    "timer.deadline": deadline,
+    "timer.turn": turn,
+  });
 }
 
 /**

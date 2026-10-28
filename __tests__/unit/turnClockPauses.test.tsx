@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   setTurnDeadlineMock: vi.fn(() => Promise.resolve()),
   endTurnMock: vi.fn(),
+  state: { turn: { teamId: "host-team", turnNumber: 3, isHalf2: false } },
 }));
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
@@ -41,6 +42,7 @@ vi.mock("../../src/services/ServiceContainer", () => ({
         getPhase: () => "PLAY",
         // The host's turn: the active coach keeps the clock
         getActiveTeamId: () => "host-team",
+        getState: () => hoisted.state,
         endTurn: hoisted.endTurnMock,
       },
     }),
@@ -60,7 +62,8 @@ describe("TurnClock pauses", () => {
   let eventBus: EventBus;
   const code = "ABC123";
   const user = { uid: "host-uid" } as AuthUser;
-  const lobbyAt = (deadline: number): LobbyDoc =>
+  const THIS_TURN = "host-team:1:3";
+  const lobbyAt = (deadline: number, turn: string = THIS_TURN): LobbyDoc =>
     ({
       code,
       hostUid: "host-uid",
@@ -73,7 +76,7 @@ describe("TurnClock pauses", () => {
       },
       players: {},
       createdAt: null,
-      timer: { deadline, pausedBy: null, pausedAt: null, banks: {} },
+      timer: { deadline, turn, pausedBy: null, pausedAt: null, banks: {} },
     }) as unknown as LobbyDoc;
 
   beforeEach(() => {
@@ -128,6 +131,54 @@ describe("TurnClock pauses", () => {
     // About the minute that was left when they dropped
     expect(deadline - Date.now()).toBeGreaterThan(59_000);
     expect(deadline - Date.now()).toBeLessThanOrEqual(60_000);
+  });
+
+  const hostMatch = () =>
+    ({
+      role: "host",
+      myTeamId: "host-team",
+      opponentName: "Guest",
+      coachName: () => "Guest",
+      pendingDecision: () => null,
+      decidingTeamId: () => null,
+      setClockPaused: vi.fn(),
+    }) as unknown as OnlineMatch;
+
+  it("does not end a new turn on the last turn's deadline before its own arrives", async () => {
+    // The other coach's turn ran out a moment ago; this coach's turn has
+    // just started and its fresh deadline has not come back yet
+    const lobby = lobbyAt(Date.now() - 1_000, "guest-team:1:3");
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+        />
+      )
+    );
+    await act(async () => vi.advanceTimersByTime(3_000));
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("2:00");
+  });
+
+  it("ends the turn once this turn's own deadline has passed", async () => {
+    const lobby = lobbyAt(Date.now() + 1_000);
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+        />
+      )
+    );
+    await act(async () => vi.advanceTimersByTime(2_000));
+    expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
   });
 
   it("stops while the defender decides and answers for them after ten seconds", async () => {

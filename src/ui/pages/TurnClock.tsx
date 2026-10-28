@@ -59,6 +59,15 @@ export function TurnClock({
     ServiceContainer.isInitialized() &&
     ServiceContainer.getInstance().gameService.getActiveTeamId() ===
       match.myTeamId;
+  /** The engine's current turn, to match against the deadline's own turn. */
+  const turnKey = (): string | null => {
+    if (!ServiceContainer.isInitialized()) return null;
+    const { turn } = ServiceContainer.getInstance().gameService.getState();
+    return `${turn.teamId}:${turn.isHalf2 ? 2 : 1}:${turn.turnNumber}`;
+  };
+  // Until the new active coach's deadline comes back, the one in the lobby
+  // still belongs to the turn before
+  const deadlineIsThisTurn = timer?.turn != null && timer.turn === turnKey();
   const turnSeconds = lobby.settings.turnSeconds;
   const [now, setNow] = useState(Date.now());
   const endedForRef = useRef<number | null>(null);
@@ -91,14 +100,24 @@ export function TurnClock({
     if (freezeReason && !frozen) {
       freezeRef.current = {
         reason: freezeReason,
-        remaining: timer?.deadline != null ? timer.deadline - Date.now() : null,
+        remaining: !deadlineIsThisTurn
+          ? turnSeconds > 0
+            ? turnSeconds * 1000
+            : null
+          : timer?.deadline != null
+            ? timer.deadline - Date.now()
+            : null,
       };
     } else if (!freezeReason && frozen) {
       freezeRef.current = null;
       // Resume with the time that was left. The coach who saw the other
       // drop writes it after an absence; the active coach after a decision.
       if (frozen.remaining != null && (frozen.reason === "away" || myTurn())) {
-        void setTurnDeadline(code, Date.now() + Math.max(0, frozen.remaining));
+        void setTurnDeadline(
+          code,
+          Date.now() + Math.max(0, frozen.remaining),
+          turnKey()
+        );
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +150,11 @@ export function TurnClock({
   useEffect(() => {
     const onTurn = () => {
       if (!myTurn()) return;
-      void setTurnDeadline(code, nextTurnDeadline(turnSeconds, Date.now()));
+      void setTurnDeadline(
+        code,
+        nextTurnDeadline(turnSeconds, Date.now()),
+        turnKey()
+      );
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     eventBus.on(GameEventNames.TurnStarted as any, onTurn);
@@ -167,6 +190,7 @@ export function TurnClock({
       answerIfOutOfTime();
       if (freezeRef.current) return; // stopped: nobody's turn runs out
       if (!myTurn() || !timer?.deadline || timer.pausedBy) return;
+      if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
       if (currentPhase() !== GamePhase.PLAY) return;
       if (match.pendingDecision()) return; // don't cut off a mid-block decision
@@ -225,9 +249,11 @@ export function TurnClock({
   const pauserName = timer.pausedBy
     ? (match.coachName(timer.pausedBy) ?? "Opponent")
     : null;
-  const remaining = timer.pausedBy
-    ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
-    : timer.deadline - now;
+  const remaining = !deadlineIsThisTurn
+    ? turnSeconds * 1000
+    : timer.pausedBy
+      ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
+      : timer.deadline - now;
   const low = remaining < 15000 && !timer.pausedBy;
 
   return (
