@@ -171,6 +171,9 @@ const UI_INTENT_EVENTS = new Set<string>([
   GameEventNames.UI_InterceptionResponse,
   GameEventNames.UI_ApothecaryResponse,
   GameEventNames.UI_ConfirmationResult,
+  // The Dodge?/Rush? prompt is the acting coach's own board asking them;
+  // on the other screen it would sit there with nobody to answer it.
+  GameEventNames.UI_RequestConfirmation,
   GameEventNames.UI_CoinFlipComplete,
   GameEventNames.UI_SetupAction,
   GameEventNames.UI_ActionSelected,

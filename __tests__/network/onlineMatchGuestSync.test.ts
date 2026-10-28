@@ -189,4 +189,22 @@ describe("OnlineMatch guest bundle application", () => {
     expect(team1.dedicatedFans).toBe(3);
     expect(team2.dedicatedFans).toBe(3);
   });
+
+  it("never shows the host's own Dodge or Rush confirmation on the guest's screen", async () => {
+    const { baseSnapshot, broadcast } = bootGuestMatch();
+    const eventBus = ServiceContainer.getInstance().eventBus;
+    const prompts: unknown[] = [];
+    eventBus.on(GameEventNames.UI_RequestConfirmation, (prompt) =>
+      prompts.push(prompt)
+    );
+
+    await broadcast(baseSnapshot, [
+      {
+        name: GameEventNames.UI_RequestConfirmation,
+        data: { title: "Dodge?", message: "", confirmText: "Dodge!" },
+      },
+    ]);
+
+    expect(prompts).toEqual([]);
+  });
 });
