@@ -985,6 +985,11 @@ export class GameService implements IGameService {
         this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
           playerId: attackerId,
         });
+        // The board picks the blitzer back up for the rest of the move,
+        // however the block ended (with or without a follow-up, online too)
+        this.eventBus.emit(GameEventNames.UI_ResumeBlitzMove, {
+          playerId: attackerId,
+        });
         return;
       }
     }

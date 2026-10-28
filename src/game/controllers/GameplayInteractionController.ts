@@ -169,6 +169,9 @@ export class GameplayInteractionController {
     this.resumeBlitzMoveHandler = (data) => {
       const player = this.gameService.getPlayerById(data.playerId);
       if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
+      // Online, only the board of the coach who controls the blitzer
+      const online = getActiveOnlineMatch();
+      if (online && online.myTeamId !== player.teamId) return;
       this.selectedPlayerId = data.playerId;
       this.currentActionMode = "blitz";
       this.currentStepId = "move";

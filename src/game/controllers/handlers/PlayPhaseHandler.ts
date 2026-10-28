@@ -6,7 +6,6 @@ import { GameEventMap, IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { moveAllowance } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
-import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { BombSprite } from "../../elements/BombSprite";
 import { GameConfig } from "../../../config/GameConfig";
 
@@ -231,20 +230,10 @@ export class PlayPhaseHandler implements PhaseHandler {
       if (data.followUp && data.targetSquare) {
         await this.gameService.followUpPush(data.attackerId, data.targetSquare);
       }
-      // A Blitz block keeps the player active with the rest of their move;
-      // a plain block ends the activation.
+      // A Blitz block keeps the player active with the rest of their move
+      // (the engine then asks the board to resume it); a plain block ends
+      // the activation.
       this.gameService.finishBlockActivation(data.attackerId);
-      // hasUsedBlitzBlock is true ONLY when a Blitz block kept the player
-      // active (a plain block, or a Blitz that spent its last movement,
-      // clears it) — the precise signal to resume the move.
-      if (
-        !getActiveOnlineMatch() &&
-        this.gameService.hasUsedBlitzBlock(data.attackerId)
-      ) {
-        this.eventBus.emit(GameEventNames.UI_ResumeBlitzMove, {
-          playerId: data.attackerId,
-        });
-      }
     });
 
     // Status Updates

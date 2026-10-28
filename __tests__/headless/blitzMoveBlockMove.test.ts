@@ -1,3 +1,4 @@
+import { GameEventNames } from "../../src/types/events";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
@@ -77,7 +78,13 @@ async function runToPostBlock(seed: number) {
     response = await game.execute({ type: "choose-follow-up", followUp: false });
   }
   if (response.pendingDecision) return null;
-  return { game, gs, attackerId: attacker.id, defenderId: defender.id };
+  return {
+    game,
+    gs,
+    attackerId: attacker.id,
+    defenderId: defender.id,
+    lastEvents: response.events,
+  };
 }
 
 describe("Blitz: block mid-move, keep moving", () => {
@@ -91,6 +98,11 @@ describe("Blitz: block mid-move, keep moving", () => {
 
     // The activation is NOT over — a Blitz block keeps the player active.
     expect(gs.hasPlayerActed(attackerId)).toBe(false);
+    // ...and the engine tells the board to pick the blitzer back up, which
+    // every screen needs: online, and after a block with no follow-up.
+    expect(ctx!.lastEvents.map((event) => event.name)).toContain(
+      GameEventNames.UI_ResumeBlitzMove
+    );
     expect(gs.hasUsedBlitzBlock(attackerId)).toBe(true);
     // Two walked squares + one for the block.
     expect(gs.getState().turn.movementUsed.get(attackerId)).toBe(3);
