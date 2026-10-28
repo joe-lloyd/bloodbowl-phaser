@@ -77,8 +77,9 @@ export function decisionOwner(
       // The deciding team rides on the decision itself
       return pending.chooserTeamId;
     case "push-direction":
+      // The attacker steers the push, unless the pushed player Sidesteps
+      return pending.chooserTeamId ?? ctx.teamIdOfPlayer(pending.attackerId);
     case "follow-up":
-      // The attacker steers pushes and follow-ups
       return ctx.teamIdOfPlayer(pending.attackerId);
     case "touchback":
       return pending.teamId;
