@@ -10,7 +10,18 @@
  * validatePlayerProgression once teams carry a mode.
  */
 
-import { Team, calculateTeamValue } from "../types/Team";
+import {
+  Team,
+  calculateTeamValue,
+  startingDedicatedFans,
+} from "../types/Team";
+import {
+  APOTHECARY_COST,
+  ASSISTANT_COACH_COST,
+  CHEERLEADER_COST,
+  DEDICATED_FAN_COST,
+  TEAM_REROLL_COST,
+} from "../game/rules/sevensPrices";
 import { InjuryType, Player, PlayerStats } from "../types/Player";
 import { SKILL_DEFINITIONS, SkillType } from "../types/Skills";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
@@ -71,9 +82,12 @@ function validateTeamFinances(team: Team): SeedViolation[] {
   const violations: SeedViolation[] = [];
   const spent =
     team.players.reduce((sum, player) => sum + player.cost, 0) +
-    team.rerolls * team.rerollCost +
-    (team.apothecary ? 50_000 : 0) +
-    (team.coaches + team.cheerleaders + team.dedicatedFans) * 10_000;
+    team.rerolls * TEAM_REROLL_COST +
+    (team.apothecary ? APOTHECARY_COST : 0) +
+    team.coaches * ASSISTANT_COACH_COST +
+    team.cheerleaders * CHEERLEADER_COST +
+    (team.dedicatedFans - startingDedicatedFans(team.advancementMode)) *
+      DEDICATED_FAN_COST;
 
   if (team.treasury !== team.startingTreasury - spent) {
     violations.push({
@@ -151,15 +165,18 @@ function validatePlayerProgression(player: Player): SeedViolation[] {
     const decreases = player.injuries.filter(
       (injury) => STAT_DECREASE_INJURIES[injury] === stat
     ).length;
+    // The Veteran (D8) plays at MA -1.
+    const veteranPenalty = stat === "MA" && player.veteran ? 1 : 0;
     const expected =
       player.baseStats[stat] +
       improvementDirection(stat) * advances -
-      improvementDirection(stat) * decreases;
+      improvementDirection(stat) * decreases -
+      veteranPenalty;
     if (player.stats[stat] !== expected) {
       violations.push({
         area: "progression",
         subject,
-        detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries`,
+        detail: `${stat} ${player.stats[stat]} !== base ${player.baseStats[stat]} +${advances} advances -${decreases} injuries -${veteranPenalty} Veteran`,
       });
     }
     const maximum = CHARACTERISTIC_MAXIMUMS[stat];

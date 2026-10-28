@@ -35,6 +35,11 @@ vi.mock("../../src/services/ServiceContainer", () => ({
     getInstance: () => ({
       gameService: {
         getPhase: () => "PLAY",
+        // The host's turn: the active coach keeps the clock
+        getActiveTeamId: () => "host-team",
+        getState: () => ({
+          turn: { teamId: "host-team", turnNumber: 1, isHalf2: false },
+        }),
         endTurn: hoisted.endTurnMock,
       },
     }),
@@ -56,8 +61,10 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
   const user = { uid: "host-uid" } as AuthUser;
   const match = {
     role: "host",
+    myTeamId: "host-team",
     coachName: () => "Host Coach",
     pendingDecision: () => null,
+    decidingTeamId: () => null,
     setClockPaused: vi.fn(),
   } as unknown as OnlineMatch;
 
@@ -66,7 +73,6 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     hostUid: "host-uid",
     guestUid: "guest-uid",
     status: "active",
-    seed: 1,
     settings: {
       turnSeconds: 0,
       timeoutBankMs: 0,
@@ -111,7 +117,11 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
       eventBus.emit(GameEventNames.TurnStarted, {} as never);
     });
 
-    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledWith(code, null);
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledWith(
+      code,
+      null,
+      "host-team:1:1"
+    );
   });
 
   it("renders nothing for a no-limit match", async () => {

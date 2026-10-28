@@ -37,7 +37,6 @@ import { MightyBlowRule } from "./rules/MightyBlowRule";
 import { ClawsRule } from "./rules/ClawsRule";
 import { IronHardSkinRule } from "./rules/IronHardSkinRule";
 import { ThickSkullRule } from "./rules/ThickSkullRule";
-import { DecayRule } from "./rules/DecayRule";
 import { RegenerationRule } from "./rules/RegenerationRule";
 import { GuardRule } from "./rules/GuardRule";
 import { DefensiveRule } from "./rules/DefensiveRule";
@@ -151,7 +150,6 @@ export function registerBuiltinSkills(): void {
   SkillRegistry.register(SkillType.CLAWS, ClawsRule);
   SkillRegistry.register(SkillType.IRON_HARD_SKIN, IronHardSkinRule);
   SkillRegistry.register(SkillType.THICK_SKULL, ThickSkullRule);
-  SkillRegistry.register(SkillType.DECAY, DecayRule);
   SkillRegistry.register(SkillType.REGENERATION, RegenerationRule);
   SkillRegistry.register(SkillType.GUARD, GuardRule);
   SkillRegistry.register(SkillType.DEFENSIVE, DefensiveRule);
@@ -256,7 +254,6 @@ export type TriggerHook =
   | "onHandoffDeclared"
   | "onInjuryRoll"
   | "onCasualty"
-  | "onCasualtyRoll"
   | "onActivationDeclared"
   | "onRushDeclared"
   | "onJumpDeclared"
@@ -438,7 +435,6 @@ export type {
   HandoffDeclaredContext,
   InjuryRollContext,
   CasualtyContext,
-  CasualtyRollContext,
   CountAssistContext,
   ActionDeclaredContext,
   ActivationDeclaredContext,

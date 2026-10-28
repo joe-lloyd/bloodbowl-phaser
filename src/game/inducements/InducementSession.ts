@@ -14,12 +14,13 @@
  * `IGameService.commitInducements`.
  */
 
-import { Inducement, InducementRuleProfile } from "../../types/Inducements";
 import {
+  Inducement,
+  InducementCatalogEntry,
+  InducementRuleProfile,
   InducementSelectionLine,
-  toInventoryEntries,
-  validateInducementSelection,
-} from "./rules";
+} from "../../types/Inducements";
+import { toInventoryEntries, validateInducementSelection } from "./rules";
 
 export interface InducementCommandResult {
   ok: boolean;
@@ -32,7 +33,8 @@ export class InducementSession {
 
   constructor(
     private readonly profile: InducementRuleProfile,
-    private readonly budgets: Record<string, number>
+    private readonly budgets: Record<string, number>,
+    private readonly catalogs: Record<string, InducementCatalogEntry[]>
   ) {}
 
   getProfile(): InducementRuleProfile {
@@ -41,6 +43,14 @@ export class InducementSession {
 
   getBudgets(): Record<string, number> {
     return { ...this.budgets };
+  }
+
+  getCatalogs(): Record<string, InducementCatalogEntry[]> {
+    return { ...this.catalogs };
+  }
+
+  getCatalogFor(teamId: string): InducementCatalogEntry[] {
+    return this.catalogs[teamId] ?? [];
   }
 
   getBudgetFor(teamId: string): number {
@@ -73,7 +83,7 @@ export class InducementSession {
     if (quantity > 0) next.push({ inducement, quantity });
 
     const check = validateInducementSelection(
-      this.profile,
+      this.getCatalogFor(teamId),
       this.getBudgetFor(teamId),
       next
     );
@@ -91,7 +101,7 @@ export class InducementSession {
   confirm(teamId: string): InducementCommandResult {
     const selection = this.selections.get(teamId) ?? [];
     const check = validateInducementSelection(
-      this.profile,
+      this.getCatalogFor(teamId),
       this.getBudgetFor(teamId),
       selection
     );
@@ -103,7 +113,11 @@ export class InducementSession {
   /** Every confirmed team's purchases, ready to commit into match state. */
   toInventory() {
     return [...this.confirmed].flatMap((teamId) =>
-      toInventoryEntries(this.profile, teamId, this.selections.get(teamId) ?? [])
+      toInventoryEntries(
+        this.getCatalogFor(teamId),
+        teamId,
+        this.selections.get(teamId) ?? []
+      )
     );
   }
 }

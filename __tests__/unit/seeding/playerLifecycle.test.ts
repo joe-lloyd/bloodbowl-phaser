@@ -86,7 +86,7 @@ describe("playerLifecycle", () => {
     expect(stats.mvps).toBeLessThanOrEqual(stats.matches);
   });
 
-  it("gives the seeded Matched Play team a partial event skill package", () => {
+  it("gives the seeded Matched Play team one Skill Point purchase", () => {
     const teams = decorated();
     const matchedPlayTeam = teams.find(
       (t) => t.advancementMode === "matched-play"
@@ -100,10 +100,9 @@ describe("playerLifecycle", () => {
     expect(recipient.careerStats?.sppEarned).toBe(0);
     expect(recipient.spp).toBe(0);
 
-    // Allowance remaining: not every package slot on the team is spent.
+    // One Primary skill: one of the tier's Skill Points.
     const allocations = matchedPlayTeam.matchedPlayAllocations ?? [];
-    expect(allocations.length).toBeGreaterThan(0);
-    expect(allocations.length).toBeLessThan(3); // every roster tier's total allowance is 1 or 2
+    expect(allocations.map((a) => a.access)).toEqual(["primary"]);
   });
 
   it("gives the seeded Sevens Skill Selection team a pending award", () => {

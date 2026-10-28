@@ -9,6 +9,7 @@ import {
   MatchRecording,
   RECORDING_FORMAT,
   createSimGame,
+  grantSimInducements,
   summarize,
 } from "./runMatch";
 import { createRuleMonitor, InvariantViolation } from "./invariants";
@@ -58,6 +59,7 @@ export async function replayRecording(
     recording.rerolls,
     recording.lineup
   );
+  if (recording.inducements) await grantSimInducements(game);
   let divergedAt: number | null = null;
   let executed = 0;
   const monitor = createRuleMonitor();

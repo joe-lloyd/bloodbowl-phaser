@@ -4,6 +4,7 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { Scenario } from "../../src/types/Scenario";
 import { PlayerStatus } from "../../src/types/Player";
+import { forceDice } from "../utils/test-helpers";
 
 /** Carrier two squares from the end zone; walking in scores. */
 const tdScenario: Scenario = {
@@ -260,7 +261,9 @@ describe("drive reset", () => {
     expect(snap.phase).toBe(GamePhase.KICKOFF);
 
     // team2 kicks across its Line of Scrimmage (column 13) towards team1.
-    // Seed 5 deviates it five squares south-west, to (5,9), on the pitch.
+    // It deviates five squares south-west, to (5,9), on the pitch, and the
+    // Kick-off Event is Get the Ref (1 + 1).
+    forceDice(game.ctx.rng, [6, 5, 6, 1, 1]);
     const kicker = snap.teams
       .find((t) => t.id === team2Id)!
       .players.find((p) => p.position)!;

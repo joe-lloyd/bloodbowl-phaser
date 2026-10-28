@@ -7,18 +7,13 @@ import { FlowContext } from "../core/GameFlowManager";
  * ArgueTheCallOperation
  *
  * Responsibility:
- * - Perform the D6 roll for "Argue the Call".
- * - Update GameState (coachesEjected) if coach is ejected.
- * - Set a flag in the context or emit an event for the result?
- *   Actually, it should probably add a success/fail flag to the context
- *   or be followed by another operation.
+ * - Perform the D6 roll for "Argue the Call" (Sevens rule M6): on a 5 or 6
+ *   the referee is swayed. The coach is never ejected.
+ * - Expose the result as `swayed` for the SendOffOperation that runs it.
  */
 export class ArgueTheCallOperation extends GameOperation {
   public readonly name = "ArgueTheCallOperation";
-
-  constructor(private teamId: string) {
-    super();
-  }
+  public swayed = false;
 
   async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
@@ -31,28 +26,14 @@ export class ArgueTheCallOperation extends GameOperation {
       "Coach is Arguing the Call..."
     );
 
-    // 1. Dice Roll
     const roll = diceController.rollD6("Argue the Call");
-    const result = foulController.resolveArgueTheCall(roll);
-
-    // 2. Handle Result
-    if (result === "swayed") {
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Referee is swayed! Player stays."
-      );
-      (context as any).argueSucceeded = true;
-    } else if (result === "ejected") {
-      eventBus.emit(GameEventNames.UI_Notification, "Coach is EJECTED!");
-      gameService.getState().coachesEjected.push(this.teamId);
-      (context as any).argueSucceeded = false;
-    } else {
-      eventBus.emit(
-        GameEventNames.UI_Notification,
-        "Referee ignores the argument."
-      );
-      (context as any).argueSucceeded = false;
-    }
+    this.swayed = foulController.resolveArgueTheCall(roll) === "swayed";
+    eventBus.emit(
+      GameEventNames.UI_Notification,
+      this.swayed
+        ? "Referee is swayed! Player returns to their square."
+        : "Referee ignores the argument."
+    );
 
     await context.delay(800);
   }

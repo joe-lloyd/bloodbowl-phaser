@@ -6,7 +6,6 @@ import { MovementValidator } from "../validators/MovementValidator";
 import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
-import { pixelToGrid } from "../elements/GridUtils";
 import { jumpTargets, JumpTarget } from "../rules/jump";
 import {
   GameConfig,
@@ -28,7 +27,7 @@ import {
   handoffTargetRefusalReason,
 } from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
-import { KickoffEvent } from "../kickoff/kickoffEvents";
+import { KickoffEvent, isOneSquareMoveEvent } from "../kickoff/kickoffEvents";
 import {
   BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
@@ -169,6 +168,9 @@ export class GameplayInteractionController {
     this.resumeBlitzMoveHandler = (data) => {
       const player = this.gameService.getPlayerById(data.playerId);
       if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
+      // Online, only the board of the coach who controls the blitzer
+      const online = getActiveOnlineMatch();
+      if (online && online.myTeamId !== player.teamId) return;
       this.selectedPlayerId = data.playerId;
       this.currentActionMode = "blitz";
       this.currentStepId = "move";
@@ -195,6 +197,7 @@ export class GameplayInteractionController {
       GameEventNames.UI_SelectPushDirection,
       this.pushDirectionHandler
     );
+    this.eventBus.on(GameEventNames.DecisionResolved, this.onDecisionResolved);
 
     // Listen for player actions (Blitz, Stand Up)
     this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
@@ -208,6 +211,10 @@ export class GameplayInteractionController {
     this.eventBus.on(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
+    );
+    this.eventBus.on(
+      GameEventNames.GameStateRestored,
+      this.resumeActivePlayer
     );
     this.eventBus.on(
       GameEventNames.KickoffEventStepStarted,
@@ -231,6 +238,17 @@ export class GameplayInteractionController {
     // setting up the next drive
     this.eventBus.on(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
   }
+
+  /** Online, the other coach may pick the push; free this board then. */
+  private onDecisionResolved = ({ type }: { type: string }) => {
+    if (type !== "push-direction" || !this.pushSelectionActive) return;
+    this.pushSelectionActive = false;
+    this.pushValidDirections = [];
+    this.pushDefenderId = "";
+    this.pushAttackerId = "";
+    this.pushResultType = "";
+    this.clearAllInteractionHighlights();
+  };
 
   private onPhaseChangedReset = (data: { phase: GamePhase }) => {
     if (data.phase === GamePhase.PLAY) {
@@ -295,7 +313,10 @@ export class GameplayInteractionController {
     // so a late rejection needs a way to tell whether anything local has
     // moved on since (see onNetworkCommandRejected).
     this.interactionSeq++;
-    this.pendingCancelSeqByPlayer.set(this.selectedPlayerId, this.interactionSeq);
+    this.pendingCancelSeqByPlayer.set(
+      this.selectedPlayerId,
+      this.interactionSeq
+    );
 
     // Notify UI to show default menu again
     // We do this by emitting PlayerSelected again (which resets menu in PlayerActionMenu)
@@ -482,147 +503,7 @@ export class GameplayInteractionController {
       blockReplacement ?? undefined
     );
     if (success) {
-      // Set action mode state
-      this.currentActionMode = data.action;
-      this.currentBlockReplacement = blockReplacement;
-      this.hasMovedInAction = false;
-      // Local state moved on — invalidates any cancel-action rejection
-      // still in flight for this player (see onNetworkCommandRejected).
-      this.interactionSeq++;
-
-      // Define steps based on action
-      this.actionSteps = [];
-
-      switch (data.action) {
-        case "stab":
-        case "breatheFire":
-        case "vomit":
-        case "gaze":
-        case "chomp":
-        case "chainsaw":
-          // Single-target special action: pick an adjacent Standing opponent
-          this.actionSteps = [{ id: "target", label: "Select Target" }];
-          break;
-        case "pass":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "pass", label: "Pass" },
-          ];
-          break;
-        case "punt":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "punt", label: "Punt (pick direction)" },
-          ];
-          break;
-        case "throwBomb":
-          // A Bomber may not Move before throwing: one step, aim at any square.
-          this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
-          break;
-        case "ballAndChain":
-          // The Fanatic's only action: pick a facing (a click direction).
-          this.actionSteps = [
-            { id: "swing", label: "Swing (pick a direction)" },
-          ];
-          break;
-        case "blitz":
-          this.actionSteps = blockReplacement
-            ? [
-                { id: "move", label: "Move" },
-                {
-                  id: "target",
-                  label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
-                },
-              ]
-            : [
-                { id: "move", label: "Move" },
-                { id: "block", label: "Block" },
-              ];
-          break;
-        case "handoff":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "handoff", label: "Handoff" },
-          ];
-          break;
-        case "foul":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "foul", label: "Foul" },
-          ];
-          break;
-        case "block":
-          // A standalone Block: pick an adjacent Standing opponent to block.
-          this.actionSteps = [{ id: "block", label: "Block" }];
-          break;
-        case "multipleBlock":
-          this.multipleBlockFirstTargetId = null;
-          this.actionSteps = [
-            { id: "multipleBlock", label: "Select Two Targets" },
-          ];
-          break;
-        case "throwTeamMate":
-          this.ttmTeammateId = null;
-          // Move first (optional), then throw: in the throw step the first
-          // click picks the adjacent Right-Stuff team-mate, the second aims.
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "throw", label: "Throw Team-mate" },
-          ];
-          break;
-        // Secure Ball logic? Usually automatic, but stepper requested.
-        case "secureBall":
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "secure", label: "Secure Ball" },
-          ];
-          break;
-        default:
-          // Move: walk by clicking squares, or Jump over an adjacent downed
-          // player via the Jump step (you can jump at any point in the move).
-          this.actionSteps = [
-            { id: "move", label: "Move" },
-            { id: "jump", label: "Jump" },
-          ];
-          break;
-      }
-
-      // The opening step is always the action's own first step. Deriving it
-      // from the list (rather than assuming "move") keeps single-step actions
-      // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
-      // their click handler actually matches; a hard-coded "move" left them
-      // on a step no branch claimed, so their clicks fell through.
-      const defaultStep = this.actionSteps[0]?.id ?? "move";
-
-      // A prone player stands up first — same activation, costs movement
-      const declarer = this.gameService.getPlayerById(data.playerId);
-      if (declarer?.status === PlayerStatus.PRONE) {
-        this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
-        this.currentStepId = "standup";
-      } else {
-        this.currentStepId = defaultStep;
-      }
-
-      // Emit Step Info
-      this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
-        steps: this.actionSteps,
-        currentStepId: this.currentStepId,
-      });
-
-      // Emit ActionModeChanged event for UI (Legacy?)
-      this.eventBus.emit(GameEventNames.ActionModeChanged, {
-        playerId: data.playerId,
-        action: data.action,
-        blockReplacement: blockReplacement ?? undefined,
-        autoSelectMove: true,
-      });
-
-      // Don't call selectPlayer here - it causes PlayerSelected event
-      // which resets the action mode we just set!
-      // The player is already selected, no need to refresh
-
-      // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
-      this.refreshPlayerVisualization(data.playerId);
+      this.enterActionMode(data.playerId, data.action, blockReplacement);
     } else {
       console.log("Failed to declare action:", data.action);
       this.eventBus.emit(
@@ -630,6 +511,181 @@ export class GameplayInteractionController {
         `Cannot declare ${data.action} (Already used?)`
       );
     }
+  };
+
+  /**
+   * Put the board into a declared action: its steps, its opening step and
+   * the movement overlay. Used when the coach declares, and when a restore
+   * hands back a player the engine already has mid-action.
+   */
+  private enterActionMode(
+    playerId: string,
+    action: import("@/types/events").ActionType,
+    blockReplacement: BlockReplacement | null
+  ): void {
+    // Set action mode state
+    this.currentActionMode = action;
+    this.currentBlockReplacement = blockReplacement;
+    this.hasMovedInAction = false;
+    // Local state moved on — invalidates any cancel-action rejection
+    // still in flight for this player (see onNetworkCommandRejected).
+    this.interactionSeq++;
+
+    // Define steps based on action
+    this.actionSteps = [];
+
+    switch (action) {
+      case "stab":
+      case "breatheFire":
+      case "vomit":
+      case "gaze":
+      case "chomp":
+      case "chainsaw":
+        // Single-target special action: pick an adjacent Standing opponent
+        this.actionSteps = [{ id: "target", label: "Select Target" }];
+        break;
+      case "pass":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "pass", label: "Pass" },
+        ];
+        break;
+      case "punt":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "punt", label: "Punt (pick direction)" },
+        ];
+        break;
+      case "throwBomb":
+        // A Bomber may not Move before throwing: one step, aim at any square.
+        this.actionSteps = [{ id: "bomb", label: "Throw Bomb" }];
+        break;
+      case "ballAndChain":
+        // The Fanatic's only action: pick a facing (a click direction).
+        this.actionSteps = [
+          { id: "swing", label: "Swing (pick a direction)" },
+        ];
+        break;
+      case "blitz":
+        this.actionSteps = blockReplacement
+          ? [
+              { id: "move", label: "Move" },
+              {
+                id: "target",
+                label: BLOCK_REPLACEMENT_DEFINITIONS[blockReplacement].label,
+              },
+            ]
+          : [
+              { id: "move", label: "Move" },
+              { id: "block", label: "Block" },
+            ];
+        break;
+      case "handoff":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "handoff", label: "Handoff" },
+        ];
+        break;
+      case "foul":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "foul", label: "Foul" },
+        ];
+        break;
+      case "block":
+        // A standalone Block: pick an adjacent Standing opponent to block.
+        this.actionSteps = [{ id: "block", label: "Block" }];
+        break;
+      case "multipleBlock":
+        this.multipleBlockFirstTargetId = null;
+        this.actionSteps = [
+          { id: "multipleBlock", label: "Select Two Targets" },
+        ];
+        break;
+      case "throwTeamMate":
+        this.ttmTeammateId = null;
+        // Move first (optional), then throw: in the throw step the first
+        // click picks the adjacent Right-Stuff team-mate, the second aims.
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "throw", label: "Throw Team-mate" },
+        ];
+        break;
+      // Secure Ball logic? Usually automatic, but stepper requested.
+      case "secureBall":
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "secure", label: "Secure Ball" },
+        ];
+        break;
+      default:
+        // Move: walk by clicking squares, or Jump over an adjacent downed
+        // player via the Jump step (you can jump at any point in the move).
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "jump", label: "Jump" },
+        ];
+        break;
+    }
+
+    // The opening step is always the action's own first step. Deriving it
+    // from the list (rather than assuming "move") keeps single-step actions
+    // — Block, Throw Bomb, Ball & Chain, the special attacks — on a step
+    // their click handler actually matches; a hard-coded "move" left them
+    // on a step no branch claimed, so their clicks fell through.
+    const defaultStep = this.actionSteps[0]?.id ?? "move";
+
+    // A prone player stands up first — same activation, costs movement
+    const declarer = this.gameService.getPlayerById(playerId);
+    if (declarer?.status === PlayerStatus.PRONE) {
+      this.actionSteps.unshift({ id: "standup", label: "Stand Up" });
+      this.currentStepId = "standup";
+    } else {
+      this.currentStepId = defaultStep;
+    }
+
+    // Emit Step Info
+    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+      steps: this.actionSteps,
+      currentStepId: this.currentStepId,
+    });
+
+    // Emit ActionModeChanged event for UI (Legacy?)
+    this.eventBus.emit(GameEventNames.ActionModeChanged, {
+      playerId: playerId,
+      action: action,
+      blockReplacement: blockReplacement ?? undefined,
+      autoSelectMove: true,
+    });
+
+    // Don't call selectPlayer here - it causes PlayerSelected event
+    // which resets the action mode we just set!
+    // The player is already selected, no need to refresh
+
+    // Update visuals to reflect new mode (e.g. Pass might hide movement range or show pass zones)
+    this.refreshPlayerVisualization(playerId);
+  }
+
+  /**
+   * After a reload or a resync the engine may hold one of this coach's
+   * players mid-action while the board has nothing selected, so clicks on
+   * the pitch did nothing. Select that player again and resume its action.
+   */
+  private resumeActivePlayer = () => {
+    const active = this.gameService.getState().activePlayer;
+    const player = active ? this.gameService.getPlayerById(active.id) : null;
+    if (!active?.action || !player) return;
+    if (this.gameService.hasPlayerActed(active.id)) return;
+    const online = getActiveOnlineMatch();
+    if (online && online.myTeamId !== player.teamId) return;
+    if (this.gameService.getActiveTeamId() !== player.teamId) return;
+    this.selectPlayer(active.id);
+    this.enterActionMode(
+      active.id,
+      active.action as import("@/types/events").ActionType,
+      active.blockReplacement ?? null
+    );
+    this.hasMovedInAction = this.gameService.getMovementUsed(active.id) > 0;
   };
 
   public handlePointerDown(
@@ -686,22 +742,16 @@ export class GameplayInteractionController {
     gridX: number;
     gridY: number;
   } {
-    const pitchContainer = this.pitch.getContainer();
-    const localX = pointer.x - pitchContainer.x;
-    const localY = pointer.y - pitchContainer.y;
-
-    const pitchW = 26 * 60;
-    const pitchH = 15 * 60;
-    const m = marginSquares * 60;
-
+    // World coordinates: the camera pans and zooms, so screen x/y won't do.
+    const grid = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
+    const m = marginSquares;
     if (
-      localX >= -m &&
-      localX <= pitchW + m &&
-      localY >= -m &&
-      localY <= pitchH + m
+      grid.x >= -m &&
+      grid.x <= GameConfig.PITCH_WIDTH - 1 + m &&
+      grid.y >= -m &&
+      grid.y <= GameConfig.PITCH_HEIGHT - 1 + m
     ) {
-      const gridPos = pixelToGrid(localX, localY, 60);
-      return { valid: true, gridX: gridPos.x, gridY: gridPos.y };
+      return { valid: true, gridX: grid.x, gridY: grid.y };
     }
     return { valid: false, gridX: -1, gridY: -1 };
   }
@@ -2088,7 +2138,12 @@ export class GameplayInteractionController {
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
     );
+    this.eventBus.off(
+      GameEventNames.GameStateRestored,
+      this.resumeActivePlayer
+    );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
+    this.eventBus.off(GameEventNames.DecisionResolved, this.onDecisionResolved);
     this.eventBus.off(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler
@@ -2100,7 +2155,10 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
-    this.eventBus.off(GameEventNames.PlayerRemoved, this.kickoffStepSyncHandler);
+    this.eventBus.off(
+      GameEventNames.PlayerRemoved,
+      this.kickoffStepSyncHandler
+    );
     this.eventBus.off(
       GameEventNames.PlayerSelected,
       this.kickoffPlayerSelectedHandler
@@ -2276,10 +2334,6 @@ export class GameplayInteractionController {
       const mayAct = getActiveOnlineMatch()?.mayAct() ?? true;
       if (!mayAct) return;
 
-      // Solid Defence is intentionally drag-only. A click or pointer-down is
-      // part of beginning that drag and must never select/remove the player.
-      if (eventStep.event === KickoffEvent.SOLID_DEFENCE) return;
-
       if (
         playerAtSquare &&
         playerAtSquare.teamId === eventStep.teamId &&
@@ -2313,27 +2367,27 @@ export class GameplayInteractionController {
       }
 
       if (this.selectedPlayerId) {
-        const applied =
-          eventStep.event === KickoffEvent.QUICK_SNAP
-            ? this.gameService.moveKickoffEventPlayer(
-                this.selectedPlayerId,
-                x,
-                y
-              )
-            : this.gameService.placeKickoffEventPlayer(
-                this.selectedPlayerId,
-                x,
-                y
-              );
+        const oneSquare = isOneSquareMoveEvent(eventStep.event);
+        const applied = oneSquare
+          ? this.gameService.moveKickoffEventPlayer(
+              this.selectedPlayerId,
+              x,
+              y
+            )
+          : this.gameService.placeKickoffEventPlayer(
+              this.selectedPlayerId,
+              x,
+              y
+            );
         if (applied) {
           this.selectedPlayerId = null;
           this.syncKickoffStepInteraction();
         } else {
           this.eventBus.emit(
             GameEventNames.UI_Notification,
-            eventStep.event === KickoffEvent.QUICK_SNAP
-              ? "Quick Snap: choose one adjacent empty pitch square."
-              : "Solid Defence: choose a legal empty setup square."
+            oneSquare
+              ? `${eventStep.event}: choose one adjacent empty pitch square.`
+              : `${eventStep.event}: place the player on the landing square.`
           );
         }
       }
@@ -2411,16 +2465,13 @@ export class GameplayInteractionController {
 
   /**
    * Keep kickoff interaction visible on the board itself. Open eligible
-   * players are blue; selected/current players are gold. Solid Defence also
-   * enables setup-style dragging for eligible players without removing them
-   * from the pitch.
+   * players are blue; selected/current players are gold.
    */
   private syncKickoffStepInteraction(): void {
     for (const playerId of this.kickoffHighlightedPlayerIds) {
       this.scene.unhighlightPlayer(playerId);
     }
     this.kickoffHighlightedPlayerIds.clear();
-    this.scene.setKickoffSolidDefenceDragPlayers([]);
 
     const step = this.gameService.getKickoffEventStep();
     if (!step) return;
@@ -2448,14 +2499,8 @@ export class GameplayInteractionController {
             Math.abs(opponent.gridPosition.x - player.gridPosition!.x),
             Math.abs(opponent.gridPosition.y - player.gridPosition!.y)
           ) === 1
-        );
-    });
-
-    if (step.event === KickoffEvent.SOLID_DEFENCE && canAct) {
-      this.scene.setKickoffSolidDefenceDragPlayers(
-        eligible.map((player) => player.id)
       );
-    }
+    });
 
     // Eligible/selected pitch highlights belong to the deciding coach's own
     // interaction. A coach who cannot act in this step is a passive

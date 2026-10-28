@@ -97,10 +97,31 @@ import { RerollSource } from "@/types/decisions";
 import { resumeApothecaryDecision } from "@/game/inducements/apothecary";
 import {
   calculateInducementBudgets,
-  expireDriveInducements,
+  draftListInventory,
 } from "@/game/inducements/rules";
+import { sevensInducementCatalog } from "@/game/inducements/catalog";
+import { inducementCount } from "@/game/inducements/inventory";
+import { rollMasterChefs } from "@/game/inducements/masterChef";
 import { InducementSession } from "@/game/inducements/InducementSession";
-import { buildSeventsInducementProfile, Inducement } from "@/types/Inducements";
+import {
+  OfferYouDopeOperation,
+  ResolvePregameInducementsOperation,
+  getMatchInducements,
+  holdsMeasure,
+  offerMeasure,
+  revokeMatchGrants,
+  rushModifier,
+  trapdoorOpens,
+  validChoiceAnswer,
+} from "@/game/inducements/matchInducements";
+import { CrowdInjuryOperation } from "@/game/operations/CrowdInjuryOperation";
+import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
+import {
+  buildSeventsInducementProfile,
+  emptyInducementsState,
+  Inducement,
+  InducementOffer,
+} from "@/types/Inducements";
 import { KickoffEventManager } from "@/game/kickoff/KickoffEventManager";
 import {
   driveEffectsEmpty,
@@ -118,6 +139,7 @@ import {
   isLegalBlockReplacementTarget,
   legalBlockReplacementTargets,
 } from "@/game/rules/blockReplacements";
+import { updateDedicatedFans } from "@/game/rules/leagueRoster";
 
 /** Actions that spend a team's once-per-turn allowance (Throw Team-mate
  *  shares Pass's). Only these carry the release/commit rules of
@@ -178,7 +200,6 @@ export class GameService implements IGameService {
       weather: "Nice",
       ballPosition: null, // Ball not placed yet
       activePlayer: null,
-      coachesEjected: [],
       setup: undefined,
     };
   }
@@ -337,7 +358,13 @@ export class GameService implements IGameService {
       if (phase === GamePhase.GAME_OVER) {
         // Get the Ref bribes are match-scoped and never leave this match.
         this.state.bribes = {};
+        // Prayer and Desperate Measure grants last for this game only.
+        revokeMatchGrants(this.state, [
+          ...this.team1.players,
+          ...this.team2.players,
+        ]);
         this.announceFullTime();
+        this.updateDedicatedFans();
       }
     });
     // A Blitz's single block is tracked per activation; a fresh turn clears it.
@@ -393,6 +420,17 @@ export class GameService implements IGameService {
     // A restored save may still have an unresolved Apothecary decision — the
     // operation that requested it is long gone, so re-arm the decision
     // channel directly rather than trying to resume a suspended await.
+    // Matched Play inducements come on the draft list (MP2): there is no
+    // petty cash to negotiate, so they are in the match from the start.
+    const draftList = this.draftListInventory();
+    if (!this.state.inducements && draftList.length > 0) {
+      this.commitInducements(
+        buildSeventsInducementProfile({ advancedLeague: false }),
+        calculateInducementBudgets(this.team1, this.team2),
+        draftList
+      );
+    }
+
     const pendingApothecary = this.state.inducements?.pendingApothecaryDecision;
     if (pendingApothecary) {
       resumeApothecaryDecision(this, eventBus, pendingApothecary);
@@ -486,23 +524,51 @@ export class GameService implements IGameService {
     return this.decisionService.answer({ accept });
   }
 
+  /**
+   * Answer a pending Prayer or Desperate Measure choice. False when none is
+   * pending or the answer is not one of the offered options.
+   */
+  public answerInducementChoice(
+    answer: import("@/types/decisions").InducementChoiceDecisionAnswer
+  ): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "inducement-choice") return false;
+    const valid = validChoiceAnswer(pending, answer);
+    if (!valid) return false;
+    return this.decisionService.answer(valid);
+  }
+
   /** Commit a confirmed pregame inducement selection into match state. */
   public commitInducements(
     profile: import("@/types/Inducements").InducementRuleProfile,
     budgets: Record<string, number>,
     inventory: import("@/types/Inducements").InducementInventoryEntry[]
   ): void {
-    const existing = this.state.inducements;
     this.state.inducements = {
+      ...emptyInducementsState(),
+      ...this.state.inducements,
       profile,
       budgets: { ...budgets },
       inventory: inventory.map((entry) => ({ ...entry })),
-      confirmed: { ...(existing?.confirmed ?? {}) },
-      apothecaryUsed: { ...(existing?.apothecaryUsed ?? {}) },
-      pendingApothecaryDecision: existing?.pendingApothecaryDecision,
-      decisionSeq: existing?.decisionSeq ?? 0,
-      prayerLog: existing?.prayerLog ?? [],
     };
+    // Prayers and Desperate Measures are rolled once, before the first
+    // set-up (L4, L5).
+    const rollsOnTables = inventory.some(
+      (entry) =>
+        entry.inducement === Inducement.PRAYERS_TO_NUFFLE ||
+        entry.inducement === Inducement.DESPERATE_MEASURES
+    );
+    if (rollsOnTables && !getMatchInducements(this.state).rolled) {
+      this.flowManager.add(new ResolvePregameInducementsOperation());
+    }
+  }
+
+  /** Both teams' Matched Play draft-list inducements (MP2). */
+  private draftListInventory() {
+    return [
+      ...draftListInventory(this.team1),
+      ...draftListInventory(this.team2),
+    ];
   }
 
   /**
@@ -517,24 +583,20 @@ export class GameService implements IGameService {
     if (!this.inducementSession) {
       const profile = buildSeventsInducementProfile({ advancedLeague: false });
       const budgets = calculateInducementBudgets(this.team1, this.team2);
-      this.inducementSession = new InducementSession(profile, budgets);
+      this.inducementSession = new InducementSession(profile, budgets, {
+        [this.team1.id]: sevensInducementCatalog(this.team1),
+        [this.team2.id]: sevensInducementCatalog(this.team2),
+      });
     }
     return this.inducementSession;
   }
 
-  getInducementOffer(): {
-    profile: import("@/types/Inducements").InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<
-      string,
-      import("@/game/inducements/rules").InducementSelectionLine[]
-    >;
-    confirmed: Record<string, boolean>;
-  } {
+  getInducementOffer(): InducementOffer {
     const session = this.getOrCreateInducementSession();
     return {
       profile: session.getProfile(),
       budgets: session.getBudgets(),
+      catalogs: session.getCatalogs(),
       selections: {
         [this.team1.id]: session.getSelection(this.team1.id),
         [this.team2.id]: session.getSelection(this.team2.id),
@@ -574,7 +636,7 @@ export class GameService implements IGameService {
       this.commitInducements(
         session.getProfile(),
         session.getBudgets(),
-        session.toInventory()
+        [...this.draftListInventory(), ...session.toInventory()]
       );
     }
     return result;
@@ -599,7 +661,18 @@ export class GameService implements IGameService {
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
+    this.rollMasterChefs();
     this.setupManager.startSetup(startingTeamId);
+  }
+
+  /** Halfling Master Chefs cook once per half, before its first Kick-off. */
+  private rollMasterChefs(): void {
+    rollMasterChefs(
+      this.state,
+      [this.team1, this.team2],
+      this.diceController,
+      this.eventBus
+    );
   }
 
   placePlayer(playerId: string, x: number, y: number): boolean {
@@ -659,6 +732,14 @@ export class GameService implements IGameService {
       phase: GamePhase.KICKOFF,
       subPhase: SubPhase.ROLL_KICKOFF,
     });
+    // You Dope! is offered after both set-ups, before the kick (L21).
+    if (
+      [this.team1, this.team2].some((team) =>
+        holdsMeasure(this.state, team.id, DesperateMeasure.YOU_DOPE)
+      )
+    ) {
+      this.flowManager.add(new OfferYouDopeOperation());
+    }
   }
 
   selectKicker(playerId: string): void {
@@ -753,6 +834,8 @@ export class GameService implements IGameService {
   }
 
   startGame(kickingTeamId: string): void {
+    // A match that began past setup (a scenario) has its chef cook here.
+    this.rollMasterChefs();
     this.rerollArbiter.beginHalf([this.team1.id, this.team2.id]);
     this.turnManager.startGame(kickingTeamId);
   }
@@ -878,6 +961,8 @@ export class GameService implements IGameService {
    * Rush). The normal movement auto-finish ends it once the budget is spent.
    */
   public finishBlockActivation(attackerId: string): void {
+    // The follow-up, if one was offered, is settled either way
+    this.eventBus.emit(GameEventNames.DecisionResolved, { type: "follow-up" });
     // Pile Driver's free Foul comes first, on a Blitz as on a Block.
     if (
       this.blockManager.offerPileDriver(attackerId, () =>
@@ -898,6 +983,11 @@ export class GameService implements IGameService {
         moveAllowance(withDriveModifiers(player, this.state))
       ) {
         this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
+          playerId: attackerId,
+        });
+        // The board picks the blitzer back up for the rest of the move,
+        // however the block ended (with or without a follow-up, online too)
+        this.eventBus.emit(GameEventNames.UI_ResumeBlitzMove, {
           playerId: attackerId,
         });
         return;
@@ -1028,7 +1118,7 @@ export class GameService implements IGameService {
         this.diceController.rollSkillCheck(
           "Rush (GFI)",
           2,
-          weatherEffects(this.state.weather).rush,
+          rushModifier(this.state, attacker),
           attacker.playerName
         )
     );
@@ -1054,6 +1144,11 @@ export class GameService implements IGameService {
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
+    // Online, both coaches see the dice; close them for the one who didn't pick
+    this.eventBus.emit(GameEventNames.DecisionResolved, {
+      type: "block-dice",
+      result: result.type,
+    });
     await this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 
@@ -1072,6 +1167,11 @@ export class GameService implements IGameService {
     this.blockManager.brawlerRerollBlockDie(attackerId);
   }
 
+  /** Veteran on a block: re-roll all the dice, once per game (D8). */
+  veteranRerollBlock(attackerId: string): void {
+    this.blockManager.veteranRerollBlock(attackerId);
+  }
+
   public async executePush(
     attackerId: string,
     defenderId: string,
@@ -1079,6 +1179,10 @@ export class GameService implements IGameService {
     resultType: string,
     followUp: boolean
   ): Promise<void> {
+    // Before the push: a chain push asks for the next direction from inside
+    this.eventBus.emit(GameEventNames.DecisionResolved, {
+      type: "push-direction",
+    });
     await this.blockManager.executePush(
       attackerId,
       defenderId,
@@ -1147,6 +1251,22 @@ export class GameService implements IGameService {
       ballJoinStep: 0,
     });
 
+    // Treacherous Trapdoor (L12): following up onto it may drop the blocker.
+    if (trapdoorOpens(this.state, this.diceController, attacker, targetSquare)) {
+      attacker.gridPosition = undefined;
+      this.flowManager.add(
+        new CrowdInjuryOperation(attackerId, { ...targetSquare }, false, {
+          carriedBall: !!carriedBall,
+        }),
+        true
+      );
+      // Decided now, as for a crowd push: the activation ends straight after.
+      if (attacker.teamId === this.state.activeTeamId) {
+        this.triggerTurnover("Fell through a Trapdoor");
+      }
+      return;
+    }
+
     // Following up onto a loose ball is entering its square — the player must
     // roll to pick it up. PickupOperation is the same path a move takes, so a
     // failed pickup bounces through BounceOperation (throw-in, catches) and
@@ -1193,8 +1313,43 @@ export class GameService implements IGameService {
         );
         return this.flowManager.whenIdle();
       })
+      .then(() => this.offerSportsEspionage())
       .then(() => this.delay(3000))
       .then(() => this.turnManager.completeTurnover());
+  }
+
+  /**
+   * Sports Espionage (L26): once the Turnover has resolved, the team that
+   * suffered it may gain two team re-rolls for the rest of the half. The
+   * dice that caused the Turnover are long settled by now.
+   */
+  private async offerSportsEspionage(): Promise<void> {
+    const team = this.state.activeTeamId
+      ? this.getTeam(this.state.activeTeamId)
+      : undefined;
+    if (
+      !team ||
+      !holdsMeasure(this.state, team.id, DesperateMeasure.SPORTS_ESPIONAGE)
+    ) {
+      return;
+    }
+    const playerId = this.state.activePlayer?.id ?? team.players[0]?.id;
+    if (!playerId) return;
+    const used = await offerMeasure(
+      { gameService: this },
+      team.id,
+      playerId,
+      DesperateMeasure.SPORTS_ESPIONAGE,
+      `${team.name} suffered a Turnover — use Sports Espionage for two team re-rolls?`
+    );
+    if (!used) return;
+    this.state.teamRerollsUsed ??= {};
+    this.state.teamRerollsUsed[team.id] =
+      (this.state.teamRerollsUsed[team.id] ?? 0) - 2;
+    this.eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `Sports Espionage: ${team.name} gains two team re-rolls`
+    );
   }
 
   isTurnoverInProgress(): boolean {
@@ -1574,6 +1729,25 @@ export class GameService implements IGameService {
   }
 
   /**
+   * Post-game Update Dedicated Fans for both teams, on the played score: a
+   * concession never invents a result, so a conceded 0-0 is a draw.
+   */
+  private updateDedicatedFans(): void {
+    const dice = this.diceController;
+    for (const team of [this.team1, this.team2]) {
+      const own = this.state.score[team.id] ?? 0;
+      const other =
+        this.state.score[
+          team.id === this.team1.id ? this.team2.id : this.team1.id
+        ] ?? 0;
+      const outcome = own > other ? "win" : own < other ? "loss" : "draw";
+      updateDedicatedFans(team, outcome, () =>
+        dice.rollD6(`Dedicated Fans (${team.name})`, team.id)
+      );
+    }
+  }
+
+  /**
    * End of Drive Sequence (rulebook p.83): clear the pitch to the dugouts,
    * roll KO recovery, then restart with the given kicking team — no coin
    * flip after drive one. Runs as operations so the UI can pace each stage.
@@ -1632,15 +1806,6 @@ export class GameService implements IGameService {
     this.state.kickoffResolution = undefined;
     this.state.kickoffKickResolved = undefined;
 
-    // Drive-scoped inducement uses (unlike match-scoped ones) refill at
-    // every new drive; the Apothecary's used flag is match-scoped and never
-    // reset here.
-    if (this.state.inducements) {
-      this.state.inducements.inventory = expireDriveInducements(
-        this.state.inducements.inventory
-      );
-    }
-
     // Activation state must not leak into the next drive's setup — stale
     // activatedPlayerIds left players "already gone" and blocked setup
     this.state.turn.activatedPlayerIds.clear();
@@ -1676,13 +1841,24 @@ export class GameService implements IGameService {
   async rollKORecovery(
     beat: () => Promise<void> = () => Promise.resolve()
   ): Promise<void> {
+    // You Dope! collapses cannot recover this end of drive (L21).
+    const noRecovery = this.state.matchInducements?.noRecoveryPlayerIds ?? [];
     const knockedOut = [...this.team1.players, ...this.team2.players].filter(
-      (p) => p.status === PlayerStatus.KO
+      (p) => p.status === PlayerStatus.KO && !noRecovery.includes(p.id)
     );
+    if (this.state.matchInducements) {
+      this.state.matchInducements.noRecoveryPlayerIds = [];
+    }
 
     for (const player of knockedOut) {
       const roll = this.diceController.rollD6("KO Recovery");
-      const recovered = roll >= 4;
+      // Blitzer's Best Kegs: +1 per Keg to the owner's recovery rolls.
+      const kegs = inducementCount(
+        this.state,
+        player.teamId,
+        Inducement.BLITZERS_BEST_KEGS
+      );
+      const recovered = roll + kegs >= 4;
       this.eventBus.emit(GameEventNames.KORecoveryRolled, {
         playerId: player.id,
         roll,
@@ -1882,6 +2058,21 @@ export class GameService implements IGameService {
     if (this.state.activePlayer) {
       const existingId = this.state.activePlayer.id;
       const status = this.playerActionManager.isActionCommitted(existingId);
+      // Nor may a player who has started the activation switch to another
+      // Action: moving, or standing up, then declaring a Block would be a
+      // Blitz that never spent the team's Blitz (and, from Prone, a free
+      // Jump Up).
+      if (
+        status.committed &&
+        existingId === playerId &&
+        this.state.activePlayer.action !== action
+      ) {
+        this.eventBus.emit(
+          GameEventNames.UI_Notification,
+          `Cannot change the declared Action — ${PlayerActionManager.describeCommitReason(status.reason!)}.`
+        );
+        return false;
+      }
       if (status.committed && status.reason === "gate") {
         this.eventBus.emit(
           GameEventNames.UI_Notification,
@@ -2471,7 +2662,7 @@ export class GameService implements IGameService {
             this.diceController.rollSkillCheck(
               "Rush (GFI)",
               2,
-              weatherEffects(this.state.weather).rush,
+              rushModifier(this.state, attacker),
               attacker.playerName,
               attacker.teamId
             )

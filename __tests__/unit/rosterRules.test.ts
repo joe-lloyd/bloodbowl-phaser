@@ -4,10 +4,11 @@ import {
   checkTeamCompatibility,
   createRosterRuleProfile,
 } from "../../src/competition/rosterRules";
-import { createMatchedPlayPackage } from "../../src/game/progression/advancementModes";
+import { SkillType } from "../../src/types/Skills";
 import { createTeam, RosterName, Team } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
+import { chooseVeteran } from "../../src/game/rules/veteran";
 
 function legalHumanTeam(mode?: Team["advancementMode"]): Team {
   const team = createTeam(
@@ -26,6 +27,7 @@ function legalHumanTeam(mode?: Team["advancementMode"]): Team {
     team.players.push(createPlayer(template, team.id, i + 1));
     team.treasury -= template.cost;
   }
+  chooseVeteran(team, team.players[0].id);
   return team;
 }
 
@@ -75,17 +77,24 @@ describe("competition roster rule profiles", () => {
     expect(result.reasons).toHaveLength(2);
   });
 
-  it("requires an incomplete Matched Play package to be finished before entry", () => {
+  it("refuses a Matched Play team whose skills break the Skill Point rules", () => {
     const team = legalHumanTeam("matched-play");
-    const pkg = createMatchedPlayPackage({ tierAllowance: { 2: 2 } });
+    // Forged save data: Human is tier 1, so it has 1 Skill Point.
+    team.matchedPlayAllocations = [
+      { playerId: team.players[0].id, skill: SkillType.GRAB, access: "secondary" },
+      { playerId: team.players[1].id, skill: SkillType.GUARD, access: "secondary" },
+    ];
     const profile = createRosterRuleProfile({
       advancementMode: "matched-play",
-      matchedPlayPackage: pkg,
       draftBudget: 5_000_000,
     });
-    const result = checkTeamCompatibility(team, profile);
-    expect(result.compatible).toBe(false);
-    expect(result.reasons.join(" ")).toMatch(/package incomplete/);
+    expect(checkTeamCompatibility(team, profile)).toEqual({
+      compatible: false,
+      reasons: [
+        "Matched Play skills cost 4 Skill Points but the team has 1.",
+        "A team may take only one Secondary skill.",
+      ],
+    });
   });
 
   it("blocks entry while the team has unresolved pending development", () => {

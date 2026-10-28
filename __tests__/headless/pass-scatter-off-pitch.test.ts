@@ -64,9 +64,9 @@ describe("an inaccurate pass scattering off the pitch", () => {
       "Scatter: 1, 5, 8",
       "Throw-in Direction: 6",
       "Throw-in Distance: 2",
-      "Throw-in Distance: 4",
     ]);
-    expect(response.snapshot.ballPosition).toEqual({ x: 13, y: 5 });
+    // D6+2 is 4 squares down-right, counting (8,0) as the first.
+    expect(response.snapshot.ballPosition).toEqual({ x: 11, y: 3 });
     expect(response.snapshot.activeTeamId).toBe("team2");
   });
 });

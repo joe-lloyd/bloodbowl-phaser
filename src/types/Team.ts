@@ -2,16 +2,23 @@
  * Team types and interfaces for Blood Bowl Sevens
  */
 
-import { Player, PlayerTemplate } from "./Player";
+import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
-import { SkillType } from "./Skills";
+import type { InducementSelectionLine } from "./Inducements";
+import { SkillCategory, SkillType } from "./Skills";
+import {
+  APOTHECARY_COST,
+  ASSISTANT_COACH_COST,
+  CHEERLEADER_COST,
+  TEAM_REROLL_COST,
+} from "../game/rules/sevensPrices";
 
 /**
  * A team's progression lifecycle, chosen once at creation and immutable
- * thereafter (see setAdvancementMode). Matched Play grants a tier-based
- * skill package before play; Advanced League earns/spends SPP normally;
- * Sevens Skill Selection awards one random skill after each game and
- * subjects experienced players to the Draft. Absent on teams created before
+ * thereafter (see setAdvancementMode). Matched Play spends tier-based Skill
+ * Points before play; Advanced League earns/spends SPP normally; Sevens
+ * Skill Selection gives one player a skill after each game and lets pro
+ * teams make offers for experienced players (Drafted Players). Absent on teams created before
  * this field existed until migrated or explicitly chosen (see TeamManager).
  */
 export type TeamAdvancementMode =
@@ -19,28 +26,22 @@ export type TeamAdvancementMode =
   | "advanced-league"
   | "sevens-skill-selection";
 
-/** One Matched Play package skill allocated to a player before finalization. */
+/** One Matched Play skill bought with Skill Points before finalization. */
 export interface MatchedPlayAllocation {
   playerId: string;
   skill: SkillType;
-  /** Which package slot type was used. A Primary Skill may be taken in an
-   *  allowed Secondary slot ("primary-substitution"); a Secondary Skill may
-   *  only be taken in a Secondary slot. */
   access: "primary" | "secondary";
-  usedSecondarySlot: boolean;
 }
 
-/** A player removed from the active roster by the post-game Draft. Retains
- *  a full snapshot so career, match, and Draft history survive the removal
- *  (see team-advancement-modes: "A drafted player may be referenced by
- *  history"). */
+/** A player who left for a pro team after the post-game Drafted Players
+ *  roll (A6). Retains a full snapshot so career, match, and Draft history
+ *  survive the removal. */
 export interface DraftRecord {
   id: string;
   playerId: string;
   playerName: string;
   roll: number;
   addedSkillCount: number;
-  valueIncrease: number;
   matchId?: string;
   removedAt: number;
   /** Immutable snapshot of the player at the moment of removal. */
@@ -60,10 +61,48 @@ export type PendingDevelopment =
       id: string;
       kind: "sevens-skill-selection";
       matchId: string;
-      /** Frozen from match records: living participants eligible to be
-       *  chosen (Primary) or randomly selected (Secondary). */
+      /** Frozen at the end of the game: players who did not end it as a
+       *  Casualty, eligible to be chosen (Primary) or randomly selected
+       *  (Secondary). */
       eligibleParticipantIds: string[];
       createdAt: number;
+      /** Set once the coach has picked this game's route. */
+      progress?: SkillSelectionProgress;
+    }
+  | {
+      /** A6: a pro team offers for this player. The coach pays the
+       *  player's current value from the Treasury or releases them. */
+      id: string;
+      kind: "drafted-player-offer";
+      playerId: string;
+      roll: number;
+      addedSkillCount: number;
+      matchId: string;
+      createdAt: number;
+    };
+
+/** Two random rolls on the skill table and the skill they landed on. */
+export interface SkillRollCandidate {
+  skill: SkillType;
+  firstD6: number;
+  secondD6: number;
+}
+
+/** A Sevens Skill Selection in progress. Primary: the coach chose the player
+ *  and category, and skills are named coach, opponent, coach (A2).
+ *  Secondary: the player was picked at random, then the coach picks a
+ *  category and chooses one of two rolled skills (A3). */
+export type SkillSelectionProgress =
+  | {
+      route: "primary";
+      playerId: string;
+      category: SkillCategory;
+      named: SkillType[];
+    }
+  | {
+      route: "secondary";
+      playerId: string;
+      rolled?: { category: SkillCategory; candidates: SkillRollCandidate[] };
     };
 
 /**
@@ -174,7 +213,9 @@ export interface Team {
   treasury: number; // Current Gold available
   startingTreasury: number; // Initial Treasury (usually 600k for Sevens)
   rerolls: number; // Team re-rolls purchased
-  rerollCost: number; // Cost per re-roll (race-specific)
+  /** The roster's rulebook re-roll price. Sevens ignores it: every team
+   *  pays TEAM_REROLL_COST (see src/game/rules/teamPricing.ts). */
+  rerollCost: number;
 
   // Staff
   apothecary: boolean; // Has apothecary?
@@ -214,6 +255,9 @@ export interface Team {
   advancementModeLocked?: boolean;
   /** Matched Play only: package skills allocated to players before entry. */
   matchedPlayAllocations?: MatchedPlayAllocation[];
+  /** Matched Play only (MP2): inducements bought onto the draft list from
+   *  the draft budget. They come with the team to every match. */
+  draftInducements?: InducementSelectionLine[];
   /** Sevens Skill Selection / Matched Play: players poached by the Draft. */
   draftHistory?: DraftRecord[];
   /** Unresolved mode-specific development awaiting a Manage Team decision. */
@@ -261,7 +305,7 @@ export function createTeam(
     apothecary: false,
     coaches: 0,
     cheerleaders: 0,
-    dedicatedFans: 0,
+    dedicatedFans: startingDedicatedFans(advancementMode),
     teamValue: 0,
     wins: 0,
     losses: 0,
@@ -291,7 +335,29 @@ export function setAdvancementMode(
       "Advancement mode is immutable once the team is finalized or has entered a competition."
     );
   }
+  team.dedicatedFans +=
+    startingDedicatedFans(mode) - startingDedicatedFans(team.advancementMode);
   team.advancementMode = mode;
+}
+
+/**
+ * League teams carry injuries between games and run the post-game sequence.
+ * Matched Play teams and unmigrated legacy teams do neither.
+ */
+export function isLeagueMode(mode?: TeamAdvancementMode): boolean {
+  switch (mode) {
+    case undefined:
+    case "matched-play":
+      return false;
+    case "advanced-league":
+    case "sevens-skill-selection":
+      return true;
+  }
+}
+
+/** D7: league teams start with Dedicated Fans 1, Matched Play teams with 0. */
+export function startingDedicatedFans(mode?: TeamAdvancementMode): number {
+  return isLeagueMode(mode) ? 1 : 0;
 }
 
 /** Finalize the mode choice: called on first save and on competition entry. */
@@ -305,24 +371,43 @@ export function hasBlockingPendingDevelopment(team: Team): boolean {
 }
 
 /**
- * Calculate team value
+ * Whether a player can play the team's next game: not already in the
+ * Casualty box, which before kick-off means sitting this game out, and in a
+ * league not due to Miss Next Game or Dead.
+ */
+export function playsNextGame(team: Team, player: Player): boolean {
+  if (
+    player.status === PlayerStatus.INJURED ||
+    player.status === PlayerStatus.DEAD
+  ) {
+    return false;
+  }
+  return !(
+    isLeagueMode(team.advancementMode) &&
+    (player.injuries.includes(InjuryType.MISS_NEXT_GAME) ||
+      player.injuries.includes(InjuryType.DEAD))
+  );
+}
+
+/**
+ * The team's Current Team Value: every player who can play the next game,
+ * plus re-rolls and Sideline Staff.
  */
 export function calculateTeamValue(team: Team): number {
   let value = 0;
 
-  // Player costs
-  team.players.forEach((player) => {
-    value += player.cost + (player.teamValue ?? 0);
-  });
+  team.players
+    .filter((player) => playsNextGame(team, player))
+    .forEach((player) => {
+      value += player.cost + (player.teamValue ?? 0);
+    });
 
-  // Re-rolls
-  value += team.rerolls * team.rerollCost;
-
-  // Staff
-  if (team.apothecary) value += 50000;
-  value += team.coaches * 10000;
-  value += team.cheerleaders * 10000;
-  value += team.dedicatedFans * 10000;
+  // Re-rolls and Sideline Staff count at their Sevens prices. Dedicated
+  // Fans are not part of Team Value.
+  value += team.rerolls * TEAM_REROLL_COST;
+  if (team.apothecary) value += APOTHECARY_COST;
+  value += team.coaches * ASSISTANT_COACH_COST;
+  value += team.cheerleaders * CHEERLEADER_COST;
 
   return value;
 }
@@ -380,37 +465,5 @@ export function addPlayerToTeam(team: Team, player: Player): boolean {
 
   team.players.push(player);
   team.treasury -= player.cost;
-  return true;
-}
-
-/**
- * Purchase team re-roll
- */
-export function purchaseReroll(team: Team): boolean {
-  const cost = team.rerollCost;
-  if (!canAfford(team, cost)) {
-    return false;
-  }
-
-  team.rerolls++;
-  team.treasury -= cost;
-  return true;
-}
-
-/**
- * Purchase apothecary
- */
-export function purchaseApothecary(team: Team): boolean {
-  if (team.apothecary) {
-    return false; // Already have one
-  }
-
-  const cost = 50000;
-  if (!canAfford(team, cost)) {
-    return false;
-  }
-
-  team.apothecary = true;
-  team.treasury -= cost;
   return true;
 }

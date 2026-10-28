@@ -67,30 +67,24 @@ Ball bugs surfaced.
 
 ## Still open
 
-### Waiting on the Spike! 22 comparison
+### Sevens rules from Spike! 22
 
-Sevens changes these, so they are on hold until the magazine text is read.
+[SEVENS_RULES.md](SEVENS_RULES.md) lists every Sevens rule and its status.
+Inducements, league injuries, staff prices, Argue the Call, Dedicated Fans,
+Journeymen and firing now follow it. Still open there:
 
-1. **Purchased inducements do nothing.** Extra Team Training, the Wandering
-   Apothecary and Bribes are bought and confirmed, and then never applied.
-   Bribes from Get the Ref can never be spent either.
-2. **Injuries do not carry between league matches.** A loaded team marks
-   every player Reserve.
-   - Dead players stay on the roster.
-   - Miss Next Game players can play the next match.
-   - Niggling Injuries are never applied.
-   - A Lasting Injury always takes MA instead of rolling for which
-     characteristic to lose.
-   - Team value counts Dead and Miss Next Game players, and Dedicated Fans.
-3. **The team builder does not charge for staff.** Coaches and cheerleaders
-   are free and unlimited, and the Apothecary ignores whether the roster
-   allows one.
-4. **Argue the Call** is automatic, and a 6 cancels the turnover. Sevens uses
-   amateur referees with a 1 in 3 chance.
-5. **League and builder details.** The penalty-free set-up concession still
-   wipes the conceding team's SPP. Dedicated Fans count toward team value,
-   cost 10,000 instead of 5,000, start at 0 instead of 1, and have no cap.
-   Several inducement prices and restrictions differ from the 2025 table.
+- Razzle-Dazzle and Magic Scroll are rolled and held but do nothing. A
+  second Action needs its own declaration rules, and the engine has no
+  Sports-Wizard.
+- There are no screens for re-drafting between seasons or for hiring
+  Journeymen after a game. The re-draft rules exist as a tested function.
+- Seed teams and old saves still carry characteristic losses from before
+  the Sevens injury tables, and loading still applies them.
+- The penalty-free set-up concession still wipes the conceding team's SPP.
+- In an online match the opponent cannot name their Primary skill choice,
+  because only the owner sees Manage Team. Hot-seat play works.
+- Simulated teams get Prayers and Desperate Measures for free but buy no
+  other inducements, so only the tests cover those.
 
 ### Wrong in rarer situations
 
@@ -110,8 +104,9 @@ Sevens changes these, so they are on hold until the magazine text is read.
 
 ### Not implemented
 
-- Winnings, the Dedicated Fans roll, Expensive Mistakes and the rest of the
-  post-match treasury.
+- Winnings, Expensive Mistakes and the rest of the post-match treasury.
+- Seasons and the re-draft screen. The R1 to R3 steps exist as
+  `beginRedraft`, which nothing calls yet.
 - Conceding during play. Only the set-up concession exists.
 - Deflections, and their SPP.
 - Most team special rules: Swarming, Bribery and Corruption, Team Captain,
@@ -144,32 +139,11 @@ them:
 
 ## The official Sevens rules: Spike! Journal Issue 22
 
-Games Workshop published the official Sevens rules in
-[Spike! Journal Issue 22](https://www.warhammer.com/en-US/shop/blood-bowl-spike-issue-22-2026-eng),
-a 32-page magazine released in August 2026. It builds on the 2025 rulebook
-and changes a few things. The full text is not public. These differences come
-from the
-[designer's notes](https://www.warhammer-community.com/en-gb/articles/f0owm2ar/designers-notes-on-blood-bowl-sevens/)
-and a
-[review](https://spruesandbrews.com/2026/08/08/blood-bowl-sevens-and-big-guys-review-spike-issue-22/),
-and need checking against the magazine itself:
-
-| Rule | Spike! 22 | This game |
-| --- | --- | --- |
-| Team budget | 600,000 | to check |
-| Non-Lineman players | at most 4 | at most 4 |
-| Team re-rolls | 100,000 each | doubled at draft |
-| Veteran | one Lineman per team, slower, with a once-per-game re-roll | missing |
-| Advancement | no SPP; after each game one player gains a random skill. For Primary, you pick two, the opponent picks one, a D3 decides. | a per-team switch: Matched Play, Advanced League with SPP, or Sevens Skill Selection, one random skill per game. Compare how the skill is chosen. |
-| Injuries | two new tables, standard and Stunty | 2025 tables |
-| Injury cover | a player may be signed to cover an injury elsewhere and miss your game | the Draft: a D6 per player with added skills, at or under their skill count and they leave for gold. Compare. |
-| Kick-off | its own kick-off table; kick-offs and throw-ins travel less far | its own table, to compare |
-| Referees | amateur: 1 in 3 chance when arguing a send-off | 2025 Argue the Call |
-| Pitch | smaller, with a No Man's Land in the centre | 20 by 11, six-column neutral zone |
-| Turns | six per half | six per half |
-
-Until the magazine text is compared line by line, these open items stay on
-hold, because Sevens changes them: purchased inducements, league injuries,
-the team builder's staff and prices, team value and Argue the Call. The
-progression switch stays: Advanced League with SPP remains a choice
-alongside the official Sevens advancement.
+The magazine has now been read. [SEVENS_RULES.md](SEVENS_RULES.md) lists
+every Sevens rule with an ID and compares each one with the engine. It
+settles the numbers above. The pitch, set-up limits, D3+1 kick-off
+selections, turn count and roster limits match. Argue the Call, the
+injury tables, Time-Out, Solid Defence, throw-ins, kick-off deviation,
+staff prices, inducements and the advancement details differ. The progression
+switch stays: Advanced League with SPP remains a choice alongside the
+official Sevens advancement.

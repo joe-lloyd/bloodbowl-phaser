@@ -19,6 +19,7 @@ import {
   LegalActions,
   PlayerActions,
   GridPosition,
+  DECISION_REPLIES,
 } from "./protocol";
 import { serializeGameState, GameSnapshot } from "./serialization";
 import { GameEventNames, ActionType } from "../types/events";
@@ -35,6 +36,7 @@ import {
 } from "../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { Inducement } from "../types/Inducements";
+import { foulSpent } from "../game/inducements/matchInducements";
 
 /** Field requirements per command type, used for malformed-command rejection. */
 const COMMAND_SHAPES: Record<
@@ -52,7 +54,7 @@ const COMMAND_SHAPES: Record<
   >
 > = {
   "coin-flip": {},
-  "start-setup": { kickingTeamId: "string" },
+  "start-setup": { kickingTeamId: "string", rollWeather: "boolean?" },
   "place-player": { playerId: "string", x: "number", y: "number" },
   "remove-player": { playerId: "string" },
   "swap-players": { player1Id: "string", player2Id: "string" },
@@ -95,6 +97,7 @@ const COMMAND_SHAPES: Record<
   "team-reroll-block": { attackerId: "string" },
   "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "brawler-reroll-block": { attackerId: "string" },
+  "veteran-reroll-block": { attackerId: "string" },
   "special-action": {
     action: "string",
     attackerId: "string",
@@ -112,6 +115,11 @@ const COMMAND_SHAPES: Record<
   "choose-interception": {},
   touchback: { playerId: "string" },
   "use-apothecary": { accept: "boolean" },
+  "choose-inducement": {
+    playerId: "string?",
+    skill: "string?",
+    stat: "string?",
+  },
   "offer-inducements": {},
   "select-inducement": {
     teamId: "string",
@@ -124,24 +132,6 @@ const COMMAND_SHAPES: Record<
   "legal-actions": {},
 };
 
-const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
-  "choose-block-result": "block-dice",
-  "team-reroll-block": "block-dice",
-  "pro-reroll-block": "block-dice",
-  "brawler-reroll-block": "block-dice",
-  "choose-push-direction": "push-direction",
-  "choose-follow-up": "follow-up",
-  "use-reroll": "reroll",
-  "use-reaction": "reaction",
-  "choose-interception": "interception",
-  touchback: "touchback",
-  "use-apothecary": "apothecary",
-  "kickoff-select-player": "kickoff-event",
-  "kickoff-move-player": "kickoff-event",
-  "kickoff-place-player": "kickoff-event",
-  "kickoff-confirm": "kickoff-event",
-  "kickoff-skip": "kickoff-event",
-};
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
@@ -171,7 +161,8 @@ export class HeadlessGame {
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
     this.autoStartOnReady = options.autoStartOnReady !== false;
-    this.kickingTeamId = options.matchSave?.drive.kickingTeamId ?? null;
+    this.kickingTeamId =
+      options.matchSave?.drive.kickingTeamId ?? options.kickingTeamId ?? null;
     this.subscribeToAllEvents();
 
     // A restored save mid-Apothecary-decision has already re-armed the
@@ -201,6 +192,15 @@ export class HeadlessGame {
 
   public pendingDecision(): PendingDecision | null {
     return this.pending;
+  }
+
+  /**
+   * Take on another engine's state wholesale (an online resync): drop any
+   * decision this engine was paused on and show the other's instead.
+   */
+  public adoptPending(pending: PendingDecision | null): void {
+    this.ctx.gameService.getDecisionService().abandon();
+    this.pending = pending;
   }
 
   /**
@@ -339,6 +339,7 @@ export class HeadlessGame {
       case "start-setup":
         this.assertTeam(cmd.kickingTeamId);
         this.kickingTeamId = cmd.kickingTeamId;
+        if (cmd.rollWeather) gs.rollInitialWeather();
         gs.startSetup(cmd.kickingTeamId);
         break;
       case "place-player":
@@ -614,6 +615,9 @@ export class HeadlessGame {
       case "brawler-reroll-block":
         gs.brawlerRerollBlockDie(cmd.attackerId);
         break;
+      case "veteran-reroll-block":
+        gs.veteranRerollBlock(cmd.attackerId);
+        break;
       case "choose-block-result": {
         const pending = this.takePending("block-dice");
         if (cmd.index < 0 || cmd.index >= pending.options.length) {
@@ -708,6 +712,23 @@ export class HeadlessGame {
         break;
       }
 
+      case "choose-inducement": {
+        const pending = this.takePending("inducement-choice");
+        const stat = cmd.stat;
+        if (
+          (stat !== undefined && stat !== "ST" && stat !== "AG") ||
+          !gs.answerInducementChoice({
+            playerId: cmd.playerId,
+            skill: cmd.skill,
+            stat,
+          })
+        ) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-inducement-choice");
+        }
+        break;
+      }
+
       // --- Sevens pregame inducements ---
       case "offer-inducements":
         // Handled as a query above `dispatch`; never reached here.
@@ -796,6 +817,16 @@ export class HeadlessGame {
           passerId: data.passerId,
           candidates: data.candidates,
         };
+      } else if (data?.type === "inducement-choice") {
+        this.pending = {
+          type: "inducement-choice",
+          kind: data.kind,
+          chooserTeamId: data.chooserTeamId,
+          playerIds: [...data.playerIds],
+          ...(data.skills ? { skills: [...data.skills] } : {}),
+          ...(data.stats ? { stats: [...data.stats] } : {}),
+          optional: data.optional,
+        };
       } else if (data?.type === "apothecary") {
         this.pending = {
           type: "apothecary",
@@ -827,6 +858,7 @@ export class HeadlessGame {
         teamRerollAvailable: data.teamRerollAvailable,
         proAvailable: data.proAvailable,
         brawlerAvailable: data.brawlerAvailable,
+        veteranRerollAvailable: data.veteranRerollAvailable,
       };
     } else if (name === GameEventNames.UI_SelectPushDirection) {
       this.pending = {
@@ -935,9 +967,13 @@ export class HeadlessGame {
           opponents,
           teammates: gs.getTeammates(p.id),
           reachable,
-          turn: state.turn,
+          turn: {
+            ...state.turn,
+            hasFouled: foulSpent(state, activeTeam.id),
+          },
           hasMovedInAction: false,
         });
+        const canFoul = !foulSpent(state, activeTeam.id);
 
         const actions: ActionType[] = [];
         if (availability.ballAndChain) {
@@ -949,7 +985,7 @@ export class HeadlessGame {
           actions.push("standUp");
           if (availability.move) actions.push("move");
           if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (!state.turn.hasFouled) actions.push("foul");
+          if (canFoul) actions.push("foul");
         } else if (p.status === PlayerStatus.ACTIVE) {
           if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
@@ -957,7 +993,7 @@ export class HeadlessGame {
           if (carriesBall && availability.pass) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
-          if (!state.turn.hasFouled && adjacentDown.length > 0)
+          if (canFoul && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
             if (!actions.includes(replacement)) actions.push(replacement);

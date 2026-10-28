@@ -6,6 +6,11 @@
 import { GamePhase, SubPhase } from "../types/GameState";
 import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
+import type {
+  DopeStat,
+  InducementChoiceDecisionRequest,
+  RerollSource,
+} from "../types/decisions";
 import { GameSnapshot } from "./serialization";
 import type {
   ChargeBudget,
@@ -14,8 +19,7 @@ import type {
 import { FormationPosition, SetupTeamStatus } from "../types/SetupTypes";
 import { BlockReplacement } from "../types/BlockReplacement";
 import type { SwoopFacing } from "../game/rules/throwTeammate";
-import { InducementRuleProfile } from "../types/Inducements";
-import { InducementSelectionLine } from "../game/inducements/rules";
+import { InducementOffer } from "../types/Inducements";
 
 export interface GridPosition {
   x: number;
@@ -26,7 +30,12 @@ export interface GridPosition {
 export type HeadlessCommand =
   // Setup
   | { type: "coin-flip" }
-  | { type: "start-setup"; kickingTeamId: string }
+  | {
+      type: "start-setup";
+      kickingTeamId: string;
+      /** Roll the match's opening weather first (online: both engines do) */
+      rollWeather?: boolean;
+    }
   | { type: "place-player"; playerId: string; x: number; y: number }
   | { type: "remove-player"; playerId: string }
   | { type: "swap-players"; player1Id: string; player2Id: string }
@@ -102,6 +111,7 @@ export type HeadlessCommand =
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | { type: "brawler-reroll-block"; attackerId: string }
+  | { type: "veteran-reroll-block"; attackerId: string }
   | {
       type: "special-action";
       action: Exclude<BlockReplacement, "stab"> | "gaze";
@@ -125,12 +135,19 @@ export type HeadlessCommand =
       type: "use-reroll";
       accept: boolean;
       /** Which source to spend; defaults to the first offered */
-      source?: "skill" | "team" | "pro";
+      source?: RerollSource;
     }
   | { type: "use-reaction"; accept: boolean }
   | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
   | { type: "use-apothecary"; accept: boolean }
+  /** Answer a Prayer or Desperate Measure choice; no playerId declines. */
+  | {
+      type: "choose-inducement";
+      playerId?: string;
+      skill?: string;
+      stat?: DopeStat;
+    }
   // Sevens pregame inducements
   | { type: "offer-inducements" }
   | {
@@ -177,6 +194,8 @@ export type PendingDecision =
       proAvailable?: boolean;
       /** The attacker may Brawler-re-roll the single Both Down die. */
       brawlerAvailable?: boolean;
+      /** The attacking Veteran may re-roll all the dice, once per game. */
+      veteranRerollAvailable?: boolean;
     }
   | {
       type: "push-direction";
@@ -204,7 +223,7 @@ export type PendingDecision =
       chooserTeamId: string;
       rollKind: string;
       /** Available sources, skill first when both may be spent */
-      sources: ("skill" | "team" | "pro")[];
+      sources: RerollSource[];
       skill?: string;
       /** The failed die result */
       roll: number;
@@ -235,7 +254,9 @@ export type PendingDecision =
       location?: "pitch" | "crowd";
       position?: GridPosition;
       casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
-    };
+    }
+  /** A Prayer to Nuffle or Desperate Measure waits on its coach's pick. */
+  | InducementChoiceDecisionRequest;
 
 export interface EmittedEvent {
   name: string;
@@ -292,10 +313,29 @@ export interface CommandResponse {
   /** Populated for the legal-actions query */
   legalActions?: LegalActions;
   /** Populated for the offer-inducements query */
-  inducementOffer?: {
-    profile: InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<string, InducementSelectionLine[]>;
-    confirmed: Record<string, boolean>;
-  };
+  inducementOffer?: InducementOffer;
 }
+
+/** Each command that answers a pending decision, and the decision it answers. */
+export const DECISION_REPLIES: Partial<
+  Record<HeadlessCommand["type"], PendingDecision["type"]>
+> = {
+  "choose-block-result": "block-dice",
+  "team-reroll-block": "block-dice",
+  "pro-reroll-block": "block-dice",
+  "brawler-reroll-block": "block-dice",
+  "veteran-reroll-block": "block-dice",
+  "choose-push-direction": "push-direction",
+  "choose-follow-up": "follow-up",
+  "use-reroll": "reroll",
+  "use-reaction": "reaction",
+  "choose-interception": "interception",
+  touchback: "touchback",
+  "use-apothecary": "apothecary",
+  "choose-inducement": "inducement-choice",
+  "kickoff-select-player": "kickoff-event",
+  "kickoff-move-player": "kickoff-event",
+  "kickoff-place-player": "kickoff-event",
+  "kickoff-confirm": "kickoff-event",
+  "kickoff-skip": "kickoff-event",
+};

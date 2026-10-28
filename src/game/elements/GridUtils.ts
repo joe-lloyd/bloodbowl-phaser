@@ -8,31 +8,70 @@ export interface GridPosition {
 }
 
 /**
- * Convert grid coordinates to pixel coordinates
+ * The board is drawn isometrically, with the same camera the player sprites
+ * and the stadium were rendered with in Blender: orthographic, 30 degrees
+ * above the ground and turned 45 degrees. One grid square is 2.8 m and the
+ * renders use 25 px per metre, so a square's diagonal is 70 px and one step
+ * along the grid moves half a 2:1 diamond on screen.
+ *
+ * Pixel coordinates are relative to the far corner of square (0, 0), the
+ * pitch container's origin. Grid x runs down-right on screen, grid y
+ * down-left.
  */
-export function gridToPixel(
+const SQUARE_PX = 70;
+const HALF_W = SQUARE_PX * Math.SQRT1_2; // 49.5: screen x per grid step
+const HALF_H = HALF_W / 2; // 24.7: screen y per grid step
+
+/** Screen offset of one step along grid x, along grid y, and one metre up. */
+export const ISO = {
+  gx: { x: HALF_W, y: HALF_H },
+  gy: { x: -HALF_W, y: HALF_H },
+  upPerMetre: -25 * Math.cos(Math.PI / 6),
+  /** A square's diamond on screen. */
+  tileWidth: 2 * HALF_W,
+  tileHeight: 2 * HALF_H,
+} as const;
+
+/** Pixel position of a point given in grid units (corners are whole numbers). */
+export function gridPointToPixel(
   gridX: number,
-  gridY: number,
-  squareSize: number
+  gridY: number
 ): { x: number; y: number } {
   return {
-    x: gridX * squareSize + squareSize / 2,
-    y: gridY * squareSize + squareSize / 2,
+    x: (gridX - gridY) * HALF_W,
+    y: (gridX + gridY) * HALF_H,
   };
 }
 
-/**
- * Convert pixel coordinates to grid coordinates
- */
-export function pixelToGrid(
-  pixelX: number,
-  pixelY: number,
-  squareSize: number
-): GridPosition {
-  return {
-    x: Math.floor(pixelX / squareSize),
-    y: Math.floor(pixelY / squareSize),
-  };
+/** Centre of a square on screen. */
+export function gridToPixel(
+  gridX: number,
+  gridY: number
+): { x: number; y: number } {
+  return gridPointToPixel(gridX + 0.5, gridY + 0.5);
+}
+
+/** The square under a pixel, by inverting the projection. */
+export function pixelToGrid(pixelX: number, pixelY: number): GridPosition {
+  const u = pixelX / HALF_W; // gx - gy
+  const v = pixelY / HALF_H; // gx + gy
+  return { x: Math.floor((u + v) / 2), y: Math.floor((v - u) / 2) };
+}
+
+/** A square's four corners on screen, clockwise from the top, shrunk toward the centre by `inset` (0..0.5). */
+export function squareCorners(
+  gridX: number,
+  gridY: number,
+  inset = 0
+): { x: number; y: number }[] {
+  const a = inset;
+  const b = 1 - inset;
+  return [
+    [a, a],
+    [b, a],
+    [b, b],
+    [a, b],
+  ].map(([dx, dy]) => gridPointToPixel(gridX + dx, gridY + dy));
 }
 
 /**

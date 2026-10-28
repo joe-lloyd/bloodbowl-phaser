@@ -80,10 +80,10 @@ describe("Kickoff Table sandbox selector", () => {
       container.querySelector<HTMLInputElement>(
         '[aria-label="Scenario seed"]'
       )!.value
-    ).toBe("25");
+    ).toBe("7");
     expect(loads.at(-1)).toEqual({
       scenarioId: "kickoff-table-standard",
-      seed: 25,
+      seed: 7,
       outcomeId: "quick-snap",
     });
   });

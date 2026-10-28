@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildSeventsInducementProfile,
-  Inducement,
-} from "../../../src/types/Inducements";
+import { Inducement } from "../../../src/types/Inducements";
 import {
   calculateInducementBudgets,
-  expireDriveInducements,
   toInventoryEntries,
   validateInducementSelection,
 } from "../../../src/game/inducements/rules";
+import { sevensInducementCatalog } from "../../../src/game/inducements/catalog";
 import { TeamFactory } from "../../../src/game/TeamFactory";
 import { RosterName } from "../../../src/types/Team";
 
 /**
- * Sevens inducement budgeting, catalog limits, and Star Player exclusion —
- * the authoritative rules tasks.md 5.1 asks unit tests for. Pure functions,
- * no engine dependency.
+ * Sevens inducement budgeting and the L3 catalogue
+ * (docs/SEVENS_RULES.md). Pure functions, no engine dependency.
  */
 
 describe("calculateInducementBudgets", () => {
@@ -26,14 +22,11 @@ describe("calculateInducementBudgets", () => {
       0xff0000
     );
     const rich = TeamFactory.createTestTeam(RosterName.HUMAN, "Rich", 0x0000ff);
-    rich.rerolls = 4; // inflate TV above `cheap`
+    rich.rerolls = cheap.rerolls + 4; // inflate TV 400,000 above `cheap`
 
     const budgets = calculateInducementBudgets(cheap, rich);
     expect(budgets[rich.id]).toBe(0);
-    expect(budgets[cheap.id]).toBeGreaterThan(0);
-    expect(budgets[cheap.id]).toBe(
-      rich.rerolls * rich.rerollCost - cheap.rerolls * cheap.rerollCost
-    );
+    expect(budgets[cheap.id]).toBe(400_000);
   });
 
   it("gives neither team a budget at equal team value", () => {
@@ -43,87 +36,134 @@ describe("calculateInducementBudgets", () => {
     expect(budgets[a.id]).toBe(0);
     expect(budgets[b.id]).toBe(0);
   });
+
+  it("gives a Matched Play team no petty cash (MP2)", () => {
+    const cheap = TeamFactory.createTestTeam(RosterName.HUMAN, "C", 0xff0000);
+    cheap.advancementMode = "matched-play";
+    const rich = TeamFactory.createTestTeam(RosterName.HUMAN, "R", 0x0000ff);
+    rich.advancementMode = "matched-play";
+    rich.rerolls = cheap.rerolls + 4;
+
+    const budgets = calculateInducementBudgets(cheap, rich);
+    expect(budgets).toEqual({ [cheap.id]: 0, [rich.id]: 0 });
+  });
 });
 
-describe("Sevens Extra Team Training", () => {
-  const profile = buildSeventsInducementProfile({ advancedLeague: false });
+function catalogFor(rosterName: RosterName) {
+  return sevensInducementCatalog({ rosterName });
+}
 
-  it("prices at 150,000 gold", () => {
-    expect(profile.extraTeamTraining.price).toBe(150_000);
-    const entry = profile.catalog.find(
-      (e) => e.inducement === Inducement.EXTRA_TEAM_TRAINING
+function table(rosterName: RosterName) {
+  return catalogFor(rosterName).map(
+    (e) => `${e.maxCount} ${e.inducement} ${e.price}`
+  );
+}
+
+describe("the Sevens inducement catalogue (L3)", () => {
+  it("offers a Human team exactly the Sevens list", () => {
+    expect(table(RosterName.HUMAN)).toEqual([
+      "2 Temp Agency Cheerleader 15000",
+      "2 Part-time Assistant Coach 15000",
+      "2 Blitzer's Best Kegs 50000",
+      "2 Prayers to Nuffle 5000",
+      "6 Extra Team Training 125000",
+      "2 Bribe 100000",
+      "1 Wandering Apothecary 100000",
+      "1 Halfling Master Chef 300000",
+      "5 Desperate Measures 50000",
+    ]);
+  });
+
+  it("halves Bribes for Bribery and Corruption teams", () => {
+    const bribe = catalogFor(RosterName.GOBLIN).find(
+      (e) => e.inducement === Inducement.BRIBE
     );
-    expect(entry?.price).toBe(150_000);
+    expect(bribe).toEqual({
+      inducement: Inducement.BRIBE,
+      maxCount: 2,
+      price: 50_000,
+    });
   });
 
-  it("eight is legal at exactly 1,200,000 gold", () => {
-    const result = validateInducementSelection(profile, 1_200_000, [
-      { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 8 },
-    ]);
-    expect(result.valid).toBe(true);
-    expect(result.totalCost).toBe(1_200_000);
+  it("sells the Halfling Master Chef to Halfling teams at 100,000", () => {
+    const chef = catalogFor(RosterName.HALFLING).find(
+      (e) => e.inducement === Inducement.HALFLING_MASTER_CHEF
+    );
+    expect(chef?.price).toBe(100_000);
   });
 
-  it("nine is rejected for exceeding the Sevens limit even with budget", () => {
-    const result = validateInducementSelection(profile, 10_000_000, [
-      { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 9 },
+  it("offers a Mortuary Assistant, not a Wandering Apothecary, to Masters of Undeath", () => {
+    const names = catalogFor(RosterName.SHAMBLING_UNDEAD).map(
+      (e) => e.inducement
+    );
+    expect(names).toContain(Inducement.MORTUARY_ASSISTANT);
+    expect(names).not.toContain(Inducement.WANDERING_APOTHECARY);
+    expect(names).not.toContain(Inducement.PLAGUE_DOCTOR);
+  });
+
+  it("offers a Plague Doctor to Favoured of Nurgle teams only", () => {
+    expect(
+      catalogFor(RosterName.NURGLE).map((e) => e.inducement)
+    ).toContain(Inducement.PLAGUE_DOCTOR);
+    expect(
+      catalogFor(RosterName.HUMAN).map((e) => e.inducement)
+    ).not.toContain(Inducement.PLAGUE_DOCTOR);
+  });
+
+  it("never offers a Star Player or Riotous Rookies", () => {
+    const names = catalogFor(RosterName.SNOTLING).map((e) => e.inducement);
+    expect(names).not.toContain(Inducement.STAR_PLAYER);
+    expect(names).not.toContain(Inducement.RIOTOUS_ROOKIES);
+  });
+});
+
+describe("validateInducementSelection", () => {
+  const catalog = catalogFor(RosterName.HUMAN);
+
+  it("six Extra Team Training is legal at exactly 750,000 gold", () => {
+    const result = validateInducementSelection(catalog, 750_000, [
+      { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 6 },
     ]);
-    expect(result.valid).toBe(false);
-    expect(result.errors.join()).toContain("quantity-exceeds-limit");
+    expect(result).toEqual({ valid: true, errors: [], totalCost: 750_000 });
+  });
+
+  it("rejects a seventh Extra Team Training even with budget", () => {
+    const result = validateInducementSelection(catalog, 10_000_000, [
+      { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 7 },
+    ]);
+    expect(result.errors).toEqual([
+      "quantity-exceeds-limit:Extra Team Training:7>6",
+    ]);
   });
 
   it("rejects a selection whose cost exceeds the budget", () => {
-    const result = validateInducementSelection(profile, 1_000_000, [
-      { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 7 }, // 1,050,000
+    const result = validateInducementSelection(catalog, 100_000, [
+      { inducement: Inducement.BRIBE, quantity: 1 },
+      { inducement: Inducement.PRAYERS_TO_NUFFLE, quantity: 1 },
     ]);
-    expect(result.valid).toBe(false);
-    expect(result.errors.join()).toContain("budget-exceeded");
-  });
-});
-
-describe("Star Players in Sevens", () => {
-  const profile = buildSeventsInducementProfile({ advancedLeague: false });
-
-  it("the catalog never offers a Star Player", () => {
-    expect(
-      profile.catalog.some((e) => e.inducement === Inducement.STAR_PLAYER)
-    ).toBe(false);
+    expect(result.errors).toEqual(["budget-exceeded:105000>100000"]);
   });
 
-  it("a forged Star Player purchase is rejected regardless of budget", () => {
-    const result = validateInducementSelection(profile, 10_000_000, [
+  it("rejects a forged Star Player regardless of budget", () => {
+    const result = validateInducementSelection(catalog, 10_000_000, [
       { inducement: Inducement.STAR_PLAYER, quantity: 1 },
     ]);
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain("star-players-unavailable-in-sevens");
+    expect(result.errors).toEqual(["star-players-unavailable-in-sevens"]);
+  });
+
+  it("rejects an inducement outside the team's catalogue", () => {
+    const result = validateInducementSelection(catalog, 10_000_000, [
+      { inducement: Inducement.MORTUARY_ASSISTANT, quantity: 1 },
+    ]);
+    expect(result.errors).toEqual([
+      "inducement-not-offered:Mortuary Assistant",
+    ]);
   });
 });
 
-describe("Prayers to Nuffle restriction by advancement mode", () => {
-  it("restricts 10-13 outside Advanced League", () => {
-    const profile = buildSeventsInducementProfile({ advancedLeague: false });
-    expect(profile.prayersRerollResults.sort()).toEqual([10, 11, 12, 13]);
-  });
-
-  it("keeps 10-13 legal in Advanced League by default", () => {
-    const profile = buildSeventsInducementProfile({ advancedLeague: true });
-    expect(profile.prayersRerollResults).toEqual([]);
-  });
-
-  it("a competition profile may still restrict 10-13 in Advanced League", () => {
-    const profile = buildSeventsInducementProfile({
-      advancedLeague: true,
-      restrictPrayersInAdvancedLeague: true,
-    });
-    expect(profile.prayersRerollResults.sort()).toEqual([10, 11, 12, 13]);
-  });
-});
-
-describe("toInventoryEntries / expireDriveInducements", () => {
-  const profile = buildSeventsInducementProfile({ advancedLeague: false });
-
+describe("toInventoryEntries", () => {
   it("shapes a validated selection into match-scoped inventory", () => {
-    const entries = toInventoryEntries(profile, "team-a", [
+    const entries = toInventoryEntries(catalogFor(RosterName.HUMAN), "team-a", [
       { inducement: Inducement.EXTRA_TEAM_TRAINING, quantity: 2 },
     ]);
     expect(entries).toEqual([
@@ -132,36 +172,9 @@ describe("toInventoryEntries / expireDriveInducements", () => {
         ownerTeamId: "team-a",
         quantity: 2,
         remainingUses: 2,
-        price: 300_000,
+        price: 250_000,
         provenance: "purchased",
-        duration: "match",
       },
     ]);
-  });
-
-  it("refills drive-scoped uses but leaves match-scoped uses alone", () => {
-    const inventory = [
-      {
-        inducement: Inducement.WANDERING_APOTHECARY,
-        ownerTeamId: "team-a",
-        quantity: 1,
-        remainingUses: 0,
-        price: 50_000,
-        provenance: "purchased" as const,
-        duration: "match" as const,
-      },
-      {
-        inducement: Inducement.EXTRA_TEAM_TRAINING,
-        ownerTeamId: "team-a",
-        quantity: 3,
-        remainingUses: 0,
-        price: 450_000,
-        provenance: "purchased" as const,
-        duration: "drive" as const,
-      },
-    ];
-    const refreshed = expireDriveInducements(inventory);
-    expect(refreshed[0].remainingUses).toBe(0); // match-scoped: untouched
-    expect(refreshed[1].remainingUses).toBe(3); // drive-scoped: refilled
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Parchment from "../componentWarehouse/Parchment";
 import ContentContainer from "../componentWarehouse/ContentContainer";
@@ -6,12 +6,14 @@ import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import { Button, SecondaryButton } from "../componentWarehouse/Button";
 import { Title, Subtitle } from "../componentWarehouse/Titles";
 import { useAuth } from "../../hooks/useAuth";
-import { loadTeams } from "../../../game/managers/TeamManager";
+import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import {
   LobbyDoc,
   LobbySettings,
   canStart,
+  commitSeed,
   createLobby,
+  revealSeed,
   joinLobby,
   selectTeam,
   setReady,
@@ -53,7 +55,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     } | null
   )?.competitionFixture;
 
-  const myTeams = useMemo(() => (user ? loadTeams() : []), [user]);
+  const [library] = useTeamLibrary();
+  const myTeams = user ? library : [];
 
   // Host mode: resume the user's existing match if any, else create one.
   // A player may only have one active match at a time, so we never spawn a
@@ -102,6 +105,22 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     if (!code) return;
     return subscribeLobby(code, setLobby);
   }, [code]);
+
+
+  // The seed both coaches make: commit to a secret once the opponent is
+  // here, reveal it once both have committed (see firebase/lobby).
+  const commits = lobby?.seedCommits ?? {};
+  const reveals = lobby?.seedReveals ?? {};
+  const myUid = user?.uid;
+  const bothCommitted =
+    !!lobby?.guestUid && !!commits[lobby.hostUid] && !!commits[lobby.guestUid];
+  useEffect(() => {
+    if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
+    if (!commits[myUid]) void commitSeed(lobby.code, myUid);
+    else if (bothCommitted && !reveals[myUid])
+      void revealSeed(lobby.code, myUid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobby?.code, lobby?.status, lobby?.guestUid, myUid, !!commits[myUid ?? ""], bothCommitted, !!reveals[myUid ?? ""]]);
 
   // Both ready + host started → everyone moves to the match
   useEffect(() => {
@@ -263,7 +282,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
             onClick={() =>
               void startMatch(
                 lobby.code,
-                Date.now() & 0x7fffffff,
                 lobby.settings,
                 lobby.hostUid,
                 lobby.guestUid!

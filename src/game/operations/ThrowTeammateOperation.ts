@@ -22,6 +22,8 @@ const FACING_INDEX: Record<SwoopFacing, number> = {
 import { InjuryOperation } from "./InjuryOperation";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { CrowdInjuryOperation } from "./CrowdInjuryOperation";
+import { trapdoorOpens } from "../inducements/matchInducements";
 import { weatherEffects } from "../rules/weather";
 
 /**
@@ -372,6 +374,20 @@ export class ThrowTeammateOperation extends GameOperation {
         carriesBall,
         "Thrown player crashed"
       );
+      return;
+    }
+
+    // Treacherous Trapdoor (L12): landing on it may drop the thrown player
+    // through, injured as if they left the pitch, which is a Turnover.
+    if (trapdoorOpens(gameService.getState(), dice, teammate, landing)) {
+      teammate.gridPosition = undefined;
+      context.flowManager.add(
+        new CrowdInjuryOperation(teammate.id, { ...landing }, false, {
+          carriedBall: carriesBall,
+        }),
+        true
+      );
+      this.finishLanding(gameService, context, true, "Fell through a Trapdoor");
       return;
     }
 

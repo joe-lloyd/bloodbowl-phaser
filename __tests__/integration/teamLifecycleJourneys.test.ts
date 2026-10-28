@@ -15,6 +15,7 @@ import {
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
 import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
+import { chooseVeteran } from "../../src/game/rules/veteran";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import {
   getTeamMode,
@@ -68,6 +69,10 @@ describe("draft repair and legal finalization journey", () => {
     // Repair: hire two more Linemen to reach 7.
     persisted.players.push(createPlayer(lineman, persisted.id, 6));
     persisted.players.push(createPlayer(lineman, persisted.id, 7));
+    expect(
+      validateRosterLegality(persisted, humanRoster).map((v) => v.rule)
+    ).toEqual(["veteran"]);
+    chooseVeteran(persisted, persisted.players[0].id);
     saveTeam(persisted);
 
     const repaired = loadTeams().find((t) => t.id === team.id)!;
@@ -76,7 +81,7 @@ describe("draft repair and legal finalization journey", () => {
 });
 
 describe("first-match activation and active management journey", () => {
-  it("locks roster type and refuses re-roll purchases once a team is active", () => {
+  it("locks roster type but keeps selling re-rolls once a team is active", () => {
     const team = newDraftTeam();
     for (let i = 0; i < 7; i++) {
       team.players.push(createPlayer(lineman, team.id, i + 1));
@@ -84,10 +89,7 @@ describe("first-match activation and active management journey", () => {
     saveTeam(team);
     expect(getTeamMode(team)).toBe("draft");
     expect(canEdit(team, { type: "change-roster-type" }).allowed).toBe(true);
-    expect(canEdit(team, { type: "buy-reroll" }).allowed).toBe(true);
-    expect(priceOf(team, { type: "reroll" }).amount).toBe(
-      team.rerollCost * 2
-    );
+    expect(priceOf(team, { type: "reroll" }).amount).toBe(100000);
 
     // The team's first match is confirmed complete.
     stampFirstCompletedMatch(team);
@@ -98,11 +100,7 @@ describe("first-match activation and active management journey", () => {
     expect(canEdit(active, { type: "change-roster-type" }).allowed).toBe(
       false
     );
-    expect(canEdit(active, { type: "buy-dedicated-fans" }).allowed).toBe(
-      false
-    );
-    expect(canEdit(active, { type: "buy-reroll" }).allowed).toBe(false);
-    expect(priceOf(active, { type: "reroll" }).amount).toBeNull();
+    expect(priceOf(active, { type: "reroll" }).amount).toBe(100000);
     // Hiring an eligible player is still legal and still roster price.
     expect(canEdit(active, { type: "hire-player" }).allowed).toBe(true);
   });

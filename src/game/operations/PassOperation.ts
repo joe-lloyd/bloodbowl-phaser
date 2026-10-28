@@ -10,6 +10,8 @@ import { CatchOperation } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
 import { ArmourOperation } from "./ArmourOperation";
 import { isOnPitch } from "../controllers/BallMovementController";
+import { holdsMeasure, offerMeasure } from "../inducements/matchInducements";
+import { DesperateMeasure } from "../inducements/desperateMeasures";
 import {
   foldTrigger,
   gatherParticipants,
@@ -190,6 +192,22 @@ export class PassOperation extends GameOperation {
       return;
     }
 
+    // Set Piece (L25): Accurate on any 2+, and caught on any 2+.
+    const setPiece =
+      !this.hailMary &&
+      holdsMeasure(
+        gameService.getState(),
+        passer.teamId,
+        DesperateMeasure.SET_PIECE
+      ) &&
+      (await offerMeasure(
+        context,
+        passer.teamId,
+        passer.id,
+        DesperateMeasure.SET_PIECE,
+        `Use Set Piece? ${passer.playerName}'s Pass is Accurate on a 2+ and caught on a 2+.`
+      ));
+
     const result = await passController.attemptPass(
       passer,
       passer.gridPosition,
@@ -197,7 +215,8 @@ export class PassOperation extends GameOperation {
       markingOpponents,
       { gameService, eventBus }, // failed passes may offer a reroll
       passCtx.modifiers,
-      this.hailMary
+      this.hailMary,
+      setPiece
     );
 
     // Trigger point: PA test rolled — Safe Pass may cancel a natural-1
@@ -317,6 +336,7 @@ export class PassOperation extends GameOperation {
                 passerId: passer.id,
                 passerTeamId: passer.teamId,
                 accurate: result.accurate,
+                setPiece,
               }
             ),
             true

@@ -2,15 +2,11 @@ import { describe, it, expect, vi } from "vitest";
 import { PlayerStatus } from "../../../src/types/Player";
 
 /**
- * fix-foul-ko-sentoff-cleanup: Dugout gained a fourth section — Sent Off —
- * rendering ejected players (movePlayerToBox(..., "sent-off", ...)) with a
- * red-card marker distinct from Reserves/KO/Casualty. Exercising Dugout for
- * real means exercising Phaser.GameObjects.Container, but the shared
- * vitest-setup.ts stubs Phaser to bare `class {}` bodies (fine for classes
- * that only need static access, not for one that calls `.add()`/
- * `.setInteractive()` on itself). This suite installs a small functioning
- * fake Container/Scene, local to this file, so Dugout and PlayerSprite can
- * actually run their constructors.
+ * The dugout places each player on a square of their box in the stadium's
+ * baked dugout (reserves, KO, injured, sent off), and marks a sent-off
+ * player with a red card. The shared vitest-setup.ts stubs Phaser to bare
+ * classes, so this suite installs a small working fake Container and Scene
+ * for Dugout and PlayerSprite to run their constructors against.
  */
 
 class FakeGameObject {
@@ -80,18 +76,23 @@ class FakeGameObject {
 }
 
 class FakeContainer extends FakeGameObject {
+  scene: unknown;
+  constructor(scene?: unknown, x = 0, y = 0) {
+    super();
+    this.scene = scene;
+    this.x = x;
+    this.y = y;
+  }
   list: FakeGameObject[] = [];
   input: { cursor: string } | null = null;
+  displayOriginX = 0;
+  displayOriginY = 0;
   add(children: FakeGameObject | FakeGameObject[]) {
     const arr = Array.isArray(children) ? children : [children];
     this.list.push(...arr);
     return this;
   }
-  bringToTop() {
-    return this;
-  }
-  remove(child: FakeGameObject) {
-    this.list = this.list.filter((c) => c !== child);
+  once() {
     return this;
   }
   setInteractive() {
@@ -106,30 +107,25 @@ function makeFakeScene() {
     add: {
       existing: vi.fn(),
       rectangle: vi.fn(factory),
+      ellipse: vi.fn(factory),
       circle: vi.fn(factory),
       graphics: vi.fn(factory),
       text: vi.fn(factory),
       sprite: vi.fn(factory),
-      triangle: vi.fn(factory),
-      polygon: vi.fn(factory),
-      container: vi.fn(
-        (_x?: number, _y?: number, children?: FakeGameObject[]) => {
-          const c = new FakeContainer();
-          if (children) c.add(children);
-          return c;
-        }
-      ),
+      container: vi.fn(() => new FakeContainer()),
     },
+    events: { on: vi.fn(), off: vi.fn() },
     textures: { exists: vi.fn(() => false) },
     tweens: { add: vi.fn(), chain: vi.fn() },
-    time: { delayedCall: vi.fn() },
+    time: { delayedCall: vi.fn(), now: 0 },
     input: { setDraggable: vi.fn() },
   };
 }
 
 vi.mock("phaser", () => ({
   default: {
-    GameObjects: { Container: FakeContainer },
+    GameObjects: { Container: FakeContainer, Events: { DESTROY: "destroy" } },
+    Scenes: { Events: { UPDATE: "update" } },
     Geom: {
       Rectangle: class {
         static Contains = vi.fn();
@@ -158,78 +154,80 @@ function makeTeam(players: unknown[]) {
   };
 }
 
-describe("Dugout Sent Off section", () => {
-  it("renders an ejected player with a distinguishing red-card marker", async () => {
-    vi.resetModules();
-    const { Dugout } = await import("../../../src/game/elements/Dugout");
-    const scene = makeFakeScene();
+const SQUARES = {
+  reserves: [
+    [1.5, -1.5],
+    [2.5, -1.5],
+  ],
+  ko: [[5.5, -1.5]],
+  injured: [[8.5, -1.5]],
+  "sent off": [[9.5, -1.5]],
+};
+/** A stand-in projection: ten pixels per grid unit. */
+const toWorld = (gx: number, gy: number) => ({ x: gx * 10, y: gy * 10 });
 
-    const sentOffPlayer = {
-      id: "p1",
-      playerName: "Ejected Guy",
-      number: 4,
-      positionName: "Lineman",
-      status: PlayerStatus.REMOVED,
-      gridPosition: undefined,
-    };
-    const team = makeTeam([sentOffPlayer]);
+function player(id: string, status: PlayerStatus) {
+  return {
+    id,
+    playerName: id,
+    number: 1,
+    positionName: "Human Lineman",
+    status,
+    gridPosition: undefined,
+  };
+}
 
-    const DugoutCtor = Dugout as unknown as new (
-      scene: unknown,
-      x: number,
-      y: number,
-      team: unknown,
-      height?: number,
-      mirrored?: boolean,
-      themeId?: string
-    ) => InstanceType<typeof Dugout>;
-    const dugout = new DugoutCtor(scene, 0, 0, team, 150, false, "classic");
+async function build(players: unknown[]) {
+  vi.resetModules();
+  const { Dugout } = await import("../../../src/game/elements/Dugout");
+  const scene = makeFakeScene();
+  const DugoutCtor = Dugout as unknown as new (...args: unknown[]) => {
+    getSprites(): Map<string, FakeContainer>;
+  };
+  const dugout = new DugoutCtor(
+    scene,
+    makeTeam(players),
+    SQUARES,
+    toWorld,
+    "bloodbowl",
+    "s"
+  );
+  return { scene, sprites: dugout.getSprites() };
+}
 
-    const sprites = dugout.getSprites();
-    const sprite = sprites.get("p1");
-    expect(sprite).toBeDefined();
-
-    // The red-card marker (see Dugout.addSentOffMarker) is drawn as a small
-    // tinted, rotated rectangle and added as a child of the player's sprite —
-    // distinct from the Reserves/KO/Casualty sections, which never call
-    // scene.add.rectangle with this color for a player sprite.
-    expect(scene.add.rectangle).toHaveBeenCalledWith(13, -13, 11, 15, 0xd0021b, 1);
-    const card = scene.add.rectangle.mock.results.find(
-      (r) => r.value && (r.value as FakeGameObject).angle === -10
-    );
-    expect(card).toBeDefined();
-    expect((sprite as unknown as FakeContainer).list).toContain(card!.value);
+describe("Dugout", () => {
+  it("stands each player on a square of their box", async () => {
+    const { sprites } = await build([
+      player("bench1", PlayerStatus.RESERVE),
+      player("bench2", PlayerStatus.RESERVE),
+      player("ko", PlayerStatus.KO),
+      player("hurt", PlayerStatus.INJURED),
+      player("off", PlayerStatus.REMOVED),
+    ]);
+    const at = (id: string) => [sprites.get(id)!.x, sprites.get(id)!.y];
+    expect(at("bench1")).toEqual([15, -15]);
+    expect(at("bench2")).toEqual([25, -15]);
+    expect(at("ko")).toEqual([55, -15]);
+    expect(at("hurt")).toEqual([85, -15]);
+    expect(at("off")).toEqual([95, -15]);
   });
 
-  it("does not add the marker to a Reserves player", async () => {
-    vi.resetModules();
-    const { Dugout } = await import("../../../src/game/elements/Dugout");
-    const scene = makeFakeScene();
+  it("marks a sent-off player with a red card", async () => {
+    const { scene, sprites } = await build([
+      player("off", PlayerStatus.REMOVED),
+    ]);
+    const card = scene.add.rectangle.mock.results.find(
+      (r) => (r.value as FakeGameObject).angle === -10
+    );
+    expect(card).toBeDefined();
+    expect(sprites.get("off")!.list).toContain(card!.value);
+  });
 
-    const reservePlayer = {
-      id: "p2",
-      playerName: "Bench Guy",
-      number: 9,
-      positionName: "Lineman",
-      status: PlayerStatus.RESERVE,
-      gridPosition: undefined,
-    };
-    const team = makeTeam([reservePlayer]);
-
-    const DugoutCtor = Dugout as unknown as new (
-      scene: unknown,
-      x: number,
-      y: number,
-      team: unknown,
-      height?: number,
-      mirrored?: boolean,
-      themeId?: string
-    ) => InstanceType<typeof Dugout>;
-    new DugoutCtor(scene, 0, 0, team, 150, false, "classic");
-
-    const cardCalls = scene.add.rectangle.mock.calls.filter(
+  it("gives a reserve no red card", async () => {
+    const { scene } = await build([player("bench", PlayerStatus.RESERVE)]);
+    const cards = scene.add.rectangle.mock.calls.filter(
       (call) => call[4] === 0xd0021b
     );
-    expect(cardCalls).toHaveLength(0);
+    expect(cards).toHaveLength(0);
   });
 });

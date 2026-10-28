@@ -217,6 +217,34 @@ describe("TurnManager", () => {
     });
   });
 
+  describe("Automatic end of turn", () => {
+    it("does not end the next team's turn when the coach presses End Turn first", async () => {
+      let autoEnd: () => void = () => {};
+      const manual = new TurnManager(
+        mockEventBus,
+        mockState,
+        mockTeam1,
+        mockTeam2,
+        mockCallbacks,
+        (ms) =>
+          ms === 500
+            ? new Promise<void>((resolve) => (autoEnd = resolve))
+            : new Promise<void>(() => {})
+      );
+      manual.startGame("team1"); // team2 receives
+
+      // Last player done: the turn will end itself in 500 ms...
+      manual.finishActivation("p1");
+      // ...but the coach presses End Turn first.
+      manual.endTurn();
+      expect(mockState.activeTeamId).toBe("team1");
+
+      autoEnd();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mockState.activeTeamId).toBe("team1");
+    });
+  });
+
   describe("Check Turnover", () => {
     it("should emit Turnover events", () => {
       mockState.activeTeamId = "team1";

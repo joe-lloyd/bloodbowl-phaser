@@ -1,3 +1,4 @@
+import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
@@ -14,6 +15,7 @@ import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
+import { readyForLeagueGame } from "../rules/leagueRoster";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -32,8 +34,7 @@ export class SetupManager {
     private callbacks: {
       onKickoffRequested: () => void;
     },
-    private delay: import("../core/GameFlowManager").DelayProvider = (ms) =>
-      new Promise((resolve) => setTimeout(resolve, ms))
+    private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
     this.syncPlacedPlayers(team1);
     this.syncPlacedPlayers(team2);
@@ -53,6 +54,7 @@ export class SetupManager {
       movePlayerToBox(player, { box: "reserves" });
       player.hasActed = false;
     });
+    readyForLeagueGame(team);
   }
 
   /**

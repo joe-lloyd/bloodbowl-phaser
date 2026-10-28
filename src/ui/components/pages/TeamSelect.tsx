@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
-import { loadTeams } from "../../../game/managers/TeamManager";
+import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { mustAdvance } from "../../../game/progression/progression";
@@ -30,7 +30,7 @@ interface TeamSelectProps {
  * Select teams for Player 1 and Player 2 before starting a game
  */
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams] = useTeamLibrary();
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
   const [filter1, setFilter1] = useState("");
@@ -40,10 +40,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     DEFAULT_PITCH_THEME_ID
   );
   const navigate = useNavigate();
-
-  useEffect(() => {
-    setTeams(loadTeams());
-  }, []);
 
   /**
    * Shared roster legality — a team may not be selected for a match until it

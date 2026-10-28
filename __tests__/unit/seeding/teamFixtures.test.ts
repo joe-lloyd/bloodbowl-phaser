@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { RosterName, calculateTeamValue } from "../../../src/types/Team";
+import {
+  RosterName,
+  calculateTeamValue,
+  startingDedicatedFans,
+} from "../../../src/types/Team";
 import { PositionKeyWord } from "../../../src/types/Player";
 import { validateRosterLegality } from "../../../src/game/rules/rosterLegality";
 import { validateInsignificant } from "../../../src/game/rules/insignificant";
@@ -44,9 +48,11 @@ describe("teamFixtures", () => {
     for (const team of teams) {
       const spent =
         team.players.reduce((sum, p) => sum + p.cost, 0) +
-        team.rerolls * team.rerollCost +
-        (team.apothecary ? 50_000 : 0) +
-        (team.coaches + team.cheerleaders + team.dedicatedFans) * 10_000;
+        team.rerolls * 100_000 +
+        (team.apothecary ? 80_000 : 0) +
+        (team.coaches + team.cheerleaders) * 20_000 +
+        (team.dedicatedFans - startingDedicatedFans(team.advancementMode)) *
+          20_000;
       expect(team.treasury, team.rosterName).toBe(DRAFT_BUDGET - spent);
       expect(team.treasury, team.rosterName).toBeGreaterThanOrEqual(0);
       expect(team.treasury, team.rosterName).toBeLessThan(DRAFT_BUDGET);

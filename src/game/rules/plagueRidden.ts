@@ -1,6 +1,7 @@
 /**
- * Plague Ridden (2025 rulebook) — a passive trait resolved on the Casualty
- * Roll of a Block Action.
+ * Plague Ridden (2025 rulebook) — a passive trait resolved on the casualty
+ * of a Block Action. Sevens has no Casualty Roll, so the Dead result is the
+ * injury table's 12 (docs/SEVENS_RULES.md I5).
  *
  *   "Once per game, when a player with this Trait causes a Casualty against an
  *    opposition player as a result of a Block Action, and that player suffers
@@ -11,10 +12,12 @@
  *   "This Trait cannot be used against Big Guy players, or any player with the
  *    Decay, Regeneration or Stunty Traits."
  *
- * The effect is read directly off the killing player in CasualtyOperation (no
- * reacting coach, no dice of its own), so this is a pure eligibility module +
- * a reserve-spawning helper rather than a folded SkillRule. An Apothecary
- * save is not modelled in the match engine, so a Dead result is always final.
+ * The effect is read directly off the killing player (no reacting coach, no
+ * dice of its own), so this is an eligibility module plus `confirmKill`
+ * rather than a folded SkillRule. A Dead result only becomes a kill once the
+ * Apothecary has had its say: CasualtyOperation calls `confirmKill` when no
+ * Apothecary is offered, and the Apothecary resolution calls it when the
+ * patch-up is declined or fails.
  */
 
 import {
@@ -27,6 +30,9 @@ import {
 import { Team } from "../../types/Team";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
+import { GameEventNames } from "../../types/events";
+import type { IEventBus } from "../../services/EventBus";
+import type { IGameService } from "../../services/interfaces/IGameService";
 
 /**
  * How the casualty was inflicted — only a Block Action arms Plague Ridden.
@@ -90,4 +96,40 @@ export function addReserveLineman(team: Team): Player | null {
   player.status = PlayerStatus.RESERVE;
   team.players.push(player);
   return player;
+}
+
+/**
+ * A Dead result stands: announce the kill and, when the killing Block armed
+ * Plague Ridden (see plagueRiddenApplies), spend it to add a Lineman to the
+ * killer's Reserves.
+ */
+export function confirmKill(
+  gameService: IGameService,
+  eventBus: IEventBus,
+  victim: Player,
+  killerId: string | undefined,
+  armsPlagueRidden: boolean
+): void {
+  eventBus.emit(GameEventNames.PlayerKilled, {
+    causerId: killerId,
+    victimId: victim.id,
+  });
+  const killer = killerId ? gameService.getPlayerById(killerId) : undefined;
+  if (!armsPlagueRidden || !killer) return;
+  const team = gameService.getTeam(killer.teamId);
+  if (!team) return;
+  const reinforcement = addReserveLineman(team);
+  if (!reinforcement) return;
+
+  killer.plagueRiddenUsed = true;
+  eventBus.emit(GameEventNames.SkillTriggered, {
+    playerId: killer.id,
+    skill: SkillType.PLAGUE_RIDDEN,
+    effect: `Plague Ridden: ${victim.playerName}'s death summons ${reinforcement.playerName} to the Reserves`,
+  });
+  eventBus.emit(
+    GameEventNames.UI_Notification,
+    `Plague Ridden — ${killer.playerName} adds ${reinforcement.playerName} to the Reserves!`
+  );
+  eventBus.emit(GameEventNames.RefreshBoard);
 }

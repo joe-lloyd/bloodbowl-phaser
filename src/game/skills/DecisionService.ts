@@ -56,11 +56,22 @@ export class DecisionService {
     this.current = { request, resolve: onAnswer };
   }
 
+  /**
+   * Forget the pending decision without answering it: the state it belonged
+   * to has been replaced (an online resync), so its roll path never resumes.
+   */
+  public abandon(): void {
+    this.current = null;
+  }
+
   /** Resolve the pending decision; false when nothing is pending. */
   public answer(answer: DecisionAnswer): boolean {
     if (!this.current) return false;
-    const { resolve } = this.current;
+    const { request, resolve } = this.current;
     this.current = null;
+    // Before resolving: the resumed path may request the next decision, and
+    // a dialog must close on this one before it opens on that one.
+    this.eventBus.emit(GameEventNames.DecisionResolved, { type: request.type });
     resolve(answer);
     return true;
   }

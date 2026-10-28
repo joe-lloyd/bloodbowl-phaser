@@ -84,8 +84,9 @@ export interface GameState {
     committed?: boolean;
     /** Failed Bloodlust: must bite a Thrall Lineman (BloodlustBiteOperation). */
     bloodlustUnsated?: boolean;
+    /** A second Foul this turn, declared on the team's Grudge Match. */
+    grudgeMatch?: boolean;
   } | null;
-  coachesEjected: string[]; // Team IDs of coaches who have been ejected/already argued
   /** Kickoff-event effects scoped to the current drive; absent = none. */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */
@@ -100,10 +101,14 @@ export interface GameState {
    * absent until the first half begins (see skills/RerollArbiter.ts).
    */
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
+  /** Veterans (D8) who have spent their once-per-game re-roll; absent = none. */
+  veteranRerollsUsed?: string[];
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */
   inducements?: import("./Inducements").InducementsMatchState;
+  /** Rolled Prayers to Nuffle and Desperate Measures; absent = none. */
+  matchInducements?: import("../game/inducements/matchInducements").MatchInducementsState;
   /** Set once the match reaches GAME_OVER; absent beforehand. */
   result?: MatchResult;
   /**

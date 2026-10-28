@@ -9,7 +9,6 @@ import { GamePhase, GameState, SubPhase } from "./GameState";
 import { Team } from "./Team";
 import { Player } from "./Player";
 import { BlockResult } from "../services/BlockResolutionService";
-import { BoardLabel } from "../game/presentation/boardLabels";
 import { SidelineCrewInfo } from "../game/presentation/sidelineStaff";
 
 /**
@@ -63,6 +62,8 @@ export enum GameEventNames {
   RerollUsed = "rerollUsed",
   /** The engine paused on a mid-action decision (reroll offer, reaction) */
   DecisionRequested = "decisionRequested",
+  /** That decision was answered, by whichever coach owns it */
+  DecisionResolved = "decisionResolved",
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
@@ -93,7 +94,8 @@ export enum GameEventNames {
   GameStateRestored = "gameStateRestored",
   RefreshBoard = "refreshBoard",
   /** Crisp text (dugout headers, end-zone names) for the React overlay */
-  UI_BoardLabels = "ui:boardLabels",
+  /** Match assets loading: 0..1, for the loading screen. */
+  UI_LoadProgress = "ui:loadProgress",
 
   /**
    * A rules operation resolved a kick/throw and is holding at a presentation
@@ -161,6 +163,8 @@ export enum GameEventNames {
   UI_HideSetupControls = "ui:hideSetupControls",
   /** Online: re-render the pitch from the authoritative snapshot so a
    *  player watching the opponent's setup/placement sees it live. */
+  /** Online: draw the other coach's whole move path while it plays out */
+  UI_ShowOtherCoachMove = "ui:showOtherCoachMove",
   UI_SyncBoard = "ui:syncBoard",
   /** Online guest only: a sync-returning "optimistic" mutation (declare-
    *  action, cancel-action, …) that NetworkedGameService reported as
@@ -222,6 +226,7 @@ export enum GameEventNames {
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
+  UI_VeteranRerollBlock = "ui:veteranRerollBlock",
   UI_StepSelected = "ui:stepSelected",
 
   // Kickoff event step (owning coach only)
@@ -351,7 +356,7 @@ export interface GameEvents {
 
   [GameEventNames.RerollUsed]: {
     playerId: string;
-    source: "skill" | "team" | "pro";
+    source: import("./decisions").RerollSource;
     rollKind: string;
     skill?: string;
     /** Die result before and after the reroll */
@@ -360,6 +365,15 @@ export interface GameEvents {
   };
 
   [GameEventNames.DecisionRequested]: import("./decisions").DecisionRequest;
+  [GameEventNames.DecisionResolved]: {
+    type:
+      | import("./decisions").DecisionRequest["type"]
+      | "block-dice"
+      | "push-direction"
+      | "follow-up";
+    /** Block dice: the face that was chosen, for the other coach's screen */
+    result?: string;
+  };
 
   [GameEventNames.PlayerStoodUp]: {
     playerId: string;
@@ -621,7 +635,7 @@ export interface GameEvents {
   [GameEventNames.RefreshBoard]: void;
   /** Board text (dugout section headers, sideline crew, end-zone team names)
    *  positioned in canvas design space for the React overlay to draw crisply. */
-  [GameEventNames.UI_BoardLabels]: { labels: BoardLabel[] };
+  [GameEventNames.UI_LoadProgress]: { progress: number };
   [GameEventNames.ScenarioLoaded]: {
     name: string;
     seed?: number;
@@ -630,8 +644,10 @@ export interface GameEvents {
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {
-    ballSprite: unknown; // Phaser.GameObjects.Container
-    animationDuration: number; // How long to track the ball
+    /** Follow this player, or the ball when absent. Plain data: every bus
+     *  event is recorded and cloned, so it must not carry display objects. */
+    playerId?: string;
+    animationDuration: number; // How long to track
   };
   [GameEventNames.Camera_Reset]: {
     duration?: number; // Optional reset duration
@@ -700,7 +716,14 @@ export interface UIEvents {
     status?: import("./SetupTypes").SetupTeamStatus;
   };
   [GameEventNames.UI_HideSetupControls]: void;
-  [GameEventNames.UI_SyncBoard]: void;
+  /** `positions`: redraw where everyone stands too, not only statuses —
+   *  after a resync, which may have rewound the match. */
+  [GameEventNames.UI_ShowOtherCoachMove]: {
+    from: { x: number; y: number };
+    path: { x: number; y: number }[];
+    ma: number;
+  };
+  [GameEventNames.UI_SyncBoard]: { positions: true } | void;
   [GameEventNames.NetworkCommandRejected]: {
     /** The rejected command's `type`, e.g. "declare-action" */
     commandType: string;
@@ -841,6 +864,8 @@ export interface UIEvents {
   };
   /** Spend Brawler on a block (re-roll the single Both Down die). */
   [GameEventNames.UI_BrawlerRerollBlockDie]: { attackerId: string };
+  /** Spend the Veteran's once-per-game re-roll on all the block dice. */
+  [GameEventNames.UI_VeteranRerollBlock]: { attackerId: string };
 
   [GameEventNames.UI_StepSelected]: {
     stepId: string;

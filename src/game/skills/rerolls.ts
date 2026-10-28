@@ -19,6 +19,7 @@ import {
 import { SkillRegistry } from "./SkillRegistry";
 import { TeamRerollGateContext } from "./SkillRule";
 import { IGameService } from "../../services/interfaces/IGameService";
+import { VETERAN_REROLL_KINDS } from "../rules/veteran";
 
 export interface RollLike {
   success: boolean;
@@ -83,6 +84,12 @@ export async function withRerollOffer<T extends RollLike>(
   ) {
     sources.push("pro");
   }
+  if (
+    VETERAN_REROLL_KINDS.includes(rollKind) &&
+    arbiter.veteranRerollAvailable(player)
+  ) {
+    sources.push("veteran");
+  }
   if (sources.length === 0) return first;
 
   const answer = (await deps.gameService.getDecisionService().request({
@@ -126,6 +133,8 @@ export async function withRerollOffer<T extends RollLike>(
       skill: String(skillSource),
       effect: `${String(skillSource)}: reroll the failed ${rollKind}`,
     });
+  } else if (chosen === "veteran") {
+    arbiter.consumeVeteranReroll(player);
   } else if (!spendTeamReroll(deps, player)) {
     return first;
   }

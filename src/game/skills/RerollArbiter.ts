@@ -90,6 +90,26 @@ export class RerollArbiter {
     return team ? teamRerollsLeft(this.state, team) : 0;
   }
 
+  /** Sevens Veteran (D8): one re-roll per game, kept on GameState. */
+  public veteranRerollAvailable(player: Player): boolean {
+    return (
+      !!player.veteran &&
+      !this.state.veteranRerollsUsed?.includes(player.id)
+    );
+  }
+
+  public consumeVeteranReroll(player: Player): void {
+    this.state.veteranRerollsUsed = [
+      ...(this.state.veteranRerollsUsed ?? []),
+      player.id,
+    ];
+    this.eventBus?.emit(GameEventNames.SkillTriggered, {
+      playerId: player.id,
+      skill: "Veteran",
+      effect: "Veteran: spent the once-per-game re-roll",
+    });
+  }
+
   public consumeSkillReroll(player: Player, skill: SkillType): void {
     this.usedSkill.add(`${this.turnKey()}|${player.id}|${skill}`);
   }

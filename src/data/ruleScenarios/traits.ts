@@ -119,41 +119,6 @@ const lastCommandRefused = (r: ScriptResult, reason: string): boolean => {
 
 export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
   {
-    skill: SkillType.DECAY,
-    configs: [
-      blockConfig({
-        id: "decay-casualty",
-        name: "Casualty against a Decay player",
-        description: "+1 to the casualty roll",
-        // A Nurgle Rotter Lineman carries Decay on the roster.
-        setup: playSetup({
-          team1Placements: [{ playerIndex: 0, x: 10, y: 5 }],
-          team2Roster: RosterName.NURGLE,
-          team2Placements: [
-            {
-              playerIndex: 0,
-              x: 11,
-              y: 5,
-              stats: { AV: 4 }, // reach casualties often
-            },
-          ],
-          ballPosition: { x: 1, y: 1 },
-        }),
-        attacker: "team1:0",
-        defender: "team2:0",
-        preferBlockResult: "pow",
-        seedSearch: { from: 1, limit: 500 },
-        outcomes: [
-          {
-            id: "plus-one-casualty",
-            name: "Casualty roll modified by +1",
-            matches: (r) => skillTriggered(r, SkillType.DECAY),
-          },
-        ],
-      }),
-    ],
-  },
-  {
     skill: SkillType.REGENERATION,
     configs: [
       blockConfig({
@@ -339,7 +304,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
           {
             id: "nine-is-badly-hurt",
-            name: "The 9 is automatically Badly Hurt",
+            name: "The 9 is Badly Hurt",
             matches: (r) =>
               skillTriggered(r, SkillType.STUNTY) &&
               injuryTotal(r, "team2:1", 9),
@@ -357,7 +322,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                       "Casualty Roll"
                     )
                 ),
-                "no Casualty Roll is made — automatically Badly Hurt"
+                "Sevens makes no Casualty Roll"
               );
             },
           },

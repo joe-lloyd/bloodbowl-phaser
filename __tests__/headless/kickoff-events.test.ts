@@ -111,7 +111,7 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(Object.entries(KICKOFF_TABLE)).toEqual([
       ["2", KickoffEvent.GET_THE_REF],
       ["3", KickoffEvent.TIME_OUT],
-      ["4", KickoffEvent.SOLID_DEFENCE],
+      ["4", KickoffEvent.ALERT_DEFENCE],
       ["5", KickoffEvent.HIGH_KICK],
       ["6", KickoffEvent.CHEERING_FANS],
       ["7", KickoffEvent.BRILLIANT_COACHING],
@@ -313,62 +313,8 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(effectiveAV(player, game.ctx.gameService.getState())).toBe(baseAV);
   });
 
-  it("redeploys Solid Defence directly on-pitch and resolves High Kick before landing", async () => {
+  it("resolves High Kick before landing", async () => {
     const found = await findEveryEvent();
-
-    const solid = found.get(KickoffEvent.SOLID_DEFENCE)!;
-    const solidPlayer = solid.game.ctx.team1.players[0];
-    const original = { ...solidPlayer.gridPosition! };
-    const occupied = new Set(
-      [...solid.game.ctx.team1.players, ...solid.game.ctx.team2.players]
-        .filter((player) => player.gridPosition)
-        .map(
-          (player) =>
-            `${player.gridPosition!.x},${player.gridPosition!.y}`
-        )
-    );
-    let destination: { x: number; y: number } | undefined;
-    for (let x = 0; x <= 6 && !destination; x += 1) {
-      for (let y = 0; y < 11; y += 1) {
-        if (!occupied.has(`${x},${y}`)) {
-          destination = { x, y };
-          break;
-        }
-      }
-    }
-    expect(destination).toBeDefined();
-
-    const invalidDrop = await solid.game.execute({
-      type: "kickoff-place-player",
-      playerId: solidPlayer.id,
-      x: 7,
-      y: original.y,
-    });
-    expect(invalidDrop.ok).toBe(false);
-    expect(solidPlayer.gridPosition).toEqual(original);
-    expect(solid.game.pendingDecision()).toMatchObject({
-      selectedPlayerIds: [],
-      movedPlayerIds: [],
-    });
-
-    const redeployed = await solid.game.execute({
-      type: "kickoff-place-player",
-      playerId: solidPlayer.id,
-      x: destination!.x,
-      y: destination!.y,
-    });
-    expect(redeployed.ok).toBe(true);
-    expect(redeployed.pendingDecision).toMatchObject({
-      selectedPlayerIds: [solidPlayer.id],
-      movedPlayerIds: [solidPlayer.id],
-      awaitingPlacement: [],
-    });
-    expect(solidPlayer.gridPosition).toEqual(destination);
-    expect(solidPlayer.gridPosition).not.toEqual(original);
-
-    const confirmed = await solid.game.execute({ type: "kickoff-confirm" });
-    expect(confirmed.pendingDecision?.type).not.toBe("kickoff-event");
-    expect(solidPlayer.gridPosition).toEqual(destination);
 
     const high = found.get(KickoffEvent.HIGH_KICK)!;
     const highPending = high.game.pendingDecision();

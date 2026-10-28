@@ -3,14 +3,13 @@
  *
  * Canvas tests go wrong when the test re-derives where a square is. This one
  * asks the running game instead: the bridge returns the square's centre in
- * Phaser design coordinates straight from the live `Pitch`, and the only
- * arithmetic here is the design-space → viewport transform that Phaser's
- * `Scale.FIT` applies to the canvas element. If the pitch ever moves, these
- * clicks move with it.
+ * canvas coordinates straight from the live `Pitch` and match camera, and the
+ * only arithmetic here is the canvas → viewport transform. The camera moves
+ * on its own (it closes in on a selected player), so every lookup first waits
+ * for it to come to rest. If the pitch or the camera moves, clicks follow.
  */
 
 import { Locator, Page, expect } from "@playwright/test";
-import { GameConfig } from "../../../src/config/GameConfig";
 import type { BrowserTestBridge } from "../../../src/testing/browserBridge";
 import { GameBridge } from "./bridge";
 
@@ -33,8 +32,21 @@ export class PitchPage {
     await this.bridge.waitForReady(timeout);
   }
 
-  /** The square's centre in Phaser design-space (canvas) coordinates. */
+  /** Wait until the match camera has stopped panning and zooming. */
+  async waitForCameraToSettle(timeout = 15_000): Promise<void> {
+    await this.page.waitForFunction(
+      () =>
+        !(
+          window as unknown as Record<string, BrowserTestBridge>
+        ).__bbTestBridge.cameraMoving(),
+      undefined,
+      { timeout }
+    );
+  }
+
+  /** The square's centre in canvas coordinates, once the camera is still. */
   async designPoint(square: Square): Promise<Square> {
+    await this.waitForCameraToSettle();
     const point = await this.page.evaluate(
       ([gridX, gridY]) =>
         (
@@ -129,12 +141,13 @@ export class PitchPage {
   }
 
   /**
-   * The playing surface as a viewport rectangle.
+   * The playing surface as a viewport rectangle: the box around the four
+   * corner squares, out to their far corners.
    *
    * Visual baselines clip to this rather than shooting the whole canvas: the
-   * dugouts and the turn indicator below the pitch change with the drive and
-   * are their own presentation contract, so including them would make every
-   * pitch baseline fail for reasons that have nothing to do with the pitch.
+   * dugouts and the HUD change with the drive and are their own presentation
+   * contract, so including them would make every pitch baseline fail for
+   * reasons that have nothing to do with the pitch.
    */
   async pitchViewportRect(): Promise<{
     x: number;
@@ -142,19 +155,27 @@ export class PitchPage {
     width: number;
     height: number;
   }> {
-    const [size, box] = await Promise.all([
-      this.canvasSize(),
-      this.canvas.boundingBox(),
-    ]);
-    if (!box) throw new Error("the game canvas has no layout box");
-    const scaleX = box.width / size.width;
-    const scaleY = box.height / size.height;
-    const left = (size.width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
+    const corners = await Promise.all(
+      [
+        { x: 0, y: 0 },
+        { x: 19, y: 0 },
+        { x: 0, y: 10 },
+        { x: 19, y: 10 },
+        { x: 1, y: 0 },
+      ].map((square) => this.viewportPoint(square))
+    );
+    // Half a diamond, from the spacing of two neighbouring centres.
+    const halfW = corners[4].x - corners[0].x;
+    const halfH = corners[4].y - corners[0].y;
+    const xs = corners.slice(0, 4).map((p) => p.x);
+    const ys = corners.slice(0, 4).map((p) => p.y);
+    const x = Math.min(...xs) - halfW;
+    const y = Math.min(...ys) - halfH;
     return {
-      x: box.x + left * scaleX,
-      y: box.y + GameConfig.TOP_UI_HEIGHT * scaleY,
-      width: GameConfig.PITCH_PIXEL_WIDTH * scaleX,
-      height: GameConfig.PITCH_PIXEL_HEIGHT * scaleY,
+      x,
+      y,
+      width: Math.max(...xs) + halfW - x,
+      height: Math.max(...ys) + halfH - y,
     };
   }
 
@@ -166,36 +187,21 @@ export class PitchPage {
   }
 
   /**
-   * Assert the page object's mapping agrees with production geometry.
-   *
-   * `GameScene` centres the pitch horizontally in the *live* canvas and puts
-   * it below the top dugout, and `gridToPixel` returns square centres — so
-   * square (0,0) must land half a square inside that origin. A failure here
-   * means the pitch layout changed and every canvas click in the suite is
-   * suspect.
+   * Assert the page object's mapping agrees with production geometry: the
+   * board is isometric, so stepping along grid x moves down-right and along
+   * grid y down-left by the same amount, each step twice as wide as it is
+   * tall. A failure here means the projection changed and every canvas click
+   * in the suite is suspect.
    */
   async assertMappingMatchesProductionGeometry(): Promise<void> {
-    const size = await this.canvasSize();
-    const pitchLeft = (size.width - GameConfig.PITCH_PIXEL_WIDTH) / 2;
-    const pitchTop = GameConfig.TOP_UI_HEIGHT;
-
     const origin = await this.designPoint({ x: 0, y: 0 });
-    expect(origin).toEqual({
-      x: pitchLeft + GameConfig.SQUARE_SIZE / 2,
-      y: pitchTop + GameConfig.SQUARE_SIZE / 2,
-    });
-
-    // …and squares are exactly one SQUARE_SIZE apart on both axes.
-    const neighbour = await this.designPoint({ x: 1, y: 1 });
-    expect(neighbour.x - origin.x).toBe(GameConfig.SQUARE_SIZE);
-    expect(neighbour.y - origin.y).toBe(GameConfig.SQUARE_SIZE);
-
-    // The far corner must still be inside the drawn pitch.
-    const far = await this.designPoint({
-      x: GameConfig.PITCH_WIDTH - 1,
-      y: GameConfig.PITCH_HEIGHT - 1,
-    });
-    expect(far.x).toBeLessThan(pitchLeft + GameConfig.PITCH_PIXEL_WIDTH);
-    expect(far.y).toBeLessThan(pitchTop + GameConfig.PITCH_PIXEL_HEIGHT);
+    const alongX = await this.designPoint({ x: 1, y: 0 });
+    const alongY = await this.designPoint({ x: 0, y: 1 });
+    const dx = { x: alongX.x - origin.x, y: alongX.y - origin.y };
+    const dy = { x: alongY.x - origin.x, y: alongY.y - origin.y };
+    expect(dx.x).toBeGreaterThan(0);
+    expect(dy.x).toBeCloseTo(-dx.x, 3);
+    expect(dy.y).toBeCloseTo(dx.y, 3);
+    expect(dx.x / dx.y).toBeCloseTo(2, 2);
   }
 }

@@ -29,3 +29,18 @@ export const mockRaf = () => {
     }
   );
 };
+
+/**
+ * Force the next die results a headless game rolls, in order, then fall back
+ * to its seeded RNG. Every die in the engine comes off `rollMultipleDice`.
+ */
+export const forceDice = (
+  rng: { rollMultipleDice(count: number, sides: number): number[] },
+  values: number[]
+) => {
+  const queue = [...values];
+  const real = rng.rollMultipleDice.bind(rng);
+  vi.spyOn(rng, "rollMultipleDice").mockImplementation((count, sides) =>
+    Array.from({ length: count }, () => queue.shift() ?? real(1, sides)[0])
+  );
+};

@@ -5,9 +5,8 @@
  *
  * The behaviour lives in the kickoff flow (BallManager.kickBall →
  * KickoffController → BallMovementController.deviate): when the nominated
- * kicker has this skill the deviation distance is a D3 instead of a D6. The
- * reduced deviation is always the safer choice for the kicking coach, so it
- * is applied automatically. This registration marks the skill implemented
+ * kicker has this skill the deviation distance is a D3 instead of the lower
+ * of 2D6 (Sevens rule M3). The reduced deviation is applied automatically. This registration marks the skill implemented
  * for the coverage gate.
  */
 

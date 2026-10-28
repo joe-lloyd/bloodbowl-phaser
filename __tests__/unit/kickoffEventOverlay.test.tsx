@@ -30,7 +30,7 @@ describe("KickoffEventOverlay", () => {
 
   it("keeps selection on the pitch instead of rendering player/action buttons", async () => {
     const step = {
-      event: KickoffEvent.SOLID_DEFENCE,
+      event: KickoffEvent.ALERT_DEFENCE,
       teamId: "team1",
       selectionLimit: 3,
       selectedPlayerIds: [],
@@ -60,14 +60,14 @@ describe("KickoffEventOverlay", () => {
     });
     await act(async () => {
       eventBus.emit(GameEventNames.KickoffEventStepStarted, {
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: "team1",
         selectionLimit: 3,
       });
     });
 
     expect(container.textContent).toContain(
-      "Drag a highlighted Open player directly"
+      "Click an eligible player on the pitch, then click one adjacent empty square."
     );
     expect(container.querySelector("section")?.className).toContain("mt-auto");
     expect(container.querySelector(".absolute")).toBeNull();

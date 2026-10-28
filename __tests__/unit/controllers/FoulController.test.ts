@@ -70,16 +70,16 @@ describe("FoulController", () => {
   });
 
   describe("resolveArgueTheCall", () => {
-    it("should return ejected on a 1", () => {
-      expect(foulController.resolveArgueTheCall(1)).toBe("ejected");
+    it("should return stay on 1-4", () => {
+      expect(
+        [1, 2, 3, 4].map((roll) => foulController.resolveArgueTheCall(roll))
+      ).toEqual(["stay", "stay", "stay", "stay"]);
     });
 
-    it("should return swayed on a 6", () => {
-      expect(foulController.resolveArgueTheCall(6)).toBe("swayed");
-    });
-
-    it("should return stay on 2-5", () => {
-      expect(foulController.resolveArgueTheCall(3)).toBe("stay");
+    it("should return swayed on 5-6", () => {
+      expect(
+        [5, 6].map((roll) => foulController.resolveArgueTheCall(roll))
+      ).toEqual(["swayed", "swayed"]);
     });
   });
 });

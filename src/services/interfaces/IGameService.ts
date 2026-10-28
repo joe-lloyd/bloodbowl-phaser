@@ -46,6 +46,10 @@ export interface IGameService {
   answerInterception(playerId?: string): boolean;
   /** Answer a pending Apothecary decision; false when none is pending */
   answerApothecary(accept: boolean): boolean;
+  /** Answer a pending Prayer or Desperate Measure choice. */
+  answerInducementChoice(
+    answer: import("@/types/decisions").InducementChoiceDecisionAnswer
+  ): boolean;
 
   // Sevens inducements
   /**
@@ -58,15 +62,7 @@ export interface IGameService {
     inventory: import("@/types/Inducements").InducementInventoryEntry[]
   ): void;
   /** The current pregame offer: catalog/budget plus each team's selection. */
-  getInducementOffer(): {
-    profile: import("@/types/Inducements").InducementRuleProfile;
-    budgets: Record<string, number>;
-    selections: Record<
-      string,
-      import("@/game/inducements/rules").InducementSelectionLine[]
-    >;
-    confirmed: Record<string, boolean>;
-  };
+  getInducementOffer(): import("@/types/Inducements").InducementOffer;
   /** Set (or clear, at quantity 0) one line of a team's pregame selection. */
   selectInducement(
     teamId: string,
@@ -178,6 +174,7 @@ export interface IGameService {
   proRerollBlockDie(attackerId: string, dieIndex: number): void;
   /** Brawler on a block: re-roll the single Both Down die. */
   brawlerRerollBlockDie(attackerId: string): void;
+  veteranRerollBlock(attackerId: string): void;
   executePush(
     attackerId: string,
     defenderId: string,

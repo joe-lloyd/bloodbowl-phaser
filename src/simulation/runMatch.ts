@@ -15,6 +15,10 @@ import { RosterName } from "../types/Team";
 import { enumerateDecision } from "./candidates";
 import { Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
+import {
+  Inducement,
+  buildSeventsInducementProfile,
+} from "../types/Inducements";
 import { createCoachRng } from "./rng";
 
 /**
@@ -68,6 +72,11 @@ export interface MatchRecording {
   rerolls: number;
   /** Which teams were fielded; absent on recordings made before line-ups. */
   lineup?: Lineup;
+  /**
+   * Both teams held Prayers to Nuffle and Desperate Measures (see
+   * grantSimInducements); absent on recordings made before them.
+   */
+  inducements?: boolean;
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
@@ -83,6 +92,8 @@ export interface MatchSpec {
   rerolls?: number;
   /** Commands before the match counts as stuck. */
   maxCommands?: number;
+  /** Give both teams Prayers and Desperate Measures; default true. */
+  inducements?: boolean;
 }
 
 const DEFAULT_MAX_COMMANDS = 6000;
@@ -108,11 +119,45 @@ export function createSimGame(
   });
 }
 
+/**
+ * Both teams hold the Sevens maximum of 2 Prayers to Nuffle and 5 Desperate
+ * Measures, free, so every match exercises their tables and decisions. The
+ * sim does not buy inducements: it has no petty cash to spend.
+ */
+export async function grantSimInducements(game: HeadlessGame): Promise<void> {
+  game.ctx.gameService.commitInducements(
+    buildSeventsInducementProfile({ advancedLeague: false }),
+    {},
+    [game.ctx.team1.id, game.ctx.team2.id].flatMap((ownerTeamId) =>
+      (
+        [
+          [Inducement.PRAYERS_TO_NUFFLE, 2],
+          [Inducement.DESPERATE_MEASURES, 5],
+        ] as const
+      ).map(([inducement, quantity]) => ({
+        inducement,
+        ownerTeamId,
+        quantity,
+        remainingUses: quantity,
+        price: 0,
+        provenance: "free" as const,
+        duration: "match" as const,
+      }))
+    )
+  );
+  // Let the rolls run up to the first coach choice.
+  for (let i = 0; i < 20; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const rerolls = spec.rerolls ?? 3;
   const coachSeed = spec.coachSeed ?? spec.seed;
   const maxCommands = spec.maxCommands ?? DEFAULT_MAX_COMMANDS;
+  const inducements = spec.inducements ?? true;
   const game = createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
+  if (inducements) await grantSimInducements(game);
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];
   const findings: Finding[] = [];
@@ -256,6 +301,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     coaches: [spec.coaches[0].name, spec.coaches[1].name],
     rerolls,
     lineup: "sevens-lineup",
+    inducements,
     steps,
     final: summarize(final),
     findings,

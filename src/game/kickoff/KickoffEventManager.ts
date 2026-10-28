@@ -1,7 +1,7 @@
 /**
  * KickoffEventManager — rolls the Sevens kickoff table and resolves every
  * event: immediate effects through the resolver table, and interactive
- * events (Solid Defence, High Kick, Quick Snap, Charge!) through a pending
+ * events (Alert Defence, High Kick, Quick Snap, Charge!) through a pending
  * step the kickoff awaits.
  *
  * The step is engine-owned state (NOT a DecisionService decision), so
@@ -17,6 +17,8 @@ import { Team } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import { DiceController } from "../controllers/DiceController";
 import { WeatherManager } from "../managers/WeatherManager";
+import { inducementCount } from "../inducements/inventory";
+import { Inducement } from "@/types/Inducements";
 import { GameConfig } from "@/config/GameConfig";
 import { SetupValidator } from "../validators/SetupValidator";
 import {
@@ -26,6 +28,7 @@ import {
   KickoffEvent,
   KickoffEventOutcome,
   grantEffect,
+  isOneSquareMoveEvent,
   kickoffEventOwner,
 } from "./kickoffEvents";
 import {
@@ -44,11 +47,11 @@ export interface KickoffEventStepState {
   teamId: string;
   selectionLimit: number;
   selectedPlayerIds: string[];
-  /** Quick Snap: players who already made their one-square move. */
+  /** Alert Defence / Quick Snap: players who already made their one-square move. */
   movedPlayerIds: string[];
   /**
-   * Legacy serialized field retained for protocol compatibility. Solid
-   * Defence now redeploys directly on the pitch and never populates it.
+   * Legacy serialized field retained for protocol compatibility. No event
+   * populates it since Alert Defence replaced Solid Defence's re-set-up.
    */
   awaitingPlacement: string[];
   /** High Kick: the ball's landing square. */
@@ -105,7 +108,7 @@ export class KickoffEventManager {
     this.resolvers = {
       [KickoffEvent.GET_THE_REF]: (ctx) => this.resolveGetTheRef(ctx),
       [KickoffEvent.TIME_OUT]: (ctx) => this.resolveTimeOut(ctx),
-      [KickoffEvent.SOLID_DEFENCE]: () => {},
+      [KickoffEvent.ALERT_DEFENCE]: () => {},
       [KickoffEvent.HIGH_KICK]: () => {},
       [KickoffEvent.CHEERING_FANS]: (ctx) => this.resolveCheeringFans(ctx),
       [KickoffEvent.BRILLIANT_COACHING]: (ctx) =>
@@ -206,6 +209,16 @@ export class KickoffEventManager {
     landingSquare: { x: number; y: number }
   ): Promise<void> {
     if (this.lastEvent !== KickoffEvent.HIGH_KICK) return;
+    // Sevens K5: only a ball landing between the receiving End Zone and
+    // Line of Scrimmage, never in No Man's Land.
+    const { x, y } = landingSquare;
+    if (!this.setupValidator.isInSetupZone(x, y, !isTeam1Kicking)) {
+      this.eventBus.emit(
+        GameEventNames.UI_GameLog,
+        "High Kick: the ball lands in No Man's Land, so no player may be placed under it."
+      );
+      return;
+    }
     const receivingTeamId = (isTeam1Kicking ? this.team2 : this.team1).id;
     await this.openStep(KickoffEvent.HIGH_KICK, receivingTeamId, 1, landingSquare);
   }
@@ -234,8 +247,8 @@ export class KickoffEventManager {
 
   private resolveTimeOut(ctx: KickoffEventResolverContext): void {
     const kickingTurn = this.callbacks.getTurnNumber(ctx.kickingTeam.id);
-    // Markers on 4-6 move back one (the half gets longer); otherwise forward.
-    const delta = kickingTurn >= 4 && kickingTurn <= 6 ? -1 : 1;
+    // Sevens K3: markers on 5 or 6 move back one; otherwise forward.
+    const delta = kickingTurn >= 5 ? -1 : 1;
     this.callbacks.moveTurnMarkers(delta);
     for (const team of [ctx.kickingTeam, ctx.receivingTeam]) {
       grantEffect(
@@ -303,7 +316,9 @@ export class KickoffEventManager {
   private resolveCheeringFans(ctx: KickoffEventResolverContext): void {
     const { winners } = this.staffRollOff(
       "Cheering Fans",
-      (team) => team.cheerleaders,
+      (team) =>
+        team.cheerleaders +
+        inducementCount(this.state, team.id, Inducement.TEMP_AGENCY_CHEERLEADER),
       [ctx.kickingTeam, ctx.receivingTeam]
     );
     for (const team of winners) {
@@ -327,7 +342,13 @@ export class KickoffEventManager {
   private resolveBrilliantCoaching(ctx: KickoffEventResolverContext): void {
     const { winners } = this.staffRollOff(
       "Brilliant Coaching",
-      (team) => team.coaches,
+      (team) =>
+        team.coaches +
+        inducementCount(
+          this.state,
+          team.id,
+          Inducement.PART_TIME_ASSISTANT_COACH
+        ),
       [ctx.kickingTeam, ctx.receivingTeam]
     );
     for (const team of winners) {
@@ -539,9 +560,6 @@ export class KickoffEventManager {
   /** Toggle a player's selection (Open players of the owning team only). */
   public togglePlayerSelection(playerId: string): boolean {
     if (!this.step) return false;
-    // Solid Defence is a single direct drag. Merely clicking a player must
-    // never select/remove them or spend the redeployment allowance.
-    if (this.step.event === KickoffEvent.SOLID_DEFENCE) return false;
     const player = this.stepPlayers(this.step.teamId).find(
       (candidate) => candidate.id === playerId
     );
@@ -559,12 +577,12 @@ export class KickoffEventManager {
   }
 
   /**
-   * Quick Snap: move a selected player exactly one square (no dodge, any
-   * direction incl. the opposition half, not into occupation or off-pitch,
-   * not marked as having acted).
+   * Alert Defence / Quick Snap: move a selected player exactly one square
+   * (no dodge, any direction incl. No Man's Land and the opposition half,
+   * not into occupation or off-pitch, not marked as having acted).
    */
   public movePlayer(playerId: string, x: number, y: number): boolean {
-    if (!this.step || this.step.event !== KickoffEvent.QUICK_SNAP) return false;
+    if (!this.step || !isOneSquareMoveEvent(this.step.event)) return false;
     if (!this.step.selectedPlayerIds.includes(playerId)) return false;
     if (this.step.movedPlayerIds.includes(playerId)) return false;
     const player = this.stepPlayers(this.step.teamId).find(
@@ -603,11 +621,7 @@ export class KickoffEventManager {
     return true;
   }
 
-  /**
-   * High Kick: place the selected Open receiver into the landing square.
-   * Solid Defence: drag an Open player directly from its current square to a
-   * legal setup square without ever staging it in Reserves.
-   */
+  /** High Kick: place the selected Open receiver into the landing square. */
   public placePlayer(playerId: string, x: number, y: number): boolean {
     if (!this.step) return false;
     const player = this.stepPlayers(this.step.teamId).find(
@@ -632,41 +646,12 @@ export class KickoffEventManager {
       return true;
     }
 
-    if (this.step.event === KickoffEvent.SOLID_DEFENCE) {
-      if (this.step.movedPlayerIds.includes(playerId)) return false;
-      if (this.step.selectedPlayerIds.length >= this.step.selectionLimit) {
-        return false;
-      }
-      if (!this.isOpen(player) || !player.gridPosition) return false;
-      const from = { ...player.gridPosition };
-      if (from.x === x && from.y === y) return false;
-      const isTeam1 = this.step.teamId === this.team1.id;
-      if (!this.setupValidator.isInSetupZone(x, y, isTeam1)) return false;
-      const occupied = [...this.team1.players, ...this.team2.players].some(
-        (other) =>
-          other.id !== playerId &&
-          other.gridPosition &&
-          other.gridPosition.x === x &&
-          other.gridPosition.y === y
-      );
-      if (occupied) return false;
-      player.gridPosition = { x, y };
-      this.step.selectedPlayerIds.push(playerId);
-      this.step.movedPlayerIds.push(playerId);
-      this.eventBus.emit(GameEventNames.PlayerPlaced, { playerId, x, y });
-      return true;
-    }
-
     return false;
   }
 
   /** Confirm the step: applies whatever requires confirmation. */
   public confirmStep(): boolean {
     if (!this.step) return false;
-    if (this.step.event === KickoffEvent.SOLID_DEFENCE) {
-      this.finishStep(this.step.selectedPlayerIds.length === 0);
-      return true;
-    }
     if (this.step.event === KickoffEvent.CHARGE) {
       if (this.step.charge) return false;
       if (this.step.selectedPlayerIds.length === 0) {
@@ -684,7 +669,7 @@ export class KickoffEventManager {
       this.advanceCharge();
       return true;
     }
-    // Quick Snap / High Kick: moves already applied as issued.
+    // Alert Defence / Quick Snap / High Kick: moves already applied as issued.
     this.finishStep(false);
     return true;
   }

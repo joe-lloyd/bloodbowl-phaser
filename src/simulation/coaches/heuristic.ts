@@ -238,6 +238,7 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
     case "team-reroll-block":
     case "pro-reroll-block":
     case "brawler-reroll-block":
+    case "veteran-reroll-block":
       return -1;
     case "choose-push-direction": {
       // Push towards the sideline: crowd pushes injure.
@@ -250,6 +251,9 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
     case "use-reaction":
     case "use-apothecary":
       return command.accept ? 1 : 0;
+    case "choose-inducement":
+      // Use a Desperate Measure as soon as it is offered.
+      return command.playerId ? 1 : 0;
     case "choose-interception":
       return command.playerId ? 1 : 0;
     case "touchback": {
@@ -278,6 +282,9 @@ function blockDieScores(context: CoachContext, board: Board): number[] | null {
     }
     // Re-roll only a block that would otherwise turn over.
     if (command.type === "team-reroll-block") return best <= 1 ? 2 : -1;
+    // The Veteran's re-roll is only offered when the block would knock them
+    // down, so it is always worth more than a Team Re-roll.
+    if (command.type === "veteran-reroll-block") return 3;
     return -1;
   });
 }

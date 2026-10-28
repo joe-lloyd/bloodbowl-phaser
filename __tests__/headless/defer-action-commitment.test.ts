@@ -189,9 +189,9 @@ describe("defer-action-commitment", () => {
     });
   });
 
-  it("Move-then-Block for the same player still works once real movement is spent (the gate-commit guard does not regress it)", async () => {
+  it("a player who has moved cannot switch to a Block (that would be a Blitz)", async () => {
     const game = new HeadlessGame({
-      scenario: scenario("move-then-block-still-free"),
+      scenario: scenario("move-then-block-refused"),
       seed: 1,
     });
     const playerId = game.ctx.team1.players[0].id;
@@ -204,17 +204,15 @@ describe("defer-action-commitment", () => {
     });
     expect(game.ctx.gameService.getMovementUsed(playerId)).toBeGreaterThan(0);
 
-    // isActionCommitted() now reports "movement", not "gate" — the new
-    // gate-only guard must not refuse this intentionally-free redeclare.
     const redeclared = await game.execute({
       type: "declare-action",
       playerId,
       action: "block",
     });
-    expect(redeclared.ok).toBe(true);
+    expect(redeclared.ok).toBe(false);
     expect(game.snapshot().activePlayer).toMatchObject({
       id: playerId,
-      action: "block",
+      action: "move",
     });
   });
 

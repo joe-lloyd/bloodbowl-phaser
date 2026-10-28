@@ -24,13 +24,21 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
         setRequest(data as RerollDecisionRequest);
       }
     };
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "reroll") setRequest(null);
+    };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
     return () => {
       eventBus.off(GameEventNames.DecisionRequested, onRequested);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 
-  if (!request) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const answer = (accept: boolean, source?: RerollSource) => {
     // Online: only the rolling coach may answer
@@ -81,6 +89,15 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
               className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               USE TEAM RE-ROLL ({rerollsLeft} left)
+            </button>
+          )}
+          {request.sources.includes("veteran") && (
+            <button
+              data-testid="reroll-use-veteran"
+              onClick={() => answer(true, "veteran")}
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
+            >
+              USE VETERAN RE-ROLL (once per game)
             </button>
           )}
           <button

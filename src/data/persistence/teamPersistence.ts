@@ -18,6 +18,7 @@
  */
 
 import {
+  DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
   KeyWord,
   Player,
@@ -39,7 +40,9 @@ import {
 } from "../../types/Team";
 import { SeedMetadata } from "../../types/seedMetadata";
 import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
+import { Inducement, InducementSelectionLine } from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
+import { staysOnRoster } from "../../game/rules/leagueRoster";
 
 export const TEAM_SCHEMA_VERSION = 1;
 
@@ -56,6 +59,9 @@ export interface StoredPlayer {
   characteristicAdvances: Partial<Record<keyof PlayerStats, number>>;
   injuries: InjuryType[];
   careerStats?: PlayerCareerStats;
+  timesKeptFromDraft?: number;
+  /** Sevens D8 Veteran; hydration applies its MA -1. */
+  veteran?: true;
 }
 
 /** A persisted team: resources, staff, history, and its stored players. */
@@ -90,7 +96,36 @@ export interface StoredTeam {
   advancementModeLocked?: boolean;
   pendingDevelopment?: PendingDevelopment[];
   matchedPlayAllocations?: MatchedPlayAllocation[];
+  draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
+}
+
+const INDUCEMENTS = new Set<string>(Object.values(Inducement));
+
+function isInducement(value: unknown): value is Inducement {
+  return typeof value === "string" && INDUCEMENTS.has(value);
+}
+
+/** Keep only well-formed draft-list lines: a known inducement, quantity >= 1. */
+function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((line: unknown) => {
+    if (
+      typeof line !== "object" ||
+      line === null ||
+      !("inducement" in line) ||
+      !("quantity" in line)
+    ) {
+      return [];
+    }
+    const { inducement, quantity } = line;
+    return isInducement(inducement) &&
+      typeof quantity === "number" &&
+      Number.isInteger(quantity) &&
+      quantity > 0
+      ? [{ inducement, quantity }]
+      : [];
+  });
 }
 
 /**
@@ -138,6 +173,10 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       {},
     injuries: Array.isArray(raw.injuries) ? (raw.injuries as InjuryType[]) : [],
     careerStats: raw.careerStats as PlayerCareerStats | undefined,
+    ...(typeof raw.timesKeptFromDraft === "number"
+      ? { timesKeptFromDraft: raw.timesKeptFromDraft }
+      : {}),
+    ...(raw.veteran === true ? { veteran: true } : {}),
   };
 }
 
@@ -211,6 +250,7 @@ export function hydratePlayer(
     const direction = isInvertedStat(stat) ? -1 : 1;
     stats[stat] = baseStats[stat] + direction * advances - direction * decreases;
   }
+  if (stored.veteran) stats.MA -= 1;
 
   // Advancement records predate this change too: `name` may still carry a
   // pre-2025-catalog-reconciliation skill name. `migrateSkill` resolves it
@@ -227,10 +267,12 @@ export function hydratePlayer(
     .filter((skill): skill is Skill => skill !== null);
   const skills = [...templateSkills, ...advancementSkills];
 
-  const teamValue = (stored.advancements ?? []).reduce(
-    (sum, advancement) => sum + (advancement.valueIncrease ?? 0),
-    0
-  );
+  const teamValue =
+    (stored.advancements ?? []).reduce(
+      (sum, advancement) => sum + (advancement.valueIncrease ?? 0),
+      0
+    ) +
+    DRAFT_KEEP_VALUE_INCREASE * (stored.timesKeptFromDraft ?? 0);
 
   const player: Player = {
     id: stored.id,
@@ -255,8 +297,12 @@ export function hydratePlayer(
     cost,
     teamValue,
     careerStats: stored.careerStats,
+    ...(stored.timesKeptFromDraft
+      ? { timesKeptFromDraft: stored.timesKeptFromDraft }
+      : {}),
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
+  if (stored.veteran) player.veteran = true;
   return player;
 }
 
@@ -274,6 +320,10 @@ export function dehydratePlayer(player: Player): StoredPlayer {
     characteristicAdvances: player.characteristicAdvances ?? {},
     injuries: player.injuries ?? [],
     ...(player.careerStats ? { careerStats: player.careerStats } : {}),
+    ...(player.timesKeptFromDraft
+      ? { timesKeptFromDraft: player.timesKeptFromDraft }
+      : {}),
+    ...(player.veteran ? { veteran: true } : {}),
   };
 }
 
@@ -339,10 +389,14 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
             raw.matchedPlayAllocations as MatchedPlayAllocation[],
         }
       : {}),
+    ...(Array.isArray(raw.draftInducements)
+      ? { draftInducements: parseDraftInducements(raw.draftInducements) }
+      : {}),
     ...(Array.isArray(raw.draftHistory)
       ? { draftHistory: raw.draftHistory as DraftRecord[] }
       : {}),
   };
+  team.players = team.players.filter((player) => staysOnRoster(team, player));
   team.teamValue = calculateTeamValue(team);
   return { team, warnings };
 }
@@ -388,6 +442,9 @@ export function dehydrateTeam(team: Team): StoredTeam {
       : {}),
     ...(team.matchedPlayAllocations
       ? { matchedPlayAllocations: team.matchedPlayAllocations }
+      : {}),
+    ...(team.draftInducements
+      ? { draftInducements: team.draftInducements }
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
   };

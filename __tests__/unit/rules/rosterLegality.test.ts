@@ -3,6 +3,7 @@ import { RosterName, createTeam } from "../../../src/types/Team";
 import { createPlayer, PlayerTemplate } from "../../../src/types/Player";
 import { validateRosterLegality } from "../../../src/game/rules/rosterLegality";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
+import { chooseVeteran } from "../../../src/game/rules/veteran";
 
 const humanRoster = getRosterByRosterName(RosterName.HUMAN);
 const lineman = humanRoster.playerTemplates.find((t) =>
@@ -32,6 +33,7 @@ describe("rosterLegality", () => {
       ...repeat(blitzer, 2),
       ...repeat(lineman, 2),
     ]);
+    chooseVeteran(team, team.players[0].id);
     expect(validateRosterLegality(team, humanRoster)).toEqual([]);
   });
 

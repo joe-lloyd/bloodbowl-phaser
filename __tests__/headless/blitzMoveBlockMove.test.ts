@@ -1,3 +1,4 @@
+import { GameEventNames } from "../../src/types/events";
 import { describe, it, expect } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
@@ -77,7 +78,13 @@ async function runToPostBlock(seed: number) {
     response = await game.execute({ type: "choose-follow-up", followUp: false });
   }
   if (response.pendingDecision) return null;
-  return { game, gs, attackerId: attacker.id, defenderId: defender.id };
+  return {
+    game,
+    gs,
+    attackerId: attacker.id,
+    defenderId: defender.id,
+    lastEvents: response.events,
+  };
 }
 
 describe("Blitz: block mid-move, keep moving", () => {
@@ -91,6 +98,11 @@ describe("Blitz: block mid-move, keep moving", () => {
 
     // The activation is NOT over — a Blitz block keeps the player active.
     expect(gs.hasPlayerActed(attackerId)).toBe(false);
+    // ...and the engine tells the board to pick the blitzer back up, which
+    // every screen needs: online, and after a block with no follow-up.
+    expect(ctx!.lastEvents.map((event) => event.name)).toContain(
+      GameEventNames.UI_ResumeBlitzMove
+    );
     expect(gs.hasUsedBlitzBlock(attackerId)).toBe(true);
     // Two walked squares + one for the block.
     expect(gs.getState().turn.movementUsed.get(attackerId)).toBe(3);
@@ -130,25 +142,20 @@ describe("Blitz: block mid-move, keep moving", () => {
   it("a plain Block (not a Blitz) still ends the activation", async () => {
     let ended = false;
     for (let seed = 1; seed <= 40 && !ended; seed++) {
-      const game = new HeadlessGame({ scenario, seed });
+      // A plain Block has no movement, so the attacker starts adjacent.
+      const adjacent: Scenario = {
+        ...scenario,
+        setup: {
+          ...scenario.setup,
+          team1Placements: scenario.setup.team1Placements.map((placement) =>
+            placement.playerIndex === 0 ? { ...placement, x: 7 } : placement
+          ),
+        },
+      };
+      const game = new HeadlessGame({ scenario: adjacent, seed });
       const gs = game.ctx.gameService;
       const attacker = game.snapshot().teams[0].players[0];
       const defender = game.snapshot().teams[1].players[0];
-      // Move adjacent first (plain block needs adjacency), as a Move action.
-      await game.execute({
-        type: "declare-action",
-        playerId: attacker.id,
-        action: "move",
-      });
-      await game.execute({
-        type: "move",
-        playerId: attacker.id,
-        path: [
-          { x: 6, y: 5 },
-          { x: 7, y: 5 },
-        ],
-      });
-      // Now declare a plain Block and resolve it.
       const declared = await game.execute({
         type: "declare-action",
         playerId: attacker.id,

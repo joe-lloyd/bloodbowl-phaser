@@ -66,10 +66,21 @@ const localRepository: TeamRepository = {
 };
 
 let activeRepository: TeamRepository = localRepository;
+const repositoryListeners = new Set<() => void>();
 
 /** Swap the persistence backend (null restores the localStorage default). */
 export function setTeamRepository(repository: TeamRepository | null): void {
   activeRepository = repository ?? localRepository;
+  repositoryListeners.forEach((listener) => listener());
+}
+
+/**
+ * Hear when the backend is swapped: a signed-in coach's cloud library
+ * arrives after the app loads. Returns an unsubscribe.
+ */
+export function onTeamRepositoryChanged(listener: () => void): () => void {
+  repositoryListeners.add(listener);
+  return () => repositoryListeners.delete(listener);
 }
 
 /** The signed-out localStorage backend (used by migration and tests). */

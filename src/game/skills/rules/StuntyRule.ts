@@ -5,7 +5,8 @@
  * roll on the Stunty Injury Table instead."
  *
  * The rule only declares that the Stunty Injury Table applies; the table's
- * bands (2-6 Stunned, 7-8 KO, 9 auto Badly Hurt) live in InjuryController,
+ * Sevens bands (2-6 Stunned, 7-8 KO, 9-10 Badly Hurt, 11 Seriously Hurt,
+ * 12 Dead; docs/SEVENS_RULES.md I1-I5) live in InjuryController,
  * and the operation resolves the final result after the fold — so skills
  * that also adjust the injury roll (Thick Skull) stack without either rule
  * knowing about the other. The -1 Interception clause lands with the

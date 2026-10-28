@@ -1,5 +1,5 @@
-import Phaser from "phaser";
-import { Pitch } from "../elements/Pitch";
+import { GameConfig } from "../../config/GameConfig";
+import { Pitch, SquareMarker } from "../elements/Pitch";
 
 /**
  * HighlightManager - Centralized management of all pitch highlights
@@ -21,7 +21,7 @@ export enum HighlightType {
 
 interface TrackedHighlight {
   type: HighlightType;
-  rectangle: Phaser.GameObjects.Rectangle;
+  rectangle: SquareMarker;
   metadata?;
 }
 
@@ -46,7 +46,7 @@ export class HighlightManager {
     gridY: number,
     color: number = 0xffff00,
     metadata?
-  ): Phaser.GameObjects.Rectangle {
+  ): SquareMarker {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
     this.highlights.get(HighlightType.PUSH)?.push({
@@ -66,7 +66,7 @@ export class HighlightManager {
     gridY: number,
     color: number = 0x00ff00,
     metadata?
-  ): Phaser.GameObjects.Rectangle {
+  ): SquareMarker {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
     this.highlights.get(HighlightType.MOVEMENT)?.push({
@@ -86,7 +86,7 @@ export class HighlightManager {
     gridY: number,
     color: number = 0xffffff,
     metadata?
-  ): Phaser.GameObjects.Rectangle {
+  ): SquareMarker {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
     this.highlights.get(HighlightType.SELECTION)?.push({
@@ -106,7 +106,7 @@ export class HighlightManager {
     gridY: number,
     color: number,
     metadata?
-  ): Phaser.GameObjects.Rectangle {
+  ): SquareMarker {
     const rectangle = this.pitch.highlightSquare(gridX, gridY, color);
 
     this.highlights.get(HighlightType.CUSTOM)?.push({
@@ -174,8 +174,8 @@ export class HighlightManager {
     };
 
     // Highlight all squares on the pitch with appropriate colors
-    for (let x = 0; x < 26; x++) {
-      for (let y = 0; y < 15; y++) {
+    for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
         // Skip the thrower's square
         if (x === fromX && y === fromY) continue;
 

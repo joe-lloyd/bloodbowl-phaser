@@ -251,11 +251,12 @@ create() {
 }
 ```
 
-`pitchThemeId` is cosmetic setup state. `GameScene` resolves it through the
-fixed theme catalog and passes the palette to `Pitch` and both `Dugout`
-instances. Local play carries the id in route state. Online play stores it in
-`LobbySettings`, so the host and guest mount the same presentation. Missing or
-legacy values resolve to Classic Grass.
+`pitchThemeId` is the match style, cosmetic setup state. `GameScene` resolves
+it through the style catalogue, preloads that style's stadium and the sprite
+atlases for both rosters, and builds the `Stadium`, `Pitch` overlay and both
+`Dugout`s from the stadium's meta. Local play carries the id in route state.
+Online play stores it in `LobbySettings`, so the host and guest mount the same
+presentation. Missing or legacy values resolve to Blood Bowl.
 
 **Game Loop**:
 

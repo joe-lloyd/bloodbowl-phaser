@@ -21,9 +21,11 @@ import { FollowUpDialog } from "./FollowUpDialog";
 import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
 import { ApothecaryDialog } from "./ApothecaryDialog";
+import { InducementChoiceDialog } from "./InducementChoiceDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
+import { DiceTray } from "./DiceTray";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -68,6 +70,8 @@ interface GameHUDProps {
    */
   sevensInducementsEnabled?: boolean;
   onlineMenu?: OnlineMatchMenuProps;
+  /** The match style, so the dice tray matches the stadium. */
+  styleId?: string;
 }
 
 interface TurnData {
@@ -87,6 +91,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   mode = "normal",
   sevensInducementsEnabled = false,
   onlineMenu,
+  styleId,
 }) => {
   const [inducementsPending, setInducementsPending] = useState(
     () =>
@@ -154,8 +159,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     setTurnData((prev) => ({ ...prev, phase: data.phase }));
   });
 
-  // Turn started listener
-  useEventBus(eventBus, GameEventNames.TurnStarted, (turn) => {
+  // Turn started listener; a restored state (online resync) carries its own turn
+  const showTurn = (turn: { teamId: string; turnNumber: number }) => {
     const container = ServiceContainer.getInstance();
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
@@ -174,7 +179,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         hasFouled: state.turn.hasFouled,
       });
     }
-  });
+  };
+  useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
+  useEventBus(eventBus, GameEventNames.GameStateRestored, (state) =>
+    showTurn(state.turn)
+  );
 
   // Turn Data Updated listener (from PlayerActionManager)
   useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn) => {
@@ -279,28 +288,32 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <HUDLayout
-      left={
-        <div className="flex flex-1 flex-col space-between w-full gap-4">
-          <ScoreBoard eventBus={eventBus} />
-          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
-          <div className="flex flex-1 flex-col gap-4 w-full">
-            <SetupControls eventBus={eventBus} />
-            <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
-          </div>
-          <DiceLog eventBus={eventBus} />
-        </div>
-      }
-      right={
+      topLeft={<ScoreBoard eventBus={eventBus} />}
+      topRight={
         <>
-          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
-          <KickoffEventOverlay eventBus={eventBus} />
-          <PlayerInfoPanel eventBus={eventBus} />
-          <div className="mt-auto pointer-events-auto">
+          <div className="pointer-events-auto">
             <MatchOptionsMenu
               entries={menuEntries}
               onSelect={handleMenuSelect}
             />
           </div>
+          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
+          <KickoffEventOverlay eventBus={eventBus} />
+        </>
+      }
+      bottomLeft={
+        <>
+          <PlayerInfoPanel eventBus={eventBus} />
+          <div className="h-[26vh] w-full">
+            <DiceLog eventBus={eventBus} />
+          </div>
+        </>
+      }
+      bottomRight={
+        <>
+          <SetupControls eventBus={eventBus} />
+          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
         </>
       }
       overlays={
@@ -313,6 +326,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             />
           </div>
 
+          <DiceTray eventBus={eventBus} styleId={styleId} />
+
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
           <ConfirmationModal eventBus={eventBus} />
@@ -321,6 +336,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <RerollDialog eventBus={eventBus} />
           <ReactionDialog eventBus={eventBus} />
           <ApothecaryDialog eventBus={eventBus} />
+          <InducementChoiceDialog eventBus={eventBus} />
           <InterceptionDialog eventBus={eventBus} />
           {inducementsPending && (
             <InducementSelectionPanel

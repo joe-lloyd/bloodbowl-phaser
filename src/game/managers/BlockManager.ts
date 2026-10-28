@@ -29,6 +29,7 @@ import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
 import { CatchOperation } from "../operations/CatchOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
+import { trapdoorOpens } from "../inducements/matchInducements";
 import { GameConfig } from "../../config/GameConfig";
 import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
@@ -414,7 +415,7 @@ export class BlockManager {
       numDice,
       isAttackerChoice,
       results,
-      ...this.blockRerollAvailability(attacker, results),
+      ...this.blockRerollAvailability(attacker, results, isAttackerChoice),
     };
 
     this.pendingBlockRoll = rollData;
@@ -561,14 +562,36 @@ export class BlockManager {
     }
   }
 
+  /**
+   * Veteran (D8): "would be Knocked Down by their own Block". With the
+   * attacker's choice that is when every die knocks them down; with the
+   * defender's choice, when any die does. Player Down always does; Both
+   * Down does unless the attacker has Block.
+   */
+  private blockKnocksAttackerDown(
+    attacker: Player,
+    results: BlockResult[],
+    isAttackerChoice: boolean
+  ): boolean {
+    const knocksDown = (result: BlockResult) =>
+      result.type === "skull" ||
+      (result.type === "both-down" &&
+        !hasSkill(attacker.skills, SkillType.BLOCK));
+    return isAttackerChoice
+      ? results.length > 0 && results.every(knocksDown)
+      : results.some(knocksDown);
+  }
+
   /** Which block-dice re-rolls the attacker may use right now. */
   private blockRerollAvailability(
-    attacker?: Player,
-    results: BlockResult[] = []
+    attacker: Player | undefined,
+    results: BlockResult[],
+    isAttackerChoice: boolean
   ): {
     teamRerollAvailable: boolean;
     proAvailable: boolean;
     brawlerAvailable: boolean;
+    veteranRerollAvailable: boolean;
   } {
     const gs = this.callbacks.getFlowManager?.()?.context.gameService;
     const arbiter = gs?.getRerollArbiter();
@@ -577,9 +600,13 @@ export class BlockManager {
         teamRerollAvailable: false,
         proAvailable: false,
         brawlerAvailable: false,
+        veteranRerollAvailable: false,
       };
     }
     return {
+      veteranRerollAvailable:
+        arbiter.veteranRerollAvailable(attacker) &&
+        this.blockKnocksAttackerDown(attacker, results, isAttackerChoice),
       teamRerollAvailable: arbiter.teamRerollAvailable(attacker.teamId),
       proAvailable:
         hasSkill(attacker.skills, SkillType.PRO) &&
@@ -632,6 +659,7 @@ export class BlockManager {
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
+    pending.veteranRerollAvailable = false;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -679,6 +707,7 @@ export class BlockManager {
     pending.proAvailable = false;
     pending.teamRerollAvailable = false;
     pending.brawlerAvailable = false;
+    pending.veteranRerollAvailable = false;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -714,8 +743,54 @@ export class BlockManager {
       effect: "Brawler: re-rolled a Both Down",
     });
     pending.brawlerAvailable = false;
+    pending.veteranRerollAvailable = false;
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+  }
+
+  /**
+   * Veteran on a block (Sevens D8): once per game, re-roll ALL the dice of
+   * a block that would Knock the Veteran Down. Like a Team Re-roll it locks
+   * out the other sources on this block.
+   */
+  public veteranRerollBlock(attackerId: string): void {
+    const pending = this.pendingBlockRoll;
+    if (!pending || pending.attackerId !== attackerId) return;
+    const attacker = this.getPlayerById(attackerId);
+    const arbiter = this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.getRerollArbiter();
+    // Re-derive eligibility rather than trusting the cached flag (host
+    // authority, as for Pro and Brawler).
+    if (
+      !attacker ||
+      !arbiter ||
+      !arbiter.veteranRerollAvailable(attacker) ||
+      !this.blockKnocksAttackerDown(
+        attacker,
+        pending.results,
+        pending.isAttackerChoice
+      )
+    ) {
+      return;
+    }
+    arbiter.consumeVeteranReroll(attacker);
+    pending.results = this.diceController.rollBlockDice(
+      pending.numDice,
+      attacker.teamId
+    );
+    this.eventBus.emit(GameEventNames.RerollUsed, {
+      playerId: attackerId,
+      source: "veteran",
+      rollKind: "block",
+      before: 0,
+      after: 0,
+    });
+    pending.veteranRerollAvailable = false;
+    pending.teamRerollAvailable = false;
+    pending.proAvailable = false;
+    pending.brawlerAvailable = false;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -1501,6 +1576,8 @@ export class BlockManager {
     this.chain = null;
 
     const flowManager = this.callbacks.getFlowManager?.();
+    /** Treacherous Trapdoor (L12): pushed players who fell through. */
+    const fellThrough = new Set<string>();
 
     for (let i = links.length - 1; i >= 0; i--) {
       const link = links[i];
@@ -1555,6 +1632,24 @@ export class BlockManager {
             : undefined,
       });
 
+      // Pushed onto a Trapdoor: fall through it, injured as if Pushed into
+      // the Crowd, a carried ball Bouncing from the Trapdoor.
+      if (trapdoorOpens(this.state, this.diceController, player, link.to)) {
+        fellThrough.add(link.playerId);
+        player.gridPosition = undefined;
+        if (flowManager) {
+          const isTurnover =
+            player.teamId === flowManager.context.gameService.getActiveTeamId();
+          flowManager.add(
+            new CrowdInjuryOperation(link.playerId, link.to, isTurnover, {
+              carriedBall: !!carriedBall,
+            }),
+            true
+          );
+        }
+        continue;
+      }
+
       // A standing carrier pushed into their scoring end zone still scores
       // (the original defender falls on POW, so no score for them)
       const knockedDown = isOriginalDefender && knockDownDefender;
@@ -1579,7 +1674,12 @@ export class BlockManager {
       }
       return;
     }
-    if (first && first.to !== null && knockDownDefender) {
+    if (
+      first &&
+      first.to !== null &&
+      knockDownDefender &&
+      !fellThrough.has(first.playerId)
+    ) {
       const defender = this.getPlayerById(first.playerId);
       if (defender) {
         this.knockDownPlayer(defender);
@@ -1610,6 +1710,7 @@ export class BlockManager {
     if (
       stripBall &&
       !knockDownDefender &&
+      !fellThrough.has(first?.playerId ?? "") &&
       flowManager &&
       first &&
       first.to !== null &&

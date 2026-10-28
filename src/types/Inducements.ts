@@ -65,91 +65,48 @@ export enum Inducement {
   STAR_PLAYER = "Star Player",
 }
 
-/** A single purchasable line in a resolved inducement offer. */
+/** A single purchasable line in a team's inducement catalogue. */
 export interface InducementCatalogEntry {
   inducement: Inducement;
   price: number;
-  /** Highest quantity a team may hold at once (purchased + free). */
+  /** Highest quantity a team may buy. */
   maxCount: number;
-  /** How long a use survives: the whole match, or just the current drive. */
-  duration: "match" | "drive";
+}
+
+/** One team's requested purchase; quantity 0 is legal and removes a line. */
+export interface InducementSelectionLine {
+  inducement: Inducement;
+  quantity: number;
 }
 
 /**
- * The resolved, data-driven rule set a pregame offer is built from. Sevens
- * bans Star Players and prices/limits Extra Team Training; the same shape
- * carries whatever a future non-Sevens ruleset would need instead, so no UI
- * or validation branches on format.
+ * The match-wide inducement rules. Each team's catalogue depends on its
+ * roster, so it is built per team in game/inducements/catalog.ts.
  */
 export interface InducementRuleProfile {
   /** Lookup/debug key, e.g. "sevens" or "sevens-advanced-league". */
   id: string;
-  /** Advanced League Sevens keeps Prayers to Nuffle results 10-13. */
   advancedLeague: boolean;
   starPlayersAllowed: boolean;
-  extraTeamTraining: { price: number; maxCount: number };
-  /** Prayers to Nuffle results that are rerolled until legal; empty = none. */
-  prayersRerollResults: number[];
-  /** Every purchasable inducement this profile offers (Star Player excluded). */
-  catalog: InducementCatalogEntry[];
 }
 
-/** Extra Team Training's Sevens price/limit (150,000 gold, up to eight). */
-export const SEVENS_EXTRA_TEAM_TRAINING = {
-  price: 150_000,
-  maxCount: 8,
-} as const;
+/** The pregame offer: each team's catalogue, budget and current selection. */
+export interface InducementOffer {
+  profile: InducementRuleProfile;
+  budgets: Record<string, number>;
+  catalogs: Record<string, InducementCatalogEntry[]>;
+  selections: Record<string, InducementSelectionLine[]>;
+  confirmed: Record<string, boolean>;
+}
 
-/** Prayers to Nuffle results rerolled outside Advanced League (2025 p.36). */
-export const SEVENS_RESTRICTED_PRAYERS = [10, 11, 12, 13] as const;
-
-/**
- * A small, deliberately non-exhaustive catalog beyond Extra Team Training —
- * this change's non-goal is "every inducement from every expansion," not a
- * complete price list. Wandering Apothecary/Bribe/etc. are common purchases
- * with well-known one-time prices; anything not listed here is simply not
- * offered yet, not silently mispriced.
- */
-const SEVENS_BASE_CATALOG: Omit<InducementCatalogEntry, "duration">[] = [
-  { inducement: Inducement.WANDERING_APOTHECARY, price: 50_000, maxCount: 1 },
-  { inducement: Inducement.BRIBE, price: 100_000, maxCount: 2 },
-  { inducement: Inducement.HALFLING_MASTER_CHEF, price: 100_000, maxCount: 1 },
-  { inducement: Inducement.MORTUARY_ASSISTANT, price: 100_000, maxCount: 1 },
-  { inducement: Inducement.PLAGUE_DOCTOR, price: 100_000, maxCount: 1 },
-  { inducement: Inducement.RIOTOUS_ROOKIES, price: 50_000, maxCount: 1 },
-];
-
-/**
- * Build the Sevens inducement rule profile. Star Players are never included
- * in the catalog (Sevens bans them outright); Prayers to Nuffle results
- * 10-13 are only rerolled outside Advanced League play, unless the
- * competition profile explicitly restricts them there too.
- */
+/** Build the Sevens inducement rule profile. */
 export function buildSeventsInducementProfile(opts: {
   advancedLeague: boolean;
-  /** Advanced League still restricting 10-13 is a competition-level override. */
-  restrictPrayersInAdvancedLeague?: boolean;
 }): InducementRuleProfile {
-  const restrictPrayers =
-    !opts.advancedLeague || opts.restrictPrayersInAdvancedLeague === true;
   return {
     id: opts.advancedLeague ? "sevens-advanced-league" : "sevens",
     advancedLeague: opts.advancedLeague,
     starPlayersAllowed: false,
-    extraTeamTraining: { ...SEVENS_EXTRA_TEAM_TRAINING },
-    prayersRerollResults: restrictPrayers ? [...SEVENS_RESTRICTED_PRAYERS] : [],
-    catalog: [
-      {
-        inducement: Inducement.EXTRA_TEAM_TRAINING,
-        price: SEVENS_EXTRA_TEAM_TRAINING.price,
-        maxCount: SEVENS_EXTRA_TEAM_TRAINING.maxCount,
-        duration: "match",
-      },
-      ...SEVENS_BASE_CATALOG.map((entry) => ({
-        ...entry,
-        duration: "match" as const,
-      })),
-    ],
   };
 }
 
@@ -158,21 +115,42 @@ export interface InducementInventoryEntry {
   inducement: Inducement;
   ownerTeamId: string;
   quantity: number;
-  /** Uses left this match/drive; starts equal to quantity. */
+  /** Uses left this match; starts equal to quantity. */
   remainingUses: number;
   /** Total gold spent across `quantity` (0 for a free/granted inducement). */
   price: number;
   provenance: "purchased" | "free";
-  duration: "match" | "drive";
 }
 
-/** One resolved Prayers to Nuffle roll, including any rejected rerolls. */
+/**
+ * Team re-rolls the Halfling Master Chef moved this half: + for the chef's
+ * team, - for the opposition. Keyed by half so it lapses at half-time.
+ */
+export interface MasterChefHalf {
+  half: "h1" | "h2";
+  rerolls: Record<string, number>;
+}
+
+/** The Sevens Prayers to Nuffle table (D8), rules L12 to L19. */
+export enum PrayerToNuffle {
+  TREACHEROUS_TRAPDOOR = "Treacherous Trapdoor",
+  STILETTO = "Stiletto",
+  IRON_MAN = "Iron Man",
+  KNUCKLE_DUSTERS = "Knuckle Dusters",
+  BLESSING_OF_NUFFLE = "Blessing of Nuffle",
+  MOLES_UNDER_THE_PITCH = "Moles Under the Pitch",
+  UNDER_SCRUTINY = "Under Scrutiny",
+  INTENSIVE_TRAINING = "Intensive Training",
+}
+
+/** One resolved Prayers to Nuffle roll, including any re-rolled duplicates. */
 export interface PrayerRerollRecord {
   teamId: string;
-  /** Rolls rerolled for landing on a restricted result, in order rolled. */
+  /** Rolls re-rolled because the team already had that prayer, in order. */
   rejectedRolls: number[];
-  /** The final, accepted result. */
+  /** The final, accepted D8 result. */
   result: number;
+  prayer: PrayerToNuffle;
 }
 
 /**
@@ -198,6 +176,8 @@ export interface InducementsMatchState {
   decisionSeq: number;
   /** Every resolved Prayers to Nuffle roll, in order. */
   prayerLog: PrayerRerollRecord[];
+  /** The Halfling Master Chef's re-roll swing for the current half. */
+  masterChef?: MasterChefHalf;
 }
 
 /** A fresh, empty match-scoped inducements state. */

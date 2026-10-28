@@ -3,12 +3,12 @@ import { GameplayInteractionController } from "../../../src/game/controllers/Gam
 import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust path if needed
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
 import { PlayerStatus } from "../../../src/types/Player";
+import { GameEventNames } from "../../../src/types/events";
 
 // Mock dependencies
 const mockScene = {
   highlightPlayer: vi.fn(),
   unhighlightPlayer: vi.fn(),
-  setKickoffSolidDefenceDragPlayers: vi.fn(),
   add: {
     rectangle: vi.fn(),
     container: vi.fn(),
@@ -189,6 +189,31 @@ describe("GameplayInteractionController", () => {
 
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
       expect(mockPitch.drawRangeOverlay).not.toHaveBeenCalled(); // Should NOT show ranges
+    });
+  });
+
+  describe("a push the other coach picks", () => {
+    // Online, the push arrows reach both boards; only the attacker picks
+    const handler = (name: string) =>
+      mockEventBus.on.mock.calls.find(([event]) => event === name)?.[1];
+
+    it("frees the board once the push is settled", () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+
+      handler(GameEventNames.UI_SelectPushDirection)({
+        validDirections: [{ x: 7, y: 7 }],
+        defenderId: "p2",
+        attackerId: "p9",
+      });
+      handler(GameEventNames.DecisionResolved)?.({ type: "push-direction" });
+      controller.handlePlayerClick("p1");
+
+      expect(mockGameService.executePush).not.toHaveBeenCalled();
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
   });
 
@@ -803,10 +828,10 @@ describe("GameplayInteractionController", () => {
   });
 
   describe("Kickoff event pitch interaction", () => {
-    it("enables Solid Defence dragging without selecting on click", () => {
+    it("moves a selected Alert Defence player to an adjacent pitch square", () => {
       mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
       mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: team1Id,
         selectionLimit: 2,
         selectedPlayerIds: [],
@@ -815,38 +840,24 @@ describe("GameplayInteractionController", () => {
       });
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getTeam.mockReturnValue(mockScene.team1);
-      mockScene.team2.players = [];
 
-      (controller as any).syncKickoffStepInteraction();
       controller.handlePlayerClick(player1.id);
+      (controller as any).onSquareClicked(6, 5);
 
-      expect(
-        mockScene.setKickoffSolidDefenceDragPlayers
-      ).toHaveBeenLastCalledWith([player1.id]);
-      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
+      expect(mockGameService.selectKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id
+      );
+      expect(mockGameService.moveKickoffEventPlayer).toHaveBeenCalledWith(
+        player1.id,
+        6,
+        5
+      );
       expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
     });
 
-    it("does not use click-to-place during Solid Defence", () => {
-      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
+    it("marks already-moved Alert Defence players as selected", () => {
       mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
-        teamId: team1Id,
-        selectionLimit: 2,
-        selectedPlayerIds: [],
-        movedPlayerIds: [],
-        awaitingPlacement: [],
-      });
-
-      (controller as any).onSquareClicked(4, 4);
-
-      expect(mockGameService.placeKickoffEventPlayer).not.toHaveBeenCalled();
-      expect(mockGameService.selectKickoffEventPlayer).not.toHaveBeenCalled();
-    });
-
-    it("removes already-redeployed Solid Defence players from drag eligibility", () => {
-      mockGameService.getKickoffEventStep.mockReturnValue({
-        event: KickoffEvent.SOLID_DEFENCE,
+        event: KickoffEvent.ALERT_DEFENCE,
         teamId: team1Id,
         selectionLimit: 2,
         selectedPlayerIds: [player1.id],
@@ -857,9 +868,10 @@ describe("GameplayInteractionController", () => {
 
       (controller as any).syncKickoffStepInteraction();
 
-      expect(
-        mockScene.setKickoffSolidDefenceDragPlayers
-      ).toHaveBeenLastCalledWith([]);
+      expect(mockScene.highlightPlayer).not.toHaveBeenCalledWith(
+        player1.id,
+        0x38bdf8
+      );
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith(
         player1.id,
         0xffd700
@@ -952,6 +964,66 @@ describe("GameplayInteractionController", () => {
         undefined
       );
       expect((controller as any).currentActionMode).toBe("move");
+    });
+  });
+
+  describe("after a reload or resync", () => {
+    const restoreHandler = () =>
+      mockEventBus.on.mock.calls.find(
+        ([event]) => event === GameEventNames.GameStateRestored
+      )![1] as () => void;
+
+    it("selects this coach's player the engine has mid-move, so the coach can carry on moving", async () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        weather: "Nice",
+        activePlayer: { id: "p1", action: "move", committed: true },
+      } as unknown as GameState);
+      mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team1Id);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+      mockGameService.getMovementUsed.mockReturnValue(3);
+      mockGameService.getAvailableMovements.mockReturnValue([]);
+      mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.canActivate.mockReturnValue(true);
+      mockMovementValidator.analyzePath.mockReturnValue({
+        requiresDodge: false,
+      });
+
+      restoreHandler()();
+
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        "ui:updateActionSteps",
+        expect.objectContaining({ currentStepId: "move" })
+      );
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      // Plan the step, then confirm it on the same square
+      await (controller as any).onSquareClicked(6, 5);
+      await (controller as any).onSquareClicked(6, 5);
+      expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
+        { x: 6, y: 5 },
+      ]);
+    });
+
+    it("leaves the board alone when the active player is the other team's", () => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team2Id,
+        weather: "Nice",
+        activePlayer: { id: "p2", action: "move", committed: true },
+      } as unknown as GameState);
+      mockGameService.getActiveTeamId = vi.fn().mockReturnValue(team2Id);
+      mockGameService.getPlayerById.mockReturnValue(player2);
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+
+      restoreHandler()();
+
+      // Locally the board drives whichever team is active; online only its own
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p2");
     });
   });
 });

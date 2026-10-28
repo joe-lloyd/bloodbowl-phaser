@@ -74,6 +74,7 @@ const KNOWN_COMMAND_TYPES = new Set<HeadlessCommand["type"]>([
   "team-reroll-block",
   "pro-reroll-block",
   "brawler-reroll-block",
+  "veteran-reroll-block",
   "special-action",
   "end-activation",
   "end-turn",

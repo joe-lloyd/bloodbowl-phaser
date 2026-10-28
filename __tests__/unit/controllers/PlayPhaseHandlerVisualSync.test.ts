@@ -20,7 +20,16 @@ describe("PlayPhaseHandler board reconciliation", () => {
   beforeEach(() => {
     tweens = [];
     scene = {
-      ballSprite: { x: 0, y: 0 },
+      ballSprite: {
+        x: 0,
+        y: 0,
+        flyTo: vi.fn((to: unknown, opts: unknown) => {
+          // Record the flight like a tween, resolved by its onComplete.
+          return new Promise<void>((resolve) =>
+            tweens.push({ ...(to as object), opts, onComplete: resolve })
+          );
+        }),
+      },
       playerSprites: new Map([
         ["punter", { animateKickGesture: vi.fn(), updateStatus: vi.fn() }],
       ]),
@@ -79,7 +88,7 @@ describe("PlayPhaseHandler board reconciliation", () => {
     expect(scene.reconcileBallVisual).toHaveBeenCalled();
   });
 
-  it("presents a declared Punt and acknowledges it when the kick lands", () => {
+  it("presents a declared Punt and acknowledges it when the kick lands", async () => {
     const acks: { id: string }[] = [];
     eventBus.on(GameEventNames.UI_PresentationAcknowledged, (data) =>
       acks.push(data)
@@ -101,14 +110,11 @@ describe("PlayPhaseHandler board reconciliation", () => {
     ).toHaveBeenCalledWith(1);
     // …the ball flies to the declared landing square…
     expect(tweens).toHaveLength(1);
-    expect(tweens[0]).toMatchObject({
-      targets: scene.ballSprite,
-      x: 840,
-      y: 300,
-    });
+    expect(tweens[0]).toMatchObject({ x: 840, y: 300 });
     // …and the operation is only released once the animation completes.
     expect(acks).toEqual([]);
     tweens[0].onComplete();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(acks).toEqual([{ id: "punt-42" }]);
   });
 

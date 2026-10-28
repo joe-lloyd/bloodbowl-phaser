@@ -69,29 +69,13 @@
   /* pointer-events: none; handled by react root overlay usually, but here these are empty divs for structure */
 }
 
-/* Override previous game-container styles */
+/* The match canvas fills the window; the HUD floats over it. */
 #game-container {
-  width: 100%;
-  height: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: fixed;
+  inset: 0;
 }
 
-/* HUD Grid Layout */
-.grid-hud {
-  display: grid;
-  grid-template-columns: 18% 1fr 18%; /* Left sidebar | Pitch | Right sidebar */
-  grid-template-rows: 1fr; /* Single row - full height */
-  grid-template-areas: "left pitch right";
-}
-
-.grid-area-left {
-  grid-area: left;
-}
-.grid-area-right {
-  grid-area: right;
-}
-.grid-area-pitch {
-  grid-area: pitch;
+#game-container canvas {
+  display: block;
+  image-rendering: pixelated;
 }

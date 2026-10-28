@@ -23,10 +23,18 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
       setIsOpen(true);
     };
 
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type !== "follow-up") return;
+      setIsOpen(false);
+      setFollowUpData(null);
+    };
     eventBus.on(GameEventNames.UI_FollowUpPrompt, onFollowUpPrompt);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
       eventBus.off(GameEventNames.UI_FollowUpPrompt, onFollowUpPrompt);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 
@@ -56,7 +64,10 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     setFollowUpData(null);
   };
 
-  if (!isOpen || !followUpData) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!isOpen || !followUpData || getActiveOnlineMatch()?.mayAct() === false)
+    return null;
 
   return (
     <div

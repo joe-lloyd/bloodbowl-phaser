@@ -1,266 +1,134 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { CameraController } from "../../../src/game/controllers/CameraController";
+import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
+
+/**
+ * The match camera, against a fake Phaser camera that records where it was
+ * asked to go. The pitch stand-in uses the real isometric projection with
+ * its origin at (2000, 1000).
+ */
+function setup() {
+  const camera = {
+    zoom: 1,
+    scrollX: 0,
+    scrollY: 0,
+    setBackgroundColor: vi.fn(),
+    setBounds: vi.fn(),
+    setZoom: vi.fn(function (this: { zoom: number }, z: number) {
+      this.zoom = z;
+    }),
+    centerOn: vi.fn(),
+    zoomTo: vi.fn(),
+    pan: vi.fn(),
+    startFollow: vi.fn(),
+    stopFollow: vi.fn(),
+    shake: vi.fn(),
+    getWorldPoint: vi.fn((x: number, y: number) => ({ x, y })),
+    panEffect: { reset: vi.fn() },
+    zoomEffect: { reset: vi.fn() },
+  };
+  const inputHandlers: Record<string, (...args: unknown[]) => void> = {};
+  const scene = {
+    cameras: { main: camera },
+    scale: { width: 1600, height: 900, on: vi.fn(), off: vi.fn() },
+    input: {
+      on: vi.fn((event: string, fn: (...args: unknown[]) => void) => {
+        inputHandlers[event] = fn;
+      }),
+      off: vi.fn(),
+      mouse: { disableContextMenu: vi.fn() },
+    },
+  };
+  const origin = { x: 2000, y: 1000 };
+  const pitch = {
+    getPointPosition: (gx: number, gy: number) => {
+      const p = gridPointToPixel(gx, gy);
+      return { x: origin.x + p.x, y: origin.y + p.y };
+    },
+    getPixelPosition: (gx: number, gy: number) => {
+      const p = gridPointToPixel(gx + 0.5, gy + 0.5);
+      return { x: origin.x + p.x, y: origin.y + p.y };
+    },
+  };
+  const bus = { emit: vi.fn() };
+  const controller = new CameraController(
+    scene as never,
+    pitch as never,
+    { width: 5000, height: 3500 },
+    [pitch.getPointPosition(0, -4), pitch.getPointPosition(21, 15)],
+    bus as never,
+    "bloodbowl"
+  );
+  return { camera, controller, inputHandlers, pitch, bus };
+}
 
 describe("CameraController", () => {
-  let controller: CameraController;
-  let mockScene;
-  let mockCamera;
-  let mockTweens;
-
+  let ctx: ReturnType<typeof setup>;
   beforeEach(() => {
-    // Mock camera
-    mockCamera = {
-      scrollX: 0,
-      scrollY: 0,
-      zoom: 1.0,
-      width: 1920,
-      height: 1080,
-      startFollow: vi.fn(),
-      stopFollow: vi.fn(),
-      shake: vi.fn(),
-      flash: vi.fn(),
-      fade: vi.fn(),
-    };
-
-    // Mock tweens
-    mockTweens = {
-      add: vi.fn((config) => {
-        // Immediately call onComplete if provided
-        if (config.onComplete) {
-          config.onComplete();
-        }
-        return { stop: vi.fn() };
-      }),
-    };
-
-    // Mock scene
-    mockScene = {
-      cameras: {
-        main: mockCamera,
-      },
-      tweens: mockTweens,
-      time: {
-        delayedCall: vi.fn((delay, callback) => {
-          callback();
-        }),
-      },
-    };
-
-    const pitchBounds = { x: 0, y: 0, width: 1200, height: 660 };
-    controller = new CameraController(mockScene, pitchBounds);
+    ctx = setup();
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
+  it("starts on the overview, inside the stadium bounds", () => {
+    expect(ctx.camera.setBounds).toHaveBeenCalledWith(0, 0, 5000, 3500);
+    const [cx, cy] = ctx.camera.centerOn.mock.calls[0];
+    // Centred between the pitch and both dugouts.
+    expect(cx).toBeGreaterThan(1500);
+    expect(cx).toBeLessThan(2600);
+    expect(cy).toBeGreaterThan(1000);
+    expect(ctx.camera.zoom).toBeGreaterThan(0.3);
+    expect(ctx.camera.zoom).toBeLessThan(1.5);
   });
 
-  describe("Zoom Operations", () => {
-    it("should zoom to target level", async () => {
-      await controller.zoomTo(2.0, 800);
-
-      expect(mockTweens.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          targets: mockCamera,
-          zoom: 2.0,
-          duration: 800,
-        })
-      );
-    });
-
-    it("should use default duration if not provided", async () => {
-      await controller.zoomTo(1.5);
-
-      expect(mockTweens.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          duration: 800,
-        })
-      );
+  it("closes in on a square, nearer than the overview", () => {
+    const overview = ctx.camera.zoom;
+    ctx.controller.focusSquare(10, 5);
+    const target = ctx.pitch.getPixelPosition(10, 5);
+    expect(ctx.camera.pan).toHaveBeenLastCalledWith(
+      target.x,
+      target.y,
+      expect.any(Number),
+      "Sine.easeInOut",
+      true
+    );
+    expect(ctx.camera.zoomTo.mock.lastCall![0]).toBeGreaterThan(overview);
+    expect(ctx.bus.emit).toHaveBeenLastCalledWith("camera:stateChanged", {
+      state: "active",
+      duration: expect.any(Number),
     });
   });
 
-  describe("Pan Operations", () => {
-    it("should pan to specific coordinates", async () => {
-      await controller.panTo(600, 330, 800);
+  it("holds still after the coach zooms, until released", () => {
+    ctx.inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -100);
+    ctx.camera.pan.mockClear();
+    ctx.controller.focusSquare(3, 3);
+    expect(ctx.camera.pan).not.toHaveBeenCalled();
 
-      expect(mockTweens.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          targets: mockCamera,
-          duration: 800,
-        })
-      );
-    });
-
-    it("should calculate scroll position to center on target", async () => {
-      mockCamera.zoom = 1.0;
-      mockCamera.width = 1920;
-      mockCamera.height = 1080;
-
-      await controller.panTo(600, 330);
-
-      const call = mockTweens.add.mock.calls[0][0];
-      expect(call.scrollX).toBeDefined();
-      expect(call.scrollY).toBeDefined();
-    });
+    ctx.controller.release();
+    ctx.controller.focusSquare(3, 3);
+    expect(ctx.camera.pan).toHaveBeenCalledTimes(1);
   });
 
-  describe("Object Tracking", () => {
-    it("should start following an object", () => {
-      const mockObject = { x: 100, y: 100 };
-
-      controller.trackObject(mockObject, 2.0, 800);
-
-      expect(mockCamera.startFollow).toHaveBeenCalledWith(
-        mockObject,
-        true,
-        0.25,
-        0.25
-      );
-      expect(mockTweens.add).toHaveBeenCalled();
-      expect(controller.getIsTracking()).toBe(true);
-    });
-
-    it("should use default zoom if not provided", () => {
-      const mockObject = { x: 100, y: 100 };
-
-      controller.trackObject(mockObject);
-
-      expect(mockTweens.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          zoom: 2.0,
-        })
-      );
-    });
-
-    it("should stop existing tracking before starting new", () => {
-      const mockObject1 = { x: 100, y: 100 };
-      const mockObject2 = { x: 200, y: 200 };
-
-      controller.trackObject(mockObject1);
-      controller.trackObject(mockObject2);
-
-      expect(mockCamera.startFollow).toHaveBeenCalledTimes(2);
-    });
+  it("follows a moving object and stops when asked", () => {
+    const ball = {};
+    ctx.controller.follow(ball as never);
+    expect(ctx.camera.startFollow).toHaveBeenCalledWith(
+      ball,
+      false,
+      0.08,
+      0.08
+    );
+    ctx.controller.stopFollow();
+    expect(ctx.camera.stopFollow).toHaveBeenCalled();
   });
 
-  describe("Camera Reset", () => {
-    it("should stop tracking and return to default view", async () => {
-      const mockObject = { x: 100, y: 100 };
-      controller.trackObject(mockObject);
-
-      await controller.reset(800);
-
-      expect(mockCamera.stopFollow).toHaveBeenCalled();
-      expect(controller.getIsTracking()).toBe(false);
-      expect(mockTweens.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          zoom: 1.0,
-          scrollX: 0,
-          scrollY: 0,
-        })
-      );
-    });
-  });
-
-  describe("Camera Effects", () => {
-    it("should shake camera with specified intensity", () => {
-      controller.shake(0.02, 300);
-
-      expect(mockCamera.shake).toHaveBeenCalledWith(300, 0.02);
-    });
-
-    it("should use default shake values", () => {
-      controller.shake();
-
-      expect(mockCamera.shake).toHaveBeenCalledWith(200, 0.01);
-    });
-
-    it("should flash camera with specified color", () => {
-      controller.flash(250, 0xff0000);
-
-      expect(mockCamera.flash).toHaveBeenCalledWith(250, 0xff0000);
-    });
-
-    it("should fade camera", async () => {
-      await controller.fade(500, 0x000000);
-
-      expect(mockCamera.fade).toHaveBeenCalledWith(500, 0x000000);
-      expect(mockScene.time.delayedCall).toHaveBeenCalledWith(
-        500,
-        expect.any(Function)
-      );
-    });
-  });
-
-  describe("Show All Players", () => {
-    it("should zoom to fit entire pitch", async () => {
-      await controller.showAllPlayers(800);
-
-      expect(mockCamera.stopFollow).toHaveBeenCalled();
-      expect(controller.getIsTracking()).toBe(false);
-      expect(mockTweens.add).toHaveBeenCalled();
-    });
-
-    it("should warn if pitch bounds not set", async () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const controllerNoBounds = new CameraController(mockScene);
-
-      await controllerNoBounds.showAllPlayers();
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Pitch bounds not set, using default zoom"
-      );
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe("Track with Pre-Zoom", () => {
-    it("should zoom to pre-zoom target before tracking", async () => {
-      const preZoomTarget = { x: 100, y: 100 };
-      const trackObject = { x: 200, y: 200 };
-
-      await controller.trackObjectWithPreZoom(
-        preZoomTarget,
-        trackObject,
-        2.2,
-        2.5,
-        500
-      );
-
-      // Should have called panTo, zoomTo, and trackObject
-      expect(mockTweens.add).toHaveBeenCalled();
-      expect(mockCamera.startFollow).toHaveBeenCalledWith(
-        trackObject,
-        true,
-        0.25,
-        0.25
-      );
-    });
-
-    it("should wait for track duration if specified", async () => {
-      const preZoomTarget = { x: 100, y: 100 };
-      const trackObject = { x: 200, y: 200 };
-
-      await controller.trackObjectWithPreZoom(
-        preZoomTarget,
-        trackObject,
-        2.2,
-        2.5,
-        500,
-        1000
-      );
-
-      expect(mockScene.time.delayedCall).toHaveBeenCalled();
-    });
-  });
-
-  describe("Cleanup", () => {
-    it("should stop tracking and clean up on destroy", () => {
-      const mockObject = { x: 100, y: 100 };
-      controller.trackObject(mockObject);
-
-      controller.destroy();
-
-      expect(mockCamera.stopFollow).toHaveBeenCalled();
+  it("returns to the overview on reset", () => {
+    const overview = ctx.camera.zoom;
+    ctx.controller.focusSquare(1, 1);
+    ctx.controller.reset(300);
+    expect(ctx.camera.zoomTo.mock.lastCall![0]).toBeCloseTo(overview);
+    expect(ctx.bus.emit).toHaveBeenLastCalledWith("camera:stateChanged", {
+      state: "neutral",
+      duration: 300,
     });
   });
 });

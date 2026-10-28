@@ -372,14 +372,9 @@ export interface InjuryRollContext extends TriggerContextBase {
   koDowngrade?: SkillTriggerRecord;
   /** Resolved from `table` + `koDowngrade` by the operation after the fold. */
   result: InjuryResult;
-  /**
-   * The casualty is automatic Badly Hurt — no Casualty Roll is made (the
-   * Stunty Injury Table's 9). Resolved by the operation after the fold.
-   */
-  casualtyAutoBadlyHurt?: boolean;
 }
 
-/** A casualty is about to be rolled (Regeneration's save happens here). */
+/** A casualty is about to be applied (Regeneration's save happens here). */
 export interface CasualtyContext extends TriggerContextBase {
   player: Player;
   causedBy?: Player;
@@ -429,14 +424,6 @@ export interface ActionDeclaredContext {
   refused: boolean;
   /** Skill effects to announce. */
   triggers: SkillTriggerRecord[];
-}
-
-/** The casualty D16 has been rolled; rules may modify it (Decay). */
-export interface CasualtyRollContext extends TriggerContextBase {
-  player: Player;
-  causedBy?: Player;
-  roll: number;
-  modifier: number;
 }
 
 /** Failure effect an activation-gate rule declares (applied by the operation). */
@@ -597,7 +584,6 @@ export interface SkillRule {
   onArmourBreak?(ctx: ArmourBreakContext, self: Player): void | Promise<void>;
   onInjuryRoll?(ctx: InjuryRollContext, self: Player): void | Promise<void>;
   onCasualty?(ctx: CasualtyContext, self: Player): void | Promise<void>;
-  onCasualtyRoll?(ctx: CasualtyRollContext, self: Player): void | Promise<void>;
   /**
    * Negatrait roll between declaring and performing an action — the rule
    * pushes an ActivationGate; ActivationGateOperation rolls and applies it.

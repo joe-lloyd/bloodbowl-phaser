@@ -7,6 +7,7 @@ import {
 } from "../../../services/BlockResolutionService";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { ServiceContainer } from "../../../services/ServiceContainer";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -29,6 +30,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     defenderId: string;
     analysis: BlockAnalysis;
   } | null>(null);
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+  // Online: the face the chooser picked, shown briefly on both screens
+  const [chosen, setChosen] = useState<string | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
@@ -55,6 +62,23 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     const onDiceRolled = (payload: BlockRollData) => {
       setIsRolling(false);
       setProMode(false);
+      setChosen(null);
+      // Online, both coaches see every block's dice. A screen that did not
+      // open this block (the other coach's, or an uphill defender's) asks
+      // its own engine for the block's numbers and shows the dice at once.
+      const online = getActiveOnlineMatch();
+      const current = dataRef.current;
+      const sameBlock =
+        current?.attackerId === payload.attackerId &&
+        current?.defenderId === payload.defenderId;
+      if (online && !openRef.current && (!online.mayAct() || !sameBlock)) {
+        ServiceContainer.getInstance().gameService.previewBlock(
+          payload.attackerId,
+          payload.defenderId
+        );
+        setRollData(payload);
+        return;
+      }
       if (openRef.current) {
         // Normal block: the coach already clicked Roll — show the dice.
         setRollData(payload);
@@ -82,11 +106,41 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+    // Online: this engine refused the block (the board had moved on)
+    const onRejected = ({ commandType }: { commandType: string }) => {
+      if (commandType === "block" || commandType === "multiple-block")
+        onRollCancelled();
+    };
+    eventBus.on(GameEventNames.NetworkCommandRejected, onRejected);
+    // The other coach may be the one who picks the result
+    const onResolved = ({
+      type,
+      result,
+    }: {
+      type: string;
+      result?: string;
+    }) => {
+      if (type !== "block-dice") return;
+      // Online, hold the chosen face up for a moment on both screens
+      if (getActiveOnlineMatch() && result) {
+        setIsOpen(true);
+        setChosen(result);
+        setTimeout(() => {
+          setChosen(null);
+          onRollCancelled();
+        }, 1500);
+        return;
+      }
+      onRollCancelled();
+    };
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+      eventBus.off(GameEventNames.NetworkCommandRejected, onRejected);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 
@@ -157,6 +211,14 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
   };
 
+  const handleVeteranReroll = () => {
+    if (getActiveOnlineMatch()?.mayAct() === false) return;
+    if (!data) return;
+    eventBus.emit(GameEventNames.UI_VeteranRerollBlock, {
+      attackerId: data.attackerId,
+    });
+  };
+
   const handleCancel = () => {
     setIsOpen(false);
   };
@@ -210,7 +272,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     proMode ? handleProReroll(idx) : handleSelectResult(result)
                   }
                   className={`group relative hover:scale-110 transition-transform ${proMode ? "ring-2 ring-purple-400 rounded" : ""}`}
-                  title={proMode ? `Re-roll this ${result.label}` : result.label}
+                  title={
+                    proMode ? `Re-roll this ${result.label}` : result.label
+                  }
                 >
                   <img
                     src={result.icon}
@@ -224,13 +288,18 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               ))}
             </div>
             <div className="text-center text-sm text-yellow-400 mt-8">
-              {proMode
-                ? "Pro: click a die to re-roll it (3+)"
-                : "Click a die to select the result"}
+              {chosen
+                ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
+                : proMode
+                  ? "Pro: click a die to re-roll it (3+)"
+                  : getActiveOnlineMatch()?.mayAct() === false
+                    ? "The other coach is choosing…"
+                    : "Click a die to select the result"}
             </div>
             {(rollData.teamRerollAvailable ||
               rollData.proAvailable ||
-              rollData.brawlerAvailable) && (
+              rollData.brawlerAvailable ||
+              rollData.veteranRerollAvailable) && (
               <div className="flex justify-center gap-3 mt-3">
                 {rollData.teamRerollAvailable && (
                   <button
@@ -260,6 +329,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 rounded text-xs font-bold text-white transition-colors"
                   >
                     BRAWLER: RE-ROLL 1 BOTH DOWN
+                  </button>
+                )}
+                {rollData.veteranRerollAvailable && (
+                  <button
+                    data-testid="block-veteran-reroll"
+                    onClick={handleVeteranReroll}
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 rounded text-xs font-bold text-white transition-colors"
+                  >
+                    VETERAN RE-ROLL (all dice, once per game)
                   </button>
                 )}
               </div>

@@ -1,13 +1,46 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { FlowContext } from "../core/GameFlowManager";
 import { SendOffOperation } from "./SendOffOperation";
 import { InjuryOperation } from "./InjuryOperation";
 import { armourBroken, foldArmourRoll } from "./ArmourOperation";
 import { effectiveAV } from "../kickoff/driveEffects";
+import {
+  holdsMeasure,
+  offerMeasure,
+  spendMeasure,
+  underScrutiny,
+} from "../inducements/matchInducements";
+import { DesperateMeasure } from "../inducements/desperateMeasures";
+
+/**
+ * Grudge Match (L24), used when the player Fouls: a second Foul this turn
+ * was declared on it and spends it; otherwise the coach may choose to.
+ */
+async function useGrudgeMatch(
+  context: FlowContext,
+  fouler: Player
+): Promise<boolean> {
+  const state = context.gameService.getState();
+  const active = state.activePlayer;
+  if (active?.id !== fouler.id || active.action !== "foul") return false;
+  if (active.grudgeMatch) {
+    return spendMeasure(state, fouler.teamId, DesperateMeasure.GRUDGE_MATCH);
+  }
+  if (!holdsMeasure(state, fouler.teamId, DesperateMeasure.GRUDGE_MATCH)) {
+    return false;
+  }
+  return offerMeasure(
+    context,
+    fouler.teamId,
+    fouler.id,
+    DesperateMeasure.GRUDGE_MATCH,
+    `Use Grudge Match? ${fouler.playerName} cannot be Sent-off for this Foul.`
+  );
+}
 
 /**
  * Ends the fouler's activation once the Foul (and any send-off it queued) has
@@ -87,6 +120,9 @@ export class FoulOperation extends GameOperation {
       GameEventNames.UI_Notification,
       `${fouler.playerName} is fouling ${target.playerName}!`
     );
+
+    // Grudge Match (L24): this fouler cannot be Sent-off for this Foul.
+    const grudgeMatch = await useGrudgeMatch(context, fouler);
 
     // 1. Analyze Foul (Assists)
     const opponents = gameService.getOpponents(fouler.teamId);
@@ -175,7 +211,7 @@ export class FoulOperation extends GameOperation {
 
       // 3. Injury Roll. The Foul reads the dice for doubles, then hands the
       // roll to the shared injury resolution (Thick Skull, Stunty, the
-      // Apothecary, the Casualty Roll).
+      // Apothecary, the Sevens casualty results).
       const injury = diceController.rollInjury(
         target.playerName,
         fouler.teamId
@@ -213,6 +249,23 @@ export class FoulOperation extends GameOperation {
       announce(
         SkillType.SNEAKY_GIT,
         "Sneaky Git: not Sent-off on an unbroken double"
+      );
+    }
+
+    // Under Scrutiny (L18): a Foul that breaks the armour of a player whose
+    // team prayed for it is always spotted, double or not.
+    if (broken && underScrutiny(gameService.getState(), fouler.teamId)) {
+      spotted = true;
+      eventBus.emit(
+        GameEventNames.UI_GameLog,
+        `Under Scrutiny: the referee saw ${fouler.playerName} break the armour`
+      );
+    }
+    if (spotted && grudgeMatch) {
+      spotted = false;
+      eventBus.emit(
+        GameEventNames.UI_GameLog,
+        `Grudge Match: ${fouler.playerName} cannot be Sent-off for this Foul`
       );
     }
 

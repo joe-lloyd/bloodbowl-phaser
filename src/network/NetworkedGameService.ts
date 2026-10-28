@@ -1,15 +1,15 @@
 /**
- * NetworkedGameService - the guest's IGameService.
+ * NetworkedGameService - the IGameService the board drives in an online
+ * match, for both coaches.
  *
  * The entire browser UI (scene, HUD, interaction controllers) drives the
- * game through IGameService, so this proxy is the whole guest client:
- * reads are answered from a passive local replica (kept fresh by snapshot
- * application in OnlineMatch), mutations become protocol commands sent to
- * the host, and engine-flow methods are no-ops — the host's engine drives
- * the flow and its results arrive as broadcast events/snapshots.
+ * game through IGameService. Reads come from the local engine; every action
+ * becomes an action-protocol command, which the lockstep session runs on
+ * the local engine at once and sends to the other coach. Engine-flow
+ * methods are no-ops: the engine runs its own flow as commands play out.
  *
- * Sync-returning mutators answer optimistically; the host's response (or
- * rejection) corrects the view within the same exchange.
+ * Sync-returning mutators answer optimistically; the command's result (or
+ * refusal) follows a moment later from the local engine.
  */
 
 import { IGameService } from "../services/interfaces/IGameService";
@@ -26,7 +26,6 @@ import { BlockResult } from "../services/BlockResolutionService";
 import { ActionType, GameEventNames } from "../types/events";
 import { BlockReplacement } from "../types/BlockReplacement";
 import { IEventBus } from "../services/EventBus";
-import { movePlayerToBox } from "../game/rules/playerLocation";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -46,30 +45,35 @@ export class NetworkedGameService implements IGameService {
   ) {}
 
   private send(command: HeadlessCommand): void {
-    void this.dispatch(command).then((response) => {
-      if (!response.ok) {
-        console.warn(
-          `[Networked] host rejected ${command.type}: ${response.reason}`
-        );
-        // Sync-returning mutators below (declareAction, cancelAction, …)
-        // already told their caller "true" before this response arrived —
-        // that optimism only self-corrects the passive replica's DATA (via
-        // the resync/snapshot every response carries). Nothing else corrects
-        // UI-side state built directly on the optimistic return value, so
-        // surface the rejection explicitly.
-        const cmd = command as HeadlessCommand & {
-          playerId?: string;
-          attackerId?: string;
-          action?: string;
-        };
-        this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
-          commandType: command.type,
-          playerId: cmd.playerId ?? cmd.attackerId,
-          action: cmd.action,
-          reason: response.reason ?? "unknown",
-        });
-      }
-    });
+    void this.run(command);
+  }
+
+  /**
+   * Run a command on the lockstep session and report a refusal. Mutators
+   * that answer synchronously (declareAction, cancelAction, …) already told
+   * their caller "true" before this response arrived, and an awaited one
+   * (movePlayer, …) returns nothing, so without this a refused command
+   * failed silently and the board waited on a move that never happened.
+   */
+  private async run(command: HeadlessCommand): Promise<CommandResponse> {
+    const response = await this.dispatch(command);
+    if (!response.ok) {
+      console.warn(
+        `[Networked] host rejected ${command.type}: ${response.reason}`
+      );
+      const cmd = command as HeadlessCommand & {
+        playerId?: string;
+        attackerId?: string;
+        action?: string;
+      };
+      this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
+        commandType: command.type,
+        playerId: cmd.playerId ?? cmd.attackerId,
+        action: cmd.action,
+        reason: response.reason ?? "unknown",
+      });
+    }
+    return response;
   }
 
   // ===== Reads: answered from the replica =====
@@ -154,6 +158,13 @@ export class NetworkedGameService implements IGameService {
   answerApothecary(accept: boolean): boolean {
     if (this.pendingDecision()?.type !== "apothecary") return false;
     this.send({ type: "use-apothecary", accept });
+    return true;
+  }
+  answerInducementChoice(
+    answer: import("../types/decisions").InducementChoiceDecisionAnswer
+  ): boolean {
+    if (this.pendingDecision()?.type !== "inducement-choice") return false;
+    this.send({ type: "choose-inducement", ...answer });
     return true;
   }
   commitInducements(
@@ -277,6 +288,9 @@ export class NetworkedGameService implements IGameService {
   brawlerRerollBlockDie(attackerId: string): void {
     this.send({ type: "brawler-reroll-block", attackerId });
   }
+  veteranRerollBlock(attackerId: string): void {
+    this.send({ type: "veteran-reroll-block", attackerId });
+  }
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }
@@ -294,43 +308,24 @@ export class NetworkedGameService implements IGameService {
   // ===== Mutations: become protocol commands =====
 
   startSetup(startingTeamId?: string): void {
+    // Only the opening toss starts setup from the board; later drives start
+    // inside the engine. Both engines roll the opening weather with it.
     if (startingTeamId) {
-      this.send({ type: "start-setup", kickingTeamId: startingTeamId });
+      this.send({
+        type: "start-setup",
+        kickingTeamId: startingTeamId,
+        rollWeather: true,
+      });
     }
   }
   placePlayer(playerId: string, x: number, y: number): boolean {
-    // Optimistic: place immediately on the local replica so the board never
-    // flashes back to the dugout while the command round-trips. The host's
-    // response snapshot corrects/rolls back if the placement was illegal.
-    // Routed through movePlayerToBox (not a bare gridPosition assignment) so
-    // `status` moves to ACTIVE in the same step: leaving status stale (still
-    // Reserve, its value at the start of every setup) would make the guest's
-    // own "trust my in-flight setup state" snapshot guard in OnlineMatch
-    // restore that stale Reserve status forever, flipping a correctly-placed
-    // player's dugout box back to Reserves for the rest of their turn.
-    const player = this.inner.getPlayerById(playerId);
-    if (player) movePlayerToBox(player, { box: "pitch", position: { x, y } });
     this.send({ type: "place-player", playerId, x, y });
     return true;
   }
   removePlayer(playerId: string): void {
-    // See placePlayer: keep status in lockstep with gridPosition so the
-    // guest's own optimistic state is never internally inconsistent.
-    const player = this.inner.getPlayerById(playerId);
-    if (player) movePlayerToBox(player, { box: "reserves" });
     this.send({ type: "remove-player", playerId });
   }
   swapPlayers(player1Id: string, player2Id: string): boolean {
-    const a = this.inner.getPlayerById(player1Id);
-    const b = this.inner.getPlayerById(player2Id);
-    if (a && b) {
-      const posA = a.gridPosition;
-      const posB = b.gridPosition;
-      if (posB) movePlayerToBox(a, { box: "pitch", position: posB });
-      else movePlayerToBox(a, { box: "reserves" });
-      if (posA) movePlayerToBox(b, { box: "pitch", position: posA });
-      else movePlayerToBox(b, { box: "reserves" });
-    }
     this.send({ type: "swap-players", player1Id, player2Id });
     return true;
   }
@@ -342,27 +337,15 @@ export class NetworkedGameService implements IGameService {
     teamId: string,
     formation: import("../types/SetupTypes").FormationPosition[]
   ): import("../types/SetupTypes").SetupFormationResult {
+    // The command places them on the local engine a moment later
     const team = this.inner.getTeam(teamId);
     const placedPlayerIds: string[] = [];
-    if (team) {
-      // Only clear players actually on the pitch: routing every player
-      // (including KO'd/injured/dead ones, who never hold a gridPosition)
-      // through movePlayerToBox(reserves) would wrongly stamp them Reserve.
-      team.players.forEach((player) => {
-        if (player.gridPosition) movePlayerToBox(player, { box: "reserves" });
-      });
-      formation.slice(0, 7).forEach((position, index) => {
-        const rosterIndex = Number.parseInt(position.playerId, 10);
-        const player =
-          team.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
-        if (!player) return;
-        movePlayerToBox(player, {
-          box: "pitch",
-          position: { x: position.x, y: position.y },
-        });
-        placedPlayerIds.push(player.id);
-      });
-    }
+    formation.slice(0, 7).forEach((position, index) => {
+      const rosterIndex = Number.parseInt(position.playerId, 10);
+      const player =
+        team?.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
+      if (player) placedPlayerIds.push(player.id);
+    });
     this.send({ type: "apply-formation", teamId, formation });
     return {
       placedPlayerIds,
@@ -391,7 +374,7 @@ export class NetworkedGameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "kick-ball",
       playerId,
       x: targetX,
@@ -445,7 +428,7 @@ export class NetworkedGameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
-    await this.dispatch({ type: "move", playerId, path });
+    await this.run({ type: "move", playerId, path });
   }
   dropBallWithFumblerooski(
     playerId: string,
@@ -463,10 +446,10 @@ export class NetworkedGameService implements IGameService {
     playerId: string,
     target: { x: number; y: number }
   ): Promise<void> {
-    await this.dispatch({ type: "jump", playerId, x: target.x, y: target.y });
+    await this.run({ type: "jump", playerId, x: target.x, y: target.y });
   }
   async standUp(playerId: string): Promise<void> {
-    await this.dispatch({ type: "stand-up", playerId });
+    await this.run({ type: "stand-up", playerId });
   }
   rollBlockDice(
     attackerId: string,
@@ -482,7 +465,7 @@ export class NetworkedGameService implements IGameService {
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "multiple-block",
       attackerId,
       defender1Id,
@@ -541,7 +524,7 @@ export class NetworkedGameService implements IGameService {
     targetY: number,
     hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "pass",
       playerId: passerId,
       x: targetX,
@@ -554,7 +537,7 @@ export class NetworkedGameService implements IGameService {
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "handoff",
       playerId: passerId,
       targetId: targetPlayerId,
@@ -566,7 +549,7 @@ export class NetworkedGameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "punt",
       playerId,
       x: facingX,
@@ -574,7 +557,7 @@ export class NetworkedGameService implements IGameService {
     });
   }
   async stabPlayer(attackerId: string, targetId: string): Promise<boolean> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "stab",
       attackerId,
       defenderId: targetId,
@@ -589,7 +572,7 @@ export class NetworkedGameService implements IGameService {
     mode?: "throw" | "kick",
     swoopFacing?: import("../game/rules/throwTeammate").SwoopFacing
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "throw-teammate",
       throwerId,
       teammateId,
@@ -607,7 +590,7 @@ export class NetworkedGameService implements IGameService {
     if (kind === "stab") {
       return this.stabPlayer(attackerId, targetId);
     }
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "special-action",
       action: kind,
       attackerId,
@@ -616,7 +599,7 @@ export class NetworkedGameService implements IGameService {
     return response.ok;
   }
   async throwBomb(throwerId: string, x: number, y: number): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "throw-bomb",
       throwerId,
       x,
@@ -628,7 +611,7 @@ export class NetworkedGameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "ball-and-chain",
       playerId: fanaticId,
       x: facingX,
@@ -640,7 +623,7 @@ export class NetworkedGameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "foul",
       playerId: foulerId,
       x: targetX,
@@ -655,7 +638,7 @@ export class NetworkedGameService implements IGameService {
 
   startKickoff(): void {}
   rollKickoff(): void {}
-  rollInitialWeather(): void {} // host rolls; guest gets weather via snapshot
+  rollInitialWeather(): void {} // rolled by the start-setup command instead
   startGame(_kickingTeamId: string): void {}
   startTurn(_teamId: string): void {}
   triggerTurnover(_reason: string): void {}

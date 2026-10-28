@@ -53,10 +53,6 @@ export async function resolveInjuryRoll(
     ctx.result = InjuryResult.STUNNED;
     ctx.triggers.push(ctx.koDowngrade);
   }
-  ctx.casualtyAutoBadlyHurt =
-    ctx.result === InjuryResult.CASUALTY &&
-    injuryController.isAutoBadlyHurt(ctx.table, total);
-
   ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
   return ctx;
 }
@@ -67,8 +63,8 @@ export async function resolveInjuryRoll(
  * Responsibility:
  * - Execute Injury Roll (2D6), applying any carried modifier (Mighty Blow)
  * - Fold skill rules that adjust the result (Thick Skull)
- * - Update Player Status (STUNNED, KO, CASUALTY)
- * - If CASUALTY, trigger CasualtyOperation
+ * - Update Player Status (STUNNED, KO, or a Casualty)
+ * - On a Casualty, trigger CasualtyOperation with the table's result
  */
 export class InjuryOperation extends GameOperation {
   public readonly name = "InjuryOperation";
@@ -82,7 +78,7 @@ export class InjuryOperation extends GameOperation {
       cause?: CasualtyCause;
       /** Natural 2D6 total the caller already rolled (a Foul reads its doubles). */
       roll?: number;
-      /** Any Casualty is Badly Hurt, no Casualty Roll (a Bloodlust bite). */
+      /** Any Casualty is Badly Hurt (a Bloodlust bite). */
       casualtyIsBadlyHurt?: boolean;
     } = {}
   ) {
@@ -150,7 +146,9 @@ export class InjuryOperation extends GameOperation {
         }
         break;
       }
-      case InjuryResult.CASUALTY:
+      case InjuryResult.BADLY_HURT:
+      case InjuryResult.SERIOUSLY_HURT:
+      case InjuryResult.DEAD:
         eventBus.emit(GameEventNames.UI_Notification, "CASUALTY!");
         player.status = PlayerStatus.INJURED;
         eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
@@ -165,11 +163,12 @@ export class InjuryOperation extends GameOperation {
         });
         // Trigger Casualty Operation
         flowManager.add(
-          new CasualtyOperation(this.playerId, this.opts.causedById, {
-            autoBadlyHurt:
-              ctx.casualtyAutoBadlyHurt || this.opts.casualtyIsBadlyHurt,
-            cause: this.opts.cause,
-          }),
+          new CasualtyOperation(
+            this.playerId,
+            this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : ctx.result,
+            this.opts.causedById,
+            this.opts.cause
+          ),
           true
         );
         break;

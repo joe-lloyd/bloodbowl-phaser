@@ -83,8 +83,8 @@ export interface GameSnapshot {
     blockReplacementUsed?: boolean;
     committed?: boolean;
     bloodlustUnsated?: boolean;
+    grudgeMatch?: boolean;
   } | null;
-  coachesEjected: string[];
   setup?: SetupState | null;
   /** Absent until the match reaches GAME_OVER. */
   result?: MatchResult;
@@ -97,8 +97,12 @@ export interface GameSnapshot {
   teamRerollsUsed?: Record<string, number>;
   /** Unspent Leader Re-rolls this half; absent on pre-feature saves. */
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
+  /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
+  veteranRerollsUsed?: string[];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
+  /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
+  matchInducements?: GameState["matchInducements"];
   /**
    * The current drive's already-resolved kickoff table result, if any;
    * absent on pre-feature saves. Persisted so a restore mid-kickoff
@@ -191,7 +195,6 @@ export function serializeGameState(
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
-    coachesEjected: [...state.coachesEjected],
     driveEffects: state.driveEffects
       ? structuredClone(state.driveEffects)
       : undefined,
@@ -202,8 +205,14 @@ export function serializeGameState(
     leaderRerolls: state.leaderRerolls
       ? { ...state.leaderRerolls, teamIds: [...state.leaderRerolls.teamIds] }
       : undefined,
+    veteranRerollsUsed: state.veteranRerollsUsed
+      ? [...state.veteranRerollsUsed]
+      : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
+      : undefined,
+    matchInducements: state.matchInducements
+      ? structuredClone(state.matchInducements)
       : undefined,
     kickoffResolution: state.kickoffResolution
       ? structuredClone(state.kickoffResolution)
@@ -265,7 +274,6 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
-    coachesEjected: [...snapshot.coachesEjected],
     driveEffects: snapshot.driveEffects
       ? structuredClone(snapshot.driveEffects)
       : undefined,
@@ -279,8 +287,14 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
           teamIds: [...snapshot.leaderRerolls.teamIds],
         }
       : undefined,
+    veteranRerollsUsed: snapshot.veteranRerollsUsed
+      ? [...snapshot.veteranRerollsUsed]
+      : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
+      : undefined,
+    matchInducements: snapshot.matchInducements
+      ? structuredClone(snapshot.matchInducements)
       : undefined,
     kickoffResolution: snapshot.kickoffResolution
       ? structuredClone(snapshot.kickoffResolution)

@@ -1,243 +1,110 @@
 import Phaser from "phaser";
-import { GameConfig, SEVENS_GEOMETRY } from "../../config/GameConfig";
-import { getPitchPresentation, PitchTheme } from "../presentation/pitchThemes";
-import { gridToPixel } from "./GridUtils";
+import { GameConfig, TRAPDOOR_SQUARES } from "../../config/GameConfig";
+import {
+  gridPointToPixel,
+  gridToPixel,
+  GridPosition,
+  ISO,
+  pixelToGrid,
+  squareCorners,
+} from "./GridUtils";
+
+/** A highlighted square: a diamond on the isometric pitch. */
+export type SquareMarker = Phaser.GameObjects.Polygon;
 
 /**
- * Pitch class - Renders the Blood Bowl pitch with 20x11 grid (horizontal orientation, HD)
+ * Pitch: the overlay layer over the 20x11 Sevens board.
+ *
+ * Grass, lines, end zones and the stadium around them are baked into the
+ * stadium backdrop (see Stadium.ts), so this class draws only what changes
+ * during play: highlighted squares, reach, paths, pass previews and the like.
+ * Everything lives in one container whose origin is the far corner of square
+ * (0, 0); positions inside it come from the isometric helpers in GridUtils.
  */
 export class Pitch {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
-  private width: number;
-  private height: number;
-  private squareSize: number;
-  private offsetX: number;
-  private offsetY: number;
-  private theme: PitchTheme;
-  /** Team colours for the two end zones (left = team1, right = team2). */
-  private endZoneColors: { left: number; right: number } | null;
+  private width = GameConfig.PITCH_WIDTH;
+  private height = GameConfig.PITCH_HEIGHT;
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    themeId?: string,
-    endZoneColors?: { left: number; right: number }
-  ) {
+  constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
-    const presentation = getPitchPresentation(themeId);
-    this.width = presentation.width;
-    this.height = presentation.height;
-    this.squareSize = presentation.squareSize;
-    this.theme = presentation.theme;
-    this.endZoneColors = endZoneColors ?? null;
-    this.offsetX = x;
-    this.offsetY = y;
-
     this.container = scene.add.container(x, y);
-    this.render();
+    // Above the stadium, below players (whose depth follows their screen y).
+    this.container.setDepth(5);
+    this.drawTrapdoors();
   }
 
-  private render(): void {
-    const pitchWidth = this.width * this.squareSize;
-    const pitchHeight = this.height * this.squareSize;
-
-    // An interactive base remains the pitch hit target. Everything above it
-    // is presentation-only and never participates in hit testing.
-    const background = this.scene.add.rectangle(
-      pitchWidth / 2,
-      pitchHeight / 2,
-      pitchWidth,
-      pitchHeight,
-      this.theme.surface.top
+  /**
+   * A filled diamond over one square, centred on the square. Some rules
+   * helpers still scan a board larger than the Sevens pitch, so squares off
+   * the pitch are drawn nowhere rather than out in the stands.
+   */
+  private diamond(
+    gridX: number,
+    gridY: number,
+    color: number,
+    alpha: number,
+    inset = 0
+  ): SquareMarker {
+    if (!this.isOnPitch({ x: gridX, y: gridY })) return this.offPitchMarker();
+    const w = ISO.tileWidth * (1 - 2 * inset);
+    const h = ISO.tileHeight * (1 - 2 * inset);
+    const centre = gridToPixel(gridX, gridY);
+    const shape = this.scene.add.polygon(
+      centre.x,
+      centre.y,
+      [w / 2, 0, w, h / 2, w / 2, h, 0, h / 2],
+      color,
+      alpha
     );
-    background.setName("pitch_surface");
-    background.setInteractive();
-    this.container.add(background);
-
-    this.drawSurface();
-
-    this.drawEndZones();
-    this.drawWideZones();
-    this.drawGrid();
-    this.drawFieldMarkings();
+    this.container.add(shape);
+    return shape;
   }
 
-  private drawSurface(): void {
-    const pitchWidth = this.width * this.squareSize;
-    const pitchHeight = this.height * this.squareSize;
+  /** An invisible stand-in for a square off the pitch, so callers keep one type. */
+  private offPitchMarker(): SquareMarker {
+    // Half alpha like a plain highlight, so clearHighlights sweeps it up too.
+    const marker = this.scene.add
+      .polygon(0, 0, [0, 0], 0, 0)
+      .setAlpha(0.5)
+      .setVisible(false);
+    this.container.add(marker);
+    return marker;
+  }
+
+  /**
+   * Trapdoors (P3): a wooden hatch inset in each Trapdoor square, drawn as
+   * a diamond on the isometric pitch.
+   */
+  private drawTrapdoors(): void {
     const graphics = this.scene.add.graphics();
-    graphics.setName("pitch_surface_detail");
-
-    graphics.fillGradientStyle(
-      this.theme.surface.top,
-      this.theme.surface.top,
-      this.theme.surface.bottom,
-      this.theme.surface.bottom,
-      1
-    );
-    graphics.fillRect(0, 0, pitchWidth, pitchHeight);
-
-    // Alternating low-contrast mowing/wear bands keep the field textured
-    // without competing with players, the ball, or movement overlays.
-    graphics.fillStyle(this.theme.surface.stripe, 0.07);
-    for (let x = 1; x < this.width; x += 2) {
-      graphics.fillRect(x * this.squareSize, 0, this.squareSize, pitchHeight);
-    }
-
-    // Deterministic hash/wear details: no random state and no rules impact.
-    graphics.lineStyle(2, this.theme.surface.detail, 0.16);
-    for (let x = 2; x < this.width - 1; x += 2) {
-      const px = x * this.squareSize + this.squareSize / 2;
-      const middle = pitchHeight / 2;
-      graphics.lineBetween(px - 8, middle - 9, px + 8, middle - 9);
-      graphics.lineBetween(px - 8, middle + 9, px + 8, middle + 9);
-    }
-    this.container.add(graphics);
-
-    // Optional texture overlays are strictly additive. Every theme above has
-    // a complete primitive fallback, so a missing binary changes nothing.
-    const textureKey = this.theme.surface.textureKey;
-    if (textureKey && this.scene.textures.exists(textureKey)) {
-      const texture = this.scene.add.tileSprite(
-        pitchWidth / 2,
-        pitchHeight / 2,
-        pitchWidth,
-        pitchHeight,
-        textureKey
+    graphics.setName("pitch_trapdoors");
+    for (const square of TRAPDOOR_SQUARES) {
+      if (!this.isOnPitch(square)) continue;
+      const corners = squareCorners(square.x, square.y, 0.14).map(
+        (p) => new Phaser.Math.Vector2(p.x, p.y)
       );
-      texture.setName("pitch_surface_texture");
-      texture.setAlpha(0.18);
-      this.container.add(texture);
+      graphics.fillStyle(0x3b2a1a, 0.85);
+      graphics.fillPoints(corners, true);
+      // Planks across the hatch, then the frame and a ring handle
+      graphics.lineStyle(2, 0x1f150c, 0.9);
+      for (let i = 1; i < 4; i++) {
+        const t = 0.14 + (0.72 * i) / 4;
+        const from = gridPointToPixel(square.x + 0.14, square.y + t);
+        const to = gridPointToPixel(square.x + 0.86, square.y + t);
+        graphics.lineBetween(from.x, from.y, to.x, to.y);
+      }
+      graphics.lineStyle(3, 0xf1e8d0, 0.85);
+      graphics.strokePoints(corners, true);
+      const centre = gridPointToPixel(square.x + 0.5, square.y + 0.5);
+      graphics.strokeEllipse(
+        centre.x,
+        centre.y,
+        ISO.tileWidth * 0.18,
+        ISO.tileHeight * 0.18
+      );
     }
-  }
-
-  private drawGrid(): void {
-    const graphics = this.scene.add.graphics();
-    graphics.setName("pitch_grid");
-    graphics.lineStyle(
-      this.theme.lines.gridWidth,
-      this.theme.lines.grid,
-      this.theme.lines.gridAlpha
-    );
-
-    // Vertical lines
-    for (let x = 0; x <= this.width; x++) {
-      const pixelX = x * this.squareSize;
-      graphics.lineBetween(pixelX, 0, pixelX, this.height * this.squareSize);
-    }
-
-    // Horizontal lines
-    for (let y = 0; y <= this.height; y++) {
-      const pixelY = y * this.squareSize;
-      graphics.lineBetween(0, pixelY, this.width * this.squareSize, pixelY);
-    }
-
-    this.container.add(graphics);
-  }
-
-  private drawEndZones(): void {
-    const graphics = this.scene.add.graphics();
-    graphics.setName("pitch_end_zones");
-    const pitchHeight = this.height * this.squareSize;
-
-    // Each end zone is tinted with its owning team's colour (a transparent
-    // wash), falling back to the theme's neutral colours when unset.
-    const leftColor = this.endZoneColors?.left ?? this.theme.endZones.left;
-    const rightColor = this.endZoneColors?.right ?? this.theme.endZones.right;
-
-    graphics.fillStyle(leftColor, this.theme.endZones.alpha);
-    graphics.fillRect(0, 0, this.squareSize, pitchHeight);
-
-    graphics.fillStyle(rightColor, this.theme.endZones.alpha);
-    graphics.fillRect(
-      (this.width - 1) * this.squareSize,
-      0,
-      this.squareSize,
-      pitchHeight
-    );
-
-    graphics.lineStyle(3, this.theme.endZones.border, 0.82);
-    graphics.strokeRect(1, 1, this.squareSize - 2, pitchHeight - 2);
-    graphics.strokeRect(
-      (this.width - 1) * this.squareSize + 1,
-      1,
-      this.squareSize - 2,
-      pitchHeight - 2
-    );
-    this.container.add(graphics);
-  }
-
-  private drawFieldMarkings(): void {
-    const graphics = this.scene.add.graphics();
-    graphics.setName("pitch_major_lines");
-
-    // Line of Scrimmage (Center Line)
-    graphics.lineStyle(
-      this.theme.lines.majorWidth,
-      this.theme.lines.major,
-      this.theme.lines.majorAlpha
-    );
-    const centerX = (this.width / 2) * this.squareSize;
-    graphics.lineBetween(centerX, 0, centerX, this.height * this.squareSize);
-    graphics.strokeCircle(
-      centerX,
-      (this.height * this.squareSize) / 2,
-      this.squareSize * 0.4
-    );
-
-    // Setup Zone Lines (Separating Setup Zones from Neutral Zone)
-    // Left Setup Line (Between Col 6 and 7 -> X=7)
-    // Right Setup Line (Between Col 12 and 13 -> X=13)
-    graphics.lineStyle(
-      this.theme.lines.setupWidth,
-      this.theme.lines.major,
-      this.theme.lines.majorAlpha
-    );
-
-    const leftSetupX =
-      (SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team1 + 1) * this.squareSize;
-    graphics.lineBetween(
-      leftSetupX,
-      0,
-      leftSetupX,
-      this.height * this.squareSize
-    );
-
-    const rightSetupX =
-      SEVENS_GEOMETRY.LINE_OF_SCRIMMAGE_X.team2 * this.squareSize;
-    graphics.lineBetween(
-      rightSetupX,
-      0,
-      rightSetupX,
-      this.height * this.squareSize
-    );
-
-    this.container.add(graphics);
-  }
-
-  private drawWideZones(): void {
-    const graphics = this.scene.add.graphics();
-    graphics.setName("pitch_wide_zones");
-
-    const topY = (SEVENS_GEOMETRY.WIDE_ZONE_ROWS.top.max + 1) * this.squareSize;
-    const bottomY = SEVENS_GEOMETRY.WIDE_ZONE_ROWS.bottom.min * this.squareSize;
-    const pitchWidth = this.width * this.squareSize;
-    const pitchHeight = this.height * this.squareSize;
-
-    graphics.fillStyle(this.theme.wideZones.fill, this.theme.wideZones.alpha);
-    graphics.fillRect(0, 0, pitchWidth, topY);
-    graphics.fillRect(0, bottomY, pitchWidth, pitchHeight - bottomY);
-
-    graphics.lineStyle(
-      this.theme.lines.majorWidth,
-      this.theme.wideZones.line,
-      this.theme.lines.majorAlpha
-    );
-    graphics.lineBetween(0, topY, pitchWidth, topY);
-    graphics.lineBetween(0, bottomY, this.width * this.squareSize, bottomY);
-
     this.container.add(graphics);
   }
 
@@ -248,17 +115,8 @@ export class Pitch {
     gridX: number,
     gridY: number,
     color: number
-  ): Phaser.GameObjects.Rectangle {
-    const highlight = this.scene.add.rectangle(
-      gridX * this.squareSize + this.squareSize / 2,
-      gridY * this.squareSize + this.squareSize / 2,
-      this.squareSize - 4,
-      this.squareSize - 4,
-      color,
-      0.5
-    );
-    this.container.add(highlight);
-    return highlight;
+  ): SquareMarker {
+    return this.diamond(gridX, gridY, color, 0.5, 0.04);
   }
 
   /**
@@ -266,37 +124,25 @@ export class Pitch {
    */
   public highlightHoverSquare(gridX: number, gridY: number): void {
     this.clearHover(); // Only one at a time
-
     if (
-      gridX > GameConfig.PITCH_WIDTH - 1 ||
-      gridY > GameConfig.PITCH_HEIGHT - 1
+      gridX < 0 ||
+      gridY < 0 ||
+      gridX > this.width - 1 ||
+      gridY > this.height - 1
     )
       return;
-
-    // Use local coordinates for container
-    const local = gridToPixel(gridX, gridY, this.squareSize);
-
-    const cursor = this.scene.add.rectangle(
-      local.x,
-      local.y,
-      this.squareSize,
-      this.squareSize,
-      0xffffff,
-      0.0
-    );
-    cursor.setStrokeStyle(2, 0xffffff, 0.8);
+    const cursor = this.diamond(gridX, gridY, 0xffffff, 0.08);
+    cursor.setStrokeStyle(2, 0xffffff, 0.85);
     cursor.setName("hover_cursor");
-    this.container.add(cursor);
   }
 
   public clearHighlights(): void {
-    // Remove all highlight rectangles (old simple highlights)
-    const children = this.container.getAll();
-    children.forEach((child) => {
+    // Unnamed half-alpha diamonds are the plain highlights from highlightSquare.
+    this.container.getAll().forEach((child) => {
       if (
-        child instanceof Phaser.GameObjects.Rectangle &&
+        child instanceof Phaser.GameObjects.Polygon &&
         child.alpha === 0.5 &&
-        !child.name // Don't delete special named layers yet unless specified
+        !child.name
       ) {
         child.destroy();
       }
@@ -308,6 +154,24 @@ export class Pitch {
     this.clearLayer("dodge_risk");
   }
 
+  /** Fill a block of whole squares, x0..x1 by y0..y1 inclusive, as one parallelogram. */
+  private drawBlock(
+    graphics: Phaser.GameObjects.Graphics,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number
+  ): Phaser.Math.Vector2[] {
+    const pts = [
+      gridPointToPixel(x0, y0),
+      gridPointToPixel(x1 + 1, y0),
+      gridPointToPixel(x1 + 1, y1 + 1),
+      gridPointToPixel(x0, y1 + 1),
+    ].map((p) => new Phaser.Math.Vector2(p.x, p.y));
+    graphics.fillPoints(pts, true);
+    return pts;
+  }
+
   /**
    * Highlight setup zone
    */
@@ -317,28 +181,18 @@ export class Pitch {
     // Bounds: Left (0-6), Right (13-19)
     const minX = isLeft ? 0 : 13;
     const maxX = isLeft ? 6 : 19;
-    const widthGrid = maxX - minX + 1;
-
-    const x = minX * this.squareSize;
-    const y = 0;
-    const width = widthGrid * this.squareSize;
-    const height = this.height * this.squareSize;
-
-    const rect = this.scene.add.rectangle(
-      x + width / 2,
-      y + height / 2,
-      width,
-      height,
-      0x00ff00,
-      0.15
-    );
-    rect.setName("setup_zone_highlight");
-    rect.setStrokeStyle(2, 0x00ff00, 0.5);
-    this.container.add(rect);
+    const zone = this.scene.add.graphics();
+    zone.setName("setup_zone_highlight");
+    zone.fillStyle(0x00ff00, 1);
+    const pts = this.drawBlock(zone, minX, 0, maxX, this.height - 1);
+    zone.lineStyle(2, 0x00ff00, 1);
+    zone.strokePoints(pts, true);
+    zone.setAlpha(0.15);
+    this.container.add(zone);
 
     // Pulsing animation
     this.scene.tweens.add({
-      targets: rect,
+      targets: zone,
       alpha: { from: 0.15, to: 0.05 },
       duration: 1500,
       yoyo: true,
@@ -353,17 +207,7 @@ export class Pitch {
   public drawTackleZones(zones: { x: number; y: number }[]): void {
     this.clearLayer("tackle_zone");
     zones.forEach((z) => {
-      const local = gridToPixel(z.x, z.y, this.squareSize);
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize,
-        this.squareSize,
-        0xff0000,
-        0.2
-      );
-      rect.setName("tackle_zone");
-      this.container.add(rect);
+      this.diamond(z.x, z.y, 0xff0000, 0.2).setName("tackle_zone");
     });
   }
 
@@ -373,17 +217,7 @@ export class Pitch {
   public drawSprintRisks(risks: { x: number; y: number }[]): void {
     this.clearLayer("sprint_risk");
     risks.forEach((risk) => {
-      const local = gridToPixel(risk.x, risk.y, this.squareSize);
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize,
-        this.squareSize,
-        0xffff00, // Yellow
-        0.3 // Light transparency
-      );
-      rect.setName("sprint_risk");
-      this.container.add(rect);
+      this.diamond(risk.x, risk.y, 0xffff00, 0.3).setName("sprint_risk");
     });
   }
 
@@ -395,22 +229,11 @@ export class Pitch {
   ): void {
     this.clearLayer("dodge_risk");
     risks.forEach(({ x, y, modifiers }) => {
-      const local = gridToPixel(x, y, this.squareSize);
+      const local = gridToPixel(x, y);
+      const shape = this.diamond(x, y, 0xff6600, 0.3, 0.04);
+      shape.setStrokeStyle(2, 0xff6600);
+      shape.setName("dodge_risk");
 
-      // Orange rectangle for dodge risk
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize - 4,
-        this.squareSize - 4,
-        0xff6600, // Orange
-        0.3
-      );
-      rect.setStrokeStyle(2, 0xff6600);
-      rect.setName("dodge_risk");
-      this.container.add(rect);
-
-      // Add modifier text
       const text = this.scene.add.text(
         local.x,
         local.y,
@@ -435,40 +258,21 @@ export class Pitch {
   public drawRangeOverlay(reachable: { x: number; y: number }[]): void {
     this.clearLayer("range_overlay");
     const graphics = this.scene.add.graphics();
-    graphics.fillStyle(0x000000, 0.5);
+    graphics.fillStyle(0x000000, 0.45);
     graphics.setName("range_overlay");
-
-    // Draw full pitch dark
-    // graphics.fillRect(0, 0, this.width * this.squareSize, this.height * this.squareSize);
-    // Cut out reachable squares? Graphics doesn't support easy cutouts in this way without masks.
-    // Easiest way: Draw individual dark rectangles on UNREACHABLE squares or use a mask.
-    // Mask approach:
-    // Create a geometric mask from reachable squares?
-    // Alternative: Just draw rectangles on squares NOT in reachable set.
-
-    // Optimization: Only draw 0.5 alpha black rects on squares that are NOT reachable.
-    // Iterate all grid squares.
+    const open = new Set(reachable.map((r) => `${r.x},${r.y}`));
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        if (!reachable.some((r) => r.x === x && r.y === y)) {
-          // Unreachable
-          const local = gridToPixel(x, y, this.squareSize);
-          // graphics.fillRect uses Top-Left, but gridToPixel returns Center
-          graphics.fillRect(
-            local.x - this.squareSize / 2,
-            local.y - this.squareSize / 2,
-            this.squareSize,
-            this.squareSize
-          );
-        }
+        if (open.has(`${x},${y}`)) continue;
+        graphics.fillPoints(
+          squareCorners(x, y).map((p) => new Phaser.Math.Vector2(p.x, p.y)),
+          true
+        );
       }
     }
     this.container.add(graphics);
   }
 
-  /**
-   * Draw movement path with lines and centered dots
-   */
   /**
    * Jump targeting: every legal (over, dest) at once — a line from the jumper
    * through the jumped-over square to each landing square, a green end node on
@@ -483,15 +287,14 @@ export class Pitch {
   ): void {
     this.clearPath();
     if (targets.length === 0) return;
-    const sq = this.squareSize;
-    const a = gridToPixel(from.x, from.y, sq);
+    const a = gridToPixel(from.x, from.y);
 
     const lines = this.scene.add.graphics();
     lines.setName("path_line");
     const overs = new Map<string, { x: number; y: number }>();
     for (const t of targets) {
-      const o = gridToPixel(t.over.x, t.over.y, sq);
-      const b = gridToPixel(t.dest.x, t.dest.y, sq);
+      const o = gridToPixel(t.over.x, t.over.y);
+      const b = gridToPixel(t.dest.x, t.dest.y);
       lines.lineStyle(4, 0x3b82f6, 0.85);
       lines.beginPath();
       lines.moveTo(a.x, a.y);
@@ -502,85 +305,74 @@ export class Pitch {
     }
     this.container.add(lines);
 
-    // Landing (end) nodes — green dots.
     for (const t of targets) {
-      const b = gridToPixel(t.dest.x, t.dest.y, sq);
-      const dot = this.scene.add.circle(b.x, b.y, 8, 0x22c55e);
+      const b = gridToPixel(t.dest.x, t.dest.y);
+      const dot = this.scene.add.ellipse(b.x, b.y, 16, 8, 0x22c55e);
       dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);
     }
-    // Jump-over nodes — a distinct amber ring so it reads as "leap over here".
     for (const o of overs.values()) {
-      const p = gridToPixel(o.x, o.y, sq);
-      const ring = this.scene.add.circle(p.x, p.y, sq * 0.32);
+      const ring = this.diamond(o.x, o.y, 0xf59e0b, 0.2, 0.18);
       ring.setName("path_dot");
       ring.setStrokeStyle(3, 0xf59e0b);
-      ring.setFillStyle(0xf59e0b, 0.2);
-      this.container.add(ring);
     }
   }
 
   public drawMovementPath(
     path: { x: number; y: number }[],
-    rolls: { type: string; target: number; roll: number; result: string }[],
+    rolls: {
+      type: string;
+      target: number;
+      roll: number;
+      result: string;
+      square?: { x: number; y: number };
+    }[],
     ma: number = 6
   ): void {
     this.clearPath();
 
     if (path.length === 0) return;
 
-    // Draw Lines
     const graphics = this.scene.add.graphics();
     graphics.setName("path_line");
 
-    // Draw lines segment by segment to handle color changes
-    if (path.length > 1) {
-      for (let i = 0; i < path.length - 1; i++) {
-        const from = gridToPixel(path[i].x, path[i].y, this.squareSize);
-        const to = gridToPixel(path[i + 1].x, path[i + 1].y, this.squareSize);
-
-        // Steps taken SO FAR (including this new step)
-        // path[0] is start (step 0). path[1] is step 1.
-        // So step index is i+1.
-        const stepsTaken = i + 1;
-
-        // If stepsTaken > MA, it's a Rush (Yellow)
-        const isRush = stepsTaken > ma;
-        const color = isRush ? 0xffff00 : 0xffffff;
-
-        graphics.lineStyle(4, color, 0.8);
-        graphics.beginPath();
-        graphics.moveTo(from.x, from.y);
-        graphics.lineTo(to.x, to.y);
-        graphics.strokePath();
-      }
+    // Segment by segment, so steps past MA (Rushes) can change colour.
+    for (let i = 0; i < path.length - 1; i++) {
+      const from = gridToPixel(path[i].x, path[i].y);
+      const to = gridToPixel(path[i + 1].x, path[i + 1].y);
+      const isRush = i + 1 > ma;
+      graphics.lineStyle(4, isRush ? 0xffff00 : 0xffffff, 0.8);
+      graphics.beginPath();
+      graphics.moveTo(from.x, from.y);
+      graphics.lineTo(to.x, to.y);
+      graphics.strokePath();
     }
     this.container.add(graphics);
 
-    // Draw Dots
-    path.forEach((step, _index) => {
-      const local = gridToPixel(step.x, step.y, this.squareSize);
-      let color = 0xffffff; // Normal: White
+    path.forEach((step) => {
+      const local = gridToPixel(step.x, step.y);
+      let color = 0xffffff;
       let radius = 6;
-
-      // Check rolls
       const roll = rolls.find(
-        (r) => r.square.x === step.x && r.square.y === step.y
+        (r) => r.square?.x === step.x && r.square?.y === step.y
       );
-
-      if (roll) {
-        if (roll.type === "rush") {
-          color = 0xffff00; // Yellow for GFI
-          radius = 8;
-        }
-        if (roll.type === "dodge") {
-          color = 0xff0000; // Red for Dodge
-          radius = 8;
-        }
+      if (roll?.type === "rush") {
+        color = 0xffff00;
+        radius = 8;
       }
-
-      const dot = this.scene.add.circle(local.x, local.y, radius, color);
+      if (roll?.type === "dodge") {
+        color = 0xff0000;
+        radius = 8;
+      }
+      // Flattened like the squares, so dots sit on the ground.
+      const dot = this.scene.add.ellipse(
+        local.x,
+        local.y,
+        radius * 2.4,
+        radius * 1.2,
+        color
+      );
       dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);
@@ -593,8 +385,7 @@ export class Pitch {
   }
 
   public clearLayer(name: string): void {
-    const children = this.container.getAll();
-    children.forEach((child) => {
+    this.container.getAll().forEach((child) => {
       if (child.name === name) {
         child.destroy();
       }
@@ -613,32 +404,22 @@ export class Pitch {
     ranges: Map<string, { x: number; y: number }[]>
   ): void {
     this.clearLayer("pass_zone");
-
-    // Color mapping for each pass type
     const colors: Record<string, { color: number; alpha: number }> = {
-      "Quick Pass": { color: 0x00ff00, alpha: 0.15 }, // Green
-      "Short Pass": { color: 0xffff00, alpha: 0.15 }, // Yellow
-      "Long Pass": { color: 0xff8800, alpha: 0.15 }, // Orange
-      "Long Bomb": { color: 0xff0000, alpha: 0.15 }, // Red
+      "Quick Pass": { color: 0x00ff00, alpha: 0.15 },
+      "Short Pass": { color: 0xffff00, alpha: 0.15 },
+      "Long Pass": { color: 0xff8800, alpha: 0.15 },
+      "Long Bomb": { color: 0xff0000, alpha: 0.15 },
     };
-
-    // Draw each range zone
     ranges.forEach((squares, passType) => {
       const colorConfig = colors[passType];
       if (!colorConfig) return;
-
       squares.forEach((square) => {
-        const local = gridToPixel(square.x, square.y, this.squareSize);
-        const rect = this.scene.add.rectangle(
-          local.x,
-          local.y,
-          this.squareSize,
-          this.squareSize,
+        this.diamond(
+          square.x,
+          square.y,
           colorConfig.color,
           colorConfig.alpha
-        );
-        rect.setName("pass_zone");
-        this.container.add(rect);
+        ).setName("pass_zone");
       });
     });
   }
@@ -653,17 +434,14 @@ export class Pitch {
   ): void {
     this.clearLayer("pass_line");
 
-    const fromPixel = gridToPixel(from.x, from.y, this.squareSize);
-    const toPixel = gridToPixel(to.x, to.y, this.squareSize);
-
-    // Color based on pass type
+    const fromPixel = gridToPixel(from.x, from.y);
+    const toPixel = gridToPixel(to.x, to.y);
     const colors: Record<string, number> = {
       "Quick Pass": 0x00ff00,
       "Short Pass": 0xffff00,
       "Long Pass": 0xff8800,
       "Long Bomb": 0xff0000,
     };
-
     const color = colors[passType] || 0xffffff;
 
     const graphics = this.scene.add.graphics();
@@ -674,9 +452,8 @@ export class Pitch {
     graphics.lineTo(toPixel.x, toPixel.y);
     graphics.strokePath();
 
-    // Add arrow at the end
     const angle = Math.atan2(toPixel.y - fromPixel.y, toPixel.x - fromPixel.x);
-    const arrowSize = 10;
+    const arrowSize = 12;
     graphics.fillStyle(color, 0.8);
     graphics.beginPath();
     graphics.moveTo(toPixel.x, toPixel.y);
@@ -709,60 +486,43 @@ export class Pitch {
   ): void {
     this.clearLayer("pass_intercept");
 
-    const half = 0.875 * this.squareSize; // corridor half-width
-
-    // The band itself: a rotated rectangle from passer to target.
-    const a = gridToPixel(from.x, from.y, this.squareSize);
-    const b = gridToPixel(to.x, to.y, this.squareSize);
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
+    // The band is a rectangle in grid space, so build it there and project.
+    const ax = from.x + 0.5;
+    const ay = from.y + 0.5;
+    const bx = to.x + 0.5;
+    const by = to.y + 0.5;
+    const len = Math.hypot(bx - ax, by - ay);
     if (len > 0) {
-      // Unit perpendicular to the pass line.
-      const px = -dy / len;
-      const py = dx / len;
+      const half = 0.875;
+      const px = (-(by - ay) / len) * half;
+      const py = ((bx - ax) / len) * half;
       const band = this.scene.add.graphics();
       band.setName("pass_intercept");
       band.fillStyle(0xff0000, 0.12);
-      band.beginPath();
-      band.moveTo(a.x + px * half, a.y + py * half);
-      band.lineTo(b.x + px * half, b.y + py * half);
-      band.lineTo(b.x - px * half, b.y - py * half);
-      band.lineTo(a.x - px * half, a.y - py * half);
-      band.closePath();
-      band.fillPath();
+      band.fillPoints(
+        [
+          [ax + px, ay + py],
+          [bx + px, by + py],
+          [bx - px, by - py],
+          [ax - px, ay - py],
+        ].map(([x, y]) => {
+          const p = gridPointToPixel(x, y);
+          return new Phaser.Math.Vector2(p.x, p.y);
+        }),
+        true
+      );
       this.container.add(band);
     }
 
-    // Every square the corridor passes over — where an interceptor could stand.
     zoneSquares.forEach((square) => {
-      const local = gridToPixel(square.x, square.y, this.squareSize);
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize,
-        this.squareSize,
-        0xff5555,
-        0.22
+      this.diamond(square.x, square.y, 0xff5555, 0.22).setName(
+        "pass_intercept"
       );
-      rect.setName("pass_intercept");
-      this.container.add(rect);
     });
-
-    // Squares where a standing opponent actually threatens the pass.
     threatSquares.forEach((square) => {
-      const local = gridToPixel(square.x, square.y, this.squareSize);
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize,
-        this.squareSize,
-        0xff0000,
-        0.45
-      );
-      rect.setStrokeStyle(3, 0xff3333, 1);
-      rect.setName("pass_intercept");
-      this.container.add(rect);
+      const shape = this.diamond(square.x, square.y, 0xff0000, 0.45);
+      shape.setStrokeStyle(3, 0xff3333, 1);
+      shape.setName("pass_intercept");
     });
   }
 
@@ -785,33 +545,41 @@ export class Pitch {
   public drawHandoffTargets(targets: { x: number; y: number }[]): void {
     this.clearLayer("handoff_target");
     targets.forEach((t) => {
-      const local = gridToPixel(t.x, t.y, this.squareSize);
-      const rect = this.scene.add.rectangle(
-        local.x,
-        local.y,
-        this.squareSize - 4,
-        this.squareSize - 4,
-        0x22c55e,
-        0.35
-      );
-      rect.setStrokeStyle(2, 0x22c55e, 0.9);
-      rect.setName("handoff_target");
-      this.container.add(rect);
+      const shape = this.diamond(t.x, t.y, 0x22c55e, 0.35, 0.04);
+      shape.setStrokeStyle(2, 0x22c55e, 0.9);
+      shape.setName("handoff_target");
     });
   }
 
   /**
-   * Get pixel position for a grid coordinate
+   * World pixel position of a square's centre.
    */
   public getPixelPosition(
     gridX: number,
     gridY: number
   ): { x: number; y: number } {
-    const local = gridToPixel(gridX, gridY, this.squareSize);
-    return {
-      x: this.offsetX + local.x,
-      y: this.offsetY + local.y,
-    };
+    const local = gridToPixel(gridX, gridY);
+    return { x: this.container.x + local.x, y: this.container.y + local.y };
+  }
+
+  /** World pixel position of a point in grid units, such as a dugout square's centre. */
+  public getPointPosition(
+    gridX: number,
+    gridY: number
+  ): { x: number; y: number } {
+    const local = gridPointToPixel(gridX, gridY);
+    return { x: this.container.x + local.x, y: this.container.y + local.y };
+  }
+
+  /** The square under a world pixel; it may lie off the pitch. */
+  public worldToGrid(worldX: number, worldY: number): GridPosition {
+    return pixelToGrid(worldX - this.container.x, worldY - this.container.y);
+  }
+
+  public isOnPitch(pos: GridPosition): boolean {
+    return (
+      pos.x >= 0 && pos.y >= 0 && pos.x < this.width && pos.y < this.height
+    );
   }
 
   /**

@@ -196,12 +196,28 @@ export class PassController {
     /** Skill-trigger modifier (Accurate, Nerves of Steel, …) */
     extraModifier: number = 0,
     /** Hail Mary Pass: a Long Bomb whose Accurate result is Inaccurate. */
-    hailMary: boolean = false
+    hailMary: boolean = false,
+    /** Set Piece (L25): Accurate on any 2+, whatever the PA and modifiers. */
+    setPiece: boolean = false
   ): Promise<PassResult> {
     const passRange = this.measureRange(from, to, hailMary);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
     // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
     const rollAccuracy = () => {
+      if (setPiece) {
+        const check = this.diceController.rollSkillCheck(
+          "Pass (Set Piece)",
+          2,
+          0,
+          player.playerName
+        );
+        return {
+          success: check.success,
+          accurate: check.success,
+          fumbled: check.roll === 1,
+          roll: check.roll,
+        };
+      }
       const test = this.testAccuracy(
         player,
         passRange,

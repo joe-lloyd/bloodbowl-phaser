@@ -92,7 +92,7 @@ const BLACK_ORC_ROSTER: TeamRoster = {
     TeamSpecialRule.BRAWLIN_BRUTES,
     TeamSpecialRule.BRIBERY_AND_CORRUPTION,
   ],
-  tier: 1,
+  tier: 3,
   apothecary: true,
   playerTemplates: [
     {
@@ -157,7 +157,7 @@ const BRETONIAN_ROSTER: TeamRoster = {
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
   additionalRules: [],
-  tier: 1,
+  tier: 2,
   apothecary: true,
   playerTemplates: [
     {
@@ -225,7 +225,7 @@ const CHAOS_CHOSEN_ROSTER: TeamRoster = {
     AdditionalRule.FAVOURED_OF,
     AdditionalRule.ONLY_ALLOWED_ONE_BIG_GUY,
   ],
-  tier: 1,
+  tier: 3,
   apothecary: true,
   playerTemplates: [
     {
@@ -719,7 +719,7 @@ const DWARF_ROSTER: TeamRoster = {
     TeamSpecialRule.BRIBERY_AND_CORRUPTION,
   ],
   additionalRules: [],
-  tier: 1,
+  tier: 2,
   apothecary: true,
   playerTemplates: [
     {
@@ -812,7 +812,7 @@ const ELVEN_UNION_ROSTER: TeamRoster = {
   leagues: [League.ELVEN_KINGDOMS_LEAGUE],
   specialRules: [],
   additionalRules: [],
-  tier: 2,
+  tier: 1,
   apothecary: true,
   playerTemplates: [
     {
@@ -1193,7 +1193,7 @@ const HALFLING_ROSTER: TeamRoster = {
   leagues: [League.HALFLING_THIMBLE_CUP, League.WOODLAND_LEAGUE],
   specialRules: [],
   additionalRules: [],
-  tier: 4,
+  tier: 3,
   apothecary: true,
   playerTemplates: [
     {
@@ -1282,7 +1282,7 @@ const HUMAN_ROSTER: TeamRoster = {
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [TeamSpecialRule.TEAM_CAPTAIN],
   additionalRules: [],
-  tier: 2,
+  tier: 1,
   apothecary: true,
   playerTemplates: [
     {
@@ -1528,7 +1528,7 @@ const LIZARDMEN_ROSTER: TeamRoster = {
   leagues: [League.LUSTRIAN_SUPERLEAGUE],
   specialRules: [],
   additionalRules: [],
-  tier: 1,
+  tier: 2,
   apothecary: true,
   playerTemplates: [
     {
@@ -1599,7 +1599,7 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
   leagues: [League.SYLVANIAN_SPOTLIGHT],
   specialRules: [TeamSpecialRule.MASTERS_OF_UNDEATH],
   additionalRules: [],
-  tier: 2,
+  tier: 1,
   apothecary: false,
   playerTemplates: [
     {
@@ -2324,7 +2324,7 @@ const SKAVEN_ROSTER: TeamRoster = {
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [],
   additionalRules: [],
-  tier: 2,
+  tier: 1,
   apothecary: true,
   playerTemplates: [
     {
@@ -2631,7 +2631,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [TeamSpecialRule.BRIBERY_AND_CORRUPTION],
   additionalRules: [],
-  tier: 1,
+  tier: 3,
   apothecary: true,
   playerTemplates: [
     {

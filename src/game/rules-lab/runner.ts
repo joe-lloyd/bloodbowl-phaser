@@ -91,6 +91,15 @@ export function answerDecision(
     }
     case "apothecary":
       return { type: "use-apothecary", accept: policy.useApothecary ?? false };
+    case "inducement-choice":
+      // The first option offered; a Desperate Measure is kept for later.
+      return pending.optional
+        ? { type: "choose-inducement" }
+        : {
+            type: "choose-inducement",
+            playerId: pending.playerIds[0],
+            skill: pending.skills?.[0],
+          };
   }
 }
 

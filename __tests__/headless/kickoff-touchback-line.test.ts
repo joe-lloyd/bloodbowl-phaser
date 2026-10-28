@@ -3,6 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
+import { forceDice } from "../utils/test-helpers";
 
 /**
  * A kick that comes down on or behind the kicking team's Line of
@@ -31,13 +32,20 @@ const scenario: Scenario = {
   },
 };
 
-/** Seed 6 deviates the kick from (12,5) onto (13,5); committed. */
-const DEVIATES_ONTO_LINE_SEED = 6;
-/** Seed 16 rolls Perfect Conditions and scatters the ball to (13,6); committed. */
-const SCATTERS_ONTO_LINE_SEED = 16;
+/**
+ * Deviates east one square, (12,5) onto (13,5), then a Kick-off Event of
+ * 1 + 1 (Get the Ref, which rolls nothing).
+ */
+const DEVIATES_ONTO_LINE = [5, 1, 4, 1, 1];
+/**
+ * Deviates west one square to (11,5), rolls Changing Weather (8) and
+ * Perfect Conditions (7), then scatters east, east, south to (13,6).
+ */
+const SCATTERS_ONTO_LINE = [4, 1, 4, 4, 4, 3, 4, 5, 5, 7];
 
-async function kickTowardsOwnLine(seed: number) {
-  const game = new HeadlessGame({ scenario, seed });
+async function kickTowardsOwnLine(dice: number[]) {
+  const game = new HeadlessGame({ scenario, seed: 1 });
+  forceDice(game.ctx.rng, dice);
   const kicker = game.snapshot().teams[1].players[0];
   const kicked = await game.execute({
     type: "kick-ball",
@@ -53,10 +61,8 @@ async function kickTowardsOwnLine(seed: number) {
 
 describe("kick-off touchback line", () => {
   it("a team 2 kick that deviates onto its own line is a touchback", async () => {
-    const { kicked, landing } = await kickTowardsOwnLine(
-      DEVIATES_ONTO_LINE_SEED
-    );
-    // The seed must still deviate one square east, (12,5) -> (13,5), with no
+    const { kicked, landing } = await kickTowardsOwnLine(DEVIATES_ONTO_LINE);
+    // The kick must deviate one square east, (12,5) -> (13,5), with no
     // weather scatter afterwards, or this proves nothing.
     const deviation = kicked.events
       .filter((e) => e.name === GameEventNames.DiceRoll)
@@ -76,9 +82,7 @@ describe("kick-off touchback line", () => {
   });
 
   it("a team 2 kick scattered onto its own line by the weather is a touchback", async () => {
-    const { kicked, landing } = await kickTowardsOwnLine(
-      SCATTERS_ONTO_LINE_SEED
-    );
+    const { kicked, landing } = await kickTowardsOwnLine(SCATTERS_ONTO_LINE);
     const scatter = kicked.events.find(
       (e) => e.name === GameEventNames.BallScattered
     )?.data as { to: { x: number; y: number } } | undefined;

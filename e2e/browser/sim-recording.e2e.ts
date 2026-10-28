@@ -2,33 +2,23 @@
  * A headless simulation recording, opened on the real board.
  *
  * `pnpm sim` plays matches with no browser at all. This proves the bridge
- * back: replay a committed recording in the engine, hand the resulting
+ * back: replay a recorded match in the engine, hand the resulting
  * match save to the browser exactly as a resumed match would load it, and
  * check the browser builds the same board. If this holds, any step of any
  * recording can be inspected visually with `pnpm sim:replay --save-out`.
  */
 
 import { test, expect } from "@playwright/test";
-import * as fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import {
-  matchSaveAt,
-  parseRecording,
-  replayRecording,
-} from "../../src/simulation/replay";
+import { matchSaveAt, replayRecording } from "../../src/simulation/replay";
+import { runMatch } from "../../src/simulation/runMatch";
+import { randomCoach } from "../../src/simulation/coaches/random";
+import { RosterName } from "../../src/types/Team";
 import {
   serializeMatchSave,
   GameSnapshot,
 } from "../../src/headless/serialization";
 import { MATCH_SAVE_STORAGE_KEY } from "../../src/game/persistence/MatchSaveRepository";
 import { GameBridge } from "../support/pages/bridge";
-
-const RECORDING = fileURLToPath(
-  new URL(
-    "../../__tests__/simulation/recordings/failed-rush-onto-loose-ball.json",
-    import.meta.url
-  )
-);
 
 const board = (snapshot: GameSnapshot) => ({
   phase: snapshot.phase,
@@ -48,7 +38,13 @@ const board = (snapshot: GameSnapshot) => ({
 test("a recording's state resumes on the real board unchanged", async ({
   page,
 }) => {
-  const recording = parseRecording(fs.readFileSync(RECORDING, "utf8"));
+  // The opening 100 commands of a random-coach match.
+  const recording = await runMatch({
+    seed: 3007,
+    rosters: [RosterName.BLACK_ORC, RosterName.HALFLING],
+    coaches: [randomCoach, randomCoach],
+    maxCommands: 100,
+  });
   const { game } = await replayRecording(recording);
   const engine = game.snapshot();
   const save = serializeMatchSave(matchSaveAt(game));

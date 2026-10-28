@@ -22,13 +22,21 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
         setRequest(data as ReactionDecisionRequest);
       }
     };
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "reaction") setRequest(null);
+    };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
     return () => {
       eventBus.off(GameEventNames.DecisionRequested, onRequested);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 
-  if (!request) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const answer = (accept: boolean) => {
     // Online: only the reacting coach may answer

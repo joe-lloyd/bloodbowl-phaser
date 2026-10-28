@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
-import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { GameOperation } from "../../src/game/core/GameOperation";
 import { SCENARIOS } from "../../src/data/scenarios";
-import { PlayerStatus } from "../../src/types/Player";
+import { InjuryType, PlayerStatus } from "../../src/types/Player";
+import { SkillType, getSkill } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
 import { createMatchSave } from "../../src/headless/serialization";
+import { forceDice } from "../utils/test-helpers";
 
 /**
  * Sevens Apothecary: the once-per-match, owner-only patch-up decision
@@ -114,10 +115,11 @@ describe("Sevens Apothecary decision", () => {
     expect(player.gridPosition).toBeUndefined();
   });
 
-  for (const [rollTotal, label, initialStatus] of [
-    [3, "Badly Hurt", PlayerStatus.INJURED],
-    [9, "Seriously Hurt", PlayerStatus.INJURED],
-    [16, "Dead", PlayerStatus.DEAD],
+  // Sevens injury table totals (docs/SEVENS_RULES.md I3-I5).
+  for (const [rollTotal, label, casualtyType, initialStatus] of [
+    [10, "Badly Hurt", "badly-hurt", PlayerStatus.INJURED],
+    [11, "Seriously Hurt", "seriously-hurt", PlayerStatus.INJURED],
+    [12, "Dead", "dead", PlayerStatus.DEAD],
   ] as const) {
     it(`offers a patch-up for ${label} and succeeds on a 4+ roll`, async () => {
       const game = newGame();
@@ -125,15 +127,16 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
+        "roll2D6"
       ).mockReturnValue(rollTotal);
       vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(4); // success
 
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       const pending = game.pendingDecision();
       expect(pending?.type).toBe("apothecary");
       if (pending?.type === "apothecary") {
         expect(pending.resultKind).toBe("casualty");
+        expect(pending.casualtyType).toBe(casualtyType);
       }
 
       await answer(game, true);
@@ -146,11 +149,11 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
+        "roll2D6"
       ).mockReturnValue(rollTotal);
       vi.spyOn(game.ctx.gameService.getDiceController(), "rollD6").mockReturnValue(2); // fail
 
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       await answer(game, true);
 
       expect(player.status).toBe(initialStatus);
@@ -162,22 +165,6 @@ describe("Sevens Apothecary decision", () => {
       ).toBe(true);
     });
   }
-
-  it("Serious Injury and Lasting Injury are not eligible for a patch-up", async () => {
-    for (const roll of [11, 13]) {
-      const game = newGame();
-      game.ctx.team1.apothecary = true;
-      const player = game.ctx.team1.players[0];
-      vi.spyOn(
-        game.ctx.gameService.getDiceController(),
-        "rollD16"
-      ).mockReturnValue(roll);
-
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
-      expect(game.pendingDecision()).toBeNull();
-      expect(player.status).toBe(PlayerStatus.INJURED);
-    }
-  });
 
   it("is offered once per match: a used Apothecary offers nothing further", async () => {
     const game = newGame();
@@ -217,9 +204,9 @@ describe("Sevens Apothecary decision", () => {
       const player = game.ctx.team1.players[0];
       vi.spyOn(
         game.ctx.gameService.getDiceController(),
-        "rollD16"
-      ).mockReturnValue(3);
-      await runUntilSettledOrDecision(game, new CasualtyOperation(player.id));
+        "roll2D6"
+      ).mockReturnValue(10);
+      await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
       const response = await answer(game, true);
       return JSON.stringify(response.snapshot);
     };
@@ -274,5 +261,103 @@ describe("Sevens Apothecary decision — save and resume", () => {
     )!;
     expect(resumedPlayer.status).toBe(PlayerStatus.STUNNED);
     expect(diceBefore.phase).toBe(response.snapshot.phase);
+  });
+});
+
+describe("Sevens Apothecary decision — what a patch-up undoes", () => {
+  /** A Block by a Plague Ridden player of team2 against team1's first player. */
+  async function blockByPlagueRidden(game: HeadlessGame) {
+    game.ctx.team1.apothecary = true;
+    const victim = game.ctx.team1.players[0];
+    const killer = game.ctx.team2.players[0];
+    killer.skills.push(getSkill(SkillType.PLAGUE_RIDDEN));
+    await runUntilSettledOrDecision(
+      game,
+      new InjuryOperation(victim.id, { causedById: killer.id, cause: "block" })
+    );
+    return { victim, killer };
+  }
+
+  const kills = (events: { name: string; data?: unknown }[]) =>
+    events
+      .filter((e) => e.name === GameEventNames.PlayerKilled)
+      .map((e) => e.data);
+
+  it("a patched-up Seriously Hurt player carries no Miss Next Game", async () => {
+    const game = newGame();
+    game.ctx.team1.apothecary = true;
+    const player = game.ctx.team1.players[0];
+    forceDice(game.ctx.rng, [5, 6, 4]); // 11 Seriously Hurt, patch-up 4
+
+    await runUntilSettledOrDecision(game, new InjuryOperation(player.id));
+    await answer(game, true);
+
+    expect(player.status).toBe(PlayerStatus.RESERVE);
+    expect(player.injuries).toEqual([]);
+  });
+
+  it("announces no kill before the Apothecary decides, and none after a save", async () => {
+    const game = newGame();
+    forceDice(game.ctx.rng, [6, 6, 4]); // 12 Dead, patch-up 4
+    const { victim, killer } = await blockByPlagueRidden(game);
+    const rosterSize = game.ctx.team2.players.length;
+
+    expect(game.pendingDecision()?.type).toBe("apothecary");
+    expect(kills(game.events())).toEqual([]);
+
+    const response = await answer(game, true);
+    expect(kills(response.events)).toEqual([]);
+    expect(victim.status).toBe(PlayerStatus.RESERVE);
+    expect(victim.injuries).toEqual([]);
+    expect(killer.plagueRiddenUsed).toBeUndefined();
+    expect(game.ctx.team2.players.length).toBe(rosterSize);
+  });
+
+  it("a failed patch-up on a Dead result is a kill that arms Plague Ridden", async () => {
+    const game = newGame();
+    forceDice(game.ctx.rng, [6, 6, 3]); // 12 Dead, patch-up 3
+    const { victim, killer } = await blockByPlagueRidden(game);
+    const rosterSize = game.ctx.team2.players.length;
+
+    const response = await answer(game, true);
+    expect(kills(response.events)).toEqual([
+      { causerId: killer.id, victimId: victim.id },
+    ]);
+    expect(victim.status).toBe(PlayerStatus.DEAD);
+    expect(victim.injuries).toEqual([InjuryType.DEAD]);
+    expect(killer.plagueRiddenUsed).toBe(true);
+    expect(game.ctx.team2.players.length).toBe(rosterSize + 1);
+  });
+
+  it("a Dead decision resumed from a save still counts the kill when declined", async () => {
+    const game = newGame();
+    forceDice(game.ctx.rng, [6, 6]); // 12 Dead
+    const { victim, killer } = await blockByPlagueRidden(game);
+    const save = createMatchSave({
+      state: game.ctx.gameService.getState(),
+      teams: [game.ctx.team1, game.ctx.team2],
+      drive: {
+        kickingTeamId: game.ctx.team1.id,
+        receivingTeamId: game.ctx.team2.id,
+      },
+      rng: game.ctx.rng.captureState(),
+      matchStats: game.ctx.matchStats.captureState(),
+    });
+
+    const resumed = new HeadlessGame({ matchSave: save });
+    const rosterSize = resumed.ctx.team2.players.length;
+    const response = await resumed.execute({
+      type: "use-apothecary",
+      accept: false,
+    });
+
+    expect(kills(response.events)).toEqual([
+      { causerId: killer.id, victimId: victim.id },
+    ]);
+    const resumedKiller = resumed.ctx.team2.players.find(
+      (p) => p.id === killer.id
+    );
+    expect(resumedKiller?.plagueRiddenUsed).toBe(true);
+    expect(resumed.ctx.team2.players.length).toBe(rosterSize + 1);
   });
 });

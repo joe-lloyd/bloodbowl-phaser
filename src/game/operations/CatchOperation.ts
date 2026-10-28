@@ -30,6 +30,8 @@ export class CatchOperation extends GameOperation {
       passerId: string;
       passerTeamId: string;
       accurate: boolean;
+      /** Set Piece (L25): the receiver catches on any 2+. */
+      setPiece?: boolean;
     }
   ) {
     super();
@@ -111,11 +113,13 @@ export class CatchOperation extends GameOperation {
     let success = false;
     if (!catchCtx.autoFail) {
       // 2. Perform Agility Test
+      const setPiece =
+        !!this.pass?.setPiece && player.teamId === this.pass.passerTeamId;
       const agilityTest = new AgilityTestOperation(
         this.playerId,
         "Catch",
-        player.stats.AG,
-        catchCtx.modifiers,
+        setPiece ? 2 : player.stats.AG,
+        setPiece ? 0 : catchCtx.modifiers,
         undefined,
         "catch" // failed catches may offer a reroll (Catch skill / team)
       );

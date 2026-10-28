@@ -53,11 +53,10 @@ export class FoulController {
   }
 
   /**
-   * Determine the outcome of an "Argue the Call" roll
+   * Determine the outcome of an "Argue the Call" roll (Sevens rule M6):
+   * 5 or 6 sways the referee; the coach is never ejected.
    */
-  public resolveArgueTheCall(roll: number): "ejected" | "stay" | "swayed" {
-    if (roll === 1) return "ejected";
-    if (roll === 6) return "swayed";
-    return "stay";
+  public resolveArgueTheCall(roll: number): "stay" | "swayed" {
+    return roll >= 5 ? "swayed" : "stay";
   }
 }

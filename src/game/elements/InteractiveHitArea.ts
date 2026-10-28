@@ -25,3 +25,19 @@ export function centeredHitArea(
     size
   );
 }
+
+/**
+ * Hit area over a standing player figure: a box from the feet (the
+ * container's origin) up to about head height, with the same displayOrigin
+ * shift as centeredHitArea.
+ */
+export function playerHitArea(
+  container: Phaser.GameObjects.Container
+): Phaser.Geom.Rectangle {
+  return new Phaser.Geom.Rectangle(
+    (container.displayOriginX || 0) - 28,
+    (container.displayOriginY || 0) - 70,
+    56,
+    82
+  );
+}
