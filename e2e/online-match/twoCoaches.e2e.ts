@@ -82,7 +82,7 @@ function watch(page: Page, side: Side, rec: Recorder) {
       appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
       return;
     }
-    if (/\[Online\]|\[Networked\]|rejected|resync/i.test(text))
+    if (/\[Online\]|\[Networked\]|\[Lockstep\]|rejected|resync/i.test(text))
       rec.log(`console ${text.slice(0, 300)}`);
   });
 }
@@ -482,6 +482,16 @@ test("an online match between two machines stays in sync", async () => {
       `SEED ${coach.side} sees ${JSON.stringify(await brainCall(coach.page, "probeSeed", code))}`
     );
   for (const coach of [host, guest]) await overlay(coach);
+  // Both engines must start identical; record any difference
+  {
+    const [h, g] = await Promise.all(
+      [host, guest].map((coach) => brainCall(coach.page, "stateDump"))
+    );
+    const diffs = diffPaths(h, g).filter((d) => !d.startsWith("checksum"));
+    mainLog(
+      `START STATE ${diffs.length ? "DIFFERS: " + diffs.slice(0, 8).join(" | ") : "identical"}`
+    );
+  }
 
   // ---- Play ----
   let moves = 0;

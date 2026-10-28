@@ -275,3 +275,16 @@ export function installOverlay(label: string) {
   };
   tick();
 }
+
+/** Online debugging: everything the lockstep checksum covers, and the sum. */
+export async function stateDump() {
+  const { stateChecksum } = await import("../../src/headless/checksum");
+  const g = game ?? attach();
+  return {
+    checksum: stateChecksum(g),
+    snapshot: g.snapshot(),
+    pending: g.pendingDecision(),
+    rng: g.ctx.rng.captureState(),
+    stats: g.ctx.matchStats.captureState(),
+  };
+}
