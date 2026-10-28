@@ -41,7 +41,11 @@ const currentPhase = (): GamePhase | null =>
  */
 export function TurnClock({ code, lobby, match, eventBus, user }: Props) {
   const timer = lobby.timer;
-  const isHost = match.role === "host";
+  // Both browsers run the engine; the coach whose turn it is keeps the clock
+  const myTurn = () =>
+    ServiceContainer.isInitialized() &&
+    ServiceContainer.getInstance().gameService.getActiveTeamId() ===
+      match.myTeamId;
   const turnSeconds = lobby.settings.turnSeconds;
   const [now, setNow] = useState(Date.now());
   const endedForRef = useRef<number | null>(null);
@@ -67,35 +71,38 @@ export function TurnClock({ code, lobby, match, eventBus, user }: Props) {
     match.setClockPaused(!!timer?.pausedBy);
   }, [match, timer?.pausedBy]);
 
-  // Host: (re)set the deadline at the start of every play turn. turnSeconds
+  // The new active coach (re)sets the deadline at the start of every turn. turnSeconds
   // <= 0 is the "no time limit" sentinel (nextTurnDeadline returns null),
   // so the clock UI and expiry enforcement both no-op below.
   useEffect(() => {
-    if (!isHost) return;
-    const onTurn = () =>
+    const onTurn = () => {
+      if (!myTurn()) return;
       void setTurnDeadline(code, nextTurnDeadline(turnSeconds, Date.now()));
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     eventBus.on(GameEventNames.TurnStarted as any, onTurn);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return () => eventBus.off(GameEventNames.TurnStarted as any, onTurn);
-  }, [isHost, code, turnSeconds, eventBus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, turnSeconds, eventBus]);
 
-  // Tick + host enforcement of expiry
+  // Tick, and the active coach ends their own turn on expiry
   useEffect(() => {
     const id = setInterval(() => {
       setNow(Date.now());
-      if (!isHost || !timer?.deadline || timer.pausedBy) return;
+      if (!myTurn() || !timer?.deadline || timer.pausedBy) return;
       if (Date.now() <= timer.deadline) return;
       if (currentPhase() !== GamePhase.PLAY) return;
       if (match.pendingDecision()) return; // don't cut off a mid-block decision
       if (endedForRef.current === timer.deadline) return; // end once per turn
       endedForRef.current = timer.deadline;
-      // Host force-ends the active team's turn (works even if the active
-      // player's client is gone). The next TurnStarted rewrites the deadline.
+      // An end-turn command like any other: the other side replays it.
+      // The next TurnStarted rewrites the deadline.
       ServiceContainer.getInstance().gameService.endTurn();
     }, 500);
     return () => clearInterval(id);
-  }, [isHost, timer?.deadline, timer?.pausedBy, match]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer?.deadline, timer?.pausedBy, match]);
 
   // Auto-resume when my own timeout bank runs dry
   const bankDry = pausedByMe && bankLeft <= 0;
@@ -108,7 +115,7 @@ export function TurnClock({ code, lobby, match, eventBus, user }: Props) {
   }
 
   const pauserName = timer.pausedBy
-    ? match.coachName(timer.pausedBy) ?? "Opponent"
+    ? (match.coachName(timer.pausedBy) ?? "Opponent")
     : null;
   const remaining = timer.pausedBy
     ? (timer.deadline ?? now) - (timer.pausedAt ?? now)

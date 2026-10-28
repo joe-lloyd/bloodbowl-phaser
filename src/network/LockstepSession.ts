@@ -43,6 +43,8 @@ export interface LockstepSessionOptions {
   onHello?: (payload: HelloPayload, from: string) => void;
   onChat?: (payload: ChatPayload, from: string) => void;
   onSelection?: (payload: SelectionPayload, from: string) => void;
+  /** After any command ran on this engine, this coach's or the other's. */
+  onApplied?: (command: HeadlessCommand, own: boolean) => void;
   /** The engine was rebuilt from the other side's full state. */
   onResynced?: () => void;
   /** A command after which the two engines disagreed. */
@@ -96,6 +98,7 @@ export class LockstepSession {
       const response = await this.options.game.execute(command);
       if (!response.ok) return response;
       this.applied++;
+      this.options.onApplied?.(command, true);
       void this.send({
         kind: "command",
         payload: { command, before, after: stateChecksum(this.options.game) },
@@ -219,6 +222,7 @@ export class LockstepSession {
     }
     const response = await game.execute(command);
     this.applied++;
+    this.options.onApplied?.(command, false);
     const now = stateChecksum(game);
     if (!response.ok || now !== after) {
       this.desync(

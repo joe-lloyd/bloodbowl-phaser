@@ -79,13 +79,6 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.hostUid;
 
-      // The seed and dice state: whoever reads them can compute every roll
-      // still to come, so only the host may.
-      match /host/{docId} {
-        allow read, write: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/games/$(code)).data.hostUid;
-      }
-
       match /messages/{messageId} {
         allow read: if request.auth != null
           && (request.auth.uid == get(/databases/$(database)/documents/games/$(code)).data.hostUid

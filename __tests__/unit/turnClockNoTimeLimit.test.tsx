@@ -35,6 +35,8 @@ vi.mock("../../src/services/ServiceContainer", () => ({
     getInstance: () => ({
       gameService: {
         getPhase: () => "PLAY",
+        // The host's turn: the active coach keeps the clock
+        getActiveTeamId: () => "host-team",
         endTurn: hoisted.endTurnMock,
       },
     }),
@@ -56,6 +58,7 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
   const user = { uid: "host-uid" } as AuthUser;
   const match = {
     role: "host",
+    myTeamId: "host-team",
     coachName: () => "Host Coach",
     pendingDecision: () => null,
     setClockPaused: vi.fn(),
@@ -66,7 +69,6 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     hostUid: "host-uid",
     guestUid: "guest-uid",
     status: "active",
-    seed: 1,
     settings: {
       turnSeconds: 0,
       timeoutBankMs: 0,

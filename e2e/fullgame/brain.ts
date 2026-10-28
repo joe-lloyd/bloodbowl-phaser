@@ -167,17 +167,16 @@ export async function next(dialogOpen = false) {
   };
 }
 
-/** Online: can this page's coach read the seed? Only the host should. */
+/** Online: both coaches' seed commitments and the seed they derive. */
 export async function probeSeed(code: string) {
-  const { fetchHostState, fetchLobby } =
-    await import("../../src/firebase/lobby");
-  const lobbySeed = (await fetchLobby(code))?.seed ?? null;
-  try {
-    const state = await fetchHostState(code);
-    return { lobbySeed, hostState: state ? "readable" : "missing" };
-  } catch (error) {
-    return { lobbySeed, hostState: `denied (${(error as Error).message})` };
-  }
+  const { fetchLobby, seedFor } = await import("../../src/firebase/lobby");
+  const lobby = await fetchLobby(code);
+  if (!lobby) return { error: "no lobby" };
+  return {
+    commits: Object.keys(lobby.seedCommits ?? {}).length,
+    reveals: Object.keys(lobby.seedReveals ?? {}).length,
+    seed: await seedFor(lobby).catch((error: Error) => error.message),
+  };
 }
 
 /** Online: may this page's coach act now? Locally one page plays both teams. */

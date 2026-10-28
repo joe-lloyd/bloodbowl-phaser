@@ -68,10 +68,7 @@ export class ServiceContainer {
       team2,
       this.rngService,
       this.blockResolutionService,
-      initialState,
-      undefined,
-      // Only an online guest wraps the engine, and its copy runs no rules
-      gameServiceFactory !== undefined
+      initialState
     );
     if (turnManagerState) {
       gameService.restoreTurnManagerState(turnManagerState);

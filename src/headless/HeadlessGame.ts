@@ -161,7 +161,8 @@ export class HeadlessGame {
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
     this.autoStartOnReady = options.autoStartOnReady !== false;
-    this.kickingTeamId = options.matchSave?.drive.kickingTeamId ?? null;
+    this.kickingTeamId =
+      options.matchSave?.drive.kickingTeamId ?? options.kickingTeamId ?? null;
     this.subscribeToAllEvents();
 
     // A restored save mid-Apothecary-decision has already re-armed the

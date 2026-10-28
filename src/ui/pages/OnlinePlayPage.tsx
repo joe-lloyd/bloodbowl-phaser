@@ -4,8 +4,8 @@ import { EventBus } from "../../services/EventBus";
 import { GamePage } from "./GamePage";
 import { useAuth } from "../hooks/useAuth";
 import {
-  fetchHostState,
   fetchLobby,
+  seedFor,
   subscribeLobby,
   requestEndMatch,
   cancelEndMatch,
@@ -72,15 +72,14 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         // Must exist before GamePage mounts: it initializes ServiceContainer
         // with the right engine (host: native + protocol bridge; guest:
         // networked proxy over a passive replica).
-        // Only the host may read the seed and dice state
-        const hostState =
-          user.uid === loaded.hostUid ? await fetchHostState(code) : null;
+        // Both coaches made the seed; each derives it and checks the other
+        const seed = await seedFor(loaded);
         if (cancelled) return;
         const created = createOnlineMatch({
           lobby: loaded,
           user,
           eventBus,
-          hostState,
+          seed,
         });
         created.onFatalError((message) => setError(message));
         matchRef.current = created;
@@ -300,8 +299,8 @@ function EndMatchModal({
       <div className="bg-slate-900 border-2 border-bb-gold rounded-lg p-6 w-[420px] text-white shadow-2xl text-center">
         <h2 className="text-2xl font-heading text-bb-gold mb-3">End Match?</h2>
         <p className="font-body mb-5">
-          {opponentName} wants to end the match. Agree to finish it for both
-          of you?
+          {opponentName} wants to end the match. Agree to finish it for both of
+          you?
         </p>
         <div className="flex justify-center gap-3">
           <DangerButton onClick={onAgree}>End Match</DangerButton>

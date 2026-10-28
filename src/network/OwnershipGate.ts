@@ -53,7 +53,6 @@ const deny = (reason: GateRejectReason): GateVerdict => ({
   reason,
 });
 
-
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
   "move",
@@ -140,9 +139,7 @@ export function checkOwnership(
     case "select-inducement":
     case "remove-inducement":
     case "confirm-inducements":
-      return command.teamId === senderTeamId
-        ? allow
-        : deny("not-your-player");
+      return command.teamId === senderTeamId ? allow : deny("not-your-player");
 
     // Match ceremony is driven by the host
     case "coin-flip":

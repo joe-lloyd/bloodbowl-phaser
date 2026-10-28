@@ -1,17 +1,15 @@
 /**
- * OnlineMatch - boots an online match in the browser for either role.
+ * OnlineMatch - boots an online match in the browser, the same way for both
+ * coaches.
  *
- * Host: plays natively on the real engine. A HeadlessGame is attached to the
- * same services purely to (a) execute the guest's protocol commands and
- * (b) track pending decisions; an event broadcaster pushes the host's own
- * play to the guest as {events, snapshot} bundles. The host's decision
- * replies (block die, push direction, follow-up, touchback) route through
- * the protocol too, so decision state stays consistent for both coaches.
- *
- * Guest: the UI drives a NetworkedGameService — reads from a passive local
- * replica, mutations over the wire. Incoming bundles re-emit the host's
- * events on the local bus (animations, dialogs, dice log) and then apply
- * the authoritative snapshot to the replica.
+ * Each browser runs the full engine from the same starting state and the
+ * jointly generated seed. The board drives a NetworkedGameService whose
+ * every action becomes an action-protocol command. The coach who may act
+ * runs it on their own engine at once (no network wait) and the
+ * LockstepSession sends just the command and checksums; the other browser
+ * runs the same command and its engine produces the same result. A
+ * HeadlessGame over the engine runs the game's own flow (weather, kickoff,
+ * turns) as each command plays out, so the board only ever renders.
  */
 
 import { IEventBus } from "../services/EventBus";
@@ -21,28 +19,24 @@ import { ServiceContainer } from "../services/ServiceContainer";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
   CommandResponse,
-  EmittedEvent,
   HeadlessCommand,
   PendingDecision,
 } from "../headless/protocol";
 import {
   applySnapshotToTeams,
   deserializeGameState,
-  GameSnapshot,
 } from "../headless/serialization";
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
-import { Player, PlayerStatus } from "../types/Player";
-import { BlockResult } from "../services/BlockResolutionService";
-import { HostSession } from "./HostSession";
-import { GuestSession } from "./GuestSession";
+import { Player } from "../types/Player";
+import { LockstepSession } from "./LockstepSession";
 import { FirestoreTransport } from "./FirestoreTransport";
 import { Transport } from "./transport";
 import { NetworkedGameService } from "./NetworkedGameService";
 import { decisionOwner } from "./OwnershipGate";
 import { PROTOCOL_VERSION } from "./envelope";
-import { HostState, LobbyDoc, persistSnapshot } from "../firebase/lobby";
+import { LobbyDoc, persistMatch } from "../firebase/lobby";
 import { AuthUser } from "../firebase/auth";
 
 export interface ChatMessage {
@@ -94,106 +88,6 @@ export function setActiveOnlineMatch(match: OnlineMatch | null): void {
   activeMatch = match;
 }
 
-/**
- * Whether an incoming snapshot arrived during the guest's own setup turn —
- * the one window where the guest's local placements are optimistic (a
- * command may still be in flight) and a snapshot can be a stale intermediate
- * state rather than the final authoritative one.
- */
-export function shouldPreserveOwnSetup(
-  snapshot: Pick<GameSnapshot, "phase" | "activeTeamId">,
-  myTeamId: string
-): boolean {
-  return (
-    snapshot.phase === GamePhase.SETUP && snapshot.activeTeamId === myTeamId
-  );
-}
-
-/** A player's optimistic on-pitch representation: where they stand, and
- *  whether the record currently considers them on the pitch at all. Both
- *  fields move together — `movePlayerToBox`/`playerBoxOf` treat `status` as
- *  authoritative over `gridPosition`, so preserving one without the other
- *  can still flip a player into the wrong dugout box. */
-export interface SavedSetupPlacement {
-  gridPosition: { x: number; y: number } | undefined;
-  status: PlayerStatus;
-}
-
-/**
- * Snapshot a team's players' optimistic setup placements before an
- * authoritative (but possibly stale/intermediate) snapshot overwrites them.
- */
-export function captureSetupPlacements(
-  team: Team
-): Map<string, SavedSetupPlacement> {
-  return new Map(
-    team.players.map((player) => [
-      player.id,
-      { gridPosition: player.gridPosition, status: player.status },
-    ])
-  );
-}
-
-/**
- * Restore previously-captured optimistic setup placements onto a team's
- * players, undoing whatever an intervening snapshot just applied to them.
- */
-export function restoreSetupPlacements(
-  team: Team,
-  saved: Map<string, SavedSetupPlacement>
-): void {
-  team.players.forEach((player) => {
-    const entry = saved.get(player.id);
-    if (!entry) return;
-    player.gridPosition = entry.gridPosition;
-    player.status = entry.status;
-  });
-}
-
-/**
- * UI-intent events: emitted by dialogs/menus and consumed by phase handlers,
- * which then mutate the engine. They must never cross the wire — replaying
- * one on the other machine would trigger its handlers and loop a command
- * back. Engine→UI prompts (UI_SelectPushDirection, UI_FollowUpPrompt, …)
- * are NOT in this set: the guest needs those to render decision dialogs.
- *
- * UI_LogEntry and UI_Announce are engine-emitted outcomes (the host resolves
- * weather/kickoff/turn flow and describes what happened), not intents — like
- * UI_Notification and DiceRoll they belong OUTSIDE this set so they broadcast
- * normally and a guest's log/announcer matches the host's.
- */
-const UI_INTENT_EVENTS = new Set<string>([
-  GameEventNames.UI_RollBlockDice,
-  GameEventNames.UI_BlockResultSelected,
-  GameEventNames.UI_FollowUpResponse,
-  GameEventNames.UI_RerollResponse,
-  GameEventNames.UI_ReactionResponse,
-  GameEventNames.UI_InterceptionResponse,
-  GameEventNames.UI_ApothecaryResponse,
-  GameEventNames.UI_ConfirmationResult,
-  // The Dodge?/Rush? prompt is the acting coach's own board asking them;
-  // on the other screen it would sit there with nobody to answer it.
-  GameEventNames.UI_RequestConfirmation,
-  GameEventNames.UI_CoinFlipComplete,
-  GameEventNames.UI_SetupAction,
-  GameEventNames.UI_ActionSelected,
-  GameEventNames.UI_CancelAction,
-  GameEventNames.UI_EndActivation,
-  GameEventNames.UI_StepSelected,
-  GameEventNames.UI_StartCoinFlip,
-  GameEventNames.UI_KickoffEventSelectPlayer,
-  GameEventNames.UI_KickoffEventMovePlayer,
-  GameEventNames.UI_KickoffEventPlacePlayer,
-  GameEventNames.UI_KickoffEventDeclareAction,
-  GameEventNames.UI_KickoffEventConfirm,
-  GameEventNames.UI_KickoffEventSkip,
-  // Skipping the end-of-drive beat is a local viewing choice; replaying it
-  // would cut the other coach's sequence short mid-animation.
-  GameEventNames.UI_SkipDriveSequence,
-  // Presentation acknowledgements are local to each client's animation.
-  GameEventNames.UI_PresentationAcknowledged,
-]);
-
 /** Sentinel: this `PlayerSelected` event does not change what should be
  *  broadcast as "my current selection" — either it's not my own team's
  *  player (pure local inspection of the opponent) or it repeats the value
@@ -240,67 +134,18 @@ export function isValidSelectionClaim(
   return player?.teamId === senderTeamId;
 }
 
-/** Buffers native host events and flushes them as one broadcast bundle. */
-class EventBroadcaster {
-  private buffer: EmittedEvent[] = [];
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private paused = false;
-  private readonly unsubscribes: (() => void)[] = [];
-
-  constructor(
-    eventBus: IEventBus,
-    private readonly flush: (events: EmittedEvent[]) => void,
-    private readonly debounceMs = 150
-  ) {
-    Object.values(GameEventNames).forEach((name) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handler = (data: any) => this.record(name, data);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      eventBus.on(name as any, handler);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.unsubscribes.push(() => eventBus.off(name as any, handler));
-    });
-  }
-
-  /** While paused, events are NOT recorded: they already travel inside the
-   *  command response of whatever execute() is running. */
-  pause(): void {
-    this.paused = true;
-  }
-  resume(): void {
-    this.paused = false;
-  }
-
-  private record(name: string, data: unknown): void {
-    if (this.paused || UI_INTENT_EVENTS.has(name)) return;
-    this.buffer.push({ name, data });
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      const events = this.buffer;
-      this.buffer = [];
-      this.timer = null;
-      if (events.length > 0) this.flush(events);
-    }, this.debounceMs);
-  }
-
-  close(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
-  }
-}
-
 interface CreateMatchOptions {
   lobby: LobbyDoc;
   user: AuthUser;
   eventBus: IEventBus;
+  /** The seed both coaches made together (see firebase/lobby seedFor). */
+  seed: number;
   /** Override for tests (defaults to FirestoreTransport on the lobby code) */
   transport?: Transport;
-  /** Host only: the seed and saved dice state from the host's own doc */
-  hostState?: HostState | null;
 }
 
 export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
-  const { lobby, user, eventBus } = options;
+  const { lobby, user, eventBus, seed } = options;
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
   const guestPlayer = lobby.guestUid ? lobby.players[lobby.guestUid] : null;
@@ -311,9 +156,6 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   // Same construction order on both machines: team1 = host's team
   const team1 = hostPlayer.team;
   const team2 = guestPlayer.team;
-  // A resumed match carries the last authoritative state; a fresh one starts
-  // at SETUP/INTRO. Player placements ride on the team objects.
-  const savedSnapshot = lobby.snapshot ?? null;
   const myTeamId = isHost ? team1.id : team2.id;
   const opponentName = isHost
     ? guestPlayer.displayName
@@ -335,10 +177,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
    * other coach, deduped against the last value actually sent (decision
    * logic lives in the pure, independently-testable `nextSelectionToForward`
    * above). Selecting an opponent's player (pure local inspection) is never
-   * forwarded — only a coach's own actionable selection is meaningful to the
-   * other side, since it replaces the old blanket "whole team selectable"
-   * highlight with a single live indicator of what the other coach is
-   * actually doing.
+   * forwarded.
    */
   const subscribeSelectionForwarding = (
     send: (playerId: string | null) => void
@@ -375,457 +214,150 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   const teamName = (teamId: string) =>
     (teamId === team1.id ? team1 : team2).name;
 
-  if (isHost) {
-    return createHostMatch();
-  }
-  return createGuestMatch();
-
-  // ===== Host =====
-
-  function createHostMatch(): OnlineMatch {
-    const hostState = options.hostState;
-    const seed = hostState?.seed ?? lobby.seed;
-    if (seed == null) throw new Error("lobby-not-ready");
-
-    // A resumed match rebuilds the exact saved state; a fresh one boots into
-    // SETUP/INTRO like local play (GameScene.init) so the orchestrator runs
-    // the opening sequence. Without an initial state the engine would default
-    // to SANDBOX_IDLE and nothing would start.
-    let initialState;
-    if (savedSnapshot) {
-      applySnapshotToTeams(savedSnapshot, [team1, team2]);
-      initialState = deserializeGameState(savedSnapshot);
-    } else {
-      initialState = GameService.createInitialState(
-        team1,
-        team2,
-        GamePhase.SETUP,
-        SubPhase.INTRO
-      );
-    }
-    const container = ServiceContainer.initialize(
-      eventBus,
-      team1,
-      team2,
-      initialState,
-      seed,
-      undefined,
-      lobby.settings.progressionEnabled ?? false,
-      hostState?.rng,
-      hostState?.matchStats,
-      savedSnapshot?.turnManager
-    );
-    const native = container.gameService as GameService;
-    const game = new HeadlessGame({
-      ctx: {
-        eventBus,
-        gameService: native,
-        rng: container.rngService,
-        team1,
-        team2,
-        seed,
-        matchStats: container.matchStats,
-      },
-      autoStartOnReady: false,
-    });
-
-    // Persist the authoritative snapshot so the match survives a reload /
-    // "save for later". Throttled to keep Firestore writes cheap, but saved
-    // at every change of turn so a reload loses at most the current turn;
-    // flushed explicitly on saveState()/close.
-    let lastPersist = 0;
-    let persistedTurn = "";
-    const turnKey = () => {
-      const { phase, turn } = native.getState();
-      return `${phase}:${turn.teamId}:${turn.turnNumber}`;
-    };
-    const persistSoon = () => {
-      if (turnKey() !== persistedTurn || Date.now() - lastPersist > 15_000)
-        persistNow();
-    };
-    const persistNow = () => {
-      lastPersist = Date.now();
-      persistedTurn = turnKey();
-      void persistSnapshot(lobby.code, game.snapshot(), {
-        rng: container.rngService.captureState(),
-        matchStats: container.matchStats.captureState(),
-      }).catch((error) =>
-        console.warn("[Online] snapshot persist failed:", error)
-      );
-    };
-
-    const broadcaster = new EventBroadcaster(eventBus, (events) => {
-      void session.broadcastEvents(events);
-      persistSoon();
-    });
-
-    const session = new HostSession({
-      transport,
-      game,
-      hostTeamId: team1.id,
-      guestTeamId: team2.id,
-      selfId: user.uid,
-      onChat: (payload) =>
-        pushChat({
-          text: payload.text,
-          senderName: payload.senderName,
-          fromSelf: false,
-          ts: Date.now(),
-        }),
-      onGuestApplied: () => {
-        persistSoon();
-        // Render the guest's setup placements on the host's board (the scene
-        // doesn't render PlayerPlaced for the opponent). Play renders via
-        // the engine's own events, so limit this to setup.
-        if (native.getPhase() === GamePhase.SETUP) {
-          eventBus.emit(GameEventNames.UI_SyncBoard);
-        }
-      },
-      onHello: checkHello,
-      // A command's response already carries the events it emitted
-      onExecuteStart: () => broadcaster.pause(),
-      onExecuteEnd: () => broadcaster.resume(),
-      // The guest's own-team selection changed — mirror it as a local
-      // "remote selection" indicator, never as engine state. The guest
-      // could claim any playerId, so verify it actually belongs to the
-      // guest's own team before trusting and re-emitting it.
-      onSelection: (payload) => {
-        if (!isValidSelectionClaim(payload.playerId, team2.id, [team1, team2])) {
-          console.warn(
-            "[Online] rejected selection envelope: player is not on the guest's team"
-          );
-          return;
-        }
-        eventBus.emit(GameEventNames.RemoteSelectionChanged, {
-          playerId: payload.playerId,
-        });
-      },
-    });
-    void session.sendHello();
-    const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
-      (playerId) => void session.sendSelection(playerId)
-    );
-
-    /** Host decision replies go through the protocol so pending-decision
-     *  state stays consistent; the broadcast inside executeLocal delivers
-     *  the events. */
-    const executeOnHost = async (
-      command: HeadlessCommand
-    ): Promise<CommandResponse> => {
-      try {
-        const response = await session.executeLocal(command);
-        if (!response.ok) {
-          console.warn(
-            `[Online] host ${command.type} rejected: ${response.reason}`
-          );
-        }
-        return response;
-      } finally {
-        persistSoon();
-      }
-    };
-    const executeAsHost = (command: HeadlessCommand) => {
-      void executeOnHost(command);
-    };
-
-    let swallowNextFinish: string | null = null;
-    const overrides: Partial<IGameService> = {
-      resolveBlock: (_a: string, _d: string, result: BlockResult) => {
-        const pending = game.pendingDecision();
-        if (pending?.type !== "block-dice") return;
-        const wanted = JSON.stringify(result);
-        const index = pending.options.findIndex(
-          (option) => JSON.stringify(option) === wanted
-        );
-        executeAsHost({
-          type: "choose-block-result",
-          index: Math.max(0, index),
-        });
-      },
-      executePush: (
-        _a: string,
-        _d: string,
-        direction: { x: number; y: number }
-      ) => {
-        executeAsHost({
-          type: "choose-push-direction",
-          x: direction.x,
-          y: direction.y,
-        });
-      },
-      followUpPush: (attackerId: string) => {
-        swallowNextFinish = attackerId;
-        executeAsHost({ type: "choose-follow-up", followUp: true });
-      },
-      awardTouchback: (playerId: string) => {
-        executeAsHost({ type: "touchback", playerId });
-        return true;
-      },
-      answerReroll: (accept: boolean, source?: "skill" | "team") => {
-        if (game.pendingDecision()?.type !== "reroll") return false;
-        executeAsHost({ type: "use-reroll", accept, source });
-        return true;
-      },
-      answerReaction: (accept: boolean) => {
-        if (game.pendingDecision()?.type !== "reaction") return false;
-        executeAsHost({ type: "use-reaction", accept });
-        return true;
-      },
-      answerInterception: (playerId?: string) => {
-        if (game.pendingDecision()?.type !== "interception") return false;
-        executeAsHost({ type: "choose-interception", playerId });
-        return true;
-      },
-      answerApothecary: (accept: boolean) => {
-        if (game.pendingDecision()?.type !== "apothecary") return false;
-        executeAsHost({ type: "use-apothecary", accept });
-        return true;
-      },
-      answerInducementChoice: (
-        answer: import("../types/decisions").InducementChoiceDecisionAnswer
-      ) => {
-        if (game.pendingDecision()?.type !== "inducement-choice") return false;
-        executeAsHost({ type: "choose-inducement", ...answer });
-        return true;
-      },
-      finishActivation: (playerId: string) => {
-        if (swallowNextFinish === playerId) {
-          swallowNextFinish = null;
-          return;
-        }
-        if (game.pendingDecision()?.type === "follow-up") {
-          executeAsHost({ type: "choose-follow-up", followUp: false });
-          return;
-        }
-        native.finishActivation(playerId);
-      },
-    };
-
-    // TS `private` is compile-time only, so a Proxy delegating to the live
-    // service is safe: everything behaves natively except decision replies.
-    const hostFacade = new Proxy(native, {
-      get(target, property, receiver) {
-        if (property in overrides) {
-          return overrides[property as keyof IGameService];
-        }
-        const value = Reflect.get(target, property, receiver);
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-    }) as IGameService;
-
-    // Replace the container's service so scene/HUD get the facade
-    (container as { gameService: IGameService }).gameService = hostFacade;
-
-    return finishMatch({
-      role: "host",
-      pendingDecision: () => game.pendingDecision(),
-      sendChatRaw: (text) => void session.sendChat(text, myName),
-      activeTeamId: () => native.getActiveTeamId(),
-      phase: () => native.getPhase(),
-      runProgressionCommand: executeOnHost,
-      saveState: persistNow,
-      close: () => {
-        persistNow(); // final save so a reload resumes where we left off
-        broadcaster.close();
-        unsubscribeSelectionForwarding();
-        session.close();
-        transport.close();
-      },
-    });
-  }
-
-  // ===== Guest =====
-
-  function createGuestMatch(): OnlineMatch {
-    let pending: PendingDecision | null = null;
-    let replica: GameService | null = null;
-    let lastPhase: GamePhase | null = null;
-    let lastSubPhase: SubPhase | null = null;
-
-    const applyBundle = (
-      events: EmittedEvent[],
-      snapshot: GameSnapshot,
-      pendingDecision: PendingDecision | null,
-      resync = false
-    ) => {
-      // 1. Authoritative correction FIRST: snapshot overwrites the replica.
-      //    Exception: during MY own setup turn, my placements are optimistic
-      //    and may not all be acknowledged yet (e.g. a formation loads 7 at
-      //    once, or a reposition's command is still in flight) — trust the
-      //    local gridPosition AND status for my team so nothing flashes back
-      //    to Reserves on a stale intermediate snapshot. They reconcile with
-      //    the host the moment setup is confirmed or the turn moves on (this
-      //    guard goes false).
-      //    This must happen BEFORE the events below are replayed: several
-      //    event handlers (ball/status reconciliation) read fresh state via
-      //    gameService.getState() the instant they fire rather than from the
-      //    event payload — if the replica were still on the previous bundle's
-      //    state when they ran, they'd render stale results (e.g. the ball
-      //    snapping to where it was one bundle ago).
-      if (replica) {
-        const myTeam = myTeamId === team1.id ? team1 : team2;
-        const preserveMySetup = shouldPreserveOwnSetup(snapshot, myTeamId);
-        const saved = preserveMySetup
-          ? captureSetupPlacements(myTeam)
-          : null;
-        applySnapshotToTeams(snapshot, [team1, team2]);
-        Object.assign(replica.getState(), deserializeGameState(snapshot));
-        if (saved) {
-          restoreSetupPlacements(myTeam, saved);
-        }
-        // Per-team turn counters (TurnManager.turnCounts) are not part of
-        // GameState/GameSnapshot proper — restore them from the sidecar
-        // field so the guest's scoreboard turn track (getTurnNumber per
-        // team) matches the host instead of staying frozen at its initial
-        // value for the whole match. Absent on pre-feature bundles.
-        if (snapshot.turnManager) {
-          replica.restoreTurnManagerState(snapshot.turnManager);
-        }
-      }
-
-      // 2. Replay the host's events: animations, dialogs, dice log — now
-      //    against up-to-date replica state (see comment above).
-      for (const event of events) {
-        if (UI_INTENT_EVENTS.has(event.name)) continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        eventBus.emit(event.name as any, event.data as any);
-      }
-      pending = pendingDecision;
-
-      // Cache the last authoritative snapshot so a guest reload has state to
-      // fall back on before the host's resync arrives (best-effort).
-      try {
-        localStorage.setItem(
-          `bb_online_snapshot_${lobby.code}`,
-          JSON.stringify(snapshot)
-        );
-      } catch {
-        // storage full / unavailable — non-fatal
-      }
-
-      // 3. Drive the scene across phase jumps. A resync (or resume of a
-      //    saved mid-play match) carries no PhaseChanged event, so emit one
-      //    ourselves when the phase/subphase moved — the orchestrator is
-      //    idempotent if the host already broadcast the same transition.
-      const subPhase = snapshot.subPhase ?? null;
-      if (snapshot.phase !== lastPhase || subPhase !== lastSubPhase) {
-        lastPhase = snapshot.phase;
-        lastSubPhase = subPhase;
-        eventBus.emit(GameEventNames.PhaseChanged, {
-          phase: snapshot.phase,
-          subPhase: snapshot.subPhase ?? undefined,
-        });
-      }
-
-      // 4. Reconcile the board to authoritative state. In setup this renders
-      //    the opponent's placements (the scene doesn't draw the opponent's
-      //    PlayerPlaced); in play it reconciles status visuals (down/up/
-      //    stunned) that a missed event would otherwise leave stale — the
-      //    scene handler keeps it position-safe during play. Movement itself
-      //    still animates via the replayed events above. A resync has no
-      //    events to animate and may have rewound the match (a reloaded host
-      //    resumes from its last save), so it redraws positions too.
-      eventBus.emit(
-        GameEventNames.UI_SyncBoard,
-        resync ? { positions: true } : undefined
-      );
-    };
-
-    const session = new GuestSession({
-      transport,
-      selfId: user.uid,
-      onApply: (response) =>
-        applyBundle(
-          response.events,
-          response.snapshot,
-          response.pendingDecision
-        ),
-      onBroadcast: (payload) =>
-        applyBundle(
-          payload.response.events,
-          payload.response.snapshot,
-          payload.response.pendingDecision
-        ),
-      onResync: (payload) =>
-        applyBundle([], payload.snapshot, payload.pendingDecision, true),
-      onChat: (payload) =>
-        pushChat({
-          text: payload.text,
-          senderName: payload.senderName,
-          fromSelf: false,
-          ts: Date.now(),
-        }),
-      onHello: checkHello,
-      // The host's own-team selection changed — mirror it as a local
-      // "remote selection" indicator, never as engine state. The host could
-      // claim any playerId, so verify it actually belongs to the host's own
-      // team before trusting and re-emitting it.
-      onSelection: (payload) => {
-        if (!isValidSelectionClaim(payload.playerId, team1.id, [team1, team2])) {
-          console.warn(
-            "[Online] rejected selection envelope: player is not on the host's team"
-          );
-          return;
-        }
-        eventBus.emit(GameEventNames.RemoteSelectionChanged, {
-          playerId: payload.playerId,
-        });
-      },
-    });
-    void session.sendHello();
-    const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
-      (playerId) => void session.sendSelection(playerId)
-    );
-
-    const dispatch = (command: HeadlessCommand): Promise<CommandResponse> =>
-      session.sendCommand(command);
-
-    // The container's engine becomes a passive replica behind the proxy;
-    // its rules never execute (mutators go over the wire). Boot it into
-    // SETUP/INTRO to match the host and the local-play scene, so the
-    // orchestrator enters the SETUP phase instead of sitting in
-    // SANDBOX_IDLE; the host's broadcasts/resync then drive it forward.
-    const initialState = GameService.createInitialState(
+  // A resumed match rebuilds the last saved state; a fresh one boots into
+  // SETUP/INTRO like local play so the opening sequence runs.
+  const saved = lobby.snapshot ? lobby : null;
+  let initialState;
+  if (saved?.snapshot) {
+    applySnapshotToTeams(saved.snapshot, [team1, team2]);
+    initialState = deserializeGameState(saved.snapshot);
+  } else {
+    initialState = GameService.createInitialState(
       team1,
       team2,
       GamePhase.SETUP,
       SubPhase.INTRO
     );
-    ServiceContainer.initialize(
+  }
+
+  let session: LockstepSession | null = null;
+  const dispatch = (command: HeadlessCommand): Promise<CommandResponse> =>
+    runOwn(command);
+
+  let engine: GameService | null = null;
+  const container = ServiceContainer.initialize(
+    eventBus,
+    team1,
+    team2,
+    initialState,
+    seed,
+    (inner: GameService): IGameService => {
+      engine = inner;
+      return new NetworkedGameService(
+        inner,
+        dispatch,
+        () => game.pendingDecision(),
+        eventBus
+      );
+    },
+    lobby.settings.progressionEnabled ?? false,
+    saved?.resume?.rng,
+    saved?.resume?.matchStats,
+    saved?.snapshot?.turnManager
+  );
+  const game: HeadlessGame = new HeadlessGame({
+    ctx: {
       eventBus,
+      gameService: engine!,
+      rng: container.rngService,
       team1,
       team2,
-      initialState,
-      // The replica never rolls: the host's engine rolls every die
-      0,
-      (inner: GameService): IGameService => {
-        replica = inner;
-        return new NetworkedGameService(
-          inner,
-          dispatch,
-          () => pending,
-          eventBus
-        );
-      },
-      lobby.settings.progressionEnabled ?? false
-    );
+      seed,
+      matchStats: container.matchStats,
+    },
+    kickingTeamId: saved?.snapshot?.turnManager?.driveKickingTeamId ?? null,
+  });
 
-    return finishMatch({
-      role: "guest",
-      pendingDecision: () => pending,
-      sendChatRaw: (text) => void session.sendChat(text, myName),
-      activeTeamId: () => replica?.getActiveTeamId() ?? null,
-      phase: () => replica?.getPhase() ?? GamePhase.SETUP,
-      runProgressionCommand: dispatch,
-      // The guest holds no authoritative engine; the host persists state.
-      saveState: () => {},
-      close: () => {
-        unsubscribeSelectionForwarding();
-        session.close();
-        transport.close();
-      },
-    });
-  }
+  // Save at every change of turn, by the coach whose command changed it:
+  // a reload resumes from here, and the other side catches it up.
+  let savedTurn = "";
+  const saveIfTurnChanged = () => {
+    const { phase, turn } = engine!.getState();
+    const key = `${phase}:${turn.teamId}:${turn.turnNumber}`;
+    if (key === savedTurn) return;
+    savedTurn = key;
+    saveNow();
+  };
+  const saveNow = () => {
+    void persistMatch(lobby.code, game.snapshot(), {
+      rng: container.rngService.captureState(),
+      matchStats: container.matchStats.captureState(),
+      applied: session!.appliedCommands(),
+    }).catch((error) => console.warn("[Online] save failed:", error));
+  };
+
+  session = new LockstepSession({
+    transport,
+    game,
+    selfId: user.uid,
+    myTeamId,
+    peerTeamId: isHost ? team2.id : team1.id,
+    hostTeamId: team1.id,
+    appliedCommands: saved?.resume?.applied ?? 0,
+    onHello: checkHello,
+    onChat: (payload) =>
+      pushChat({
+        text: payload.text,
+        senderName: payload.senderName,
+        fromSelf: false,
+        ts: Date.now(),
+      }),
+    // The other coach's own-team selection changed — mirror it as a local
+    // "remote selection" indicator, never as engine state, and only for a
+    // player that really is on their team.
+    onSelection: (payload) => {
+      const theirTeamId = isHost ? team2.id : team1.id;
+      if (
+        !isValidSelectionClaim(payload.playerId, theirTeamId, [team1, team2])
+      ) {
+        console.warn(
+          "[Online] rejected selection envelope: player is not on the sender's team"
+        );
+        return;
+      }
+      eventBus.emit(GameEventNames.RemoteSelectionChanged, {
+        playerId: payload.playerId,
+      });
+    },
+    // The board does not draw the other coach's setup placements by
+    // itself; redraw it after each setup command.
+    onApplied: () => {
+      if (engine!.getPhase() === GamePhase.SETUP)
+        eventBus.emit(GameEventNames.UI_SyncBoard);
+    },
+    // The state was replaced wholesale: redraw where everyone stands.
+    onResynced: () => {
+      eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: engine!.getPhase(),
+        subPhase: engine!.getSubPhase(),
+      });
+      eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
+    },
+  });
+  const runOwn = async (command: HeadlessCommand) => {
+    const response = await session!.run(command);
+    if (response.ok) saveIfTurnChanged();
+    return response;
+  };
+  void session.sendHello();
+  const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
+    (playerId) => void session!.sendSelection(playerId)
+  );
+
+  return finishMatch({
+    role: isHost ? "host" : "guest",
+    pendingDecision: () => game.pendingDecision(),
+    sendChatRaw: (text) => void session!.sendChat(text, myName),
+    activeTeamId: () => engine!.getActiveTeamId(),
+    phase: () => engine!.getPhase(),
+    runProgressionCommand: runOwn,
+    saveState: saveNow,
+    close: () => {
+      unsubscribeSelectionForwarding();
+      session!.close();
+      transport.close();
+    },
+  });
 
   // ===== Shared assembly =====
 

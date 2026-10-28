@@ -11,7 +11,9 @@ import {
   LobbyDoc,
   LobbySettings,
   canStart,
+  commitSeed,
   createLobby,
+  revealSeed,
   joinLobby,
   selectTeam,
   setReady,
@@ -103,6 +105,22 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
     if (!code) return;
     return subscribeLobby(code, setLobby);
   }, [code]);
+
+
+  // The seed both coaches make: commit to a secret once the opponent is
+  // here, reveal it once both have committed (see firebase/lobby).
+  const commits = lobby?.seedCommits ?? {};
+  const reveals = lobby?.seedReveals ?? {};
+  const myUid = user?.uid;
+  const bothCommitted =
+    !!lobby?.guestUid && !!commits[lobby.hostUid] && !!commits[lobby.guestUid];
+  useEffect(() => {
+    if (!lobby || !myUid || lobby.status !== "lobby" || !lobby.guestUid) return;
+    if (!commits[myUid]) void commitSeed(lobby.code, myUid);
+    else if (bothCommitted && !reveals[myUid])
+      void revealSeed(lobby.code, myUid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobby?.code, lobby?.status, lobby?.guestUid, myUid, !!commits[myUid ?? ""], bothCommitted, !!reveals[myUid ?? ""]]);
 
   // Both ready + host started → everyone moves to the match
   useEffect(() => {

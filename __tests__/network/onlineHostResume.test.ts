@@ -1,8 +1,8 @@
 /**
- * A host whose page reloads rebuilds the match from what it last saved.
- * Without its dice state the RNG would start again from the match seed and
- * replay the opening rolls; without its match stats the SPP earned so far
- * would vanish.
+ * A coach whose page reloads rebuilds the match from the last save. Without
+ * its dice state the RNG would start again from the match seed and replay
+ * the opening rolls; without its match stats the SPP earned so far would
+ * vanish.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOnlineMatch } from "../../src/network/OnlineMatch";
@@ -16,7 +16,7 @@ import { LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
 const saves = vi.hoisted(() => ({ turns: [] as number[] }));
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
-  persistSnapshot: async (
+  persistMatch: async (
     _code: string,
     snapshot: { turn: { turnNumber: number } }
   ) => {
@@ -42,7 +42,7 @@ const midMatch: Scenario = {
 afterEach(() => ServiceContainer.reset());
 
 describe("online host resume", () => {
-  it("a reloaded host carries on with the saved dice, match stats and turn counts", () => {
+  it("a reloaded coach carries on with the saved dice, match stats and turn counts", () => {
     // The match as the host last saved it
     const before = new HeadlessGame({ scenario: midMatch, seed: 11 });
     const { team1, team2 } = before.ctx;
@@ -57,10 +57,10 @@ describe("online host resume", () => {
         turnoverInProgress: false,
       },
     };
-    const hostState = {
-      seed: 11,
+    const resume = {
       rng: before.ctx.rng.captureState(),
       matchStats: before.ctx.matchStats.captureState(),
+      applied: 40,
     };
     const nextRolls = before.ctx.rng.rollMultipleDice(4, 6);
 
@@ -69,9 +69,9 @@ describe("online host resume", () => {
       hostUid: "host-uid",
       guestUid: "guest-uid",
       status: "active",
-      seed: null,
       settings: { ...DEFAULT_SETTINGS },
       snapshot,
+      resume,
       players: {
         "host-uid": {
           uid: "host-uid",
@@ -99,18 +99,18 @@ describe("online host resume", () => {
       },
       eventBus: new EventBus(),
       transport: hostEnd,
-      hostState,
+      seed: 11,
     });
 
     const container = ServiceContainer.getInstance();
     expect(container.rngService.rollMultipleDice(4, 6)).toEqual(nextRolls);
-    expect(container.matchStats.captureState()).toEqual(hostState.matchStats);
+    expect(container.matchStats.captureState()).toEqual(resume.matchStats);
     expect(container.gameService.getTurnNumber(team1.id)).toBe(3);
     expect(container.gameService.getTurnNumber(team2.id)).toBe(2);
     match.close();
   });
 
-  it("a host saves at every change of turn, so a reload loses at most one turn", async () => {
+  it("the coach who ends their turn saves the match, so a reload loses at most one turn", async () => {
     const game = new HeadlessGame({ scenario: midMatch, seed: 5 });
     const { team1, team2 } = game.ctx;
     const lobby: LobbyDoc = {
@@ -118,7 +118,6 @@ describe("online host resume", () => {
       hostUid: "host-uid",
       guestUid: "guest-uid",
       status: "active",
-      seed: 5,
       settings: { ...DEFAULT_SETTINGS },
       snapshot: game.snapshot(),
       players: {
@@ -148,18 +147,17 @@ describe("online host resume", () => {
       },
       eventBus: new EventBus(),
       transport: hostEnd,
+      seed: 5,
     });
     const gameService = ServiceContainer.getInstance().gameService;
     const flushed = () => new Promise((resolve) => setTimeout(resolve, 400));
 
     saves.turns.length = 0;
-    gameService.endTurn();
-    await flushed();
+    // The host's turn (team1 is active): ending it is the host's command
     gameService.endTurn();
     await flushed();
 
-    // Two turns ended inside the 15 s throttle; both were saved
-    expect(saves.turns.length).toBeGreaterThanOrEqual(2);
+    expect(saves.turns.length).toBe(1);
     match.close();
   });
 });

@@ -16,53 +16,114 @@ import { GameSnapshot } from "../../src/headless/serialization";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, SkillCategory } from "../../src/types/Skills";
 import { Scenario } from "../../src/types/Scenario";
-import { HostSession } from "../../src/network/HostSession";
-import { GuestSession } from "../../src/network/GuestSession";
-import { createInMemoryTransportPair } from "../../src/network/transport";
-import { Envelope } from "../../src/network/envelope";
+import { LockstepSession } from "../../src/network/LockstepSession";
+import {
+  createInMemoryTransportPair,
+  Transport,
+} from "../../src/network/transport";
 import { decisionOwner, checkOwnership } from "../../src/network/OwnershipGate";
 import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { forceDice } from "../utils/test-helpers";
 
+interface Side {
+  executeLocal(command: HeadlessCommand): Promise<CommandResponse>;
+  sendCommand(command: HeadlessCommand): Promise<CommandResponse>;
+  close(): void;
+}
+
 interface Match {
+  /** The host's engine; the guest's is `guestGame`, kept in lockstep. */
   game: HeadlessGame;
-  host: HostSession;
-  guest: GuestSession;
+  guestGame: HeadlessGame;
+  host: Side;
+  guest: Side;
   hostTeamId: string;
   guestTeamId: string;
+  /** The host's commands the guest's engine replayed. */
   broadcasts: HeadlessCommand[];
   resyncs: number;
 }
 
+/**
+ * Two coaches, each with their own engine, over lockstep sessions: a
+ * command runs on its coach's engine and is replayed on the other one.
+ * Every helper waits until both engines have caught up.
+ */
 function createMatch(options: ConstructorParameters<typeof HeadlessGame>[0]) {
   const game = new HeadlessGame(options);
+  // The same teams, as the lobby hands both coaches
+  const guestGame = new HeadlessGame({
+    ...options,
+    team1: structuredClone(game.ctx.team1),
+    team2: structuredClone(game.ctx.team2),
+  });
   const hostTeamId = game.ctx.team1.id;
   const guestTeamId = game.ctx.team2.id;
   const [hostEnd, guestEnd] = createInMemoryTransportPair();
-
   const match: Match = {
     game,
+    guestGame,
     hostTeamId,
     guestTeamId,
     broadcasts: [],
     resyncs: 0,
-    host: null as unknown as HostSession,
-    guest: null as unknown as GuestSession,
+    host: null as unknown as Side,
+    guest: null as unknown as Side,
   };
-
-  match.host = new HostSession({
-    transport: hostEnd,
+  const session = (
+    engine: HeadlessGame,
+    transport: Transport,
+    mine: string,
+    theirs: string,
+    selfId: string
+  ) =>
+    new LockstepSession({
+      transport,
+      game: engine,
+      selfId,
+      myTeamId: mine,
+      peerTeamId: theirs,
+      hostTeamId,
+      onResynced: () => match.resyncs++,
+    });
+  const hostSession = session(
     game,
+    hostEnd,
     hostTeamId,
     guestTeamId,
-    selfId: "host-uid",
-  });
-  match.guest = new GuestSession({
-    transport: guestEnd,
-    selfId: "guest-uid",
-    onBroadcast: (payload) => match.broadcasts.push(payload.command),
-    onResync: () => match.resyncs++,
-  });
+    "host-uid"
+  );
+  const guestSession = session(
+    guestGame,
+    guestEnd,
+    guestTeamId,
+    hostTeamId,
+    "guest-uid"
+  );
+  const settled = async () => {
+    for (let i = 0; i < 3; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await hostSession.whenIdle();
+      await guestSession.whenIdle();
+    }
+  };
+  const side = (own: LockstepSession, isHost: boolean): Side => {
+    const run = async (command: HeadlessCommand) => {
+      const response = await own.run(command);
+      if (isHost && response.ok) match.broadcasts.push(command);
+      await settled();
+      // The coach's own engine answered; the response reflects the host's
+      // engine so assertions read one board
+      return {
+        ...response,
+        snapshot: game.snapshot(),
+        pendingDecision: game.pendingDecision(),
+      };
+    };
+    return { executeLocal: run, sendCommand: run, close: () => own.close() };
+  };
+  match.host = side(hostSession, true);
+  match.guest = side(guestSession, false);
   return match;
 }
 
@@ -450,8 +511,9 @@ describe("networked sessions", () => {
         ?.players.find((player) => player.id === receiver.id)?.position?.x
     ).toBe(13);
     expect(
-      match.game.snapshot().teams
-        .find((team) => team.id === match.guestTeamId)
+      match.game
+        .snapshot()
+        .teams.find((team) => team.id === match.guestTeamId)
         ?.players.find((player) => player.id === receiver.id)?.position
     ).toEqual(
       moved.snapshot.teams
@@ -516,9 +578,8 @@ describe("networked sessions", () => {
         x: 14,
         y: 5,
       });
-      const result = response.events.find(
-        (e) => e.name === "kickoffResult"
-      )?.data as { event?: KickoffEvent } | undefined;
+      const result = response.events.find((e) => e.name === "kickoffResult")
+        ?.data as { event?: KickoffEvent } | undefined;
       if (
         result?.event === event &&
         response.pendingDecision?.type === "kickoff-event"
@@ -533,9 +594,13 @@ describe("networked sessions", () => {
   }
 
   it("proxies a guest High Kick placement to the host and mirrors the board", async () => {
-    const match = createMatch({ scenario: kickoffInteractionScenario, seed: 1 });
+    const match = createMatch({
+      scenario: kickoffInteractionScenario,
+      seed: 1,
+    });
     // Deviates east 2 squares to the empty (16,5), then High Kick (2 + 3).
-    forceDice(match.game.ctx.rng, [5, 2, 2, 2, 3]);
+    for (const engine of [match.game, match.guestGame])
+      forceDice(engine.ctx.rng, [5, 2, 2, 2, 3]);
     const kicked = await match.host.executeLocal({
       type: "kick-ball",
       playerId: match.game.ctx.team1.players[0].id,
@@ -959,6 +1024,7 @@ describe("networked sessions", () => {
     for (let seed = 1; seed <= 100; seed++) {
       const match = createMatch({ scenario: guestPickup, seed });
       match.game.ctx.team2.rerolls = 3;
+      match.guestGame.ctx.team2.rerolls = 3;
       const mover = match.game.ctx.team2.players[0];
 
       await match.guest.sendCommand({
@@ -1114,9 +1180,11 @@ describe("networked sessions", () => {
       });
     }
 
-    expect(match.game.ctx.gameService.getState().activePlayer).toMatchObject(
-      { id: vampire.id, action: "handoff", committed: true }
-    );
+    expect(match.game.ctx.gameService.getState().activePlayer).toMatchObject({
+      id: vampire.id,
+      action: "handoff",
+      committed: true,
+    });
 
     // A stale guest UI tries to cancel the now-committed declaration.
     const cancelled = await match.guest.sendCommand({
@@ -1152,55 +1220,11 @@ describe("networked sessions", () => {
 
     // The original committed Hand-off survives every stale/forged
     // follow-up untouched.
-    expect(match.game.ctx.gameService.getState().activePlayer).toMatchObject(
-      { id: vampire.id, action: "handoff", committed: true }
-    );
-  });
-
-  it("drops duplicates and requests a resync on a sequence gap", async () => {
-    const game = new HeadlessGame({ seed: 3, startingPhase: GamePhase.SETUP });
-    const chats: string[] = [];
-    const [hostEnd, guestEnd] = createInMemoryTransportPair();
-    let resyncs = 0;
-    const host = new HostSession({
-      transport: hostEnd,
-      game,
-      hostTeamId: game.ctx.team1.id,
-      guestTeamId: game.ctx.team2.id,
-      selfId: "host-uid",
+    expect(match.game.ctx.gameService.getState().activePlayer).toMatchObject({
+      id: vampire.id,
+      action: "handoff",
+      committed: true,
     });
-    const guest = new GuestSession({
-      transport: guestEnd,
-      selfId: "guest-uid",
-      onChat: (payload) => chats.push(payload.text),
-      onResync: () => resyncs++,
-    });
-
-    // In-order chat arrives once, its duplicate is dropped
-    const chat: Envelope = {
-      kind: "chat",
-      payload: { text: "hello", senderName: "Host" },
-      seq: 1,
-      from: "host-uid",
-      ts: Date.now(),
-    };
-    await hostEnd.send(chat);
-    await hostEnd.send(chat);
-    expect(chats).toEqual(["hello"]);
-
-    // A gap (seq jumps 2 → 9) triggers a resync request, host answers it
-    await hostEnd.send({
-      ...chat,
-      payload: { ...chat.payload, text: "gap" },
-      seq: 9,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(chats).toEqual(["hello", "gap"]); // gapped envelope still newest, applied
-    expect(resyncs).toBe(1); // and the view was rebuilt from a snapshot
-
-    host.close();
-    guest.close();
   });
 
   it("delivers a selection-change envelope host→guest and guest→host without touching game state", async () => {
@@ -1208,43 +1232,46 @@ describe("networked sessions", () => {
     const [hostEnd, guestEnd] = createInMemoryTransportPair();
     const hostSeenSelections: (string | null)[] = [];
     const guestSeenSelections: (string | null)[] = [];
-
-    const host = new HostSession({
+    const ids = {
+      myTeamId: game.ctx.team1.id,
+      peerTeamId: game.ctx.team2.id,
+      hostTeamId: game.ctx.team1.id,
+    };
+    const host = new LockstepSession({
+      ...ids,
       transport: hostEnd,
       game,
-      hostTeamId: game.ctx.team1.id,
-      guestTeamId: game.ctx.team2.id,
       selfId: "host-uid",
       onSelection: (payload) => hostSeenSelections.push(payload.playerId),
     });
-    const guest = new GuestSession({
+    const guest = new LockstepSession({
+      ...ids,
+      myTeamId: ids.peerTeamId,
+      peerTeamId: ids.myTeamId,
       transport: guestEnd,
+      game,
       selfId: "guest-uid",
       onSelection: (payload) => guestSeenSelections.push(payload.playerId),
     });
-
     const before = JSON.stringify(game.snapshot());
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Host selects one of its own players; the guest sees it.
     const hostPlayerId = game.ctx.team1.players[0].id;
     await host.sendSelection(hostPlayerId);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
     expect(guestSeenSelections).toEqual([hostPlayerId]);
 
-    // Guest selects one of its own players; the host sees it.
     const guestPlayerId = game.ctx.team2.players[0].id;
     await guest.sendSelection(guestPlayerId);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
     expect(hostSeenSelections).toEqual([guestPlayerId]);
 
-    // A deselection (null) crosses the wire the same way.
     await guest.sendSelection(null);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
     expect(hostSeenSelections).toEqual([guestPlayerId, null]);
 
     // Purely cosmetic: no game command executed, no state changed.
     expect(JSON.stringify(game.snapshot())).toBe(before);
-
     host.close();
     guest.close();
   });
@@ -1261,7 +1288,9 @@ describe("networked sessions", () => {
     // end-turn through whichever side actually owns the active turn (same
     // routing `run()`/`senderSide()` use elsewhere in this file) so the
     // ownership gate doesn't reject an out-of-turn call.
+    // Outside the protocol, so on both engines by hand
     game.ctx.gameService.startGame(hostTeamId);
+    match.guestGame.ctx.gameService.startGame(hostTeamId);
     for (let i = 0; i < 2; i++) {
       const active = game.ctx.gameService.getState().activeTeamId;
       const response =
@@ -1333,5 +1362,55 @@ describe("networked sessions", () => {
       action: "move",
     });
     expect(guestDeclared.ok).toBe(true);
+  });
+
+  it("lets the blocking guest spend a team re-roll on its block dice", async () => {
+    // The re-roll is sent while the block dice are the pending decision,
+    // so the gate must treat it as an answer to that decision.
+    const guestBlocks: Scenario = {
+      id: "guest-block-reroll",
+      name: "Guest blocks",
+      description: "",
+      setup: {
+        team1Placements: [
+          { playerIndex: 0, x: 8, y: 5 },
+          { playerIndex: 1, x: 2, y: 9 },
+        ],
+        team2Placements: [
+          { playerIndex: 0, x: 9, y: 5 },
+          { playerIndex: 1, x: 17, y: 9 },
+        ],
+        activeTeam: "team2",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 1, y: 1 },
+      },
+    };
+    const match = createMatch({ scenario: guestBlocks, seed: 3 });
+    match.game.ctx.team2.rerolls = 2;
+    match.guestGame.ctx.team2.rerolls = 2;
+    const [attacker] = match.game.ctx.team2.players;
+    const [defender] = match.game.ctx.team1.players;
+
+    await match.guest.sendCommand({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    const rolled = await match.guest.sendCommand({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(rolled.pendingDecision?.type).toBe("block-dice");
+
+    const rerolled = await match.guest.sendCommand({
+      type: "team-reroll-block",
+      attackerId: attacker.id,
+    });
+    expect(rerolled.reason).toBeUndefined();
+    expect(rerolled.ok).toBe(true);
+    expect(rerolled.snapshot.teamRerollsUsed?.[match.guestTeamId]).toBe(1);
+    expect(match.resyncs).toBe(0);
   });
 });

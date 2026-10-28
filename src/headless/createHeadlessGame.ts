@@ -57,6 +57,8 @@ export interface HeadlessGameOptions {
   turnManagerState?: TurnManagerState;
   /** Restore every cold-start dependency from a persisted match payload. */
   matchSave?: MatchSave;
+  /** The current drive's kicking team, for a match resumed mid-drive. */
+  kickingTeamId?: string | null;
 }
 
 export interface HeadlessGameContext {

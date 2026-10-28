@@ -1,15 +1,15 @@
 /**
- * NetworkedGameService - the guest's IGameService.
+ * NetworkedGameService - the IGameService the board drives in an online
+ * match, for both coaches.
  *
  * The entire browser UI (scene, HUD, interaction controllers) drives the
- * game through IGameService, so this proxy is the whole guest client:
- * reads are answered from a passive local replica (kept fresh by snapshot
- * application in OnlineMatch), mutations become protocol commands sent to
- * the host, and engine-flow methods are no-ops — the host's engine drives
- * the flow and its results arrive as broadcast events/snapshots.
+ * game through IGameService. Reads come from the local engine; every action
+ * becomes an action-protocol command, which the lockstep session runs on
+ * the local engine at once and sends to the other coach. Engine-flow
+ * methods are no-ops: the engine runs its own flow as commands play out.
  *
- * Sync-returning mutators answer optimistically; the host's response (or
- * rejection) corrects the view within the same exchange.
+ * Sync-returning mutators answer optimistically; the command's result (or
+ * refusal) follows a moment later from the local engine.
  */
 
 import { IGameService } from "../services/interfaces/IGameService";
@@ -26,7 +26,6 @@ import { BlockResult } from "../services/BlockResolutionService";
 import { ActionType, GameEventNames } from "../types/events";
 import { BlockReplacement } from "../types/BlockReplacement";
 import { IEventBus } from "../services/EventBus";
-import { movePlayerToBox } from "../game/rules/playerLocation";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -309,38 +308,13 @@ export class NetworkedGameService implements IGameService {
     }
   }
   placePlayer(playerId: string, x: number, y: number): boolean {
-    // Optimistic: place immediately on the local replica so the board never
-    // flashes back to the dugout while the command round-trips. The host's
-    // response snapshot corrects/rolls back if the placement was illegal.
-    // Routed through movePlayerToBox (not a bare gridPosition assignment) so
-    // `status` moves to ACTIVE in the same step: leaving status stale (still
-    // Reserve, its value at the start of every setup) would make the guest's
-    // own "trust my in-flight setup state" snapshot guard in OnlineMatch
-    // restore that stale Reserve status forever, flipping a correctly-placed
-    // player's dugout box back to Reserves for the rest of their turn.
-    const player = this.inner.getPlayerById(playerId);
-    if (player) movePlayerToBox(player, { box: "pitch", position: { x, y } });
     this.send({ type: "place-player", playerId, x, y });
     return true;
   }
   removePlayer(playerId: string): void {
-    // See placePlayer: keep status in lockstep with gridPosition so the
-    // guest's own optimistic state is never internally inconsistent.
-    const player = this.inner.getPlayerById(playerId);
-    if (player) movePlayerToBox(player, { box: "reserves" });
     this.send({ type: "remove-player", playerId });
   }
   swapPlayers(player1Id: string, player2Id: string): boolean {
-    const a = this.inner.getPlayerById(player1Id);
-    const b = this.inner.getPlayerById(player2Id);
-    if (a && b) {
-      const posA = a.gridPosition;
-      const posB = b.gridPosition;
-      if (posB) movePlayerToBox(a, { box: "pitch", position: posB });
-      else movePlayerToBox(a, { box: "reserves" });
-      if (posA) movePlayerToBox(b, { box: "pitch", position: posA });
-      else movePlayerToBox(b, { box: "reserves" });
-    }
     this.send({ type: "swap-players", player1Id, player2Id });
     return true;
   }
@@ -352,27 +326,15 @@ export class NetworkedGameService implements IGameService {
     teamId: string,
     formation: import("../types/SetupTypes").FormationPosition[]
   ): import("../types/SetupTypes").SetupFormationResult {
+    // The command places them on the local engine a moment later
     const team = this.inner.getTeam(teamId);
     const placedPlayerIds: string[] = [];
-    if (team) {
-      // Only clear players actually on the pitch: routing every player
-      // (including KO'd/injured/dead ones, who never hold a gridPosition)
-      // through movePlayerToBox(reserves) would wrongly stamp them Reserve.
-      team.players.forEach((player) => {
-        if (player.gridPosition) movePlayerToBox(player, { box: "reserves" });
-      });
-      formation.slice(0, 7).forEach((position, index) => {
-        const rosterIndex = Number.parseInt(position.playerId, 10);
-        const player =
-          team.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
-        if (!player) return;
-        movePlayerToBox(player, {
-          box: "pitch",
-          position: { x: position.x, y: position.y },
-        });
-        placedPlayerIds.push(player.id);
-      });
-    }
+    formation.slice(0, 7).forEach((position, index) => {
+      const rosterIndex = Number.parseInt(position.playerId, 10);
+      const player =
+        team?.players[Number.isNaN(rosterIndex) ? index : rosterIndex];
+      if (player) placedPlayerIds.push(player.id);
+    });
     this.send({ type: "apply-formation", teamId, formation });
     return {
       placedPlayerIds,

@@ -96,11 +96,12 @@ export interface LobbyDoc {
   hostUid: string;
   guestUid: string | null;
   status: LobbyStatus;
-  /**
-   * Matches started before the seed moved to the host's own document kept
-   * it here, readable by the guest. New matches leave it null.
-   */
-  seed: number | null;
+  /** Each coach's SHA-256 of a private secret, written before any reveal. */
+  seedCommits?: Record<string, string>;
+  /** Each coach's secret, written once both commitments exist. */
+  seedReveals?: Record<string, string>;
+  /** Dice state and progress saved with `snapshot`, for resuming. */
+  resume?: MatchResume | null;
   settings: LobbySettings;
   players: Record<string, LobbyPlayer>;
   createdAt: unknown;
@@ -139,28 +140,84 @@ function lobbyRef(code: string) {
   return doc(getDb(), "games", code);
 }
 
+/** What, with the snapshot, resumes a match exactly where it was saved. */
+export interface MatchResume {
+  rng: RNGState;
+  matchStats: MatchStatsSnapshot;
+  /** Commands run by then: on rejoining, the side with more is ahead. */
+  applied: number;
+}
+
+// ===== The seed both coaches make =====
+//
+// Each coach picks a secret and first publishes only its hash. Once both
+// hashes are in, both reveal. The seed hashes the two secrets together, so
+// neither coach could pick it: each committed before seeing the other's.
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text)
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function secretKey(code: string, uid: string): string {
+  return `bb_seed_secret_${code}_${uid}`;
+}
+
+/** This coach's secret for the match, kept across a reload of the lobby. */
+function ownSecret(code: string, uid: string): string {
+  const key = secretKey(code, uid);
+  const kept = sessionStorage.getItem(key);
+  if (kept) return kept;
+  const secret = [...crypto.getRandomValues(new Uint8Array(32))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  sessionStorage.setItem(key, secret);
+  return secret;
+}
+
+/** Publish the hash of this coach's secret. */
+export async function commitSeed(code: string, uid: string): Promise<void> {
+  const hash = await sha256Hex(ownSecret(code, uid));
+  await updateDoc(lobbyRef(code), { [`seedCommits.${uid}`]: hash });
+}
+
+/** Publish the secret itself; only once both coaches have committed. */
+export async function revealSeed(code: string, uid: string): Promise<void> {
+  await updateDoc(lobbyRef(code), {
+    [`seedReveals.${uid}`]: ownSecret(code, uid),
+  });
+}
+
 /**
- * What only the host may read: the seed and the dice state. Anyone holding
- * them can compute every roll still to come.
+ * The match seed, from both coaches' secrets, after checking each against
+ * the hash its coach committed. Throws when a reveal does not match.
  */
-export interface HostState {
-  seed: number;
-  rng?: RNGState;
-  matchStats?: MatchStatsSnapshot;
+export async function seedFor(lobby: LobbyDoc): Promise<number> {
+  const uids = [lobby.hostUid, lobby.guestUid ?? ""];
+  const secrets: string[] = [];
+  for (const uid of uids) {
+    const secret = lobby.seedReveals?.[uid];
+    const commit = lobby.seedCommits?.[uid];
+    if (!secret || !commit) throw new Error("seed-not-revealed");
+    if ((await sha256Hex(secret)) !== commit) {
+      throw new Error("A coach's seed does not match what they committed.");
+    }
+    secrets.push(secret);
+  }
+  const hash = await sha256Hex(secrets.join(":"));
+  return parseInt(hash.slice(0, 8), 16) >>> 1;
 }
 
-function hostStateRef(code: string) {
-  return doc(getDb(), "games", code, "host", "state");
-}
-
-export async function fetchHostState(code: string): Promise<HostState | null> {
-  const snapshot = await getDoc(hostStateRef(code));
-  return snapshot.exists() ? (snapshot.data() as HostState) : null;
-}
-
-/** A seed nobody can guess from the time the match started. */
-export function randomSeed(): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
+/** Both coaches have revealed: the match can start. */
+export function seedReady(lobby: LobbyDoc): boolean {
+  return [lobby.hostUid, lobby.guestUid ?? ""].every(
+    (uid) => !!lobby.seedReveals?.[uid] && !!lobby.seedCommits?.[uid]
+  );
 }
 
 function userRef(uid: string) {
@@ -236,7 +293,6 @@ export async function createLobby(
     hostUid,
     guestUid: null,
     status: "lobby",
-    seed: null,
     settings: DEFAULT_SETTINGS,
     players: {
       [hostUid]: {
@@ -391,13 +447,10 @@ export function canStart(lobby: LobbyDoc): boolean {
   const everyone = [lobby.hostUid, lobby.guestUid].map(
     (uid) => lobby.players[uid]
   );
-  return everyone.every((p) => p && p.team && p.ready);
+  return everyone.every((p) => p && p.team && p.ready) && seedReady(lobby);
 }
 
-/**
- * Host starts the match: the seed goes to the host's own document and the
- * lobby flips to active.
- */
+/** Host starts the match; the seed is already fixed by both coaches. */
 export async function startMatch(
   code: string,
   settings: LobbySettings,
@@ -413,11 +466,7 @@ export async function startMatch(
       [guestUid]: settings.timeoutBankMs,
     },
   };
-  const state: HostState = { seed: randomSeed() };
-  const batch = writeBatch(getDb());
-  batch.set(hostStateRef(code), state);
-  batch.update(lobbyRef(code), { status: "active", timer });
-  await batch.commit();
+  await updateDoc(lobbyRef(code), { status: "active", timer });
 }
 
 // ===== Turn clock =====
@@ -489,22 +538,19 @@ export async function resumeClock(
 }
 
 /**
- * Host persists the latest authoritative state so the match can resume.
- * The board goes on the lobby; the dice state goes where only the host can
- * read it. One batch, so a resume never pairs a board with other dice.
+ * Save the match so either coach can resume it. Written by the coach whose
+ * command changed the turn.
  */
-export async function persistSnapshot(
+export async function persistMatch(
   code: string,
   snapshot: GameSnapshot,
-  hostOnly: Omit<HostState, "seed">
+  resume: MatchResume
 ): Promise<void> {
-  const batch = writeBatch(getDb());
-  batch.update(lobbyRef(code), {
+  await updateDoc(lobbyRef(code), {
     snapshot: plain(snapshot),
+    resume: plain(resume),
     snapshotAt: serverTimestamp(),
   });
-  batch.set(hostStateRef(code), plain(hostOnly), { merge: true });
-  await batch.commit();
 }
 
 // ===== Shared coin flip =====
