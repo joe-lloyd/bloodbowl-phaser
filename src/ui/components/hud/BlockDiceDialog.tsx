@@ -317,7 +317,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           <div
             ref={throwHost}
             data-testid="block-dice-throw"
-            className="h-32 w-full overflow-hidden rounded"
+            className="mx-auto h-44 w-[360px] max-w-full overflow-hidden rounded"
           />
         )}
         {rollData && throwing ? (
