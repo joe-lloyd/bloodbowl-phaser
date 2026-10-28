@@ -340,12 +340,15 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       if (engine!.getPhase() === GamePhase.SETUP)
         eventBus.emit(GameEventNames.UI_SyncBoard);
     },
-    // The state was replaced wholesale: redraw where everyone stands.
+    // The state was replaced wholesale: redraw where everyone stands, the
+    // turn and score, and drop a block dialog the old state had open.
     onResynced: () => {
       eventBus.emit(GameEventNames.PhaseChanged, {
         phase: engine!.getPhase(),
         subPhase: engine!.getSubPhase(),
       });
+      eventBus.emit(GameEventNames.GameStateRestored, engine!.getState());
+      eventBus.emit(GameEventNames.UI_BlockRollCancelled);
       eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
     },
   });

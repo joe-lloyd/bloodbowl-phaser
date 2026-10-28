@@ -114,4 +114,33 @@ describe("block dialogs on the other coach's screen", () => {
     }
     throw new Error("no seed gave a push with a follow-up");
   });
+
+  it("closes when this engine refuses the block, instead of covering the board", async () => {
+    const game = new HeadlessGame({ scenario, seed: 1 });
+    const [attacker] = game.ctx.team1.players;
+    const [defender] = game.ctx.team2.players;
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () =>
+      root!.render(<BlockDiceDialog eventBus={game.ctx.eventBus as never} />)
+    );
+    await act(async () =>
+      game.ctx.eventBus.emit(GameEventNames.UI_BlockDialog, {
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        analysis: { diceCount: 2, isUphill: false } as never,
+      })
+    );
+    expect(container.innerHTML).not.toBe("");
+
+    await act(async () =>
+      game.ctx.eventBus.emit(GameEventNames.NetworkCommandRejected, {
+        commandType: "block",
+        playerId: attacker.id,
+        reason: "command-failed: block-not-declared",
+      })
+    );
+    expect(container.innerHTML).toBe("");
+  });
 });

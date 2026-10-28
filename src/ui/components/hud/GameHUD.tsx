@@ -155,8 +155,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     setTurnData((prev) => ({ ...prev, phase: data.phase }));
   });
 
-  // Turn started listener
-  useEventBus(eventBus, GameEventNames.TurnStarted, (turn) => {
+  // Turn started listener; a restored state (online resync) carries its own turn
+  const showTurn = (turn: { teamId: string; turnNumber: number }) => {
     const container = ServiceContainer.getInstance();
     const activeTeam = container.gameService.getTeam(turn.teamId);
 
@@ -175,7 +175,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         hasFouled: state.turn.hasFouled,
       });
     }
-  });
+  };
+  useEventBus(eventBus, GameEventNames.TurnStarted, showTurn);
+  useEventBus(eventBus, GameEventNames.GameStateRestored, (state) =>
+    showTurn(state.turn)
+  );
 
   // Turn Data Updated listener (from PlayerActionManager)
   useEventBus(eventBus, GameEventNames.TurnDataUpdated, (updatedTurn) => {
