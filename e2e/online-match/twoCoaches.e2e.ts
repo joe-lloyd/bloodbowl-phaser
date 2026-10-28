@@ -105,7 +105,14 @@ async function openCoach(side: Side): Promise<Coach> {
     },
   });
   // Time every envelope on both sides (see FirestoreTransport)
-  await context.addInitScript(() => localStorage.setItem("bb_debug_net", "1"));
+  await context.addInitScript(() => {
+    // Also runs in the sign-in popup, where storage is off limits
+    try {
+      localStorage.setItem("bb_debug_net", "1");
+    } catch {
+      // not the app's page
+    }
+  });
   const page = await context.newPage();
   const rec = recorder(side);
   watch(page, side, rec);
