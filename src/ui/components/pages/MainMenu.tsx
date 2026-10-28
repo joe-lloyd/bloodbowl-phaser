@@ -31,7 +31,7 @@ interface ActiveMatch {
  */
 export function MainMenu() {
   const navigate = useNavigate();
-  const { user, onlineAvailable, signIn, signOut } = useAuth();
+  const { user, ready, onlineAvailable, signIn, signOut } = useAuth();
   const coach = useCoachProfile(user);
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeMatch, setActiveMatch] = useState<ActiveMatch | null>(null);
@@ -208,7 +208,9 @@ export function MainMenu() {
             <MenuSection title="Online">
               <Button
                 onClick={() => handleOnline("/online/host")}
-                disabled={!onlineAvailable}
+                // Until the saved session restores, a signed-in coach looks
+                // signed out and would be sent to sign in again.
+                disabled={!onlineAvailable || !ready}
                 title={onlineAvailable ? undefined : ONLINE_HINT}
                 className="w-full text-xl py-4 disabled:opacity-50"
               >
@@ -216,7 +218,7 @@ export function MainMenu() {
               </Button>
               <Button
                 onClick={() => handleOnline("/online/join")}
-                disabled={!onlineAvailable}
+                disabled={!onlineAvailable || !ready}
                 title={onlineAvailable ? undefined : ONLINE_HINT}
                 className="w-full text-xl py-4 disabled:opacity-50"
               >
