@@ -219,18 +219,28 @@ export function view() {
     | undefined;
   const pitch = scene?.getPitch?.();
   if (!scene?.playerSprites || !pitch) return null;
-  const a = pitch.getPixelPosition(0, 0);
-  const b = pitch.getPixelPosition(1, 1);
+  // Nearest square, which works for the square and the isometric pitch
+  const centres: { x: number; y: number; key: string }[] = [];
+  for (let x = 0; x < GameConfig.PITCH_WIDTH; x++)
+    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+      const p = pitch.getPixelPosition(x, y);
+      centres.push({ x: p.x, y: p.y, key: `${x},${y}` });
+    }
+  const near = pitch.getPixelPosition(1, 0);
+  const origin = pitch.getPixelPosition(0, 0);
+  const tile = Math.hypot(near.x - origin.x, near.y - origin.y);
   const square = (sprite: Sprite) => {
-    const x = Math.round((sprite.x - a.x) / (b.x - a.x));
-    const y = Math.round((sprite.y - a.y) / (b.y - a.y));
-    const onPitch =
-      sprite.visible &&
-      x >= 0 &&
-      y >= 0 &&
-      x < GameConfig.PITCH_WIDTH &&
-      y < GameConfig.PITCH_HEIGHT;
-    return onPitch ? `${x},${y}` : "off";
+    if (!sprite.visible) return "off";
+    let best = centres[0];
+    let bestDistance = Infinity;
+    for (const c of centres) {
+      const d = Math.hypot(c.x - sprite.x, c.y - sprite.y);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = c;
+      }
+    }
+    return bestDistance <= tile * 0.6 ? best.key : "off";
   };
   const players: Record<string, string> = {};
   scene.playerSprites.forEach((sprite, id) => {
