@@ -54,7 +54,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     // z-[150]: a confirmation must always sit ABOVE the block/follow-up
     // dialogs (z-[100]) — the blitz "Rush Required!" prompt fires while the
     // block dialog is open and was unreachable behind it
-    <div className="absolute inset-0 z-[150] flex items-center justify-center bg-black/50 pointer-events-auto">
+    <div className="absolute inset-0 z-[150] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto">
       <div
         className={`
                 w-96 p-6 rounded-lg shadow-xl border-2 

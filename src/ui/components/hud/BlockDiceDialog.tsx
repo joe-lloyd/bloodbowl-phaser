@@ -244,7 +244,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   return (
     <div
       data-testid="block-dice-dialog"
-      className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto"
+      className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto"
     >
       <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
         <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
