@@ -235,9 +235,7 @@ export function GamePage({
 
   return (
     <div className="w-full h-full relative">
-      {/* Phaser canvas container */}
-      <div id="game-container" />
-
+      {/* Phaser mounts into #game-container in index.html, behind this overlay. */}
       <LoadingScreen
         eventBus={eventBus}
         teams={matchTeams}
