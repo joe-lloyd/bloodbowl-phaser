@@ -84,7 +84,7 @@ function watch(page: Page, side: Side, rec: Recorder) {
       appendFileSync(`${OUT}/net-${side}.log`, `${Date.now()} ${text}\n`);
       return;
     }
-    if (/\[Online\]|\[Networked\]|\[Lockstep\]|rejected|resync/i.test(text))
+    if (/\[Online\]|\[Networked\]|\[Lockstep\]|\[DiceTray\]|rejected|resync/i.test(text))
       rec.log(`console ${text.slice(0, 300)}`);
   });
 }

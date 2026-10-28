@@ -45,30 +45,35 @@ export class NetworkedGameService implements IGameService {
   ) {}
 
   private send(command: HeadlessCommand): void {
-    void this.dispatch(command).then((response) => {
-      if (!response.ok) {
-        console.warn(
-          `[Networked] host rejected ${command.type}: ${response.reason}`
-        );
-        // Sync-returning mutators below (declareAction, cancelAction, …)
-        // already told their caller "true" before this response arrived —
-        // that optimism only self-corrects the passive replica's DATA (via
-        // the resync/snapshot every response carries). Nothing else corrects
-        // UI-side state built directly on the optimistic return value, so
-        // surface the rejection explicitly.
-        const cmd = command as HeadlessCommand & {
-          playerId?: string;
-          attackerId?: string;
-          action?: string;
-        };
-        this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
-          commandType: command.type,
-          playerId: cmd.playerId ?? cmd.attackerId,
-          action: cmd.action,
-          reason: response.reason ?? "unknown",
-        });
-      }
-    });
+    void this.run(command);
+  }
+
+  /**
+   * Run a command on the lockstep session and report a refusal. Mutators
+   * that answer synchronously (declareAction, cancelAction, …) already told
+   * their caller "true" before this response arrived, and an awaited one
+   * (movePlayer, …) returns nothing, so without this a refused command
+   * failed silently and the board waited on a move that never happened.
+   */
+  private async run(command: HeadlessCommand): Promise<CommandResponse> {
+    const response = await this.dispatch(command);
+    if (!response.ok) {
+      console.warn(
+        `[Networked] host rejected ${command.type}: ${response.reason}`
+      );
+      const cmd = command as HeadlessCommand & {
+        playerId?: string;
+        attackerId?: string;
+        action?: string;
+      };
+      this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
+        commandType: command.type,
+        playerId: cmd.playerId ?? cmd.attackerId,
+        action: cmd.action,
+        reason: response.reason ?? "unknown",
+      });
+    }
+    return response;
   }
 
   // ===== Reads: answered from the replica =====
@@ -369,7 +374,7 @@ export class NetworkedGameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "kick-ball",
       playerId,
       x: targetX,
@@ -423,7 +428,7 @@ export class NetworkedGameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
-    await this.dispatch({ type: "move", playerId, path });
+    await this.run({ type: "move", playerId, path });
   }
   dropBallWithFumblerooski(
     playerId: string,
@@ -441,10 +446,10 @@ export class NetworkedGameService implements IGameService {
     playerId: string,
     target: { x: number; y: number }
   ): Promise<void> {
-    await this.dispatch({ type: "jump", playerId, x: target.x, y: target.y });
+    await this.run({ type: "jump", playerId, x: target.x, y: target.y });
   }
   async standUp(playerId: string): Promise<void> {
-    await this.dispatch({ type: "stand-up", playerId });
+    await this.run({ type: "stand-up", playerId });
   }
   rollBlockDice(
     attackerId: string,
@@ -460,7 +465,7 @@ export class NetworkedGameService implements IGameService {
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "multiple-block",
       attackerId,
       defender1Id,
@@ -519,7 +524,7 @@ export class NetworkedGameService implements IGameService {
     targetY: number,
     hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "pass",
       playerId: passerId,
       x: targetX,
@@ -532,7 +537,7 @@ export class NetworkedGameService implements IGameService {
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "handoff",
       playerId: passerId,
       targetId: targetPlayerId,
@@ -544,7 +549,7 @@ export class NetworkedGameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "punt",
       playerId,
       x: facingX,
@@ -552,7 +557,7 @@ export class NetworkedGameService implements IGameService {
     });
   }
   async stabPlayer(attackerId: string, targetId: string): Promise<boolean> {
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "stab",
       attackerId,
       defenderId: targetId,
@@ -567,7 +572,7 @@ export class NetworkedGameService implements IGameService {
     mode?: "throw" | "kick",
     swoopFacing?: import("../game/rules/throwTeammate").SwoopFacing
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "throw-teammate",
       throwerId,
       teammateId,
@@ -585,7 +590,7 @@ export class NetworkedGameService implements IGameService {
     if (kind === "stab") {
       return this.stabPlayer(attackerId, targetId);
     }
-    const response = await this.dispatch({
+    const response = await this.run({
       type: "special-action",
       action: kind,
       attackerId,
@@ -594,7 +599,7 @@ export class NetworkedGameService implements IGameService {
     return response.ok;
   }
   async throwBomb(throwerId: string, x: number, y: number): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "throw-bomb",
       throwerId,
       x,
@@ -606,7 +611,7 @@ export class NetworkedGameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "ball-and-chain",
       playerId: fanaticId,
       x: facingX,
@@ -618,7 +623,7 @@ export class NetworkedGameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
-    await this.dispatch({
+    await this.run({
       type: "foul",
       playerId: foulerId,
       x: targetX,
