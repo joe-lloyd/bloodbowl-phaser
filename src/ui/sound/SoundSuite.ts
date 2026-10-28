@@ -21,8 +21,6 @@ export class SoundSuite {
   private lastPlayedAt = new Map<SoundName, number>();
   private priorityLockUntil = 0;
   private priorityLockLevel = -Infinity;
-  /** In-flight one-shot samples fired by playSample(), so dispose() can stop them. */
-  private activeSamples = new Set<HTMLAudioElement>();
 
   constructor(
     private readonly eventBus: IEventBus,
@@ -47,7 +45,10 @@ export class SoundSuite {
     this.bind(GameEventNames.Touchdown, () => "touchdown");
     this.bind(GameEventNames.PlayerStatusChanged, (player) => {
       if (player.status === PlayerStatus.REMOVED) return "sendOff";
-      if (player.status === PlayerStatus.KO || player.status === PlayerStatus.INJURED) {
+      if (
+        player.status === PlayerStatus.KO ||
+        player.status === PlayerStatus.INJURED
+      ) {
         return "koInjury";
       }
       return null;
@@ -66,19 +67,6 @@ export class SoundSuite {
   dispose(): void {
     this.unsubs.forEach((unsub) => unsub());
     this.unsubs = [];
-
-    // Stop and release every in-flight one-shot sample — playSample() fires
-    // untracked `new Audio(url)` instances that would otherwise keep playing
-    // after the scene/page is gone.
-    this.activeSamples.forEach((audio) => {
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-      } catch (e) {
-        console.error("SoundSuite: Error stopping sample on dispose", e);
-      }
-    });
-    this.activeSamples.clear();
   }
 
   /** Play a catalog entry directly — used by the audition board, bypassing event bindings. */
@@ -108,7 +96,10 @@ export class SoundSuite {
     const last = this.lastPlayedAt.get(name) ?? 0;
     if (now - last < entry.minRetriggerMs) return;
 
-    if (now < this.priorityLockUntil && entry.priority < this.priorityLockLevel) {
+    if (
+      now < this.priorityLockUntil &&
+      entry.priority < this.priorityLockLevel
+    ) {
       return;
     }
 
@@ -116,25 +107,8 @@ export class SoundSuite {
     this.priorityLockUntil = now + PRIORITY_LOCK_MS;
     this.priorityLockLevel = entry.priority;
 
-    if (entry.sampleUrl) {
-      this.playSample(entry.sampleUrl, settings.volume);
-      return;
-    }
-
-    this.manager.play(entry.build, entry.durationMs);
-  }
-
-  private playSample(url: string, volume: number): void {
-    try {
-      const audio = new Audio(url);
-      audio.volume = Math.min(1, Math.max(0, volume));
-      this.activeSamples.add(audio);
-      const release = () => this.activeSamples.delete(audio);
-      audio.addEventListener("ended", release);
-      audio.addEventListener("error", release);
-      void audio.play();
-    } catch (e) {
-      console.error("SoundSuite: Error playing sample", e);
-    }
+    const variant =
+      entry.samples[Math.floor(Math.random() * entry.samples.length)];
+    this.manager.playSample(variant, entry.build, entry.durationMs);
   }
 }

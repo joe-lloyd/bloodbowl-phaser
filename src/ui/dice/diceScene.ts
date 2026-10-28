@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import * as CANNON from "cannon-es";
+import { soundSettings } from "../sound/settings";
 
 /**
  * 3D dice: a three.js scene with cannon-es physics that acts out a roll the
@@ -459,31 +460,36 @@ export function simulate(count: number): Throw {
 
 // ------------------------------------------------------------------- sound
 
+const CLACK_URLS = [1, 2, 3].map((n) => `/assets/sounds/dice-clack-${n}.mp3`);
+
 let audio: AudioContext | null = null;
-function clack(strength: number) {
-  try {
+let clacks: Promise<AudioBuffer[]> | null = null;
+
+/** Recorded single-die knocks, fetched and decoded once. Empty if audio is unavailable: the dice still roll. */
+function loadClacks(): Promise<AudioBuffer[]> {
+  clacks ??= (async () => {
     audio ??= new AudioContext();
-    const src = audio.createBufferSource();
-    const buf = audio.createBuffer(
-      1,
-      audio.sampleRate * 0.05,
-      audio.sampleRate
+    const ctx = audio;
+    return Promise.all(
+      CLACK_URLS.map(async (url) =>
+        ctx.decodeAudioData(await (await fetch(url)).arrayBuffer())
+      )
     );
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++)
-      d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 3;
-    src.buffer = buf;
-    const filter = audio.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 1800 + Math.random() * 1400;
-    filter.Q.value = 1.4;
+  })().catch(() => []);
+  return clacks;
+}
+
+function clack(strength: number) {
+  void loadClacks().then((buffers) => {
+    if (!audio || buffers.length === 0) return;
+    const src = audio.createBufferSource();
+    src.buffer = buffers[Math.floor(Math.random() * buffers.length)];
+    src.playbackRate.value = 0.9 + Math.random() * 0.2;
     const gain = audio.createGain();
-    gain.gain.value = 0.2 * strength;
-    src.connect(filter).connect(gain).connect(audio.destination);
+    gain.gain.value = 0.6 * strength * soundSettings.get().volume;
+    src.connect(gain).connect(audio.destination);
     src.start();
-  } catch {
-    // No audio is fine: the dice still roll.
-  }
+  });
 }
 
 // ------------------------------------------------------------------- stage
@@ -525,6 +531,7 @@ function throwDice(
   opts: { sound: boolean }
 ): Promise<number[]> {
   const sim = simulate(roll.values.length);
+  if (opts.sound) void loadClacks();
   const gl = getRenderer();
   const width = host.clientWidth;
   const height = host.clientHeight;
