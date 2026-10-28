@@ -8,7 +8,9 @@ import { moveAllowance } from "../../skills/movement";
 import { withDriveModifiers } from "../../kickoff/driveEffects";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { BombSprite } from "../../elements/BombSprite";
-import { GameConfig } from "../../../config/GameConfig";
+import { BallSprite, CARRIED_HEIGHT } from "../../elements/BallSprite";
+import { ISO } from "../../elements/GridUtils";
+import { PLAYER_DEPTH } from "../../elements/PlayerSprite";
 
 /**
  * PlayPhaseHandler
@@ -307,20 +309,14 @@ export class PlayPhaseHandler implements PhaseHandler {
         position: { x: number; y: number };
         bouncePosition: { x: number; y: number };
       }) => {
-        const ballSprite = this.scene["ballSprite"];
-        if (ballSprite) {
-          this.scene["placeBallVisual"](data.position.x, data.position.y);
+        if (this.scene["ballSprite"]) {
+          this.scene["placeBallVisual"](data.position.x, data.position.y, 1);
+          const ball = this.scene["ballSprite"] as BallSprite;
           const target = this.scene["pitch"].getPixelPosition(
             data.bouncePosition.x,
             data.bouncePosition.y
           );
-          this.scene.tweens.add({
-            targets: ballSprite,
-            x: target.x,
-            y: target.y,
-            duration: 400,
-            ease: "Bounce.easeOut",
-          });
+          void ball.flyTo(target, { duration: 420, apex: 0.8 });
         }
       }
     );
@@ -367,34 +363,31 @@ export class PlayPhaseHandler implements PhaseHandler {
     }
   }
 
+  /** A pass: an arc from the thrower's hands, higher the longer the throw. */
   private handlePassAnimation(data: any): void {
-    // Trigger Ball Animation
-    const ballSprite = this.scene["ballSprite"];
-    if (!ballSprite) return;
-
-    this.scene["placeBallVisual"](data.from.x, data.from.y);
-
-    const p1 = this.scene["pitch"].getPixelPosition(
-      data.finalPosition.x,
-      data.finalPosition.y
+    if (!this.scene["ballSprite"]) return;
+    this.scene["placeBallVisual"](data.from.x, data.from.y, CARRIED_HEIGHT);
+    const ball = this.scene["ballSprite"] as BallSprite;
+    const squares = Math.hypot(
+      data.finalPosition.x - data.from.x,
+      data.finalPosition.y - data.from.y
     );
-
-    this.scene.tweens.add({
-      targets: this.scene["ballSprite"],
-      x: p1.x,
-      y: p1.y,
-      duration: 1000,
-      ease: "Quad.easeInOut",
-      onStart: () => {
-        this.scene.tweens.add({
-          targets: this.scene["ballSprite"],
-          scaleX: 1.5,
-          scaleY: 1.5,
-          duration: 500,
-          yoyo: true,
-        });
-      },
+    this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+      ballSprite: ball,
+      animationDuration: 1000,
     });
+    void ball.flyTo(
+      this.scene["pitch"].getPixelPosition(
+        data.finalPosition.x,
+        data.finalPosition.y
+      ),
+      {
+        duration: 500 + squares * 70,
+        apex: 1 + squares * 0.6,
+        endHeight: 0,
+        ease: "Linear",
+      }
+    );
   }
 
   /**
@@ -422,14 +415,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     }
 
     const target = pitch.getPixelPosition(data.landing.x, data.landing.y);
-    this.scene.tweens.add({
-      targets: ballSprite,
-      x: target.x,
-      y: target.y,
-      duration: 500,
-      ease: "Quad.easeOut",
-      onComplete: acknowledge,
-    });
+    void (ballSprite as BallSprite)
+      .flyTo(target, { duration: 900, apex: 7 })
+      .then(acknowledge);
   }
 
   /** Arc a transient BombSprite from the Bomber's square to where it lands. */
@@ -469,13 +457,24 @@ export class PlayPhaseHandler implements PhaseHandler {
     const pitch = this.scene["pitch"];
     if (!pitch) return;
     const centre = pitch.getPixelPosition(data.x, data.y);
-    const s = GameConfig.SQUARE_SIZE;
+    const s = ISO.tileHeight;
 
     // 3×3 area flash — literally the square and its neighbours.
     const area = this.scene.add.graphics();
-    area.setDepth(129);
+    area.setDepth(PLAYER_DEPTH + centre.y + 50);
     area.fillStyle(0xff7722, 0.35);
-    area.fillRect(centre.x - s * 1.5, centre.y - s * 1.5, s * 3, s * 3);
+    area.fillPoints(
+      [
+        [data.x - 1, data.y - 1],
+        [data.x + 2, data.y - 1],
+        [data.x + 2, data.y + 2],
+        [data.x - 1, data.y + 2],
+      ].map(([gx, gy]) => {
+        const p = pitch.getPointPosition(gx, gy);
+        return new Phaser.Math.Vector2(p.x, p.y);
+      }),
+      true
+    );
     this.scene.tweens.add({
       targets: area,
       alpha: 0,
@@ -486,7 +485,7 @@ export class PlayPhaseHandler implements PhaseHandler {
 
     // Expanding fireball, layered hot-to-cool.
     const fireball = this.scene.add.graphics();
-    fireball.setDepth(131);
+    fireball.setDepth(PLAYER_DEPTH + centre.y + 60);
     fireball.fillStyle(0xff4400, 0.55);
     fireball.fillCircle(0, 0, s * 1.5);
     fireball.fillStyle(0xffaa22, 0.7);

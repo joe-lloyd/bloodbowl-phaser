@@ -52,8 +52,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * own highlighting reuses with different colours, so the two never clash.
    */
   private remoteSelectionRing: Phaser.GameObjects.Ellipse;
-  /** Ball shown over the head while this player carries it. */
-  private carrierMarker: Phaser.GameObjects.Container;
+  /** Gold ring at the feet of the ball carrier; the ball itself sits in their hands. */
+  private carrierMarker: Phaser.GameObjects.Ellipse;
   /** Distracted is a condition of a Standing player, so it gets its own mark. */
   private distractedMarker: Phaser.GameObjects.Container;
   /** Stars over a Stunned player, who lies like a Prone one. */
@@ -98,8 +98,12 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     );
     this.remoteSelectionRing.setStrokeStyle(3, 0xff3b30);
     this.remoteSelectionRing.setVisible(false);
+    this.carrierMarker = scene.add.ellipse(0, 0, RING.w - 10, RING.h - 5);
+    this.carrierMarker.setStrokeStyle(3, 0xffc83a, 0.95);
+    this.carrierMarker.setVisible(false);
     this.add([
       shadow,
+      this.carrierMarker,
       this.teamTurnBorder,
       this.selectionRing,
       this.remoteSelectionRing,
@@ -120,15 +124,6 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.numberText.setOrigin(0.5, 0);
     this.add(this.numberText);
 
-    this.carrierMarker = scene.add.container(0, this.headY - 12);
-    const ball = scene.add.ellipse(0, 0, 16, 11, 0x8b4513);
-    ball.setStrokeStyle(2, 0xffffff);
-    const lace = scene.add.graphics();
-    lace.lineStyle(1.5, 0xffffff);
-    lace.lineBetween(-4, 0, 4, 0);
-    this.carrierMarker.add([ball, lace]);
-    this.carrierMarker.setVisible(false);
-    this.add(this.carrierMarker);
 
     this.distractedMarker = scene.add.container(0, this.headY - 12);
     const swirl = scene.add.circle(0, 0, 8, 0x9b59b6);
@@ -344,7 +339,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Show/hide the ball over the carrier's head. Idempotent: driven purely by
+   * Show/hide the carrier's gold ring. Idempotent: driven purely by
    * the resolved ball representation, so repeated reconciliation cannot leave
    * two players marked as carrying.
    */

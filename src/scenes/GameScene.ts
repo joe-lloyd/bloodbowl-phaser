@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { Pitch } from "../game/elements/Pitch";
-import { PlayerSprite, PLAYER_DEPTH } from "../game/elements/PlayerSprite";
-import { BallSprite } from "../game/elements/BallSprite";
+import { PlayerSprite } from "../game/elements/PlayerSprite";
+import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
 import { playerHitArea } from "../game/elements/InteractiveHitArea";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
@@ -90,7 +90,7 @@ export class GameScene extends Phaser.Scene {
   /** Online only: which player the OTHER coach currently has selected. */
   private remoteSelectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
-  protected ballSprite: Phaser.GameObjects.Container | null = null;
+  protected ballSprite: BallSprite | null = null;
   private pendingKickoffData = null; // Stores kick data for scatter animation
   private pitchThemeId: PitchThemeId = DEFAULT_PITCH_THEME_ID;
   private competitionContext?: CompetitionContext;
@@ -1065,13 +1065,18 @@ export class GameScene extends Phaser.Scene {
 
     const tweenConfigs = path.map((step) => {
       const px = this.pitch.getPixelPosition(step.x, step.y);
-      return { x: px.x, y: px.y, duration: 180, ease: "Linear" };
+      return { x: px.x, y: px.y, duration: 200, ease: "Linear" };
     });
 
+    const ball = this.ballSprite;
     this.tweens.chain({
-      targets: this.ballSprite,
+      targets: ball,
       delay: delayMs,
-      tweens: tweenConfigs,
+      tweens: tweenConfigs.map((t) => ({
+        ...t,
+        // Keep depth sorting with the carrier as the ball moves.
+        onUpdate: () => ball.setHeight(ball.altitude),
+      })),
     });
   }
 
@@ -1081,7 +1086,7 @@ export class GameScene extends Phaser.Scene {
    * tweens cancelled) rather than destroyed and recreated, so no code path
    * can leave a second ball behind.
    */
-  protected placeBallVisual(x: number, y: number): void {
+  protected placeBallVisual(x: number, y: number, height = 0): void {
     // A BallKicked delivered to a shut-down scene is what crashed the second
     // match of a session (`new BallSprite` on a null `sys`).
     if (!this.isSceneLive("placeBallVisual")) return;
@@ -1092,19 +1097,13 @@ export class GameScene extends Phaser.Scene {
     if (this.ballSprite?.active) {
       this.tweens.killTweensOf(this.ballSprite);
       this.ballSprite.setPosition(pos.x, pos.y);
-      // Reset the airborne/kickoff treatment so a re-used ball looks the same
-      // as a freshly created one.
-      this.ballSprite.setScale(1);
+      // A re-used ball looks the same as a fresh one: no kick-off fade.
       this.ballSprite.setAlpha(1);
       this.ballSprite.setVisible(true);
     } else {
       this.ballSprite = new BallSprite(this, pos.x, pos.y);
     }
-
-    // CRITICAL: Add ball to SCENE ROOT (not pitch container)
-    // This puts it in the same rendering context as players
-    // Players are at depth 10, so ball at depth 100 will render on top
-    this.ballSprite.setDepth(PLAYER_DEPTH + pos.y + 1);
+    this.ballSprite.setHeight(height);
   }
 
   /**
@@ -1123,7 +1122,11 @@ export class GameScene extends Phaser.Scene {
     } else {
       // Exactly one ball visual, at the one possession square — whether that
       // square is empty (loose) or occupied by the carrier.
-      this.placeBallVisual(ball.square.x, ball.square.y);
+      this.placeBallVisual(
+        ball.square.x,
+        ball.square.y,
+        ball.kind === "carried" ? CARRIED_HEIGHT : 0
+      );
     }
 
     const carrierId = ball.kind === "carried" ? ball.playerId : null;

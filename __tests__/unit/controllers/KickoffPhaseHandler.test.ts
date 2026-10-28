@@ -9,7 +9,12 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
   let scene: any;
 
   beforeEach(() => {
-    const ballSprite = { x: 0, y: 0 };
+    const ballSprite = {
+      x: 0,
+      y: 0,
+      flyTo: vi.fn(() => Promise.resolve()),
+      bounce: vi.fn(() => Promise.resolve()),
+    };
     scene = {
       ballSprite: null,
       pendingKickoffData: null,
@@ -44,13 +49,10 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
     eventBus.removeAllListeners();
   });
 
-  it("uses a translucent single ball while keeping the camera fixed", () => {
-    const cameraEvents: string[] = [];
-    eventBus.on(GameEventNames.Camera_TrackBall, () =>
-      cameraEvents.push("track")
-    );
-    eventBus.on(GameEventNames.Camera_Reset, () =>
-      cameraEvents.push("reset")
+  it("flies one ball up to hang over its landing square, then drops it there", async () => {
+    const tracked: unknown[] = [];
+    eventBus.on(GameEventNames.Camera_TrackBall, (data) =>
+      tracked.push(data.ballSprite)
     );
 
     eventBus.emit(GameEventNames.BallKicked, {
@@ -64,53 +66,43 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
       isTouchback: false,
     });
 
+    // One ball, kicked from the target square (no kicker sprite here), that
+    // climbs to hang 9 m over the deviated square with the camera riding it.
     expect(scene.placeBallVisual).toHaveBeenCalledTimes(1);
-    expect(scene.tweens.add).toHaveBeenCalledWith(
-      expect.objectContaining({
-        targets: scene.ballSprite,
-        x: 780,
-        y: 420,
-        scaleX: 1.5,
-        scaleY: 1.5,
-        alpha: 0.55,
-      })
+    expect(scene.placeBallVisual).toHaveBeenCalledWith(10, 5, 0.3);
+    expect(tracked).toEqual([scene.ballSprite]);
+    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+      { x: 780, y: 420 },
+      expect.objectContaining({ endHeight: 9 })
     );
 
+    // Drifting (Changing Weather) keeps it airborne over the new square.
     eventBus.emit(GameEventNames.KickoffAirbornePositionChanged, {
       x: 14,
       y: 8,
     });
     expect(scene.placeBallVisual).toHaveBeenCalledTimes(1);
-    expect(scene.tweens.add).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        targets: scene.ballSprite,
-        x: 840,
-        y: 480,
-        scaleX: 1.5,
-        scaleY: 1.5,
-        alpha: 0.55,
-      })
+    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+      { x: 840, y: 480 },
+      expect.objectContaining({ endHeight: 9 })
     );
 
+    // Landing brings it down to the ground on that square, with a hop.
     eventBus.emit(GameEventNames.KickoffBallLanding, {
       landingSquare: { x: 14, y: 8 },
       isTouchback: false,
     });
-    expect(scene.tweens.add).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        targets: scene.ballSprite,
-        x: 840,
-        y: 480,
-        scaleX: 0.5,
-        scaleY: 0.5,
-        alpha: 1,
-      })
+    expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
+      { x: 840, y: 480 },
+      expect.objectContaining({ apex: 0 })
     );
+    expect(scene.ballSprite.flyTo.mock.lastCall[1].endHeight ?? 0).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scene.ballSprite.bounce).toHaveBeenCalledTimes(1);
 
     eventBus.emit(GameEventNames.KickoffSequenceCompleted, {
       isTouchback: false,
     });
-    expect(cameraEvents).toEqual([]);
     expect(scene.pendingKickoffData).toBeNull();
   });
 

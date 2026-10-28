@@ -6,6 +6,7 @@ import {
   IEventBus,
 } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
+import { BallSprite } from "../../elements/BallSprite";
 
 /**
  * KickoffPhaseHandler
@@ -50,20 +51,25 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.removeHandlers = [];
   }
 
-  private moveAirborneBallTo(x: number, y: number): void {
-    const ballSprite = this.scene["ballSprite"];
-    if (!ballSprite) return;
+  /** How high the ball hangs while the kick-off table resolves. */
+  private static readonly HANG_HEIGHT = 9;
 
-    const position = this.scene["pitch"].getPixelPosition(x, y);
-    this.scene.tweens.add({
-      targets: ballSprite,
-      x: position.x,
-      y: position.y,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      alpha: 0.55,
+  private ball(): BallSprite | null {
+    return (this.scene["ballSprite"] as BallSprite | null) ?? null;
+  }
+
+  /**
+   * Carry the airborne ball over a new square. It stays up at hang height,
+   * its shadow on the turf showing where it will come down.
+   */
+  private moveAirborneBallTo(x: number, y: number): void {
+    const ball = this.ball();
+    if (!ball) return;
+    void ball.flyTo(this.scene["pitch"].getPixelPosition(x, y), {
       duration: 800,
-      ease: "Quad.easeOut",
+      apex: 1.5,
+      endHeight: KickoffPhaseHandler.HANG_HEIGHT,
+      ease: "Sine.easeInOut",
     });
   }
 
@@ -97,15 +103,29 @@ export class KickoffPhaseHandler implements PhaseHandler {
           }
         }
 
-        this.scene["placeBallVisual"](startX, startY);
+        this.scene["placeBallVisual"](startX, startY, 0.3);
         this.kickoffSceneState().pendingKickoffData = data;
         this.ballIsAirborne = true;
 
-        // The one real ball moves to the deviated square and stays enlarged
-        // there while the kickoff table (including interactive steps)
-        // resolves. Enlarged and translucent means airborne; this is not a
-        // landing. The gameplay camera intentionally stays fixed.
-        this.moveAirborneBallTo(data.finalX, data.finalY);
+        // The kick: the ball climbs high and comes to hang over the square
+        // it deviated to while the kick-off table (including interactive
+        // steps) resolves; the shadow on the turf marks the landing. The
+        // camera rides along with it.
+        const ball = this.ball();
+        if (!ball) return;
+        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+          ballSprite: ball,
+          animationDuration: 1400,
+        });
+        void ball.flyTo(
+          this.scene["pitch"].getPixelPosition(data.finalX, data.finalY),
+          {
+            duration: 1400,
+            apex: 6,
+            endHeight: KickoffPhaseHandler.HANG_HEIGHT,
+            ease: "Sine.easeOut",
+          }
+        );
       }
     );
 
@@ -155,33 +175,28 @@ export class KickoffPhaseHandler implements PhaseHandler {
     this.register(
       GameEventNames.KickoffBallLanding,
       ({ landingSquare, isTouchback }) => {
-        const ballSprite = this.scene["ballSprite"];
-        if (!ballSprite) return;
+        const ball = this.ball();
+        if (!ball) return;
 
         if (isTouchback || !landingSquare) {
           this.scene.tweens.add({
-            targets: ballSprite,
+            targets: ball,
             alpha: 0,
             duration: 500,
             ease: "Quad.easeIn",
           });
+          this.eventBus.emit(GameEventNames.Camera_Reset, { duration: 900 });
           return;
         }
 
+        // Down it comes, with a hop where it lands.
         const position = this.scene["pitch"].getPixelPosition(
           landingSquare.x,
           landingSquare.y
         );
-        this.scene.tweens.add({
-          targets: ballSprite,
-          x: position.x,
-          y: position.y,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          alpha: 1,
-          duration: 650,
-          ease: "Quad.easeIn",
-        });
+        void ball
+          .flyTo(position, { duration: 650, apex: 0, ease: "Quad.easeIn" })
+          .then(() => ball.bounce());
       }
     );
 
