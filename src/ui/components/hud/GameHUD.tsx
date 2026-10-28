@@ -279,28 +279,32 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <HUDLayout
-      left={
-        <div className="flex flex-1 flex-col space-between w-full gap-4">
-          <ScoreBoard eventBus={eventBus} />
-          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
-          <div className="flex flex-1 flex-col gap-4 w-full">
-            <SetupControls eventBus={eventBus} />
-            <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
-          </div>
-          <DiceLog eventBus={eventBus} />
-        </div>
-      }
-      right={
+      topLeft={<ScoreBoard eventBus={eventBus} />}
+      topRight={
         <>
-          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
-          <KickoffEventOverlay eventBus={eventBus} />
-          <PlayerInfoPanel eventBus={eventBus} />
-          <div className="mt-auto pointer-events-auto">
+          <div className="pointer-events-auto">
             <MatchOptionsMenu
               entries={menuEntries}
               onSelect={handleMenuSelect}
             />
           </div>
+          {mode === "sandbox" && <SandboxOverlay eventBus={eventBus} />}
+          <KickoffEventOverlay eventBus={eventBus} />
+        </>
+      }
+      bottomLeft={
+        <>
+          <PlayerInfoPanel eventBus={eventBus} />
+          <div className="h-[26vh] w-full">
+            <DiceLog eventBus={eventBus} />
+          </div>
+        </>
+      }
+      bottomRight={
+        <>
+          <SetupControls eventBus={eventBus} />
+          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
         </>
       }
       overlays={

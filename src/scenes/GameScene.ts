@@ -479,6 +479,9 @@ export class GameScene extends Phaser.Scene {
       else this.cameraController.focusSquare(ball.square.x, ball.square.y);
     });
 
+    // The board is built: the loading screen can go.
+    this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
+
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
     this.events.on(Phaser.Scenes.Events.DESTROY, this.shutdown, this);

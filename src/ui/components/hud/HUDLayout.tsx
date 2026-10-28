@@ -1,44 +1,38 @@
 import React from "react";
 
 interface HUDLayoutProps {
-  left?: React.ReactNode;
-  right?: React.ReactNode;
-  overlays?: React.ReactNode; // For modals, full-screen overlays
+  topLeft?: React.ReactNode;
+  topRight?: React.ReactNode;
+  bottomLeft?: React.ReactNode;
+  bottomRight?: React.ReactNode;
+  /** Modals and full-screen takeovers, outside the corner stacks. */
+  overlays?: React.ReactNode;
 }
 
+const corner = "absolute flex w-72 max-w-[40vw] flex-col gap-3";
+
 /**
- * HUDLayout - Grid-based layout container for all HUD elements
+ * HUDLayout: floating panels in the four corners over a full-window match.
  *
- * Provides consistent spacing and prevents overlaps by using CSS Grid
- * with defined areas for each HUD section.
- *
- * Grid Structure:
- * - Left: Dice log, player action menu
- * - Pitch Area: Empty (Phaser canvas shows through)
- * - Right: Player info panel, sandbox controls
+ * The board fills the window and the camera moves over it, so nothing sits
+ * in fixed side columns any more. Each corner stacks its panels toward the
+ * edge, leaving the middle of the screen to the pitch. Only the panels take
+ * pointer events; clicks anywhere else reach the board.
  */
 export const HUDLayout: React.FC<HUDLayoutProps> = ({
-  left,
-  right,
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight,
   overlays,
-}) => {
-  return (
-    <div className="absolute inset-0 pointer-events-none">
-      {/* Grid container */}
-      <div className="grid-hud h-full w-full p-4 gap-4">
-        {/* Left sidebar */}
-        <div className="grid-area-left flex flex-col gap-4 items-start">
-          {left}
-        </div>
-
-        {/* Right sidebar */}
-        <div className="grid-area-right flex flex-col gap-4 items-end">
-          {right}
-        </div>
-      </div>
-
-      {/* Overlays layer (modals, dialogs) - rendered outside grid */}
-      {overlays}
+}) => (
+  <div className="absolute inset-0 pointer-events-none">
+    <div className={`${corner} left-4 top-4`}>{topLeft}</div>
+    <div className={`${corner} right-4 top-4 items-end`}>{topRight}</div>
+    <div className={`${corner} bottom-4 left-4 justify-end`}>{bottomLeft}</div>
+    <div className={`${corner} bottom-4 right-4 items-end justify-end`}>
+      {bottomRight}
     </div>
-  );
-};
+    {overlays}
+  </div>
+);

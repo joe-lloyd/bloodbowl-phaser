@@ -6,6 +6,7 @@ import { BootScene } from "../../scenes/BootScene";
 import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD, OnlineMatchMenuProps } from "../components/hud/GameHUD";
+import { LoadingScreen } from "../components/hud/LoadingScreen";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 import { CompetitionContext } from "../../competition/types";
@@ -236,6 +237,12 @@ export function GamePage({
     <div className="w-full h-full relative">
       {/* Phaser canvas container */}
       <div id="game-container" />
+
+      <LoadingScreen
+        eventBus={eventBus}
+        teams={matchTeams}
+        styleId={selectedPitchThemeId}
+      />
 
       {/* Game HUD overlay */}
       <GameHUD eventBus={eventBus} mode={mode} onlineMenu={onlineMenu} />

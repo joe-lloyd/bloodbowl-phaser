@@ -9,6 +9,7 @@ import {
   CustomTableCell,
 } from "../componentWarehouse/BloodBowlTable";
 import { Tooltip } from "../componentWarehouse/Tooltip";
+import { PlayerPortrait } from "../common/PlayerPortrait";
 
 interface TeamRosterProps {
   team: Team;
@@ -121,7 +122,15 @@ export function TeamRoster({
                   ) : null}
                 </TableCell>
                 <TableCell className="text-base">
-                  {player.positionName}
+                  <span className="flex items-center gap-2">
+                    <PlayerPortrait
+                      rosterName={team.rosterName}
+                      positionName={player.positionName}
+                      colors={team.colors}
+                      size={40}
+                    />
+                    {player.positionName}
+                  </span>
                 </TableCell>
                 <TableCell className="text-sm font-mono whitespace-nowrap">
                   {player.stats.MA} {player.stats.ST} {player.stats.AG}+{" "}

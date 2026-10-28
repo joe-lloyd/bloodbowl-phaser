@@ -1,4 +1,5 @@
-import { TeamRoster } from "../../../types/Team";
+import { TeamColors, TeamRoster } from "../../../types/Team";
+import { PlayerPortrait } from "../common/PlayerPortrait";
 import { SKILL_DEFINITIONS } from "../../../types/Skills";
 import { Button } from "../componentWarehouse/Button";
 import { Tooltip } from "../componentWarehouse/Tooltip";
@@ -11,12 +12,15 @@ import {
 
 interface AvailableHiresProps {
   roster: TeamRoster;
+  /** The team's kit, so each position is shown in it. */
+  colors?: TeamColors;
   treasury: number;
   onHirePlayer: (positionName: string) => void;
 }
 
 export function AvailableHires({
   roster,
+  colors = { primary: 0x8e1b1b, secondary: 0xffffff },
   treasury,
   onHirePlayer,
 }: AvailableHiresProps) {
@@ -42,7 +46,15 @@ export function AvailableHires({
         {roster.playerTemplates.map((template) => (
           <TableRow key={`hire-${template.positionName}`}>
             <CustomTableCell className="text-base">
-              {template.positionName}
+              <span className="flex items-center gap-2">
+                <PlayerPortrait
+                  rosterName={roster.rosterName}
+                  positionName={template.positionName}
+                  colors={colors}
+                  size={44}
+                />
+                {template.positionName}
+              </span>
             </CustomTableCell>
             <TableCell className="text-sm text-center">
               {template.stats.MA}

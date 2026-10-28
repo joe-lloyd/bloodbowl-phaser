@@ -413,9 +413,10 @@ describe("GameHUD match options menu wiring", () => {
         );
       });
 
-      // No standalone floating sound popup anywhere on the HUD before the
-      // menu is even opened.
-      expect(container.querySelector(".absolute.top-4.right-4")).toBeNull();
+      // No standalone sound controls anywhere on the HUD before the menu is
+      // even opened: mute and volume exist only inside Match Options.
+      expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+      expect(container.querySelector('input[type="range"]')).toBeNull();
 
       await openMenu();
 
@@ -483,7 +484,7 @@ describe("GameHUD match options menu wiring", () => {
         );
       });
       expect(container.querySelector('[role="menu"]')).toBeNull();
-      expect(container.querySelector(".absolute.top-4.right-4")).toBeNull();
+      expect(container.querySelector('input[type="range"]')).toBeNull();
     });
   });
 });
