@@ -4,6 +4,7 @@ import { EventBus } from "../../services/EventBus";
 import { GamePage } from "./GamePage";
 import { useAuth } from "../hooks/useAuth";
 import {
+  fetchHostState,
   fetchLobby,
   subscribeLobby,
   requestEndMatch,
@@ -71,7 +72,16 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         // Must exist before GamePage mounts: it initializes ServiceContainer
         // with the right engine (host: native + protocol bridge; guest:
         // networked proxy over a passive replica).
-        const created = createOnlineMatch({ lobby: loaded, user, eventBus });
+        // Only the host may read the seed and dice state
+        const hostState =
+          user.uid === loaded.hostUid ? await fetchHostState(code) : null;
+        if (cancelled) return;
+        const created = createOnlineMatch({
+          lobby: loaded,
+          user,
+          eventBus,
+          hostState,
+        });
         created.onFatalError((message) => setError(message));
         matchRef.current = created;
         setActiveOnlineMatch(created);

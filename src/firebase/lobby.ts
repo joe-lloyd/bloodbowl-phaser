@@ -27,6 +27,8 @@ import {
 import { getDb } from "./config";
 import { Team } from "../types/Team";
 import { GameSnapshot } from "../headless/serialization";
+import { RNGState } from "../services/rng/RNGService";
+import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { CompetitionContext } from "../competition/types";
 import {
   DEFAULT_PITCH_THEME_ID,
@@ -94,7 +96,10 @@ export interface LobbyDoc {
   hostUid: string;
   guestUid: string | null;
   status: LobbyStatus;
-  /** Match seed, written by the host at start */
+  /**
+   * Matches started before the seed moved to the host's own document kept
+   * it here, readable by the guest. New matches leave it null.
+   */
   seed: number | null;
   settings: LobbySettings;
   players: Record<string, LobbyPlayer>;
@@ -132,6 +137,30 @@ function generateMatchCode(): string {
 
 function lobbyRef(code: string) {
   return doc(getDb(), "games", code);
+}
+
+/**
+ * What only the host may read: the seed and the dice state. Anyone holding
+ * them can compute every roll still to come.
+ */
+export interface HostState {
+  seed: number;
+  rng?: RNGState;
+  matchStats?: MatchStatsSnapshot;
+}
+
+function hostStateRef(code: string) {
+  return doc(getDb(), "games", code, "host", "state");
+}
+
+export async function fetchHostState(code: string): Promise<HostState | null> {
+  const snapshot = await getDoc(hostStateRef(code));
+  return snapshot.exists() ? (snapshot.data() as HostState) : null;
+}
+
+/** A seed nobody can guess from the time the match started. */
+export function randomSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
 }
 
 function userRef(uid: string) {
@@ -365,10 +394,12 @@ export function canStart(lobby: LobbyDoc): boolean {
   return everyone.every((p) => p && p.team && p.ready);
 }
 
-/** Host starts the match: writes the seed and flips status to active. */
+/**
+ * Host starts the match: the seed goes to the host's own document and the
+ * lobby flips to active.
+ */
 export async function startMatch(
   code: string,
-  seed: number,
   settings: LobbySettings,
   hostUid: string,
   guestUid: string
@@ -382,7 +413,11 @@ export async function startMatch(
       [guestUid]: settings.timeoutBankMs,
     },
   };
-  await updateDoc(lobbyRef(code), { seed, status: "active", timer });
+  const state: HostState = { seed: randomSeed() };
+  const batch = writeBatch(getDb());
+  batch.set(hostStateRef(code), state);
+  batch.update(lobbyRef(code), { status: "active", timer });
+  await batch.commit();
 }
 
 // ===== Turn clock =====
@@ -453,15 +488,23 @@ export async function resumeClock(
   });
 }
 
-/** Host persists the latest authoritative state so the match can resume. */
+/**
+ * Host persists the latest authoritative state so the match can resume.
+ * The board goes on the lobby; the dice state goes where only the host can
+ * read it. One batch, so a resume never pairs a board with other dice.
+ */
 export async function persistSnapshot(
   code: string,
-  snapshot: GameSnapshot
+  snapshot: GameSnapshot,
+  hostOnly: Omit<HostState, "seed">
 ): Promise<void> {
-  await updateDoc(lobbyRef(code), {
+  const batch = writeBatch(getDb());
+  batch.update(lobbyRef(code), {
     snapshot: plain(snapshot),
     snapshotAt: serverTimestamp(),
   });
+  batch.set(hostStateRef(code), plain(hostOnly), { merge: true });
+  await batch.commit();
 }
 
 // ===== Shared coin flip =====

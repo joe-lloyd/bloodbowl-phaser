@@ -42,7 +42,7 @@ import { Transport } from "./transport";
 import { NetworkedGameService } from "./NetworkedGameService";
 import { decisionOwner } from "./OwnershipGate";
 import { PROTOCOL_VERSION } from "./envelope";
-import { LobbyDoc, persistSnapshot } from "../firebase/lobby";
+import { HostState, LobbyDoc, persistSnapshot } from "../firebase/lobby";
 import { AuthUser } from "../firebase/auth";
 
 export interface ChatMessage {
@@ -65,7 +65,6 @@ export interface OnlineMatch {
   /** Coach display name controlling the given team (privacy-safe, not Google) */
   coachName(teamId: string): string | undefined;
   teams: { team1: Team; team2: Team };
-  seed: number;
   /** May this player act right now (their turn, or their pending decision)? */
   mayAct(): boolean;
   /** Human label for the waiting overlay when mayAct() is false */
@@ -293,6 +292,8 @@ interface CreateMatchOptions {
   eventBus: IEventBus;
   /** Override for tests (defaults to FirestoreTransport on the lobby code) */
   transport?: Transport;
+  /** Host only: the seed and saved dice state from the host's own doc */
+  hostState?: HostState | null;
 }
 
 export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
@@ -300,14 +301,13 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
   const guestPlayer = lobby.guestUid ? lobby.players[lobby.guestUid] : null;
-  if (!hostPlayer?.team || !guestPlayer?.team || lobby.seed == null) {
+  if (!hostPlayer?.team || !guestPlayer?.team) {
     throw new Error("lobby-not-ready");
   }
 
   // Same construction order on both machines: team1 = host's team
   const team1 = hostPlayer.team;
   const team2 = guestPlayer.team;
-  const seed = lobby.seed;
   // A resumed match carries the last authoritative state; a fresh one starts
   // at SETUP/INTRO. Player placements ride on the team objects.
   const savedSnapshot = lobby.snapshot ?? null;
@@ -380,6 +380,10 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   // ===== Host =====
 
   function createHostMatch(): OnlineMatch {
+    const hostState = options.hostState;
+    const seed = hostState?.seed ?? lobby.seed;
+    if (seed == null) throw new Error("lobby-not-ready");
+
     // A resumed match rebuilds the exact saved state; a fresh one boots into
     // SETUP/INTRO like local play (GameScene.init) so the orchestrator runs
     // the opening sequence. Without an initial state the engine would default
@@ -403,7 +407,10 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       initialState,
       seed,
       undefined,
-      lobby.settings.progressionEnabled ?? false
+      lobby.settings.progressionEnabled ?? false,
+      hostState?.rng,
+      hostState?.matchStats,
+      savedSnapshot?.turnManager
     );
     const native = container.gameService as GameService;
     const game = new HeadlessGame({
@@ -425,7 +432,10 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     let lastPersist = 0;
     const persistNow = () => {
       lastPersist = Date.now();
-      void persistSnapshot(lobby.code, game.snapshot()).catch((error) =>
+      void persistSnapshot(lobby.code, game.snapshot(), {
+        rng: container.rngService.captureState(),
+        matchStats: container.matchStats.captureState(),
+      }).catch((error) =>
         console.warn("[Online] snapshot persist failed:", error)
       );
     };
@@ -766,7 +776,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       team1,
       team2,
       initialState,
-      seed,
+      // The replica never rolls: the host's engine rolls every die
+      0,
       (inner: GameService): IGameService => {
         replica = inner;
         return new NetworkedGameService(
@@ -834,7 +845,6 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       opponentName,
       coachName: (teamId: string) => coachNames[teamId],
       teams: { team1, team2 },
-      seed,
       pendingDecision: parts.pendingDecision,
       mayAct(): boolean {
         if (clockPaused) return false; // clock paused — nobody acts

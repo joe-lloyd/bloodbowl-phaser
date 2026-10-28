@@ -263,7 +263,6 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
             onClick={() =>
               void startMatch(
                 lobby.code,
-                Date.now() & 0x7fffffff,
                 lobby.settings,
                 lobby.hostUid,
                 lobby.guestUid!
