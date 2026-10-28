@@ -18,7 +18,11 @@
  *   team's own players.
  */
 
-import { HeadlessCommand, PendingDecision } from "../headless/protocol";
+import {
+  DECISION_REPLIES,
+  HeadlessCommand,
+  PendingDecision,
+} from "../headless/protocol";
 import { GamePhase } from "../types/GameState";
 
 export interface GateContext {
@@ -49,22 +53,6 @@ const deny = (reason: GateRejectReason): GateVerdict => ({
   reason,
 });
 
-const DECISION_REPLIES = new Set([
-  "choose-block-result",
-  "choose-push-direction",
-  "choose-follow-up",
-  "use-reroll",
-  "use-reaction",
-  "choose-interception",
-  "touchback",
-  "kickoff-select-player",
-  "kickoff-move-player",
-  "kickoff-place-player",
-  "kickoff-confirm",
-  "kickoff-skip",
-  "use-apothecary",
-  "choose-inducement",
-]);
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
@@ -113,7 +101,7 @@ export function checkOwnership(
   }
 
   // Decision replies: only the deciding side, only while one is pending
-  if (DECISION_REPLIES.has(command.type)) {
+  if (command.type in DECISION_REPLIES) {
     if (!ctx.pendingDecision) return deny("no-decision-pending");
     const owner = decisionOwner(ctx.pendingDecision, ctx);
     return owner === senderTeamId ? allow : deny("not-your-decision");

@@ -310,3 +310,27 @@ export interface CommandResponse {
   /** Populated for the offer-inducements query */
   inducementOffer?: InducementOffer;
 }
+
+/** Each command that answers a pending decision, and the decision it answers. */
+export const DECISION_REPLIES: Partial<
+  Record<HeadlessCommand["type"], PendingDecision["type"]>
+> = {
+  "choose-block-result": "block-dice",
+  "team-reroll-block": "block-dice",
+  "pro-reroll-block": "block-dice",
+  "brawler-reroll-block": "block-dice",
+  "veteran-reroll-block": "block-dice",
+  "choose-push-direction": "push-direction",
+  "choose-follow-up": "follow-up",
+  "use-reroll": "reroll",
+  "use-reaction": "reaction",
+  "choose-interception": "interception",
+  touchback: "touchback",
+  "use-apothecary": "apothecary",
+  "choose-inducement": "inducement-choice",
+  "kickoff-select-player": "kickoff-event",
+  "kickoff-move-player": "kickoff-event",
+  "kickoff-place-player": "kickoff-event",
+  "kickoff-confirm": "kickoff-event",
+  "kickoff-skip": "kickoff-event",
+};

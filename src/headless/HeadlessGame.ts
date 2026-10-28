@@ -19,6 +19,7 @@ import {
   LegalActions,
   PlayerActions,
   GridPosition,
+  DECISION_REPLIES,
 } from "./protocol";
 import { serializeGameState, GameSnapshot } from "./serialization";
 import { GameEventNames, ActionType } from "../types/events";
@@ -131,26 +132,6 @@ const COMMAND_SHAPES: Record<
   "legal-actions": {},
 };
 
-const DECISION_REPLIES: Record<string, PendingDecision["type"]> = {
-  "choose-block-result": "block-dice",
-  "team-reroll-block": "block-dice",
-  "pro-reroll-block": "block-dice",
-  "brawler-reroll-block": "block-dice",
-  "veteran-reroll-block": "block-dice",
-  "choose-push-direction": "push-direction",
-  "choose-follow-up": "follow-up",
-  "use-reroll": "reroll",
-  "use-reaction": "reaction",
-  "choose-interception": "interception",
-  touchback: "touchback",
-  "use-apothecary": "apothecary",
-  "choose-inducement": "inducement-choice",
-  "kickoff-select-player": "kickoff-event",
-  "kickoff-move-player": "kickoff-event",
-  "kickoff-place-player": "kickoff-event",
-  "kickoff-confirm": "kickoff-event",
-  "kickoff-skip": "kickoff-event",
-};
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
