@@ -227,7 +227,8 @@ export class GameService implements IGameService {
     rngService: IRNGService,
     blockResolutionService: BlockResolutionService,
     initialState?: GameState,
-    private delay: DelayProvider = realTimeDelay
+    private delay: DelayProvider = realTimeDelay,
+    replica = false
   ) {
     this.team1 = team1;
     this.team2 = team2;
@@ -338,40 +339,45 @@ export class GameService implements IGameService {
       }
     );
 
-    // Conditions expire on engine events, not in rules: Rooted ends when
-    // its player is Knocked Down or Placed Prone; Chomped ends the moment
-    // the chomper is no longer Marking the victim (moved, downed, pushed).
-    eventBus.on(
-      GameEventNames.PlayerKnockedDown,
-      ({ playerId }: { playerId: string }) => {
-        // A Charge! player going down aborts the whole sequence at once
-        this.kickoffEventManager?.noteChargePlayerDown(playerId);
-        this.onPlayerDowned(playerId);
-      }
-    );
-    eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
-      if (p.status !== PlayerStatus.ACTIVE) this.onPlayerDowned(p.id);
-      this.sweepChomped();
-    });
-    eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
-    eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
-      if (phase === GamePhase.GAME_OVER) {
-        // Get the Ref bribes are match-scoped and never leave this match.
-        this.state.bribes = {};
-        // Prayer and Desperate Measure grants last for this game only.
-        revokeMatchGrants(this.state, [
-          ...this.team1.players,
-          ...this.team2.players,
-        ]);
-        this.announceFullTime();
-        this.updateDedicatedFans();
-      }
-    });
-    // A Blitz's single block is tracked per activation; a fresh turn clears it.
-    eventBus.on(GameEventNames.TurnStarted, () => {
-      this.blitzBlockUsed.clear();
-      this.puntUsedThisTurn = false;
-    });
+    // An online guest's copy only mirrors the host's snapshots. Its rules
+    // must not run on the host's replayed events: the game-over handler
+    // would roll Dedicated Fans with the guest's own dice.
+    if (!replica) {
+      // Conditions expire on engine events, not in rules: Rooted ends when
+      // its player is Knocked Down or Placed Prone; Chomped ends the moment
+      // the chomper is no longer Marking the victim (moved, downed, pushed).
+      eventBus.on(
+        GameEventNames.PlayerKnockedDown,
+        ({ playerId }: { playerId: string }) => {
+          // A Charge! player going down aborts the whole sequence at once
+          this.kickoffEventManager?.noteChargePlayerDown(playerId);
+          this.onPlayerDowned(playerId);
+        }
+      );
+      eventBus.on(GameEventNames.PlayerStatusChanged, (p: Player) => {
+        if (p.status !== PlayerStatus.ACTIVE) this.onPlayerDowned(p.id);
+        this.sweepChomped();
+      });
+      eventBus.on(GameEventNames.PlayerMoved, () => this.sweepChomped());
+      eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
+        if (phase === GamePhase.GAME_OVER) {
+          // Get the Ref bribes are match-scoped and never leave this match.
+          this.state.bribes = {};
+          // Prayer and Desperate Measure grants last for this game only.
+          revokeMatchGrants(this.state, [
+            ...this.team1.players,
+            ...this.team2.players,
+          ]);
+          this.announceFullTime();
+          this.updateDedicatedFans();
+        }
+      });
+      // A Blitz's single block is tracked per activation; a fresh turn clears it.
+      eventBus.on(GameEventNames.TurnStarted, () => {
+        this.blitzBlockUsed.clear();
+        this.puntUsedThisTurn = false;
+      });
+    }
 
     this.passController = new PassController(
       eventBus,

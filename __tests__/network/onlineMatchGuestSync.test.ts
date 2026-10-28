@@ -164,4 +164,29 @@ describe("OnlineMatch guest bundle application", () => {
     expect(gameService.getTurnNumber(team1.id)).toBe(3);
     expect(gameService.getTurnNumber(team2.id)).toBe(2);
   });
+
+  it("leaves the full-time Dedicated Fans roll to the host: the guest's copy rolls nothing", async () => {
+    const { team1, team2, baseSnapshot, broadcast } = bootGuestMatch();
+    for (const team of [team1, team2]) {
+      team.advancementMode = "sevens-skill-selection";
+      team.dedicatedFans = 3;
+    }
+    const eventBus = ServiceContainer.getInstance().eventBus;
+    const localRolls: unknown[] = [];
+    eventBus.on(GameEventNames.DiceRoll, (roll) => localRolls.push(roll));
+
+    // The host announces full time; its own fans roll travels separately
+    // A 1-0 result: both teams roll for fans, a draw would not
+    const score = { [team1.id]: 1, [team2.id]: 0 };
+    await broadcast({ ...baseSnapshot, phase: GamePhase.GAME_OVER, score }, [
+      {
+        name: GameEventNames.PhaseChanged,
+        data: { phase: GamePhase.GAME_OVER },
+      },
+    ]);
+
+    expect(localRolls).toEqual([]);
+    expect(team1.dedicatedFans).toBe(3);
+    expect(team2.dedicatedFans).toBe(3);
+  });
 });
