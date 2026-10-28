@@ -303,7 +303,12 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0)
       .setDepth(-1)
       .setInteractive()
-      .on("pointerdown", () => this.onBackgroundClick());
+      .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        // Squares on the pitch belong to the gameplay controller; only a
+        // click in the stands or the surrounds deselects.
+        const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
+        if (!this.pitch.isOnPitch(square)) this.onBackgroundClick();
+      });
 
     // 2. The overlay layer, anchored on the far corner of square (0, 0).
     const origin = this.stadium.origin;
