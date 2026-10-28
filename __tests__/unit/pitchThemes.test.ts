@@ -21,8 +21,8 @@ describe("match styles", () => {
 
   it("gives every style its own stadium and sprite folders", () => {
     for (const theme of PITCH_THEMES) {
-      expect(theme.stadiumPath).toBe(`stadium/${theme.id}`);
-      expect(theme.spritePath).toBe(`sprites/${theme.id}`);
+      expect(theme.stadiumPath).toBe(`/stadium/${theme.id}`);
+      expect(theme.spritePath).toBe(`/sprites/${theme.id}`);
     }
   });
 
