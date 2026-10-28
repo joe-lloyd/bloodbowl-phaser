@@ -509,27 +509,76 @@ function getRenderer(): THREE.WebGLRenderer {
 
 /** Throws share one renderer, so they take turns. */
 let lane: Promise<unknown> = Promise.resolve();
+/** The throw on screen; a new one takes the renderer over from it. */
+let showing: { stop(): void } | null = null;
+
+/** A throw on screen: it lands, lifts its dice to face the viewer, and holds. */
+export interface DiceThrow {
+  /** The values, once the dice have landed and been lifted up to be read. */
+  landed: Promise<number[]>;
+  /** Called with a die's index when the coach clicks a lifted die. */
+  onPick(listener: (index: number) => void): void;
+  /** Bring one die forward (the chosen block result), or reset with null. */
+  mark(index: number | null): void;
+  /** Stop drawing this throw. */
+  stop(): void;
+}
 
 /**
- * Play a roll into `host` and resolve once the dice have settled. Returns
- * the values read back off the top faces, which always equal `roll.values`.
- * A throw asked for while another is in the air starts when it lands.
+ * Throw a roll into `host`. Every roll, D6 or block dice, plays the same way
+ * in the same box: the dice tumble and land, then lift up toward the viewer
+ * with their result face turned to the front, and stay there until the next
+ * throw or stop(). A throw asked for while another is in the air starts
+ * when that one has landed.
  */
 export function playRoll(
   host: HTMLElement,
   roll: DiceRoll,
   opts: { sound: boolean }
-): Promise<number[]> {
-  const run = lane.then(() => throwDice(host, roll, opts));
-  lane = run.catch(() => undefined);
-  return run;
+): DiceThrow {
+  const pickers: ((index: number) => void)[] = [];
+  let marked: number | null = null;
+  let control: Pick<DiceThrow, "mark" | "stop"> | null = null;
+  let stopped = false;
+  const landed = lane.then(() => {
+    if (stopped) return roll.values;
+    return throwDice(host, roll, opts, {
+      pick: (index) => pickers.forEach((listener) => listener(index)),
+      ready: (c) => {
+        control = c;
+        c.mark(marked);
+      },
+    });
+  });
+  lane = landed.catch(() => undefined);
+  return {
+    landed,
+    onPick: (listener) => pickers.push(listener),
+    mark: (index) => {
+      marked = index;
+      control?.mark(index);
+    },
+    stop: () => {
+      stopped = true;
+      control?.stop();
+    },
+  };
 }
+
+/** How far toward the camera the lifted dice sit (0 = table, 1 = lens). */
+const LIFT = 0.63;
+const LIFT_MS = 420;
 
 function throwDice(
   host: HTMLElement,
   roll: DiceRoll,
-  opts: { sound: boolean }
+  opts: { sound: boolean },
+  hooks: {
+    pick: (index: number) => void;
+    ready: (control: Pick<DiceThrow, "mark" | "stop">) => void;
+  }
 ): Promise<number[]> {
+  showing?.stop();
   const sim = simulate(roll.values.length);
   if (opts.sound) void loadClacks();
   const gl = getRenderer();
@@ -541,7 +590,8 @@ function throwDice(
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 100);
   camera.position.set(0, 9.4, 5.4);
-  camera.lookAt(0, 0, 0.15);
+  const lookAt = new THREE.Vector3(0, 0, 0.15);
+  camera.lookAt(lookAt);
   scene.add(
     new THREE.HemisphereLight(0xfff4e0, 0x1a1020, roll.neon ? 0.9 : 1.6)
   );
@@ -572,34 +622,145 @@ function throwDice(
     return mesh;
   });
 
+  // Lifted: in a row between the table and the lens, result face forward
+  const lifted = meshes.map((_mesh, i) => {
+    const spread = (i - (meshes.length - 1) / 2) * 1.35;
+    const position = camera.position
+      .clone()
+      .lerp(lookAt, LIFT)
+      .add(new THREE.Vector3(spread, 0, 0));
+    return { position, quaternion: new THREE.Quaternion() };
+  });
+  const faceForward = (mesh: THREE.Mesh, at: THREE.Vector3) => {
+    const { face } = upFace(mesh.quaternion);
+    const local = new THREE.Vector3(...FACE_NORMALS[face]);
+    // A face next to it keeps the face upright on screen
+    const side = new THREE.Vector3(
+      ...FACE_NORMALS[FACE_NORMALS.findIndex((_n, k) => k >> 1 !== face >> 1)]
+    );
+    const toCamera = camera.position.clone().sub(at).normalize();
+    const screenUp = new THREE.Vector3(0, 1, 0)
+      .applyQuaternion(camera.quaternion)
+      .projectOnPlane(toCamera)
+      .normalize();
+    const world = new THREE.Matrix4().makeBasis(
+      toCamera,
+      screenUp,
+      toCamera.clone().cross(screenUp)
+    );
+    const body = new THREE.Matrix4().makeBasis(
+      local,
+      side,
+      local.clone().cross(side)
+    );
+    return new THREE.Quaternion().setFromRotationMatrix(
+      world.multiply(body.transpose())
+    );
+  };
+
+  let running = true;
+  let markedIndex: number | null = null;
+  const stop = () => {
+    if (!running) return;
+    running = false;
+    if (showing === control) showing = null;
+    gl.domElement.removeEventListener("pointerdown", onPointerDown);
+    gl.domElement.removeEventListener("pointermove", onPointerMove);
+    gl.domElement.style.cursor = "";
+    geometry.dispose();
+  };
+  const control = {
+    stop,
+    mark: (index: number | null) => {
+      markedIndex = index;
+    },
+  };
+  showing = control;
+
+  // Clicking a lifted die picks it
+  let liftedAt: number | null = null;
+  const raycaster = new THREE.Raycaster();
+  const dieAt = (event: PointerEvent): number => {
+    if (liftedAt === null) return -1;
+    const box = gl.domElement.getBoundingClientRect();
+    const pointer = new THREE.Vector2(
+      ((event.clientX - box.left) / box.width) * 2 - 1,
+      -((event.clientY - box.top) / box.height) * 2 + 1
+    );
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(meshes)[0];
+    return hit ? meshes.findIndex((m) => m === hit.object) : -1;
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    const index = dieAt(event);
+    if (index >= 0) hooks.pick(index);
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    gl.domElement.style.cursor = dieAt(event) >= 0 ? "pointer" : "";
+  };
+  gl.domElement.addEventListener("pointerdown", onPointerDown);
+  gl.domElement.addEventListener("pointermove", onPointerMove);
+  hooks.ready(control);
+
   return new Promise((resolve) => {
     const start = performance.now();
     let played = 0;
+    let settled:
+      | { position: THREE.Vector3; quaternion: THREE.Quaternion }[]
+      | null = null;
     const tick = () => {
+      if (!running) return;
       const f = Math.min(
         sim.frames.length - 1,
         Math.floor(((performance.now() - start) / 1000) * 60)
       );
-      for (
-        ;
-        played < sim.impacts.length && sim.impacts[played].frame <= f;
-        played++
-      )
-        if (opts.sound) clack(sim.impacts[played].strength);
-      sim.frames[f].forEach(([x, y, z, qx, qy, qz, qw], i) => {
-        meshes[i].position.set(x, y, z);
-        meshes[i].quaternion.set(qx, qy, qz, qw);
-      });
-      gl.render(scene, camera);
-      if (f < sim.frames.length - 1) {
-        requestAnimationFrame(tick);
-        return;
+      if (!settled) {
+        for (
+          ;
+          played < sim.impacts.length && sim.impacts[played].frame <= f;
+          played++
+        )
+          if (opts.sound) clack(sim.impacts[played].strength);
+        sim.frames[f].forEach(([x, y, z, qx, qy, qz, qw], i) => {
+          meshes[i].position.set(x, y, z);
+          meshes[i].quaternion.set(qx, qy, qz, qw);
+        });
+        if (f === sim.frames.length - 1) {
+          settled = meshes.map((m) => ({
+            position: m.position.clone(),
+            quaternion: m.quaternion.clone(),
+          }));
+          meshes.forEach((m, i) => {
+            lifted[i].quaternion = faceForward(m, lifted[i].position);
+          });
+          liftedAt = performance.now();
+          resolve(
+            meshes.map(
+              (m) => (m.userData.labels as number[])[upFace(m.quaternion).face]
+            )
+          );
+        }
+      } else {
+        const t = Math.min(1, (performance.now() - liftedAt!) / LIFT_MS);
+        const ease = 1 - Math.pow(1 - t, 3);
+        meshes.forEach((m, i) => {
+          m.position.lerpVectors(
+            settled![i].position,
+            lifted[i].position,
+            ease
+          );
+          m.quaternion.slerpQuaternions(
+            settled![i].quaternion,
+            lifted[i].quaternion,
+            ease
+          );
+          const target =
+            markedIndex === null ? 1 : markedIndex === i ? 1.2 : 0.75;
+          m.scale.setScalar(m.scale.x + (target - m.scale.x) * 0.2);
+        });
       }
-      const shown = meshes.map(
-        (m) => (m.userData.labels as number[])[upFace(m.quaternion).face]
-      );
-      geometry.dispose();
-      resolve(shown);
+      gl.render(scene, camera);
+      requestAnimationFrame(tick);
     };
     tick();
   });

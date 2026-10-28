@@ -8,8 +8,6 @@ import {
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { BLOCK_VALUE, teamLook } from "./DiceTray";
-import { soundSettings } from "../../sound/settings";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -40,18 +38,15 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const [chosen, setChosen] = useState<string | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
-  const [rollData, setRollDataNow] = useState<BlockRollData | null>(null);
-  // Each new set of dice is thrown in 3D first; the faces to pick from show
-  // only once they have come to rest
-  const [throwSeq, setThrowSeq] = useState(0);
-  const [throwing, setThrowing] = useState(false);
-  const throwHost = useRef<HTMLDivElement>(null);
-  const setRollData = (roll: BlockRollData | null) => {
-    setRollDataNow(roll);
-    if (!roll) return;
-    setThrowing(true);
-    setThrowSeq((n) => n + 1);
-  };
+  const [rollData, setRollData] = useState<BlockRollData | null>(null);
+  // The dice are thrown and lifted in the dice tray; a click on a lifted
+  // die there arrives here as UI_BlockDieClicked
+  const pickRef = useRef<((index: number) => void) | null>(null);
+  useEffect(() => {
+    const onPick = ({ index }: { index: number }) => pickRef.current?.(index);
+    eventBus.on(GameEventNames.UI_BlockDieClicked, onPick);
+    return () => eventBus.off(GameEventNames.UI_BlockDieClicked, onPick);
+  }, [eventBus]);
   // A forced block (Frenzy's second Block) arrives already rolled; hold its
   // dice behind a ROLL button so the coach still triggers the reveal.
   const [heldDice, setHeldDice] = useState<BlockRollData | null>(null);
@@ -157,46 +152,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     };
   }, [eventBus]);
 
-  useEffect(() => {
-    if (!throwSeq || !rollData) return;
-    let live = true;
-    const done = () => {
-      if (live) setThrowing(false);
-    };
-    const values = rollData.results.map((r) => BLOCK_VALUE[r.type]);
-    const attacker = ServiceContainer.isInitialized()
-      ? ServiceContainer.getInstance().gameService.getPlayerById(
-          rollData.attackerId
-        )
-      : undefined;
-    const team = teamLook(attacker?.teamId);
-    if (!throwHost.current || !team || !values.every(Boolean)) {
-      done();
-      return;
-    }
-    // Never leave the coach without their dice if the throw cannot play
-    const fallback = setTimeout(done, 6000);
-    void import("../../dice/diceScene")
-      .then((scene) =>
-        scene.playRoll(
-          throwHost.current!,
-          { kind: "block", values, team, neon: false },
-          { sound: !soundSettings.get().muted }
-        )
-      )
-      .catch((error) => console.warn("[DiceTray] block throw failed", error))
-      .finally(() => {
-        clearTimeout(fallback);
-        done();
-      });
-    return () => {
-      live = false;
-      clearTimeout(fallback);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [throwSeq]);
-
-  if (!isOpen || !data) return null;
+  if (!isOpen || !data) {
+    pickRef.current = null;
+    return null;
+  }
 
   const { analysis } = data;
   const { diceCount, isUphill, attackerST, defenderST } = analysis;
@@ -255,6 +214,13 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     });
   };
 
+  pickRef.current = (index: number) => {
+    const result = rollData?.results[index];
+    if (!result) return;
+    if (proMode) handleProReroll(index);
+    else handleSelectResult(result);
+  };
+
   const handleBrawlerReroll = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (!data) return;
@@ -311,54 +277,31 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           </div>
         </div>
 
-        {/* Dice Results Area */}
-        {rollData && (
-          // The thrown dice stay in view once they land, above the faces
-          <div
-            ref={throwHost}
-            data-testid="block-dice-throw"
-            className="mx-auto h-44 w-[360px] max-w-full overflow-hidden rounded"
-          />
-        )}
-        {rollData && throwing ? (
-          <div className="mb-6 text-center text-sm text-slate-400 italic">
-            Rolling…
-          </div>
-        ) : rollData ? (
+        {/* The dice themselves are in the dice tray below: a click on a
+            lifted die chooses it. These buttons keep the choice open to a
+            keyboard or a screen reader. */}
+        {rollData ? (
           <div className="mb-6">
-            <div className="flex justify-center gap-4 mb-4">
+            <div className="sr-only">
               {rollData.results.map((result, idx) => (
                 <button
                   key={idx}
                   data-testid={`block-die-${idx}`}
                   data-block-result={result.type}
-                  onClick={() =>
-                    proMode ? handleProReroll(idx) : handleSelectResult(result)
-                  }
-                  className={`group relative hover:scale-110 transition-transform ${proMode ? "ring-2 ring-purple-400 rounded" : ""}`}
-                  title={
-                    proMode ? `Re-roll this ${result.label}` : result.label
-                  }
+                  onClick={() => pickRef.current?.(idx)}
                 >
-                  <img
-                    src={result.icon}
-                    alt={result.label}
-                    className="w-20 h-20 rounded shadow-lg border-2 border-slate-400 group-hover:border-yellow-400 transition-colors"
-                  />
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    {result.label}
-                  </div>
+                  {proMode ? `Re-roll ${result.label}` : result.label}
                 </button>
               ))}
             </div>
-            <div className="text-center text-sm text-yellow-400 mt-8">
+            <div className="text-center text-sm text-yellow-400">
               {chosen
                 ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
                 : proMode
-                  ? "Pro: click a die to re-roll it (3+)"
+                  ? "Pro: click a die in the tray to re-roll it (3+)"
                   : getActiveOnlineMatch()?.mayAct() === false
                     ? "The other coach is choosing…"
-                    : "Click a die to select the result"}
+                    : "Click a die in the tray to choose the result"}
             </div>
             {(rollData.teamRerollAvailable ||
               rollData.proAvailable ||
@@ -407,37 +350,11 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               </div>
             )}
           </div>
-        ) : (
-          <div className="flex justify-center mb-6 h-20 items-center">
-            {isRolling ? (
-              <div className="flex gap-2">
-                {Array.from({ length: diceCount }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-16 h-16 bg-slate-700 rounded border border-yellow-500 animate-spin"
-                    style={{
-                      animationDelay: `${i * 100}ms`,
-                      animationDuration: "600ms",
-                    }}
-                  >
-                    <div className="w-full h-full flex items-center justify-center text-yellow-400 font-bold">
-                      ?
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex gap-2 opacity-50">
-                {Array.from({ length: diceCount }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-16 h-16 bg-slate-700/50 rounded border border-slate-600"
-                  ></div>
-                ))}
-              </div>
-            )}
+        ) : isRolling ? (
+          <div className="mb-6 text-center text-sm text-slate-400 italic">
+            Rolling…
           </div>
-        )}
+        ) : null}
 
         {/* Actions — once the dice are rolled the block CANNOT be cancelled:
             a result must be picked */}
