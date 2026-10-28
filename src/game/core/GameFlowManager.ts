@@ -41,9 +41,11 @@ export const realTimeDelay: DelayProvider = (ms) => {
  * happens. Online lockstep waits for this before checking or running a
  * command, because the two machines run the same delays at different
  * moments. A decision the engine is paused on is not a delay, so this
- * does not wait for it. Gives up after `maxMs`.
+ * does not wait for it. Gives up after `maxMs`, which must outlast the
+ * longest chain: a turnover alone paces 3 s, then 0.5 s, then 1.1 s, and a
+ * slow machine fires each one late.
  */
-export async function whenEngineQuiet(maxMs = 3000): Promise<void> {
+export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     if (runningDelays > 0) {
@@ -56,6 +58,7 @@ export async function whenEngineQuiet(maxMs = 3000): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 0));
     if (runningDelays === 0) return;
   }
+  console.warn(`[Engine] still pacing after ${maxMs} ms; carrying on`);
 }
 
 export const noDelay: DelayProvider = () => Promise.resolve();

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   realTimeDelay,
   whenEngineQuiet,
@@ -34,5 +34,29 @@ describe("whenEngineQuiet", () => {
       .then(() => steps.push(2));
     await whenEngineQuiet();
     expect(steps).toEqual([1, 2]);
+  });
+
+  it("outlasts a whole turnover, which paces 3 s, then 0.5 s, then 1.1 s", async () => {
+    vi.useFakeTimers();
+    try {
+      let turnEnded = false;
+      void realTimeDelay(3000)
+        .then(() => realTimeDelay(500))
+        .then(() => realTimeDelay(1100))
+        .then(() => {
+          turnEnded = true;
+        });
+      let quiet = false;
+      void whenEngineQuiet().then(() => {
+        quiet = true;
+      });
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(quiet).toBe(false);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(turnEnded).toBe(true);
+      expect(quiet).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

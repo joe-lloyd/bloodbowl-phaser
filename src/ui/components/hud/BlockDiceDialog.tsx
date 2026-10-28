@@ -106,6 +106,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+    // Online: this engine refused the block (the board had moved on)
+    const onRejected = ({ commandType }: { commandType: string }) => {
+      if (commandType === "block" || commandType === "multiple-block")
+        onRollCancelled();
+    };
+    eventBus.on(GameEventNames.NetworkCommandRejected, onRejected);
     // The other coach may be the one who picks the result
     const onResolved = ({
       type,
@@ -133,6 +139,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+      eventBus.off(GameEventNames.NetworkCommandRejected, onRejected);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);

@@ -54,3 +54,15 @@
   incoming commands. Task 1.3 would pin this down.
 - A resync while a decision is pending replaces the state but cannot
   resume the paused roll path on the receiving engine.
+
+## 7. Feedback from the first recorded playback
+
+- [x] 7.1 Decision prompts (re-roll, reaction, interception, Apothecary, inducement, follow-up) show only for the coach who owns the decision.
+- [x] 7.2 Block dice show on both screens; the other coach sees "choosing", then the chosen face for 1.5 s.
+- [x] 7.3 A Blitz that continues after its block reselects the blitzer (the engine emits UI_ResumeBlitzMove); this was the coach stuck until the clock ran out, online and in local play.
+- [x] 7.4 The watching coach sees the other coach's whole move path while the player runs it.
+- [x] 7.5 The turn clock and all input stop while a coach is disconnected, and resume with the time left.
+- [x] 7.6 While the non-active coach owns a decision the main clock stops and they get their own short clock (`src/network/decisionTimeouts.ts`, 10 s each for now); on expiry their screen answers with a default.
+- [x] 7.7 A Sidestepping player's coach places their own push online (the gate gave every push to the attacker).
+- [x] 7.8 Lockstep waits for the engine's paced flow to finish (`whenEngineQuiet`) before each checksum; the cause of the four resyncs in the recorded match.
+- [ ] 7.9 Agree the per-decision time limits with the owner.

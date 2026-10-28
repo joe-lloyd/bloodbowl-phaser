@@ -270,11 +270,15 @@ export class LockstepSession {
   }
 
   private async sendResync(): Promise<void> {
+    // Never send a state caught halfway through a paced chain
+    await whenEngineQuiet();
     await this.send({ kind: "resync", payload: this.captureState() });
   }
 
   /** Rebuild this engine from the other side's full state. */
-  private restore(state: LockstepState): void {
+  private async restore(state: LockstepState): Promise<void> {
+    // A chain still pacing here would fire after the restore and undo it
+    await whenEngineQuiet();
     const { game } = this.options;
     const { team1, team2, gameService, rng, matchStats } = game.ctx;
     // Copy into the existing objects: the board holds references to them
