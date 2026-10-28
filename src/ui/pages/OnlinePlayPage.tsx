@@ -359,12 +359,14 @@ function WaitingBanner({ match }: { match: OnlineMatch }) {
   }, [match]);
 
   if (!label) return null;
+  // Below the turn indicator and the turn clock, which share the top centre;
+  // steady, as it stays up for the whole of the other coach's turn
   return (
     <div
-      className="absolute top-3 left-1/2 -translate-x-1/2 z-[90]
+      className="absolute top-32 left-1/2 -translate-x-1/2 z-[90]
         pointer-events-none bg-slate-900/85 text-yellow-300 border
         border-yellow-500 rounded-lg px-5 py-2 font-heading text-lg
-        shadow-xl animate-pulse"
+        shadow-xl"
     >
       ⏳ {label}
     </div>
