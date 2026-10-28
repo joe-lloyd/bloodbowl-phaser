@@ -326,3 +326,32 @@ export function noiseSweep(
     },
   };
 }
+
+/** Plays a decoded recorded sample once, straight into `dest`. */
+export function sample(
+  ctx: AudioContext,
+  dest: AudioNode,
+  buffer: AudioBuffer
+): PlaybackUnit {
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(dest);
+  source.start(ctx.currentTime);
+
+  let stopped = false;
+  source.onended = () => {
+    stopped = true;
+    source.disconnect();
+  };
+
+  return {
+    stop: () => {
+      if (stopped) return;
+      try {
+        source.stop(ctx.currentTime);
+      } catch {
+        // Already stopped — harmless.
+      }
+    },
+  };
+}

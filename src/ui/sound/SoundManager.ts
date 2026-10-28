@@ -1,7 +1,9 @@
-import { PlaybackUnit } from "./synth";
+import { PlaybackUnit, sample } from "./synth";
+import { SAMPLE_URLS } from "./catalog";
 import { soundSettings, SoundSettings } from "./settings";
 
 type AudioContextFactory = () => AudioContext;
+type Build = (ctx: AudioContext, dest: AudioNode) => PlaybackUnit;
 
 /**
  * Owns the shared `AudioContext` and a single master `GainNode` that every
@@ -15,6 +17,10 @@ type AudioContextFactory = () => AudioContext;
  *
  * Mute/volume are wired straight into the master gain, so a settings change
  * reaches sound already in flight, not just future triggers.
+ *
+ * Recorded samples are fetched and decoded once, at init(), into
+ * AudioBuffers on the same context, so they play through the same master
+ * gain as synthesized effects and stop() silences both.
  */
 export class SoundManager {
   private ctx: AudioContext | null = null;
@@ -22,6 +28,10 @@ export class SoundManager {
   private isInitialized = false;
   private initPromise: Promise<void> | null = null;
   private activeUnits = new Set<PlaybackUnit>();
+  /** Decoded samples by URL; null once a sample failed to load or decode. */
+  private samples = new Map<string, Promise<AudioBuffer | null>>();
+  /** Bumped by stop() and dispose() so a sample still decoding does not start after them. */
+  private generation = 0;
   private unsubscribeSettings: (() => void) | null = null;
   private gestureListenerAttached = false;
   private gestureResumeHandler: (() => void) | null = null;
@@ -49,6 +59,9 @@ export class SoundManager {
 
       this.attachGestureUnlock();
 
+      const ctx = this.ctx;
+      SAMPLE_URLS.forEach((url) => this.samples.set(url, loadSample(ctx, url)));
+
       this.isInitialized = true;
     })();
 
@@ -68,10 +81,7 @@ export class SoundManager {
    * `playOneShot`, whose `setTimeout` *was* the only thing stopping
    * playback).
    */
-  public play(
-    build: (ctx: AudioContext, dest: AudioNode) => PlaybackUnit,
-    durationMs: number
-  ): void {
+  public play(build: Build, durationMs: number): void {
     if (!this.isInitialized || !this.ctx || !this.masterGain) return;
     try {
       // stop() suspends the context as a failsafe; a later play() (e.g. the
@@ -96,6 +106,28 @@ export class SoundManager {
   }
 
   /**
+   * Plays the recorded sample at `url`, or `fallback` if that sample failed
+   * to load or decode. A sample still decoding plays as soon as it is ready.
+   */
+  public playSample(url: string, fallback: Build, fallbackMs: number): void {
+    if (!this.isInitialized || !this.ctx) return;
+    const loading = this.samples.get(url) ?? loadSample(this.ctx, url);
+    this.samples.set(url, loading);
+    const generation = this.generation;
+    void loading.then((buffer) => {
+      if (generation !== this.generation) return;
+      if (!buffer) {
+        this.play(fallback, fallbackMs);
+        return;
+      }
+      this.play(
+        (ctx, dest) => sample(ctx, dest, buffer),
+        buffer.duration * 1000
+      );
+    });
+  }
+
+  /**
    * Halts every currently-tracked playback unit immediately (each unit's
    * own `stop()` is idempotent, so this is safe to call even if some units
    * already finished naturally) and suspends the shared `AudioContext`.
@@ -103,6 +135,7 @@ export class SoundManager {
    * or not `init()` has run.
    */
   public stop(): void {
+    this.generation += 1;
     this.activeUnits.forEach((unit) => {
       try {
         unit.stop();
@@ -138,6 +171,7 @@ export class SoundManager {
     }
     this.ctx = null;
     this.masterGain = null;
+    this.samples.clear();
     this.isInitialized = false;
     this.initPromise = null;
   }
@@ -169,6 +203,20 @@ export class SoundManager {
     }
     this.gestureListenerAttached = false;
     this.gestureResumeHandler = null;
+  }
+}
+
+async function loadSample(
+  ctx: AudioContext,
+  url: string
+): Promise<AudioBuffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await ctx.decodeAudioData(await response.arrayBuffer());
+  } catch (e) {
+    console.warn(`SoundManager: could not load ${url}, using synth`, e);
+    return null;
   }
 }
 
