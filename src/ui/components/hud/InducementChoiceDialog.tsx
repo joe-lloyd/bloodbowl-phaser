@@ -52,7 +52,14 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     };
   }, [eventBus]);
 
-  if (!request || !ServiceContainer.isInitialized()) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (
+    !request ||
+    !ServiceContainer.isInitialized() ||
+    getActiveOnlineMatch()?.mayAct() === false
+  )
+    return null;
   const gameService = ServiceContainer.getInstance().gameService;
   const name = (id: string) => gameService.getPlayerById(id)?.playerName ?? id;
 

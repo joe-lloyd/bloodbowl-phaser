@@ -7,6 +7,7 @@ import {
 } from "../../../services/BlockResolutionService";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { ServiceContainer } from "../../../services/ServiceContainer";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -29,6 +30,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     defenderId: string;
     analysis: BlockAnalysis;
   } | null>(null);
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+  // Online: the face the chooser picked, shown briefly on both screens
+  const [chosen, setChosen] = useState<string | null>(null);
 
   const [isRolling, setIsRolling] = useState(false);
   const [rollData, setRollData] = useState<BlockRollData | null>(null);
@@ -55,6 +62,23 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     const onDiceRolled = (payload: BlockRollData) => {
       setIsRolling(false);
       setProMode(false);
+      setChosen(null);
+      // Online, both coaches see every block's dice. A screen that did not
+      // open this block (the other coach's, or an uphill defender's) asks
+      // its own engine for the block's numbers and shows the dice at once.
+      const online = getActiveOnlineMatch();
+      const current = dataRef.current;
+      const sameBlock =
+        current?.attackerId === payload.attackerId &&
+        current?.defenderId === payload.defenderId;
+      if (online && !openRef.current && (!online.mayAct() || !sameBlock)) {
+        ServiceContainer.getInstance().gameService.previewBlock(
+          payload.attackerId,
+          payload.defenderId
+        );
+        setRollData(payload);
+        return;
+      }
       if (openRef.current) {
         // Normal block: the coach already clicked Roll — show the dice.
         setRollData(payload);
@@ -83,8 +107,25 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
     // The other coach may be the one who picks the result
-    const onResolved = ({ type }: { type: string }) => {
-      if (type === "block-dice") onRollCancelled();
+    const onResolved = ({
+      type,
+      result,
+    }: {
+      type: string;
+      result?: string;
+    }) => {
+      if (type !== "block-dice") return;
+      // Online, hold the chosen face up for a moment on both screens
+      if (getActiveOnlineMatch() && result) {
+        setIsOpen(true);
+        setChosen(result);
+        setTimeout(() => {
+          setChosen(null);
+          onRollCancelled();
+        }, 1500);
+        return;
+      }
+      onRollCancelled();
     };
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
@@ -240,9 +281,13 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               ))}
             </div>
             <div className="text-center text-sm text-yellow-400 mt-8">
-              {proMode
-                ? "Pro: click a die to re-roll it (3+)"
-                : "Click a die to select the result"}
+              {chosen
+                ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
+                : proMode
+                  ? "Pro: click a die to re-roll it (3+)"
+                  : getActiveOnlineMatch()?.mayAct() === false
+                    ? "The other coach is choosing…"
+                    : "Click a die to select the result"}
             </div>
             {(rollData.teamRerollAvailable ||
               rollData.proAvailable ||

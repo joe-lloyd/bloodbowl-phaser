@@ -369,6 +369,8 @@ export interface GameEvents {
       | "block-dice"
       | "push-direction"
       | "follow-up";
+    /** Block dice: the face that was chosen, for the other coach's screen */
+    result?: string;
   };
 
   [GameEventNames.PlayerStoodUp]: {

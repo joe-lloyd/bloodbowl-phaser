@@ -36,7 +36,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     };
   }, [eventBus]);
 
-  if (!request) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const answer = (accept: boolean, source?: RerollSource) => {
     // Online: only the rolling coach may answer

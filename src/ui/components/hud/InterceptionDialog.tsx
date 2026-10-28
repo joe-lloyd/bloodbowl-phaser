@@ -41,7 +41,9 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
     };
   }, [eventBus]);
 
-  if (!request) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const respond = (playerId?: string) => {
     // Online: only the defending coach may answer

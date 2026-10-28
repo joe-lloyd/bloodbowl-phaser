@@ -23,7 +23,9 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
   );
 
   useEffect(() => {
-    const onRequested = (data: ApothecaryDecisionRequest | { type: string }) => {
+    const onRequested = (
+      data: ApothecaryDecisionRequest | { type: string }
+    ) => {
       if (data.type === "apothecary") {
         setRequest(data as ApothecaryDecisionRequest);
       }
@@ -40,7 +42,9 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
     };
   }, [eventBus]);
 
-  if (!request) return null;
+  // Online, only the coach who owns the decision sees it; the other
+  // coach has the "Waiting for…" banner
+  if (!request || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   const answer = (accept: boolean) => {
     // Online: only the injured player's own coach may answer
@@ -83,8 +87,8 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
           {player?.playerName ?? "Player"} — {resultLabel}
         </p>
         <p className="text-center text-slate-400 text-sm mb-6">
-          If used: {outcomeDescription}. The Apothecary is consumed either
-          way once used.
+          If used: {outcomeDescription}. The Apothecary is consumed either way
+          once used.
         </p>
 
         <div className="flex gap-4 justify-center">

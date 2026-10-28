@@ -1145,7 +1145,10 @@ export class GameService implements IGameService {
     result: BlockResult
   ): Promise<void> {
     // Online, both coaches see the dice; close them for the one who didn't pick
-    this.eventBus.emit(GameEventNames.DecisionResolved, { type: "block-dice" });
+    this.eventBus.emit(GameEventNames.DecisionResolved, {
+      type: "block-dice",
+      result: result.type,
+    });
     await this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 
