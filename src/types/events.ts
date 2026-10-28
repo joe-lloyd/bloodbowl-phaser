@@ -630,8 +630,10 @@ export interface GameEvents {
 
   // Camera
   [GameEventNames.Camera_TrackBall]: {
-    ballSprite: unknown; // Phaser.GameObjects.Container
-    animationDuration: number; // How long to track the ball
+    /** Follow this player, or the ball when absent. Plain data: every bus
+     *  event is recorded and cloned, so it must not carry display objects. */
+    playerId?: string;
+    animationDuration: number; // How long to track
   };
   [GameEventNames.Camera_Reset]: {
     duration?: number; // Optional reset duration

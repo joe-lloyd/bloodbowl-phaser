@@ -52,7 +52,7 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
   it("flies one ball up to hang over its landing square, then drops it there", async () => {
     const tracked: unknown[] = [];
     eventBus.on(GameEventNames.Camera_TrackBall, (data) =>
-      tracked.push(data.ballSprite)
+      tracked.push(data.playerId ?? "ball")
     );
 
     eventBus.emit(GameEventNames.BallKicked, {
@@ -70,7 +70,7 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
     // climbs to hang 9 m over the deviated square with the camera riding it.
     expect(scene.placeBallVisual).toHaveBeenCalledTimes(1);
     expect(scene.placeBallVisual).toHaveBeenCalledWith(10, 5, 0.3);
-    expect(tracked).toEqual([scene.ballSprite]);
+    expect(tracked).toEqual(["ball"]);
     expect(scene.ballSprite.flyTo).toHaveBeenLastCalledWith(
       { x: 780, y: 420 },
       expect.objectContaining({ endHeight: 9 })

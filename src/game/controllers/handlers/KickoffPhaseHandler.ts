@@ -114,7 +114,6 @@ export class KickoffPhaseHandler implements PhaseHandler {
       const ball = this.ball();
       if (!ball) return;
       this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-        ballSprite: ball,
         animationDuration: 1400,
       });
       void ball.flyTo(

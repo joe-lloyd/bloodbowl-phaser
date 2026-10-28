@@ -455,8 +455,10 @@ export class GameScene extends Phaser.Scene {
     });
 
     // The match camera follows the game: see CameraController.
-    this.subscribe(GameEventNames.Camera_TrackBall, (data) => {
-      const target = data.ballSprite as Phaser.GameObjects.GameObject | null;
+    this.subscribe(GameEventNames.Camera_TrackBall, ({ playerId }) => {
+      const target = playerId
+        ? this.playerSprites.get(playerId)
+        : this.ballSprite;
       if (target) this.cameraController.follow(target);
     });
     this.subscribe(GameEventNames.Camera_Reset, (data) => {

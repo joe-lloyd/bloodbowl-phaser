@@ -9,7 +9,11 @@ interface HUDLayoutProps {
   overlays?: React.ReactNode;
 }
 
-const corner = "absolute flex w-72 max-w-[40vw] flex-col gap-3";
+// Each corner gets at most half the window, scrolling past that, so a tall
+// panel (the sandbox case explorer, a long action menu) never runs under the
+// stack in the corner below or above it.
+const corner =
+  "absolute flex max-h-[calc(50vh-1.5rem)] w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto";
 
 /**
  * HUDLayout: floating panels in the four corners over a full-window match.

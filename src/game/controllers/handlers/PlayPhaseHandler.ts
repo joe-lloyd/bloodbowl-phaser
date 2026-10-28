@@ -87,13 +87,10 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Pass Declaration - Zoom In
     this.register(GameEventNames.PassDeclared, (data) => {
       // Logic moved from SceneOrchestrator
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) {
-        this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-          ballSprite: sprite, // Track passer initially
-          animationDuration: 800,
-        });
-      }
+      this.eventBus.emit(GameEventNames.Camera_TrackBall, {
+        playerId: data.playerId, // the passer, until the ball is thrown
+        animationDuration: 800,
+      });
     });
 
     // Pass Attempted - Animate Ball
@@ -375,7 +372,6 @@ export class PlayPhaseHandler implements PhaseHandler {
       data.finalPosition.y - data.from.y
     );
     this.eventBus.emit(GameEventNames.Camera_TrackBall, {
-      ballSprite: ball,
       animationDuration: 1000,
     });
     void ball.flyTo(
