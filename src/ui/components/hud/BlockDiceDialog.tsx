@@ -82,11 +82,17 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+    // The other coach may be the one who picks the result
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "block-dice") onRollCancelled();
+    };
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 
@@ -218,7 +224,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     proMode ? handleProReroll(idx) : handleSelectResult(result)
                   }
                   className={`group relative hover:scale-110 transition-transform ${proMode ? "ring-2 ring-purple-400 rounded" : ""}`}
-                  title={proMode ? `Re-roll this ${result.label}` : result.label}
+                  title={
+                    proMode ? `Re-roll this ${result.label}` : result.label
+                  }
                 >
                   <img
                     src={result.icon}

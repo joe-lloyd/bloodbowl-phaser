@@ -961,6 +961,8 @@ export class GameService implements IGameService {
    * Rush). The normal movement auto-finish ends it once the budget is spent.
    */
   public finishBlockActivation(attackerId: string): void {
+    // The follow-up, if one was offered, is settled either way
+    this.eventBus.emit(GameEventNames.DecisionResolved, { type: "follow-up" });
     // Pile Driver's free Foul comes first, on a Blitz as on a Block.
     if (
       this.blockManager.offerPileDriver(attackerId, () =>
@@ -1137,6 +1139,8 @@ export class GameService implements IGameService {
     defenderId: string,
     result: BlockResult
   ): Promise<void> {
+    // Online, both coaches see the dice; close them for the one who didn't pick
+    this.eventBus.emit(GameEventNames.DecisionResolved, { type: "block-dice" });
     await this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 

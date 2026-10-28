@@ -364,7 +364,10 @@ export interface GameEvents {
 
   [GameEventNames.DecisionRequested]: import("./decisions").DecisionRequest;
   [GameEventNames.DecisionResolved]: {
-    type: import("./decisions").DecisionRequest["type"];
+    type:
+      | import("./decisions").DecisionRequest["type"]
+      | "block-dice"
+      | "follow-up";
   };
 
   [GameEventNames.PlayerStoodUp]: {
