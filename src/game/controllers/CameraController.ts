@@ -10,6 +10,14 @@ type Point = { x: number; y: number };
 const ACTION_ZOOM = 1.75;
 const MOVE_MS = 700;
 
+/** Coaches who ask the OS for less motion get cuts instead of glides. */
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 /**
  * CameraController: the match camera.
  *
@@ -103,6 +111,10 @@ export class CameraController {
 
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
     this.stopFollow();
+    if (reducedMotion()) {
+      this.snap({ centre, zoom });
+      return;
+    }
     this.camera.zoomTo(zoom, duration, "Sine.easeInOut", true);
     this.camera.pan(centre.x, centre.y, duration, "Sine.easeInOut", true);
   }
@@ -120,6 +132,7 @@ export class CameraController {
    * pitch while the loading screen fades.
    */
   public intro(duration = 2200): void {
+    if (reducedMotion()) return;
     const { width, height } = this.camera.getBounds();
     this.snap(
       this.frame(
@@ -156,7 +169,7 @@ export class CameraController {
 
   /** Keep a moving object (the ball in flight) in the middle of the frame. */
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
-    if (this.manual) return;
+    if (this.manual || reducedMotion()) return;
     this.following = target;
     this.camera.zoomTo(
       zoom ?? this.actionZoom() * 0.85,

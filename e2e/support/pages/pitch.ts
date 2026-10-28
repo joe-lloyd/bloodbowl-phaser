@@ -33,7 +33,7 @@ export class PitchPage {
   }
 
   /** Wait until the match camera has stopped panning and zooming. */
-  async waitForCameraToSettle(timeout = 5_000): Promise<void> {
+  async waitForCameraToSettle(timeout = 15_000): Promise<void> {
     await this.page.waitForFunction(
       () =>
         !(

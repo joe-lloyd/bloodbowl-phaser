@@ -88,6 +88,8 @@
   closes in on the action. The mouse wheel zooms around the cursor and a
   right- or middle-button drag pans. A manual move holds the camera until
   the next turn or selection; `0` or `1` returns to the overview.
+  With `prefers-reduced-motion` set, the camera cuts instead of gliding and
+  skips the opening shot; the e2e suite runs that way.
 
 ### React Overlay
 
