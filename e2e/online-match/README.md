@@ -1,7 +1,9 @@
 # An online match between two machines
 
 `twoCoaches.e2e.ts` plays one Sevens match between two browsers, each
-driven as its own coach through the real UI. After every move it compares
+driven as its own coach through the real UI. Online play is lockstep: both
+browsers run the engine, the acting coach runs each command locally and
+sends only the command with state checksums. After every move it compares
 the engine state each page holds and where each canvas draws the players,
 the ball and the scoreboard. A difference that outlasts a grace period goes
 to `divergences.jsonl` with a screenshot from each side.
@@ -44,3 +46,16 @@ Serve the app from a checkout you are not editing: Vite reloads both pages
 when a source file changes, which ends the match.
 
 Without `GUEST_WS` both browsers run locally.
+
+## What a run leaves behind
+
+In `ONLINE_OUT`: `match.log`, `divergences.jsonl`, a video per side (and
+one per closed tab), `video-starts.log` (when each recording began, on the
+host machine's clock, for lining the videos up), `net-*.log` (every
+envelope with its size and timing), `latency.log` (how long each coach's
+own move took to show) and `lockstep-*.log` (checksum mismatches). Each
+page shows a strip with that machine's clock and whether its coach may
+act, so a side-by-side edit can be checked by eye.
+
+Restart the emulator before a long run, then sign in once by hand: the
+first sign-in after a restart can take longer than the test allows.
