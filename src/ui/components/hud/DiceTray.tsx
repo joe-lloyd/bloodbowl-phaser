@@ -21,7 +21,7 @@ const MAX_QUEUE = 3;
 
 /**
  * Turn an engine DiceRoll into dice to throw: D6s and block dice only. A D3,
- * D8 or D16 has no die model, and a roll with no team has no colours.
+ * D8 or D16 has no die model.
  */
 export function toDice(
   event: RollEvent
@@ -40,9 +40,17 @@ export function toDice(
   return null;
 }
 
+/**
+ * The colours to throw a roll in. Most rolls (pick-ups, armour, injury,
+ * catches, Rush, bounces) carry no team; the coach whose turn it is makes
+ * nearly all of them, armour and injury included, so they use that team.
+ */
 function teamLook(teamId?: string): DiceTeam | null {
-  if (!teamId || !ServiceContainer.isInitialized()) return null;
-  const team = ServiceContainer.getInstance().gameService.getTeam(teamId);
+  if (!ServiceContainer.isInitialized()) return null;
+  const { gameService } = ServiceContainer.getInstance();
+  const rollerId = teamId ?? gameService.getActiveTeamId();
+  if (!rollerId) return null;
+  const team = gameService.getTeam(rollerId);
   if (!team) return null;
   return {
     key: team.id,
@@ -126,7 +134,7 @@ export function DiceTray({
   return (
     <div
       data-testid="dice-tray"
-      className={`pointer-events-none absolute left-1/2 top-20 w-[420px] max-w-[80vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
+      className={`pointer-events-none absolute left-1/2 top-20 z-[110] w-[420px] max-w-[80vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
         current ? "opacity-100" : "-translate-y-2 opacity-0"
       }`}
     >
