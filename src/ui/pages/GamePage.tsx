@@ -245,7 +245,12 @@ export function GamePage({
       />
 
       {/* Game HUD overlay */}
-      <GameHUD eventBus={eventBus} mode={mode} onlineMenu={onlineMenu} />
+      <GameHUD
+        eventBus={eventBus}
+        mode={mode}
+        onlineMenu={onlineMenu}
+        styleId={selectedPitchThemeId}
+      />
     </div>
   );
 }

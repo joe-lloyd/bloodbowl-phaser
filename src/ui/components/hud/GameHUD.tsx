@@ -24,6 +24,7 @@ import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
 import { HUDLayout } from "./HUDLayout";
+import { DiceTray } from "./DiceTray";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -68,6 +69,8 @@ interface GameHUDProps {
    */
   sevensInducementsEnabled?: boolean;
   onlineMenu?: OnlineMatchMenuProps;
+  /** The match style, so the dice tray matches the stadium. */
+  styleId?: string;
 }
 
 interface TurnData {
@@ -87,6 +90,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   mode = "normal",
   sevensInducementsEnabled = false,
   onlineMenu,
+  styleId,
 }) => {
   const [inducementsPending, setInducementsPending] = useState(
     () =>
@@ -316,6 +320,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               phase={turnData.phase}
             />
           </div>
+
+          <DiceTray eventBus={eventBus} styleId={styleId} />
 
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
