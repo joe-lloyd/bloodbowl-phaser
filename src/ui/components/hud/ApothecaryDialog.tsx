@@ -28,9 +28,15 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
         setRequest(data as ApothecaryDecisionRequest);
       }
     };
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "apothecary") setRequest(null);
+    };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
     return () => {
       eventBus.off(GameEventNames.DecisionRequested, onRequested);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 

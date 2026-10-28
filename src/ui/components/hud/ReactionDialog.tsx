@@ -22,9 +22,15 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
         setRequest(data as ReactionDecisionRequest);
       }
     };
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "reaction") setRequest(null);
+    };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
     return () => {
       eventBus.off(GameEventNames.DecisionRequested, onRequested);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 

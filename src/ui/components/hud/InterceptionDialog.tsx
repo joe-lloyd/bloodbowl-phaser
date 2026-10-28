@@ -29,9 +29,15 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
         setRequest(data as InterceptionDecisionRequest);
       }
     };
+    // The other coach may be the one who answers
+    const onResolved = ({ type }: { type: string }) => {
+      if (type === "interception") setRequest(null);
+    };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
+    eventBus.on(GameEventNames.DecisionResolved, onResolved);
     return () => {
       eventBus.off(GameEventNames.DecisionRequested, onRequested);
+      eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
 

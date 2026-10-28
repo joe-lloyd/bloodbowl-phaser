@@ -63,6 +63,8 @@ export enum GameEventNames {
   RerollUsed = "rerollUsed",
   /** The engine paused on a mid-action decision (reroll offer, reaction) */
   DecisionRequested = "decisionRequested",
+  /** That decision was answered, by whichever coach owns it */
+  DecisionResolved = "decisionResolved",
   Touchdown = "touchdown",
   BallPlaced = "ballPlaced",
   BallKicked = "ballKicked",
@@ -361,6 +363,9 @@ export interface GameEvents {
   };
 
   [GameEventNames.DecisionRequested]: import("./decisions").DecisionRequest;
+  [GameEventNames.DecisionResolved]: {
+    type: import("./decisions").DecisionRequest["type"];
+  };
 
   [GameEventNames.PlayerStoodUp]: {
     playerId: string;
