@@ -472,14 +472,11 @@ export class GameScene extends Phaser.Scene {
         this.cameraController.overview();
         return;
       }
-      this.cameraController.focusSquare(
-        player.gridPosition.x,
-        player.gridPosition.y
-      );
+      this.frameReach(player.id, player.gridPosition);
     });
-    this.subscribe(GameEventNames.PlayerMoved, ({ to }) => {
+    this.subscribe(GameEventNames.PlayerMoved, ({ playerId, to }) => {
       if (this.isSetupActive) return;
-      this.cameraController.focusSquare(to.x, to.y, 900);
+      this.frameReach(playerId, to, 900);
     });
     this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
       // Setup wants both benches in view for dragging players on.
@@ -1115,6 +1112,20 @@ export class GameScene extends Phaser.Scene {
    * the player sprite even starts walking. `delayMs` holds the ball on its
    * start square until the walking player reaches it (mid-path pickups).
    */
+  /**
+   * Frame a player with every square they can still move to, so the coach
+   * can click where they want to end up. Anyone who cannot move (an
+   * opponent, a spent player) just gets their own square.
+   */
+  private frameReach(
+    playerId: string,
+    from: { x: number; y: number },
+    duration?: number
+  ): void {
+    const reach = this.gameService.getAvailableMovements(playerId);
+    this.cameraController.focusSquares([from, ...reach], duration);
+  }
+
   /** Resolves once the player's walk on screen has finished. */
   public playerSettled(playerId: string): Promise<void> {
     return this.playerSprites.get(playerId)?.motion ?? Promise.resolve();
