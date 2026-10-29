@@ -18,6 +18,8 @@ import type { BlockRollData } from "../services/BlockResolutionService";
 import { FixtureOptions, MatchFixture } from "./fixtures";
 import { HUDLayout } from "../ui/components/hud/HUDLayout";
 import { GameHUD } from "../ui/components/hud/GameHUD";
+import { MatchStrip } from "../ui/components/hud/MatchStrip";
+import { SetupValidator } from "../game/validators/SetupValidator";
 import { ScoreBoard } from "../ui/components/hud/ScoreBoard";
 import { TurnIndicator } from "../ui/components/hud/TurnIndicator";
 import { EndTurnButton } from "../ui/components/hud/EndTurnButton";
@@ -432,6 +434,77 @@ export const VARIANTS: Variant[] = [
           headline: "Nice Weather",
           detail: "Perfect Blood Bowl weather.",
           roll: [3, 4],
+        });
+      }),
+  },
+
+  {
+    id: "match-strip-effects",
+    section: "Score bug and turn tab",
+    title: "Weather, spent actions and drive effects",
+    view: (fx) => (
+      <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+        <ScoreBoard eventBus={fx.bus} />
+        <MatchStrip eventBus={fx.bus}>
+          <TurnIndicator turnNumber={5} phase={GamePhase.PLAY} />
+        </MatchStrip>
+      </div>
+    ),
+    drive: (fx) =>
+      later(30, () => {
+        const state = fx.services.gameService.getState();
+        state.turn.turnNumber = 5;
+        fx.services.gameService.seedTurnCounts(5);
+        state.turn.hasBlitzed = true;
+        state.turn.hasPassed = true;
+        state.turn.hasHandedOff = true;
+        state.turn.hasFouled = true;
+        state.weather = "Pouring Rain";
+        state.activeTeamId = fx.team1.id;
+        state.driveEffects = {
+          freeRerolls: { [fx.team1.id]: 1 },
+          owedAssists: { [fx.team2.id]: { turn: 5, used: false } },
+          playerModifiers: {
+            [fx.player(1, 0).id]: { maModifier: -1, avModifier: -1 },
+          },
+        };
+        fx.bus.emit(GameEventNames.GameStateRestored, state);
+      }),
+  },
+  {
+    id: "setup-checklist",
+    section: "Setup panel",
+    title: "Setup checklist with two players on the line",
+    fixture: { phase: GamePhase.SETUP },
+    view: (fx) => (
+      <HUDLayout bottomRight={<SetupControls eventBus={fx.bus} />} />
+    ),
+    drive: (fx) =>
+      later(30, () => {
+        const restrictions = new SetupValidator().validateFormation(
+          [
+            { playerId: fx.player(1, 0).id, x: 6, y: 3 },
+            { playerId: fx.player(1, 1).id, x: 6, y: 5 },
+            { playerId: fx.player(1, 2).id, x: 4, y: 0 },
+          ],
+          true,
+          7
+        ).restrictions;
+        fx.bus.emit(GameEventNames.UI_ShowSetupControls, {
+          subPhase: SubPhase.SETUP_KICKING,
+          activeTeam: fx.team1,
+          status: {
+            teamId: fx.team1.id,
+            placedPlayerCount: 3,
+            requiredPlayerCount: 7,
+            availablePlayerCount: 7,
+            restrictions,
+            canConfirm: false,
+            concessionDecision: "not-offered",
+          },
+        });
+        fx.bus.emit(GameEventNames.UI_FormationsUpdated, {
+          formations: [{ name: "Balanced", builtIn: true }],
         });
       }),
   },
@@ -1287,7 +1360,14 @@ export const VARIANTS: Variant[] = [
       l.timer!.deadline = Date.now() + 11_000;
       return (
         <>
-          {score(fx)}
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <TurnIndicator
+              turnNumber={fx.services.gameService.getState().turn.turnNumber}
+              phase={GamePhase.PLAY}
+            />
+            <MatchStrip eventBus={fx.bus} />
+          </div>
           <TurnClock
             code="BLOOD"
             lobby={l}

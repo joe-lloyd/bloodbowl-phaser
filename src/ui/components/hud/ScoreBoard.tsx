@@ -146,7 +146,10 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
                 ))}
               </div>
             </div>
-            <span className="hud-label whitespace-nowrap text-hud-2xs">
+            <span
+              data-testid={`rerolls-${row.id}`}
+              className="whitespace-nowrap font-hud-display text-hud-lg leading-none text-hud-gold"
+            >
               RR {row.rerolls}
               {row.freeRerolls > 0 ? ` +${row.freeRerolls}` : ""}
               {row.bribes > 0 ? ` · Bribe ${row.bribes}` : ""}
