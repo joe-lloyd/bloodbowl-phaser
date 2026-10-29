@@ -253,25 +253,30 @@ export function DiceTray({
   return (
     <div
       data-testid="dice-tray"
-      className={`pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
+      className={`hud-slab pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden transition-all duration-200 ${
         current ? "opacity-100" : "translate-y-2 opacity-0"
       }`}
+      style={{ borderTop: color ? `3px solid ${color}` : undefined }}
     >
-      <div className="flex items-baseline justify-between gap-3 border-b border-bb-gold/40 px-3 py-1.5">
+      <div className="flex min-h-[34px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5">
         <span
-          className="font-heading text-xs uppercase tracking-widest"
+          className="shrink-0 font-hud-label text-hud-sm font-bold uppercase tracking-[0.12em]"
           style={{ color }}
         >
           {current?.teamName}
         </span>
-        <span className="truncate text-xs text-gray-300">
+        <span
+          className={`truncate font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
+            current?.settled ? "text-hud-bone" : "text-hud-dim"
+          }`}
+        >
           {current?.settled ? current.result : current?.title}
         </span>
       </div>
       <div
         ref={host}
         data-testid="dice-tray-dice"
-        className={`h-[180px] w-full ${pickable ? "pointer-events-auto" : ""}`}
+        className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
       />
     </div>
   );

@@ -50,19 +50,18 @@ export const TurnoverOverlay: React.FC<TurnoverOverlayProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/40 pointer-events-none">
-      <div className="flex flex-col items-center animate-zoom-in-out">
+    <div className="absolute inset-0 z-[200] flex items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(92,10,14,0.55),rgba(0,0,0,0.55)_70%)] pointer-events-none">
+      <div className="flex flex-col items-center animate-hud-slam">
         {/* Main Text */}
-        <h1
-          className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-900 border-red-900 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] tracking-tighter transform -rotate-6 uppercase"
-          style={{ WebkitTextStroke: "3px white" }}
-        >
-          TURNOVER
-        </h1>
+        <div className="-rotate-3 -skew-x-12 border-y-4 border-hud-gold bg-hud-blood px-12 py-2 shadow-hud">
+          <h1 className="skew-x-12 font-hud-display text-[clamp(64px,10vw,120px)] uppercase leading-none tracking-[0.02em] text-white [text-shadow:0_6px_0_#5c0a0e]">
+            TURNOVER
+          </h1>
+        </div>
 
         {/* Reason Subtext */}
-        <div className="mt-4 bg-black/80 px-8 py-2 border-2 border-red-600 rounded-lg transform rotate-2">
-          <span className="text-2xl font-bold text-white uppercase tracking-widest animate-pulse">
+        <div className="mt-3 -rotate-3 -skew-x-12 bg-hud-ink/95 px-8 py-2">
+          <span className="block skew-x-12 font-hud-label text-hud-xl font-bold uppercase tracking-[0.14em] text-hud-bone">
             {message}
           </span>
         </div>
