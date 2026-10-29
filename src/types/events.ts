@@ -943,6 +943,7 @@ export type LogEntryCategory =
 export type AnnouncementKind =
   | "team-intro"
   | "weather"
+  | "time-up"
   | "turn-started"
   | "round-passed"
   | "halftime"

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { EventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
@@ -53,6 +54,16 @@ export function TurnClock({
   user,
   opponentAway = false,
 }: Props) {
+  const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
+  useEffect(
+    () => setStripSlot(document.getElementById("match-strip-clock")),
+    []
+  );
+  const present = (content: ReactNode) =>
+    stripSlot ? createPortal(content, stripSlot) : content;
+  const clockClass = stripSlot
+    ? "flex skew-x-12 items-center gap-2 text-hud-xs"
+    : "hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2";
   const timer = lobby.timer;
   // Both browsers run the engine; the coach whose turn it is keeps the clock
   const myTurn = () =>
@@ -156,10 +167,8 @@ export function TurnClock({
         turnKey()
       );
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    eventBus.on(GameEventNames.TurnStarted as any, onTurn);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return () => eventBus.off(GameEventNames.TurnStarted as any, onTurn);
+    eventBus.on(GameEventNames.TurnStarted, onTurn);
+    return () => eventBus.off(GameEventNames.TurnStarted, onTurn);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, turnSeconds, eventBus]);
 
@@ -198,7 +207,13 @@ export function TurnClock({
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.
-      ServiceContainer.getInstance().gameService.endTurn();
+      const gs = ServiceContainer.getInstance().gameService;
+      gs.endTurn();
+      eventBus.emit(GameEventNames.UI_Announce, {
+        kind: "time-up",
+        headline: "Time up",
+        subtitle: "Turn ended",
+      });
     }, 500);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,13 +242,11 @@ export function TurnClock({
       decidingTeamId === match.myTeamId
         ? "You have"
         : `${match.opponentName} has`;
-    return (
-      <div
-        data-testid="turn-clock-stopped"
-        className="hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
-          flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2"
-      >
-        <div className="font-hud-display text-hud-2xl leading-none text-hud-info">
+    return present(
+      <div data-testid="turn-clock-stopped" className={clockClass}>
+        <div
+          className={`font-hud-display ${stripSlot ? "text-hud-base" : "text-hud-2xl"} leading-none text-hud-info`}
+        >
           ⏸ {fmt(frozen.remaining ?? 0)}
         </div>
         <div className="font-hud-body text-hud-xs text-hud-dim">
@@ -253,15 +266,12 @@ export function TurnClock({
     : timer.pausedBy
       ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
       : timer.deadline - now;
-  const low = remaining < 15000 && !timer.pausedBy;
+  const low = remaining <= 15000 && !timer.pausedBy && deadlineIsThisTurn;
 
-  return (
-    <div
-      className="hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
-        flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2"
-    >
+  return present(
+    <div data-testid="turn-clock" className={clockClass}>
       <div
-        className={`font-hud-display text-hud-2xl leading-none tabular-nums ${
+        className={`font-hud-display ${stripSlot ? "text-hud-base" : "text-hud-2xl"} leading-none tabular-nums ${
           timer.pausedBy
             ? "text-hud-info"
             : low
@@ -270,6 +280,17 @@ export function TurnClock({
         }`}
       >
         {timer.pausedBy ? "⏸ PAUSED" : `⏱ ${fmt(remaining)}`}
+        {low && (
+          <span
+            data-testid="turn-clock-warning"
+            role="status"
+            className="ml-1 font-hud-body text-hud-xs font-bold"
+          >
+            {remaining <= 0
+              ? "Time up"
+              : `${Math.ceil(remaining / 1000)}s left`}
+          </span>
+        )}
       </div>
       {timer.pausedBy ? (
         <div className="font-hud-body text-hud-xs text-hud-dim">

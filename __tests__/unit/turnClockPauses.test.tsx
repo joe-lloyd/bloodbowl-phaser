@@ -181,6 +181,36 @@ describe("TurnClock pauses", () => {
     expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
   });
 
+  it("warns in the strip for the last 15 seconds and says Time up on expiry", async () => {
+    const slot = document.createElement("div");
+    slot.id = "match-strip-clock";
+    container.appendChild(slot);
+    const announcements: string[] = [];
+    eventBus.on(GameEventNames.UI_Announce, (data) =>
+      announcements.push(data.headline)
+    );
+    const clockRoot = document.createElement("div");
+    container.appendChild(clockRoot);
+    const clock = createRoot(clockRoot);
+    await act(async () =>
+      clock.render(
+        <TurnClock
+          code={code}
+          lobby={lobbyAt(Date.now() + 16_000)}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+        />
+      )
+    );
+    await act(async () => vi.advanceTimersByTime(1_000));
+    expect(slot.textContent).toContain("15s left");
+    await act(async () => vi.advanceTimersByTime(16_000));
+    expect(announcements).toContain("Time up");
+    expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
+    await act(async () => clock.unmount());
+  });
+
   it("stops while the defender decides and answers for them after ten seconds", async () => {
     const run = vi.fn(() => Promise.resolve());
     const pending = {
