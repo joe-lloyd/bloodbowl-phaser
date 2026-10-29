@@ -4,30 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        bb: {
-          // Primary Colors
-          "blood-red": "#8E1B1B",
-          "deep-crimson": "#B32020",
-          "ink-blue": "#1E3A5F",
-
-          // Secondary Colors
-          parchment: "#F3E9D2",
-          "warm-paper": "#E8DDC4",
-
-          // Accent Colors
-          gold: "#D6B25E",
-          "dark-gold": "#B59645",
-          "pitch-green": "#556B2F",
-
-          // Utility Colors
-          "text-dark": "#2A1F1A",
-          "muted-text": "#6B5E54",
-          divider: "#C7B89A",
-          error: "#9C1C1C",
-          success: "#3E6B2F",
-        },
-        // In-match HUD ("Stadium Broadcast"): dark slabs over the pitch,
-        // gold hairlines, blood red for the thing that matters. Dark only.
+        // "Stadium Broadcast", the match HUD and every page around it: dark
+        // slabs, gold hairlines, blood red for the thing that matters. Dark only.
         hud: {
           ink: "#0c0d10",
           sunk: "#08090b",
@@ -50,8 +28,6 @@ export default {
         },
       },
       fontFamily: {
-        heading: ["Oswald", "sans-serif"],
-        body: ["Crimson Pro", "Georgia", "serif"],
         "hud-display": ["Anton", "Oswald", "Impact", "sans-serif"],
         "hud-label": ["Barlow Condensed", "Oswald", "sans-serif"],
         "hud-body": ["Barlow", "system-ui", "sans-serif"],
@@ -79,11 +55,6 @@ export default {
         xxl: "64px",
       },
       boxShadow: {
-        parchment:
-          "2px 3px 20px rgba(0,0,0,0.3), 0 0 60px rgba(138,77,15,0.15) inset",
-        "parchment-light":
-          "1px 1.5px 10px rgba(0,0,0,0.2), 0 0 30px rgba(138,77,15,0.1) inset",
-        chunky: "0 4px 0 rgba(0,0,0,0.2)",
         hud: "0 16px 40px -16px rgba(0,0,0,0.95), 0 2px 0 rgba(0,0,0,0.4)",
         "hud-press-blood": "0 3px 0 #5c0a0e",
         "hud-press-gold": "0 3px 0 #6b531c",

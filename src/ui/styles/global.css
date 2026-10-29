@@ -36,14 +36,6 @@
   pointer-events: auto;
 }
 
-/* Custom animation for Blood Bowl feel */
-@layer utilities {
-  .transition-bb {
-    transition-duration: 150ms;
-    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-}
-
 /*
  * In-match HUD design system ("Stadium Broadcast"). Tokens live in
  * tailwind.config.js under `hud`; the React primitives that use these
