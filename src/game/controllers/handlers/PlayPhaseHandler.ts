@@ -10,6 +10,7 @@ import { BombSprite } from "../../elements/BombSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../../elements/BallSprite";
 import { ISO } from "../../elements/GridUtils";
 import { PLAYER_DEPTH } from "../../elements/PlayerSprite";
+import { DiceWatch } from "../../presentation/diceWatch";
 
 /**
  * PlayPhaseHandler
@@ -30,8 +31,7 @@ export class PlayPhaseHandler implements PhaseHandler {
     numDice: number;
     isAttackerChoice: boolean;
   } | null = null;
-  /** Rolls the dice tray is still tumbling. */
-  private diceInAir = 0;
+  private dice: DiceWatch | null = null;
 
   constructor(
     private scene: GameScene,
@@ -41,12 +41,15 @@ export class PlayPhaseHandler implements PhaseHandler {
 
   enter(): void {
     console.log("[PlayPhaseHandler] Entering Play Phase");
+    this.dice = new DiceWatch(this.eventBus);
     this.setupListeners();
     this.scene["startPlayPhase"](); // Trigger scene visual state
   }
 
   exit(): void {
     this.removeListeners();
+    this.dice?.dispose();
+    this.dice = null;
   }
 
   private register(event: string, handler: (data: any) => void): void {
@@ -73,9 +76,6 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.PlayerMoved, (data) =>
       this.handlePlayerMove(data)
     );
-    this.register(GameEventNames.UI_DiceInAir, ({ count }) => {
-      this.diceInAir = count;
-    });
 
     // Throw / Kick Team-mate: the thrower leans into a throw or swings a kick.
     this.register(GameEventNames.PlayerThrowGesture, (data) => {
@@ -281,7 +281,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       };
       const sprite = this.scene["playerSprites"].get(player.id);
       // Someone still on the pitch changes look after their step plays.
-      if (sprite && player.gridPosition) void this.afterStep(sprite).then(reconcile);
+      if (sprite && player.gridPosition)
+        void this.afterStep(sprite).then(reconcile);
       else reconcile();
     });
 
@@ -346,7 +347,7 @@ export class PlayPhaseHandler implements PhaseHandler {
       this.scene["pitch"].getPixelPosition(step.x, step.y)
     );
     sprite.motion = sprite.motion
-      .then(() => this.diceLanded())
+      .then(() => this.dice?.landed())
       .then(async () => {
         // If the mover carries the ball, walk it along with them instead of
         // letting the BallPlaced teleport leave it at the destination. The
@@ -365,29 +366,18 @@ export class PlayPhaseHandler implements PhaseHandler {
           : sprite.animateMovement(pixelPath));
         this.scene.refreshDugouts();
         if (data.followUpData) {
-          this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, data.followUpData);
+          this.eventBus.emit(
+            GameEventNames.UI_FollowUpPrompt,
+            data.followUpData
+          );
         }
       })
       .finally(acknowledge);
   }
 
-  /** Resolves once the dice tray has no roll in the air, or after 3 s. */
-  private diceLanded(): Promise<void> {
-    const until = Date.now() + 3000;
-    return new Promise((resolve) => {
-      const check = () =>
-        this.diceInAir === 0 || Date.now() > until
-          ? resolve()
-          : setTimeout(check, 50);
-      check();
-    });
-  }
-
   /** The dice have landed and the step that led here has played. */
-  private async afterStep(sprite: {
-    motion: Promise<void>;
-  }): Promise<void> {
-    await this.diceLanded();
+  private async afterStep(sprite: { motion: Promise<void> }): Promise<void> {
+    await this.dice?.landed();
     // Read after the dice: the move that carries the fall is announced last
     await sprite.motion;
   }
@@ -472,7 +462,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y =
+          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),

@@ -817,7 +817,13 @@ export interface UIEvents {
    * rush declined/failed) — dialogs waiting on dice must close. */
   [GameEventNames.UI_BlockRollCancelled]: void;
   [GameEventNames.UI_BlockDieClicked]: { index: number };
-  [GameEventNames.UI_DiceInAir]: { count: number };
+  [GameEventNames.UI_DiceInAir]: {
+    /** Rolls queued or tumbling now. */
+    count: number;
+    /** Running totals since the tray mounted. */
+    thrown: number;
+    landed: number;
+  };
 
   [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;
@@ -934,6 +940,8 @@ export type LogEntryCategory =
  * outside these four kinds.
  */
 export type AnnouncementKind =
+  | "team-intro"
+  | "weather"
   | "turn-started"
   | "round-passed"
   | "halftime"

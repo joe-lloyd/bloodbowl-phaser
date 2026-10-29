@@ -47,7 +47,9 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
 
   // Nothing has moved or rolled: the board asks before the Dodge
   await expect(page.getByRole("heading", { name: /: Dodge$/ })).toBeVisible();
-  await expect(page.getByText(/Dodge: 3\+\. A fall is a turnover\./)).toBeVisible();
+  await expect(
+    page.getByText(/Dodge: 3\+\. A fall is a turnover\./)
+  ).toBeVisible();
   expect((await carrier()).position).toEqual({ x: 12, y: 5 });
   await shot("dodge-prompt");
   await page.getByRole("button", { name: "Dodge!" }).click();
@@ -69,4 +71,60 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   expect((await carrier()).position).toEqual({ x: 19, y: 5 });
   await page.waitForTimeout(600);
   await shot("touchdown");
+});
+
+test("a failed Rush shows the turnover only after its die has landed", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  // Seed 1: the Dodge passes and the Rush rolls a 1
+  await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 1 });
+  // Note the rolls thrown when the turnover is called, and the rolls landed
+  // when the banner first shows
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      eventBus: { on(name: string, fn: (d: never) => void): void };
+      tray: { thrown: number; landed: number };
+      thrownAtTurnover: number | null;
+      landedAtBanner: number | null;
+    };
+    w.tray = { thrown: 0, landed: 0 };
+    w.thrownAtTurnover = w.landedAtBanner = null;
+    w.eventBus.on("ui:diceInAir", (d: { thrown: number; landed: number }) => {
+      w.tray = d;
+    });
+    w.eventBus.on("ui:turnover", () => {
+      w.thrownAtTurnover ??= w.tray.thrown;
+    });
+    new MutationObserver(() => {
+      const shown = [...document.querySelectorAll("h1")].some(
+        (h) => h.textContent === "TURNOVER"
+      );
+      if (shown) w.landedAtBanner ??= w.tray.landed;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+  await app.pitch.waitForCameraToSettle();
+  await app.pitch.clickPlayer("team1:0");
+  await app.hud.actionButton("move").click();
+  await app.pitch.clickSquare({ x: 19, y: 5 });
+  await app.pitch.clickSquare({ x: 19, y: 5 });
+  await page.getByRole("button", { name: "Dodge!" }).click();
+  await page.getByRole("button", { name: "Rush!" }).click({ timeout: 15_000 });
+
+  await expect(page.getByRole("heading", { name: "TURNOVER" })).toBeVisible({
+    timeout: 10_000,
+  });
+  const { thrownAtTurnover, landedAtBanner } = await page.evaluate(() => {
+    const w = window as unknown as {
+      thrownAtTurnover: number;
+      landedAtBanner: number;
+    };
+    return {
+      thrownAtTurnover: w.thrownAtTurnover,
+      landedAtBanner: w.landedAtBanner,
+    };
+  });
+  // Every roll up to the failed Rush had landed before the banner
+  expect(thrownAtTurnover).toBeGreaterThan(0);
+  expect(landedAtBanner).toBeGreaterThanOrEqual(thrownAtTurnover);
 });

@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { GameEventNames } from "../../../types/events";
+import { DiceWatch } from "../../../game/presentation/diceWatch";
+
+/** How long the landed dice show their result before the banner. */
+const RESULT_BEAT_MS = 600;
+/** The deciding roll may be queued behind others in the tray. */
+const FALL_DICE_MS = 8000;
+/** How long the banner stays up. */
+const SHOW_MS = 2500;
 
 interface TurnoverOverlayProps {
   eventBus: EventBus;
@@ -12,20 +21,29 @@ export const TurnoverOverlay: React.FC<TurnoverOverlayProps> = ({
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const handleTurnover = (data: { teamId: string; reason: string }) => {
+    // The turnover is decided by a roll: show it once that roll has landed
+    // and been seen. Armour and injury after a fall can still be rolling.
+    const dice = new DiceWatch(eventBus);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let live = true;
+    const handleTurnover = async (data: { teamId: string; reason: string }) => {
+      await dice.landed(FALL_DICE_MS);
+      await new Promise((resolve) =>
+        timers.push(setTimeout(resolve, RESULT_BEAT_MS))
+      );
+      if (!live) return;
       setMessage(data.reason || "TURNOVER");
       setIsVisible(true);
-
-      // Hide after animation (approx 2.5s)
-      setTimeout(() => {
-        setIsVisible(false);
-      }, 2500);
+      timers.push(setTimeout(() => setIsVisible(false), SHOW_MS));
     };
 
-    eventBus.on("ui:turnover", handleTurnover);
+    eventBus.on(GameEventNames.UI_Turnover, handleTurnover);
 
     return () => {
-      eventBus.off("ui:turnover", handleTurnover);
+      live = false;
+      timers.forEach(clearTimeout);
+      dice.dispose();
+      eventBus.off(GameEventNames.UI_Turnover, handleTurnover);
     };
   }, [eventBus]);
 
