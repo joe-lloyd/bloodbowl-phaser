@@ -4,6 +4,11 @@ import { GameEventNames } from "@/types/events";
 import { ApothecaryDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../componentWarehouse/HudKit";
 
 interface ApothecaryDialogProps {
   eventBus: EventBus;
@@ -77,35 +82,27 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
       : "rolls a D6 — 4+ moves them to the Reserves, 1-3 leaves the result unchanged";
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto">
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[460px] text-white shadow-2xl">
-        <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-          Use the Apothecary?
-        </h2>
-
-        <p className="text-center text-slate-300 mb-2">
-          {player?.playerName ?? "Player"} — {resultLabel}
-        </p>
-        <p className="text-center text-slate-400 text-sm mb-6">
-          If used: {outcomeDescription}. The Apothecary is consumed either way
-          once used.
-        </p>
-
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={() => answer(true)}
-            className="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
-            USE APOTHECARY
-          </button>
-          <button
-            onClick={() => answer(false)}
-            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
+    <DialogShell
+      title="Use the Apothecary?"
+      width="w-[460px]"
+      actions={
+        <DialogActions>
+          <HudButton variant="ghost" onClick={() => answer(false)}>
             DECLINE
-          </button>
-        </div>
-      </div>
-    </div>
+          </HudButton>
+          <HudButton variant="gold" onClick={() => answer(true)}>
+            USE APOTHECARY
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p className="font-hud-label text-hud-lg font-bold text-hud-bone">
+        {player?.playerName ?? "Player"} — {resultLabel}
+      </p>
+      <p className="mt-2 text-hud-sm text-hud-dim">
+        If used: {outcomeDescription}. The Apothecary is consumed either way
+        once used.
+      </p>
+    </DialogShell>
   );
 };

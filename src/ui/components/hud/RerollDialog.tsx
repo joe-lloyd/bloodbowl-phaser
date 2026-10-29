@@ -5,6 +5,11 @@ import { RerollDecisionRequest, RerollSource } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../componentWarehouse/HudKit";
 
 interface RerollDialogProps {
   eventBus: EventBus;
@@ -58,57 +63,56 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       : 0;
 
   return (
-    <div
-      data-testid="reroll-dialog"
-      className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto"
-    >
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[440px] text-white shadow-2xl">
-        <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-          Re-roll?
-        </h2>
-
-        <p className="text-center text-slate-300 mb-6">
-          {player?.playerName ?? "Player"} failed the {request.rollKind} roll
-          (rolled a {request.roll}).
-        </p>
-
-        <div className="flex flex-col gap-3">
+    <DialogShell
+      testId="reroll-dialog"
+      title="Re-roll?"
+      actions={
+        <DialogActions stack>
           {request.sources.includes("skill") && (
-            <button
+            <HudButton
               data-testid="reroll-use-skill"
+              variant="gold"
+              block
               onClick={() => answer(true, "skill")}
-              className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               USE {request.skill?.toUpperCase() ?? "SKILL"} RE-ROLL
-            </button>
+            </HudButton>
           )}
           {request.sources.includes("team") && (
-            <button
+            <HudButton
               data-testid="reroll-use-team"
+              variant="gold"
+              block
               onClick={() => answer(true, "team")}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               USE TEAM RE-ROLL ({rerollsLeft} left)
-            </button>
+            </HudButton>
           )}
           {request.sources.includes("veteran") && (
-            <button
+            <HudButton
               data-testid="reroll-use-veteran"
+              variant="secondary"
+              block
               onClick={() => answer(true, "veteran")}
-              className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
             >
               USE VETERAN RE-ROLL (once per game)
-            </button>
+            </HudButton>
           )}
-          <button
+          <HudButton
             data-testid="reroll-decline"
+            variant="ghost"
+            block
             onClick={() => answer(false)}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >
             DECLINE
-          </button>
-        </div>
-      </div>
-    </div>
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p>
+        {player?.playerName ?? "Player"} failed the {request.rollKind} roll
+        (rolled a {request.roll}).
+      </p>
+    </DialogShell>
   );
 };

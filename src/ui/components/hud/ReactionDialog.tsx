@@ -3,6 +3,11 @@ import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
 import { ReactionDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../componentWarehouse/HudKit";
 
 interface ReactionDialogProps {
   eventBus: EventBus;
@@ -46,34 +51,29 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
   };
 
   return (
-    <div
-      data-testid="reaction-dialog"
-      className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto"
-    >
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[440px] text-white shadow-2xl">
-        <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-          {request.skill}
-        </h2>
-
-        <p className="text-center text-slate-300 mb-6">{request.prompt}</p>
-
-        <div className="flex gap-4 justify-center">
-          <button
-            data-testid="reaction-yes"
-            onClick={() => answer(true)}
-            className="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
-            YES
-          </button>
-          <button
+    <DialogShell
+      testId="reaction-dialog"
+      title={request.skill}
+      actions={
+        <DialogActions>
+          <HudButton
             data-testid="reaction-no"
+            variant="ghost"
             onClick={() => answer(false)}
-            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >
             NO
-          </button>
-        </div>
-      </div>
-    </div>
+          </HudButton>
+          <HudButton
+            data-testid="reaction-yes"
+            variant="gold"
+            onClick={() => answer(true)}
+          >
+            YES
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p>{request.prompt}</p>
+    </DialogShell>
   );
 };

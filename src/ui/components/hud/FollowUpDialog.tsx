@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../componentWarehouse/HudKit";
 
 interface FollowUpDialogProps {
   eventBus: EventBus;
@@ -70,36 +75,26 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     return null;
 
   return (
-    <div
-      data-testid="follow-up-dialog"
-      className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto"
-    >
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[400px] text-white shadow-2xl">
-        <h2 className="text-2xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-          Follow Up?
-        </h2>
-
-        <p className="text-center text-slate-300 mb-6">
-          Do you want to follow up into the defender&apos;s square?
-        </p>
-
-        <div className="flex gap-4 justify-center">
-          <button
+    <DialogShell
+      testId="follow-up-dialog"
+      title="Follow Up?"
+      width="w-[400px]"
+      actions={
+        <DialogActions>
+          <HudButton data-testid="follow-up-no" variant="ghost" onClick={handleNo}>
+            NO
+          </HudButton>
+          <HudButton
             data-testid="follow-up-yes"
+            variant="gold"
             onClick={handleYes}
-            className="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
           >
             YES
-          </button>
-          <button
-            data-testid="follow-up-no"
-            onClick={handleNo}
-            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
-            NO
-          </button>
-        </div>
-      </div>
-    </div>
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p>Do you want to follow up into the defender&apos;s square?</p>
+    </DialogShell>
   );
 };

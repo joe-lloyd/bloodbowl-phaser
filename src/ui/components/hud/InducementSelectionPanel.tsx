@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { Inducement } from "../../../types/Inducements";
+import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
 interface InducementSelectionPanelProps {
   /** Called once both teams have confirmed and the inventory is committed. */
@@ -85,70 +86,78 @@ export const InducementSelectionPanel: React.FC<
   };
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 pointer-events-auto">
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[520px] text-white shadow-2xl max-h-[80vh] overflow-y-auto">
-        <h2 className="text-2xl font-black text-center text-yellow-400 mb-2 uppercase tracking-wider">
-          Inducements — {activeTeam.name}
-        </h2>
-        <p className="text-center text-slate-300 mb-4">
-          Petty Cash: {(budget - spend).toLocaleString()} /{" "}
-          {budget.toLocaleString()} gold remaining
-        </p>
+    <DialogShell
+      title={<>Inducements — {activeTeam.name}</>}
+      width="w-[520px]"
+      placement="center"
+      backdrop="heavy"
+      className="max-h-[80vh] overflow-y-auto hud-scroll"
+      actions={
+        <HudButton variant="gold" size="lg" block onClick={confirmAndAdvance}>
+          {turnIndex + 1 < teams.length
+            ? `CONFIRM — NEXT: ${container.gameService.getTeam(teams[turnIndex + 1])?.name}`
+            : "CONFIRM AND START MATCH"}
+        </HudButton>
+      }
+    >
+      <p className="mb-4 flex items-baseline gap-2">
+        <span className="hud-label">Petty Cash:</span>
+        <span className="font-hud-display text-hud-xl text-hud-gold">
+          {(budget - spend).toLocaleString()}
+        </span>
+        <span className="text-hud-dim">
+          / {budget.toLocaleString()} gold remaining
+        </span>
+      </p>
 
-        <div className="flex flex-col gap-3 mb-6">
-          {catalog.map((entry) => {
-            const qty = qtyOf(entry.inducement);
-            return (
-              <div
-                key={entry.inducement}
-                className="flex items-center justify-between bg-slate-800 rounded px-4 py-2"
-              >
-                <div>
-                  <div className="font-semibold">{entry.inducement}</div>
-                  <div className="text-xs text-slate-400">
-                    {entry.price.toLocaleString()} gold each · max{" "}
-                    {entry.maxCount}
-                  </div>
+      <div className="flex flex-col gap-2">
+        {catalog.map((entry) => {
+          const qty = qtyOf(entry.inducement);
+          return (
+            <div
+              key={entry.inducement}
+              className="flex items-center justify-between gap-3 rounded-hud border border-white/10 bg-black/30 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="font-hud-label text-hud-lg font-bold text-hud-bone">
+                  {entry.inducement}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600"
-                    onClick={() => setQuantity(entry.inducement, qty - 1)}
-                    disabled={qty <= 0}
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center">{qty}</span>
-                  <button
-                    className="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600"
-                    onClick={() => setQuantity(entry.inducement, qty + 1)}
-                    disabled={qty >= entry.maxCount}
-                  >
-                    +
-                  </button>
+                <div className="text-hud-sm text-hud-dim">
+                  {entry.price.toLocaleString()} gold each · max{" "}
+                  {entry.maxCount}
                 </div>
               </div>
-            );
-          })}
-          {budget === 0 && (
-            <p className="text-center text-slate-500 text-sm">
-              No petty cash this match — team values are level (or this team
-              has the higher value).
-            </p>
-          )}
-        </div>
-
-        <div className="flex justify-center">
-          <button
-            onClick={confirmAndAdvance}
-            className="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
-            {turnIndex + 1 < teams.length
-              ? `CONFIRM — NEXT: ${container.gameService.getTeam(teams[turnIndex + 1])?.name}`
-              : "CONFIRM AND START MATCH"}
-          </button>
-        </div>
+              <div className="flex items-center gap-2">
+                <HudButton
+                  size="sm"
+                  className="!w-9 !px-0"
+                  onClick={() => setQuantity(entry.inducement, qty - 1)}
+                  disabled={qty <= 0}
+                >
+                  −
+                </HudButton>
+                <span className="w-6 text-center font-hud-display text-hud-xl">
+                  {qty}
+                </span>
+                <HudButton
+                  size="sm"
+                  className="!w-9 !px-0"
+                  onClick={() => setQuantity(entry.inducement, qty + 1)}
+                  disabled={qty >= entry.maxCount}
+                >
+                  +
+                </HudButton>
+              </div>
+            </div>
+          );
+        })}
+        {budget === 0 && (
+          <p className="text-center text-hud-sm text-hud-mute">
+            No petty cash this match — team values are level (or this team
+            has the higher value).
+          </p>
+        )}
       </div>
-    </div>
+    </DialogShell>
   );
 };
