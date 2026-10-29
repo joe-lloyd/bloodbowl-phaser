@@ -78,6 +78,36 @@ describe("development seed integration", () => {
     expect(violations).toEqual([]);
   });
 
+  it("seed teams saved before the Veteran rule get one when loaded", () => {
+    seedDevelopmentData();
+    const fresh = loadTeams();
+    // A save from before the rule: no Veteran, and their Lineman's full MA
+    const old = fresh.map((team) => ({
+      ...team,
+      players: team.players.map(({ veteran, ...player }) => ({
+        ...player,
+        stats: { ...player.stats, MA: player.stats.MA + (veteran ? 1 : 0) },
+      })),
+    }));
+    saveTeams([...old, coachTeam("Coach Draft")]);
+
+    const loaded = loadTeams();
+    for (const team of fresh) {
+      const vets = loaded
+        .find((t) => t.id === team.id)!
+        .players.filter((p) => p.veteran)
+        .map((p) => `${p.id} MA${p.stats.MA}`);
+      const expected = team.players
+        .filter((p) => p.veteran)
+        .map((p) => `${p.id} MA${p.stats.MA}`);
+      expect(vets, team.name).toEqual(expected);
+      expect(vets, team.name).toHaveLength(1);
+    }
+    // A coach's own draft is theirs to choose
+    const coach = loaded.find((t) => t.name === "Coach Draft")!;
+    expect(coach.players.some((p) => p.veteran)).toBe(false);
+  });
+
   it("cleanup removes only seed-owned records, keeping coach records", () => {
     // Coach-created records sit beside the seeds
     const mine = coachTeam("My Custom Team");

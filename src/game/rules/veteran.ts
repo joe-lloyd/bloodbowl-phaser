@@ -56,11 +56,14 @@ export function chooseVeteran(team: Team, playerId: string): EditDecision {
 
 /**
  * Generated teams (seeds, simulation line-ups) take their first Lineman as
- * the Veteran so they are legal drafts. No-op without a Lineman.
+ * the Veteran so they are legal drafts. A generated team may already have
+ * match history, so the drafting-only rule does not apply. No-op without a
+ * Lineman.
  */
 export function chooseFirstLinemanAsVeteran(team: Team): void {
   const first = team.players.find((player) =>
     isLinemanPosition(player.keywords)
   );
-  if (first) chooseVeteran(team, first.id);
+  if (first)
+    team.players.forEach((player) => setVeteran(player, player === first));
 }
