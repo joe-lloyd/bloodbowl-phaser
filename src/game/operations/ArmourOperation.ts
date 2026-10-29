@@ -187,7 +187,7 @@ export class ArmourOperation extends GameOperation {
         new InjuryOperation(this.playerId, {
           modifier: ctx.injuryModifier,
           causedById: this.causedById,
-          cause: this.fall ? undefined : this.cause,
+          cause: this.fall?.cause ?? this.cause,
         }),
         true
       );

@@ -154,8 +154,7 @@ export class InjuryOperation extends GameOperation {
         eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
           causerId: this.opts.causedById,
           victimId: player.id,
-          cause:
-            this.opts.cause ?? (this.opts.causedById ? "special" : "crowd"),
+          cause: this.opts.cause ?? "special",
           sppEligible:
             this.opts.cause === "block" &&
             !!this.opts.causedById &&
