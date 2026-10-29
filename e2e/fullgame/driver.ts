@@ -6,6 +6,8 @@
 import { Page, Locator } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
+type Square = { x: number; y: number };
+
 /** Where a run writes its move log and screenshots. */
 export interface Recorder {
   log(line: string): void;
@@ -101,7 +103,7 @@ export async function riskyMoveConfirm(
   page: Page,
   rec: Recorder
 ): Promise<boolean> {
-  const b = page.getByRole("button", { name: /^(Dodge!|Rush!|Sprint!)$/ });
+  const b = page.getByRole("button", { name: /^(Dodge!|Rush!|Rush & Dodge!)$/ });
   if (!(await visible(b))) return false;
   rec.log(`  confirmed ${await b.first().innerText()}`);
   await b.first().click();
@@ -260,26 +262,33 @@ export async function perform(
         );
         break;
       case "move": {
-        const path = command.path as { x: number; y: number }[];
-        for (const sq of [...path, path.at(-1)!]) {
-          if (await riskyMoveConfirm(page, rec)) break;
-          await app.pitch.clickSquare(sq);
-          await page.waitForTimeout(150);
+        // Click the destination twice, as a coach does; the board walks the
+        // safest route and asks before each Dodge or Rush on the way.
+        const to = (command.path as Square[]).at(-1)!;
+        await app.pitch.clickSquare(to);
+        await page.waitForTimeout(150);
+        await app.pitch.clickSquare(to);
+        const mover = async () =>
+          (await app.bridge.snapshot()).teams
+            .flatMap((t) => t.players)
+            .find((p) => p.id === command.playerId);
+        const until = Date.now() + 30_000;
+        let m = await mover();
+        while (Date.now() < until) {
+          if (await riskyMoveConfirm(page, rec)) continue;
+          if (await answerDialog(page, app, -1, rec)) continue;
+          await page.waitForTimeout(300);
+          m = await mover();
+          const there = m?.position?.x === to.x && m?.position?.y === to.y;
+          const stopped = m?.status !== "Active" || !m?.position;
+          if (there || stopped) break;
         }
-        await riskyMoveConfirm(page, rec);
-        await page.waitForTimeout(700);
-        const snap = await app.bridge.snapshot();
-        const mover = snap.teams
-          .flatMap((t) => t.players)
-          .find((p) => p.id === command.playerId);
-        const to = path.at(-1)!;
-        if (
-          !mover?.position ||
-          mover.position.x !== to.x ||
-          mover.position.y !== to.y
-        )
+        // Let the last walk finish before the next decision
+        await page.waitForTimeout(900);
+        m = await mover();
+        if (m?.position?.x !== to.x || m?.position?.y !== to.y)
           log(
-            `  MOVE MISSED: wanted ${to.x},${to.y} got ${JSON.stringify(mover?.position)} status=${mover?.status} active=${JSON.stringify(snap.activePlayer)}`
+            `  MOVE STOPPED SHORT: wanted ${to.x},${to.y} got ${JSON.stringify(m?.position)} status=${m?.status}`
           );
         break;
       }

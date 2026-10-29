@@ -34,6 +34,10 @@ import {
   blockReplacementForDirectAction,
 } from "../../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../rules/blockReplacements";
+import { planMoveLegs, StepRisk } from "../rules/moveLegs";
+import { standUpCost } from "../skills/movement";
+import { rushModifier } from "../inducements/matchInducements";
+import { teamRerollsLeft } from "../teamRerolls";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -61,10 +65,8 @@ export class GameplayInteractionController {
   private selectedPlayerId: string | null = null;
   private lastHoverGrid: { x: number; y: number } | null = null;
   private waypoints: { x: number; y: number }[] = [];
-  private pendingMove: {
-    playerId: string;
-    path: { x: number; y: number }[];
-  } | null = null;
+  /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
+  private riskPrompts = 0;
 
   // Push direction selection state
   private pushSelectionActive: boolean = false;
@@ -186,12 +188,6 @@ export class GameplayInteractionController {
       this.refreshPlayerVisualization(data.playerId);
     };
 
-    // Listen for confirmation
-    this.eventBus.on(
-      GameEventNames.UI_ConfirmationResult,
-      this.onConfirmationResult
-    );
-
     // Listen for push direction selection request
     this.eventBus.on(
       GameEventNames.UI_SelectPushDirection,
@@ -254,7 +250,6 @@ export class GameplayInteractionController {
     if (data.phase === GamePhase.PLAY) {
       return;
     }
-    this.pendingMove = null;
     this.pushSelectionActive = false;
     this.pushValidDirections = [];
     this.pushDefenderId = "";
@@ -1612,6 +1607,8 @@ export class GameplayInteractionController {
   public handlePlayerClick(playerId: string): void {
     // Online: input is locked while the opponent owns the turn/decision
     if (getActiveOnlineMatch()?.mayAct() === false) return;
+    // A route is still being walked
+    if (this.isBusy) return;
     console.log(
       `[Interaction] handlePlayerClick: ${playerId}. Mode: ${this.currentActionMode}, Step: ${this.currentStepId}, Selected: ${this.selectedPlayerId}`
     );
@@ -2019,119 +2016,138 @@ export class GameplayInteractionController {
 
   private executeMove(): void {
     if (!this.selectedPlayerId || this.waypoints.length === 0) return;
-
-    const player = this.gameService.getPlayerById(this.selectedPlayerId);
-    if (!player) return;
-
-    // Check for dodge requirements
-    const fullPath = [
-      { x: player.gridPosition!.x, y: player.gridPosition!.y },
-      ...this.waypoints,
-    ];
-
-    const opponents = this.getOpposingPlayers(player.teamId).filter(
-      (p) => p.gridPosition && p.status === "Active"
-    );
-
-    const dodgeAnalysis = this.movementValidator.analyzePath(
-      player,
-      fullPath,
-      opponents
-    );
-
-    if (dodgeAnalysis.requiresDodge) {
-      const dodgeSquares = dodgeAnalysis.dodgeSquares;
-      const worstModifier = Math.min(...dodgeSquares.map((d) => d.modifiers));
-      const dodgeCount = dodgeSquares.length;
-
-      this.pendingMove = {
-        playerId: this.selectedPlayerId,
-        path: [...this.waypoints],
-      };
-
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId: "dodge-confirm",
-        title: "Dodge Required!",
-        message:
-          `This move requires ${dodgeCount} dodge roll${
-            dodgeCount > 1 ? "s" : ""
-          }.\n` +
-          `Target: ${player.stats.AG}+ (Worst modifier: ${worstModifier})\n` +
-          `Failing a dodge causes a Fall & Turnover.\n\n` +
-          `Do you want to attempt the dodge?`,
-        confirmLabel: "Dodge!",
-        cancelLabel: "Cancel",
-        risky: true,
-      });
-      return;
-    }
-
-    // No dodge required, check for sprint
-    this.checkSprintOrFinalize(this.selectedPlayerId, this.waypoints);
+    void this.moveAlong(this.selectedPlayerId, [...this.waypoints]);
   }
 
-  private finalizeMove(
+  /**
+   * Walk the plotted route a leg at a time. A stretch that rolls nothing goes
+   * as one move; each Dodge or Rush stops the player on the square before
+   * it, asks the coach, and goes alone, so its dice land before the walk
+   * carries on. Declining stops the player there with the movement left.
+   */
+  private async moveAlong(
     playerId: string,
-    path: { x: number; y: number }[]
-  ): void {
-    this.gameService
-      .movePlayer(playerId, path)
-      .then(() => {
-        this.hasMovedInAction = true;
-        this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
-
-        // Do NOT auto-finish activation here.
-        // Allow partial moves. GameService will auto-finish if MA+2 is used.
-        // this.gameService.finishActivation(playerId);
-
-        // Do NOT deselect if still active.
-        // If activation NOT finished, keep selected?
-        // How do we know from here?
-        // Check canActivate? canActivate is TRUE until finished.
-
-        // If we used all movement, it should be finished.
-        // If GameService finished it, we should deselect.
-        // Listener for 'playerActivated' handles visual update, but DESELECTION?
-
-        // If player is still legally active/selected, we keep them selected for next move.
-        // If we deselect, user has to re-select. That's annoying for partial moves.
-
-        // If player IS activated, deselect.
-        if (this.gameService.hasPlayerActed(playerId)) {
-          this.deselectPlayer();
-        } else {
-          // Keep selected, clear waypoints so they can plot next "leg"
-          this.waypoints = [];
-          this.pitch.clearPath();
-
-          // Track that player has moved in this action
-          if (this.currentActionMode === "pass" && !this.hasMovedInAction) {
-            this.hasMovedInAction = true;
-            this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
-              playerId,
-            });
-          }
-
-          // REFRESH SELECTION logic to update the Range Overlay
-          // calling selectPlayer would reset the action mode, so we use refresh
-          this.refreshPlayerVisualization(playerId);
+    route: { x: number; y: number }[]
+  ): Promise<void> {
+    this.isBusy = true;
+    this.waypoints = [];
+    this.pitch.clearPath();
+    let walked = false;
+    try {
+      let rest = route;
+      while (rest.length > 0) {
+        const player = this.gameService.getPlayerById(playerId);
+        if (!player?.gridPosition) break;
+        const [leg] = this.planLegs(player, rest);
+        if (leg.risk && !(await this.confirmStep(player, leg.risk))) break;
+        await this.gameService.movePlayer(playerId, leg.path);
+        walked = true;
+        await this.scene.playerSettled?.(playerId);
+        const end = leg.path[leg.path.length - 1];
+        const now = this.gameService.getPlayerById(playerId);
+        if (
+          this.gameService.getState().phase !== GamePhase.PLAY ||
+          this.gameService.hasPlayerActed(playerId) ||
+          now?.status !== PlayerStatus.ACTIVE ||
+          now.gridPosition?.x !== end.x ||
+          now.gridPosition?.y !== end.y
+        ) {
+          break;
         }
+        rest = rest.slice(leg.path.length);
+      }
+    } catch (err) {
+      console.error("Move failed", err);
+      this.isBusy = false;
+      this.deselectPlayer();
+      return;
+    }
+    this.isBusy = false;
+    if (walked) this.afterMove(playerId);
+    else this.refreshPlayerVisualization(playerId);
+  }
 
-        this.pendingMove = null;
-      })
-      .catch((err) => {
-        console.error("Move failed", err);
-        this.deselectPlayer();
-        this.pendingMove = null;
+  private planLegs(player: Player, route: { x: number; y: number }[]) {
+    const state = this.gameService.getState();
+    const mover = withDriveModifiers(player, state);
+    return planMoveLegs(player.gridPosition!, route, {
+      opponents: this.getOpposingPlayers(player.teamId),
+      ag: mover.stats.AG,
+      ma: mover.stats.MA,
+      used:
+        this.gameService.getMovementUsed(player.id) +
+        (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
+      rushModifier: rushModifier(state, player),
+    });
+  }
+
+  /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
+  private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
+    const actionId = `risky-step-${++this.riskPrompts}`;
+    const rolls =
+      risk.kind === "dodge"
+        ? [`Dodge: ${risk.dodgeNeed}+`]
+        : risk.kind === "rush"
+          ? [`Rush: ${risk.rushNeed}+`]
+          : [`Rush: ${risk.rushNeed}+, then Dodge: ${risk.dodgeNeed}+`];
+    const skill =
+      risk.kind === "rush" ? SkillType.SURE_FEET : SkillType.DODGE;
+    const arbiter = this.gameService.getRerollArbiter();
+    const team = this.gameService.getTeam(player.teamId);
+    const rerolls = [
+      hasSkill(player.skills, skill) &&
+      arbiter.skillRerollAvailable(player, skill)
+        ? `${skill} re-roll`
+        : null,
+      arbiter.teamRerollAvailable(player.teamId) && team
+        ? `team re-roll (${teamRerollsLeft(this.gameService.getState(), team)} left)`
+        : null,
+    ].filter(Boolean);
+    const title =
+      risk.kind === "dodge"
+        ? "Dodge"
+        : risk.kind === "rush"
+          ? "Rush"
+          : "Rush & Dodge";
+    return new Promise((resolve) => {
+      const onResult = (data: { confirmed: boolean; actionId: string }) => {
+        if (data.actionId !== actionId) return;
+        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+        resolve(data.confirmed);
+      };
+      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId,
+        title: `${player.playerName}: ${title}`,
+        message:
+          `${rolls[0]}. A fall is a turnover.\n` +
+          (rerolls.length
+            ? `Re-rolls: ${rerolls.join(", ")}.`
+            : "No re-roll available."),
+        confirmLabel: `${title}!`,
+        cancelLabel: "Stop here",
+        risky: true,
       });
+    });
+  }
+
+  private afterMove(playerId: string): void {
+    this.hasMovedInAction = true;
+    this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
+    // GameService finishes the activation once MA+2 is spent; otherwise the
+    // player stays selected to plot the next leg.
+    if (this.gameService.hasPlayerActed(playerId)) {
+      this.deselectPlayer();
+      return;
+    }
+    this.waypoints = [];
+    this.pitch.clearPath();
+    // Calling selectPlayer would reset the action mode
+    this.refreshPlayerVisualization(playerId);
   }
 
   public destroy(): void {
     // Cleanup listeners
-    this.eventBus.off(
-      GameEventNames.UI_ConfirmationResult,
-      this.onConfirmationResult
-    );
     this.eventBus.off(
       GameEventNames.UI_SelectPushDirection,
       this.pushDirectionHandler
@@ -2177,73 +2193,6 @@ export class GameplayInteractionController {
     // Cleanup highlight manager
     if (this.highlightManager) {
       this.highlightManager.destroy();
-    }
-  }
-
-  private onConfirmationResult = (data: {
-    confirmed: boolean;
-    actionId: string;
-  }) => {
-    // Handle dodge confirmation
-    if (data.actionId === "dodge-confirm") {
-      if (data.confirmed && this.pendingMove) {
-        // Continue to sprint check or finalize
-        this.checkSprintOrFinalize(
-          this.pendingMove.playerId,
-          this.pendingMove.path
-        );
-      } else {
-        this.pendingMove = null;
-      }
-      return;
-    }
-
-    if (data.actionId === "sprint-confirm") {
-      if (data.confirmed && this.pendingMove) {
-        this.finalizeMove(this.pendingMove.playerId, this.pendingMove.path);
-      } else {
-        // Canceled
-        this.pendingMove = null;
-      }
-    }
-  };
-
-  // Extract sprint check logic
-  private checkSprintOrFinalize(
-    playerId: string,
-    path: { x: number; y: number }[]
-  ): void {
-    const player = this.gameService.getPlayerById(playerId);
-    if (!player) return;
-    const effectivePlayer = withDriveModifiers(
-      player,
-      this.gameService.getState()
-    );
-
-    const totalSteps = path.length;
-    const used = this.gameService.getMovementUsed(player.id);
-    const ma = effectivePlayer.stats.MA;
-    const remainingSafeMA = Math.max(0, ma - used);
-
-    if (totalSteps > remainingSafeMA) {
-      const extraSteps = totalSteps - remainingSafeMA;
-
-      this.pendingMove = { playerId, path };
-
-      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId: "sprint-confirm",
-        title: "Sprint Required! (GFI)",
-        message:
-          `This move goes ${extraSteps} square(s) beyond MA.\n` +
-          `You must roll a 2+ for each extra square.\n` +
-          `Rolling a 1 causes a Fall & Turnover.\n\n` +
-          `Do you want to Sprint?`,
-        confirmLabel: "Sprint!",
-        cancelLabel: "Cancel",
-        risky: true,
-      });
-    } else {
-      this.finalizeMove(playerId, path);
     }
   }
 

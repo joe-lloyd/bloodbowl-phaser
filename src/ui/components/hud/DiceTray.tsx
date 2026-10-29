@@ -106,6 +106,11 @@ export function DiceTray({
     let throwing: DiceThrow | null = null;
     // Ends the hold on the dice now up, so the next roll can play
     let release: (() => void) | null = null;
+    // The board holds a step or a fall until the dice deciding it land
+    const reportInAir = () =>
+      eventBus.emit(GameEventNames.UI_DiceInAir, {
+        count: queue.current.length + (shown && !shown.settled ? 1 : 0),
+      });
 
     const playNext = async () => {
       const next = queue.current.shift();
@@ -115,6 +120,7 @@ export function DiceTray({
         throwing?.stop();
         throwing = null;
         setCurrent(null);
+        reportInAir();
         return;
       }
       playing.current = true;
@@ -132,7 +138,9 @@ export function DiceTray({
           );
         }
         await handle.landed;
-        setCurrent({ ...next, settled: true });
+        next.settled = true;
+        reportInAir();
+        setCurrent({ ...next });
         await new Promise<void>((resolve) => {
           release = resolve;
           if (!next.block) setTimeout(resolve, HOLD_MS);
@@ -140,6 +148,7 @@ export function DiceTray({
         release = null;
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
+        next.settled = true;
       }
       void playNext();
     };
@@ -150,6 +159,7 @@ export function DiceTray({
       // Never fall far behind the game: keep the latest few.
       while (queue.current.length > MAX_QUEUE) queue.current.pop();
       if (!playing.current) void playNext();
+      reportInAir();
     };
 
     const onRoll = (event: RollEvent) => {

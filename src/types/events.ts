@@ -215,6 +215,8 @@ export enum GameEventNames {
   UI_BlockRollCancelled = "ui:blockRollCancelled",
   /** A lifted block die was clicked in the dice tray. */
   UI_BlockDieClicked = "ui:blockDieClicked",
+  /** The dice tray: how many shown rolls have not landed yet. */
+  UI_DiceInAir = "ui:diceInAir",
   UI_SelectPushDirection = "ui:selectPushDirection",
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
@@ -314,6 +316,8 @@ export interface GameEvents {
     ballJoinStep?: number;
     /** The player is being thrown (Throw Team-mate): animate an arc, not a walk. */
     thrown?: boolean;
+    /** The engine waits for the walk to be shown before it goes on. */
+    presentationId?: string;
   };
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };
@@ -813,6 +817,7 @@ export interface UIEvents {
    * rush declined/failed) — dialogs waiting on dice must close. */
   [GameEventNames.UI_BlockRollCancelled]: void;
   [GameEventNames.UI_BlockDieClicked]: { index: number };
+  [GameEventNames.UI_DiceInAir]: { count: number };
 
   [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;

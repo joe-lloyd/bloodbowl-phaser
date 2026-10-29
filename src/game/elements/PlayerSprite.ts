@@ -62,6 +62,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
   private anim: Animation = "idle";
   private facing: Facing;
+  /** The walk or fall being shown; resolves once it has played. */
+  public motion: Promise<void> = Promise.resolve();
   private animStart = 0;
   private phase = Math.random() * 1000;
   private shownFrame = "";

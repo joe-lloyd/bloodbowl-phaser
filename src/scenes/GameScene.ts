@@ -1115,6 +1115,11 @@ export class GameScene extends Phaser.Scene {
    * the player sprite even starts walking. `delayMs` holds the ball on its
    * start square until the walking player reaches it (mid-path pickups).
    */
+  /** Resolves once the player's walk on screen has finished. */
+  public playerSettled(playerId: string): Promise<void> {
+    return this.playerSprites.get(playerId)?.motion ?? Promise.resolve();
+  }
+
   public animateBallAlong(
     from: { x: number; y: number },
     path: { x: number; y: number }[],
