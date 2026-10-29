@@ -87,12 +87,27 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   );
   await shot("coin-sides");
 
-  // The winner is named only once the coin has landed
+  // The winner is named only once the coin has landed: no sooner than the
+  // flip itself takes
+  await page.evaluate(() => {
+    const w = window as unknown as { flippedAt: number; namedAt: number };
+    w.flippedAt = performance.now();
+    new MutationObserver((_, observer) => {
+      if (/Wins!/.test(document.body.textContent ?? "")) {
+        w.namedAt = performance.now();
+        observer.disconnect();
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await flip.click();
   await expect(page.getByTestId("coin-stage").locator("canvas")).toBeVisible();
-  await expect(page.getByText(/Wins!$/)).toHaveCount(0);
   await shot("coin-spinning");
   await expect(page.getByText(/Wins!$/)).toBeVisible({ timeout: 10_000 });
+  const namedAfterMs = await page.evaluate(() => {
+    const w = window as unknown as { flippedAt: number; namedAt: number };
+    return w.namedAt - w.flippedAt;
+  });
+  expect(namedAfterMs).toBeGreaterThan(1500);
   const toss = (await app.bridge.events()).find(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
