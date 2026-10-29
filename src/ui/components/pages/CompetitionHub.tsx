@@ -1,13 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listCompetitions } from "../../../competition/repository";
-import { CompetitionDoc, CompetitionType } from "../../../competition/types";
+import {
+  CompetitionDoc,
+  CompetitionStatus,
+  CompetitionType,
+} from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import Parchment from "../componentWarehouse/Parchment";
-import { Title } from "../componentWarehouse/Titles";
+import {
+  Chip,
+  cx,
+  EmptyState,
+  HudButton,
+  hudChoiceClass,
+  HudTone,
+  PageHeader,
+  PageShell,
+} from "../componentWarehouse/HudKit";
+
+const STATUS_TONE: Record<CompetitionStatus, HudTone> = {
+  draft: "neutral",
+  active: "gold",
+  complete: "good",
+};
 
 export function CompetitionHub({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
@@ -20,51 +35,47 @@ export function CompetitionHub({ type }: { type: CompetitionType }) {
     void listCompetitions(type, user?.uid ?? null).then(setCompetitions);
   }, [type, user]);
 
+  const createButton = (
+    <HudButton variant="primary" onClick={() => navigate(`/${route}/new`)}>
+      Create {type}
+    </HudButton>
+  );
+
   return (
-    <MinHeightContainer className="!justify-start">
-      <Parchment $intensity="low" />
-      <ContentContainer>
-        <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
-          <div>
-            <Title>{label}</Title>
-            <p className="font-body text-bb-muted-text">
-              Build a competition, play its fixtures locally or online, and
-              resume the season at any time.
-            </p>
-          </div>
-          <Button onClick={() => navigate(`/${route}/new`)}>
-            Create {type}
-          </Button>
+    <PageShell width="medium">
+      <PageHeader
+        back={{ label: "Back to Menu", onClick: () => navigate("/") }}
+        title={label}
+        subtitle="Build a competition, play its fixtures locally or online, and resume the season at any time."
+        actions={competitions.length > 0 && createButton}
+      />
+
+      {competitions.length === 0 ? (
+        <EmptyState
+          title={`No ${label.toLowerCase()} yet.`}
+          action={createButton}
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {competitions.map((competition) => (
+            <button
+              key={competition.id}
+              onClick={() => navigate(`/${route}/${competition.id}`)}
+              className={cx(hudChoiceClass(false), "flex flex-col gap-3 p-5")}
+            >
+              <span className="block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+                {competition.name}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                <Chip>{competition.entrants.length} teams</Chip>
+                <Chip tone={STATUS_TONE[competition.status]}>
+                  {competition.status}
+                </Chip>
+              </span>
+            </button>
+          ))}
         </div>
-
-        {competitions.length === 0 ? (
-          <p className="font-body text-xl italic text-bb-muted-text">
-            No {label.toLowerCase()} yet.
-          </p>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-5">
-            {competitions.map((competition) => (
-              <button
-                key={competition.id}
-                onClick={() => navigate(`/${route}/${competition.id}`)}
-                className="text-left bg-bb-warm-paper border-2 border-bb-dark-gold
-                  rounded-lg p-5 shadow-md hover:shadow-lg transition-bb"
-              >
-                <span className="block font-heading text-2xl text-bb-blood-red">
-                  {competition.name}
-                </span>
-                <span className="font-body">
-                  {competition.entrants.length} teams · {competition.status}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <SecondaryButton onClick={() => navigate("/")} className="mt-8">
-          Back to Menu
-        </SecondaryButton>
-      </ContentContainer>
-    </MinHeightContainer>
+      )}
+    </PageShell>
   );
 }

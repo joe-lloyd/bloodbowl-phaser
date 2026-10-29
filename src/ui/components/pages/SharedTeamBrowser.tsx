@@ -6,11 +6,15 @@ import {
 } from "../../../firebase/cloudTeamRepository";
 import { getTeamMode } from "../../../game/rules/teamLifecycle";
 import { useAuth } from "../../hooks/useAuth";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import Parchment from "../componentWarehouse/Parchment";
-import { Title } from "../componentWarehouse/Titles";
+import {
+  Chip,
+  EmptyState,
+  HudButton,
+  Notice,
+  PageHeader,
+  PageShell,
+  Panel,
+} from "../componentWarehouse/HudKit";
 
 /**
  * Browse every coach's live teams directly — there is no publish step and
@@ -36,73 +40,66 @@ export function SharedTeamBrowser() {
   const others = teams.filter((owned) => owned.ownerUid !== user?.uid);
 
   return (
-    <MinHeightContainer className="!justify-start">
-      <Parchment $intensity="low" />
-      <ContentContainer>
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-          <div>
-            <Title>Other Coaches</Title>
-            <p className="font-body text-bb-muted-text">
-              Every coach&apos;s team is readable directly — no publishing step,
-              and no snapshot to go stale. Use these to build a league or
-              tournament.
-            </p>
-          </div>
-          <Button onClick={() => navigate("/build-team")}>Your Teams</Button>
-        </div>
+    <PageShell width="wide">
+      <PageHeader
+        back={{ label: "Back to Menu", onClick: () => navigate("/") }}
+        title="Other Coaches"
+        subtitle="Every coach's team is readable directly — no publishing step, and no snapshot to go stale. Use these to build a league or tournament."
+        actions={
+          <HudButton variant="primary" onClick={() => navigate("/build-team")}>
+            Your Teams
+          </HudButton>
+        }
+      />
 
-        {!user ? (
-          <p className="font-body text-xl">
-            Sign in to browse other coaches&apos; teams.
-          </p>
-        ) : error ? (
-          <p className="font-body text-bb-deep-crimson">{error}</p>
-        ) : others.length === 0 ? (
-          <p className="font-body text-xl italic text-bb-muted-text">
-            No other coach has a team saved to the cloud yet.
-          </p>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {others.map(({ ownerUid, team }) => (
-              <article
-                key={`${ownerUid}:${team.id}`}
-                className="bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg p-5 shadow-md"
-              >
-                <h2 className="font-heading text-2xl text-bb-blood-red">
-                  {team.name}
-                </h2>
-                <p className="font-body">{team.rosterName}</p>
-                <p className="font-body text-sm text-bb-muted-text">
-                  Coach {team.coachName || "Unnamed"} · {getTeamMode(team)}
-                </p>
-                <div className="mt-4 border-t border-bb-divider pt-3 font-body text-sm">
-                  <p>{team.players.length} players</p>
-                  <p>
-                    Record {team.wins}-{team.draws}-{team.losses}
-                  </p>
-                </div>
-                <details className="mt-4">
-                  <summary className="font-heading cursor-pointer">
-                    View roster
-                  </summary>
-                  <ol className="mt-2 space-y-1 font-body text-sm">
-                    {team.players.map((player) => (
-                      <li key={player.id}>
-                        #{player.number} {player.playerName} —{" "}
+      {!user ? (
+        <EmptyState title="Sign in to browse other coaches' teams." />
+      ) : error ? (
+        <Notice tone="bad" role="alert">
+          {error}
+        </Notice>
+      ) : others.length === 0 ? (
+        <EmptyState title="No other coach has a team saved to the cloud yet." />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {others.map(({ ownerUid, team }) => (
+            <Panel as="section" key={`${ownerUid}:${team.id}`} className="p-4">
+              <h2 className="truncate font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+                {team.name}
+              </h2>
+              <p className="font-hud-body text-hud-sm text-hud-dim">
+                {team.rosterName}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Chip>Coach {team.coachName || "Unnamed"}</Chip>
+                <Chip tone="gold">{getTeamMode(team)}</Chip>
+                <Chip>{team.players.length} players</Chip>
+                <Chip>
+                  Record {team.wins}-{team.draws}-{team.losses}
+                </Chip>
+              </div>
+              <details className="mt-4 border-t border-white/10 pt-3">
+                <summary className="hud-label cursor-pointer hover:text-hud-gold">
+                  View roster
+                </summary>
+                <ol className="mt-2 space-y-1 font-hud-body text-hud-sm text-hud-bone">
+                  {team.players.map((player) => (
+                    <li key={player.id}>
+                      <span className="tabular-nums text-hud-mute">
+                        #{player.number}
+                      </span>{" "}
+                      {player.playerName} —{" "}
+                      <span className="text-hud-dim">
                         {player.positionName}
-                      </li>
-                    ))}
-                  </ol>
-                </details>
-              </article>
-            ))}
-          </div>
-        )}
-
-        <SecondaryButton onClick={() => navigate("/")} className="mt-8">
-          Back to Menu
-        </SecondaryButton>
-      </ContentContainer>
-    </MinHeightContainer>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            </Panel>
+          ))}
+        </div>
+      )}
+    </PageShell>
   );
 }
