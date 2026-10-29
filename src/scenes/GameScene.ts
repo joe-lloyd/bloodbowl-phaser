@@ -498,16 +498,12 @@ export class GameScene extends Phaser.Scene {
         this.cameraController.overview();
         return;
       }
-      const ball = resolveBallRepresentation(this.gameService.getState(), [
-        ...this.team1.players,
-        ...this.team2.players,
-      ]);
-      const acting = [...this.team1.players, ...this.team2.players]
-        .filter((p) => p.teamId === teamId && p.gridPosition)
-        .map((p) => p.gridPosition!);
-      const squares = ball.kind === "none" ? acting : [...acting, ball.square];
-      if (squares.length === 0) this.cameraController.overview();
-      else this.cameraController.focusSquares(squares);
+      this.frameActingTeam(teamId);
+    });
+    // Once a player is done, show the team-mates still to go
+    this.subscribe(GameEventNames.PlayerActivated, () => {
+      const teamId = this.gameService.getState().activeTeamId;
+      if (teamId) this.frameActingTeam(teamId, 900);
     });
 
     // The board is built: the loading screen can go, as the camera comes in.
@@ -1112,6 +1108,27 @@ export class GameScene extends Phaser.Scene {
    * the player sprite even starts walking. `delayMs` holds the ball on its
    * start square until the walking player reaches it (mid-path pickups).
    */
+  /**
+   * Frame the acting team's players who have not yet acted, with the ball.
+   * At the start of a turn that is every player the coach may move.
+   */
+  private frameActingTeam(teamId: string, duration?: number): void {
+    const state = this.gameService.getState();
+    const players = [...this.team1.players, ...this.team2.players];
+    const ball = resolveBallRepresentation(state, players);
+    const acting = players
+      .filter(
+        (p) =>
+          p.teamId === teamId &&
+          p.gridPosition &&
+          !state.turn.activatedPlayerIds.has(p.id)
+      )
+      .map((p) => p.gridPosition!);
+    const squares = ball.kind === "none" ? acting : [...acting, ball.square];
+    if (squares.length === 0) this.cameraController.overview();
+    else this.cameraController.focusSquares(squares, duration);
+  }
+
   /**
    * Frame a player with every square they can still move to, so the coach
    * can click where they want to end up. Anyone who cannot move (an
