@@ -28,6 +28,7 @@ import {
   DialogActions,
   DialogShell,
   HudButton,
+  Notice,
 } from "../components/componentWarehouse/HudKit";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
@@ -133,19 +134,23 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
 
   if (error) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-bb-parchment">
-        <p className="text-bb-deep-crimson text-xl font-body">{error}</p>
-        <button className="underline font-body" onClick={() => navigate("/")}>
+      <div className="hud-page flex h-full w-full flex-col items-center justify-center gap-4 px-6">
+        <Notice tone="bad" role="alert" className="w-full max-w-md">
+          {error}
+        </Notice>
+        <HudButton variant="ghost" onClick={() => navigate("/")}>
           Back to menu
-        </button>
+        </HudButton>
       </div>
     );
   }
 
   if (!user || !match) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-bb-parchment">
-        <p className="font-body text-xl">Connecting to match…</p>
+      <div className="hud-page flex h-full w-full items-center justify-center">
+        <p role="status" className="hud-label text-hud-base text-hud-dim">
+          Connecting to match…
+        </p>
       </div>
     );
   }

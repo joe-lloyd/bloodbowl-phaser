@@ -6,6 +6,12 @@ import { SoundSuite } from "../../sound/SoundSuite";
 import { CATALOG_ENTRIES } from "../../sound/catalog";
 import { BINDING_LABELS } from "../../sound/bindingLabels";
 import { useSoundSettings } from "../../sound/useSoundSettings";
+import {
+  HudButton,
+  PageHeader,
+  PageShell,
+  Section,
+} from "../componentWarehouse/HudKit";
 
 interface SoundTestProps {
   eventBus: EventBus;
@@ -47,79 +53,74 @@ export const SoundTest: React.FC<SoundTestProps> = ({ eventBus }) => {
   };
 
   return (
-    <div className="absolute inset-0 bg-gray-900 flex flex-col items-center overflow-y-auto text-white z-50 py-8">
-      <h1 className="text-4xl font-bold mb-8 text-yellow-400">
-        Audio Debug Dashboard
-      </h1>
+    <PageShell width="medium">
+      <PageHeader
+        eyebrow="Admin"
+        title="Audio Debug Dashboard"
+        back={{ label: "← Back to Main Menu", onClick: handleBack }}
+      />
 
-      <div className="grid grid-cols-1 max-w-md w-full gap-8 mb-8">
-        <div className="flex flex-col gap-4 p-6 bg-gray-800 rounded-lg border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4">Sound Settings</h2>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={settings.muted}
-              onChange={(e) => settings.setMuted(e.target.checked)}
-            />
-            Mute all sound effects
-          </label>
-          <label className="flex flex-col gap-2">
-            Volume: {Math.round(settings.volume * 100)}%
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={settings.volume}
-              onChange={(e) => settings.setVolume(Number(e.target.value))}
-            />
-          </label>
-          <p className="text-sm text-gray-400">
-            Persisted to localStorage; applied live to every suite sound
-            below, including sound already playing.
-          </p>
-          <button
-            onClick={handleStop}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 rounded font-bold transition-colors"
-          >
+      <Section title="Sound Settings" bodyClassName="flex flex-col gap-4">
+        <label className="flex items-center gap-3 font-hud-body text-hud-base text-hud-bone">
+          <input
+            type="checkbox"
+            className="hud-check"
+            checked={settings.muted}
+            onChange={(e) => settings.setMuted(e.target.checked)}
+          />
+          Mute all sound effects
+        </label>
+        <label className="flex flex-col gap-2 font-hud-body text-hud-base text-hud-bone">
+          Volume: {Math.round(settings.volume * 100)}%
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings.volume}
+            onChange={(e) => settings.setVolume(Number(e.target.value))}
+            className="w-full max-w-md accent-hud-gold"
+          />
+        </label>
+        <p className="font-hud-body text-hud-sm text-hud-dim">
+          Persisted to localStorage; applied live to every suite sound
+          below, including sound already playing.
+        </p>
+        <div>
+          <HudButton variant="danger" onClick={handleStop}>
             Stop All
-          </button>
+          </HudButton>
         </div>
-      </div>
+      </Section>
 
-      <div className="w-full max-w-4xl p-6 bg-gray-800 rounded-lg border border-gray-700">
-        <h2 className="text-2xl font-bold mb-4">
-          Interaction Sound Catalog ({CATALOG_ENTRIES.length})
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <Section
+        title={`Interaction Sound Catalog (${CATALOG_ENTRIES.length})`}
+      >
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {CATALOG_ENTRIES.map((sound) => (
             <div
               key={sound.name}
-              className="flex items-center justify-between gap-4 p-3 bg-gray-900 rounded border border-gray-700"
+              className="flex items-center justify-between gap-4 rounded-hud border border-white/10 bg-black/30 px-3 py-2"
             >
-              <div>
-                <div className="font-bold">{sound.label}</div>
-                <div className="text-xs text-gray-400">
+              <div className="min-w-0">
+                <div className="font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                  {sound.label}
+                </div>
+                <div className="text-hud-sm text-hud-dim">
                   {BINDING_LABELS[sound.name].join(", ")}
                 </div>
               </div>
-              <button
+              <HudButton
+                size="sm"
+                className="shrink-0"
                 onClick={() => handlePlaySound(sound.name)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition-colors shrink-0"
               >
                 Play
-              </button>
+              </HudButton>
             </div>
           ))}
         </div>
-      </div>
-
-      <button
-        onClick={handleBack}
-        className="mt-8 mb-4 text-gray-400 hover:text-white underline text-lg"
-      >
-        ← Back to Main Menu
-      </button>
-    </div>
+      </Section>
+    </PageShell>
   );
 };
