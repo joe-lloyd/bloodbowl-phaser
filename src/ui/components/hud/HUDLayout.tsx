@@ -10,16 +10,17 @@ interface HUDLayoutProps {
 }
 
 // Each side is one full-height column: the top stack sits at the top and the
-// bottom stack is pushed down with an auto margin, so the two can share the
-// height without ever running into each other. The top stack keeps at most
-// half (the sandbox case explorer scrolls inside that), and a panel that must
-// give way (a long action menu) shrinks and scrolls inside itself; the column
-// only scrolls as a last resort. An auto margin rather than justify-end, because
+// bottom stack is pushed down with an auto margin, so the two share the
+// height without ever running into each other. The bottom stack holds what
+// the coach acts on (the action menu, setup, End Turn) and always gets its
+// full height; the top stack (the sandbox panel, kickoff notes) takes what is
+// left and scrolls inside it. An auto margin rather than justify-end, because
 // justify-end in a scrolling column clips the top of an overflowing stack.
 const column =
   "absolute top-4 bottom-4 flex w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto no-scrollbar";
 const stack = "flex min-h-0 flex-col gap-3";
-const top = `${stack} max-h-[calc(50%-0.375rem)] shrink-0 overflow-y-auto hud-scroll`;
+const top = `${stack} overflow-y-auto hud-scroll`;
+const bottom = `${stack} mt-auto shrink-0`;
 
 /**
  * HUDLayout: floating panels in the four corners over a full-window match.
@@ -39,11 +40,11 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
   <div className="absolute inset-0 pointer-events-none">
     <div className={`${column} left-4`}>
       <div className={top}>{topLeft}</div>
-      <div className={`${stack} mt-auto`}>{bottomLeft}</div>
+      <div className={bottom}>{bottomLeft}</div>
     </div>
     <div className={`${column} right-4 items-end`}>
       <div className={`${top} w-full items-end`}>{topRight}</div>
-      <div className={`${stack} mt-auto w-full items-end`}>{bottomRight}</div>
+      <div className={`${bottom} w-full items-end`}>{bottomRight}</div>
     </div>
     {overlays}
   </div>
