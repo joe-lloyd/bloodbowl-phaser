@@ -23,7 +23,9 @@ function Stage({ variant }: { variant: Variant }) {
       style={{
         height: variant.height ?? 720,
         backgroundImage:
-          "linear-gradient(rgba(8,9,11,0.35), rgba(8,9,11,0.55)), url(./shots/pitch.jpg)",
+          variant.stage === "page"
+            ? undefined
+            : "linear-gradient(rgba(8,9,11,0.35), rgba(8,9,11,0.55)), url(./shots/pitch.jpg)",
       }}
     >
       {variant.view(fx)}

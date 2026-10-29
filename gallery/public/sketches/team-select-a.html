@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Team select A: two benches</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">A: two benches</span>
+<div class="wrap">
+  <span class="label eyebrow">Friendly sevens match</span><h1>Team selection</h1><div class="rule"></div>
+  <div style="display:grid;grid-template-columns:1fr 70px 1fr;gap:20px;align-items:start">
+    <div class="slab"><div class="head"><h2>Player 1</h2><span class="label">Home</span></div><div style="padding:12px"><div class="field">Search team or roster…</div><div id="l"></div></div></div>
+    <div class="vs" style="align-self:center;text-align:center">VS</div>
+    <div class="slab"><div class="head"><h2>Player 2</h2><span class="label">Away</span></div><div style="padding:12px"><div class="field">Search team or roster…</div><div id="r"></div></div></div>
+  </div>
+</div>
+<div class="bar"><span class="btn">← Back to menu</span><span><span class="name" style="font-size:20px">Human Founders</span> <span class="vs" style="font-size:20px;margin:0 8px">VS</span> <span class="name" style="font-size:20px">Orc Founders</span></span><span class="btn primary">Start game →</span></div>
+<script>
+const t=[["Amazon Founders","Amazon","#556b2f"],["Black Orc Founders","Black Orc","#222"],["Dwarf Founders","Dwarf","#1e3a5f"],["Human Founders","Human","#8e1b1b"],["Orc Founders","Orc","#3e6b2f"],["Skaven Founders","Skaven","#6b5e54"]];
+for (const [id,pick] of [["l","Human Founders"],["r","Orc Founders"]]) document.getElementById(id).innerHTML=t.map(([n,r,c])=>`<div class="row ${n===pick?"on":""}"><span class="sw" style="background:${c}"></span><span class="name">${n}</span><span class="sub">${r}</span></div>`).join("");
+</script></body></html>
