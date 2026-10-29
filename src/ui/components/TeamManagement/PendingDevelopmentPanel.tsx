@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { calculateTeamValue, PendingDevelopment, Team } from "../../../types/Team";
+import {
+  calculateTeamValue,
+  PendingDevelopment,
+  Team,
+} from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import {
   AdvancementChoice,
@@ -26,6 +30,13 @@ import {
 } from "../../../game/progression/advancementModes";
 import { SkillCategory, SkillType } from "../../../types/Skills";
 import { AdvancementForm } from "../shared/AdvancementForm";
+import {
+  cx,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+  Panel,
+} from "../componentWarehouse/HudKit";
 
 /**
  * Manage Team's pending-development resolution: Advanced League forced
@@ -48,11 +59,15 @@ export function PendingDevelopmentPanel({
   }
 
   return (
-    <section className="mt-4 rounded-lg border-2 border-bb-blood-red bg-bb-warm-paper p-4">
-      <h3 className="font-heading text-xl text-bb-blood-red mb-2">
+    <Panel as="section" accent="blood" className="p-3">
+      <h3 className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-warn">
         Pending team development
       </h3>
-      {notice && <p className="font-body mb-3">{notice}</p>}
+      {notice && (
+        <Notice tone="info" role="status" className="mt-2">
+          {notice}
+        </Notice>
+      )}
       {pending.map((entry) => {
         switch (entry.kind) {
           case "advanced-league-advancement":
@@ -85,7 +100,7 @@ export function PendingDevelopmentPanel({
             );
         }
       })}
-    </section>
+    </Panel>
   );
 }
 
@@ -119,13 +134,16 @@ function AdvancedLeagueEntry({
     ? ServiceContainer.getInstance().rngService
     : { rollDie: (sides: number) => 1 + Math.floor(Math.random() * sides) };
 
-  const player = team.players.find((candidate) => candidate.id === entry.playerId);
+  const player = team.players.find(
+    (candidate) => candidate.id === entry.playerId
+  );
   if (!player) {
     removePending(team, entry.id);
     return null;
   }
 
-  const categories = access === "primary" ? (player.primary ?? []) : (player.secondary ?? []);
+  const categories =
+    access === "primary" ? (player.primary ?? []) : (player.secondary ?? []);
   const skills = category ? eligibleSkills(player, [category]) : [];
 
   const applyChoice = (choice: AdvancementChoice) => {
@@ -142,13 +160,14 @@ function AdvancedLeagueEntry({
   };
 
   return (
-    <div className="mb-4 rounded border border-bb-dark-gold bg-white/60 p-3">
-      <p className="font-body">
-        <strong>{player.playerName}</strong> must buy an advancement (
-        {player.spp} SPP) before the team's next required fixture.
+    <div className={ENTRY}>
+      <p>
+        <strong className="text-hud-bone">{player.playerName}</strong> must buy
+        an advancement ({player.spp} SPP) before the team&apos;s next required
+        fixture.
       </p>
       {!canAdvance(player) ? (
-        <p className="text-sm text-bb-deep-crimson mt-1">
+        <p className="mt-1 text-hud-warn">
           Not enough SPP yet — this resolves automatically once they qualify.
         </p>
       ) : (
@@ -182,14 +201,20 @@ function AdvancedLeagueEntry({
           randomCandidates={randomCandidates}
           rollRandom={() => {
             if (!category) return;
-            setRandomCandidates(rollRandomPrimaryCandidates(player, category, rng));
+            setRandomCandidates(
+              rollRandomPrimaryCandidates(player, category, rng)
+            );
           }}
           characteristicRoll={characteristicRoll}
           rollCharacteristic={() => setCharacteristicRoll(rng.rollDie(8))}
           applyChoice={applyChoice}
         />
       )}
-      {error && <p className="text-bb-deep-crimson text-sm mt-2">{error}</p>}
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-2">
+          {error}
+        </Notice>
+      )}
     </div>
   );
 }
@@ -222,14 +247,15 @@ function describeSelection(team: Team, result: SkillSelectionResult): string {
       ` ${record.playerName} left for a pro team: the Treasury could not pay to keep them.`
   );
   const offers = result.draft.offers.map(
-    (offer) => ` A pro team made an offer for ${playerName(team, offer.playerId)}.`
+    (offer) =>
+      ` A pro team made an offer for ${playerName(team, offer.playerId)}.`
   );
   return [learned, ...left, ...offers].join("");
 }
 
-const BUTTON =
-  "rounded bg-bb-ink-blue text-white px-3 py-2 text-sm disabled:opacity-40";
-const SELECT = "rounded border border-bb-dark-gold p-2 text-sm disabled:opacity-40";
+const ENTRY =
+  "mt-3 rounded-hud border border-white/10 bg-black/30 p-3 font-hud-body text-hud-sm text-[#ddd5c6]";
+const SELECT = "hud-field w-auto max-w-full disabled:opacity-40";
 
 /**
  * Sevens Skill Selection (Spike! Journal 22, A2-A3). Each step renders the
@@ -273,15 +299,17 @@ function SkillSelectionEntry({
   const body = (() => {
     switch (decision.type) {
       case "choose-route": {
-        const option = decision.primaryOptions.find((o) => o.playerId === playerId);
+        const option = decision.primaryOptions.find(
+          (o) => o.playerId === playerId
+        );
         return (
           <>
-            <p className="font-body mb-2">
-              Choose this game's skill. Primary: you pick the player and a
+            <p className="mb-2">
+              Choose this game&apos;s skill. Primary: you pick the player and a
               category, then both coaches name skills and a D3 decides.
               Secondary: a random player rolls a Secondary skill.
             </p>
-            <div className="flex flex-wrap gap-2 items-center mb-2">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <select
                 aria-label="Skill Selection recipient"
                 value={playerId}
@@ -316,31 +344,35 @@ function SkillSelectionEntry({
                   </option>
                 ))}
               </select>
-              <button
+              <HudButton
+                size="sm"
                 disabled={!category}
                 onClick={() =>
                   category &&
-                  act(() => startPrimarySelection(team, entry, playerId, category))
+                  act(() =>
+                    startPrimarySelection(team, entry, playerId, category)
+                  )
                 }
-                className={BUTTON}
               >
                 Take a Primary skill
-              </button>
+              </HudButton>
             </div>
-            <button
+            <HudButton
+              size="sm"
               disabled={!decision.secondaryAvailable}
-              onClick={() => act(() => startSecondarySelection(team, entry, rng))}
-              className={BUTTON}
+              onClick={() =>
+                act(() => startSecondarySelection(team, entry, rng))
+              }
             >
               Random player, Secondary skill
-            </button>
+            </HudButton>
           </>
         );
       }
       case "name-primary-skill":
         return (
           <>
-            <p className="font-body mb-2">
+            <p className="mb-2">
               <strong>
                 {decision.chooser === "coach" ? "Coach" : "Opposing coach"}
               </strong>
@@ -354,7 +386,9 @@ function SkillSelectionEntry({
                 aria-label="Named skill"
                 value={skill}
                 onChange={(e) =>
-                  setSkill(decision.options.find((s) => s === e.target.value) ?? "")
+                  setSkill(
+                    decision.options.find((s) => s === e.target.value) ?? ""
+                  )
                 }
                 className={SELECT}
               >
@@ -365,52 +399,56 @@ function SkillSelectionEntry({
                   </option>
                 ))}
               </select>
-              <button
+              <HudButton
+                size="sm"
                 disabled={!skill}
                 onClick={() =>
                   skill &&
-                  act(() => nominatePrimarySkill(team, entry, decision.chooser, skill))
+                  act(() =>
+                    nominatePrimarySkill(team, entry, decision.chooser, skill)
+                  )
                 }
-                className={BUTTON}
               >
                 Name skill
-              </button>
+              </HudButton>
             </div>
           </>
         );
       case "roll-primary-d3":
         return (
           <>
-            <p className="font-body mb-2">
+            <p className="mb-2">
               {playerName(team, decision.playerId)} learns one of:{" "}
               {decision.named.map((s, i) => `${i + 1}. ${s}`).join(", ")}.
             </p>
-            <button
-              onClick={() => finish(() => rollPrimarySelection(team, entry, rng))}
-              className={BUTTON}
+            <HudButton
+              size="sm"
+              onClick={() =>
+                finish(() => rollPrimarySelection(team, entry, rng))
+              }
             >
               Roll D3
-            </button>
+            </HudButton>
           </>
         );
       case "choose-secondary-category":
         return (
           <>
-            <p className="font-body mb-2">
+            <p className="mb-2">
               {playerName(team, decision.playerId)} was picked at random. Choose
               a Secondary category to roll two skills from.
             </p>
             <div className="flex flex-wrap gap-2">
               {decision.categories.map((c) => (
-                <button
+                <HudButton
+                  size="sm"
                   key={c}
                   onClick={() =>
                     act(() => rollSecondaryCandidates(team, entry, c, rng))
                   }
-                  className={BUTTON}
                 >
                   {c}
-                </button>
+                </HudButton>
               ))}
             </div>
           </>
@@ -418,25 +456,31 @@ function SkillSelectionEntry({
       case "choose-secondary-skill":
         return (
           <>
-            <p className="font-body mb-2">
+            <p className="mb-2">
               Choose the skill {playerName(team, decision.playerId)} learns.
             </p>
-            <div className="flex gap-3">
-              {[...new Map(decision.candidates.map((c) => [c.skill, c])).values()].map(
-                (candidate) => (
-                  <button
-                    key={candidate.skill}
-                    onClick={() =>
-                      finish(() =>
-                        chooseSecondarySkill(team, entry, candidate.skill, rng)
-                      )
-                    }
-                    className="rounded border border-bb-gold bg-bb-blood-red text-white px-4 py-2"
-                  >
-                    {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
-                  </button>
-                )
-              )}
+            <div className="flex flex-wrap gap-2">
+              {[
+                ...new Map(
+                  decision.candidates.map((c) => [c.skill, c])
+                ).values(),
+              ].map((candidate) => (
+                <button
+                  type="button"
+                  key={candidate.skill}
+                  onClick={() =>
+                    finish(() =>
+                      chooseSecondarySkill(team, entry, candidate.skill, rng)
+                    )
+                  }
+                  className={cx(
+                    hudChoiceClass(false),
+                    "px-3 py-2 font-hud-label text-hud-sm font-bold uppercase text-hud-bone"
+                  )}
+                >
+                  {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
+                </button>
+              ))}
             </div>
           </>
         );
@@ -444,9 +488,13 @@ function SkillSelectionEntry({
   })();
 
   return (
-    <div className="mb-4 rounded border border-bb-dark-gold bg-white/60 p-3">
+    <div className={ENTRY}>
       {body}
-      {error && <p className="text-bb-deep-crimson text-sm mt-2">{error}</p>}
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-2">
+          {error}
+        </Notice>
+      )}
     </div>
   );
 }
@@ -480,29 +528,34 @@ function DraftOfferEntry({
   };
 
   return (
-    <div className="mb-4 rounded border border-bb-dark-gold bg-white/60 p-3">
-      <p className="font-body mb-2">
-        A pro team made an offer for <strong>{player.playerName}</strong> (rolled{" "}
-        {entry.roll} with {entry.addedSkillCount} added skills). Keeping them
-        costs {price.toLocaleString()} from the Treasury (
+    <div className={ENTRY}>
+      <p className="mb-2">
+        A pro team made an offer for <strong>{player.playerName}</strong>{" "}
+        (rolled {entry.roll} with {entry.addedSkillCount} added skills). Keeping
+        them costs {price.toLocaleString()} from the Treasury (
         {team.treasury.toLocaleString()}) and raises their value by 15,000.
       </p>
       <div className="flex gap-2">
-        <button
+        <HudButton
+          size="sm"
           disabled={price > team.treasury}
           onClick={() => act(() => keepDraftedPlayer(team, entry))}
-          className={BUTTON}
         >
           Pay {price.toLocaleString()} to keep
-        </button>
-        <button
+        </HudButton>
+        <HudButton
+          variant="danger"
+          size="sm"
           onClick={() => act(() => releaseDraftedPlayer(team, entry))}
-          className="rounded border border-bb-deep-crimson px-3 py-2 text-sm text-bb-deep-crimson"
         >
           Let them go
-        </button>
+        </HudButton>
       </div>
-      {error && <p className="text-bb-deep-crimson text-sm mt-2">{error}</p>}
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-2">
+          {error}
+        </Notice>
+      )}
     </div>
   );
 }

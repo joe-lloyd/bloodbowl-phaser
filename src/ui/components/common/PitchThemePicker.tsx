@@ -3,6 +3,7 @@ import {
   PitchThemeId,
   resolvePitchTheme,
 } from "../../../game/presentation/pitchThemes";
+import { cx, hudChoiceClass } from "../componentWarehouse/HudKit";
 
 interface PitchThemePickerProps {
   value?: string | null;
@@ -38,13 +39,7 @@ export function PitchThemePicker({
             disabled={disabled}
             aria-pressed={active}
             onClick={() => onChange(theme.id)}
-            className={`min-h-11 overflow-hidden rounded border-2 text-left
-              transition-all duration-200 disabled:cursor-not-allowed
-              disabled:opacity-70 ${
-                active
-                  ? "border-bb-gold shadow-chunky -translate-y-0.5"
-                  : "border-bb-divider hover:border-bb-dark-gold hover:-translate-y-0.5"
-              }`}
+            className={cx(hudChoiceClass(active), "min-h-11 overflow-hidden")}
           >
             <span
               className="relative block aspect-video border-b border-black/30 bg-cover bg-center"
@@ -58,12 +53,17 @@ export function PitchThemePicker({
                 style={{ backgroundColor: theme.swatch.trim }}
               />
             </span>
-            <span className="block bg-bb-warm-paper px-3 py-2">
-              <span className="block font-heading text-sm uppercase text-bb-text-dark">
+            <span className="block bg-hud-sunk/80 px-3 py-2">
+              <span
+                className={cx(
+                  "block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em]",
+                  active ? "text-hud-gold" : "text-hud-bone"
+                )}
+              >
                 {theme.name}
               </span>
               {!compact && (
-                <span className="mt-1 block font-body text-xs leading-tight text-bb-muted-text">
+                <span className="mt-0.5 block font-hud-body text-hud-sm text-hud-dim">
                   {theme.description}
                 </span>
               )}

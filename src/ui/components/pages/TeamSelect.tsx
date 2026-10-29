@@ -6,11 +6,21 @@ import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { mustAdvance } from "../../../game/progression/progression";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
-import Parchment from "../componentWarehouse/Parchment";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button } from "../componentWarehouse/Button";
-import { Title, SectionTitle } from "../componentWarehouse/Titles";
+import {
+  Chip,
+  cx,
+  EmptyState,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+  PageHeader,
+  PageShell,
+  Panel,
+  PanelHeader,
+  Section,
+  TeamSwatch,
+} from "../componentWarehouse/HudKit";
+import { numToHex } from "../TeamManagement/TeamStatsOverview";
 import { PitchThemePicker } from "../common/PitchThemePicker";
 import {
   DEFAULT_PITCH_THEME_ID,
@@ -52,9 +62,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     if (insignificantError) issues.push(insignificantError);
     try {
       const roster = getRosterByRosterName(team.rosterName);
-      issues.push(
-        ...validateRosterLegality(team, roster).map((v) => v.detail)
-      );
+      issues.push(...validateRosterLegality(team, roster).map((v) => v.detail));
     } catch {
       issues.push(`Unknown roster ${team.rosterName}`);
     }
@@ -135,199 +143,207 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
 
   if (teams.length < 2) {
     return (
-      <MinHeightContainer className="bg-bb-parchment">
-        <Parchment $intensity="low" />
-
-        <ContentContainer>
-          <div className="text-center mb-8">
-            <Title>TEAM SELECTION</Title>
-          </div>
-
-          <div className="text-center py-10 bg-bb-warm-paper border border-bb-divider rounded-lg my-5 shadow-parchment-light">
-            <h3 className="text-bb-blood-red font-heading text-2xl uppercase mb-4">
-              You need at least 2 teams to play!
-            </h3>
-            <p className="text-bb-muted-text font-body text-lg">
-              Go to Build Team to create teams first.
-            </p>
-          </div>
-
-          <div className="flex justify-between gap-5 mt-8 md:flex-col">
-            <Button onClick={handleBack}>← Back to Menu</Button>
-          </div>
-        </ContentContainer>
-      </MinHeightContainer>
+      <PageShell width="medium">
+        <PageHeader
+          eyebrow="Friendly Sevens Match"
+          title="TEAM SELECTION"
+          back={{ label: "← Back to Menu", onClick: handleBack }}
+        />
+        <EmptyState
+          title="You need at least 2 teams to play!"
+          action={
+            <div className="flex flex-wrap justify-center gap-3">
+              <HudButton onClick={handleBack}>← Back to Menu</HudButton>
+              <HudButton
+                variant="primary"
+                onClick={() => navigate("/build-team")}
+              >
+                Build Team
+              </HudButton>
+            </div>
+          }
+        >
+          Go to Build Team to create teams first.
+        </EmptyState>
+      </PageShell>
     );
   }
 
+  const renderColumn = (
+    player: 1 | 2,
+    filter: string,
+    setFilter: (filter: string) => void,
+    columnTeams: Team[],
+    selected: Team | null,
+    onSelect: (team: Team) => void
+  ) => (
+    <Panel
+      as="section"
+      accent={
+        selected ? { color: numToHex(selected.colors.primary) } : "neutral"
+      }
+      data-testid={`team-column-${player}`}
+    >
+      <PanelHeader
+        as="h2"
+        title={`Player ${player}`}
+        aside={`${columnTeams.length} teams`}
+        className="px-4"
+      />
+      <div className="p-3">
+        <input
+          type="text"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Search team or roster..."
+          aria-label={`Filter Player ${player} teams`}
+          className="hud-field"
+        />
+        <div className="hud-scroll mt-2 flex h-[clamp(200px,calc(100vh_-_400px),620px)] flex-col gap-1.5 overflow-y-auto p-1">
+          {columnTeams.length === 0 ? (
+            <p className="py-6 text-center text-hud-sm text-hud-mute">
+              No teams match &quot;{filter}&quot;.
+            </p>
+          ) : (
+            columnTeams.map((team) => {
+              const issues = legalityIssues(team);
+              const isSelected = selected?.id === team.id;
+              return (
+                <button
+                  key={team.id}
+                  type="button"
+                  disabled={issues.length > 0}
+                  title={issues.length > 0 ? issues.join("; ") : undefined}
+                  aria-pressed={isSelected}
+                  className={cx(
+                    hudChoiceClass(isSelected),
+                    "flex w-full shrink-0 items-center gap-2.5 px-3 py-2"
+                  )}
+                  onClick={() => onSelect(team)}
+                >
+                  <TeamSwatch
+                    color={numToHex(team.colors.primary)}
+                    className="h-4 w-4"
+                  />
+                  <span className="min-w-0 flex-1 truncate font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                    {team.name}
+                  </span>
+                  <span className="shrink-0 text-hud-sm text-hud-dim">
+                    {team.rosterName}
+                  </span>
+                  {issues.length > 0 && <Chip tone="blood">Illegal</Chip>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
+
   return (
-    <MinHeightContainer className="bg-bb-parchment">
-      <Parchment $intensity="low" />
-
-      <ContentContainer>
-        <div className="text-center mb-8">
-          <Title>TEAM SELECTION</Title>
-          <div className="inline-block bg-bb-ink-blue text-bb-gold border border-bb-gold px-6 py-2 rounded font-heading font-bold uppercase tracking-wide mt-2.5 shadow-md">
-            Friendly Sevens Match
-          </div>
-        </div>
-
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-10 items-start my-10">
-          {/* Player 1 Selection */}
-          <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-            <div className="text-center mb-5">
-              <SectionTitle>Player 1</SectionTitle>
-            </div>
-            <input
-              type="text"
-              value={filter1}
-              onChange={(e) => setFilter1(e.target.value)}
-              placeholder="Search team or roster..."
-              aria-label="Filter Player 1 teams"
-              className="w-full mb-3 p-2 rounded border border-bb-divider font-body text-sm focus:outline-none focus:ring-1 focus:ring-bb-gold"
-            />
-            <div className="max-h-96 overflow-y-auto pr-1">
-              {teams1.length === 0 ? (
-                <p className="text-center text-sm text-bb-muted-text font-body italic py-4">
-                  No teams match &quot;{filter1}&quot;.
-                </p>
-              ) : (
-                teams1.map((team) => {
-                  const issues = legalityIssues(team);
-                  return (
-                    <button
-                      key={team.id}
-                      disabled={issues.length > 0}
-                      title={
-                        issues.length > 0 ? issues.join("; ") : undefined
-                      }
-                      className={`
-                                        w-full px-3 py-2 my-1 text-white border-none rounded transition-all text-left font-body text-sm flex items-baseline gap-2
-                                        ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
-                                        ${
-                                          selectedTeam1?.id === team.id
-                                            ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-2 shadow-md"
-                                            : "bg-bb-blood-red"
-                                        }
-                                    `}
-                      onClick={() => handleSelectTeam1(team)}
-                    >
-                      <span className="font-heading font-bold uppercase truncate">
-                        {team.name}
-                      </span>
-                      <span className="text-xs opacity-90 whitespace-nowrap">
-                        {team.rosterName}
-                        {issues.length > 0 && " — illegal"}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* VS */}
-          <div
-            className="
-                        text-5xl font-heading font-bold font-italic text-bb-blood-red 
-                        text-center self-center 
-                        p-6 bg-bb-parchment border-4 border-bb-divider rounded-full 
-                        w-24 h-24 flex items-center justify-center 
-                        shadow-parchment
-                    "
+    <PageShell
+      actionBar={
+        <>
+          <HudButton variant="ghost" onClick={handleBack}>
+            ← Back to Menu
+          </HudButton>
+          <Matchup team1={selectedTeam1} team2={selectedTeam2} />
+          <HudButton
+            variant="primary"
+            size="lg"
+            onClick={handleStartGame}
+            disabled={!canStart}
           >
-            VS
-          </div>
+            Start Game →
+          </HudButton>
+        </>
+      }
+    >
+      <PageHeader eyebrow="Friendly Sevens Match" title="TEAM SELECTION" />
 
-          {/* Player 2 Selection */}
-          <div className="bg-bb-warm-paper rounded-lg p-6 shadow-parchment-light border border-bb-divider">
-            <div className="text-center mb-5">
-              <SectionTitle>Player 2</SectionTitle>
-            </div>
-            <input
-              type="text"
-              value={filter2}
-              onChange={(e) => setFilter2(e.target.value)}
-              placeholder="Search team or roster..."
-              aria-label="Filter Player 2 teams"
-              className="w-full mb-3 p-2 rounded border border-bb-divider font-body text-sm focus:outline-none focus:ring-1 focus:ring-bb-gold"
-            />
-            <div className="max-h-96 overflow-y-auto pr-1">
-              {teams2.length === 0 ? (
-                <p className="text-center text-sm text-bb-muted-text font-body italic py-4">
-                  No teams match &quot;{filter2}&quot;.
-                </p>
-              ) : (
-                teams2.map((team) => {
-                  const issues = legalityIssues(team);
-                  return (
-                    <button
-                      key={team.id}
-                      disabled={issues.length > 0}
-                      title={
-                        issues.length > 0 ? issues.join("; ") : undefined
-                      }
-                      className={`
-                                        w-full px-3 py-2 my-1 text-white border-none rounded transition-all text-left font-body text-sm flex items-baseline gap-2
-                                        ${issues.length > 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-bb-ink-blue hover:translate-x-1 hover:shadow-md"}
-                                        ${
-                                          selectedTeam2?.id === team.id
-                                            ? "bg-bb-ink-blue border-l-4 border-l-bb-gold pl-2 shadow-md"
-                                            : "bg-bb-blood-red"
-                                        }
-                                    `}
-                      onClick={() => handleSelectTeam2(team)}
-                    >
-                      <span className="font-heading font-bold uppercase truncate">
-                        {team.name}
-                      </span>
-                      <span className="text-xs opacity-90 whitespace-nowrap">
-                        {team.rosterName}
-                        {issues.length > 0 && " — illegal"}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-5">
+        {renderColumn(
+          1,
+          filter1,
+          setFilter1,
+          teams1,
+          selectedTeam1,
+          handleSelectTeam1
+        )}
+        <span
+          aria-hidden
+          className="font-hud-display text-hud-3xl uppercase text-hud-gold"
+        >
+          VS
+        </span>
+        {renderColumn(
+          2,
+          filter2,
+          setFilter2,
+          teams2,
+          selectedTeam2,
+          handleSelectTeam2
+        )}
+      </div>
 
-        <section className="my-6 rounded-lg border border-bb-divider bg-bb-warm-paper p-5 shadow-parchment-light">
-          <SectionTitle>Choose the pitch</SectionTitle>
-          <p className="mb-4 font-body text-bb-muted-text">
-            Presentation only—the same 20×11 field is used for every theme.
-          </p>
+      {blockingDevelopment.length > 0 && (
+        <Notice tone="blood" role="alert" className="mt-4">
+          {blockingDevelopment.length} player
+          {blockingDevelopment.length === 1 ? "" : "s"} must advance in Manage
+          Team before this match can start.
+        </Notice>
+      )}
+
+      <Section title="Choose the pitch" className="mt-6">
+        <p className="mb-4 text-hud-sm text-hud-dim">
+          Presentation only—the same 20×11 field is used for every theme.
+        </p>
+        <div className="max-w-2xl">
           <PitchThemePicker value={pitchThemeId} onChange={setPitchThemeId} />
-        </section>
+        </div>
+      </Section>
 
-        {mode !== "sandbox" && (
-          <label className="my-6 flex items-center justify-center gap-3 font-body text-lg">
+      {mode !== "sandbox" && (
+        <Panel className="p-4">
+          <label className="flex cursor-pointer items-center gap-3 text-hud-base text-hud-bone">
             <input
               type="checkbox"
+              className="hud-check"
               checked={progressionEnabled}
               onChange={(event) => setProgressionEnabled(event.target.checked)}
             />
             League fixture — award SPP and enable player advancement
           </label>
-        )}
+        </Panel>
+      )}
+    </PageShell>
+  );
+}
 
-        {blockingDevelopment.length > 0 && (
-          <p className="mb-4 text-center font-body text-bb-blood-red">
-            {blockingDevelopment.length} player
-            {blockingDevelopment.length === 1 ? "" : "s"} must advance in
-            Manage Team before this match can start.
-          </p>
-        )}
-
-        <div className="flex justify-between gap-5 mt-8">
-          <Button onClick={handleBack}>← Back to Menu</Button>
-
-          <Button onClick={handleStartGame} disabled={!canStart}>
-            Start Game →
-          </Button>
-        </div>
-      </ContentContainer>
-    </MinHeightContainer>
+/** The action bar's readout of who plays whom. */
+function Matchup({ team1, team2 }: { team1: Team | null; team2: Team | null }) {
+  if (!team1 && !team2) {
+    return <span className="hud-label text-hud-mute">Pick two teams</span>;
+  }
+  const side = (team: Team | null) =>
+    team ? (
+      <span className="flex min-w-0 items-center gap-2">
+        <TeamSwatch color={numToHex(team.colors.primary)} />
+        <span className="truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bone">
+          {team.name}
+        </span>
+      </span>
+    ) : (
+      <span className="hud-label shrink-0 text-hud-mute">Pick a team</span>
+    );
+  return (
+    <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
+      {side(team1)}
+      <span className="shrink-0 font-hud-display text-hud-lg text-hud-gold">
+        VS
+      </span>
+      {side(team2)}
+    </div>
   );
 }

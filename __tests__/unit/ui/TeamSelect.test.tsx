@@ -88,10 +88,10 @@ describe("TeamSelect filtering", () => {
 
     // Player 1's column now only shows the Orc team; Player 2's is untouched.
     const player1Column = filter1.closest(
-      "div.bg-bb-warm-paper"
+      '[data-testid^="team-column-"]'
     ) as HTMLElement;
     const player2Column = filter2.closest(
-      "div.bg-bb-warm-paper"
+      '[data-testid^="team-column-"]'
     ) as HTMLElement;
     expect(player1Column).toBeTruthy();
     expect(player2Column).toBeTruthy();
@@ -145,7 +145,7 @@ describe("TeamSelect filtering", () => {
     });
 
     const player1Column = filter1.closest(
-      "div.bg-bb-warm-paper"
+      '[data-testid^="team-column-"]'
     ) as HTMLElement;
     expect(player1Column.textContent).toContain("Thunderfoot Warband");
     expect(player1Column.textContent).not.toContain("River Vale Humans");

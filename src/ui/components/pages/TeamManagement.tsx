@@ -9,18 +9,21 @@ import { getTeamMode } from "../../../game/rules/teamLifecycle";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
-import Parchment from "../componentWarehouse/Parchment";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
 import {
-  Button,
-  DangerButton,
-  SecondaryButton,
-} from "../componentWarehouse/Button";
-import { Title } from "../componentWarehouse/Titles";
+  Chip,
+  EmptyState,
+  Eyebrow,
+  HudButton,
+  PageHeader,
+  PageShell,
+  Panel,
+} from "../componentWarehouse/HudKit";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
-import { numToHex, TeamStatsOverview } from "../TeamManagement/TeamStatsOverview";
+import {
+  numToHex,
+  TeamStatsOverview,
+} from "../TeamManagement/TeamStatsOverview";
 import { ADVANCEMENT_MODE_SHORT_LABELS } from "../TeamBuilder/AdvancementModePanel";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
@@ -87,191 +90,151 @@ export function TeamManagement() {
   };
 
   return (
-    <MinHeightContainer className="!justify-start">
-      <Parchment $intensity="low" />
-
-      <ContentContainer className="">
-        <div className="flex justify-between items-center mb-10 flex-wrap gap-6">
-          <div>
-            <Title>TEAM MANAGEMENT</Title>
-            <p className="text-bb-muted-text font-body mt-2">
-              Manage your roster and prepare for the next match.
-            </p>
-          </div>
-          <div className="flex gap-4 flex-wrap">
-            <SecondaryButton
-              onClick={() => navigate("/shared-teams")}
-              className="px-6 py-5 text-lg"
-            >
-              Browse Other Coaches
-            </SecondaryButton>
-            <Button
-              onClick={handleCreateTeam}
-              className="px-10 py-5 text-2xl shadow-lg hover:shadow-xl"
-            >
-              + Create New Team
-            </Button>
-            <Button
-              onClick={handleSeedTeams}
-              className="px-6 py-5 text-lg bg-bb-dark-gold hover:bg-bb-gold border-bb-gold shadow-lg hover:shadow-xl"
-            >
-              🌱 Seed All Rosters
-            </Button>
-            <DangerButton
-              onClick={handleDeleteSeedTeams}
-              className="px-6 py-5 text-lg shadow-lg hover:shadow-xl"
-            >
-              🗑️ Delete Seed Teams
-            </DangerButton>
-          </div>
-        </div>
-
-        {teams.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-bb-divider rounded-xl bg-white/20">
-            <p className="text-bb-muted-text text-center italic text-2xl font-body mb-6">
-              No teams found in the archives.
-            </p>
-            <Button onClick={handleCreateTeam}>Draft First Team</Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {teams.map((team) => (
-              <div
-                key={team.id}
-                className="relative overflow-hidden bg-bb-ink-blue rounded-xl border-2 border-bb-dark-gold shadow-lg transition-all duration-200 hover:shadow-2xl hover:scale-[1.01] flex flex-col"
+    <PageShell>
+      <PageHeader
+        back={{ label: "← Back to Menu", onClick: handleBack }}
+        title="TEAM MANAGEMENT"
+        subtitle="Manage your roster and prepare for the next match."
+        actions={
+          <>
+            <div className="flex items-center gap-2 border-r border-white/10 pr-3">
+              <span className="hud-label text-hud-mute">Dev</span>
+              <HudButton variant="ghost" size="sm" onClick={handleSeedTeams}>
+                Seed All Rosters
+              </HudButton>
+              <HudButton
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteSeedTeams}
               >
-                {/* Team Color Strip */}
-                <div
-                  className="h-4 w-full border-b-2 border-bb-dark-gold"
-                  style={{ backgroundColor: numToHex(team.colors.primary) }}
-                />
+                Delete Seed Teams
+              </HudButton>
+            </div>
+            <HudButton onClick={() => navigate("/shared-teams")}>
+              Browse Other Coaches
+            </HudButton>
+            <HudButton variant="primary" size="lg" onClick={handleCreateTeam}>
+              + Create New Team
+            </HudButton>
+          </>
+        }
+      />
 
-                <div className="p-8 flex-1 flex flex-col">
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-heading font-bold text-sm uppercase text-bb-dark-gold tracking-widest border-b border-bb-dark-gold/30 pb-2 inline-block">
-                        {team.rosterName}
-                      </span>
-                      {(() => {
-                        const status = teamStatus(team);
-                        return (
-                          <>
-                            <span
-                              className={`rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${
-                                status.mode === "active"
-                                  ? "bg-bb-gold text-bb-ink-blue"
-                                  : "bg-white/20 text-bb-parchment"
-                              }`}
-                            >
-                              {status.mode}
-                            </span>
-                            {!status.legal && (
-                              <span
-                                className="rounded bg-bb-blood-red px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white"
-                                title="Not yet legal for play or competition entry"
-                              >
-                                Illegal
-                              </span>
-                            )}
-                            {team.advancementMode && (
-                              <span
-                                className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-bb-gold border border-bb-gold/50"
-                                title="Advancement mode"
-                              >
-                                {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <h3 className="font-heading text-4xl font-bold text-bb-parchment leading-tight drop-shadow-md">
-                      {team.name}
-                    </h3>
+      {teams.length === 0 ? (
+        <EmptyState
+          title="No teams found in the archives."
+          action={
+            <HudButton variant="primary" onClick={handleCreateTeam}>
+              Draft First Team
+            </HudButton>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {teams.map((team) => {
+            const status = teamStatus(team);
+            return (
+              <Panel
+                key={team.id}
+                accent={{ color: numToHex(team.colors.primary) }}
+                className="flex flex-col gap-4 p-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="hud-label mr-1">{team.rosterName}</span>
+                    <Chip tone={status.mode === "active" ? "gold" : "neutral"}>
+                      {status.mode}
+                    </Chip>
+                    {!status.legal && (
+                      <Chip
+                        tone="blood"
+                        title="Not yet legal for play or competition entry"
+                      >
+                        Illegal
+                      </Chip>
+                    )}
+                    {team.advancementMode && (
+                      <Chip tone="info" title="Advancement mode">
+                        {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
+                      </Chip>
+                    )}
                   </div>
+                  <h3 className="mt-2 break-words font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-bone">
+                    {team.name}
+                  </h3>
+                </div>
 
-                  {/* Team Photo - First 7 Players */}
-                  <div className="mb-6 bg-gradient-to-b from-black/40 to-black/20 p-4 rounded-lg border border-bb-dark-gold/20">
-                    <div className="text-xs uppercase font-bold text-bb-dark-gold mb-3 tracking-wider text-center">
-                      Starting Lineup
-                    </div>
-                    <div className="flex justify-center gap-3 flex-wrap">
-                      {team.players.slice(0, 7).map((player) => (
-                        <div
-                          key={player.id}
-                          className="flex flex-col items-center group"
-                          title={`#${player.number} ${player.playerName} - ${player.positionName}`}
-                        >
-                          <div className="relative transition-all group-hover:scale-110">
-                            <PlayerPortrait
-                              rosterName={team.rosterName}
-                              positionName={player.positionName}
-                              colors={team.colors}
-                              size={64}
-                            />
-                            <div
-                              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-bb-dark-gold flex items-center justify-center text-[10px] font-bold shadow-md"
-                              style={{
-                                backgroundColor: numToHex(team.colors.primary),
-                                color: numToHex(team.colors.secondary),
-                              }}
-                            >
-                              {player.number}
-                            </div>
-                          </div>
-                          <div className="text-[9px] text-bb-dark-gold/70 mt-1 text-center font-bold uppercase tracking-tight max-w-[64px] truncate">
-                            {player.positionName.split(" ")[0]}
-                          </div>
+                <div className="rounded-hud border border-white/10 bg-black/40 p-3">
+                  <Eyebrow className="mb-2 text-center">
+                    Starting Lineup
+                  </Eyebrow>
+                  <div className="grid grid-cols-7 gap-1">
+                    {team.players.slice(0, 7).map((player) => (
+                      <div
+                        key={player.id}
+                        className="flex min-w-0 flex-col items-center"
+                        title={`#${player.number} ${player.playerName} - ${player.positionName}`}
+                      >
+                        <div className="relative">
+                          <PlayerPortrait
+                            rosterName={team.rosterName}
+                            positionName={player.positionName}
+                            colors={team.colors}
+                            size={40}
+                          />
+                          <span
+                            className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-black/60 font-hud-label text-[9px] font-bold leading-none"
+                            style={{
+                              backgroundColor: numToHex(team.colors.primary),
+                              color: numToHex(team.colors.secondary),
+                            }}
+                          >
+                            {player.number}
+                          </span>
                         </div>
-                      ))}
-                      {team.players.length < 7 && (
-                        <div className="flex items-center justify-center text-bb-dark-gold/30 text-xs italic px-2">
-                          +{7 - team.players.length} more needed
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <TeamStatsOverview team={team} />
-
-                  <PendingDevelopmentPanel
-                    team={team}
-                    onChange={() => reloadTeams()}
-                  />
-
-                  {/* Spacer to push buttons down */}
-                  <div className="flex-1"></div>
-
-                  {/* Actions */}
-                  <div className="flex gap-4 mt-2">
-                    <Button
-                      onClick={() => handleEditTeam(team.id)}
-                      className="flex-1 py-4 text-xl"
-                    >
-                      Manage Team
-                    </Button>
-                    <DangerButton
-                      onClick={() => handleDeleteTeam(team.id)}
-                      className="px-6"
-                    >
-                      🗑️
-                    </DangerButton>
+                        <span className="mt-1 w-full truncate text-center font-hud-label text-hud-2xs font-bold uppercase text-hud-mute">
+                          {player.positionName.split(" ")[0]}
+                        </span>
+                      </div>
+                    ))}
+                    {team.players.length < 7 && (
+                      <div className="col-span-full pt-1 text-center text-hud-sm text-hud-mute">
+                        +{7 - team.players.length} more needed
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
 
-        <div className="mt-8 border-t-2 border-bb-divider pt-8">
-          <Button
-            onClick={handleBack}
-            className="!bg-bb-warm-paper !text-bb-ink-blue border-bb-ink-blue hover:!bg-bb-ink-blue hover:!text-white"
-          >
-            ← Back to Menu
-          </Button>
+                <TeamStatsOverview team={team} />
+
+                <PendingDevelopmentPanel
+                  team={team}
+                  onChange={() => reloadTeams()}
+                />
+
+                <div className="mt-auto flex gap-2">
+                  <HudButton
+                    variant="gold"
+                    block
+                    onClick={() => handleEditTeam(team.id)}
+                  >
+                    Manage Team
+                  </HudButton>
+                  <HudButton
+                    variant="danger"
+                    onClick={() => handleDeleteTeam(team.id)}
+                    aria-label="Delete team"
+                    title="Delete team"
+                    className="shrink-0"
+                  >
+                    <span aria-hidden>✕</span>
+                  </HudButton>
+                </div>
+              </Panel>
+            );
+          })}
         </div>
-      </ContentContainer>
-    </MinHeightContainer>
+      )}
+    </PageShell>
   );
 }
