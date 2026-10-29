@@ -188,6 +188,28 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "score-run-dodge-rush",
+    name: "Score Run: Dodge, Then Rush",
+    description:
+      "The carrier at (12,5) is marked from behind. Click the End Zone " +
+      "square (19,5) twice: the board asks before the Dodge out, walks the " +
+      "safe squares, stops again before the Rush onto the last square, and " +
+      "scores once the runner stands in the End Zone.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 12, y: 5, status: PlayerStatus.ACTIVE }, // carrier
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // marks the carrier
+        { playerIndex: 1, x: 4, y: 2, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      ballPosition: { x: 12, y: 5 }, // on the carrier
+    },
+  },
+  {
     id: "jump-over-prone",
     name: "Jump Over a Prone Player",
     description:
