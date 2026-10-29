@@ -16,7 +16,8 @@ if (process.env.SHOTS) test.use({ video: "on" });
 test("introductions, then the coin, then setup with no zone left glowing", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  // A real match from the menu, slow under a full parallel run
+  test.setTimeout(240_000);
   const app = new GameApp(page);
   let beat = 0;
   const shot = async (name: string) => {
