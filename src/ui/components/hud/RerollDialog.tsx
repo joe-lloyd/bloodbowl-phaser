@@ -4,7 +4,6 @@ import { GameEventNames } from "@/types/events";
 import { RerollDecisionRequest, RerollSource } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { teamRerollsLeft } from "../../../game/teamRerolls";
 import {
   DialogActions,
   DialogShell,
@@ -56,11 +55,16 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     ? ServiceContainer.getInstance()
     : null;
   const player = container?.gameService.getPlayerById(request.playerId);
-  const chooserTeam = container?.gameService.getTeam(request.chooserTeamId);
-  const rerollsLeft =
-    container && chooserTeam
-      ? teamRerollsLeft(container.gameService.getState(), chooserTeam)
-      : 0;
+  // Name the re-roll the team button would actually spend, and drop the
+  // button when there is none to spend
+  const arbiter = container?.gameService.getRerollArbiter();
+  const teamReroll = arbiter?.nextTeamReroll(request.chooserTeamId) ?? null;
+  const teamLabel =
+    teamReroll === "free"
+      ? "USE BRILLIANT COACHING RE-ROLL"
+      : teamReroll === "leader"
+        ? "USE LEADER RE-ROLL"
+        : `USE TEAM RE-ROLL (${arbiter?.teamRerollsLeftFor(request.chooserTeamId) ?? 0} left)`;
 
   return (
     <DialogShell
@@ -78,14 +82,14 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
               USE {request.skill?.toUpperCase() ?? "SKILL"} RE-ROLL
             </HudButton>
           )}
-          {request.sources.includes("team") && (
+          {request.sources.includes("team") && teamReroll && (
             <HudButton
               data-testid="reroll-use-team"
               variant="gold"
               block
               onClick={() => answer(true, "team")}
             >
-              USE TEAM RE-ROLL ({rerollsLeft} left)
+              {teamLabel}
             </HudButton>
           )}
           {request.sources.includes("veteran") && (

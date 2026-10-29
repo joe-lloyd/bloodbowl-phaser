@@ -261,6 +261,10 @@ function reroll(
   sources: ("skill" | "team" | "veteran")[],
   skill?: string
 ) {
+  // The engine offers "team" only when a re-roll can be spent: give team 1
+  // the turn and two to spend
+  fx.team1.rerolls = 2;
+  fx.services.gameService.getState().turn.teamId = fx.team1.id;
   fx.bus.emit(GameEventNames.DecisionRequested, {
     type: "reroll",
     playerId: fx.player(1, 4).id,
@@ -847,9 +851,9 @@ export const VARIANTS: Variant[] = [
   {
     id: "reroll-team",
     section: "Decision dialogs",
-    title: "Re-roll: team and veteran",
+    title: "Re-roll: veteran, with no team re-rolls left",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => reroll(fx, ["team", "veteran"])),
+    drive: (fx) => later(30, () => reroll(fx, ["veteran"])),
   },
   {
     id: "follow-up",
