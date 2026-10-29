@@ -148,6 +148,7 @@ export class Pitch {
       }
     });
 
+    this.clearSetupZone();
     this.clearLayer("tackle_zone");
     this.clearLayer("range_overlay");
     this.clearLayer("sprint_risk");
@@ -176,7 +177,7 @@ export class Pitch {
    * Highlight setup zone
    */
   public highlightSetupZone(isLeft: boolean): void {
-    this.clearLayer("setup_zone_highlight");
+    this.clearSetupZone();
 
     // Bounds: Left (0-6), Right (13-19)
     const minX = isLeft ? 0 : 13;
@@ -382,6 +383,23 @@ export class Pitch {
   public clearPath(): void {
     this.clearLayer("path_dot");
     this.clearLayer("path_line");
+  }
+
+  /** The pulsing zone a team deploys in; gone once that team is set up. */
+  private clearSetupZone(): void {
+    this.container.getAll().forEach((child) => {
+      if (child.name !== "setup_zone_highlight") return;
+      this.scene.tweens.killTweensOf(child);
+      child.destroy();
+    });
+  }
+
+  /** Names of the drawn layers, for the browser test bridge. */
+  public layerNames(): string[] {
+    return this.container
+      .getAll()
+      .map((child) => child.name)
+      .filter(Boolean);
   }
 
   public clearLayer(name: string): void {
