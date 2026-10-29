@@ -1,15 +1,15 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames, InfoPanelSubject } from "../../../types/events";
-import { GamePhase } from "../../../types/GameState";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import {
   effectiveAV,
   effectiveMA,
   getDriveEffects,
 } from "../../../game/kickoff/driveEffects";
+import { rushAllowance } from "../../../game/skills/movement";
 import { SidelineCrewInfo } from "../../../game/presentation/sidelineStaff";
 import { Chip, Panel, Stat } from "../componentWarehouse/HudKit";
 
@@ -25,15 +25,6 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(null);
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
-  // During setup the panel stays on the last inspected player for the whole
-  // drag and after the drop, rather than clearing on pointer-out like the
-  // transient hover preview does during play.
-  const phaseRef = useRef<GamePhase | null>(null);
-
-  useEventBus(eventBus, GameEventNames.PhaseChanged, (data) => {
-    phaseRef.current = data.phase;
-  });
-
   // Hover Events
   useEventBus(eventBus, GameEventNames.UI_ShowPlayerInfo, (player: Player) => {
     setHoveredPlayer(player);
@@ -57,7 +48,6 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   );
 
   useEventBus(eventBus, GameEventNames.UI_HidePlayerInfo, () => {
-    if (phaseRef.current === GamePhase.SETUP) return;
     setHoveredPlayer(null);
     setHoveredCrew(null);
   });
@@ -73,6 +63,15 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       setSelectedPlayer(data.player);
     }
   );
+  useEventBus(eventBus, GameEventNames.PlayerMoved, refresh);
+  useEventBus(eventBus, GameEventNames.PlayerActivated, refresh);
+  useEventBus(eventBus, GameEventNames.TurnDataUpdated, refresh);
+  useEventBus(eventBus, GameEventNames.TurnStarted, refresh);
+  useEventBus(eventBus, GameEventNames.ActionResolved, refresh);
+  useEventBus(eventBus, GameEventNames.BallPickup, refresh);
+  useEventBus(eventBus, GameEventNames.BallPlaced, refresh);
+  useEventBus(eventBus, GameEventNames.BallScattered, refresh);
+  useEventBus(eventBus, GameEventNames.DriveEffectExpired, refresh);
   useEventBus(eventBus, GameEventNames.DriveEffectGranted, refresh);
   useEventBus(eventBus, GameEventNames.PlayerStatusChanged, refresh);
   useEventBus(eventBus, GameEventNames.GameStateRestored, refresh);
@@ -93,6 +92,13 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     const driveModifier = state
       ? getDriveEffects(state).playerModifiers[player.id]
       : undefined;
+    const used = state?.turn.movementUsed.get(player.id) ?? 0;
+    const activating = !isComparison && state?.activePlayer?.id === player.id;
+    const holdsBall =
+      player.status === PlayerStatus.ACTIVE &&
+      player.gridPosition != null &&
+      state?.ballPosition?.x === player.gridPosition.x &&
+      state?.ballPosition?.y === player.gridPosition.y;
     const lowered = (value: number, base: number) =>
       value < base ? "warn" : undefined;
 
@@ -139,8 +145,11 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
             title={ma < player.stats.MA ? `Base ${player.stats.MA}` : undefined}
           />
           <Stat label="ST" value={player.stats.ST} />
-          <Stat label="AG" value={player.stats.AG} />
-          <Stat label="PA" value={player.stats.PA} />
+          <Stat label="AG" value={`${player.stats.AG}+`} />
+          <Stat
+            label="PA"
+            value={player.stats.PA > 0 ? `${player.stats.PA}+` : "-"}
+          />
           <Stat
             label="AV"
             value={av}
@@ -148,6 +157,22 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
             title={av < player.stats.AV ? `Base ${player.stats.AV}` : undefined}
           />
         </div>
+
+        {(activating || holdsBall) && (
+          <div
+            data-testid="player-activation-info"
+            className="mt-2 flex flex-wrap items-center gap-1.5 text-hud-sm text-hud-bone"
+          >
+            {activating && (
+              <span data-testid="movement-left">
+                MA {ma}, {Math.max(0, ma - used)} left,{" "}
+                {Math.max(0, rushAllowance(player) - Math.max(0, used - ma))}{" "}
+                rush
+              </span>
+            )}
+            {holdsBall && <Chip tone="gold">Holding ball</Chip>}
+          </div>
+        )}
 
         {driveModifier && (
           <div className="mt-2 rounded-hud border border-hud-warn/50 bg-hud-warn/10 px-2 py-1 text-hud-sm font-semibold text-hud-warn">
@@ -171,7 +196,11 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
         {/* Status (if not active) */}
         {player.status !== PlayerStatus.ACTIVE && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
-            <Chip tone="bad">{player.status}</Chip>
+            <Chip
+              tone={player.status === PlayerStatus.RESERVE ? "neutral" : "bad"}
+            >
+              {player.status}
+            </Chip>
             {player.injuries.length > 0 && (
               <span className="text-hud-sm text-[#ff9a8f]">
                 {player.injuries.join(", ")}
@@ -221,7 +250,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&
-        renderPanel(hoveredPlayer, true)}
+        renderPanel(hoveredPlayer, selectedPlayer != null)}
       {hoveredCrew && renderCrewPanel(hoveredCrew)}
     </div>
   );
