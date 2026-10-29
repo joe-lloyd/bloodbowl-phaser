@@ -42,6 +42,15 @@ test("a dodge prompt, then the dice tray", async ({ page }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 2 });
   await app.pitch.waitForCameraToSettle();
+  // The bare pitch, for the gallery's stage backdrop
+  await page.evaluate(() => {
+    document.getElementById("react-root")!.style.visibility = "hidden";
+  });
+  await page.waitForTimeout(300);
+  await shot(page, "pitch");
+  await page.evaluate(() => {
+    document.getElementById("react-root")!.style.visibility = "";
+  });
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
   await app.pitch.waitForCameraToSettle();

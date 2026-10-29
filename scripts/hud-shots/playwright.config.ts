@@ -5,7 +5,9 @@
 import { defineConfig } from "@playwright/test";
 import base from "../../playwright.config";
 
-const browserProject = base.projects!.find((p) => p.name === "browser-gameplay")!;
+const browserProject = base.projects!.find(
+  (p) => p.name === "browser-gameplay"
+)!;
 
 export default defineConfig({
   ...base,
