@@ -297,6 +297,13 @@ export class GameScene extends Phaser.Scene {
       away: this.team2.colors.primary,
     });
 
+    // Only a press on the canvas itself is a board click. A dialog that
+    // opens under a still mouse leaves Phaser thinking the pointer is over
+    // the canvas, so a click on the dialog's button came through as a click
+    // on the board behind it and deselected the player.
+    const onCanvas = (pointer: Phaser.Input.Pointer) =>
+      pointer.event?.target === this.game.canvas;
+
     // A click on nothing deselects. Behind everything, over the whole stadium.
     this.add
       .rectangle(0, 0, this.stadium.width, this.stadium.height, 0x000000, 0)
@@ -304,6 +311,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-1)
       .setInteractive()
       .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        if (!onCanvas(pointer)) return;
         // Squares on the pitch belong to the gameplay controller; only a
         // click in the stands or the surrounds deselects.
         const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
@@ -343,6 +351,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (!onCanvas(pointer)) return;
       console.log(
         `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
       );
