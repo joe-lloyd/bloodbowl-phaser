@@ -43,6 +43,10 @@ export interface SetupRestriction {
   id: SetupRestrictionId;
   satisfied: boolean;
   message: string;
+  /** Compact live count for setup feedback. */
+  summary?: string;
+  /** Players in each wide zone; set on the wide-zone-limit rule. */
+  wideZones?: { top: number; bottom: number };
   /** False means the team lacks enough available players to meet this rule. */
   satisfiable: boolean;
 }

@@ -1,5 +1,12 @@
 import Phaser from "phaser";
-import { GameConfig, TRAPDOOR_SQUARES } from "../../config/GameConfig";
+import { SetupTeamStatus } from "../../types/SetupTypes";
+import {
+  GameConfig,
+  getSevensSetupZone,
+  getLineOfScrimmageX,
+  SEVENS_GEOMETRY,
+  TRAPDOOR_SQUARES,
+} from "../../config/GameConfig";
 import {
   gridPointToPixel,
   gridToPixel,
@@ -26,6 +33,8 @@ export class Pitch {
   private container: Phaser.GameObjects.Container;
   private width = GameConfig.PITCH_WIDTH;
   private height = GameConfig.PITCH_HEIGHT;
+  /** Setup rule labels, held at one screen size whatever the zoom. */
+  private setupLabels: Phaser.GameObjects.Container[] = [];
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
@@ -33,6 +42,10 @@ export class Pitch {
     // Above the stadium, below players (whose depth follows their screen y).
     this.container.setDepth(5);
     this.drawTrapdoors();
+    scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.holdLabelSize);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
+      scene.events.off(Phaser.Scenes.Events.POST_UPDATE, this.holdLabelSize)
+    );
   }
 
   /**
@@ -180,8 +193,7 @@ export class Pitch {
     this.clearSetupZone();
 
     // Bounds: Left (0-6), Right (13-19)
-    const minX = isLeft ? 0 : 13;
-    const maxX = isLeft ? 6 : 19;
+    const { minX, maxX } = getSevensSetupZone(isLeft);
     const zone = this.scene.add.graphics();
     zone.setName("setup_zone_highlight");
     zone.fillStyle(0x00ff00, 1);
@@ -190,6 +202,23 @@ export class Pitch {
     zone.strokePoints(pts, true);
     zone.setAlpha(0.15);
     this.container.add(zone);
+
+    const markings = this.scene.add.graphics().setName("setup_zone_markings");
+    markings.fillStyle(0xe8bd67, 0.14);
+    const los = getLineOfScrimmageX(isLeft);
+    this.drawBlock(markings, los, 2, los, 8);
+    markings.fillStyle(0x71b9e7, 0.13);
+    this.drawBlock(markings, minX, 0, maxX, 1);
+    this.drawBlock(markings, minX, 9, maxX, 10);
+    markings.fillStyle(0xa44339, 0.13);
+    this.drawBlock(
+      markings,
+      SEVENS_GEOMETRY.NEUTRAL_ZONE_X.min,
+      0,
+      SEVENS_GEOMETRY.NEUTRAL_ZONE_X.max,
+      this.height - 1
+    );
+    this.container.add(markings);
 
     // Pulsing animation
     this.scene.tweens.add({
@@ -201,6 +230,96 @@ export class Pitch {
       ease: "Sine.easeInOut",
     });
   }
+
+  /**
+   * Setup rule labels where no player may stand: the line count in no man's
+   * land beside the line of scrimmage, the wide zone counts by each wide
+   * zone. Each is a dark pill held at one screen size at any zoom.
+   */
+  public updateSetupLabels(isTeam1: boolean, status: SetupTeamStatus): void {
+    this.setupLabels.forEach((label) => label.destroy());
+    this.setupLabels = [];
+    const lineX = getLineOfScrimmageX(isTeam1);
+    const line = status.restrictions.find(
+      (rule) =>
+        rule.id ===
+        (status.requiredPlayerCount < 3
+          ? "short-handed-line"
+          : "line-of-scrimmage")
+    )?.summary;
+    const wide = status.restrictions.find(
+      (rule) => rule.id === "wide-zone-limit"
+    )?.wideZones;
+    // Squares where the pill clears the dugout players and the corner
+    // panels at the default framing. The right half's panel covers its far
+    // corner, so its top count sits in no man's land instead.
+    const spots = isTeam1
+      ? { top: [3.5, -0.7], bottom: [3.5, 11.7], neutral: [10, 1.5] }
+      : { top: [12, 0.5], bottom: [16.5, 11.7], neutral: [8, 5.5] };
+    const labels = [
+      { at: [lineX + (isTeam1 ? 2.5 : -1.5), 5.5], text: line },
+      { at: spots.top, text: wide && `Wide zone ${wide.top}, max 1` },
+      { at: spots.bottom, text: wide && `Wide zone ${wide.bottom}, max 1` },
+      { at: spots.neutral, text: "No man's land, no setup" },
+    ];
+    labels.forEach((label) => {
+      if (!label.text) return;
+      const point = gridPointToPixel(label.at[0], label.at[1]);
+      const text = this.scene.add
+        .text(0, 0, label.text, {
+          fontFamily: '"Barlow Condensed", "Barlow", sans-serif',
+          fontSize: "20px",
+          fontStyle: "bold",
+          color: "#f1ebdd",
+          resolution: 3,
+        })
+        .setOrigin(0.5);
+      const w = text.width + 20;
+      const h = text.height + 8;
+      const pill = this.scene.add.graphics();
+      pill.fillStyle(0x08090b, 0.92);
+      pill.fillRoundedRect(-w / 2, -h / 2, w, h, 3);
+      pill.lineStyle(1, 0xe3b448, 0.45);
+      pill.strokeRoundedRect(-w / 2, -h / 2, w, h, 3);
+      const container = this.scene.add
+        .container(point.x, point.y, [pill, text])
+        .setName("setup_zone_label")
+        .setSize(w, h);
+      this.container.add(container);
+      this.setupLabels.push(container);
+    });
+    this.holdLabelSize();
+  }
+
+  /** Each setup label's text and its world-space box, for the test bridge. */
+  public setupLabelBounds(): {
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[] {
+    return this.setupLabels.map((label) => {
+      const box = label.getBounds();
+      const text = label.list.find(
+        (child): child is Phaser.GameObjects.Text =>
+          child instanceof Phaser.GameObjects.Text
+      );
+      return {
+        text: text?.text ?? "",
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+      };
+    });
+  }
+
+  /** Undo the camera zoom on setup labels so they keep their screen size. */
+  private holdLabelSize = (): void => {
+    const scale = 1 / this.scene.cameras.main.zoom;
+    this.setupLabels.forEach((label) => label.setScale(scale));
+  };
 
   /**
    * Highlight opposing tackle zones
@@ -387,8 +506,9 @@ export class Pitch {
 
   /** The pulsing zone a team deploys in; gone once that team is set up. */
   private clearSetupZone(): void {
+    this.setupLabels = [];
     this.container.getAll().forEach((child) => {
-      if (child.name !== "setup_zone_highlight") return;
+      if (!child.name.startsWith("setup_zone_")) return;
       this.scene.tweens.killTweensOf(child);
       child.destroy();
     });

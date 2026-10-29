@@ -4,6 +4,7 @@ import { useEventBus } from "../../hooks/useEventBus";
 
 import { SubPhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
+import { SetupChecklist } from "./SetupChecklist";
 import { SetupTeamStatus } from "../../../types/SetupTypes";
 import {
   HudButton,
@@ -24,6 +25,47 @@ const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
 interface SetupControlsProps {
   eventBus: EventBus;
 }
+
+const SetupActionButton = ({
+  action,
+  label,
+  sub,
+  disabled = false,
+  color = "blue",
+  onClick,
+  onAction,
+}: {
+  action: string;
+  label: string;
+  sub?: string;
+  disabled?: boolean;
+  color?: string;
+  onClick?: () => void;
+  onAction: (action: string) => void;
+}) => {
+  const variant = SETUP_VARIANTS[color] ?? "secondary";
+
+  return (
+    <HudButton
+      variant={variant}
+      block
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onClick) onClick();
+        else onAction(action);
+      }}
+      disabled={disabled}
+      className="!justify-between"
+    >
+      <span>{label}</span>
+      {sub && (
+        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-[11px] font-semibold normal-case tracking-normal opacity-90">
+          {sub}
+        </span>
+      )}
+    </HudButton>
+  );
+};
 
 export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -87,47 +129,6 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
 
   const selected = formations.find((f) => f.name === selectedFormation);
   const concessionPending = status?.concessionDecision === "pending";
-  const outstanding =
-    status?.restrictions.filter((restriction) => !restriction.satisfied) ?? [];
-
-  const SetupActionButton = ({
-    action,
-    label,
-    sub,
-    disabled = false,
-    color = "blue",
-    onClick,
-  }: {
-    action: string;
-    label: string;
-    sub?: string;
-    disabled?: boolean;
-    color?: string;
-    onClick?: () => void;
-  }) => {
-    const variant = SETUP_VARIANTS[color] ?? "secondary";
-
-    return (
-      <HudButton
-        variant={variant}
-        block
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onClick) onClick();
-          else handleAction(action);
-        }}
-        disabled={disabled}
-        className="!justify-between"
-      >
-        <span>{label}</span>
-        {sub && (
-          <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-[11px] font-semibold normal-case tracking-normal opacity-90">
-            {sub}
-          </span>
-        )}
-      </HudButton>
-    );
-  };
 
   if (!isVisible) return null;
 
@@ -156,11 +157,17 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
             </p>
             <div className="flex gap-2">
               <SetupActionButton
+                onAction={handleAction}
                 action="continue"
                 label="PLAY ON"
                 color="green"
               />
-              <SetupActionButton action="concede" label="CONCEDE" color="red" />
+              <SetupActionButton
+                onAction={handleAction}
+                action="concede"
+                label="CONCEDE"
+                color="red"
+              />
             </div>
           </div>
         )}
@@ -195,6 +202,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
 
         <div className="flex gap-2">
           <SetupActionButton
+            onAction={handleAction}
             action="load"
             label="LOAD"
             color="blue"
@@ -202,6 +210,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
             onClick={() => handleAction("load", selectedFormation)}
           />
           <SetupActionButton
+            onAction={handleAction}
             action="delete"
             label="DELETE"
             color="red"
@@ -222,6 +231,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           />
           <div className="w-24">
             <SetupActionButton
+              onAction={handleAction}
               action="save"
               label="SAVE"
               color="yellow"
@@ -237,6 +247,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
         <div className="my-0.5 h-px bg-white/10"></div>
 
         <SetupActionButton
+          onAction={handleAction}
           action="clear"
           label="CLEAR PITCH"
           sub="Reset"
@@ -244,7 +255,10 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           disabled={concessionPending}
         />
 
+        {status && <SetupChecklist status={status} />}
+
         <SetupActionButton
+          onAction={handleAction}
           action="confirm"
           label={isComplete ? "CONFIRM SETUP" : "SETUP INCOMPLETE"}
           // A short-handed team fields everyone it has, so the target is the

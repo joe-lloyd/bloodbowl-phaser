@@ -18,6 +18,7 @@ test("introductions, then the coin, then setup with no zone left glowing", async
 }) => {
   // A real match from the menu, slow under a full parallel run
   test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
   let beat = 0;
   const shot = async (name: string) => {
@@ -55,9 +56,10 @@ test("introductions, then the coin, then setup with no zone left glowing", async
     await expect(flip).toHaveCount(0);
     await shot(`intro-${name.split(" ")[0].toLowerCase()}`);
   }
-  await expect(banner).toContainText("Weather", {
-    timeout: 15_000,
-  });
+  await expect(banner).toContainText(
+    /Weather · (No effect on play|-1 passing|-1 pick-up|-1 rush|D3 players)/,
+    { timeout: 15_000 }
+  );
   await expect(flip).toHaveCount(0);
   await shot("weather");
 
@@ -119,7 +121,11 @@ test("introductions, then the coin, then setup with no zone left glowing", async
   );
   await expect(page.getByText(`${winner?.name} Wins!`)).toBeVisible();
   await shot("coin-result");
-  await page.getByRole("button", { name: "RECEIVE" }).click();
+  await page
+    .getByRole("button", {
+      name: winner?.name === "Orc Founders" ? "RECEIVE" : "KICK",
+    })
+    .click();
 
   // Both teams set up from a preset; the zone glows while one deploys
   for (let team = 0; team < 2; team++) {
@@ -128,6 +134,12 @@ test("introductions, then the coin, then setup with no zone left glowing", async
       .filter({ has: page.locator("optgroup[label=Presets]") });
     await expect(select).toBeVisible({ timeout: 15_000 });
     expect(await app.bridge.pitchLayers()).toContain("setup_zone_highlight");
+    await expect(page.getByTestId("setup-checklist")).toContainText(
+      "Line of scrimmage 0/3"
+    );
+    await expect(page.getByTestId("setup-checklist")).toContainText(
+      "Wide zones: at most 1 each (top 0, bottom 0)"
+    );
     const options = await select
       .locator("optgroup[label=Presets] option")
       .allTextContents();
@@ -135,7 +147,33 @@ test("introductions, then the coin, then setup with no zone left glowing", async
       options.find((o) => /balanced/i.test(o)) ?? options[0]
     );
     await page.getByRole("button", { name: /LOAD/ }).click();
-    if (team === 1) await shot("last-team-deploying");
+    await expect(page.getByTestId("setup-checklist")).toContainText(
+      "Line of scrimmage 3/3"
+    );
+    await expect(page.getByTestId("setup-checklist")).toContainText(
+      "Players placed 7/7"
+    );
+    if (team === 1) {
+      await shot("last-team-deploying");
+      for (const viewport of [
+        { width: 1280, height: 720 },
+        { width: 1920, height: 1080 },
+      ]) {
+        await page.setViewportSize(viewport);
+        const confirm = page.getByRole("button", { name: /CONFIRM SETUP/ });
+        await expect(confirm).toBeInViewport();
+        await expect(page.getByTestId("setup-checklist")).toBeInViewport();
+        expect(
+          await page.evaluate(
+            () =>
+              document.documentElement.scrollWidth <= innerWidth &&
+              document.documentElement.scrollHeight <= innerHeight
+          )
+        ).toBe(true);
+        await shot(`setup-${viewport.width}`);
+      }
+      await page.setViewportSize({ width: 1280, height: 720 });
+    }
     await page.getByRole("button", { name: /CONFIRM SETUP/ }).click();
     await page.waitForTimeout(800);
   }

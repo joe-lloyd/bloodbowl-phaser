@@ -52,6 +52,26 @@ describe("shared Sevens setup geometry", () => {
 });
 
 describe("SetupValidator", () => {
+  it("includes live counts for the checklist and pitch labels", () => {
+    const result = validator.validateFormation(
+      [
+        { playerId: "a", x: 6, y: 3 },
+        { playerId: "b", x: 6, y: 5 },
+        { playerId: "c", x: 4, y: 0 },
+      ],
+      true,
+      7
+    );
+    expect(
+      result.restrictions.find((rule) => rule.id === "line-of-scrimmage")
+        ?.summary
+    ).toBe("Line of scrimmage 2/3");
+    const wide = result.restrictions.find(
+      (rule) => rule.id === "wide-zone-limit"
+    );
+    expect(wide?.summary).toBe("Wide zones: at most 1 each (top 1, bottom 0)");
+    expect(wide?.wideZones).toEqual({ top: 1, bottom: 0 });
+  });
   it("accepts legal mirrored seven-player formations", () => {
     expect(
       validator.validateFormation(legalFormation(true), true, 11).valid
