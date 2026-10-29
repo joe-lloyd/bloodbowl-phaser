@@ -365,6 +365,30 @@ export const VARIANTS: Variant[] = [
       }),
   },
   {
+    id: "hud-play-long-menu",
+    section: "Whole HUD",
+    title: "In play, a long action menu scrolls inside its corner",
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => routed(<GameHUD eventBus={fx.bus} mode="sandbox" />),
+    drive: (fx) =>
+      later(80, () => {
+        fx.bus.emit(GameEventNames.PhaseChanged, {
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        });
+        fx.bus.emit(GameEventNames.ScenarioLoaded, {
+          name: "Basic Scrimmage",
+          seed: 1,
+        });
+        fillLog(fx, 1);
+        fx.bus.emit(GameEventNames.PlayerSelected, {
+          player:
+            fx.services.gameService.getPlayerById(fx.player(1, 0).id) ??
+            fx.player(1, 0),
+        });
+      }),
+  },
+  {
     id: "hud-setup",
     section: "Whole HUD",
     title: "Setup",
