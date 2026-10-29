@@ -78,9 +78,7 @@ describe("PlayerInfoPanel: sideline crew subject", () => {
     await act(async () => {
       eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     });
-    expect(container.innerHTML.trim()).toBe(
-      "<div class=\"w-full flex flex-col items-end\"></div>"
-    );
+    expect(container.textContent).toBe("");
   });
 
   it("does not disturb a selected player when a crew subject is hovered", async () => {

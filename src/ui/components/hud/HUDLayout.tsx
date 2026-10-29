@@ -9,13 +9,17 @@ interface HUDLayoutProps {
   overlays?: React.ReactNode;
 }
 
-// Each corner gets at most half the window, scrolling past that, so a tall
-// panel (the sandbox case explorer, a long action menu) never runs under the
-// stack in the corner below or above it. The bottom corners push their stack
-// down with an auto top margin rather than justify-end: justify-end in a
-// scrolling column clips the top of an overflowing stack out of reach.
-const corner =
-  "absolute flex max-h-[calc(50vh-1.5rem)] w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto";
+// Each side is one full-height column: the top stack sits at the top and the
+// bottom stack is pushed down with an auto margin, so the two can share the
+// height without ever running into each other. The top stack keeps at most
+// half (the sandbox case explorer scrolls inside that), and a panel that must
+// give way (a long action menu) shrinks and scrolls inside itself; the column
+// only scrolls as a last resort. An auto margin rather than justify-end, because
+// justify-end in a scrolling column clips the top of an overflowing stack.
+const column =
+  "absolute top-4 bottom-4 flex w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto no-scrollbar";
+const stack = "flex min-h-0 flex-col gap-3";
+const top = `${stack} max-h-[calc(50%-0.375rem)] shrink-0 overflow-y-auto hud-scroll`;
 
 /**
  * HUDLayout: floating panels in the four corners over a full-window match.
@@ -33,15 +37,13 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
   overlays,
 }) => (
   <div className="absolute inset-0 pointer-events-none">
-    <div className={`${corner} left-4 top-4`}>{topLeft}</div>
-    <div className={`${corner} right-4 top-4 items-end`}>{topRight}</div>
-    <div className={`${corner} bottom-4 left-4 [&>*:first-child]:mt-auto`}>
-      {bottomLeft}
+    <div className={`${column} left-4`}>
+      <div className={top}>{topLeft}</div>
+      <div className={`${stack} mt-auto`}>{bottomLeft}</div>
     </div>
-    <div
-      className={`${corner} bottom-4 right-4 items-end [&>*:first-child]:mt-auto`}
-    >
-      {bottomRight}
+    <div className={`${column} right-4 items-end`}>
+      <div className={`${top} w-full items-end`}>{topRight}</div>
+      <div className={`${stack} mt-auto w-full items-end`}>{bottomRight}</div>
     </div>
     {overlays}
   </div>

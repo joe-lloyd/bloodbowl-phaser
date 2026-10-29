@@ -136,7 +136,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
   return (
     <Panel
       accent="gold"
-      className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-hud-in z-50"
+      className="w-full shrink-0 flex flex-col pointer-events-auto animate-hud-in z-50"
     >
       <PanelHeader
         title={activeTeam?.name || "Unknown Team"}

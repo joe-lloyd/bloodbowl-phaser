@@ -100,7 +100,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       <Panel
         key={player.id}
         accent={isComparison ? "info" : "gold"}
-        className="mb-3 w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
+        className="w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
       >
         {/* Header */}
         <div className="flex items-start gap-2.5">
@@ -200,7 +200,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     <Panel
       key="sideline-crew"
       accent="gold"
-      className="mb-3 w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
+      className="w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
     >
       <div className="font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-gold">
         {crew.name}
@@ -217,7 +217,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   );
 
   return (
-    <div className="w-full flex flex-col items-end">
+    <div className="flex w-full flex-col items-end gap-3 empty:hidden">
       {selectedPlayer && renderPanel(selectedPlayer, false)}
       {hoveredPlayer &&
         hoveredPlayer.id !== selectedPlayer?.id &&
