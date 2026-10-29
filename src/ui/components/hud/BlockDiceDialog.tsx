@@ -275,18 +275,18 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     >
       {/* Strength comparison */}
       <div className="flex items-stretch gap-2">
-        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-2">
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-1.5">
           <span className="hud-label">ATTACKER</span>
-          <span className="font-hud-display text-hud-3xl text-hud-good">
+          <span className="font-hud-display text-hud-2xl text-hud-good">
             {attackerST}
           </span>
         </div>
         <div className="flex items-center px-1 font-hud-display text-hud-xl text-hud-gold">
           VS
         </div>
-        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-bad/30 bg-black/35 py-2">
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-bad/30 bg-black/35 py-1.5">
           <span className="hud-label">DEFENDER</span>
-          <span className="font-hud-display text-hud-3xl text-hud-bad">
+          <span className="font-hud-display text-hud-2xl text-hud-bad">
             {defenderST}
           </span>
         </div>
@@ -307,7 +307,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           lifted die chooses it. These buttons keep the choice open to a
           keyboard or a screen reader. */}
       {rollData ? (
-        <div className="mt-4">
+        <div className="mt-3">
           <div className="flex justify-center gap-2">
             {rollData.results.map((result, idx) => (
               <button
@@ -335,7 +335,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
             rollData.proAvailable ||
             rollData.brawlerAvailable ||
             rollData.veteranRerollAvailable) && (
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
               {rollData.teamRerollAvailable && (
                 <HudButton
                   data-testid="block-team-reroll"
