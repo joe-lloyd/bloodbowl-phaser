@@ -53,16 +53,18 @@ export function LoadingScreen({
       }}
     >
       {teams && (
-        <div className="flex items-baseline gap-6 px-6 text-center font-heading uppercase tracking-wider">
+        <div className="flex items-center gap-6 px-6 text-center font-hud-display uppercase tracking-[0.03em] [text-shadow:0_4px_0_#000]">
           <span
-            className="text-3xl sm:text-5xl"
+            className="text-4xl sm:text-6xl"
             style={{ color: css(teams.team1.colors.primary) }}
           >
             {teams.team1.name}
           </span>
-          <span className="text-xl text-bb-gold sm:text-2xl">vs</span>
+          <span className="-skew-x-12 bg-hud-blood px-3 py-1 text-xl text-white [text-shadow:none] sm:text-2xl">
+            vs
+          </span>
           <span
-            className="text-3xl sm:text-5xl"
+            className="text-4xl sm:text-6xl"
             style={{ color: css(teams.team2.colors.primary) }}
           >
             {teams.team2.name}
@@ -70,13 +72,13 @@ export function LoadingScreen({
         </div>
       )}
       <div className="w-72 max-w-[70vw]">
-        <div className="h-2 overflow-hidden rounded-full border border-bb-gold/60 bg-black/60">
+        <div className="h-2.5 -skew-x-12 overflow-hidden border border-hud-gold/50 bg-black/70">
           <div
-            className="h-full bg-bb-gold transition-[width] duration-300"
+            className="h-full bg-gradient-to-r from-hud-blood via-hud-blood-hot to-hud-gold transition-[width] duration-300"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
-        <p className="mt-3 text-center font-heading text-sm uppercase tracking-[0.3em] text-bb-gold/80">
+        <p className="mt-3 text-center font-hud-label text-hud-sm font-bold uppercase tracking-[0.3em] text-hud-gold/90">
           {done ? "Kick-off" : `Filling the stands · ${style.name}`}
         </p>
       </div>

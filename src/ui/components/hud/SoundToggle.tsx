@@ -13,17 +13,19 @@ export const SoundToggle: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-2 pointer-events-auto">
-      <label className="flex items-center gap-2 text-bb-parchment text-sm">
+      <label className="flex items-center gap-2 font-hud-body text-hud-sm text-hud-bone">
         <input
+          className="h-4 w-4 accent-[#e3b448]"
           type="checkbox"
           checked={settings.muted}
           onChange={(e) => settings.setMuted(e.target.checked)}
         />
         Mute sound
       </label>
-      <label className="flex flex-col gap-1 text-bb-parchment text-sm">
+      <label className="flex flex-col gap-1 font-hud-body text-hud-sm text-hud-bone">
         Volume
         <input
+          className="accent-[#e3b448]"
           type="range"
           min={0}
           max={1}

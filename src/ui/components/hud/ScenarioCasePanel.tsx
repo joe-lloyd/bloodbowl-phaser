@@ -14,17 +14,16 @@ import {
 } from "../../../testing/scenarioCase";
 import { describeFixture } from "../../../testing/fixtures/describeFixture";
 import { sandboxUrlFor } from "../../../testing/diagnostics/bundle";
+import { hudButtonClass } from "../componentWarehouse/HudKit";
 
 interface ScenarioCasePanelProps {
   eventBus: EventBus;
 }
 
-const selectClass =
-  "w-full px-2 py-1.5 text-sm bg-bb-parchment border-2 border-bb-gold rounded font-heading text-bb-text cursor-pointer hover:border-bb-blood-red transition-colors pointer-events-auto";
-const inputClass =
-  "w-full px-2 py-1 text-sm bg-bb-parchment border-2 border-bb-gold rounded font-mono text-bb-text pointer-events-auto";
+const selectClass = "hud-field cursor-pointer";
+const inputClass = "hud-field font-mono";
 const boxClass =
-  "text-xs text-bb-text/80 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1";
+  "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 
 type CheckpointState = {
   id: string;
@@ -49,7 +48,9 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
   const [caseId, setCaseId] = useState("");
   const [variantId, setVariantId] = useState("");
   const [copied, setCopied] = useState(false);
-  const [checkpoints, setCheckpoints] = useState<CheckpointState[] | null>(null);
+  const [checkpoints, setCheckpoints] = useState<CheckpointState[] | null>(
+    null
+  );
   // Bumped whenever the board changes, so a re-check reflects the live game.
   const [, setTick] = useState(0);
 
@@ -64,7 +65,9 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
     scenarioCase?.variants.find((entry) => entry.id === variantId) ??
     scenarioCase?.variants[0];
 
-  useEventBus(eventBus, GameEventNames.PlayerMoved, () => setTick((n) => n + 1));
+  useEventBus(eventBus, GameEventNames.PlayerMoved, () =>
+    setTick((n) => n + 1)
+  );
   useEventBus(eventBus, GameEventNames.Turnover, () => setTick((n) => n + 1));
 
   const load = (nextCaseId: string, nextVariantId?: string) => {
@@ -216,7 +219,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
           {/* Fixture authenticity — where every player on the pitch comes from */}
           {fixture && (
             <div className={boxClass} data-testid="fixture-panel">
-              <div className="font-bold">
+              <div className="font-semibold text-hud-bone">
                 {fixture.team1Roster} vs {fixture.team2Roster}
                 {fixture.fullyAuthentic ? " ✓ roster-authentic" : ""}
               </div>
@@ -225,22 +228,24 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
                   <span className="font-mono">{placement.ref}</span>{" "}
                   {placement.positionName}
                   {placement.nativeSkills.length > 0 && (
-                    <span className="text-bb-text/60">
+                    <span className="text-hud-dim">
                       {" "}
                       — roster: {placement.nativeSkills.join(", ")}
                     </span>
                   )}
                   {placement.statOverrides.length > 0 && (
-                    <span className="text-bb-text/60">
+                    <span className="text-hud-dim">
                       {" "}
                       — pinned: {placement.statOverrides.join(", ")}
                     </span>
                   )}
                   {placement.grants.map((grant) => (
                     <div key={grant.skill} className="pl-3">
-                      {grant.legality === "illegal" && !grant.reason ? "⚠" : "+"}{" "}
+                      {grant.legality === "illegal" && !grant.reason
+                        ? "⚠"
+                        : "+"}{" "}
                       {grant.skill}{" "}
-                      <span className="text-bb-text/60">
+                      <span className="text-hud-dim">
                         (
                         {grant.legality === "native"
                           ? "already on the roster"
@@ -262,7 +267,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
             <button
               onClick={checkNow}
               data-testid="check-checkpoints"
-              className="flex-1 px-2 py-1 text-xs font-heading border-2 border-bb-gold rounded bg-bb-parchment hover:border-bb-blood-red transition-colors"
+              className={`${hudButtonClass("gold", "sm")} flex-1`}
             >
               CHECK
             </button>
@@ -270,7 +275,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
               onClick={copyReference}
               data-testid="copy-reference"
               title="Copy a reproduction reference"
-              className="px-2 py-1 text-xs font-heading border-2 border-bb-gold rounded bg-bb-parchment hover:border-bb-blood-red transition-colors"
+              className={hudButtonClass("secondary", "sm")}
             >
               {copied ? "COPIED" : "COPY REF"}
             </button>
@@ -286,7 +291,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
                 >
                   {checkpoint.passed ? "✓" : "✗"} {checkpoint.description}
                   {checkpoint.detail && (
-                    <div className="pl-3 text-bb-blood-red">
+                    <div className="pl-3 text-[#ff9a8f]">
                       {checkpoint.detail}
                     </div>
                   )}

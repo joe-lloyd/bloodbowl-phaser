@@ -288,7 +288,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <HUDLayout
-      topLeft={<ScoreBoard eventBus={eventBus} />}
       topRight={
         <>
           <div className="pointer-events-auto">
@@ -318,8 +317,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       }
       overlays={
         <>
-          {/* Turn Indicator - Top Center */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-50">
+          {/* Score bug with the turn tab under it - Top Center */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center">
+            <ScoreBoard eventBus={eventBus} />
             <TurnIndicator
               turnNumber={turnData.turnNumber}
               phase={turnData.phase}

@@ -1,5 +1,6 @@
 import { GamePhase } from "@/types/GameState";
 import React from "react";
+import { hudButtonClass } from "../componentWarehouse/HudKit";
 
 interface EndTurnButtonProps {
   onClick: () => void;
@@ -20,16 +21,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
       data-testid="end-turn"
       onClick={onClick}
       disabled={disabled}
-      className={`
-                px-8 py-3 
-                font-heading font-bold text-xl tracking-wider uppercase
-                text-bb-parchment bg-bb-blood-red 
-                border-2 border-bb-gold
-                shadow-chunky
-                transition-bb transform hover:-translate-y-0.5 hover:shadow-lg
-                active:translate-y-0 active:shadow-md
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-            `}
+      className={`${hudButtonClass("primary", "lg")} min-h-[56px] px-10 font-hud-display !text-hud-xl !font-normal !tracking-[0.08em]`}
     >
       End Turn
     </button>

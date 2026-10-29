@@ -230,14 +230,13 @@ export function TurnClock({
     return (
       <div
         data-testid="turn-clock-stopped"
-        className="absolute top-16 left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
-          flex flex-col items-center gap-1 bg-slate-900/85 border border-bb-gold
-          rounded-lg px-4 py-2 shadow-xl"
+        className="hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
+          flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2"
       >
-        <div className="font-heading text-2xl leading-none text-blue-300">
+        <div className="font-hud-display text-hud-2xl leading-none text-hud-info">
           ⏸ {fmt(frozen.remaining ?? 0)}
         </div>
-        <div className="text-xs font-body text-gray-300">
+        <div className="font-hud-body text-hud-xs text-hud-dim">
           {frozen.reason === "away"
             ? `${match.opponentName} disconnected: game paused`
             : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`}
@@ -258,29 +257,28 @@ export function TurnClock({
 
   return (
     <div
-      className="absolute top-16 left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
-        flex flex-col items-center gap-1 bg-slate-900/85 border border-bb-gold
-        rounded-lg px-4 py-2 shadow-xl"
+      className="hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto
+        flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2"
     >
       <div
-        className={`font-heading text-2xl leading-none ${
+        className={`font-hud-display text-hud-2xl leading-none tabular-nums ${
           timer.pausedBy
-            ? "text-blue-300"
+            ? "text-hud-info"
             : low
-              ? "text-red-400 animate-pulse"
-              : "text-bb-gold"
+              ? "text-hud-bad animate-pulse"
+              : "text-hud-bone"
         }`}
       >
         {timer.pausedBy ? "⏸ PAUSED" : `⏱ ${fmt(remaining)}`}
       </div>
       {timer.pausedBy ? (
-        <div className="text-xs font-body text-gray-300">
+        <div className="font-hud-body text-hud-xs text-hud-dim">
           by {pauserName}
           {pausedByMe && (
             <>
               <button
                 onClick={doResume}
-                className="ml-2 underline text-bb-gold"
+                className="ml-2 font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold underline-offset-2 hover:underline"
               >
                 Resume
               </button>
@@ -292,7 +290,7 @@ export function TurnClock({
         <button
           onClick={() => void pauseClock(code, user.uid)}
           disabled={myBank <= 0}
-          className="text-xs font-heading text-bb-gold/90 hover:text-bb-gold disabled:opacity-40"
+          className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-gold/90 hover:text-hud-gold disabled:opacity-40"
         >
           ⏸ Timeout ({fmt(myBank)})
         </button>

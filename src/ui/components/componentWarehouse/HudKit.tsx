@@ -63,34 +63,45 @@ type DivProps = React.HTMLAttributes<HTMLDivElement> & {
   "data-testid"?: string;
 };
 
+const TONE_TOP: Record<HudTone, string> = {
+  gold: "border-t-hud-gold",
+  blood: "border-t-hud-blood-hot",
+  good: "border-t-hud-good",
+  bad: "border-t-hud-bad",
+  warn: "border-t-hud-warn",
+  info: "border-t-hud-info",
+  skill: "border-t-hud-skill",
+  neutral: "border-t-hud-edge",
+};
+
 /**
- * A dark slab. `accent` draws a 3px bar along the top: a tone, or a team
+ * A dark slab. `accent` draws a 3px rule along the top: a tone, or a team
  * colour as a CSS colour string.
  */
 export const Panel = forwardRef<
   HTMLDivElement,
   DivProps & { accent?: HudTone | { color: string }; as?: "div" | "section" }
->(function Panel({ accent, as = "div", className, children, ...rest }, ref) {
+>(function Panel(
+  { accent, as = "div", className, style, children, ...rest },
+  ref
+) {
   const Tag = as;
   return (
     <Tag
       ref={ref}
-      className={cx("hud-slab relative overflow-hidden", className)}
+      className={cx(
+        "hud-slab overflow-hidden",
+        accent && "border-t-[3px]",
+        typeof accent === "string" && TONE_TOP[accent],
+        className
+      )}
+      style={
+        accent && typeof accent !== "string"
+          ? { borderTopColor: accent.color, ...style }
+          : style
+      }
       {...rest}
     >
-      {accent &&
-        (typeof accent === "string" ? (
-          <span
-            aria-hidden
-            className={cx("absolute inset-x-0 top-0 h-[3px]", TONE_BAR[accent])}
-          />
-        ) : (
-          <span
-            aria-hidden
-            className="absolute inset-x-0 top-0 h-[3px]"
-            style={{ backgroundColor: accent.color }}
-          />
-        ))}
       {children}
     </Tag>
   );
@@ -296,9 +307,25 @@ export function TeamSwatch({
   return (
     <span
       aria-hidden
-      className={cx("inline-block h-3 w-3 shrink-0 -skew-x-12 border border-white/40", className)}
+      className={cx(
+        "inline-block h-3 w-3 shrink-0 -skew-x-12 border border-white/40",
+        className
+      )}
       style={{ backgroundColor: color }}
     />
+  );
+}
+
+/** A gold coin for the toss, turned on its vertical axis by `spin` degrees. */
+export function HudCoin({ spin }: { spin: number }) {
+  return (
+    <div
+      aria-hidden
+      className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-[#ffe08a] bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
+      style={{ transform: `rotateY(${spin}deg)` }}
+    >
+      BB
+    </div>
   );
 }
 
@@ -355,7 +382,9 @@ export function DialogShell({
           className
         )}
       >
-        {eyebrow && <Eyebrow tone={tone === "gold" ? undefined : tone}>{eyebrow}</Eyebrow>}
+        {eyebrow && (
+          <Eyebrow tone={tone === "gold" ? undefined : tone}>{eyebrow}</Eyebrow>
+        )}
         <Heading className="mt-1 font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-bone">
           {title}
         </Heading>

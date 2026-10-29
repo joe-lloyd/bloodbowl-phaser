@@ -11,6 +11,7 @@ import {
   getDriveEffects,
 } from "../../../game/kickoff/driveEffects";
 import { SidelineCrewInfo } from "../../../game/presentation/sidelineStaff";
+import { Chip, Panel, Stat } from "../componentWarehouse/HudKit";
 
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
@@ -21,9 +22,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
-  const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(
-    null
-  );
+  const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(null);
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
   // During setup the panel stays on the last inspected player for the whole
@@ -86,8 +85,6 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   // 3. If NO Selected, Hovered is shown normally in the selected panel's slot.
 
   const renderPanel = (player: Player, isComparison: boolean) => {
-    const borderColor = isComparison ? "border-yellow-400" : "border-white";
-    const titleColor = isComparison ? "text-yellow-400" : "text-white";
     const state = ServiceContainer.isInitialized()
       ? ServiceContainer.getInstance().gameService.getState()
       : null;
@@ -96,87 +93,103 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     const driveModifier = state
       ? getDriveEffects(state).playerModifiers[player.id]
       : undefined;
+    const lowered = (value: number, base: number) =>
+      value < base ? "warn" : undefined;
 
     return (
-      <div
+      <Panel
         key={player.id}
-        className="w-full pointer-events-none transition-all duration-200 mb-4"
+        accent={isComparison ? "info" : "gold"}
+        className="mb-3 w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
       >
-        <div
-          className={`bg-[#2a2a3e]/95 border-2 ${borderColor} rounded-lg p-3 shadow-lg text-white`}
-        >
-          {/* Header */}
-          <div className="mb-2 border-b border-gray-600 pb-2">
-            <div className={`text-lg font-bold ${titleColor} leading-tight`}>
-              {isComparison && (
-                <span className="text-xs block text-gray-400 mb-1">
-                  COMPARING
-                </span>
-              )}
-              #{player.number} {player.playerName}
+        {/* Header */}
+        <div className="flex items-start gap-2.5">
+          <span
+            className={`mt-0.5 flex h-9 min-w-[36px] items-center justify-center rounded-hud border font-hud-display text-hud-lg leading-none ${
+              isComparison
+                ? "border-hud-info/60 text-hud-info"
+                : "border-hud-gold/60 text-hud-gold"
+            }`}
+          >
+            #{player.number}
+          </span>
+          <div className="min-w-0 flex-1">
+            {isComparison && (
+              <span className="hud-label block text-hud-2xs text-hud-info">
+                COMPARING
+              </span>
+            )}
+            <div className="truncate font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-bone">
+              {player.playerName}
             </div>
-            <div className="text-xs text-gray-400 mt-1">
+            <div className="truncate text-hud-sm text-hud-dim">
               {player.positionName}
               {player.level > 1 && ` • Lvl ${player.level}`}
               {player.spp > 0 && ` • ${player.spp} SPP`}
             </div>
           </div>
-
-          {/* Stats Grid */}
-          <div className="flex justify-between mb-3 px-1">
-            <StatItem label="MA" value={ma} baseValue={player.stats.MA} />
-            <StatItem label="ST" value={player.stats.ST} />
-            <StatItem label="AG" value={player.stats.AG} />
-            <StatItem label="PA" value={player.stats.PA} />
-            <StatItem label="AV" value={av} baseValue={player.stats.AV} />
-          </div>
-
-          {driveModifier && (
-            <div className="mb-2 rounded border border-orange-500/70 bg-orange-950/60 px-2 py-1 text-xs font-bold text-orange-300">
-              Dodgy Snack:{" "}
-              {driveModifier.confinedToReserves
-                ? "confined to Reserves for this drive"
-                : `${driveModifier.maModifier ?? 0} MA, ${driveModifier.avModifier ?? 0} AV for this drive`}
-            </div>
-          )}
-
-          {/* Skills */}
-          <div className="mb-1">
-            <span className="text-xs font-bold text-green-400 block mb-0.5">
-              Skills
-            </span>
-            <div className="text-xs text-green-300 leading-snug">
-              {player.skills.length > 0
-                ? player.skills.map((s) => s.type).join(", ")
-                : "No skills"}
-            </div>
-          </div>
-
-          {/* Status (if not active) */}
-          {player.status !== PlayerStatus.ACTIVE && (
-            <div className="mt-2 pt-2 border-t border-gray-600">
-              <span className="text-xs font-bold text-red-400 uppercase tracking-wider">
-                {player.status}
-              </span>
-              {player.injuries.length > 0 && (
-                <span className="text-xs text-red-300 block">
-                  {player.injuries.join(", ")}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Conditions (Distracted, Rooted, ...) — a Standing player can
-              still carry one of these, so this is independent of Status */}
-          {(player.conditions?.length ?? 0) > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-600">
-              <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
-                {player.conditions!.map((c) => c.type).join(", ")}
-              </span>
-            </div>
-          )}
         </div>
-      </div>
+
+        {/* Stats */}
+        <div className="mt-2.5 flex gap-1">
+          <Stat
+            label="MA"
+            value={ma}
+            tone={lowered(ma, player.stats.MA)}
+            title={ma < player.stats.MA ? `Base ${player.stats.MA}` : undefined}
+          />
+          <Stat label="ST" value={player.stats.ST} />
+          <Stat label="AG" value={player.stats.AG} />
+          <Stat label="PA" value={player.stats.PA} />
+          <Stat
+            label="AV"
+            value={av}
+            tone={lowered(av, player.stats.AV)}
+            title={av < player.stats.AV ? `Base ${player.stats.AV}` : undefined}
+          />
+        </div>
+
+        {driveModifier && (
+          <div className="mt-2 rounded-hud border border-hud-warn/50 bg-hud-warn/10 px-2 py-1 text-hud-sm font-semibold text-hud-warn">
+            Dodgy Snack:{" "}
+            {driveModifier.confinedToReserves
+              ? "confined to Reserves for this drive"
+              : `${driveModifier.maModifier ?? 0} MA, ${driveModifier.avModifier ?? 0} AV for this drive`}
+          </div>
+        )}
+
+        {/* Skills */}
+        <div className="mt-2.5">
+          <span className="hud-label mb-1 block text-hud-2xs">Skills</span>
+          <div className="text-hud-sm leading-snug text-hud-bone">
+            {player.skills.length > 0
+              ? player.skills.map((s) => s.type).join(", ")
+              : "No skills"}
+          </div>
+        </div>
+
+        {/* Status (if not active) */}
+        {player.status !== PlayerStatus.ACTIVE && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
+            <Chip tone="bad">{player.status}</Chip>
+            {player.injuries.length > 0 && (
+              <span className="text-hud-sm text-[#ff9a8f]">
+                {player.injuries.join(", ")}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Conditions (Distracted, Rooted, ...) — a Standing player can
+            still carry one of these, so this is independent of Status */}
+        {(player.conditions?.length ?? 0) > 0 && (
+          <div className="mt-2 border-t border-white/10 pt-2">
+            <Chip tone="skill">
+              {player.conditions!.map((c) => c.type).join(", ")}
+            </Chip>
+          </div>
+        )}
+      </Panel>
     );
   };
 
@@ -184,49 +197,23 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   // match effect, and the team's real count — no statline, skills, or
   // player status, since it is not a player.
   const renderCrewPanel = (crew: SidelineCrewInfo) => (
-    <div
+    <Panel
       key="sideline-crew"
-      className="w-full pointer-events-none transition-all duration-200 mb-4"
+      accent="gold"
+      className="mb-3 w-full pointer-events-none animate-hud-in px-3 pb-3 pt-3"
     >
-      <div className="bg-[#2a2a3e]/95 border-2 border-yellow-400 rounded-lg p-3 shadow-lg text-white">
-        <div className="mb-2 border-b border-gray-600 pb-2">
-          <div className="text-lg font-bold text-yellow-400 leading-tight">
-            {crew.name}
-          </div>
-          {crew.type !== null && (
-            <div className="text-xs text-gray-400 mt-1">
-              {crew.count} on this team
-            </div>
-          )}
-        </div>
-        <div className="text-xs text-gray-200 leading-snug">
-          {crew.effect}
-        </div>
+      <div className="font-hud-label text-hud-lg font-bold uppercase leading-tight tracking-[0.03em] text-hud-gold">
+        {crew.name}
       </div>
-    </div>
-  );
-
-  // Helper to format stats with labels matching the original style
-  const StatItem = ({
-    label,
-    value,
-    baseValue = value,
-  }: {
-    label: string;
-    value: number;
-    baseValue?: number;
-  }) => (
-    <div className="flex flex-col items-center">
-      <span className="text-xs text-gray-400 font-bold">{label}</span>
-      <span
-        className={`text-sm font-bold ${
-          value < baseValue ? "text-orange-400" : "text-yellow-300"
-        }`}
-        title={value < baseValue ? `Base ${baseValue}` : undefined}
-      >
-        {value}
-      </span>
-    </div>
+      {crew.type !== null && (
+        <div className="text-hud-sm text-hud-dim">
+          {crew.count} on this team
+        </div>
+      )}
+      <div className="mt-2 border-t border-white/10 pt-2 text-hud-sm leading-snug text-hud-bone">
+        {crew.effect}
+      </div>
+    </Panel>
   );
 
   return (

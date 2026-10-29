@@ -3,9 +3,17 @@ import { EventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { SubPhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
-import { Button, DangerButton } from "../components/componentWarehouse/Button";
-import { Title } from "../components/componentWarehouse/Titles";
-import { LobbyDoc, setCoinFlipReady, setCoinFlipWinner, setCoinFlipChoice } from "../../firebase/lobby";
+import {
+  DialogShell,
+  HudButton,
+  HudCoin,
+} from "../components/componentWarehouse/HudKit";
+import {
+  LobbyDoc,
+  setCoinFlipReady,
+  setCoinFlipWinner,
+  setCoinFlipChoice,
+} from "../../firebase/lobby";
 import { OnlineMatch } from "../../network/OnlineMatch";
 
 interface Props {
@@ -98,7 +106,12 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
   const ready = () => void setCoinFlipReady(code, amHost);
   const choose = (choice: "kick" | "receive") => {
     if (winnerId !== myTeamId) return; // only the winner chooses
-    const kicking = choice === "kick" ? winnerId : winnerId === team1.id ? team2.id : team1.id;
+    const kicking =
+      choice === "kick"
+        ? winnerId
+        : winnerId === team1.id
+          ? team2.id
+          : team1.id;
     void setCoinFlipChoice(code, kicking);
   };
 
@@ -109,82 +122,91 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
   const iWon = winnerId === myTeamId;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 pointer-events-auto">
-      <div className="bg-bb-parchment p-8 rounded-lg border-4 border-bb-gold shadow-2xl text-center max-w-lg w-full">
-        <Title className="mb-6">COIN TOSS</Title>
-
-        <div className="flex justify-center gap-6 text-bb-text-dark font-bold mb-6">
-          <TeamChip name={team1.name} me={myTeamId === team1.id} />
-          <span className="self-center">VS</span>
-          <TeamChip name={team2.name} me={myTeamId === team2.id} />
-        </div>
-
-        {!winner && (
-          <div className="space-y-6">
-            <div className="py-6 flex justify-center">
-              <div
-                className="text-6xl select-none transition-transform"
-                style={{ transform: `rotateY(${spin}deg)` }}
-              >
-                🪙
-              </div>
-            </div>
-            {!bothReady ? (
-              iAmReady ? (
-                <p className="text-lg font-heading text-bb-muted-text">
-                  Waiting for {match.opponentName} to ready up…
-                </p>
-              ) : (
-                <Button className="w-full text-xl py-3" onClick={ready}>
-                  READY — FLIP COIN
-                </Button>
-              )
-            ) : (
-              <p className="text-lg font-heading text-bb-blood-red">
-                Flipping…
-              </p>
-            )}
-          </div>
-        )}
-
-        {winner && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-2xl font-heading text-bb-ink-blue">
-              {winner.name} wins the toss!
-            </div>
-            {iWon ? (
-              <>
-                <p className="text-bb-muted-text">Choose to kick or receive</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button onClick={() => choose("kick")}>KICK</Button>
-                  <DangerButton onClick={() => choose("receive")}>
-                    RECEIVE
-                  </DangerButton>
-                </div>
-              </>
-            ) : (
-              <p className="text-lg font-heading text-bb-muted-text">
-                {match.opponentName} is choosing to kick or receive…
-              </p>
-            )}
-          </div>
-        )}
+    <DialogShell
+      zClass="z-[100]"
+      placement="center"
+      backdrop="heavy"
+      titleAs="h1"
+      title="COIN TOSS"
+      width="w-[480px]"
+      className="text-center"
+    >
+      <div className="mb-5 flex items-center justify-center gap-4">
+        <TeamChip name={team1.name} me={myTeamId === team1.id} />
+        <span className="font-hud-display text-hud-lg text-hud-gold">VS</span>
+        <TeamChip name={team2.name} me={myTeamId === team2.id} />
       </div>
-    </div>
+
+      {!winner && (
+        <div className="space-y-5">
+          <div className="flex justify-center py-4 [perspective:600px]">
+            <HudCoin spin={spin} />
+          </div>
+          {!bothReady ? (
+            iAmReady ? (
+              <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+                Waiting for {match.opponentName} to ready up…
+              </p>
+            ) : (
+              <HudButton variant="primary" size="lg" block onClick={ready}>
+                READY — FLIP COIN
+              </HudButton>
+            )
+          ) : (
+            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
+              Flipping…
+            </p>
+          )}
+        </div>
+      )}
+
+      {winner && (
+        <div className="space-y-5 animate-hud-in">
+          <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
+            {winner.name} wins the toss!
+          </div>
+          {iWon ? (
+            <>
+              <p className="text-hud-dim">Choose to kick or receive</p>
+              <div className="grid grid-cols-2 gap-3">
+                <HudButton
+                  variant="gold"
+                  size="lg"
+                  onClick={() => choose("kick")}
+                >
+                  KICK
+                </HudButton>
+                <HudButton
+                  variant="primary"
+                  size="lg"
+                  onClick={() => choose("receive")}
+                >
+                  RECEIVE
+                </HudButton>
+              </div>
+            </>
+          ) : (
+            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+              {match.opponentName} is choosing to kick or receive…
+            </p>
+          )}
+        </div>
+      )}
+    </DialogShell>
   );
 }
 
 function TeamChip({ name, me }: { name: string; me: boolean }) {
   return (
     <span
-      className={
+      className={`min-w-0 truncate rounded-hud border px-3 py-1.5 font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] ${
         me
-          ? "px-3 py-1 rounded bg-bb-blood-red text-bb-parchment"
-          : "px-3 py-1"
-      }
+          ? "border-hud-gold bg-hud-gold/15 text-hud-bone"
+          : "border-white/10 text-hud-bone/80"
+      }`}
     >
       {name}
-      {me && <span className="ml-1 text-xs">(you)</span>}
+      {me && <span className="ml-1 text-xs text-hud-gold">(you)</span>}
     </span>
   );
 }

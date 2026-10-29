@@ -320,11 +320,8 @@ export function view() {
     players[id] = square(sprite) + (sprite.angle !== 0 ? " down" : "");
   });
   const ball = scene.ballSprite ? square(scene.ballSprite) : "none";
-  // The scoreboard has no test id; its header reads MATCH.
-  const header = [...document.querySelectorAll("span")].find(
-    (span) => span.textContent === "MATCH"
-  );
-  const hud = (header?.parentElement?.parentElement?.textContent ?? "")
+  const scoreboard = document.querySelector('[data-testid="scoreboard"]');
+  const hud = (scoreboard?.textContent ?? "")
     .replace(/\s+/g, " ")
     .trim();
   return { players, ball, hud };

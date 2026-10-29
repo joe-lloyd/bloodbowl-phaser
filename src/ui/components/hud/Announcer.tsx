@@ -87,7 +87,7 @@ export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
       className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none select-none z-40"
     >
       <div
-        className="flex flex-col items-center px-10 py-4 bg-bb-ink-blue/90 border-2 border-bb-gold shadow-chunky"
+        className="flex flex-col items-center"
         style={{
           opacity: visible ? 1 : 0,
           transform: `scale(${visible ? 1 : 0.92})`,
@@ -96,13 +96,17 @@ export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
           }ms ease`,
         }}
       >
-        <span className="font-heading font-bold uppercase tracking-wide text-bb-parchment text-4xl text-center">
-          {announcement.headline}
-        </span>
-        {announcement.subtitle && (
-          <span className="font-heading uppercase tracking-wide text-bb-gold text-lg mt-1 text-center">
-            {announcement.subtitle}
+        <div className="-skew-x-12 border-y-2 border-hud-gold bg-hud-ink/95 px-12 py-3 shadow-hud">
+          <span className="block skew-x-12 text-center font-hud-display text-hud-4xl uppercase tracking-[0.04em] text-hud-bone [text-shadow:0_3px_0_#000]">
+            {announcement.headline}
           </span>
+        </div>
+        {announcement.subtitle && (
+          <div className="-mt-px -skew-x-12 bg-hud-blood px-6 py-1">
+            <span className="block skew-x-12 text-center font-hud-label text-hud-lg font-bold uppercase tracking-[0.12em] text-white">
+              {announcement.subtitle}
+            </span>
+          </div>
         )}
       </div>
     </div>

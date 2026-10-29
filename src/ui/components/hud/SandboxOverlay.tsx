@@ -22,6 +22,7 @@ import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
+import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 
 interface SandboxOverlayProps {
   eventBus: EventBus;
@@ -75,8 +76,9 @@ function formStateFromUrl() {
   };
 }
 
-const selectClass =
-  "w-full px-2 py-1.5 text-sm bg-bb-parchment border-2 border-bb-gold rounded font-heading text-bb-text cursor-pointer hover:border-bb-blood-red transition-colors pointer-events-auto";
+const selectClass = "hud-field cursor-pointer";
+const boxClass =
+  "rounded-hud border border-white/10 bg-black/30 px-2.5 py-1.5 text-hud-sm text-hud-bone/85";
 
 /**
  * Leveled scenario selection: Topic → Rule (implemented/inert badge) →
@@ -147,7 +149,9 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
 
   const pickOutcome = (value: string) => {
     setOutcomeId(value);
-    const outcome = config?.outcomes.find((candidate) => candidate.id === value);
+    const outcome = config?.outcomes.find(
+      (candidate) => candidate.id === value
+    );
     if (outcome?.exampleSeed !== undefined && config) {
       setSeedInput(String(outcome.exampleSeed));
       load(config.id, outcome.exampleSeed, outcome.id);
@@ -181,11 +185,11 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
   };
 
   return (
-    <div className="w-full bg-bb-warm-paper border-2 border-bb-gold rounded-lg p-3 shadow-lg pointer-events-auto">
-      <h3 className="text-bb-blood-red font-bold font-heading text-sm mb-2 text-center border-b border-bb-divider pb-1">
+    <Panel accent="blood" className="w-full pointer-events-auto animate-hud-in">
+      <h3 className="flex min-h-[40px] items-center border-b border-hud-gold/20 px-3 font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
         SANDBOX
       </h3>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 p-2.5">
         {/* Level 1: Topic */}
         <select
           aria-label="Sandbox topic"
@@ -271,18 +275,14 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               ))}
             </select>
           ) : (
-            <div className="text-xs italic text-bb-text/70 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1">
+            <div className={`${boxClass} italic`}>
               {SkillRegistry.has(skill as SkillType)
                 ? "No configurations yet."
                 : "Inert — no rule implemented yet."}
             </div>
           ))}
 
-        {config && (
-          <div className="text-xs text-bb-text/80 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1">
-            {config.description}
-          </div>
-        )}
+        {config && <div className={boxClass}>{config.description}</div>}
 
         {/* Level 4: Seed row + outcome finder */}
         {config && (
@@ -298,12 +298,12 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
                   e.stopPropagation();
                 }}
                 placeholder="Seed"
-                className="w-full px-2 py-1 text-sm bg-bb-parchment border-2 border-bb-gold rounded font-mono text-bb-text pointer-events-auto"
+                className="hud-field font-mono"
               />
               <button
                 onClick={rollRandomSeed}
                 title="Random seed"
-                className="px-2 border-2 border-bb-gold rounded bg-bb-parchment hover:border-bb-blood-red transition-colors"
+                className={`${hudButtonClass("secondary", "sm")} !px-2.5`}
               >
                 🎲
               </button>
@@ -327,18 +327,16 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               <button
                 onClick={findSeedForOutcome}
                 disabled={!outcomeId || searching}
-                className="px-2 text-xs font-heading border-2 border-bb-gold rounded bg-bb-parchment hover:border-bb-blood-red transition-colors disabled:opacity-50"
+                className={hudButtonClass("gold", "sm")}
               >
                 {searching ? "…" : "FIND"}
               </button>
             </div>
             {selectedOutcome?.description && (
-              <div className="text-xs text-bb-text/80 bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1">
-                {selectedOutcome.description}
-              </div>
+              <div className={boxClass}>{selectedOutcome.description}</div>
             )}
             {searchError && (
-              <div className="text-xs text-bb-blood-red bg-bb-parchment border border-bb-blood-red rounded px-2 py-1">
+              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-[#ff9a8f]">
                 {searchError}
               </div>
             )}
@@ -349,19 +347,22 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           <div
             data-testid="sandbox-scenario-info"
             data-scenario-seed={scenarioInfo.seed ?? ""}
-            className="text-xs bg-bb-parchment border border-bb-gold/60 rounded px-2 py-1 font-mono text-bb-text"
+            className={`${boxClass} font-mono`}
           >
             <div>
-              Seed: <span className="font-bold">{scenarioInfo.seed ?? "—"}</span>
+              <span className="hud-label inline">Seed:</span>{" "}
+              <span className="font-bold text-hud-gold">
+                {scenarioInfo.seed ?? "—"}
+              </span>
             </div>
             {scenarioInfo.expectedOutcome && (
-              <div className="italic text-bb-text/80">
+              <div className="italic text-hud-dim">
                 {scenarioInfo.expectedOutcome}
               </div>
             )}
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }

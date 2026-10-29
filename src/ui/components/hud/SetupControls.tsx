@@ -5,6 +5,21 @@ import { useEventBus } from "../../hooks/useEventBus";
 import { SubPhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 import { SetupTeamStatus } from "../../../types/SetupTypes";
+import {
+  HudButton,
+  HudButtonVariant,
+  Panel,
+  PanelHeader,
+} from "../componentWarehouse/HudKit";
+
+/** The setup panel's colour names, mapped onto HUD button variants. */
+const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
+  red: "danger",
+  yellow: "gold",
+  blue: "secondary",
+  green: "success",
+  gray: "secondary",
+};
 
 interface SetupControlsProps {
   eventBus: EventBus;
@@ -90,93 +105,27 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
     color?: string;
     onClick?: () => void;
   }) => {
-    const colorSchemes: Record<
-      string,
-      { bg: string; border: string; hoverBg: string; hoverBorder: string }
-    > = {
-      red: {
-        bg: "#7f1d1d",
-        border: "#991b1b",
-        hoverBg: "#991b1b",
-        hoverBorder: "#dc2626",
-      },
-      yellow: {
-        bg: "#713f12",
-        border: "#a16207",
-        hoverBg: "#a16207",
-        hoverBorder: "#eab308",
-      },
-      blue: {
-        bg: "#1e3a8a",
-        border: "#1e40af",
-        hoverBg: "#1e40af",
-        hoverBorder: "#3b82f6",
-      },
-      green: {
-        bg: "#14532d",
-        border: "#166534",
-        hoverBg: "#166534",
-        hoverBorder: "#22c55e",
-      },
-      gray: {
-        bg: "#374151",
-        border: "#4b5563",
-        hoverBg: "#4b5563",
-        hoverBorder: "#6b7280",
-      },
-    };
-
-    const scheme = colorSchemes[color] || colorSchemes.blue;
+    const variant = SETUP_VARIANTS[color] ?? "secondary";
 
     return (
-      <button
+      <HudButton
+        variant={variant}
+        block
         onClick={(e) => {
           e.stopPropagation();
           if (onClick) onClick();
           else handleAction(action);
         }}
         disabled={disabled}
-        className="group relative w-full px-3 py-2 border-2 rounded transition-all duration-200 flex flex-col items-start mb-1"
-        style={{
-          backgroundColor: disabled ? "#374151" : scheme.bg,
-          borderColor: disabled ? "#4b5563" : scheme.border,
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-        onMouseEnter={(e) => {
-          if (!disabled) {
-            e.currentTarget.style.backgroundColor = scheme.hoverBg;
-            e.currentTarget.style.borderColor = scheme.hoverBorder;
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow =
-              "0 10px 15px -3px rgba(0, 0, 0, 0.1)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!disabled) {
-            e.currentTarget.style.backgroundColor = scheme.bg;
-            e.currentTarget.style.borderColor = scheme.border;
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow =
-              "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-          }
-        }}
+        className="!justify-between"
       >
-        <div className="flex justify-between w-full items-center">
-          <span
-            className={`font-heading text-sm ${
-              disabled ? "text-gray-400" : "text-white"
-            }`}
-          >
-            {label}
+        <span>{label}</span>
+        {sub && (
+          <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-[11px] font-semibold normal-case tracking-normal opacity-90">
+            {sub}
           </span>
-          {sub && (
-            <span className="text-[10px] font-mono bg-black/30 px-1 rounded text-white/80">
-              {sub}
-            </span>
-          )}
-        </div>
-      </button>
+        )}
+      </HudButton>
     );
   };
 
@@ -185,29 +134,27 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
   const isDefense = subPhase === SubPhase.SETUP_KICKING;
 
   return (
-    <div className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md">
-        <span className="font-heading text-bb-gold text-lg truncate">
-          {activeTeam?.name || "Unknown Team"}
-        </span>
-        <span className="text-xs text-gray-400 font-bold uppercase">
-          {isDefense ? "Setup Defense" : "Setup Offense"}
-        </span>
-      </div>
+    <Panel
+      accent="gold"
+      className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-hud-in z-50"
+    >
+      <PanelHeader
+        title={activeTeam?.name || "Unknown Team"}
+        aside={isDefense ? "Setup Defense" : "Setup Offense"}
+      />
 
       {/* Body */}
-      <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col gap-1">
+      <div className="flex flex-col gap-2 p-2.5">
         {concessionPending && (
-          <div className="mb-2 rounded border-2 border-red-800 bg-red-50 p-2 text-xs text-bb-text">
-            <div className="font-heading text-sm text-red-900">
+          <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 p-2.5 text-hud-sm text-hud-bone">
+            <div className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-[#ff8a8a]">
               Short-handed team
             </div>
-            <p className="my-1">
+            <p className="my-1.5">
               Only {status?.availablePlayerCount ?? 0} players are available.
               You may concede now without an additional penalty, or play on.
             </p>
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <SetupActionButton
                 action="continue"
                 label="PLAY ON"
@@ -222,7 +169,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
         <select
           value={selectedFormation}
           onChange={(e) => setSelectedFormation(e.target.value)}
-          className="w-full px-2 py-1.5 text-sm bg-white border-2 border-bb-gold rounded font-heading text-bb-text cursor-pointer pointer-events-auto"
+          className="hud-field cursor-pointer"
         >
           <optgroup label="Presets">
             {formations
@@ -246,7 +193,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           )}
         </select>
 
-        <div className="flex gap-1">
+        <div className="flex gap-2">
           <SetupActionButton
             action="load"
             label="LOAD"
@@ -263,14 +210,14 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           />
         </div>
 
-        <div className="flex gap-1 items-stretch">
+        <div className="flex items-stretch gap-2">
           <input
             type="text"
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
             placeholder="Formation name…"
             maxLength={24}
-            className="flex-1 min-w-0 px-2 text-sm bg-white border-2 border-bb-gold rounded text-bb-text pointer-events-auto"
+            className="hud-field min-w-0 flex-1"
             onClick={(e) => e.stopPropagation()}
           />
           <div className="w-24">
@@ -287,7 +234,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           </div>
         </div>
 
-        <div className="h-px bg-bb-ink-blue/20 my-1 mx-2"></div>
+        <div className="my-0.5 h-px bg-white/10"></div>
 
         <SetupActionButton
           action="clear"
@@ -296,8 +243,6 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           color="red"
           disabled={concessionPending}
         />
-
-        <div className="h-2"></div>
 
         <SetupActionButton
           action="confirm"
@@ -315,6 +260,6 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           color={isComplete ? "green" : "gray"}
         />
       </div>
-    </div>
+    </Panel>
   );
 };
