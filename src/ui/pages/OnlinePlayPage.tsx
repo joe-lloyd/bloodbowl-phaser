@@ -24,7 +24,11 @@ import { OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { ServiceContainer } from "../../services/ServiceContainer";
-import { Button, DangerButton } from "../components/componentWarehouse/Button";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../components/componentWarehouse/HudKit";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
 
@@ -296,19 +300,29 @@ function EndMatchModal({
   onDecline: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 pointer-events-auto">
-      <div className="bg-slate-900 border-2 border-bb-gold rounded-lg p-6 w-[420px] text-white shadow-2xl text-center">
-        <h2 className="text-2xl font-heading text-bb-gold mb-3">End Match?</h2>
-        <p className="font-body mb-5">
-          {opponentName} wants to end the match. Agree to finish it for both of
-          you?
-        </p>
-        <div className="flex justify-center gap-3">
-          <DangerButton onClick={onAgree}>End Match</DangerButton>
-          <Button onClick={onDecline}>Keep Playing</Button>
-        </div>
-      </div>
-    </div>
+    <DialogShell
+      zClass="z-[110]"
+      placement="center"
+      backdrop="heavy"
+      tone="blood"
+      title="End Match?"
+      width="w-[420px]"
+      actions={
+        <DialogActions>
+          <HudButton variant="ghost" onClick={onDecline}>
+            Keep Playing
+          </HudButton>
+          <HudButton variant="primary" onClick={onAgree}>
+            End Match
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p>
+        {opponentName} wants to end the match. Agree to finish it for both of
+        you?
+      </p>
+    </DialogShell>
   );
 }
 
@@ -326,12 +340,12 @@ function DisconnectBanner({
   abandonable: boolean;
 }) {
   return (
-    <div className="absolute inset-x-0 top-28 z-[93] flex justify-center pointer-events-none">
-      <div className="pointer-events-auto bg-slate-900/90 border border-red-500 rounded-lg px-5 py-3 text-center shadow-2xl">
-        <p className="font-heading text-red-300 text-lg">
+    <div className="absolute inset-x-0 top-[15rem] z-[93] flex justify-center pointer-events-none">
+      <div className="hud-slab pointer-events-auto border-t-[3px] border-t-hud-bad px-5 py-3 text-center animate-hud-in">
+        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.05em] text-[#ff8a8a]">
           ⚠ {opponentName} disconnected
         </p>
-        <p className="font-body text-gray-300 text-sm mt-1">
+        <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">
           {abandonable
             ? "You can end the match from the Match Options menu."
             : "Waiting for them to reconnect…"}
@@ -363,10 +377,10 @@ function WaitingBanner({ match }: { match: OnlineMatch }) {
   // steady, as it stays up for the whole of the other coach's turn
   return (
     <div
-      className="absolute top-32 left-1/2 -translate-x-1/2 z-[90]
-        pointer-events-none bg-slate-900/85 text-yellow-300 border
-        border-yellow-500 rounded-lg px-5 py-2 font-heading text-lg
-        shadow-xl"
+      className="hud-slab absolute top-[11.5rem] left-1/2 -translate-x-1/2 z-[90]
+        pointer-events-none border-l-[3px] border-l-hud-gold px-5 py-2
+        font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em]
+        text-hud-gold"
     >
       ⏳ {label}
     </div>

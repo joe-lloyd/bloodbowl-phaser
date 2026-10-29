@@ -222,8 +222,9 @@ export class MovementValidator {
         }
 
         // --- WEIGHT CALCULATION ---
-        // safe: base 1 + 10 per TZ on the target square, so
-        //       the pathfinder detours around tackle zones when it can.
+        // safe: base 1, + 10 per TZ on the target square and + 4 for a step
+        //       past MA, so the pathfinder detours around tackle zones and
+        //       avoids Rushes when it can, and takes a Rush over a Dodge.
         // direct: steps dominate, TZ count only breaks ties — guarantees a
         //         path to anything reachable within MA+2 steps.
         const tackleZones = this.getTackleZones(
@@ -231,8 +232,9 @@ export class MovementValidator {
           neighbor.y,
           opponents
         );
+        const rush = currentSteps + 1 > player.stats.MA ? 4 : 0;
         const stepCost =
-          mode === "safe" ? 1 + tackleZones * 10 : 100 + tackleZones;
+          mode === "safe" ? 1 + tackleZones * 10 + rush : 100 + tackleZones;
 
         const tentativeGScore = (gScore.get(currentKey) || 0) + stepCost;
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { GameEventNames } from "../../../types/events";
 import { EventBus } from "../../../services/EventBus";
+import { HudButton } from "../componentWarehouse/HudKit";
 
 // Icons (simple SVGs for now, or just text)
 const CheckIcon = () => (
@@ -37,13 +38,11 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
   };
 
   return (
-    <div className="flex flex-col space-y-2 bg-bb-warm-paper border-2 border-bb-divider p-3 rounded-sm shadow-parchment min-w-[220px]">
+    <div className="flex min-w-[220px] flex-col p-2">
       {/* Header */}
-      <div className="text-center font-heading text-sm tracking-wider text-bb-blood-red mb-3 border-b-2 border-bb-divider pb-1 uppercase">
-        Action Sequence
-      </div>
+      <div className="hud-label mb-2 px-1">Action Sequence</div>
 
-      <div className="flex flex-col space-y-2">
+      <div className="flex flex-col gap-1.5">
         {steps.map((step, index) => {
           const isActive = step.id === currentStepId;
           const isPast = steps.findIndex((s) => s.id === currentStepId) > index;
@@ -59,47 +58,35 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
                 // For now, allow free navigation as per original logic, but usually games restrict going forward without completing action
                 handleStepClick(step.id);
               }}
-              className={`
-                relative w-full flex items-center p-2 rounded-sm transition-all duration-200 group border-2 text-left
-                ${
-                  isActive
-                    ? "bg-bb-ink-blue border-bb-gold text-bb-parchment shadow-chunky transform -translate-y-[1px]"
-                    : isPast
-                      ? "bg-bb-pitch-green border-bb-pitch-green text-bb-parchment opacity-90 hover:opacity-100"
-                      : "bg-bb-parchment border-bb-divider text-bb-muted-text hover:border-bb-dark-gold hover:text-bb-text-dark"
-                }
-              `}
+              className={`relative flex min-h-[44px] w-full items-center gap-3 rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
+                isActive
+                  ? "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow"
+                  : isPast
+                    ? "border-hud-good/40 bg-hud-good/10 text-hud-bone/85 hover:border-hud-good"
+                    : "border-white/10 bg-hud-raise/70 text-hud-dim hover:border-hud-gold/50 hover:text-hud-bone"
+              }`}
             >
               {/* Step Number / Icon */}
-              <div
-                className={`
-                flex items-center justify-center w-6 h-6 rounded-sm text-xs font-bold mr-3 border-2 font-heading
-                ${
-                  isActive
-                    ? "bg-bb-parchment text-bb-ink-blue border-bb-gold"
-                    : isPast
-                      ? "bg-bb-parchment text-bb-pitch-green border-transparent"
-                      : "bg-bb-warm-paper text-bb-muted-text border-bb-divider"
-                }
-              `}
-              >
-                {isPast ? <CheckIcon /> : index + 1}
-              </div>
-
-              {/* Label */}
               <span
-                className={`font-heading text-sm uppercase tracking-wide flex-grow ${
-                  isActive ? "text-shadow-sm" : ""
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-hud font-hud-display text-hud-base leading-none ${
+                  isActive
+                    ? "bg-hud-gold text-hud-ink"
+                    : isPast
+                      ? "bg-hud-good text-hud-ink"
+                      : "border border-white/15 text-hud-dim"
                 }`}
               >
+                {isPast ? <CheckIcon /> : index + 1}
+              </span>
+
+              {/* Label */}
+              <span className="flex-grow font-hud-label text-[15px] font-bold uppercase tracking-[0.05em]">
                 {step.label}
               </span>
 
               {/* Active Indicator (Chevron) */}
               {isActive && (
-                <div className="absolute right-2 text-bb-gold animate-pulse">
-                  ◄
-                </div>
+                <span className="text-hud-gold animate-pulse">◄</span>
               )}
             </button>
           );
@@ -107,31 +94,35 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
       </div>
 
       {/* Control Buttons */}
-      <div className="pt-2 mt-2 border-t border-bb-divider flex flex-col gap-1">
+      <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
         {/* Back / Cancel - Only if NOT MOVED */}
         {!hasMovedInAction && (
-          <button
+          <HudButton
+            variant="ghost"
+            size="sm"
+            block
             onClick={(e) => {
               e.stopPropagation();
               eventBus.emit(GameEventNames.UI_CancelAction);
             }}
-            className="w-full py-2 px-3 text-xs font-heading font-bold uppercase tracking-widest text-bb-muted-text hover:bg-bb-parchment hover:text-bb-text-dark border border-transparent hover:border-bb-divider rounded-sm transition-colors"
           >
             ← Back
-          </button>
+          </HudButton>
         )}
 
         {/* End Activation - Always available */}
-        <button
+        <HudButton
           data-testid="action-end-activation"
+          variant="danger"
+          size="sm"
+          block
           onClick={(e) => {
             e.stopPropagation();
             eventBus.emit(GameEventNames.UI_EndActivation);
           }}
-          className="w-full py-2 px-3 text-xs font-heading font-bold uppercase tracking-widest text-bb-blood-red hover:bg-bb-blood-red hover:text-bb-parchment border border-transparent hover:border-bb-dark-gold rounded-sm transition-colors"
         >
           End Activation
-        </button>
+        </HudButton>
       </div>
     </div>
   );

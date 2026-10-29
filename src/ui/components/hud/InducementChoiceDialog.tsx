@@ -8,6 +8,7 @@ import {
 } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
 interface InducementChoiceDialogProps {
   eventBus: EventBus;
@@ -87,31 +88,32 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     });
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 pointer-events-auto">
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[520px] max-h-[80vh] overflow-y-auto text-white shadow-2xl">
-        <h2 className="text-xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider">
-          {TITLES[request.kind]}
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {options.map((option) => (
-            <button
-              key={option.label}
-              onClick={() => answer(option.choice)}
-              className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm font-bold"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        {request.optional && (
-          <button
-            onClick={() => answer({})}
-            className="mt-4 w-full px-3 py-2 bg-red-700 hover:bg-red-600 rounded font-bold"
-          >
+    <DialogShell
+      title={TITLES[request.kind]}
+      width="w-[520px]"
+      placement="center"
+      backdrop="heavy"
+      className="max-h-[80vh] overflow-y-auto hud-scroll"
+      actions={
+        request.optional && (
+          <HudButton variant="ghost" block onClick={() => answer({})}>
             Keep it for later
-          </button>
-        )}
+          </HudButton>
+        )
+      }
+    >
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((option) => (
+          <HudButton
+            key={option.label}
+            variant="secondary"
+            className="!h-auto !py-2 !normal-case !tracking-normal text-left"
+            onClick={() => answer(option.choice)}
+          >
+            {option.label}
+          </HudButton>
+        ))}
       </div>
-    </div>
+    </DialogShell>
   );
 };

@@ -71,6 +71,8 @@ interface Queued {
   result: string;
   teamName: string;
   settled: boolean;
+  /** Order thrown, from 1. */
+  seq: number;
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
 }
@@ -106,6 +108,21 @@ export function DiceTray({
     let throwing: DiceThrow | null = null;
     // Ends the hold on the dice now up, so the next roll can play
     let release: (() => void) | null = null;
+    // The board holds a step or a fall until the dice deciding it land.
+    // Rolls are numbered as thrown; every roll up to `landedThrough` has
+    // landed or was dropped from a full queue, so it never will.
+    let thrown = 0;
+    const reportInAir = () => {
+      const pending = [
+        ...queue.current,
+        ...(shown && !shown.settled ? [shown] : []),
+      ];
+      eventBus.emit(GameEventNames.UI_DiceInAir, {
+        count: pending.length,
+        thrown,
+        landedThrough: Math.min(thrown, ...pending.map((q) => q.seq - 1)),
+      });
+    };
 
     const playNext = async () => {
       const next = queue.current.shift();
@@ -115,6 +132,7 @@ export function DiceTray({
         throwing?.stop();
         throwing = null;
         setCurrent(null);
+        reportInAir();
         return;
       }
       playing.current = true;
@@ -132,7 +150,9 @@ export function DiceTray({
           );
         }
         await handle.landed;
-        setCurrent({ ...next, settled: true });
+        next.settled = true;
+        reportInAir();
+        setCurrent({ ...next });
         await new Promise<void>((resolve) => {
           release = resolve;
           if (!next.block) setTimeout(resolve, HOLD_MS);
@@ -140,16 +160,19 @@ export function DiceTray({
         release = null;
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
+        next.settled = true;
       }
       void playNext();
     };
 
-    const enqueue = (item: Queued, first = false) => {
+    const enqueue = (roll: Omit<Queued, "seq">, first = false) => {
+      const item = { ...roll, seq: ++thrown };
       if (first) queue.current.unshift(item);
       else queue.current.push(item);
       // Never fall far behind the game: keep the latest few.
       while (queue.current.length > MAX_QUEUE) queue.current.pop();
       if (!playing.current) void playNext();
+      reportInAir();
     };
 
     const onRoll = (event: RollEvent) => {
@@ -230,25 +253,30 @@ export function DiceTray({
   return (
     <div
       data-testid="dice-tray"
-      className={`pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden rounded-md border-2 border-bb-gold bg-black/75 shadow-lg transition-all duration-200 ${
+      className={`hud-slab pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden transition-all duration-200 ${
         current ? "opacity-100" : "translate-y-2 opacity-0"
       }`}
+      style={{ borderTop: color ? `3px solid ${color}` : undefined }}
     >
-      <div className="flex items-baseline justify-between gap-3 border-b border-bb-gold/40 px-3 py-1.5">
+      <div className="flex min-h-[34px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5">
         <span
-          className="font-heading text-xs uppercase tracking-widest"
+          className="shrink-0 font-hud-label text-hud-sm font-bold uppercase tracking-[0.12em]"
           style={{ color }}
         >
           {current?.teamName}
         </span>
-        <span className="truncate text-xs text-gray-300">
+        <span
+          className={`truncate font-hud-label text-hud-sm font-semibold uppercase tracking-[0.05em] ${
+            current?.settled ? "text-hud-bone" : "text-hud-dim"
+          }`}
+        >
           {current?.settled ? current.result : current?.title}
         </span>
       </div>
       <div
         ref={host}
         data-testid="dice-tray-dice"
-        className={`h-[180px] w-full ${pickable ? "pointer-events-auto" : ""}`}
+        className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
       />
     </div>
   );

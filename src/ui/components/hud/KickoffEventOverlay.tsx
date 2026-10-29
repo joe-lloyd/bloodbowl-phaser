@@ -10,12 +10,9 @@ import {
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
+import { Chip, HudButton, Panel } from "../componentWarehouse/HudKit";
 
-export function KickoffEventOverlay({
-  eventBus,
-}: {
-  eventBus: IEventBus;
-}) {
+export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   const [step, setStep] = React.useState<KickoffEventStepState | null>(null);
 
   const refresh = React.useCallback(() => {
@@ -52,58 +49,63 @@ export function KickoffEventOverlay({
         : step.event === KickoffEvent.HIGH_KICK
           ? `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`
           : step.charge
-              ? `${activeChargePlayer?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`
-              : "Click up to the limit on the pitch, then confirm to activate them in order.";
+            ? `${activeChargePlayer?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`
+            : "Click up to the limit on the pitch, then confirm to activate them in order.";
 
   return (
-    <section className="pointer-events-auto mt-auto max-h-[48vh] w-full max-w-sm overflow-y-auto rounded border-2 border-bb-gold bg-black/95 p-4 text-bb-parchment shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-heading text-2xl text-bb-gold">{step.event}</h2>
-            <p className="mt-1 text-sm text-white/75">
-              {KICKOFF_EVENT_MEANING[step.event]}
-            </p>
-          </div>
-          <span className="shrink-0 rounded border border-bb-gold/60 px-2 py-1 text-xs">
-            {selected.size}/{step.selectionLimit}
-          </span>
+    <Panel
+      as="section"
+      accent="gold"
+      className="pointer-events-auto mt-auto max-h-[48vh] w-full max-w-sm overflow-y-auto hud-scroll p-4 animate-hud-in"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <span className="hud-label">Kickoff</span>
+          <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
+            {step.event}
+          </h2>
+          <p className="mt-1 text-hud-sm text-hud-bone/75">
+            {KICKOFF_EVENT_MEANING[step.event]}
+          </p>
         </div>
+        <Chip tone="gold" className="shrink-0 !text-hud-sm">
+          {selected.size}/{step.selectionLimit}
+        </Chip>
+      </div>
 
-        <p className="mt-3 rounded bg-white/5 px-3 py-2 text-sm">
-          {canAct ? instruction : `Waiting for ${team.name}'s coach…`}
-        </p>
+      <p className="mt-3 rounded-hud border-l-[3px] border-hud-gold bg-white/5 px-3 py-2 text-hud-sm text-hud-bone">
+        {canAct ? instruction : `Waiting for ${team.name}'s coach…`}
+      </p>
 
-        {/* Skip/Confirm are the deciding coach's controls only — the other
-            coach is a passive spectator for this step and just watches the
-            result play out live on the board. */}
-        {canAct && (
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
+      {/* Skip/Confirm are the deciding coach's controls only — the other
+          coach is a passive spectator for this step and just watches the
+          result play out live on the board. */}
+      {canAct && (
+        <div className="mt-4 flex justify-end gap-2">
+          <HudButton
+            variant="ghost"
+            disabled={awaiting.size > 0}
+            onClick={() => {
+              service.skipKickoffEventStep();
+              refresh();
+            }}
+          >
+            Skip
+          </HudButton>
+          {!step.charge && (
+            <HudButton
+              variant="gold"
               disabled={awaiting.size > 0}
               onClick={() => {
-                service.skipKickoffEventStep();
+                service.confirmKickoffEventStep();
                 refresh();
               }}
-              className="rounded border border-white/30 px-4 py-2 disabled:opacity-40"
             >
-              Skip
-            </button>
-            {!step.charge && (
-              <button
-                type="button"
-                disabled={awaiting.size > 0}
-                onClick={() => {
-                  service.confirmKickoffEventStep();
-                  refresh();
-                }}
-                className="rounded bg-bb-gold px-4 py-2 font-bold text-black disabled:opacity-40"
-              >
-                Confirm
-              </button>
-            )}
-          </div>
-        )}
-    </section>
+              Confirm
+            </HudButton>
+          )}
+        </div>
+      )}
+    </Panel>
   );
 }

@@ -3,6 +3,11 @@ import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
 import { InterceptionDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import {
+  DialogActions,
+  DialogShell,
+  HudButton,
+} from "../componentWarehouse/HudKit";
 
 interface InterceptionDialogProps {
   eventBus: EventBus;
@@ -53,37 +58,32 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto">
-      <div className="bg-slate-900 border-2 border-red-500 rounded-lg p-6 w-[440px] text-white shadow-2xl">
-        <h2 className="text-2xl font-black text-center text-red-400 mb-4 uppercase tracking-wider glow-text">
-          Interception!
-        </h2>
-
-        <p className="text-center text-slate-300 mb-6">
-          Choose a player to attempt the interception:
-        </p>
-
-        <div className="flex flex-col gap-3">
+    <DialogShell
+      tone="blood"
+      title="Interception!"
+      actions={
+        <DialogActions stack>
           {request.candidates.map((c) => (
-            <button
+            <HudButton
               key={c.playerId}
+              variant="secondary"
+              block
+              className="!justify-between"
               onClick={() => respond(c.playerId)}
-              className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95 flex justify-between"
             >
-              <span>{c.playerName ?? c.playerId}</span>
-              <span className="tabular-nums">
+              <span className="truncate">{c.playerName ?? c.playerId}</span>
+              <span className="font-hud-display text-hud-lg tabular-nums text-hud-gold">
                 {c.modifier >= 0 ? `+${c.modifier}` : c.modifier}
               </span>
-            </button>
+            </HudButton>
           ))}
-          <button
-            onClick={() => respond(undefined)}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all hover:scale-105 active:scale-95"
-          >
+          <HudButton variant="ghost" block onClick={() => respond(undefined)}>
             DECLINE
-          </button>
-        </div>
-      </div>
-    </div>
+          </HudButton>
+        </DialogActions>
+      }
+    >
+      <p>Choose a player to attempt the interception:</p>
+    </DialogShell>
   );
 };

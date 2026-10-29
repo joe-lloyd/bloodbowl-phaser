@@ -14,6 +14,24 @@ import {
 } from "../../../game/rules/actionAvailability";
 import { ActionStepper } from "./ActionStepper";
 import {
+  Chip,
+  HudTone,
+  Panel,
+  PanelHeader,
+  toneBar,
+} from "../componentWarehouse/HudKit";
+
+/** The menu's colour names, mapped onto the HUD's tones. */
+const ACTION_TONES: Record<string, HudTone> = {
+  red: "bad",
+  yellow: "gold",
+  purple: "skill",
+  blue: "info",
+  green: "good",
+  orange: "warn",
+  gray: "neutral",
+};
+import {
   BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
 } from "../../../types/BlockReplacement";
@@ -134,8 +152,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
     : null;
   const activeCharge =
-    turnData?.phase === GamePhase.KICKOFF &&
-    kickoffStep?.charge?.activePlayerId
+    turnData?.phase === GamePhase.KICKOFF && kickoffStep?.charge?.activePlayerId
       ? kickoffStep
       : null;
   const effectiveActiveTeamId = activeCharge?.teamId ?? turnData?.activeTeamId;
@@ -179,8 +196,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         ...EMPTY_AVAILABILITY,
         move: live.status === PlayerStatus.ACTIVE,
         blitz: budget.blitz > 0 && normal.blitz,
-        throwTeammate:
-          budget.throwTeammate > 0 && normal.throwTeammate,
+        throwTeammate: budget.throwTeammate > 0 && normal.throwTeammate,
         kickTeammate: budget.kickTeammate > 0 && normal.kickTeammate,
       };
     } catch {
@@ -238,55 +254,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     onClick,
     blockReplacement,
   }) => {
-    const colorSchemes: Record<
-      string,
-      { bg: string; border: string; hoverBg: string; hoverBorder: string }
-    > = {
-      red: {
-        bg: "#7f1d1d",
-        border: "#991b1b",
-        hoverBg: "#991b1b",
-        hoverBorder: "#dc2626",
-      },
-      yellow: {
-        bg: "#713f12",
-        border: "#a16207",
-        hoverBg: "#a16207",
-        hoverBorder: "#eab308",
-      },
-      purple: {
-        bg: "#581c87",
-        border: "#6b21a8",
-        hoverBg: "#6b21a8",
-        hoverBorder: "#a855f7",
-      },
-      blue: {
-        bg: "#1e3a8a",
-        border: "#1e40af",
-        hoverBg: "#1e40af",
-        hoverBorder: "#3b82f6",
-      },
-      green: {
-        bg: "#14532d",
-        border: "#166534",
-        hoverBg: "#166534",
-        hoverBorder: "#22c55e",
-      },
-      orange: {
-        bg: "#7c2d12",
-        border: "#9a3412",
-        hoverBg: "#9a3412",
-        hoverBorder: "#f97316",
-      },
-      gray: {
-        bg: "#374151",
-        border: "#4b5563",
-        hoverBg: "#4b5563",
-        hoverBorder: "#6b7280",
-      },
-    };
-
-    const scheme = colorSchemes[color] || colorSchemes.blue;
+    const tone = ACTION_TONES[color] ?? ACTION_TONES.blue;
 
     // A stable hook for E2E: the button's visible label is styling-dependent
     // and duplicated across replacement variants, so cases target the action
@@ -304,40 +272,20 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
           else if (action) handleAction(action, blockReplacement);
         }}
         disabled={disabled}
-        className="group relative w-full px-3 py-1.5 border-2 rounded transition-all duration-200 flex flex-col items-start mb-1"
-        style={{
-          backgroundColor: disabled ? "#374151" : scheme.bg,
-          borderColor: disabled ? "#4b5563" : scheme.border,
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-        onMouseEnter={(e) => {
-          if (!disabled) {
-            e.currentTarget.style.backgroundColor = scheme.hoverBg;
-            e.currentTarget.style.borderColor = scheme.hoverBorder;
-            e.currentTarget.style.transform = "translateY(-2px)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!disabled) {
-            e.currentTarget.style.backgroundColor = scheme.bg;
-            e.currentTarget.style.borderColor = scheme.border;
-            e.currentTarget.style.transform = "translateY(0)";
-          }
-        }}
+        className="group relative flex min-h-[40px] w-full items-center justify-between gap-2 overflow-hidden rounded-hud border border-white/10 bg-hud-raise/80 py-1.5 pl-4 pr-2 text-left transition-[background-color,border-color,transform] duration-150 ease-bb hover:-translate-y-px hover:border-hud-gold/60 hover:bg-hud-edge active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-hud-raise/80"
       >
-        <div className="flex justify-between w-full items-center">
-          <span
-            className={`font-heading text-sm ${disabled ? "text-gray-400" : "text-white"}`}
-          >
-            {label}
-          </span>
-          {sub && (
-            <span className="text-[10px] font-mono bg-black/30 px-1 rounded text-white/80">
-              {sub}
-            </span>
-          )}
-        </div>
+        <span
+          aria-hidden
+          className={`absolute inset-y-0 left-0 w-[4px] ${toneBar(tone)}`}
+        />
+        <span
+          className={`font-hud-label text-[15px] font-bold uppercase leading-tight tracking-[0.05em] ${
+            disabled ? "text-hud-mute" : "text-hud-bone"
+          }`}
+        >
+          {label}
+        </span>
+        {sub && <Chip tone={disabled ? "neutral" : tone}>{sub}</Chip>}
       </button>
     );
   };
@@ -368,7 +316,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   return (
     <div
       data-testid="player-action-menu"
-      className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-fade-in z-50"
+      className="w-full max-h-[60vh] min-h-0 shrink flex flex-col pointer-events-auto animate-hud-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={(e) => {
         e.stopPropagation();
@@ -383,253 +331,250 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         e.nativeEvent.stopImmediatePropagation();
       }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md">
-        <span className="font-heading text-bb-gold text-lg truncate">
-          {selectedPlayer.playerName || "Unknown"}
-        </span>
-        <span className="text-xs text-gray-400">
-          {selectedPlayer.positionName}
-        </span>
-      </div>
-
-      {/* Menu Body */}
-      {actionSteps.length > 0 ? (
-        <ActionStepper
-          steps={actionSteps}
-          currentStepId={currentStepId || ""}
-          eventBus={eventBus}
-          hasMovedInAction={hasMovedInAction}
+      <Panel accent="gold" className="flex min-h-0 flex-col">
+        <PanelHeader
+          title={selectedPlayer.playerName || "Unknown"}
+          aside={selectedPlayer.positionName}
         />
-      ) : (
-        <div className="bg-bb-parchment border-2 border-bb-gold p-2 rounded-b-md shadow-lg flex flex-col overflow-y-auto max-h-[50vh] scrollbar-thin scrollbar-thumb-bb-gold">
-          <div className="space-y-1">
-            {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
+
+        {/* Menu Body */}
+        {actionSteps.length > 0 ? (
+          <ActionStepper
+            steps={actionSteps}
+            currentStepId={currentStepId || ""}
+            eventBus={eventBus}
+            hasMovedInAction={hasMovedInAction}
+          />
+        ) : (
+          <div className="hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+            <div className="flex flex-col gap-1">
+              {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
                 a prone player stands up as its first step. Clicking an empty
                 square still auto-moves. */}
-            {a.move && (
-              <ActionButton
-                action="move"
-                label="MOVE"
-                sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
-                disabled={false}
-                color="green"
-              />
-            )}
-            {/* Block without moving; auto-block on clicking an adjacent enemy
+              {a.move && (
+                <ActionButton
+                  action="move"
+                  label="MOVE"
+                  sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
+                  disabled={false}
+                  color="green"
+                />
+              )}
+              {/* Block without moving; auto-block on clicking an adjacent enemy
                 still works. */}
-            {a.block && (
-              <ActionButton
-                action="block"
-                label="BLOCK"
-                disabled={false}
-                color="red"
-              />
-            )}
-            {a.multipleBlock && (
-              <ActionButton
-                action="multipleBlock"
-                label="MULTIPLE BLOCK"
-                sub="2 Targets"
-                disabled={false}
-                color="red"
-              />
-            )}
+              {a.block && (
+                <ActionButton
+                  action="block"
+                  label="BLOCK"
+                  disabled={false}
+                  color="red"
+                />
+              )}
+              {a.multipleBlock && (
+                <ActionButton
+                  action="multipleBlock"
+                  label="MULTIPLE BLOCK"
+                  sub="2 Targets"
+                  disabled={false}
+                  color="red"
+                />
+              )}
 
-            {/* Only actions with a legal target this activation are shown. */}
-            {a.blitz && (
-              <ActionButton
-                action="blitz"
-                label="BLITZ"
-                sub="1/Turn"
-                disabled={false}
-                color="red"
-              />
-            )}
-            {a.blitzBlockReplacements.map((replacement) => (
-              <ActionButton
-                key={`blitz-${replacement}`}
-                action="blitz"
-                blockReplacement={replacement}
-                label={`BLITZ (WITH ${BLOCK_REPLACEMENT_DEFINITIONS[
-                  replacement
-                ].label.toUpperCase()})`}
-                sub="1/Turn"
-                disabled={false}
-                color="red"
-              />
-            ))}
-            {a.pass && (
-              <ActionButton
-                action="pass"
-                label="PASS"
-                sub="1/Turn"
-                disabled={false}
-                color="yellow"
-              />
-            )}
-            {a.punt && (
-              <ActionButton
-                action="punt"
-                label="PUNT"
-                sub="1/Turn"
-                disabled={false}
-                color="yellow"
-              />
-            )}
-            {a.handoff && (
-              <ActionButton
-                action="handoff"
-                label="HAND-OFF"
-                sub="1/Turn"
-                disabled={false}
-                color="yellow"
-              />
-            )}
-            {a.foul && (
-              <ActionButton
-                action="foul"
-                label="FOUL"
-                sub="1/Turn"
-                disabled={false}
-                color="purple"
-              />
-            )}
+              {/* Only actions with a legal target this activation are shown. */}
+              {a.blitz && (
+                <ActionButton
+                  action="blitz"
+                  label="BLITZ"
+                  sub="1/Turn"
+                  disabled={false}
+                  color="red"
+                />
+              )}
+              {a.blitzBlockReplacements.map((replacement) => (
+                <ActionButton
+                  key={`blitz-${replacement}`}
+                  action="blitz"
+                  blockReplacement={replacement}
+                  label={`BLITZ (WITH ${BLOCK_REPLACEMENT_DEFINITIONS[
+                    replacement
+                  ].label.toUpperCase()})`}
+                  sub="1/Turn"
+                  disabled={false}
+                  color="red"
+                />
+              ))}
+              {a.pass && (
+                <ActionButton
+                  action="pass"
+                  label="PASS"
+                  sub="1/Turn"
+                  disabled={false}
+                  color="yellow"
+                />
+              )}
+              {a.punt && (
+                <ActionButton
+                  action="punt"
+                  label="PUNT"
+                  sub="1/Turn"
+                  disabled={false}
+                  color="yellow"
+                />
+              )}
+              {a.handoff && (
+                <ActionButton
+                  action="handoff"
+                  label="HAND-OFF"
+                  sub="1/Turn"
+                  disabled={false}
+                  color="yellow"
+                />
+              )}
+              {a.foul && (
+                <ActionButton
+                  action="foul"
+                  label="FOUL"
+                  sub="1/Turn"
+                  disabled={false}
+                  color="purple"
+                />
+              )}
 
-            {/* Special actions — only when the player has the trait and an
+              {/* Special actions — only when the player has the trait and an
                 adjacent Standing opponent to target. */}
-            {a.stab && (
-              <ActionButton
-                action="stab"
-                blockReplacement="stab"
-                label="STAB"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.breatheFire && (
-              <ActionButton
-                action="breatheFire"
-                blockReplacement="breatheFire"
-                label="BREATHE FIRE"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.vomit && (
-              <ActionButton
-                action="vomit"
-                blockReplacement="vomit"
-                label="PROJECTILE VOMIT"
-                sub="Special"
-                disabled={false}
-                color="green"
-              />
-            )}
-            {a.gaze && (
-              <ActionButton
-                action="gaze"
-                label="HYPNOTIC GAZE"
-                sub="Special"
-                disabled={false}
-                color="purple"
-              />
-            )}
-            {a.chomp && (
-              <ActionButton
-                action="chomp"
-                blockReplacement="chomp"
-                label="CHOMP"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.chainsaw && (
-              <ActionButton
-                action="chainsaw"
-                blockReplacement="chainsaw"
-                label="CHAINSAW"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.throwBomb && (
-              <ActionButton
-                action="throwBomb"
-                label="THROW BOMB"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.ballAndChain && (
-              <ActionButton
-                action="ballAndChain"
-                label="BALL & CHAIN"
-                sub="Special"
-                disabled={false}
-                color="orange"
-              />
-            )}
-            {a.throwTeammate && (
-              <ActionButton
-                action="throwTeamMate"
-                label="THROW TEAM-MATE"
-                sub="Special"
-                disabled={false}
-                color="green"
-              />
-            )}
-            {a.kickTeammate && (
-              <ActionButton
-                action="throwTeamMate"
-                label="KICK TEAM-MATE"
-                sub="Special"
-                disabled={false}
-                color="green"
-              />
-            )}
+              {a.stab && (
+                <ActionButton
+                  action="stab"
+                  blockReplacement="stab"
+                  label="STAB"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.breatheFire && (
+                <ActionButton
+                  action="breatheFire"
+                  blockReplacement="breatheFire"
+                  label="BREATHE FIRE"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.vomit && (
+                <ActionButton
+                  action="vomit"
+                  blockReplacement="vomit"
+                  label="PROJECTILE VOMIT"
+                  sub="Special"
+                  disabled={false}
+                  color="green"
+                />
+              )}
+              {a.gaze && (
+                <ActionButton
+                  action="gaze"
+                  label="HYPNOTIC GAZE"
+                  sub="Special"
+                  disabled={false}
+                  color="purple"
+                />
+              )}
+              {a.chomp && (
+                <ActionButton
+                  action="chomp"
+                  blockReplacement="chomp"
+                  label="CHOMP"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.chainsaw && (
+                <ActionButton
+                  action="chainsaw"
+                  blockReplacement="chainsaw"
+                  label="CHAINSAW"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.throwBomb && (
+                <ActionButton
+                  action="throwBomb"
+                  label="THROW BOMB"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.ballAndChain && (
+                <ActionButton
+                  action="ballAndChain"
+                  label="BALL & CHAIN"
+                  sub="Special"
+                  disabled={false}
+                  color="orange"
+                />
+              )}
+              {a.throwTeammate && (
+                <ActionButton
+                  action="throwTeamMate"
+                  label="THROW TEAM-MATE"
+                  sub="Special"
+                  disabled={false}
+                  color="green"
+                />
+              )}
+              {a.kickTeammate && (
+                <ActionButton
+                  action="throwTeamMate"
+                  label="KICK TEAM-MATE"
+                  sub="Special"
+                  disabled={false}
+                  color="green"
+                />
+              )}
 
-            {isProne && (
+              {isProne && (
+                <ActionButton
+                  action="standUp"
+                  label="STAND UP"
+                  sub="3 MA"
+                  disabled={!a.standUp}
+                  color="blue"
+                />
+              )}
+
+              {a.secureBall && (
+                <ActionButton
+                  action="secureBall"
+                  label="SECURE BALL"
+                  sub="Pick Up"
+                  disabled={false}
+                  color="blue"
+                />
+              )}
+
+              {!anyContextual && (
+                <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
+                  No special actions available — click a square to move.
+                </div>
+              )}
+
               <ActionButton
-                action="standUp"
-                label="STAND UP"
-                sub="3 MA"
-                disabled={!a.standUp}
-                color="blue"
+                action="forgoe"
+                label="END ACTIVATION"
+                sub="Skip"
+                disabled={hasActed}
+                color="gray"
               />
-            )}
-
-            {a.secureBall && (
-              <ActionButton
-                action="secureBall"
-                label="SECURE BALL"
-                sub="Pick Up"
-                disabled={false}
-                color="blue"
-              />
-            )}
-
-            {!anyContextual && (
-              <div className="text-xs italic text-bb-text/60 px-1 py-1 text-center">
-                No special actions available — click a square to move.
-              </div>
-            )}
-
-            <ActionButton
-              action="forgoe"
-              label="END ACTIVATION"
-              sub="Skip"
-              disabled={hasActed}
-              color="gray"
-            />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Panel>
     </div>
   );
 };

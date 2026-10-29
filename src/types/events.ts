@@ -215,6 +215,8 @@ export enum GameEventNames {
   UI_BlockRollCancelled = "ui:blockRollCancelled",
   /** A lifted block die was clicked in the dice tray. */
   UI_BlockDieClicked = "ui:blockDieClicked",
+  /** The dice tray: how many shown rolls have not landed yet. */
+  UI_DiceInAir = "ui:diceInAir",
   UI_SelectPushDirection = "ui:selectPushDirection",
   UI_PushDirectionSelected = "ui:pushDirectionSelected",
   UI_FollowUpPrompt = "ui:followUpPrompt",
@@ -314,6 +316,8 @@ export interface GameEvents {
     ballJoinStep?: number;
     /** The player is being thrown (Throw Team-mate): animate an arc, not a walk. */
     thrown?: boolean;
+    /** The engine waits for the walk to be shown before it goes on. */
+    presentationId?: string;
   };
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };
@@ -813,6 +817,14 @@ export interface UIEvents {
    * rush declined/failed) — dialogs waiting on dice must close. */
   [GameEventNames.UI_BlockRollCancelled]: void;
   [GameEventNames.UI_BlockDieClicked]: { index: number };
+  [GameEventNames.UI_DiceInAir]: {
+    /** Rolls queued or tumbling now. */
+    count: number;
+    /** Rolls thrown since the tray mounted, numbered from 1. */
+    thrown: number;
+    /** Every roll up to this number has landed (or was dropped). */
+    landedThrough: number;
+  };
 
   [GameEventNames.UI_SelectPushDirection]: {
     defenderId: string;
@@ -929,6 +941,8 @@ export type LogEntryCategory =
  * outside these four kinds.
  */
 export type AnnouncementKind =
+  | "team-intro"
+  | "weather"
   | "turn-started"
   | "round-passed"
   | "halftime"

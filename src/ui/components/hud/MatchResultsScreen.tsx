@@ -15,6 +15,7 @@ import {
 } from "../../../game/progression/advancementModes";
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
+import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 
 interface Props {
   visible: boolean;
@@ -89,7 +90,8 @@ export function MatchResultsScreen({ visible }: Props) {
     summary.players.forEach((stats) => {
       // -1 is a "already awarded, roll unknown" sentinel — the roll itself
       // isn't persisted, only that MVP was already assigned this match.
-      if (stats.mvps > 0) seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
+      if (stats.mvps > 0)
+        seeded[stats.teamId] = { playerId: stats.playerId, roll: -1 };
     });
     if (Object.keys(seeded).length) {
       setMvpResults((previous) => ({ ...seeded, ...previous }));
@@ -279,24 +281,33 @@ export function MatchResultsScreen({ visible }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-[250] overflow-auto bg-slate-950/95 p-6 text-bb-parchment pointer-events-auto">
-      <div className="mx-auto max-w-6xl rounded-xl border-2 border-bb-gold bg-slate-900 p-6 shadow-2xl">
+    <div className="hud-scroll absolute inset-0 z-[250] overflow-auto bg-hud-ink/95 p-6 font-hud-body text-hud-bone pointer-events-auto backdrop-blur-sm">
+      <Panel accent="blood" className="mx-auto max-w-6xl p-6 animate-hud-pop">
         {/* ---- Result ---- */}
-        <h1 className="font-heading text-4xl text-bb-gold">Full Time</h1>
+        <h1 className="font-hud-display text-hud-4xl uppercase tracking-[0.03em] text-hud-bone">
+          Full Time
+        </h1>
         {teams.length >= 2 && (
-          <div className="mt-3 flex items-center justify-between rounded-lg border border-bb-dark-gold bg-slate-800 p-4">
-            <span className="font-heading text-2xl">{teams[0].name}</span>
-            <span className="font-heading text-3xl text-bb-gold">
-              {state.score[teams[0].id] ?? 0} : {state.score[teams[1].id] ?? 0}
+          <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-y border-hud-gold/30 bg-black/40 px-5 py-4">
+            <span className="truncate font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
+              {teams[0].name}
             </span>
-            <span className="font-heading text-2xl">{teams[1].name}</span>
+            <span className="-skew-x-12 bg-hud-blood px-5 py-1 font-hud-display text-hud-3xl text-white">
+              <span className="block skew-x-12">
+                {state.score[teams[0].id] ?? 0} :{" "}
+                {state.score[teams[1].id] ?? 0}
+              </span>
+            </span>
+            <span className="truncate text-right font-hud-label text-hud-2xl font-bold uppercase tracking-[0.03em]">
+              {teams[1].name}
+            </span>
           </div>
         )}
-        <p className="mt-2 text-lg italic">
+        <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-gold">
           {outcomeLabel(teams, state.score, result)}
         </p>
         {competitionRecorded && (
-          <p className="mt-2 text-sm text-green-400">
+          <p className="mt-2 text-hud-sm text-hud-good">
             ✓ Competition fixture result recorded.
           </p>
         )}
@@ -308,7 +319,7 @@ export function MatchResultsScreen({ visible }: Props) {
           showSpp={progressionEnabled}
         />
         {!progressionEnabled && (
-          <p className="mt-3 text-sm italic text-bb-muted-text">
+          <p className="mt-3 text-hud-sm italic text-hud-dim">
             This match does not award SPP or MVP recognition.
           </p>
         )}
@@ -324,14 +335,14 @@ export function MatchResultsScreen({ visible }: Props) {
                 return (
                   <section
                     key={team.id}
-                    className="rounded-lg border border-bb-dark-gold bg-slate-800 p-4"
+                    className="rounded-hud border border-white/10 bg-black/30 p-4"
                   >
-                    <h2 className="font-heading text-2xl text-bb-gold">
+                    <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
                       {team.name} MVP
                     </h2>
-                    <p className="mb-3 text-sm">
-                      Nominate six players who took part. Their displayed
-                      order is slots 1–6.
+                    <p className="mb-3 text-hud-sm text-hud-dim">
+                      Nominate six players who took part. Their displayed order
+                      is slots 1–6.
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {eligibleIds.map((playerId) => {
@@ -344,10 +355,10 @@ export function MatchResultsScreen({ visible }: Props) {
                             key={playerId}
                             disabled={!!mvpResult}
                             onClick={() => toggleNominee(team, playerId)}
-                            className={`rounded border px-3 py-2 text-left ${
+                            className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-[15px] font-bold transition-colors disabled:cursor-default ${
                               slot >= 0
-                                ? "border-bb-gold bg-bb-blood-red"
-                                : "border-slate-600 bg-slate-700"
+                                ? "border-hud-gold bg-hud-blood text-white"
+                                : "border-white/10 bg-hud-raise text-hud-bone hover:border-hud-gold/60"
                             }`}
                           >
                             {slot >= 0 ? `${slot + 1}. ` : ""}#{player.number}{" "}
@@ -357,7 +368,7 @@ export function MatchResultsScreen({ visible }: Props) {
                       })}
                     </div>
                     {mvpResult ? (
-                      <p className="mt-3 font-heading text-xl text-bb-gold">
+                      <p className="mt-3 font-hud-label text-hud-xl font-bold uppercase text-hud-gold">
                         {mvpResult.roll >= 1
                           ? `Rolled ${mvpResult.roll}: `
                           : ""}
@@ -374,16 +385,16 @@ export function MatchResultsScreen({ visible }: Props) {
                         disabled={
                           nominees.length !== Math.min(6, eligibleIds.length)
                         }
-                        className="mt-4 rounded border-2 border-bb-gold bg-bb-blood-red px-5 py-3 font-heading text-xl disabled:opacity-40"
+                        className={`${hudButtonClass("primary", "lg")} mt-4`}
                       >
                         Roll MVP D6
                       </button>
                     )}
-                    <div className="mt-5 border-t border-slate-600 pt-4">
-                      <p className="mb-2 text-sm">
-                        If this team was awarded a touchdown after a
-                        concession, assign its 3 SPP here. Repeat for each
-                        awarded touchdown.
+                    <div className="mt-5 border-t border-white/10 pt-4">
+                      <p className="mb-2 text-hud-sm text-hud-dim">
+                        If this team was awarded a touchdown after a concession,
+                        assign its 3 SPP here. Repeat for each awarded
+                        touchdown.
                       </p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <select
@@ -395,7 +406,7 @@ export function MatchResultsScreen({ visible }: Props) {
                               [team.id]: event.target.value,
                             }))
                           }
-                          className="min-w-0 flex-1 rounded bg-slate-950 p-2"
+                          className="hud-field min-w-0 flex-1"
                         >
                           <option value="">Choose a player</option>
                           {team.players
@@ -409,7 +420,7 @@ export function MatchResultsScreen({ visible }: Props) {
                         <button
                           disabled={!touchdownRecipients[team.id]}
                           onClick={() => void assignAwardedTouchdown(team)}
-                          className="rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
+                          className={hudButtonClass("secondary")}
                         >
                           Assign touchdown
                         </button>
@@ -422,7 +433,7 @@ export function MatchResultsScreen({ visible }: Props) {
             <button
               onClick={confirmSpp}
               disabled={pendingMvpTeams.length > 0}
-              className="mt-5 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl disabled:opacity-40"
+              className={`${hudButtonClass("gold", "lg")} mt-5`}
             >
               Confirm and assign SPP
             </button>
@@ -430,7 +441,7 @@ export function MatchResultsScreen({ visible }: Props) {
         )}
 
         {progressionEnabled && confirmed && (
-          <p className="mt-6 rounded-lg border border-bb-dark-gold bg-slate-800 p-4 text-lg">
+          <p className="mt-6 rounded-hud border border-white/10 bg-black/30 p-4 text-hud-lg">
             MVP and SPP are confirmed. Any player now eligible to advance is
             saved as pending development — finish it any time from{" "}
             <strong>Manage Team</strong>.
@@ -446,18 +457,18 @@ export function MatchResultsScreen({ visible }: Props) {
               ? undefined
               : "Confirm MVP nomination and SPP for both teams before leaving"
           }
-          className="mt-6 rounded border-2 border-bb-gold bg-bb-blood-red px-6 py-3 font-heading text-xl disabled:opacity-40"
+          className={`${hudButtonClass("primary", "lg")} mt-6`}
         >
           Continue to Main Menu
         </button>
         {!canExit && (
-          <p className="mt-2 text-sm italic text-bb-muted-text">
+          <p className="mt-2 text-hud-sm italic text-hud-dim">
             Confirm MVP nomination and SPP for both teams before leaving.
           </p>
         )}
 
-        {error && <p className="mt-4 text-red-300">{error}</p>}
-      </div>
+        {error && <p className="mt-4 text-[#ff9a8f]">{error}</p>}
+      </Panel>
     </div>
   );
 }
@@ -475,10 +486,12 @@ function StatsTables({
     <div className="mt-6 grid gap-5 xl:grid-cols-2">
       {teams.map((team) => (
         <section key={team.id} className="overflow-auto">
-          <h2 className="font-heading text-2xl text-bb-gold">{team.name}</h2>
-          <table className="w-full text-sm">
+          <h2 className="mb-2 font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-bone">
+            {team.name}
+          </h2>
+          <table className="w-full text-hud-sm tabular-nums">
             <thead>
-              <tr className="text-left text-bb-gold">
+              <tr className="hud-label border-b border-hud-gold/30 text-left [&>th]:py-1.5 [&>th]:font-bold">
                 <th>Player</th>
                 <th>CMP</th>
                 <th>TTM</th>
@@ -496,7 +509,10 @@ function StatsTables({
                 );
                 if (!stats?.participated) return null;
                 return (
-                  <tr key={player.id} className="border-t border-slate-700">
+                  <tr
+                    key={player.id}
+                    className="border-t border-white/5 odd:bg-white/[0.02]"
+                  >
                     <td className="py-1">{player.playerName}</td>
                     <td>{stats.completions}</td>
                     <td>{stats.superbThrows + stats.safeLandings}</td>
@@ -505,7 +521,7 @@ function StatsTables({
                     <td>{stats.touchdowns}</td>
                     <td>{stats.mvps}</td>
                     {showSpp && (
-                      <td className="font-bold text-bb-gold">
+                      <td className="font-bold text-hud-gold">
                         +{stats.sppEarned}
                       </td>
                     )}

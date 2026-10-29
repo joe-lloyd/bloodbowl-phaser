@@ -21,19 +21,15 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   return (
     <div className="flex flex-col items-center pointer-events-none select-none">
       <div
-        className={`
-                mb-2 px-6 py-1
-                ${
-                  showKickoff
-                    ? "bg-bb-gold text-bb-ink-blue"
-                    : "bg-bb-ink-blue text-bb-parchment"
-                }
-                border-2 border-bb-gold
-                font-heading font-bold text-2xl
-                shadow-chunky
-            `}
+        className={`-mt-px -skew-x-12 border px-6 py-1 shadow-hud ${
+          showKickoff
+            ? "border-[#ffe08a] bg-hud-gold text-hud-ink"
+            : "border-[#ff6b6b]/50 bg-hud-blood text-white"
+        }`}
       >
-        {showKickoff ? "KICKOFF" : showSetup ? "SETUP" : `TURN ${turnNumber}`}
+        <div className="skew-x-12 font-hud-display text-hud-lg uppercase tracking-[0.08em]">
+          {showKickoff ? "KICKOFF" : showSetup ? "SETUP" : `TURN ${turnNumber}`}
+        </div>
       </div>
     </div>
   );

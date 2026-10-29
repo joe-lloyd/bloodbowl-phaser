@@ -18,6 +18,9 @@ import { GameEventNames } from "../../types/events";
 import { consumeFreeReroll, freeRerollsFor } from "../kickoff/driveEffects";
 import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
 
+/** The re-roll a Team Re-roll spends: free (Brilliant Coaching), bought, or Leader. */
+export type TeamRerollKind = "free" | "team" | "leader";
+
 export class RerollArbiter {
   private usedSkill = new Set<string>();
   private usedTeam = new Set<string>();
@@ -75,17 +78,26 @@ export class RerollArbiter {
   }
 
   public teamRerollAvailable(teamId: string): boolean {
-    // A team reroll may only be spent on that team's own turn
-    if (this.state.turn.teamId !== teamId) return false;
-    if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return false;
-    return (
-      freeRerollsFor(this.state, teamId) > 0 ||
-      this.teamRerollsLeftFor(teamId) > 0 ||
-      this.leaderRerollAvailable(teamId)
-    );
+    return this.nextTeamReroll(teamId) !== null;
   }
 
-  private teamRerollsLeftFor(teamId: string): number {
+  /**
+   * Which re-roll a Team Re-roll would spend right now, or null when none
+   * may be: Brilliant Coaching's free one first, then the team's own, then
+   * the Leader Re-roll.
+   */
+  public nextTeamReroll(teamId: string): TeamRerollKind | null {
+    // A team reroll may only be spent on that team's own turn
+    if (this.state.turn.teamId !== teamId) return null;
+    if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return null;
+    if (freeRerollsFor(this.state, teamId) > 0) return "free";
+    if (this.teamRerollsLeftFor(teamId) > 0) return "team";
+    if (this.leaderRerollAvailable(teamId)) return "leader";
+    return null;
+  }
+
+  /** The team's own Team Re-rolls left this half. */
+  public teamRerollsLeftFor(teamId: string): number {
     const team = this.getTeam(teamId);
     return team ? teamRerollsLeft(this.state, team) : 0;
   }

@@ -43,6 +43,93 @@
   }
 }
 
+/*
+ * In-match HUD design system ("Stadium Broadcast"). Tokens live in
+ * tailwind.config.js under `hud`; the React primitives that use these
+ * classes are in componentWarehouse/HudKit.tsx. Dark only, on purpose.
+ */
+@layer components {
+  /* A dark glass slab with a gold hairline and a faint grain. */
+  .hud-slab {
+    color-scheme: dark;
+    background-color: rgb(21 23 28 / 0.94);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    border: 1px solid rgb(227 180 72 / 0.28);
+    border-radius: 3px;
+    box-shadow:
+      0 16px 40px -16px rgba(0, 0, 0, 0.95),
+      0 2px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgb(255 255 255 / 0.04);
+    backdrop-filter: blur(6px);
+    color: #f1ebdd;
+    font-family: "Barlow", system-ui, sans-serif;
+  }
+
+  /* Small caps label: section names, stat names, eyebrows. */
+  .hud-label {
+    font-family: "Barlow Condensed", "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a39b8c;
+  }
+
+  /* Form fields on a slab: selects, text and number inputs. */
+  .hud-field {
+    color-scheme: dark;
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    background-color: #0a0b0d;
+    border: 1px solid #2c3039;
+    border-radius: 3px;
+    color: #f1ebdd;
+    font-family: "Barlow", system-ui, sans-serif;
+    font-size: 14px;
+    pointer-events: auto;
+    transition: border-color 120ms ease;
+  }
+  .hud-field:hover:not(:disabled) {
+    border-color: rgb(227 180 72 / 0.5);
+  }
+  .hud-field:focus {
+    outline: none;
+    border-color: #e3b448;
+    box-shadow: 0 0 0 2px rgb(227 180 72 / 0.25);
+  }
+  .hud-field::placeholder {
+    color: #6f685e;
+  }
+  .hud-field option,
+  .hud-field optgroup {
+    background-color: #15171c;
+    color: #f1ebdd;
+  }
+
+  /* Hide a scroll bar but keep the scrolling. */
+  .hud-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(227 180 72 / 0.35) transparent;
+  }
+  .hud-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .hud-scroll::-webkit-scrollbar-thumb {
+    background: rgb(227 180 72 / 0.35);
+    border-radius: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hud-in,
+  .animate-hud-pop,
+  .animate-hud-slam {
+    animation: none;
+  }
+}
+
 /* 3-Column Layout */
 #app-layout {
   display: grid;

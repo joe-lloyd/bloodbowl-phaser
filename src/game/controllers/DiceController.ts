@@ -56,6 +56,24 @@ export class DiceController {
     return roll;
   }
 
+  /** The coin toss: heads (1) or tails (2). Returns the winner's id. */
+  public tossCoin(
+    heads: { id: string; name: string },
+    tails: { id: string; name: string }
+  ): string {
+    const side = this.rng.rollDie(2);
+    const winner = side === 1 ? heads : tails;
+    this.emitDiceRoll({
+      rollType: "Coin Toss",
+      diceType: "1d2",
+      value: side,
+      total: side,
+      description: `Coin Toss: ${side === 1 ? "heads" : "tails"}, ${winner.name} wins`,
+      teamId: winner.id,
+    });
+    return winner.id;
+  }
+
   public rollD6(reason: string, teamId?: string): number {
     const roll = this.rng.rollDie(6);
     this.emitDiceRoll({

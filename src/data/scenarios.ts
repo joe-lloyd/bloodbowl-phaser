@@ -126,14 +126,13 @@ export const SCENARIOS: Scenario[] = [
     setup: {
       team1Placements: [{ playerIndex: 0, x: 9, y: 0 }],
       team2Placements: [
-        { playerIndex: 0, x: 10, y: 0 }, // block target on the sideline
+        { playerIndex: 0, x: 10, y: 0, hasBall: true }, // block target on the sideline
         { playerIndex: 1, x: 11, y: 0 }, // both on-pitch push squares occupied
         { playerIndex: 2, x: 11, y: 1 },
       ],
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 0 }, // target carries the ball: throw-in test
     },
   },
   {
@@ -188,6 +187,27 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "score-run-dodge-rush",
+    name: "Score Run: Dodge, Then Rush",
+    description:
+      "The carrier at (12,5) is marked from behind. Click the End Zone " +
+      "square (19,5) twice: the board asks before the Dodge out, walks the " +
+      "safe squares, stops again before the Rush onto the last square, and " +
+      "scores once the runner stands in the End Zone.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 12, y: 5, hasBall: true }, // carrier
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // marks the carrier
+        { playerIndex: 1, x: 4, y: 2, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+    },
+  },
+  {
     id: "jump-over-prone",
     name: "Jump Over a Prone Player",
     description:
@@ -197,7 +217,7 @@ export const SCENARIOS: Scenario[] = [
       "cannot be jumped without Leap or Pogo.",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // jumper (carries ball)
+        { playerIndex: 0, x: 8, y: 5, hasBall: true }, // jumper (carries ball)
       ],
       team2Placements: [
         { playerIndex: 0, x: 9, y: 5, status: PlayerStatus.PRONE }, // jump over this one
@@ -206,7 +226,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 8, y: 5 }, // on the jumper
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
     },
@@ -275,7 +294,7 @@ export const SCENARIOS: Scenario[] = [
     description: "Test quick pass (0-3 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (2 squares away)
         { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -286,7 +305,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -295,7 +313,7 @@ export const SCENARIOS: Scenario[] = [
     description: "Test short pass (4-6 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 8, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (6 squares away)
         { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -306,7 +324,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 8, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -315,7 +332,7 @@ export const SCENARIOS: Scenario[] = [
     description: "Test long pass (7-10 squares) with open receiver",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 5, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 5, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 15, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver (10 squares away)
         { playerIndex: 2, x: 3, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -326,7 +343,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 5, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -335,7 +351,7 @@ export const SCENARIOS: Scenario[] = [
     description: "Test catching with marked receiver (-1 per marker)",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 8, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 8, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Marked receiver
         { playerIndex: 2, x: 6, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -347,7 +363,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 8, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -356,7 +371,7 @@ export const SCENARIOS: Scenario[] = [
     description: "Test interception with opponent in pass path",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 6, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 6, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 16, y: 7, status: PlayerStatus.ACTIVE }, // Receiver
         { playerIndex: 2, x: 4, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -368,7 +383,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 6, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -398,7 +412,7 @@ export const SCENARIOS: Scenario[] = [
       "Test passing with thrower being marked (-1 per marker to pass)",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball (marked)
+        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball (marked)
         { playerIndex: 1, x: 14, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
         { playerIndex: 2, x: 8, y: 5, status: PlayerStatus.ACTIVE }, // Support player
       ],
@@ -410,7 +424,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 7 }, // Ball at thrower's position
     },
   },
   {
@@ -424,7 +437,7 @@ export const SCENARIOS: Scenario[] = [
         // Index 0 = Ogre Blocker (Throw Team-mate) — the thrower, marked.
         { playerIndex: 0, x: 8, y: 5, status: PlayerStatus.ACTIVE },
         // Index 3 = Gnoblar Lineman (Right Stuff, ST 1) — carries the ball.
-        { playerIndex: 3, x: 9, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 9, y: 5, hasBall: true },
         // A second Ogre Blocker as support.
         { playerIndex: 1, x: 7, y: 8, status: PlayerStatus.ACTIVE },
       ],
@@ -436,7 +449,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 9, y: 5 }, // On the Gnoblar being thrown
     },
   },
   {
@@ -537,7 +549,7 @@ export const SCENARIOS: Scenario[] = [
       team1Roster: RosterName.OGRE,
       team1Placements: [
         // Index 3 = Gnoblar Lineman — the ball carrier.
-        { playerIndex: 3, x: 15, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 3, x: 15, y: 5, hasBall: true },
         // A trailing Ogre Blocker.
         { playerIndex: 0, x: 12, y: 5, status: PlayerStatus.ACTIVE },
       ],
@@ -548,7 +560,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 15, y: 5 }, // On the Gnoblar
     },
   },
   {
@@ -705,7 +716,7 @@ export const SCENARIOS: Scenario[] = [
     expectedOutcome: "Pass and catch will both succeed",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // Thrower with ball
+        { playerIndex: 0, x: 10, y: 7, hasBall: true }, // Thrower with ball
         { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE }, // Open receiver
       ],
       team2Placements: [
@@ -714,7 +725,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 7 },
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
     },
@@ -727,7 +737,7 @@ export const SCENARIOS: Scenario[] = [
     expectedOutcome: "Thrower will fumble the pass",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE },
+        { playerIndex: 0, x: 10, y: 7, hasBall: true },
         { playerIndex: 1, x: 12, y: 7, status: PlayerStatus.ACTIVE },
       ],
       team2Placements: [
@@ -736,7 +746,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team1",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 7 },
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
     },
@@ -868,7 +877,7 @@ export const SCENARIOS: Scenario[] = [
       "POW → carrier down, ball bounces loose, blocker's team keeps the turn",
     setup: {
       team1Placements: [
-        { playerIndex: 0, x: 10, y: 5, status: PlayerStatus.ACTIVE }, // carrier
+        { playerIndex: 0, x: 10, y: 5, hasBall: true }, // carrier
       ],
       team2Placements: [
         { playerIndex: 0, x: 11, y: 5, status: PlayerStatus.ACTIVE }, // blocker
@@ -877,7 +886,6 @@ export const SCENARIOS: Scenario[] = [
       activeTeam: "team2",
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
-      ballPosition: { x: 10, y: 5 },
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
     },

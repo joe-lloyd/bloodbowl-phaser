@@ -59,11 +59,10 @@ export class GameBridge {
   }
 
   pendingDecision(): Promise<PendingDecision | null> {
-    return this.page.evaluate(
-      () =>
-        (
-          window as unknown as Record<string, BrowserTestBridge>
-        ).__bbTestBridge.pendingDecision()
+    return this.page.evaluate(() =>
+      (
+        window as unknown as Record<string, BrowserTestBridge>
+      ).__bbTestBridge.pendingDecision()
     ) as Promise<PendingDecision | null>;
   }
 
@@ -84,6 +83,14 @@ export class GameBridge {
       (
         window as unknown as Record<string, BrowserTestBridge>
       ).__bbTestBridge.scenes()
+    );
+  }
+
+  pitchLayers(): Promise<string[]> {
+    return this.page.evaluate(() =>
+      (
+        window as unknown as Record<string, BrowserTestBridge>
+      ).__bbTestBridge.pitchLayers()
     );
   }
 

@@ -8,6 +8,7 @@ import {
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -242,147 +243,143 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   };
 
   return (
-    <div
-      data-testid="block-dice-dialog"
-      className="absolute inset-0 z-[100] flex items-start justify-center pt-44 bg-black/20 pointer-events-auto"
-    >
-      <div className="bg-slate-900 border-2 border-yellow-500 rounded-lg p-6 w-[500px] text-white shadow-2xl">
-        <h2 className="text-3xl font-black text-center text-yellow-400 mb-4 uppercase tracking-wider glow-text">
-          BLOCK!
-        </h2>
-
-        {/* Stats Comparison */}
-        <div className="flex justify-between items-center mb-6 bg-slate-800 p-3 rounded">
-          <div className="text-center">
-            <div className="text-xs text-slate-400">ATTACKER</div>
-            <div className="text-2xl font-bold text-green-400">
-              {attackerST}
-            </div>
-          </div>
-          <div className="text-yellow-600 font-bold text-xl">VS</div>
-          <div className="text-center">
-            <div className="text-xs text-slate-400">DEFENDER</div>
-            <div className="text-2xl font-bold text-red-400">{defenderST}</div>
-          </div>
-        </div>
-
-        {/* Dice Info */}
-        <div className="text-center mb-6">
-          <div className="text-lg font-bold">
-            {diceCount} DICE{" "}
-            {isUphill ? <span className="text-red-500">(UPHILL)</span> : ""}
-          </div>
-          <div className="text-sm text-slate-400 italic">
-            {isUphill ? "Defender Chooses" : "Attacker Chooses"}
-          </div>
-        </div>
-
-        {/* The dice themselves are in the dice tray below: a click on a
-            lifted die chooses it. These buttons keep the choice open to a
-            keyboard or a screen reader. */}
-        {rollData ? (
-          <div className="mb-6">
-            <div className="flex justify-center gap-2">
-              {rollData.results.map((result, idx) => (
-                <button
-                  key={idx}
-                  data-testid={`block-die-${idx}`}
-                  data-block-result={result.type}
-                  onClick={() => pickRef.current?.(idx)}
-                  // Hidden until a keyboard focuses it, then a plain button
-                  className="sr-only focus:not-sr-only focus:rounded focus:border focus:border-yellow-400 focus:px-3 focus:py-1 focus:text-xs focus:font-bold"
-                >
-                  {proMode ? `Re-roll ${result.label}` : result.label}
-                </button>
-              ))}
-            </div>
-            <div className="text-center text-sm text-yellow-400">
-              {chosen
-                ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
-                : proMode
-                  ? "Pro: click a die in the tray to re-roll it (3+)"
-                  : getActiveOnlineMatch()?.mayAct() === false
-                    ? "The other coach is choosing…"
-                    : "Click a die in the tray to choose the result"}
-            </div>
-            {(rollData.teamRerollAvailable ||
-              rollData.proAvailable ||
-              rollData.brawlerAvailable ||
-              rollData.veteranRerollAvailable) && (
-              <div className="flex justify-center gap-3 mt-3">
-                {rollData.teamRerollAvailable && (
-                  <button
-                    data-testid="block-team-reroll"
-                    onClick={handleTeamReroll}
-                    className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 rounded text-xs font-bold text-white transition-colors"
-                  >
-                    TEAM RE-ROLL (all dice)
-                  </button>
-                )}
-                {rollData.proAvailable && (
-                  <button
-                    onClick={() => setProMode((m) => !m)}
-                    className={`px-3 py-1.5 rounded text-xs font-bold text-white transition-colors ${
-                      proMode
-                        ? "bg-purple-500"
-                        : "bg-purple-700 hover:bg-purple-600"
-                    }`}
-                  >
-                    {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
-                  </button>
-                )}
-                {rollData.brawlerAvailable && (
-                  <button
-                    data-testid="block-brawler-reroll"
-                    onClick={handleBrawlerReroll}
-                    className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 rounded text-xs font-bold text-white transition-colors"
-                  >
-                    BRAWLER: RE-ROLL 1 BOTH DOWN
-                  </button>
-                )}
-                {rollData.veteranRerollAvailable && (
-                  <button
-                    data-testid="block-veteran-reroll"
-                    onClick={handleVeteranReroll}
-                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 rounded text-xs font-bold text-white transition-colors"
-                  >
-                    VETERAN RE-ROLL (all dice, once per game)
-                  </button>
-                )}
-              </div>
+    <DialogShell
+      testId="block-dice-dialog"
+      tone="blood"
+      title="BLOCK!"
+      width="w-[480px]"
+      actions={
+        // Once the dice are rolled the block CANNOT be cancelled: a result
+        // must be picked
+        !rollData && (
+          <div className="flex items-center justify-between gap-3">
+            {!rollData && !isRolling && !heldDice ? (
+              <HudButton variant="ghost" onClick={handleCancel}>
+                Cancel
+              </HudButton>
+            ) : (
+              <span />
             )}
-          </div>
-        ) : isRolling ? (
-          <div className="mb-6 text-center text-sm text-slate-400 italic">
-            Rolling…
-          </div>
-        ) : null}
-
-        {/* Actions — once the dice are rolled the block CANNOT be cancelled:
-            a result must be picked */}
-        <div className="flex justify-between">
-          {!rollData && !isRolling && !heldDice ? (
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm text-slate-300 transition-colors"
-            >
-              Cancel
-            </button>
-          ) : (
-            <span />
-          )}
-          {!rollData && (
-            <button
+            <HudButton
               data-testid="block-roll-dice"
+              variant="primary"
+              size="lg"
               onClick={handleRoll}
               disabled={isRolling}
-              className="px-8 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               ROLL DICE
-            </button>
-          )}
+            </HudButton>
+          </div>
+        )
+      }
+    >
+      {/* Strength comparison */}
+      <div className="flex items-stretch gap-2">
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-good/30 bg-black/35 py-1.5">
+          <span className="hud-label">ATTACKER</span>
+          <span className="font-hud-display text-hud-2xl text-hud-good">
+            {attackerST}
+          </span>
+        </div>
+        <div className="flex items-center px-1 font-hud-display text-hud-xl text-hud-gold">
+          VS
+        </div>
+        <div className="flex flex-1 flex-col items-center rounded-hud border border-hud-bad/30 bg-black/35 py-1.5">
+          <span className="hud-label">DEFENDER</span>
+          <span className="font-hud-display text-hud-2xl text-hud-bad">
+            {defenderST}
+          </span>
         </div>
       </div>
-    </div>
+
+      {/* Dice count and who picks */}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <div className="font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-bone">
+          {diceCount} DICE{" "}
+          {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
+        </div>
+        <div className="hud-label">
+          {isUphill ? "Defender Chooses" : "Attacker Chooses"}
+        </div>
+      </div>
+
+      {/* The dice themselves are in the dice tray below: a click on a
+          lifted die chooses it. These buttons keep the choice open to a
+          keyboard or a screen reader. */}
+      {rollData ? (
+        <div className="mt-3">
+          <div className="flex justify-center gap-2">
+            {rollData.results.map((result, idx) => (
+              <button
+                key={idx}
+                data-testid={`block-die-${idx}`}
+                data-block-result={result.type}
+                onClick={() => pickRef.current?.(idx)}
+                // Hidden until a keyboard focuses it, then a plain button
+                className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
+              >
+                {proMode ? `Re-roll ${result.label}` : result.label}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
+            {chosen
+              ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
+              : proMode
+                ? "Pro: click a die in the tray to re-roll it (3+)"
+                : getActiveOnlineMatch()?.mayAct() === false
+                  ? "The other coach is choosing…"
+                  : "Click a die in the tray to choose the result"}
+          </div>
+          {(rollData.teamRerollAvailable ||
+            rollData.proAvailable ||
+            rollData.brawlerAvailable ||
+            rollData.veteranRerollAvailable) && (
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+              {rollData.teamRerollAvailable && (
+                <HudButton
+                  data-testid="block-team-reroll"
+                  size="sm"
+                  onClick={handleTeamReroll}
+                >
+                  TEAM RE-ROLL (all dice)
+                </HudButton>
+              )}
+              {rollData.proAvailable && (
+                <HudButton
+                  size="sm"
+                  variant={proMode ? "gold" : "secondary"}
+                  onClick={() => setProMode((m) => !m)}
+                >
+                  {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
+                </HudButton>
+              )}
+              {rollData.brawlerAvailable && (
+                <HudButton
+                  data-testid="block-brawler-reroll"
+                  size="sm"
+                  onClick={handleBrawlerReroll}
+                >
+                  BRAWLER: RE-ROLL 1 BOTH DOWN
+                </HudButton>
+              )}
+              {rollData.veteranRerollAvailable && (
+                <HudButton
+                  data-testid="block-veteran-reroll"
+                  size="sm"
+                  onClick={handleVeteranReroll}
+                >
+                  VETERAN RE-ROLL (all dice, once per game)
+                </HudButton>
+              )}
+            </div>
+          )}
+        </div>
+      ) : isRolling ? (
+        <div className="mt-4 text-center font-hud-label text-hud-base uppercase tracking-[0.1em] text-hud-dim">
+          Rolling…
+        </div>
+      ) : null}
+    </DialogShell>
   );
 };

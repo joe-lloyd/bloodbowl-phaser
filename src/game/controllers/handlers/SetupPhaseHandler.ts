@@ -7,6 +7,11 @@ import { SubPhase } from "../../../types/GameState";
 import { PlayerPlacementController } from "../PlayerPlacementController";
 import { FormationManager } from "@/game/managers/FormationManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { DiceWatch } from "../../presentation/diceWatch";
+import { CAMERA_INTRO_MS } from "../CameraController";
+
+/** How long an announcement banner is up: the Announcer's enter, hold and exit. */
+const BANNER_MS = 2300;
 
 /**
  * SetupPhaseHandler
@@ -265,60 +270,46 @@ export class SetupPhaseHandler implements PhaseHandler {
     return `${team.rosterName ?? team.name}:${isTeam1 ? "left" : "right"}`;
   }
 
+  /**
+   * The opening, one beat after another: the camera sweeps in, each team is
+   * announced while its dugout cheers, the weather dice land and the
+   * weather is announced, and only then does the coin toss come up.
+   */
   private async runIntroSequence(): Promise<void> {
     this.isIntroSequence = true;
-    const delay = (ms: number) =>
+    const dice = new DiceWatch(this.eventBus);
+    const pause = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
+    const { team1, team2 } = this.scene;
 
-    // 0. Initial Delay
-    await delay(500);
-
-    // 1. Team 1 Intro
-    this.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${this.scene.team1.name}` // Team 1 Name
-    );
-
-    // Find Team 1 Dugout and animate
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dugout1 = (this.scene as any).dugouts.get(this.scene.team1.id);
-    if (dugout1) {
-      await dugout1.animateCelebration();
+    await pause(CAMERA_INTRO_MS);
+    for (const [team, side] of [
+      [team1, "Home"],
+      [team2, "Away"],
+    ] as const) {
+      this.eventBus.emit(GameEventNames.UI_Announce, {
+        kind: "team-intro",
+        headline: team.name,
+        subtitle: `${side} · ${team.rosterName}`,
+      });
+      await Promise.all([
+        this.scene.celebrateDugout(team.id),
+        pause(BANNER_MS),
+      ]);
     }
-    await delay(500); // Wait after animation
 
-    // 2. Team 2 Intro
-    this.eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${this.scene.team2.name}` // Team 2 Name
-    );
-
-    // Find Team 2 Dugout and animate
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dugout2 = (this.scene as any).dugouts.get(this.scene.team2.id);
-    if (dugout2) {
-      await dugout2.animateCelebration();
-    }
-    await delay(500); // Wait after animation
-
-    // 3. Weather
-    this.eventBus.emit(GameEventNames.UI_Notification, "Rolling Weather...");
-    await delay(500);
-
-    // Trigger Logic
-    this.gameService.setWeather(0); // 0 = Roll
-    const weather = this.gameService.getState().weather;
-
-    this.eventBus.emit(GameEventNames.UI_Notification, `Weather: ${weather}`);
-    // Wait for user to read
-    await delay(500);
-
-    // 4. Transition to Coin Flip
-    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-      team1: this.scene.team1,
-      team2: this.scene.team2,
+    this.gameService.rollInitialWeather();
+    await dice.landed();
+    dice.dispose();
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "weather",
+      headline: this.gameService.getState().weather ?? "Nice",
+      subtitle: "Weather",
     });
+    await pause(BANNER_MS);
 
     this.isIntroSequence = false;
+    this.gameService.beginCoinFlip();
+    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, { team1, team2 });
   }
 }

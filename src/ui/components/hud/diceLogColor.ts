@@ -91,10 +91,9 @@ export function resolveDisplayColor(
 /** Tailwind classes for each resolvable color. "unknown" is intentionally
  *  absent — callers fall back to their row kind's existing look
  *  (DiceRow: gray; EntryRow: team-identity border). */
-export const LOG_COLOR_CLASSES: Record<Exclude<LogColor, "unknown">, string> =
-  {
-    good: "!border-green-500 !bg-green-900/20",
-    bad: "!border-red-500 !bg-red-900/20",
-    neutral: "!border-blue-500 !bg-blue-900/20",
-    warning: "!border-yellow-500 !bg-yellow-900/20",
-  };
+export const LOG_COLOR_CLASSES: Record<Exclude<LogColor, "unknown">, string> = {
+  good: "!border-hud-good !bg-hud-good/10",
+  bad: "!border-hud-bad !bg-hud-bad/10",
+  neutral: "!border-hud-info !bg-hud-info/10",
+  warning: "!border-hud-warn !bg-hud-warn/10",
+};

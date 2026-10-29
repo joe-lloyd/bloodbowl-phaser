@@ -91,7 +91,25 @@ const mockGameService = {
   getFlowContext: vi.fn().mockReturnValue({
     flowManager: { whenIdle: vi.fn().mockResolvedValue(undefined) },
   }),
+  getRerollArbiter: vi.fn().mockReturnValue({
+    skillRerollAvailable: vi.fn().mockReturnValue(false),
+    teamRerollAvailable: vi.fn().mockReturnValue(false),
+  }),
 };
+
+/** The Dodge/Rush prompt the board raised last, answered as the coach. */
+async function answerStepPrompt(confirmed: boolean) {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const ask = mockEventBus.emit.mock.calls
+    .filter(([name]) => name === GameEventNames.UI_RequestConfirmation)
+    .at(-1);
+  if (!ask) throw new Error("no Dodge/Rush prompt was raised");
+  mockEventBus.on.mock.calls
+    .filter(([name]) => name === GameEventNames.UI_ConfirmationResult)
+    .forEach(([, handler]) => handler({ confirmed, actionId: ask[1].actionId }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  return ask[1];
+}
 
 describe("GameplayInteractionController", () => {
   let controller: GameplayInteractionController;
@@ -103,7 +121,8 @@ describe("GameplayInteractionController", () => {
     id: "p1",
     teamId: team1Id,
     gridPosition: { x: 5, y: 5 },
-    stats: { MA: 6 },
+    stats: { MA: 6, AG: 3 },
+    playerName: "Blitzer",
     status: "Active",
     skills: [],
   };
@@ -222,6 +241,8 @@ describe("GameplayInteractionController", () => {
       // Setup active turn and select player
       mockGameService.getState.mockReturnValue({
         activeTeamId: team1Id,
+        phase: GamePhase.PLAY,
+        weather: "Nice",
       } as GameState);
       mockGameService.getPlayerById.mockReturnValue(player1);
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
@@ -264,6 +285,8 @@ describe("GameplayInteractionController", () => {
 
       // 2. Click Same Spot (Confirm)
       (controller as any).onSquareClicked(6, 5); // Confirm
+      // Player 2 at (6,6) marks (5,5): leaving it is a Dodge
+      await answerStepPrompt(true);
 
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
@@ -289,6 +312,8 @@ describe("GameplayInteractionController", () => {
 
       // 2. Click Same Spot (Confirm)
       (controller as any).onSquareClicked(6, 5); // Confirm
+      // Player 2 at (6,6) marks (5,5): leaving it is a Dodge
+      await answerStepPrompt(true);
 
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
@@ -299,6 +324,63 @@ describe("GameplayInteractionController", () => {
 
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled(); // Should NOT deselect
       expect(mockScene.highlightPlayer).toHaveBeenCalled(); // Should refresh highlight
+    });
+
+    it("asks before the Dodge with the number needed, and stops there when declined", async () => {
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
+      expect(mockGameService.movePlayer).not.toHaveBeenCalled();
+
+      const prompt = await answerStepPrompt(false);
+
+      expect(prompt.title).toBe("Blitzer: Dodge");
+      // (6,5) is next to player 2 as well: AG 3+ with -1 is 4+
+      expect(prompt.message).toContain("Dodge: 4+");
+      expect(prompt.message).toContain("No re-roll available.");
+      expect(prompt.cancelLabel).toBe("Stop here");
+      expect(mockGameService.movePlayer).not.toHaveBeenCalled();
+      expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
+    });
+
+    it("walks the safe part first and asks again before the risky step", async () => {
+      mockGameService.hasPlayerActed.mockReturnValue(false);
+      // Player 2 out of the way; a Rush is needed after 6 squares
+      mockScene.team2.players = [];
+      const route = [1, 2, 3, 4, 5, 6, 7].map((i) => ({ x: 5 + i, y: 5 }));
+      let at = { x: 5, y: 5 };
+      mockGameService.getPlayerById.mockImplementation(() => ({
+        ...player1,
+        gridPosition: at,
+      }));
+      mockGameService.movePlayer.mockImplementation(async (_id, path) => {
+        at = path[path.length - 1];
+        mockGameService.getMovementUsed.mockReturnValue(at.x - 5);
+      });
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: route,
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(12, 5);
+      (controller as any).onSquareClicked(12, 5);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockGameService.movePlayer).toHaveBeenCalledTimes(1);
+      expect(mockGameService.movePlayer).toHaveBeenLastCalledWith(
+        "p1",
+        route.slice(0, 6)
+      );
+      const prompt = await answerStepPrompt(true);
+      expect(prompt.title).toBe("Blitzer: Rush");
+      expect(mockGameService.movePlayer).toHaveBeenCalledTimes(2);
+      expect(mockGameService.movePlayer).toHaveBeenLastCalledWith("p1", [
+        { x: 12, y: 5 },
+      ]);
     });
   });
 
@@ -1005,6 +1087,7 @@ describe("GameplayInteractionController", () => {
       // Plan the step, then confirm it on the same square
       await (controller as any).onSquareClicked(6, 5);
       await (controller as any).onSquareClicked(6, 5);
+      await answerStepPrompt(true);
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);
@@ -1089,6 +1172,7 @@ describe("GameplayInteractionController", () => {
       });
       await (controller as any).onSquareClicked(6, 5);
       await (controller as any).onSquareClicked(6, 5);
+      await answerStepPrompt(true);
       expect(mockGameService.movePlayer).toHaveBeenCalledWith("p1", [
         { x: 6, y: 5 },
       ]);

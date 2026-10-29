@@ -43,6 +43,14 @@ export interface DiceRoll {
   neon: boolean;
 }
 
+/** The coin toss: side 1 (heads) carries the first team's crest, side 2 the second's. */
+export interface CoinToss {
+  kind: "coin";
+  side: 1 | 2;
+  faces: [DiceTeam, DiceTeam];
+  neon: boolean;
+}
+
 type Vec3 = [number, number, number];
 
 const FACE_NORMALS: Vec3[] = [
@@ -336,6 +344,40 @@ function faceMaterial(roll: DiceRoll, value: number): THREE.Material {
   });
 }
 
+function coinTexture(team: DiceTeam, neon: boolean): THREE.CanvasTexture {
+  const key = ["coin", team.key, neon].join(":");
+  const cached = textures.get(key);
+  if (cached) return cached;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d")!;
+  const body = neon ? "#141019" : hex(team.primary);
+  const ink = neon ? hex(team.primary) : hex(team.secondary);
+  g.fillStyle = body;
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = g.fillStyle = ink;
+  g.lineWidth = 10;
+  g.beginPath();
+  g.arc(S / 2, S / 2, S * 0.43, 0, 7);
+  g.stroke();
+  g.save();
+  g.translate(S * 0.17, S * 0.17);
+  g.scale(0.66, 0.66);
+  crest(g, team, S, body);
+  g.restore();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  textures.set(key, tex);
+  return tex;
+}
+
+/** A coin face as an image, to show the coach which side is whose. */
+export function coinFaceImage(team: DiceTeam, neon: boolean): string {
+  return (coinTexture(team, neon).image as HTMLCanvasElement).toDataURL();
+}
+
 // ----------------------------------------------------------------- physics
 
 const TRAY = { w: 8, d: 4.4 };
@@ -533,7 +575,7 @@ export interface DiceThrow {
  */
 export function playRoll(
   host: HTMLElement,
-  roll: DiceRoll,
+  roll: DiceRoll | CoinToss,
   opts: { sound: boolean }
 ): DiceThrow {
   const pickers: ((index: number) => void)[] = [];
@@ -541,14 +583,17 @@ export function playRoll(
   let control: Pick<DiceThrow, "mark" | "stop"> | null = null;
   let stopped = false;
   const landed = lane.then(() => {
-    if (stopped) return roll.values;
-    return throwDice(host, roll, opts, {
-      pick: (index) => pickers.forEach((listener) => listener(index)),
-      ready: (c) => {
+    if (stopped) return roll.kind === "coin" ? [roll.side] : roll.values;
+    const hooks = {
+      pick: (index: number) => pickers.forEach((listener) => listener(index)),
+      ready: (c: Pick<DiceThrow, "mark" | "stop">) => {
         control = c;
         c.mark(marked);
       },
-    });
+    };
+    return roll.kind === "coin"
+      ? throwCoin(host, roll, opts, hooks)
+      : throwDice(host, roll, opts, hooks);
   });
   lane = landed.catch(() => undefined);
   return {
@@ -563,6 +608,166 @@ export function playRoll(
       control?.stop();
     },
   };
+}
+
+/** The box every throw plays in: renderer, camera, lights and a shadow floor. */
+function stage(host: HTMLElement, neon: boolean) {
+  const gl = getRenderer();
+  const width = host.clientWidth;
+  const height = host.clientHeight;
+  gl.setSize(width, height);
+  host.appendChild(gl.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 100);
+  camera.position.set(0, 9.4, 5.4);
+  const lookAt = new THREE.Vector3(0, 0, 0.15);
+  camera.lookAt(lookAt);
+  scene.add(new THREE.HemisphereLight(0xfff4e0, 0x1a1020, neon ? 0.9 : 1.6));
+  const sun = new THREE.DirectionalLight(0xffffff, neon ? 1.4 : 2.4);
+  sun.position.set(-4, 10, 5);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5 });
+  scene.add(sun);
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(TRAY.w + 4, TRAY.d + 4),
+    new THREE.ShadowMaterial({ opacity: 0.45 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  return { gl, scene, camera, lookAt };
+}
+
+const COIN = { radius: 1.05, thickness: 0.12 };
+const FLIP_MS = 1500;
+const SETTLE_MS = 380;
+
+/**
+ * Toss the coin: it spins end over end across the box and lands with the
+ * engine's side up, wobbles to rest, then lifts to face the viewer. The
+ * side is decided before the throw; the spin only shows it.
+ */
+function throwCoin(
+  host: HTMLElement,
+  toss: CoinToss,
+  opts: { sound: boolean },
+  hooks: { ready: (control: Pick<DiceThrow, "mark" | "stop">) => void }
+): Promise<number[]> {
+  showing?.stop();
+  if (opts.sound) void loadClacks();
+  const { gl, scene, camera, lookAt } = stage(host, toss.neon);
+
+  const geometry = new THREE.CylinderGeometry(
+    COIN.radius,
+    COIN.radius,
+    COIN.thickness,
+    64
+  );
+  const edge = new THREE.MeshStandardMaterial({
+    color: 0xc9a227,
+    metalness: 0.85,
+    roughness: 0.3,
+  });
+  const face = (team: DiceTeam) =>
+    new THREE.MeshPhysicalMaterial({
+      map: coinTexture(team, toss.neon),
+      metalness: 0.35,
+      roughness: 0.4,
+      clearcoat: 0.6,
+    });
+  // Cylinder groups: the edge, the top cap (heads), the bottom cap (tails)
+  const coin = new THREE.Mesh(geometry, [
+    edge,
+    face(toss.faces[0]),
+    face(toss.faces[1]),
+  ]);
+  coin.castShadow = true;
+  scene.add(coin);
+
+  // An even number of half turns lands heads up, an odd number tails
+  const spin = Math.PI * (toss.side === 1 ? 10 : 11);
+  const rest = COIN.thickness / 2;
+  const from = new THREE.Vector3(-2.6, rest, 0.4);
+  const to = new THREE.Vector3(0, rest, 0);
+
+  // Lifted: the landed face turned to the viewer, upright on screen
+  const liftedAt = camera.position.clone().lerp(lookAt, 0.5);
+  const toCamera = camera.position.clone().sub(liftedAt).normalize();
+  const screenUp = new THREE.Vector3(0, 1, 0)
+    .applyQuaternion(camera.quaternion)
+    .projectOnPlane(toCamera)
+    .normalize();
+  // A cap's texture runs "up" along +X on the top and -X on the bottom
+  const normal = new THREE.Vector3(0, toss.side === 1 ? 1 : -1, 0);
+  const textureUp = new THREE.Vector3(toss.side === 1 ? 1 : -1, 0, 0);
+  const liftedTurn = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4()
+      .makeBasis(toCamera, screenUp, toCamera.clone().cross(screenUp))
+      .multiply(
+        new THREE.Matrix4()
+          .makeBasis(normal, textureUp, normal.clone().cross(textureUp))
+          .transpose()
+      )
+  );
+
+  let running = true;
+  const control = {
+    stop: () => {
+      if (!running) return;
+      running = false;
+      if (showing === control) showing = null;
+      geometry.dispose();
+    },
+    mark: () => {},
+  };
+  showing = control;
+  hooks.ready(control);
+
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let landedAt: number | null = null;
+    let restTurn: THREE.Quaternion | null = null;
+    const tick = () => {
+      if (!running) return;
+      const elapsed = performance.now() - start;
+      if (elapsed < FLIP_MS) {
+        const t = elapsed / FLIP_MS;
+        coin.position.lerpVectors(from, to, t);
+        coin.position.y = rest + 2.4 * 4 * t * (1 - t);
+        coin.rotation.set(0, 0, spin * t);
+      } else if (elapsed < FLIP_MS + SETTLE_MS) {
+        if (landedAt === null) {
+          landedAt = elapsed;
+          if (opts.sound) clack(0.7);
+        }
+        const u = (elapsed - FLIP_MS) / SETTLE_MS;
+        coin.position.copy(to);
+        coin.rotation.set(
+          0.22 * (1 - u) ** 2 * Math.sin(u * 22),
+          0,
+          spin + 0.18 * (1 - u) ** 2 * Math.cos(u * 22)
+        );
+      } else {
+        if (!restTurn) {
+          coin.position.copy(to);
+          coin.rotation.set(0, 0, spin);
+          restTurn = coin.quaternion.clone();
+          // Lifted off the table it casts no shadow on it
+          coin.castShadow = false;
+          resolve([toss.side]);
+        }
+        const t = Math.min(1, (elapsed - FLIP_MS - SETTLE_MS) / LIFT_MS);
+        const ease = 1 - Math.pow(1 - t, 3);
+        coin.position.lerpVectors(to, liftedAt, ease);
+        coin.quaternion.slerpQuaternions(restTurn, liftedTurn, ease);
+      }
+      gl.render(scene, camera);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
 }
 
 /** How far toward the camera the lifted dice sit (0 = table, 1 = lens). */
@@ -581,33 +786,7 @@ function throwDice(
   showing?.stop();
   const sim = simulate(roll.values.length);
   if (opts.sound) void loadClacks();
-  const gl = getRenderer();
-  const width = host.clientWidth;
-  const height = host.clientHeight;
-  gl.setSize(width, height);
-  host.appendChild(gl.domElement);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 100);
-  camera.position.set(0, 9.4, 5.4);
-  const lookAt = new THREE.Vector3(0, 0, 0.15);
-  camera.lookAt(lookAt);
-  scene.add(
-    new THREE.HemisphereLight(0xfff4e0, 0x1a1020, roll.neon ? 0.9 : 1.6)
-  );
-  const sun = new THREE.DirectionalLight(0xffffff, roll.neon ? 1.4 : 2.4);
-  sun.position.set(-4, 10, 5);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 5, bottom: -5 });
-  scene.add(sun);
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(TRAY.w + 4, TRAY.d + 4),
-    new THREE.ShadowMaterial({ opacity: 0.45 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
+  const { gl, scene, camera, lookAt } = stage(host, roll.neon);
 
   const geometry = new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
   const meshes = roll.values.map((value, i) => {

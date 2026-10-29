@@ -15,6 +15,9 @@ import { createCoachRng } from "../../src/simulation/rng";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameConfig } from "../../src/config/GameConfig";
 import { getActiveOnlineMatch } from "../../src/network/OnlineMatch";
+import { hasTackleZone } from "../../src/types/Player";
+import { withDriveModifiers } from "../../src/game/kickoff/driveEffects";
+import { isInEndZone } from "../../src/game/elements/GridUtils";
 
 let game: HeadlessGame | null = null;
 let kickingTeamId: string | null = null;
@@ -140,7 +143,10 @@ export async function next(dialogOpen = false) {
     .map((c, i) => `${scores[i].toFixed(1)} ${c.label}`)
     .sort((a, b) => parseFloat(b) - parseFloat(a))
     .slice(0, 4);
-  const candidate = point.candidates[choice.index] ?? point.candidates[0];
+  const candidate = runTo(
+    g,
+    point.candidates[choice.index] ?? point.candidates[0]
+  );
   return {
     over: false,
     phase: snapshot.phase,
@@ -164,6 +170,73 @@ export async function next(dialogOpen = false) {
       n: point.candidates.length,
       top,
     },
+  };
+}
+
+type Candidate = {
+  kind: string;
+  label: string;
+  commands: Record<string, unknown>[];
+};
+type Square = { x: number; y: number };
+const chebyshev = (a: Square, b: Square) =>
+  Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+/**
+ * The sim coach thinks one square at a time; a coach at the board picks where
+ * to end up and clicks there. Turn its chosen step into the furthest square
+ * that way it can reach without a Rush. A step into contact or onto the ball
+ * is the point of the move, so it stays as it is; the ball carrier may Rush
+ * when that reaches the End Zone. The board finds the safest route there.
+ */
+function runTo(g: HeadlessGame, c: Candidate): Candidate {
+  const cmd = c.commands[0] as {
+    type: string;
+    playerId?: string;
+    path?: Square[];
+  };
+  if (cmd.type !== "move" || cmd.path?.length !== 1 || !cmd.playerId)
+    return c;
+  const gs = g.ctx.gameService;
+  const state = gs.getState();
+  const player = gs.getPlayerById(cmd.playerId);
+  const at = player?.gridPosition;
+  if (!player || !at) return c;
+  const step = cmd.path[0];
+  const opponents = gs
+    .getOpponents(player.teamId)
+    .filter((o) => o.gridPosition && hasTackleZone(o));
+  const marked = (sq: Square) =>
+    opponents.some((o) => chebyshev(o.gridPosition!, sq) === 1);
+  const ball = state.ballPosition;
+  const onBall = (sq: Square) => !!ball && ball.x === sq.x && ball.y === sq.y;
+  const carrying = onBall(at);
+  if (marked(step) || onBall(step)) return c;
+
+  const left =
+    withDriveModifiers(player, state).stats.MA - gs.getMovementUsed(player.id);
+  const side = player.teamId === g.ctx.team1.id ? 1 : 2;
+  const scores = (sq: Square) =>
+    carrying && isInEndZone(sq, GameConfig.PITCH_WIDTH, side);
+  const reach = gs
+    .getAvailableMovements(player.id)
+    .filter((sq) => (sq.cost ?? 99) <= left || scores(sq));
+  // A loose ball in reach is worth the trip
+  const pickup = !carrying && reach.find(onBall);
+  const dir = { x: step.x - at.x, y: step.y - at.y };
+  const gain = (sq: Square) =>
+    (scores(sq) ? 100 : 0) +
+    (sq.x - at.x) * dir.x +
+    (sq.y - at.y) * dir.y -
+    (marked(sq) ? 3 : 0);
+  const dest =
+    pickup ||
+    reach.reduce<Square>((best, sq) => (gain(sq) > gain(best) ? sq : best), step);
+  if (dest.x === step.x && dest.y === step.y) return c;
+  return {
+    ...c,
+    label: `${c.label.replace(/ steps to .*/, "")} runs to (${dest.x},${dest.y})`,
+    commands: [{ ...cmd, path: [{ x: dest.x, y: dest.y }] }],
   };
 }
 
@@ -247,11 +320,8 @@ export function view() {
     players[id] = square(sprite) + (sprite.angle !== 0 ? " down" : "");
   });
   const ball = scene.ballSprite ? square(scene.ballSprite) : "none";
-  // The scoreboard has no test id; its header reads MATCH.
-  const header = [...document.querySelectorAll("span")].find(
-    (span) => span.textContent === "MATCH"
-  );
-  const hud = (header?.parentElement?.parentElement?.textContent ?? "")
+  const scoreboard = document.querySelector('[data-testid="scoreboard"]');
+  const hud = (scoreboard?.textContent ?? "")
     .replace(/\s+/g, " ")
     .trim();
   return { players, ball, hud };

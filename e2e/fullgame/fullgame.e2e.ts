@@ -45,6 +45,10 @@ test("a full Sevens match, built and played through the UI", async ({
   writeFileSync(LOG, "");
   page.on("dialog", (d) => d.accept());
   page.on("pageerror", (e) => log(`PAGEERROR ${e.message}`));
+  page.on("console", (m) => {
+    if (/Move failed|Path too long|Invalid move/.test(m.text()))
+      log(`  CONSOLE ${m.text().slice(0, 300)}`);
+  });
   const app = new GameApp(page);
   const size = page.viewportSize();
   const ux = process.env.UX_PROBE
@@ -160,6 +164,28 @@ test("a full Sevens match, built and played through the UI", async ({
       await shot(page, `stuck-${i}`);
       log(
         `${i} STUCK on ${key} buttons=${JSON.stringify(await visibleButtons(page))}`
+      );
+      // What the board thinks it is doing
+      log(
+        `   board ${await page.evaluate(() => {
+          const scene = (
+            window as unknown as {
+              game?: { scene: { getScene(k: string): Record<string, unknown> } };
+            }
+          ).game?.scene.getScene("GameScene");
+          const c = scene?.gameplayController as
+            | Record<string, unknown>
+            | undefined;
+          return JSON.stringify(
+            c && {
+              busy: c.isBusy,
+              selected: c.selectedPlayerId,
+              mode: c.currentActionMode,
+              step: c.currentStepId,
+              waypoints: c.waypoints,
+            }
+          );
+        })}`
       );
     }
     if (stuck >= 10) {

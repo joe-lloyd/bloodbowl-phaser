@@ -55,6 +55,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private remoteSelectionRing: Phaser.GameObjects.Ellipse;
   /** Gold ring at the feet of the ball carrier; the ball itself sits in their hands. */
   private carrierMarker: Phaser.GameObjects.Ellipse;
+  /** A football over the carrier's head, in case the model hides the ball. */
+  private carrierBadge: Phaser.GameObjects.Container;
   /** Distracted is a condition of a Standing player, so it gets its own mark. */
   private distractedMarker: Phaser.GameObjects.Container;
   /** Stars over a Stunned player, who lies like a Prone one. */
@@ -62,6 +64,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
   private anim: Animation = "idle";
   private facing: Facing;
+  /** The walk or fall being shown; resolves once it has played. */
+  public motion: Promise<void> = Promise.resolve();
   private animStart = 0;
   private phase = Math.random() * 1000;
   private shownFrame = "";
@@ -132,6 +136,20 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.distractedMarker.add([swirl, dizzy]);
     this.distractedMarker.setVisible(false);
     this.add(this.distractedMarker);
+
+    this.carrierBadge = scene.add.container(0, this.headY - 18);
+    const disc = scene.add.circle(0, 0, 10, 0x140c08, 0.85);
+    disc.setStrokeStyle(2, 0xffc83a);
+    const leather = scene.add.ellipse(0, 0, 13, 8, 0x8b4513);
+    leather.setStrokeStyle(1, 0x2a1408);
+    const laces = scene.add.graphics();
+    laces.lineStyle(1.2, 0xffffff);
+    laces.lineBetween(-3.5, 0, 3.5, 0);
+    laces.lineBetween(-1.5, -1.8, -1.5, 1.8);
+    laces.lineBetween(1.5, -1.8, 1.5, 1.8);
+    this.carrierBadge.add([disc, leather, laces]);
+    this.carrierBadge.setVisible(false);
+    this.add(this.carrierBadge);
 
     this.stunnedMarker = scene.add.text(0, -26, "★ ★", {
       fontSize: "13px",
@@ -339,6 +357,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    */
   public setCarryingBall(carrying: boolean): void {
     this.carrierMarker.setVisible(carrying);
+    this.carrierBadge.setVisible(carrying);
   }
 
   /**

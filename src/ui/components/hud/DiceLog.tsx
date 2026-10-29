@@ -13,6 +13,7 @@ import {
   resolveDisplayColor,
   LOG_COLOR_CLASSES,
 } from "./diceLogColor";
+import { DieFace, HudButton, Panel } from "../componentWarehouse/HudKit";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -77,6 +78,14 @@ function saveFontScale(scale: number): void {
 
 function clampFontScale(scale: number): number {
   return Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, scale));
+}
+
+/** A single number reads as a die; a list or a block face as a small tag. */
+function valueFaceClass(value: DiceRow["value"]): string {
+  return typeof value === "number" ||
+    (typeof value === "string" && /^\d+$/.test(value))
+    ? "text-[0.9375em]"
+    : "!h-auto max-w-[40%] whitespace-normal break-words py-0.5 text-center font-hud-label !text-[0.6875em] font-bold leading-tight";
 }
 
 const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
@@ -214,9 +223,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
 
   const adjustFontScale = (delta: number) => {
     setFontScale((prev) => {
-      const next = clampFontScale(
-        Math.round((prev + delta) * 1000) / 1000
-      );
+      const next = clampFontScale(Math.round((prev + delta) * 1000) / 1000);
       saveFontScale(next);
       return next;
     });
@@ -225,70 +232,73 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   // Color helper for team borders
   const getTeamColorClass = (teamId?: string) => {
     if (!teamId || typeof teamId !== "string")
-      return "bg-gray-700 border-gray-500";
+      return "bg-white/[0.03] border-hud-edge";
     // Simple toggle for now, ideally get from Team Data
-    if (teamId.includes("team1")) return "bg-red-900/80 border-red-500"; // Team 1 Red
-    if (teamId.includes("team2")) return "bg-blue-900/80 border-blue-500"; // Team 2 Blue
-    return "bg-gray-700 border-gray-500";
+    if (teamId.includes("team1"))
+      return "bg-white/[0.03] border-hud-blood-hot/70"; // Team 1 Red
+    if (teamId.includes("team2")) return "bg-white/[0.03] border-hud-info/70"; // Team 2 Blue
+    return "bg-white/[0.03] border-hud-edge";
   };
 
+  const tabClass = (active: boolean) =>
+    `relative font-hud-display text-hud-lg uppercase tracking-[0.04em] transition-colors ${
+      active ? "text-hud-bone" : "text-hud-mute hover:text-hud-dim"
+    }`;
+  const sizeButton =
+    "flex h-7 w-7 items-center justify-center rounded-hud border border-white/15 font-hud-label text-[12px] font-bold leading-none text-hud-dim transition-colors hover:border-hud-gold/60 hover:text-hud-gold disabled:cursor-not-allowed disabled:border-white/5 disabled:text-hud-mute/50";
+
   return (
-    <div className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto">
+    <Panel className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto">
       {/* Header / Tabs */}
-      <div className="flex items-center justify-between bg-black/80 px-3 py-1 border-t-2 border-x-2 border-bb-gold rounded-t-md z-10">
+      <div className="z-10 flex min-h-[40px] items-center justify-between gap-2 border-b border-hud-gold/20 px-3 py-1.5">
         {match ? (
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <button
               onClick={() => openTab("dice")}
-              className={`font-heading text-lg ${
-                tab === "dice" ? "text-bb-gold" : "text-gray-500"
-              }`}
+              className={tabClass(tab === "dice")}
             >
               DICE LOG
             </button>
             <button
               onClick={() => openTab("chat")}
-              className={`relative font-heading text-lg ${
-                tab === "chat" ? "text-bb-gold" : "text-gray-500"
-              }`}
+              className={tabClass(tab === "chat")}
             >
               CHAT
               {unread > 0 && (
-                <span className="absolute -top-1 -right-4 bg-red-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
+                <span className="absolute -right-4 -top-1 rounded-full bg-hud-blood px-1.5 py-0.5 font-hud-label text-[10px] font-bold leading-none text-white">
                   {unread}
                 </span>
               )}
             </button>
           </div>
         ) : (
-          <span className="font-heading text-bb-gold text-lg">DICE LOG</span>
+          <span className="font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
+            DICE LOG
+          </span>
         )}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">
+          <span className="hud-label truncate">
             {tab === "chat" ? match?.opponentName : "Recent Rolls"}
           </span>
           {tab === "dice" && (
-            <div
-              className="flex items-center gap-1"
-              title="Dice Log text size"
-            >
+            <div className="flex items-center gap-1" title="Dice Log text size">
               <button
                 type="button"
                 onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
                 disabled={fontScale <= FONT_SCALE_MIN}
-                className="w-7 h-7 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                className={sizeButton}
                 aria-label="Decrease Dice Log text size"
               >
                 A-
               </button>
-              <span className="text-[10px] text-gray-400 w-8 text-center">
+              <span className="w-8 text-center font-hud-label text-[11px] text-hud-dim">
                 {Math.round(fontScale * 100)}%
               </span>
               <button
                 type="button"
                 onClick={() => adjustFontScale(FONT_SCALE_STEP)}
                 disabled={fontScale >= FONT_SCALE_MAX}
-                className="w-7 h-7 leading-none text-xs font-bold text-gray-300 hover:text-bb-gold disabled:text-gray-700 disabled:cursor-not-allowed border border-gray-600 rounded"
+                className={sizeButton}
                 aria-label="Increase Dice Log text size"
               >
                 A+
@@ -299,16 +309,16 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       </div>
 
       {/* Panel body */}
-      <div className="relative flex-1 overflow-hidden border-2 border-bb-gold rounded-b-md bg-black/60 flex flex-col">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         {tab === "dice" ? (
           <>
             {/* Scrollable Content - Scrollbar Hidden */}
             <div
-              className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-12"
+              className="absolute inset-0 overflow-y-auto no-scrollbar p-2 pb-10"
               style={{ fontSize: `${fontScale}rem` }}
             >
               {logs.length === 0 && (
-                <div className="text-gray-500 text-[0.875em] italic text-center p-2">
+                <div className="p-3 text-center font-hud-body text-[0.875em] italic text-hud-mute">
                   No rolls yet...
                 </div>
               )}
@@ -323,41 +333,34 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                   );
                   const colorClass =
                     color === "unknown"
-                      ? "!border-gray-500 !bg-gray-900/20"
+                      ? "!border-hud-edge !bg-white/[0.03]"
                       : LOG_COLOR_CLASSES[color];
                   return (
                     <div
                       key={log.id}
-                      className={`
-                                relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
-                                ${getTeamColorClass(log.teamId)}
-                                ${colorClass}
-                            `}
+                      className={`relative overflow-hidden rounded-hud border-l-[3px] animate-push-down ${getTeamColorClass(log.teamId)} ${colorClass}`}
                     >
-                      <div className="p-1.5">
-                        {/* Header Row: Type & Dice + Value */}
-                        <div className="flex justify-between items-center text-[0.6875em] text-gray-300 mb-0.5">
-                          <span className="font-bold uppercase tracking-wide text-bb-parchment">
-                            {log.rollType}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono bg-black/40 px-1 rounded text-gray-400">
+                      <div className="flex items-center gap-2 py-1.5 pl-2.5 pr-1.5">
+                        <div className="min-w-0 flex-1">
+                          {/* Header Row: roll type and dice */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
+                              {log.rollType}
+                            </span>
+                            <span className="shrink-0 font-mono text-[0.625em] text-hud-mute">
                               {log.diceType}
                             </span>
-                            <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
-                              {Array.isArray(log.value)
-                                ? `[${log.value.join(", ")}]`
-                                : log.value}
-                            </span>
                           </div>
-                        </div>
-
-                        {/* Result Row - Full Width Description */}
-                        <div className="flex justify-between items-start">
-                          <span className="text-[0.75em] font-medium text-white/90 leading-snug">
+                          {/* Result Row - Full Width Description */}
+                          <span className="block font-hud-body text-[0.8125em] font-medium leading-snug text-hud-bone">
                             {log.description}
                           </span>
                         </div>
+                        <DieFace className={valueFaceClass(log.value)}>
+                          {Array.isArray(log.value)
+                            ? `[${log.value.join(", ")}]`
+                            : log.value}
+                        </DieFace>
                       </div>
                     </div>
                   );
@@ -376,35 +379,29 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 return (
                   <div
                     key={log.id}
-                    className={`
-                                relative rounded border-l-4 shadow-sm animate-push-down overflow-hidden
-                                ${getTeamColorClass(log.teamId)}
-                                ${colorClass}
-                            `}
+                    className={`relative overflow-hidden rounded-hud border-l-[3px] animate-push-down ${getTeamColorClass(log.teamId)} ${colorClass}`}
                   >
-                    <div className="p-1.5">
-                      <div className="flex justify-between items-center text-[0.6875em] text-gray-300 mb-0.5">
-                        <span className="font-bold uppercase tracking-wide text-bb-parchment">
+                    <div className="flex items-center gap-2 py-1.5 pl-2.5 pr-1.5">
+                      <div className="flex min-w-0 flex-1 flex-col items-start">
+                        <span className="font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
                           {CATEGORY_LABELS[log.category]}
                         </span>
-                        {log.roll !== undefined && (
-                          <span className="font-black text-white bg-black/60 px-1.5 rounded border border-white/20">
-                            {Array.isArray(log.roll)
-                              ? `[${log.roll.join(", ")}]`
-                              : log.roll}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-start">
-                        <span className="text-[0.75em] font-bold text-white leading-snug">
+                        <span className="font-hud-body text-[0.8125em] font-semibold leading-snug text-hud-bone">
                           {log.headline}
                         </span>
                         {log.detail && (
-                          <span className="text-[0.75em] font-medium text-white/80 leading-snug">
+                          <span className="font-hud-body text-[0.8125em] leading-snug text-hud-bone/75">
                             {log.detail}
                           </span>
                         )}
                       </div>
+                      {log.roll !== undefined && (
+                        <DieFace className={valueFaceClass(log.roll)}>
+                          {Array.isArray(log.roll)
+                            ? `[${log.roll.join(", ")}]`
+                            : log.roll}
+                        </DieFace>
+                      )}
                     </div>
                   </div>
                 );
@@ -412,28 +409,28 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
             </div>
 
             {/* Fade Mask at Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-10"></div>
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-10 bg-gradient-to-t from-hud-slab to-transparent"></div>
           </>
         ) : (
           <>
             {/* Chat history (newest at bottom) */}
-            <div className="flex-1 overflow-y-auto no-scrollbar p-2 flex flex-col justify-end gap-1">
+            <div className="flex flex-1 flex-col justify-end gap-1 overflow-y-auto no-scrollbar p-2">
               {chat.length === 0 && (
-                <div className="text-gray-500 text-sm italic text-center p-2">
+                <div className="p-2 text-center text-hud-sm italic text-hud-mute">
                   Say hello…
                 </div>
               )}
               {chat.map((message, index) => (
                 <div
                   key={`${message.ts}-${index}`}
-                  className={`max-w-[85%] rounded px-2 py-1 text-sm ${
+                  className={`max-w-[85%] rounded-hud px-2.5 py-1.5 font-hud-body text-hud-sm text-hud-bone ${
                     message.fromSelf
-                      ? "self-end bg-blue-900/70 text-white"
-                      : "self-start bg-gray-700/80 text-white"
+                      ? "self-end border border-hud-gold/30 bg-hud-gold/15"
+                      : "self-start border border-white/10 bg-hud-raise"
                   }`}
                 >
                   {!message.fromSelf && (
-                    <span className="block text-[10px] text-bb-gold font-bold">
+                    <span className="hud-label block text-hud-2xs text-hud-gold">
                       {message.senderName}
                     </span>
                   )}
@@ -442,7 +439,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
               ))}
             </div>
             {/* Composer */}
-            <div className="flex border-t border-bb-gold/50">
+            <div className="flex gap-1.5 border-t border-hud-gold/20 p-1.5">
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -451,14 +448,11 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                   e.stopPropagation();
                 }}
                 placeholder="Message…"
-                className="flex-1 bg-black/60 text-white text-sm px-2 py-1.5 outline-none"
+                className="hud-field flex-1 !min-h-[32px]"
               />
-              <button
-                onClick={sendDraft}
-                className="px-3 text-bb-gold font-heading text-sm"
-              >
+              <HudButton size="sm" variant="gold" onClick={sendDraft}>
                 SEND
-              </button>
+              </HudButton>
             </div>
           </>
         )}
@@ -492,6 +486,6 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
           margin-bottom: 0.3rem; /* Ensure final state matches animation end */
         }
       `}</style>
-    </div>
+    </Panel>
   );
 };

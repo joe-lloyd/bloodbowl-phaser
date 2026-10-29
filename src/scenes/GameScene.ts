@@ -297,6 +297,13 @@ export class GameScene extends Phaser.Scene {
       away: this.team2.colors.primary,
     });
 
+    // Only a press on the canvas itself is a board click. A dialog that
+    // opens under a still mouse leaves Phaser thinking the pointer is over
+    // the canvas, so a click on the dialog's button came through as a click
+    // on the board behind it and deselected the player.
+    const onCanvas = (pointer: Phaser.Input.Pointer) =>
+      pointer.event?.target === this.game.canvas;
+
     // A click on nothing deselects. Behind everything, over the whole stadium.
     this.add
       .rectangle(0, 0, this.stadium.width, this.stadium.height, 0x000000, 0)
@@ -304,6 +311,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-1)
       .setInteractive()
       .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        if (!onCanvas(pointer)) return;
         // Squares on the pitch belong to the gameplay controller; only a
         // click in the stands or the surrounds deselects.
         const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
@@ -343,6 +351,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (!onCanvas(pointer)) return;
       console.log(
         `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
       );
@@ -472,14 +481,11 @@ export class GameScene extends Phaser.Scene {
         this.cameraController.overview();
         return;
       }
-      this.cameraController.focusSquare(
-        player.gridPosition.x,
-        player.gridPosition.y
-      );
+      this.frameReach(player.id, player.gridPosition);
     });
-    this.subscribe(GameEventNames.PlayerMoved, ({ to }) => {
+    this.subscribe(GameEventNames.PlayerMoved, ({ playerId, to }) => {
       if (this.isSetupActive) return;
-      this.cameraController.focusSquare(to.x, to.y, 900);
+      this.frameReach(playerId, to, 900);
     });
     this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
       // Setup wants both benches in view for dragging players on.
@@ -501,16 +507,12 @@ export class GameScene extends Phaser.Scene {
         this.cameraController.overview();
         return;
       }
-      const ball = resolveBallRepresentation(this.gameService.getState(), [
-        ...this.team1.players,
-        ...this.team2.players,
-      ]);
-      const acting = [...this.team1.players, ...this.team2.players]
-        .filter((p) => p.teamId === teamId && p.gridPosition)
-        .map((p) => p.gridPosition!);
-      const squares = ball.kind === "none" ? acting : [...acting, ball.square];
-      if (squares.length === 0) this.cameraController.overview();
-      else this.cameraController.focusSquares(squares);
+      this.frameActingTeam(teamId);
+    });
+    // Once a player is done, show the team-mates still to go
+    this.subscribe(GameEventNames.PlayerActivated, () => {
+      const teamId = this.gameService.getState().activeTeamId;
+      if (teamId) this.frameActingTeam(teamId, 900);
     });
 
     // The board is built: the loading screen can go, as the camera comes in.
@@ -645,7 +647,12 @@ export class GameScene extends Phaser.Scene {
     // The coin flip only exists before the first drive — later drives set
     // the kicking team automatically, so never re-show the overlay then.
     this.subscribe(GameEventNames.UI_RequestCoinFlipState, () => {
-      if (this.isSetupActive && this.gameService.canCoinFlip()) {
+      // Only once the introductions are over
+      if (
+        this.isSetupActive &&
+        this.gameService.getSubPhase() === SubPhase.COIN_FLIP &&
+        this.gameService.canCoinFlip()
+      ) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.team1,
           team2: this.team2,
@@ -695,14 +702,17 @@ export class GameScene extends Phaser.Scene {
     // Online: the other coach's move, drawn as one line while the player
     // runs it, then cleared
     let otherMoveTimer: ReturnType<typeof setTimeout> | null = null;
-    this.subscribe(GameEventNames.UI_ShowOtherCoachMove, ({ from, path, ma }) => {
-      this.pitch.drawMovementPath([from, ...path], [], ma);
-      if (otherMoveTimer) clearTimeout(otherMoveTimer);
-      otherMoveTimer = setTimeout(
-        () => this.pitch.clearPath(),
-        600 + path.length * 350
-      );
-    });
+    this.subscribe(
+      GameEventNames.UI_ShowOtherCoachMove,
+      ({ from, path, ma }) => {
+        this.pitch.drawMovementPath([from, ...path], [], ma);
+        if (otherMoveTimer) clearTimeout(otherMoveTimer);
+        otherMoveTimer = setTimeout(
+          () => this.pitch.clearPath(),
+          600 + path.length * 350
+        );
+      }
+    );
 
     // Touchdown celebration: the scoring team's players on the pitch jump
     this.subscribe(GameEventNames.Touchdown, (data) => {
@@ -730,12 +740,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
+  /** The coin toss is up; SetupPhaseHandler shows it. */
   public startSetupPhase(): void {
     this.isSetupActive = true;
-    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-      team1: this.team1,
-      team2: this.team2,
-    });
+  }
+
+  /** A team's players in the dugout cheer, for its introduction. */
+  public celebrateDugout(teamId: string): Promise<void> {
+    return this.dugouts.get(teamId)?.animateCelebration() ?? Promise.resolve();
   }
 
   // Delegate to orchestrator
@@ -1115,6 +1127,46 @@ export class GameScene extends Phaser.Scene {
    * the player sprite even starts walking. `delayMs` holds the ball on its
    * start square until the walking player reaches it (mid-path pickups).
    */
+  /**
+   * Frame the acting team's players who have not yet acted, with the ball.
+   * At the start of a turn that is every player the coach may move.
+   */
+  private frameActingTeam(teamId: string, duration?: number): void {
+    const state = this.gameService.getState();
+    const players = [...this.team1.players, ...this.team2.players];
+    const ball = resolveBallRepresentation(state, players);
+    const acting = players
+      .filter(
+        (p) =>
+          p.teamId === teamId &&
+          p.gridPosition &&
+          !state.turn.activatedPlayerIds.has(p.id)
+      )
+      .map((p) => p.gridPosition!);
+    const squares = ball.kind === "none" ? acting : [...acting, ball.square];
+    if (squares.length === 0) this.cameraController.overview();
+    else this.cameraController.focusSquares(squares, duration);
+  }
+
+  /**
+   * Frame a player with every square they can still move to, so the coach
+   * can click where they want to end up. Anyone who cannot move (an
+   * opponent, a spent player) just gets their own square.
+   */
+  private frameReach(
+    playerId: string,
+    from: { x: number; y: number },
+    duration?: number
+  ): void {
+    const reach = this.gameService.getAvailableMovements(playerId);
+    this.cameraController.focusSquares([from, ...reach], duration);
+  }
+
+  /** Resolves once the player's walk on screen has finished. */
+  public playerSettled(playerId: string): Promise<void> {
+    return this.playerSprites.get(playerId)?.motion ?? Promise.resolve();
+  }
+
   public animateBallAlong(
     from: { x: number; y: number },
     path: { x: number; y: number }[],

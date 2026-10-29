@@ -8,6 +8,8 @@ import {
   readStoredTeam,
 } from "../../data/persistence/teamPersistence";
 import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
+import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
+import { isSeedOwned } from "../../seeding/seedMeta";
 import {
   cleanupDevelopmentSeedData,
   seedDevelopmentData,
@@ -109,6 +111,10 @@ export function loadTeams(): Team[] {
     // active; an unplayed team is left in draft (see teamLifecycle.ts).
     backfillFirstMatchPlayedAt(team);
     migrateAdvancementMode(team);
+    // Seed teams saved before the Veteran rule (D8) have none
+    if (isSeedOwned(team) && !team.players.some((player) => player.veteran)) {
+      chooseFirstLinemanAsVeteran(team);
+    }
   });
   return teams;
 }

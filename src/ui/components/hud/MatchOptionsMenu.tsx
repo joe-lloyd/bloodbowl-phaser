@@ -3,6 +3,7 @@ import {
   MatchOptionsMenuActionEntry,
   MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
+import { hudButtonClass } from "../componentWarehouse/HudKit";
 
 interface MatchOptionsMenuProps {
   entries: MatchOptionsMenuEntry[];
@@ -161,7 +162,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
         aria-expanded={open}
         aria-controls="match-options-menu"
         onClick={() => (open ? close() : setOpen(true))}
-        className="rounded border-2 border-bb-dark-gold bg-black/80 px-3 py-2 font-heading uppercase text-bb-gold shadow-xl hover:bg-black/95"
+        className="hud-slab flex min-h-[40px] items-center gap-2 px-3.5 font-hud-label text-[15px] font-bold uppercase tracking-[0.08em] text-hud-bone transition-colors hover:border-hud-gold/70 hover:text-hud-gold aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
       >
         ⚙ Match Options
       </button>
@@ -172,7 +173,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
           ref={menuRef}
           role="menu"
           aria-label="Match options"
-          className="absolute bottom-full right-0 z-50 mb-2 w-72 rounded border-2 border-bb-gold bg-slate-900/95 p-2 shadow-2xl"
+          className="hud-slab absolute right-0 top-full z-50 mt-2 w-72 p-2 animate-hud-in"
         >
           {confirming ? (
             <div
@@ -180,10 +181,10 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
               aria-label={confirming.confirm!.title}
               className="flex flex-col gap-2 p-1"
             >
-              <p className="font-heading text-bb-gold">
+              <p className="font-hud-display text-hud-lg uppercase tracking-[0.03em] text-hud-bone">
                 {confirming.confirm!.title}
               </p>
-              <p className="text-sm text-gray-200">
+              <p className="text-hud-sm text-hud-bone/85">
                 {confirming.confirm!.message}
               </p>
               <div className="mt-1 flex justify-end gap-2">
@@ -191,7 +192,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                   ref={cancelRef}
                   type="button"
                   onClick={() => setConfirming(null)}
-                  className="rounded border border-bb-gold px-3 py-1 text-sm text-bb-parchment hover:bg-slate-800"
+                  className={hudButtonClass("ghost", "sm")}
                 >
                   {confirming.confirm!.cancelLabel}
                 </button>
@@ -202,7 +203,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                     close();
                     onSelect(id);
                   }}
-                  className="rounded border border-red-500 bg-red-700 px-3 py-1 text-sm text-white hover:bg-red-600"
+                  className={hudButtonClass("primary", "sm")}
                 >
                   {confirming.confirm!.confirmLabel}
                 </button>
@@ -213,7 +214,10 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
               {entries.map((entry) => {
                 if (entry.type === "panel") {
                   return (
-                    <li key={entry.id} className="px-2 py-1.5">
+                    <li
+                      key={entry.id}
+                      className="mt-1 border-t border-white/10 px-2 pb-1 pt-2.5"
+                    >
                       {entry.render()}
                     </li>
                   );
@@ -227,17 +231,17 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                       aria-disabled={entry.disabled || undefined}
                       tabIndex={entry.disabled ? -1 : 0}
                       onClick={() => selectEntry(entry)}
-                      className={`w-full rounded px-2 py-1.5 text-left text-sm font-heading transition-colors ${
+                      className={`w-full rounded-hud border-l-[3px] px-2.5 py-2 text-left font-hud-label text-[15px] font-bold uppercase tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold ${
                         entry.disabled
-                          ? "cursor-default text-gray-400"
+                          ? "cursor-default border-transparent text-hud-mute"
                           : entry.destructive
-                            ? "text-red-300 hover:bg-red-900/60"
-                            : "text-bb-parchment hover:bg-slate-800"
+                            ? "border-hud-bad/60 text-[#ff8a8a] hover:bg-hud-blood-deep/50"
+                            : "border-transparent text-hud-bone hover:border-hud-gold hover:bg-white/5"
                       }`}
                     >
                       <div>{entry.label}</div>
                       {entry.description && (
-                        <div className="text-xs font-body text-gray-400">
+                        <div className="font-hud-body text-hud-xs font-normal normal-case tracking-normal text-hud-dim">
                           {entry.description}
                         </div>
                       )}

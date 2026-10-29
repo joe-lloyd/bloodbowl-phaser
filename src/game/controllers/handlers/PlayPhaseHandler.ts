@@ -10,6 +10,7 @@ import { BombSprite } from "../../elements/BombSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../../elements/BallSprite";
 import { ISO } from "../../elements/GridUtils";
 import { PLAYER_DEPTH } from "../../elements/PlayerSprite";
+import { DiceWatch } from "../../presentation/diceWatch";
 
 /**
  * PlayPhaseHandler
@@ -30,6 +31,7 @@ export class PlayPhaseHandler implements PhaseHandler {
     numDice: number;
     isAttackerChoice: boolean;
   } | null = null;
+  private dice: DiceWatch | null = null;
 
   constructor(
     private scene: GameScene,
@@ -39,12 +41,15 @@ export class PlayPhaseHandler implements PhaseHandler {
 
   enter(): void {
     console.log("[PlayPhaseHandler] Entering Play Phase");
+    this.dice = new DiceWatch(this.eventBus);
     this.setupListeners();
     this.scene["startPlayPhase"](); // Trigger scene visual state
   }
 
   exit(): void {
     this.removeListeners();
+    this.dice?.dispose();
+    this.dice = null;
   }
 
   private register(event: string, handler: (data: any) => void): void {
@@ -236,9 +241,10 @@ export class PlayPhaseHandler implements PhaseHandler {
     });
 
     // Status Updates
+    // A fall shows once its dice land and the step into the square plays.
     this.register(GameEventNames.PlayerKnockedDown, (data) => {
       const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) sprite.updateStatus();
+      if (sprite) void this.afterStep(sprite).then(() => sprite.updateStatus());
     });
 
     // Crowd surf: the surfed player must leave the pitch NOW. Their sprite
@@ -268,9 +274,16 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.PlayerStatusChanged, (player) => {
       // One owner decides whether this player is still represented on the
       // pitch or belongs to a dugout box (KO, casualty, sent off).
-      this.scene.reconcilePlayerLocation(player.id);
-      // A player who just left the pitch may have been standing on the ball.
-      this.scene.reconcileBallVisual();
+      const reconcile = () => {
+        this.scene.reconcilePlayerLocation(player.id);
+        // A player who just left the pitch may have been standing on the ball.
+        this.scene.reconcileBallVisual();
+      };
+      const sprite = this.scene["playerSprites"].get(player.id);
+      // Someone still on the pitch changes look after their step plays.
+      if (sprite && player.gridPosition)
+        void this.afterStep(sprite).then(reconcile);
+      else reconcile();
     });
 
     this.register(GameEventNames.PlayerStoodUp, (data) => {
@@ -311,15 +324,31 @@ export class PlayPhaseHandler implements PhaseHandler {
     );
   }
 
-  private handlePlayerMove(data: any): void {
-    // Trigger Animation on Scene
-    if (data.path && data.path.length > 0) {
-      const sprite = this.scene["playerSprites"].get(data.playerId);
-      if (sprite) {
-        const pixelPath = data.path.map((step: any) =>
-          this.scene["pitch"].getPixelPosition(step.x, step.y)
-        );
-
+  /**
+   * Walk the mover along the path once the dice deciding the step have
+   * landed, after any walk still playing. The engine may wait on this.
+   */
+  private handlePlayerMove(
+    data: GameEventMap[GameEventNames.PlayerMoved]
+  ): void {
+    const acknowledge = () => {
+      if (data.presentationId)
+        this.eventBus.emit(GameEventNames.UI_PresentationAcknowledged, {
+          id: data.presentationId,
+        });
+    };
+    const sprite = this.scene["playerSprites"].get(data.playerId);
+    if (!data.path?.length || !sprite) {
+      this.scene.refreshDugouts();
+      acknowledge();
+      return;
+    }
+    const pixelPath = data.path.map((step) =>
+      this.scene["pitch"].getPixelPosition(step.x, step.y)
+    );
+    sprite.motion = sprite.motion
+      .then(() => this.dice?.landed())
+      .then(async () => {
         // If the mover carries the ball, walk it along with them instead of
         // letting the BallPlaced teleport leave it at the destination. The
         // engine says exactly where the ball joined (start square, or the
@@ -332,24 +361,25 @@ export class PlayPhaseHandler implements PhaseHandler {
             (data.ballJoinStep || 0) * 180
           );
         }
-
-        const flight = data.thrown
+        await (data.thrown
           ? sprite.animateThrow(pixelPath)
-          : sprite.animateMovement(pixelPath);
-        flight.then(() => {
-          this.scene.refreshDugouts();
-          // Check follow up
-          if (data.followUpData) {
-            this.eventBus.emit(
-              GameEventNames.UI_FollowUpPrompt,
-              data.followUpData
-            );
-          }
-        });
-      }
-    } else {
-      this.scene.refreshDugouts();
-    }
+          : sprite.animateMovement(pixelPath));
+        this.scene.refreshDugouts();
+        if (data.followUpData) {
+          this.eventBus.emit(
+            GameEventNames.UI_FollowUpPrompt,
+            data.followUpData
+          );
+        }
+      })
+      .finally(acknowledge);
+  }
+
+  /** The dice have landed and the step that led here has played. */
+  private async afterStep(sprite: { motion: Promise<void> }): Promise<void> {
+    await this.dice?.landed();
+    // Read after the dice: the move that carries the fall is announced last
+    await sprite.motion;
   }
 
   /** A pass: an arc from the thrower's hands, higher the longer the throw. */
@@ -432,7 +462,8 @@ export class PlayPhaseHandler implements PhaseHandler {
       onUpdate: (tw) => {
         const t = tw.getValue() ?? 0;
         bomb.x = Phaser.Math.Linear(p0.x, p1.x, t);
-        bomb.y = Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
+        bomb.y =
+          Phaser.Math.Linear(p0.y, p1.y, t) - arc * Math.sin(Math.PI * t);
         bomb.rotation += 0.18;
       },
       onComplete: () => bomb.destroy(),

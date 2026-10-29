@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sketch B: Ironclad Dugout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Crimson+Pro:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: dark; --iron:#23201d; --iron2:#2f2a25; --rivet:#8a7350; --gold:#c9a24c; --gold2:#f0d28a; --blood:#7d1414; --bone:#efe3c8; --dim:#b2a283; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #0b0907; color: var(--bone); font-family: "Crimson Pro", serif; }
+  .stage { position: relative; height: 720px; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 55%, transparent 40%, #000d 100%),
+      repeating-conic-gradient(#2f5a2a 0 25%, #29502a 0 50%) 0 0/64px 64px; }
+  .plate { background: linear-gradient(180deg, var(--iron2), var(--iron)); border: 3px solid #0d0b09; outline: 1px solid var(--gold); outline-offset: -7px; box-shadow: 0 10px 30px #000c, inset 0 1px 0 #ffffff14; position: relative; }
+  .plate::before, .plate::after { content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #e6c98c, var(--rivet) 60%, #3a2e1d); top: 9px; left: 9px; box-shadow: calc(100% - 0px) 0 0 0 transparent; }
+  .plate::after { left: auto; right: 9px; }
+  .engraved { font-family: "Pirata One"; color: var(--gold2); text-shadow: 0 1px 0 #000, 0 0 12px #c9a24c44; letter-spacing: .03em; }
+  .bug { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 600px; display: flex; align-items: center; justify-content: space-between; padding: 12px 26px; }
+  .side { display: flex; align-items: center; gap: 12px; }
+  .shield { width: 30px; height: 36px; clip-path: polygon(0 0,100% 0,100% 60%,50% 100%,0 60%); }
+  .num { font-family: "Pirata One"; font-size: 44px; color: var(--bone); line-height: 1; }
+  .mid { text-align: center; } .mid .engraved { font-size: 26px; display: block; line-height: 1; } .mid small { color: var(--dim); font-size: 13px; }
+  .nm { font-weight: 700; font-size: 18px; } .sub { font-size: 13px; color: var(--dim); }
+  .dialog { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); width: 430px; padding: 26px 30px; text-align: center; }
+  .dialog h2 { font-size: 36px; margin-bottom: 8px; }
+  .dialog p { font-size: 17px; color: #e6d9bd; line-height: 1.4; }
+  .scroll { margin: 14px auto 18px; padding: 8px 12px; background: #efe3c8; color: #3a2414; font-weight: 700; border-radius: 2px; box-shadow: inset 0 0 18px #8a6a3a66; }
+  .row { display: flex; gap: 12px; justify-content: center; }
+  .btn { font-family: "Pirata One"; font-size: 22px; padding: 8px 22px; border: 2px solid var(--gold); color: var(--bone); background: linear-gradient(#3b342d, #221e1a); box-shadow: inset 0 1px 0 #fff2, 0 3px 0 #000; }
+  .btn.red { background: linear-gradient(#a11d1d, #5e0f0f); }
+  .tray { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 420px; padding: 14px; }
+  .tray .dice { height: 140px; display: flex; align-items: center; justify-content: center; background: repeating-linear-gradient(90deg, #3d2a1c 0 22px, #352417 22px 44px); border: 2px solid #000; box-shadow: inset 0 6px 18px #000c; }
+  .die { width: 54px; height: 54px; background: #e9dfc8; border-radius: 8px; display: grid; place-items: center; font-family: "Pirata One"; font-size: 32px; color: #4a1010; box-shadow: 0 6px 12px #000a; }
+  .tray .cap { display: flex; justify-content: space-between; margin-bottom: 8px; padding: 0 12px; }
+  .log { position: absolute; bottom: 14px; left: 14px; width: 300px; padding: 16px 16px 10px; }
+  .log h3 { font-size: 24px; text-align: center; margin-bottom: 6px; }
+  .entry { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; border-top: 1px dashed #c9a24c44; font-size: 15px; }
+  .entry b { color: var(--gold2); }
+  .good { color: #a9d99a; } .bad { color: #ef8a7a; } .neutral { color: #9cc3e6; }
+  .note { position: absolute; top: 14px; left: 14px; max-width: 290px; padding: 18px 18px 14px; font-size: 14px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note plate"><div class="engraved" style="font-size:24px">Sketch B: Ironclad Dugout</div><p>Riveted iron plates, engraved gold, a parchment slip for the rules text. Heavy, ornamental, tabletop.</p></div>
+  <div class="bug plate">
+    <div class="side"><span class="shield" style="background:#3d6fe0"></span><div><div class="nm">Reikland Reavers</div><div class="sub">Turn 2 of 6 · 2 re-rolls</div></div><span class="num">1</span></div>
+    <div class="mid"><span class="engraved">Turn 2</span><small>First half</small></div>
+    <div class="side"><span class="num">0</span><div style="text-align:right"><div class="nm">Gouged Eye</div><div class="sub">Turn 1 of 6 · 1 re-roll</div></div><span class="shield" style="background:#d0283a"></span></div>
+  </div>
+  <div class="dialog plate">
+    <h2 class="engraved">Blitzer: Dodge</h2>
+    <div class="scroll">Dodge: 3+. A fall is a turnover.<br />No re-roll available.</div>
+    <div class="row"><button class="btn">Stop here</button><button class="btn red">Dodge!</button></div>
+  </div>
+  <div class="tray plate">
+    <div class="cap"><span class="engraved">Reikland Reavers</span><span class="good">Dodge 5: success</span></div>
+    <div class="dice"><div class="die">5</div></div>
+  </div>
+  <div class="log plate">
+    <h3 class="engraved">Dice Log</h3>
+    <div class="entry good"><span><b>Dodge</b> Blitzer, 5 vs 3+</span><span>5</span></div>
+    <div class="entry bad"><span><b>Armour</b> holds, 7 vs 9</span><span>7</span></div>
+    <div class="entry neutral"><span><b>Kickoff</b> Blitz!</span><span>9</span></div>
+  </div>
+</div>
+</body>
+</html>

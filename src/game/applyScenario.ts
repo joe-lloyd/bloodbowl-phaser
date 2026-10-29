@@ -28,8 +28,7 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
     // next scenario load strips them again
     p.skills?.forEach((entry) => {
       const type = typeof entry === "object" ? entry.type : entry;
-      const parameter =
-        typeof entry === "object" ? entry.parameter : undefined;
+      const parameter = typeof entry === "object" ? entry.parameter : undefined;
       if (hasSkill(player.skills, type)) return;
       player.skills.push({
         ...getSkill(type, parameter),
@@ -37,6 +36,21 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
       });
     });
   });
+}
+
+/** Where the ball starts: in a carrier's hands, on the ground, or nowhere. */
+function ballSquare(scenario: Scenario): { x: number; y: number } | null {
+  const { team1Placements, team2Placements, ballPosition } = scenario.setup;
+  const carriers = [...team1Placements, ...team2Placements].filter(
+    (p) => p.hasBall
+  );
+  if (carriers.length + (ballPosition ? 1 : 0) > 1) {
+    throw new Error(
+      `Scenario "${scenario.id}" puts the ball in more than one place`
+    );
+  }
+  const at = carriers[0] ?? ballPosition;
+  return at ? { x: at.x, y: at.y } : null;
 }
 
 export function applyScenario(
@@ -64,8 +78,7 @@ export function applyScenario(
   // other scenario is a mid-drive situation, so it defaults to turn 2 rather
   // than making it look like the opening turn. A scenario may pin its own turn.
   const turnNumber =
-    scenario.setup.turn ??
-    (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
+    scenario.setup.turn ?? (scenario.setup.phase === GamePhase.KICKOFF ? 0 : 2);
 
   return {
     phase: scenario.setup.phase,
@@ -90,9 +103,7 @@ export function applyScenario(
       [team2.id]: 0,
     },
     weather: scenario.setup.weather ?? "Nice",
-    ballPosition: scenario.setup.ballPosition
-      ? { ...scenario.setup.ballPosition }
-      : null,
+    ballPosition: ballSquare(scenario),
     activePlayer: null,
   };
 }

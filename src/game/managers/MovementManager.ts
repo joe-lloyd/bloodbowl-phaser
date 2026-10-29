@@ -48,6 +48,13 @@ import {
 import { DesperateMeasure } from "../inducements/desperateMeasures";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { isSecuringBall } from "../rules/secureBall";
+import {
+  awaitPresentation,
+  nextPresentationId,
+} from "../presentation/presentationGate";
+
+/** Longest wait on the dice and the walk before a run scores, plus 200 ms a square. */
+const SCORE_RUN_WAIT_MS = 3500;
 
 export class MovementManager {
   private movementValidator: MovementValidator = new MovementValidator();
@@ -639,6 +646,9 @@ export class MovementManager {
         if (isInEndZone(currentPos, GameConfig.PITCH_WIDTH, side)) {
           player.gridPosition = currentPos;
           this.state.turn.movementUsed.set(playerId, preUsed + stepsTaken);
+          // The touchdown waits until the scorer is seen standing in the
+          // End Zone, not when the dice for the run are rolled.
+          const presentationId = nextPresentationId("score-run");
           this.eventBus.emit(GameEventNames.PlayerMoved, {
             playerId,
             from: result.path[0] || currentPos,
@@ -647,7 +657,16 @@ export class MovementManager {
             ballFrom: ballFrom ?? undefined,
             ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
             ballJoinStep,
+            presentationId,
           });
+          if (context) {
+            await awaitPresentation(
+              this.eventBus,
+              context.delay,
+              presentationId,
+              SCORE_RUN_WAIT_MS + completedPath.length * 200
+            );
+          }
           this.callbacks.onTouchdown?.(player.teamId, player.id);
           return Promise.resolve();
         }

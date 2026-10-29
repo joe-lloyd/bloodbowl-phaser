@@ -44,7 +44,11 @@ export interface BrowserTestBridge {
   /** The decision the game is waiting on, if any. */
   pendingDecision(): PendingDecision | null;
   /** Current phase / sub-phase, without parsing the snapshot. */
-  phase(): { phase: string; subPhase: string | null; activeTeamId: string | null };
+  phase(): {
+    phase: string;
+    subPhase: string | null;
+    activeTeamId: string | null;
+  };
   /** The Phaser scene keys currently active, for scene-transition assertions. */
   scenes(): string[];
   /** Both teams in `team1`, `team2` order, for stable reference resolution. */
@@ -59,6 +63,8 @@ export interface BrowserTestBridge {
   squareToCanvas(gridX: number, gridY: number): { x: number; y: number } | null;
   /** True while the match camera is panning or zooming, when canvas points move. */
   cameraMoving(): boolean;
+  /** Names of the layers drawn on the pitch, such as "setup_zone_highlight". */
+  pitchLayers(): string[];
   /**
    * The *live* design-space canvas size. Deliberately read from the running
    * Phaser scale manager rather than `GameConfig`: the scale manager fits the
@@ -122,7 +128,10 @@ interface BridgeScene {
   scene: { key: string };
   cameras?: { main?: BridgeCamera };
   getPitch?: () =>
-    | { getPixelPosition(x: number, y: number): { x: number; y: number } }
+    | {
+        getPixelPosition(x: number, y: number): { x: number; y: number };
+        layerNames(): string[];
+      }
     | undefined;
 }
 
@@ -157,7 +166,8 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
   const bridge: BrowserTestBridge = {
     version: TEST_BRIDGE_VERSION,
     snapshot: () => structuredClone(game.snapshot()),
-    events: (sinceIndex = 0) => structuredClone(game.events().slice(sinceIndex)),
+    events: (sinceIndex = 0) =>
+      structuredClone(game.events().slice(sinceIndex)),
     pendingDecision: () => structuredClone(game.pendingDecision()),
     phase: () => {
       const snapshot = game.snapshot();
@@ -188,6 +198,8 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
         const cam = scene.cameras?.main;
         return !!cam && (cam.panEffect.isRunning || cam.zoomEffect.isRunning);
       }),
+    pitchLayers: () =>
+      activeScenes().flatMap((scene) => scene.getPitch?.()?.layerNames() ?? []),
     canvasSize: () => {
       const scale = phaserGame()?.scale;
       return {

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sketch C: Chalk Talk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Kalam:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: dark; --slate:#1d2621f2; --chalk:#eef0e6; --dim:#a7b0a4; --yellow:#f3d55b; --red:#ff6b5b; --blue:#78b4ff; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #0b0f0c; color: var(--chalk); font-family: Kalam, cursive; }
+  .stage { position: relative; height: 720px; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 55%, transparent 40%, #000d 100%),
+      repeating-conic-gradient(#2f5a2a 0 25%, #29502a 0 50%) 0 0/64px 64px; }
+  .board { background: var(--slate); border: 2px dashed #eef0e655; border-radius: 14px; box-shadow: 0 10px 30px #000a; }
+  .marker { font-family: "Permanent Marker"; letter-spacing: .02em; }
+  .bug { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 22px; align-items: center; padding: 8px 22px; font-size: 18px; }
+  .bug .s { font-family: "Permanent Marker"; font-size: 34px; }
+  .x { color: var(--dim); }
+  .dialog { position: absolute; top: 150px; left: 50%; transform: translateX(-50%) rotate(-1deg); width: 420px; padding: 20px 24px; }
+  .dialog h2 { font-size: 30px; color: var(--yellow); }
+  .dialog p { font-size: 19px; line-height: 1.35; margin: 8px 0 16px; }
+  .arrow { display: inline-block; border-bottom: 2px solid var(--red); }
+  .row { display: flex; gap: 12px; justify-content: flex-end; }
+  .btn { font-family: "Permanent Marker"; font-size: 20px; padding: 8px 20px; border-radius: 30px; background: transparent; color: var(--chalk); border: 2px solid #eef0e6aa; }
+  .btn.go { background: var(--yellow); color: #1d2621; border-color: var(--yellow); }
+  .tray { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 400px; padding: 10px 14px; }
+  .dice { height: 130px; display: flex; align-items: center; justify-content: center; }
+  .die { width: 56px; height: 56px; border: 3px solid var(--chalk); border-radius: 10px; display: grid; place-items: center; font-family: "Permanent Marker"; font-size: 30px; transform: rotate(8deg); }
+  .log { position: absolute; bottom: 14px; left: 14px; width: 290px; padding: 12px 16px; }
+  .log h3 { font-size: 24px; color: var(--yellow); }
+  .entry { font-size: 17px; padding: 4px 0; display: flex; justify-content: space-between; }
+  .good::before { content: "✓ "; color: #8fe39a; } .bad::before { content: "✗ "; color: var(--red); } .neutral::before { content: "• "; color: var(--blue); }
+  .note { position: absolute; top: 14px; left: 14px; max-width: 280px; padding: 12px 14px; font-size: 16px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note board"><div class="marker" style="color:var(--yellow);font-size:22px">Sketch C: Chalk Talk</div><p>The coach's tactics board: slate green, chalk lettering, dashed outlines. Light and playful, low weight on the pitch.</p></div>
+  <div class="bug board"><span style="color:var(--blue)">Reavers</span><span class="s">1</span><span class="x">turn 2 · half 1</span><span class="s">0</span><span style="color:var(--red)">Gouged Eye</span></div>
+  <div class="dialog board">
+    <h2 class="marker">Blitzer: Dodge</h2>
+    <p>Dodge: <span class="arrow">3+</span>. A fall is a turnover.<br />No re-roll available.</p>
+    <div class="row"><button class="btn">Stop here</button><button class="btn go">Dodge!</button></div>
+  </div>
+  <div class="tray board"><div class="marker" style="display:flex;justify-content:space-between"><span style="color:var(--blue)">Reavers</span><span style="color:#8fe39a">Dodge 5: made it</span></div><div class="dice"><div class="die">5</div></div></div>
+  <div class="log board">
+    <h3 class="marker">Dice log</h3>
+    <div class="entry good"><span>Dodge, Blitzer 5 vs 3+</span></div>
+    <div class="entry bad"><span>Armour holds, 7 vs 9</span></div>
+    <div class="entry neutral"><span>Kickoff: Blitz!</span></div>
+  </div>
+</div>
+</body>
+</html>
