@@ -1,14 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
-import { SKILL_DEFINITIONS } from "../../../types/Skills";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
-import {
-  BloodBowlTable,
-  TableRow,
-  TableCell,
-  CustomTableCell,
-} from "../componentWarehouse/BloodBowlTable";
-import { Tooltip } from "../componentWarehouse/Tooltip";
+import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
+import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
+import { numToHex } from "../TeamManagement/TeamStatsOverview";
+import { SkillList, StatCells } from "./AvailableHires";
 import { isLinemanPosition } from "../../../game/rules/rosterLegality";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 
@@ -45,22 +41,27 @@ export function TeamRoster({
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
+      aside={`${team.players.length} / 11 players · drag to reorder`}
+      accent={{ color: numToHex(team.colors.primary) }}
       headers={[
-        { label: "#", width: "4%" },
-        { label: "Name", width: "16%" },
-        { label: "Pos", width: "9%" },
-        { label: "Stats", width: "11%" },
-        { label: "Skills", width: "14%" },
-        { label: "Cost", width: "7%" },
-        { label: "GP", width: "5%", className: "text-center" },
-        { label: "TD", width: "5%", className: "text-center" },
-        { label: "CMP", width: "5%", className: "text-center" },
-        { label: "CAS", width: "5%", className: "text-center" },
-        { label: "Kills", width: "5%", className: "text-center" },
-        { label: "MVP", width: "5%", className: "text-center" },
-        { label: "", width: "9%" }, // Actions
+        { label: "#", width: "40px", className: "num" },
+        { label: "Name", width: "22%" },
+        { label: "Position", width: "15%" },
+        { label: "MA", className: "num" },
+        { label: "ST", className: "num" },
+        { label: "AG", className: "num" },
+        { label: "PA", className: "num" },
+        { label: "AV", className: "num" },
+        { label: "Skills", width: "15%" },
+        { label: "Cost", className: "num" },
+        { label: "GP", className: "num" },
+        { label: "TD", className: "num" },
+        { label: "CMP", className: "num" },
+        { label: "CAS", className: "num" },
+        { label: "Kills", className: "num" },
+        { label: "MVP", className: "num" },
+        { label: "", width: "64px" }, // Actions
       ]}
-      variant="blue"
     >
       {Array.from({ length: 11 }).map((_, index) => {
         const slotNumber = index + 1;
@@ -69,7 +70,7 @@ export function TeamRoster({
         const required = player ? mustAdvance(player) : false;
 
         return (
-          <TableRow
+          <tr
             key={slotNumber}
             className={player ? "cursor-move" : ""}
             draggable={!!player}
@@ -93,59 +94,56 @@ export function TeamRoster({
               onReorderPlayers(sourceSlot, slotNumber);
             }}
           >
-            <CustomTableCell className="text-sm text-center text-[#1d3860]/50 select-none">
+            <td className="num select-none font-hud-label font-bold text-hud-mute">
               {slotNumber}
-            </CustomTableCell>
+            </td>
 
             {player ? (
               <>
-                <TableCell className="text-base font-bold text-[#1d3860]">
-                  <button
-                    className="text-left hover:underline"
-                    onClick={() =>
-                      navigate(`/build-team/${team.id}/player/${player.id}`)
-                    }
-                    title="View player development page"
-                  >
-                    {player.playerName}
-                  </button>
-                  {required ? (
-                    <span
-                      className="ml-2 rounded bg-[#8E1B1B] px-1.5 py-0.5 text-xs font-bold text-white"
-                      title="Must advance before another match"
-                    >
-                      Must advance
-                    </span>
-                  ) : eligible ? (
-                    <span
-                      className="ml-2 rounded bg-bb-gold px-1.5 py-0.5 text-xs font-bold text-[#1d3860]"
-                      title="Eligible to advance"
-                    >
-                      Can advance
-                    </span>
-                  ) : null}
-                  {player.veteran ? (
-                    <span
-                      data-testid="veteran-badge"
-                      className="ml-2 rounded bg-[#1d3860] px-1.5 py-0.5 text-xs font-bold text-white"
-                      title="MA -1. Once per game: re-roll a failed pick-up, catch or Pass Action roll, or block dice that would Knock this player Down."
-                    >
-                      Veteran
-                    </span>
-                  ) : onChooseVeteran &&
-                    isLinemanPosition(player.keywords) ? (
+                <td className="text-base">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <button
-                      data-testid="choose-veteran"
-                      className="ml-2 rounded border border-[#1d3860] px-1.5 py-0.5 text-xs font-bold text-[#1d3860] hover:bg-[#1d3860] hover:text-white"
-                      onClick={() => onChooseVeteran(player.id)}
-                      title="Make this Lineman the team's Veteran (MA -1)"
+                      className="rounded-hud text-left font-hud-label font-bold uppercase tracking-[0.03em] text-hud-bone hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+                      onClick={() =>
+                        navigate(`/build-team/${team.id}/player/${player.id}`)
+                      }
+                      title="View player development page"
                     >
-                      Make Veteran
+                      {player.playerName}
                     </button>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-base">
-                  <span className="flex items-center gap-2">
+                    {required ? (
+                      <Chip tone="blood" title="Must advance before another match">
+                        Must advance
+                      </Chip>
+                    ) : eligible ? (
+                      <Chip tone="gold" title="Eligible to advance">
+                        Can advance
+                      </Chip>
+                    ) : null}
+                    {player.veteran ? (
+                      <span data-testid="veteran-badge">
+                        <Chip
+                          tone="info"
+                          title="MA -1. Once per game: re-roll a failed pick-up, catch or Pass Action roll, or block dice that would Knock this player Down."
+                        >
+                          Veteran
+                        </Chip>
+                      </span>
+                    ) : onChooseVeteran &&
+                      isLinemanPosition(player.keywords) ? (
+                      <button
+                        data-testid="choose-veteran"
+                        className={hudButtonClass("ghost", "sm")}
+                        onClick={() => onChooseVeteran(player.id)}
+                        title="Make this Lineman the team's Veteran (MA -1)"
+                      >
+                        Make Veteran
+                      </button>
+                    ) : null}
+                  </div>
+                </td>
+                <td>
+                  <span className="flex items-center gap-2 text-hud-sm text-[#ddd5c6]">
                     <PlayerPortrait
                       rosterName={team.rosterName}
                       positionName={player.positionName}
@@ -154,76 +152,53 @@ export function TeamRoster({
                     />
                     {player.positionName}
                   </span>
-                </TableCell>
-                <TableCell className="text-sm font-mono whitespace-nowrap">
-                  {player.stats.MA} {player.stats.ST} {player.stats.AG}+{" "}
-                  {player.stats.PA}+ {player.stats.AV}+
-                </TableCell>
-                <TableCell className="text-sm italic">
-                  <div className="flex flex-wrap gap-1">
-                    {player.skills.map((skill, index) => (
-                      <span key={`${skill.type}-${index}`}>
-                        <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
-                          <span className="cursor-help underline decoration-dotted">
-                            {skill.type}
-                            {skill.parameter != null
-                              ? ` (${skill.parameter})`
-                              : ""}
-                          </span>
-                        </Tooltip>
-                        {index < player.skills.length - 1 ? "," : ""}
-                      </span>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="text-base">
+                </td>
+                <StatCells stats={player.stats} />
+                <td>
+                  <SkillList skills={player.skills} />
+                </td>
+                <td className="num font-hud-label font-bold text-hud-gold">
                   {formatGold(player.cost)}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.matches ?? 0}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.touchdowns ?? 0}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.completions ?? 0}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.casualties ?? 0}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.kills ?? 0}
-                </TableCell>
-                <TableCell className="text-sm text-center">
-                  {player.careerStats?.mvps ?? 0}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
+                </td>
+                {[
+                  player.careerStats?.matches ?? 0,
+                  player.careerStats?.touchdowns ?? 0,
+                  player.careerStats?.completions ?? 0,
+                  player.careerStats?.casualties ?? 0,
+                  player.careerStats?.kills ?? 0,
+                  player.careerStats?.mvps ?? 0,
+                ].map((value, statIndex) => (
+                  <td
+                    key={statIndex}
+                    className={value ? "num" : "num text-hud-mute"}
+                  >
+                    {value}
+                  </td>
+                ))}
+                <td>
+                  <div className="flex items-center justify-end gap-1">
                     <span
-                      className="text-[#1d3860] text-lg font-bold cursor-grab hover:text-bb-gold px-1 select-none"
+                      className="cursor-grab select-none px-1 text-lg font-bold text-hud-mute hover:text-hud-gold"
                       title="Drag to Reorder"
                     >
                       ≡
                     </span>
                     <button
-                      className="text-red-600 hover:text-red-800 font-bold px-1"
+                      className="flex h-7 w-7 items-center justify-center rounded-hud font-bold text-hud-mute transition-colors hover:bg-hud-blood-deep/60 hover:text-[#ff8a8a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
                       onClick={() => onFirePlayer(player.id)}
                       title="Fire Player"
                     >
                       X
                     </button>
                   </div>
-                </TableCell>
+                </td>
               </>
             ) : (
-              <TableCell
-                colSpan={12}
-                className="text-center italic text-[#1d3860]/30 text-sm py-3"
-              >
-                Empty Slot
-              </TableCell>
+              <td colSpan={16} className="italic text-hud-mute">
+                Empty slot
+              </td>
             )}
-          </TableRow>
+          </tr>
         );
       })}
     </BloodBowlTable>

@@ -9,9 +9,8 @@ interface TooltipProps {
 }
 
 /**
- * A small reusable hover/focus tooltip (team-builder-rule-tooltips) — dark
- * parchment background, small serif body text, per
- * docs/design/blood-bowl-2025-style-guide.md's "Tooltips" spec. Pure CSS
+ * A small reusable hover/focus tooltip (team-builder-rule-tooltips): a dark HUD
+ * slab with a gold hairline and small body text. Pure CSS
  * (`group`/`group-hover`/`group-focus`), matching the hover-reveal pattern
  * already used elsewhere in the UI (no new dependency).
  *
@@ -24,7 +23,7 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
 
   return (
     <span
-      className={`group relative inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-bb-gold ${className}`}
+      className={`group relative inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold rounded-hud ${className}`}
       tabIndex={0}
       aria-describedby={tooltipId}
     >
@@ -32,7 +31,7 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
       <span
         id={tooltipId}
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 w-56 max-w-[80vw] -translate-x-1/2 rounded border border-bb-gold bg-bb-text-dark p-2 font-body text-xs text-bb-parchment opacity-0 shadow-parchment-light transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 w-56 max-w-[80vw] -translate-x-1/2 rounded-hud border border-hud-gold/40 bg-hud-sunk px-2.5 py-2 text-left font-hud-body text-hud-sm normal-case not-italic tracking-normal text-hud-bone opacity-0 shadow-hud transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100"
       >
         {content}
       </span>
