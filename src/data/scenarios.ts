@@ -940,4 +940,26 @@ export const SCENARIOS: Scenario[] = [
       subPhase: SubPhase.SETUP_KICKING,
     },
   },
+  {
+    id: "half-time-next",
+    name: "Half Time: Last Turn",
+    description:
+      "Turn 6 of the first half for both teams. Ending the turn ends the " +
+      "half: a KO'd Human rolls to recover and the half time card opens.",
+    seed: 3,
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 5, y: 5, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 0, y: 0, status: PlayerStatus.KO },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team2",
+      turn: 6,
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_KICKING,
+      ballPosition: { x: 10, y: 5 },
+    },
+  },
 ];
