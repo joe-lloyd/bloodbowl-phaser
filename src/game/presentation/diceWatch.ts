@@ -5,26 +5,26 @@ import { GameEventNames } from "../../types/events";
 const MAX_WAIT_MS = 3000;
 
 /**
- * Follows the dice tray's running totals of rolls thrown and landed. The
- * board, the intro, the coin toss and the turnover banner wait on it, so a
- * result is never shown before the dice that decide it have landed. A wait
- * covers the rolls thrown so far, not ones thrown after it began. With no
- * tray (headless runs, unit tests) nothing is ever thrown and every wait
- * ends at once.
+ * Follows the dice tray: how many rolls it has thrown, and up to which roll
+ * every one has landed. The board, the intro, the coin toss and the
+ * turnover banner wait on it, so a result is never shown before the dice
+ * that decide it have landed. A wait covers the rolls thrown so far, not
+ * ones thrown after it began. With no tray (headless runs, unit tests)
+ * nothing is ever thrown and every wait ends at once.
  */
 export class DiceWatch {
   private thrown = 0;
-  private settled = 0;
+  private landedThrough = 0;
   private waiters: { until: number; done: () => void }[] = [];
   private readonly onTray = ({
     thrown,
-    landed,
+    landedThrough,
   }: {
     thrown: number;
-    landed: number;
+    landedThrough: number;
   }) => {
     this.thrown = thrown;
-    this.settled = landed;
+    this.landedThrough = landedThrough;
     this.release();
   };
 
@@ -35,7 +35,7 @@ export class DiceWatch {
   /** Resolves once every roll thrown so far has landed, or after `maxMs`. */
   landed(maxMs = MAX_WAIT_MS): Promise<void> {
     const until = this.thrown;
-    if (this.settled >= until) return Promise.resolve();
+    if (this.landedThrough >= until) return Promise.resolve();
     return new Promise((resolve) => {
       const timer = setTimeout(resolve, maxMs);
       this.waiters.push({
@@ -55,8 +55,8 @@ export class DiceWatch {
   }
 
   private release(): void {
-    const ready = this.waiters.filter((w) => this.settled >= w.until);
-    this.waiters = this.waiters.filter((w) => this.settled < w.until);
+    const ready = this.waiters.filter((w) => this.landedThrough >= w.until);
+    this.waiters = this.waiters.filter((w) => this.landedThrough < w.until);
     ready.forEach((waiter) => waiter.done());
   }
 }

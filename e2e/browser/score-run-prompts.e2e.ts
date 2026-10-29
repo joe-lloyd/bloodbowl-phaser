@@ -84,15 +84,18 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   await page.evaluate(() => {
     const w = window as unknown as {
       eventBus: { on(name: string, fn: (d: never) => void): void };
-      tray: { thrown: number; landed: number };
+      tray: { thrown: number; landedThrough: number };
       thrownAtTurnover: number | null;
       landedAtBanner: number | null;
     };
-    w.tray = { thrown: 0, landed: 0 };
+    w.tray = { thrown: 0, landedThrough: 0 };
     w.thrownAtTurnover = w.landedAtBanner = null;
-    w.eventBus.on("ui:diceInAir", (d: { thrown: number; landed: number }) => {
-      w.tray = d;
-    });
+    w.eventBus.on(
+      "ui:diceInAir",
+      (d: { thrown: number; landedThrough: number }) => {
+        w.tray = d;
+      }
+    );
     w.eventBus.on("ui:turnover", () => {
       w.thrownAtTurnover ??= w.tray.thrown;
     });
@@ -100,7 +103,7 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
       const shown = [...document.querySelectorAll("h1")].some(
         (h) => h.textContent === "TURNOVER"
       );
-      if (shown) w.landedAtBanner ??= w.tray.landed;
+      if (shown) w.landedAtBanner ??= w.tray.landedThrough;
     }).observe(document.body, { childList: true, subtree: true });
   });
   await app.pitch.waitForCameraToSettle();

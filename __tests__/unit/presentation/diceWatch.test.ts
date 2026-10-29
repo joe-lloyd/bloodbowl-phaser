@@ -11,11 +11,11 @@ const settled = async (promise: Promise<void>) => {
   return done;
 };
 
-const tray = (bus: EventBus, thrown: number, landed: number) =>
+const tray = (bus: EventBus, thrown: number, landedThrough: number) =>
   bus.emit(GameEventNames.UI_DiceInAir, {
-    count: thrown - landed,
+    count: thrown - landedThrough,
     thrown,
-    landed,
+    landedThrough,
   });
 
 describe("DiceWatch", () => {

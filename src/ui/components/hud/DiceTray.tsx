@@ -71,6 +71,8 @@ interface Queued {
   result: string;
   teamName: string;
   settled: boolean;
+  /** Order thrown, from 1. */
+  seq: number;
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
 }
@@ -107,15 +109,20 @@ export function DiceTray({
     // Ends the hold on the dice now up, so the next roll can play
     let release: (() => void) | null = null;
     // The board holds a step or a fall until the dice deciding it land.
-    // A roll dropped from a full queue counts as landed: it never will.
+    // Rolls are numbered as thrown; every roll up to `landedThrough` has
+    // landed or was dropped from a full queue, so it never will.
     let thrown = 0;
-    let landed = 0;
-    const reportInAir = () =>
+    const reportInAir = () => {
+      const pending = [
+        ...queue.current,
+        ...(shown && !shown.settled ? [shown] : []),
+      ];
       eventBus.emit(GameEventNames.UI_DiceInAir, {
-        count: thrown - landed,
+        count: pending.length,
         thrown,
-        landed,
+        landedThrough: Math.min(thrown, ...pending.map((q) => q.seq - 1)),
       });
+    };
 
     const playNext = async () => {
       const next = queue.current.shift();
@@ -144,7 +151,6 @@ export function DiceTray({
         }
         await handle.landed;
         next.settled = true;
-        landed++;
         reportInAir();
         setCurrent({ ...next });
         await new Promise<void>((resolve) => {
@@ -154,21 +160,17 @@ export function DiceTray({
         release = null;
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
-        if (!next.settled) landed++;
         next.settled = true;
       }
       void playNext();
     };
 
-    const enqueue = (item: Queued, first = false) => {
-      thrown++;
+    const enqueue = (roll: Omit<Queued, "seq">, first = false) => {
+      const item = { ...roll, seq: ++thrown };
       if (first) queue.current.unshift(item);
       else queue.current.push(item);
       // Never fall far behind the game: keep the latest few.
-      while (queue.current.length > MAX_QUEUE) {
-        queue.current.pop();
-        landed++;
-      }
+      while (queue.current.length > MAX_QUEUE) queue.current.pop();
       if (!playing.current) void playNext();
       reportInAir();
     };

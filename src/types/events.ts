@@ -820,9 +820,10 @@ export interface UIEvents {
   [GameEventNames.UI_DiceInAir]: {
     /** Rolls queued or tumbling now. */
     count: number;
-    /** Running totals since the tray mounted. */
+    /** Rolls thrown since the tray mounted, numbered from 1. */
     thrown: number;
-    landed: number;
+    /** Every roll up to this number has landed (or was dropped). */
+    landedThrough: number;
   };
 
   [GameEventNames.UI_SelectPushDirection]: {
