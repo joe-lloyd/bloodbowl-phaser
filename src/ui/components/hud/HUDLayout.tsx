@@ -11,7 +11,9 @@ interface HUDLayoutProps {
 
 // Each corner gets at most half the window, scrolling past that, so a tall
 // panel (the sandbox case explorer, a long action menu) never runs under the
-// stack in the corner below or above it.
+// stack in the corner below or above it. The bottom corners push their stack
+// down with an auto top margin rather than justify-end: justify-end in a
+// scrolling column clips the top of an overflowing stack out of reach.
 const corner =
   "absolute flex max-h-[calc(50vh-1.5rem)] w-72 max-w-[40vw] flex-col gap-3 overflow-y-auto";
 
@@ -33,8 +35,12 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
   <div className="absolute inset-0 pointer-events-none">
     <div className={`${corner} left-4 top-4`}>{topLeft}</div>
     <div className={`${corner} right-4 top-4 items-end`}>{topRight}</div>
-    <div className={`${corner} bottom-4 left-4 justify-end`}>{bottomLeft}</div>
-    <div className={`${corner} bottom-4 right-4 items-end justify-end`}>
+    <div className={`${corner} bottom-4 left-4 [&>*:first-child]:mt-auto`}>
+      {bottomLeft}
+    </div>
+    <div
+      className={`${corner} bottom-4 right-4 items-end [&>*:first-child]:mt-auto`}
+    >
       {bottomRight}
     </div>
     {overlays}

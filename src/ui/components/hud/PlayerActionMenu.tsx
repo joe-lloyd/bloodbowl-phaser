@@ -316,7 +316,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   return (
     <div
       data-testid="player-action-menu"
-      className="w-full max-h-[60vh] flex flex-col pointer-events-auto animate-hud-in z-50"
+      className="w-full max-h-[60vh] min-h-0 shrink flex flex-col pointer-events-auto animate-hud-in z-50"
       style={{ pointerEvents: "auto", zIndex: 9999 }}
       onClick={(e) => {
         e.stopPropagation();
@@ -346,8 +346,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             hasMovedInAction={hasMovedInAction}
           />
         ) : (
-          <div className="hud-scroll flex max-h-[50vh] flex-col overflow-y-auto p-2">
-            <div className="flex flex-col gap-1.5">
+          <div className="hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+            <div className="flex flex-col gap-1">
               {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
                 a prone player stands up as its first step. Clicking an empty
                 square still auto-moves. */}
