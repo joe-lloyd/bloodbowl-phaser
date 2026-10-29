@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Parchment from "../componentWarehouse/Parchment";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import { Title } from "../componentWarehouse/Titles";
-import Stars from "../componentWarehouse/stars";
+import {
+  cx,
+  Eyebrow,
+  HudButton,
+  hudButtonClass,
+  Notice,
+  PageShell,
+  Panel,
+} from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
 import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
@@ -112,182 +115,174 @@ export function MainMenu() {
     clearMatchSave();
   };
 
+  const onlineDisabled = !onlineAvailable || !ready;
+
   return (
-    <MinHeightContainer className="bg-bb-parchment">
-      <Parchment $intensity="high" />
+    <PageShell width="wide" className="flex flex-col justify-center">
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center py-6 text-center">
+        <Eyebrow tone="gold">Fantasy football mayhem</Eyebrow>
+        <h1 className="mt-2 font-hud-display text-[56px] uppercase leading-none tracking-[0.02em] text-hud-bone lg:text-[76px]">
+          BLOOD BOWL SEVENS
+        </h1>
+        <div
+          aria-hidden
+          className="mt-4 h-[3px] w-56 bg-gradient-to-r from-transparent via-hud-blood to-transparent"
+        />
 
-      <ContentContainer>
-        <div className="flex flex-col items-center text-center py-14 max-w-4xl mx-auto">
-          {/* Title */}
-          <div className="relative mb-6">
-            <Stars />
-            <Title className="text-7xl lg:text-6xl md:text-5xl">
-              BLOOD BOWL SEVENS
-            </Title>
-          </div>
-          <p className="text-bb-deep-crimson text-2xl font-body italic font-bold mb-10">
-            Fantasy Football Mayhem
-          </p>
-
-          {/* Resume banner */}
-          {activeMatch && (
-            <button
-              onClick={() => navigate(activeMatch.path)}
-              className="w-full max-w-2xl mb-8 flex items-center justify-between
-                gap-4 bg-bb-blood-red text-bb-parchment border-2 border-bb-dark-gold
-                rounded-lg px-6 py-4 shadow-md hover:bg-bb-deep-crimson transition-bb"
-            >
-              <span className="font-heading text-xl uppercase">
-                ⚔️ {activeMatch.label}
-              </span>
-              <span className="font-heading tracking-[0.2em] text-bb-gold">
-                {activeMatch.code}
-              </span>
-            </button>
-          )}
-
-          {localMatch && (
-            <div
-              className="w-full max-w-2xl mb-8 bg-bb-ink-blue text-bb-parchment
-                border-2 border-bb-dark-gold rounded-lg px-6 py-4 shadow-md"
-            >
+        {(activeMatch || localMatch) && (
+          <div className="mt-8 flex w-full max-w-2xl flex-col gap-3">
+            {activeMatch && (
               <button
-                onClick={resumeLocal}
-                className="w-full text-left"
-                data-testid="resume-local-match"
+                onClick={() => navigate(activeMatch.path)}
+                className={cx(
+                  hudButtonClass("primary", "lg", true),
+                  "justify-between"
+                )}
               >
-                <span className="block font-heading text-xl uppercase text-bb-gold">
-                  Resume local match
-                </span>
-                <span className="block mt-1 font-body">
-                  {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
-                  {localMatch.awayScore} {localMatch.awayTeamName}
-                </span>
-                <span className="block text-sm opacity-90">
-                  Half {localMatch.half}, turn {localMatch.turn}
+                <span>{activeMatch.label}</span>
+                <span className="font-hud-display tracking-[0.2em] text-hud-gold">
+                  {activeMatch.code}
                 </span>
               </button>
-              <SecondaryButton onClick={discardLocal} className="mt-3">
-                Discard saved match
-              </SecondaryButton>
-            </div>
+            )}
+            {localMatch && (
+              <Panel
+                accent="gold"
+                className="flex flex-wrap items-center gap-4 p-4 text-left"
+              >
+                <button
+                  onClick={resumeLocal}
+                  className="min-w-0 flex-1 rounded-hud text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+                  data-testid="resume-local-match"
+                >
+                  <span className="hud-label block text-hud-gold">
+                    Resume local match
+                  </span>
+                  <span className="mt-1 block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
+                    {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
+                    {localMatch.awayScore} {localMatch.awayTeamName}
+                  </span>
+                  <span className="block text-hud-sm text-hud-dim">
+                    Half {localMatch.half}, turn {localMatch.turn}
+                  </span>
+                </button>
+                <HudButton variant="danger" size="sm" onClick={discardLocal}>
+                  Discard saved match
+                </HudButton>
+              </Panel>
+            )}
+          </div>
+        )}
+
+        <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MenuSection title="Play">
+            <HudButton
+              variant="primary"
+              size="lg"
+              block
+              onClick={() => navigate("/select-team")}
+            >
+              Play Local
+            </HudButton>
+            <HudButton block onClick={() => navigate("/build-team")}>
+              Build Team
+            </HudButton>
+          </MenuSection>
+
+          <MenuSection title="Competitions">
+            <HudButton block onClick={() => navigate("/leagues")}>
+              Leagues
+            </HudButton>
+            <HudButton block onClick={() => navigate("/tournaments")}>
+              Tournaments
+            </HudButton>
+          </MenuSection>
+
+          <MenuSection
+            title="Online"
+            note={onlineAvailable ? undefined : "Needs Firebase config"}
+          >
+            <HudButton
+              block
+              onClick={() => handleOnline("/online/host")}
+              // Until the saved session restores, a signed-in coach looks
+              // signed out and would be sent to sign in again.
+              disabled={onlineDisabled}
+              title={onlineAvailable ? undefined : ONLINE_HINT}
+            >
+              Host Game
+            </HudButton>
+            <HudButton
+              block
+              onClick={() => handleOnline("/online/join")}
+              disabled={onlineDisabled}
+              title={onlineAvailable ? undefined : ONLINE_HINT}
+            >
+              Join Game
+            </HudButton>
+          </MenuSection>
+
+          {isAdminUser(user) && (
+            <MenuSection title="Extras" note="Admin">
+              <HudButton
+                variant="ghost"
+                block
+                onClick={() => navigate("/sand-box")}
+              >
+                Sandbox
+              </HudButton>
+              <HudButton
+                variant="ghost"
+                block
+                onClick={() => navigate("/music")}
+              >
+                Sound Test
+              </HudButton>
+            </MenuSection>
           )}
-
-          {/* Option groups */}
-          <div className="w-full grid gap-8 md:grid-cols-2 lg:grid-cols-4 grid-cols-1">
-            <MenuSection title="Play">
-              <Button
-                onClick={() => navigate("/select-team")}
-                className="w-full text-xl py-4"
-              >
-                Play Local
-              </Button>
-              <Button
-                onClick={() => navigate("/build-team")}
-                className="w-full text-xl py-4"
-              >
-                Build Team
-              </Button>
-            </MenuSection>
-
-            <MenuSection title="Competitions">
-              <Button
-                onClick={() => navigate("/leagues")}
-                className="w-full text-xl py-4"
-              >
-                Leagues
-              </Button>
-              <Button
-                onClick={() => navigate("/tournaments")}
-                className="w-full text-xl py-4"
-              >
-                Tournaments
-              </Button>
-            </MenuSection>
-
-            <MenuSection title="Online">
-              <Button
-                onClick={() => handleOnline("/online/host")}
-                // Until the saved session restores, a signed-in coach looks
-                // signed out and would be sent to sign in again.
-                disabled={!onlineAvailable || !ready}
-                title={onlineAvailable ? undefined : ONLINE_HINT}
-                className="w-full text-xl py-4 disabled:opacity-50"
-              >
-                Host Game
-              </Button>
-              <Button
-                onClick={() => handleOnline("/online/join")}
-                disabled={!onlineAvailable || !ready}
-                title={onlineAvailable ? undefined : ONLINE_HINT}
-                className="w-full text-xl py-4 disabled:opacity-50"
-              >
-                Join Game
-              </Button>
-            </MenuSection>
-
-            {isAdminUser(user) && (
-              <MenuSection title="Extras">
-                <Button
-                  onClick={() => navigate("/sand-box")}
-                  className="w-full text-lg py-3 opacity-90 hover:opacity-100 border-dashed border-amber-600 text-amber-800"
-                >
-                  🛠️ Sandbox
-                </Button>
-                <Button
-                  onClick={() => navigate("/music")}
-                  className="w-full text-lg py-3 opacity-80 hover:opacity-100 border-dashed border-gray-500"
-                >
-                  🔊 Sound Test
-                </Button>
-              </MenuSection>
-            )}
-          </div>
-
-          {/* Auth status */}
-          <div className="mt-10 flex flex-col items-center gap-2">
-            {user ? (
-              <>
-                <CoachNameEditor
-                  value={coach.coachName ?? ""}
-                  placeholder={coach.effectiveName}
-                  onSave={(name) => void coach.save(name)}
-                />
-                <span className="text-bb-muted-text text-xs font-body">
-                  Signed in with Google (your account name stays private)
-                </span>
-                <SecondaryButton onClick={() => void signOut()}>
-                  Sign out
-                </SecondaryButton>
-              </>
-            ) : (
-              onlineAvailable && (
-                <SecondaryButton
-                  onClick={() =>
-                    void signIn().catch((error: unknown) =>
-                      setAuthError(
-                        error instanceof Error ? error.message : String(error)
-                      )
-                    )
-                  }
-                >
-                  Sign in with Google
-                </SecondaryButton>
-              )
-            )}
-            {authError && (
-              <span className="text-bb-deep-crimson text-sm font-body">
-                {authError}
-              </span>
-            )}
-          </div>
-
-          <div className="text-bb-muted-text text-base mt-10 font-heading">
-            v0.1.0 - Phase 3.5 (React UI)
-          </div>
         </div>
-      </ContentContainer>
-    </MinHeightContainer>
+
+        <div className="mt-10 flex flex-col items-center gap-3">
+          {user ? (
+            <>
+              <CoachNameEditor
+                value={coach.coachName ?? ""}
+                placeholder={coach.effectiveName}
+                onSave={(name) => void coach.save(name)}
+              />
+              <span className="text-hud-sm text-hud-mute">
+                Signed in with Google. Your account name stays private.
+              </span>
+              <HudButton variant="ghost" size="sm" onClick={() => void signOut()}>
+                Sign out
+              </HudButton>
+            </>
+          ) : (
+            onlineAvailable && (
+              <HudButton
+                variant="secondary"
+                onClick={() =>
+                  void signIn().catch((error: unknown) =>
+                    setAuthError(
+                      error instanceof Error ? error.message : String(error)
+                    )
+                  )
+                }
+              >
+                Sign in with Google
+              </HudButton>
+            )
+          )}
+          {authError && (
+            <Notice tone="bad" role="alert">
+              {authError}
+            </Notice>
+          )}
+        </div>
+
+        <div className="hud-label mt-10 text-hud-mute">v0.1.0</div>
+      </div>
+    </PageShell>
   );
 }
 
@@ -318,11 +313,12 @@ function CoachNameEditor({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="font-heading text-bb-deep-crimson text-sm uppercase">
+    <div className="flex items-center gap-3">
+      <label className="hud-label text-hud-gold" htmlFor="coach-name">
         Coach
       </label>
       <input
+        id="coach-name"
         value={draft}
         placeholder={placeholder}
         maxLength={20}
@@ -331,27 +327,39 @@ function CoachNameEditor({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }}
-        className="bg-bb-parchment border-2 border-bb-dark-gold rounded px-3 py-1
-          font-body text-bb-text-dark w-48 text-center"
+        className="hud-field !w-56 text-center"
       />
-      {saved && <span className="text-green-700 text-sm font-body">✓</span>}
+      <span
+        className={cx(
+          "w-4 text-hud-good transition-opacity",
+          saved ? "opacity-100" : "opacity-0"
+        )}
+        aria-live="polite"
+      >
+        {saved ? "✓" : ""}
+      </span>
     </div>
   );
 }
 
 function MenuSection({
   title,
+  note,
   children,
 }: {
   title: string;
+  note?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-3">
-      <h2 className="font-heading text-bb-deep-crimson text-lg uppercase tracking-widest border-b-2 border-bb-dark-gold/40 pb-1 mb-1">
-        {title}
-      </h2>
+    <Panel as="section" className="flex flex-col gap-3 p-4">
+      <div className="flex items-baseline justify-between gap-2 border-b border-hud-gold/20 pb-2">
+        <h2 className="font-hud-display text-hud-lg uppercase tracking-[0.06em] text-hud-bone">
+          {title}
+        </h2>
+        {note && <span className="hud-label text-hud-mute">{note}</span>}
+      </div>
       {children}
-    </div>
+    </Panel>
   );
 }

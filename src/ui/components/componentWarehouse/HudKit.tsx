@@ -633,7 +633,7 @@ export function Notice({
           {title}
         </p>
       )}
-      {children && <div className={cx(title && "mt-1")}>{children}</div>}
+      {children && <div className={title ? "mt-1" : undefined}>{children}</div>}
     </div>
   );
 }
