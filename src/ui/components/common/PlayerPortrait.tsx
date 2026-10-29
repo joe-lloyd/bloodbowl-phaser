@@ -27,12 +27,12 @@ function loadAtlas(style: PitchThemeId, model: string, layer: Layer) {
   let atlas = atlases.get(base);
   if (!atlas) {
     atlas = Promise.all([
-      fetch(`/${base}.json`).then((r) => r.json()),
+      fetch(`${base}.json`).then((r) => r.json()),
       new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = reject;
-        image.src = `/${base}.png`;
+        image.src = `${base}.png`;
       }),
     ]).then(([json, image]) => ({ image, frames: json.frames }));
     atlas.catch(() => atlases.delete(base));
