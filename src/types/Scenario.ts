@@ -26,11 +26,14 @@ export interface PlayerPlacement {
   conditions?: PlayerCondition[];
   /** Make this player the team's Sevens Veteran (D8) for the scenario. */
   veteran?: true;
+  /** This player starts holding the ball (instead of a `ballPosition`). */
+  hasBall?: true;
 }
 
 export interface ScenarioSetup {
   team1Placements: PlayerPlacement[];
   team2Placements: PlayerPlacement[];
+  /** A ball on the ground; a carried ball is a placement's `hasBall`. */
   ballPosition?: { x: number; y: number };
   activeTeam: "team1" | "team2";
   turn?: number;
