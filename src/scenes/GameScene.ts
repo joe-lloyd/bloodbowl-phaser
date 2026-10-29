@@ -647,7 +647,12 @@ export class GameScene extends Phaser.Scene {
     // The coin flip only exists before the first drive — later drives set
     // the kicking team automatically, so never re-show the overlay then.
     this.subscribe(GameEventNames.UI_RequestCoinFlipState, () => {
-      if (this.isSetupActive && this.gameService.canCoinFlip()) {
+      // Only once the introductions are over
+      if (
+        this.isSetupActive &&
+        this.gameService.getSubPhase() === SubPhase.COIN_FLIP &&
+        this.gameService.canCoinFlip()
+      ) {
         this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
           team1: this.team1,
           team2: this.team2,
@@ -697,14 +702,17 @@ export class GameScene extends Phaser.Scene {
     // Online: the other coach's move, drawn as one line while the player
     // runs it, then cleared
     let otherMoveTimer: ReturnType<typeof setTimeout> | null = null;
-    this.subscribe(GameEventNames.UI_ShowOtherCoachMove, ({ from, path, ma }) => {
-      this.pitch.drawMovementPath([from, ...path], [], ma);
-      if (otherMoveTimer) clearTimeout(otherMoveTimer);
-      otherMoveTimer = setTimeout(
-        () => this.pitch.clearPath(),
-        600 + path.length * 350
-      );
-    });
+    this.subscribe(
+      GameEventNames.UI_ShowOtherCoachMove,
+      ({ from, path, ma }) => {
+        this.pitch.drawMovementPath([from, ...path], [], ma);
+        if (otherMoveTimer) clearTimeout(otherMoveTimer);
+        otherMoveTimer = setTimeout(
+          () => this.pitch.clearPath(),
+          600 + path.length * 350
+        );
+      }
+    );
 
     // Touchdown celebration: the scoring team's players on the pitch jump
     this.subscribe(GameEventNames.Touchdown, (data) => {
@@ -732,12 +740,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Start setup phase - can be overridden by subclasses (e.g., SandboxScene)
+  /** The coin toss is up; SetupPhaseHandler shows it. */
   public startSetupPhase(): void {
     this.isSetupActive = true;
-    this.eventBus.emit(GameEventNames.UI_StartCoinFlip, {
-      team1: this.team1,
-      team2: this.team2,
-    });
+  }
+
+  /** A team's players in the dugout cheer, for its introduction. */
+  public celebrateDugout(teamId: string): Promise<void> {
+    return this.dugouts.get(teamId)?.animateCelebration() ?? Promise.resolve();
   }
 
   // Delegate to orchestrator

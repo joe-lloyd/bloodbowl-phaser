@@ -112,7 +112,9 @@ export interface IGameService {
   /** A loose kick-off ball bounced out of the receiving half: Touchback. */
   kickoffBounceTouchback(to: { x: number; y: number }): boolean;
   /** Interactive Sevens kickoff event currently awaiting its owning coach. */
-  getKickoffEventStep(): import("@/game/kickoff/KickoffEventManager").KickoffEventStepState | null;
+  getKickoffEventStep():
+    | import("@/game/kickoff/KickoffEventManager").KickoffEventStepState
+    | null;
   selectKickoffEventPlayer(playerId: string): boolean;
   moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean;
   placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean;
@@ -241,6 +243,8 @@ export interface IGameService {
 
   /** Roll initial weather (seeded) without advancing the setup subphase */
   rollInitialWeather(): void;
+  /** Leave the opening introductions for the coin toss. */
+  beginCoinFlip(): void;
 
   // Scoring / end of drive
   checkForTouchdown(playerId: string): boolean;
@@ -252,6 +256,8 @@ export interface IGameService {
    */
   rollKORecovery(beat?: () => Promise<void>): Promise<void>;
   canCoinFlip(): boolean;
+  /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
+  tossCoin(): string;
 
   // State Queries & Helpers
   getPlayerById(playerId: string): Player | undefined;

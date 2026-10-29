@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { GameEventNames } from "../../../types/events";
@@ -6,6 +6,13 @@ import { Team } from "../../../types/Team";
 import { Button, DangerButton } from "../componentWarehouse/Button";
 import { Title } from "../componentWarehouse/Titles";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { ServiceContainer } from "../../../services/ServiceContainer";
+import { soundSettings } from "../../sound/settings";
+import type { DiceThrow } from "../../dice/diceScene";
+import { teamLook } from "./DiceTray";
+
+/** How long the landed coin shows its face before the winner is named. */
+const RESULT_BEAT_MS = 700;
 
 interface CoinFlipProps {
   eventBus: EventBus;
@@ -16,7 +23,9 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   const [step, setStep] = useState<"START" | "FLIPPING" | "RESULT">("START");
   const [teams, setTeams] = useState<{ team1: Team; team2: Team } | null>(null);
   const [winner, setWinner] = useState<Team | null>(null);
-  const [rotation, setRotation] = useState(0);
+  const [faceImages, setFaceImages] = useState<[string, string] | null>(null);
+  const coinHost = useRef<HTMLDivElement>(null);
+  const throwing = useRef<DiceThrow | null>(null);
 
   // Listen for start request. Online matches use the shared OnlineCoinFlip
   // (ready check + host-authoritative result) instead of this local overlay.
@@ -25,8 +34,29 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     setTeams({ team1: data.team1, team2: data.team2 });
     setIsVisible(true);
     setStep("START");
-    setRotation(0);
+    setWinner(null);
   });
+
+  // Show the coach which side is whose before the toss
+  useEffect(() => {
+    if (!teams) return;
+    const faces = [teamLook(teams.team1.id), teamLook(teams.team2.id)];
+    if (!faces[0] || !faces[1]) return;
+    let live = true;
+    void import("../../dice/diceScene").then((scene) => {
+      if (live)
+        setFaceImages([
+          scene.coinFaceImage(faces[0]!, false),
+          scene.coinFaceImage(faces[1]!, false),
+        ]);
+    });
+    return () => {
+      live = false;
+    };
+  }, [teams]);
+
+  // The coin stops drawing once the overlay goes
+  useEffect(() => () => throwing.current?.stop(), []);
 
   // Initial check for active coin flip (Race condition fix)
   useEffect(() => {
@@ -38,39 +68,35 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     return () => clearTimeout(timer);
   }, [eventBus]);
 
-  const handleFlip = () => {
+  const handleFlip = async () => {
+    if (!teams || step !== "START") return;
     setStep("FLIPPING");
-
-    // Simple animation logic
-    let currentRotation = 0;
-    const interval = setInterval(() => {
-      currentRotation += 72;
-      setRotation(currentRotation);
-    }, 50);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      if (!teams) return;
-
-      // Determine winner
-      const isTeam1 = Math.random() < 0.5;
-      const winningTeam = isTeam1 ? teams.team1 : teams.team2;
-
-      // A coin is technically a d2 — log it with the rest of the dice
-      eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Coin Toss",
-        diceType: "1d2",
-        value: isTeam1 ? 1 : 2,
-        total: isTeam1 ? 1 : 2,
-        description: `Coin Toss: ${winningTeam.name} wins`,
-        resultState: "none",
-        teamId: winningTeam.id,
-      });
-
-      setWinner(winningTeam);
-      setStep("RESULT");
-      setRotation(0);
-    }, 1500);
+    const { gameService } = ServiceContainer.getInstance();
+    const winnerId = gameService.tossCoin();
+    const winningTeam = winnerId === teams.team1.id ? teams.team1 : teams.team2;
+    const faces = [teamLook(teams.team1.id), teamLook(teams.team2.id)];
+    try {
+      if (!coinHost.current || !faces[0] || !faces[1])
+        throw new Error("no stage");
+      const scene = await import("../../dice/diceScene");
+      const handle = scene.playRoll(
+        coinHost.current,
+        {
+          kind: "coin",
+          side: winningTeam === teams.team1 ? 1 : 2,
+          faces: [faces[0], faces[1]],
+          neon: false,
+        },
+        { sound: !soundSettings.get().muted }
+      );
+      throwing.current = handle;
+      await handle.landed;
+      await new Promise((resolve) => setTimeout(resolve, RESULT_BEAT_MS));
+    } catch (error) {
+      console.warn("[CoinFlipOverlay] could not show the coin", error);
+    }
+    setWinner(winningTeam);
+    setStep("RESULT");
   };
 
   const handleChoice = (choice: "kick" | "receive") => {
@@ -84,6 +110,8 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
       kickingTeam,
       receivingTeam,
     });
+    throwing.current?.stop();
+    throwing.current = null;
     setIsVisible(false);
   };
 
@@ -99,10 +127,26 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
             <p className="text-xl font-heading text-bb-blood-red">
               Who will kick off?
             </p>
-            <div className="flex justify-center gap-8 text-bb-text-dark font-bold">
-              <span>{teams.team1.name}</span>
-              <span>VS</span>
-              <span>{teams.team2.name}</span>
+            <div className="flex items-start justify-center gap-6 text-bb-text-dark font-bold">
+              {[teams.team1, teams.team2].map((team, i) => (
+                <div
+                  key={team.id}
+                  className="flex w-40 flex-col items-center gap-2"
+                  data-testid={`coin-side-${i === 0 ? "heads" : "tails"}`}
+                >
+                  {faceImages && (
+                    <img
+                      src={faceImages[i]}
+                      alt=""
+                      className="h-20 w-20 rounded-full border-4 border-bb-gold shadow-lg"
+                    />
+                  )}
+                  <span className="text-xs uppercase tracking-widest text-bb-muted-text">
+                    {i === 0 ? "Heads" : "Tails"}
+                  </span>
+                  <span>{team.name}</span>
+                </div>
+              ))}
             </div>
             <Button className="w-full text-xl py-3" onClick={handleFlip}>
               FLIP COIN
@@ -110,16 +154,11 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
           </div>
         )}
 
-        {step === "FLIPPING" && (
-          <div className="py-12 flex justify-center">
-            <div
-              className="text-6xl select-none transition-transform"
-              style={{ transform: `rotateY(${rotation}deg)` }}
-            >
-              🪙
-            </div>
-          </div>
-        )}
+        <div
+          ref={coinHost}
+          data-testid="coin-stage"
+          className={step === "START" ? "hidden" : "mx-auto h-[220px] w-full"}
+        />
 
         {step === "RESULT" && winner && (
           <div className="space-y-6 animate-fade-in">

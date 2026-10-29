@@ -11,7 +11,6 @@ type Point = { x: number; y: number };
 const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
 
-
 /**
  * CameraController: the match camera.
  *
@@ -25,6 +24,9 @@ const MOVE_MS = 700;
  * and a right- or middle-button drag pans. A manual move holds the camera
  * still until the next turn or selection.
  */
+/** How long the opening sweep over the pitch takes. */
+export const CAMERA_INTRO_MS = 2200;
+
 export class CameraController {
   private camera: Phaser.Cameras.Scene2D.Camera;
   private scene: Phaser.Scene;
@@ -125,7 +127,7 @@ export class CameraController {
    * The opening shot: the whole stadium, then a slow glide down onto the
    * pitch while the loading screen fades.
    */
-  public intro(duration = 2200): void {
+  public intro(duration = CAMERA_INTRO_MS): void {
     if (reducedMotion()) return;
     const { width, height } = this.camera.getBounds();
     this.snap(

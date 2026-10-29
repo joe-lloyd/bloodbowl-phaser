@@ -633,11 +633,10 @@ export class GameService implements IGameService {
     const result = session.confirm(teamId);
     if (!result.ok) return result;
     if (session.bothConfirmed([this.team1.id, this.team2.id])) {
-      this.commitInducements(
-        session.getProfile(),
-        session.getBudgets(),
-        [...this.draftListInventory(), ...session.toInventory()]
-      );
+      this.commitInducements(session.getProfile(), session.getBudgets(), [
+        ...this.draftListInventory(),
+        ...session.toInventory(),
+      ]);
     }
     return result;
   }
@@ -809,8 +808,8 @@ export class GameService implements IGameService {
 
   // ===== Sub-Phase Helpers =====
 
-  setWeather(_weather: number): void {
-    this.weatherService.rollWeather();
+  /** The opening is done (teams introduced, weather shown): toss the coin. */
+  beginCoinFlip(): void {
     this.state.subPhase = SubPhase.COIN_FLIP;
     this.eventBus.emit(GameEventNames.PhaseChanged, {
       phase: GamePhase.SETUP,
@@ -1252,7 +1251,9 @@ export class GameService implements IGameService {
     });
 
     // Treacherous Trapdoor (L12): following up onto it may drop the blocker.
-    if (trapdoorOpens(this.state, this.diceController, attacker, targetSquare)) {
+    if (
+      trapdoorOpens(this.state, this.diceController, attacker, targetSquare)
+    ) {
       attacker.gridPosition = undefined;
       this.flowManager.add(
         new CrowdInjuryOperation(attackerId, { ...targetSquare }, false, {
@@ -1901,6 +1902,11 @@ export class GameService implements IGameService {
     return true;
   }
 
+  /** The pre-match toss on the seeded RNG: team 1 is heads. Returns the winner's id. */
+  tossCoin(): string {
+    return this.diceController.tossCoin(this.team1, this.team2);
+  }
+
   canCoinFlip(): boolean {
     if (this.turnManager.hasGameStarted()) return false;
     if (this.state.turn.turnNumber > 0) return false;
@@ -2445,7 +2451,6 @@ export class GameService implements IGameService {
         throw new Error("The thrown player does not have Swoop");
       }
     }
-
 
     this.flowManager.add(
       new ThrowTeammateOperation(

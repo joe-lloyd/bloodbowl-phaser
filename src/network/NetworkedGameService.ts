@@ -257,6 +257,10 @@ export class NetworkedGameService implements IGameService {
   canCoinFlip(): boolean {
     return this.inner.canCoinFlip();
   }
+  tossCoin(): string {
+    // Online, the host tosses over the lobby (OnlineCoinFlip)
+    throw new Error("The online coin toss runs outside the engine");
+  }
   getPlayerById(playerId: string): Player | undefined {
     return this.inner.getPlayerById(playerId);
   }
@@ -639,6 +643,7 @@ export class NetworkedGameService implements IGameService {
   startKickoff(): void {}
   rollKickoff(): void {}
   rollInitialWeather(): void {} // rolled by the start-setup command instead
+  beginCoinFlip(): void {} // the online toss runs outside the engine
   startGame(_kickingTeamId: string): void {}
   startTurn(_teamId: string): void {}
   triggerTurnover(_reason: string): void {}

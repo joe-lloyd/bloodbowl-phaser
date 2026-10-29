@@ -64,9 +64,14 @@ export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
       }, ENTER_MS + HOLD_MS)
     );
     timers.current.push(
-      setTimeout(() => {
-        setAnnouncement((current) => (current && current.id === id ? null : current));
-      }, ENTER_MS + HOLD_MS + EXIT_MS)
+      setTimeout(
+        () => {
+          setAnnouncement((current) =>
+            current && current.id === id ? null : current
+          );
+        },
+        ENTER_MS + HOLD_MS + EXIT_MS
+      )
     );
   });
 
@@ -77,7 +82,10 @@ export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
   const visible = announcement.beat !== "exit";
 
   return (
-    <div className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none select-none z-40">
+    <div
+      data-testid="announcement"
+      className="absolute inset-x-0 top-[18%] flex justify-center pointer-events-none select-none z-40"
+    >
       <div
         className="flex flex-col items-center px-10 py-4 bg-bb-ink-blue/90 border-2 border-bb-gold shadow-chunky"
         style={{
