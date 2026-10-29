@@ -1,11 +1,11 @@
 /**
- * HudKit: the in-match HUD's primitives ("Stadium Broadcast").
+ * HudKit: the game's UI primitives ("Stadium Broadcast").
  *
- * Every floating panel, dialog and button in the match is built from these,
+ * Every floating panel, dialog and button in the match, and every page
+ * around it (menu, team builder, competitions, lobby), is built from these,
  * so the look lives in one place. Tokens are Tailwind `hud-*` entries
- * (tailwind.config.js); `.hud-slab`, `.hud-label` and `.hud-field` are in
- * styles/global.css. Menus and the team builder keep their parchment kit
- * (Button.tsx, Titles.tsx) and do not use this file.
+ * (tailwind.config.js); `.hud-slab`, `.hud-label`, `.hud-field`,
+ * `.hud-page`, `.hud-table` and `.hud-check` are in styles/global.css.
  */
 import React, { forwardRef } from "react";
 
@@ -111,10 +111,13 @@ export const Panel = forwardRef<
 export function PanelHeader({
   title,
   aside,
+  as: Title = "span",
   className,
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
+  /** The title's element; pages use a real heading. */
+  as?: "span" | "h2" | "h3";
   className?: string;
 }) {
   return (
@@ -124,9 +127,9 @@ export function PanelHeader({
         className
       )}
     >
-      <span className="min-w-0 truncate font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
+      <Title className="min-w-0 truncate font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
         {title}
-      </span>
+      </Title>
       {aside !== undefined && (
         <span className="hud-label shrink-0 truncate">{aside}</span>
       )}
@@ -418,3 +421,267 @@ export function DialogActions({
     </div>
   );
 }
+
+// ------------------------------------------------------------------ pages
+
+const PAGE_WIDTH = {
+  narrow: "max-w-[640px]",
+  medium: "max-w-[960px]",
+  wide: "max-w-[1240px]",
+} as const;
+
+/**
+ * A full-screen page outside the match: the floodlit stadium backdrop, a
+ * centred column that scrolls, and an optional bar pinned to the bottom
+ * for the page's main action.
+ */
+export function PageShell({
+  children,
+  width = "wide",
+  actionBar,
+  className,
+}: {
+  children: React.ReactNode;
+  width?: keyof typeof PAGE_WIDTH;
+  /** Sticky bottom bar: Back on the left, the main action on the right. */
+  actionBar?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="hud-page hud-scroll flex h-screen flex-col overflow-y-auto pointer-events-auto">
+      <main
+        className={cx(
+          "mx-auto w-full flex-1 px-6 pb-12 pt-8 lg:px-10",
+          PAGE_WIDTH[width],
+          className
+        )}
+      >
+        {children}
+      </main>
+      {actionBar && (
+        <div className="sticky bottom-0 z-40 border-t border-hud-gold/25 bg-hud-sunk/95 backdrop-blur-sm">
+          <div
+            className={cx(
+              "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 lg:px-10",
+              PAGE_WIDTH[width]
+            )}
+          >
+            {actionBar}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A page's title block: eyebrow, display-face h1, one line of context, and
+ * the page's actions on the right. A blood-to-gold rule closes it off.
+ */
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  back,
+  actions,
+}: {
+  eyebrow?: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  /** A small back link above the title. */
+  back?: { label: string; onClick: () => void };
+  actions?: React.ReactNode;
+}) {
+  return (
+    <header className="mb-8">
+      {back && <BackLink label={back.label} onClick={back.onClick} />}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="min-w-0">
+          {eyebrow && <Eyebrow tone="gold">{eyebrow}</Eyebrow>}
+          <h1 className="mt-1 break-words font-hud-display text-[40px] uppercase leading-[1.05] tracking-[0.02em] text-hud-bone lg:text-[48px]">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-2 max-w-2xl font-hud-body text-hud-base text-hud-dim">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {actions && (
+          <div className="flex flex-wrap items-center gap-3">{actions}</div>
+        )}
+      </div>
+      <div
+        aria-hidden
+        className="mt-5 h-[3px] bg-gradient-to-r from-hud-blood via-hud-gold/60 to-transparent"
+      />
+    </header>
+  );
+}
+
+/** A small "← Back" text button. */
+export function BackLink({
+  label,
+  onClick,
+  className,
+}: {
+  label: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        "mb-4 inline-flex min-h-[32px] items-center gap-1.5 rounded-hud font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-dim transition-colors hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold",
+        className
+      )}
+    >
+      <span aria-hidden>←</span>
+      {label.replace(/^←\s*/, "")}
+    </button>
+  );
+}
+
+/** A titled slab for one block of a page. */
+export function Section({
+  title,
+  aside,
+  accent,
+  children,
+  className,
+  bodyClassName,
+}: {
+  title: React.ReactNode;
+  aside?: React.ReactNode;
+  accent?: HudTone | { color: string };
+  children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  return (
+    <Panel as="section" accent={accent} className={cx("mb-6", className)}>
+      <PanelHeader as="h2" title={title} aside={aside} className="px-4" />
+      <div className={cx("p-4", bodyClassName)}>{children}</div>
+    </Panel>
+  );
+}
+
+/** A labelled form control. The label wraps the control. */
+export function Field({
+  label,
+  hint,
+  children,
+  className,
+}: {
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cx("flex min-w-0 flex-col gap-1.5", className)}>
+      <span className="hud-label">{label}</span>
+      {children}
+      {hint && <span className="text-hud-sm text-hud-mute">{hint}</span>}
+    </label>
+  );
+}
+
+const NOTICE_EDGE: Record<HudTone, string> = {
+  gold: "border-l-hud-gold",
+  blood: "border-l-hud-blood-hot",
+  good: "border-l-hud-good",
+  bad: "border-l-hud-bad",
+  warn: "border-l-hud-warn",
+  info: "border-l-hud-info",
+  skill: "border-l-hud-skill",
+  neutral: "border-l-hud-edge",
+};
+
+/** A boxed message with a rule down the left in the tone's colour. */
+export function Notice({
+  tone = "neutral",
+  title,
+  children,
+  role,
+  className,
+}: {
+  tone?: HudTone;
+  title?: React.ReactNode;
+  children?: React.ReactNode;
+  role?: "alert" | "status";
+  className?: string;
+}) {
+  return (
+    <div
+      role={role}
+      className={cx(
+        "rounded-hud border border-l-[3px] border-white/10 bg-black/35 px-4 py-3 font-hud-body text-hud-sm text-[#ddd5c6]",
+        NOTICE_EDGE[tone],
+        className
+      )}
+    >
+      {title && (
+        <p
+          className={cx(
+            "font-hud-label text-hud-base font-bold uppercase tracking-[0.06em]",
+            tone === "neutral" ? "text-hud-bone" : TONE_TEXT[tone]
+          )}
+        >
+          {title}
+        </p>
+      )}
+      {children && <div className={cx(title && "mt-1")}>{children}</div>}
+    </div>
+  );
+}
+
+/** What a list shows when it is empty, with the way forward. */
+export function EmptyState({
+  title,
+  titleAs: Heading = "h2",
+  children,
+  action,
+  className,
+}: {
+  title: React.ReactNode;
+  titleAs?: "h2" | "h3" | "p";
+  children?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        "flex flex-col items-center justify-center rounded-hud border border-dashed border-hud-gold/30 bg-black/25 px-6 py-12 text-center",
+        className
+      )}
+    >
+      <Heading className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-bone">
+        {title}
+      </Heading>
+      {children && (
+        <div className="mt-2 max-w-md font-hud-body text-hud-base text-hud-dim">
+          {children}
+        </div>
+      )}
+      {action && <div className="mt-6">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * Classes for a selectable tile or row (a team, an entrant, a pitch): dark
+ * at rest, gold edge on hover, gold edge and glow when chosen.
+ */
+export const hudChoiceClass = (selected: boolean) =>
+  cx(
+    "rounded-hud border text-left transition-[background-color,border-color,box-shadow] duration-150 ease-bb",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold focus-visible:ring-offset-2 focus-visible:ring-offset-hud-ink",
+    "disabled:cursor-not-allowed disabled:opacity-45",
+    selected
+      ? "border-hud-gold bg-hud-raise shadow-hud-glow"
+      : "border-white/10 bg-black/30 enabled:hover:border-hud-gold/60 enabled:hover:bg-hud-raise/70"
+  );

@@ -22,7 +22,8 @@
   z-index: 1000;
   overflow: hidden;
   /* Prevent root scrolling, let containers scroll */
-  font-family: "Crimson Pro", Georgia, serif;
+  font-family: "Barlow", system-ui, sans-serif;
+  color-scheme: dark;
 }
 
 #react-root button,
@@ -119,6 +120,79 @@
   .hud-scroll::-webkit-scrollbar-thumb {
     background: rgb(227 180 72 / 0.35);
     border-radius: 3px;
+  }
+
+  /*
+   * A page outside the match: night sky over a floodlit stadium. A warm
+   * floodlight from the top, a red glow from the stands at the bottom, and
+   * faint mowing stripes, all fixed while the content scrolls.
+   */
+  .hud-page {
+    color-scheme: dark;
+    background-color: #0c0d10;
+    background-image:
+      radial-gradient(ellipse 70% 45% at 50% -8%, rgb(227 180 72 / 0.11), transparent 70%),
+      radial-gradient(ellipse 80% 35% at 50% 108%, rgb(184 20 29 / 0.13), transparent 70%),
+      repeating-linear-gradient(90deg, rgb(255 255 255 / 0.014) 0 96px, transparent 96px 192px);
+    background-attachment: fixed;
+    color: #f1ebdd;
+    font-family: "Barlow", system-ui, sans-serif;
+  }
+
+  /* Data tables on a slab: rosters, standings. */
+  .hud-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: "Barlow", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    color: #f1ebdd;
+    text-align: left;
+  }
+  .hud-table th {
+    padding: 8px 10px;
+    background: rgb(0 0 0 / 0.35);
+    border-bottom: 1px solid rgb(227 180 72 / 0.3);
+    font-family: "Barlow Condensed", "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a39b8c;
+    white-space: nowrap;
+  }
+  .hud-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+    vertical-align: middle;
+  }
+  .hud-table tbody tr {
+    transition: background-color 120ms ease;
+  }
+  .hud-table tbody tr:hover {
+    background-color: rgb(255 255 255 / 0.035);
+  }
+  .hud-table .num {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Native checkbox in the HUD palette. */
+  .hud-check {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: #e3b448;
+    cursor: pointer;
+  }
+  .hud-check:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .hud-check:focus-visible {
+    outline: 2px solid #e3b448;
+    outline-offset: 2px;
   }
 }
 
