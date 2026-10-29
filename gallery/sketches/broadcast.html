@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sketch A: Stadium Broadcast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: dark; --ink:#0c0d10; --slab:#15171cee; --line:#d9ac4a55; --gold:#e3b448; --blood:#b8141d; --bone:#f1ebdd; --dim:#a39b8c; --home:#3d6fe0; --away:#d0283a; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--ink); color: var(--bone); font-family: Barlow, sans-serif; min-height: 100vh; }
+  .stage { position: relative; height: 720px; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 55%, transparent 40%, #000c 100%),
+      repeating-conic-gradient(#2f5a2a 0 25%, #29502a 0 50%) 0 0/64px 64px; }
+  .label { font-family: "Barlow Condensed"; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--dim); }
+  .slab { background: var(--slab); border: 1px solid var(--line); box-shadow: 0 12px 32px -12px #000; backdrop-filter: blur(6px); }
+  /* score bug */
+  .bug { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 240px 84px 240px; height: 58px; }
+  .team { display: flex; align-items: center; gap: 10px; padding: 0 14px; position: relative; }
+  .team.home { border-left: 5px solid var(--home); background: linear-gradient(90deg, #3d6fe033, transparent 70%), var(--slab); }
+  .team.away { flex-direction: row-reverse; border-right: 5px solid var(--away); background: linear-gradient(270deg, #d0283a33, transparent 70%), var(--slab); text-align: right; }
+  .team .name { font-family: "Barlow Condensed"; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: .04em; line-height: 1; }
+  .team .meta { font-size: 11px; color: var(--dim); margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .away .meta { justify-content: flex-end; }
+  .team .score { font-family: Anton; font-size: 38px; margin-left: auto; color: var(--bone); }
+  .away .score { margin-left: 0; margin-right: auto; }
+  .team.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--gold); }
+  .pips { display: flex; gap: 3px; } .pips i { width: 8px; height: 8px; border: 1px solid #e3b44888; transform: skewX(-12deg); } .pips i.on { background: var(--gold); border-color: var(--gold); }
+  .mid { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0b0dee; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .mid b { font-family: Anton; font-size: 20px; color: var(--gold); line-height: 1; }
+  .tab { position: absolute; top: 72px; left: 50%; transform: translateX(-50%) skewX(-14deg); background: var(--blood); padding: 4px 22px; border: 1px solid #ff6b6b55; }
+  .tab span { display: block; transform: skewX(14deg); font-family: Anton; letter-spacing: .08em; font-size: 16px; }
+  /* dialog */
+  .dialog { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); width: 420px; }
+  .dialog .bar { height: 4px; background: linear-gradient(90deg, var(--blood), var(--gold)); }
+  .dialog .body { padding: 18px 22px 20px; }
+  .dialog h2 { font-family: Anton; font-size: 30px; letter-spacing: .02em; line-height: 1.05; margin: 4px 0 10px; }
+  .dialog p { color: #ddd5c6; line-height: 1.5; font-size: 15px; }
+  .chips { display: flex; gap: 6px; margin: 12px 0 18px; }
+  .chip { font-family: "Barlow Condensed"; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); }
+  .chip.warn { border-color: #e8a33a88; color: #f1bd66; }
+  .row { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn { font-family: "Barlow Condensed"; font-weight: 700; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; height: 46px; padding: 0 22px; border: 1px solid; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--bone); border-color: #ffffff33; }
+  .btn.primary { background: var(--blood); color: #fff; border-color: #ff5a5a; box-shadow: 0 4px 0 #5c0a0e; transform: skewX(-8deg); }
+  /* dice tray */
+  .tray { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 420px; }
+  .tray header { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--line); }
+  .tray .dice { height: 150px; display: flex; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(ellipse at 50% 80%, #2a2d35, #111317); }
+  .die { width: 54px; height: 54px; background: var(--home); border-radius: 9px; box-shadow: inset 0 -5px 0 #0003, 0 8px 16px #000a; display: grid; place-items: center; font-family: Anton; font-size: 28px; color: #fff; }
+  .result { font-family: "Barlow Condensed"; font-weight: 700; font-size: 14px; color: #8fe39a; text-transform: uppercase; letter-spacing: .06em; }
+  /* log */
+  .log { position: absolute; bottom: 14px; left: 14px; width: 290px; }
+  .log header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .log header .t { font-family: Anton; font-size: 18px; letter-spacing: .04em; }
+  .entry { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; padding: 8px 12px 8px 0; border-bottom: 1px solid #ffffff0d; align-items: center; }
+  .entry .rule { align-self: stretch; } .good .rule { background: #4fb35c; } .bad .rule { background: #e0453a; } .neutral .rule { background: #5aa0d8; }
+  .entry .k { font-family: "Barlow Condensed"; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+  .entry .d { font-size: 13px; }
+  .pip { min-width: 26px; height: 26px; display: grid; place-items: center; background: var(--bone); color: #111; font-family: Anton; font-size: 15px; border-radius: 4px; }
+  .note { position: absolute; top: 14px; left: 14px; max-width: 300px; font-size: 13px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note slab" style="padding:10px 12px"><div class="label" style="color:var(--gold)">Sketch A</div><b style="font-family:Anton;font-size:22px;color:var(--bone);letter-spacing:.03em">STADIUM BROADCAST</b><p>Live sports TV graphics: charcoal glass slabs, gold hairlines, blood red for what matters, condensed type, skewed accents.</p></div>
+  <div class="bug">
+    <div class="team home slab active"><div><div class="name">Reikland Reavers</div><div class="meta"><span class="label">RR 2</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></span></div></div><div class="score">1</div></div>
+    <div class="mid"><span class="label">Half</span><b>1</b></div>
+    <div class="team away slab"><div><div class="name">Gouged Eye</div><div class="meta"><span class="pips"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span><span class="label">RR 1</span></div></div><div class="score">0</div></div>
+  </div>
+  <div class="tab"><span>TURN 2</span></div>
+  <div class="dialog slab">
+    <div class="bar"></div>
+    <div class="body">
+      <div class="label">Decision</div>
+      <h2>BLITZER: DODGE</h2>
+      <p>Dodge: 3+. A fall is a turnover.<br />No re-roll available.</p>
+      <div class="chips"><span class="chip">Needs 3+</span><span class="chip warn">Turnover risk</span></div>
+      <div class="row"><button class="btn ghost">Stop here</button><button class="btn primary">Dodge!</button></div>
+    </div>
+  </div>
+  <div class="tray slab">
+    <header><span class="label" style="color:#7ea4ff">Reikland Reavers</span><span class="result">Dodge 5 vs 3+: success</span></header>
+    <div class="dice"><div class="die">5</div></div>
+  </div>
+  <div class="log slab">
+    <header><span class="t">DICE LOG</span><span class="label">Recent</span></header>
+    <div class="entry good"><span class="rule"></span><div><div class="k">Dodge · Blitzer</div><div class="d">5 +0 = 5 (target 3+)</div></div><span class="pip">5</span></div>
+    <div class="entry bad"><span class="rule"></span><div><div class="k">Armour · Lineman</div><div class="d">Armour holds: 7 vs AV 9</div></div><span class="pip">7</span></div>
+    <div class="entry neutral"><span class="rule"></span><div><div class="k">Kickoff</div><div class="d">Blitz! The kicking team moves</div></div><span class="pip">9</span></div>
+  </div>
+</div>
+</body>
+</html>
