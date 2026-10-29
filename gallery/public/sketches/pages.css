@@ -1,6 +1,7 @@
 /* Shared look for the page layout sketches. Static, throwaway, dark only. */
 :root { color-scheme: dark; --ink:#0c0d10; --slab:#15171cf0; --raise:#1f222a; --line:#e3b44847; --gold:#e3b448; --blood:#b8141d; --bone:#f1ebdd; --dim:#a39b8c; --mute:#6f685e; }
 * { box-sizing: border-box; margin: 0; }
+html { overflow: hidden; }
 body { width: 1280px; height: 720px; overflow: hidden; color: var(--bone); font: 15px/1.45 Barlow, sans-serif;
   background: radial-gradient(ellipse 70% 45% at 50% -8%, #e3b4481c, transparent 70%), radial-gradient(ellipse 80% 35% at 50% 108%, #b8141d22, transparent 70%), repeating-linear-gradient(90deg, #ffffff04 0 96px, transparent 96px 192px), var(--ink); }
 .wrap { padding: 28px 40px; }
