@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Roster A: broadcast table</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">A: broadcast table</span>
+<div class="wrap">
+  <div class="slab" style="border-top:3px solid #8e1b1b"><div class="head"><h2>Human Founders</h2><span class="label">7 / 11 players · drag to reorder</span></div>
+  <table><thead><tr><th class="n">#</th><th>Name</th><th>Position</th><th class="n">MA</th><th class="n">ST</th><th class="n">AG</th><th class="n">PA</th><th class="n">AV</th><th>Skills</th><th class="n">Cost</th><th class="n">GP</th><th class="n">TD</th><th class="n">CAS</th><th class="n">MVP</th><th></th></tr></thead><tbody id="b"></tbody></table></div>
+</div>
+<script>
+const p=[["Karl Brandt","Blitzer","7","3","3+","4+","9+","Block","85k",1],["Otto Weiss","Thrower","6","3","3+","2+","9+","Sure Hands, Pass","75k",0],["Hans Vogel","Catcher","8","2","3+","5+","8+","Catch, Dodge","65k",0],["Ernst Kohl","Lineman","6","3","3+","4+","9+","","50k",2],["Jan Ruhl","Lineman","6","3","3+","4+","9+","","50k",0]];
+document.getElementById("b").innerHTML=p.map(([n,pos,ma,st,ag,pa,av,sk,c,b],i)=>`<tr><td class="n" style="color:var(--mute)">${i+1}</td><td><span class="name" style="font-size:15px">${n}</span> ${b===1?"<span class='chip gold'>Can advance</span>":b===2?"<span class='chip dim'>Veteran</span>":""}</td><td><span style="display:flex;gap:8px;align-items:center"><span class="port"></span>${pos}</span></td>${[ma,st,ag,pa,av].map(v=>`<td class="n"><span class="stat">${v}</span></td>`).join("")}<td style="color:var(--dim)">${sk||"–"}</td><td class="n">${c}</td><td class="n" style="color:var(--dim)">3</td><td class="n" style="color:var(--dim)">1</td><td class="n" style="color:var(--dim)">0</td><td class="n" style="color:var(--dim)">0</td><td style="color:var(--mute)">≡ ✕</td></tr>`).join("")+[6,7,8].map(i=>`<tr><td class="n" style="color:var(--mute)">${i}</td><td colspan="14" style="color:var(--mute);font-style:italic">Empty slot</td></tr>`).join("");
+</script></body></html>

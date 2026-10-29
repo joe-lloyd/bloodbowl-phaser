@@ -26,11 +26,15 @@ import {
   getAvailableRosterNames,
 } from "../../../data/RosterTemplates";
 import * as TeamManager from "../../../game/managers/TeamManager";
-import Parchment from "../componentWarehouse/Parchment";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button } from "../componentWarehouse/Button";
-import { Title } from "../componentWarehouse/Titles";
+import {
+  cx,
+  Field,
+  HudButton,
+  Notice,
+  PageHeader,
+  PageShell,
+  Section,
+} from "../componentWarehouse/HudKit";
 import { AvailableHires } from "../TeamBuilder/AvailableHires";
 import { TeamRoster } from "../TeamBuilder/TeamRoster";
 import {
@@ -40,6 +44,7 @@ import {
 import {
   TeamStatsOverview,
   formatGold,
+  numToHex,
 } from "../TeamManagement/TeamStatsOverview";
 import { lockAdvancementMode } from "../../../types/Team";
 
@@ -249,9 +254,7 @@ export function TeamBuilder() {
     const insignificantError = validateInsignificant(team.players);
     if (insignificantError) messages.push(insignificantError);
     const roster = getRosterByRosterName(team.rosterName);
-    messages.push(
-      ...validateRosterLegality(team, roster).map((v) => v.detail)
-    );
+    messages.push(...validateRosterLegality(team, roster).map((v) => v.detail));
     return messages;
   };
 
@@ -297,14 +300,9 @@ export function TeamBuilder() {
 
   if (!team) {
     return (
-      <MinHeightContainer className="bg-bb-parchment">
-        <Parchment $intensity="low" />
-        <ContentContainer>
-          <div className="font-heading text-xl text-bb-text-dark">
-            Loading...
-          </div>
-        </ContentContainer>
-      </MinHeightContainer>
+      <PageShell>
+        <p className="hud-label">Loading...</p>
+      </PageShell>
     );
   }
 
@@ -312,312 +310,245 @@ export function TeamBuilder() {
   const mode = getTeamMode(team);
   const active = mode === "active";
   const violations = rosterViolations();
+  const apothecaryPrice = priceOf(team, { type: "apothecary" });
 
   return (
-    <MinHeightContainer className="bg-bb-parchment !justify-start pb-12 mb-26">
-      <Parchment $intensity="low" />
-
-      <ContentContainer className="!px-4 !pb-26">
-        <div className="text-center mb-8">
-          <Title>TEAM BUILDER</Title>
-        </div>
-
-        <div
-          className={`mb-6 rounded-lg border-2 p-4 font-body text-base ${
-            active
-              ? "border-bb-ink-blue bg-[#e0f0ff] text-[#1d3860]"
-              : "border-bb-gold bg-bb-warm-paper text-bb-text-dark"
-          }`}
-        >
-          <p className="font-heading text-lg font-bold uppercase tracking-wide">
-            {active ? "Active team" : "Draft team"}
-          </p>
-          {active ? (
-            <p className="mt-1">
-              This team has played its first match. Roster type is locked.
-              Eligible players may still be hired at roster price, and
-              re-rolls and Sideline Staff at their usual prices.
-            </p>
-          ) : (
-            <p className="mt-1">
-              Draft teams may be edited freely and saved even while
-              incomplete, but must pass roster legality before they can be
-              selected for a match or entered in a competition.
-            </p>
-          )}
-          {violations.length > 0 && (
-            <div className="mt-3 border-t border-current/30 pt-3">
-              <p className="font-bold">
-                Not yet legal for play or competition entry:
-              </p>
-              <ul className="mt-1 list-disc pl-5">
-                {violations.map((detail, index) => (
-                  <li key={index}>{detail}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* 2 Column Layout - Hires & Team Sheet */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-26">
-          {/* LEFT COLUMN: Available Hires (35%) */}
-          <div className="col-span-12 space-y-6">
-            <AvailableHires
-              roster={roster}
-              colors={team.colors}
-              treasury={team.treasury}
-              onHirePlayer={handleHirePlayer}
-            />
-          </div>
-
-          {/* RIGHT COLUMN: Current Team Sheet (65%) */}
-          <div className="col-span-12 space-y-6">
-            {/* BLUE SECTION: Current Team */}
-            <div className="bg-[#e0f0ff] rounded-lg p-2 border-[3px] border-[#1d3860] shadow-lg">
-              {/* Team Header / Base Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 mb-4 border-b-2 border-[#1d3860] bg-[#e0f0ff]">
-                {/* Row 1 */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Team Name
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md"
-                    value={team.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="Enter Team Name"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Roster
-                  </label>
-                  <select
-                    className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    value={selectedRace}
-                    disabled={active}
-                    title={
-                      active
-                        ? "Active teams cannot change roster type"
-                        : undefined
-                    }
-                    onChange={(e) =>
-                      handleRaceChange(e.target.value as RosterName)
-                    }
-                  >
-                    {getAvailableRosterNames().map((race) => (
-                      <option key={race} value={race}>
-                        {race}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Row 2: Coach & Treasury Controls */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Coach
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md"
-                    value={team.coachName || ""}
-                    onChange={(e) =>
-                      setTeam({ ...team, coachName: e.target.value })
-                    }
-                    placeholder="Coach Name"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Starting Treasury
-                  </label>
-                  <input
-                    type="number"
-                    step="10000"
-                    className={`w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] focus:outline-none focus:shadow-md ${
-                      team.players.length > 0
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                    value={team.startingTreasury}
-                    disabled={team.players.length > 0}
-                    onChange={(e) => {
-                      const newVal = parseInt(e.target.value) || 0;
-                      setTeam({
-                        ...team,
-                        startingTreasury: newVal,
-                        treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
-                      });
-                    }}
-                  />
-                </div>
-
-                {/* Row 3: Colors & Current Treasury display */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Team Colors
-                  </label>
-                  <div className="flex gap-2 flex-wrap bg-white p-2 border-2 border-[#1d3860] min-h-[42px]">
-                    {TEAM_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        className={`
-                                                    w-5 h-5 rounded-full cursor-pointer transition-all hover:scale-110
-                                                    ${
-                                                      selectedColor === color
-                                                        ? "border-2 border-bb-gold shadow-md scale-110"
-                                                        : "border border-gray-400"
-                                                    }
-                                                `}
-                        style={{
-                          backgroundColor: `#${color
-                            .toString(16)
-                            .padStart(6, "0")}`,
-                        }}
-                        onClick={() => handleColorChange(color)}
-                        title={`#${color.toString(16).padStart(6, "0")}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#1d3860] font-bold text-xs uppercase">
-                    Current Gold
-                  </label>
-                  <div className="w-full p-2 text-sm font-heading font-bold text-[#1d3860] bg-white border-2 border-[#1d3860] flex justify-between items-center">
-                    <span>{formatGold(team.treasury)}</span>
-                    <span className="text-xs text-gray-500 font-body">
-                      TV: {formatGold(calculateTeamValue(team))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-4 pb-4">
-                <AdvancementModeSelector team={team} onChange={setTeam} />
-              </div>
-
-              <TeamStatsOverview team={team} />
-
-              <AdvancementModePanel
-                team={team}
-                roster={roster}
-                onChange={(next) => setTeam(next)}
-              />
-
-              <TeamRoster
-                team={team}
-                onFirePlayer={handleFirePlayer}
-                onReorderPlayers={handleReorderPlayers}
-                onChooseVeteran={active ? undefined : handleChooseVeteran}
-              />
-
-              {/* Team Meta Controls (Blue Theme) */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-4 p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
-                <StaffCounter
-                  label="Re-Rolls"
-                  count={team.rerolls}
-                  team={team}
-                  item={{ type: "reroll" }}
-                  onBuy={handleBuy}
-                />
-                {/* Apothecary */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-[#1d3860] uppercase">
-                    Apothecary ({formatGold(APOTHECARY_COST)})
-                  </span>
-                  <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860] h-[38px]">
-                    <span className="text-sm text-[#1d3860]">
-                      {team.apothecary ? "Yes" : "No"}
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={team.apothecary}
-                      onChange={handleApothecaryToggle}
-                      disabled={
-                        team.apothecary
-                          ? active
-                          : team.treasury <
-                            (priceOf(team, { type: "apothecary" }).amount ??
-                              Infinity)
-                      }
-                      title={priceOf(team, { type: "apothecary" }).reason}
-                      className="h-4 w-4 accent-[#1d3860]"
-                    />
-                  </div>
-                </div>
-                <StaffCounter
-                  label="Dedicated Fans"
-                  count={team.dedicatedFans}
-                  team={team}
-                  item={{ type: "dedicated-fan" }}
-                  onBuy={handleBuy}
-                />
-                <StaffCounter
-                  label="Asst. Coaches"
-                  count={team.coaches}
-                  team={team}
-                  item={{ type: "coach" }}
-                  onBuy={handleBuy}
-                />
-                <StaffCounter
-                  label="Cheerleaders"
-                  count={team.cheerleaders}
-                  team={team}
-                  item={{ type: "cheerleader" }}
-                  onBuy={handleBuy}
-                />
-              </div>
-
-              {/* Matched Play buys inducements from the draft budget (MP2) */}
-              {team.advancementMode === "matched-play" && (
-                <div className="p-4 border-t-2 border-[#1d3860] bg-[#e6f4ff]">
-                  <span className="text-sm font-bold text-[#1d3860] uppercase">
-                    Inducements on the draft list
-                  </span>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
-                    {sevensInducementCatalog(team).map((entry) => (
-                      <StaffCounter
-                        key={entry.inducement}
-                        label={entry.inducement}
-                        count={draftInducementCount(team, entry.inducement)}
-                        team={team}
-                        item={{ type: "inducement", inducement: entry.inducement }}
-                        onBuy={handleBuy}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="fixed bottom-0 left-0 w-full p-4 bg-bb-warm-paper border-t border-bb-gold shadow-lg flex justify-between items-center z-50">
-          <Button
-            onClick={handleBack}
-            className="!bg-bb-parchment !text-bb-text-dark border-bb-text-dark"
-          >
+    <PageShell
+      actionBar={
+        <>
+          <HudButton variant="ghost" onClick={handleBack}>
             Cancel
-          </Button>
-          <div className="text-xl font-heading font-bold text-bb-blood-red">
-            {team.players.length}/11 Players | TV:{" "}
-            {formatGold(calculateTeamValue(team))}
+          </HudButton>
+          <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">
+            <span>
+              <span className="font-hud-display text-hud-xl text-hud-bone">
+                {team.players.length}/11
+              </span>{" "}
+              <span className="hud-label">Players</span>
+            </span>
+            <span>
+              <span className="hud-label">TV</span>{" "}
+              <span className="font-hud-display text-hud-xl text-hud-gold">
+                {formatGold(calculateTeamValue(team))}
+              </span>
+            </span>
           </div>
-          <Button onClick={handleSave} className="text-xl px-8 shadow-lg">
+          <HudButton variant="primary" onClick={handleSave}>
             Save Team {violations.length > 0 && "(saved as incomplete draft)"}
-          </Button>
-        </div>
+          </HudButton>
+        </>
+      }
+    >
+      <PageHeader
+        eyebrow={`${active ? "Active team" : "Draft team"} · ${team.rosterName}`}
+        title="TEAM BUILDER"
+        subtitle={
+          active
+            ? "This team has played its first match. Roster type is locked. Eligible players may still be hired at roster price, and re-rolls and Sideline Staff at their usual prices."
+            : "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition."
+        }
+      />
 
-        {/* Spacer for fixed footer */}
-        <div className="h-40"></div>
-      </ContentContainer>
-    </MinHeightContainer>
+      {violations.length > 0 && (
+        <Notice
+          tone="warn"
+          title="Not yet legal for play or competition entry"
+          className="mb-6"
+        >
+          <ul className="list-disc pl-5">
+            {violations.map((detail, index) => (
+              <li key={index}>{detail}</li>
+            ))}
+          </ul>
+        </Notice>
+      )}
+
+      <Section
+        title="Team details"
+        accent={{ color: numToHex(team.colors.primary) }}
+      >
+        <div className="mb-5 max-w-xl">
+          <TeamStatsOverview team={team} />
+        </div>
+        <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Team Name">
+            <input
+              type="text"
+              className="hud-field font-hud-label text-base font-bold uppercase tracking-[0.03em]"
+              value={team.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Enter Team Name"
+            />
+          </Field>
+          <Field label="Roster">
+            <select
+              className="hud-field cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              value={selectedRace}
+              disabled={active}
+              title={
+                active ? "Active teams cannot change roster type" : undefined
+              }
+              onChange={(e) => handleRaceChange(e.target.value as RosterName)}
+            >
+              {getAvailableRosterNames().map((race) => (
+                <option key={race} value={race}>
+                  {race}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Coach">
+            <input
+              type="text"
+              className="hud-field"
+              value={team.coachName || ""}
+              onChange={(e) => setTeam({ ...team, coachName: e.target.value })}
+              placeholder="Coach Name"
+            />
+          </Field>
+          <Field label="Starting Treasury">
+            <input
+              type="number"
+              step="10000"
+              className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
+              value={team.startingTreasury}
+              disabled={team.players.length > 0}
+              onChange={(e) => {
+                const newVal = parseInt(e.target.value) || 0;
+                setTeam({
+                  ...team,
+                  startingTreasury: newVal,
+                  treasury: newVal, // synchronise current treasury as long as we are in drafting mode and no players bought
+                });
+              }}
+            />
+          </Field>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className="hud-label">Team Colors</span>
+            <div className="flex flex-wrap gap-2">
+              {TEAM_COLORS.map((color) => (
+                <button
+                  key={color}
+                  aria-pressed={selectedColor === color}
+                  className={cx(
+                    "h-7 w-7 -skew-x-12 rounded-[2px] border transition-[transform,box-shadow] duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold focus-visible:ring-offset-2 focus-visible:ring-offset-hud-ink",
+                    selectedColor === color
+                      ? "scale-110 border-hud-gold shadow-hud-glow"
+                      : "border-white/30"
+                  )}
+                  style={{ backgroundColor: numToHex(color) }}
+                  onClick={() => handleColorChange(color)}
+                  title={numToHex(color)}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <AdvancementModeSelector team={team} onChange={setTeam} />
+          </div>
+        </div>
+      </Section>
+
+      <AdvancementModePanel
+        team={team}
+        roster={roster}
+        onChange={(next) => setTeam(next)}
+      />
+
+      <div className="mb-6">
+        <AvailableHires
+          roster={roster}
+          colors={team.colors}
+          treasury={team.treasury}
+          onHirePlayer={handleHirePlayer}
+        />
+      </div>
+
+      <div className="mb-6">
+        <TeamRoster
+          team={team}
+          onFirePlayer={handleFirePlayer}
+          onReorderPlayers={handleReorderPlayers}
+          onChooseVeteran={active ? undefined : handleChooseVeteran}
+        />
+      </div>
+
+      <Section
+        title="Sideline staff"
+        aside={`Gold ${formatGold(team.treasury)}`}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+          <StaffCounter
+            label="Re-Rolls"
+            count={team.rerolls}
+            team={team}
+            item={{ type: "reroll" }}
+            onBuy={handleBuy}
+          />
+          <label className="flex flex-col gap-1">
+            <span className="hud-label">
+              Apothecary ({formatGold(APOTHECARY_COST)})
+            </span>
+            <span className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 px-3">
+              <span className="font-hud-display text-hud-lg">
+                {team.apothecary ? "Yes" : "No"}
+              </span>
+              <input
+                type="checkbox"
+                checked={team.apothecary}
+                onChange={handleApothecaryToggle}
+                disabled={
+                  team.apothecary
+                    ? active
+                    : team.treasury < (apothecaryPrice.amount ?? Infinity)
+                }
+                title={apothecaryPrice.reason}
+                className="hud-check"
+              />
+            </span>
+          </label>
+          <StaffCounter
+            label="Dedicated Fans"
+            count={team.dedicatedFans}
+            team={team}
+            item={{ type: "dedicated-fan" }}
+            onBuy={handleBuy}
+          />
+          <StaffCounter
+            label="Asst. Coaches"
+            count={team.coaches}
+            team={team}
+            item={{ type: "coach" }}
+            onBuy={handleBuy}
+          />
+          <StaffCounter
+            label="Cheerleaders"
+            count={team.cheerleaders}
+            team={team}
+            item={{ type: "cheerleader" }}
+            onBuy={handleBuy}
+          />
+        </div>
+      </Section>
+
+      {/* Matched Play buys inducements from the draft budget (MP2) */}
+      {team.advancementMode === "matched-play" && (
+        <Section title="Inducements on the draft list">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {sevensInducementCatalog(team).map((entry) => (
+              <StaffCounter
+                key={entry.inducement}
+                label={entry.inducement}
+                count={draftInducementCount(team, entry.inducement)}
+                team={team}
+                item={{ type: "inducement", inducement: entry.inducement }}
+                onBuy={handleBuy}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+    </PageShell>
   );
 }
 
@@ -639,22 +570,25 @@ function StaffCounter({
 }) {
   const price = priceOf(team, item);
   const affordable = price.amount != null && team.treasury >= price.amount;
+  // The fullgame e2e driver finds a counter by this wrapper and its label.
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-bold text-[#1d3860] uppercase">
+      <span className="hud-label">
         {label}
         {price.amount != null && ` (${formatGold(price.amount)})`}
       </span>
-      <div className="flex justify-between items-center bg-white p-2 rounded border border-[#1d3860]">
-        <span className="font-bold text-[#1d3860]">{count}</span>
-        <Button
-          className="!m-0 !px-2 !py-1 !text-xs !bg-[#1d3860] !text-white"
+      <div className="flex h-11 items-center justify-between rounded-hud border border-white/10 bg-black/35 pl-3 pr-1">
+        <span className="font-hud-display text-hud-lg">{count}</span>
+        <HudButton
+          size="sm"
+          variant="secondary"
+          className="w-9 !px-0"
           onClick={() => onBuy(item)}
           disabled={!affordable}
           title={price.reason}
         >
           +
-        </Button>
+        </HudButton>
       </div>
     </div>
   );

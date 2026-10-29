@@ -5,6 +5,12 @@ import { calculateTeamValue, Team } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import { IRNGService } from "../../../services/rng/RNGService";
 import {
+  cx,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+} from "../componentWarehouse/HudKit";
+import {
   AdvancementChoice,
   applyAdvancement,
   characteristicChoices,
@@ -52,7 +58,7 @@ export function PlayerDevelopment({
   const costs = nextAdvancementCosts(player);
   if (!costs) {
     return (
-      <p className="font-body italic text-bb-muted-text">
+      <p className="text-hud-mute">
         This player is a Legend and cannot advance further.
       </p>
     );
@@ -111,11 +117,10 @@ export function PlayerDevelopment({
               );
               resetForm();
             }}
-            className={`rounded border px-3 py-2 ${
-              kind === option.kind
-                ? "border-bb-gold bg-bb-blood-red"
-                : "border-slate-600"
-            } disabled:opacity-40`}
+            className={cx(
+              hudChoiceClass(kind === option.kind),
+              "px-3 py-2 font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone"
+            )}
           >
             {option.label} ({option.cost} SPP)
           </button>
@@ -124,21 +129,24 @@ export function PlayerDevelopment({
 
       {kind === "characteristic" ? (
         <div className="mt-4">
-          <button
+          <HudButton
+            variant="gold"
             onClick={() => setCharacteristicRoll(rngService.rollDie(8))}
             disabled={characteristicRoll !== null}
-            className="rounded bg-bb-ink-blue px-4 py-2"
           >
             Roll D8
-          </button>
+          </HudButton>
           {characteristicRoll !== null && (
             <>
-              <p className="my-3 text-lg">Rolled {characteristicRoll}</p>
+              <p className="my-3 font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bone">
+                Rolled {characteristicRoll}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {characteristicChoices(player, characteristicRoll).map(
                   (stat) => (
-                    <button
+                    <HudButton
                       key={stat}
+                      variant="secondary"
                       onClick={() =>
                         applyChoice({
                           kind: "characteristic",
@@ -146,14 +154,13 @@ export function PlayerDevelopment({
                           stat,
                         })
                       }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
                     >
                       Improve {stat}
-                    </button>
+                    </HudButton>
                   )
                 )}
               </div>
-              <p className="mt-4">
+              <p className="mt-4 text-hud-dim">
                 Or take a chosen skill at the spent Characteristic cost:
               </p>
               <SkillSelectors
@@ -177,7 +184,9 @@ export function PlayerDevelopment({
                 setSkill={setSkill}
                 skills={skills}
               />
-              <button
+              <HudButton
+                variant="primary"
+                className="mt-3"
                 disabled={!skill}
                 onClick={() =>
                   skill &&
@@ -188,10 +197,9 @@ export function PlayerDevelopment({
                     access,
                   })
                 }
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
               >
                 Confirm skill fallback
-              </button>
+              </HudButton>
             </>
           )}
         </div>
@@ -218,7 +226,9 @@ export function PlayerDevelopment({
           />
           {kind === "random-primary" ? (
             <>
-              <button
+              <HudButton
+                variant="gold"
+                className="mt-3"
                 disabled={!category || !!randomCandidates}
                 onClick={() => {
                   if (!category) return;
@@ -226,12 +236,11 @@ export function PlayerDevelopment({
                     rollRandomPrimaryCandidates(player, category, rngService)
                   );
                 }}
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
               >
                 Roll two candidates
-              </button>
+              </HudButton>
               {randomCandidates && (
-                <div className="mt-3 flex gap-3">
+                <div className="mt-3 flex flex-wrap gap-3">
                   {[
                     ...new Map(
                       randomCandidates.map((candidate) => [
@@ -240,25 +249,27 @@ export function PlayerDevelopment({
                       ])
                     ).values(),
                   ].map((candidate) => (
-                    <button
+                    <HudButton
                       key={candidate.skill}
+                      variant="secondary"
                       onClick={() =>
                         applyChoice({
                           kind: "random-primary",
                           skill: candidate.skill,
                         })
                       }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
                     >
                       {candidate.firstD6}, {candidate.secondD6}:{" "}
                       {candidate.skill}
-                    </button>
+                    </HudButton>
                   ))}
                 </div>
               )}
             </>
           ) : (
-            <button
+            <HudButton
+              variant="primary"
+              className="mt-3"
               disabled={!skill}
               onClick={() =>
                 skill &&
@@ -267,14 +278,17 @@ export function PlayerDevelopment({
                   skill,
                 } as AdvancementChoice)
               }
-              className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
             >
               Confirm skill
-            </button>
+            </HudButton>
           )}
         </div>
       )}
-      {error && <p className="mt-3 text-red-400">{error}</p>}
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-3">
+          {error}
+        </Notice>
+      )}
     </div>
   );
 }
@@ -301,12 +315,12 @@ function SkillSelectors({
   skills: SkillType[];
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-3">
+    <div className="mt-3 grid max-w-2xl gap-3 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
       {!lockAccess && (
         <select
           value={access}
           onChange={(event) => setAccess(event.target.value as SkillAccess)}
-          className="rounded bg-slate-950 p-2"
+          className="hud-field"
         >
           <option value="primary">Primary</option>
           <option value="secondary">Secondary</option>
@@ -317,7 +331,7 @@ function SkillSelectors({
         onChange={(event) =>
           setCategory(event.target.value as SkillCategory | "")
         }
-        className="rounded bg-slate-950 p-2"
+        className="hud-field"
       >
         <option value="">Choose category</option>
         {categories.map((item) => (
@@ -330,7 +344,7 @@ function SkillSelectors({
         value={skill}
         disabled={!category}
         onChange={(event) => setSkill(event.target.value as SkillType | "")}
-        className="rounded bg-slate-950 p-2 disabled:opacity-40"
+        className="hud-field disabled:opacity-40"
       >
         <option value="">Choose skill</option>
         {skills.map((item) => (

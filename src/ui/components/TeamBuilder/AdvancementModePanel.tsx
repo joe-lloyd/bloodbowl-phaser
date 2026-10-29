@@ -15,6 +15,13 @@ import {
   eligibleSkills,
 } from "../../../game/progression/progression";
 import { SkillCategory, SkillType } from "../../../types/Skills";
+import {
+  cx,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+  Section,
+} from "../componentWarehouse/HudKit";
 
 export const MODE_LABELS: Record<TeamAdvancementMode, string> = {
   "matched-play": "Matched Play (tier Skill Points)",
@@ -69,7 +76,11 @@ export function AdvancementModeSelector({
         locked={locked}
         onChoose={chooseMode}
       />
-      {error && <p className="mt-2 text-bb-deep-crimson text-sm">{error}</p>}
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-2">
+          {error}
+        </Notice>
+      )}
     </>
   );
 }
@@ -130,41 +141,43 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
   };
 
   return (
-    <section className="mt-4 p-4 border-2 border-bb-dark-gold rounded-lg bg-bb-warm-paper">
-      <h3 className="font-heading text-lg text-bb-ink-blue">
-        Skill Points: {status.remaining} of {status.points} left
-      </h3>
-      <p className="text-xs text-bb-muted-text mb-2">
+    <Section
+      title={`Skill Points: ${status.remaining} of ${status.points} left`}
+      aside="Matched Play"
+      accent="skill"
+    >
+      <p className="mb-3 text-hud-sm text-hud-dim">
         A Primary skill costs 1 point and a Secondary skill 2. At most one
         Secondary skill and two Elite skills per team, and one skill per
         player. These skills do not raise team value.
       </p>
 
-      <ul className="text-sm mb-3">
+      <ul className="mb-3 text-hud-sm">
         {(team.matchedPlayAllocations ?? []).map((allocation) => {
           const owner = team.players.find((p) => p.id === allocation.playerId);
           return (
             <li
               key={allocation.playerId}
-              className="flex justify-between items-center border-b border-bb-divider py-1"
+              className="flex items-center justify-between border-b border-white/10 py-1.5"
             >
               <span>
                 {owner?.playerName ?? allocation.playerId} — {allocation.skill}{" "}
                 ({allocation.access})
               </span>
-              <button
-                className="text-bb-deep-crimson underline text-xs"
+              <HudButton
+                variant="danger"
+                size="sm"
                 onClick={() => remove(allocation.playerId)}
               >
                 Remove
-              </button>
+              </HudButton>
             </li>
           );
         })}
       </ul>
 
       {status.remaining > 0 && availablePlayers.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-2 [&>select]:w-auto [&>select]:min-w-[150px]">
           <select
             aria-label="Package recipient"
             value={playerId}
@@ -173,7 +186,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
               setCategory("");
               setSkill("");
             }}
-            className="rounded border border-bb-dark-gold p-2 text-sm"
+            className="hud-field"
           >
             <option value="">Choose player</option>
             {availablePlayers.map((candidate) => (
@@ -190,7 +203,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
               setCategory("");
               setSkill("");
             }}
-            className="rounded border border-bb-dark-gold p-2 text-sm"
+            className="hud-field"
           >
             <option value="primary">Primary (1 point)</option>
             {canBuySecondary && (
@@ -205,7 +218,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
               setCategory(e.target.value as SkillCategory | "");
               setSkill("");
             }}
-            className="rounded border border-bb-dark-gold p-2 text-sm disabled:opacity-40"
+            className="hud-field disabled:opacity-40"
           >
             <option value="">Category</option>
             {categories.map((c) => (
@@ -219,7 +232,7 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
             value={skill}
             disabled={!category}
             onChange={(e) => setSkill(e.target.value as SkillType | "")}
-            className="rounded border border-bb-dark-gold p-2 text-sm disabled:opacity-40"
+            className="hud-field disabled:opacity-40"
           >
             <option value="">Skill</option>
             {skills.map((s) => (
@@ -229,17 +242,22 @@ export function AdvancementModePanel({ team, roster, onChange }: Props) {
               </option>
             ))}
           </select>
-          <button
+          <HudButton
+            variant="gold"
+            size="sm"
             disabled={!skill}
             onClick={allocate}
-            className="rounded bg-bb-ink-blue text-white px-3 py-2 text-sm disabled:opacity-40"
           >
             Allocate
-          </button>
+          </HudButton>
         </div>
       )}
-      {error && <p className="mt-2 text-bb-deep-crimson text-sm">{error}</p>}
-    </section>
+      {error && (
+        <Notice tone="bad" role="alert" className="mt-2">
+          {error}
+        </Notice>
+      )}
+    </Section>
   );
 }
 
@@ -253,11 +271,9 @@ export function ModeSelector({
   onChoose: (mode: TeamAdvancementMode) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[#1d3860] font-bold text-xs uppercase">
-        Advancement Mode
-      </label>
-      <div className="flex gap-2 flex-wrap bg-white p-2 border-2 border-[#1d3860]">
+    <div className="flex flex-col gap-1.5" role="group" aria-label="Advancement Mode">
+      <span className="hud-label">Advancement Mode</span>
+      <div className="flex flex-wrap gap-2">
         {(Object.keys(MODE_LABELS) as TeamAdvancementMode[]).map((key) => (
           <button
             key={key}
@@ -265,23 +281,24 @@ export function ModeSelector({
             disabled={locked}
             onClick={() => onChoose(key)}
             title={MODE_LABELS[key]}
-            className={`px-3 py-2 rounded text-xs font-bold cursor-pointer transition-all hover:scale-105 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-60 ${
-              mode === key
-                ? "border-2 border-bb-gold shadow-md scale-105 bg-[#1d3860] text-white"
-                : "border border-gray-400 bg-white text-[#1d3860]"
-            }`}
+            aria-pressed={mode === key}
+            className={cx(
+              hudChoiceClass(mode === key),
+              "min-h-[36px] px-3 py-1.5 font-hud-label text-hud-sm font-bold uppercase tracking-[0.04em]",
+              mode === key ? "text-hud-gold" : "text-hud-bone"
+            )}
           >
             {MODE_LABELS[key]}
           </button>
         ))}
       </div>
       {locked && (
-        <span className="block text-xs text-bb-muted-text mt-1">
-          Immutable — this team has been finalized or entered a competition.
+        <span className="block text-hud-sm text-hud-mute">
+          Locked. This team has been finalized or entered a competition.
         </span>
       )}
       {!mode && (
-        <span className="block text-xs text-bb-deep-crimson mt-1">
+        <span className="block text-hud-sm text-hud-warn">
           Choose a mode before saving this team.
         </span>
       )}

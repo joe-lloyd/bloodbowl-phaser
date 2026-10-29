@@ -14,6 +14,7 @@ import {
   CompetitionEntrant,
   CompetitionFixture,
 } from "../../../competition/types";
+import { cx } from "../componentWarehouse/HudKit";
 
 /** Minimum width of a round column; the bracket scrolls past this. */
 const COLUMN_MIN_WIDTH = 210;
@@ -193,7 +194,7 @@ export function TournamentBracket({
                 ].join(" ")}
                 fill="none"
                 stroke="currentColor"
-                className="text-bb-dark-gold"
+                className="text-hud-gold/40"
                 strokeWidth={2}
               />
             );
@@ -217,9 +218,12 @@ export function TournamentBracket({
               const card = (
                 <article
                   ref={registerCard(fixture.id)}
-                  className={`bg-bb-warm-paper border-2 rounded-lg p-3 shadow-md ${
-                    isFinal ? "border-bb-gold" : "border-bb-dark-gold"
-                  }`}
+                  className={cx(
+                    "rounded-hud border bg-hud-slab/90 p-3",
+                    isFinal
+                      ? "border-hud-gold shadow-hud-glow"
+                      : "border-white/10 shadow-hud"
+                  )}
                 >
                   <BracketSlot
                     entrant={home}
@@ -242,7 +246,7 @@ export function TournamentBracket({
                     bye={!!fixture.result?.bye}
                   />
                   {ready && (
-                    <div className="mt-2 border-t border-bb-divider pt-2">
+                    <div className="mt-2 border-t border-white/10 pt-2">
                       {renderActions({ fixture, home, away, ready })}
                     </div>
                   )}
@@ -258,7 +262,7 @@ export function TournamentBracket({
                       <div className="text-4xl leading-none" aria-hidden="true">
                         🏆
                       </div>
-                      <div className="font-heading uppercase text-bb-gold text-lg leading-tight">
+                      <div className="mt-1 font-hud-display text-hud-lg uppercase leading-tight tracking-[0.04em] text-hud-gold">
                         {champion.name}
                       </div>
                     </div>
@@ -266,9 +270,7 @@ export function TournamentBracket({
                   </div>
                 );
               }
-              return (
-                <React.Fragment key={fixture.id}>{card}</React.Fragment>
-              );
+              return <React.Fragment key={fixture.id}>{card}</React.Fragment>;
             })}
           </div>
         ))}
@@ -293,16 +295,22 @@ function BracketSlot({
   const label = entrant?.name ?? (bye ? "BYE" : "TBD");
   return (
     <div
-      className={`font-body text-sm flex justify-between gap-2 py-0.5 ${
-        isWinner ? "font-bold text-bb-ink-blue" : ""
-      } ${isEliminated ? "opacity-50 line-through" : ""} ${
-        !entrant ? "italic text-bb-muted-text" : ""
-      }`}
+      className={cx(
+        "flex justify-between gap-2 py-0.5 font-hud-body text-hud-sm",
+        !entrant
+          ? "italic text-hud-mute"
+          : isEliminated
+            ? "text-hud-dim line-through"
+            : "text-hud-bone",
+        isWinner && "font-bold"
+      )}
     >
       <span className="truncate" title={entrant?.name}>
         {label}
       </span>
-      <strong className="tabular-nums">{score ?? "—"}</strong>
+      <strong className={cx("tabular-nums", isWinner && "text-hud-gold")}>
+        {score ?? "—"}
+      </strong>
     </div>
   );
 }

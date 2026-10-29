@@ -33,11 +33,16 @@ import { validateInsignificant } from "../../../game/rules/insignificant";
 import { getRosterByRosterName } from "../../../data/RosterTemplates";
 import { Team, TeamAdvancementMode } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import Parchment from "../componentWarehouse/Parchment";
-import { SectionTitle, Title } from "../componentWarehouse/Titles";
+import {
+  cx,
+  Field,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+  PageHeader,
+  PageShell,
+  Section,
+} from "../componentWarehouse/HudKit";
 
 type Candidate = {
   id: string;
@@ -223,147 +228,159 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   };
 
   return (
-    <MinHeightContainer className="!justify-start">
-      <Parchment $intensity="low" />
-      <ContentContainer>
-        <Title>Create {type}</Title>
-        <div className="max-w-3xl space-y-6">
-          <label className="block font-heading text-xl">
-            Name
+    <PageShell
+      width="medium"
+      actionBar={
+        <>
+          <HudButton variant="ghost" onClick={() => navigate(-1)}>
+            Cancel
+          </HudButton>
+          {/* In the pinned bar so the reason is visible next to the button. */}
+          {error && (
+            <Notice
+              tone="bad"
+              role="alert"
+              className="order-last w-full py-2 sm:order-none sm:w-auto sm:flex-1"
+            >
+              {error}
+            </Notice>
+          )}
+          <HudButton variant="primary" onClick={() => void create()}>
+            Generate competition
+          </HudButton>
+        </>
+      }
+    >
+      <PageHeader title={`Create ${type}`} />
+
+      <Section title="Details">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name">
             <input
               value={name}
               maxLength={60}
               onChange={(event) => setName(event.target.value)}
-              className="block mt-2 w-full bg-bb-warm-paper border-2
-                border-bb-dark-gold rounded-lg px-4 py-3 font-body"
+              className="hud-field"
             />
-          </label>
+          </Field>
 
           {type === "tournament" && (
-            <label className="block font-heading text-xl">
-              Format
+            <Field label="Format">
               <select
                 value={format}
                 onChange={(event) =>
                   setFormat(event.target.value as TournamentFormat)
                 }
-                className="block mt-2 w-full bg-bb-warm-paper border-2
-                  border-bb-dark-gold rounded-lg px-4 py-3 font-body"
+                className="hud-field"
               >
                 <option value="single-elimination">Single elimination</option>
                 <option value="round-robin">Round robin</option>
               </select>
-            </label>
+            </Field>
           )}
-
-          <section>
-            <SectionTitle>Roster rule profile</SectionTitle>
-            <label className="flex items-center gap-2 font-body mb-3">
-              <input
-                type="checkbox"
-                checked={useProfile}
-                onChange={(event) => setUseProfile(event.target.checked)}
-              />
-              Require an advancement mode, draft budget, and roster rules for
-              entrants (leave unchecked for an unrestricted legacy
-              competition)
-            </label>
-            {useProfile && (
-              <div className="flex flex-wrap gap-4 mb-3">
-                <label className="font-heading text-sm">
-                  Advancement mode
-                  <select
-                    value={advancementMode}
-                    onChange={(event) =>
-                      setAdvancementModeChoice(
-                        event.target.value as TeamAdvancementMode
-                      )
-                    }
-                    className="block mt-1 bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2 font-body"
-                  >
-                    <option value="advanced-league">Advanced League</option>
-                    <option value="matched-play">Matched Play</option>
-                    <option value="sevens-skill-selection">
-                      Sevens Skill Selection
-                    </option>
-                  </select>
-                </label>
-                <label className="font-heading text-sm">
-                  Draft budget (gold)
-                  <input
-                    type="number"
-                    step={10000}
-                    value={draftBudget}
-                    onChange={(event) =>
-                      setDraftBudget(Number(event.target.value) || 0)
-                    }
-                    className="block mt-1 bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2 font-body w-40"
-                  />
-                </label>
-              </div>
-            )}
-          </section>
-
-          <section>
-            <SectionTitle>Entrants and seeding</SectionTitle>
-            <p className="font-body text-sm text-bb-muted-text mb-3">
-              Selection order becomes seed order. Entrants reference live
-              rosters, so advancement gained between fixtures carries into
-              the next one.
-            </p>
-            <div className="grid md:grid-cols-2 gap-3">
-              {candidates.map((candidate) => {
-                const seed = selected.indexOf(candidate.id) + 1;
-                // A team already in an active competition cannot be entered
-                // into another (design.md decision 4). Every candidate here
-                // carries a live team object, own or another coach's, so
-                // this is enforceable uniformly rather than owned-only.
-                const committed = !!candidate.team.activeCompetitionId;
-                const compatibility = checkTeamCompatibility(
-                  candidate.team,
-                  profile
-                );
-                return (
-                  <button
-                    key={candidate.id}
-                    disabled={committed}
-                    onClick={() => toggle(candidate.id)}
-                    title={
-                      committed
-                        ? "Already entered in an active competition"
-                        : undefined
-                    }
-                    className={`text-left border-2 rounded-lg p-3 font-body disabled:opacity-40 disabled:cursor-not-allowed ${
-                      seed
-                        ? "bg-bb-ink-blue text-white border-bb-gold"
-                        : compatibility.compatible
-                          ? "bg-bb-warm-paper border-bb-divider"
-                          : "bg-bb-warm-paper border-bb-deep-crimson opacity-70"
-                    }`}
-                  >
-                    {seed ? `Seed ${seed}: ` : ""}
-                    {candidate.label}
-                    {committed ? " (already entered elsewhere)" : ""}
-                    {!compatibility.compatible && (
-                      <span className="block text-xs text-bb-deep-crimson mt-1">
-                        {compatibility.reasons.join(" ")}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {error && <p className="font-body text-bb-deep-crimson">{error}</p>}
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => void create()}>Generate competition</Button>
-            <SecondaryButton onClick={() => navigate(-1)}>
-              Cancel
-            </SecondaryButton>
-          </div>
         </div>
-      </ContentContainer>
-    </MinHeightContainer>
+      </Section>
+
+      <Section title="Roster rule profile">
+        <label className="flex items-start gap-3 font-hud-body text-hud-base text-hud-bone">
+          <input
+            type="checkbox"
+            checked={useProfile}
+            onChange={(event) => setUseProfile(event.target.checked)}
+            className="hud-check mt-0.5"
+          />
+          Require an advancement mode, draft budget, and roster rules for
+          entrants (leave unchecked for an unrestricted legacy competition)
+        </label>
+        {useProfile && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Advancement mode">
+              <select
+                value={advancementMode}
+                onChange={(event) =>
+                  setAdvancementModeChoice(
+                    event.target.value as TeamAdvancementMode
+                  )
+                }
+                className="hud-field"
+              >
+                <option value="advanced-league">Advanced League</option>
+                <option value="matched-play">Matched Play</option>
+                <option value="sevens-skill-selection">
+                  Sevens Skill Selection
+                </option>
+              </select>
+            </Field>
+            <Field label="Draft budget (gold)">
+              <input
+                type="number"
+                step={10000}
+                value={draftBudget}
+                onChange={(event) =>
+                  setDraftBudget(Number(event.target.value) || 0)
+                }
+                className="hud-field"
+              />
+            </Field>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Entrants and seeding">
+        <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
+          Selection order becomes seed order. Entrants reference live rosters,
+          so advancement gained between fixtures carries into the next one.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {candidates.map((candidate) => {
+            const seed = selected.indexOf(candidate.id) + 1;
+            // A team already in an active competition cannot be entered
+            // into another (design.md decision 4). Every candidate here
+            // carries a live team object, own or another coach's, so
+            // this is enforceable uniformly rather than owned-only.
+            const committed = !!candidate.team.activeCompetitionId;
+            const compatibility = checkTeamCompatibility(
+              candidate.team,
+              profile
+            );
+            return (
+              <button
+                key={candidate.id}
+                disabled={committed}
+                onClick={() => toggle(candidate.id)}
+                aria-pressed={seed > 0}
+                title={
+                  committed
+                    ? "Already entered in an active competition"
+                    : undefined
+                }
+                className={cx(
+                  hudChoiceClass(seed > 0),
+                  "flex flex-col justify-start p-3 font-hud-body text-hud-sm text-hud-bone",
+                  !seed &&
+                    !compatibility.compatible &&
+                    "ring-1 ring-inset ring-hud-bad/60"
+                )}
+              >
+                <span>
+                  {seed > 0 && (
+                    <span className="font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold">
+                      Seed {seed}:{" "}
+                    </span>
+                  )}
+                  {candidate.label}
+                  {committed ? " (already entered elsewhere)" : ""}
+                </span>
+                {!compatibility.compatible && (
+                  <span className="mt-1 text-[13px] leading-snug text-hud-bad">
+                    {compatibility.reasons.join(" ")}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+    </PageShell>
   );
 }

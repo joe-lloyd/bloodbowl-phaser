@@ -67,3 +67,6 @@ src/data/*.json
 # node_modules junction; none of it belongs in the repo.
 .claude/worktrees
 /dist-gallery/
+
+# Page captures for the gallery, made by scripts/page-shots
+/gallery/public/shots/pages/

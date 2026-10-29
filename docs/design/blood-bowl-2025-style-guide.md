@@ -1,5 +1,7 @@
 # Blood Bowl 2020 – Web Style Guide
 
+> The React UI no longer uses the parchment look described here. The match HUD and every page around it use the dark Stadium Broadcast kit: `hud-*` tokens in tailwind.config.js, classes in src/ui/styles/global.css, and primitives in src/ui/components/componentWarehouse/HudKit.tsx. The HUD gallery (`pnpm gallery`) shows all of it.
+
 > **Design pillars**
 >
 > - Bold, readable, print-inspired

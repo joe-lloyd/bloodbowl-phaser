@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Roster C: list and detail</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">C: list and detail</span>
+<div class="wrap" style="display:grid;grid-template-columns:420px 1fr;gap:20px">
+  <div class="slab"><div class="head"><h2>Human Founders</h2><span class="label">7 / 11</span></div><div id="l" style="padding:8px 12px"></div></div>
+  <div class="slab" style="padding:20px;border-top:3px solid var(--gold)"><span class="label">#1 · Blitzer</span><h1 style="font-size:36px">Karl Brandt</h1>
+    <div id="s" style="display:flex;gap:8px;margin-top:16px"></div>
+    <p class="sub" style="margin-top:16px;font-size:14px">Skills: Block</p><p class="sub" style="font-size:14px">3 games · 1 TD · 0 CAS · 0 MVP</p>
+    <div style="margin-top:20px;display:flex;gap:10px"><span class="btn sm">Make veteran</span><span class="btn sm">Fire</span></div></div>
+</div>
+<script>
+document.getElementById("l").innerHTML=["Karl Brandt","Otto Weiss","Hans Vogel","Ernst Kohl","Jan Ruhl"].map((n,i)=>`<div class="row ${i===0?"on":""}"><span class="label" style="width:18px">${i+1}</span><span class="port"></span><span class="name">${n}</span></div>`).join("");
+document.getElementById("s").innerHTML=[["MA",7],["ST",3],["AG","3+"],["PA","4+"],["AV","9+"]].map(([k,v])=>`<div style="flex:1;text-align:center;background:#0006;border:1px solid #ffffff1a;padding:6px"><div class="label">${k}</div><span class="stat" style="font-size:28px;width:auto">${v}</span></div>`).join("");
+</script></body></html>

@@ -1,11 +1,19 @@
 import { Player } from "../../../types/Player";
-import { SkillCategory, SkillType, SKILL_DEFINITIONS } from "../../../types/Skills";
+import {
+  SkillCategory,
+  SkillType,
+  SKILL_DEFINITIONS,
+} from "../../../types/Skills";
 import {
   AdvancementChoice,
   characteristicChoices,
   nextAdvancementCosts,
   RandomSkillCandidate,
 } from "../../../game/progression/progression";
+import { cx, HudButton, hudChoiceClass } from "../componentWarehouse/HudKit";
+
+const CHOICE_TEXT =
+  "px-3 py-2 font-hud-label text-hud-sm font-bold uppercase tracking-[0.04em] text-hud-bone";
 
 /**
  * Advanced League advancement UI: extracted from the old post-match results
@@ -83,14 +91,11 @@ export function AdvancementForm({
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <button
+            type="button"
             key={option.kind}
             disabled={player.spp < option.cost}
             onClick={() => setKind(option.kind)}
-            className={`rounded border px-3 py-2 ${
-              kind === option.kind
-                ? "border-bb-gold bg-bb-blood-red"
-                : "border-slate-600"
-            } disabled:opacity-40`}
+            className={cx(hudChoiceClass(kind === option.kind), CHOICE_TEXT)}
           >
             {option.label} ({option.cost} SPP)
           </button>
@@ -99,20 +104,23 @@ export function AdvancementForm({
 
       {kind === "characteristic" ? (
         <div className="mt-4">
-          <button
+          <HudButton
+            size="sm"
             onClick={rollCharacteristic}
             disabled={characteristicRoll !== null}
-            className="rounded bg-bb-ink-blue px-4 py-2"
           >
             Roll D8
-          </button>
+          </HudButton>
           {characteristicRoll !== null && (
             <>
-              <p className="my-3 text-lg">Rolled {characteristicRoll}</p>
+              <p className="my-3 font-hud-label text-hud-lg font-bold uppercase text-hud-gold">
+                Rolled {characteristicRoll}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {characteristicChoices(player, characteristicRoll).map(
                   (stat) => (
                     <button
+                      type="button"
                       key={stat}
                       onClick={() =>
                         applyChoice({
@@ -121,14 +129,14 @@ export function AdvancementForm({
                           stat,
                         })
                       }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
+                      className={cx(hudChoiceClass(false), CHOICE_TEXT)}
                     >
                       Improve {stat}
                     </button>
                   )
                 )}
               </div>
-              <p className="mt-4">
+              <p className="mt-4 text-hud-dim">
                 Or take a chosen skill at the spent Characteristic cost:
               </p>
               <SkillSelectors
@@ -145,7 +153,9 @@ export function AdvancementForm({
                 setSkill={setSkill}
                 skills={skills}
               />
-              <button
+              <HudButton
+                size="sm"
+                className="mt-3"
                 disabled={!skill}
                 onClick={() =>
                   skill &&
@@ -156,10 +166,9 @@ export function AdvancementForm({
                     access,
                   })
                 }
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
               >
                 Confirm skill fallback
-              </button>
+              </HudButton>
             </>
           )}
         </div>
@@ -178,15 +187,16 @@ export function AdvancementForm({
           />
           {kind === "random-primary" ? (
             <>
-              <button
+              <HudButton
+                size="sm"
+                className="mt-3"
                 disabled={!category || !!randomCandidates}
                 onClick={rollRandom}
-                className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
               >
                 Roll two candidates
-              </button>
+              </HudButton>
               {randomCandidates && (
-                <div className="mt-3 flex gap-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {[
                     ...new Map(
                       randomCandidates.map((candidate) => [
@@ -196,6 +206,7 @@ export function AdvancementForm({
                     ).values(),
                   ].map((candidate) => (
                     <button
+                      type="button"
                       key={candidate.skill}
                       onClick={() =>
                         applyChoice({
@@ -203,7 +214,7 @@ export function AdvancementForm({
                           skill: candidate.skill,
                         })
                       }
-                      className="rounded border border-bb-gold bg-bb-blood-red px-4 py-2"
+                      className={cx(hudChoiceClass(false), CHOICE_TEXT)}
                     >
                       {candidate.firstD6}, {candidate.secondD6}:{" "}
                       {candidate.skill}
@@ -213,7 +224,9 @@ export function AdvancementForm({
               )}
             </>
           ) : (
-            <button
+            <HudButton
+              size="sm"
+              className="mt-3"
               disabled={!skill}
               onClick={() =>
                 skill &&
@@ -222,10 +235,9 @@ export function AdvancementForm({
                   skill,
                 } as AdvancementChoice)
               }
-              className="mt-3 rounded bg-bb-ink-blue px-4 py-2 disabled:opacity-40"
             >
               Confirm skill
-            </button>
+            </HudButton>
           )}
         </div>
       )}
@@ -255,12 +267,12 @@ export function SkillSelectors({
   skills: SkillType[];
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-3">
+    <div className="mt-3 flex flex-wrap gap-2">
       {!lockAccess && (
         <select
           value={access}
           onChange={(event) => setAccess(event.target.value as SkillAccess)}
-          className="rounded bg-slate-950 p-2"
+          className="hud-field w-auto max-w-full"
         >
           <option value="primary">Primary</option>
           <option value="secondary">Secondary</option>
@@ -271,7 +283,7 @@ export function SkillSelectors({
         onChange={(event) =>
           setCategory(event.target.value as SkillCategory | "")
         }
-        className="rounded bg-slate-950 p-2"
+        className="hud-field w-auto max-w-full"
       >
         <option value="">Choose category</option>
         {categories.map((item) => (
@@ -284,7 +296,7 @@ export function SkillSelectors({
         value={skill}
         disabled={!category}
         onChange={(event) => setSkill(event.target.value as SkillType | "")}
-        className="rounded bg-slate-950 p-2 disabled:opacity-40"
+        className="hud-field w-auto max-w-full disabled:opacity-40"
       >
         <option value="">Choose skill</option>
         {skills.map((item) => (

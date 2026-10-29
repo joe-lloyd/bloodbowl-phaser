@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Parchment from "../componentWarehouse/Parchment";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import { Title, Subtitle } from "../componentWarehouse/Titles";
+import {
+  Chip,
+  EmptyState,
+  Eyebrow,
+  Field,
+  HudButton,
+  Notice,
+  PageHeader,
+  PageShell,
+  Panel,
+  Section,
+} from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import {
   LobbyDoc,
+  LobbyPlayer,
   LobbySettings,
   canStart,
   commitSeed,
@@ -131,28 +139,43 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
 
   if (!user) {
     return (
-      <Shell>
-        <Subtitle>Sign in from the main menu to play online.</Subtitle>
-        <SecondaryButton onClick={() => navigate("/")}>Back</SecondaryButton>
-      </Shell>
+      <PageShell width="narrow" className="flex flex-col justify-center">
+        <EmptyState
+          title="Sign in from the main menu to play online."
+          titleAs="p"
+          action={
+            <HudButton variant="ghost" onClick={() => navigate("/")}>
+              Back
+            </HudButton>
+          }
+        />
+      </PageShell>
     );
   }
 
   // Join mode: enter a code first
   if (!code) {
     return (
-      <Shell>
-        <Title className="text-4xl mb-8">Join Game</Title>
-        <div className="flex flex-col items-center gap-4">
+      <PageShell width="narrow" className="flex flex-col justify-center">
+        <Panel accent="gold" className="flex flex-col items-center gap-5 px-6 py-8 text-center">
+          <div>
+            <Eyebrow tone="gold">Online</Eyebrow>
+            <h1 className="mt-1 font-hud-display text-hud-3xl uppercase tracking-[0.02em] text-hud-bone">
+              Join Game
+            </h1>
+          </div>
           <input
             value={joinInput}
             onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
             placeholder="MATCH CODE"
             maxLength={6}
-            className="text-3xl font-heading tracking-[0.3em] text-center uppercase
-              bg-bb-parchment border-2 border-bb-dark-gold rounded-lg px-4 py-3 w-64"
+            aria-label="Match code"
+            className="hud-field !min-h-[64px] !w-72 max-w-full text-center !font-hud-display !text-hud-2xl uppercase tracking-[0.3em] indent-[0.3em]"
           />
-          <Button
+          <HudButton
+            variant="primary"
+            size="lg"
+            className="w-72 max-w-full"
             disabled={busy || joinInput.trim().length < 6}
             onClick={async () => {
               setError(null);
@@ -169,20 +192,24 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
             }}
           >
             Join
-          </Button>
+          </HudButton>
           {error && <ErrorText text={error} />}
-          <SecondaryButton onClick={() => navigate("/")}>Back</SecondaryButton>
-        </div>
-      </Shell>
+          <HudButton variant="ghost" onClick={() => navigate("/")}>
+            Back
+          </HudButton>
+        </Panel>
+      </PageShell>
     );
   }
 
   if (!lobby) {
     return (
-      <Shell>
-        <Subtitle>{busy ? "Creating lobby…" : "Loading lobby…"}</Subtitle>
+      <PageShell width="narrow" className="flex flex-col items-center justify-center gap-4">
+        <p role="status" className="hud-label text-hud-base text-hud-dim">
+          {busy ? "Creating lobby…" : "Loading lobby…"}
+        </p>
         {error && <ErrorText text={error} />}
-      </Shell>
+      </PageShell>
     );
   }
 
@@ -200,23 +227,74 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   if (opponent?.team && !opponent.ready)
     waitingOn.push(`${opponent.displayName} to ready up`);
 
-  return (
-    <Shell>
-      <Title className="text-4xl mb-2">Match Lobby</Title>
-      <p
-        data-testid="lobby-code"
-        data-code={lobby.code}
-        className="font-heading text-2xl tracking-[0.3em] text-bb-deep-crimson mb-8"
-      >
-        CODE: {lobby.code}
-      </p>
-      {lobby.competitionContext && (
-        <p className="font-body mb-5 bg-bb-warm-paper border border-bb-dark-gold rounded px-4 py-2">
-          Competition fixture: {lobby.competitionContext.fixtureId}
-        </p>
-      )}
+  const startable = isHost && canStart(lobby);
 
-      <div className="flex flex-wrap justify-center gap-8 mb-8">
+  return (
+    <PageShell
+      width="medium"
+      actionBar={
+        <>
+          <HudButton variant="ghost" onClick={() => navigate("/")}>
+            Leave
+          </HudButton>
+          {waitingOn.length > 0 && (
+            <p className="min-w-0 flex-1 text-center font-hud-body text-hud-sm text-hud-dim">
+              Waiting for {waitingOn.join(", ")}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <HudButton
+              variant={startable || me?.ready ? "secondary" : "primary"}
+              size="lg"
+              disabled={!me?.team}
+              onClick={() => void setReady(lobby.code, user.uid, !me?.ready)}
+            >
+              {me?.ready ? "Not ready" : "Ready!"}
+            </HudButton>
+            {isHost && (
+              <HudButton
+                variant={startable ? "primary" : "secondary"}
+                size="lg"
+                disabled={!canStart(lobby)}
+                onClick={() =>
+                  void startMatch(
+                    lobby.code,
+                    lobby.settings,
+                    lobby.hostUid,
+                    lobby.guestUid!
+                  )
+                }
+              >
+                Start Match
+              </HudButton>
+            )}
+          </div>
+        </>
+      }
+    >
+      <PageHeader
+        eyebrow="Online"
+        title="Match Lobby"
+        subtitle={
+          lobby.competitionContext
+            ? `Competition fixture: ${lobby.competitionContext.fixtureId}`
+            : undefined
+        }
+        actions={
+          <p
+            data-testid="lobby-code"
+            data-code={lobby.code}
+            className="flex items-baseline gap-3 rounded-hud border border-hud-gold/40 bg-black/50 px-4 py-2"
+          >
+            <span className="hud-label text-hud-gold">CODE: </span>
+            <span className="font-hud-display text-hud-3xl -mr-[0.3em] tracking-[0.3em] text-hud-gold">
+              {lobby.code}
+            </span>
+          </p>
+        }
+      />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <PlayerCard
           label={isHost ? "You (Host)" : "Host"}
           player={lobby.players[lobby.hostUid]}
@@ -229,14 +307,13 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       </div>
 
       {/* Your team picker — your own library only */}
-      <div className="mb-8 w-full max-w-md">
-        <Subtitle className="mb-2">Your team</Subtitle>
+      <Section title="Your team">
         {lobby.fixtureTeams && me?.team ? (
-          <div className="w-full text-xl font-body bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg px-3 py-2">
+          <p className="font-hud-body text-hud-base text-hud-bone">
             {me.team.name} ({me.team.rosterName}) — locked for this fixture
-          </div>
+          </p>
         ) : myTeams.length === 0 ? (
-          <p className="font-body text-bb-muted-text">
+          <p className="font-hud-body text-hud-base text-hud-dim">
             No saved teams — build one first.
           </p>
         ) : (
@@ -246,8 +323,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
               const team = myTeams.find((t: Team) => t.id === e.target.value);
               if (team) void selectTeam(lobby.code, user.uid, team);
             }}
-            className="w-full text-xl font-body bg-bb-parchment border-2
-              border-bb-dark-gold rounded-lg px-3 py-2"
+            aria-label="Your team"
+            className="hud-field"
           >
             <option value="" disabled>
               Pick a team…
@@ -259,7 +336,7 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
             ))}
           </select>
         )}
-      </div>
+      </Section>
 
       <SettingsPanel
         settings={lobby.settings}
@@ -267,53 +344,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
         onChange={(settings) => void updateSettings(lobby.code, settings)}
       />
 
-      <div className="flex flex-col items-center gap-3 mt-8">
-        <Button
-          disabled={!me?.team}
-          onClick={() => void setReady(lobby.code, user.uid, !me?.ready)}
-          className={me?.ready ? "opacity-80" : ""}
-        >
-          {me?.ready ? "Not ready" : "Ready!"}
-        </Button>
-
-        {isHost && (
-          <Button
-            disabled={!canStart(lobby)}
-            onClick={() =>
-              void startMatch(
-                lobby.code,
-                lobby.settings,
-                lobby.hostUid,
-                lobby.guestUid!
-              )
-            }
-          >
-            Start Match
-          </Button>
-        )}
-
-        {waitingOn.length > 0 && (
-          <p className="font-body italic text-bb-muted-text mt-2">
-            Waiting for {waitingOn.join(", ")}
-          </p>
-        )}
-        {error && <ErrorText text={error} />}
-        <SecondaryButton onClick={() => navigate("/")}>Leave</SecondaryButton>
-      </div>
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <MinHeightContainer className="bg-bb-parchment">
-      <Parchment $intensity="high" />
-      <ContentContainer>
-        <div className="flex flex-col items-center text-center py-16">
-          {children}
-        </div>
-      </ContentContainer>
-    </MinHeightContainer>
+      {error && <ErrorText text={error} />}
+    </PageShell>
   );
 }
 
@@ -323,35 +355,36 @@ function PlayerCard({
   empty,
 }: {
   label: string;
-  player: import("../../../firebase/lobby").LobbyPlayer | null | undefined;
+  player: LobbyPlayer | null | undefined;
   empty?: string;
 }) {
   return (
-    <div
-      className="min-w-[220px] border-2 border-bb-dark-gold rounded-lg p-4
-        bg-bb-parchment shadow-md"
-    >
-      <p className="font-heading text-lg uppercase mb-1">{label}</p>
+    <Panel accent={player?.ready ? "good" : "neutral"} className="p-4">
+      <Eyebrow>{label}</Eyebrow>
       {player ? (
         <>
-          <p className="font-body text-xl">{player.displayName}</p>
-          <p className="font-body text-bb-muted-text">
+          <p className="mt-1 truncate font-hud-display text-hud-xl uppercase tracking-[0.02em] text-hud-bone">
+            {player.displayName}
+          </p>
+          <p className="truncate font-hud-body text-hud-sm text-hud-dim">
             {player.team
               ? `${player.team.name} (${player.team.rosterName})`
               : "No team picked"}
           </p>
-          <p
-            className={`font-heading mt-2 ${
-              player.ready ? "text-green-700" : "text-bb-muted-text"
-            }`}
-          >
-            {player.ready ? "READY" : "not ready"}
-          </p>
+          <div className="mt-3">
+            {player.ready ? (
+              <Chip tone="good">READY</Chip>
+            ) : (
+              <Chip>not ready</Chip>
+            )}
+          </div>
         </>
       ) : (
-        <p className="font-body italic text-bb-muted-text">{empty}</p>
+        <p className="mt-2 font-hud-body text-hud-base text-hud-mute">
+          {empty}
+        </p>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -367,14 +400,12 @@ export function SettingsPanel({
   onChange: (settings: LobbySettings) => void;
 }) {
   return (
-    <div className="w-full max-w-md border-2 border-bb-dark-gold rounded-lg p-4">
-      <Subtitle className="mb-2">
-        Match settings {readOnly && "(host decides)"}
-      </Subtitle>
-      <div className="mb-5 text-left">
-        <p className="mb-2 font-heading text-sm uppercase text-bb-muted-text">
-          Pitch
-        </p>
+    <Section
+      title={readOnly ? "Match settings (host decides)" : "Match settings"}
+      bodyClassName="flex flex-col gap-4"
+    >
+      <div>
+        <Eyebrow className="mb-2">Pitch</Eyebrow>
         <PitchThemePicker
           compact
           disabled={readOnly}
@@ -382,46 +413,47 @@ export function SettingsPanel({
           onChange={(pitchThemeId) => onChange({ ...settings, pitchThemeId })}
         />
       </div>
-      <div className="flex justify-between items-center gap-4 mb-2">
-        <label className="font-body text-lg">Turn timer</label>
-        <select
-          disabled={readOnly}
-          value={settings.turnSeconds}
-          onChange={(e) =>
-            onChange({ ...settings, turnSeconds: Number(e.target.value) })
-          }
-          className="font-body bg-bb-parchment border border-bb-dark-gold rounded px-2 py-1"
-        >
-          {[60, 90, 120, 180, 240].map((s) => (
-            <option key={s} value={s}>
-              {s / 60} min
-            </option>
-          ))}
-          {/* 0 is the "no time limit" sentinel — see LobbySettings.turnSeconds */}
-          <option value={0}>No time limit</option>
-        </select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Turn timer">
+          <select
+            disabled={readOnly}
+            value={settings.turnSeconds}
+            onChange={(e) =>
+              onChange({ ...settings, turnSeconds: Number(e.target.value) })
+            }
+            className="hud-field"
+          >
+            {[60, 90, 120, 180, 240].map((s) => (
+              <option key={s} value={s}>
+                {s / 60} min
+              </option>
+            ))}
+            {/* 0 is the "no time limit" sentinel — see LobbySettings.turnSeconds */}
+            <option value={0}>No time limit</option>
+          </select>
+        </Field>
+        <Field label="Timeout bank">
+          <select
+            disabled={readOnly}
+            value={settings.timeoutBankMs}
+            onChange={(e) =>
+              onChange({ ...settings, timeoutBankMs: Number(e.target.value) })
+            }
+            className="hud-field"
+          >
+            {[0, 2, 5, 10].map((minutes) => (
+              <option key={minutes} value={minutes * 60 * 1000}>
+                {minutes} min
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
-      <div className="flex justify-between items-center gap-4">
-        <label className="font-body text-lg">Timeout bank</label>
-        <select
-          disabled={readOnly}
-          value={settings.timeoutBankMs}
-          onChange={(e) =>
-            onChange({ ...settings, timeoutBankMs: Number(e.target.value) })
-          }
-          className="font-body bg-bb-parchment border border-bb-dark-gold rounded px-2 py-1"
-        >
-          {[0, 2, 5, 10].map((minutes) => (
-            <option key={minutes} value={minutes * 60 * 1000}>
-              {minutes} min
-            </option>
-          ))}
-        </select>
-      </div>
-      <label className="mt-3 flex justify-between items-center gap-4 font-body text-lg">
+      <label className="flex items-center justify-between gap-4 font-hud-body text-hud-base text-hud-bone">
         <span>League progression</span>
         <input
           type="checkbox"
+          className="hud-check"
           disabled={readOnly}
           checked={settings.progressionEnabled ?? false}
           onChange={(event) =>
@@ -432,10 +464,14 @@ export function SettingsPanel({
           }
         />
       </label>
-    </div>
+    </Section>
   );
 }
 
 function ErrorText({ text }: { text: string }) {
-  return <p className="text-bb-deep-crimson font-body">{text}</p>;
+  return (
+    <Notice tone="bad" role="alert" className="w-full">
+      {text}
+    </Notice>
+  );
 }

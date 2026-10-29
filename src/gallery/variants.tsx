@@ -47,6 +47,7 @@ import { MatchResultsScreen } from "../ui/components/hud/MatchResultsScreen";
 import { LoadingScreen } from "../ui/components/hud/LoadingScreen";
 import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
 import { TurnClock } from "../ui/pages/TurnClock";
+import { PAGE_VARIANTS } from "./pageVariants";
 
 export interface Variant {
   id: string;
@@ -54,6 +55,8 @@ export interface Variant {
   title: string;
   /** Stage height in px (the stage is always 1280 wide). */
   height?: number;
+  /** "page" drops the pitch backdrop, for the pages around the match. */
+  stage?: "pitch" | "page";
   fixture?: FixtureOptions;
   /** Runs before the first render, e.g. to seed localStorage. */
   prepare?: () => void;
@@ -1373,6 +1376,8 @@ export const VARIANTS: Variant[] = [
         fx.bus.emit(GameEventNames.UI_LoadProgress, { progress: 0.62 })
       ),
   },
+
+  ...PAGE_VARIANTS,
 ];
 
 export const SECTIONS = [...new Set(VARIANTS.map((v) => v.section))];

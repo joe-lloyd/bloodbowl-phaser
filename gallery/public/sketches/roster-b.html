@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Roster B: player cards</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">B: player cards</span>
+<div class="wrap"><h2 style="margin-bottom:14px">Human Founders</h2><div id="g" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div></div>
+<script>
+const p=[["Karl Brandt","Blitzer","7 3 3+ 4+ 9+","Block"],["Otto Weiss","Thrower","6 3 3+ 2+ 9+","Sure Hands, Pass"],["Hans Vogel","Catcher","8 2 3+ 5+ 8+","Catch, Dodge"],["Ernst Kohl","Lineman","6 3 3+ 4+ 9+",""],["Jan Ruhl","Lineman","6 3 3+ 4+ 9+",""],["","","",""],["","","",""],["","","",""]];
+document.getElementById("g").innerHTML=p.map(([n,pos,s,sk],i)=>n?`<div class="slab" style="padding:12px"><div style="display:flex;gap:10px;align-items:center"><span class="port" style="width:48px;height:48px"></span><div><span class="label">#${i+1} · ${pos}</span><div class="name">${n}</div></div></div><div style="display:flex;gap:4px;margin-top:10px">${s.split(" ").map(v=>`<span style="flex:1;text-align:center;background:#0006;border:1px solid #ffffff1a;padding:3px 0"><span class="stat">${v}</span></span>`).join("")}</div><div class="sub" style="margin-top:8px">${sk||"No skills"}</div></div>`:`<div style="border:1px dashed #e3b4484d;border-radius:3px;display:flex;align-items:center;justify-content:center;color:var(--mute);min-height:140px">#${i+1} empty</div>`).join("");
+</script></body></html>

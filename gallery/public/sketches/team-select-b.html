@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Team select B: one card grid</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">B: one card grid</span>
+<div class="wrap">
+  <span class="label eyebrow">Friendly sevens match</span><h1>Team selection</h1><div class="rule"></div>
+  <div style="display:grid;grid-template-columns:1fr 70px 1fr;gap:16px;align-items:center;margin-bottom:18px">
+    <div class="slab" style="padding:14px;border-left:5px solid #8e1b1b"><span class="label">Home</span><div class="name" style="font-size:26px;margin-top:4px">Human Founders</div></div>
+    <div class="vs" style="text-align:center">VS</div>
+    <div class="slab" style="padding:14px;border-right:5px solid #e3b448;border-style:dashed"><span class="label">Away</span><div class="sub" style="font-size:16px;margin-top:6px">Pick a team below</div></div>
+  </div>
+  <div id="g" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
+</div>
+<div class="bar"><span class="btn">← Back to menu</span><span class="btn primary" style="opacity:.45">Start game →</span></div>
+<script>
+const t=[["Amazon Founders","Amazon","#556b2f"],["Black Orc Founders","Black Orc","#222"],["Dwarf Founders","Dwarf","#1e3a5f"],["Human Founders","Human","#8e1b1b"],["Orc Founders","Orc","#3e6b2f"],["Skaven Founders","Skaven","#6b5e54"],["Norse Founders","Norse","#d6b25e"],["Wood Elf Founders","Wood Elf","#2a6b4f"]];
+document.getElementById("g").innerHTML=t.map(([n,r,c])=>`<div class="slab ${n==="Human Founders"?"row on":""}" style="margin:0;padding:0;display:block"><div style="height:6px;background:${c}"></div><div style="padding:10px 12px"><div class="name">${n}</div><div class="sub">${r} · TV 530k</div><div style="margin-top:8px;display:flex;gap:4px">${"<span class='port'></span>".repeat(5)}</div></div></div>`).join("");
+</script></body></html>

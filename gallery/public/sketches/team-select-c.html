@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Team select C: faceoff pickers</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="pages.css" /></head>
+<body><span class="note">C: faceoff pickers</span>
+<div class="wrap">
+  <span class="label eyebrow">Friendly sevens match</span><h1>Team selection</h1><div class="rule"></div>
+  <div style="display:grid;grid-template-columns:1fr 90px 1fr;gap:20px;align-items:stretch">
+    <div class="slab" style="border-top:4px solid #8e1b1b;padding:18px"><span class="label">Player 1</span><div class="field" style="margin:8px 0 16px;color:var(--bone)">Human Founders ▾</div><div class="name" style="font-size:34px">Human Founders</div><div class="sub" style="font-size:14px">Human · 7 players · Record 3-1-2</div><div id="p1" style="display:flex;gap:6px;margin-top:24px"></div></div>
+    <div class="vs" style="align-self:center;text-align:center;font-size:48px">VS</div>
+    <div class="slab" style="border-top:4px solid #3e6b2f;padding:18px"><span class="label">Player 2</span><div class="field" style="margin:8px 0 16px;color:var(--bone)">Orc Founders ▾</div><div class="name" style="font-size:34px">Orc Founders</div><div class="sub" style="font-size:14px">Orc · 7 players · Record 2-0-4</div><div id="p2" style="display:flex;gap:6px;margin-top:24px"></div></div>
+  </div>
+</div>
+<div class="bar"><span class="btn">← Back to menu</span><span class="btn primary">Start game →</span></div>
+<script>for (const id of ["p1","p2"]) document.getElementById(id).innerHTML="<span class='port' style='width:56px;height:56px'></span>".repeat(7);</script>
+</body></html>

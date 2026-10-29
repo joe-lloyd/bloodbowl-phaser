@@ -1,4 +1,5 @@
 import { Team, calculateTeamValue } from "../../../types/Team";
+import { Stat } from "../componentWarehouse/HudKit";
 
 /** Format a gold amount as a compact "Nk" string, e.g. 50000 -> "50k". */
 export function formatGold(amount: number): string {
@@ -20,39 +21,15 @@ export function numToHex(num: number): string {
  */
 export function TeamStatsOverview({ team }: { team: Team }) {
   return (
-    <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8 bg-black/20 p-6 rounded-lg border border-bb-dark-gold/30">
-      <div>
-        <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-          Team Value
-        </span>
-        <span className="font-heading text-2xl text-bb-parchment">
-          {formatGold(calculateTeamValue(team))}
-        </span>
-      </div>
-      <div>
-        <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-          Treasury
-        </span>
-        <span className="font-heading text-2xl text-white">
-          {formatGold(team.treasury)}
-        </span>
-      </div>
-      <div>
-        <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-          Roster
-        </span>
-        <span className="font-heading text-2xl text-white">
-          {team.players.length}/11
-        </span>
-      </div>
-      <div>
-        <span className="block text-xs uppercase font-bold text-bb-dark-gold mb-1 tracking-wider">
-          Record
-        </span>
-        <span className="font-heading text-2xl text-white">
-          {team.wins}-{team.draws}-{team.losses}
-        </span>
-      </div>
+    <div className="grid grid-cols-4 gap-2">
+      <Stat
+        label="Team Value"
+        value={formatGold(calculateTeamValue(team))}
+        tone="gold"
+      />
+      <Stat label="Treasury" value={formatGold(team.treasury)} />
+      <Stat label="Roster" value={`${team.players.length}/11`} />
+      <Stat label="Record" value={`${team.wins}-${team.draws}-${team.losses}`} />
     </div>
   );
 }

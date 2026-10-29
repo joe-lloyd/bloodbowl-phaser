@@ -5,7 +5,10 @@ import {
   recordCompetitionFixture,
   withdrawFromCompetition,
 } from "../../../competition/resultRecording";
-import { fetchEntrantTeam, refreshEntrantDisplays } from "../../../competition/teamRefs";
+import {
+  fetchEntrantTeam,
+  refreshEntrantDisplays,
+} from "../../../competition/teamRefs";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import {
   CompetitionContext,
@@ -15,11 +18,16 @@ import {
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
 import { BracketFixtureContext, TournamentBracket } from "./TournamentBracket";
-import { Button, SecondaryButton } from "../componentWarehouse/Button";
-import ContentContainer from "../componentWarehouse/ContentContainer";
-import MinHeightContainer from "../componentWarehouse/MinHeightContainer";
-import Parchment from "../componentWarehouse/Parchment";
-import { SectionTitle, Title } from "../componentWarehouse/Titles";
+import {
+  Chip,
+  cx,
+  HudButton,
+  Notice,
+  PageHeader,
+  PageShell,
+  Panel,
+  Section,
+} from "../componentWarehouse/HudKit";
 import {
   clearMatchSave,
   readMatchSave,
@@ -54,10 +62,21 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
 
   if (!competition) {
     return (
-      <CompetitionShell>
-        <p className="font-body text-xl">{error ?? "Loading competition…"}</p>
-        <SecondaryButton onClick={() => navigate(-1)}>Back</SecondaryButton>
-      </CompetitionShell>
+      <PageShell width="wide">
+        <PageHeader
+          back={{ label: "Back", onClick: () => navigate(-1) }}
+          title="Competition"
+        />
+        {error ? (
+          <Notice tone="bad" role="alert">
+            {error}
+          </Notice>
+        ) : (
+          <p className="font-hud-body text-hud-lg text-hud-dim">
+            Loading competition…
+          </p>
+        )}
+      </PageShell>
     );
   }
 
@@ -227,20 +246,21 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     return (
       <>
         <div className="flex flex-wrap gap-2">
-          <Button
-            className="!text-sm !px-3 !py-2 !my-0"
+          <HudButton
+            variant="primary"
+            size="sm"
             disabled={launching}
             onClick={() => void launchLocal(fixture)}
           >
             Play local
-          </Button>
-          <Button
-            className="!text-sm !px-3 !py-2 !my-0"
+          </HudButton>
+          <HudButton
+            size="sm"
             disabled={!onlineAvailable || !user || launching}
             onClick={() => void launchHosted(fixture)}
           >
             Host online
-          </Button>
+          </HudButton>
         </div>
         {canReport && (
           <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -255,9 +275,9 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                   [fixture.id]: { ...draft, home: event.target.value },
                 }))
               }
-              className="w-14 border border-bb-divider rounded p-1"
+              className="hud-field w-16 text-center"
             />
-            <span>–</span>
+            <span className="text-hud-mute">–</span>
             <input
               aria-label={`${away?.name} score`}
               type="number"
@@ -269,14 +289,15 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                   [fixture.id]: { ...draft, away: event.target.value },
                 }))
               }
-              className="w-14 border border-bb-divider rounded p-1"
+              className="hud-field w-16 text-center"
             />
-            <button
+            <HudButton
+              variant="ghost"
+              size="sm"
               onClick={() => void report(fixture)}
-              className="font-heading underline text-bb-blood-red text-sm"
             >
               Record result
-            </button>
+            </HudButton>
           </div>
         )}
       </>
@@ -287,7 +308,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     <div className="grid lg:grid-cols-2 gap-6">
       {rounds.map((round) => (
         <div key={round}>
-          <h3 className="font-heading text-xl mb-2">Round {round}</h3>
+          <h3 className="hud-label mb-2 text-hud-gold">Round {round}</h3>
           <div className="space-y-3">
             {competition.fixtures
               .filter((fixture) => fixture.round === round)
@@ -299,20 +320,26 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                 return (
                   <article
                     key={fixture.id}
-                    className="bg-bb-warm-paper border-2 border-bb-dark-gold rounded-lg p-4"
+                    className="rounded-hud border border-white/10 bg-black/30 p-4 font-hud-body text-hud-base text-hud-bone"
                   >
-                    <div className="font-body flex justify-between gap-3">
-                      <span>{home?.name ?? "TBD"}</span>
-                      <strong>{fixture.result?.homeScore ?? "—"}</strong>
+                    <div className="flex justify-between gap-3">
+                      <span className={cx(!home && "italic text-hud-mute")}>
+                        {home?.name ?? "TBD"}
+                      </span>
+                      <strong className="tabular-nums">
+                        {fixture.result?.homeScore ?? "—"}
+                      </strong>
                     </div>
-                    <div className="font-body flex justify-between gap-3">
-                      <span>
+                    <div className="flex justify-between gap-3">
+                      <span className={cx(!away && "italic text-hud-mute")}>
                         {away?.name ?? (fixture.result?.bye ? "BYE" : "TBD")}
                       </span>
-                      <strong>{fixture.result?.awayScore ?? "—"}</strong>
+                      <strong className="tabular-nums">
+                        {fixture.result?.awayScore ?? "—"}
+                      </strong>
                     </div>
                     {ready && (
-                      <div className="mt-3">
+                      <div className="mt-3 border-t border-white/10 pt-3">
                         {fixtureActions({ fixture, home, away, ready })}
                       </div>
                     )}
@@ -326,50 +353,49 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   );
 
   return (
-    <CompetitionShell>
-      <div className="flex flex-wrap justify-between items-start gap-4">
-        <div>
-          <Title>{competition.name}</Title>
-          <p className="font-heading uppercase text-bb-muted-text">
-            {competition.type === "tournament"
-              ? competition.format.replace("-", " ")
-              : "round-robin season"}{" "}
-            · {competition.status}
-          </p>
-        </div>
-        <SecondaryButton onClick={() => navigate(-1)}>
-          All {competition.type}s
-        </SecondaryButton>
-      </div>
+    <PageShell width="wide">
+      <PageHeader
+        back={{
+          label: `All ${competition.type}s`,
+          onClick: () => navigate(-1),
+        }}
+        eyebrow={
+          competition.type === "tournament"
+            ? competition.format.replace("-", " ")
+            : "round-robin season"
+        }
+        title={competition.name}
+        actions={<Chip>{competition.status}</Chip>}
+      />
 
       {champion && (
-        <div className="my-6 bg-bb-ink-blue text-bb-gold border-2 border-bb-dark-gold rounded-lg p-5">
-          <span className="font-heading text-2xl uppercase">
+        <Panel accent="gold" className="mb-6 px-5 py-4">
+          <span className="font-hud-display text-hud-2xl uppercase tracking-[0.03em] text-hud-gold">
             Champion: {champion.name}
           </span>
-        </div>
+        </Panel>
       )}
 
       {competition.status === "active" && (
-        <section className="my-8">
-          <SectionTitle>Entrants</SectionTitle>
+        <Section title="Entrants">
           <div className="flex flex-wrap gap-2">
             {competition.entrants.map((candidate) => {
               const owned = !!getTeamById(candidate.teamId);
               return (
                 <div
                   key={candidate.id}
-                  className={`flex items-center gap-2 border-2 rounded-lg px-3 py-2 font-body ${
+                  className={cx(
+                    "flex items-center gap-3 rounded-hud border px-3 py-2 font-hud-body text-hud-sm",
                     candidate.withdrawn
-                      ? "opacity-50 line-through border-bb-divider"
-                      : "border-bb-dark-gold bg-bb-warm-paper"
-                  }`}
+                      ? "border-white/5 text-hud-mute line-through"
+                      : "border-white/15 bg-black/30 text-hud-bone"
+                  )}
                 >
                   <span>{candidate.name}</span>
                   {owned && !candidate.withdrawn && (
                     <button
                       onClick={() => void withdraw(candidate.id)}
-                      className="font-heading text-xs underline text-bb-deep-crimson"
+                      className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
                     >
                       Withdraw
                     </button>
@@ -378,20 +404,19 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
               );
             })}
           </div>
-        </section>
+        </Section>
       )}
 
       {(competition.type === "league" ||
         competition.format === "round-robin") && (
-        <section className="my-8 overflow-x-auto">
-          <SectionTitle>Standings</SectionTitle>
-          <table className="w-full bg-bb-warm-paper border-collapse font-body">
+        <Section title="Standings" bodyClassName="overflow-x-auto p-0">
+          <table className="hud-table">
             <thead>
-              <tr className="bg-bb-ink-blue text-white">
-                <th className="p-2 text-left">Team</th>
+              <tr>
+                <th>Team</th>
                 {["P", "W", "D", "L", "For", "Against", "+/-", "Pts"].map(
                   (heading) => (
-                    <th key={heading} className="p-2 text-center">
+                    <th key={heading} className="num">
                       {heading}
                     </th>
                   )
@@ -400,34 +425,28 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             </thead>
             <tbody>
               {competition.standings.map((standing) => (
-                <tr
-                  key={standing.entrantId}
-                  className="border-b border-bb-divider"
-                >
-                  <td className="p-2 font-bold">
+                <tr key={standing.entrantId}>
+                  <td className="font-bold">
                     {entrant(standing.entrantId)?.name}
                   </td>
-                  <td className="p-2 text-center">{standing.played}</td>
-                  <td className="p-2 text-center">{standing.wins}</td>
-                  <td className="p-2 text-center">{standing.draws}</td>
-                  <td className="p-2 text-center">{standing.losses}</td>
-                  <td className="p-2 text-center">{standing.scoreFor}</td>
-                  <td className="p-2 text-center">{standing.scoreAgainst}</td>
-                  <td className="p-2 text-center">
-                    {standing.scoreDifference}
-                  </td>
-                  <td className="p-2 text-center font-bold">
+                  <td className="num">{standing.played}</td>
+                  <td className="num">{standing.wins}</td>
+                  <td className="num">{standing.draws}</td>
+                  <td className="num">{standing.losses}</td>
+                  <td className="num">{standing.scoreFor}</td>
+                  <td className="num">{standing.scoreAgainst}</td>
+                  <td className="num">{standing.scoreDifference}</td>
+                  <td className="num font-bold text-hud-gold">
                     {standing.points}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </section>
+        </Section>
       )}
 
-      <section className="my-8">
-        <SectionTitle>{isBracket ? "Bracket" : "Schedule"}</SectionTitle>
+      <Section title={isBracket ? "Bracket" : "Schedule"}>
         {isBracket ? (
           <TournamentBracket
             fixtures={competition.fixtures}
@@ -443,17 +462,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         ) : (
           renderRoundList()
         )}
-      </section>
-      {error && <p className="font-body text-bb-deep-crimson">{error}</p>}
-    </CompetitionShell>
-  );
-}
-
-function CompetitionShell({ children }: { children: React.ReactNode }) {
-  return (
-    <MinHeightContainer className="!justify-start">
-      <Parchment $intensity="low" />
-      <ContentContainer>{children}</ContentContainer>
-    </MinHeightContainer>
+      </Section>
+      {error && (
+        <Notice tone="bad" role="alert">
+          {error}
+        </Notice>
+      )}
+    </PageShell>
   );
 }

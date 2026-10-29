@@ -1,4 +1,5 @@
 import { SECTIONS, VARIANTS } from "./variants";
+import { PAGES_NAV, PagesReview } from "./PagesReview";
 import {
   Chip,
   Eyebrow,
@@ -45,7 +46,7 @@ const SHOTS = [
 
 const NOT_SHOWN = [
   "The dice log's chat tab and the online Waiting and Disconnected banners need a live online match; they use the same slab, label and button styles shown here.",
-  "PlayerDevelopment lives on the Manage Team page, not in the match, so it keeps the menu styling.",
+  "The online lobby room needs a signed-in coach and a live lobby, so the captures show its signed-out state. The Pages section renders its match settings panel live.",
 ];
 
 function Frame({
@@ -98,7 +99,13 @@ export function GalleryIndex() {
       <nav className="sticky top-6 hidden h-[calc(100vh-3rem)] w-52 shrink-0 overflow-y-auto hud-scroll lg:block">
         <Eyebrow tone="gold">Sections</Eyebrow>
         <ul className="mt-2 flex flex-col gap-0.5 font-hud-label text-[15px] font-semibold uppercase tracking-[0.04em]">
-          {["Direction", "Before and after", ...SECTIONS, "Not shown"].map(
+          {[
+            "Direction",
+            "Before and after",
+            ...PAGES_NAV,
+            ...SECTIONS,
+            "Not shown",
+          ].map(
             (name) => (
               <li key={name}>
                 <a
@@ -115,12 +122,13 @@ export function GalleryIndex() {
 
       <main className="min-w-0 flex-1">
         <header>
-          <Eyebrow tone="gold">Blood Bowl Sevens · in-match HUD</Eyebrow>
+          <Eyebrow tone="gold">Blood Bowl Sevens · Stadium Broadcast</Eyebrow>
           <h1 className="mt-1 font-hud-display text-hud-4xl uppercase tracking-[0.02em]">
-            HUD redesign gallery
+            HUD and pages gallery
           </h1>
           <p className="mt-3 max-w-3xl text-hud-base text-hud-dim">
-            Every floating React element in the match, on one design system. The
+            Every floating React element in the match, and every page around
+            it, on one design system. The
             variants below are the real components, rendered with fixture data
             and a real event bus over a pitch backdrop. Each frame is a live
             page: hover and click work.
@@ -225,6 +233,8 @@ export function GalleryIndex() {
             </figure>
           ))}
         </div>
+
+        <PagesReview SectionTitle={SectionTitle} slug={slug} />
 
         {SECTIONS.map((section) => (
           <section key={section}>
