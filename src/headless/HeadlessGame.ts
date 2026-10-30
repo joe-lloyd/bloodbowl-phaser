@@ -1003,6 +1003,7 @@ export class HeadlessGame {
           if (carriesBall && availability.pass) actions.push("pass");
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
+          if (availability.throwTeammate) actions.push("throwTeamMate");
           if (canFoul && adjacentDown.length > 0)
             actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
