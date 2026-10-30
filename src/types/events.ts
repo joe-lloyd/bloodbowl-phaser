@@ -196,6 +196,9 @@ export enum GameEventNames {
   /** A large, centred, self-dismissing announcement reserved for structural
    *  match transitions. The `kind` union is the only way to raise one. */
   UI_Announce = "ui:announce",
+  /** The moment queue hands the screen to one moment, or clears it (null).
+   *  The Announcer and the turnover overlay render only what this says. */
+  UI_PresentMoment = "ui:presentMoment",
   /** The local coach cut the end-of-drive celebration/recovery beat short.
    *  Local only — it is a UI intent and never crosses the wire, so an online
    *  match plays the sequence at its fixed length for both coaches. */
@@ -759,11 +762,8 @@ export interface UIEvents {
     /** Set only when the outcome is attributable to one coach's team. */
     teamId?: string;
   };
-  [GameEventNames.UI_Announce]: {
-    kind: AnnouncementKind;
-    headline: string;
-    subtitle?: string;
-  };
+  [GameEventNames.UI_Announce]: AnnouncementMoment;
+  [GameEventNames.UI_PresentMoment]: MatchMoment | null;
   [GameEventNames.UI_SkipDriveSequence]: void;
 
   // Confirmation
@@ -790,7 +790,7 @@ export interface UIEvents {
   };
 
   // Turnover Visuals
-  [GameEventNames.UI_Turnover]: { teamId: string; reason: string };
+  [GameEventNames.UI_Turnover]: { teamId: string; reason: string; playerName?: string };
 
   // Player Info
   [GameEventNames.UI_ShowPlayerInfo]: Player;
@@ -937,17 +937,30 @@ export type LogEntryCategory =
 
 /**
  * The closed set of structural transitions the announcer may show. This
- * union is the only entry point — there is no way to raise an announcement
- * outside these four kinds.
+ * union is the entry point for banners queued in rule-event order.
  */
 export type AnnouncementKind =
   | "team-intro"
   | "weather"
   | "time-up"
   | "turn-started"
-  | "round-passed"
   | "halftime"
-  | "full-time";
+  | "full-time"
+  | "touchdown"
+  | "kickoff-result"
+  | "casualty"
+  | "next-kicker";
+
+export interface AnnouncementMoment {
+  kind: AnnouncementKind;
+  headline: string;
+  subtitle?: string;
+}
+
+/** One beat the moment queue plays: a banner, or the turnover takeover. */
+export type MatchMoment =
+  | AnnouncementMoment
+  | { kind: "turnover"; reason: string };
 
 /**
  * Action types available in the game

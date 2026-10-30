@@ -108,6 +108,7 @@ export class SceneOrchestrator {
           );
           this.scene.startKickoffPhase(subPhase);
           break;
+        case GamePhase.HALFTIME:
         case GamePhase.TOUCHDOWN:
           // The celebration window has an owner: without one the scene was
           // unmanaged exactly while the pitch was being cleared underneath it.

@@ -10,6 +10,7 @@
  * variant; UI and online coaches act through GameService methods.
  */
 
+import { kickoffMomentDetail } from "./kickoffMoment";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames, ActionType } from "../../types/events";
 import { GameState } from "@/types/GameState";
@@ -146,6 +147,7 @@ export class KickoffEventManager {
         meaning: existing.meaning,
         outcome: existing.outcome,
       });
+      this.announceMoment(existing.outcome, isTeam1Kicking);
       return;
     }
 
@@ -184,6 +186,8 @@ export class KickoffEventManager {
       outcome,
     });
 
+    this.announceMoment(outcome, isTeam1Kicking);
+
     if (
       INTERACTIVE_KICKOFF_EVENTS.has(event) &&
       event !== KickoffEvent.HIGH_KICK
@@ -196,6 +200,27 @@ export class KickoffEventManager {
       const selectionLimit = this.diceController.rollD3(`${event} limit`) + 1;
       await this.openStep(event, ownerTeamId, selectionLimit);
     }
+  }
+
+  /**
+   * The kick-off result banner: the event, what it does and who it
+   * favours. An interactive event opens its step at once, and the step's
+   * own overlay presents it instead.
+   */
+  private announceMoment(
+    outcome: KickoffEventOutcome,
+    isTeam1Kicking: boolean
+  ): void {
+    if (INTERACTIVE_KICKOFF_EVENTS.has(outcome.event)) return;
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "kickoff-result",
+      headline: outcome.event,
+      subtitle: kickoffMomentDetail(
+        outcome,
+        isTeam1Kicking ? this.team1 : this.team2,
+        isTeam1Kicking ? this.team2 : this.team1
+      ),
+    });
   }
 
   /** The event rolled for the in-flight kick (null outside kickoff). */

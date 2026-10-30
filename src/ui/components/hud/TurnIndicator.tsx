@@ -11,7 +11,7 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
   turnNumber,
   phase,
 }) => {
-  if (!turnNumber) {
+  if (!turnNumber && phase !== GamePhase.HALFTIME) {
     return null;
   }
 
@@ -28,7 +28,13 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
         }`}
       >
         <div className="skew-x-12 font-hud-display text-hud-lg uppercase tracking-[0.08em]">
-          {showKickoff ? "KICKOFF" : showSetup ? "SETUP" : `TURN ${turnNumber}`}
+          {phase === GamePhase.HALFTIME
+            ? "HALF TIME"
+            : showKickoff
+              ? "KICKOFF"
+              : showSetup
+                ? "SETUP"
+                : `TURN ${turnNumber}`}
         </div>
       </div>
     </div>

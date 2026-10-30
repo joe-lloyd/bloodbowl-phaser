@@ -107,6 +107,37 @@ async function placeAvailable(
 }
 
 describe("drive transition: touchdown -> KO recovery -> short-handed setup -> kickoff", () => {
+  it("announces and records the scorer, score and remaining turns before setup", async () => {
+    const game = new HeadlessGame({ scenario: tdScenario, seed: 7 });
+    const entries: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.UI_LogEntry, (entry) => {
+      if (entry.category === "score") entries.push(entry.detail ?? "");
+    });
+    const response = await scoreTouchdown(game);
+    const announcement = response.events.findIndex(
+      (event) =>
+        event.name === GameEventNames.UI_Announce &&
+        typeof event.data === "object" &&
+        event.data !== null &&
+        "kind" in event.data &&
+        event.data.kind === "touchdown"
+    );
+    const setup = response.events.findIndex(
+      (event) =>
+        event.name === GameEventNames.PhaseChanged &&
+        typeof event.data === "object" &&
+        event.data !== null &&
+        "phase" in event.data &&
+        event.data.phase === GamePhase.SETUP
+    );
+    expect(announcement).toBeGreaterThanOrEqual(0);
+    expect(setup).toBeGreaterThan(announcement);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toContain("1 : 0");
+    expect(entries[0]).toContain("Turns left in the half");
+    expect(entries[0]).toContain(game.ctx.team1.players[0].playerName);
+  });
+
   it("rolls KO recovery one player at a time, each roll shown before the move", async () => {
     const game = new HeadlessGame({ scenario: tdScenario, seed: 7 });
     const knockedOut = knockOutAllBut(game, 0, 3);

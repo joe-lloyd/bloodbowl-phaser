@@ -24,6 +24,17 @@ export type DelayProvider = (ms: number) => Promise<void>;
 let runningDelays = 0;
 const quietWaiters: (() => void)[] = [];
 
+/** Count visual barriers too, so lockstep checks only settled engine state. */
+export async function trackEngineWork(work: Promise<void>): Promise<void> {
+  runningDelays++;
+  try {
+    await work;
+  } finally {
+    runningDelays--;
+    if (runningDelays === 0) quietWaiters.splice(0).forEach((wake) => wake());
+  }
+}
+
 export const realTimeDelay: DelayProvider = (ms) => {
   runningDelays++;
   return new Promise((resolve) =>
@@ -42,8 +53,7 @@ export const realTimeDelay: DelayProvider = (ms) => {
  * command, because the two machines run the same delays at different
  * moments. A decision the engine is paused on is not a delay, so this
  * does not wait for it. Gives up after `maxMs`, which must outlast the
- * longest chain: a turnover alone paces 3 s, then 0.5 s, then 1.1 s, and a
- * slow machine fires each one late.
+ * longest chain of dice, queued moments and end-of-drive operations.
  */
 export async function whenEngineQuiet(maxMs = 30_000): Promise<void> {
   const deadline = Date.now() + maxMs;

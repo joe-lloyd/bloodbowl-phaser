@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import type { AnnouncementKind } from "../../src/types/events";
@@ -12,6 +12,7 @@ describe("Announcer", () => {
   let eventBus: EventBus;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -21,13 +22,16 @@ describe("Announcer", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    vi.useRealTimers();
   });
 
   const kinds: AnnouncementKind[] = [
     "turn-started",
-    "round-passed",
     "halftime",
     "full-time",
+    "touchdown",
+    "kickoff-result",
+    "casualty",
   ];
 
   for (const kind of kinds) {
@@ -47,7 +51,7 @@ describe("Announcer", () => {
     });
   }
 
-  it("replaces the current announcement with a later one instead of stacking", async () => {
+  it("queues a later announcement until the current one finishes", async () => {
     await act(async () => {
       root.render(<Announcer eventBus={eventBus} />);
     });
@@ -67,11 +71,16 @@ describe("Announcer", () => {
       });
     });
 
+    expect(container.textContent).toContain("Away Team's Turn");
+    expect(container.textContent).not.toContain("Halftime");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2300);
+    });
     expect(container.textContent).toContain("Halftime");
     expect(container.textContent).not.toContain("Away Team's Turn");
   });
 
-  it("only accepts the four announcement kinds — the type union is the only entry point", () => {
+  it("keeps announcement kinds in a closed type union", () => {
     // @ts-expect-error "kickoff" is not a structural transition and must
     // never be able to raise an announcement.
     const invalidKind: AnnouncementKind = "kickoff";

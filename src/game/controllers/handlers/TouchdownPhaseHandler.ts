@@ -8,18 +8,16 @@ import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 /**
  * TouchdownPhaseHandler
  *
- * Owns the scene for the whole TOUCHDOWN window: the celebration, the pitch
- * clear and the paced KO recovery, right up to the moment setup for the next
- * drive begins (which swaps in the SetupPhaseHandler).
+ * Owns touchdown and half-time transitions through the pitch clear and KO
+ * recovery, until setup for the next drive begins.
  *
  * Before this handler existed the orchestrator fell through to
  * "No handler for phase: TOUCHDOWN" and the scene had no owner exactly while
  * the pitch was being cleared underneath it.
  *
  * Responsibilities:
- * - Announce the scorer, their team and the updated score (screen + match log)
  * - Keep the dugouts in step with each KO recovery roll
- * - Let a local coach skip the celebration/recovery beats with a click
+ * - Let a local coach skip recovery beats after the touchdown hold
  */
 export class TouchdownPhaseHandler implements PhaseHandler {
   private removeHandlers: Array<() => void> = [];
@@ -27,7 +25,7 @@ export class TouchdownPhaseHandler implements PhaseHandler {
 
   constructor(
     private scene: GameScene,
-    private gameService: IGameService,
+    _gameService: IGameService,
     private eventBus: IEventBus
   ) {}
 
@@ -52,8 +50,6 @@ export class TouchdownPhaseHandler implements PhaseHandler {
   }
 
   private setupListeners(): void {
-    this.register(GameEventNames.Touchdown, (data) => this.announce(data));
-
     // The end-of-drive sequence moves players between the dugout boxes while
     // this handler owns the scene; the play handler that normally does this
     // has already exited.
@@ -63,31 +59,9 @@ export class TouchdownPhaseHandler implements PhaseHandler {
     });
   }
 
-  /** "TOUCHDOWN! <scorer> scores for <team> — 2 : 1", recorded in the log. */
-  private announce(data: GameEventMap[GameEventNames.Touchdown]): void {
-    const team = this.gameService.getTeam(data.teamId);
-    const scorer = data.scorerId
-      ? this.gameService.getPlayerById(data.scorerId)
-      : undefined;
-    const team1 = this.scene.team1;
-    const team2 = this.scene.team2;
-    const scores = this.gameService.getState().score;
-    const score = `${team1.name} ${scores[team1.id] ?? 0} : ${scores[team2.id] ?? 0} ${team2.name}`;
-    const who = scorer
-      ? `${scorer.playerName} scores for ${team?.name ?? data.teamId}`
-      : `${team?.name ?? data.teamId} scores`;
-
-    this.eventBus.emit(GameEventNames.UI_LogEntry, {
-      category: "score",
-      headline: "TOUCHDOWN!",
-      detail: `${who} — ${score}`,
-      teamId: data.teamId,
-    });
-  }
-
   /**
-   * Local matches let the coach click through the celebration and recovery
-   * beats. Online matches do not: the skip is a UI intent that never crosses
+   * Local matches let the coach click through recovery beats after the
+   * queued touchdown has finished. Online matches do not: the skip is a UI intent that never crosses
    * the wire, so cutting it locally would desync what the two coaches see.
    */
   private enableLocalSkip(): void {

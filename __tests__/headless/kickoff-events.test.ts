@@ -313,6 +313,43 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(effectiveAV(player, game.ctx.gameService.getState())).toBe(baseAV);
   });
 
+  it("announces each passive result with its effect and who it favours", async () => {
+    const found = await findEveryEvent();
+    const banners = new Map(
+      [...found].map(([event, run]) => [
+        event,
+        run.response.events
+          .map((e) => e.data)
+          .filter(
+            (data) =>
+              typeof data === "object" &&
+              data !== null &&
+              "kind" in data &&
+              data.kind === "kickoff-result"
+          ),
+      ])
+    );
+
+    expect(banners.get(KickoffEvent.GET_THE_REF)).toEqual([
+      {
+        kind: "kickoff-result",
+        headline: KickoffEvent.GET_THE_REF,
+        subtitle: "Both teams gain a Bribe. Favours both teams.",
+      },
+    ]);
+    expect(banners.get(KickoffEvent.TIME_OUT)).toEqual([
+      {
+        kind: "kickoff-result",
+        headline: KickoffEvent.TIME_OUT,
+        subtitle: "Both turn markers move by one. Favours neither team.",
+      },
+    ]);
+    // An interactive event is presented by its step's overlay instead.
+    for (const event of INTERACTIVE_KICKOFF_EVENTS) {
+      expect(banners.get(event)).toEqual([]);
+    }
+  });
+
   it("resolves High Kick before landing", async () => {
     const found = await findEveryEvent();
 
