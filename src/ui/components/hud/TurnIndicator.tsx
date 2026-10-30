@@ -1,6 +1,7 @@
 import React from "react";
 
 import { GamePhase } from "../../../types/GameState";
+import { turnProgress } from "./matchStripText";
 
 interface TurnIndicatorProps {
   turnNumber: number | null;
@@ -27,14 +28,18 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
             : "border-[#ff6b6b]/50 bg-hud-blood text-white"
         }`}
       >
-        <div className="skew-x-12 font-hud-display text-hud-lg uppercase tracking-[0.08em]">
-          {phase === GamePhase.HALFTIME
-            ? "HALF TIME"
-            : showKickoff
-              ? "KICKOFF"
-              : showSetup
-                ? "SETUP"
-                : `TURN ${turnNumber}`}
+        <div className="skew-x-12 whitespace-nowrap font-hud-display text-hud-lg uppercase tracking-[0.08em]">
+          {phase === GamePhase.HALFTIME ? (
+            "HALF TIME"
+          ) : showKickoff ? (
+            "KICKOFF"
+          ) : showSetup ? (
+            "SETUP"
+          ) : (
+            <span data-testid="turns-left">
+              {turnProgress(turnNumber ?? 0)}
+            </span>
+          )}
         </div>
       </div>
     </div>

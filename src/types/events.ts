@@ -41,6 +41,12 @@ export enum GameEventNames {
    * player's red-ring indicator; never engine state, never crosses back out.
    */
   RemoteSelectionChanged = "remoteSelectionChanged",
+  /**
+   * Online only: the OTHER coach has a Dodge, Rush or Pick up prompt open,
+   * or null once they answer it. Sent over the cosmetic "prompt" envelope;
+   * never engine state.
+   */
+  RemotePromptChanged = "remotePromptChanged",
   PlacementInvalid = "placementInvalid",
   SetupRestrictionsUpdated = "setupRestrictionsUpdated",
   SetupConcessionOffered = "setupConcessionOffered",
@@ -331,6 +337,7 @@ export interface GameEvents {
   [GameEventNames.PlayerActivated]: string; // playerId
   [GameEventNames.PlayerSelected]: { player: Player | null };
   [GameEventNames.RemoteSelectionChanged]: { playerId: string | null };
+  [GameEventNames.RemotePromptChanged]: StepPrompt | null;
   [GameEventNames.PlayerStatusChanged]: Player;
   [GameEventNames.Turnover]: { teamId: string };
 
@@ -780,6 +787,9 @@ export interface UIEvents {
     cancelLabel?: string;
     risky?: boolean;
     chooserTeamId?: string;
+    /** Set for a Dodge, Rush or Pick up prompt; online, the other coach
+     *  sees it read-only. */
+    step?: StepPrompt;
   };
 
   [GameEventNames.UI_ConfirmationResult]: {
@@ -963,6 +973,14 @@ export interface AnnouncementMoment {
   kind: AnnouncementKind;
   headline: string;
   subtitle?: string;
+}
+
+/** What a coach is asked before a risky step: the rolls and the chance. */
+export interface StepPrompt {
+  playerId: string;
+  rolls: { type: "dodge" | "rush" | "pickup"; target: number }[];
+  /** Chance that every roll succeeds, without re-rolls, from 0 to 1. */
+  chance: number;
 }
 
 /** One beat the moment queue plays: a banner, or the turnover takeover. */

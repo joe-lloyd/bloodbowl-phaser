@@ -26,10 +26,12 @@ import {
   LockstepState,
   PROTOCOL_VERSION,
   SelectionPayload,
+  PromptPayload,
   SequenceTracker,
   SettledPayload,
 } from "./envelope";
 import { Transport } from "./transport";
+import { StepPrompt } from "../types/events";
 import { checkOwnership, GateContext } from "./OwnershipGate";
 
 export interface LockstepSessionOptions {
@@ -45,6 +47,7 @@ export interface LockstepSessionOptions {
   onHello?: (payload: HelloPayload, from: string) => void;
   onChat?: (payload: ChatPayload, from: string) => void;
   onSelection?: (payload: SelectionPayload, from: string) => void;
+  onPrompt?: (payload: PromptPayload, from: string) => void;
   /** The other coach's command is about to run on this engine. */
   onPeerCommand?: (command: HeadlessCommand) => void;
   /** After any command ran on this engine, this coach's or the other's. */
@@ -147,6 +150,11 @@ export class LockstepSession {
     await this.send({ kind: "selection", payload: { playerId } });
   }
 
+  /** Broadcast the step prompt this coach has open (cosmetic). */
+  async sendPrompt(prompt: StepPrompt | null): Promise<void> {
+    await this.send({ kind: "prompt", payload: { prompt } });
+  }
+
   async requestResync(): Promise<void> {
     if (this.awaitingResync) return;
     this.awaitingResync = true;
@@ -218,6 +226,9 @@ export class LockstepSession {
         break;
       case "selection":
         this.options.onSelection?.(envelope.payload, envelope.from);
+        break;
+      case "prompt":
+        this.options.onPrompt?.(envelope.payload, envelope.from);
         break;
       case "heartbeat":
         break;

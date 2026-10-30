@@ -29,6 +29,7 @@ import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InducementChoiceDialog } from "./InducementChoiceDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
 import { TurnoverOverlay } from "./TurnoverOverlay";
+import { OtherCoachPrompt } from "./OtherCoachPrompt";
 import { HUDLayout } from "./HUDLayout";
 import { DiceTray } from "./DiceTray";
 import { SandboxOverlay } from "./SandboxOverlay";
@@ -327,6 +328,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               data-testid="decision-dock"
               className="w-full max-h-[calc(100dvh-3rem)] overflow-y-auto hud-scroll empty:hidden [&>[data-decision-dialog]:not(:last-child)]:hidden"
             >
+              <OtherCoachPrompt eventBus={eventBus} />
               <BlockDiceDialog eventBus={eventBus} />
               <PushChoicePrompt eventBus={eventBus} />
               <FollowUpDialog eventBus={eventBus} />

@@ -347,6 +347,12 @@ describe("GameplayInteractionController", () => {
       expect(prompt.message).toContain("Dodge: 4+");
       expect(prompt.message).toContain("No re-roll available.");
       expect(prompt.cancelLabel).toBe("Stop here");
+      // What the other coach sees read-only online
+      expect(prompt.step).toEqual({
+        playerId: "p1",
+        rolls: [{ type: "dodge", target: 4 }],
+        chance: 0.5,
+      });
       expect(mockGameService.movePlayer).not.toHaveBeenCalled();
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
     });

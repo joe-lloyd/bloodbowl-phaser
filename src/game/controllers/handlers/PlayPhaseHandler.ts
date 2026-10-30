@@ -1,5 +1,9 @@
 import Phaser from "phaser";
-import { rollLabel, requiredRoll } from "../../rules/rollProbability";
+import {
+  rollLabel,
+  rollProbability,
+  requiredRoll,
+} from "../../rules/rollProbability";
 import { rushModifier } from "../../inducements/matchInducements";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
@@ -150,15 +154,22 @@ export class PlayPhaseHandler implements PhaseHandler {
         }
         if (used + 1 > effectiveAttacker.stats.MA) {
           this.pendingBlitzBlock = data;
+          const target = requiredRoll(2, rushModifier(state, attacker));
           this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
             actionId: "blitz-rush-confirm",
             title: "Rush Required!",
             message:
-              `${rollLabel("This block needs a Rush", requiredRoll(2, rushModifier(state, attacker)))}.\n` +
+              `${rollLabel("This block needs a Rush", target)}.\n` +
               "A fail knocks the blitzer down. It is a turnover and no block is rolled.",
             confirmLabel: "Rush!",
             cancelLabel: "Cancel",
             risky: true,
+            chooserTeamId: attacker.teamId,
+            step: {
+              playerId: attacker.id,
+              rolls: [{ type: "rush", target }],
+              chance: rollProbability([{ dice: "d6", target }]),
+            },
           });
           return;
         }

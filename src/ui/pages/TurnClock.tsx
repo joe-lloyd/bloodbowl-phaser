@@ -34,6 +34,9 @@ const fmt = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** How early a turn may end and still count as ending on the clock. */
+const TIME_UP_GRACE_MS = 1000;
+
 const currentPhase = (): GamePhase | null =>
   ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getPhase()
@@ -62,7 +65,7 @@ export function TurnClock({
   const present = (content: ReactNode) =>
     stripSlot ? createPortal(content, stripSlot) : content;
   const clockClass = stripSlot
-    ? "flex skew-x-12 items-center gap-2 text-hud-xs"
+    ? "flex skew-x-12 items-center gap-2 whitespace-nowrap text-hud-xs"
     : "hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2";
   const timer = lobby.timer;
   // Both browsers run the engine; the coach whose turn it is keeps the clock
@@ -207,17 +210,41 @@ export function TurnClock({
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.
-      const gs = ServiceContainer.getInstance().gameService;
-      gs.endTurn();
+      ServiceContainer.getInstance().gameService.endTurn();
+    }, 500);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer?.deadline, timer?.pausedBy, match]);
+
+  // Both coaches say Time up when a turn ends on the clock. TurnEnded is
+  // the engine event both screens see, so no message travels for it and the
+  // engines are untouched. The grace covers the moment the command takes to
+  // reach the other screen, and small differences between the two clocks.
+  const turnoverThisTurn = useRef(false);
+  useEffect(() => {
+    const onTurnover = () => {
+      turnoverThisTurn.current = true;
+    };
+    const onTurnEnded = () => {
+      const turnover = turnoverThisTurn.current;
+      turnoverThisTurn.current = false;
+      if (turnover || !timer?.deadline || timer.pausedBy) return;
+      if (freezeRef.current || currentPhase() !== GamePhase.PLAY) return;
+      if (timer.turn == null || timer.turn !== turnKey()) return;
+      if (Date.now() < timer.deadline - TIME_UP_GRACE_MS) return;
       eventBus.emit(GameEventNames.UI_Announce, {
         kind: "time-up",
         headline: "Time up",
         subtitle: "Turn ended",
       });
-    }, 500);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer?.deadline, timer?.pausedBy, match]);
+    };
+    eventBus.on(GameEventNames.Turnover, onTurnover);
+    eventBus.on(GameEventNames.TurnEnded, onTurnEnded);
+    return () => {
+      eventBus.off(GameEventNames.Turnover, onTurnover);
+      eventBus.off(GameEventNames.TurnEnded, onTurnEnded);
+    };
+  }, [eventBus, timer?.deadline, timer?.turn, timer?.pausedBy]);
 
   // Auto-resume when my own timeout bank runs dry
   const bankDry = pausedByMe && bankLeft <= 0;
@@ -252,7 +279,9 @@ export function TurnClock({
         <div className="font-hud-body text-hud-xs text-hud-dim">
           {frozen.reason === "away"
             ? `${match.opponentName} disconnected: game paused`
-            : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`}
+            : // In the strip there is room for one line; the waiting banner
+              // and the decision dock already name the decision
+              `${who} ${fmt(left)} to decide${stripSlot ? "" : ` (${pending?.type.replace(/-/g, " ")})`}`}
         </div>
       </div>
     );

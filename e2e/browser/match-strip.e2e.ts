@@ -77,6 +77,13 @@ for (const viewport of [
       "Nice: No effect on play"
     );
     await expect(page.getByTestId("turns-left")).toHaveText("Turn 2 of 6");
+    // The turn shows once, in the tab, not again beside it
+    expect((await strip.innerText()).match(/turn/gi)).toEqual(["TURN"]);
+    // The strip has the score bug's backing, so the pitch never shows through
+    const backing = await page
+      .getByTestId("match-strip-bar")
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(backing).toBe("rgba(21, 23, 28, 0.94)");
     const box = await strip.boundingBox();
     const bug = await page.getByTestId("scoreboard").boundingBox();
     if (!box || !bug) throw new Error("Match strip has no bounds");

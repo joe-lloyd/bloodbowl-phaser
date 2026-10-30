@@ -302,6 +302,9 @@ export class NetworkedGameService implements IGameService {
   getTeam(teamId: string): Team | undefined {
     return this.inner.getTeam(teamId);
   }
+  getTeams(): [Team, Team] {
+    return this.inner.getTeams();
+  }
   getMovementUsed(playerId: string): number {
     return this.inner.getMovementUsed(playerId);
   }
