@@ -14,7 +14,7 @@ import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export interface HelloPayload {
   protocolVersion: number;
