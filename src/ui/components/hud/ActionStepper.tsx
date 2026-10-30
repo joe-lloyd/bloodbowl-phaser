@@ -1,4 +1,5 @@
 import React from "react";
+import { RouteSummary } from "./RollPreviews";
 import { GameEventNames } from "../../../types/events";
 import { EventBus } from "../../../services/EventBus";
 import { HudButton } from "../componentWarehouse/HudKit";
@@ -92,6 +93,8 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
           );
         })}
       </div>
+
+      <RouteSummary eventBus={eventBus} />
 
       {/* Control Buttons */}
       <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
