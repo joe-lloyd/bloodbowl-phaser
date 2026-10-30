@@ -111,7 +111,7 @@ describe("Frenzy's second Block during a Blitz", () => {
 
     expect(dice()).toEqual([
       "Rolled 1 block dice: push",
-      "Rush (GFI) (Human Lineman #1): 4, needs 2+",
+      "Rush (Human Lineman #1): 4, needs 2+",
       "Rolled 1 block dice: push",
     ]);
     expect(second.pendingDecision).toMatchObject({ type: "block-dice" });
@@ -138,8 +138,8 @@ describe("Frenzy's second Block during a Blitz", () => {
     const after = await run({ type: "choose-push-direction", x: 12, y: 5 });
 
     expect(dice()).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4, needs 2+",
-      "Rush (GFI) (Human Lineman #1): 4, needs 2+",
+      "Rush (Human Lineman #1): 4, needs 2+",
+      "Rush (Human Lineman #1): 4, needs 2+",
       "Rolled 1 block dice: push",
     ]);
     expect(after.pendingDecision).toBeNull();

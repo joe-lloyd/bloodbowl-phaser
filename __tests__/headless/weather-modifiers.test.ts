@@ -156,7 +156,7 @@ describe("weather modifiers", () => {
 
   it("Blizzard puts -1 on the Rush", async () => {
     expect(await rushOneSquare("Blizzard", 1)).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4, needs 3+",
+      "Rush (Human Lineman #1): 4, needs 3+",
     ]);
   });
 
@@ -174,7 +174,7 @@ describe("weather modifiers", () => {
       "Pickup (Human Lineman #1): 4, needs 3+",
     ]);
     expect(await rushOneSquare("Nice", 1)).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4, needs 2+",
+      "Rush (Human Lineman #1): 4, needs 2+",
     ]);
   });
 });

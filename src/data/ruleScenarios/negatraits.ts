@@ -354,7 +354,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
             matches: (r) => skillTriggered(r, SkillType.DRUNKARD),
             verify: (r) =>
               assert(
-                (skillCheckDiff(r, "Rush (GFI)") ?? 0) <= -1,
+                (skillCheckDiff(r, "Rush") ?? 0) <= -1,
                 "the Rush test is worsened by Drunkard"
               ),
           },

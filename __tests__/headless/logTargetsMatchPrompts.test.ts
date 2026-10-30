@@ -50,7 +50,7 @@ describe("dice log targets", () => {
     const rush = descriptions(response.events).find((d) =>
       d.startsWith("Rush")
     );
-    expect(rush).toMatch(/^Rush \(.+\): \d, needs 3\+$/);
+    expect(rush).toMatch(/^Rush \(Human Lineman #1\): \d, needs 3\+$/);
   });
 
   it("logs a foul's armour roll against the AV on the player's card", async () => {

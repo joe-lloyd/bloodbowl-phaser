@@ -1121,7 +1121,7 @@ export class GameService implements IGameService {
       "rush",
       () =>
         this.diceController.rollSkillCheck(
-          "Rush (GFI)",
+          "Rush",
           2,
           rushModifier(this.state, attacker),
           attacker.playerName
@@ -2697,7 +2697,7 @@ export class GameService implements IGameService {
           "rush",
           () =>
             this.diceController.rollSkillCheck(
-              "Rush (GFI)",
+              "Rush",
               2,
               rushModifier(this.state, attacker),
               attacker.playerName,
