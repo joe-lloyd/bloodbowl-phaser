@@ -34,6 +34,9 @@ const fmt = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** How early a turn may end and still count as ending on the clock. */
+const TIME_UP_GRACE_MS = 1000;
+
 const currentPhase = (): GamePhase | null =>
   ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getPhase()
@@ -207,17 +210,41 @@ export function TurnClock({
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.
-      const gs = ServiceContainer.getInstance().gameService;
-      gs.endTurn();
+      ServiceContainer.getInstance().gameService.endTurn();
+    }, 500);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer?.deadline, timer?.pausedBy, match]);
+
+  // Both coaches say Time up when a turn ends on the clock. TurnEnded is
+  // the engine event both screens see, so no message travels for it and the
+  // engines are untouched. The grace covers the moment the command takes to
+  // reach the other screen, and small differences between the two clocks.
+  const turnoverThisTurn = useRef(false);
+  useEffect(() => {
+    const onTurnover = () => {
+      turnoverThisTurn.current = true;
+    };
+    const onTurnEnded = () => {
+      const turnover = turnoverThisTurn.current;
+      turnoverThisTurn.current = false;
+      if (turnover || !timer?.deadline || timer.pausedBy) return;
+      if (freezeRef.current || currentPhase() !== GamePhase.PLAY) return;
+      if (timer.turn == null || timer.turn !== turnKey()) return;
+      if (Date.now() < timer.deadline - TIME_UP_GRACE_MS) return;
       eventBus.emit(GameEventNames.UI_Announce, {
         kind: "time-up",
         headline: "Time up",
         subtitle: "Turn ended",
       });
-    }, 500);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer?.deadline, timer?.pausedBy, match]);
+    };
+    eventBus.on(GameEventNames.Turnover, onTurnover);
+    eventBus.on(GameEventNames.TurnEnded, onTurnEnded);
+    return () => {
+      eventBus.off(GameEventNames.Turnover, onTurnover);
+      eventBus.off(GameEventNames.TurnEnded, onTurnEnded);
+    };
+  }, [eventBus, timer?.deadline, timer?.turn, timer?.pausedBy]);
 
   // Auto-resume when my own timeout bank runs dry
   const bankDry = pausedByMe && bankLeft <= 0;

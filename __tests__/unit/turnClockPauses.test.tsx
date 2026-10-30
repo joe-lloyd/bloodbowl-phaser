@@ -189,6 +189,10 @@ describe("TurnClock pauses", () => {
     eventBus.on(GameEventNames.UI_Announce, (data) =>
       announcements.push(data.headline)
     );
+    // Ending the turn is a command both engines run; each says TurnEnded
+    hoisted.endTurnMock.mockImplementationOnce(() =>
+      eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" })
+    );
     const clockRoot = document.createElement("div");
     container.appendChild(clockRoot);
     const clock = createRoot(clockRoot);
@@ -209,6 +213,66 @@ describe("TurnClock pauses", () => {
     expect(announcements).toContain("Time up");
     expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
     await act(async () => clock.unmount());
+  });
+
+  describe("Time up on the waiting coach's screen", () => {
+    const guestMatch = () =>
+      ({
+        role: "guest",
+        myTeamId: "guest-team",
+        opponentName: "Host",
+        coachName: () => "Host",
+        pendingDecision: () => null,
+        decidingTeamId: () => null,
+        setClockPaused: vi.fn(),
+      }) as unknown as OnlineMatch;
+    const watch = async (deadline: number) => {
+      const announcements: string[] = [];
+      eventBus.on(GameEventNames.UI_Announce, (data) =>
+        announcements.push(data.headline)
+      );
+      await act(async () =>
+        root.render(
+          <TurnClock
+            code={code}
+            lobby={lobbyAt(deadline)}
+            match={guestMatch()}
+            eventBus={eventBus}
+            user={{ uid: "guest-uid" } as AuthUser}
+          />
+        )
+      );
+      return announcements;
+    };
+
+    it("says Time up when the other coach's turn ends on the clock", async () => {
+      const announcements = await watch(Date.now() + 1_000);
+      await act(async () => vi.advanceTimersByTime(1_500));
+      expect(announcements).toEqual([]);
+      await act(async () =>
+        eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" })
+      );
+      expect(announcements).toEqual(["Time up"]);
+      expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+    });
+
+    it("says nothing when the other coach ends their turn with time left", async () => {
+      const announcements = await watch(Date.now() + 60_000);
+      await act(async () =>
+        eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" })
+      );
+      expect(announcements).toEqual([]);
+    });
+
+    it("says nothing when a turnover ended the turn after the clock ran out", async () => {
+      const announcements = await watch(Date.now() + 1_000);
+      await act(async () => {
+        eventBus.emit(GameEventNames.Turnover, { teamId: "host-team" });
+        vi.advanceTimersByTime(1_500);
+        eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
+      });
+      expect(announcements).toEqual([]);
+    });
   });
 
   it("stops while the defender decides and answers for them after ten seconds", async () => {
