@@ -92,7 +92,7 @@ describe("Throw Team-mate landing", () => {
       throwerSkills: [SkillType.BULLSEYE],
     });
 
-    expect(dice[0]).toBe("Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)");
+    expect(dice[0]).toBe("Throw Team-mate (Human Lineman #1): 5, needs 5+");
     expect(dice[1]).toMatch(/^Landing /);
     expect(mate.position).toEqual({ x: 8, y: 5 });
   });
@@ -106,24 +106,24 @@ describe("Throw Team-mate landing", () => {
       ],
     });
 
-    expect(dice[0]).toBe("Throw Team-mate (Human Lineman #1): 6 -1 = 5 (Target: 4+)");
-    expect(dice[1]).toBe("Landing (Human Lineman #2): 2 -2 = 0 (Target: 3+)");
+    expect(dice[0]).toBe("Throw Team-mate (Human Lineman #1): 6, needs 5+");
+    expect(dice[1]).toBe("Landing (Human Lineman #2): 2, needs 5+");
   });
 
   it("takes -1 after a Subpar Throw", async () => {
     const { dice } = await throwMate(SUBPAR_SEED, {});
 
     expect(dice.slice(0, 3)).toEqual([
-      "Throw Team-mate (Human Lineman #1): 4 -1 = 3 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 4, needs 5+",
       "Scatter: 1, 5, 8",
-      "Landing (Human Lineman #2): 6 -1 = 5 (Target: 3+)",
+      "Landing (Human Lineman #2): 6, needs 4+",
     ]);
   });
 
   it("is no Turnover when a thrown player without the ball fails to land", async () => {
     const { response, dice, mate } = await throwMate(LANDING_FAILS_SEED, {});
 
-    expect(dice[2]).toBe("Landing (Human Lineman #2): 1 +0 = 1 (Target: 3+)");
+    expect(dice[2]).toBe("Landing (Human Lineman #2): 1, needs 3+");
     expect(mate.status).not.toBe("Active");
     expect(response.snapshot.activeTeamId).toBe("team1");
   });
@@ -133,7 +133,7 @@ describe("Throw Team-mate landing", () => {
       mateHasBall: true,
     });
 
-    expect(dice[2]).toBe("Landing (Human Lineman #2): 1 +0 = 1 (Target: 3+)");
+    expect(dice[2]).toBe("Landing (Human Lineman #2): 1, needs 3+");
     expect(response.snapshot.activeTeamId).toBe("team2");
   });
 });

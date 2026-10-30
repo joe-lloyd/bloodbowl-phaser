@@ -76,6 +76,6 @@ describe.each(SKAVEN)("Underworld %s", (position) => {
       handed.events
         .filter((e) => e.name === "diceRoll")
         .map((e) => (e.data as { description: string }).description)[0]
-    ).toBe("Animosity (Underworld Goblin Lineman #2): 4 +0 = 4 (Target: 2+)");
+    ).toBe("Animosity (Underworld Goblin Lineman #2): 4, needs 2+");
   });
 });

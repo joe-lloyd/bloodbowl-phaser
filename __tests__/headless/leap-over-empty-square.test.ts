@@ -65,7 +65,7 @@ describe("a Jump over an empty square", () => {
     const { game, response, dice } = await leapEast(SkillType.LEAP, 1);
 
     expect(response.ok).toBe(true);
-    expect(dice).toEqual(["Jump (Human Lineman #1): 4 +0 = 4 (Target: 3+)"]);
+    expect(dice).toEqual(["Jump (Human Lineman #1): 4, needs 3+"]);
     expect(game.ctx.team1.players[0].gridPosition).toEqual({ x: 12, y: 5 });
     expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.ACTIVE);
   });

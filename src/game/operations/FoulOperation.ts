@@ -143,9 +143,10 @@ export class FoulOperation extends GameOperation {
     const foulerHasNoAssists =
       analysis.offensiveAssists.length === 0 &&
       analysis.defensiveAssists.length === 0;
-    // The dice log shows the assists folded into the AV target; whether the
-    // roll breaks is decided after the armour fold below.
-    const avTarget = effectiveAV(target, gameService.getState()) - analysis.modifier;
+    // The dice log shows the assists as a modifier against the AV on the
+    // player's card; whether the roll breaks is decided after the armour
+    // fold below.
+    const av = effectiveAV(target, gameService.getState());
     const announce = (skill: SkillType, effect: string) =>
       eventBus.emit(GameEventNames.SkillTriggered, {
         playerId: fouler.id,
@@ -157,9 +158,10 @@ export class FoulOperation extends GameOperation {
     // target's own armour rules (Iron Hard Skin) may cancel them. They do
     // not read the natural roll, so a Lone Fouler re-roll reuses the fold.
     let armour = diceController.rollArmorCheck(
-      avTarget,
+      av,
       target.playerName,
-      fouler.teamId
+      fouler.teamId,
+      analysis.modifier
     );
     let rolls = armour.rolls;
     const armourCtx = await foldArmourRoll(context, [target], {
@@ -183,9 +185,10 @@ export class FoulOperation extends GameOperation {
         "Lone Fouler: re-roll the failed Armour Roll"
       );
       armour = diceController.rollArmorCheck(
-        avTarget,
+        av,
         target.playerName,
-        fouler.teamId
+        fouler.teamId,
+        analysis.modifier
       );
       rolls = armour.rolls;
       broken = breaks(0);
@@ -292,9 +295,7 @@ export class FoulOperation extends GameOperation {
         effect: "Quick Foul: the activation continues after the Foul",
       });
     } else {
-      context.flowManager.add(
-        new FinishFoulActivationOperation(this.foulerId)
-      );
+      context.flowManager.add(new FinishFoulActivationOperation(this.foulerId));
     }
   }
 }

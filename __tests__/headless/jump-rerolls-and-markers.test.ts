@@ -58,7 +58,7 @@ describe("a Jump Agility Test", () => {
 
     const first = await jump(game);
     expect(diceOf(first.events)).toEqual([
-      "Jump (Human Lineman #1): 2 +0 = 2 (Target: 3+)",
+      "Jump (Human Lineman #1): 2, needs 3+",
     ]);
     expect(first.pendingDecision).toMatchObject({
       type: "reroll",
@@ -68,7 +68,7 @@ describe("a Jump Agility Test", () => {
 
     const second = await game.execute({ type: "use-reroll", accept: true });
     expect(diceOf(second.events)).toEqual([
-      "Jump (Human Lineman #1): 6 +0 = 6 (Target: 3+)",
+      "Jump (Human Lineman #1): 6, needs 3+",
     ]);
     expect(game.ctx.team1.players[0].gridPosition).toEqual({ x: 12, y: 5 });
     expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.ACTIVE);
@@ -90,7 +90,7 @@ describe("skills of a marker the jumper leaves", () => {
     const response = await jump(game);
 
     expect(diceOf(response.events)).toEqual([
-      "Jump (Human Lineman #1): 4 -2 = 2 (Target: 3+)",
+      "Jump (Human Lineman #1): 4, needs 5+",
       "Armour Roll (Human Lineman #1): 1 + 4 = 5",
     ]);
     expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.PRONE);
@@ -109,7 +109,7 @@ describe("skills of a marker the jumper leaves", () => {
 
     const first = await jump(game);
     expect(diceOf(first.events)).toEqual([
-      "Jump (Human Lineman #1): 5 -1 = 4 (Target: 3+)",
+      "Jump (Human Lineman #1): 5, needs 4+",
     ]);
     expect(first.pendingDecision).toMatchObject({
       type: "reaction",

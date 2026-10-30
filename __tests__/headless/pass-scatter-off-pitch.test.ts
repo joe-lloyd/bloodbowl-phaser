@@ -60,7 +60,7 @@ describe("an inaccurate pass scattering off the pitch", () => {
 
     // The 1 carries the ball from (8,0) to (7,-1); the 5 and 8 never count.
     expect(dice).toEqual([
-      "Pass (Human Lineman #1): 4 -1 = 3 (Target: 4+)",
+      "Pass (Human Lineman #1): 4, needs 5+",
       "Scatter: 1, 5, 8",
       "Throw-in Direction: 6",
       "Throw-in Distance: 2",

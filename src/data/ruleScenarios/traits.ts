@@ -427,7 +427,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                       "Pickup"
                     ) &&
                     (e.data as { description?: string })?.description?.includes(
-                      "Target"
+                      "needs"
                     )
                 ),
                 "no real pick-up roll may happen"

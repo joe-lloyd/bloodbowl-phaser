@@ -55,7 +55,7 @@ describe("Hypnotic Gaze re-roll", () => {
     });
 
     expect(diceOf(gazed)).toEqual([
-      "Hypnotic Gaze (Human Lineman #1): 1 +0 = 1 (Target: 3+)",
+      "Hypnotic Gaze (Human Lineman #1): 1, needs 3+",
     ]);
     expect(gazed.pendingDecision).toMatchObject({
       type: "reroll",
@@ -69,7 +69,7 @@ describe("Hypnotic Gaze re-roll", () => {
       source: "team",
     });
     expect(diceOf(rerolled)).toEqual([
-      "Hypnotic Gaze (Human Lineman #1): 4 +0 = 4 (Target: 3+)",
+      "Hypnotic Gaze (Human Lineman #1): 4, needs 3+",
     ]);
     expect(target.conditions?.map((c) => c.type)).toEqual([
       PlayerCondition.DISTRACTED,

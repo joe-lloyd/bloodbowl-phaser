@@ -250,13 +250,16 @@ export class DiceController {
     else success = effectiveTotal >= target;
 
     const fullReason = playerName ? `${reason} (${playerName})` : reason;
+    // The die face needed, modifiers folded in: the number the coach's
+    // prompt showed before the roll
+    const needed = d6Target(target, modifier);
     this.emitDiceRoll({
       rollType: fullReason,
       diceType: "1d6",
       context: { target, modifier },
       value: roll,
       total: effectiveTotal,
-      description: `${fullReason}: ${roll} ${modifier >= 0 ? "+" : ""}${modifier} = ${effectiveTotal} (Target: ${target}+)`,
+      description: `${fullReason}: ${roll}, needs ${needed}+`,
       resultState: success ? "success" : "failure",
       teamId,
     });
@@ -265,7 +268,7 @@ export class DiceController {
       success,
       roll,
       effectiveTotal,
-      needed: d6Target(target, modifier),
+      needed,
     };
   }
 
@@ -273,21 +276,25 @@ export class DiceController {
    * Roll Armor Check
    */
   public rollArmorCheck(
-    target: number,
+    /** The AV on the player's card: this many or more breaks it. */
+    av: number,
     playerName?: string,
-    teamId?: string
+    teamId?: string,
+    /** Added to the roll, e.g. foul assists or a Chainsaw's +3. */
+    modifier = 0
   ): { broken: boolean; roll: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
     const total = rolls[0] + rolls[1];
-    const broken = total >= target;
+    const broken = total + modifier >= av;
 
-    const label = playerName ? `${playerName} Armor Check` : "Armor Check";
+    const label = playerName ? `${playerName} Armour` : "Armour";
+    const added = modifier ? ` ${modifier > 0 ? "+" : ""}${modifier}` : "";
     this.emitDiceRoll({
       rollType: "Armor Check",
       diceType: "2d6",
       value: rolls,
       total,
-      description: `${label}: ${rolls[0]}+${rolls[1]} = ${total} (AV: ${target})`,
+      description: `${label}: ${rolls[0]}+${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`,
       resultState: broken ? "success" : "failure",
       teamId,
     });

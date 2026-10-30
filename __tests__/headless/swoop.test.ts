@@ -94,11 +94,11 @@ describe("Swoop", () => {
     const { dice, mate } = await throwMate("thrown", SUPERB_SEED, "east");
 
     expect(dice).toEqual([
-      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5, needs 5+",
       // Facing east, a 2 is the left arrow: north-east, two squares.
       "Swoop Direction: 2",
       "Swoop Distance: 2",
-      "Landing (Human Lineman #2): 4 +0 = 4 (Target: 3+)",
+      "Landing (Human Lineman #2): 4, needs 3+",
     ]);
     expect(mate.position).toEqual({ x: 10, y: 3 });
   });
@@ -111,11 +111,11 @@ describe("Swoop", () => {
     );
 
     expect(dice).toEqual([
-      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5, needs 5+",
       "Swoop Direction: 1",
       "Swoop Distance: 3",
-      "Landing (Human Lineman #2): 1 +0 = 1 (Target: 3+)",
-      "Landing (Human Lineman #2): 5 +0 = 5 (Target: 3+)",
+      "Landing (Human Lineman #2): 1, needs 3+",
+      "Landing (Human Lineman #2): 5, needs 3+",
     ]);
     expect(mate.position).toEqual({ x: 11, y: 2 });
     expect(mate.status).toBe("Active");
@@ -125,9 +125,9 @@ describe("Swoop", () => {
     const { dice } = await throwMate("thrown", SUPERB_SEED);
 
     expect(dice.slice(0, 3)).toEqual([
-      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5, needs 5+",
       "Scatter: 3, 3, 5",
-      "Landing (Human Lineman #2): 6 +0 = 6 (Target: 3+)",
+      "Landing (Human Lineman #2): 6, needs 3+",
     ]);
   });
 
@@ -135,9 +135,9 @@ describe("Swoop", () => {
     const { dice } = await throwMate("thrower", SUPERB_SEED);
 
     expect(dice.slice(0, 3)).toEqual([
-      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5, needs 5+",
       "Scatter: 3, 3, 5",
-      "Landing (Human Lineman #2): 6 +0 = 6 (Target: 3+)",
+      "Landing (Human Lineman #2): 6, needs 3+",
     ]);
   });
 

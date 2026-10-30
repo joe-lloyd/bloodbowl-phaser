@@ -61,8 +61,8 @@ describe("passing in a Blizzard", () => {
 
     expect(res.ok).toBe(true);
     expect(dice).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
-      "Catch (Human Lineman #2): 5 +0 = 5 (Target: 3+)",
+      "Pass (Human Lineman #1): 5, needs 5+",
+      "Catch (Human Lineman #2): 5, needs 3+",
     ]);
   });
 
@@ -70,6 +70,6 @@ describe("passing in a Blizzard", () => {
     const { res, dice } = await passTo("Nice", 13, 5);
 
     expect(res.ok).toBe(true);
-    expect(dice[0]).toBe("Pass (Human Lineman #1): 5 -2 = 3 (Target: 4+)");
+    expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 6+");
   });
 });

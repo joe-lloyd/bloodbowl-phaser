@@ -85,7 +85,7 @@ describe("Pile Driver", () => {
 
       expect(dice()).toEqual([
         ...BLOCK_DICE,
-        "Human Lineman #1 Armor Check: 1+5 = 6 (AV: 9)",
+        "Human Lineman #1 Armour: 1+5 = 6 (AV 9+)",
       ]);
       expect(attacker.status).toBe(PlayerStatus.PRONE);
       expect(defender.status).toBe(PlayerStatus.PRONE);

@@ -24,7 +24,7 @@ const scenario: Scenario = {
   },
 };
 
-/** "Bone Head (Human Lineman #1): 1 +0 = 1 (Target: 2+)". Committed. */
+/** "Bone Head (Human Lineman #1): 1, needs 2+". Committed. */
 const BONE_HEAD_FAILS_SEED = 7;
 
 describe("re-roll for an activation roll", () => {

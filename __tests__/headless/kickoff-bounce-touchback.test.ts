@@ -97,7 +97,7 @@ describe("a kick-off that bounces out of the receiving half", () => {
     expect(dice).toEqual([
       "Kickoff Deviate Direction: 4",
       "Kickoff Deviate Distance: 4, 6 (lower: 4)",
-      "Catch (Human Lineman #7): 5 +0 = 5 (Target: 6+)",
+      "Catch (Human Lineman #7): 5, needs 6+",
       "Bounce Direction: 2",
     ]);
     expect(res.pendingDecision).toEqual({ type: "touchback", teamId: "team2" });

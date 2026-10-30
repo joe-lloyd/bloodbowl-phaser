@@ -32,7 +32,7 @@ function scenario(interceptorSkills: SkillType[]): Scenario {
   };
 }
 
-/** The pass is Accurate: "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)". */
+/** The pass is Accurate: "Pass (Human Lineman #1): 5, needs 5+". */
 const ACCURATE_PASS_SEED = 2;
 
 async function passOverDefender(skills: SkillType[]) {
@@ -62,7 +62,7 @@ describe("interception skills", () => {
     const dice = response.events
       .filter((e) => e.name === "diceRoll")
       .map((e) => (e.data as { description: string }).description);
-    expect(dice[0]).toBe("Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)");
+    expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 5+");
     expect(response.pendingDecision?.type).not.toBe("interception");
   });
 
@@ -79,7 +79,7 @@ describe("interception skills", () => {
     });
     const roll = attempt.events.find((e) => e.name === "diceRoll");
     expect((roll?.data as { description: string }).description).toBe(
-      "Interception (Human Lineman #1): 2 -2 = 0 (Target: 3+)"
+      "Interception (Human Lineman #1): 2, needs 5+"
     );
   });
 });

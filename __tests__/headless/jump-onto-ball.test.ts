@@ -49,8 +49,8 @@ describe("a Jump that lands on the loose ball", () => {
     const { game, response, dice } = await jumpOntoBall(5);
 
     expect(dice).toEqual([
-      "Jump (Human Lineman #1): 5 +0 = 5 (Target: 3+)",
-      "Pickup (Human Lineman #1): 5 +0 = 5 (Target: 3+)",
+      "Jump (Human Lineman #1): 5, needs 3+",
+      "Pickup (Human Lineman #1): 5, needs 3+",
     ]);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
     expect(game.ctx.team1.players[0].gridPosition).toEqual({ x: 12, y: 5 });
@@ -64,8 +64,8 @@ describe("a Jump that lands on the loose ball", () => {
     const { game, response, dice } = await jumpOntoBall(1);
 
     expect(dice).toEqual([
-      "Jump (Human Lineman #1): 4 +0 = 4 (Target: 3+)",
-      "Pickup (Human Lineman #1): 1 +0 = 1 (Target: 3+)",
+      "Jump (Human Lineman #1): 4, needs 3+",
+      "Pickup (Human Lineman #1): 1, needs 3+",
       "Bounce Direction: 5",
     ]);
     expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
