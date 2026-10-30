@@ -62,13 +62,16 @@ describe("BallMovementController", () => {
       mockDiceController.rollD8.mockReturnValue(1);
       mockDiceController.rollLowerOf2D6.mockReturnValue(3);
 
-      const result = controller.deviate({ x: 5, y: 5 });
+      const result = controller.deviate({ x: 5, y: 5 }, false, "kickers");
 
+      // The kicking team's dice
       expect(mockDiceController.rollD8).toHaveBeenCalledWith(
-        expect.stringContaining("Direction")
+        expect.stringContaining("Direction"),
+        "kickers"
       );
       expect(mockDiceController.rollLowerOf2D6).toHaveBeenCalledWith(
-        expect.stringContaining("Distance")
+        expect.stringContaining("Distance"),
+        "kickers"
       );
       expect(result).toEqual({ x: 2, y: 2 });
     });
