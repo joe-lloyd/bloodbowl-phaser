@@ -66,7 +66,11 @@ export class CameraController {
   // ------------------------------------------------------------ framings
 
   /** Fit a set of world points in the window, with headroom for figures. */
-  private frame(points: Point[], pad = 1.12): { centre: Point; zoom: number } {
+  private frame(
+    points: Point[],
+    pad = 1.12,
+    topInset = 0
+  ): { centre: Point; zoom: number } {
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
     const x0 = Math.min(...xs);
@@ -76,9 +80,12 @@ export class CameraController {
     const { width, height } = this.scene.scale;
     const zoom = Math.min(
       width / ((x1 - x0) * pad),
-      height / ((y1 - y0) * pad)
+      (height - topInset) / ((y1 - y0) * pad)
     );
-    return { centre: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }, zoom };
+    return {
+      centre: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 - topInset / (2 * zoom) },
+      zoom,
+    };
   }
 
   private pitchCorners(): Point[] {
@@ -91,7 +98,8 @@ export class CameraController {
   }
 
   private overviewFraming() {
-    return this.frame([...this.pitchCorners(), ...this.dugoutPoints], 1.06);
+    // Keep the score bug and match strip above the playing squares.
+    return this.frame([...this.pitchCorners(), ...this.dugoutPoints], 1.06, 96);
   }
 
   private actionZoom(): number {

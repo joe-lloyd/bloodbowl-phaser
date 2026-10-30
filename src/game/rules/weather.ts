@@ -48,3 +48,23 @@ export function weatherEffects(weather: Weather): WeatherEffects {
       return NO_EFFECT;
   }
 }
+
+/** Short weather reminder shared by the match strip and opening banner. */
+export function weatherDescription(weather: Weather): string {
+  switch (weather) {
+    case "Nice":
+      return "No effect on play";
+    case "Very Sunny":
+      return "-1 passing";
+    case "Pouring Rain":
+      return "-1 pick-up, catch and interception";
+    case "Blizzard":
+      return "-1 rush; quick and short passes only";
+    case "Sweltering Heat":
+      return "D3 players per team miss the next drive";
+    default: {
+      const unhandled: never = weather;
+      return unhandled;
+    }
+  }
+}

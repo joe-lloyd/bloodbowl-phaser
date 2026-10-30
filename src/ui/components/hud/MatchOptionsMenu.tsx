@@ -75,8 +75,10 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       setOpen(false);
       setConfirming(null);
     };
-    document.addEventListener("mousedown", onDocPointerDown);
-    return () => document.removeEventListener("mousedown", onDocPointerDown);
+    // Capture phase: the HUD stops presses from bubbling past its panels.
+    document.addEventListener("mousedown", onDocPointerDown, true);
+    return () =>
+      document.removeEventListener("mousedown", onDocPointerDown, true);
   }, [open]);
 
   const close = () => {

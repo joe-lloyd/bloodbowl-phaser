@@ -173,12 +173,15 @@ export class SetupValidator {
       },
       {
         id: "wide-zone-limit",
+        summary: `Wide zones: at most 1 each (top ${wideCounts.top}, bottom ${wideCounts.bottom})`,
+        wideZones: wideCounts,
         satisfied: wideCounts.top <= 1 && wideCounts.bottom <= 1,
         satisfiable: true,
         message: "Only one player may be set up in each Wide Zone.",
       },
       {
         id: "line-of-scrimmage",
+        summary: `Line of scrimmage ${onCentreLos}/3`,
         satisfied: onCentreLos >= 3,
         satisfiable: availablePlayerCount >= 3,
         message:
@@ -186,6 +189,7 @@ export class SetupValidator {
       },
       {
         id: "short-handed-line",
+        summary: `Line of scrimmage ${onCentreLos}/${requiredPlayerCount}`,
         satisfied:
           !shortHanded ||
           (positions.length === onCentreLos &&
@@ -196,6 +200,7 @@ export class SetupValidator {
       },
       {
         id: "required-player-count",
+        summary: `Players placed ${positions.length}/${requiredPlayerCount}`,
         satisfied: positions.length === requiredPlayerCount,
         satisfiable: true,
         message:

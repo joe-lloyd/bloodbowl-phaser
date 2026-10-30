@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 
 interface HUDLayoutProps {
   topLeft?: React.ReactNode;
@@ -29,6 +29,12 @@ const bottom = `${stack} mt-auto shrink-0`;
  * in fixed side columns any more. Each corner stacks its panels toward the
  * edge, leaving the middle of the screen to the pitch. Only the panels take
  * pointer events; clicks anywhere else reach the board.
+ *
+ * Phaser also listens for presses on the window, so a press on a panel would
+ * reach the sprite under it. A press that starts on a panel stops here, down
+ * and up. A drag that started on the board still ends on the board, even when
+ * released over a panel. Listeners that need every press use the capture
+ * phase.
  */
 export const HUDLayout: React.FC<HUDLayoutProps> = ({
   topLeft,
@@ -36,16 +42,44 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
   bottomLeft,
   bottomRight,
   overlays,
-}) => (
-  <div className="absolute inset-0 pointer-events-none">
-    <div className={`${column} left-4`}>
-      <div className={top}>{topLeft}</div>
-      <div className={bottom}>{bottomLeft}</div>
+}) => {
+  const pressedHere = useRef(false);
+  // Every press clears the mark first; a press on a panel sets it again.
+  useEffect(() => {
+    const clear = () => (pressedHere.current = false);
+    window.addEventListener("mousedown", clear, true);
+    window.addEventListener("touchstart", clear, true);
+    return () => {
+      window.removeEventListener("mousedown", clear, true);
+      window.removeEventListener("touchstart", clear, true);
+    };
+  }, []);
+  const startPress = (event: React.SyntheticEvent) => {
+    pressedHere.current = true;
+    event.stopPropagation();
+  };
+  const endPress = (event: React.SyntheticEvent) => {
+    if (!pressedHere.current) return;
+    pressedHere.current = false;
+    event.stopPropagation();
+  };
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none"
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onTouchStart={startPress}
+      onTouchEnd={endPress}
+    >
+      <div className={`${column} left-4`}>
+        <div className={top}>{topLeft}</div>
+        <div className={bottom}>{bottomLeft}</div>
+      </div>
+      <div className={`${column} right-4 items-end`}>
+        <div className={`${top} w-full items-end`}>{topRight}</div>
+        <div className={`${bottom} w-full items-end`}>{bottomRight}</div>
+      </div>
+      {overlays}
     </div>
-    <div className={`${column} right-4 items-end`}>
-      <div className={`${top} w-full items-end`}>{topRight}</div>
-      <div className={`${bottom} w-full items-end`}>{bottomRight}</div>
-    </div>
-    {overlays}
-  </div>
-);
+  );
+};

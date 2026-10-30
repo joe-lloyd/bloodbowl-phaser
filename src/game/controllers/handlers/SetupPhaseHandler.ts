@@ -1,3 +1,4 @@
+import { weatherDescription } from "../../rules/weather";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
@@ -304,7 +305,7 @@ export class SetupPhaseHandler implements PhaseHandler {
     this.eventBus.emit(GameEventNames.UI_Announce, {
       kind: "weather",
       headline: this.gameService.getState().weather ?? "Nice",
-      subtitle: "Weather",
+      subtitle: `Weather · ${weatherDescription(this.gameService.getState().weather)}`,
     });
     await pause(BANNER_MS);
 

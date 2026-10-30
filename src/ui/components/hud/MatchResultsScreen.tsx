@@ -282,7 +282,11 @@ export function MatchResultsScreen({ visible }: Props) {
 
   return (
     <div className="hud-scroll absolute inset-0 z-[250] overflow-auto bg-hud-ink/95 p-6 font-hud-body text-hud-bone pointer-events-auto backdrop-blur-sm">
-      <Panel accent="blood" className="mx-auto max-w-6xl p-6 animate-hud-pop">
+      <Panel
+        accent="blood"
+        data-testid="match-results"
+        className="mx-auto max-w-6xl p-6 animate-hud-pop"
+      >
         {/* ---- Result ---- */}
         <h1 className="font-hud-display text-hud-4xl uppercase tracking-[0.03em] text-hud-bone">
           Full Time

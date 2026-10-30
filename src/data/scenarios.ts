@@ -925,4 +925,19 @@ export const SCENARIOS: Scenario[] = [
       team2Roster: RosterName.HUMAN,
     },
   },
+  {
+    id: "full-time",
+    name: "Full Time: Results",
+    description:
+      "The match has ended. The results card shows the score and the " +
+      "player table for both teams.",
+    setup: {
+      team1Placements: [],
+      team2Placements: [],
+      activeTeam: "team1",
+      turn: 6,
+      phase: GamePhase.GAME_OVER,
+      subPhase: SubPhase.SETUP_KICKING,
+    },
+  },
 ];

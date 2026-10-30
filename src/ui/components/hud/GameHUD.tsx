@@ -3,6 +3,7 @@ import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { TurnIndicator } from "./TurnIndicator";
+import { MatchStrip } from "./MatchStrip";
 import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
 import { Announcer } from "./Announcer";
@@ -320,10 +321,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {/* Score bug with the turn tab under it - Top Center */}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center">
             <ScoreBoard eventBus={eventBus} />
-            <TurnIndicator
-              turnNumber={turnData.turnNumber}
-              phase={turnData.phase}
-            />
+            <MatchStrip eventBus={eventBus}>
+              <TurnIndicator
+                turnNumber={turnData.turnNumber}
+                phase={turnData.phase}
+              />
+            </MatchStrip>
           </div>
 
           <DiceTray eventBus={eventBus} styleId={styleId} />

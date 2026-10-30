@@ -7,7 +7,7 @@ import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
  * asked to go. The pitch stand-in uses the real isometric projection with
  * its origin at (2000, 1000).
  */
-function setup() {
+function setup(viewport = { width: 1600, height: 900 }) {
   const camera = {
     zoom: 1,
     scrollX: 0,
@@ -30,7 +30,7 @@ function setup() {
   const inputHandlers: Record<string, (...args: unknown[]) => void> = {};
   const scene = {
     cameras: { main: camera },
-    scale: { width: 1600, height: 900, on: vi.fn(), off: vi.fn() },
+    scale: { ...viewport, on: vi.fn(), off: vi.fn() },
     input: {
       on: vi.fn((event: string, fn: (...args: unknown[]) => void) => {
         inputHandlers[event] = fn;
@@ -66,6 +66,67 @@ describe("CameraController", () => {
   let ctx: ReturnType<typeof setup>;
   beforeEach(() => {
     ctx = setup();
+  });
+
+  it("leaves room for the match strip above the playing squares at 1280x720", () => {
+    const { camera, pitch } = setup({ width: 1280, height: 720 });
+    const [, centreY] = camera.centerOn.mock.calls[0];
+    const corner = pitch.getPointPosition(0, 0);
+    const screenY = 360 + (corner.y - centreY) * camera.zoom;
+    expect(screenY).toBeGreaterThan(192);
+  });
+
+  /** Where the last glide puts a world point on a 1280x720 screen. */
+  function screenY(
+    camera: ReturnType<typeof setup>["camera"],
+    worldY: number
+  ): number {
+    const [, panY] = camera.pan.mock.lastCall!;
+    const zoom = camera.zoomTo.mock.lastCall![0];
+    return 360 + (worldY - panY) * zoom;
+  }
+
+  it("keeps every playing square below the score bug when the reach fills the pitch", () => {
+    const { camera, controller, pitch } = setup({ width: 1280, height: 720 });
+    const reach = [];
+    for (let x = 0; x <= 19; x++)
+      for (let y = 0; y <= 10; y++) reach.push({ x, y });
+    controller.focusSquares(reach);
+    // The far corners of the pitch are its highest points on screen.
+    for (const [x, y] of [
+      [0, 0],
+      [20, 0],
+    ]) {
+      expect(screenY(camera, pitch.getPointPosition(x, y).y)).toBeGreaterThan(
+        100
+      );
+    }
+  });
+
+  it("keeps the far touchline below the score bug when a reach runs along it", () => {
+    const { camera, controller, pitch } = setup({ width: 1280, height: 720 });
+    const reach = [];
+    for (let x = 0; x <= 19; x++)
+      for (let y = 0; y <= 2; y++) reach.push({ x, y });
+    controller.focusSquares(reach);
+    expect(screenY(camera, pitch.getPointPosition(0, 0).y)).toBeGreaterThan(
+      100
+    );
+    expect(screenY(camera, pitch.getPointPosition(20, 0).y)).toBeGreaterThan(
+      100
+    );
+  });
+
+  it("frames a group at the far end below the score bug", () => {
+    const { camera, controller, pitch } = setup({ width: 1280, height: 720 });
+    controller.focusSquares([
+      { x: 15, y: 0 },
+      { x: 16, y: 0 },
+      { x: 15, y: 1 },
+    ]);
+    expect(screenY(camera, pitch.getPointPosition(15, 0).y)).toBeGreaterThan(
+      100
+    );
   });
 
   it("starts on the overview, inside the stadium bounds", () => {
