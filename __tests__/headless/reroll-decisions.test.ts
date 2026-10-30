@@ -75,13 +75,14 @@ describe("reroll decisions (headless protocol)", () => {
     expect(pending?.type).toBe("reroll");
     if (pending?.type !== "reroll") return;
     expect(pending.rollKind).toBe("pickup");
+    expect(pending.needed).toBe(3);
     expect(pending.chooserTeamId).toBe(team1Id);
     expect(pending.sources).toEqual(["team"]); // no skill rule registered
 
     // The failure has NOT been applied yet: no turnover, no bounce
-    expect(
-      moved.events.some((e) => e.name === GameEventNames.Turnover)
-    ).toBe(false);
+    expect(moved.events.some((e) => e.name === GameEventNames.Turnover)).toBe(
+      false
+    );
 
     // Other commands are gated until the decision is answered
     const gated = await game.execute({ type: "end-turn" });

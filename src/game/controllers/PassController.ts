@@ -131,7 +131,13 @@ export class PassController {
     passRange: PassRange,
     markingOpponents: number,
     extraModifier: number = 0
-  ): { success: boolean; accurate: boolean; fumbled: boolean; roll: number } {
+  ): {
+    success: boolean;
+    accurate: boolean;
+    fumbled: boolean;
+    roll: number;
+    needed: number;
+  } {
     const target = player.stats.PA;
     const modifiers =
       this.calculatePassModifiers(passRange, markingOpponents) + extraModifier;
@@ -151,6 +157,7 @@ export class PassController {
     return {
       success: check.success || !fumbled,
       accurate: check.success,
+      needed: check.needed,
       fumbled,
       roll,
     };
@@ -216,6 +223,7 @@ export class PassController {
           accurate: check.success,
           fumbled: check.roll === 1,
           roll: check.roll,
+          needed: check.needed,
         };
       }
       const test = this.testAccuracy(

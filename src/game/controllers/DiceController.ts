@@ -1,3 +1,4 @@
+import { d6Target } from "../rules/rollOdds";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import {
@@ -232,7 +233,12 @@ export class DiceController {
     modifier: number,
     playerName?: string,
     teamId?: string
-  ): { success: boolean; roll: number; effectiveTotal: number } {
+  ): {
+    success: boolean;
+    roll: number;
+    effectiveTotal: number;
+    needed: number;
+  } {
     const roll = this.rng.rollDie(6);
     let success = false;
     const effectiveTotal = roll + modifier;
@@ -254,7 +260,12 @@ export class DiceController {
       teamId,
     });
 
-    return { success, roll, effectiveTotal };
+    return {
+      success,
+      roll,
+      effectiveTotal,
+      needed: d6Target(target, modifier),
+    };
   }
 
   /**
