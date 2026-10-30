@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { rollLabel, requiredRoll } from "../../rules/rollProbability";
+import { rushModifier } from "../../inducements/matchInducements";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
@@ -152,9 +154,8 @@ export class PlayPhaseHandler implements PhaseHandler {
             actionId: "blitz-rush-confirm",
             title: "Rush Required!",
             message:
-              `The Blitz block costs 1 movement beyond ${attacker.playerName}'s MA.\n` +
-              `Rush (GFI): 2+ — failure knocks them down in front of the target (turnover, no block).\n\n` +
-              `Rush to throw the block?`,
+              `${rollLabel("This block needs a Rush", requiredRoll(2, rushModifier(state, attacker)))}.\n` +
+              "A fail knocks the blitzer down. It is a turnover and no block is rolled.",
             confirmLabel: "Rush!",
             cancelLabel: "Cancel",
             risky: true,

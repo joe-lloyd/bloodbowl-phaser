@@ -1,9 +1,43 @@
+import { SkillType } from "../types/Skills";
 import { Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
 
 export const SCENARIOS: Scenario[] = [
+  {
+    id: "ux-block-preview",
+    name: "Block roll preview",
+    description: "An assisted block against Dodge. The hover and dialog show the same analysis.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }, { playerIndex: 1, x: 11, y: 5 }],
+      team2Placements: [{ playerIndex: 0, x: 10, y: 5, skills: [SkillType.DODGE] }],
+      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "ux-foul-preview",
+    name: "Foul roll preview",
+    description: "An assisted foul. The coach sees armour odds and can cancel before rolling.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 5 }, { playerIndex: 1, x: 11, y: 5 }],
+      team2Placements: [{ playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE }],
+      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "handoff-no-interception",
+    name: "Hand-off roll preview",
+    description: "A hand-off to a marked receiver. Hovering shows only the catch roll.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 9, y: 7, hasBall: true }, { playerIndex: 1, x: 10, y: 7 }],
+      team2Placements: [{ playerIndex: 0, x: 11, y: 7 }],
+      activeTeam: "team1", phase: GamePhase.PLAY, subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN, team2Roster: RosterName.HUMAN,
+    },
+  },
   {
     id: "chain-push",
     name: "Chain Push Test",

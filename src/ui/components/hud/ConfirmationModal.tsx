@@ -63,6 +63,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={data.chooserTeamId} />}
+      testId="confirmation-modal"
       tone={data.risky ? "blood" : "gold"}
       titleAs="h3"
       title={data.title}
