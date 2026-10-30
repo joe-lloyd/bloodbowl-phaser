@@ -94,6 +94,8 @@ export async function withRerollOffer<T extends RollLike>(
   opts?: {
     /** A trigger may deny the skill reroll (Tackle vs Dodge) */
     skillAllowed?: boolean;
+    /** The roll's own name for the coach, e.g. "Bone Head". */
+    rollName?: string;
   }
 ): Promise<T> {
   const first = doRoll();
@@ -113,6 +115,7 @@ export async function withRerollOffer<T extends RollLike>(
     playerId: player.id,
     chooserTeamId: player.teamId,
     rollKind,
+    ...(opts?.rollName ? { rollName: opts.rollName } : {}),
     sources,
     skill: skillSource ? String(skillSource) : undefined,
     roll: first.roll,

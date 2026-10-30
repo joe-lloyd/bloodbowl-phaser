@@ -28,6 +28,11 @@ export interface RerollDecisionRequest {
   /** Team whose coach answers (always the rolling player's team). */
   chooserTeamId: string;
   rollKind: RerollableRollKind;
+  /**
+   * The roll's own name when the kind alone does not say it: an activation
+   * roll is a Bone Head, Really Stupid or similar roll.
+   */
+  rollName?: string;
   /** Sources the coach may spend, skill first when both are available. */
   sources: RerollSource[];
   /** The skill offering its reroll, when a skill source is available. */

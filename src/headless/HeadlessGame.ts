@@ -802,6 +802,7 @@ export class HeadlessGame {
           playerId: data.playerId,
           chooserTeamId: data.chooserTeamId,
           rollKind: data.rollKind,
+          rollName: data.rollName,
           sources: data.sources,
           skill: data.skill,
           roll: data.roll,

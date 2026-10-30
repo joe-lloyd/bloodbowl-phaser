@@ -224,6 +224,8 @@ export type PendingDecision =
       playerId: string;
       chooserTeamId: string;
       rollKind: string;
+      /** The roll's own name, e.g. "Bone Head" for an activation roll */
+      rollName?: string;
       /** Available sources, skill first when both may be spent */
       sources: RerollSource[];
       skill?: string;
