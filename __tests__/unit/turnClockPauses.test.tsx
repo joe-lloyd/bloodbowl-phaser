@@ -122,7 +122,7 @@ describe("TurnClock pauses", () => {
     await act(async () => vi.advanceTimersByTime(5 * 60 * 1000));
     expect(container.textContent).toContain("disconnected");
     expect(hoisted.endTurnMock).not.toHaveBeenCalled();
-    expect(match.setClockPaused).toHaveBeenLastCalledWith(true);
+    expect(match.setClockPaused).toHaveBeenLastCalledWith("opponent-away");
 
     await act(async () => render(false));
     const [, deadline] = hoisted.setTurnDeadlineMock.mock.calls.at(

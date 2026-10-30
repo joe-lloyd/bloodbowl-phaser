@@ -155,7 +155,9 @@ export function TurnClock({
 
   // Freeze input for both players while paused or while one is away
   useEffect(() => {
-    match.setClockPaused(!!timer?.pausedBy || opponentAway);
+    match.setClockPaused(
+      opponentAway ? "opponent-away" : timer?.pausedBy ? "timeout" : null
+    );
   }, [match, timer?.pausedBy, opponentAway]);
 
   // The new active coach (re)sets the deadline at the start of every turn. turnSeconds
