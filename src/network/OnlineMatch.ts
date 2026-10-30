@@ -35,6 +35,7 @@ import { FirestoreTransport } from "./FirestoreTransport";
 import { Transport } from "./transport";
 import { NetworkedGameService } from "./NetworkedGameService";
 import { decisionOwner } from "./OwnershipGate";
+import { possessive } from "../game/managers/TurnManager";
 import { PROTOCOL_VERSION } from "./envelope";
 import { LobbyDoc, persistMatch } from "../firebase/lobby";
 import { AuthUser } from "../firebase/auth";
@@ -488,9 +489,12 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         if (parts.phase() === GamePhase.KICKOFF && !isKickoffActor()) {
           return `Waiting for ${opponentName} to kick off…`;
         }
+        if (parts.phase() === GamePhase.SETUP) {
+          return `Waiting for ${opponentName} to set up…`;
+        }
         const active = parts.activeTeamId();
         return active && active !== myTeamId
-          ? `${opponentName}'s turn (${teamName(active)})…`
+          ? `${possessive(opponentName)} turn (${teamName(active)})…`
           : "Waiting…";
       },
       sendChat(text: string): void {

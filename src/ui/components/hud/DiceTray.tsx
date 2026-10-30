@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { EventBus, GameEventMap } from "../../../services/EventBus";
+import { GamePhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
@@ -112,6 +113,8 @@ export function DiceTray({
     // Rolls are numbered as thrown; every roll up to `landedThrough` has
     // landed or was dropped from a full queue, so it never will.
     let thrown = 0;
+    // Bumped when setup clears the tray, so a throw from before is dropped.
+    let generation = 0;
     const reportInAir = () => {
       const pending = [
         ...queue.current,
@@ -125,6 +128,7 @@ export function DiceTray({
     };
 
     const playNext = async () => {
+      const round = generation;
       const next = queue.current.shift();
       if (!next || !host.current) {
         playing.current = false;
@@ -150,6 +154,7 @@ export function DiceTray({
           );
         }
         await handle.landed;
+        if (round !== generation) return;
         next.settled = true;
         reportInAir();
         setCurrent({ ...next });
@@ -162,7 +167,24 @@ export function DiceTray({
         console.warn("[DiceTray] could not show a roll", error);
         next.settled = true;
       }
+      if (round !== generation) return;
       void playNext();
+    };
+
+    // A new drive's setup starts with an empty tray: the last injury die
+    // from the drive before is not this drive's roll.
+    const onPhase = ({ phase }: { phase: GamePhase }) => {
+      if (phase !== GamePhase.SETUP) return;
+      generation++;
+      queue.current = [];
+      throwing?.stop();
+      throwing = null;
+      shown = null;
+      release?.();
+      release = null;
+      playing.current = false;
+      setCurrent(null);
+      reportInAir();
     };
 
     const enqueue = (roll: Omit<Queued, "seq">, first = false) => {
@@ -233,11 +255,13 @@ export function DiceTray({
       if (shown?.block) release?.();
     };
 
+    eventBus.on(GameEventNames.PhaseChanged, onPhase);
     eventBus.on(GameEventNames.DiceRoll, onRoll);
     eventBus.on(GameEventNames.BlockDiceRolled, onBlockRolled);
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onCancelled);
     return () => {
+      eventBus.off(GameEventNames.PhaseChanged, onPhase);
       eventBus.off(GameEventNames.DiceRoll, onRoll);
       eventBus.off(GameEventNames.BlockDiceRolled, onBlockRolled);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
