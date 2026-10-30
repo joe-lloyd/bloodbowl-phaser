@@ -149,7 +149,8 @@ export class BallManager {
       targetX,
       targetY,
       isTeam1Kicking,
-      useKickD3
+      useKickD3,
+      isTeam1Kicking ? this.team1.id : this.team2.id
     );
 
     // 3. Update State. A kick landing out of bounds or in the kicking

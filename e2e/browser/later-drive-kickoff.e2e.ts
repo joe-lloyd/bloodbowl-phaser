@@ -79,6 +79,9 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
   await expect(tray).toContainText(/Kickoff Deviate Distance: \d, \d/, {
     timeout: 10_000,
   });
+  // The kicking team's dice, named for them
+  const [humans] = await app.bridge.teams();
+  await expect(page.getByTestId("dice-tray-team")).toHaveText(humans.name);
   await page.screenshot({
     path: `${process.env.SHOTS ?? test.info().outputDir}/later-drive-kickoff-tray.png`,
   });

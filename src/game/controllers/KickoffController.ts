@@ -61,7 +61,9 @@ export class KickoffController {
     targetY: number,
     isTeam1Kicking: boolean,
     /** The kicker has the Kick skill: deviate only D3 squares. */
-    useKickD3 = false
+    useKickD3 = false,
+    /** The kicking team, whose dice the deviation is. */
+    kickingTeamId?: string
   ): {
     finalX: number;
     finalY: number;
@@ -72,7 +74,8 @@ export class KickoffController {
         x: targetX,
         y: targetY,
       },
-      useKickD3
+      useKickD3,
+      kickingTeamId
     );
 
     const isOffPitch =

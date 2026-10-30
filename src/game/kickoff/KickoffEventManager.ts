@@ -151,11 +151,11 @@ export class KickoffEventManager {
       return;
     }
 
-    const roll = this.diceController.roll2D6("Kickoff Event");
+    const kickingTeam = isTeam1Kicking ? this.team1 : this.team2;
+    const roll = this.diceController.roll2D6("Kickoff Event", kickingTeam.id);
     const event = KICKOFF_TABLE[roll];
     this.lastEvent = event;
 
-    const kickingTeam = isTeam1Kicking ? this.team1 : this.team2;
     const receivingTeam = isTeam1Kicking ? this.team2 : this.team1;
     const outcome: KickoffEventOutcome = {
       event,
