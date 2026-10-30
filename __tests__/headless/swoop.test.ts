@@ -52,7 +52,7 @@ function scenario(where: "thrower" | "thrown"): Scenario {
   };
 }
 
-/** "Pass (Human Lineman #1): 5 -1 = 4": a Superb Throw. */
+/** "Throw Team-mate (Human Lineman #1): 5 -1 = 4": a Superb Throw. */
 const SUPERB_SEED = 2;
 /** A Swoop whose first Landing roll is a 1. */
 const LANDING_REROLL_SEED = 3;
@@ -94,7 +94,7 @@ describe("Swoop", () => {
     const { dice, mate } = await throwMate("thrown", SUPERB_SEED, "east");
 
     expect(dice).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
       // Facing east, a 2 is the left arrow: north-east, two squares.
       "Swoop Direction: 2",
       "Swoop Distance: 2",
@@ -111,7 +111,7 @@ describe("Swoop", () => {
     );
 
     expect(dice).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
       "Swoop Direction: 1",
       "Swoop Distance: 3",
       "Landing (Human Lineman #2): 1 +0 = 1 (Target: 3+)",
@@ -125,7 +125,7 @@ describe("Swoop", () => {
     const { dice } = await throwMate("thrown", SUPERB_SEED);
 
     expect(dice.slice(0, 3)).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
       "Scatter: 3, 3, 5",
       "Landing (Human Lineman #2): 6 +0 = 6 (Target: 3+)",
     ]);
@@ -135,7 +135,7 @@ describe("Swoop", () => {
     const { dice } = await throwMate("thrower", SUPERB_SEED);
 
     expect(dice.slice(0, 3)).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
+      "Throw Team-mate (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
       "Scatter: 3, 3, 5",
       "Landing (Human Lineman #2): 6 +0 = 6 (Target: 3+)",
     ]);
