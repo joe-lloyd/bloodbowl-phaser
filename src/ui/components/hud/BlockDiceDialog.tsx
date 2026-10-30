@@ -280,8 +280,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       testId="block-dice-dialog"
       tone="blood"
       title="BLOCK!"
-      width="w-[304px]"
-      className="absolute right-4 top-[100px] max-h-[calc(100%_-_116px)] overflow-y-auto !px-3 !py-3"
+      width="w-[480px]"
       actions={
         // Once the dice are rolled the block CANNOT be cancelled: a result
         // must be picked
