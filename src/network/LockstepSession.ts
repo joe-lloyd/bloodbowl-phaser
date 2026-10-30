@@ -261,8 +261,14 @@ export class LockstepSession {
     this.options.onPeerCommand?.(command);
     const response = await game.execute(command);
     // The sender ran it from the same state, so it was refused there too
-    // and was not counted. If it was not, its settled count says so.
-    if (!response.ok) return;
+    // and was not counted. If it was not, its settled count says so and
+    // asks for a resync; the reason is logged here so the cause is known.
+    if (!response.ok) {
+      console.warn(
+        `[Lockstep] peer ${command.type} refused here: ${response.reason ?? "no reason"}`
+      );
+      return;
+    }
     this.applied++;
     this.options.onApplied?.(command, false);
   }
@@ -341,6 +347,8 @@ export class LockstepSession {
     if (state.snapshot.turnManager) {
       gameService.restoreTurnManagerState(state.snapshot.turnManager);
     }
+    // Setup keeps its own record of placed squares and confirmed teams
+    gameService.resyncSetupFromTeams();
     rng.restoreState(state.rng);
     matchStats.restoreState(state.matchStats);
     game.adoptPending(state.pending);

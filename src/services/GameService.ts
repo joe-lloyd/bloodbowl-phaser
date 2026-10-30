@@ -658,6 +658,10 @@ export class GameService implements IGameService {
     this.turnManager.restoreState(snapshot);
   }
 
+  resyncSetupFromTeams(): void {
+    this.setupManager.resyncFromTeams();
+  }
+
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
