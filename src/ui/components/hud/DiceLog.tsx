@@ -322,7 +322,10 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     "flex h-7 w-7 items-center justify-center rounded-hud border border-white/15 font-hud-label text-[12px] font-bold leading-none text-hud-dim transition-colors hover:border-hud-gold/60 hover:text-hud-gold disabled:cursor-not-allowed disabled:border-white/5 disabled:text-hud-mute/50";
 
   return (
-    <Panel className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto">
+    <Panel
+      data-testid="dice-log"
+      className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto"
+    >
       {/* Header / Tabs */}
       <div className="z-10 flex min-h-[40px] items-center justify-between gap-2 border-b border-hud-gold/20 px-3 py-1.5">
         {match ? (
