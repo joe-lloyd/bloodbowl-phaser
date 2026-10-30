@@ -30,45 +30,43 @@ export function kickoffMomentDetail(
   receiving: Team
 ): string {
   const teams = [kicking, receiving];
+  const affected = teams.filter((team) => outcome.perTeam[team.id]?.length);
+  /** The roll-off's winners, or a tie when it went the same for both. */
+  const rollOff = (winners: Team[]): string =>
+    winners.length === 1
+      ? `Favours ${winners[0].name}.`
+      : "A tie, so it favours neither team.";
   let favours: string;
   switch (outcome.event) {
     case KickoffEvent.GET_THE_REF:
-      favours = "both teams";
+      favours = "Favours both teams.";
       break;
     case KickoffEvent.TIME_OUT:
     case KickoffEvent.CHANGING_WEATHER:
-      favours = "neither team";
+      favours = "Favours neither team.";
       break;
     case KickoffEvent.ALERT_DEFENCE:
     case KickoffEvent.CHARGE:
-      favours = kicking.name;
+      favours = `Favours ${kicking.name}.`;
       break;
     case KickoffEvent.HIGH_KICK:
-      favours = `${receiving.name} if the landing square is eligible`;
+      favours = `Favours ${receiving.name} if the landing square is eligible.`;
       break;
     case KickoffEvent.QUICK_SNAP:
-      favours = receiving.name;
+      favours = `Favours ${receiving.name}.`;
       break;
     case KickoffEvent.CHEERING_FANS:
     case KickoffEvent.BRILLIANT_COACHING:
-      favours =
-        teams
-          .filter((team) => outcome.perTeam[team.id]?.length)
-          .map((team) => team.name)
-          .join(" and ") || "neither team";
+      favours = rollOff(affected);
       break;
     case KickoffEvent.DODGY_SNACK:
     case KickoffEvent.PITCH_INVASION:
-      favours =
-        teams
-          .filter((team) => !outcome.perTeam[team.id]?.length)
-          .map((team) => team.name)
-          .join(" and ") || "neither team";
+      favours = rollOff(teams.filter((team) => !affected.includes(team)));
       break;
     default: {
       const unreachable: never = outcome.event;
       return unreachable;
     }
   }
-  return `${summary[outcome.event]} Favours ${favours}.`;
+  return `${summary[outcome.event]} ${favours}`;
 }
