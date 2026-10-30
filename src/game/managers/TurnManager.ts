@@ -1,3 +1,7 @@
+import {
+  hasPendingMoments,
+  whenMomentsComplete,
+} from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase, TurnData } from "@/types/GameState";
@@ -16,12 +20,13 @@ export interface TurnManagerState {
   stunnedAtTurnStart?: string[];
 }
 
-/** Cosmetic-only stagger so "turn passes to X" and "X's turn" read as two
- *  beats instead of the announcer instantly replacing one with the other —
- *  the actual turn state below changes synchronously, unaffected. */
-const TURN_ANNOUNCE_DELAY_MS = 1100;
+/** "Orc Founders' Turn", but "Skaven's Turn". */
+export function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}'` : `${name}'s`;
+}
 
 export class TurnManager {
+  private handoverPending = false;
   private maxTurns: number = 6; // Sevens default
   private turnCounts: { [key: string]: number } = {};
   private driveKickingTeamId: string | null = null;
@@ -164,19 +169,30 @@ export class TurnManager {
     this.announceTurnStart(activeTeam.name, currentTurn);
   }
 
-  /** Bookend a turn's start on the announcer — staggered so a preceding
-   *  "round passed" beat (see endTurn) has time to actually be seen. */
   private announceTurnStart(teamName: string, turnNumber: number): void {
-    this.delay(TURN_ANNOUNCE_DELAY_MS).then(() => {
-      this.eventBus.emit(GameEventNames.UI_Announce, {
-        kind: "turn-started",
-        headline: `${teamName}'s Turn`,
-        subtitle: `Turn ${turnNumber}`,
-      });
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "turn-started",
+      headline: `${possessive(teamName)} Turn`,
+      subtitle: `Turn ${turnNumber}`,
     });
   }
 
   public endTurn(): void {
+    // A latched turnover ends the turn itself, through completeTurnover.
+    if (this.handoverPending || this.turnoverInProgress) return;
+    // The hand-over waits for the moments on screen. Headless there are
+    // none, and the turn ends at once; either way the engine reaches the
+    // same state, so lockstep stays deterministic.
+    if (hasPendingMoments(this.eventBus)) {
+      this.handoverPending = true;
+      const turn = this.state.turn;
+      void whenMomentsComplete(this.eventBus).then(() => {
+        this.handoverPending = false;
+        if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
+          this.endTurn();
+      });
+      return;
+    }
     const currentTeamId = this.state.activeTeamId;
     if (!currentTeamId) return;
 
@@ -213,12 +229,6 @@ export class TurnManager {
       this.endHalf();
       return;
     }
-
-    const nextTeam = nextTeamId === this.team1.id ? this.team1 : this.team2;
-    this.eventBus.emit(GameEventNames.UI_Announce, {
-      kind: "round-passed",
-      headline: `Turn Passes To ${nextTeam.name}`,
-    });
 
     this.startTurn(nextTeamId);
   }
@@ -268,9 +278,16 @@ export class TurnManager {
 
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
+    const score = `${this.team1.name} ${this.state.score?.[this.team1.id] ?? 0} : ${this.state.score?.[this.team2.id] ?? 0} ${this.team2.name}`;
+    this.eventBus.emit(GameEventNames.UI_LogEntry, {
+      category: "drive",
+      headline: "Halftime",
+      detail: score,
+    });
     this.eventBus.emit(GameEventNames.UI_Announce, {
       kind: "halftime",
       headline: "Halftime",
+      subtitle: score,
     });
 
     return this.firstHalfKickingTeamId === this.team1.id
@@ -330,9 +347,23 @@ export class TurnManager {
     }
     this.turnoverInProgress = true;
 
+    const player = [...this.team1.players, ...this.team2.players].find(
+      (candidate) => candidate.id === this.state.activePlayer?.id
+    );
+    const who =
+      player?.playerName ??
+      (this.state.activeTeamId === this.team1.id ? this.team1 : this.team2)
+        .name;
+    this.eventBus.emit(GameEventNames.UI_LogEntry, {
+      category: "action",
+      headline: "TURNOVER",
+      detail: `${who}: ${reason}`,
+      teamId: this.state.activeTeamId ?? undefined,
+    });
     this.eventBus.emit(GameEventNames.UI_Turnover, {
       teamId: this.state.activeTeamId || "",
       reason,
+      playerName: player?.playerName,
     });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
@@ -358,6 +389,11 @@ export class TurnManager {
   // Helpers
   public getTurnNumber(teamId: string): number {
     return this.turnCounts[teamId] || 0;
+  }
+
+  /** Turns this team has still to play in the current half. */
+  public turnsLeft(teamId: string): number {
+    return Math.max(0, this.maxTurns - this.getTurnNumber(teamId));
   }
 
   /**

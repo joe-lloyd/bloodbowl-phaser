@@ -6,9 +6,99 @@
  *
  * SHOTS=<dir> also saves a screenshot of each beat, for a walkthrough page.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 import { GameEventNames } from "../../src/types/events";
+import { possessive } from "../../src/game/managers/TurnManager";
+import type { IEventBus } from "../../src/services/EventBus";
+import type { BrowserTestBridge } from "../../src/testing/browserBridge";
+
+interface ObservedMoment {
+  kind: string;
+  text: string;
+  at: number;
+  phase: string;
+  activeTeamId: string | null;
+  overlap: boolean;
+}
+
+declare global {
+  interface Window {
+    eventBus: IEventBus;
+    __bbTestBridge: BrowserTestBridge;
+    __momentProof: {
+      moments: ObservedMoment[];
+      thrownAtTurnover: number;
+      landedAtBanner: number;
+    };
+  }
+}
+
+// Observe rendered banners, rather than relying on polling that can miss a
+// short banner on a busy browser worker. All state reads use the public bridge.
+async function observeMoments(page: Page) {
+  await page.evaluate(
+    (names) => {
+      const proof: Window["__momentProof"] = {
+        moments: [],
+        thrownAtTurnover: 0,
+        landedAtBanner: 0,
+      };
+      window.__momentProof = proof;
+      let tray = { thrown: 0, landedThrough: 0 };
+      let lastKind: string | null = null;
+      window.eventBus.on(names.dice, (data) => {
+        tray = data;
+      });
+      window.eventBus.on(names.turnover, () => {
+        proof.thrownAtTurnover = tray.thrown;
+        proof.moments.length = 0;
+      });
+      new MutationObserver(() => {
+        const banner = document.querySelector('[data-testid="announcement"]');
+        const turnover = [...document.querySelectorAll("h1")].find(
+          (node) => node.textContent === "TURNOVER"
+        );
+        const text = banner?.textContent ?? "";
+        const kind = turnover
+          ? "turnover"
+          : (banner?.getAttribute("data-kind") ?? null);
+        const state = window.__bbTestBridge.phase();
+        if (kind && kind !== lastKind) {
+          proof.moments.push({
+            kind,
+            text: turnover?.parentElement?.parentElement?.textContent ?? text,
+            at: performance.now(),
+            phase: state.phase,
+            activeTeamId: state.activeTeamId,
+            overlap: Boolean(turnover && banner),
+          });
+          if (turnover) proof.landedAtBanner = tray.landedThrough;
+        }
+        lastKind = kind;
+        if (
+          state.phase === "SETUP" &&
+          !proof.moments.some((moment) => moment.kind === "setup")
+        ) {
+          proof.moments.push({
+            kind: "setup",
+            text: "",
+            at: performance.now(),
+            phase: state.phase,
+            activeTeamId: state.activeTeamId,
+            overlap: false,
+          });
+        }
+      }).observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["data-kind"],
+      });
+    },
+    { dice: GameEventNames.UI_DiceInAir, turnover: GameEventNames.UI_Turnover }
+  );
+}
 
 const SEED = Number(process.env.SCORE_RUN_SEED ?? 2);
 
@@ -34,6 +124,7 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
     );
 
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: SEED });
+  await observeMoments(page);
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
@@ -66,11 +157,24 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await page.getByRole("button", { name: "Rush!" }).click();
   await shot("rush-rolling");
 
-  // The touchdown waits for the dice and the last step
-  await expect.poll(scored, { timeout: 15_000 }).toBe(true);
-  expect((await carrier()).position).toEqual({ x: 19, y: 5 });
-  await page.waitForTimeout(600);
+  // The touchdown waits for the dice and is rendered before setup.
+  const touchdown = page.getByTestId("announcement");
+  await expect(touchdown).toContainText("Touchdown", { timeout: 15_000 });
   await shot("touchdown");
+  await expect
+    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .toBe("SETUP");
+  const moments = await page.evaluate(() => window.__momentProof.moments);
+  const scoredMoment = moments.find((moment) => moment.kind === "touchdown");
+  const setupMoment = moments.find((moment) => moment.kind === "setup");
+  expect(scoredMoment).toBeDefined();
+  expect(scoredMoment?.text).toContain("Turns left");
+  expect(scoredMoment?.text).toContain("1 : 0");
+  expect(scoredMoment?.phase).toBe("TOUCHDOWN");
+  expect(
+    (setupMoment?.at ?? 0) - (scoredMoment?.at ?? 0)
+  ).toBeGreaterThanOrEqual(2500);
+  await expect(page.getByTestId("announcement")).toContainText("kick");
 });
 
 test("a failed Rush shows the turnover only after its die has landed", async ({
@@ -79,33 +183,7 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   const app = new GameApp(page);
   // Seed 1: the Dodge passes and the Rush rolls a 1
   await app.sandbox.open({ scenario: "score-run-dodge-rush", seed: 1 });
-  // Note the rolls thrown when the turnover is called, and the rolls landed
-  // when the banner first shows
-  await page.evaluate(() => {
-    const w = window as unknown as {
-      eventBus: { on(name: string, fn: (d: never) => void): void };
-      tray: { thrown: number; landedThrough: number };
-      thrownAtTurnover: number | null;
-      landedAtBanner: number | null;
-    };
-    w.tray = { thrown: 0, landedThrough: 0 };
-    w.thrownAtTurnover = w.landedAtBanner = null;
-    w.eventBus.on(
-      "ui:diceInAir",
-      (d: { thrown: number; landedThrough: number }) => {
-        w.tray = d;
-      }
-    );
-    w.eventBus.on("ui:turnover", () => {
-      w.thrownAtTurnover ??= w.tray.thrown;
-    });
-    new MutationObserver(() => {
-      const shown = [...document.querySelectorAll("h1")].some(
-        (h) => h.textContent === "TURNOVER"
-      );
-      if (shown) w.landedAtBanner ??= w.tray.landedThrough;
-    }).observe(document.body, { childList: true, subtree: true });
-  });
+  await observeMoments(page);
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.hud.actionButton("move").click();
@@ -117,17 +195,26 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   await expect(page.getByRole("heading", { name: "TURNOVER" })).toBeVisible({
     timeout: 10_000,
   });
-  const { thrownAtTurnover, landedAtBanner } = await page.evaluate(() => {
-    const w = window as unknown as {
-      thrownAtTurnover: number;
-      landedAtBanner: number;
-    };
-    return {
-      thrownAtTurnover: w.thrownAtTurnover,
-      landedAtBanner: w.landedAtBanner,
-    };
-  });
-  // Every roll up to the failed Rush had landed before the banner
+  await page.screenshot({ path: test.info().outputPath("turnover.png") });
+  await page.waitForFunction(() =>
+    window.__momentProof.moments.some(
+      (moment) => moment.kind === "turn-started"
+    )
+  );
+  const { moments, thrownAtTurnover, landedAtBanner } = await page.evaluate(
+    () => window.__momentProof
+  );
+  // TURNOVER shows while the team that failed still has the turn; the one
+  // turn banner follows, after the hand-over
+  expect(moments.map((moment) => moment.kind)).toEqual([
+    "turnover",
+    "turn-started",
+  ]);
+  expect(moments.every((moment) => !moment.overlap)).toBe(true);
+  const [team1, team2] = await app.bridge.teams();
+  expect(moments[0].activeTeamId).toBe(team1.id);
+  expect(moments[1].activeTeamId).toBe(team2.id);
+  expect(moments[1].text).toContain(`${possessive(team2.name)} Turn`);
   expect(thrownAtTurnover).toBeGreaterThan(0);
   expect(landedAtBanner).toBeGreaterThanOrEqual(thrownAtTurnover);
 });

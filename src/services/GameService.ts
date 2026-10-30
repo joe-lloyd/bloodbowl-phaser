@@ -5,6 +5,7 @@
  * Manages game state, phase transitions, and turn management.
  */
 
+import { whenMomentsComplete } from "../game/presentation/momentQueue";
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
@@ -844,6 +845,7 @@ export class GameService implements IGameService {
   }
 
   endTurn(): void {
+    if (this.turnManager.isTurnoverInProgress()) return;
     // A turn can be force-ended (the online clock expiring, or a manual End
     // Turn click) while a player's declaration is still live — declared and
     // even committed (movement spent, a die rolled), but never finalized via
@@ -1320,7 +1322,7 @@ export class GameService implements IGameService {
         return this.flowManager.whenIdle();
       })
       .then(() => this.offerSportsEspionage())
-      .then(() => this.delay(3000))
+      .then(() => whenMomentsComplete(this.eventBus))
       .then(() => this.turnManager.completeTurnover());
   }
 
@@ -1697,6 +1699,27 @@ export class GameService implements IGameService {
       teamId,
       score: this.state.score[teamId],
       scorerId,
+    });
+
+    // Scorer, score and the turns each team has left in the half: on the
+    // banner, which holds before setup, and as a row in the dice log.
+    const scorer = scorerId ? this.getPlayerById(scorerId) : undefined;
+    const who = scorer?.playerName ?? this.getTeam(teamId)?.name ?? teamId;
+    const score = `${this.team1.name} ${this.state.score[this.team1.id] ?? 0} : ${this.state.score[this.team2.id] ?? 0} ${this.team2.name}`;
+    const turnsLeft = [this.team1, this.team2]
+      .map((team) => `${team.name} ${this.turnManager.turnsLeft(team.id)}`)
+      .join(", ");
+    const detail = `${who} scores. ${score}. Turns left in the half: ${turnsLeft}`;
+    this.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "touchdown",
+      headline: "Touchdown!",
+      subtitle: detail,
+    });
+    this.eventBus.emit(GameEventNames.UI_LogEntry, {
+      category: "score",
+      headline: "TOUCHDOWN!",
+      detail,
+      teamId,
     });
 
     // The celebration window is a queued operation, not a bare timer, so the
