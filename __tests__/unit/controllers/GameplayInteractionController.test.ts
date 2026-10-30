@@ -7,6 +7,7 @@ import { GameEventNames } from "../../../src/types/events";
 
 // Mock dependencies
 const mockScene = {
+  events: { on: vi.fn(), off: vi.fn() },
   highlightPlayer: vi.fn(),
   unhighlightPlayer: vi.fn(),
   add: {
@@ -94,6 +95,9 @@ const mockGameService = {
   getRerollArbiter: vi.fn().mockReturnValue({
     skillRerollAvailable: vi.fn().mockReturnValue(false),
     teamRerollAvailable: vi.fn().mockReturnValue(false),
+    nextTeamReroll: vi.fn().mockReturnValue(null),
+    veteranRerollAvailable: vi.fn().mockReturnValue(false),
+    onceAvailable: vi.fn().mockReturnValue(false),
   }),
 };
 
@@ -856,6 +860,7 @@ describe("GameplayInteractionController", () => {
     // foul's KO/Casualty/Send-Off consequence had actually finished. The fix
     // awaits GameFlowManager.whenIdle() before deselecting.
     const target = {
+      stats: { AV: 9 }, skills: [],
       id: "p2",
       teamId: "team2",
       gridPosition: { x: 6, y: 5 },
@@ -867,6 +872,8 @@ describe("GameplayInteractionController", () => {
       controller["currentStepId"] = "foul";
       controller["selectedPlayerId"] = "p1";
       mockGameService.getPhase.mockReturnValue(GamePhase.PLAY);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      mockGameService.getState.mockReturnValue({ weather: "Nice" });
       (controller as any).getPlayerAt = vi.fn().mockReturnValue(target);
     }
 
@@ -881,6 +888,7 @@ describe("GameplayInteractionController", () => {
       });
 
       const click = (controller as any).onSquareClicked(6, 5);
+      await answerStepPrompt(true);
 
       // foulPlayer() itself has already resolved, but whenIdle() has not —
       // the KO/Casualty/Send-Off consequence is still "in flight".
@@ -902,7 +910,9 @@ describe("GameplayInteractionController", () => {
         flowManager: { whenIdle: vi.fn().mockResolvedValue(undefined) },
       });
 
-      await (controller as any).onSquareClicked(6, 5);
+      const click = (controller as any).onSquareClicked(6, 5);
+      await answerStepPrompt(true);
+      await click;
 
       expect(mockGameService.foulPlayer).toHaveBeenCalledWith("p1", 6, 5);
       expect(mockScene.unhighlightPlayer).toHaveBeenCalledWith("p1");

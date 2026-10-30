@@ -15,6 +15,7 @@ import { GameEventNames } from "../../../types/events";
 
 import { CoinFlipOverlay } from "./CoinFlipOverlay";
 import { SetupControls } from "./SetupControls";
+import { TargetRollPreview } from "./RollPreviews";
 import { ConfirmationModal } from "./ConfirmationModal";
 
 import { PlayerActionMenu } from "./PlayerActionMenu";
@@ -360,6 +361,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
+          <TargetRollPreview eventBus={eventBus} />
           {inducementsPending && (
             <InducementSelectionPanel
               onDone={() => setInducementsPending(false)}

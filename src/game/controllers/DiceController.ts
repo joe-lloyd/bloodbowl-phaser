@@ -253,6 +253,7 @@ export class DiceController {
     this.emitDiceRoll({
       rollType: fullReason,
       diceType: "1d6",
+      context: { target, modifier },
       value: roll,
       total: effectiveTotal,
       description: `${fullReason}: ${roll} ${modifier >= 0 ? "+" : ""}${modifier} = ${effectiveTotal} (Target: ${target}+)`,

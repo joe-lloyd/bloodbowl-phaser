@@ -229,6 +229,8 @@ export enum GameEventNames {
   UI_ReactionResponse = "ui:reactionResponse",
   UI_InterceptionResponse = "ui:interceptionResponse",
   UI_ApothecaryResponse = "ui:apothecaryResponse",
+  UI_RoutePreview = "ui:routePreview",
+  UI_TargetRollPreview = "ui:targetRollPreview",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_KeepBlockDice = "ui:keepBlockDice",
@@ -857,6 +859,9 @@ export interface UIEvents {
   [GameEventNames.UI_ReactionResponse]: import("./decisions").ReactionDecisionAnswer;
   [GameEventNames.UI_InterceptionResponse]: import("./decisions").InterceptionDecisionAnswer;
   [GameEventNames.UI_ApothecaryResponse]: import("./decisions").ApothecaryDecisionAnswer;
+
+  [GameEventNames.UI_RoutePreview]: import("../game/rules/rollPreview").RoutePreview | null;
+  [GameEventNames.UI_TargetRollPreview]: (import("../game/rules/rollPreview").TargetRollPreview & { anchor: { x: number; y: number } }) | null;
 
   [GameEventNames.UI_UpdateActionSteps]: {
     currentStepId: string;

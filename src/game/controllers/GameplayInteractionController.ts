@@ -34,11 +34,14 @@ import {
   blockReplacementForDirectAction,
 } from "../../types/BlockReplacement";
 import { legalBlockReplacementTargets } from "../rules/blockReplacements";
-import { planMoveLegs, StepRisk } from "../rules/moveLegs";
+import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { d6Chance, percent } from "../rules/rollOdds";
+import { rollLabel, rollProbability } from "../rules/rollProbability";
+import { foulPreview, blockPreviewLines, catchTarget, interceptTarget, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
+import { BlockValidator } from "../validators/BlockValidator";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -68,6 +71,21 @@ export class GameplayInteractionController {
   private waypoints: { x: number; y: number }[] = [];
   /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
   private riskPrompts = 0;
+  private targetRollPreview: TargetRollPreview | null = null;
+  private targetAnchor: { x: number; y: number } | null = null;
+  private publishTargetPreview = () => {
+    const preview = this.targetRollPreview;
+    if (!preview) return;
+    const world = this.pitch.getPixelPosition(preview.square.x, preview.square.y);
+    const camera = this.scene.cameras.main;
+    const anchor = {
+      x: (world.x - camera.worldView.x) * camera.zoom / this.scene.scale.width,
+      y: (world.y - camera.worldView.y) * camera.zoom / this.scene.scale.height,
+    };
+    if (this.targetAnchor?.x === anchor.x && this.targetAnchor.y === anchor.y) return;
+    this.targetAnchor = anchor;
+    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, { ...preview, anchor });
+  };
 
   // Push direction selection state
   private pushSelectionActive: boolean = false;
@@ -159,6 +177,7 @@ export class GameplayInteractionController {
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
     this.passController = gameService.getPassController();
+    this.scene.events.on("postupdate", this.publishTargetPreview);
 
     // Store handler reference for cleanup
     this.pushDirectionHandler = (data) => {
@@ -716,6 +735,7 @@ export class GameplayInteractionController {
       }
     } else {
       this.lastHoverGrid = null;
+      this.clearRollPreviews();
       this.pitch.clearHover();
       this.pitch.clearPath();
       this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
@@ -1098,7 +1118,15 @@ export class GameplayInteractionController {
           playerAtSquare.status === PlayerStatus.STUNNED)
       ) {
         this.isBusy = true;
+        let committed = false;
         try {
+          const fouler = this.gameService.getPlayerById(this.selectedPlayerId);
+          // The confirm repeats the hover card, so only the assist rings stay
+          this.targetRollPreview = null;
+          this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
+          if (!fouler || !(await this.confirmFoul(fouler, playerAtSquare))) return;
+          committed = true;
+          this.clearRollPreviews();
           await this.gameService.foulPlayer(this.selectedPlayerId, x, y);
           // foulPlayer only queues FoulOperation on GameService's own
           // GameFlowManager (fire-and-forget); wait for that queue to fully
@@ -1108,7 +1136,7 @@ export class GameplayInteractionController {
           await this.gameService.getFlowContext().flowManager.whenIdle();
         } finally {
           this.isBusy = false;
-          this.deselectPlayer();
+          if (committed) this.deselectPlayer();
         }
       } else {
         this.eventBus.emit(
@@ -1410,6 +1438,7 @@ export class GameplayInteractionController {
   private onSquareHovered(x: number, y: number): void {
     // 1. Highlight Square Cursor
     this.pitch.highlightHoverSquare(x, y);
+    this.updateTargetPreview(x, y);
 
     // 2. Player Info
     const player = this.getPlayerAt(x, y);
@@ -1931,6 +1960,7 @@ export class GameplayInteractionController {
       this.selectedPlayerId = null;
     }
     this.waypoints = [];
+    this.clearRollPreviews();
     this.clearAllInteractionHighlights();
     // Also drop the pitch-layer visuals (range/sprint/tackle overlays, path)
     this.pitch.clearHighlights();
@@ -2032,6 +2062,7 @@ export class GameplayInteractionController {
   ): Promise<void> {
     this.isBusy = true;
     this.waypoints = [];
+    this.clearRollPreviews();
     this.pitch.clearPath();
     let walked = false;
     try {
@@ -2079,49 +2110,43 @@ export class GameplayInteractionController {
         this.gameService.getMovementUsed(player.id) +
         (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
       rushModifier: rushModifier(state, player),
+      pickup: state.ballPosition && !this.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
+        ? { square: state.ballPosition, target: pickupTarget(mover, state.ballPosition, this.getOpposingPlayers(player.teamId), state.weather) }
+        : undefined,
     });
   }
 
   /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
   private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
     const actionId = `risky-step-${++this.riskPrompts}`;
-    const checks: { kind: "rush" | "dodge"; needed: number }[] =
-      risk.kind === "rush-dodge"
-        ? [
-            { kind: "rush", needed: risk.rushNeed },
-            { kind: "dodge", needed: risk.dodgeNeed },
-          ]
-        : risk.kind === "dodge"
-          ? [{ kind: "dodge", needed: risk.dodgeNeed }]
-          : [{ kind: "rush", needed: risk.rushNeed }];
-    const rollText = checks
-      .map(
-        ({ kind, needed }) =>
-          `${kind === "rush" ? "Rush" : "Dodge"}: ${needed}+`
-      )
+    const rolls = stepRolls(risk, player.gridPosition!);
+    const rollName = (kind: RouteRoll["type"]) =>
+      kind === "pickup" ? "Pick up" : kind === "dodge" ? "Dodge" : "Rush";
+    const rollText = rolls
+      .map((roll) => rollLabel(rollName(roll.type), roll.target))
       .join(", then ");
     const arbiter = this.gameService.getRerollArbiter();
-    const rerolls = checks.flatMap(({ kind, needed }) => {
+    const rerolls = rolls.flatMap(({ type, target }) => {
       const offer = availableRerolls(
         { gameService: this.gameService, eventBus: this.eventBus },
         player,
-        kind
+        type
       );
       return offer.sources.map((source) => {
         switch (source) {
           case "skill":
-            return `${offer.skillSource} re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+            return `${offer.skillSource} re-roll: ${target}+, ${percent(d6Chance(target))}`;
           case "pro":
-            return `Pro needs 3+, then ${needed}+: ${percent((d6Chance(needed) * 2) / 3)}`;
+            return `Pro needs 3+, then ${target}+: ${percent((d6Chance(target) * 2) / 3)}`;
           case "team": {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
               case "free":
-                return `Brilliant Coaching free re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+                return `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "leader":
-                return `Leader re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+                return `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "team":
-                return `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${needed}+, ${percent(d6Chance(needed))}`;
+                return `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
               case null:
                 return "No team re-roll available";
               default: {
@@ -2131,7 +2156,7 @@ export class GameplayInteractionController {
             }
           }
           case "veteran":
-            return `Veteran re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+            return `Veteran re-roll: ${target}+, ${percent(d6Chance(target))}`;
           default: {
             const exhaustive: never = source;
             return exhaustive;
@@ -2139,16 +2164,17 @@ export class GameplayInteractionController {
         }
       });
     });
-    const chance = checks.reduce(
-      (chance, check) => chance * d6Chance(check.needed),
-      1
+    const chance = rollProbability(
+      rolls.map((roll) => ({ dice: "d6" as const, target: roll.target }))
     );
     const title =
       risk.kind === "dodge"
         ? "Dodge"
         : risk.kind === "rush"
           ? "Rush"
-          : "Rush & Dodge";
+          : risk.kind === "rush-dodge"
+            ? "Rush & Dodge"
+            : "Pick up";
     return new Promise((resolve) => {
       const onResult = (data: { confirmed: boolean; actionId: string }) => {
         if (data.actionId !== actionId) return;
@@ -2161,7 +2187,7 @@ export class GameplayInteractionController {
         title: `${player.playerName}: ${title}`,
         chooserTeamId: player.teamId,
         message:
-          `${rollText}. A fall is a turnover.\nChance: ${percent(chance)}.\n` +
+          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\nChance: ${percent(chance)}.\n` +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),
@@ -2188,6 +2214,8 @@ export class GameplayInteractionController {
   }
 
   public destroy(): void {
+    this.scene.events.off("postupdate", this.publishTargetPreview);
+    this.clearRollPreviews();
     // Cleanup listeners
     this.eventBus.off(
       GameEventNames.UI_SelectPushDirection,
@@ -2237,6 +2265,118 @@ export class GameplayInteractionController {
     }
   }
 
+  private availableRerolls(player: Player, kinds: ("dodge" | "rush" | "pickup")[]): string[] {
+    const arbiter = this.gameService.getRerollArbiter();
+    const skills = new Set(kinds.map(kind => kind === "dodge" ? SkillType.DODGE : kind === "rush" ? SkillType.SURE_FEET : SkillType.SURE_HANDS));
+    const sources: string[] = [];
+    for (const skill of skills) {
+      if (hasSkill(player.skills, skill) && arbiter.skillRerollAvailable(player, skill)) sources.push(skill);
+    }
+    const team = arbiter.nextTeamReroll(player.teamId);
+    if (team === "free") sources.push("Brilliant Coaching");
+    if (team === "leader") sources.push("Leader");
+    if (team === "team") sources.push(`team ${arbiter.teamRerollsLeftFor(player.teamId)} left`);
+    if (hasSkill(player.skills, SkillType.PRO) && arbiter.onceAvailable(player, SkillType.PRO)) sources.push("Pro on 3+");
+    if (arbiter.veteranRerollAvailable(player)) sources.push("Veteran");
+    return sources;
+  }
+
+  private drawPlannedRoute(player: Player, fullPath: { x: number; y: number }[]): void {
+    const legs = this.planLegs(player, fullPath.slice(1));
+    const rolls = legs.flatMap(leg => leg.risk ? stepRolls(leg.risk, leg.path[0]) : []);
+    const mover = withDriveModifiers(player, this.gameService.getState());
+    const left = Math.max(0, mover.stats.MA - this.gameService.getMovementUsed(player.id) - (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0));
+    this.pitch.drawMovementPath(fullPath, rolls, left);
+    this.eventBus.emit(GameEventNames.UI_RoutePreview, {
+      movementLeft: left, riskySteps: legs.filter(leg => leg.risk).length,
+      chance: rollProbability(rolls.map(roll => ({ dice: "d6", target: roll.target }))),
+      rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
+    });
+  }
+
+  private clearRollPreviews(): void {
+    this.targetRollPreview = null;
+    this.targetAnchor = null;
+    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
+    this.eventBus.emit(GameEventNames.UI_RoutePreview, null);
+    this.pitch.clearLayer("assist_ring");
+  }
+
+  private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
+    const actionId = `foul-${++this.riskPrompts}`;
+    return new Promise(resolve => {
+      const onResult = (data: { actionId: string; confirmed: boolean }) => {
+        if (data.actionId !== actionId) return;
+        this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+        resolve(data.confirmed);
+      };
+      this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
+        actionId, title: "Confirm foul", message: this.foulPreview(fouler, target).lines.join("\n"),
+        confirmLabel: "Foul!", cancelLabel: "Cancel", risky: true,
+      });
+    });
+  }
+
+  private foulPreview(fouler: Player, target: Player) {
+    return foulPreview(fouler, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], this.gameService.getState());
+  }
+
+  private updateTargetPreview(x: number, y: number): void {
+    // A prompt or an action is in flight: keep what the coach is reading
+    if (this.isBusy) return;
+    this.targetRollPreview = null;
+    this.targetAnchor = null;
+    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
+    this.pitch.clearLayer("assist_ring");
+    this.pitch.clearLayer("intercept_roll_label");
+    this.eventBus.emit(GameEventNames.UI_RoutePreview, null);
+    if (!this.selectedPlayerId) return;
+    const actor = this.gameService.getPlayerById(this.selectedPlayerId);
+    const target = this.getPlayerAt(x, y);
+    if (!actor?.gridPosition || !target || target.id === actor.id) return;
+    const state = this.gameService.getState();
+    const opponents = this.gameService.getOpponents(actor.teamId);
+    const adjacent = Math.max(Math.abs(actor.gridPosition.x - x), Math.abs(actor.gridPosition.y - y)) === 1;
+    let preview: TargetRollPreview | null = null;
+    const ringAssists = (ours: Player[], theirs: Player[]) => this.pitch.drawAssistRings(
+      ours.flatMap(p => p.gridPosition ? [p.gridPosition] : []), theirs.flatMap(p => p.gridPosition ? [p.gridPosition] : [])
+    );
+    if ((this.currentActionMode === "block" || this.currentActionMode === "blitz") && !this.currentBlockReplacement && target.teamId !== actor.teamId && target.status === PlayerStatus.ACTIVE) {
+      const analysis = new BlockValidator().analyzeBlock(actor, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], state.activeTeamId);
+      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target), danger: analysis.isUphill };
+      if (!adjacent) preview.lines.push("At current positions. Move into reach to block.");
+      ringAssists(analysis.attackerAssists, analysis.defenderAssists);
+    } else if (this.currentActionMode === "foul" && adjacent && target.teamId !== actor.teamId && (target.status === PlayerStatus.PRONE || target.status === PlayerStatus.STUNNED)) {
+      const foul = this.foulPreview(actor, target);
+      preview = { square: { x, y }, lines: foul.lines, danger: true };
+      ringAssists(foul.analysis.offensiveAssists, foul.analysis.defensiveAssists);
+    } else if (target.teamId === actor.teamId && ((this.currentActionMode === "pass" && this.currentStepId === "pass") || (this.currentActionMode === "handoff" && this.currentStepId === "handoff"))) {
+      const passer = withDriveModifiers(actor, state);
+      const receiver = withDriveModifiers(target, state);
+      const handoff = this.currentActionMode === "handoff";
+      const range = this.passController.measureRange(actor.gridPosition, { x, y });
+      const lines = handoff ? [] : [rollLabel(range.type, passTarget(passer, opponents, state.weather, range))];
+      lines.push(rollLabel("Catch", catchTarget(receiver, opponents, state.weather, handoff ? "handoff" : "pass")));
+      const interceptorRolls: { square: { x: number; y: number }; target: number }[] = [];
+      if (!handoff) {
+        const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];
+        for (const attempt of this.passController.checkInterceptions(actor.gridPosition, { x, y }, opponents, true)) {
+          const interceptor = this.gameService.getPlayerById(attempt.playerId);
+          if (!interceptor) continue;
+          if (hasSkill(actor.skills, SkillType.CLOUD_BURSTER) && !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) continue;
+          const need = interceptTarget(interceptor, attempt.modifier, passingTeam, state.weather);
+          lines.push(rollLabel(`Intercept #${interceptor.number}`, need));
+          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: need });
+        }
+      }
+      this.pitch.drawInterceptionRolls(interceptorRolls);
+      preview = { square: { x, y }, lines, danger: false };
+    }
+    this.targetRollPreview = preview;
+    this.publishTargetPreview();
+  }
+
   private drawCurrentPath(): void {
     if (!this.selectedPlayerId) return;
 
@@ -2248,15 +2388,11 @@ export class GameplayInteractionController {
     // For now, simple draw
     const player = this.gameService.getPlayerById(this.selectedPlayerId);
     if (player && player.gridPosition) {
-      const effectivePlayer = withDriveModifiers(
-        player,
-        this.gameService.getState()
-      );
       const fullPath = [
         { x: player.gridPosition.x, y: player.gridPosition.y },
         ...this.waypoints,
       ];
-      this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
+      this.drawPlannedRoute(player, fullPath);
     }
   }
 
@@ -2309,7 +2445,7 @@ export class GameplayInteractionController {
         ...result.path,
       ];
       // TODO: Get rolls for full path
-      this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
+      this.drawPlannedRoute(player, fullPath);
     } else {
       // Just draw existing waypoints if preview is invalid
       if (this.waypoints.length > 0) {
@@ -2317,7 +2453,7 @@ export class GameplayInteractionController {
           { x: player.gridPosition!.x, y: player.gridPosition!.y },
           ...this.waypoints,
         ];
-        this.pitch.drawMovementPath(fullPath, [], effectivePlayer.stats.MA);
+        this.drawPlannedRoute(player, fullPath);
       } else {
         this.pitch.clearPath();
       }

@@ -139,7 +139,7 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   // Nothing has moved or rolled: the board asks before the Dodge
   await expect(page.getByRole("heading", { name: /: Dodge$/ })).toBeVisible();
   await expect(
-    page.getByText(/Dodge: 3\+\. A fall is a turnover\./)
+    page.getByText(/Dodge: 3\+ \(67%\)\. A fall is a turnover\./)
   ).toBeVisible();
   expect((await carrier()).position).toEqual({ x: 12, y: 5 });
   await shot("dodge-prompt");
@@ -150,7 +150,7 @@ test("a score run stops before the Dodge and the Rush, and scores at the end", a
   await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText(/Rush: 2\+\./)).toBeVisible();
+  await expect(page.getByText(/Rush: 2\+ \(83%\)\./)).toBeVisible();
   expect((await carrier()).position).toEqual({ x: 18, y: 5 });
   expect(await scored()).toBe(false);
   await shot("rush-prompt");

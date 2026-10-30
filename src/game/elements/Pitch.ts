@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { RouteRoll } from "../rules/rollPreview";
 import { SetupTeamStatus } from "../../types/SetupTypes";
 import {
   GameConfig,
@@ -15,6 +16,13 @@ import {
   pixelToGrid,
   squareCorners,
 } from "./GridUtils";
+
+/** Letters for the roll tags on a plotted path. */
+const ROLL_LETTER: Record<RouteRoll["type"], string> = {
+  dodge: "D",
+  rush: "R",
+  pickup: "P",
+};
 
 /** A highlighted square: a diamond on the isometric pitch. */
 export type SquareMarker = Phaser.GameObjects.Polygon;
@@ -344,32 +352,40 @@ export class Pitch {
   /**
    * Draw Dodge Risk squares
    */
-  public drawDodgeRisks(
-    risks: { x: number; y: number; modifiers: number }[]
-  ): void {
+  public drawDodgeRisks(risks: { x: number; y: number }[]): void {
     this.clearLayer("dodge_risk");
-    risks.forEach(({ x, y, modifiers }) => {
-      const local = gridToPixel(x, y);
+    risks.forEach(({ x, y }) => {
       const shape = this.diamond(x, y, 0xff6600, 0.3, 0.04);
       shape.setStrokeStyle(2, 0xff6600);
       shape.setName("dodge_risk");
-
-      const text = this.scene.add.text(
-        local.x,
-        local.y,
-        `${modifiers >= 0 ? "+" : ""}${modifiers}`,
-        {
-          fontSize: "14px",
-          color: "#ff6600",
-          fontStyle: "bold",
-          stroke: "#000000",
-          strokeThickness: 2,
-        }
-      );
-      text.setOrigin(0.5);
-      text.setName("dodge_risk");
-      this.container.add(text);
     });
+  }
+
+  /**
+   * A roll tag on the pitch. The camera zooms the board out, so the text is
+   * drawn large and at double resolution to stay readable.
+   */
+  private addRollTag(
+    x: number,
+    y: number,
+    text: string,
+    color: string,
+    name: string,
+    originY: 0 | 1 = 0
+  ): void {
+    const tag = this.scene.add
+      .text(x, y, text, {
+        fontFamily: "Arial, sans-serif",
+        fontSize: "22px",
+        fontStyle: "bold",
+        color,
+        backgroundColor: "#16130fe6",
+        padding: { x: 5, y: 1 },
+      })
+      .setResolution(2)
+      .setOrigin(0.5, originY)
+      .setName(name);
+    this.container.add(tag);
   }
 
   /**
@@ -441,14 +457,8 @@ export class Pitch {
 
   public drawMovementPath(
     path: { x: number; y: number }[],
-    rolls: {
-      type: string;
-      target: number;
-      roll: number;
-      result: string;
-      square?: { x: number; y: number };
-    }[],
-    ma: number = 6
+    rolls: RouteRoll[],
+    movementLeft: number = 6
   ): void {
     this.clearPath();
 
@@ -461,7 +471,7 @@ export class Pitch {
     for (let i = 0; i < path.length - 1; i++) {
       const from = gridToPixel(path[i].x, path[i].y);
       const to = gridToPixel(path[i + 1].x, path[i + 1].y);
-      const isRush = i + 1 > ma;
+      const isRush = i + 1 > movementLeft;
       graphics.lineStyle(4, isRush ? 0xffff00 : 0xffffff, 0.8);
       graphics.beginPath();
       graphics.moveTo(from.x, from.y);
@@ -496,12 +506,46 @@ export class Pitch {
       dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
       this.container.add(dot);
+      const labels = rolls
+        .filter((r) => r.square.x === step.x && r.square.y === step.y)
+        .map((r) => `${ROLL_LETTER[r.type]} ${r.target}+`);
+      if (labels.length) {
+        this.addRollTag(
+          local.x,
+          local.y + 8,
+          labels.join(" "),
+          "#fff3b0",
+          "path_roll_label"
+        );
+      }
     });
+    this.drawDodgeRisks(
+      rolls.filter((r) => r.type === "dodge").map((r) => r.square)
+    );
+  }
+
+  public drawAssistRings(
+    ours: { x: number; y: number }[],
+    theirs: { x: number; y: number }[]
+  ): void {
+    this.clearLayer("assist_ring");
+    for (const [squares, color] of [
+      [ours, 0x4ade80],
+      [theirs, 0xf87171],
+    ] as const) {
+      squares.forEach((square) =>
+        this.diamond(square.x, square.y, color, 0.12, 0.08)
+          .setStrokeStyle(3, color)
+          .setName("assist_ring")
+      );
+    }
   }
 
   public clearPath(): void {
     this.clearLayer("path_dot");
     this.clearLayer("path_line");
+    this.clearLayer("path_roll_label");
+    this.clearLayer("dodge_risk");
   }
 
   /** The pulsing zone a team deploys in; gone once that team is set up. */
@@ -571,6 +615,7 @@ export class Pitch {
     passType: string
   ): void {
     this.clearLayer("pass_line");
+    this.clearLayer("pass_range_label");
 
     const fromPixel = gridToPixel(from.x, from.y);
     const toPixel = gridToPixel(to.x, to.y);
@@ -607,6 +652,16 @@ export class Pitch {
     graphics.fillPath();
 
     this.container.add(graphics);
+    // A third of the way from the thrower, above the line, so the name does
+    // not sit on a player standing in the corridor.
+    this.addRollTag(
+      fromPixel.x + (toPixel.x - fromPixel.x) / 3,
+      fromPixel.y + (toPixel.y - fromPixel.y) / 3 - 6,
+      passType,
+      "#fff3b0",
+      "pass_range_label",
+      1
+    );
   }
 
   /**
@@ -664,6 +719,23 @@ export class Pitch {
     });
   }
 
+  /** Each interceptor's target, tagged under the player. */
+  public drawInterceptionRolls(
+    rolls: { square: { x: number; y: number }; target: number }[]
+  ): void {
+    this.clearLayer("intercept_roll_label");
+    for (const roll of rolls) {
+      const at = gridToPixel(roll.square.x, roll.square.y);
+      this.addRollTag(
+        at.x,
+        at.y + 8,
+        `I ${roll.target}+`,
+        "#fca5a5",
+        "intercept_roll_label"
+      );
+    }
+  }
+
   /**
    * Clear pass visualization
    */
@@ -672,6 +744,8 @@ export class Pitch {
     this.clearLayer("pass_line");
     this.clearLayer("pass_intercept");
     this.clearLayer("handoff_target");
+    this.clearLayer("pass_range_label");
+    this.clearLayer("intercept_roll_label");
   }
 
   /**
