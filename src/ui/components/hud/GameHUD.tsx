@@ -1,3 +1,4 @@
+import { PushChoicePrompt } from "./PushChoicePrompt";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -320,8 +321,26 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       bottomRight={
         <>
           <SetupControls eventBus={eventBus} />
-          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
-          <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
+          <div className="w-full min-h-0 [&:has([data-decision-dialog])_.decision-actions]:hidden">
+            <div
+              data-testid="decision-dock"
+              className="w-full max-h-[calc(100dvh-3rem)] overflow-y-auto hud-scroll empty:hidden [&>[data-decision-dialog]:not(:last-child)]:hidden"
+            >
+              <BlockDiceDialog eventBus={eventBus} />
+              <PushChoicePrompt eventBus={eventBus} />
+              <FollowUpDialog eventBus={eventBus} />
+              <RerollDialog eventBus={eventBus} />
+              <ReactionDialog eventBus={eventBus} />
+              <ApothecaryDialog eventBus={eventBus} />
+              <InducementChoiceDialog eventBus={eventBus} />
+              <InterceptionDialog eventBus={eventBus} />
+              <ConfirmationModal eventBus={eventBus} />
+            </div>
+            <div className="decision-actions flex w-full flex-col gap-3">
+              <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+              <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
+            </div>
+          </div>
         </>
       }
       overlays={
@@ -341,14 +360,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Full-screen overlays */}
           <CoinFlipOverlay eventBus={eventBus} />
-          <ConfirmationModal eventBus={eventBus} />
-          <BlockDiceDialog eventBus={eventBus} />
-          <FollowUpDialog eventBus={eventBus} />
-          <RerollDialog eventBus={eventBus} />
-          <ReactionDialog eventBus={eventBus} />
-          <ApothecaryDialog eventBus={eventBus} />
-          <InducementChoiceDialog eventBus={eventBus} />
-          <InterceptionDialog eventBus={eventBus} />
           {inducementsPending && (
             <InducementSelectionPanel
               onDone={() => setInducementsPending(false)}

@@ -1,3 +1,5 @@
+import { DiceWatch } from "../../../game/presentation/diceWatch";
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
@@ -20,17 +22,24 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   } | null>(null);
 
   useEffect(() => {
+    const dice = new DiceWatch(eventBus);
+    let generation = 0;
     const onFollowUpPrompt = (data: {
       attackerId: string;
       targetSquare: { x: number; y: number };
     }) => {
-      setFollowUpData(data);
-      setIsOpen(true);
+      const current = ++generation;
+      void dice.landed().then(() => {
+        if (current !== generation) return;
+        setFollowUpData(data);
+        setIsOpen(true);
+      });
     };
 
     // The other coach may be the one who answers
     const onResolved = ({ type }: { type: string }) => {
       if (type !== "follow-up") return;
+      generation++;
       setIsOpen(false);
       setFollowUpData(null);
     };
@@ -38,6 +47,8 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
+      generation++;
+      dice.dispose();
       eventBus.off(GameEventNames.UI_FollowUpPrompt, onFollowUpPrompt);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
@@ -76,6 +87,8 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam playerId={followUpData.attackerId} />}
       testId="follow-up-dialog"
       title="Follow Up?"
       width="w-[400px]"

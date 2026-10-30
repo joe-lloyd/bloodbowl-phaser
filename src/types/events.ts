@@ -47,6 +47,7 @@ export enum GameEventNames {
   SetupConcessionResolved = "setupConcessionResolved",
   PlayerStatusChanged = "playerStatusChanged",
   Turnover = "turnover",
+  BlockDiceKept = "blockDiceKept",
   BlockDiceRolled = "blockDiceRolled",
   ArmorRolled = "armorRolled",
   PlayerKnockedDown = "playerKnockedDown",
@@ -227,6 +228,7 @@ export enum GameEventNames {
   UI_ApothecaryResponse = "ui:apothecaryResponse",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
+  UI_KeepBlockDice = "ui:keepBlockDice",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
   UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
@@ -326,13 +328,8 @@ export interface GameEvents {
   [GameEventNames.Turnover]: { teamId: string };
 
   // Block Events
-  [GameEventNames.BlockDiceRolled]: {
-    attackerId: string;
-    defenderId: string;
-    numDice: number;
-    isAttackerChoice: boolean;
-    results: BlockResult[];
-  };
+  [GameEventNames.BlockDiceKept]: import("../services/BlockResolutionService").BlockRollData;
+  [GameEventNames.BlockDiceRolled]: import("../services/BlockResolutionService").BlockRollData;
 
   [GameEventNames.ArmorRolled]: {
     playerId: string;
@@ -777,6 +774,7 @@ export interface UIEvents {
     confirmLabel?: string;
     cancelLabel?: string;
     risky?: boolean;
+    chooserTeamId?: string;
   };
 
   [GameEventNames.UI_ConfirmationResult]: {
@@ -870,6 +868,8 @@ export interface UIEvents {
     playerId: string;
   };
 
+  /** Keep the uphill dice and let the defender pick. */
+  [GameEventNames.UI_KeepBlockDice]: { attackerId: string };
   /** Spend a Team Re-roll on a block (re-roll all the dice). */
   [GameEventNames.UI_TeamRerollBlock]: { attackerId: string };
   /** Spend Pro on a block (re-roll one die). */
