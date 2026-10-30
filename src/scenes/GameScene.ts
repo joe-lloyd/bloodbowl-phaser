@@ -736,17 +736,24 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Online: the other coach's move, drawn as one line while the player
-    // runs it, then cleared
-    let otherMoveTimer: ReturnType<typeof setTimeout> | null = null;
+    // runs it, and cleared once the move has run here and the walk has
+    // played, rather than after a guess at how long the walk takes
+    let otherMovesDrawn = 0;
     this.subscribe(
       GameEventNames.UI_ShowOtherCoachMove,
       ({ from, path, ma }) => {
+        otherMovesDrawn++;
         this.pitch.drawMovementPath([from, ...path], [], ma);
-        if (otherMoveTimer) clearTimeout(otherMoveTimer);
-        otherMoveTimer = setTimeout(
-          () => this.pitch.clearPath(),
-          600 + path.length * 350
-        );
+      }
+    );
+    this.subscribe(
+      GameEventNames.UI_OtherCoachMoveResolved,
+      ({ playerId }) => {
+        const drawn = otherMovesDrawn;
+        void this.playerSettled(playerId).then(() => {
+          // A later move's path is not this one's to clear
+          if (drawn === otherMovesDrawn) this.pitch.clearPath();
+        });
       }
     );
 

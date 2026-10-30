@@ -166,6 +166,8 @@ export enum GameEventNames {
    *  player watching the opponent's setup/placement sees it live. */
   /** Online: draw the other coach's whole move path while it plays out */
   UI_ShowOtherCoachMove = "ui:showOtherCoachMove",
+  /** Online: the other coach's move has run on this engine */
+  UI_OtherCoachMoveResolved = "ui:otherCoachMoveResolved",
   UI_SyncBoard = "ui:syncBoard",
   /** Online guest only: a sync-returning "optimistic" mutation (declare-
    *  action, cancel-action, …) that NetworkedGameService reported as
@@ -731,6 +733,7 @@ export interface UIEvents {
     path: { x: number; y: number }[];
     ma: number;
   };
+  [GameEventNames.UI_OtherCoachMoveResolved]: { playerId: string };
   [GameEventNames.UI_SyncBoard]: { positions: true } | void;
   [GameEventNames.NetworkCommandRejected]: {
     /** The rejected command's `type`, e.g. "declare-action" */

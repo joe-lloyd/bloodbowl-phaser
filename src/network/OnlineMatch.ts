@@ -336,10 +336,15 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       });
     },
     // The board does not draw the other coach's setup placements by
-    // itself; redraw it after each setup command.
-    onApplied: () => {
+    // itself; redraw it after each setup command. The other coach's move
+    // has resolved, so its drawn path can go once the walk has played.
+    onApplied: (command, own) => {
       if (engine!.getPhase() === GamePhase.SETUP)
         eventBus.emit(GameEventNames.UI_SyncBoard);
+      if (!own && command.type === "move")
+        eventBus.emit(GameEventNames.UI_OtherCoachMoveResolved, {
+          playerId: command.playerId,
+        });
     },
     // The state was replaced wholesale: redraw where everyone stands, the
     // turn and score, and drop a block dialog the old state had open.

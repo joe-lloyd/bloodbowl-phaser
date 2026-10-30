@@ -339,7 +339,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </div>
             <div className="decision-actions flex w-full flex-col gap-3">
               <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
-              <EndTurnButton phase={turnData.phase} onClick={handleEndTurn} />
+              <EndTurnButton
+                phase={turnData.phase}
+                activeTeamId={turnData.activeTeamId}
+                onClick={handleEndTurn}
+              />
             </div>
           </div>
         </>

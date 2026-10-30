@@ -7,16 +7,14 @@ import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
 import { withDriveModifiers } from "../kickoff/driveEffects";
 import { jumpTargets, JumpTarget } from "../rules/jump";
-import {
-  GameConfig,
-  isKickingTeamTerritory,
-} from "../../config/GameConfig";
+import { GameConfig, isKickingTeamTerritory } from "../../config/GameConfig";
 import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
 import { GameEventNames } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
+import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
 import {
   isRightStuffEligible,
@@ -42,6 +40,12 @@ import { d6Chance, percent } from "../rules/rollOdds";
 import { rollLabel, rollProbability } from "../rules/rollProbability";
 import { foulPreview, blockPreviewLines, catchTarget, interceptTarget, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
+
+/**
+ * The longest a Dodge/Rush prompt waits on the dice: a full tray queue of
+ * three rolls, each thrown and then held to be read, with room to spare.
+ */
+const PROMPT_DICE_WAIT_MS = 12_000;
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -86,6 +90,8 @@ export class GameplayInteractionController {
     this.targetAnchor = anchor;
     this.eventBus.emit(GameEventNames.UI_TargetRollPreview, { ...preview, anchor });
   };
+  /** A Dodge/Rush prompt waits for the dice before it opens. */
+  private readonly dice: DiceWatch;
 
   // Push direction selection state
   private pushSelectionActive: boolean = false;
@@ -176,6 +182,7 @@ export class GameplayInteractionController {
     this.pitch = pitch;
     this.movementValidator = movementValidator;
     this.highlightManager = new HighlightManager(pitch);
+    this.dice = new DiceWatch(eventBus);
     this.passController = gameService.getPassController();
     this.scene.events.on("postupdate", this.publishTargetPreview);
 
@@ -228,10 +235,7 @@ export class GameplayInteractionController {
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
     );
-    this.eventBus.on(
-      GameEventNames.GameStateRestored,
-      this.resumeActivePlayer
-    );
+    this.eventBus.on(GameEventNames.GameStateRestored, this.resumeActivePlayer);
     this.eventBus.on(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler
@@ -577,9 +581,7 @@ export class GameplayInteractionController {
         break;
       case "ballAndChain":
         // The Fanatic's only action: pick a facing (a click direction).
-        this.actionSteps = [
-          { id: "swing", label: "Swing (pick a direction)" },
-        ];
+        this.actionSteps = [{ id: "swing", label: "Swing (pick a direction)" }];
         break;
       case "blitz":
         this.actionSteps = blockReplacement
@@ -2071,7 +2073,13 @@ export class GameplayInteractionController {
         const player = this.gameService.getPlayerById(playerId);
         if (!player?.gridPosition) break;
         const [leg] = this.planLegs(player, rest);
-        if (leg.risk && !(await this.confirmStep(player, leg.risk))) break;
+        if (leg.risk) {
+          // The walk stops waiting on the dice after 3 s, but a slow screen
+          // or a queue in the tray can take longer: never ask about the
+          // next roll while the last one is still in the air
+          await this.dice.landed(PROMPT_DICE_WAIT_MS);
+          if (!(await this.confirmStep(player, leg.risk))) break;
+        }
         await this.gameService.movePlayer(playerId, leg.path);
         walked = true;
         await this.scene.playerSettled?.(playerId);
@@ -2216,6 +2224,7 @@ export class GameplayInteractionController {
   public destroy(): void {
     this.scene.events.off("postupdate", this.publishTargetPreview);
     this.clearRollPreviews();
+    this.dice.dispose();
     // Cleanup listeners
     this.eventBus.off(
       GameEventNames.UI_SelectPushDirection,
@@ -2505,11 +2514,7 @@ export class GameplayInteractionController {
       if (this.selectedPlayerId) {
         const oneSquare = isOneSquareMoveEvent(eventStep.event);
         const applied = oneSquare
-          ? this.gameService.moveKickoffEventPlayer(
-              this.selectedPlayerId,
-              x,
-              y
-            )
+          ? this.gameService.moveKickoffEventPlayer(this.selectedPlayerId, x, y)
           : this.gameService.placeKickoffEventPlayer(
               this.selectedPlayerId,
               x,

@@ -52,6 +52,13 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     setHoveredCrew(null);
   });
 
+  // A hover from the last turn is stale once the turn passes: the pointer
+  // may still rest on that player, so no pointer-out ever clears it
+  useEventBus(eventBus, GameEventNames.TurnStarted, () => {
+    setHoveredPlayer(null);
+    setHoveredCrew(null);
+  });
+
   // Selection Events
   // Note: We use 'playerSelected' from GameEvents (emitted by Controller)
   // Payload is { player: Player } or { player: null } for deselect (via our manual emission in Deselect)

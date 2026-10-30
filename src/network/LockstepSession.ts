@@ -27,6 +27,7 @@ import {
   PROTOCOL_VERSION,
   SelectionPayload,
   SequenceTracker,
+  SettledPayload,
 } from "./envelope";
 import { Transport } from "./transport";
 import { checkOwnership, GateContext } from "./OwnershipGate";
@@ -86,8 +87,15 @@ export class LockstepSession {
   }
 
   /**
-   * Run one of this coach's commands now, then send it. Refused locally,
+   * Send one of this coach's commands, then run it here. Refused locally,
    * without sending, when it is not this coach's to make.
+   *
+   * The command goes out before this engine runs it. Running it plays out
+   * this screen's dice, falls and banners, which can take seconds; sending
+   * after that left the other coach watching the same thing up to 10 s late.
+   * Both engines run it from the same state, so a refusal here is the same
+   * refusal there, and neither side counts it. Once the flow here has
+   * played out, a settled envelope carries the checksum it led to.
    */
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
@@ -97,18 +105,23 @@ export class LockstepSession {
         this.gateContext()
       );
       if (!verdict.allowed) return this.rejection(verdict.reason);
+      const { game } = this.options;
       await whenEngineQuiet();
-      const before = stateChecksum(this.options.game);
-      const response = await this.options.game.execute(command);
+      // Stamped now, so it is ordered before anything this side sends later
+      void this.send({
+        kind: "command",
+        payload: { command, before: stateChecksum(game) },
+      });
+      const response = await game.execute(command);
       if (!response.ok) return response;
       this.applied++;
       this.options.onApplied?.(command, true);
-      // The checksum after the command's own paced flow has played out,
-      // which is what the other engine will also reach
+      // The state after the command's own paced flow, which is what the
+      // other engine will also reach
       await whenEngineQuiet();
       void this.send({
-        kind: "command",
-        payload: { command, before, after: stateChecksum(this.options.game) },
+        kind: "settled",
+        payload: { applied: this.applied, checksum: stateChecksum(game) },
       });
       return response;
     });
@@ -188,8 +201,13 @@ export class LockstepSession {
 
     switch (envelope.kind) {
       case "command": {
-        const { command, before, after } = envelope.payload;
-        void this.enqueue(() => this.applyPeerCommand(command, before, after));
+        const { command, before } = envelope.payload;
+        void this.enqueue(() => this.applyPeerCommand(command, before));
+        break;
+      }
+      case "settled": {
+        const settled = envelope.payload;
+        void this.enqueue(() => this.checkSettled(settled));
         break;
       }
       case "resync-request":
@@ -208,8 +226,7 @@ export class LockstepSession {
 
   private async applyPeerCommand(
     command: HeadlessCommand,
-    before: string,
-    after: string
+    before: string
   ): Promise<void> {
     if (this.awaitingResync) return; // the resync replaces it
     const { game } = this.options;
@@ -232,14 +249,32 @@ export class LockstepSession {
     }
     this.options.onPeerCommand?.(command);
     const response = await game.execute(command);
+    // The sender ran it from the same state, so it was refused there too
+    // and was not counted. If it was not, its settled count says so.
+    if (!response.ok) return;
     this.applied++;
     this.options.onApplied?.(command, false);
+  }
+
+  /**
+   * The other engine has played out its command. Compare once this one has
+   * too. A count above theirs means this coach has acted since, and that
+   * command's own checksum does the comparing.
+   */
+  private async checkSettled({
+    applied,
+    checksum,
+  }: SettledPayload): Promise<void> {
+    if (this.awaitingResync) return;
     await whenEngineQuiet();
-    const now = stateChecksum(game);
-    if (!response.ok || now !== after) {
-      this.desync(
-        `after ${command.type}: ${now} here, ${after} there${response.ok ? "" : ` (${response.reason})`}`
-      );
+    if (this.applied < applied) {
+      this.desync(`ran ${this.applied} commands here, ${applied} there`);
+      return;
+    }
+    if (this.applied > applied) return;
+    const now = stateChecksum(this.options.game);
+    if (now !== checksum) {
+      this.desync(`after command ${applied}: ${now} here, ${checksum} there`);
     }
   }
 

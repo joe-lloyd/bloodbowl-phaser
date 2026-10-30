@@ -272,3 +272,98 @@ describe("lockstep sessions", () => {
     );
   }, 120_000);
 });
+
+describe("lockstep sessions send before they animate", () => {
+  it("delivers a command to the other engine while the acting screen is still playing it out", async () => {
+    const { recording, hostGame, guestGame, host, guest, resyncs } =
+      await pair(4242);
+    // The host's screen takes as long as it likes to play a command out;
+    // `release` ends the stall.
+    const realExecute = hostGame.execute.bind(hostGame);
+    let stalling = false;
+    let release: (() => void) | null = null;
+    hostGame.execute = async (command: unknown) => {
+      if (stalling) await new Promise<void>((resolve) => (release = resolve));
+      return realExecute(command);
+    };
+
+    let checked = false;
+    for (const step of recording.steps) {
+      stalling = !checked;
+      release = null;
+      const guestBefore = stateChecksum(guestGame);
+      const running = host.run(step.command);
+      await settle(guest);
+      if (!checked && release) {
+        // The host's engine has not run it yet, but the guest's already has
+        expect(stateChecksum(hostGame)).toBe(guestBefore);
+        expect(stateChecksum(guestGame)).not.toBe(guestBefore);
+        checked = true;
+        stalling = false;
+        (release as () => void)();
+      }
+      const response = await running;
+      if (!response.ok && /not-your|host-only/.test(response.reason ?? ""))
+        await guest.run(step.command);
+      await settle(host, guest);
+      expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+      if (checked) break;
+    }
+    expect(checked).toBe(true);
+    expect(resyncs).toEqual({ host: 0, guest: 0 });
+  }, 120_000);
+
+  it("keeps both engines level when the acting engine refuses a command it already sent", async () => {
+    const { recording, hostGame, guestGame, host, guest, resyncs } =
+      await pair(4242);
+    let refused: { ok: boolean; reason?: string } | null = null;
+    for (const step of recording.steps) {
+      const command = step.command;
+      if (command.type === "move" && step.ok && !refused) {
+        // The coach owns the player and the turn, so the gate lets it out.
+        // The engine refuses a path off the pitch, on both screens.
+        const offPitch = await host.run({
+          ...command,
+          path: [{ x: -3, y: -3 }],
+        });
+        if (offPitch.ok || /not-your|host-only/.test(offPitch.reason ?? "")) {
+          // The guest's move: try the same on that side
+          refused = null;
+        } else {
+          refused = offPitch;
+        }
+        await settle(host, guest);
+        expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+      }
+      await play(host, guest, command);
+      await settle(host, guest);
+      expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+      if (refused) break;
+    }
+    expect(refused?.ok).toBe(false);
+    expect(resyncs).toEqual({ host: 0, guest: 0 });
+  }, 120_000);
+
+  it("heals a lost settled message with a resync, as any lost message", async () => {
+    const { recording, hostGame, guestGame, hostEnd, host, guest, resyncs } =
+      await pair(77);
+    const realSend = hostEnd.send.bind(hostEnd);
+    let dropped = false;
+    hostEnd.send = async (envelope: Envelope) => {
+      if (!dropped && envelope.kind === "settled") {
+        dropped = true;
+        return;
+      }
+      await realSend(envelope);
+    };
+    for (const step of recording.steps.slice(0, 80)) {
+      await play(host, guest, step.command);
+      await settle(host, guest);
+    }
+    hostEnd.send = realSend;
+    await settle(host, guest);
+    expect(dropped).toBe(true);
+    expect(resyncs.guest + resyncs.host).toBeGreaterThan(0);
+    expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
+  }, 120_000);
+});

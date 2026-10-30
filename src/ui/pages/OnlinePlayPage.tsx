@@ -32,6 +32,7 @@ import {
 } from "../components/componentWarehouse/HudKit";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
+import { RefusalNotice } from "../components/hud/RefusalNotice";
 
 interface OnlinePlayPageProps {
   eventBus: EventBus;
@@ -239,6 +240,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         onlineMenu={onlineMenu}
       />
       <WaitingBanner match={match} />
+      <RefusalNotice eventBus={eventBus} />
 
       {lobby && opponentUid && connection !== "online" && (
         <DisconnectBanner

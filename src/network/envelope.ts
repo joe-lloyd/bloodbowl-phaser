@@ -14,7 +14,7 @@ import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export interface HelloPayload {
   protocolVersion: number;
@@ -23,11 +23,23 @@ export interface HelloPayload {
   checksum: string;
 }
 
-/** One coach's command, with their state's checksum before and after. */
+/**
+ * One coach's command, with the checksum of their state before it. It goes
+ * out before the sender's own screen plays it, so both screens show it at
+ * about the same time.
+ */
 export interface CommandPayload {
   command: HeadlessCommand;
   before: string;
-  after: string;
+}
+
+/**
+ * Sent once the sender's engine has played out its own command: how many
+ * commands it has now run, and the checksum of the state they led to.
+ */
+export interface SettledPayload {
+  applied: number;
+  checksum: string;
 }
 
 export interface ChatPayload {
@@ -59,6 +71,7 @@ export interface SelectionPayload {
 export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "hello"; payload: HelloPayload }
   | { kind: "command"; payload: CommandPayload }
+  | { kind: "settled"; payload: SettledPayload }
   | { kind: "chat"; payload: ChatPayload }
   | { kind: "heartbeat"; payload: Record<string, never> }
   | { kind: "resync"; payload: LockstepState }
