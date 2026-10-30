@@ -271,6 +271,16 @@ export function TurnClock({
       decidingTeamId === match.myTeamId
         ? "You have"
         : `${match.opponentName} has`;
+    // In the strip there is room for one short line: the disconnect
+    // banner, the waiting banner and the decision dock name the rest
+    const stoppedText =
+      frozen.reason === "away"
+        ? stripSlot
+          ? "Paused"
+          : `${match.opponentName} disconnected: game paused`
+        : stripSlot
+          ? `${fmt(left)} to decide`
+          : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`;
     return present(
       <div data-testid="turn-clock-stopped" className={clockClass}>
         <div
@@ -279,11 +289,7 @@ export function TurnClock({
           ⏸ {fmt(frozen.remaining ?? 0)}
         </div>
         <div className="font-hud-body text-hud-xs text-hud-dim">
-          {frozen.reason === "away"
-            ? `${match.opponentName} disconnected: game paused`
-            : // In the strip there is room for one line; the waiting banner
-              // and the decision dock already name the decision
-              `${who} ${fmt(left)} to decide${stripSlot ? "" : ` (${pending?.type.replace(/-/g, " ")})`}`}
+          {stoppedText}
         </div>
       </div>
     );
@@ -310,22 +316,29 @@ export function TurnClock({
               : "text-hud-bone"
         }`}
       >
-        {timer.pausedBy ? "⏸ PAUSED" : `⏱ ${fmt(remaining)}`}
+        {timer.pausedBy
+          ? "⏸ PAUSED"
+          : `⏱ ${low && remaining <= 0 ? "Time up" : fmt(remaining)}`}
+        {/* One countdown on screen; the red pulse is the warning. Screen
+            readers hear it in words. */}
         {low && (
           <span
             data-testid="turn-clock-warning"
             role="status"
-            className="ml-1 font-hud-body text-hud-xs font-bold"
+            className="sr-only"
           >
             {remaining <= 0
               ? "Time up"
-              : `${Math.ceil(remaining / 1000)}s left`}
+              : `${Math.ceil(remaining / 1000)} seconds left`}
           </span>
         )}
       </div>
       {timer.pausedBy ? (
-        <div className="font-hud-body text-hud-xs text-hud-dim">
-          by {pauserName}
+        <div
+          className="font-hud-body text-hud-xs text-hud-dim"
+          title={`Paused by ${pauserName}`}
+        >
+          {!stripSlot && <>by {pauserName}</>}
           {pausedByMe && (
             <>
               <button
@@ -342,9 +355,11 @@ export function TurnClock({
         <button
           onClick={() => void pauseClock(code, user.uid)}
           disabled={myBank <= 0}
+          aria-label={`Timeout, ${fmt(myBank)} left`}
+          title={`Take a timeout: ${fmt(myBank)} left in your bank`}
           className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-gold/90 hover:text-hud-gold disabled:opacity-40"
         >
-          ⏸ Timeout ({fmt(myBank)})
+          {stripSlot ? `⏸ ${fmt(myBank)}` : `⏸ Timeout (${fmt(myBank)})`}
         </button>
       )}
     </div>

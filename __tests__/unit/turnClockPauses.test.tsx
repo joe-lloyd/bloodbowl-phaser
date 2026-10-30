@@ -208,7 +208,9 @@ describe("TurnClock pauses", () => {
       )
     );
     await act(async () => vi.advanceTimersByTime(1_000));
-    expect(slot.textContent).toContain("15s left");
+    expect(
+      slot.querySelector('[data-testid="turn-clock-warning"]')?.textContent
+    ).toBe("15 seconds left");
     await act(async () => vi.advanceTimersByTime(16_000));
     expect(announcements).toContain("Time up");
     expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);

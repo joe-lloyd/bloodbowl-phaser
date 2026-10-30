@@ -1518,6 +1518,85 @@ export const VARIANTS: Variant[] = [
     },
   },
 
+  {
+    id: "clock-strip-crowded",
+    section: "Online turn clock",
+    title: "Blizzard, a full timeout bank and the last fifteen seconds",
+    height: 220,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => {
+      const l = lobby(fx, {});
+      l.timer!.deadline = Date.now() + 15_000;
+      l.timer!.banks = { me: 300_000 };
+      return (
+        <>
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
+          </div>
+          <TurnClock
+            code="BLOOD"
+            lobby={l}
+            match={onlineMatch(fx, {
+              myTeamId: fx.services.gameService.getActiveTeamId(),
+            })}
+            eventBus={fx.bus}
+            user={USER}
+          />
+        </>
+      );
+    },
+    drive: (fx) =>
+      later(30, () => {
+        const state = fx.services.gameService.getState();
+        state.weather = "Blizzard";
+        fx.bus.emit(GameEventNames.GameStateRestored, state);
+      }),
+  },
+  {
+    id: "clock-strip-away",
+    section: "Online turn clock",
+    title: "Stopped while the other coach reconnects",
+    height: 220,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => {
+      const l = lobby(fx, {});
+      l.timer!.banks = { me: 300_000 };
+      return (
+        <>
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
+          </div>
+          <TurnClock
+            code="BLOOD"
+            lobby={l}
+            match={onlineMatch(fx, { opponentName: "Grimgutz the Unwashed" })}
+            eventBus={fx.bus}
+            user={USER}
+            opponentAway
+          />
+        </>
+      );
+    },
+    drive: (fx) =>
+      later(30, () => {
+        const state = fx.services.gameService.getState();
+        state.weather = "Pouring Rain";
+        fx.bus.emit(GameEventNames.GameStateRestored, state);
+      }),
+  },
+
   // ---- Sandbox
   {
     id: "sandbox",

@@ -83,11 +83,17 @@ export function MatchStrip({
               title={strip.weather.title}
               className={FLAP}
             >
-              <span className="skew-x-12 truncate whitespace-nowrap">
-                <span aria-hidden="true" className="mr-1 text-hud-gold">
-                  {strip.weather.icon}
+              {/* The word always shows. The effect wraps onto a hidden
+                  second line when the flap is too narrow, rather than being
+                  cut mid-word; the tooltip has it in full. */}
+              <span className="flex h-[1.25em] skew-x-12 flex-wrap justify-end overflow-hidden whitespace-nowrap leading-[1.25em]">
+                <span>
+                  <span aria-hidden="true" className="mr-1 text-hud-gold">
+                    {strip.weather.icon}
+                  </span>
+                  {strip.weather.word}
                 </span>
-                {strip.weather.text}
+                {strip.weather.effect && <span>: {strip.weather.effect}</span>}
               </span>
             </span>
           )}
