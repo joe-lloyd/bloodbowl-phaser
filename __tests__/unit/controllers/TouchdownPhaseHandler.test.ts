@@ -51,44 +51,20 @@ describe("TouchdownPhaseHandler", () => {
     vi.restoreAllMocks();
   });
 
-  it("owns the TOUCHDOWN phase and announces scorer, team and score", () => {
+  it("owns touchdown and half time while the engine announces the score", () => {
     const eventBus = new EventBus();
     new SceneOrchestrator(makeScene() as never, makeGameService(), eventBus);
 
-    const entries: { category: string; headline: string; detail?: string }[] =
-      [];
-    eventBus.on(GameEventNames.UI_LogEntry, (m) =>
-      entries.push(
-        m as { category: string; headline: string; detail?: string }
-      )
-    );
-
-    // The engine emits the phase change first, then the score.
-    eventBus.emit(GameEventNames.PhaseChanged, {
-      phase: GamePhase.TOUCHDOWN,
-      subPhase: SubPhase.SCORING,
-    });
-    eventBus.emit(GameEventNames.Touchdown, {
-      teamId: team1.id,
-      score: 2,
-      scorerId: "p1",
-    });
-
-    expect(
-      warnSpy.mock.calls.some((c) =>
-        String(c[0]).includes("No handler for phase")
-      )
-    ).toBe(false);
-
-    // The scorer, their team and the score are recorded as a single durable
-    // log entry rather than a transient notification.
-    expect(entries).toHaveLength(1);
-    expect(entries[0].category).toBe("score");
-    expect(entries[0].headline).toBe("TOUCHDOWN!");
-    expect(entries[0].detail).toContain("Griff Oberwald");
-    expect(entries[0].detail).toContain(team1.name);
-    expect(entries[0].detail).toContain("2");
-    expect(entries[0].detail).toContain("1");
+    for (const phase of [GamePhase.TOUCHDOWN, GamePhase.HALFTIME]) {
+      eventBus.emit(GameEventNames.PhaseChanged, {
+        phase,
+        subPhase: SubPhase.SCORING,
+      });
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(eventBus.listenerCount(GameEventNames.PlayerStatusChanged)).toBe(
+        1
+      );
+    }
   });
 
   it("exits the previous handler before entering, and releases the scene after", () => {
@@ -111,13 +87,15 @@ describe("TouchdownPhaseHandler", () => {
     });
     // The play handler's subscriptions are gone before the touchdown one runs.
     expect(eventBus.listenerCount(GameEventNames.UI_RollBlockDice)).toBe(0);
-    expect(eventBus.listenerCount(GameEventNames.Touchdown)).toBeGreaterThan(0);
+    expect(
+      eventBus.listenerCount(GameEventNames.PlayerStatusChanged)
+    ).toBeGreaterThan(0);
 
     orchestrator.destroy();
-    expect(eventBus.listenerCount(GameEventNames.Touchdown)).toBe(0);
+    expect(eventBus.listenerCount(GameEventNames.PlayerStatusChanged)).toBe(0);
   });
 
-  it("lets the local coach skip the celebration beat", () => {
+  it("lets the local coach request a skipped recovery beat", () => {
     const eventBus = new EventBus();
     const scene = makeScene();
     new SceneOrchestrator(scene as never, makeGameService(), eventBus);

@@ -11,6 +11,10 @@
  * drive, resolves Sweltering Heat (the only End of Drive weather effect).
  */
 
+import {
+  whenMomentsComplete,
+  hasPendingMoments,
+} from "../presentation/momentQueue";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
@@ -67,7 +71,11 @@ export class TouchdownCelebrationOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
-    await skippableBeat(context, TOUCHDOWN_CELEBRATION_MS);
+    if (hasPendingMoments(context.eventBus)) {
+      await whenMomentsComplete(context.eventBus);
+    } else {
+      await skippableBeat(context, TOUCHDOWN_CELEBRATION_MS);
+    }
     // Rulebook: the team that scored becomes the kicking team next drive.
     context.gameService.endDrive("touchdown", this.scoringTeamId);
   }
@@ -87,6 +95,7 @@ export class ClearPitchOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     const { gameService, eventBus } = context;
+    await whenMomentsComplete(eventBus);
 
     eventBus.emit(GameEventNames.DriveEnded, {
       reason: this.reason,
@@ -212,5 +221,10 @@ export class StartNextDriveOperation extends GameOperation {
     // No coin flip after drive one: setup starts directly with the
     // predetermined kicking team (scorer, or halftime swap).
     context.gameService.startSetup(this.kickingTeamId);
+    context.eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "next-kicker",
+      headline: `${context.gameService.getTeam(this.kickingTeamId)?.name ?? "Scoring team"} kick next`,
+      subtitle: "Set up for the next drive",
+    });
   }
 }

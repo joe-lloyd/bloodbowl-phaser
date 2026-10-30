@@ -95,6 +95,19 @@ export class CasualtyOperation extends GameOperation {
     const result = this.result;
     eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
 
+    eventBus.emit(GameEventNames.UI_Announce, {
+      kind: "casualty",
+      headline: "Casualty",
+      subtitle: `${player.playerName}: ${result}`,
+    });
+
+    eventBus.emit(GameEventNames.UI_LogEntry, {
+      category: "action",
+      headline: "Casualty",
+      detail: `${player.playerName}: ${result}`,
+      teamId: player.teamId,
+    });
+
     // Record the result on the player: Badly Hurt is out for this game only,
     // Seriously Hurt also misses the next league game, Dead leaves the roster.
     switch (result) {

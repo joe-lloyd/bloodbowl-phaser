@@ -1,3 +1,4 @@
+import { whenMomentsComplete } from "../presentation/momentQueue";
 import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
@@ -399,6 +400,7 @@ export class BallManager {
 
   public async resolveBallPlacement(): Promise<void> {
     await this.delay(200);
+    await whenMomentsComplete(this.eventBus);
 
     // This must precede ReadyToStart: that event changes phase
     // synchronously and removes the kickoff handler's listeners.

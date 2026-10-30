@@ -32,6 +32,11 @@ export class DiceWatch {
     eventBus.on(GameEventNames.UI_DiceInAir, this.onTray);
   }
 
+  /** True while a roll thrown so far has not landed. */
+  inAir(): boolean {
+    return this.landedThrough < this.thrown;
+  }
+
   /** Resolves once every roll thrown so far has landed, or after `maxMs`. */
   landed(maxMs = MAX_WAIT_MS): Promise<void> {
     const until = this.thrown;
