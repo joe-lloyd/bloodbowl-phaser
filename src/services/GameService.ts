@@ -1151,6 +1151,11 @@ export class GameService implements IGameService {
     await this.blockManager.resolveBlock(attackerId, defenderId, result);
   }
 
+  /** Keep an uphill roll without a re-roll; the defender then picks. */
+  keepBlockDice(attackerId: string): void {
+    this.blockManager.keepBlockDice(attackerId);
+  }
+
   /** Team Re-roll on a block: re-roll all the dice. */
   teamRerollBlock(attackerId: string): void {
     this.blockManager.teamRerollBlock(attackerId);

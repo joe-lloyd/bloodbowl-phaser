@@ -68,6 +68,9 @@ export function decisionOwner(
 ): string | undefined {
   switch (pending.type) {
     case "block-dice":
+      return pending.choiceStage === "attacker-reroll"
+        ? ctx.teamIdOfPlayer(pending.attackerId)
+        : pending.chooserTeamId;
     case "kickoff-event":
     case "reroll":
     case "reaction":
@@ -103,8 +106,30 @@ export function checkOwnership(
   // Decision replies: only the deciding side, only while one is pending
   if (command.type in DECISION_REPLIES) {
     if (!ctx.pendingDecision) return deny("no-decision-pending");
-    const owner = decisionOwner(ctx.pendingDecision, ctx);
-    return owner === senderTeamId ? allow : deny("not-your-decision");
+    const pending = ctx.pendingDecision;
+    const owner = decisionOwner(pending, ctx);
+    if (owner !== senderTeamId) return deny("not-your-decision");
+    if (pending.type === "block-dice") {
+      if (
+        command.type === "choose-block-result" &&
+        pending.choiceStage === "attacker-reroll"
+      )
+        return deny("decision-pending");
+      if (
+        command.type === "keep-block-dice" &&
+        pending.choiceStage !== "attacker-reroll"
+      )
+        return deny("not-your-decision");
+      if (
+        (command.type === "team-reroll-block" ||
+          command.type === "pro-reroll-block" ||
+          command.type === "brawler-reroll-block" ||
+          command.type === "veteran-reroll-block") &&
+        ctx.teamIdOfPlayer(pending.attackerId) !== senderTeamId
+      )
+        return deny("not-your-decision");
+    }
+    return allow;
   }
   if (
     ctx.pendingDecision?.type === "kickoff-event" &&

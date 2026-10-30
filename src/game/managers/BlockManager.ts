@@ -418,6 +418,14 @@ export class BlockManager {
       ...this.blockRerollAvailability(attacker, results, isAttackerChoice),
     };
 
+    rollData.choiceStage =
+      !isAttackerChoice &&
+      (rollData.teamRerollAvailable ||
+        rollData.proAvailable ||
+        rollData.brawlerAvailable ||
+        rollData.veteranRerollAvailable)
+        ? "attacker-reroll"
+        : "pick";
     this.pendingBlockRoll = rollData;
     this.eventBus.emit(GameEventNames.BlockDiceRolled, rollData);
   }
@@ -626,6 +634,22 @@ export class BlockManager {
     };
   }
 
+  public keepBlockDice(attackerId: string): void {
+    const pending = this.pendingBlockRoll;
+    if (
+      !pending ||
+      pending.attackerId !== attackerId ||
+      pending.choiceStage !== "attacker-reroll"
+    )
+      return;
+    pending.choiceStage = "pick";
+    pending.teamRerollAvailable = false;
+    pending.proAvailable = false;
+    pending.brawlerAvailable = false;
+    pending.veteranRerollAvailable = false;
+    this.eventBus.emit(GameEventNames.BlockDiceKept, pending);
+  }
+
   /**
    * Team Re-roll on a block: re-roll ALL the dice. One re-roll per block, so
    * Pro and Brawler are locked out afterwards. A failed Loner roll spends
@@ -660,6 +684,7 @@ export class BlockManager {
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
     pending.veteranRerollAvailable = false;
+    pending.choiceStage = "pick";
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -708,6 +733,7 @@ export class BlockManager {
     pending.teamRerollAvailable = false;
     pending.brawlerAvailable = false;
     pending.veteranRerollAvailable = false;
+    pending.choiceStage = "pick";
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -746,6 +772,7 @@ export class BlockManager {
     pending.veteranRerollAvailable = false;
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
+    pending.choiceStage = "pick";
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 
@@ -791,6 +818,7 @@ export class BlockManager {
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
+    pending.choiceStage = "pick";
     this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
   }
 

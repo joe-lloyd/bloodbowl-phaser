@@ -200,6 +200,9 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die, Brawler =
     // the one Both Down die). All three re-emit BlockDiceRolled, so the
     // dialog refreshes in place.
+    this.register(GameEventNames.UI_KeepBlockDice, ({ attackerId }) => {
+      this.gameService.keepBlockDice(attackerId);
+    });
     this.register(GameEventNames.UI_TeamRerollBlock, (data) => {
       this.gameService.teamRerollBlock(data.attackerId);
     });

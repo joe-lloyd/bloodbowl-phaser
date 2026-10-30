@@ -153,6 +153,10 @@ export async function enumerateDecision(
 
 function decisionOwner(pending: PendingDecision, activeTeamId: string): string {
   switch (pending.type) {
+    case "block-dice":
+      return pending.choiceStage === "attacker-reroll"
+        ? activeTeamId
+        : pending.chooserTeamId;
     case "touchback":
       return pending.teamId;
     case "push-direction":
@@ -181,12 +185,20 @@ function decisionCandidates(
 
   switch (pending.type) {
     case "block-dice": {
-      const out = pending.options.map((option, index) =>
-        one(
-          { type: "choose-block-result", index },
-          `Take the ${option.label} result`
-        )
-      );
+      const out =
+        pending.choiceStage === "attacker-reroll"
+          ? [
+              one(
+                { type: "keep-block-dice", attackerId: pending.attackerId },
+                "Keep the block dice"
+              ),
+            ]
+          : pending.options.map((option, index) =>
+              one(
+                { type: "choose-block-result", index },
+                `Take the ${option.label} result`
+              )
+            );
       if (pending.teamRerollAvailable) {
         out.push(
           one(

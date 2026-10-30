@@ -94,6 +94,7 @@ const COMMAND_SHAPES: Record<
   },
   "throw-bomb": { throwerId: "string", x: "number", y: "number" },
   "ball-and-chain": { playerId: "string", x: "number", y: "number" },
+  "keep-block-dice": { attackerId: "string" },
   "team-reroll-block": { attackerId: "string" },
   "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
   "brawler-reroll-block": { attackerId: "string" },
@@ -606,6 +607,9 @@ export class HeadlessGame {
       }
 
       // --- Decision replies ---
+      case "keep-block-dice":
+        gs.keepBlockDice(cmd.attackerId);
+        break;
       case "team-reroll-block":
         gs.teamRerollBlock(cmd.attackerId);
         break;
@@ -801,6 +805,7 @@ export class HeadlessGame {
           sources: data.sources,
           skill: data.skill,
           roll: data.roll,
+          needed: data.needed,
         };
       } else if (data?.type === "reaction") {
         this.pending = {
@@ -844,7 +849,10 @@ export class HeadlessGame {
       this.decisionWaiters.splice(0).forEach((wake) => wake());
       return;
     }
-    if (name === GameEventNames.BlockDiceRolled) {
+    if (
+      name === GameEventNames.BlockDiceRolled ||
+      name === GameEventNames.BlockDiceKept
+    ) {
       const attacker = this.findPlayer(data.attackerId);
       const defender = this.findPlayer(data.defenderId);
       this.pending = {
@@ -855,6 +863,7 @@ export class HeadlessGame {
           ? (attacker?.teamId ?? "")
           : (defender?.teamId ?? ""),
         options: data.results,
+        choiceStage: data.choiceStage,
         teamRerollAvailable: data.teamRerollAvailable,
         proAvailable: data.proAvailable,
         brawlerAvailable: data.brawlerAvailable,
