@@ -32,6 +32,7 @@ export function momentDuration(moment: MatchMoment): number {
     case "turnover":
       return 2500;
     case "casualty":
+    case "time-up":
     case "team-intro":
     case "weather":
     case "turn-started":
