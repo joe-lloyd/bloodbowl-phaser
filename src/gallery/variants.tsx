@@ -43,6 +43,8 @@ import { MatchOptionsMenu } from "../ui/components/hud/MatchOptionsMenu";
 import { computeMatchOptionsMenu } from "../ui/components/hud/computeMatchOptionsMenu";
 import { SoundToggle } from "../ui/components/hud/SoundToggle";
 import { Announcer } from "../ui/components/hud/Announcer";
+import { OtherCoachPrompt } from "../ui/components/hud/OtherCoachPrompt";
+import { WaitingBanner } from "../ui/pages/WaitingBanner";
 import { TurnoverOverlay } from "../ui/components/hud/TurnoverOverlay";
 import { CoinFlipOverlay } from "../ui/components/hud/CoinFlipOverlay";
 import { MatchResultsScreen } from "../ui/components/hud/MatchResultsScreen";
@@ -667,6 +669,29 @@ export const VARIANTS: Variant[] = [
       ),
   },
   {
+    id: "other-coach-prompt",
+    section: "Action menu and sequence",
+    title: "Waiting coach: the other coach's Rush prompt, read-only",
+    fixture: { scenario: "block-injury-test" },
+    view: (fx) => (
+      <HUDLayout
+        bottomRight={
+          <div data-testid="decision-dock" className="w-full">
+            <OtherCoachPrompt eventBus={fx.bus} />
+          </div>
+        }
+      />
+    ),
+    drive: (fx) =>
+      later(30, () =>
+        fx.bus.emit(GameEventNames.RemotePromptChanged, {
+          playerId: fx.player(2, 0).id,
+          rolls: [{ type: "rush", target: 2 }],
+          chance: 5 / 6,
+        })
+      ),
+  },
+  {
     id: "menu-special",
     section: "Action menu and sequence",
     title: "A special action (Chainsaw)",
@@ -1248,6 +1273,31 @@ export const VARIANTS: Variant[] = [
       ),
   },
   {
+    id: "waiting-touchdown",
+    section: "Announcements",
+    title: "Touchdown on the waiting coach's screen (replays every 4s)",
+    view: (fx) => (
+      <>
+        <WaitingBanner
+          match={{
+            mayAct: () => false,
+            waitingLabel: () => "Grimgutz's turn (Gouged Eye)…",
+          }}
+          eventBus={fx.bus}
+        />
+        <Announcer eventBus={fx.bus} />
+      </>
+    ),
+    drive: (fx) =>
+      every(4000, () =>
+        fx.bus.emit(GameEventNames.UI_Announce, {
+          kind: "touchdown",
+          headline: "Touchdown!",
+          subtitle: "Gouged Eye score. Reikland Reavers 0 - 1 Gouged Eye",
+        })
+      ),
+  },
+  {
     id: "announce-half",
     section: "Announcements",
     title: "Halftime (replays every 3s)",
@@ -1391,16 +1441,51 @@ export const VARIANTS: Variant[] = [
         <>
           <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
             <ScoreBoard eventBus={fx.bus} />
-            <TurnIndicator
-              turnNumber={fx.services.gameService.getState().turn.turnNumber}
-              phase={GamePhase.PLAY}
-            />
-            <MatchStrip eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
           </div>
           <TurnClock
             code="BLOOD"
             lobby={l}
             match={onlineMatch(fx)}
+            eventBus={fx.bus}
+            user={USER}
+          />
+        </>
+      );
+    },
+  },
+  {
+    id: "clock-deciding",
+    section: "Online turn clock",
+    title: "Stopped while the other coach decides",
+    height: 220,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => {
+      const active = fx.services.gameService.getActiveTeamId();
+      const other = active === fx.team1.id ? fx.team2.id : fx.team1.id;
+      return (
+        <>
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
+          </div>
+          <TurnClock
+            code="BLOOD"
+            lobby={lobby(fx, {})}
+            match={onlineMatch(fx, {
+              decidingTeamId: () => other,
+              pendingDecision: () => ({ type: "block-dice" }),
+            })}
             eventBus={fx.bus}
             user={USER}
           />
