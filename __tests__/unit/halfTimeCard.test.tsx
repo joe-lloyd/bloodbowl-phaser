@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { TeamBuilder } from "../utils/test-builders";
@@ -109,6 +109,19 @@ it("closes when the coach presses Close", async () => {
   );
   await act(async () => close?.click());
   expect(card()).toBeNull();
+});
+
+it("still marks half time when the summary cannot be read", async () => {
+  const game = ServiceContainer.getInstance().gameService;
+  vi.spyOn(game, "getTeams").mockImplementation(() => {
+    throw new Error("no teams");
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  await playHalfTime();
+  expect(card()?.textContent).toBe(
+    ["Half time", "Close", "Second half next"].join("")
+  );
+  vi.restoreAllMocks();
 });
 
 it("ignores a drive that ends on a touchdown", async () => {
