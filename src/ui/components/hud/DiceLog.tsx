@@ -14,6 +14,12 @@ import {
   LOG_COLOR_CLASSES,
 } from "./diceLogColor";
 import { DieFace, HudButton, Panel } from "../componentWarehouse/HudKit";
+import { DiceWatch } from "../../../game/presentation/diceWatch";
+import {
+  appendBallRoll,
+  ballMovementText,
+  BallMovement,
+} from "./ballMovementLog";
 
 interface DiceLogProps {
   eventBus: EventBus;
@@ -45,9 +51,13 @@ interface EntryRow {
   timestamp: number;
 }
 
-type LogRow = DiceRow | EntryRow;
+type BallRow = BallMovement & { id: string; timestamp: number };
+type LogRow = DiceRow | EntryRow | BallRow;
 
 type Tab = "dice" | "chat";
+
+/** The longest a row waits for its dice to land before it shows anyway. */
+const LANDING_WAIT_MS = 8000;
 
 const FONT_SCALE_STORAGE_KEY = "bb-dice-log-font-scale";
 const FONT_SCALE_MIN = 0.75;
@@ -127,8 +137,28 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const tabRef = React.useRef<Tab>("dice");
   tabRef.current = tab;
 
+  // The dice tray throws a roll a moment after the engine makes it. Every
+  // change to the log waits until all the rolls the tray has thrown so far
+  // have landed, so a row never spoils a die still tumbling, and rows keep
+  // their order. The wait starts a microtask later because the tray may hear
+  // a DiceRoll after the log does. With no tray, rows go in at once.
+  const watch = React.useRef<DiceWatch | null>(null);
+  useEffect(() => {
+    const tray = new DiceWatch(eventBus);
+    watch.current = tray;
+    return () => {
+      watch.current = null;
+      tray.dispose();
+    };
+  }, [eventBus]);
+  const updateLogs = (change: (prev: LogRow[]) => LogRow[]) => {
+    queueMicrotask(() => {
+      void watch.current?.landed(LANDING_WAIT_MS).then(() => setLogs(change));
+    });
+  };
+
   const pushRow = (row: LogRow) => {
-    setLogs((prev) => {
+    updateLogs((prev) => {
       // Add new entry at the START (top) of the array
       const updated = [row, ...prev];
       // Keep only the most recent 50 entries
@@ -150,7 +180,59 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     pushRow({ kind: "entry", id: nextId(), timestamp: Date.now(), ...entry });
   };
 
-  useEventBus(eventBus, GameEventNames.DiceRoll, (data) => pushEntry(data));
+  useEventBus(eventBus, GameEventNames.DiceRoll, (data) => {
+    if (!appendBallRoll(null, data)) {
+      pushEntry(data);
+      return;
+    }
+    const id = nextId();
+    updateLogs((previous) => {
+      const head = previous[0];
+      const movement = appendBallRoll(
+        head?.kind === "ball" ? head : null,
+        data
+      );
+      if (!movement) return previous;
+      const row: BallRow = {
+        ...movement,
+        id: head?.kind === "ball" ? head.id : id,
+        timestamp: Date.now(),
+      };
+      return [row, ...previous.slice(head?.kind === "ball" ? 1 : 0)].slice(
+        0,
+        50
+      );
+    });
+  });
+  const locateBall = (
+    destination: { x: number; y: number },
+    squares?: number
+  ) => {
+    updateLogs((previous) => {
+      const head = previous[0];
+      if (head?.kind !== "ball") return previous;
+      return [
+        { ...head, destination, squares: squares ?? head.squares },
+        ...previous.slice(1),
+      ];
+    });
+  };
+  useEventBus(eventBus, GameEventNames.BallPlaced, (data) => locateBall(data));
+  useEventBus(eventBus, GameEventNames.BallScattered, (data) =>
+    locateBall(data.to)
+  );
+  useEventBus(eventBus, GameEventNames.BallThrownIn, (data) =>
+    locateBall(data.to, data.distance)
+  );
+  useEventBus(eventBus, GameEventNames.BallKicked, (data) =>
+    locateBall({ x: data.finalX, y: data.finalY }, data.distance)
+  );
+  useEventBus(eventBus, GameEventNames.PassAttempted, (data) =>
+    locateBall(data.finalPosition)
+  );
+  useEventBus(eventBus, GameEventNames.PassFumbled, (data) =>
+    locateBall(data.bouncePosition)
+  );
   useEventBus(eventBus, GameEventNames.UI_GameLog, (description) => {
     pushLogEntry({ category: "kickoff", headline: description });
   });
@@ -170,6 +252,9 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   // Deprecated alias: a plain string becomes a low-priority "info" entry so
   // nothing goes silent while call sites are migrated to UI_LogEntry.
   useEventBus(eventBus, GameEventNames.UI_Notification, (text) => {
+    // These describe the same movement already retained with its raw rolls.
+    if (/^Ball (lands in empty square|hits player|Out of Bounds)/i.test(text))
+      return;
     pushLogEntry({ category: "info", headline: text });
   });
 
@@ -324,6 +409,25 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
               )}
 
               {logs.map((log) => {
+                if (log.kind === "ball")
+                  return (
+                    <details
+                      key={log.id}
+                      data-testid="ball-movement-log"
+                      className="rounded-hud border-l-[3px] border-hud-info/70 bg-white/[0.03] px-2.5 py-2 text-hud-bone"
+                    >
+                      <summary className="cursor-pointer font-hud-body text-[0.8125em] font-semibold">
+                        {ballMovementText(log)}
+                      </summary>
+                      <ul className="mt-2 space-y-1 text-[0.75em] text-hud-dim">
+                        {log.rolls.map((roll, index) => (
+                          <li key={index}>
+                            {roll.description} · {roll.diceType}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  );
                 if (log.kind === "dice") {
                   const nature = classifyDiceRowNature(log);
                   const color = resolveDisplayColor(

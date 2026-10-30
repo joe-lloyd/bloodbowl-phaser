@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { TurnCatchUpCard } from "./TurnCatchUpCard";
+import { HalfTimeCard } from "./HalfTimeCard";
 import { TurnIndicator } from "./TurnIndicator";
 import { MatchStrip } from "./MatchStrip";
 import { ScoreBoard } from "./ScoreBoard";
@@ -289,6 +291,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   return (
     <HUDLayout
+      topLeft={
+        <>
+          <HalfTimeCard eventBus={eventBus} />
+          <TurnCatchUpCard eventBus={eventBus} />
+        </>
+      }
       topRight={
         <>
           <div className="pointer-events-auto">
@@ -353,7 +361,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Structural-transition announcer: turn started, round passed,
               halftime, full time — a single centred takeover, not a feed. */}
-          <Announcer eventBus={eventBus} />
+          <Announcer eventBus={eventBus} showHalftime={false} />
         </>
       }
     />

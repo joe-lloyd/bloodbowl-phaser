@@ -16,6 +16,7 @@ import {
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
+import { injuryLabel, playerLabel } from "./turnSummary";
 
 interface Props {
   visible: boolean;
@@ -502,7 +503,7 @@ function StatsTables({
                 <th>INT</th>
                 <th>CAS</th>
                 <th>TD</th>
-                <th>MVP</th>
+                {showSpp && <th>MVP</th>}
                 {showSpp && <th>SPP</th>}
               </tr>
             </thead>
@@ -523,7 +524,7 @@ function StatsTables({
                     <td>{stats.interceptions}</td>
                     <td>{stats.casualties}</td>
                     <td>{stats.touchdowns}</td>
-                    <td>{stats.mvps}</td>
+                    {showSpp && <td>{stats.mvps}</td>}
                     {showSpp && (
                       <td className="font-bold text-hud-gold">
                         +{stats.sppEarned}
@@ -534,6 +535,28 @@ function StatsTables({
               })}
             </tbody>
           </table>
+          <div
+            data-testid={`match-injuries-${team.id}`}
+            className="mt-4 rounded-hud border border-hud-edge bg-black/20 p-3"
+          >
+            <h3 className="font-hud-display text-hud-lg text-hud-gold">
+              Injuries
+            </h3>
+            {team.players.some((player) => injuryLabel(player)) ? (
+              <ul className="mt-1 space-y-1 text-hud-sm text-hud-bone">
+                {team.players.map((player) => {
+                  const injury = injuryLabel(player);
+                  return injury ? (
+                    <li key={player.id}>
+                      {playerLabel(player)}: {injury}
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            ) : (
+              <p className="text-hud-sm text-hud-dim">No injuries</p>
+            )}
+          </div>
         </section>
       ))}
     </div>

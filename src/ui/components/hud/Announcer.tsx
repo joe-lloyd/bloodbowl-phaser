@@ -5,6 +5,7 @@ import { GameEventNames } from "../../../types/events";
 
 interface AnnouncerProps {
   eventBus: IEventBus;
+  showHalftime?: boolean;
 }
 
 /** How long the banner takes to animate in/out, and how long it holds. */
@@ -28,7 +29,10 @@ interface Announcement {
  * element, not a stacked feed: a new announcement always replaces whatever
  * is currently on screen instead of queueing behind it.
  */
-export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
+export const Announcer: React.FC<AnnouncerProps> = ({
+  eventBus,
+  showHalftime = true,
+}) => {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const counter = useRef(0);
@@ -40,6 +44,10 @@ export const Announcer: React.FC<AnnouncerProps> = ({ eventBus }) => {
 
   useEventBus(eventBus, GameEventNames.UI_Announce, (data) => {
     clearTimers();
+    if (data.kind === "halftime" && !showHalftime) {
+      setAnnouncement(null);
+      return;
+    }
     counter.current += 1;
     const id = counter.current;
     setAnnouncement({
