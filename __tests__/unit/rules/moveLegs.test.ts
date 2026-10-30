@@ -61,4 +61,11 @@ describe("planMoveLegs", () => {
       },
     ]);
   });
+  it("stops before a pickup, including a square that also needs Rush and Dodge", () => {
+    expect(planMoveLegs({ x: 1, y: 5 }, [{ x: 2, y: 5 }], {
+      ...ctx, used: 6, opponents: [opponent(0, 4)],
+      pickup: { square: { x: 2, y: 5 }, target: 4 },
+    })).toEqual([{ risk: { kind: "ball-step", movement: { kind: "rush-dodge", rushNeed: 2, dodgeNeed: 3 }, pickupNeed: 4 }, path: [{ x: 2, y: 5 }] }]);
+  });
+
 });
