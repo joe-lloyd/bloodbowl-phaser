@@ -15,6 +15,8 @@ declare global {
   interface Window {
     eventBus: IEventBus;
     __handover: { turnStartedAt: number; bannerAt: number };
+    /** Every team name and line the tray showed, in order. */
+    __tray: string[];
   }
 }
 
@@ -24,7 +26,6 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   const app = new GameApp(page);
-  const tray = page.getByTestId("dice-tray");
 
   // End the first half: a knocked-out Human rolls to recover as setup starts
   await app.sandbox.open({ scenario: "half-time-next" });
@@ -50,8 +51,11 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
     .toBe("KICKOFF");
 
   // Time the hand-over to the receiving team against its turn banner
+  // and keep every line the tray shows: under load a roll can come and go
+  // between two polls
   await page.evaluate((turnStarted) => {
     window.__handover = { turnStartedAt: 0, bannerAt: 0 };
+    window.__tray = [];
     window.eventBus.on(turnStarted as never, () => {
       window.__handover.turnStartedAt ||= performance.now();
     });
@@ -63,6 +67,10 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
         /'s? Turn/i.test(banner?.textContent ?? "")
       )
         window.__handover.bannerAt = performance.now();
+      const tray = document.querySelector('[data-testid="dice-tray"]');
+      const team = tray?.querySelector('[data-testid="dice-tray-team"]');
+      const line = `${team?.textContent ?? ""} | ${tray?.textContent?.slice(team?.textContent?.length ?? 0) ?? ""}`;
+      if (window.__tray.at(-1) !== line) window.__tray.push(line);
     }).observe(document.body, {
       childList: true,
       subtree: true,
@@ -75,19 +83,27 @@ test("on a later drive the tray lands the kick-off and the turn banner follows t
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickSquare({ x: 15, y: 5 });
 
-  // The deviation lands and shows its result, then the tray moves on
-  await expect(tray).toContainText(/Kickoff Deviate Distance: \d, \d/, {
-    timeout: 10_000,
-  });
-  // The kicking team's dice, named for them
+  // The kicking team's dice land and show their results one after another
+  const landed = (pattern: RegExp) =>
+    expect
+      .poll(
+        async () =>
+          (await page.evaluate(() => window.__tray)).find((line) =>
+            pattern.test(line)
+          ),
+        { timeout: 15_000 }
+      )
+      .toBeTruthy();
   const [humans] = await app.bridge.teams();
-  await expect(page.getByTestId("dice-tray-team")).toHaveText(humans.name);
+  await landed(
+    new RegExp(`^${humans.name} \\| Kickoff Deviate Distance: \\d, \\d`)
+  );
   await page.screenshot({
     path: `${process.env.SHOTS ?? test.info().outputDir}/later-drive-kickoff-tray.png`,
   });
-  await expect(tray).toContainText(/Kickoff Event: \d \+ \d = \d+/, {
-    timeout: 10_000,
-  });
+  await landed(
+    new RegExp(`^${humans.name} \\| Kickoff Event: \\d \\+ \\d = \\d+`)
+  );
 
   await page.waitForFunction(() => window.__handover?.bannerAt > 0, null, {
     timeout: 30_000,
