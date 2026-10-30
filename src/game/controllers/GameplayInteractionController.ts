@@ -2194,6 +2194,11 @@ export class GameplayInteractionController {
         actionId,
         title: `${player.playerName}: ${title}`,
         chooserTeamId: player.teamId,
+        step: {
+          playerId: player.id,
+          rolls: rolls.map(({ type, target }) => ({ type, target })),
+          chance,
+        },
         message:
           `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\nChance: ${percent(chance)}.\n` +
           (rerolls.length

@@ -26,7 +26,7 @@ import {
   applySnapshotToTeams,
   deserializeGameState,
 } from "../headless/serialization";
-import { GameEventNames } from "../types/events";
+import { AllEvents, GameEventNames, StepPrompt } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
 import { Player } from "../types/Player";
@@ -139,6 +139,37 @@ export function isValidSelectionClaim(
   return player?.teamId === senderTeamId;
 }
 
+const STEP_ROLLS = new Set<string>(["dodge", "rush", "pickup"]);
+
+/**
+ * Receiver-side guard for an incoming "prompt" envelope: the player must be
+ * on the sender's team, and the rolls and chance must be ones a prompt can
+ * show. `null` (the prompt was answered) is always valid.
+ */
+export function isValidStepPrompt(
+  prompt: StepPrompt | null,
+  senderTeamId: string,
+  teams: Team[]
+): boolean {
+  if (prompt === null) return true;
+  return (
+    isValidSelectionClaim(prompt.playerId, senderTeamId, teams) &&
+    Array.isArray(prompt.rolls) &&
+    prompt.rolls.length > 0 &&
+    prompt.rolls.length <= 3 &&
+    prompt.rolls.every(
+      (roll) =>
+        STEP_ROLLS.has(roll.type) &&
+        Number.isInteger(roll.target) &&
+        roll.target >= 2 &&
+        roll.target <= 6
+    ) &&
+    Number.isFinite(prompt.chance) &&
+    prompt.chance >= 0 &&
+    prompt.chance <= 1
+  );
+}
+
 interface CreateMatchOptions {
   lobby: LobbyDoc;
   user: AuthUser;
@@ -196,6 +227,35 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     };
     eventBus.on(GameEventNames.PlayerSelected, handler);
     return () => eventBus.off(GameEventNames.PlayerSelected, handler);
+  };
+
+  /**
+   * Forward this coach's open Dodge, Rush or Pick up prompt, and its
+   * answer, so the other coach can see what is being decided. The prompt
+   * comes before its command, so the engine has nothing to show yet.
+   */
+  const subscribePromptForwarding = (
+    send: (prompt: StepPrompt | null) => void
+  ): (() => void) => {
+    let open: string | null = null;
+    const onRequest = (
+      request: AllEvents[GameEventNames.UI_RequestConfirmation]
+    ) => {
+      if (!request.step || request.chooserTeamId !== myTeamId) return;
+      open = request.actionId;
+      send(request.step);
+    };
+    const onResult = ({ actionId }: { actionId: string }) => {
+      if (actionId !== open) return;
+      open = null;
+      send(null);
+    };
+    eventBus.on(GameEventNames.UI_RequestConfirmation, onRequest);
+    eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+    return () => {
+      eventBus.off(GameEventNames.UI_RequestConfirmation, onRequest);
+      eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+    };
   };
 
   // Shared bits
@@ -324,6 +384,15 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         playerId: payload.playerId,
       });
     },
+    // The other coach's open step prompt, shown read-only in the dock
+    onPrompt: ({ prompt }) => {
+      const theirTeamId = isHost ? team2.id : team1.id;
+      if (!isValidStepPrompt(prompt, theirTeamId, [team1, team2])) {
+        console.warn("[Online] rejected prompt envelope");
+        return;
+      }
+      eventBus.emit(GameEventNames.RemotePromptChanged, prompt);
+    },
     // Show where the other coach's player is running, the whole way
     onPeerCommand: (command) => {
       if (command.type !== "move") return;
@@ -367,6 +436,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   const unsubscribeSelectionForwarding = subscribeSelectionForwarding(
     (playerId) => void session!.sendSelection(playerId)
   );
+  const unsubscribePromptForwarding = subscribePromptForwarding(
+    (prompt) => void session!.sendPrompt(prompt)
+  );
 
   return finishMatch({
     role: isHost ? "host" : "guest",
@@ -379,6 +451,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     saveState: saveNow,
     close: () => {
       unsubscribeSelectionForwarding();
+      unsubscribePromptForwarding();
       session!.close();
       transport.close();
     },

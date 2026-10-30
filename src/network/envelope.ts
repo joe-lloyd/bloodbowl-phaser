@@ -12,6 +12,7 @@ import { Team } from "../types/Team";
 import { GameSnapshot } from "../headless/serialization";
 import { RNGState } from "../services/rng/RNGService";
 import { MatchStatsSnapshot } from "../game/progression/MatchStats";
+import { StepPrompt } from "../types/events";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
 export const PROTOCOL_VERSION = 5;
@@ -68,6 +69,16 @@ export interface SelectionPayload {
   playerId: string | null;
 }
 
+/**
+ * Cosmetic-only: "I have this Dodge, Rush or Pick up prompt open (or none)".
+ * The prompt is asked before its command is sent, so without this the
+ * other coach sees nothing while it is open. Never touches game state;
+ * the receiver shows the latest value it sees.
+ */
+export interface PromptPayload {
+  prompt: StepPrompt | null;
+}
+
 export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "hello"; payload: HelloPayload }
   | { kind: "command"; payload: CommandPayload }
@@ -77,6 +88,7 @@ export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "resync"; payload: LockstepState }
   | { kind: "resync-request"; payload: Record<string, never> }
   | { kind: "selection"; payload: SelectionPayload }
+  | { kind: "prompt"; payload: PromptPayload }
 );
 
 export type EnvelopeKind = Envelope["kind"];
