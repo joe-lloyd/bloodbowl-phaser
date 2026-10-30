@@ -1,6 +1,13 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 
+/**
+ * The longest one throw may tumble before the tray counts it as landed. A
+ * die that never settles, is dropped from a full queue, or is cut short by
+ * setup counts as landed too, so the tray always reports in time.
+ */
+export const DIE_LANDING_TIMEOUT_MS = 6000;
+
 /** The longest anything waits on the dice before going ahead anyway. */
 const MAX_WAIT_MS = 3000;
 

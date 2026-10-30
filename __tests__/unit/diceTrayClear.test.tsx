@@ -70,3 +70,52 @@ describe("dice tray at the start of setup", () => {
     container.remove();
   });
 });
+
+describe("dice tray with a die that never settles", () => {
+  it("counts it as landed after a few seconds and throws the next roll", async () => {
+    vi.useFakeTimers();
+    const bus = new EventBus();
+    const trays: { thrown: number; landedThrough: number }[] = [];
+    bus.on(GameEventNames.UI_DiceInAir, (data) => trays.push(data));
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    const tray = container.querySelector('[data-testid="dice-tray"]');
+
+    await act(async () => {
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Kickoff Deviate Distance",
+        diceType: "2d6",
+        value: [2, 1],
+        total: 1,
+        description: "Kickoff Deviate Distance: 2, 1 (lower: 1)",
+      });
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Kickoff Event",
+        diceType: "2d6",
+        value: [5, 6],
+        total: 11,
+        description: "Kickoff Event: 5 + 6 = 11",
+      });
+    });
+    expect(tray?.textContent).toContain("Kickoff Deviate Distance");
+    expect(trays.at(-1)).toEqual({ count: 2, thrown: 2, landedThrough: 0 });
+
+    await act(async () => vi.advanceTimersByTimeAsync(6000));
+    expect(tray?.textContent).toContain(
+      "Kickoff Deviate Distance: 2, 1 (lower: 1)"
+    );
+    expect(trays.at(-1)).toEqual({ count: 1, thrown: 2, landedThrough: 1 });
+
+    await act(async () => vi.advanceTimersByTimeAsync(1800));
+    expect(tray?.textContent).toContain("Kickoff Event");
+    await act(async () => vi.advanceTimersByTimeAsync(6000));
+    expect(tray?.textContent).toContain("Kickoff Event: 5 + 6 = 11");
+    expect(trays.at(-1)).toEqual({ count: 0, thrown: 2, landedThrough: 2 });
+
+    await act(async () => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+});

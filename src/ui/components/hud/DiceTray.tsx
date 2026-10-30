@@ -8,6 +8,7 @@ import { soundSettings } from "../../sound/settings";
 import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
 import { isBlockDice, isD6 } from "../../dice/thrownDice";
+import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
 
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
@@ -153,7 +154,19 @@ export function DiceTray({
             eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
           );
         }
-        await handle.landed;
+        // A die that never settles (a stalled renderer, a hidden tab)
+        // counts as landed after a bound, so it can never block the queue.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          handle.landed,
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              handle.stop();
+              resolve();
+            }, DIE_LANDING_TIMEOUT_MS);
+          }),
+        ]);
+        clearTimeout(timer);
         if (round !== generation) return;
         next.settled = true;
         reportInAir();
@@ -166,6 +179,7 @@ export function DiceTray({
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
         next.settled = true;
+        reportInAir();
       }
       if (round !== generation) return;
       void playNext();
