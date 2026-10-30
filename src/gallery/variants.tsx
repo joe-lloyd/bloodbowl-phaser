@@ -48,6 +48,7 @@ import { CoinFlipOverlay } from "../ui/components/hud/CoinFlipOverlay";
 import { MatchResultsScreen } from "../ui/components/hud/MatchResultsScreen";
 import { LoadingScreen } from "../ui/components/hud/LoadingScreen";
 import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
+import { RefusalNotice } from "../ui/components/hud/RefusalNotice";
 import { TurnClock } from "../ui/pages/TurnClock";
 import { PAGE_VARIANTS } from "./pageVariants";
 
@@ -649,7 +650,11 @@ export const VARIANTS: Variant[] = [
               eventBus={fx.bus}
               turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team2.id }}
             />
-            <EndTurnButton phase={GamePhase.PLAY} onClick={() => {}} />
+            <EndTurnButton
+              phase={GamePhase.PLAY}
+              activeTeamId={fx.team2.id}
+              onClick={() => {}}
+            />
           </>
         }
       />
@@ -696,7 +701,11 @@ export const VARIANTS: Variant[] = [
               eventBus={fx.bus}
               turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team1.id }}
             />
-            <EndTurnButton phase={GamePhase.PLAY} onClick={() => {}} />
+            <EndTurnButton
+              phase={GamePhase.PLAY}
+              activeTeamId={fx.team1.id}
+              onClick={() => {}}
+            />
           </>
         }
       />
@@ -1348,6 +1357,26 @@ export const VARIANTS: Variant[] = [
         />
       </>
     ),
+  },
+  {
+    id: "refusal-notice",
+    section: "Online turn clock",
+    title: "A click that landed after the turn ended",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <RefusalNotice eventBus={fx.bus} />
+      </>
+    ),
+    drive: (fx) =>
+      later(60, () =>
+        fx.bus.emit(GameEventNames.NetworkCommandRejected, {
+          commandType: "move",
+          reason: "not-your-turn",
+        })
+      ),
   },
   {
     id: "clock-low",

@@ -39,13 +39,42 @@ export type GateVerdict =
   | { allowed: true }
   | { allowed: false; reason: GateRejectReason };
 
-export type GateRejectReason =
-  | "not-your-turn"
-  | "not-your-player"
-  | "not-your-decision"
-  | "decision-pending"
-  | "no-decision-pending"
-  | "host-only";
+const GATE_REJECT_REASONS = [
+  "not-your-turn",
+  "not-your-player",
+  "not-your-decision",
+  "decision-pending",
+  "no-decision-pending",
+  "host-only",
+] as const;
+
+export type GateRejectReason = (typeof GATE_REJECT_REASONS)[number];
+
+/**
+ * What to tell a coach whose command was refused. `reason` is the gate's
+ * code or the engine's, which may add detail after a colon.
+ */
+export function refusalMessage(reason: string): string {
+  const code = GATE_REJECT_REASONS.find(
+    (known) => reason === known || reason.startsWith(`${known}:`)
+  );
+  switch (code) {
+    case "not-your-turn":
+      return "Your turn has ended, so that was not played.";
+    case "not-your-player":
+      return "That player is on the other team.";
+    case "not-your-decision":
+      return "That choice is the other coach's to make.";
+    case "decision-pending":
+      return "Answer the open choice first.";
+    case "no-decision-pending":
+      return "That choice has already been made.";
+    case "host-only":
+      return "Only the host can do that.";
+    case undefined:
+      return "The game did not allow that.";
+  }
+}
 
 const allow: GateVerdict = { allowed: true };
 const deny = (reason: GateRejectReason): GateVerdict => ({
