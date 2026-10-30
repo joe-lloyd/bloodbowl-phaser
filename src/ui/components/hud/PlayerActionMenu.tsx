@@ -142,11 +142,15 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   useEventBus(eventBus, GameEventNames.PlayerKnockedDown, bump);
   useEventBus(eventBus, GameEventNames.BallPlaced, bump);
 
-  useEventBus(eventBus, GameEventNames.TurnStarted, () => {
+  // A turnover ends the turn, so the panel goes with the turnover banner
+  // rather than waiting under it for the next turn to start.
+  const close = () => {
     setSelectedPlayer(null);
     setActionSteps([]);
     setCurrentStepId(null);
-  });
+  };
+  useEventBus(eventBus, GameEventNames.TurnStarted, close);
+  useEventBus(eventBus, GameEventNames.Turnover, close);
 
   const kickoffStep = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService.getKickoffEventStep()
