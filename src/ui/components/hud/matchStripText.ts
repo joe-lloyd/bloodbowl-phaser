@@ -27,12 +27,17 @@ const WEATHER_LABELS: Record<
  */
 export function weatherSummary(weather: Weather): {
   icon: string;
+  word: string;
+  /** The short effect, or null when the weather does not change play. */
+  effect: string | null;
   text: string;
   title: string;
 } {
   const { icon, word, short } = WEATHER_LABELS[weather];
   return {
     icon,
+    word,
+    effect: short ?? null,
     text: short ? `${word}: ${short}` : word,
     title: `${weather}: ${weatherDescription(weather)}`,
   };

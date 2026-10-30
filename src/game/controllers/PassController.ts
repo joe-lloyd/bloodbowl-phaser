@@ -130,7 +130,9 @@ export class PassController {
     player: Player,
     passRange: PassRange,
     markingOpponents: number,
-    extraModifier: number = 0
+    extraModifier: number = 0,
+    /** What the dice tray and the log call the roll. */
+    rollName: "Pass" | "Throw Team-mate" | "Kick Team-mate" = "Pass"
   ): {
     success: boolean;
     accurate: boolean;
@@ -144,7 +146,7 @@ export class PassController {
 
     // Use DiceController for the roll
     const check = this.diceController.rollSkillCheck(
-      "Pass",
+      rollName,
       target,
       modifiers,
       player.playerName

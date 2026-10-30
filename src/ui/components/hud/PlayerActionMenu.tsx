@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -13,6 +13,7 @@ import {
   ActionAvailability,
 } from "../../../game/rules/actionAvailability";
 import { ActionStepper } from "./ActionStepper";
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import {
   Chip,
   HudTone,
@@ -83,6 +84,14 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   const [hasMovedInAction, setHasMovedInAction] = useState(false);
   // Bumped by board-changing events so the contextual menu re-evaluates.
   const [refreshTick, setRefreshTick] = useState(0);
+  // Online, the panel goes while this coach cannot send a command (the
+  // other coach dropped, or the clock is paused); the waiting banner says
+  // why. Polled like the banner, as the hold comes from outside the bus.
+  const [held, setHeld] = useState(() => isHeldOnline());
+  useEffect(() => {
+    const id = setInterval(() => setHeld(isHeldOnline()), 400);
+    return () => clearInterval(id);
+  }, []);
 
   // Listen for player selection
   useEventBus(eventBus, GameEventNames.PlayerSelected, (data) => {
@@ -215,7 +224,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     activeCharge,
   ]);
 
-  if (!selectedPlayer) return null;
+  if (!selectedPlayer || held) return null;
 
   // The kicker and ordinary kickoff selections do not get an action menu.
   // Charge! is the exception: it deliberately reuses this normal window.
@@ -582,3 +591,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     </div>
   );
 };
+
+/** An online match is running and this coach may not act right now. */
+function isHeldOnline(): boolean {
+  return getActiveOnlineMatch()?.mayAct() === false;
+}

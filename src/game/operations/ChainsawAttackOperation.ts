@@ -109,9 +109,10 @@ export class ChainsawAttackOperation extends GameOperation {
     // 2+: an Armour Roll against the target with a +3 modifier. It is an
     // opposition modifier, so the shared fold lets Iron Hard Skin cancel it.
     const armour = dice.rollArmorCheck(
-      effectiveAV(target, gameService.getState()) - 3,
+      effectiveAV(target, gameService.getState()),
       target.playerName,
-      attacker.teamId
+      attacker.teamId,
+      3
     );
     const armourCtx = await foldArmourRoll(
       context,

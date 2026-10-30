@@ -104,6 +104,9 @@ export class NetworkedGameService implements IGameService {
   ): void {
     this.inner.restoreTurnManagerState(snapshot);
   }
+  resyncSetupFromTeams(): void {
+    this.inner.resyncSetupFromTeams();
+  }
   isTurnoverInProgress(): boolean {
     return this.inner.isTurnoverInProgress();
   }

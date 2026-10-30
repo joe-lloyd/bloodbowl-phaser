@@ -70,8 +70,8 @@ describe("a step that needs a Rush and a Dodge", () => {
     const { response, dice } = await walkThenRushAway(false, 5);
 
     expect(dice).toEqual([
-      "Rush (GFI) (Human Lineman #1): 5 +0 = 5 (Target: 2+)",
-      "Dodge (Human Lineman #1): 5 -1 = 4 (Target: 3+)",
+      "Rush (Human Lineman #1): 5, needs 2+",
+      "Dodge (Human Lineman #1): 5, needs 4+",
     ]);
     expect(response.snapshot.teams[0].players[0].position).toEqual({
       x: 6,
@@ -83,8 +83,8 @@ describe("a step that needs a Rush and a Dodge", () => {
     const { response, dice } = await walkThenRushAway(true, 10);
 
     expect(dice).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
-      "Dodge (Human Lineman #1): 6 -1 = 5 (Target: 3+)",
+      "Rush (Human Lineman #1): 4, needs 2+",
+      "Dodge (Human Lineman #1): 6, needs 4+",
       "Shadowing (Human Lineman #1): 5",
     ]);
     expect(response.snapshot.teams[0].players[0].position).toEqual({

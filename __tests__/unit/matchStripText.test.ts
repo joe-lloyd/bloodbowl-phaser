@@ -20,11 +20,15 @@ describe("match strip text", () => {
   it("shows a short weather effect inline only when it changes play", () => {
     expect(weatherSummary("Nice")).toEqual({
       icon: "☀",
+      word: "Nice",
+      effect: null,
       text: "Nice",
       title: "Nice: No effect on play",
     });
     expect(weatherSummary("Pouring Rain")).toEqual({
       icon: "☂",
+      word: "Rain",
+      effect: "-1 catch, pick-up",
       text: "Rain: -1 catch, pick-up",
       title: "Pouring Rain: -1 pick-up, catch and interception",
     });

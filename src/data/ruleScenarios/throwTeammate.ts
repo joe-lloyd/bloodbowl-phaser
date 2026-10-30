@@ -256,10 +256,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "short-range-penalty",
             name: "Short range applies -1 to the throw",
-            matches: (r) => skillCheckDiff(r, "Pass") === -1,
+            matches: (r) => skillCheckDiff(r, "Throw Team-mate") === -1,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Pass") === -1,
+                skillCheckDiff(r, "Throw Team-mate") === -1,
                 "a Short-range throw takes -1 to the PA test"
               ),
           },
@@ -310,10 +310,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
           {
             id: "marking-penalty",
             name: "Two markers apply -2 to the throw",
-            matches: (r) => skillCheckDiff(r, "Pass") === -2,
+            matches: (r) => skillCheckDiff(r, "Throw Team-mate") === -2,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Pass") === -2,
+                skillCheckDiff(r, "Throw Team-mate") === -2,
                 "each marker subtracts 1 from the PA test"
               ),
           },
@@ -720,10 +720,10 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
             name: "The throw is modified by exactly +1",
             matches: (r) =>
               skillTriggered(r, SkillType.STRONG_ARM) &&
-              skillCheckDiff(r, "Pass") === 1,
+              skillCheckDiff(r, "Throw Team-mate") === 1,
             verify: (r) =>
               assert(
-                skillCheckDiff(r, "Pass") === 1,
+                skillCheckDiff(r, "Throw Team-mate") === 1,
                 "an unmarked Quick throw with Strong Arm is roll + 1"
               ),
           },

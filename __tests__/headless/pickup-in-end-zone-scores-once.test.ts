@@ -51,7 +51,7 @@ describe("a pickup in the end zone", () => {
         (e.data as { rollType: string }).rollType.startsWith("Pickup")
     );
     expect((pickup?.data as { description: string }).description).toBe(
-      "Pickup (Human Lineman #1): 4 +0 = 4 (Target: 3+)"
+      "Pickup (Human Lineman #1): 4, needs 3+"
     );
     expect(response.snapshot.score).toEqual({ team1: 1, team2: 0 });
     const credited = game.ctx.matchStats

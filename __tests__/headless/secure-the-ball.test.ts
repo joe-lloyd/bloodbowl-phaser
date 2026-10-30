@@ -65,7 +65,7 @@ describe("a Secure the Ball pick-up", () => {
     ]);
 
     expect(diceOf(response.events)).toEqual([
-      "Secure the Ball (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
+      "Secure the Ball (Human Lineman #1): 4, needs 2+",
     ]);
     const securer = game.ctx.team1.players[0];
     expect(securer.gridPosition).toEqual({ x: 7, y: 5 });
@@ -86,7 +86,7 @@ describe("a Secure the Ball pick-up", () => {
     ]);
 
     expect(diceOf(failed.events)).toEqual([
-      "Secure the Ball (Human Lineman #1): 1 +0 = 1 (Target: 2+)",
+      "Secure the Ball (Human Lineman #1): 1, needs 2+",
     ]);
     // Only the team re-roll is offered; Sure Hands is not a source.
     expect(failed.pendingDecision).toMatchObject({

@@ -885,7 +885,7 @@ export const SCENARIOS: Scenario[] = [
       "block. The block costs the 7th movement point → Rush roll fails.",
     seed: 7,
     expectedOutcome:
-      "Rush (GFI) before the block fails: blitzer falls, turnover, no block dice",
+      "A Rush before the block fails: blitzer falls, turnover, no block dice",
     setup: {
       team1Placements: [
         { playerIndex: 0, x: 10, y: 7, status: PlayerStatus.ACTIVE }, // blitzer, MA 6

@@ -91,7 +91,7 @@ describe("Mighty Blow and Claws", () => {
     });
 
     expect(dice()).toEqual([
-      "Breathe Fire (Human Lineman #1): 6 +0 = 6 (Target: 4+)",
+      "Breathe Fire (Human Lineman #1): 6, needs 4+",
       "Armour Roll (Human Lineman #1): 6 + 3 = 9",
     ]);
     expect(skills()).toEqual([
@@ -155,8 +155,8 @@ describe("a Chainsaw Attack's armour roll", () => {
     });
 
     expect(dice()).toEqual([
-      "Chainsaw Kick-back (Human Lineman #1): 5 +0 = 5 (Target: 2+)",
-      "Human Lineman #1 Armor Check: 5+2 = 7 (AV: 7)",
+      "Chainsaw Kick-back (Human Lineman #1): 5, needs 2+",
+      "Human Lineman #1 Armour: 5+2 +3 = 10 (AV 10+)",
     ]);
     expect(skills()).toContain(
       "Iron Hard Skin: armour roll modifiers cancelled"
@@ -181,7 +181,7 @@ describe("a Chainsaw owner's own armour", () => {
     await run({ type: "declare-action", playerId: attacker.id, action: "foul" });
     await run({ type: "foul", playerId: attacker.id, x: 11, y: 5 });
 
-    expect(dice()).toEqual(["Human Lineman #1 Armor Check: 5+2 = 7 (AV: 9)"]);
+    expect(dice()).toEqual(["Human Lineman #1 Armour: 5+2 = 7 (AV 9+)"]);
     expect(skills()).toEqual([]);
     expect(target.status).toBe(PlayerStatus.PRONE);
   });

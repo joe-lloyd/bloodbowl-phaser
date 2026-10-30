@@ -77,7 +77,7 @@ describe("a pass target beyond the Range Ruler", () => {
     expect(response.ok).toBe(true);
     const pass = response.events.find((e) => e.name === "diceRoll");
     expect((pass?.data as { description: string }).description).toBe(
-      "Pass (Human Lineman #1): 4 -3 = 1 (Target: 4+)"
+      "Pass (Human Lineman #1): 4, needs 6+"
     );
   });
 

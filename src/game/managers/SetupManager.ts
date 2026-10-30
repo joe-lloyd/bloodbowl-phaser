@@ -36,8 +36,19 @@ export class SetupManager {
     },
     private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
-    this.syncPlacedPlayers(team1);
-    this.syncPlacedPlayers(team2);
+    this.resyncFromTeams();
+  }
+
+  /**
+   * Rebuild what this manager tracks, the placed squares and the confirmed
+   * teams, from the players and the setup state. Called on construction and
+   * after a lockstep resync copies a whole state over this one.
+   */
+  public resyncFromTeams(): void {
+    this.placedPlayers.clear();
+    this.setupReady.clear();
+    this.syncPlacedPlayers(this.team1);
+    this.syncPlacedPlayers(this.team2);
     this.state.setup?.confirmedTeamIds.forEach((id) => this.setupReady.add(id));
   }
 

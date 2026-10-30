@@ -114,13 +114,49 @@ describe("decision dock", () => {
         needed: 3,
       })
     );
-    expect(container.textContent).toContain(
-      "Needed 3+, rolled 2. Re-roll: 67%"
-    );
-    expect(container.textContent).toContain("Pro needs 3+");
+    expect(
+      container.querySelector('[data-testid="reroll-odds"]')?.textContent
+    ).toBe("Needed 3+, rolled 2.");
+    // One number per option, each the chance that option recovers the roll
+    const chances = [
+      ...container.querySelectorAll('[data-testid^="reroll-chance-"]'),
+    ].map((line) => [line.getAttribute("data-testid"), line.textContent]);
+    expect(chances).toEqual([
+      ["reroll-chance-skill", "3+ to succeed: 67%."],
+      [
+        "reroll-chance-pro",
+        "Pro needs 3+, then 3+: 44%. A failed Pro check ends the re-roll.",
+      ],
+      ["reroll-chance-team", "3+ to succeed: 67%."],
+      ["reroll-chance-veteran", "3+ to succeed: 67%."],
+    ]);
+    expect(container.textContent?.match(/\d+%/g)).toEqual([
+      "67%",
+      "44%",
+      "67%",
+      "67%",
+    ]);
     expect(
       container.querySelectorAll('[data-testid^="reroll-use-"]')
     ).toHaveLength(4);
+  });
+
+  it("names the roll a Bone Head player failed", async () => {
+    await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
+    await act(async () =>
+      eventBus.emit(GameEventNames.DecisionRequested, {
+        type: "reroll",
+        playerId,
+        chooserTeamId: teamId,
+        rollKind: "activation",
+        rollName: "Bone Head",
+        sources: ["team"],
+        roll: 1,
+        needed: 2,
+      })
+    );
+    expect(container.textContent).toContain("failed the Bone Head roll.");
+    expect(container.textContent).not.toContain("activation");
   });
 
   it("closes a step prompt when the turn ends", async () => {

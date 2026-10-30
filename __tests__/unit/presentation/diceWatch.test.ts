@@ -47,15 +47,31 @@ describe("DiceWatch", () => {
     expect(await settled(wait)).toBe(true);
   });
 
-  it("gives up after the longest wait", async () => {
+  it("gives up after 8 seconds with no word from the tray", async () => {
     vi.useFakeTimers();
     const bus = new EventBus();
     const watch = new DiceWatch(bus);
     tray(bus, 1, 0);
-    const wait = watch.landed(500);
-    vi.advanceTimersByTime(499);
+    const wait = watch.landed();
+    vi.advanceTimersByTime(7999);
     expect(await settled(wait)).toBe(false);
     vi.advanceTimersByTime(1);
+    expect(await settled(wait)).toBe(true);
+  });
+
+  it("keeps waiting on a full tray while its rolls keep landing", async () => {
+    vi.useFakeTimers();
+    const bus = new EventBus();
+    const watch = new DiceWatch(bus);
+    tray(bus, 3, 0);
+    const wait = watch.landed();
+    vi.advanceTimersByTime(7000);
+    tray(bus, 3, 1);
+    vi.advanceTimersByTime(7000);
+    tray(bus, 3, 2);
+    vi.advanceTimersByTime(7000);
+    expect(await settled(wait)).toBe(false);
+    tray(bus, 3, 3);
     expect(await settled(wait)).toBe(true);
   });
 });

@@ -79,7 +79,7 @@ describe("Hail Mary Pass", () => {
     });
 
     expect(response.ok).toBe(true);
-    expect(dice[0]).toBe("Pass (Human Lineman #1): 5 +0 = 5 (Target: 4+)");
+    expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 4+");
     expect(dice.some((d) => d.startsWith("Scatter"))).toBe(false);
     expect(dice[1]).toMatch(/^Catch \(Human Lineman #2\)/);
   });
@@ -92,7 +92,7 @@ describe("Hail Mary Pass", () => {
     );
 
     expect(response.ok).toBe(true);
-    expect(dice[0]).toBe("Pass (Human Lineman #1): 5 -3 = 2 (Target: 4+)");
+    expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 6+");
     expect(dice[1]).toMatch(/^Scatter: /);
   });
 

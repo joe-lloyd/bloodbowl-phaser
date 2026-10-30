@@ -40,7 +40,7 @@ const rushRolls = (response: CommandResponse) =>
   response.events.filter(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType: string }).rollType.startsWith("Rush (GFI)")
+      (e.data as { rollType: string }).rollType.startsWith("Rush (")
   );
 
 async function declared(playerIndex: number) {

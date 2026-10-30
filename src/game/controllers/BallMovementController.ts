@@ -75,15 +75,20 @@ export class BallMovementController {
   public deviate(
     position: { x: number; y: number },
     /** Kick skill: the kicking coach halves the deviation to D3 (p.130). */
-    useKickD3 = false
+    useKickD3 = false,
+    /** The kicking team, whose dice these are. */
+    teamId?: string
   ): { x: number; y: number } {
     // 1. Roll Direction (d8)
-    const direction = this.diceController.rollD8("Kickoff Deviate Direction");
+    const direction = this.diceController.rollD8(
+      "Kickoff Deviate Direction",
+      teamId
+    );
 
     // 2. Roll Distance (lower of 2D6, or D3 with the Kick skill)
     const distance = useKickD3
-      ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)")
-      : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance");
+      ? this.diceController.rollD3("Kickoff Deviate Distance (Kick)", teamId)
+      : this.diceController.rollLowerOf2D6("Kickoff Deviate Distance", teamId);
 
     return this.calculateOffsetPosition(position, direction, distance);
   }

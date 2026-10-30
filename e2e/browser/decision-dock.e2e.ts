@@ -100,7 +100,10 @@ for (const viewport of [
       await page.getByRole("button", { name: "Dodge!", exact: true }).click();
       await expect(page.getByTestId("reroll-use-pro")).toBeVisible();
       await expect(page.getByTestId("reroll-odds")).toHaveText(
-        "Needed 3+, rolled 1. Re-roll: 67%"
+        "Needed 3+, rolled 1."
+      );
+      await expect(page.getByTestId("reroll-chance-pro")).toContainText(
+        "Pro needs 3+, then 3+: 44%."
       );
       await expectDockClear(page, app, ["team1:0"], "reroll-pro");
       await page.getByTestId("reroll-use-pro").click();

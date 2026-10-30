@@ -60,7 +60,7 @@ describe("a Distracted pass target", () => {
       .filter((e) => e.name === "diceRoll")
       .map((e) => (e.data as { description: string }).description);
 
-    expect(dice[0]).toBe("Pass (Human Lineman #1): 5 +0 = 5 (Target: 4+)");
+    expect(dice[0]).toBe("Pass (Human Lineman #1): 5, needs 4+");
     expect(dice[1]).toMatch(/^Bounce Direction: /);
     expect(dice.some((d) => d.startsWith("Catch"))).toBe(false);
   });

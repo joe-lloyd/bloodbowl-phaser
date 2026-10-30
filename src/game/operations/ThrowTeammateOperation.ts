@@ -231,7 +231,8 @@ export class ThrowTeammateOperation extends GameOperation {
           thrower,
           passRange,
           marking,
-          extra + weatherEffects(gameService.getState().weather).passingAbility
+          extra + weatherEffects(gameService.getState().weather).passingAbility,
+          this.mode === "throw" ? "Throw Team-mate" : "Kick Team-mate"
         );
       fumbled = test.fumbled;
       bullseye =

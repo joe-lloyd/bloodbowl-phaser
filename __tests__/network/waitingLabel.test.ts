@@ -32,6 +32,76 @@ const guestSettingUp: Scenario = {
 
 afterEach(() => ServiceContainer.reset());
 
+const hostPlaying: Scenario = {
+  id: "online-host-plays",
+  name: "Host plays",
+  description: "",
+  setup: {
+    team1Placements: [{ playerIndex: 0, x: 5, y: 5 }],
+    team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
+    activeTeam: "team1",
+    phase: GamePhase.PLAY,
+    subPhase: SubPhase.TURN_RECEIVING,
+  },
+};
+
+const hostMatch = (scenario: Scenario) => {
+  const game = new HeadlessGame({ scenario, seed: 2 });
+  const { team1, team2 } = game.ctx;
+  const lobby: LobbyDoc = {
+    code: "HOLD",
+    hostUid: "host-uid",
+    guestUid: "guest-uid",
+    status: "active",
+    settings: { ...DEFAULT_SETTINGS },
+    snapshot: game.snapshot(),
+    players: {
+      "host-uid": {
+        uid: "host-uid",
+        displayName: "Host",
+        team: team1,
+        ready: true,
+      },
+      "guest-uid": {
+        uid: "guest-uid",
+        displayName: "Guest",
+        team: team2,
+        ready: true,
+      },
+    },
+    createdAt: null,
+  };
+  const [hostEnd] = createInMemoryTransportPair();
+  return createOnlineMatch({
+    lobby,
+    user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+    eventBus: new EventBus(),
+    transport: hostEnd,
+    seed: 2,
+  });
+};
+
+describe("online waiting label while input is held", () => {
+  it("tells the acting coach it is reconnecting when the other coach drops", () => {
+    const match = hostMatch(hostPlaying);
+    expect(match.mayAct()).toBe(true);
+    match.setClockPaused("opponent-away");
+    expect(match.mayAct()).toBe(false);
+    expect(match.waitingLabel()).toBe("Reconnecting to Guest…");
+    match.setClockPaused(null);
+    expect(match.mayAct()).toBe(true);
+    match.close();
+  });
+
+  it("names a timeout pause", () => {
+    const match = hostMatch(hostPlaying);
+    match.setClockPaused("timeout");
+    expect(match.mayAct()).toBe(false);
+    expect(match.waitingLabel()).toBe("Game paused for a timeout");
+    match.close();
+  });
+});
+
 describe("online waiting label", () => {
   it("says the other coach is setting up during setup", () => {
     const game = new HeadlessGame({ scenario: guestSettingUp, seed: 2 });
@@ -62,7 +132,12 @@ describe("online waiting label", () => {
     const [hostEnd] = createInMemoryTransportPair();
     const match = createOnlineMatch({
       lobby,
-      user: { uid: "host-uid", displayName: "Host", email: null, photoURL: null },
+      user: {
+        uid: "host-uid",
+        displayName: "Host",
+        email: null,
+        photoURL: null,
+      },
       eventBus: new EventBus(),
       transport: hostEnd,
       seed: 2,

@@ -120,7 +120,7 @@ const LOG_ROWS: [
     "Dodge (Blitzer)",
     "1d6",
     5,
-    "Dodge (Blitzer): 5 +0 = 5 (Target: 3+)",
+    "Dodge (Blitzer): 5, needs 3+",
     "success",
     1,
   ],
@@ -129,7 +129,7 @@ const LOG_ROWS: [
     "Rush (Thrower)",
     "1d6",
     1,
-    "Rush (Thrower): 1 = 1 (Target: 2+). Fell over",
+    "Rush (Thrower): 1, needs 2+. Fell over",
     "failure",
     2,
   ],
@@ -137,7 +137,7 @@ const LOG_ROWS: [
     "Pick-up (Catcher)",
     "1d6",
     4,
-    "Pick-up (Catcher): 4 +1 = 5 (Target: 3+)",
+    "Pick-up (Catcher): 4, needs 2+",
     "success",
     1,
   ],
@@ -154,7 +154,7 @@ const LOG_ROWS: [
     "Pass (Thrower)",
     "1d6",
     6,
-    "Pass (Thrower): 6 = accurate (Target: 4+)",
+    "Pass (Thrower): 6, needs 4+. Accurate",
     "success",
     1,
   ],
@@ -162,7 +162,7 @@ const LOG_ROWS: [
     "Catch (Catcher)",
     "1d6",
     2,
-    "Catch (Catcher): 2 +0 = 2 (Target: 3+). Dropped",
+    "Catch (Catcher): 2, needs 3+. Dropped",
     "failure",
     1,
   ],
@@ -808,7 +808,7 @@ export const VARIANTS: Variant[] = [
           diceType: "1d6",
           value: 5,
           total: 5,
-          description: "Dodge (Blitzer): 5 +0 = 5 (Target: 3+)",
+          description: "Dodge (Blitzer): 5, needs 3+",
           resultState: "success",
           teamId: fx.team1.id,
         })
@@ -1273,6 +1273,25 @@ export const VARIANTS: Variant[] = [
       ),
   },
   {
+    id: "announce-time-up",
+    section: "Announcements",
+    title: "Time up, then the next turn (replays every 6s)",
+    view: (fx) => <Announcer eventBus={fx.bus} />,
+    drive: (fx) =>
+      every(6000, () => {
+        fx.bus.emit(GameEventNames.UI_Announce, {
+          kind: "time-up",
+          headline: "Time up",
+          subtitle: "Turn ended",
+        });
+        fx.bus.emit(GameEventNames.UI_Announce, {
+          kind: "turn-started",
+          headline: "Gouged Eye's Turn",
+          subtitle: "Turn 3",
+        });
+      }),
+  },
+  {
     id: "waiting-touchdown",
     section: "Announcements",
     title: "Touchdown on the waiting coach's screen (replays every 4s)",
@@ -1516,6 +1535,85 @@ export const VARIANTS: Variant[] = [
         </>
       );
     },
+  },
+
+  {
+    id: "clock-strip-crowded",
+    section: "Online turn clock",
+    title: "Blizzard, a full timeout bank and the last fifteen seconds",
+    height: 220,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => {
+      const l = lobby(fx, {});
+      l.timer!.deadline = Date.now() + 15_000;
+      l.timer!.banks = { me: 300_000 };
+      return (
+        <>
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
+          </div>
+          <TurnClock
+            code="BLOOD"
+            lobby={l}
+            match={onlineMatch(fx, {
+              myTeamId: fx.services.gameService.getActiveTeamId(),
+            })}
+            eventBus={fx.bus}
+            user={USER}
+          />
+        </>
+      );
+    },
+    drive: (fx) =>
+      later(30, () => {
+        const state = fx.services.gameService.getState();
+        state.weather = "Blizzard";
+        fx.bus.emit(GameEventNames.GameStateRestored, state);
+      }),
+  },
+  {
+    id: "clock-strip-away",
+    section: "Online turn clock",
+    title: "Stopped while the other coach reconnects",
+    height: 220,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => {
+      const l = lobby(fx, {});
+      l.timer!.banks = { me: 300_000 };
+      return (
+        <>
+          <div className="absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center">
+            <ScoreBoard eventBus={fx.bus} />
+            <MatchStrip eventBus={fx.bus}>
+              <TurnIndicator
+                turnNumber={fx.services.gameService.getState().turn.turnNumber}
+                phase={GamePhase.PLAY}
+              />
+            </MatchStrip>
+          </div>
+          <TurnClock
+            code="BLOOD"
+            lobby={l}
+            match={onlineMatch(fx, { opponentName: "Grimgutz the Unwashed" })}
+            eventBus={fx.bus}
+            user={USER}
+            opponentAway
+          />
+        </>
+      );
+    },
+    drive: (fx) =>
+      later(30, () => {
+        const state = fx.services.gameService.getState();
+        state.weather = "Pouring Rain";
+        fx.bus.emit(GameEventNames.GameStateRestored, state);
+      }),
   },
 
   // ---- Sandbox

@@ -38,14 +38,8 @@ import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { d6Chance, percent } from "../rules/rollOdds";
 import { rollLabel, rollProbability } from "../rules/rollProbability";
-import { foulPreview, blockPreviewLines, catchTarget, interceptTarget, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
+import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
-
-/**
- * The longest a Dodge/Rush prompt waits on the dice: a full tray queue of
- * three rolls, each thrown and then held to be read, with room to spare.
- */
-const PROMPT_DICE_WAIT_MS = 12_000;
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -2077,7 +2071,7 @@ export class GameplayInteractionController {
           // The walk stops waiting on the dice after 3 s, but a slow screen
           // or a queue in the tray can take longer: never ask about the
           // next roll while the last one is still in the air
-          await this.dice.landed(PROMPT_DICE_WAIT_MS);
+          await this.dice.landed();
           if (!(await this.confirmStep(player, leg.risk))) break;
         }
         await this.gameService.movePlayer(playerId, leg.path);
@@ -2379,9 +2373,9 @@ export class GameplayInteractionController {
           const interceptor = this.gameService.getPlayerById(attempt.playerId);
           if (!interceptor) continue;
           if (hasSkill(actor.skills, SkillType.CLOUD_BURSTER) && !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) continue;
-          const need = interceptTarget(interceptor, attempt.modifier, passingTeam, state.weather);
-          lines.push(rollLabel(`Intercept #${interceptor.number}`, need));
-          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: need });
+          const { line, accurate } = interceptPreviewLine(interceptor, passingTeam, state.weather);
+          lines.push(line);
+          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: accurate });
         }
       }
       this.pitch.drawInterceptionRolls(interceptorRolls);

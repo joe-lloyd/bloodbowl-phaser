@@ -117,19 +117,27 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                 >
                   {label}
                 </HudButton>
-                {source === "pro" && (
-                  <p className="mt-1 text-hud-sm">
-                    Pro needs 3+.{" "}
-                    {request.needed !== undefined &&
-                      `${percent((d6Chance(request.needed) * 2) / 3)} chance to recover.`}{" "}
+                {/* One number per option: the chance it recovers the roll */}
+                {source === "pro" ? (
+                  <p
+                    data-testid="reroll-chance-pro"
+                    className="mt-1 text-hud-sm"
+                  >
+                    {request.needed !== undefined
+                      ? `Pro needs 3+, then ${request.needed}+: ${percent((d6Chance(request.needed) * 2) / 3)}.`
+                      : "Pro needs 3+."}{" "}
                     A failed Pro check ends the re-roll.
                   </p>
-                )}
-                {source !== "pro" && request.needed !== undefined && (
-                  <p className="mt-1 text-hud-sm">
-                    {request.needed}+ to succeed,{" "}
-                    {percent(d6Chance(request.needed))}.
-                  </p>
+                ) : (
+                  request.needed !== undefined && (
+                    <p
+                      data-testid={`reroll-chance-${source}`}
+                      className="mt-1 text-hud-sm"
+                    >
+                      {request.needed}+ to succeed:{" "}
+                      {percent(d6Chance(request.needed))}.
+                    </p>
+                  )
                 )}
               </div>
             );
@@ -146,11 +154,12 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       }
     >
       <p>
-        {player?.playerName ?? "Player"} failed the {request.rollKind} roll.
+        {player?.playerName ?? "Player"} failed the{" "}
+        {request.rollName ?? request.rollKind} roll.
       </p>
       <p data-testid="reroll-odds">
         {request.needed !== undefined
-          ? `Needed ${request.needed}+, rolled ${request.roll}. Re-roll: ${percent(d6Chance(request.needed))}`
+          ? `Needed ${request.needed}+, rolled ${request.roll}.`
           : `Rolled ${request.roll}.`}
       </p>
     </DialogShell>

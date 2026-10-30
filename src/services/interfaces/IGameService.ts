@@ -21,6 +21,8 @@ export interface IGameService {
   restoreTurnManagerState(
     snapshot: import("@/game/managers/TurnManager").TurnManagerState
   ): void;
+  /** Rebuild setup tracking from the teams after a whole state was copied in. */
+  resyncSetupFromTeams(): void;
 
   // Controllers
   getPassController(): PassController;

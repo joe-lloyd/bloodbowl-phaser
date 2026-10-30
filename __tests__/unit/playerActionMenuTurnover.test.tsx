@@ -12,6 +12,10 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 import { PlayerActionMenu } from "../../src/ui/components/hud/PlayerActionMenu";
+import {
+  OnlineMatch,
+  setActiveOnlineMatch,
+} from "../../src/network/OnlineMatch";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -31,6 +35,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   ServiceContainer.reset();
+  setActiveOnlineMatch(null);
 });
 
 it("closes the action panel when a turnover happens", async () => {
@@ -61,4 +66,37 @@ it("closes the action panel when a turnover happens", async () => {
   await act(async () => bus.emit(GameEventNames.Turnover, { teamId }));
 
   expect(menu()).toBeNull();
+});
+
+it("hides the action panel while an online match cannot take commands", async () => {
+  const teamId = game.ctx.team1.id;
+  const player = game.ctx.team1.players[0];
+  player.gridPosition = { x: 5, y: 5 };
+  let mayAct = false;
+  setActiveOnlineMatch({ mayAct: () => mayAct } as unknown as OnlineMatch);
+  await act(async () =>
+    root.render(
+      <PlayerActionMenu
+        eventBus={bus}
+        turnData={{
+          phase: GamePhase.PLAY,
+          activeTeamId: teamId,
+          movementUsed: new Map(),
+          hasBlitzed: false,
+          hasPassed: false,
+          hasHandedOff: false,
+          hasFouled: false,
+        }}
+      />
+    )
+  );
+  await act(async () => bus.emit(GameEventNames.PlayerSelected, { player }));
+  const menu = () =>
+    container.querySelector('[data-testid="player-action-menu"]');
+  expect(menu()).toBeNull();
+
+  // The other coach is back: the panel returns
+  mayAct = true;
+  await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+  expect(menu()).not.toBeNull();
 });

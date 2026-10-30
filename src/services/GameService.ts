@@ -658,6 +658,10 @@ export class GameService implements IGameService {
     this.turnManager.restoreState(snapshot);
   }
 
+  resyncSetupFromTeams(): void {
+    this.setupManager.resyncFromTeams();
+  }
+
   // ===== Setup Phase =====
 
   startSetup(startingTeamId?: string): void {
@@ -1117,7 +1121,7 @@ export class GameService implements IGameService {
       "rush",
       () =>
         this.diceController.rollSkillCheck(
-          "Rush (GFI)",
+          "Rush",
           2,
           rushModifier(this.state, attacker),
           attacker.playerName
@@ -2693,7 +2697,7 @@ export class GameService implements IGameService {
           "rush",
           () =>
             this.diceController.rollSkillCheck(
-              "Rush (GFI)",
+              "Rush",
               2,
               rushModifier(this.state, attacker),
               attacker.playerName,

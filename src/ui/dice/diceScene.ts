@@ -713,19 +713,24 @@ function throwCoin(
   );
 
   let running = true;
+  // A coin stopped mid-flip still counts as landed: anything waiting on it,
+  // and every throw queued behind it, carries on.
+  let resolve: (values: number[]) => void = () => {};
+  const landed = new Promise<number[]>((done) => (resolve = done));
   const control = {
     stop: () => {
       if (!running) return;
       running = false;
       if (showing === control) showing = null;
       geometry.dispose();
+      resolve([toss.side]);
     },
     mark: () => {},
   };
   showing = control;
   hooks.ready(control);
 
-  return new Promise((resolve) => {
+  {
     const start = performance.now();
     let landedAt: number | null = null;
     let restTurn: THREE.Quaternion | null = null;
@@ -767,7 +772,8 @@ function throwCoin(
       requestAnimationFrame(tick);
     };
     tick();
-  });
+  }
+  return landed;
 }
 
 /** How far toward the camera the lifted dice sit (0 = table, 1 = lens). */
@@ -839,6 +845,10 @@ function throwDice(
 
   let running = true;
   let markedIndex: number | null = null;
+  // Dice stopped mid-air still count as landed on the engine's values:
+  // anything waiting on them, and every throw queued behind them, carries on.
+  let resolve: (values: number[]) => void = () => {};
+  const landed = new Promise<number[]>((done) => (resolve = done));
   const stop = () => {
     if (!running) return;
     running = false;
@@ -847,6 +857,7 @@ function throwDice(
     gl.domElement.removeEventListener("pointermove", onPointerMove);
     gl.domElement.style.cursor = "";
     geometry.dispose();
+    resolve(roll.values);
   };
   const control = {
     stop,
@@ -881,7 +892,7 @@ function throwDice(
   gl.domElement.addEventListener("pointermove", onPointerMove);
   hooks.ready(control);
 
-  return new Promise((resolve) => {
+  {
     const start = performance.now();
     let played = 0;
     let settled:
@@ -942,5 +953,6 @@ function throwDice(
       requestAnimationFrame(tick);
     };
     tick();
-  });
+  }
+  return landed;
 }

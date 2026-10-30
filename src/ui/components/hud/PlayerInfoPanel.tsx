@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
@@ -21,9 +21,6 @@ const statusView = (player: Player): StatusView => ({
   status: player.status,
   injuries: [...player.injuries],
 });
-
-/** Armour and injury dice can queue behind others in the tray. */
-const DICE_WAIT_MS = 8000;
 
 /** A player's status changes still waiting on their dice. */
 interface HeldStatus {
@@ -49,18 +46,10 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   // decide it still roll in the tray. The card keeps showing the status from
   // before the roll until those dice land. With no tray (headless runs, unit
   // tests) nothing is ever in the air and the card updates at once.
-  const dice = useRef<DiceWatch | null>(null);
+  const dice = DiceWatch.shared(eventBus);
   const beforeRoll = useRef(new Map<string, StatusView>());
   const held = useRef(new Map<string, HeldStatus>());
   const rolling = useRef(false);
-  useEffect(() => {
-    const watch = new DiceWatch(eventBus);
-    dice.current = watch;
-    return () => {
-      dice.current = null;
-      watch.dispose();
-    };
-  }, [eventBus]);
   useEventBus(
     eventBus,
     GameEventNames.UI_DiceInAir,
@@ -78,7 +67,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     }
   );
   useEventBus(eventBus, GameEventNames.PlayerStatusChanged, (player) => {
-    if (!dice.current?.inAir()) {
+    if (!dice.inAir()) {
       held.current.delete(player.id);
       refresh();
       return;
@@ -87,7 +76,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     entry.pending += 1;
     held.current.set(player.id, entry);
     const view = statusView(player);
-    void dice.current.landed(DICE_WAIT_MS).then(() => {
+    void dice.landed().then(() => {
       if (held.current.get(player.id) !== entry) return;
       entry.pending -= 1;
       entry.shown = view;

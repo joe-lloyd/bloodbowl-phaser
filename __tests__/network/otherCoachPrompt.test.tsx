@@ -217,4 +217,39 @@ describe("the waiting coach's decision dock", () => {
     );
     expect(line()).toBeNull();
   });
+
+  it("gives way to the re-roll choice when the roll fails", async () => {
+    const orc = game.ctx.team2.players[0];
+    await fromGuest({
+      playerId: orc.id,
+      rolls: [{ type: "dodge", target: 4 }],
+      chance: 3 / 6,
+    });
+    expect(line()).toBe("Orc Founders: Dodge 4+ (50%)");
+    await act(async () =>
+      bus.emit(GameEventNames.DecisionRequested, {
+        type: "reroll",
+        playerId: orc.id,
+        chooserTeamId: orc.teamId,
+        rollKind: "dodge",
+        sources: ["team"],
+        roll: 2,
+        needed: 4,
+      })
+    );
+    expect(line()).toBeNull();
+  });
+
+  it("clears once the other coach's move has run here", async () => {
+    const orc = game.ctx.team2.players[0];
+    await fromGuest({
+      playerId: orc.id,
+      rolls: [{ type: "dodge", target: 4 }],
+      chance: 3 / 6,
+    });
+    await act(async () =>
+      bus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: orc.id })
+    );
+    expect(line()).toBeNull();
+  });
 });

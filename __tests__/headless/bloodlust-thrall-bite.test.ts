@@ -87,7 +87,7 @@ describe("Bloodlust failure at the end of the activation", () => {
     const r = await failBloodlustThenEnd(5, { x: 10, y: 5 });
 
     expect(r.declaredDice).toEqual([
-      "Bloodlust (Thrall Lineman #1): 1 +0 = 1 (Target: 2+)",
+      "Bloodlust (Thrall Lineman #1): 1, needs 2+",
     ]);
     expect(r.ended.pendingDecision).toBeNull();
     expect(r.turnovers()).toBe(1);

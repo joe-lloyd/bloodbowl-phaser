@@ -127,54 +127,54 @@ async function rushOneSquare(weather: Weather, seed: number) {
 describe("weather modifiers", () => {
   it("Very Sunny puts -1 on the Passing Ability Test", async () => {
     expect(await pass("Very Sunny", false, 4)).toEqual([
-      "Pass (Human Lineman #1): 6 -2 = 4 (Target: 4+)",
-      "Catch (Human Lineman #2): 2 +0 = 2 (Target: 3+)",
+      "Pass (Human Lineman #1): 6, needs 6+",
+      "Catch (Human Lineman #2): 2, needs 3+",
       "Bounce Direction: 2",
     ]);
   });
 
   it("Pouring Rain puts -1 on the catch", async () => {
     expect(await pass("Pouring Rain", false, 5)).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
-      "Catch (Human Lineman #2): 5 -1 = 4 (Target: 3+)",
+      "Pass (Human Lineman #1): 5, needs 5+",
+      "Catch (Human Lineman #2): 5, needs 4+",
     ]);
   });
 
   it("Pouring Rain puts -1 on the interception", async () => {
     expect(await pass("Pouring Rain", true, 1)).toEqual([
-      "Pass (Human Lineman #1): 4 -1 = 3 (Target: 4+)",
+      "Pass (Human Lineman #1): 4, needs 5+",
       "Scatter: 1, 5, 8",
-      "Interception (Human Lineman #1): 6 -3 = 3 (Target: 3+)",
+      "Interception (Human Lineman #1): 6, needs 6+",
     ]);
   });
 
   it("Pouring Rain puts -1 on the pick-up", async () => {
     expect(await walkOntoBall("Pouring Rain", 1)).toEqual([
-      "Pickup (Human Lineman #1): 4 -1 = 3 (Target: 3+)",
+      "Pickup (Human Lineman #1): 4, needs 4+",
     ]);
   });
 
   it("Blizzard puts -1 on the Rush", async () => {
     expect(await rushOneSquare("Blizzard", 1)).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4 -1 = 3 (Target: 2+)",
+      "Rush (Human Lineman #1): 4, needs 3+",
     ]);
   });
 
   it("Perfect Conditions leaves the rolls alone", async () => {
     expect(await pass("Nice", false, 5)).toEqual([
-      "Pass (Human Lineman #1): 5 -1 = 4 (Target: 4+)",
-      "Catch (Human Lineman #2): 5 +0 = 5 (Target: 3+)",
+      "Pass (Human Lineman #1): 5, needs 5+",
+      "Catch (Human Lineman #2): 5, needs 3+",
     ]);
     expect(await pass("Nice", true, 1)).toEqual([
-      "Pass (Human Lineman #1): 4 -1 = 3 (Target: 4+)",
+      "Pass (Human Lineman #1): 4, needs 5+",
       "Scatter: 1, 5, 8",
-      "Interception (Human Lineman #1): 6 -2 = 4 (Target: 3+)",
+      "Interception (Human Lineman #1): 6, needs 5+",
     ]);
     expect(await walkOntoBall("Nice", 1)).toEqual([
-      "Pickup (Human Lineman #1): 4 +0 = 4 (Target: 3+)",
+      "Pickup (Human Lineman #1): 4, needs 3+",
     ]);
     expect(await rushOneSquare("Nice", 1)).toEqual([
-      "Rush (GFI) (Human Lineman #1): 4 +0 = 4 (Target: 2+)",
+      "Rush (Human Lineman #1): 4, needs 2+",
     ]);
   });
 });

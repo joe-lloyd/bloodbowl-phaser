@@ -1,5 +1,6 @@
 import { d6Target, d6Chance, percent } from "../../../game/rules/rollOdds";
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { interceptNeed } from "../../../game/rules/rollPreview";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
@@ -62,8 +63,12 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   const service = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance().gameService
     : null;
-  const needed = (id: string, modifier: number) =>
-    d6Target(service?.getPlayerById(id)?.stats.AG ?? 3, modifier);
+  const needed = (id: string, modifier: number) => {
+    const interceptor = service?.getPlayerById(id);
+    return interceptor
+      ? interceptNeed(interceptor, modifier)
+      : d6Target(3, modifier);
+  };
 
   return (
     <DialogShell

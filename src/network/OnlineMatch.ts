@@ -77,12 +77,18 @@ export interface OnlineMatch {
   /** Persist the current authoritative state so the match can resume later
    *  (host only; a no-op for the guest, which holds no engine). */
   saveState(): void;
-  /** Freeze/unfreeze all input while the turn clock is paused. */
-  setClockPaused(paused: boolean): void;
+  /** Freeze all input, and say why, while the turn clock is stopped. */
+  setClockPaused(hold: InputHold): void;
   /** Run a post-match choice on the authoritative host engine. */
   runProgressionCommand(command: ProgressionCommand): Promise<CommandResponse>;
   close(): void;
 }
+
+/**
+ * Why nobody may act for now: the other coach's connection dropped, or a
+ * coach is spending a timeout. Null when play runs.
+ */
+export type InputHold = "opponent-away" | "timeout" | null;
 
 /** The match the current page is playing, if any (UI gating hooks). */
 let activeMatch: OnlineMatch | null = null;
@@ -202,8 +208,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     [team2.id]: guestPlayer.displayName,
   };
   const myName = isHost ? hostPlayer.displayName : guestPlayer.displayName;
-  // While the turn clock is paused, all input is frozen for both players.
-  let clockPaused = false;
+  // While the turn clock is stopped, all input is frozen for both players.
+  let hold: InputHold = null;
 
   const transport =
     options.transport ?? new FirestoreTransport(lobby.code, user.uid);
@@ -511,7 +517,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       },
       run: parts.run,
       mayAct(): boolean {
-        if (clockPaused) return false; // clock paused — nobody acts
+        if (hold) return false; // clock stopped: nobody acts
         const pending = parts.pendingDecision();
         if (pending) {
           const owner = decisionOwner(pending, {
@@ -528,6 +534,18 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         return parts.activeTeamId() === myTeamId;
       },
       waitingLabel(): string {
+        switch (hold) {
+          case "opponent-away":
+            return `Reconnecting to ${opponentName}…`;
+          case "timeout":
+            return "Game paused for a timeout";
+          case null:
+            break;
+          default: {
+            const exhaustive: never = hold;
+            return exhaustive;
+          }
+        }
         const pending = parts.pendingDecision();
         if (pending) {
           const owner = decisionOwner(pending, {
@@ -596,8 +614,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         return () => errorListeners.delete(listener);
       },
       saveState: parts.saveState,
-      setClockPaused: (paused: boolean) => {
-        clockPaused = paused;
+      setClockPaused: (next: InputHold) => {
+        hold = next;
       },
       runProgressionCommand: parts.runProgressionCommand,
       close(): void {

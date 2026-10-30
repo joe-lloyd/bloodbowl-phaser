@@ -348,7 +348,7 @@ export class MovementManager {
         }
         const rollRush = () =>
           this.diceController.rollSkillCheck(
-            "Rush (GFI)",
+            "Rush",
             2,
             rushCtx.modifiers,
             player.playerName
@@ -818,7 +818,7 @@ export class MovementManager {
       );
       const rollRush = () =>
         this.diceController.rollSkillCheck(
-          "Rush (GFI)",
+          "Rush",
           2,
           rushCtx.modifiers,
           player.playerName

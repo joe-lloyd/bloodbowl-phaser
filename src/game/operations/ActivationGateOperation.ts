@@ -9,10 +9,7 @@ import {
   addCondition,
 } from "../../types/Player";
 import { foldTrigger, withRerollOffer } from "../skills";
-import {
-  ActivationDeclaredContext,
-  ActivationGate,
-} from "../skills/SkillRule";
+import { ActivationDeclaredContext, ActivationGate } from "../skills/SkillRule";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
@@ -96,7 +93,8 @@ export class ActivationGateOperation extends GameOperation {
         { gameService, eventBus },
         player,
         "activation",
-        doRoll
+        doRoll,
+        { rollName: String(gate.skill) }
       );
       if (result.success) continue;
       await this.applyFailure(context, player, gate);

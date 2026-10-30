@@ -34,6 +34,13 @@ export function OtherCoachPrompt({ eventBus }: { eventBus: IEventBus }) {
   useEventBus(eventBus, GameEventNames.TurnStarted, clear);
   useEventBus(eventBus, GameEventNames.TurnEnded, clear);
   useEventBus(eventBus, GameEventNames.GameStateRestored, clear);
+  // The roll has resolved here: a re-roll choice takes the dock, or the
+  // move it asked about has run. Either way the line is out of date, even
+  // if the other coach's "answered" message is late or lost.
+  useEventBus(eventBus, GameEventNames.DecisionRequested, clear);
+  useEventBus(eventBus, GameEventNames.UI_OtherCoachMoveResolved, (moved) =>
+    setPrompt((open) => (open?.playerId === moved.playerId ? null : open))
+  );
 
   if (!prompt || !ServiceContainer.isInitialized()) return null;
   const game = ServiceContainer.getInstance().gameService;

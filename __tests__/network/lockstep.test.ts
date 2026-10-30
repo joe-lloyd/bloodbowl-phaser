@@ -367,3 +367,53 @@ describe("lockstep sessions send before they animate", () => {
     expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
   }, 120_000);
 });
+
+describe("a resync during setup", () => {
+  it("leaves both engines identical, so every later setup command counts on both", async () => {
+    const { recording, hostGame, guestGame, guestEnd, host, guest, resyncs } =
+      await pair(4242);
+    const setupCommands = new Set([
+      "place-player",
+      "remove-player",
+      "swap-players",
+      "apply-formation",
+      "confirm-setup",
+    ]);
+    // The guest's first setup command never reaches the host. The host sees
+    // the guest's count run ahead and rebuilds from the guest's full state.
+    const realSend = guestEnd.send.bind(guestEnd);
+    let dropped: string | null = null;
+    guestEnd.send = async (envelope: Envelope) => {
+      if (
+        !dropped &&
+        envelope.kind === "command" &&
+        setupCommands.has(envelope.payload.command.type)
+      ) {
+        dropped = envelope.payload.command.type;
+        return;
+      }
+      await realSend(envelope);
+    };
+    let afterResync = 0;
+    for (const step of recording.steps) {
+      const inSetup = hostGame.snapshot().phase === GamePhase.SETUP;
+      const before = [host.appliedCommands(), guest.appliedCommands()];
+      const { response } = await play(host, guest, step.command);
+      await settle(host, guest);
+      if (
+        resyncs.host > 0 &&
+        response.ok &&
+        setupCommands.has(step.command.type)
+      ) {
+        afterResync++;
+        expect(host.appliedCommands()).toBe(before[0] + 1);
+        expect(guest.appliedCommands()).toBe(before[1] + 1);
+      }
+      expect(stateChecksum(hostGame)).toBe(stateChecksum(guestGame));
+      if (resyncs.host > 0 && !inSetup) break;
+    }
+    expect(dropped).not.toBeNull();
+    expect(afterResync).toBeGreaterThan(0);
+    expect(resyncs).toEqual({ host: 1, guest: 0 });
+  }, 120_000);
+});
