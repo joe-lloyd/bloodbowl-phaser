@@ -8,7 +8,6 @@ import {
   driveEffectText,
   spentActions,
   spentSummary,
-  turnProgress,
   weatherSummary,
 } from "./matchStripText";
 
@@ -20,7 +19,6 @@ function readStrip() {
   const spent = playing ? spentSummary(spentActions(state.turn)) : null;
   return {
     weather: weatherSummary(state.weather),
-    progress: playing ? turnProgress(state.turn.turnNumber) : null,
     teams: Object.keys(state.score).flatMap((id) => {
       const team = gs.getTeam(id);
       return team
@@ -37,9 +35,8 @@ function readStrip() {
   };
 }
 
-/** A flap hanging off the score bug, slanted like the turn tab. */
-const FLAP =
-  "flex -skew-x-12 items-center gap-2 border-b border-hud-gold/30 bg-hud-sunk/95 px-3 py-1 shadow-hud";
+/** One side of the bar, with the slant of the turn tab. */
+const FLAP = "flex min-w-0 -skew-x-12 items-center gap-2 px-3 py-1";
 
 /** Persistent rules and turn reminders below the broadcast score bug. */
 export function MatchStrip({
@@ -75,13 +72,16 @@ export function MatchStrip({
       data-testid="match-strip"
       className="flex w-[clamp(380px,calc(100vw-38rem),620px)] flex-col items-center font-hud-body text-hud-xs leading-tight text-hud-bone"
     >
-      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-stretch">
+      <div
+        data-testid="match-strip-bar"
+        className="hud-slab grid w-full grid-cols-[1fr_auto_1fr] items-stretch !border-t-0"
+      >
         <div className="flex min-w-0 justify-end">
           {strip && (
             <span
               data-testid="match-weather"
               title={strip.weather.title}
-              className={`${FLAP} -mr-1 min-w-0 border-l`}
+              className={FLAP}
             >
               <span className="skew-x-12 truncate whitespace-nowrap">
                 <span aria-hidden="true" className="mr-1 text-hud-gold">
@@ -94,20 +94,10 @@ export function MatchStrip({
         </div>
         {children}
         <div className="flex min-w-0 justify-start">
-          {strip?.progress && (
-            <span className={`${FLAP} -ml-1 border-r`}>
-              <span
-                data-testid="turns-left"
-                className="skew-x-12 whitespace-nowrap font-semibold text-hud-gold"
-              >
-                {strip.progress}
-              </span>
-            </span>
-          )}
           <div
             id="match-strip-clock"
             data-testid="match-strip-clock"
-            className={`${FLAP} pointer-events-auto -ml-1 border-r empty:hidden`}
+            className={`${FLAP} pointer-events-auto whitespace-nowrap empty:hidden`}
           />
         </div>
       </div>

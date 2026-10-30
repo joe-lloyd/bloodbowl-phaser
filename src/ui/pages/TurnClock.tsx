@@ -65,7 +65,7 @@ export function TurnClock({
   const present = (content: ReactNode) =>
     stripSlot ? createPortal(content, stripSlot) : content;
   const clockClass = stripSlot
-    ? "flex skew-x-12 items-center gap-2 text-hud-xs"
+    ? "flex skew-x-12 items-center gap-2 whitespace-nowrap text-hud-xs"
     : "hud-slab absolute top-[7.25rem] left-1/2 -translate-x-1/2 z-[92] pointer-events-auto flex min-w-[168px] flex-col items-center gap-0.5 px-4 py-2";
   const timer = lobby.timer;
   // Both browsers run the engine; the coach whose turn it is keeps the clock
@@ -279,7 +279,9 @@ export function TurnClock({
         <div className="font-hud-body text-hud-xs text-hud-dim">
           {frozen.reason === "away"
             ? `${match.opponentName} disconnected: game paused`
-            : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`}
+            : // In the strip there is room for one line; the waiting banner
+              // and the decision dock already name the decision
+              `${who} ${fmt(left)} to decide${stripSlot ? "" : ` (${pending?.type.replace(/-/g, " ")})`}`}
         </div>
       </div>
     );

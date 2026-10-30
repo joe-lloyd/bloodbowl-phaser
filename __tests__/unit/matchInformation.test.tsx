@@ -8,6 +8,7 @@ import { PlayerStatus } from "../../src/types/Player";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { SetupControls } from "../../src/ui/components/hud/SetupControls";
 import { PlayerInfoPanel } from "../../src/ui/components/hud/PlayerInfoPanel";
+import { TurnIndicator } from "../../src/ui/components/hud/TurnIndicator";
 
 describe("match information", () => {
   let container: HTMLDivElement;
@@ -106,7 +107,14 @@ describe("match information", () => {
       },
     };
     fx.services.gameService.seedTurnCounts(5);
-    await act(async () => root.render(<MatchStrip eventBus={fx.bus} />));
+    // As the HUD hangs it: the turn tab sits in the strip
+    await act(async () =>
+      root.render(
+        <MatchStrip eventBus={fx.bus}>
+          <TurnIndicator turnNumber={5} phase={GamePhase.PLAY} />
+        </MatchStrip>
+      )
+    );
     expect(container.textContent).toContain("Rain: -1 catch, pick-up");
     expect(container.textContent).toContain("Turn 5 of 6");
     expect(container.textContent).not.toContain("left");

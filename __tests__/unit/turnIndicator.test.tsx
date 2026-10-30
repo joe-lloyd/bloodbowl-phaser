@@ -21,8 +21,8 @@ describe("TurnIndicator", () => {
     expect(await render(GamePhase.HALFTIME, null)).toBe("HALF TIME");
   });
 
-  it("shows the turn during play and SETUP during setup", async () => {
-    expect(await render(GamePhase.PLAY, 3)).toBe("TURN 3");
+  it("shows the turn of the half during play and SETUP during setup", async () => {
+    expect(await render(GamePhase.PLAY, 3)).toBe("Turn 3 of 6");
     expect(await render(GamePhase.SETUP, 3)).toBe("SETUP");
   });
 });
