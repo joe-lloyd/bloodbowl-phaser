@@ -3,8 +3,6 @@ import { GameEventNames, MatchMoment, AllEvents } from "../../types/events";
 import { trackEngineWork } from "../core/GameFlowManager";
 import { DiceWatch } from "./diceWatch";
 
-/** The deciding roll may be queued behind others in the tray. */
-const DICE_WAIT_MS = 8000;
 /** How long landed dice show their result before the moment covers them. */
 const RESULT_BEAT_MS = 600;
 
@@ -89,7 +87,7 @@ export class MomentQueue {
     // Capture the deciding rolls now. Later rolls cannot move this boundary.
     const ready = this.dice.inAir()
       ? this.dice
-          .landed(DICE_WAIT_MS)
+          .landed()
           .then(() => new Promise<void>((r) => setTimeout(r, RESULT_BEAT_MS)))
       : Promise.resolve();
     this.pending.push({ moment, ready });

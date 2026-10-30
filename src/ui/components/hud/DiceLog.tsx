@@ -56,9 +56,6 @@ type LogRow = DiceRow | EntryRow | BallRow;
 
 type Tab = "dice" | "chat";
 
-/** The longest a row waits for its dice to land before it shows anyway. */
-const LANDING_WAIT_MS = 8000;
-
 const FONT_SCALE_STORAGE_KEY = "bb-dice-log-font-scale";
 const FONT_SCALE_MIN = 0.75;
 const FONT_SCALE_MAX = 2;
@@ -153,7 +150,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   }, [eventBus]);
   const updateLogs = (change: (prev: LogRow[]) => LogRow[]) => {
     queueMicrotask(() => {
-      void watch.current?.landed(LANDING_WAIT_MS).then(() => setLogs(change));
+      void watch.current?.landed().then(() => setLogs(change));
     });
   };
 

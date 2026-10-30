@@ -42,12 +42,6 @@ import { foulPreview, blockPreviewLines, catchTarget, interceptTarget, passTarge
 import { BlockValidator } from "../validators/BlockValidator";
 
 /**
- * The longest a Dodge/Rush prompt waits on the dice: a full tray queue of
- * three rolls, each thrown and then held to be read, with room to spare.
- */
-const PROMPT_DICE_WAIT_MS = 12_000;
-
-/**
  * Special activation actions that target a single adjacent Standing
  * opponent. Declaring one enters a "target" step; clicking a valid target
  * runs it through the matching IGameService call.
@@ -2077,7 +2071,7 @@ export class GameplayInteractionController {
           // The walk stops waiting on the dice after 3 s, but a slow screen
           // or a queue in the tray can take longer: never ask about the
           // next roll while the last one is still in the air
-          await this.dice.landed(PROMPT_DICE_WAIT_MS);
+          await this.dice.landed();
           if (!(await this.confirmStep(player, leg.risk))) break;
         }
         await this.gameService.movePlayer(playerId, leg.path);

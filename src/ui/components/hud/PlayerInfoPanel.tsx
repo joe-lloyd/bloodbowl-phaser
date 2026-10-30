@@ -22,9 +22,6 @@ const statusView = (player: Player): StatusView => ({
   injuries: [...player.injuries],
 });
 
-/** Armour and injury dice can queue behind others in the tray. */
-const DICE_WAIT_MS = 8000;
-
 /** A player's status changes still waiting on their dice. */
 interface HeldStatus {
   pending: number;
@@ -87,7 +84,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     entry.pending += 1;
     held.current.set(player.id, entry);
     const view = statusView(player);
-    void dice.current.landed(DICE_WAIT_MS).then(() => {
+    void dice.current.landed().then(() => {
       if (held.current.get(player.id) !== entry) return;
       entry.pending -= 1;
       entry.shown = view;
