@@ -1,6 +1,7 @@
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { blockPreviewLines } from "../../../game/rules/rollPreview";
 import { BlockAnalysis } from "../../../types/Actions";
 import {
   BlockResult,
@@ -177,6 +178,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   const attackingTeam = attackingTeamId
     ? service?.getTeam(attackingTeamId)
     : null;
+  const attacker = service?.getPlayerById(data.attackerId);
+  const defender = service?.getPlayerById(data.defenderId);
+  const previewLines =
+    attacker && defender ? blockPreviewLines(analysis, attacker, defender) : [];
 
   const handleRoll = () => {
     // Online: only the coach who owns the action/decision may interact
@@ -275,7 +280,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       testId="block-dice-dialog"
       tone="blood"
       title="BLOCK!"
-      width="w-[480px]"
+      width="w-[304px]"
+      className="absolute right-4 top-[100px] max-h-[calc(100%_-_116px)] overflow-y-auto !px-3 !py-3"
       actions={
         // Once the dice are rolled the block CANNOT be cancelled: a result
         // must be picked
@@ -319,6 +325,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
             {defenderST}
           </span>
         </div>
+      </div>
+
+      <div data-testid="block-roll-analysis" className="mt-2 font-hud-body text-hud-xs leading-snug">
+        {previewLines.map((line, index) => <div key={index} className={index === 0 && isUphill ? "text-hud-bad font-bold" : line.startsWith("Our assists") ? "text-hud-good" : line.startsWith("Their assists") ? "text-hud-bad" : ""}>{line}</div>)}
       </div>
 
       {/* Dice count and who picks */}
