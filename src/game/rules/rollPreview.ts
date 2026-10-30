@@ -182,21 +182,62 @@ export function foulPreview(
  * modifier, Very Long Legs, Extra Arms, weather, and marking by the passing
  * team.
  */
+/**
+ * The interception Agility Test's modifiers, the one source for the rules
+ * engine, the throw preview and the interception dialog. The corridor
+ * modifier is -3 for an accurate pass and -2 for an inaccurate one.
+ */
+export function interceptModifiers(
+  interceptor: Player,
+  corridorModifier: number,
+  passingTeam: Player[],
+  weather: Weather
+): { base: number; marking: number; total: number } {
+  const marking = interceptor.gridPosition
+    ? markingPlayers(interceptor.gridPosition, passingTeam).length
+    : 0;
+  const base =
+    corridorModifier +
+    (has(interceptor, SkillType.VERY_LONG_LEGS) ? 2 : 0) +
+    (has(interceptor, SkillType.EXTRA_ARMS) ? 1 : 0) +
+    weatherEffects(weather).ballHandling;
+  return { base, marking, total: base - marking };
+}
+
 export function interceptTarget(
   interceptor: Player,
   corridorModifier: number,
   passingTeam: Player[],
   weather: Weather
 ): number {
-  const marking = interceptor.gridPosition
-    ? markingPlayers(interceptor.gridPosition, passingTeam).length
-    : 0;
   return requiredRoll(
     interceptor.stats.AG,
-    corridorModifier +
-      (has(interceptor, SkillType.VERY_LONG_LEGS) ? 2 : 0) +
-      (has(interceptor, SkillType.EXTRA_ARMS) ? 1 : 0) +
-      weatherEffects(weather).ballHandling -
-      marking
+    interceptModifiers(interceptor, corridorModifier, passingTeam, weather)
+      .total
   );
+}
+
+/** The roll an interceptor needs given the modifier the engine offers. */
+export const interceptNeed = (interceptor: Player, modifier: number): number =>
+  requiredRoll(interceptor.stats.AG, modifier);
+
+/**
+ * The throw preview's line for one interceptor. The pass is not thrown
+ * yet, so it gives the roll against an accurate pass and, when it differs,
+ * against an inaccurate one: the interception dialog then shows the one
+ * that applies.
+ */
+export function interceptPreviewLine(
+  interceptor: Player,
+  passingTeam: Player[],
+  weather: Weather
+): { line: string; accurate: number; inaccurate: number } {
+  const accurate = interceptTarget(interceptor, -3, passingTeam, weather);
+  const inaccurate = interceptTarget(interceptor, -2, passingTeam, weather);
+  const name = `Intercept #${interceptor.number}`;
+  const line =
+    accurate === inaccurate
+      ? rollLabel(name, accurate)
+      : `${rollLabel(name, accurate)}, ${rollLabel("if inaccurate", inaccurate).replace(": ", " ")}`;
+  return { line, accurate, inaccurate };
 }

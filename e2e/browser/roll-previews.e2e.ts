@@ -125,7 +125,11 @@ test("pass hover shows range, catch and each interception roll", async ({
   const preview = page.getByTestId("target-roll-preview");
   await expect(preview).toContainText(/Long Pass: \d\+ \(\d+%\)/);
   await expect(preview).toContainText(/Catch: \d\+ \(\d+%\)/);
-  await expect(preview).toContainText(/Intercept #1: 6\+ \(17%\)/);
+  // The pass is not thrown yet: the roll against an inaccurate pass, which
+  // the interception dialog would offer then, is named too
+  await expect(preview).toContainText(
+    "Intercept #1: 6+ (17%), if inaccurate 5+ (33%)"
+  );
   await page.screenshot({ path: test.info().outputPath("pass-preview.png") });
 });
 

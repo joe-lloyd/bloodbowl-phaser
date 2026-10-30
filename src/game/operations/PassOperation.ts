@@ -8,6 +8,7 @@ import { GamePhase } from "../../types/GameState";
 import { BounceOperation } from "./BounceOperation";
 import { CatchOperation } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
+import { interceptModifiers } from "../rules/rollPreview";
 import { ArmourOperation } from "./ArmourOperation";
 import { isOnPitch } from "../controllers/BallMovementController";
 import { holdsMeasure, offerMeasure } from "../inducements/matchInducements";
@@ -547,7 +548,6 @@ export class PassOperation extends GameOperation {
     if (!passer.gridPosition) return false;
 
     const passController = gameService.getPassController();
-    const catchController = gameService.getCatchController();
     const opponents = gameService.getOpponents(passer.teamId);
 
     let eligible = passController.checkInterceptions(
@@ -565,20 +565,20 @@ export class PassOperation extends GameOperation {
     }
     if (eligible.length === 0) return false;
 
-    const rain = weatherEffects(gameService.getState().weather).ballHandling;
     // Marking is measured at each interceptor against the passing team.
     const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
+    const weather = gameService.getState().weather;
     const candidates = eligible.map((e) => {
       const interceptor = gameService.getPlayerById(e.playerId)!;
-      const marking = catchController.countMarkingOpponents(
-        interceptor.gridPosition!,
-        passingTeam
+      // Very Long Legs adds +2, Extra Arms +1, the weather its ball-handling
+      // modifier: the same sum the throw preview and the dialog show.
+      const { base, marking, total } = interceptModifiers(
+        interceptor,
+        e.modifier,
+        passingTeam,
+        weather
       );
-      // Very Long Legs: +2 to the interception Agility Test.
-      const vll = hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
-        ? 2
-        : 0;
-      if (vll) {
+      if (hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) {
         eventBus.emit(GameEventNames.SkillTriggered, {
           playerId: e.playerId,
           skill: SkillType.VERY_LONG_LEGS,
@@ -586,16 +586,7 @@ export class PassOperation extends GameOperation {
             "Very Long Legs: +2 to the interception (ignores Cloud Burster)",
         });
       }
-      // Extra Arms: +1 to "Catch, Pick Up or Intercept the ball" (p.128).
-      const extraArms = hasSkill(interceptor.skills, SkillType.EXTRA_ARMS)
-        ? 1
-        : 0;
-      return {
-        playerId: e.playerId,
-        base: e.modifier + vll + rain + extraArms,
-        marking,
-        modifier: e.modifier + vll + rain + extraArms - marking,
-      };
+      return { playerId: e.playerId, base, marking, modifier: total };
     });
 
     const chooserTeamId = gameService.getPlayerById(

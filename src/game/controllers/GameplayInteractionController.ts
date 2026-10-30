@@ -38,7 +38,7 @@ import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { d6Chance, percent } from "../rules/rollOdds";
 import { rollLabel, rollProbability } from "../rules/rollProbability";
-import { foulPreview, blockPreviewLines, catchTarget, interceptTarget, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
+import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
 /**
@@ -2373,9 +2373,9 @@ export class GameplayInteractionController {
           const interceptor = this.gameService.getPlayerById(attempt.playerId);
           if (!interceptor) continue;
           if (hasSkill(actor.skills, SkillType.CLOUD_BURSTER) && !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) continue;
-          const need = interceptTarget(interceptor, attempt.modifier, passingTeam, state.weather);
-          lines.push(rollLabel(`Intercept #${interceptor.number}`, need));
-          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: need });
+          const { line, accurate } = interceptPreviewLine(interceptor, passingTeam, state.weather);
+          lines.push(line);
+          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: accurate });
         }
       }
       this.pitch.drawInterceptionRolls(interceptorRolls);
