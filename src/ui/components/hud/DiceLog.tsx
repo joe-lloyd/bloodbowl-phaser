@@ -139,18 +139,10 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   // have landed, so a row never spoils a die still tumbling, and rows keep
   // their order. The wait starts a microtask later because the tray may hear
   // a DiceRoll after the log does. With no tray, rows go in at once.
-  const watch = React.useRef<DiceWatch | null>(null);
-  useEffect(() => {
-    const tray = new DiceWatch(eventBus);
-    watch.current = tray;
-    return () => {
-      watch.current = null;
-      tray.dispose();
-    };
-  }, [eventBus]);
+  const watch = DiceWatch.shared(eventBus);
   const updateLogs = (change: (prev: LogRow[]) => LogRow[]) => {
     queueMicrotask(() => {
-      void watch.current?.landed().then(() => setLogs(change));
+      void watch.landed().then(() => setLogs(change));
     });
   };
 

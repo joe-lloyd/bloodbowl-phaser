@@ -23,7 +23,23 @@ const MAX_WAIT_MS = 8000;
  * ones thrown after it began. With no tray (headless runs, unit tests)
  * nothing is ever thrown and every wait ends at once.
  */
+const shared = new WeakMap<IEventBus, DiceWatch>();
+
 export class DiceWatch {
+  /**
+   * The one watch the HUD shares for a bus: the banners, the dice log and
+   * the player card release on the same report, and give up together when
+   * the tray goes quiet. Lives as long as the bus; never dispose it.
+   */
+  static shared(eventBus: IEventBus): DiceWatch {
+    let watch = shared.get(eventBus);
+    if (!watch) {
+      watch = new DiceWatch(eventBus);
+      shared.set(eventBus, watch);
+    }
+    return watch;
+  }
+
   private thrown = 0;
   private landedThrough = 0;
   private waiters: { until: number; done: () => void }[] = [];
