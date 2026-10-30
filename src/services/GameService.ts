@@ -1136,7 +1136,7 @@ export class GameService implements IGameService {
     this.flowManager.add(new ArmourOperation(attackerId), true);
     // The block never happens — release any dialog waiting on dice
     this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-    this.triggerTurnover("Failed GFI on Blitz block");
+    this.triggerTurnover("Failed Rush on Blitz block");
     return false;
   }
 
@@ -2714,7 +2714,7 @@ export class GameService implements IGameService {
           }
           this.flowManager.add(new ArmourOperation(attackerId), true);
           this.finishActivation(attackerId);
-          this.triggerTurnover("Failed GFI on Blitz special attack");
+          this.triggerTurnover("Failed Rush on Blitz special attack");
           return { accepted: true, proceed: false };
         }
       }

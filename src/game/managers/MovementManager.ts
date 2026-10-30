@@ -383,7 +383,7 @@ export class MovementManager {
             flowManager.add(new ArmourOperation(playerId), true);
           }
 
-          this.callbacks.onTurnover("Failed GFI");
+          this.callbacks.onTurnover("Failed Rush");
           stepsTaken++;
           completedPath.push(step);
           break;
@@ -844,7 +844,7 @@ export class MovementManager {
           flowManager.add(new BounceOperation(from), true);
         }
         if (flowManager) flowManager.add(new ArmourOperation(playerId), true);
-        this.callbacks.onTurnover("Failed GFI");
+        this.callbacks.onTurnover("Failed Rush");
         this.callbacks.onActivationFinished(playerId);
         return;
       }
