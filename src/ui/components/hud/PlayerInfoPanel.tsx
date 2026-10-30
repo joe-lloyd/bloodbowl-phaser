@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
@@ -11,7 +11,26 @@ import {
 } from "../../../game/kickoff/driveEffects";
 import { rushAllowance } from "../../../game/skills/movement";
 import { SidelineCrewInfo } from "../../../game/presentation/sidelineStaff";
+import { DiceWatch } from "../../../game/presentation/diceWatch";
 import { Chip, Panel, Stat } from "../componentWarehouse/HudKit";
+
+/** The part of a player the card shows only once the dice have landed. */
+type StatusView = Pick<Player, "status" | "injuries">;
+
+const statusView = (player: Player): StatusView => ({
+  status: player.status,
+  injuries: [...player.injuries],
+});
+
+/** Armour and injury dice can queue behind others in the tray. */
+const DICE_WAIT_MS = 8000;
+
+/** A player's status changes still waiting on their dice. */
+interface HeldStatus {
+  pending: number;
+  /** The latest change whose dice have landed, if any. */
+  shown: StatusView | null;
+}
 
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
@@ -25,6 +44,68 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(null);
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
+
+  // The engine settles a fall or an injury at once, while the dice that
+  // decide it still roll in the tray. The card keeps showing the status from
+  // before the roll until those dice land. With no tray (headless runs, unit
+  // tests) nothing is ever in the air and the card updates at once.
+  const dice = useRef<DiceWatch | null>(null);
+  const beforeRoll = useRef(new Map<string, StatusView>());
+  const held = useRef(new Map<string, HeldStatus>());
+  const rolling = useRef(false);
+  useEffect(() => {
+    const watch = new DiceWatch(eventBus);
+    dice.current = watch;
+    return () => {
+      dice.current = null;
+      watch.dispose();
+    };
+  }, [eventBus]);
+  useEventBus(
+    eventBus,
+    GameEventNames.UI_DiceInAir,
+    ({ thrown, landedThrough }) => {
+      const inAir = landedThrough < thrown;
+      if (inAir && !rolling.current && ServiceContainer.isInitialized()) {
+        beforeRoll.current = new Map(
+          ServiceContainer.getInstance()
+            .gameService.getTeams()
+            .flatMap((team) => team.players)
+            .map((player) => [player.id, statusView(player)])
+        );
+      }
+      rolling.current = inAir;
+    }
+  );
+  useEventBus(eventBus, GameEventNames.PlayerStatusChanged, (player) => {
+    if (!dice.current?.inAir()) {
+      held.current.delete(player.id);
+      refresh();
+      return;
+    }
+    const entry = held.current.get(player.id) ?? { pending: 0, shown: null };
+    entry.pending += 1;
+    held.current.set(player.id, entry);
+    const view = statusView(player);
+    void dice.current.landed(DICE_WAIT_MS).then(() => {
+      if (held.current.get(player.id) !== entry) return;
+      entry.pending -= 1;
+      entry.shown = view;
+      if (entry.pending === 0) held.current.delete(player.id);
+      refresh();
+    });
+  });
+  const forgetHeld = () => {
+    held.current.clear();
+    refresh();
+  };
+  const shownStatus = (player: Player): StatusView => {
+    const entry = held.current.get(player.id);
+    if (!entry) return statusView(player);
+    return (
+      entry.shown ?? beforeRoll.current.get(player.id) ?? statusView(player)
+    );
+  };
   // Hover Events
   useEventBus(eventBus, GameEventNames.UI_ShowPlayerInfo, (player: Player) => {
     setHoveredPlayer(player);
@@ -80,8 +161,8 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   useEventBus(eventBus, GameEventNames.BallScattered, refresh);
   useEventBus(eventBus, GameEventNames.DriveEffectExpired, refresh);
   useEventBus(eventBus, GameEventNames.DriveEffectGranted, refresh);
-  useEventBus(eventBus, GameEventNames.PlayerStatusChanged, refresh);
-  useEventBus(eventBus, GameEventNames.GameStateRestored, refresh);
+  useEventBus(eventBus, GameEventNames.GameStateRestored, forgetHeld);
+  useEventBus(eventBus, GameEventNames.ScenarioLoaded, forgetHeld);
 
   // Logic (top-to-bottom order: kickoff panel, selected, hovered — see
   // GameHUD.tsx and the container's flex-col below):
@@ -106,6 +187,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       player.gridPosition != null &&
       state?.ballPosition?.x === player.gridPosition.x &&
       state?.ballPosition?.y === player.gridPosition.y;
+    const status = shownStatus(player);
     const lowered = (value: number, base: number) =>
       value < base ? "warn" : undefined;
 
@@ -201,16 +283,20 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
         </div>
 
         {/* Status (if not active) */}
-        {player.status !== PlayerStatus.ACTIVE && (
+        {status.status !== PlayerStatus.ACTIVE && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
-            <Chip
-              tone={player.status === PlayerStatus.RESERVE ? "neutral" : "bad"}
-            >
-              {player.status}
-            </Chip>
-            {player.injuries.length > 0 && (
+            <span data-testid="player-status" className="inline-flex">
+              <Chip
+                tone={
+                  status.status === PlayerStatus.RESERVE ? "neutral" : "bad"
+                }
+              >
+                {status.status}
+              </Chip>
+            </span>
+            {status.injuries.length > 0 && (
               <span className="text-hud-sm text-[#ff9a8f]">
-                {player.injuries.join(", ")}
+                {status.injuries.join(", ")}
               </span>
             )}
           </div>
