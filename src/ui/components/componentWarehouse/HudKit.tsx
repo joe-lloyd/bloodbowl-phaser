@@ -333,9 +333,8 @@ export function HudCoin({ spin }: { spin: number }) {
 }
 
 /**
- * A decision dialog: the overlay that blocks the board, and the slab on it.
- * The overlay keeps the board visible behind a soft vignette. `testId` goes
- * on the overlay, where the e2e suites already look for it.
+ * A decision panel. Docked panels fill the HUD column. Other placements
+ * keep the board visible behind a vignette. `testId` stays on the wrapper.
  */
 export function DialogShell({
   testId,
@@ -359,7 +358,7 @@ export function DialogShell({
   children?: React.ReactNode;
   actions?: React.ReactNode;
   width?: string;
-  placement?: "top" | "center";
+  placement?: "top" | "center" | "dock";
   zClass?: string;
   backdrop?: "light" | "heavy";
   className?: string;
@@ -368,20 +367,26 @@ export function DialogShell({
   return (
     <div
       data-testid={testId}
+      data-decision-dialog={placement === "dock" ? "" : undefined}
       className={cx(
-        "absolute inset-0 flex justify-center px-4 pointer-events-auto",
-        placement === "top" ? "items-start pt-44" : "items-center",
-        backdrop === "light"
-          ? "bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)]"
-          : "bg-black/70 backdrop-blur-[2px]",
+        placement === "dock"
+          ? "w-full pointer-events-auto"
+          : "absolute inset-0 flex justify-center px-4 pointer-events-auto",
+        placement !== "dock" &&
+          (placement === "top" ? "items-start pt-44" : "items-center"),
+        placement === "dock"
+          ? false
+          : backdrop === "light"
+            ? "bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.45)_100%)]"
+            : "bg-black/70 backdrop-blur-[2px]",
         zClass
       )}
     >
       <Panel
         accent={tone}
         className={cx(
-          "max-w-full animate-hud-pop px-6 pb-5 pt-5",
-          width,
+          "max-w-full animate-hud-pop",
+          placement === "dock" ? "w-full px-4 py-3" : `px-6 pb-5 pt-5 ${width}`,
           className
         )}
       >

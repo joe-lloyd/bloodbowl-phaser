@@ -1,5 +1,7 @@
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { ApothecaryDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -28,11 +30,9 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
   );
 
   useEffect(() => {
-    const onRequested = (
-      data: ApothecaryDecisionRequest | { type: string }
-    ) => {
+    const onRequested = (data: DecisionRequest) => {
       if (data.type === "apothecary") {
-        setRequest(data as ApothecaryDecisionRequest);
+        setRequest(data);
       }
     };
     // The other coach may be the one who answers
@@ -83,6 +83,8 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       title="Use the Apothecary?"
       width="w-[460px]"
       actions={

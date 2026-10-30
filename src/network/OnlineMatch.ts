@@ -451,7 +451,39 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       waitingLabel(): string {
         const pending = parts.pendingDecision();
         if (pending) {
-          return `Waiting for ${opponentName} — ${pending.type.replace(/-/g, " ")}…`;
+          const owner = decisionOwner(pending, {
+            activeTeamId: parts.activeTeamId(),
+            pendingDecision: pending,
+            teamIdOfPlayer: teamOf,
+            hostTeamId: team1.id,
+          });
+          const team = owner ? teamName(owner) : opponentName;
+          switch (pending.type) {
+            case "block-dice":
+              return `${team} is ${pending.choiceStage === "attacker-reroll" ? "choosing a block re-roll" : "picking a block die"}`;
+            case "reroll":
+              return `${team} is choosing a re-roll`;
+            case "push-direction":
+              return `${team} is choosing a push square`;
+            case "follow-up":
+              return `${team} is deciding whether to follow up`;
+            case "interception":
+              return `${team} is choosing an interceptor`;
+            case "reaction":
+              return `${team} is deciding whether to use ${pending.skill}`;
+            case "apothecary":
+              return `${team} is deciding whether to use the apothecary`;
+            case "inducement-choice":
+              return `${team} is choosing an inducement`;
+            case "touchback":
+              return `${team} is choosing who takes the ball`;
+            case "kickoff-event":
+              return `${team} is resolving the kick-off`;
+            default: {
+              const exhaustive: never = pending;
+              return exhaustive;
+            }
+          }
         }
         if (parts.phase() === GamePhase.KICKOFF && !isKickoffActor()) {
           return `Waiting for ${opponentName} to kick off…`;

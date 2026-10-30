@@ -34,6 +34,8 @@ export interface RerollDecisionRequest {
   skill?: string;
   /** The failed die result being offered a reroll. */
   roll: number;
+  /** D6 face needed after modifiers, including natural 1 and 6. */
+  needed?: number;
 }
 
 export interface RerollDecisionAnswer {

@@ -1,3 +1,4 @@
+import { getSkill, SkillType } from "../../src/types/Skills";
 import React, { act } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -66,6 +67,15 @@ describe("RerollDialog team button", () => {
     expect((await showDodgeReroll(2))?.textContent).toBe(
       "USE TEAM RE-ROLL (2 left)"
     );
+  });
+
+  it("names the Leader re-roll when it is the next legal team source", async () => {
+    const service = ServiceContainer.getInstance().gameService;
+    const team = service.getTeam(teamId)!;
+    team.players[0].gridPosition = { x: 5, y: 5 };
+    team.players[0].skills.push(getSkill(SkillType.LEADER));
+    service.getRerollArbiter().beginHalf([teamId]);
+    expect((await showDodgeReroll(0))?.textContent).toBe("USE LEADER RE-ROLL");
   });
 
   it("names a free Brilliant Coaching re-roll instead of '0 left'", async () => {

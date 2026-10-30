@@ -1,7 +1,9 @@
+import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
-import { GameEventNames } from "../../../types/events";
+import { GameEventNames, UIEvents } from "../../../types/events";
 import {
   DialogActions,
   DialogShell,
@@ -12,14 +14,7 @@ interface ConfirmationModalProps {
   eventBus: IEventBus;
 }
 
-interface ConfirmationData {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  actionId: string; // To verify which action we are confirming
-  risky?: boolean; // If true, show warning colors
-}
+type ConfirmationData = UIEvents[GameEventNames.UI_RequestConfirmation];
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   eventBus,
@@ -30,11 +25,20 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     setData(payload);
   });
 
+  useEventBus(eventBus, GameEventNames.TurnEnded, () => {
+    if (!data) return;
+    setData(null);
+    eventBus.emit(GameEventNames.UI_ConfirmationResult, {
+      actionId: data.actionId,
+      confirmed: false,
+    });
+  });
+
   // Clear BEFORE emitting: the result handler can synchronously request the
   // next confirmation (dodge -> sprint), and a trailing setData(null) would
   // wipe that fresh dialog
   const handleConfirm = () => {
-    if (!data) return;
+    if (!data || getActiveOnlineMatch()?.mayAct() === false) return;
     const actionId = data.actionId;
     setData(null);
     eventBus.emit(GameEventNames.UI_ConfirmationResult, {
@@ -44,7 +48,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   };
 
   const handleCancel = () => {
-    if (!data) return;
+    if (!data || getActiveOnlineMatch()?.mayAct() === false) return;
     const actionId = data.actionId;
     setData(null);
     eventBus.emit(GameEventNames.UI_ConfirmationResult, {
@@ -53,14 +57,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     });
   };
 
-  if (!data) return null;
+  if (!data || getActiveOnlineMatch()?.mayAct() === false) return null;
 
   return (
-    // z-[150]: a confirmation must always sit ABOVE the block/follow-up
-    // dialogs (z-[100]) — the blitz "Rush Required!" prompt fires while the
-    // block dialog is open and was unreachable behind it
     <DialogShell
-      zClass="z-[150]"
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={data.chooserTeamId} />}
       tone={data.risky ? "blood" : "gold"}
       titleAs="h3"
       title={data.title}

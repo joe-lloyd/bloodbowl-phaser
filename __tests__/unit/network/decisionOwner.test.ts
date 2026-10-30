@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { decisionOwner } from "../../../src/network/OwnershipGate";
+import {
+  checkOwnership,
+  decisionOwner,
+} from "../../../src/network/OwnershipGate";
 
 const ctx = {
   activeTeamId: "attackers",
@@ -39,4 +42,38 @@ describe("who owns a push", () => {
       )
     ).toBe("defenders");
   });
+});
+
+describe("uphill block re-roll window", () => {
+  it("belongs to the attacker before the defender picks", () => {
+    expect(
+      decisionOwner(
+        {
+          type: "block-dice",
+          attackerId: "a1",
+          defenderId: "d1",
+          chooserTeamId: "defenders",
+          options: [],
+          choiceStage: "attacker-reroll",
+        },
+        ctx
+      )
+    ).toBe("attackers");
+  });
+});
+
+it("the attacker cannot pick an uphill die during the re-roll window", () => {
+  expect(
+    checkOwnership({ type: "choose-block-result", index: 0 }, "attackers", {
+      ...ctx,
+      pendingDecision: {
+        type: "block-dice",
+        attackerId: "a1",
+        defenderId: "d1",
+        chooserTeamId: "defenders",
+        options: [],
+        choiceStage: "attacker-reroll",
+      },
+    })
+  ).toEqual({ allowed: false, reason: "decision-pending" });
 });

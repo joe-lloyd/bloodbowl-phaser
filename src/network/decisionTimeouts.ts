@@ -36,7 +36,9 @@ export function defaultAnswer(
 ): HeadlessCommand | null {
   switch (pending.type) {
     case "block-dice":
-      return { type: "choose-block-result", index: 0 };
+      return pending.choiceStage === "attacker-reroll"
+        ? { type: "keep-block-dice", attackerId: pending.attackerId }
+        : { type: "choose-block-result", index: 0 };
     case "push-direction": {
       const [first] = pending.options;
       return first

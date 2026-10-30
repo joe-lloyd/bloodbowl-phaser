@@ -11,7 +11,12 @@
 
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import { DecisionRequest, DecisionAnswer } from "../../types/decisions";
+import {
+  DecisionRequest,
+  DecisionAnswer,
+  RerollDecisionRequest,
+  RerollDecisionAnswer,
+} from "../../types/decisions";
 
 export class DecisionService {
   private current: {
@@ -25,6 +30,8 @@ export class DecisionService {
     return this.current?.request ?? null;
   }
 
+  public request(request: RerollDecisionRequest): Promise<RerollDecisionAnswer>;
+  public request(request: DecisionRequest): Promise<DecisionAnswer>;
   public request(request: DecisionRequest): Promise<DecisionAnswer> {
     if (this.current) {
       // Roll paths pause on their decision, so two at once is a bug upstream

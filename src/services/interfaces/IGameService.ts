@@ -171,6 +171,7 @@ export interface IGameService {
     result: BlockResult
   ): void | Promise<void>;
   /** Team Re-roll on a block: re-roll all the dice. */
+  keepBlockDice(attackerId: string): void;
   teamRerollBlock(attackerId: string): void;
   /** Pro on a block: re-roll a single die (3+ to use). */
   proRerollBlockDie(attackerId: string, dieIndex: number): void;

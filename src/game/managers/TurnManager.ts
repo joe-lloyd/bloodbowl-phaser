@@ -196,6 +196,7 @@ export class TurnManager {
       }
     }
     this.stunnedAtTurnStart = [];
+    this.eventBus.emit(GameEventNames.TurnEnded, { teamId: currentTeamId });
 
     // Fires before the next turn starts, so its effects (Pick-Me-Up
     // stand-ups) are in place when that turn begins

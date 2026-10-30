@@ -283,6 +283,10 @@ export class NetworkedGameService implements IGameService {
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
   }
+  keepBlockDice(attackerId: string): void {
+    this.send({ type: "keep-block-dice", attackerId });
+  }
+
   teamRerollBlock(attackerId: string): void {
     this.send({ type: "team-reroll-block", attackerId });
   }

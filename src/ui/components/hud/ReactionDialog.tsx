@@ -1,5 +1,7 @@
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { ReactionDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -22,9 +24,9 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
   const [request, setRequest] = useState<ReactionDecisionRequest | null>(null);
 
   useEffect(() => {
-    const onRequested = (data: ReactionDecisionRequest | { type: string }) => {
+    const onRequested = (data: DecisionRequest) => {
       if (data.type === "reaction") {
-        setRequest(data as ReactionDecisionRequest);
+        setRequest(data);
       }
     };
     // The other coach may be the one who answers
@@ -52,6 +54,8 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       testId="reaction-dialog"
       title={request.skill}
       actions={

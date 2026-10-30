@@ -1,5 +1,7 @@
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useEffect, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import {
   InducementChoiceDecisionAnswer,
@@ -34,11 +36,9 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     useState<InducementChoiceDecisionRequest | null>(null);
 
   useEffect(() => {
-    const onRequested = (
-      data: InducementChoiceDecisionRequest | { type: string }
-    ) => {
+    const onRequested = (data: DecisionRequest) => {
       if (data.type === "inducement-choice") {
-        setRequest(data as InducementChoiceDecisionRequest);
+        setRequest(data);
       }
     };
     // The other coach may be the one who answers
@@ -89,9 +89,10 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       title={TITLES[request.kind]}
       width="w-[520px]"
-      placement="center"
       backdrop="heavy"
       className="max-h-[80vh] overflow-y-auto hud-scroll"
       actions={

@@ -108,6 +108,7 @@ export type HeadlessCommand =
     }
   | { type: "throw-bomb"; throwerId: string; x: number; y: number }
   | { type: "ball-and-chain"; playerId: string; x: number; y: number }
+  | { type: "keep-block-dice"; attackerId: string }
   | { type: "team-reroll-block"; attackerId: string }
   | { type: "pro-reroll-block"; attackerId: string; dieIndex: number }
   | { type: "brawler-reroll-block"; attackerId: string }
@@ -188,6 +189,7 @@ export type PendingDecision =
       /** Team that picks the die (attacker unless more defender dice) */
       chooserTeamId: string;
       options: BlockResult[];
+      choiceStage?: "attacker-reroll" | "pick";
       /** The attacker may spend a Team Re-roll (all dice) before choosing. */
       teamRerollAvailable?: boolean;
       /** The attacker may Pro-re-roll one die before choosing. */
@@ -227,6 +229,7 @@ export type PendingDecision =
       skill?: string;
       /** The failed die result */
       roll: number;
+      needed?: number;
     }
   | {
       /** A reactive skill may fire: the REACTING coach accepts/declines */
@@ -321,6 +324,7 @@ export const DECISION_REPLIES: Partial<
   Record<HeadlessCommand["type"], PendingDecision["type"]>
 > = {
   "choose-block-result": "block-dice",
+  "keep-block-dice": "block-dice",
   "team-reroll-block": "block-dice",
   "pro-reroll-block": "block-dice",
   "brawler-reroll-block": "block-dice",

@@ -11,19 +11,19 @@ import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
-import {
-  RerollableRollKind,
-  RerollSource,
-  RerollDecisionAnswer,
-} from "../../types/decisions";
+import { RerollableRollKind, RerollSource } from "../../types/decisions";
 import { SkillRegistry } from "./SkillRegistry";
 import { TeamRerollGateContext } from "./SkillRule";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { VETERAN_REROLL_KINDS } from "../rules/veteran";
+import { d6Target } from "../rules/rollOdds";
 
 export interface RollLike {
   success: boolean;
   roll: number;
+  needed?: number;
+  target?: number;
+  modifiers?: number;
 }
 
 export interface RerollDeps {
@@ -50,24 +50,17 @@ function findSkillSource(
   return undefined;
 }
 
-export async function withRerollOffer<T extends RollLike>(
+/** Legal sources shared by the failed-roll offer and the step preview. */
+export function availableRerolls(
   deps: RerollDeps,
   player: Player,
   rollKind: RerollableRollKind,
-  doRoll: () => T,
-  opts?: {
-    /** A trigger may deny the skill reroll (Tackle vs Dodge) */
-    skillAllowed?: boolean;
-  }
-): Promise<T> {
-  const first = doRoll();
-  if (first.success) return first;
-
+  skillAllowed = true
+) {
   const arbiter = deps.gameService.getRerollArbiter();
-  const skillSource =
-    opts?.skillAllowed === false
-      ? undefined
-      : findSkillSource(deps, player, rollKind);
+  const skillSource = !skillAllowed
+    ? undefined
+    : findSkillSource(deps, player, rollKind);
   const sources: RerollSource[] = [];
   if (skillSource) sources.push("skill");
   if (arbiter.teamRerollAvailable(player.teamId)) sources.push("team");
@@ -90,17 +83,45 @@ export async function withRerollOffer<T extends RollLike>(
   ) {
     sources.push("veteran");
   }
+  return { sources, skillSource };
+}
+
+export async function withRerollOffer<T extends RollLike>(
+  deps: RerollDeps,
+  player: Player,
+  rollKind: RerollableRollKind,
+  doRoll: () => T,
+  opts?: {
+    /** A trigger may deny the skill reroll (Tackle vs Dodge) */
+    skillAllowed?: boolean;
+  }
+): Promise<T> {
+  const first = doRoll();
+  if (first.success) return first;
+
+  const arbiter = deps.gameService.getRerollArbiter();
+  const { sources, skillSource } = availableRerolls(
+    deps,
+    player,
+    rollKind,
+    opts?.skillAllowed
+  );
   if (sources.length === 0) return first;
 
-  const answer = (await deps.gameService.getDecisionService().request({
-      type: "reroll",
-      playerId: player.id,
-      chooserTeamId: player.teamId,
-      rollKind,
-      sources,
-      skill: skillSource ? String(skillSource) : undefined,
-      roll: first.roll,
-    })) as RerollDecisionAnswer;
+  const answer = await deps.gameService.getDecisionService().request({
+    type: "reroll",
+    playerId: player.id,
+    chooserTeamId: player.teamId,
+    rollKind,
+    sources,
+    skill: skillSource ? String(skillSource) : undefined,
+    roll: first.roll,
+    needed:
+      first.needed ??
+      (first.target === undefined
+        ? undefined
+        : d6Target(first.target, first.modifiers)),
+  });
   if (!answer.accept) return first;
 
   const chosen: RerollSource =

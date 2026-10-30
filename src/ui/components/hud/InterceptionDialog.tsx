@@ -1,5 +1,9 @@
+import { d6Target, d6Chance, percent } from "../../../game/rules/rollOdds";
+import { ServiceContainer } from "../../../services/ServiceContainer";
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { InterceptionDecisionRequest } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -27,11 +31,9 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   );
 
   useEffect(() => {
-    const onRequested = (
-      data: InterceptionDecisionRequest | { type: string }
-    ) => {
+    const onRequested = (data: DecisionRequest) => {
       if (data.type === "interception") {
-        setRequest(data as InterceptionDecisionRequest);
+        setRequest(data);
       }
     };
     // The other coach may be the one who answers
@@ -57,8 +59,17 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
     setRequest(null);
   };
 
+  const service = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService
+    : null;
+  const needed = (id: string, modifier: number) =>
+    d6Target(service?.getPlayerById(id)?.stats.AG ?? 3, modifier);
+
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
+      testId="interception-dialog"
       tone="blood"
       title="Interception!"
       actions={
@@ -73,7 +84,8 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
             >
               <span className="truncate">{c.playerName ?? c.playerId}</span>
               <span className="font-hud-display text-hud-lg tabular-nums text-hud-gold">
-                {c.modifier >= 0 ? `+${c.modifier}` : c.modifier}
+                {needed(c.playerId, c.modifier)}+ ·{" "}
+                {percent(d6Chance(needed(c.playerId, c.modifier)))}
               </span>
             </HudButton>
           ))}
@@ -83,7 +95,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
         </DialogActions>
       }
     >
-      <p>Choose a player to attempt the interception:</p>
+      <p>Choose a player to attempt the interception. A miss costs nothing.</p>
     </DialogShell>
   );
 };

@@ -31,6 +31,7 @@ export interface BlockRollData {
   isAttackerChoice: boolean;
   results: BlockResult[];
   selectedResult?: BlockResult;
+  choiceStage?: "attacker-reroll" | "pick";
   /** A Team Re-roll may re-roll ALL the block dice (attacker's own turn). */
   teamRerollAvailable?: boolean;
   /** Pro may re-roll ONE block die (attacker has Pro, unused, activating). */

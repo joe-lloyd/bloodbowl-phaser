@@ -463,8 +463,32 @@ export class GameScene extends Phaser.Scene {
       this.setRemoteSelection(playerId);
     });
 
+    let choosingInterceptor = false;
+    this.subscribe(GameEventNames.DecisionRequested, (request) => {
+      if (request.type !== "interception") return;
+      choosingInterceptor = true;
+      const squares = request.candidates.flatMap(({ playerId }) => {
+        const square = this.gameService.getPlayerById(playerId)?.gridPosition;
+        return square ? [square] : [];
+      });
+      this.cameraController.release();
+      this.cameraController.focusSquares(squares);
+    });
+    this.subscribe(GameEventNames.DecisionResolved, ({ type }) => {
+      if (type === "interception") choosingInterceptor = false;
+    });
+    this.subscribe(
+      GameEventNames.InterceptionAttempted,
+      ({ interceptorId }) => {
+        const square =
+          this.gameService.getPlayerById(interceptorId)?.gridPosition;
+        if (square) this.cameraController.focusSquare(square.x, square.y);
+      }
+    );
+
     // The match camera follows the game: see CameraController.
     this.subscribe(GameEventNames.Camera_TrackBall, ({ playerId }) => {
+      if (choosingInterceptor) return;
       const target = playerId
         ? this.playerSprites.get(playerId)
         : this.ballSprite;
@@ -474,7 +498,8 @@ export class GameScene extends Phaser.Scene {
       this.cameraController.reset(data.duration || 800);
     });
     this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
-      if (!player?.gridPosition || this.isSetupActive) return;
+      if (!player?.gridPosition || this.isSetupActive || choosingInterceptor)
+        return;
       this.cameraController.release();
       // The kicker aims anywhere in the other half: keep it all in view
       if (this.gameService.getPhase() === GamePhase.KICKOFF) {
@@ -484,7 +509,7 @@ export class GameScene extends Phaser.Scene {
       this.frameReach(player.id, player.gridPosition);
     });
     this.subscribe(GameEventNames.PlayerMoved, ({ playerId, to }) => {
-      if (this.isSetupActive) return;
+      if (this.isSetupActive || choosingInterceptor) return;
       this.frameReach(playerId, to, 900);
     });
     this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
@@ -501,6 +526,7 @@ export class GameScene extends Phaser.Scene {
     // coach may move is in view (the ball alone left the team off screen
     // when it lay in the other half)
     this.subscribe(GameEventNames.TurnStarted, ({ teamId }) => {
+      choosingInterceptor = false;
       this.cameraController.release();
       if (restored) {
         restored = false;
@@ -511,6 +537,7 @@ export class GameScene extends Phaser.Scene {
     });
     // Once a player is done, show the team-mates still to go
     this.subscribe(GameEventNames.PlayerActivated, () => {
+      if (choosingInterceptor) return;
       const teamId = this.gameService.getState().activeTeamId;
       if (teamId) this.frameActingTeam(teamId, 900);
     });

@@ -1,5 +1,9 @@
+import { d6Chance, percent } from "../../../game/rules/rollOdds";
+import { DecisionTeam } from "./DecisionTeam";
+import type { TeamRerollKind } from "../../../game/skills/RerollArbiter";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
+import { DecisionRequest } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
 import { RerollDecisionRequest, RerollSource } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -23,9 +27,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
   const [request, setRequest] = useState<RerollDecisionRequest | null>(null);
 
   useEffect(() => {
-    const onRequested = (data: RerollDecisionRequest | { type: string }) => {
+    const onRequested = (data: DecisionRequest) => {
       if (data.type === "reroll") {
-        setRequest(data as RerollDecisionRequest);
+        setRequest(data);
       }
     };
     // The other coach may be the one who answers
@@ -59,49 +63,77 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
   // button when there is none to spend
   const arbiter = container?.gameService.getRerollArbiter();
   const teamReroll = arbiter?.nextTeamReroll(request.chooserTeamId) ?? null;
-  const teamLabel =
-    teamReroll === "free"
-      ? "USE BRILLIANT COACHING RE-ROLL"
-      : teamReroll === "leader"
-        ? "USE LEADER RE-ROLL"
-        : `USE TEAM RE-ROLL (${arbiter?.teamRerollsLeftFor(request.chooserTeamId) ?? 0} left)`;
+  const teamLabel = (kind: TeamRerollKind): string => {
+    switch (kind) {
+      case "free":
+        return "USE BRILLIANT COACHING RE-ROLL";
+      case "leader":
+        return "USE LEADER RE-ROLL";
+      case "team":
+        return `USE TEAM RE-ROLL (${arbiter?.teamRerollsLeftFor(request.chooserTeamId) ?? 0} left)`;
+      default: {
+        const exhaustive: never = kind;
+        return exhaustive;
+      }
+    }
+  };
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
       testId="reroll-dialog"
       title="Re-roll?"
       actions={
         <DialogActions stack>
-          {request.sources.includes("skill") && (
-            <HudButton
-              data-testid="reroll-use-skill"
-              variant="gold"
-              block
-              onClick={() => answer(true, "skill")}
-            >
-              USE {request.skill?.toUpperCase() ?? "SKILL"} RE-ROLL
-            </HudButton>
-          )}
-          {request.sources.includes("team") && teamReroll && (
-            <HudButton
-              data-testid="reroll-use-team"
-              variant="gold"
-              block
-              onClick={() => answer(true, "team")}
-            >
-              {teamLabel}
-            </HudButton>
-          )}
-          {request.sources.includes("veteran") && (
-            <HudButton
-              data-testid="reroll-use-veteran"
-              variant="secondary"
-              block
-              onClick={() => answer(true, "veteran")}
-            >
-              USE VETERAN RE-ROLL (once per game)
-            </HudButton>
-          )}
+          {request.sources.map((source) => {
+            let label: string;
+            switch (source) {
+              case "skill":
+                label = `USE ${request.skill?.toUpperCase() ?? "SKILL"} RE-ROLL`;
+                break;
+              case "pro":
+                label = "USE PRO RE-ROLL";
+                break;
+              case "team":
+                if (!teamReroll) return null;
+                label = teamLabel(teamReroll);
+                break;
+              case "veteran":
+                label = "USE VETERAN RE-ROLL (once per game)";
+                break;
+              default: {
+                const exhaustive: never = source;
+                return exhaustive;
+              }
+            }
+            return (
+              <div key={source}>
+                <HudButton
+                  data-testid={`reroll-use-${source}`}
+                  variant={source === "veteran" ? "secondary" : "gold"}
+                  block
+                  onClick={() => answer(true, source)}
+                >
+                  {label}
+                </HudButton>
+                {source === "pro" && (
+                  <p className="mt-1 text-hud-sm">
+                    Pro needs 3+.{" "}
+                    {request.needed !== undefined &&
+                      `${percent((d6Chance(request.needed) * 2) / 3)} chance to recover.`}{" "}
+                    A failed Pro check ends the re-roll.
+                  </p>
+                )}
+                {source !== "pro" && request.needed !== undefined && (
+                  <p className="mt-1 text-hud-sm">
+                    {request.needed}+ to succeed,{" "}
+                    {percent(d6Chance(request.needed))}.
+                  </p>
+                )}
+              </div>
+            );
+          })}
           <HudButton
             data-testid="reroll-decline"
             variant="ghost"
@@ -114,8 +146,12 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       }
     >
       <p>
-        {player?.playerName ?? "Player"} failed the {request.rollKind} roll
-        (rolled a {request.roll}).
+        {player?.playerName ?? "Player"} failed the {request.rollKind} roll.
+      </p>
+      <p data-testid="reroll-odds">
+        {request.needed !== undefined
+          ? `Needed ${request.needed}+, rolled ${request.roll}. Re-roll: ${percent(d6Chance(request.needed))}`
+          : `Rolled ${request.roll}.`}
       </p>
     </DialogShell>
   );

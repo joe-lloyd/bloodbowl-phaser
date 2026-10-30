@@ -90,7 +90,7 @@ export class ActivationGateOperation extends GameOperation {
           player.playerName,
           player.teamId
         );
-        return { success: r.success, roll: r.roll };
+        return r;
       };
       const result = await withRerollOffer(
         { gameService, eventBus },

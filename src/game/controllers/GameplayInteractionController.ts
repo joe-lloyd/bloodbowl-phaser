@@ -37,7 +37,8 @@ import { legalBlockReplacementTargets } from "../rules/blockReplacements";
 import { planMoveLegs, StepRisk } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
-import { teamRerollsLeft } from "../teamRerolls";
+import { availableRerolls } from "../skills/rerolls";
+import { d6Chance, percent } from "../rules/rollOdds";
 
 /**
  * Special activation actions that target a single adjacent Standing
@@ -2084,25 +2085,64 @@ export class GameplayInteractionController {
   /** Ask before a Dodge or Rush: what it needs and what can re-roll it. */
   private confirmStep(player: Player, risk: StepRisk): Promise<boolean> {
     const actionId = `risky-step-${++this.riskPrompts}`;
-    const rolls =
-      risk.kind === "dodge"
-        ? [`Dodge: ${risk.dodgeNeed}+`]
-        : risk.kind === "rush"
-          ? [`Rush: ${risk.rushNeed}+`]
-          : [`Rush: ${risk.rushNeed}+, then Dodge: ${risk.dodgeNeed}+`];
-    const skill =
-      risk.kind === "rush" ? SkillType.SURE_FEET : SkillType.DODGE;
+    const checks: { kind: "rush" | "dodge"; needed: number }[] =
+      risk.kind === "rush-dodge"
+        ? [
+            { kind: "rush", needed: risk.rushNeed },
+            { kind: "dodge", needed: risk.dodgeNeed },
+          ]
+        : risk.kind === "dodge"
+          ? [{ kind: "dodge", needed: risk.dodgeNeed }]
+          : [{ kind: "rush", needed: risk.rushNeed }];
+    const rollText = checks
+      .map(
+        ({ kind, needed }) =>
+          `${kind === "rush" ? "Rush" : "Dodge"}: ${needed}+`
+      )
+      .join(", then ");
     const arbiter = this.gameService.getRerollArbiter();
-    const team = this.gameService.getTeam(player.teamId);
-    const rerolls = [
-      hasSkill(player.skills, skill) &&
-      arbiter.skillRerollAvailable(player, skill)
-        ? `${skill} re-roll`
-        : null,
-      arbiter.teamRerollAvailable(player.teamId) && team
-        ? `team re-roll (${teamRerollsLeft(this.gameService.getState(), team)} left)`
-        : null,
-    ].filter(Boolean);
+    const rerolls = checks.flatMap(({ kind, needed }) => {
+      const offer = availableRerolls(
+        { gameService: this.gameService, eventBus: this.eventBus },
+        player,
+        kind
+      );
+      return offer.sources.map((source) => {
+        switch (source) {
+          case "skill":
+            return `${offer.skillSource} re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+          case "pro":
+            return `Pro needs 3+, then ${needed}+: ${percent((d6Chance(needed) * 2) / 3)}`;
+          case "team": {
+            const next = arbiter.nextTeamReroll(player.teamId);
+            switch (next) {
+              case "free":
+                return `Brilliant Coaching free re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+              case "leader":
+                return `Leader re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+              case "team":
+                return `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${needed}+, ${percent(d6Chance(needed))}`;
+              case null:
+                return "No team re-roll available";
+              default: {
+                const exhaustive: never = next;
+                return exhaustive;
+              }
+            }
+          }
+          case "veteran":
+            return `Veteran re-roll: ${needed}+, ${percent(d6Chance(needed))}`;
+          default: {
+            const exhaustive: never = source;
+            return exhaustive;
+          }
+        }
+      });
+    });
+    const chance = checks.reduce(
+      (chance, check) => chance * d6Chance(check.needed),
+      1
+    );
     const title =
       risk.kind === "dodge"
         ? "Dodge"
@@ -2119,8 +2159,9 @@ export class GameplayInteractionController {
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
         actionId,
         title: `${player.playerName}: ${title}`,
+        chooserTeamId: player.teamId,
         message:
-          `${rolls[0]}. A fall is a turnover.\n` +
+          `${rollText}. A fall is a turnover.\nChance: ${percent(chance)}.\n` +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),

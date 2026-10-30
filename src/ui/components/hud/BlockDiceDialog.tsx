@@ -1,3 +1,4 @@
+import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { BlockAnalysis } from "../../../types/Actions";
@@ -112,8 +113,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       setHeldDice(null);
     };
 
+    eventBus.on(GameEventNames.TurnEnded, onRollCancelled);
     eventBus.on(GameEventNames.UI_BlockDialog, onOpen);
     eventBus.on(GameEventNames.BlockDiceRolled, onDiceRolled);
+    eventBus.on(GameEventNames.BlockDiceKept, onDiceRolled);
     eventBus.on(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
     // Online: this engine refused the block (the board had moved on)
     const onRejected = ({ commandType }: { commandType: string }) => {
@@ -145,8 +148,10 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
 
     return () => {
+      eventBus.off(GameEventNames.TurnEnded, onRollCancelled);
       eventBus.off(GameEventNames.UI_BlockDialog, onOpen);
       eventBus.off(GameEventNames.BlockDiceRolled, onDiceRolled);
+      eventBus.off(GameEventNames.BlockDiceKept, onDiceRolled);
       eventBus.off(GameEventNames.UI_BlockRollCancelled, onRollCancelled);
       eventBus.off(GameEventNames.NetworkCommandRejected, onRejected);
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
@@ -159,7 +164,19 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   }
 
   const { analysis } = data;
-  const { diceCount, isUphill, attackerST, defenderST } = analysis;
+  const { attackerST, defenderST } = analysis;
+  const diceCount = rollData?.numDice ?? analysis.diceCount;
+  const isUphill = rollData ? !rollData.isAttackerChoice : analysis.isUphill;
+
+  const canAct = !chosen && getActiveOnlineMatch()?.mayAct() !== false;
+  const rerollFirst = rollData?.choiceStage === "attacker-reroll";
+  const service = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService
+    : null;
+  const attackingTeamId = service?.getPlayerById(data.attackerId)?.teamId;
+  const attackingTeam = attackingTeamId
+    ? service?.getTeam(attackingTeamId)
+    : null;
 
   const handleRoll = () => {
     // Online: only the coach who owns the action/decision may interact
@@ -219,7 +236,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     const result = rollData?.results[index];
     if (!result) return;
     if (proMode) handleProReroll(index);
-    else handleSelectResult(result);
+    else if (!rerollFirst) handleSelectResult(result);
   };
 
   const handleBrawlerReroll = () => {
@@ -244,6 +261,17 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
 
   return (
     <DialogShell
+      placement="dock"
+      eyebrow={
+        <DecisionTeam
+          playerId={
+            isUphill && rollData && !rerollFirst
+              ? data.defenderId
+              : data.attackerId
+          }
+          pick={isUphill && !!rollData && !rerollFirst}
+        />
+      }
       testId="block-dice-dialog"
       tone="blood"
       title="BLOCK!"
@@ -251,7 +279,8 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       actions={
         // Once the dice are rolled the block CANNOT be cancelled: a result
         // must be picked
-        !rollData && (
+        !rollData &&
+        canAct && (
           <div className="flex items-center justify-between gap-3">
             {!rollData && !isRolling && !heldDice ? (
               <HudButton variant="ghost" onClick={handleCancel}>
@@ -308,19 +337,34 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           keyboard or a screen reader. */}
       {rollData ? (
         <div className="mt-3">
+          {canAct && rerollFirst && (
+            <HudButton
+              data-testid="block-keep-dice"
+              block
+              onClick={() =>
+                eventBus.emit(GameEventNames.UI_KeepBlockDice, {
+                  attackerId: data.attackerId,
+                })
+              }
+            >
+              Keep dice
+            </HudButton>
+          )}
           <div className="flex justify-center gap-2">
-            {rollData.results.map((result, idx) => (
-              <button
-                key={idx}
-                data-testid={`block-die-${idx}`}
-                data-block-result={result.type}
-                onClick={() => pickRef.current?.(idx)}
-                // Hidden until a keyboard focuses it, then a plain button
-                className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
-              >
-                {proMode ? `Re-roll ${result.label}` : result.label}
-              </button>
-            ))}
+            {canAct &&
+              (!rerollFirst || proMode) &&
+              rollData.results.map((result, idx) => (
+                <button
+                  key={idx}
+                  data-testid={`block-die-${idx}`}
+                  data-block-result={result.type}
+                  onClick={() => pickRef.current?.(idx)}
+                  // Hidden until a keyboard focuses it, then a plain button
+                  className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
+                >
+                  {proMode ? `Re-roll ${result.label}` : result.label}
+                </button>
+              ))}
           </div>
           <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
             {chosen
@@ -329,51 +373,54 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                 ? "Pro: click a die in the tray to re-roll it (3+)"
                 : getActiveOnlineMatch()?.mayAct() === false
                   ? "The other coach is choosing…"
-                  : "Click a die in the tray to choose the result"}
+                  : rerollFirst
+                    ? `${attackingTeam?.name ?? "Attacking team"}: re-roll first?`
+                    : "Click a die in the tray to choose the result"}
           </div>
-          {(rollData.teamRerollAvailable ||
-            rollData.proAvailable ||
-            rollData.brawlerAvailable ||
-            rollData.veteranRerollAvailable) && (
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-              {rollData.teamRerollAvailable && (
-                <HudButton
-                  data-testid="block-team-reroll"
-                  size="sm"
-                  onClick={handleTeamReroll}
-                >
-                  TEAM RE-ROLL (all dice)
-                </HudButton>
-              )}
-              {rollData.proAvailable && (
-                <HudButton
-                  size="sm"
-                  variant={proMode ? "gold" : "secondary"}
-                  onClick={() => setProMode((m) => !m)}
-                >
-                  {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
-                </HudButton>
-              )}
-              {rollData.brawlerAvailable && (
-                <HudButton
-                  data-testid="block-brawler-reroll"
-                  size="sm"
-                  onClick={handleBrawlerReroll}
-                >
-                  BRAWLER: RE-ROLL 1 BOTH DOWN
-                </HudButton>
-              )}
-              {rollData.veteranRerollAvailable && (
-                <HudButton
-                  data-testid="block-veteran-reroll"
-                  size="sm"
-                  onClick={handleVeteranReroll}
-                >
-                  VETERAN RE-ROLL (all dice, once per game)
-                </HudButton>
-              )}
-            </div>
-          )}
+          {canAct &&
+            (rollData.teamRerollAvailable ||
+              rollData.proAvailable ||
+              rollData.brawlerAvailable ||
+              rollData.veteranRerollAvailable) && (
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                {rollData.teamRerollAvailable && (
+                  <HudButton
+                    data-testid="block-team-reroll"
+                    size="sm"
+                    onClick={handleTeamReroll}
+                  >
+                    TEAM RE-ROLL (all dice)
+                  </HudButton>
+                )}
+                {rollData.proAvailable && (
+                  <HudButton
+                    size="sm"
+                    variant={proMode ? "gold" : "secondary"}
+                    onClick={() => setProMode((m) => !m)}
+                  >
+                    {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
+                  </HudButton>
+                )}
+                {rollData.brawlerAvailable && (
+                  <HudButton
+                    data-testid="block-brawler-reroll"
+                    size="sm"
+                    onClick={handleBrawlerReroll}
+                  >
+                    BRAWLER: RE-ROLL 1 BOTH DOWN
+                  </HudButton>
+                )}
+                {rollData.veteranRerollAvailable && (
+                  <HudButton
+                    data-testid="block-veteran-reroll"
+                    size="sm"
+                    onClick={handleVeteranReroll}
+                  >
+                    VETERAN RE-ROLL (all dice, once per game)
+                  </HudButton>
+                )}
+              </div>
+            )}
         </div>
       ) : isRolling ? (
         <div className="mt-4 text-center font-hud-label text-hud-base uppercase tracking-[0.1em] text-hud-dim">
