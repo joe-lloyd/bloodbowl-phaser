@@ -1273,6 +1273,25 @@ export const VARIANTS: Variant[] = [
       ),
   },
   {
+    id: "announce-time-up",
+    section: "Announcements",
+    title: "Time up, then the next turn (replays every 6s)",
+    view: (fx) => <Announcer eventBus={fx.bus} />,
+    drive: (fx) =>
+      every(6000, () => {
+        fx.bus.emit(GameEventNames.UI_Announce, {
+          kind: "time-up",
+          headline: "Time up",
+          subtitle: "Turn ended",
+        });
+        fx.bus.emit(GameEventNames.UI_Announce, {
+          kind: "turn-started",
+          headline: "Gouged Eye's Turn",
+          subtitle: "Turn 3",
+        });
+      }),
+  },
+  {
     id: "waiting-touchdown",
     section: "Announcements",
     title: "Touchdown on the waiting coach's screen (replays every 4s)",
