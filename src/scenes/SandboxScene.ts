@@ -206,6 +206,9 @@ export class SandboxScene extends GameScene {
         )?.name;
       }
     }
+    // The seed a scenario's expected outcome was written for. A rule
+    // config has none: its outcome comes with the seed the search found.
+    const promisedSeed = scenario?.seed;
     if (scenario && seedOverride !== undefined) {
       scenario = { ...scenario, seed: seedOverride };
     }
@@ -277,7 +280,11 @@ export class SandboxScene extends GameScene {
       this.eventBus.emit(GameEventNames.ScenarioLoaded, {
         name: scenario.name,
         seed: effectiveSeed,
-        expectedOutcome: expectedOutcome ?? scenario.expectedOutcome,
+        // An expected outcome holds only for the seed it was written for
+        expectedOutcome:
+          promisedSeed === undefined || effectiveSeed === promisedSeed
+            ? (expectedOutcome ?? scenario.expectedOutcome)
+            : undefined,
       });
 
       // Mirror the load into the URL so a refresh reproduces it exactly.
