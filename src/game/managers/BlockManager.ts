@@ -539,6 +539,14 @@ export class BlockManager {
         gameService: gs,
         eventBus: this.eventBus,
       });
+    // A Dump-off offers no interception, so an inaccurate one scatters at once.
+    const scatterPath =
+      result.fumbled || result.accurate
+        ? undefined
+        : gs.getPassController().scatterPass(targetSquare);
+    const finalPosition = result.fumbled
+      ? { ...from }
+      : (scatterPath?.[scatterPath.length - 1] ?? { ...targetSquare });
 
     this.eventBus.emit(GameEventNames.PassAttempted, {
       playerId: passer.id,
@@ -546,19 +554,16 @@ export class BlockManager {
       to: { ...targetSquare },
       passType: result.passType,
       accurate: result.accurate,
-      finalPosition: result.finalPosition,
-      scatterPath: result.scatterPath,
+      finalPosition,
+      scatterPath,
     });
 
-    gs.setBallPosition(result.finalPosition.x, result.finalPosition.y);
+    gs.setBallPosition(finalPosition.x, finalPosition.y);
     if (result.fumbled) {
       flow.add(new BounceOperation(from), true);
       return;
     }
-    const landingPlayer = gs.getPlayerAt(
-      result.finalPosition.x,
-      result.finalPosition.y
-    );
+    const landingPlayer = gs.getPlayerAt(finalPosition.x, finalPosition.y);
     if (landingPlayer) {
       await new CatchOperation(landingPlayer.id, {
         origin: "pass",
@@ -566,7 +571,7 @@ export class BlockManager {
           !!receiver && landingPlayer.id === receiver.id && result.accurate,
       }).execute(flow.context);
     } else {
-      flow.add(new BounceOperation(result.finalPosition), true);
+      flow.add(new BounceOperation(finalPosition), true);
     }
   }
 

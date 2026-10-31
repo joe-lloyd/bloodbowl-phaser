@@ -141,10 +141,12 @@ describe("weather modifiers", () => {
   });
 
   it("Pouring Rain puts -1 on the interception", async () => {
+    // The inaccurate pass is offered for interception before it scatters.
     expect(await pass("Pouring Rain", true, 1)).toEqual([
       "Pass (Human Lineman #1): 4, needs 5+",
-      "Scatter: 1, 5, 8",
-      "Interception (Human Lineman #1): 6, needs 6+",
+      "Interception (Human Lineman #1): 1, needs 6+",
+      "Scatter: 5, 8, 8",
+      "Bounce Direction: 3",
     ]);
   });
 
@@ -167,8 +169,9 @@ describe("weather modifiers", () => {
     ]);
     expect(await pass("Nice", true, 1)).toEqual([
       "Pass (Human Lineman #1): 4, needs 5+",
-      "Scatter: 1, 5, 8",
-      "Interception (Human Lineman #1): 6, needs 5+",
+      "Interception (Human Lineman #1): 1, needs 5+",
+      "Scatter: 5, 8, 8",
+      "Bounce Direction: 3",
     ]);
     expect(await walkOntoBall("Nice", 1)).toEqual([
       "Pickup (Human Lineman #1): 4, needs 3+",

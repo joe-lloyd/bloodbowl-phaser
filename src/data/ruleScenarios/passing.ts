@@ -23,6 +23,7 @@ import {
   rerollUsed,
   sawEvent,
 } from "../../game/rules-lab";
+import { appendBallRoll } from "../../ui/components/hud/ballMovementLog";
 
 /** Passer at (4,5) holding the ball throws to (targetX, 5). */
 function passModifierConfig(opts: {
@@ -353,6 +354,108 @@ export const INTERCEPTION_NONE_SCENARIO: RuleConfig = {
   ],
 };
 
+/**
+ * Rolls of one kind, as indexes into the run's event stream. A skill check
+ * names its roller, as in "Interception (Name)", so match the leading word.
+ */
+function rollIndexes(
+  r: import("../../game/rules-lab").ScriptResult,
+  rollKind: "Interception" | "Scatter"
+): number[] {
+  return r.events.flatMap((e, i) =>
+    e.name === GameEventNames.DiceRoll &&
+    new RegExp(`^${rollKind}( \\(|$)`).test(
+      (e.data as { rollType?: string }).rollType ?? ""
+    )
+      ? [i]
+      : []
+  );
+}
+
+/** The run raised an interception at the inaccurate-pass penalty (-2). */
+function inaccurateInterceptionOffered(
+  r: import("../../game/rules-lab").ScriptResult
+): boolean {
+  return r.decisions.some(
+    (d) =>
+      d.type === "interception" && d.candidates.some((c) => c.modifier === -2)
+  );
+}
+
+/**
+ * Interference comes after the Passing Ability Test and BEFORE an inaccurate
+ * pass scatters. The scatter is never rolled for an intercepted pass, and the
+ * Range Ruler runs to the declared target, not to a scattered landing.
+ */
+export const INTERCEPTION_BEFORE_SCATTER_SCENARIO: RuleConfig = {
+  id: "interception-before-scatter",
+  name: "Interception resolves before an inaccurate pass scatters",
+  description:
+    "An inaccurate pass is offered for interception first; the scatter is rolled only if the ball gets through",
+  setup: playSetup({
+    team1Placements: [
+      { playerIndex: 0, x: 4, y: 5 }, // passer (holds the ball)
+      { playerIndex: 1, x: 10, y: 5 }, // catcher
+    ],
+    team2Placements: [{ playerIndex: 0, x: 7, y: 5 }], // interceptor
+    ballPosition: { x: 4, y: 5 },
+  }),
+  script: [
+    { type: "declare-action", playerId: "team1:0", action: "pass" },
+    { type: "pass", playerId: "team1:0", x: 10, y: 5 },
+  ],
+  seedSearch: { from: 1, limit: 500 },
+  outcomes: [
+    {
+      id: "intercepted-without-scatter",
+      name: "An intercepted inaccurate pass never scatters",
+      matches: (r) =>
+        inaccurateInterceptionOffered(r) &&
+        sawEvent(r, GameEventNames.PassIntercepted),
+      verify: (r) => {
+        assert(
+          rollIndexes(r, "Scatter").length === 0,
+          "no scatter is rolled for an intercepted pass"
+        );
+        assert(
+          !r.events.some(
+            (e) =>
+              e.name === GameEventNames.DiceRoll &&
+              appendBallRoll(
+                null,
+                e.data as Parameters<typeof appendBallRoll>[1]
+              )?.movement === "scattered"
+          ),
+          "the log never reports the ball as scattered"
+        );
+        const ball = r.snapshot.ballPosition;
+        assert(
+          ball?.x === 7 && ball?.y === 5,
+          "the interceptor holds the ball in their own square"
+        );
+        assert(turnoverHappened(r), "an interception causes a turnover");
+      },
+    },
+    {
+      id: "scatter-after-failed-interception",
+      name: "An inaccurate pass scatters only after the interception fails",
+      matches: (r) =>
+        inaccurateInterceptionOffered(r) &&
+        sawEvent(r, GameEventNames.InterceptionFailed),
+      verify: (r) => {
+        const interception = rollIndexes(r, "Interception");
+        const scatter = rollIndexes(r, "Scatter");
+        assert(interception.length === 1, "one interception roll");
+        assert(scatter.length === 1, "one scatter roll");
+        assert(
+          interception[0] < scatter[0],
+          "the interception is rolled before the scatter"
+        );
+      },
+    },
+  ],
+};
+
 /** All seeded interception scenarios, for the headless interception suite. */
 export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
   INTERCEPTION_SCENARIO,
@@ -360,6 +463,7 @@ export const INTERCEPTION_SCENARIOS: RuleConfig[] = [
   INTERCEPTION_MULTI_SCENARIO,
   INTERCEPTION_DECLINE_SCENARIO,
   INTERCEPTION_NONE_SCENARIO,
+  INTERCEPTION_BEFORE_SCATTER_SCENARIO,
 ];
 
 /**

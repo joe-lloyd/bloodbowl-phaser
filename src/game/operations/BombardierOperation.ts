@@ -31,8 +31,8 @@ class FinishBombOperation extends GameOperation {
  * the ball — it is a separate projectile that never Bounces:
  *   1. A Passing Ability Test is made from the thrower's square to the target.
  *   2. On a Fumble the bomb explodes in the thrower's own square (a Turnover).
- *   3. Otherwise it flies to the target (Accurate) or scatters (Inaccurate).
- *      A player under the Range Ruler may Intercept it — a caught/intercepted
+ *   3. Otherwise a player under the Range Ruler to the target may Intercept
+ *      it before an Inaccurate bomb scatters. A caught or intercepted
  *      bomb must be thrown again immediately, following all the same rules.
  *   4. When the bomb comes to rest it explodes: the player in that square is
  *      hit, and each adjacent player is hit on a 4+. Standing players hit are
@@ -137,7 +137,30 @@ export class BombardierOperation extends GameOperation {
       return;
     }
 
-    // 3. Determine where the bomb comes down.
+    // 3. Interception comes before an inaccurate bomb scatters: a player
+    //    under the Range Ruler to the target may catch the bomb in flight,
+    //    and must then immediately throw it again.
+    const interceptorId = await this.resolveInterception(
+      context,
+      thrower,
+      target,
+      test.accurate
+    );
+    if (interceptorId) {
+      const caughtAt = gameService.getPlayerById(interceptorId)?.gridPosition;
+      if (caughtAt) {
+        eventBus.emit(GameEventNames.BombThrown, {
+          playerId: thrower.id,
+          from: { ...thrower.gridPosition },
+          to: { ...caughtAt },
+        });
+        await context.delay(600);
+      }
+      await this.rethrow(context, interceptorId, depth);
+      return;
+    }
+
+    // 4. The bomb got through: only now does an inaccurate one scatter.
     let landing = test.accurate
       ? { ...target }
       : this.scatterFrom(gameService, target);
@@ -155,19 +178,6 @@ export class BombardierOperation extends GameOperation {
     });
 
     await context.delay(600);
-
-    // 4. Interception: a player under the Range Ruler may catch the bomb in
-    //    flight — and must then immediately throw it again.
-    const interceptorId = await this.resolveInterception(
-      context,
-      thrower,
-      landing,
-      test.accurate
-    );
-    if (interceptorId) {
-      await this.rethrow(context, interceptorId, depth);
-      return;
-    }
 
     // 5. Landing square.
     const occupant = gameService.getPlayerAt(landing.x, landing.y);
@@ -358,7 +368,7 @@ export class BombardierOperation extends GameOperation {
   private async resolveInterception(
     context: FlowContext,
     thrower: Player,
-    landing: { x: number; y: number },
+    target: { x: number; y: number },
     accurate: boolean
   ): Promise<string | undefined> {
     const gameService = context.gameService as IGameService;
@@ -371,7 +381,7 @@ export class BombardierOperation extends GameOperation {
 
     const eligible = passController.checkInterceptions(
       thrower.gridPosition,
-      landing,
+      target,
       opponents,
       accurate
     );

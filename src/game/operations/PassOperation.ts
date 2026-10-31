@@ -88,8 +88,8 @@ export class FinishPassActivationOperation extends GameOperation {
  * - Execute the "Pass" sequence:
  *   1. Calculate modifiers (using Controller)
  *   2. Roll accuracy
- *   3. Animate ball flight (via events)
- *   4. Determine landing spot (or scatter)
+ *   3. Offer an interception along the ruler to the target
+ *   4. Scatter an inaccurate pass that got through, and animate the flight
  *   5. Trigger next operation (Catch or Bounce)
  */
 export class PassOperation extends GameOperation {
@@ -237,22 +237,26 @@ export class PassOperation extends GameOperation {
       eventBus.emit(GameEventNames.SkillTriggered, t)
     );
 
-    // 2. Emit Animation Events
-    eventBus.emit(GameEventNames.PassAttempted, {
-      playerId: this.passerId,
-      from: passer.gridPosition,
-      to: { x: this.targetX, y: this.targetY },
-      passType: result.passType,
-      accurate: !result.fumbled && result.success, // Simplified
-      finalPosition: result.finalPosition,
-      scatterPath: result.scatterPath,
-    });
+    const from = { ...passer.gridPosition };
+    const target = { x: this.targetX, y: this.targetY };
+    // Animate the ball to where it ends up, then give the flight time to play.
+    const fly = async (
+      finalPosition: { x: number; y: number },
+      scatterPath?: { x: number; y: number }[]
+    ) => {
+      eventBus.emit(GameEventNames.PassAttempted, {
+        playerId: this.passerId,
+        from,
+        to: target,
+        passType: result.passType,
+        accurate: result.accurate,
+        finalPosition,
+        scatterPath,
+      });
+      await context.delay(1500);
+    };
 
-    // 3. Wait for Animation (Simulated)
-    // Ideally we listen for "BallAnimationComplete" or just wait fixed time
-    await context.delay(1500);
-
-    // 4. Handle Outcome
+    if (result.fumbled) await fly(from);
     if (result.fumbled && resultCtx.keepBall) {
       // Safe Pass: no fumble — the passer retains possession, their
       // activation ends, no turnover
@@ -279,26 +283,44 @@ export class PassOperation extends GameOperation {
       }
       gameService.triggerTurnover("Fumbled Pass");
     } else {
-      // Pass flew somewhere (Accurate OR Inaccurate)
-      // Pass logic already determined 'finalPosition' (target or scattered)
-      const landingPos = result.finalPosition;
-
-      // The defending team may Intercept the ball in flight, before it
-      // resolves at its landing square. A successful interception grants
-      // possession and a turnover — the catch/bounce below is skipped. Hail
+      // The defending team may Intercept after the Passing Ability Test and
+      // before an inaccurate pass scatters. A successful interception grants
+      // possession and a turnover, and the ball never scatters or lands. Hail
       // Mary Pass suppresses interception outright; Cloud Burster suppresses it
       // for everyone except a Very Long Legs interceptor.
-      const intercepted =
-        !passCtx.suppressInterception &&
-        (await this.resolveInterception(
-          gameService,
-          eventBus,
-          passer,
-          landingPos,
-          result.accurate,
-          passCtx.cloudBurster ?? false
-        ));
-      if (intercepted) return;
+      const interceptor = passCtx.suppressInterception
+        ? undefined
+        : await this.resolveInterception(
+            gameService,
+            eventBus,
+            passer,
+            target,
+            result.accurate,
+            passCtx.cloudBurster ?? false
+          );
+      if (interceptor?.gridPosition) {
+        const at = { ...interceptor.gridPosition };
+        await fly(at);
+        gameService.setBallPosition(at.x, at.y);
+        eventBus.emit(GameEventNames.PassIntercepted, {
+          passerId: passer.id,
+          interceptorId: interceptor.id,
+          position: at,
+        });
+        eventBus.emit(
+          GameEventNames.UI_Notification,
+          `${interceptor.playerName} intercepts the pass!`
+        );
+        gameService.triggerTurnover("Intercepted");
+        return;
+      }
+
+      // The ball got through: only now does an inaccurate pass scatter.
+      const scatterPath = result.accurate
+        ? undefined
+        : passController.scatterPass(target);
+      const landingPos = scatterPath?.[scatterPath.length - 1] ?? target;
+      await fly(landingPos, scatterPath);
 
       if (result.accurate) {
         eventBus.emit(GameEventNames.UI_Notification, "Accurate Pass!");
@@ -309,7 +331,7 @@ export class PassOperation extends GameOperation {
       if (!isOnPitch(landingPos)) {
         // The scatter path ends at the first square off the pitch; the
         // crowd throws the ball in from the square before it (p.77).
-        const path = result.scatterPath ?? [];
+        const path = scatterPath ?? [];
         eventBus.emit(GameEventNames.UI_Notification, "Ball Out of Bounds!");
         gameService.throwInBall(path[path.length - 2]);
       } else {
@@ -533,26 +555,26 @@ export class PassOperation extends GameOperation {
   }
 
   /**
-   * Offer the defending coach an interception of a pass in flight. Returns
-   * true when the ball was intercepted (possession changed, turnover caused),
-   * in which case the caller must NOT resolve the ball at its landing square.
+   * Offer the defending coach an interception of a pass in flight, along the
+   * Range Ruler from the passer to the declared target. Returns the player
+   * who intercepted, or undefined when nobody tried or the attempt failed.
    */
   private async resolveInterception(
     gameService: IGameService,
     eventBus: import("../../services/EventBus").IEventBus,
     passer: import("@/types/Player").Player,
-    landing: { x: number; y: number },
+    target: { x: number; y: number },
     accurate: boolean,
     cloudBurster: boolean
-  ): Promise<boolean> {
-    if (!passer.gridPosition) return false;
+  ): Promise<import("@/types/Player").Player | undefined> {
+    if (!passer.gridPosition) return undefined;
 
     const passController = gameService.getPassController();
     const opponents = gameService.getOpponents(passer.teamId);
 
     let eligible = passController.checkInterceptions(
       passer.gridPosition,
-      landing,
+      target,
       opponents,
       accurate
     );
@@ -563,7 +585,7 @@ export class PassOperation extends GameOperation {
         return !!p && hasSkill(p.skills, SkillType.VERY_LONG_LEGS);
       });
     }
-    if (eligible.length === 0) return false;
+    if (eligible.length === 0) return undefined;
 
     // Marking is measured at each interceptor against the passing team.
     const passingTeam = [passer, ...gameService.getTeammates(passer.id)];
@@ -607,7 +629,7 @@ export class PassOperation extends GameOperation {
     const chosen = answer.playerId
       ? candidates.find((c) => c.playerId === answer.playerId)
       : undefined;
-    if (!chosen) return false; // declined or invalid
+    if (!chosen) return undefined; // declined or invalid
 
     const interceptor = gameService.getPlayerById(chosen.playerId)!;
     eventBus.emit(GameEventNames.InterceptionAttempted, {
@@ -628,28 +650,8 @@ export class PassOperation extends GameOperation {
         interceptorId: interceptor.id,
         roll: outcome.roll,
       });
-      return false;
+      return undefined;
     }
-
-    // Interception! The interceptor gains the ball where they stand and the
-    // passing team suffers a turnover; the ball never reaches its landing.
-    if (interceptor.gridPosition) {
-      gameService.setBallPosition(
-        interceptor.gridPosition.x,
-        interceptor.gridPosition.y
-      );
-    }
-    eventBus.emit(GameEventNames.PassIntercepted, {
-      passerId: passer.id,
-      interceptorId: interceptor.id,
-      position: interceptor.gridPosition!,
-    });
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `${interceptor.playerName} intercepts the pass!`
-    );
-    gameService.getState().ballPosition = interceptor.gridPosition!;
-    gameService.triggerTurnover("Intercepted");
-    return true;
+    return interceptor;
   }
 }

@@ -32,9 +32,18 @@ async function throwPast(seed: number) {
     x: 16,
     y: 7,
   });
-  const attempted = response.events.find((e) => e.name === "passAttempted");
+  // The pass flies only once the interception is settled, so read the
+  // accuracy from the Passing Ability Test that came before the dialog.
+  const passRoll = response.events.find(
+    (e) =>
+      e.name === "diceRoll" &&
+      (e.data as { rollType: string }).rollType.startsWith("Pass ")
+  );
+  const accurate =
+    (passRoll?.data as { resultState?: string } | undefined)?.resultState ===
+    "success";
   const pending = response.pendingDecision;
-  return { interceptor, preview, attempted, pending };
+  return { interceptor, preview, accurate, pending };
 }
 
 describe("interception targets", () => {
@@ -46,14 +55,12 @@ describe("interception targets", () => {
   it("offers in the dialog the roll the preview named for that pass", async () => {
     const seen: string[] = [];
     for (let seed = 1; seed <= 12; seed++) {
-      const { interceptor, preview, attempted, pending } =
+      const { interceptor, preview, accurate, pending } =
         await throwPast(seed);
       if (pending?.type !== "interception") continue;
       const offered = pending.candidates.find(
         (c) => c.playerId === interceptor.id
       )!;
-      const accurate = (attempted?.data as { accurate: boolean } | undefined)
-        ?.accurate;
       const need = interceptNeed(interceptor, offered.modifier);
       seen.push(`${accurate ? "accurate" : "inaccurate"} ${need}+`);
     }
