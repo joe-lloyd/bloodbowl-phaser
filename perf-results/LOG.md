@@ -158,3 +158,82 @@ Decision: keep rounds 2 and 3 together.
 What remains in gpu/held: about 16% renderer and 27% GPU process. The ◄
 arrow's `animate-pulse` makes Chromium composite at 60 fps, and Phaser's
 update loop and the change check still run every tick.
+
+### Round 4: flatten the stadium's three tinted layers into one texture. Kept.
+
+Hypothesis: SwiftShader's cost is per pixel, and the stadium is three
+full-screen layers, the base and two tinted masks. One layer cuts that
+fill to a third.
+
+New reference, rounds 2 and 3 on the work branch (`09-16-15-716Z`, load 8
+to 13): swiftshader idle 462%, action 659%, held 534%; gpu idle 15%,
+action 79%, held 50%.
+
+First try: draw the tinted layers into a Phaser DynamicTexture once. It
+cut SwiftShader CPU by a third (`09-24-20-032Z`), but it was not pixel
+exact. A DynamicTexture filters linearly, and even with NEAREST set, whole
+texel columns shifted, so small sign lettering changed ("DEATH O" read
+"TEAM O" zoomed in). About 23% of pixels were also 1 to 2 levels off.
+Dropped.
+
+Second try: blend the layers on the CPU at match start with the
+renderer's maths, colour times tint, over what is below by alpha, into a
+canvas the same size. Screenshots of a static board differ from before on
+280 pixels, the same 280 that differ between two runs of main.
+`addCanvas` kept a 28 MB copy of the pixels in the JS heap, so the texture
+is made with `textures.create` instead; heap after GC is 19.6 MB, as on
+main.
+
+Result (`09-37-49-395Z`, load 5 to 10, the `addCanvas` build; the shipped
+build draws the same texture):
+
+| window             | before cpu % | after cpu % | change | cpu ms/frame |
+| ------------------ | -----------: | ----------: | -----: | -----------: |
+| swiftshader/idle   |          462 |         309 |   -33% |    765 → 513 |
+| swiftshader/action |          659 |         493 |   -25% |    645 → 421 |
+| swiftshader/held   |          534 |         378 |   -29% |    883 → 625 |
+| gpu/idle           |           15 |          17 |  noise |              |
+| gpu/action         |           79 |          58 |  noise |              |
+| gpu/held           |           50 |          47 |  noise |              |
+
+A rerun of the shipped build (`09-55-16-372Z`) hit load 50 from another
+project's upload job, so its SwiftShader numbers are not comparable. Its
+GPU numbers agree: 16%, 66%, 48%.
+
+Checks: `pnpm test` 1,966 passed. Browser-gameplay 60 passed, 3 skipped,
+and the same `turn-catch-up.e2e.ts:5` failure as main. Lint clean, `tsc`
+at main's 62.
+
+Decision: keep.
+
+### Round 5: one texture per Phaser batch. Kept.
+
+Hypothesis: Phaser's multi-texture shader picks a texture through a chain
+of `if` branches over up to 16 samplers. SwiftShader runs every branch for
+every pixel, so each pixel pays for 16 lookups. With `maxTextures: 1`
+there is one sampler, at the cost of more draw calls.
+
+An earlier probe override of this setting never reached Phaser, so it was
+tested as a config edit; `game.renderer.maxTextures` read 1.
+
+Result (`10-04-33-076Z`, load 6 to 8), against round 4:
+
+| window             | before cpu % | after cpu % | change | cpu ms/frame |
+| ------------------ | -----------: | ----------: | -----: | -----------: |
+| swiftshader/idle   |          309 |         123 |   -60% |    513 → 203 |
+| swiftshader/action |          493 |         307 |   -38% |    421 → 193 |
+| swiftshader/held   |          378 |         159 |   -58% |    625 → 262 |
+| gpu/idle           |           17 |          12 |   -27% |              |
+| gpu/action         |           58 |          54 |   noise |              |
+| gpu/held           |           47 |          36 |   -24% |              |
+
+Draw calls rose from 2 to about 58 a frame, 350 a second at idle.
+
+Checks: pixel parity against round 4 in both configs. SwiftShader: 40
+pixels differ by at most 2 levels, below the 280 that differ between two
+runs of the same build. Real GPU: 546 against a self-diff of 278, and every
+extra pixel is in the Dice Log panel, which is DOM, not the canvas. The
+freshness check passes at all 10 checkpoints. Idle animation still gives 8
+distinct reserve-area images in 3 s. `pnpm test` 1,966 passed. Lint clean.
+
+Decision: keep.
