@@ -1219,8 +1219,16 @@ export const VARIANTS: Variant[] = [
   {
     id: "interception",
     section: "Decision dialogs",
-    title: "Interception: pick a player",
-    view: (fx) => <InterceptionDialog eventBus={fx.bus} />,
+    title: "Interception: pick a player, in the dock",
+    view: (fx) => (
+      <HUDLayout
+        bottomRight={
+          <div data-testid="decision-dock" className="w-full">
+            <InterceptionDialog eventBus={fx.bus} />
+          </div>
+        }
+      />
+    ),
     drive: (fx) =>
       later(30, () =>
         fx.bus.emit(GameEventNames.DecisionRequested, {
@@ -1229,7 +1237,12 @@ export const VARIANTS: Variant[] = [
           passerId: fx.player(1, 0).id,
           candidates: [
             { playerId: "a", playerName: "Orc Blitzer #5", modifier: -2 },
-            { playerId: "b", playerName: "Orc Lineman #2", modifier: -3 },
+            // Long enough to cut: the number stays whole
+            {
+              playerId: "b",
+              playerName: "Orc Big Un Blocker Lineman #12",
+              modifier: -3,
+            },
           ],
         })
       ),
