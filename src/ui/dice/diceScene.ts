@@ -868,10 +868,32 @@ function throwDice(
   // anything waiting on them, and every throw queued behind them, carries on.
   let resolve: (values: number[]) => void = () => {};
   const landed = new Promise<number[]>((done) => (resolve = done));
+  // Whether the dice have come to rest on screen
+  let rested = false;
+  /**
+   * Show the dice at rest and lifted, result faces forward, at once. A
+   * throw stopped before it landed, because the page stopped drawing frames
+   * or a slow one ran out of time, otherwise stayed where it was: two block
+   * dice still stacked as they were thrown, one hiding the other.
+   */
+  const showResult = () => {
+    sim.frames[sim.frames.length - 1].forEach(
+      ([x, y, z, qx, qy, qz, qw], i) => {
+        meshes[i].position.set(x, y, z);
+        meshes[i].quaternion.set(qx, qy, qz, qw);
+      }
+    );
+    meshes.forEach((mesh, i) => {
+      mesh.quaternion.copy(faceForward(mesh, lifted[i].position));
+      mesh.position.copy(lifted[i].position);
+    });
+    gl.render(scene, camera);
+  };
   const stop = () => {
     if (!running) return;
     running = false;
     if (showing === control) showing = null;
+    if (!rested) showResult();
     gl.domElement.removeEventListener("pointerdown", onPointerDown);
     gl.domElement.removeEventListener("pointermove", onPointerMove);
     gl.domElement.style.cursor = "";
@@ -946,6 +968,7 @@ function throwDice(
           meshes[i].quaternion.set(qx, qy, qz, qw);
         });
         if (f === sim.frames.length - 1) {
+          rested = true;
           settled = meshes.map((m) => ({
             position: m.position.clone(),
             quaternion: m.quaternion.clone(),
