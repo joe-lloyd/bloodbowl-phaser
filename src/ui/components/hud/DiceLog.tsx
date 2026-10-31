@@ -17,6 +17,7 @@ import {
   DieFace,
   HudButton,
   HudTabs,
+  hudTabId,
   Panel,
   PanelHeader,
 } from "../componentWarehouse/HudKit";
@@ -140,10 +141,22 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const tabRef = React.useRef<Tab>("dice");
   tabRef.current = tab;
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
-  // Keep the newest message in view.
+  const tabsId = React.useId();
+  // Follow new messages only while the reader is at the bottom, so reading
+  // an older message is not interrupted. Opening the tab jumps to the end.
+  const followChat = React.useRef(true);
+  const onChatScroll = () => {
+    const list = chatScrollRef.current;
+    if (list)
+      followChat.current =
+        list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+  };
+  useEffect(() => {
+    followChat.current = true;
+  }, [tab]);
   useEffect(() => {
     const list = chatScrollRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    if (list && followChat.current) list.scrollTop = list.scrollHeight;
   }, [chat, tab]);
 
   // The dice tray throws a roll a moment after the engine makes it. Every
@@ -365,6 +378,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
           match ? (
             <HudTabs
               label="Dice log view"
+              idBase={tabsId}
               value={tab}
               onChange={openTab}
               tabs={[
@@ -380,7 +394,14 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       />
 
       {/* Panel body */}
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div
+        className="relative flex flex-1 flex-col overflow-hidden"
+        {...(match && {
+          role: "tabpanel",
+          id: `${tabsId}-panel`,
+          "aria-labelledby": hudTabId(tabsId, tab),
+        })}
+      >
         {tab === "dice" ? (
           <>
             {/* Scrollable Content - Scrollbar Hidden */}
@@ -508,6 +529,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                 the overflow above the top, where it cannot be scrolled to. */}
             <div
               ref={chatScrollRef}
+              onScroll={onChatScroll}
               className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto no-scrollbar p-2"
             >
               <div aria-hidden className="flex-1" />

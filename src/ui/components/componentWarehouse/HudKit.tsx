@@ -150,27 +150,55 @@ export function PanelHeader({
   );
 }
 
+/** The id of a HudTabs tab, for the panel's aria-labelledby. */
+export const hudTabId = (idBase: string, id: string) => `${idBase}-tab-${id}`;
+
 /**
  * A segmented switch between views of one panel, such as Dice and Chat.
  * It takes the place of a PanelHeader title. A count on a tab draws a
- * small blood badge.
+ * small blood badge. Every tab controls the one panel `${idBase}-panel`,
+ * whose content follows the selected tab. Left and Right, Home and End
+ * move between tabs.
  */
 export function HudTabs<Id extends string>({
   label,
+  idBase,
   tabs,
   value,
   onChange,
 }: {
   /** The tab list's accessible name. */
   label: string;
+  /** Unique per instance, such as from React.useId(). */
+  idBase: string;
   tabs: readonly { id: Id; label: string; count?: number }[];
   value: Id;
   onChange: (id: Id) => void;
 }) {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const index = tabs.findIndex((tab) => tab.id === value);
+    const last = tabs.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % tabs.length
+        : event.key === "ArrowLeft"
+          ? (index + last) % tabs.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    const id = tabs[next].id;
+    onChange(id);
+    document.getElementById(hudTabId(idBase, id))?.focus();
+  };
   return (
     <div
       role="tablist"
       aria-label={label}
+      onKeyDown={onKeyDown}
       className="inline-flex shrink-0 overflow-hidden rounded-hud border border-white/15 bg-black/35"
     >
       {tabs.map((tab) => {
@@ -180,7 +208,10 @@ export function HudTabs<Id extends string>({
             key={tab.id}
             type="button"
             role="tab"
+            id={hudTabId(idBase, tab.id)}
             aria-selected={selected}
+            aria-controls={`${idBase}-panel`}
+            tabIndex={selected ? 0 : -1}
             onClick={() => onChange(tab.id)}
             className={cx(
               "inline-flex min-h-[24px] items-center gap-1.5 px-2.5 font-hud-label text-hud-sm font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-150 ease-bb",
