@@ -89,6 +89,36 @@ describe("the walk before a re-roll choice", () => {
     expect(walksIn(moved.events)).toEqual([{ x: 9, y: 1 }]);
   });
 
+  it("throws a fall's armour and injury dice for the fallen player's team", async () => {
+    // Round 3, 1:21:53: armour rolls carried no team, so the tray named
+    // whichever team was active
+    const game = new HeadlessGame({ scenario, seed: 4 });
+    game.ctx.team1.rerolls = 0;
+    const runner = game.ctx.team1.players[1];
+    // The dodge fails; armour 6 + 6 breaks; injury 2 + 2
+    forceDice(game.ctx.rng, [1, 6, 6, 2, 2]);
+    const teams: Record<string, string | undefined> = {};
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) => {
+      teams[roll.rollType] = roll.teamId;
+    });
+    await game.execute({
+      type: "declare-action",
+      playerId: runner.id,
+      action: "move",
+    });
+    await game.execute({
+      type: "move",
+      playerId: runner.id,
+      path: [
+        { x: 9, y: 1 },
+        { x: 9, y: 2 },
+      ],
+    });
+
+    expect(teams[`Armour Roll (${runner.playerName})`]).toBe(runner.teamId);
+    expect(teams[`Injury Roll (${runner.playerName})`]).toBe(runner.teamId);
+  });
+
   it("logs the pickup's needed roll, modifiers counted", async () => {
     // Round 3, 1:18:50: the log said "Pickup Test: 3+ (Mod: -1)" while the
     // die and the re-roll dialog said 4+

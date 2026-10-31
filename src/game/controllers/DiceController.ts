@@ -282,21 +282,26 @@ export class DiceController {
     teamId?: string,
     /** Added to the roll, e.g. foul assists or a Chainsaw's +3. */
     modifier = 0,
-    /** The roll's name in the tray and the log. */
-    rollType = "Armor Check"
+    /**
+     * The roll's name in the tray and the log. A named roll keeps its name
+     * once landed, as "Foul Armour Roll (Ogre #1): 5 + 5 = 10 (AV 10+)".
+     */
+    rollType?: string
   ): { broken: boolean; roll: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
     const total = rolls[0] + rolls[1];
     const broken = total + modifier >= av;
 
-    const label = playerName ? `${playerName} Armour` : "Armour";
     const added = modifier ? ` ${modifier > 0 ? "+" : ""}${modifier}` : "";
+    const description = rollType
+      ? `${rollType}: ${rolls[0]} + ${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`
+      : `${playerName ? `${playerName} Armour` : "Armour"}: ${rolls[0]}+${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`;
     this.emitDiceRoll({
-      rollType,
+      rollType: rollType ?? "Armor Check",
       diceType: "2d6",
       value: rolls,
       total,
-      description: `${label}: ${rolls[0]}+${rolls[1]}${added} = ${total + modifier} (AV ${av}+)`,
+      description,
       resultState: broken ? "success" : "failure",
       teamId,
     });
@@ -309,18 +314,22 @@ export class DiceController {
    */
   public rollInjury(
     playerName?: string,
-    teamId?: string
+    teamId?: string,
+    /** The roll's name in the tray and the log, kept once landed. */
+    rollType?: string
   ): { total: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
     const total = rolls[0] + rolls[1];
 
     const label = playerName ? `${playerName} Injury` : "Injury Roll";
     this.emitDiceRoll({
-      rollType: "Injury Roll",
+      rollType: rollType ?? "Injury Roll",
       diceType: "2d6",
       value: rolls,
       total,
-      description: `${label}: ${rolls[0]}+${rolls[1]} = ${total}`,
+      description: rollType
+        ? `${rollType}: ${rolls[0]} + ${rolls[1]} = ${total}`
+        : `${label}: ${rolls[0]}+${rolls[1]} = ${total}`,
       resultState: "none",
       teamId,
     });

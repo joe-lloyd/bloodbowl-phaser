@@ -145,7 +145,7 @@ export class ArmourOperation extends GameOperation {
     // 1. Roll 2D6 via DiceController
     const roll = gameService
       .getDiceController()
-      .roll2D6(`Armour Roll (${player.playerName})`);
+      .roll2D6(`Armour Roll (${player.playerName})`, player.teamId);
 
     // 2. Trigger point: rules may modify the roll or force/cancel a break
     const opponents = gameService.getOpponents(player.teamId);

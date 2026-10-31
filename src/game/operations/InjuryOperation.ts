@@ -107,7 +107,7 @@ export class InjuryOperation extends GameOperation {
       this.opts.roll ??
       gameService
         .getDiceController()
-        .roll2D6(`Injury Roll (${player.playerName})`);
+        .roll2D6(`Injury Roll (${player.playerName})`, player.teamId);
 
     // 2. Fold the rules that act on the roll
     const ctx = await resolveInjuryRoll(

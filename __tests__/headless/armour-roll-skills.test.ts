@@ -181,7 +181,9 @@ describe("a Chainsaw owner's own armour", () => {
     await run({ type: "declare-action", playerId: attacker.id, action: "foul" });
     await run({ type: "foul", playerId: attacker.id, x: 11, y: 5 });
 
-    expect(dice()).toEqual(["Human Lineman #1 Armour: 5+2 = 7 (AV 9+)"]);
+    expect(dice()).toEqual([
+      "Foul Armour Roll (Human Lineman #1): 5 + 2 = 7 (AV 9+)",
+    ]);
     expect(skills()).toEqual([]);
     expect(target.status).toBe(PlayerStatus.PRONE);
   });
