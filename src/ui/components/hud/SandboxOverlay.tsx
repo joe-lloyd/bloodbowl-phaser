@@ -300,7 +300,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
                   e.stopPropagation();
                 }}
                 placeholder="Seed"
-                className="hud-field font-mono"
+                className="hud-field tabular-nums"
               />
               <button
                 onClick={rollRandomSeed}
@@ -349,11 +349,11 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           <div
             data-testid="sandbox-scenario-info"
             data-scenario-seed={scenarioInfo.seed ?? ""}
-            className={`${boxClass} font-mono`}
+            className={boxClass}
           >
             <div>
               <span className="hud-label inline">Seed:</span>{" "}
-              <span className="font-bold text-hud-gold">
+              <span className="font-bold tabular-nums text-hud-gold">
                 {scenarioInfo.seed ?? "—"}
               </span>
             </div>
