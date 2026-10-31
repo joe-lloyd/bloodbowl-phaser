@@ -1459,6 +1459,19 @@ export const VARIANTS: Variant[] = [
     ),
   },
   {
+    id: "connection-slow",
+    section: "Online turn clock",
+    title: "Messages are late, but still get through",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <ConnectionBanner opponentName="Grimgutz" connection="slow" />
+      </>
+    ),
+  },
+  {
     id: "refusal-notice",
     section: "Online turn clock",
     title: "A click that landed after the turn ended",

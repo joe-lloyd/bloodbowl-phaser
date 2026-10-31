@@ -387,34 +387,95 @@ export function isPlayerOnline(
   return now - last <= thresholdMs;
 }
 
-/** Grace before a stale heartbeat is surfaced as "disconnected". */
-export const OPPONENT_DISCONNECT_MS = 15000;
+/**
+ * How long the other coach's heartbeat may go quiet before the link reads
+ * as slow. Heartbeats go every 6 s; a busy link delays one by a few more.
+ */
+export const OPPONENT_SLOW_MS = 12000;
+/**
+ * Grace before a stale heartbeat is surfaced as "disconnected". Round 3
+ * saw a 16 s stall with both coaches still connected, so a silence that
+ * short only reads as slow.
+ */
+export const OPPONENT_DISCONNECT_MS = 20000;
 /** Grace before the remaining player may end the match unilaterally. */
 export const OPPONENT_ABANDON_MS = 30000;
+/** How long this coach's writes may wait on the server before the link is slow. */
+export const OWN_SLOW_MS = 6000;
 
-export type OpponentConnectionState = "online" | "reconnecting" | "abandonable";
+export type OpponentConnectionState =
+  | "online"
+  | "slow"
+  | "reconnecting"
+  | "abandonable";
+
+/**
+ * This coach's own link to the server. "slow" means writes are waiting on
+ * the server longer than they should; "offline" means they cannot leave.
+ */
+export type LinkState = "online" | "slow" | "offline";
+
+export interface OwnLink {
+  state: LinkState;
+  /**
+   * This coach's last heartbeat the server holds, which the other coach
+   * has seen too. Null until the server has confirmed one.
+   */
+  confirmedSeen: number | null;
+}
 
 /**
  * The match's connection as this coach sees it. "offline" means this
  * coach's own link is down: the other coach's heartbeat stops arriving
  * then too, so their presence says nothing until this coach is back.
+ * "slow" means messages are late, on either side, but still get through.
  */
 export type ConnectionState = OpponentConnectionState | "offline";
 
 /**
  * Single source of truth for the connection banner and the in-match options
  * menu. This coach's own connection comes first; only while it is up does a
- * stale heartbeat mean the other coach has gone.
+ * stale heartbeat mean the other coach has gone, and then only after it
+ * has read as slow for a while.
  */
 export function describeConnection(
   lobby: LobbyDoc,
   opponentUid: string,
-  selfOnline: boolean,
+  link: LinkState,
   now: number = Date.now()
 ): ConnectionState {
-  return selfOnline
-    ? describeOpponentConnection(lobby, opponentUid, now)
-    : "offline";
+  switch (link) {
+    case "offline":
+      return "offline";
+    case "slow":
+      return "slow";
+    case "online":
+      return describeOpponentConnection(lobby, opponentUid, now);
+    default: {
+      const exhaustive: never = link;
+      return exhaustive;
+    }
+  }
+}
+
+/**
+ * Whether play stops for this connection: the clock pauses and nobody acts.
+ * A slow link still carries every command, so play goes on.
+ */
+export function connectionHoldsPlay(connection: ConnectionState): boolean {
+  switch (connection) {
+    case "online":
+    case "slow":
+      return false;
+    case "reconnecting":
+    case "abandonable":
+    case "offline":
+      return true;
+    default: {
+      const exhaustive: never = connection;
+      return exhaustive;
+    }
+  }
 }
 
 /**
@@ -426,33 +487,44 @@ export function describeOpponentConnection(
   opponentUid: string,
   now: number = Date.now()
 ): OpponentConnectionState {
-  if (isPlayerOnline(lobby, opponentUid, OPPONENT_DISCONNECT_MS, now)) {
-    return "online";
-  }
-  const last = lobby.players[opponentUid]?.lastSeen ?? now;
-  return now - last > OPPONENT_ABANDON_MS ? "abandonable" : "reconnecting";
+  const last = lobby.players[opponentUid]?.lastSeen;
+  if (last == null) return "online";
+  const quiet = now - last;
+  if (quiet <= OPPONENT_SLOW_MS) return "online";
+  if (quiet <= OPPONENT_DISCONNECT_MS) return "slow";
+  return quiet > OPPONENT_ABANDON_MS ? "abandonable" : "reconnecting";
 }
 
 /**
- * Reports whether this coach is connected: the browser is online, and the
- * lobby listener still reaches the server. Firestore marks a snapshot as
- * from the cache once it loses the server, which counts as offline only
- * after the server has been reached once, so the cached first read on load
- * is not a false drop. Calls back with the first state, then on each change.
+ * The live lobby doc and this coach's own link, from one listener. The
+ * link is offline when the browser is, or when the listener has lost the
+ * server after reaching it once, so the cached first read on load is not
+ * a false drop. It is slow while this coach's writes, such as the
+ * heartbeat, wait on the server for more than OWN_SLOW_MS. Calls back with
+ * the first state, then on each change.
  */
-export function subscribeOwnConnection(
+export function subscribeMatchLobby(
   code: string,
-  onChange: (online: boolean) => void
+  uid: string,
+  onLobby: (lobby: LobbyDoc | null) => void,
+  onLink: (link: OwnLink) => void
 ): () => void {
   let browserOnline = navigator.onLine;
   let serverReached = false;
   let fromCache = false;
-  let last: boolean | null = null;
+  let pendingSince: number | null = null;
+  let confirmedSeen: number | null = null;
+  let last: OwnLink | null = null;
   const report = () => {
-    const online = browserOnline && !(serverReached && fromCache);
-    if (online === last) return;
-    last = online;
-    onChange(online);
+    const state: LinkState =
+      !browserOnline || (serverReached && fromCache)
+        ? "offline"
+        : pendingSince !== null && Date.now() - pendingSince > OWN_SLOW_MS
+          ? "slow"
+          : "online";
+    if (last?.state === state && last.confirmedSeen === confirmedSeen) return;
+    last = { state, confirmedSeen };
+    onLink(last);
   };
   const onOnline = () => {
     browserOnline = true;
@@ -464,12 +536,22 @@ export function subscribeOwnConnection(
   };
   window.addEventListener("online", onOnline);
   window.addEventListener("offline", onOffline);
+  // A write can stay unconfirmed with no new snapshot: look again each second
+  const tick = setInterval(report, 1000);
   const stopListening = onSnapshot(
     lobbyRef(code),
     { includeMetadataChanges: true },
     (snapshot) => {
       fromCache = snapshot.metadata.fromCache;
       if (!fromCache) serverReached = true;
+      const lobby = snapshot.exists() ? (snapshot.data() as LobbyDoc) : null;
+      if (snapshot.metadata.hasPendingWrites) {
+        pendingSince ??= Date.now();
+      } else {
+        pendingSince = null;
+        if (!fromCache) confirmedSeen = lobby?.players[uid]?.lastSeen ?? null;
+      }
+      onLobby(lobby);
       report();
     }
   );
@@ -477,6 +559,7 @@ export function subscribeOwnConnection(
   return () => {
     window.removeEventListener("online", onOnline);
     window.removeEventListener("offline", onOffline);
+    clearInterval(tick);
     stopListening();
   };
 }
