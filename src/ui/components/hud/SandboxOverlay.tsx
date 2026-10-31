@@ -22,7 +22,11 @@ import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
-import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
+import {
+  hudButtonClass,
+  Panel,
+  PanelHeader,
+} from "../componentWarehouse/HudKit";
 
 interface SandboxOverlayProps {
   eventBus: EventBus;
@@ -186,9 +190,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
 
   return (
     <Panel accent="blood" className="w-full pointer-events-auto animate-hud-in">
-      <h3 className="flex min-h-[40px] items-center border-b border-hud-gold/20 px-3 font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
-        SANDBOX
-      </h3>
+      <PanelHeader as="h3" title="Sandbox" />
       <div className="flex flex-col gap-2 p-2.5">
         {/* Level 1: Topic */}
         <select
@@ -298,7 +300,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
                   e.stopPropagation();
                 }}
                 placeholder="Seed"
-                className="hud-field font-mono"
+                className="hud-field tabular-nums"
               />
               <button
                 onClick={rollRandomSeed}
@@ -336,7 +338,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               <div className={boxClass}>{selectedOutcome.description}</div>
             )}
             {searchError && (
-              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-[#ff9a8f]">
+              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-hud-bad-soft">
                 {searchError}
               </div>
             )}
@@ -347,11 +349,11 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
           <div
             data-testid="sandbox-scenario-info"
             data-scenario-seed={scenarioInfo.seed ?? ""}
-            className={`${boxClass} font-mono`}
+            className={boxClass}
           >
             <div>
               <span className="hud-label inline">Seed:</span>{" "}
-              <span className="font-bold text-hud-gold">
+              <span className="font-bold tabular-nums text-hud-gold">
                 {scenarioInfo.seed ?? "—"}
               </span>
             </div>

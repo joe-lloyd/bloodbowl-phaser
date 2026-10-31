@@ -47,7 +47,7 @@ const TONE_BAR: Record<HudTone, string> = {
 
 const TONE_CHIP: Record<HudTone, string> = {
   gold: "border-hud-gold/60 text-hud-gold",
-  blood: "border-hud-blood-hot/70 text-[#ff8a8a]",
+  blood: "border-hud-blood-hot/70 text-hud-bad-soft",
   good: "border-hud-good/60 text-hud-good",
   bad: "border-hud-bad/60 text-hud-bad",
   warn: "border-hud-warn/60 text-hud-warn",
@@ -107,32 +107,130 @@ export const Panel = forwardRef<
   );
 });
 
-/** A panel's title bar: display-face title left, a small label right. */
+/**
+ * A panel's title bar: display-face title left, then a small label and any
+ * compact controls on the right. It stays one line. When a row is crowded,
+ * drop the label rather than shrink the type.
+ */
 export function PanelHeader({
   title,
   aside,
+  controls,
   as: Title = "span",
   className,
 }: {
   title: React.ReactNode;
   aside?: React.ReactNode;
+  /** Small buttons at the right end, such as xs HudButtons. */
+  controls?: React.ReactNode;
   /** The title's element; pages use a real heading. */
   as?: "span" | "h2" | "h3";
   className?: string;
 }) {
   return (
     <div
+      data-panel-header=""
       className={cx(
-        "flex min-h-[40px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-2",
+        "flex min-h-[40px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5",
         className
       )}
     >
       <Title className="min-w-0 truncate font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
         {title}
       </Title>
-      {aside !== undefined && (
-        <span className="hud-label shrink-0 truncate">{aside}</span>
+      {(aside !== undefined || controls !== undefined) && (
+        <div className="flex shrink-0 items-center gap-2">
+          {aside !== undefined && (
+            <span className="hud-label truncate">{aside}</span>
+          )}
+          {controls}
+        </div>
       )}
+    </div>
+  );
+}
+
+/** The id of a HudTabs tab, for the panel's aria-labelledby. */
+export const hudTabId = (idBase: string, id: string) => `${idBase}-tab-${id}`;
+
+/**
+ * A segmented switch between views of one panel, such as Dice and Chat.
+ * It takes the place of a PanelHeader title. A count on a tab draws a
+ * small blood badge. Every tab controls the one panel `${idBase}-panel`,
+ * whose content follows the selected tab. Left and Right, Home and End
+ * move between tabs.
+ */
+export function HudTabs<Id extends string>({
+  label,
+  idBase,
+  tabs,
+  value,
+  onChange,
+}: {
+  /** The tab list's accessible name. */
+  label: string;
+  /** Unique per instance, such as from React.useId(). */
+  idBase: string;
+  tabs: readonly { id: Id; label: string; count?: number }[];
+  value: Id;
+  onChange: (id: Id) => void;
+}) {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const index = tabs.findIndex((tab) => tab.id === value);
+    const last = tabs.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % tabs.length
+        : event.key === "ArrowLeft"
+          ? (index + last) % tabs.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    const id = tabs[next].id;
+    onChange(id);
+    document.getElementById(hudTabId(idBase, id))?.focus();
+  };
+  return (
+    <div
+      role="tablist"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className="inline-flex shrink-0 overflow-hidden rounded-hud border border-white/15 bg-black/35"
+    >
+      {tabs.map((tab) => {
+        const selected = tab.id === value;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={hudTabId(idBase, tab.id)}
+            aria-selected={selected}
+            aria-controls={`${idBase}-panel`}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(tab.id)}
+            className={cx(
+              "inline-flex min-h-[24px] items-center gap-1.5 px-2.5 font-hud-label text-hud-sm font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-150 ease-bb",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-hud-gold",
+              selected
+                ? "bg-hud-raise text-hud-gold shadow-[inset_0_-2px_0_theme(colors.hud.gold)]"
+                : "text-hud-dim hover:text-hud-bone"
+            )}
+          >
+            {tab.label}
+            {tab.count !== undefined && tab.count > 0 && (
+              <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-hud-blood px-1 text-hud-2xs leading-none tracking-normal text-white">
+                {tab.count}
+                <span className="sr-only"> unread</span>
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -161,13 +259,13 @@ export type HudButtonVariant =
   | "secondary"
   | "ghost"
   | "danger";
-export type HudButtonSize = "sm" | "md" | "lg";
+export type HudButtonSize = "xs" | "sm" | "md" | "lg";
 
 const VARIANT: Record<HudButtonVariant, string> = {
   // The main call to action: blood red, with a pressed edge.
   primary:
-    "bg-hud-blood text-white border-[#ff5a5a]/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
-  gold: "bg-hud-gold text-hud-ink border-[#ffe08a] shadow-hud-press-gold hover:bg-[#f0c45a]",
+    "bg-hud-blood text-white border-hud-blood-edge/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
+  gold: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
   success:
     "bg-[#2f7a3a] text-white border-hud-good/80 shadow-[0_3px_0_#123d1a] hover:bg-[#38904a]",
   secondary:
@@ -175,11 +273,14 @@ const VARIANT: Record<HudButtonVariant, string> = {
   ghost:
     "bg-transparent text-hud-bone border-white/20 hover:border-hud-gold/70 hover:text-hud-gold",
   danger:
-    "bg-transparent text-[#ff8a8a] border-hud-bad/50 hover:bg-hud-blood-deep/60 hover:border-hud-bad",
+    "bg-transparent text-hud-bad-soft border-hud-bad/50 hover:bg-hud-blood-deep/60 hover:border-hud-bad",
 };
 
 const SIZE: Record<HudButtonSize, string> = {
-  sm: "min-h-[32px] px-3 text-[13px]",
+  // A control inside a PanelHeader, which has 24px of height to give. The
+  // text matches HudTabs so a header row keeps one size.
+  xs: "min-h-[24px] min-w-[24px] px-1.5 text-hud-sm",
+  sm: "min-h-[32px] px-3 text-hud-sm",
   md: "min-h-[44px] px-5 text-[16px]",
   lg: "min-h-[52px] px-7 text-[20px]",
 };
@@ -324,7 +425,7 @@ export function HudCoin({ spin }: { spin: number }) {
   return (
     <div
       aria-hidden
-      className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-[#ffe08a] bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
+      className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-hud-gold-hi bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
       style={{ transform: `rotateY(${spin}deg)` }}
     >
       BB

@@ -1,6 +1,14 @@
 # Blood Bowl Sevens - Visual Design Guide
 
 > The React UI no longer uses the parchment look described here. The match HUD and every page around it use the dark Stadium Broadcast kit: `hud-*` tokens in tailwind.config.js, classes in src/ui/styles/global.css, and primitives in src/ui/components/componentWarehouse/HudKit.tsx. The HUD gallery (`pnpm gallery`) shows all of it.
+>
+> HUD rules, checked by `__tests__/unit/hudDesignDrift.test.ts`:
+>
+> - Type sizes come from `text-hud-2xs` to `text-hud-4xl`, never `text-[Npx]` or Tailwind's default sizes.
+> - Faces are `font-hud-display`, `font-hud-label` and `font-hud-body` only.
+> - Colours are `hud-*` tokens. Add a token to tailwind.config.js rather than writing hex.
+> - A panel's title bar is `PanelHeader`. It stays one 40px line: a view switch is `HudTabs` in the title slot, and small buttons are `xs` HudButtons in `controls`. `scripts/hud-shots/check-header-fit.mjs` checks every gallery header.
+> - Every HUD state, online ones included, has a gallery variant.
 
 ## Color Palette
 

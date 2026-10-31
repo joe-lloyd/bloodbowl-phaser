@@ -59,7 +59,7 @@ const SetupActionButton = ({
     >
       <span>{label}</span>
       {sub && (
-        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-[11px] font-semibold normal-case tracking-normal opacity-90">
+        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-hud-xs font-semibold normal-case tracking-normal opacity-90">
           {sub}
         </span>
       )}
@@ -148,7 +148,7 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
       <div className="flex flex-col gap-2 p-2.5">
         {concessionPending && (
           <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 p-2.5 text-hud-sm text-hud-bone">
-            <div className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-[#ff8a8a]">
+            <div className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bad-soft">
               Short-handed team
             </div>
             <p className="my-1.5">

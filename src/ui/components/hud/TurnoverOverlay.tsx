@@ -33,7 +33,7 @@ export const TurnoverOverlay: React.FC<TurnoverOverlayProps> = ({
       <div className="flex flex-col items-center animate-hud-slam">
         {/* Main Text */}
         <div className="-rotate-3 -skew-x-12 border-y-4 border-hud-gold bg-hud-blood px-12 py-2 shadow-hud">
-          <h1 className="skew-x-12 font-hud-display text-[clamp(64px,10vw,120px)] uppercase leading-none tracking-[0.02em] text-white [text-shadow:0_6px_0_#5c0a0e]">
+          <h1 className="skew-x-12 font-hud-display text-[clamp(64px,10vw,120px)] uppercase leading-none tracking-[0.02em] text-white [text-shadow:0_6px_0_theme(colors.hud.blood-deep)]">
             TURNOVER
           </h1>
         </div>

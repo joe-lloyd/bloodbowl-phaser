@@ -276,7 +276,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
               </Chip>
             </span>
             {status.injuries.length > 0 && (
-              <span className="text-hud-sm text-[#ff9a8f]">
+              <span className="text-hud-sm text-hud-bad-soft">
                 {status.injuries.join(", ")}
               </span>
             )}
