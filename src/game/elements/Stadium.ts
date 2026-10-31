@@ -45,10 +45,14 @@ export function preloadStadium(scene: Phaser.Scene, style: PitchThemeId) {
  * Stadium: the pre-rendered backdrop, drawn at world (0, 0) one image pixel
  * to one world pixel. The crowd, seats, flags and end zones in team colours
  * come out of a mask render as their own layers, tinted here per match.
+ *
+ * The tinted layers are flattened into one texture when the match starts.
+ * Each layer covers the whole screen, so drawing three of them every frame
+ * tripled the fill, which software WebGL pays for on the CPU.
  */
 export class Stadium {
   public readonly meta: StadiumMeta;
-  private images: Phaser.GameObjects.Image[];
+  private image: Phaser.GameObjects.Image | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -56,14 +60,23 @@ export class Stadium {
     colors: { home: number; away: number }
   ) {
     this.meta = scene.cache.json.get(key(style, "meta")) as StadiumMeta;
-    this.images = LAYERS.filter((layer) =>
+    const layers = LAYERS.filter((layer) =>
       scene.textures.exists(key(style, layer))
-    ).map((layer) => {
-      const image = scene.add.image(0, 0, key(style, layer));
-      image.setOrigin(0).setDepth(0);
-      if (layer !== "base") image.setTint(colors[layer]);
-      return image;
+    ).flatMap((layer) => {
+      const image = scene.textures.get(key(style, layer)).getSourceImage();
+      const tint = layer === "base" ? 0xffffff : colors[layer];
+      return image instanceof HTMLImageElement ? [{ image, tint }] : [];
     });
+    if (layers.length === 0) return;
+    // A plain texture: addCanvas would keep a 28 MB copy of the pixels
+    const canvas = flatten(layers);
+    const texture = scene.textures.create(
+      key(style, `match-${Phaser.Math.RND.uuid()}`),
+      canvas
+    );
+    if (!texture) return;
+    texture.add("__BASE", 0, 0, 0, canvas.width, canvas.height);
+    this.image = scene.add.image(0, 0, texture).setOrigin(0).setDepth(0);
   }
 
   /** World position of the far corner of square (0, 0): the pitch origin. */
@@ -81,7 +94,46 @@ export class Stadium {
   }
 
   public destroy(): void {
-    this.images.forEach((image) => image.destroy());
-    this.images = [];
+    const texture = this.image?.texture;
+    this.image?.destroy();
+    this.image = null;
+    texture?.destroy();
   }
+}
+
+/**
+ * Lay the tinted layers over each other once, on the CPU, the way the
+ * renderer blends them: each layer's colour times its tint, over what is
+ * below by the layer's alpha. The result is the same size as the layers,
+ * so it is sampled exactly as they were.
+ */
+function flatten(
+  layers: { image: HTMLImageElement; tint: number }[]
+): HTMLCanvasElement {
+  const { width, height } = layers[0].image;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("No 2D canvas to flatten the stadium on");
+  const out = context.createImageData(width, height);
+  const px = out.data;
+  for (const { image, tint } of layers) {
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, 0, 0);
+    const src = context.getImageData(0, 0, width, height).data;
+    const tr = ((tint >> 16) & 0xff) / 255;
+    const tg = ((tint >> 8) & 0xff) / 255;
+    const tb = (tint & 0xff) / 255;
+    for (let i = 0; i < px.length; i += 4) {
+      const a = src[i + 3] / 255;
+      if (a === 0) continue;
+      px[i] = src[i] * tr * a + px[i] * (1 - a);
+      px[i + 1] = src[i + 1] * tg * a + px[i + 1] * (1 - a);
+      px[i + 2] = src[i + 2] * tb * a + px[i + 2] * (1 - a);
+      px[i + 3] = 255 * a + px[i + 3] * (1 - a);
+    }
+  }
+  context.putImageData(out, 0, 0);
+  return canvas;
 }
