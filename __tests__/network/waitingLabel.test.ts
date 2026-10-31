@@ -102,6 +102,34 @@ describe("online waiting label while input is held", () => {
   });
 });
 
+describe("online waiting label at the kick-off", () => {
+  const guestKicks: Scenario = {
+    id: "online-guest-kicks",
+    name: "Guest kicks",
+    description: "",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 5, y: 5 }],
+      team2Placements: [{ playerIndex: 0, x: 15, y: 5 }],
+      activeTeam: "team1",
+      phase: GamePhase.KICKOFF,
+      subPhase: SubPhase.SETUP_KICKOFF,
+    },
+  };
+
+  it("stops asking for the kick once the ball is in the air", () => {
+    // Round 3, 3:53: "Waiting for Coach-CAAG to kick off" stayed up after
+    // the kick, through the kick-off event
+    const match = hostMatch(guestKicks);
+    expect(match.mayAct()).toBe(false);
+    expect(match.waitingLabel()).toBe("Waiting for Guest to kick off…");
+
+    ServiceContainer.getInstance().gameService.getState().kickoffKickResolved =
+      { isTeam1Kicking: false };
+    expect(match.waitingLabel()).toBe("The kick-off is landing…");
+    match.close();
+  });
+});
+
 describe("online waiting label", () => {
   it("says the other coach is setting up during setup", () => {
     const game = new HeadlessGame({ scenario: guestSettingUp, seed: 2 });

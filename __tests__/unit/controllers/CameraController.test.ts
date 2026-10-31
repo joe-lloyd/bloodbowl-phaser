@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { CameraController } from "../../../src/game/controllers/CameraController";
+import {
+  CameraController,
+  ScreenRect,
+} from "../../../src/game/controllers/CameraController";
 import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
 
 /**
@@ -7,7 +10,10 @@ import { gridPointToPixel } from "../../../src/game/elements/GridUtils";
  * asked to go. The pitch stand-in uses the real isometric projection with
  * its origin at (2000, 1000).
  */
-function setup(viewport = { width: 1600, height: 900 }) {
+function setup(
+  viewport = { width: 1600, height: 900 },
+  hudRects?: () => ScreenRect[]
+) {
   const camera = {
     zoom: 1,
     scrollX: 0,
@@ -57,7 +63,8 @@ function setup(viewport = { width: 1600, height: 900 }) {
     { width: 5000, height: 3500 },
     [pitch.getPointPosition(0, -4), pitch.getPointPosition(21, 15)],
     bus as never,
-    "bloodbowl"
+    "bloodbowl",
+    hudRects
   );
   return { camera, controller, inputHandlers, pitch, bus };
 }
@@ -127,6 +134,82 @@ describe("CameraController", () => {
     expect(screenY(camera, pitch.getPointPosition(15, 0).y)).toBeGreaterThan(
       100
     );
+  });
+
+  /** Where the last glide puts a world point on a 1280x720 screen. */
+  function screenPoint(
+    camera: ReturnType<typeof setup>["camera"],
+    world: { x: number; y: number }
+  ): { x: number; y: number } {
+    const [panX, panY] = camera.pan.mock.lastCall!;
+    const zoom = camera.zoomTo.mock.lastCall![0];
+    return {
+      x: 640 + (world.x - panX) * zoom,
+      y: 360 + (world.y - panY) * zoom,
+    };
+  }
+
+  /** A 2 m figure in world pixels: 25 px a metre, seen from 30 degrees up. */
+  const FIGURE_PX = 2 * 25 * Math.cos(Math.PI / 6);
+
+  it("keeps players readable when framing a reach across the whole pitch", () => {
+    // Round 3, 1:06:00: a Catcher's blitz reach, MA 8 and two Rushes, from
+    // the near end. The camera fitted all of it and players were 15 px tall.
+    const { camera, controller, pitch } = setup({ width: 1280, height: 720 });
+    const from = { x: 3, y: 5 };
+    const reach = [];
+    for (let x = 0; x <= 13; x++)
+      for (let y = 0; y <= 10; y++) reach.push({ x, y });
+    controller.focusSquares([from, ...reach]);
+
+    const zoom = camera.zoomTo.mock.lastCall![0];
+    expect(Math.round(zoom * FIGURE_PX)).toBeGreaterThanOrEqual(28);
+    // The squares next to the player stay on screen, between the columns
+    for (const square of [from, { x: 4, y: 5 }, { x: 2, y: 5 }]) {
+      const point = screenPoint(
+        camera,
+        pitch.getPixelPosition(square.x, square.y)
+      );
+      expect(point.x).toBeGreaterThan(328);
+      expect(point.x).toBeLessThan(1280 - 328);
+      expect(point.y).toBeGreaterThan(110);
+      expect(point.y).toBeLessThan(720);
+    }
+  });
+
+  it("keeps every reachable square clear of the HUD panels on screen", () => {
+    // Round 3, 56:30: square 7,10 sat under the dice log's A- button. The
+    // dice log is the bottom-left panel; nothing else is open.
+    const diceLog = { left: 16, top: 484, right: 304, bottom: 704 };
+    const { camera, controller, pitch } = setup(
+      { width: 1280, height: 720 },
+      () => [diceLog]
+    );
+    // The thrower on 7,10 with a reach over most of the pitch: the squares
+    // around them are the ones the coach clicks
+    const from = { x: 7, y: 10 };
+    const reach = [];
+    for (let x = 0; x <= 19; x++)
+      for (let y = 2; y <= 10; y++) reach.push({ x, y });
+    controller.focusSquares([from, ...reach]);
+
+    const near = [from, { x: 8, y: 10 }, { x: 6, y: 10 }, { x: 7, y: 9 }];
+    for (const square of near) {
+      const point = screenPoint(
+        camera,
+        pitch.getPixelPosition(square.x, square.y)
+      );
+      const covered =
+        point.x > diceLog.left - 24 &&
+        point.x < diceLog.right + 24 &&
+        point.y > diceLog.top - 24 &&
+        point.y < diceLog.bottom + 24;
+      expect(covered, `square ${square.x},${square.y} is covered`).toBe(false);
+      expect(point.x).toBeGreaterThan(0);
+      expect(point.x).toBeLessThan(1280);
+      expect(point.y).toBeGreaterThan(0);
+      expect(point.y).toBeLessThan(720);
+    }
   });
 
   it("starts on the overview, inside the stadium bounds", () => {

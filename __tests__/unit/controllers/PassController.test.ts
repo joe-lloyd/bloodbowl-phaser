@@ -292,7 +292,9 @@ describe("PassController", () => {
         "Interception",
         player.stats.AG,
         -5, // base -3, minus 2 marking opponents
-        player.playerName
+        player.playerName,
+        // The interceptor's own team rolls it, not the passing team
+        "team1"
       );
     });
 

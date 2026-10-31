@@ -6,15 +6,16 @@ import { useAuth } from "../hooks/useAuth";
 import {
   fetchLobby,
   seedFor,
-  subscribeLobby,
+  subscribeMatchLobby,
   requestEndMatch,
   cancelEndMatch,
   finishMatch,
   clearActiveMatchCode,
   heartbeat,
   describeConnection,
-  subscribeOwnConnection,
+  connectionHoldsPlay,
   LobbyDoc,
+  OwnLink,
 } from "../../firebase/lobby";
 import {
   createOnlineMatch,
@@ -104,19 +105,18 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     };
   }, [code, user, eventBus]);
 
-  // Live lobby doc: drives the end-match prompt and end/abandon transitions
+  // Live lobby doc, which drives the end-match prompt and end/abandon
+  // transitions, and this coach's own link, from one listener. While the
+  // link is down or slow, the other coach's heartbeat stops arriving too,
+  // which must not read as them leaving.
+  const [link, setLink] = useState<OwnLink>({
+    state: "online",
+    confirmedSeen: null,
+  });
   useEffect(() => {
-    if (!code) return;
-    return subscribeLobby(code, setLobby);
-  }, [code]);
-
-  // This coach's own link: while it is down, the other coach's heartbeat
-  // stops arriving too, which must not read as them leaving
-  const [selfOnline, setSelfOnline] = useState(true);
-  useEffect(() => {
-    if (!code) return;
-    return subscribeOwnConnection(code, setSelfOnline);
-  }, [code]);
+    if (!code || !user) return;
+    return subscribeMatchLobby(code, user.uid, setLobby, setLink);
+  }, [code, user]);
 
   // Presence heartbeat so the opponent can detect if we drop
   useEffect(() => {
@@ -172,8 +172,16 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     : null;
   const connection =
     lobby && opponentUid
-      ? describeConnection(lobby, opponentUid, selfOnline, now)
+      ? describeConnection(lobby, opponentUid, link.state, now)
       : "online";
+  // When the drop began, as both coaches see it: the absent coach's last
+  // heartbeat the server holds. Offline, that is this coach's own.
+  const awaySince =
+    connection === "offline"
+      ? link.confirmedSeen
+      : lobby && opponentUid && connectionHoldsPlay(connection)
+        ? (lobby.players[opponentUid]?.lastSeen ?? null)
+        : null;
 
   // A rejected Firestore write must not vanish silently (the coach would
   // have no idea their "End Match" click did nothing) nor drop them out of
@@ -262,7 +270,9 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           match={match}
           eventBus={eventBus}
           user={user}
-          opponentAway={!!opponentUid && connection !== "online"}
+          opponentAway={!!opponentUid && connectionHoldsPlay(connection)}
+          awaySince={awaySince}
+          offline={connection === "offline"}
         />
       )}
 

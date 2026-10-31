@@ -2128,13 +2128,22 @@ export class GameplayInteractionController {
       .map((roll) => rollLabel(rollName(roll.type), roll.target))
       .join(", then ");
     const arbiter = this.gameService.getRerollArbiter();
+    // A team re-roll saves one roll a turn: with two rolls it is listed
+    // once, for either of them
+    let teamListed = false;
     const rerolls = rolls.flatMap(({ type, target }) => {
       const offer = availableRerolls(
         { gameService: this.gameService, eventBus: this.eventBus },
         player,
         type
       );
-      return offer.sources.map((source) => {
+      const sources = offer.sources.filter(
+        (source) => source !== "team" || !teamListed
+      );
+      if (sources.includes("team")) teamListed = true;
+      const either = rolls.length > 1;
+      const forOne = `one of the ${["two", "three"][rolls.length - 2] ?? rolls.length} rolls`;
+      return sources.map((source) => {
         switch (source) {
           case "skill":
             return `${offer.skillSource} re-roll: ${target}+, ${percent(d6Chance(target))}`;
@@ -2144,11 +2153,17 @@ export class GameplayInteractionController {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
               case "free":
-                return `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                return either
+                  ? `Brilliant Coaching free re-roll, for ${forOne}`
+                  : `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "leader":
-                return `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                return either
+                  ? `Leader re-roll, for ${forOne}`
+                  : `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "team":
-                return `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
+                return either
+                  ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
+                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
               case null:
                 return "No team re-roll available";
               default: {
@@ -2298,7 +2313,7 @@ export class GameplayInteractionController {
     const left = Math.max(0, mover.stats.MA - this.gameService.getMovementUsed(player.id) - (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0));
     this.pitch.drawMovementPath(fullPath, rolls, left);
     this.eventBus.emit(GameEventNames.UI_RoutePreview, {
-      movementLeft: left, riskySteps: legs.filter(leg => leg.risk).length,
+      movementLeft: left, riskySteps: rolls.length,
       chance: rollProbability(rolls.map(roll => ({ dice: "d6", target: roll.target }))),
       rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
     });

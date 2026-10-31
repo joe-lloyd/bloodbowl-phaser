@@ -28,6 +28,14 @@ interface Props {
   user: AuthUser;
   /** The other coach has dropped: the clock and all input stop. */
   opponentAway?: boolean;
+  /**
+   * When the drop began, as both coaches can tell: the absent coach's last
+   * heartbeat the server holds. Both clocks stop at this moment, however
+   * late each screen noticed.
+   */
+  awaySince?: number | null;
+  /** This coach is the one who lost the connection. */
+  offline?: boolean;
 }
 
 const fmt = (ms: number) => {
@@ -73,6 +81,8 @@ export function TurnClock({
   eventBus,
   user,
   opponentAway = false,
+  awaySince = null,
+  offline = false,
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
   useEffect(
@@ -121,6 +131,8 @@ export function TurnClock({
       : null;
   const freezeRef = useRef<{
     reason: "away" | "deciding";
+    /** This coach was the one offline */
+    offline: boolean;
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
@@ -146,14 +158,20 @@ export function TurnClock({
   useEffect(() => {
     const frozen = freezeRef.current;
     if (freezeReason && !frozen) {
+      // A drop stops the clock when it began, not when this screen saw it
+      const stoppedAt =
+        freezeReason === "away" && awaySince != null
+          ? Math.min(awaySince, Date.now())
+          : Date.now();
       freezeRef.current = {
         reason: freezeReason,
+        offline,
         remaining: !deadlineIsThisTurn
           ? turnSeconds > 0
             ? turnSeconds * 1000
             : null
           : timer?.deadline != null
-            ? timer.deadline - Date.now()
+            ? Math.min(turnSeconds * 1000, timer.deadline - stoppedAt)
             : null,
       };
     } else if (!freezeReason && frozen) {
@@ -168,9 +186,14 @@ export function TurnClock({
               staleDeadline: timer?.deadline ?? null,
             }
           : null;
-      // Resume with the time that was left. The coach who saw the other
-      // drop writes it after an absence; the active coach after a decision.
-      if (frozen.remaining != null && (frozen.reason === "away" || myTurn())) {
+      // Resume with the time that was left. Both screens stopped at the
+      // same moment, so they agree on it, and one coach writes it. After a
+      // decision that is the coach whose turn it is. After an absence it is
+      // the coach who stayed online: the absent coach may have reloaded and
+      // lost its freeze.
+      const writes =
+        frozen.reason === "away" ? !frozen.offline : myTurn();
+      if (frozen.remaining != null && writes) {
         void setTurnDeadline(
           code,
           Date.now() + Math.max(0, frozen.remaining),

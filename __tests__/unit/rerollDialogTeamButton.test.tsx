@@ -63,6 +63,18 @@ describe("RerollDialog team button", () => {
     expect(container.textContent).toContain("DECLINE");
   });
 
+  it("keeps the Veteran button short and says once per game under it", async () => {
+    // Round 3, 1:16:38: "USE VETERAN RE-ROLL (ONCE PER GAME)" wrapped
+    await showDodgeReroll(0);
+    expect(
+      container.querySelector('[data-testid="reroll-use-veteran"]')?.textContent
+    ).toBe("USE VETERAN RE-ROLL");
+    expect(
+      container.querySelector('[data-testid="reroll-chance-veteran"]')
+        ?.textContent
+    ).toBe("Once per game.");
+  });
+
   it("counts the team's own re-rolls", async () => {
     expect((await showDodgeReroll(2))?.textContent).toBe(
       "USE TEAM RE-ROLL (2 left)"

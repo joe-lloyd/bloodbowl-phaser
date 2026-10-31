@@ -162,7 +162,7 @@ export class FoulOperation extends GameOperation {
     let armour = diceController.rollArmorCheck(
       av,
       target.playerName,
-      fouler.teamId,
+      target.teamId,
       analysis.modifier,
       foulArmourRoll
     );
@@ -190,7 +190,7 @@ export class FoulOperation extends GameOperation {
       armour = diceController.rollArmorCheck(
         av,
         target.playerName,
-        fouler.teamId,
+        target.teamId,
         analysis.modifier,
         foulArmourRoll
       );
@@ -221,7 +221,8 @@ export class FoulOperation extends GameOperation {
       // Apothecary, the Sevens casualty results).
       const injury = diceController.rollInjury(
         target.playerName,
-        fouler.teamId
+        target.teamId,
+        `Injury Roll (${target.playerName})`
       );
       if (injury.rolls[0] === injury.rolls[1]) {
         spotted = true;

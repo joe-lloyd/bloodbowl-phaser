@@ -11,15 +11,83 @@ type Point = { x: number; y: number };
 const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
 
+/** A rectangle on screen, in the game canvas's pixels. */
+export interface ScreenRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 /**
- * The HUD's side columns (HUDLayout): w-72, at most 40vw, 16 px in from the
- * edge, plus a margin so a square's figure clears the panel too.
+ * Where the HUD sits when the page cannot say (tests, a HUD not yet laid
+ * out): the side columns of HUDLayout, w-72 and at most 40vw, 16 px in from
+ * each edge, and the score bug across the top centre.
  */
-const HUD_COLUMN_PX = 288;
-const HUD_COLUMN_MAX_SHARE = 0.4;
-const HUD_EDGE_PX = 16 + 24;
-/** The score bug and match strip across the top centre. */
-const SCORE_BUG_PX = 110;
+function defaultHudRects(width: number, height: number): ScreenRect[] {
+  const column = Math.min(288, width * 0.4);
+  return [
+    { left: 16, top: 16, right: 16 + column, bottom: height - 16 },
+    {
+      left: width - 16 - column,
+      top: 16,
+      right: width - 16,
+      bottom: height - 16,
+    },
+    { left: width / 2 - 260, top: 0, right: width / 2 + 260, bottom: 86 },
+  ];
+}
+
+/** Room between a framed square and a panel, so its figure clears it too. */
+const PANEL_MARGIN_PX = 24;
+
+/**
+ * The farthest the camera pulls back to frame squares: a 2 m figure, 25 px
+ * a metre seen from 30 degrees up, stays at least this tall on screen.
+ * Round 3 saw players 15 px tall on a long reach.
+ */
+const READABLE_FIGURE_PX = 28;
+const FIGURE_WORLD_PX = 2 * 25 * Math.cos(Math.PI / 6);
+
+/**
+ * The part of the screen clear of every panel. Each panel in the way cuts
+ * the area from whichever side keeps the most of it, largest panel first.
+ */
+export function clearArea(
+  width: number,
+  height: number,
+  panels: ScreenRect[]
+): ScreenRect {
+  const area = { left: 0, top: 0, right: width, bottom: height };
+  const size = (r: ScreenRect) =>
+    Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);
+  const padded = panels
+    .map((p) => ({
+      left: p.left - PANEL_MARGIN_PX,
+      top: p.top - PANEL_MARGIN_PX,
+      right: p.right + PANEL_MARGIN_PX,
+      bottom: p.bottom + PANEL_MARGIN_PX,
+    }))
+    .sort((a, b) => size(b) - size(a));
+  for (const p of padded) {
+    const overlaps =
+      p.left < area.right &&
+      p.right > area.left &&
+      p.top < area.bottom &&
+      p.bottom > area.top;
+    if (!overlaps) continue;
+    const cuts: ScreenRect[] = [
+      { ...area, left: Math.max(area.left, p.right) },
+      { ...area, right: Math.min(area.right, p.left) },
+      { ...area, top: Math.max(area.top, p.bottom) },
+      { ...area, bottom: Math.min(area.bottom, p.top) },
+    ];
+    const best = cuts.reduce((a, b) => (size(b) > size(a) ? b : a));
+    // A panel too big to cut around leaves the area as it was
+    if (size(best) > 0) Object.assign(area, best);
+  }
+  return area;
+}
 
 /**
  * CameraController: the match camera.
@@ -53,7 +121,9 @@ export class CameraController {
     world: { width: number; height: number },
     dugoutPoints: Point[],
     eventBus?: IEventBus,
-    style?: PitchThemeId
+    style?: PitchThemeId,
+    /** The HUD panels on screen now, measured from the page. */
+    private readonly hudRects?: () => ScreenRect[] | undefined
   ) {
     this.scene = scene;
     this.camera = scene.cameras.main;
@@ -188,27 +258,59 @@ export class CameraController {
   /**
    * Frame a group of squares, such as the acting team and the ball, or a
    * player's reach, as close as the action framing allows while keeping
-   * every one in view and clickable. The squares sit between the HUD's
-   * side columns, which hold the action panel, the player card and the dice
-   * log. The camera may pull back past the overview to fit them there.
+   * them in view and clickable: in the part of the screen clear of every
+   * HUD panel, measured from the page. The camera may pull back past the
+   * overview, but never so far that players get hard to read. When the
+   * squares do not fit at that zoom, it frames the ones nearest the first
+   * square, the player whose reach it is.
    */
   public focusSquares(
     squares: { x: number; y: number }[],
     duration = MOVE_MS
   ): void {
     if (this.manual || squares.length === 0) return;
-    const { width } = this.scene.scale;
-    const { centre, zoom } = this.frame(
-      squares.map((s) => this.pitch.getPixelPosition(s.x, s.y)),
-      1.15,
-      SCORE_BUG_PX,
-      Math.min(HUD_COLUMN_PX, width * HUD_COLUMN_MAX_SHARE) + HUD_EDGE_PX
+    const { width, height } = this.scene.scale;
+    const area = clearArea(
+      width,
+      height,
+      this.hudRects?.() ?? defaultHudRects(width, height)
     );
-    const fitted = Math.max(
-      this.overviewFraming().zoom * 0.7,
-      Math.min(zoom, this.actionZoom())
+    const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    // Figures stand above their squares
+    const box = {
+      left: Math.min(...xs),
+      right: Math.max(...xs),
+      top: Math.min(...ys) - 70,
+      bottom: Math.max(...ys),
+    };
+    const pad = 1.15;
+    const areaWidth = area.right - area.left;
+    const areaHeight = area.bottom - area.top;
+    const fit = Math.min(
+      areaWidth / ((box.right - box.left) * pad),
+      areaHeight / ((box.bottom - box.top) * pad)
     );
-    this.glide(centre, fitted, duration);
+    const closest = this.actionZoom();
+    const readable = Math.min(READABLE_FIGURE_PX / FIGURE_WORLD_PX, closest);
+    const zoom = Math.max(readable, Math.min(fit, closest));
+    // The world point at the middle of the clear area: the box's middle,
+    // or as near the first square as keeps the view inside the box
+    const along = (anchor: number, low: number, high: number, half: number) =>
+      high - low <= 2 * half
+        ? (low + high) / 2
+        : Math.min(Math.max(anchor, low + half), high - half);
+    const middle = {
+      x: along(points[0].x, box.left, box.right, areaWidth / (2 * pad * zoom)),
+      y: along(points[0].y, box.top, box.bottom, areaHeight / (2 * pad * zoom)),
+    };
+    // The camera centres the screen, not the clear area
+    const centre = {
+      x: middle.x - ((area.left + area.right) / 2 - width / 2) / zoom,
+      y: middle.y - ((area.top + area.bottom) / 2 - height / 2) / zoom,
+    };
+    this.glide(centre, zoom, duration);
     this.publishState("active", duration);
   }
 

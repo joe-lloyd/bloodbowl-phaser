@@ -73,6 +73,13 @@ describe("BlockDiceDialog — Brawler re-roll button", () => {
     });
   };
 
+  it("counts one die as 1 DIE, not 1 DICE", async () => {
+    // Round 3, 40:58: the block card read "1 DICE"
+    await openAndRoll(false);
+    expect(container.textContent).toContain("1 DIE");
+    expect(container.textContent).not.toContain("1 DICE");
+  });
+
   it("shows the block popup with the roll and a Brawler re-roll button — no separate yes/no popup", async () => {
     await openAndRoll(true);
 

@@ -50,6 +50,29 @@ const tray = (thrown: number, landedThrough: number) =>
     landedThrough,
   });
 
+it("does not say the player holds the ball while a failed pickup waits on its re-roll", async () => {
+  // Round 3, 1:18:50: Thrower #4 failed the pickup, 3 against 4+, and the
+  // card read HOLDING BALL while the re-roll dialog was open
+  const { gameService } = ServiceContainer.getInstance();
+  gameService.getState().ballPosition = { x: 5, y: 5 };
+  void gameService.getDecisionService().request({
+    type: "reroll",
+    playerId: player.id,
+    chooserTeamId: player.teamId,
+    rollKind: "pickup",
+    sources: ["team"],
+    roll: 3,
+    needed: 4,
+  });
+  await act(async () => bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 }));
+  expect(container.textContent).not.toMatch(/holding ball/i);
+
+  // Picked up after all: the ball is his
+  gameService.getDecisionService().abandon();
+  await act(async () => bus.emit(GameEventNames.BallPlaced, { x: 5, y: 5 }));
+  expect(container.textContent).toMatch(/holding ball/i);
+});
+
 it("waits for the armour and injury dice to land before naming the injury", async () => {
   await act(async () => {
     // A failed Rush: the player falls, armour breaks, the injury roll says

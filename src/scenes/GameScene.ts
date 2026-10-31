@@ -21,6 +21,7 @@ import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
+import { measureHudRects } from "../game/presentation/hudRects";
 import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
@@ -371,7 +372,8 @@ export class GameScene extends Phaser.Scene {
       { width: this.stadium.width, height: this.stadium.height },
       Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
       this.eventBus,
-      this.pitchThemeId
+      this.pitchThemeId,
+      () => measureHudRects(this.game.canvas, this.scale.width)
     );
 
     // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.

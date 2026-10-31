@@ -570,8 +570,13 @@ export interface DiceThrow {
 
 type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
 
-/** How much faster a hurried throw tumbles. */
+/** How much faster a hurried throw tumbles, at the least. */
 const HURRY_RATE = 2.2;
+/**
+ * The longest a hurried throw tumbles. A throw of many dice takes seconds
+ * to come to rest, so in a burst it plays faster still.
+ */
+const HURRIED_TUMBLE_MS = 700;
 
 /**
  * Throw a roll into `host`. Every roll, D6 or block dice, plays the same way
@@ -863,10 +868,32 @@ function throwDice(
   // anything waiting on them, and every throw queued behind them, carries on.
   let resolve: (values: number[]) => void = () => {};
   const landed = new Promise<number[]>((done) => (resolve = done));
+  // Whether the dice have come to rest on screen
+  let rested = false;
+  /**
+   * Show the dice at rest and lifted, result faces forward, at once. A
+   * throw stopped before it landed, because the page stopped drawing frames
+   * or a slow one ran out of time, otherwise stayed where it was: two block
+   * dice still stacked as they were thrown, one hiding the other.
+   */
+  const showResult = () => {
+    sim.frames[sim.frames.length - 1].forEach(
+      ([x, y, z, qx, qy, qz, qw], i) => {
+        meshes[i].position.set(x, y, z);
+        meshes[i].quaternion.set(qx, qy, qz, qw);
+      }
+    );
+    meshes.forEach((mesh, i) => {
+      mesh.quaternion.copy(faceForward(mesh, lifted[i].position));
+      mesh.position.copy(lifted[i].position);
+    });
+    gl.render(scene, camera);
+  };
   const stop = () => {
     if (!running) return;
     running = false;
     if (showing === control) showing = null;
+    if (!rested) showResult();
     gl.domElement.removeEventListener("pointerdown", onPointerDown);
     gl.domElement.removeEventListener("pointermove", onPointerMove);
     gl.domElement.style.cursor = "";
@@ -875,13 +902,16 @@ function throwDice(
   };
   // Playback speed of the recorded tumble; hurry() raises it
   let rate = 1;
+  // Tumble time played so far, at the current rate
+  let tumbleMs = 0;
   const control = {
     stop,
     mark: (index: number | null) => {
       markedIndex = index;
     },
     hurry: () => {
-      rate = HURRY_RATE;
+      const left = (sim.frames.length / 60) * 1000 - tumbleMs;
+      rate = Math.max(rate, HURRY_RATE, left / HURRIED_TUMBLE_MS);
     },
   };
   showing = control;
@@ -912,8 +942,6 @@ function throwDice(
   hooks.ready(control);
 
   {
-    // Tumble time played so far, at the current rate
-    let tumbleMs = 0;
     let lastFrame = performance.now();
     let played = 0;
     let settled:
@@ -940,6 +968,7 @@ function throwDice(
           meshes[i].quaternion.set(qx, qy, qz, qw);
         });
         if (f === sim.frames.length - 1) {
+          rested = true;
           settled = meshes.map((m) => ({
             position: m.position.clone(),
             quaternion: m.quaternion.clone(),

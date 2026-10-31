@@ -441,7 +441,8 @@ export class PassController {
       "Interception",
       target,
       totalModifier,
-      player.playerName
+      player.playerName,
+      player.teamId
     );
 
     return { success: check.success, roll: check.roll };

@@ -353,9 +353,17 @@ export class PlayPhaseHandler implements PhaseHandler {
         });
     };
     const sprite = this.scene["playerSprites"].get(data.playerId);
-    if (!data.path?.length || !sprite) {
+    if (!sprite) {
       this.scene.refreshDugouts();
       acknowledge();
+      return;
+    }
+    if (!data.path?.length) {
+      // The walk went out in an earlier piece: done once that has played
+      sprite.motion = sprite.motion.finally(() => {
+        this.scene.refreshDugouts();
+        acknowledge();
+      });
       return;
     }
     const pixelPath = data.path.map((step) =>

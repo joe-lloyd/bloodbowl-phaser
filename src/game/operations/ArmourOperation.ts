@@ -142,13 +142,10 @@ export class ArmourOperation extends GameOperation {
       `Armour Roll for ${player.playerName} (AV ${player.stats.AV}+)`
     );
 
-    // Suspense delay
-    await context.delay(800);
-
     // 1. Roll 2D6 via DiceController
     const roll = gameService
       .getDiceController()
-      .roll2D6(`Armour Roll (${player.playerName})`);
+      .roll2D6(`Armour Roll (${player.playerName})`, player.teamId);
 
     // 2. Trigger point: rules may modify the roll or force/cancel a break
     const opponents = gameService.getOpponents(player.teamId);
@@ -179,7 +176,6 @@ export class ArmourOperation extends GameOperation {
 
     if (isBroken) {
       eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
-      await context.delay(600);
 
       // 3. Trigger Injury Operation (with any carried modifier). A failed
       // Dodge/Leap is not a Block Action, so it never arms Plague Ridden.

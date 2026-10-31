@@ -1610,6 +1610,19 @@ export const VARIANTS: Variant[] = [
     ),
   },
   {
+    id: "connection-slow",
+    section: "Online turn clock",
+    title: "Messages are late, but still get through",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <ConnectionBanner opponentName="Grimgutz" connection="slow" />
+      </>
+    ),
+  },
+  {
     id: "connection-reconnecting",
     section: "Online turn clock",
     title: "The other coach dropped, a long name",

@@ -29,9 +29,10 @@ export function MatchBanner({
 /**
  * The match's connection, when it is not simply up. This coach's own drop
  * comes first: offline, they are told so and offered nothing against the
- * other coach. Otherwise the other coach's stale heartbeat shows as
- * "reconnecting", and after a longer grace the options menu's "End Match
- * (Opponent Left)" entry becomes available.
+ * other coach. Late messages, on either side, show as a slow connection
+ * and play goes on. A longer silence from the other coach shows as
+ * "disconnected", and after a longer grace still the options menu's "End
+ * Match (Opponent Left)" entry becomes available.
  */
 export function ConnectionBanner({
   opponentName,
@@ -48,6 +49,10 @@ export function ConnectionBanner({
     case "offline":
       headline = "You are offline, reconnecting…";
       detail = "Your moves send once you are back.";
+      break;
+    case "slow":
+      headline = "Connection slow";
+      detail = "Moves may take a few seconds to arrive.";
       break;
     case "reconnecting":
       headline = `${opponentName} disconnected`;

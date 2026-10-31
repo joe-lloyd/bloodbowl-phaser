@@ -9,7 +9,9 @@ import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type SnapshotListener = (snapshot: {
-  metadata: { fromCache: boolean };
+  metadata: { fromCache: boolean; hasPendingWrites: boolean };
+  exists: () => boolean;
+  data: () => unknown;
 }) => void;
 let snapshotListener: SnapshotListener | null = null;
 
@@ -39,7 +41,7 @@ import {
   describeConnection,
   LobbyDoc,
   OPPONENT_ABANDON_MS,
-  subscribeOwnConnection,
+  subscribeMatchLobby,
 } from "../../src/firebase/lobby";
 import { computeMatchOptionsMenu } from "../../src/ui/components/hud/computeMatchOptionsMenu";
 import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
@@ -54,8 +56,10 @@ const lobby = {
 
 describe("this coach's own connection comes first", () => {
   it("reads as offline, not as the other coach leaving", () => {
-    expect(describeConnection(lobby, "opponent", false, NOW)).toBe("offline");
-    expect(describeConnection(lobby, "opponent", true, NOW)).toBe(
+    expect(describeConnection(lobby, "opponent", "offline", NOW)).toBe(
+      "offline"
+    );
+    expect(describeConnection(lobby, "opponent", "online", NOW)).toBe(
       "abandonable"
     );
   });
@@ -95,12 +99,20 @@ describe("this coach's own connection comes first", () => {
   });
 });
 
-describe("subscribeOwnConnection", () => {
+describe("subscribeMatchLobby's own link", () => {
   let seen: boolean[];
   let stop: () => void;
   beforeEach(() => {
     seen = [];
-    stop = subscribeOwnConnection("ABCD", (online) => seen.push(online));
+    stop = subscribeMatchLobby(
+      "ABCD",
+      "me",
+      () => {},
+      (link) => {
+        const online = link.state !== "offline";
+        if (seen.at(-1) !== online) seen.push(online);
+      }
+    );
   });
   afterEach(() => stop());
 
@@ -111,10 +123,15 @@ describe("subscribeOwnConnection", () => {
   });
 
   it("counts a lost server link as offline once the server has been reached", () => {
-    snapshotListener?.({ metadata: { fromCache: true } });
-    snapshotListener?.({ metadata: { fromCache: false } });
-    snapshotListener?.({ metadata: { fromCache: true } });
-    snapshotListener?.({ metadata: { fromCache: false } });
+    const snapshot = (fromCache: boolean) => ({
+      metadata: { fromCache, hasPendingWrites: false },
+      exists: () => true,
+      data: () => ({ players: {} }),
+    });
+    snapshotListener?.(snapshot(true));
+    snapshotListener?.(snapshot(false));
+    snapshotListener?.(snapshot(true));
+    snapshotListener?.(snapshot(false));
     expect(seen).toEqual([true, false, true]);
   });
 });

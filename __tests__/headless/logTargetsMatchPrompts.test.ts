@@ -90,7 +90,7 @@ describe("dice log targets", () => {
     );
     // One offensive assist: +1 on the roll, against the card's AV
     expect(armour).toMatch(
-      new RegExp(`: \\d\\+\\d \\+1 = \\d+ \\(AV ${victim.stats.AV}\\+\\)$`)
+      new RegExp(`: \\d \\+ \\d \\+1 = \\d+ \\(AV ${victim.stats.AV}\\+\\)$`)
     );
   });
 });
