@@ -470,6 +470,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     sendChatRaw: (text) => void session!.sendChat(text, myName),
     activeTeamId: () => engine!.getActiveTeamId(),
     phase: () => engine!.getPhase(),
+    kicked: () => engine!.getState().kickoffKickResolved != null,
     runProgressionCommand: runOwn,
     run: runOwn,
     saveState: saveNow,
@@ -489,6 +490,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     sendChatRaw: (text: string) => void;
     activeTeamId: () => string | null;
     phase: () => GamePhase;
+    /** This drive's kick has been made; the kick-off is resolving. */
+    kicked: () => boolean;
     runProgressionCommand(
       command: ProgressionCommand
     ): Promise<CommandResponse>;
@@ -599,6 +602,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
               return exhaustive;
             }
           }
+        }
+        if (parts.phase() === GamePhase.KICKOFF && parts.kicked()) {
+          return "The kick-off is landing…";
         }
         if (parts.phase() === GamePhase.KICKOFF && !isKickoffActor()) {
           return `Waiting for ${opponentName} to kick off…`;
