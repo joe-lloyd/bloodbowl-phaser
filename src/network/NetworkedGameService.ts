@@ -171,14 +171,12 @@ export class NetworkedGameService implements IGameService {
     return true;
   }
   commitInducements(
-    profile: import("../types/Inducements").InducementRuleProfile,
-    budgets: Record<string, number>,
-    inventory: import("../types/Inducements").InducementInventoryEntry[]
+    _profile: import("../types/Inducements").InducementRuleProfile,
+    _budgets: Record<string, number>,
+    _inventory: import("../types/Inducements").InducementInventoryEntry[]
   ): void {
-    // Pregame inducements are resolved host-side via the authoritative
-    // InducementSession/confirm-inducements command; the guest's replica
-    // only ever reflects the resulting state through a synced snapshot.
-    this.inner.commitInducements(profile, budgets, inventory);
+    // Pregame inducements are committed by the confirm-inducements command
+    // on both engines. Committing here would change this engine only.
   }
   getInducementOffer() {
     // Known limitation: the catalog/profile/budget always match the host
@@ -280,8 +278,13 @@ export class NetworkedGameService implements IGameService {
     // Online Blitz continuation is not wired; end the activation as before.
     this.finishActivation(playerId);
   }
-  chargeBlitzBlockSquare(attackerId: string): Promise<boolean> {
-    return this.inner.chargeBlitzBlockSquare(attackerId);
+  /**
+   * Engine-internal: the block command charges the Blitz square on both
+   * engines. Charging it here would change this coach's engine only and
+   * leave the two a square apart, so the board may not.
+   */
+  chargeBlitzBlockSquare(_attackerId: string): Promise<boolean> {
+    return Promise.resolve(false);
   }
   hasUsedBlitzBlock(playerId: string): boolean {
     return this.inner.hasUsedBlitzBlock(playerId);
