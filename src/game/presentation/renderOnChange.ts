@@ -139,9 +139,10 @@ function pushObject(object: Phaser.GameObjects.GameObject, out: unknown[]) {
       object.strokeColor,
       object.strokeAlpha,
       object.lineWidth,
-      object.mask
+      object.mask,
+      // Phaser builds a new path array whenever a shape's geometry changes
+      object.pathData
     );
-    out.push(...object.pathData);
     return;
   }
   // A kind not read here: draw every frame, as Phaser would
