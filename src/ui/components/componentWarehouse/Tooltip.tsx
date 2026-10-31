@@ -14,6 +14,9 @@ interface TooltipProps {
  * (`group`/`group-hover`/`group-focus`), matching the hover-reveal pattern
  * already used elsewhere in the UI (no new dependency).
  *
+ * The panel is `display: none` until shown. An invisible panel that still
+ * took layout would stretch the scroll box of any table it sits in.
+ *
  * The wrapper itself is the keyboard-reachable trigger (`tabIndex={0}`), so
  * callers don't need to make their `children` focusable separately, and its
  * `aria-describedby` links to the tooltip panel for screen readers.
@@ -31,7 +34,7 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
       <span
         id={tooltipId}
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 w-56 max-w-[80vw] -translate-x-1/2 rounded-hud border border-hud-gold/40 bg-hud-sunk px-2.5 py-2 text-left font-hud-body text-hud-sm normal-case not-italic tracking-normal text-hud-bone opacity-0 shadow-hud transition-opacity duration-200 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 w-56 max-w-[80vw] -translate-x-1/2 rounded-hud border border-hud-gold/40 bg-hud-sunk px-2.5 py-2 text-left font-hud-body text-hud-sm normal-case not-italic tracking-normal text-hud-bone hidden shadow-hud group-hover:block group-focus:block group-focus-within:block"
       >
         {content}
       </span>

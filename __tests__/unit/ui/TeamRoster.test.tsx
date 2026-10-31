@@ -267,8 +267,8 @@ describe("TeamRoster skill tooltips", () => {
       expect(panel?.getAttribute("role")).toBe("tooltip");
 
       // Focus, not just hover, must be able to reveal the panel.
-      expect(panel?.className).toContain("group-focus:opacity-100");
-      expect(panel?.className).toContain("group-focus-within:opacity-100");
+      expect(panel?.className).toContain("group-focus:block");
+      expect(panel?.className).toContain("group-focus-within:block");
 
       act(() => {
         (trigger as HTMLElement).focus();

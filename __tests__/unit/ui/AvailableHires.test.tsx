@@ -112,8 +112,8 @@ describe("AvailableHires skill tooltips", () => {
     const panel = container.querySelector(`#${describedBy}`);
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute("role")).toBe("tooltip");
-    expect(panel?.className).toContain("group-focus:opacity-100");
-    expect(panel?.className).toContain("group-focus-within:opacity-100");
+    expect(panel?.className).toContain("group-focus:block");
+    expect(panel?.className).toContain("group-focus-within:block");
 
     act(() => {
       (firstTrigger as HTMLElement).focus();
