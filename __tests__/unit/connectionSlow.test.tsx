@@ -43,9 +43,11 @@ import {
   describeConnection,
   LobbyDoc,
   OwnLink,
+  heartbeat,
   playHold,
   subscribeMatchLobby,
 } from "../../src/firebase/lobby";
+import { updateDoc } from "firebase/firestore";
 import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
 
 const NOW = 1_000_000;
@@ -119,6 +121,24 @@ describe("a slow link is not a disconnect", () => {
     expect(container.textContent).not.toContain("disconnected");
     await act(async () => root.unmount());
     container.remove();
+  });
+});
+
+describe("heartbeat", () => {
+  it("resolves with its stamp once the server holds it", async () => {
+    let acknowledge: () => void = () => {};
+    vi.mocked(updateDoc).mockReturnValueOnce(
+      new Promise<void>((resolve) => (acknowledge = resolve))
+    );
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    let confirmed: number | null = null;
+    void heartbeat("ABCD", "me").then((at) => (confirmed = at));
+    await Promise.resolve();
+    expect(confirmed).toBeNull();
+    acknowledge();
+    await vi.waitFor(() => expect(confirmed).toBe(NOW));
+    vi.useRealTimers();
   });
 });
 

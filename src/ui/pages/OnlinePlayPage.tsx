@@ -118,11 +118,18 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     return subscribeMatchLobby(code, user.uid, setLobby, setLink);
   }, [code, user]);
 
-  // Presence heartbeat so the opponent can detect if we drop
+  // Presence heartbeat so the opponent can detect if we drop. Each one the
+  // server confirms counts, even while later writes still wait: the
+  // lobby's own snapshot only confirms once nothing is pending.
+  const [ackedSeen, setAckedSeen] = useState(0);
   useEffect(() => {
     if (!code || !user) return;
-    void heartbeat(code, user.uid);
-    const id = setInterval(() => void heartbeat(code, user.uid), 6000);
+    const beat = () =>
+      void heartbeat(code, user.uid)
+        .then((at) => setAckedSeen((seen) => Math.max(seen, at)))
+        .catch(() => {});
+    beat();
+    const id = setInterval(beat, 6000);
     return () => clearInterval(id);
   }, [code, user]);
 
@@ -176,8 +183,11 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
       : "online";
   // Play stops on both screens at once, from when the drop began as both
   // coaches see it: the absent coach's last heartbeat the server holds
+  const ownSeen = Math.max(link.confirmedSeen ?? 0, ackedSeen) || null;
   const hold =
-    lobby && opponentUid ? playHold(lobby, opponentUid, link, now) : null;
+    lobby && opponentUid
+      ? playHold(lobby, opponentUid, { ...link, confirmedSeen: ownSeen }, now)
+      : null;
 
   // A rejected Firestore write must not vanish silently (the coach would
   // have no idea their "End Match" click did nothing) nor drop them out of

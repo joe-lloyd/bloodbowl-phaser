@@ -366,9 +366,15 @@ export async function joinLobby(
 
 // ===== Presence / disconnect detection =====
 
-/** Presence heartbeat: stamp this player's lastSeen on the game doc. */
-export async function heartbeat(code: string, uid: string): Promise<void> {
-  await updateDoc(lobbyRef(code), { [`players.${uid}.lastSeen`]: Date.now() });
+/**
+ * Presence heartbeat: stamp this player's lastSeen on the game doc.
+ * Resolves with the stamp once the server holds it, which the other coach
+ * can then see.
+ */
+export async function heartbeat(code: string, uid: string): Promise<number> {
+  const at = Date.now();
+  await updateDoc(lobbyRef(code), { [`players.${uid}.lastSeen`]: at });
+  return at;
 }
 
 /**
