@@ -134,6 +134,44 @@ describe("TurnClock pauses", () => {
     expect(deadline - Date.now()).toBeLessThanOrEqual(60_000);
   });
 
+  it("lets the waiting coach write the resumed deadline when the active coach was away", async () => {
+    // The active host may reload while away and lose its own freeze, so the
+    // guest, who saw the absence, writes the time that was left
+    const match = {
+      role: "guest",
+      myTeamId: "guest-team",
+      opponentName: "Host",
+      coachName: () => "Host",
+      pendingDecision: () => null,
+      decidingTeamId: () => null,
+      setClockPaused: vi.fn(),
+    } as unknown as OnlineMatch;
+    const lobby = lobbyAt(Date.now() + 60_000);
+    const render = (opponentAway: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+          opponentAway={opponentAway}
+        />
+      );
+
+    await act(async () => render(true));
+    await act(async () => vi.advanceTimersByTime(30_000));
+    hoisted.setTurnDeadlineMock.mockClear();
+    await act(async () => render(false));
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
+    const [, deadline] = hoisted.setTurnDeadlineMock.mock.calls[0] as unknown as [
+      string,
+      number,
+    ];
+    expect(deadline - Date.now()).toBeGreaterThan(59_000);
+    expect(deadline - Date.now()).toBeLessThanOrEqual(60_000);
+  });
+
   it("shows the time left after a pause until the resumed deadline arrives", async () => {
     // Round 2, 25:47: back from a pause, the clock flashed a stale value
     // read from the deadline set before the pause
@@ -210,6 +248,7 @@ describe("TurnClock pauses", () => {
           user={{ uid: "guest-uid" } as AuthUser}
           opponentAway={guestAway}
           awaySince={guestAway ? awaySince : null}
+          offline={guestAway}
         />
       );
     };
@@ -231,7 +270,7 @@ describe("TurnClock pauses", () => {
     hoisted.setTurnDeadlineMock.mockClear();
     guestAway = false;
     await act(async () => show(false));
-    // Only the coach whose turn it is writes the resumed deadline
+    // Only the coach who stayed online writes the resumed deadline
     expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
     const [, deadline] = hoisted.setTurnDeadlineMock.mock.calls[0] as unknown as [
       string,

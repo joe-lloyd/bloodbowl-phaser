@@ -34,6 +34,8 @@ interface Props {
    * late each screen noticed.
    */
   awaySince?: number | null;
+  /** This coach is the one who lost the connection. */
+  offline?: boolean;
 }
 
 const fmt = (ms: number) => {
@@ -80,6 +82,7 @@ export function TurnClock({
   user,
   opponentAway = false,
   awaySince = null,
+  offline = false,
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
   useEffect(
@@ -128,6 +131,8 @@ export function TurnClock({
       : null;
   const freezeRef = useRef<{
     reason: "away" | "deciding";
+    /** This coach was the one offline */
+    offline: boolean;
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
@@ -160,6 +165,7 @@ export function TurnClock({
           : Date.now();
       freezeRef.current = {
         reason: freezeReason,
+        offline,
         remaining: !deadlineIsThisTurn
           ? turnSeconds > 0
             ? turnSeconds * 1000
@@ -181,9 +187,13 @@ export function TurnClock({
             }
           : null;
       // Resume with the time that was left. Both screens stopped at the
-      // same moment, so they agree on it; the coach whose turn it is writes
-      // it, after an absence or a decision alike.
-      if (frozen.remaining != null && myTurn()) {
+      // same moment, so they agree on it, and one coach writes it. After a
+      // decision that is the coach whose turn it is. After an absence it is
+      // the coach who stayed online: the absent coach may have reloaded and
+      // lost its freeze.
+      const writes =
+        frozen.reason === "away" ? !frozen.offline : myTurn();
+      if (frozen.remaining != null && writes) {
         void setTurnDeadline(
           code,
           Date.now() + Math.max(0, frozen.remaining),

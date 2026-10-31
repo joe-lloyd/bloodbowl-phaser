@@ -272,6 +272,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           user={user}
           opponentAway={!!opponentUid && connectionHoldsPlay(connection)}
           awaySince={awaySince}
+          offline={connection === "offline"}
         />
       )}
 
