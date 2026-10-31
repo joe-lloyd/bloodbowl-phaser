@@ -79,6 +79,11 @@ interface Queued {
   seq: number;
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
+  /**
+   * Block dice answered while still in the air: how long to hold them once
+   * they land. Without it the answer would find no hold to end.
+   */
+  endAfterMs?: number;
 }
 
 /** How long a chosen block die stays forward before the tray clears. */
@@ -198,7 +203,11 @@ export function DiceTray({
         inBurst = queue.current.length > 0;
         await new Promise<void>((resolve) => {
           release = resolve;
-          if (next.block) return;
+          if (next.block) {
+            if (next.endAfterMs !== undefined)
+              setTimeout(resolve, next.endAfterMs);
+            return;
+          }
           // A short read when another roll waits; one arriving during a
           // full read cuts it short too
           setTimeout(resolve, inBurst ? QUEUED_HOLD_MS : HOLD_MS);
@@ -307,11 +316,17 @@ export function DiceTray({
       if (type !== "block-dice" || !shown?.block) return;
       const index = result ? shown.block.indexOf(result) : -1;
       throwing?.mark(index >= 0 ? index : null);
+      if (!release) {
+        shown.endAfterMs = CHOSEN_MS;
+        return;
+      }
       const ending = release;
-      setTimeout(() => ending?.(), CHOSEN_MS);
+      setTimeout(() => ending(), CHOSEN_MS);
     };
     const onCancelled = () => {
-      if (shown?.block) release?.();
+      if (!shown?.block) return;
+      if (release) release();
+      else shown.endAfterMs = 0;
     };
 
     eventBus.on(GameEventNames.PhaseChanged, onPhase);
