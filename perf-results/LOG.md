@@ -9,8 +9,9 @@ sandbox at 1440x900, and measures three windows per run:
 
 It runs in two configs, headless SwiftShader, which is what the online-match
 rig uses, and headed Chromium on the real GPU, 3 runs each by default.
-Numbers are the median of those runs. The JSON for each run sits next to
-this file. Entries before round 1 used only the first two windows; the
+Numbers are the median of those runs. Each `pnpm perf` invocation writes
+one timestamped JSON file next to this one, holding every run under
+`results` and the medians under `summary`. Entries before round 1 used only the first two windows; the
 held window was added during round 1.
 
 Under SwiftShader the GPU process is saturated. A cheaper frame shows up as
