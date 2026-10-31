@@ -23,8 +23,6 @@ export interface PassResult {
   target: number;
   modifiers: number;
   passType: PassType;
-  finalPosition: { x: number; y: number };
-  scatterPath?: { x: number; y: number }[]; // For inaccurate passes
 }
 
 export interface InterceptionAttempt {
@@ -211,7 +209,7 @@ export class PassController {
   ): Promise<PassResult> {
     const passRange = this.measureRange(from, to, hailMary);
     // An inaccurate or fumbled pass is a failed PA test: offer the reroll
-    // BEFORE the scatter/fumble resolution so a rerolled pass flies fresh
+    // BEFORE the interception, scatter or fumble so a rerolled pass flies fresh
     const rollAccuracy = () => {
       if (setPiece) {
         const check = this.diceController.rollSkillCheck(
@@ -245,37 +243,13 @@ export class PassController {
     const target = player.stats.PA;
     const modifiers = this.calculatePassModifiers(passRange, markingOpponents);
 
-    let finalPosition = { ...to };
-    let scatterPath: { x: number; y: number }[] | undefined;
-
+    // The caller resolves where the ball goes. An inaccurate pass may be
+    // intercepted before it scatters, so the scatter is not rolled here.
     if (accuracyTest.fumbled) {
-      finalPosition = { ...from };
       this.eventBus.emit(GameEventNames.PassFumbled, {
         playerId: player.id,
         position: from,
-        bouncePosition: finalPosition,
-      });
-    } else if (!effectiveAccurate) {
-      const path = this.movementController!.scatter(to);
-      scatterPath = [to, ...path];
-      finalPosition = path[path.length - 1];
-
-      this.eventBus.emit(GameEventNames.PassAttempted, {
-        playerId: player.id,
-        from,
-        to,
-        passType: passRange.type,
-        accurate: false,
-        finalPosition,
-      });
-    } else {
-      this.eventBus.emit(GameEventNames.PassAttempted, {
-        playerId: player.id,
-        from,
-        to,
-        passType: passRange.type,
-        accurate: true,
-        finalPosition,
+        bouncePosition: { ...from },
       });
     }
 
@@ -287,9 +261,20 @@ export class PassController {
       target,
       modifiers,
       passType: passRange.type,
-      finalPosition,
-      scatterPath,
     };
+  }
+
+  /**
+   * Scatter an inaccurate pass from its target square: three steps, stopping
+   * at the first square off the pitch. Returns the whole flight, target first,
+   * so the last square is where the ball comes down. Roll it only after any
+   * interception has failed: an intercepted pass never scatters.
+   */
+  public scatterPass(target: { x: number; y: number }): {
+    x: number;
+    y: number;
+  }[] {
+    return [{ ...target }, ...this.movementController.scatter(target)];
   }
 
   /**
@@ -391,12 +376,12 @@ export class PassController {
 
   /**
    * Standing opposition players (with their Tackle Zone) whose square the
-   * passer→landing Range Ruler overlaps. `landing` is the ball's ACTUAL
-   * landing square, which may differ from the declared target after scatter.
+   * passer→target Range Ruler overlaps. Interference is resolved before an
+   * inaccurate pass scatters, so the ruler always runs to the declared target.
    */
   public checkInterceptions(
     from: { x: number; y: number },
-    landing: { x: number; y: number },
+    target: { x: number; y: number },
     opponents: Player[],
     isAccurate: boolean
   ): InterceptionAttempt[] {
@@ -410,11 +395,11 @@ export class PassController {
       if (!pos || !hasTackleZone(opponent)) continue;
       // No Ball: "may not attempt to Intercept a Pass" (p.132).
       if (hasSkill(opponent.skills, SkillType.NO_BALL)) continue;
-      // The passer's own square and the landing square never intercept.
+      // The passer's own square and the target square never intercept.
       if (pos.x === from.x && pos.y === from.y) continue;
-      if (pos.x === landing.x && pos.y === landing.y) continue;
+      if (pos.x === target.x && pos.y === target.y) continue;
 
-      if (PassController.rulerOverlaps(from, landing, pos)) {
+      if (PassController.rulerOverlaps(from, target, pos)) {
         interceptors.push({
           playerId: opponent.id,
           position: pos,

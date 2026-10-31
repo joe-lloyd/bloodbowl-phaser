@@ -127,7 +127,7 @@ describe("PassController", () => {
   });
 
   describe("Attempt Pass", () => {
-    it("should emit pass events for accurate pass", async () => {
+    it("reports an accurate pass", async () => {
       mockDiceController.rollSkillCheck.mockReturnValue({
         success: true,
         roll: 6,
@@ -141,22 +141,14 @@ describe("PassController", () => {
       );
 
       expect(result.accurate).toBe(true);
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.PassAttempted,
-        expect.objectContaining({
-          accurate: true,
-        })
-      );
+      expect(result.fumbled).toBe(false);
     });
 
-    it("should scatter ball for inaccurate pass", async () => {
+    it("does not scatter an inaccurate pass before interception", async () => {
       mockDiceController.rollSkillCheck.mockReturnValue({
         success: false,
         roll: 2,
       });
-
-      const scatterPath = [{ x: 8, y: 8 }];
-      mockMovementController.scatter.mockReturnValue(scatterPath);
 
       const result = await controller.attemptPass(
         player,
@@ -166,7 +158,27 @@ describe("PassController", () => {
       );
 
       expect(result.accurate).toBe(false);
-      expect(result.finalPosition).toEqual({ x: 8, y: 8 });
+      expect(result.fumbled).toBe(false);
+      expect(mockMovementController.scatter).not.toHaveBeenCalled();
+      expect(mockEventBus.emit).not.toHaveBeenCalledWith(
+        GameEventNames.PassAttempted,
+        expect.anything()
+      );
+    });
+
+    it("scatters a pass from its target square", () => {
+      mockMovementController.scatter.mockReturnValue([
+        { x: 8, y: 5 },
+        { x: 8, y: 6 },
+        { x: 9, y: 7 },
+      ]);
+
+      expect(controller.scatterPass({ x: 7, y: 5 })).toEqual([
+        { x: 7, y: 5 },
+        { x: 8, y: 5 },
+        { x: 8, y: 6 },
+        { x: 9, y: 7 },
+      ]);
     });
   });
 
