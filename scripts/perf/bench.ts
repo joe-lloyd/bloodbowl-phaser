@@ -20,6 +20,8 @@
  *   pnpm perf                     both configs, 3 runs each
  *   pnpm perf --config swiftshader --runs 1 --no-build
  *   pnpm perf --label "dice idle stop"
+ *   pnpm perf --reduced-motion    players stand still instead of breathing
+ *   pnpm perf --video 1440x900    record video as the online-match rig does
  */
 
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
@@ -85,6 +87,11 @@ const configs: ConfigName[] = option("config")
   ? [option("config") as ConfigName]
   : ["swiftshader", "gpu"];
 const label = option("label") ?? "";
+const VIDEO = option("video")
+  ? (([width, height]) => ({ width, height }))(
+      option("video")!.split("x").map(Number)
+    )
+  : null;
 
 // ---------------------------------------------------------------- server
 
@@ -160,9 +167,19 @@ function processTree(rootPid: number): ProcessCpu[] {
         pid: Number(pid),
         ppid: Number(ppid),
         seconds: parseCpuTime(time),
-        type: /--type=([\w-]+)/.exec(cmd)?.[1] ?? "browser",
+        type: cmd.includes("ffmpeg")
+          ? "ffmpeg"
+          : (/--type=([\w-]+)/.exec(cmd)?.[1] ?? "browser"),
       };
     });
+  // Playwright's video encoder runs under this script, not the browser
+  const encoders = descendants(all, process.pid).filter(
+    (p) => p.type === "ffmpeg"
+  );
+  return [...descendants(all, rootPid), ...encoders];
+}
+
+function descendants(all: ProcessCpu[], rootPid: number): ProcessCpu[] {
   const inTree = new Set([rootPid]);
   let grew = true;
   while (grew) {
@@ -358,6 +375,10 @@ async function oneRun(
       baseURL,
       viewport: VIEWPORT,
       deviceScaleFactor: 1,
+      reducedMotion: flag("reduced-motion") ? "reduce" : "no-preference",
+      ...(VIDEO && {
+        recordVideo: { dir: "perf-results/video", size: VIDEO },
+      }),
     });
     await context.addInitScript({ content: PROBE });
     const page = await context.newPage();
@@ -411,6 +432,7 @@ function summarise(results: RunResult[]) {
         gpuProcPct: m(
           (w) => ((w.cpuByType["gpu-process"] ?? 0) / w.seconds) * 100
         ),
+        ffmpegPct: m((w) => ((w.cpuByType["ffmpeg"] ?? 0) / w.seconds) * 100),
         rendererPct: m(
           (w) => ((w.cpuByType["renderer"] ?? 0) / w.seconds) * 100
         ),
@@ -471,7 +493,17 @@ async function main() {
   writeFileSync(
     file,
     JSON.stringify(
-      { label, commit, dirty, scenario: SCENARIO, viewport: VIEWPORT, summary, results },
+      {
+        label,
+        commit,
+        dirty,
+        scenario: SCENARIO,
+        viewport: VIEWPORT,
+        reducedMotion: flag("reduced-motion"),
+        video: VIDEO,
+        summary,
+        results,
+      },
       null,
       2
     )
