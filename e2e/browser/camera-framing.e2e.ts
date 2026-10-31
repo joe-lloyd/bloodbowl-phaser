@@ -1,4 +1,3 @@
-import { mkdir } from "node:fs/promises";
 import { test, expect, Page } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
 
@@ -55,10 +54,9 @@ for (const viewport of [
       expect(Math.round(figurePx)).toBeGreaterThanOrEqual(28);
       await expectClickable(page, app);
 
-      const dir = "/tmp/review-loop-round3";
-      await mkdir(dir, { recursive: true });
-      await page.screenshot({
-        path: `${dir}/long-reach-${viewport.width}x${viewport.height}.png`,
+      await test.info().attach(`long-reach-${viewport.width}x${viewport.height}`, {
+        body: await page.screenshot(),
+        contentType: "image/png",
       });
     });
   });
