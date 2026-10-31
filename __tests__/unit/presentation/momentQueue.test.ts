@@ -46,12 +46,13 @@ describe("moment queue through the event bus", () => {
       thrown: 1,
       landedThrough: 1,
     });
-    // The landed die shows its result for a beat before the banner covers it.
-    await vi.advanceTimersByTimeAsync(599);
+    // The landed die shows its result for a short beat before the turnover
+    // covers it: the next coach waits on that banner.
+    await vi.advanceTimersByTimeAsync(299);
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     expect(shown).toEqual(["turnover"]);
-    await vi.advanceTimersByTimeAsync(1800);
+    await vi.advanceTimersByTimeAsync(1500);
     expect(shown).toEqual(["turnover", "casualty"]);
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["turnover", "casualty", "turn-started"]);
@@ -92,7 +93,7 @@ describe("moment queue through the event bus", () => {
       landedThrough: 0,
     });
     bus.emit(GameEventNames.UI_Turnover, { teamId: "t1", reason: "Fell" });
-    await vi.advanceTimersByTimeAsync(8599);
+    await vi.advanceTimersByTimeAsync(8299);
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     expect(shown).toEqual(["turnover"]);
