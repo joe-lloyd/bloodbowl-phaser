@@ -57,9 +57,13 @@ export function watchHudPanels(onChange: () => void): {
       document
         .querySelectorAll(`[${HUD_PANELS_ATTRIBUTE}]`)
         .forEach((stack) => {
-          if (watched.has(stack)) return;
-          watched.add(stack);
-          observer.observe(stack);
+          // A stack held to the space left can keep its size while a panel
+          // inside it grows, so each panel is watched too
+          for (const box of [stack, ...Array.from(stack.children)]) {
+            if (watched.has(box)) continue;
+            watched.add(box);
+            observer.observe(box);
+          }
         });
     },
     stop: () => observer.disconnect(),
