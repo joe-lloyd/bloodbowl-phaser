@@ -459,23 +459,31 @@ export function describeConnection(
 }
 
 /**
- * Whether play stops for this connection: the clock pauses and nobody acts.
- * A slow link still carries every command, so play goes on.
+ * Whether play stops, and since when: the clock pauses and nobody acts.
+ * Both coaches must reach the same answer, so both measure the same
+ * silence: the absent coach's last heartbeat the server holds. The coach
+ * who stayed online holds play once that heartbeat is older than
+ * OPPONENT_DISCONNECT_MS, which is when it reads the drop as a
+ * disconnect. The coach who dropped holds play once its own last
+ * confirmed heartbeat is as old. A shorter cut reads only as slow on the
+ * other side, so the clock runs on both screens, as it does on a slow
+ * link.
  */
-export function connectionHoldsPlay(connection: ConnectionState): boolean {
-  switch (connection) {
-    case "online":
-    case "slow":
-      return false;
-    case "reconnecting":
-    case "abandonable":
-    case "offline":
-      return true;
-    default: {
-      const exhaustive: never = connection;
-      return exhaustive;
-    }
-  }
+export function playHold(
+  lobby: LobbyDoc,
+  opponentUid: string,
+  link: OwnLink,
+  now: number = Date.now()
+): { since: number } | null {
+  // While this coach's own link is down or slow, the other coach's
+  // heartbeat says nothing: this coach's own silence is the one to measure
+  const since =
+    link.state === "online"
+      ? (lobby.players[opponentUid]?.lastSeen ?? null)
+      : link.confirmedSeen;
+  return since != null && now - since > OPPONENT_DISCONNECT_MS
+    ? { since }
+    : null;
 }
 
 /**

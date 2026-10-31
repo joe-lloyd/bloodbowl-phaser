@@ -40,10 +40,10 @@ vi.mock("firebase/firestore", () => ({
 vi.mock("../../src/firebase/config", () => ({ getDb: vi.fn(() => ({})) }));
 
 import {
-  connectionHoldsPlay,
   describeConnection,
   LobbyDoc,
   OwnLink,
+  playHold,
   subscribeMatchLobby,
 } from "../../src/firebase/lobby";
 import { ConnectionBanner } from "../../src/ui/pages/ConnectionBanner";
@@ -79,12 +79,28 @@ describe("a slow link is not a disconnect", () => {
     );
   });
 
-  it("holds play only when commands cannot get through", () => {
-    expect(connectionHoldsPlay("online")).toBe(false);
-    expect(connectionHoldsPlay("slow")).toBe(false);
-    expect(connectionHoldsPlay("reconnecting")).toBe(true);
-    expect(connectionHoldsPlay("abandonable")).toBe(true);
-    expect(connectionHoldsPlay("offline")).toBe(true);
+  it("holds play from the absent coach's last heartbeat, on both screens", () => {
+    const online: OwnLink = { state: "online", confirmedSeen: NOW };
+    // The other coach: a 16 s silence is slow, a 25 s one holds play
+    expect(playHold(lobbyWith(16_000), "opponent", online, NOW)).toBeNull();
+    expect(playHold(lobbyWith(25_000), "opponent", online, NOW)).toEqual({
+      since: NOW - 25_000,
+    });
+    // This coach, cut off: the same rule on its own last heartbeat, and
+    // the other coach's stale heartbeat says nothing
+    const cut = (ago: number, state: OwnLink["state"]): OwnLink => ({
+      state,
+      confirmedSeen: NOW - ago,
+    });
+    expect(
+      playHold(lobbyWith(16_000), "opponent", cut(11_000, "offline"), NOW)
+    ).toBeNull();
+    expect(
+      playHold(lobbyWith(40_000), "opponent", cut(25_000, "offline"), NOW)
+    ).toEqual({ since: NOW - 25_000 });
+    expect(
+      playHold(lobbyWith(40_000), "opponent", cut(25_000, "slow"), NOW)
+    ).toEqual({ since: NOW - 25_000 });
   });
 
   it("says the connection is slow", async () => {

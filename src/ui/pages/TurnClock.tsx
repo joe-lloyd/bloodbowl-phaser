@@ -26,7 +26,11 @@ interface Props {
   match: OnlineMatch;
   eventBus: EventBus;
   user: AuthUser;
-  /** The other coach has dropped: the clock and all input stop. */
+  /**
+   * A drop both coaches treat as a disconnect: the clock and all input
+   * stop. A shorter cut reads only as slow on the other side, and the
+   * clock runs on.
+   */
   opponentAway?: boolean;
   /**
    * When the drop began, as both coaches can tell: the absent coach's last
@@ -220,12 +224,18 @@ export function TurnClock({
     void resumeClock(code, user.uid, remainingBankMs, newDeadline);
   }, [code, user.uid, timer]);
 
-  // Freeze input for both players while paused or while one is away
+  // Freeze input for both players while paused or while one is away. A
+  // coach who is offline cannot reach the other side, so their input waits
+  // too, even while the clock still runs on a short cut.
   useEffect(() => {
     match.setClockPaused(
-      opponentAway ? "opponent-away" : timer?.pausedBy ? "timeout" : null
+      opponentAway || offline
+        ? "opponent-away"
+        : timer?.pausedBy
+          ? "timeout"
+          : null
     );
-  }, [match, timer?.pausedBy, opponentAway]);
+  }, [match, timer?.pausedBy, opponentAway, offline]);
 
   // The new active coach (re)sets the deadline at the start of every turn. turnSeconds
   // <= 0 is the "no time limit" sentinel (nextTurnDeadline returns null),
@@ -345,7 +355,9 @@ export function TurnClock({
       frozen.reason === "away"
         ? stripSlot
           ? "Paused"
-          : `${match.opponentName} disconnected: game paused`
+          : frozen.offline
+            ? "You are offline: game paused"
+            : `${match.opponentName} disconnected: game paused`
         : stripSlot
           ? `${fmt(left)} to decide`
           : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`;

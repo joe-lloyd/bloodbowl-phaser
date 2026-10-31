@@ -13,7 +13,7 @@ import {
   clearActiveMatchCode,
   heartbeat,
   describeConnection,
-  connectionHoldsPlay,
+  playHold,
   LobbyDoc,
   OwnLink,
 } from "../../firebase/lobby";
@@ -174,14 +174,10 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     lobby && opponentUid
       ? describeConnection(lobby, opponentUid, link.state, now)
       : "online";
-  // When the drop began, as both coaches see it: the absent coach's last
-  // heartbeat the server holds. Offline, that is this coach's own.
-  const awaySince =
-    connection === "offline"
-      ? link.confirmedSeen
-      : lobby && opponentUid && connectionHoldsPlay(connection)
-        ? (lobby.players[opponentUid]?.lastSeen ?? null)
-        : null;
+  // Play stops on both screens at once, from when the drop began as both
+  // coaches see it: the absent coach's last heartbeat the server holds
+  const hold =
+    lobby && opponentUid ? playHold(lobby, opponentUid, link, now) : null;
 
   // A rejected Firestore write must not vanish silently (the coach would
   // have no idea their "End Match" click did nothing) nor drop them out of
@@ -270,8 +266,8 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
           match={match}
           eventBus={eventBus}
           user={user}
-          opponentAway={!!opponentUid && connectionHoldsPlay(connection)}
-          awaySince={awaySince}
+          opponentAway={hold != null}
+          awaySince={hold?.since ?? null}
           offline={connection === "offline"}
         />
       )}
