@@ -1,5 +1,6 @@
 import React from "react";
 import { useSoundSettings } from "../../sound/useSoundSettings";
+import { Field } from "../componentWarehouse/HudKit";
 
 /**
  * Inline mute + volume control — settings persist via
@@ -15,15 +16,14 @@ export const SoundToggle: React.FC = () => {
     <div className="flex flex-col gap-2 pointer-events-auto">
       <label className="flex items-center gap-2 font-hud-body text-hud-sm text-hud-bone">
         <input
-          className="h-4 w-4 accent-hud-gold"
+          className="hud-check"
           type="checkbox"
           checked={settings.muted}
           onChange={(e) => settings.setMuted(e.target.checked)}
         />
         Mute sound
       </label>
-      <label className="flex flex-col gap-1 font-hud-body text-hud-sm text-hud-bone">
-        Volume
+      <Field label="Volume">
         <input
           className="accent-hud-gold"
           type="range"
@@ -33,7 +33,7 @@ export const SoundToggle: React.FC = () => {
           value={settings.volume}
           onChange={(e) => settings.setVolume(Number(e.target.value))}
         />
-      </label>
+      </Field>
     </div>
   );
 };
