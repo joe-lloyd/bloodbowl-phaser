@@ -474,15 +474,16 @@ export function playHold(
   opponentUid: string,
   link: OwnLink,
   now: number = Date.now()
-): { since: number } | null {
+): { since: number; absent: "me" | "opponent" } | null {
   // While this coach's own link is down or slow, the other coach's
   // heartbeat says nothing: this coach's own silence is the one to measure
+  const absent = link.state === "online" ? "opponent" : "me";
   const since =
-    link.state === "online"
+    absent === "opponent"
       ? (lobby.players[opponentUid]?.lastSeen ?? null)
       : link.confirmedSeen;
   return since != null && now - since > OPPONENT_DISCONNECT_MS
-    ? { since }
+    ? { since, absent }
     : null;
 }
 

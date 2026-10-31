@@ -85,6 +85,7 @@ describe("a slow link is not a disconnect", () => {
     expect(playHold(lobbyWith(16_000), "opponent", online, NOW)).toBeNull();
     expect(playHold(lobbyWith(25_000), "opponent", online, NOW)).toEqual({
       since: NOW - 25_000,
+      absent: "opponent",
     });
     // This coach, cut off: the same rule on its own last heartbeat, and
     // the other coach's stale heartbeat says nothing
@@ -97,10 +98,10 @@ describe("a slow link is not a disconnect", () => {
     ).toBeNull();
     expect(
       playHold(lobbyWith(40_000), "opponent", cut(25_000, "offline"), NOW)
-    ).toEqual({ since: NOW - 25_000 });
+    ).toEqual({ since: NOW - 25_000, absent: "me" });
     expect(
       playHold(lobbyWith(40_000), "opponent", cut(25_000, "slow"), NOW)
-    ).toEqual({ since: NOW - 25_000 });
+    ).toEqual({ since: NOW - 25_000, absent: "me" });
   });
 
   it("says the connection is slow", async () => {

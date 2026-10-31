@@ -248,6 +248,7 @@ describe("TurnClock pauses", () => {
           user={{ uid: "guest-uid" } as AuthUser}
           opponentAway={guestAway}
           awaySince={guestAway ? awaySince : null}
+          awayIsMe={guestAway}
           offline={guestAway}
         />
       );
@@ -318,6 +319,7 @@ describe("TurnClock pauses", () => {
           return {
             opponentAway: hold != null,
             awaySince: hold?.since ?? null,
+            awayIsMe: hold?.absent === "me",
             offline: link.state === "offline",
           };
         };
@@ -386,6 +388,40 @@ describe("TurnClock pauses", () => {
       // Only the host, who stayed online, writes the resumed deadline
       expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("leaves the resumed deadline to the other coach when its own slow link held play", async () => {
+    // A slow link is not offline, but a 20 s silence still reads as a
+    // disconnect on the other screen: this coach is the absent one
+    const lobby = lobbyAt(Date.now() + 60_000);
+    const guestMatch = {
+      ...hostMatch(),
+      role: "guest",
+      myTeamId: "guest-team",
+      opponentName: "Host",
+    } as unknown as OnlineMatch;
+    const render = (held: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={guestMatch}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+          opponentAway={held}
+          awaySince={held ? Date.now() - 21_000 : null}
+          awayIsMe={held}
+        />
+      );
+    await act(async () => render(true));
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(container.textContent).toContain(
+      "Your connection dropped: game paused"
+    );
+    expect(container.textContent).not.toContain("Host disconnected");
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => render(false));
+    expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
   });
 
   it("never shows more than the turn's length at a turn start", async () => {

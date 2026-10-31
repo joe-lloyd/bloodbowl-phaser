@@ -38,7 +38,12 @@ interface Props {
    * late each screen noticed.
    */
   awaySince?: number | null;
-  /** This coach is the one who lost the connection. */
+  /**
+   * The hold is for this coach's own silence, offline or slow: the other
+   * coach, who stayed online, writes the resumed deadline.
+   */
+  awayIsMe?: boolean;
+  /** This coach's link is down: its input waits, though the clock may run. */
   offline?: boolean;
 }
 
@@ -86,6 +91,7 @@ export function TurnClock({
   user,
   opponentAway = false,
   awaySince = null,
+  awayIsMe = false,
   offline = false,
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
@@ -135,8 +141,8 @@ export function TurnClock({
       : null;
   const freezeRef = useRef<{
     reason: "away" | "deciding";
-    /** This coach was the one offline */
-    offline: boolean;
+    /** The hold was for this coach's own silence */
+    awayIsMe: boolean;
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
@@ -169,7 +175,7 @@ export function TurnClock({
           : Date.now();
       freezeRef.current = {
         reason: freezeReason,
-        offline,
+        awayIsMe,
         remaining: !deadlineIsThisTurn
           ? turnSeconds > 0
             ? turnSeconds * 1000
@@ -195,8 +201,7 @@ export function TurnClock({
       // decision that is the coach whose turn it is. After an absence it is
       // the coach who stayed online: the absent coach may have reloaded and
       // lost its freeze.
-      const writes =
-        frozen.reason === "away" ? !frozen.offline : myTurn();
+      const writes = frozen.reason === "away" ? !frozen.awayIsMe : myTurn();
       if (frozen.remaining != null && writes) {
         void setTurnDeadline(
           code,
@@ -355,8 +360,8 @@ export function TurnClock({
       frozen.reason === "away"
         ? stripSlot
           ? "Paused"
-          : frozen.offline
-            ? "You are offline: game paused"
+          : frozen.awayIsMe
+            ? "Your connection dropped: game paused"
             : `${match.opponentName} disconnected: game paused`
         : stripSlot
           ? `${fmt(left)} to decide`
