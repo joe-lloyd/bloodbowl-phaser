@@ -59,7 +59,6 @@ import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
 import { RefusalNotice } from "../ui/components/hud/RefusalNotice";
 import { TurnClock } from "../ui/pages/TurnClock";
 import { PAGE_VARIANTS } from "./pageVariants";
-
 export interface Variant {
   id: string;
   section: string;
@@ -875,7 +874,7 @@ export const VARIANTS: Variant[] = [
       return diceLogIn(fx);
     },
     drive: () =>
-      later(60, () => click('[data-testid="dice-log"] button', "CHAT")),
+      later(60, () => click('[data-testid="dice-log"] [role="tab"]', "Chat")),
   },
 
   // ---- Dice tray
