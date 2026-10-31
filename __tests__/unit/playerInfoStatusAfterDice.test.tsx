@@ -87,3 +87,41 @@ it("updates at once with no dice in the tray", async () => {
   });
   expect(status()).toBe("Stunned");
 });
+
+it("holds a foul's Stunned until the injury die lands, though no event names it", async () => {
+  player.status = PlayerStatus.PRONE;
+  await act(async () => bus.emit(GameEventNames.PlayerStatusChanged, player));
+  expect(status()).toBe("Prone");
+  await act(async () => {
+    // The foul: the armour die is thrown, then the injury die. The injury
+    // sets Stunned on the player without a status event.
+    tray(1, 0);
+    tray(2, 0);
+    player.status = PlayerStatus.STUNNED;
+  });
+  // The armour die lands and redraws the card: still Prone
+  await act(async () => tray(2, 1));
+  expect(status()).toBe("Prone");
+  await act(async () => tray(2, 2));
+  expect(status()).toBe("Stunned");
+});
+
+it("releases each status with the roll that caused it", async () => {
+  await act(async () => {
+    // A dodge die, then a fall: the dodge fails and the player goes Prone
+    tray(1, 0);
+    player.status = PlayerStatus.PRONE;
+    bus.emit(GameEventNames.PlayerStatusChanged, player);
+    // The armour die, then the injury die that Stuns
+    tray(2, 0);
+    tray(3, 0);
+    player.status = PlayerStatus.STUNNED;
+  });
+  expect(status()).toBeNull();
+  await act(async () => tray(3, 1));
+  expect(status()).toBe("Prone");
+  await act(async () => tray(3, 2));
+  expect(status()).toBe("Prone");
+  await act(async () => tray(3, 3));
+  expect(status()).toBe("Stunned");
+});

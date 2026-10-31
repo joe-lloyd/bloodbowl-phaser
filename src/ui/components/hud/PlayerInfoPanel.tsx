@@ -22,13 +22,6 @@ const statusView = (player: Player): StatusView => ({
   injuries: [...player.injuries],
 });
 
-/** A player's status changes still waiting on their dice. */
-interface HeldStatus {
-  pending: number;
-  /** The latest change whose dice have landed, if any. */
-  shown: StatusView | null;
-}
-
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
 }
@@ -43,56 +36,55 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const refresh = () => setRefreshTick((tick) => tick + 1);
 
   // The engine settles a fall or an injury at once, while the dice that
-  // decide it still roll in the tray. The card keeps showing the status from
-  // before the roll until those dice land. With no tray (headless runs, unit
-  // tests) nothing is ever in the air and the card updates at once.
+  // decide it still roll in the tray. A roll is thrown before the engine
+  // applies what it decides, so the card keeps every player's status as it
+  // stood when each roll was thrown, keyed by the roll's number. It shows
+  // the one from the first roll still in the air: every landed roll's
+  // effect, and none of the rest. This needs no status event, so a foul's
+  // Stunned waits for its injury die too. With no tray (headless runs, unit
+  // tests) nothing is ever thrown and the card shows the live status.
   const dice = DiceWatch.shared(eventBus);
-  const beforeRoll = useRef(new Map<string, StatusView>());
-  const held = useRef(new Map<string, HeldStatus>());
-  const rolling = useRef(false);
+  const atThrow = useRef(new Map<number, Map<string, StatusView>>());
+  const lastThrown = useRef(0);
+  const releaseThrough = (seq: number) => {
+    for (const key of atThrow.current.keys())
+      if (key <= seq) atThrow.current.delete(key);
+    refresh();
+  };
   useEventBus(
     eventBus,
     GameEventNames.UI_DiceInAir,
     ({ thrown, landedThrough }) => {
-      const inAir = landedThrough < thrown;
-      if (inAir && !rolling.current && ServiceContainer.isInitialized()) {
-        beforeRoll.current = new Map(
+      if (thrown > lastThrown.current && ServiceContainer.isInitialized()) {
+        const now = new Map(
           ServiceContainer.getInstance()
             .gameService.getTeams()
             .flatMap((team) => team.players)
             .map((player) => [player.id, statusView(player)])
         );
+        for (let seq = lastThrown.current + 1; seq <= thrown; seq++)
+          atThrow.current.set(seq, now);
+        // A tray that goes quiet: release with the log and the banners when
+        // the shared watch gives up. Wait a tick so it has seen this throw.
+        queueMicrotask(
+          () => void dice.landed().then(() => releaseThrough(thrown))
+        );
       }
-      rolling.current = inAir;
+      lastThrown.current = Math.max(lastThrown.current, thrown);
+      releaseThrough(landedThrough);
     }
   );
-  useEventBus(eventBus, GameEventNames.PlayerStatusChanged, (player) => {
-    if (!dice.inAir()) {
-      held.current.delete(player.id);
-      refresh();
-      return;
-    }
-    const entry = held.current.get(player.id) ?? { pending: 0, shown: null };
-    entry.pending += 1;
-    held.current.set(player.id, entry);
-    const view = statusView(player);
-    void dice.landed().then(() => {
-      if (held.current.get(player.id) !== entry) return;
-      entry.pending -= 1;
-      entry.shown = view;
-      if (entry.pending === 0) held.current.delete(player.id);
-      refresh();
-    });
-  });
+  useEventBus(eventBus, GameEventNames.PlayerStatusChanged, refresh);
   const forgetHeld = () => {
-    held.current.clear();
+    atThrow.current.clear();
     refresh();
   };
   const shownStatus = (player: Player): StatusView => {
-    const entry = held.current.get(player.id);
-    if (!entry) return statusView(player);
+    // Map keys keep their insertion order, which is the order thrown
+    const firstInAir = atThrow.current.values().next();
     return (
-      entry.shown ?? beforeRoll.current.get(player.id) ?? statusView(player)
+      (firstInAir.done ? undefined : firstInAir.value.get(player.id)) ??
+      statusView(player)
     );
   };
   // Hover Events
