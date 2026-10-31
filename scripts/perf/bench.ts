@@ -28,7 +28,12 @@ import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { loadavg } from "node:os";
-import { chromium, type Browser, type Page } from "@playwright/test";
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 import { GameApp } from "../../e2e/support/pages/game";
 
 type ConfigName = "swiftshader" | "gpu";
@@ -78,19 +83,30 @@ const VIEWPORT = { width: 1440, height: 900 };
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
-const option = (name: string) => {
+/** A flag's operand, or undefined when the flag is absent. */
+const option = (name: string): string | undefined => {
   const i = args.indexOf(`--${name}`);
-  return i >= 0 ? args[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const value = args[i + 1];
+  if (value === undefined || value.startsWith("--"))
+    throw new Error(`--${name} needs a value`);
+  return value;
 };
+const CONFIGS: ConfigName[] = ["swiftshader", "gpu"];
 const runs = Number(option("runs") ?? 3);
-const configs: ConfigName[] = option("config")
-  ? [option("config") as ConfigName]
-  : ["swiftshader", "gpu"];
+if (!Number.isInteger(runs) || runs < 1)
+  throw new Error(`--runs must be a positive whole number, not ${runs}`);
+const configArg = option("config");
+if (configArg !== undefined && !CONFIGS.some((c) => c === configArg))
+  throw new Error(`--config must be one of ${CONFIGS.join(", ")}`);
+const configs = CONFIGS.filter((c) => configArg === undefined || c === configArg);
 const label = option("label") ?? "";
-const VIDEO = option("video")
-  ? (([width, height]) => ({ width, height }))(
-      option("video")!.split("x").map(Number)
-    )
+const videoArg = option("video");
+const videoSize = videoArg?.match(/^(\d+)x(\d+)$/);
+if (videoArg !== undefined && !videoSize)
+  throw new Error(`--video takes a size such as 1440x900, not ${videoArg}`);
+const VIDEO = videoSize
+  ? { width: Number(videoSize[1]), height: Number(videoSize[2]) }
   : null;
 
 // ---------------------------------------------------------------- server
@@ -370,8 +386,9 @@ async function oneRun(
   run: number
 ): Promise<RunResult> {
   const { browser, pid, close } = await launch(config);
+  let context: BrowserContext | undefined;
   try {
-    const context = await browser.newContext({
+    context = await browser.newContext({
       baseURL,
       viewport: VIEWPORT,
       deviceScaleFactor: 1,
@@ -405,6 +422,8 @@ async function oneRun(
       windows: { idle, action, held },
     };
   } finally {
+    // Close the context first so a recording ends before the browser does
+    await context?.close();
     await close();
   }
 }
@@ -418,7 +437,7 @@ function median(values: number[]): number {
 }
 
 function summarise(results: RunResult[]) {
-  const rows: Record<string, Record<string, number | string>> = {};
+  const rows: Record<string, Record<string, number | string | null>> = {};
   for (const config of configs) {
     for (const name of ["idle", "action", "held"] as WindowName[]) {
       const ws = results
@@ -427,6 +446,10 @@ function summarise(results: RunResult[]) {
       if (ws.length === 0) continue;
       const m = (pick: (w: WindowResult) => number) =>
         Number(median(ws.map(pick)).toFixed(2));
+      // Null when a run drew nothing: a cost per frame has no meaning there
+      const perFrame = ws.map((w) =>
+        w.drawFps > 0 ? (w.cpuSeconds * 1000) / (w.drawFps * w.seconds) : null
+      );
       rows[`${config}/${name}`] = {
         cpuPct: m((w) => w.cpuPercent),
         gpuProcPct: m(
@@ -439,7 +462,9 @@ function summarise(results: RunResult[]) {
         drawFps: m((w) => w.drawFps),
         // Under SwiftShader the GPU process is saturated, so a cheaper
         // frame shows up as more frames, not less CPU. This sees both.
-        cpuMsPerFrame: m((w) => (w.cpuSeconds * 1000) / Math.max(1, w.drawFps * w.seconds)),
+        cpuMsPerFrame: perFrame.every((v): v is number => v !== null)
+          ? Number(median(perFrame).toFixed(2))
+          : null,
         rafFps: m((w) => w.rafFps),
         drawsPerSec: m((w) => w.drawCallsPerSec),
         frameMean: m((w) => w.frameMeanMs),
@@ -482,10 +507,25 @@ async function main() {
   const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
     encoding: "utf8",
   }).trim();
+  // Everything that decides what was measured, the bench itself included
   const dirty =
-    execFileSync("git", ["status", "--porcelain", "--", "src"], {
-      encoding: "utf8",
-    }).trim() !== "";
+    execFileSync(
+      "git",
+      [
+        "status",
+        "--porcelain",
+        "--",
+        "src",
+        "public",
+        "index.html",
+        "scripts/perf",
+        "package.json",
+        "pnpm-lock.yaml",
+        "vite.config.ts",
+        ".env.e2e",
+      ],
+      { encoding: "utf8" }
+    ).trim() !== "";
   const summary = summarise(results);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   mkdirSync("perf-results", { recursive: true });
