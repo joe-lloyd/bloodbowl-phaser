@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { OpponentConnectionState } from "../../../firebase/lobby";
+import type { ConnectionState } from "../../../firebase/lobby";
 
 /**
  * In-match options menu — context-derived descriptors.
@@ -68,7 +68,7 @@ export type MatchOptionsMenuContext =
       kind: "online";
       role: "host" | "guest";
       opponentName: string;
-      connection: OpponentConnectionState;
+      connection: ConnectionState;
       /** Who (if anyone) has proposed ending the match. */
       endRequest: "none" | "mine" | "theirs";
     };
@@ -125,7 +125,7 @@ function localEntries(matchOver: boolean): MatchOptionsMenuEntry[] {
 function onlineEntries(context: {
   role: "host" | "guest";
   opponentName: string;
-  connection: OpponentConnectionState;
+  connection: ConnectionState;
   endRequest: "none" | "mine" | "theirs";
 }): MatchOptionsMenuEntry[] {
   const { role, opponentName, connection, endRequest } = context;
@@ -172,7 +172,8 @@ function onlineEntries(context: {
       description: `${opponentName} wants to end the match — respond in the prompt.`,
       disabled: true,
     });
-  } else {
+  } else if (connection !== "offline") {
+    // An offline coach's proposal could not reach the other coach
     entries.push({
       id: "request-end-match",
       label: "End Match",
@@ -189,12 +190,7 @@ function onlineEntries(context: {
 
   entries.push({
     id: "connection-status",
-    label:
-      connection === "online"
-        ? `${opponentName} is connected`
-        : connection === "reconnecting"
-          ? `${opponentName} disconnected — waiting to reconnect…`
-          : `${opponentName} has been disconnected`,
+    label: connectionLabel(connection, opponentName),
     disabled: true,
   });
 
@@ -205,7 +201,10 @@ function onlineEntries(context: {
     entries.push({
       id: "reconnect",
       label: "Try to Reconnect",
-      description: `Refresh the connection to see if ${opponentName} has come back.`,
+      description:
+        connection === "offline"
+          ? "Refresh your connection to the match."
+          : `Refresh the connection to see if ${opponentName} has come back.`,
     });
   }
 
@@ -225,4 +224,24 @@ function onlineEntries(context: {
   }
 
   return entries;
+}
+
+function connectionLabel(
+  connection: ConnectionState,
+  opponentName: string
+): string {
+  switch (connection) {
+    case "online":
+      return `${opponentName} is connected`;
+    case "offline":
+      return "You are offline, reconnecting…";
+    case "reconnecting":
+      return `${opponentName} disconnected — waiting to reconnect…`;
+    case "abandonable":
+      return `${opponentName} has been disconnected`;
+    default: {
+      const exhaustive: never = connection;
+      return exhaustive;
+    }
+  }
 }

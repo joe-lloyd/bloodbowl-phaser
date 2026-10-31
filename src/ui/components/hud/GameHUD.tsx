@@ -47,14 +47,14 @@ import {
   MatchOptionsMenuContext,
   MatchOptionsMenuEntry,
 } from "./computeMatchOptionsMenu";
-import type { OpponentConnectionState } from "../../../firebase/lobby";
+import type { ConnectionState } from "../../../firebase/lobby";
 
 /** Online-only entries/state, supplied by OnlinePlayPage (GamePage forwards
  *  it through untouched — GameHUD has no lobby access of its own). */
 export interface OnlineMatchMenuProps {
   role: "host" | "guest";
   opponentName: string;
-  connection: OpponentConnectionState;
+  connection: ConnectionState;
   endRequest: "none" | "mine" | "theirs";
   onSaveAndExit: () => void;
   onRequestEndMatch: () => void;
