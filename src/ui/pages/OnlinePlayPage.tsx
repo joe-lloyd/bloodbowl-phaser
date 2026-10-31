@@ -31,9 +31,8 @@ import {
 } from "../components/componentWarehouse/HudKit";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
-import { WaitingBanner } from "./WaitingBanner";
 import { RefusalNotice } from "../components/hud/RefusalNotice";
-import { ConnectionBanner } from "./ConnectionBanner";
+import { MatchBanner } from "./ConnectionBanner";
 
 interface OnlinePlayPageProps {
   eventBus: EventBus;
@@ -248,15 +247,13 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         pitchThemeId={lobby?.settings.pitchThemeId}
         onlineMenu={onlineMenu}
       />
-      <WaitingBanner match={match} eventBus={eventBus} />
+      <MatchBanner
+        match={match}
+        eventBus={eventBus}
+        opponentName={match.opponentName}
+        connection={connection}
+      />
       <RefusalNotice eventBus={eventBus} />
-
-      {lobby && opponentUid && (
-        <ConnectionBanner
-          opponentName={match.opponentName}
-          connection={connection}
-        />
-      )}
 
       {lobby && code && (
         <TurnClock

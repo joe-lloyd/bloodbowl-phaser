@@ -1,4 +1,29 @@
 import type { ConnectionState } from "../../firebase/lobby";
+import type { IEventBus } from "../../services/EventBus";
+import type { OnlineMatch } from "../../network/OnlineMatch";
+import { WaitingBanner } from "./WaitingBanner";
+
+/**
+ * The one banner under the turn clock: what is wrong with the connection
+ * if anything is, otherwise whose turn or decision the game waits on.
+ */
+export function MatchBanner({
+  match,
+  eventBus,
+  opponentName,
+  connection,
+}: {
+  match: Pick<OnlineMatch, "mayAct" | "waitingLabel">;
+  eventBus: IEventBus;
+  opponentName: string;
+  connection: ConnectionState;
+}) {
+  return connection === "online" ? (
+    <WaitingBanner match={match} eventBus={eventBus} />
+  ) : (
+    <ConnectionBanner opponentName={opponentName} connection={connection} />
+  );
+}
 
 /**
  * The match's connection, when it is not simply up. This coach's own drop
@@ -37,7 +62,7 @@ export function ConnectionBanner({
     }
   }
   return (
-    <div className="absolute inset-x-0 top-[15rem] z-[93] flex justify-center pointer-events-none">
+    <div className="absolute inset-x-0 top-[11.5rem] z-[93] flex justify-center pointer-events-none">
       <div
         data-testid="connection-banner"
         role="status"

@@ -2,6 +2,7 @@ import { GamePhase } from "@/types/GameState";
 import React from "react";
 import { hudButtonClass } from "../componentWarehouse/HudKit";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
+import { useHeldOnline } from "../../hooks/useHeldOnline";
 
 interface EndTurnButtonProps {
   onClick: () => void;
@@ -17,6 +18,8 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   phase,
   activeTeamId,
 }) => {
+  // Online, no command can be sent while input is held
+  const held = useHeldOnline();
   if (phase !== GamePhase.PLAY) {
     return null;
   }
@@ -29,7 +32,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
     <button
       data-testid="end-turn"
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || held}
       className={`${hudButtonClass("primary", "lg")} min-h-[56px] px-10 font-hud-display !text-hud-xl !font-normal !tracking-[0.08em]`}
     >
       End Turn
