@@ -5,6 +5,12 @@ import { DiceWatch } from "./diceWatch";
 
 /** How long landed dice show their result before the moment covers them. */
 const RESULT_BEAT_MS = 600;
+/**
+ * After a kick-off, how long the board must stay quiet, no die in the air
+ * and no decision open, before the first turn banner plays: the catch or
+ * bounce is rolled a moment after the turn starts.
+ */
+const KICKOFF_QUIET_MS = 500;
 
 const queues = new WeakMap<IEventBus, MomentQueue>();
 
@@ -60,6 +66,18 @@ export class MomentQueue {
   private running = false;
   private disposed = false;
   private finishBeat: (() => void) | undefined;
+  /** A kick-off just landed: the next turn banner waits for its catch. */
+  private afterKickoff = false;
+  private decisionOpen = false;
+  private readonly kickoffLanded = () => {
+    this.afterKickoff = true;
+  };
+  private readonly decisionRequested = () => {
+    this.decisionOpen = true;
+  };
+  private readonly decisionResolved = () => {
+    this.decisionOpen = false;
+  };
   private readonly announce = (moment: AllEvents[GameEventNames.UI_Announce]) =>
     this.enqueue(moment);
   private readonly turnover = (data: AllEvents[GameEventNames.UI_Turnover]) =>
@@ -75,6 +93,9 @@ export class MomentQueue {
     queues.set(eventBus, this);
     eventBus.on(GameEventNames.UI_Announce, this.announce);
     eventBus.on(GameEventNames.UI_Turnover, this.turnover);
+    eventBus.on(GameEventNames.KickoffSequenceCompleted, this.kickoffLanded);
+    eventBus.on(GameEventNames.DecisionRequested, this.decisionRequested);
+    eventBus.on(GameEventNames.DecisionResolved, this.decisionResolved);
   }
 
   isBusy(): boolean {
@@ -87,14 +108,32 @@ export class MomentQueue {
   }
 
   private enqueue(moment: MatchMoment): void {
-    // Capture the deciding rolls now. Later rolls cannot move this boundary.
-    const ready = this.dice.inAir()
-      ? this.dice
-          .landed()
-          .then(() => new Promise<void>((r) => setTimeout(r, RESULT_BEAT_MS)))
-      : Promise.resolve();
+    const firstTurnOfDrive =
+      moment.kind === "turn-started" && this.afterKickoff;
+    if (moment.kind === "turn-started") this.afterKickoff = false;
+    // Capture the deciding rolls now. Later rolls cannot move this boundary,
+    // except the kick-off catch, which is rolled after the turn starts.
+    const ready = firstTurnOfDrive
+      ? this.kickoffSettled()
+      : this.dice.inAir()
+        ? this.dice
+            .landed()
+            .then(() => new Promise<void>((r) => setTimeout(r, RESULT_BEAT_MS)))
+        : Promise.resolve();
     this.pending.push({ moment, ready });
     void this.play();
+  }
+
+  /** Resolves once the kick-off catch, any re-roll and their dice are done. */
+  private async kickoffSettled(): Promise<void> {
+    let quietSince = Date.now();
+    while (!this.disposed && Date.now() - quietSince < KICKOFF_QUIET_MS) {
+      await new Promise((r) => setTimeout(r, 100));
+      if (this.dice.inAir() || this.decisionOpen) {
+        await this.dice.landed();
+        quietSince = Date.now();
+      }
+    }
   }
 
   private async play(): Promise<void> {
@@ -125,6 +164,12 @@ export class MomentQueue {
     this.pending = [];
     this.eventBus.off(GameEventNames.UI_Announce, this.announce);
     this.eventBus.off(GameEventNames.UI_Turnover, this.turnover);
+    this.eventBus.off(
+      GameEventNames.KickoffSequenceCompleted,
+      this.kickoffLanded
+    );
+    this.eventBus.off(GameEventNames.DecisionRequested, this.decisionRequested);
+    this.eventBus.off(GameEventNames.DecisionResolved, this.decisionResolved);
     this.finishBeat?.();
     this.idleWaiters.splice(0).forEach((resolve) => resolve());
     if (queues.get(this.eventBus) === this) queues.delete(this.eventBus);
