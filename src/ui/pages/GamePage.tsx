@@ -158,6 +158,10 @@ export function GamePage({
       parent: "game-container",
       backgroundColor: "#000000",
       pixelArt: true,
+      // One texture per batch. With more, Phaser's shader picks the texture
+      // through a chain of branches, and software WebGL runs every branch
+      // for every pixel. Splitting batches costs far less.
+      maxTextures: 1,
       scene:
         mode === "sandbox"
           ? [BootScene, SandboxScene]
