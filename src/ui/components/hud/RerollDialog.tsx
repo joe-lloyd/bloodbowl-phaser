@@ -16,16 +16,20 @@ import {
 } from "../componentWarehouse/HudKit";
 
 /** A long label wraps between words, never inside "RE-ROLL". */
-const keepRerollWhole = (label: string) =>
-  label.split(/(RE-ROLL)/).map((part, index) =>
-    part === "RE-ROLL" ? (
-      <span key={index} className="whitespace-nowrap">
-        {part}
-      </span>
-    ) : (
-      part
-    )
-  );
+const keepRerollWhole = (label: string) => (
+  // One child, so the button's flex gap does not open up around the word
+  <span>
+    {label.split(/(RE-ROLL)/).map((part, index) =>
+      part === "RE-ROLL" ? (
+        <span key={index} className="whitespace-nowrap">
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    )}
+  </span>
+);
 
 interface RerollDialogProps {
   eventBus: EventBus;
