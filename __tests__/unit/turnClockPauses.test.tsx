@@ -43,6 +43,7 @@ vi.mock("../../src/services/ServiceContainer", () => ({
         // The host's turn: the active coach keeps the clock
         getActiveTeamId: () => "host-team",
         getState: () => hoisted.state,
+        getTeam: () => undefined,
         endTurn: hoisted.endTurnMock,
       },
     }),

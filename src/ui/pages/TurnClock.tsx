@@ -18,6 +18,7 @@ import {
   defaultAnswer,
 } from "../../network/decisionTimeouts";
 import { AuthUser } from "../../firebase/auth";
+import { possessive } from "../../game/managers/TurnManager";
 
 interface Props {
   code: string;
@@ -38,6 +39,14 @@ const fmt = (ms: number) => {
 const TIME_UP_GRACE_MS = 1000;
 /** How long a resumed clock waits for its new deadline to come back. */
 const RESUME_WAIT_MS = 5000;
+
+/** Names whose time ran out: "Reikland Reavers' turn ended". */
+const endedTurn = (teamId: string): string => {
+  const name = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getTeam(teamId)?.name
+    : undefined;
+  return name ? `${possessive(name)} turn ended` : "Turn ended";
+};
 
 const currentPhase = (): GamePhase | null =>
   ServiceContainer.isInitialized()
@@ -257,7 +266,7 @@ export function TurnClock({
     const onTurnover = () => {
       turnoverThisTurn.current = true;
     };
-    const onTurnEnded = () => {
+    const onTurnEnded = ({ teamId }: { teamId: string }) => {
       const turnover = turnoverThisTurn.current;
       turnoverThisTurn.current = false;
       if (turnover || !timer?.deadline || timer.pausedBy) return;
@@ -267,7 +276,7 @@ export function TurnClock({
       eventBus.emit(GameEventNames.UI_Announce, {
         kind: "time-up",
         headline: "Time up",
-        subtitle: "Turn ended",
+        subtitle: endedTurn(teamId),
       });
     };
     eventBus.on(GameEventNames.Turnover, onTurnover);

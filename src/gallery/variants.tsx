@@ -1282,7 +1282,7 @@ export const VARIANTS: Variant[] = [
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "time-up",
           headline: "Time up",
-          subtitle: "Turn ended",
+          subtitle: "Reikland Reavers' turn ended",
         });
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "turn-started",
