@@ -2,7 +2,10 @@ import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
-import { blockPreviewLines } from "../../../game/rules/rollPreview";
+import {
+  blockPreviewLines,
+  BlockSide,
+} from "../../../game/rules/rollPreview";
 import { BlockAnalysis } from "../../../types/Actions";
 import {
   BlockResult,
@@ -184,8 +187,16 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     : null;
   const attacker = service?.getPlayerById(data.attackerId);
   const defender = service?.getPlayerById(data.defenderId);
+  // Online, the defending coach sees this card too: word it for them
+  const viewer: BlockSide =
+    defender && getActiveOnlineMatch()?.myTeamId === defender.teamId
+      ? "defender"
+      : "attacker";
+  const viewerPicks = isUphill === (viewer === "defender");
   const previewLines =
-    attacker && defender ? blockPreviewLines(analysis, attacker, defender) : [];
+    attacker && defender
+      ? blockPreviewLines(analysis, attacker, defender, viewer)
+      : [];
 
   const handleRoll = () => {
     // Online: only the coach who owns the action/decision may interact
@@ -331,7 +342,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       </div>
 
       <div data-testid="block-roll-analysis" className="mt-2 font-hud-body text-hud-xs leading-snug">
-        {previewLines.map((line, index) => <div key={index} className={index === 0 && isUphill ? "text-hud-bad font-bold" : line.startsWith("Our assists") ? "text-hud-good" : line.startsWith("Their assists") ? "text-hud-bad" : ""}>{line}</div>)}
+        {previewLines.map((line, index) => <div key={index} className={index === 0 && !viewerPicks ? "text-hud-bad font-bold" : line.startsWith("Our assists") ? "text-hud-good" : line.startsWith("Their assists") ? "text-hud-bad" : ""}>{line}</div>)}
       </div>
 
       {/* Dice count and who picks */}

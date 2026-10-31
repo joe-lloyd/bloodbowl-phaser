@@ -2352,7 +2352,7 @@ export class GameplayInteractionController {
     );
     if ((this.currentActionMode === "block" || this.currentActionMode === "blitz") && !this.currentBlockReplacement && target.teamId !== actor.teamId && target.status === PlayerStatus.ACTIVE) {
       const analysis = new BlockValidator().analyzeBlock(actor, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], state.activeTeamId);
-      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target), danger: analysis.isUphill };
+      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target, "attacker"), danger: analysis.isUphill };
       if (!adjacent) preview.lines.push("At current positions. Move into reach to block.");
       ringAssists(analysis.attackerAssists, analysis.defenderAssists);
     } else if (this.currentActionMode === "foul" && adjacent && target.teamId !== actor.teamId && (target.status === PlayerStatus.PRONE || target.status === PlayerStatus.STUNNED)) {

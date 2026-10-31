@@ -79,7 +79,7 @@ describe("roll preview analysis", () => {
       "ours"
     );
     expect(analysis.attackerAssists.map((p) => p.number)).toEqual([8]);
-    expect(blockPreviewLines(analysis, player, defender)).toEqual(
+    expect(blockPreviewLines(analysis, player, defender, "attacker")).toEqual(
       expect.arrayContaining([
         "2 dice, you pick",
         "Our assists: #8",
@@ -90,7 +90,7 @@ describe("roll preview analysis", () => {
   it("says the defender picks when they are stronger", () => {
     const strong = { ...enemy, stats: { ...enemy.stats, ST: 4 } };
     const analysis = new BlockValidator().analyzeBlock(player, strong, [player, strong], "ours");
-    expect(blockPreviewLines(analysis, player, strong).slice(0, 3)).toEqual([
+    expect(blockPreviewLines(analysis, player, strong, "attacker").slice(0, 3)).toEqual([
       "2 dice, they pick",
       "Our assists: none",
       "Their assists: none",
