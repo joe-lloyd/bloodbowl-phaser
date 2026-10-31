@@ -472,7 +472,7 @@ export function MatchResultsScreen({ visible }: Props) {
           </p>
         )}
 
-        {error && <p className="mt-4 text-[#ff9a8f]">{error}</p>}
+        {error && <p className="mt-4 text-hud-bad-soft">{error}</p>}
       </Panel>
     </div>
   );

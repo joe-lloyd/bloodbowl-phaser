@@ -338,7 +338,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
               <div className={boxClass}>{selectedOutcome.description}</div>
             )}
             {searchError && (
-              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-[#ff9a8f]">
+              <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 px-2.5 py-1.5 text-hud-sm text-hud-bad-soft">
                 {searchError}
               </div>
             )}

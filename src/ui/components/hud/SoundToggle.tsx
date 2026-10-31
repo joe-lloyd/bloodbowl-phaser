@@ -15,7 +15,7 @@ export const SoundToggle: React.FC = () => {
     <div className="flex flex-col gap-2 pointer-events-auto">
       <label className="flex items-center gap-2 font-hud-body text-hud-sm text-hud-bone">
         <input
-          className="h-4 w-4 accent-[#e3b448]"
+          className="h-4 w-4 accent-hud-gold"
           type="checkbox"
           checked={settings.muted}
           onChange={(e) => settings.setMuted(e.target.checked)}
@@ -25,7 +25,7 @@ export const SoundToggle: React.FC = () => {
       <label className="flex flex-col gap-1 font-hud-body text-hud-sm text-hud-bone">
         Volume
         <input
-          className="accent-[#e3b448]"
+          className="accent-hud-gold"
           type="range"
           min={0}
           max={1}

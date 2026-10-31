@@ -24,8 +24,8 @@ export const TurnIndicator: React.FC<TurnIndicatorProps> = ({
       <div
         className={`-mt-px -skew-x-12 border px-6 py-1 shadow-hud ${
           showKickoff
-            ? "border-[#ffe08a] bg-hud-gold text-hud-ink"
-            : "border-[#ff6b6b]/50 bg-hud-blood text-white"
+            ? "border-hud-gold-hi bg-hud-gold text-hud-ink"
+            : "border-hud-blood-edge/50 bg-hud-blood text-white"
         }`}
       >
         <div className="skew-x-12 whitespace-nowrap font-hud-display text-hud-lg uppercase tracking-[0.08em]">

@@ -2,6 +2,7 @@ import type { ConnectionState } from "../../firebase/lobby";
 import type { IEventBus } from "../../services/EventBus";
 import type { OnlineMatch } from "../../network/OnlineMatch";
 import { WaitingBanner } from "./WaitingBanner";
+import { Panel } from "../components/componentWarehouse/HudKit";
 
 /**
  * The one banner under the turn clock: what is wrong with the connection
@@ -63,16 +64,17 @@ export function ConnectionBanner({
   }
   return (
     <div className="absolute inset-x-0 top-[11.5rem] z-[93] flex justify-center pointer-events-none">
-      <div
+      <Panel
+        accent="bad"
         data-testid="connection-banner"
         role="status"
-        className="hud-slab pointer-events-auto border-t-[3px] border-t-hud-bad px-5 py-3 text-center animate-hud-in"
+        className="pointer-events-auto px-5 py-3 text-center animate-hud-in"
       >
-        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.05em] text-[#ff8a8a]">
+        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.05em] text-hud-bad-soft">
           ⚠ {headline}
         </p>
         <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">{detail}</p>
-      </div>
+      </Panel>
     </div>
   );
 }

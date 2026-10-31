@@ -25,6 +25,11 @@ export default {
           warn: "#e8a33a",
           info: "#5aa0d8",
           skill: "#a97be0",
+          // Red text on a dark slab: warnings, errors, destructive items.
+          "bad-soft": "#ff8a8a",
+          // The lit edge of a gold or blood button.
+          "gold-hi": "#ffe08a",
+          "blood-edge": "#ff5a5a",
         },
       },
       fontFamily: {

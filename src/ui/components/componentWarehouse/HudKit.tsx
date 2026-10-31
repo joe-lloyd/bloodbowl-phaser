@@ -47,7 +47,7 @@ const TONE_BAR: Record<HudTone, string> = {
 
 const TONE_CHIP: Record<HudTone, string> = {
   gold: "border-hud-gold/60 text-hud-gold",
-  blood: "border-hud-blood-hot/70 text-[#ff8a8a]",
+  blood: "border-hud-blood-hot/70 text-hud-bad-soft",
   good: "border-hud-good/60 text-hud-good",
   bad: "border-hud-bad/60 text-hud-bad",
   warn: "border-hud-warn/60 text-hud-warn",
@@ -232,8 +232,8 @@ export type HudButtonSize = "xs" | "sm" | "md" | "lg";
 const VARIANT: Record<HudButtonVariant, string> = {
   // The main call to action: blood red, with a pressed edge.
   primary:
-    "bg-hud-blood text-white border-[#ff5a5a]/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
-  gold: "bg-hud-gold text-hud-ink border-[#ffe08a] shadow-hud-press-gold hover:bg-[#f0c45a]",
+    "bg-hud-blood text-white border-hud-blood-edge/70 shadow-hud-press-blood hover:bg-hud-blood-hot",
+  gold: "bg-hud-gold text-hud-ink border-hud-gold-hi shadow-hud-press-gold hover:bg-[#f0c45a]",
   success:
     "bg-[#2f7a3a] text-white border-hud-good/80 shadow-[0_3px_0_#123d1a] hover:bg-[#38904a]",
   secondary:
@@ -241,7 +241,7 @@ const VARIANT: Record<HudButtonVariant, string> = {
   ghost:
     "bg-transparent text-hud-bone border-white/20 hover:border-hud-gold/70 hover:text-hud-gold",
   danger:
-    "bg-transparent text-[#ff8a8a] border-hud-bad/50 hover:bg-hud-blood-deep/60 hover:border-hud-bad",
+    "bg-transparent text-hud-bad-soft border-hud-bad/50 hover:bg-hud-blood-deep/60 hover:border-hud-bad",
 };
 
 const SIZE: Record<HudButtonSize, string> = {
@@ -393,7 +393,7 @@ export function HudCoin({ spin }: { spin: number }) {
   return (
     <div
       aria-hidden
-      className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-[#ffe08a] bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
+      className="flex h-20 w-20 select-none items-center justify-center rounded-full border-4 border-hud-gold-hi bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#e3b448_45%,#8a6a22)] font-hud-display text-hud-2xl text-hud-ink shadow-[0_8px_20px_rgba(0,0,0,0.6)] transition-transform"
       style={{ transform: `rotateY(${spin}deg)` }}
     >
       BB

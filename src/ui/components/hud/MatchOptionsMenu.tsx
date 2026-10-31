@@ -237,7 +237,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                         entry.disabled
                           ? "cursor-default border-transparent text-hud-mute"
                           : entry.destructive
-                            ? "border-hud-bad/60 text-[#ff8a8a] hover:bg-hud-blood-deep/50"
+                            ? "border-hud-bad/60 text-hud-bad-soft hover:bg-hud-blood-deep/50"
                             : "border-transparent text-hud-bone hover:border-hud-gold hover:bg-white/5"
                       }`}
                     >
