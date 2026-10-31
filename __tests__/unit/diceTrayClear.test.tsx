@@ -12,6 +12,7 @@ vi.mock("../../src/ui/dice/diceScene", () => ({
     landed: new Promise(() => {}),
     stop: () => {},
     mark: () => {},
+    hurry: () => {},
     onPick: () => {},
   }),
 }));
