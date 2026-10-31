@@ -422,9 +422,13 @@ async function oneRun(
       windows: { idle, action, held },
     };
   } finally {
-    // Close the context first so a recording ends before the browser does
-    await context?.close();
-    await close();
+    // Close the context first so a recording ends before the browser does,
+    // and close the browser even if that fails
+    try {
+      await context?.close();
+    } finally {
+      await close();
+    }
   }
 }
 
@@ -446,6 +450,8 @@ function summarise(results: RunResult[]) {
       if (ws.length === 0) continue;
       const m = (pick: (w: WindowResult) => number) =>
         Number(median(ws.map(pick)).toFixed(2));
+      // Null when the browser reports no heap, not a false 0 MB
+      const heap = ws.map((w) => w.heapMb);
       // Null when a run drew nothing: a cost per frame has no meaning there
       const perFrame = ws.map((w) =>
         w.drawFps > 0 ? (w.cpuSeconds * 1000) / (w.drawFps * w.seconds) : null
@@ -469,7 +475,9 @@ function summarise(results: RunResult[]) {
         drawsPerSec: m((w) => w.drawCallsPerSec),
         frameMean: m((w) => w.frameMeanMs),
         frameP95: m((w) => w.frameP95Ms),
-        heapMb: m((w) => w.heapMb ?? 0),
+        heapMb: heap.every((v): v is number => v !== null)
+          ? Number(median(heap).toFixed(2))
+          : null,
         load: m((w) => w.loadAvg),
       };
     }
