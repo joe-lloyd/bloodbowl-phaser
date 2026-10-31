@@ -37,6 +37,7 @@ import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { rollLabel } from "../rules/rollTargets";
+import type { RerollSource } from "../../types/decisions";
 import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
@@ -2127,19 +2128,18 @@ export class GameplayInteractionController {
       .map((roll) => rollLabel(rollName(roll.type), roll.target))
       .join(", then ");
     const arbiter = this.gameService.getRerollArbiter();
-    // A team re-roll saves one roll a turn: with two rolls it is listed
-    // once, for either of them
-    let teamListed = false;
+    // A team re-roll, Pro and Veteran each save one roll: with two rolls
+    // each is listed once, for either of them. A skill re-roll belongs to
+    // its own roll, as Dodge and Sure Hands are different skills.
+    const listed = new Set<RerollSource>();
     const rerolls = rolls.flatMap(({ type, target }) => {
       const offer = availableRerolls(
         { gameService: this.gameService, eventBus: this.eventBus },
         player,
         type
       );
-      const sources = offer.sources.filter(
-        (source) => source !== "team" || !teamListed
-      );
-      if (sources.includes("team")) teamListed = true;
+      const sources = offer.sources.filter((source) => !listed.has(source));
+      for (const source of sources) if (source !== "skill") listed.add(source);
       const either = rolls.length > 1;
       const forOne = `one of the ${["two", "three"][rolls.length - 2] ?? rolls.length} rolls`;
       return sources.map((source) => {
@@ -2147,7 +2147,9 @@ export class GameplayInteractionController {
           case "skill":
             return `${offer.skillSource} re-roll: ${target}+`;
           case "pro":
-            return `Pro needs 3+, then ${target}+`;
+            return either
+              ? `Pro needs 3+, for ${forOne}`
+              : `Pro needs 3+, then ${target}+`;
           case "team": {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
@@ -2172,7 +2174,9 @@ export class GameplayInteractionController {
             }
           }
           case "veteran":
-            return `Veteran re-roll: ${target}+`;
+            return either
+              ? `Veteran re-roll, for ${forOne}`
+              : `Veteran re-roll: ${target}+`;
           default: {
             const exhaustive: never = source;
             return exhaustive;
