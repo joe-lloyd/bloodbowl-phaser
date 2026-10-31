@@ -2142,6 +2142,7 @@ export class GameplayInteractionController {
       );
       if (sources.includes("team")) teamListed = true;
       const either = rolls.length > 1;
+      const forOne = `one of the ${["two", "three"][rolls.length - 2] ?? rolls.length} rolls`;
       return sources.map((source) => {
         switch (source) {
           case "skill":
@@ -2153,15 +2154,15 @@ export class GameplayInteractionController {
             switch (next) {
               case "free":
                 return either
-                  ? "Brilliant Coaching free re-roll, for one of the two rolls"
+                  ? `Brilliant Coaching free re-roll, for ${forOne}`
                   : `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "leader":
                 return either
-                  ? "Leader re-roll, for one of the two rolls"
+                  ? `Leader re-roll, for ${forOne}`
                   : `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
               case "team":
                 return either
-                  ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for one of the two rolls`
+                  ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
                   : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
               case null:
                 return "No team re-roll available";
