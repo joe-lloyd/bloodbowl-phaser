@@ -75,3 +75,4 @@ src/data/*.json
 /dist-perf/
 /perf-results/shots/
 /perf-results/verify/
+/perf-results/video/
