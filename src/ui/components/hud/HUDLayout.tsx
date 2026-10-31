@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { HUD_PANELS_ATTRIBUTE } from "../../../game/presentation/hudRects";
 
 interface HUDLayoutProps {
   topLeft?: React.ReactNode;
@@ -21,6 +22,8 @@ const column =
 const stack = "flex min-h-0 flex-col gap-3";
 const top = `${stack} overflow-y-auto hud-scroll`;
 const bottom = `${stack} mt-auto shrink-0`;
+/** Each corner stack's panels: the camera frames squares clear of them. */
+const panels = { [HUD_PANELS_ATTRIBUTE]: "" };
 
 /**
  * HUDLayout: floating panels in the four corners over a full-window match.
@@ -72,12 +75,20 @@ export const HUDLayout: React.FC<HUDLayoutProps> = ({
       onTouchEnd={endPress}
     >
       <div className={`${column} left-4`}>
-        <div className={top}>{topLeft}</div>
-        <div className={bottom}>{bottomLeft}</div>
+        <div className={top} {...panels}>
+          {topLeft}
+        </div>
+        <div className={bottom} {...panels}>
+          {bottomLeft}
+        </div>
       </div>
       <div className={`${column} right-4 items-end`}>
-        <div className={`${top} w-full items-end`}>{topRight}</div>
-        <div className={`${bottom} w-full items-end`}>{bottomRight}</div>
+        <div className={`${top} w-full items-end`} {...panels}>
+          {topRight}
+        </div>
+        <div className={`${bottom} w-full items-end`} {...panels}>
+          {bottomRight}
+        </div>
       </div>
       {overlays}
     </div>
