@@ -8,6 +8,9 @@
  *   idle    the board loaded and settled, nobody touching it, 30 s
  *   action  a move, a pick-up confirmation and its dice roll, then the
  *           board left alone until the window ends, 20 s
+ *   held    straight after, nobody touching the board while the rolled
+ *           dice stay up in the tray, 20 s. A match spends most of its
+ *           time like this.
  *
  * For each window it records the CPU seconds of the whole browser process
  * tree (GPU process included, split by process type), how many animation
@@ -27,7 +30,7 @@ import { chromium, type Browser, type Page } from "@playwright/test";
 import { GameApp } from "../../e2e/support/pages/game";
 
 type ConfigName = "swiftshader" | "gpu";
-type WindowName = "idle" | "action";
+type WindowName = "idle" | "action" | "held";
 
 interface ProcessCpu {
   pid: number;
@@ -67,6 +70,7 @@ interface RunResult {
 
 const IDLE_SECONDS = 30;
 const ACTION_SECONDS = 20;
+const HELD_SECONDS = 20;
 const SCENARIO = "pickup-success-seeded";
 const VIEWPORT = { width: 1440, height: 900 };
 
@@ -366,6 +370,7 @@ async function oneRun(
     const action = await measure(page, pid, ACTION_SECONDS, () =>
       pickUpBall(app, page)
     );
+    const held = await measure(page, pid, HELD_SECONDS, async () => {});
     if (flag("shots")) {
       mkdirSync("perf-results/shots", { recursive: true });
       await page.screenshot({
@@ -376,7 +381,7 @@ async function oneRun(
       config,
       run,
       glRenderer: renderer,
-      windows: { idle, action },
+      windows: { idle, action, held },
     };
   } finally {
     await close();
@@ -394,7 +399,7 @@ function median(values: number[]): number {
 function summarise(results: RunResult[]) {
   const rows: Record<string, Record<string, number | string>> = {};
   for (const config of configs) {
-    for (const name of ["idle", "action"] as WindowName[]) {
+    for (const name of ["idle", "action", "held"] as WindowName[]) {
       const ws = results
         .filter((r) => r.config === config)
         .map((r) => r.windows[name]);
@@ -445,7 +450,7 @@ async function main() {
         const result = await oneRun(baseURL, config, run);
         results.push(result);
         console.log(
-          `idle ${result.windows.idle.cpuPercent.toFixed(0)}% action ${result.windows.action.cpuPercent.toFixed(0)}% (load ${result.windows.idle.loadAvg.toFixed(1)})`
+          `idle ${result.windows.idle.cpuPercent.toFixed(0)}% action ${result.windows.action.cpuPercent.toFixed(0)}% held ${result.windows.held.cpuPercent.toFixed(0)}% (load ${result.windows.idle.loadAvg.toFixed(1)})`
         );
       }
     }
