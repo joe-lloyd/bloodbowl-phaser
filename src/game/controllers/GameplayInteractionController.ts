@@ -36,8 +36,7 @@ import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
-import { d6Chance, percent } from "../rules/rollOdds";
-import { rollLabel, rollProbability } from "../rules/rollProbability";
+import { rollLabel } from "../rules/rollTargets";
 import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
@@ -2146,24 +2145,24 @@ export class GameplayInteractionController {
       return sources.map((source) => {
         switch (source) {
           case "skill":
-            return `${offer.skillSource} re-roll: ${target}+, ${percent(d6Chance(target))}`;
+            return `${offer.skillSource} re-roll: ${target}+`;
           case "pro":
-            return `Pro needs 3+, then ${target}+: ${percent((d6Chance(target) * 2) / 3)}`;
+            return `Pro needs 3+, then ${target}+`;
           case "team": {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
               case "free":
                 return either
                   ? `Brilliant Coaching free re-roll, for ${forOne}`
-                  : `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                  : `Brilliant Coaching free re-roll: ${target}+`;
               case "leader":
                 return either
                   ? `Leader re-roll, for ${forOne}`
-                  : `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                  : `Leader re-roll: ${target}+`;
               case "team":
                 return either
                   ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
-                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
+                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+`;
               case null:
                 return "No team re-roll available";
               default: {
@@ -2173,7 +2172,7 @@ export class GameplayInteractionController {
             }
           }
           case "veteran":
-            return `Veteran re-roll: ${target}+, ${percent(d6Chance(target))}`;
+            return `Veteran re-roll: ${target}+`;
           default: {
             const exhaustive: never = source;
             return exhaustive;
@@ -2181,9 +2180,6 @@ export class GameplayInteractionController {
         }
       });
     });
-    const chance = rollProbability(
-      rolls.map((roll) => ({ dice: "d6" as const, target: roll.target }))
-    );
     const title =
       risk.kind === "dodge"
         ? "Dodge"
@@ -2206,12 +2202,9 @@ export class GameplayInteractionController {
         step: {
           playerId: player.id,
           rolls: rolls.map(({ type, target }) => ({ type, target })),
-          chance,
         },
         message:
           `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
-          // Each roll shows its own chance; two rolls also need both
-          (rolls.length > 1 ? `Chance of both: ${percent(chance)}.\n` : "") +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),
@@ -2314,7 +2307,6 @@ export class GameplayInteractionController {
     this.pitch.drawMovementPath(fullPath, rolls, left);
     this.eventBus.emit(GameEventNames.UI_RoutePreview, {
       movementLeft: left, riskySteps: rolls.length,
-      chance: rollProbability(rolls.map(roll => ({ dice: "d6", target: roll.target }))),
       rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
     });
   }
@@ -2346,7 +2338,6 @@ export class GameplayInteractionController {
         step: {
           playerId: fouler.id,
           rolls: [{ type: "armour", target: foul.targetNumber }],
-          chance: rollProbability([{ dice: "2d6", target: foul.targetNumber }]),
         },
       });
     });
@@ -2399,11 +2390,7 @@ export class GameplayInteractionController {
       const aimRolls: StepPrompt["rolls"] = handoff
         ? [{ type: "catch", target: catchNeeds }]
         : [{ type: "pass", target: throwNeeds }, { type: "catch", target: catchNeeds }];
-      aim = {
-        playerId: actor.id,
-        rolls: aimRolls,
-        chance: rollProbability(aimRolls.map(roll => ({ dice: "d6" as const, target: roll.target }))),
-      };
+      aim = { playerId: actor.id, rolls: aimRolls };
       const interceptorRolls: { square: { x: number; y: number }; target: number }[] = [];
       if (!handoff) {
         const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];

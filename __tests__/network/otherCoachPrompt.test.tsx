@@ -132,7 +132,6 @@ describe("the acting coach's step prompt", () => {
     const step: StepPrompt = {
       playerId: mover.id,
       rolls: [{ type: "dodge", target: 3 }],
-      chance: 4 / 6,
     };
     bus.emit(GameEventNames.UI_RequestConfirmation, {
       actionId: "risky-step-1",
@@ -160,7 +159,6 @@ describe("the acting coach's step prompt", () => {
         { type: "pass", target: 3 },
         { type: "catch", target: 4 },
       ],
-      chance: 1 / 3,
     };
     bus.emit(GameEventNames.UI_PassAimed, aim);
     bus.emit(GameEventNames.UI_PassAimed, aim);
@@ -187,9 +185,8 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: orc.id,
       rolls: [{ type: "rush", target: 2 }],
-      chance: 5 / 6,
     });
-    expect(line()).toBe("Orc Founders: Rush 2+ (83%)");
+    expect(line()).toBe("Orc Founders: Rush 2+");
     expect(host.querySelector("button")).toBeNull();
 
     await fromGuest(null);
@@ -202,9 +199,8 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: orc.id,
       rolls: [{ type: "armour", target: 8 }],
-      chance: 15 / 36,
     });
-    expect(line()).toBe("Orc Founders: Foul armour 8+ (42%)");
+    expect(line()).toBe("Orc Founders: Foul armour 8+");
   });
 
   it("shows the pass the other coach is aiming, with the catch", async () => {
@@ -215,12 +211,11 @@ describe("the waiting coach's decision dock", () => {
         { type: "pass", target: 3 },
         { type: "catch", target: 4 },
       ],
-      chance: (4 / 6) * (3 / 6),
     });
-    expect(line()).toBe("Orc Founders: Pass 3+, then Catch 4+ (33%)");
+    expect(line()).toBe("Orc Founders: Pass 3+, then Catch 4+");
   });
 
-  it("names both rolls of a Rush and Dodge with their combined chance", async () => {
+  it("names both rolls of a Rush and Dodge without their odds", async () => {
     const orc = game.ctx.team2.players[0];
     await fromGuest({
       playerId: orc.id,
@@ -228,9 +223,8 @@ describe("the waiting coach's decision dock", () => {
         { type: "rush", target: 2 },
         { type: "dodge", target: 3 },
       ],
-      chance: (5 / 6) * (4 / 6),
     });
-    expect(line()).toBe("Orc Founders: Rush 2+, then Dodge 3+ (56%)");
+    expect(line()).toBe("Orc Founders: Rush 2+, then Dodge 3+");
   });
 
   it("ignores a prompt that claims a player from the wrong team", async () => {
@@ -238,7 +232,6 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: human.id,
       rolls: [{ type: "rush", target: 2 }],
-      chance: 5 / 6,
     });
     expect(line()).toBeNull();
   });
@@ -248,7 +241,6 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: orc.id,
       rolls: [{ type: "pickup", target: 3 }],
-      chance: 4 / 6,
     });
     expect(line()).toContain("Pick up 3+");
     await act(async () =>
@@ -265,9 +257,8 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: orc.id,
       rolls: [{ type: "dodge", target: 4 }],
-      chance: 3 / 6,
     });
-    expect(line()).toBe("Orc Founders: Dodge 4+ (50%)");
+    expect(line()).toBe("Orc Founders: Dodge 4+");
     await act(async () =>
       bus.emit(GameEventNames.DecisionRequested, {
         type: "reroll",
@@ -287,7 +278,6 @@ describe("the waiting coach's decision dock", () => {
     await fromGuest({
       playerId: orc.id,
       rolls: [{ type: "dodge", target: 4 }],
-      chance: 3 / 6,
     });
     await act(async () =>
       bus.emit(GameEventNames.UI_OtherCoachMoveResolved, { playerId: orc.id })

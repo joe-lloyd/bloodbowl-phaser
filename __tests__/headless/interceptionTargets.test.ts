@@ -1,7 +1,7 @@
 /**
  * The throw preview, the interception dialog and the engine's roll agree
- * on what an interceptor needs. In round 1 the preview said 6+ (17%) and
- * the dialog said 5+ (33%) for the same player: the preview assumed an
+ * on what an interceptor needs. In round 1 the preview said 6+ and the
+ * dialog said 5+ for the same player: the preview assumed an
  * accurate pass and said nothing about an inaccurate one.
  */
 import { describe, expect, it } from "vitest";
@@ -49,7 +49,7 @@ async function throwPast(seed: number) {
 describe("interception targets", () => {
   it("names the accurate and the inaccurate roll in the preview", async () => {
     const { preview } = await throwPast(1);
-    expect(preview.line).toBe("Intercept #1: 6+ (17%), if inaccurate 5+ (33%)");
+    expect(preview.line).toBe("Intercept #1: 6+, if inaccurate 5+");
   });
 
   it("offers in the dialog the roll the preview named for that pass", async () => {

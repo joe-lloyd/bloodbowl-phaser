@@ -978,7 +978,6 @@ export interface AnnouncementMoment {
   subtitle?: string;
 }
 
-/** What a coach is asked before a risky step: the rolls and the chance. */
 /** A roll a read-only prompt can name. "armour" is a foul's 2D6. */
 export type PromptRollType =
   | "dodge"
@@ -988,11 +987,10 @@ export type PromptRollType =
   | "catch"
   | "armour";
 
+/** What a coach is asked before a risky step: the rolls and their targets. */
 export interface StepPrompt {
   playerId: string;
   rolls: { type: PromptRollType; target: number }[];
-  /** Chance that every roll succeeds, without re-rolls, from 0 to 1. */
-  chance: number;
 }
 
 /** One beat the moment queue plays: a banner, or the turnover takeover. */

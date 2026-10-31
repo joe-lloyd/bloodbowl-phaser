@@ -5,6 +5,7 @@
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { GameEventNames } from "../types/events";
+import type { RerollSource } from "../types/decisions";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerCondition, PlayerStatus, InjuryType } from "../types/Player";
 import { RosterName } from "../types/Team";
@@ -266,8 +267,9 @@ function confirm(
 
 function reroll(
   fx: MatchFixture,
-  sources: ("skill" | "team" | "veteran")[],
-  skill?: string
+  sources: RerollSource[],
+  skill?: string,
+  needed?: number
 ) {
   // The engine offers "team" only when a re-roll can be spent: give team 1
   // the turn and two to spend
@@ -281,6 +283,7 @@ function reroll(
     sources,
     skill,
     roll: 1,
+    needed,
   });
 }
 
@@ -735,7 +738,6 @@ export const VARIANTS: Variant[] = [
         fx.bus.emit(GameEventNames.RemotePromptChanged, {
           playerId: fx.player(2, 0).id,
           rolls: [{ type: "rush", target: 2 }],
-          chance: 5 / 6,
         })
       ),
   },
@@ -794,6 +796,49 @@ export const VARIANTS: Variant[] = [
           ],
         });
       }),
+  },
+
+  {
+    id: "route-summary",
+    section: "Action menu and sequence",
+    title: "Route summary: a Dodge then two Rushes",
+    fixture: { scenario: "throw-pickup-and-pass" },
+    view: (fx) => (
+      <HUDLayout
+        bottomRight={
+          <PlayerActionMenu
+            eventBus={fx.bus}
+            turnData={{ phase: GamePhase.PLAY, activeTeamId: fx.team1.id }}
+          />
+        }
+      />
+    ),
+    drive: (fx) => {
+      const select = later(30, () => {
+        fx.bus.emit(GameEventNames.PlayerSelected, { player: fx.player(1, 0) });
+        fx.bus.emit(GameEventNames.UI_UpdateActionSteps, {
+          currentStepId: "move",
+          steps: [{ id: "move", label: "Move" }],
+        });
+      });
+      // The summary mounts with the action sequence, a render later
+      const route = later(90, () =>
+        fx.bus.emit(GameEventNames.UI_RoutePreview, {
+          movementLeft: 0,
+          riskySteps: 3,
+          rolls: [
+            { type: "dodge", target: 3, square: { x: 8, y: 3 } },
+            { type: "rush", target: 2, square: { x: 9, y: 3 } },
+            { type: "rush", target: 2, square: { x: 10, y: 3 } },
+          ],
+          rerolls: ["Dodge", "team 2 left"],
+        })
+      );
+      return () => {
+        select();
+        route();
+      };
+    },
   },
 
   // ---- Dice log
@@ -1125,7 +1170,15 @@ export const VARIANTS: Variant[] = [
     section: "Decision dialogs",
     title: "Re-roll: skill or team",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) => later(30, () => reroll(fx, ["skill", "team"], "Dodge")),
+    drive: (fx) =>
+      later(30, () => reroll(fx, ["skill", "team"], "Dodge", 3)),
+  },
+  {
+    id: "reroll-pro",
+    section: "Decision dialogs",
+    title: "Re-roll: Pro or team",
+    view: (fx) => <RerollDialog eventBus={fx.bus} />,
+    drive: (fx) => later(30, () => reroll(fx, ["pro", "team"], undefined, 4)),
   },
   {
     id: "reroll-team",

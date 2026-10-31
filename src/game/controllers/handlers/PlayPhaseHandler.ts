@@ -1,9 +1,5 @@
 import Phaser from "phaser";
-import {
-  rollLabel,
-  rollProbability,
-  requiredRoll,
-} from "../../rules/rollProbability";
+import { rollLabel, requiredRoll } from "../../rules/rollTargets";
 import { rushModifier } from "../../inducements/matchInducements";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
@@ -168,7 +164,6 @@ export class PlayPhaseHandler implements PhaseHandler {
             step: {
               playerId: attacker.id,
               rolls: [{ type: "rush", target }],
-              chance: rollProbability([{ dice: "d6", target }]),
             },
           });
           return;

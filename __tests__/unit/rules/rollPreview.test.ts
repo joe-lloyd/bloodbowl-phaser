@@ -96,7 +96,7 @@ describe("roll preview analysis", () => {
       "Their assists: none",
     ]);
   });
-  it("shows the foul's assisted armour target and the two-dice chance", () => {
+  it("shows the foul's assisted armour target", () => {
     const target = {
       ...enemy,
       status: PlayerStatus.PRONE,
@@ -115,7 +115,7 @@ describe("roll preview analysis", () => {
       [player, target, assist],
       new GameStateBuilder().build()
     );
-    expect(preview.lines[0]).toBe("Armour: 8+ (42%)");
+    expect(preview.lines[0]).toBe("Armour: 8+");
     expect(preview.lines).toContain("Our assists: #8");
   });
 });

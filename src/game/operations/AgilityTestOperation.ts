@@ -3,7 +3,7 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { withRerollOffer } from "../skills";
 import { RerollableRollKind } from "../../types/decisions";
-import { requiredRoll } from "../rules/rollProbability";
+import { requiredRoll } from "../rules/rollTargets";
 
 /**
  * AgilityTestOperation

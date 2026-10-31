@@ -2,7 +2,6 @@ import { useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { GameEventNames, StepPrompt } from "../../../types/events";
-import { percent } from "../../../game/rules/rollOdds";
 import { useEventBus } from "../../hooks/useEventBus";
 import { Panel } from "../componentWarehouse/HudKit";
 
@@ -15,12 +14,12 @@ const ROLL_NAMES: Record<StepPrompt["rolls"][number]["type"], string> = {
   armour: "Foul armour",
 };
 
-/** "Orc Founders: Rush 2+ (83%)", or both rolls of a Rush and Dodge. */
+/** "Orc Founders: Rush 2+", or both rolls of a Rush and Dodge. */
 export function stepPromptLine(teamName: string, prompt: StepPrompt): string {
   const rolls = prompt.rolls
     .map((roll) => `${ROLL_NAMES[roll.type]} ${roll.target}+`)
     .join(", then ");
-  return `${teamName}: ${rolls} (${percent(prompt.chance)})`;
+  return `${teamName}: ${rolls}`;
 }
 
 /**

@@ -16,7 +16,7 @@ import { SkillRegistry } from "./SkillRegistry";
 import { TeamRerollGateContext } from "./SkillRule";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { VETERAN_REROLL_KINDS } from "../rules/veteran";
-import { d6Target } from "../rules/rollOdds";
+import { requiredRoll } from "../rules/rollTargets";
 
 export interface RollLike {
   success: boolean;
@@ -123,7 +123,7 @@ export async function withRerollOffer<T extends RollLike>(
       first.needed ??
       (first.target === undefined
         ? undefined
-        : d6Target(first.target, first.modifiers)),
+        : requiredRoll(first.target, first.modifiers)),
   });
   if (!answer.accept) return first;
 

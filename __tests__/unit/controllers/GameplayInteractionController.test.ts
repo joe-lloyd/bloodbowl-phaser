@@ -346,16 +346,15 @@ describe("GameplayInteractionController", () => {
       // (6,5) is next to player 2 as well: AG 3+ with -1 is 4+
       expect(prompt.message).toContain("Dodge: 4+");
       expect(prompt.message).toContain("No re-roll available.");
-      // One roll: its chance is said once, not again as "Chance: 50%"
+      // The target and nothing more: the rules give a coach no odds
       expect(prompt.message).toBe(
-        "Dodge: 4+ (50%). A fall is a turnover.\nNo re-roll available."
+        "Dodge: 4+. A fall is a turnover.\nNo re-roll available."
       );
       expect(prompt.cancelLabel).toBe("Stop here");
       // What the other coach sees read-only online
       expect(prompt.step).toEqual({
         playerId: "p1",
         rolls: [{ type: "dodge", target: 4 }],
-        chance: 0.5,
       });
       expect(mockGameService.movePlayer).not.toHaveBeenCalled();
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { d6Target } from "../rules/rollOdds";
+import { requiredRoll } from "../rules/rollTargets";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import {
@@ -252,7 +252,7 @@ export class DiceController {
     const fullReason = playerName ? `${reason} (${playerName})` : reason;
     // The die face needed, modifiers folded in: the number the coach's
     // prompt showed before the roll
-    const needed = d6Target(target, modifier);
+    const needed = requiredRoll(target, modifier);
     this.emitDiceRoll({
       rollType: fullReason,
       diceType: "1d6",

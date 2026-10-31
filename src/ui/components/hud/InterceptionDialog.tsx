@@ -1,4 +1,4 @@
-import { d6Target, d6Chance, percent } from "../../../game/rules/rollOdds";
+import { requiredRoll } from "../../../game/rules/rollTargets";
 import { useAfterDice } from "../../hooks/useAfterDice";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { interceptNeed } from "../../../game/rules/rollPreview";
@@ -71,7 +71,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
     const interceptor = service?.getPlayerById(id);
     return interceptor
       ? interceptNeed(interceptor, modifier)
-      : d6Target(3, modifier);
+      : requiredRoll(3, modifier);
   };
 
   return (
@@ -92,9 +92,8 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
               onClick={() => respond(c.playerId)}
             >
               <span className="truncate">{c.playerName ?? c.playerId}</span>
-              <span className="font-hud-display text-hud-lg tabular-nums text-hud-gold">
-                {needed(c.playerId, c.modifier)}+ ·{" "}
-                {percent(d6Chance(needed(c.playerId, c.modifier)))}
+              <span className="shrink-0 font-hud-display text-hud-lg tabular-nums text-hud-gold">
+                {needed(c.playerId, c.modifier)}+
               </span>
             </HudButton>
           ))}

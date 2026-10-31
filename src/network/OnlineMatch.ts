@@ -156,7 +156,7 @@ const STEP_ROLLS = new Set<string>([
 
 /**
  * Receiver-side guard for an incoming "prompt" envelope: the player must be
- * on the sender's team, and the rolls and chance must be ones a prompt can
+ * on the sender's team, and the rolls must be ones a prompt can
  * show. `null` (the prompt was answered) is always valid.
  */
 export function isValidStepPrompt(
@@ -177,10 +177,7 @@ export function isValidStepPrompt(
         roll.target >= 2 &&
         // A foul's armour is a 2D6 roll; the rest are one D6
         roll.target <= (roll.type === "armour" ? 12 : 6)
-    ) &&
-    Number.isFinite(prompt.chance) &&
-    prompt.chance >= 0 &&
-    prompt.chance <= 1
+    )
   );
 }
 

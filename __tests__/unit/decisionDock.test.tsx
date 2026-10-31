@@ -100,7 +100,7 @@ describe("decision dock", () => {
     expect(answer).toHaveBeenCalledWith({ accept: true, source: "pro" });
   });
 
-  it("shows the failed target and chance for every offered source", async () => {
+  it("shows the failed target and what each offered source needs", async () => {
     await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
     await act(async () =>
       eventBus.emit(GameEventNames.DecisionRequested, {
@@ -117,25 +117,20 @@ describe("decision dock", () => {
     expect(
       container.querySelector('[data-testid="reroll-odds"]')?.textContent
     ).toBe("Needed 3+, rolled 2.");
-    // One number per option, each the chance that option recovers the roll
-    const chances = [
-      ...container.querySelectorAll('[data-testid^="reroll-chance-"]'),
+    // What each option needs, the target and no odds
+    const needs = [
+      ...container.querySelectorAll('[data-testid^="reroll-need-"]'),
     ].map((line) => [line.getAttribute("data-testid"), line.textContent]);
-    expect(chances).toEqual([
-      ["reroll-chance-skill", "3+ to succeed: 67%."],
+    expect(needs).toEqual([
+      ["reroll-need-skill", "Needs 3+."],
       [
-        "reroll-chance-pro",
-        "Pro needs 3+, then 3+: 44%. A failed Pro check ends the re-roll.",
+        "reroll-need-pro",
+        "Pro needs 3+, then 3+. A failed Pro check ends the re-roll.",
       ],
-      ["reroll-chance-team", "3+ to succeed: 67%."],
-      ["reroll-chance-veteran", "3+ to succeed: 67%. Once per game."],
+      ["reroll-need-team", "Needs 3+."],
+      ["reroll-need-veteran", "Needs 3+. Once per game."],
     ]);
-    expect(container.textContent?.match(/\d+%/g)).toEqual([
-      "67%",
-      "44%",
-      "67%",
-      "67%",
-    ]);
+    expect(container.textContent).not.toMatch(/%/);
     expect(
       container.querySelectorAll('[data-testid^="reroll-use-"]')
     ).toHaveLength(4);

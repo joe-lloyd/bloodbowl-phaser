@@ -40,7 +40,7 @@ it("shows the interceptor's target and explains a miss", async () => {
       ],
     })
   );
-  expect(container.textContent).toContain("5+");
-  expect(container.textContent).toContain("33%");
+  const row = container.querySelector("button")!;
+  expect(row.textContent).toBe("Interceptor5+");
   expect(container.textContent).toContain("A miss costs nothing");
 });
