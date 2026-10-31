@@ -47,4 +47,6 @@ for (const id of ids) {
 }
 await browser.close();
 console.log(`${checked - failures}/${checked} panel headers fit one row`);
-process.exit(failures ? 1 : 0);
+// Measuring nothing means the gallery or the selector broke, not a pass
+if (checked === 0) console.log("FAIL: no panel headers were measured");
+process.exit(failures || checked === 0 ? 1 : 0);
