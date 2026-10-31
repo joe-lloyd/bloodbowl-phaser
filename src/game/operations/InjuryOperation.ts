@@ -102,9 +102,6 @@ export class InjuryOperation extends GameOperation {
       `Injury Roll for ${player.playerName}`
     );
 
-    // Suspense delay
-    await context.delay(800);
-
     // 1. Roll 2D6 via DiceController, unless the caller already rolled
     const roll =
       this.opts.roll ??

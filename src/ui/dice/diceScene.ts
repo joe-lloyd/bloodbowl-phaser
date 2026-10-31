@@ -570,8 +570,13 @@ export interface DiceThrow {
 
 type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
 
-/** How much faster a hurried throw tumbles. */
+/** How much faster a hurried throw tumbles, at the least. */
 const HURRY_RATE = 2.2;
+/**
+ * The longest a hurried throw tumbles. A throw of many dice takes seconds
+ * to come to rest, so in a burst it plays faster still.
+ */
+const HURRIED_TUMBLE_MS = 700;
 
 /**
  * Throw a roll into `host`. Every roll, D6 or block dice, plays the same way
@@ -875,13 +880,16 @@ function throwDice(
   };
   // Playback speed of the recorded tumble; hurry() raises it
   let rate = 1;
+  // Tumble time played so far, at the current rate
+  let tumbleMs = 0;
   const control = {
     stop,
     mark: (index: number | null) => {
       markedIndex = index;
     },
     hurry: () => {
-      rate = HURRY_RATE;
+      const left = (sim.frames.length / 60) * 1000 - tumbleMs;
+      rate = Math.max(rate, HURRY_RATE, left / HURRIED_TUMBLE_MS);
     },
   };
   showing = control;
@@ -912,8 +920,6 @@ function throwDice(
   hooks.ready(control);
 
   {
-    // Tumble time played so far, at the current rate
-    let tumbleMs = 0;
     let lastFrame = performance.now();
     let played = 0;
     let settled:

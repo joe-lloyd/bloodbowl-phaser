@@ -6,6 +6,11 @@ import { DiceWatch } from "./diceWatch";
 /** How long landed dice show their result before the moment covers them. */
 const RESULT_BEAT_MS = 600;
 /**
+ * A turnover's beat is shorter: the next coach waits on it, and the tray
+ * still shows the result under the banner.
+ */
+const TURNOVER_BEAT_MS = 300;
+/**
  * After a kick-off, how long the board must stay quiet, no die in the air
  * and no decision open, before the first turn banner plays: the catch or
  * bounce is rolled a moment after the turn starts.
@@ -36,7 +41,7 @@ export function momentDuration(moment: MatchMoment): number {
     case "kickoff-result":
       return 4600;
     case "turnover":
-      return 1800; // short: the next coach waits on it
+      return 1500; // short: the next coach waits on it
     case "casualty":
     case "time-up":
     case "team-intro":
@@ -118,7 +123,17 @@ export class MomentQueue {
       : this.dice.inAir()
         ? this.dice
             .landed()
-            .then(() => new Promise<void>((r) => setTimeout(r, RESULT_BEAT_MS)))
+            .then(
+              () =>
+                new Promise<void>((r) =>
+                  setTimeout(
+                    r,
+                    moment.kind === "turnover"
+                      ? TURNOVER_BEAT_MS
+                      : RESULT_BEAT_MS
+                  )
+                )
+            )
         : Promise.resolve();
     this.pending.push({ moment, ready });
     void this.play();

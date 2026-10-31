@@ -22,7 +22,7 @@ export const BLOCK_VALUE: Record<string, number> = {
 };
 const HOLD_MS = 1800;
 /** A landed roll's read when another roll waits behind it. */
-const QUEUED_HOLD_MS = 400;
+const QUEUED_HOLD_MS = 250;
 const MAX_QUEUE = 3;
 
 /**
@@ -83,6 +83,21 @@ interface Queued {
 
 /** How long a chosen block die stays forward before the tray clears. */
 const CHOSEN_MS = 1200;
+
+/** The most dice one throw carries; the lifted row fits six. */
+const MAX_DICE_PER_THROW = 6;
+
+/** A D6 roll still waiting to be thrown takes the next D6 roll of its team. */
+function joinsThrow(waiting: Queued, next: Queued): boolean {
+  return (
+    waiting.roll.kind === "d6" &&
+    next.roll.kind === "d6" &&
+    !waiting.block &&
+    !next.block &&
+    waiting.roll.team.key === next.roll.team.key &&
+    waiting.roll.values.length + next.roll.values.length <= MAX_DICE_PER_THROW
+  );
+}
 
 /**
  * The dice tray: the one place every roll is thrown, D6s and block dice
@@ -221,7 +236,17 @@ export function DiceTray({
 
     const enqueue = (roll: Omit<Queued, "seq">, first = false) => {
       const item = { ...roll, seq: ++thrown };
-      if (first) queue.current.unshift(item);
+      const waiting = queue.current[queue.current.length - 1];
+      if (!first && waiting && joinsThrow(waiting, item)) {
+        // A burst, such as a fall's bounce, throw-in and armour: one throw
+        // for all of it, rather than one tumble and read after another
+        waiting.roll = {
+          ...waiting.roll,
+          values: [...waiting.roll.values, ...item.roll.values],
+        };
+        waiting.title = `${waiting.title} · ${item.title}`;
+        waiting.result = `${waiting.result} · ${item.result}`;
+      } else if (first) queue.current.unshift(item);
       else queue.current.push(item);
       // Never fall far behind the game: keep the latest few.
       while (queue.current.length > MAX_QUEUE) queue.current.pop();
