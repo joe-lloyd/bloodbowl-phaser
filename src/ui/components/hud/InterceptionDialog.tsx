@@ -83,20 +83,29 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
       title="Interception!"
       actions={
         <DialogActions stack>
-          {request.candidates.map((c) => (
-            <HudButton
-              key={c.playerId}
-              variant="secondary"
-              block
-              className="!justify-between"
-              onClick={() => respond(c.playerId)}
-            >
-              <span className="truncate">{c.playerName ?? c.playerId}</span>
-              <span className="shrink-0 font-hud-display text-hud-lg tabular-nums text-hud-gold">
-                {needed(c.playerId, c.modifier)}+
-              </span>
-            </HudButton>
-          ))}
+          {request.candidates.map((c) => {
+            // Two Linemen differ only by number: cut the position, never it
+            const name = c.playerName ?? c.playerId;
+            const [, position, number] = /^(.*?)(?: (#\d+))?$/.exec(name)!;
+            return (
+              <HudButton
+                key={c.playerId}
+                variant="secondary"
+                block
+                className="!justify-between"
+                title={name}
+                onClick={() => respond(c.playerId)}
+              >
+                <span className="flex min-w-0 gap-1 whitespace-nowrap">
+                  <span className="truncate">{position}</span>
+                  {number && <span className="shrink-0">{number}</span>}
+                </span>
+                <span className="shrink-0 font-hud-display text-hud-lg tabular-nums text-hud-gold">
+                  {needed(c.playerId, c.modifier)}+
+                </span>
+              </HudButton>
+            );
+          })}
           <HudButton variant="ghost" block onClick={() => respond(undefined)}>
             DECLINE
           </HudButton>

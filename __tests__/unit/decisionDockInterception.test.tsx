@@ -44,3 +44,38 @@ it("shows the interceptor's target and explains a miss", async () => {
   expect(row.textContent).toBe("Interceptor5+");
   expect(container.textContent).toContain("A miss costs nothing");
 });
+
+it("keeps each interceptor's number whole when the name is cut", async () => {
+  // Round 4, 6:41: "IMPERIAL LINEMAN ..." lost its number, so two
+  // Linemen read the same
+  const [blitzer, lineman] = game.ctx.team2.players;
+  await act(async () =>
+    root.render(<InterceptionDialog eventBus={eventBus} />)
+  );
+  await act(async () =>
+    eventBus.emit(GameEventNames.DecisionRequested, {
+      type: "interception",
+      chooserTeamId: game.ctx.team2.id,
+      passerId: game.ctx.team1.players[0].id,
+      candidates: [
+        { playerId: blitzer.id, playerName: "Noble Blitzer #2", modifier: -2 },
+        {
+          playerId: lineman.id,
+          playerName: "Imperial Lineman #7",
+          modifier: -3,
+        },
+      ],
+    })
+  );
+  const rows = [...container.querySelectorAll("button")].slice(0, 2);
+  // The number sits outside the part that truncates
+  expect(
+    rows.map((row) => [
+      row.querySelector(".truncate")?.textContent,
+      row.querySelector(".truncate + .shrink-0")?.textContent,
+    ])
+  ).toEqual([
+    ["Noble Blitzer", "#2"],
+    ["Imperial Lineman", "#7"],
+  ]);
+});
