@@ -14,6 +14,7 @@ import { recordCompetitionFixture } from "../../competition/resultRecording";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { resolvePitchTheme } from "../../game/presentation/pitchThemes";
+import { renderOnlyOnChange } from "../../game/presentation/renderOnChange";
 import { MatchSave } from "../../headless/serialization";
 import {
   clearMatchSave,
@@ -172,6 +173,7 @@ export function GamePage({
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.NO_CENTER,
       },
+      callbacks: { postBoot: renderOnlyOnChange },
     };
 
     const game = new Phaser.Game(config);
