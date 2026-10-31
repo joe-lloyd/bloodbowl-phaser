@@ -13,6 +13,7 @@ import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager"
 import { getSidelineCrewInfo } from "../game/presentation/sidelineStaff";
 import {
   setActiveOnlineMatch,
+  type ChatMessage,
   type OnlineMatch,
 } from "../network/OnlineMatch";
 import { ConnectionBanner } from "../ui/pages/ConnectionBanner";
@@ -121,14 +122,7 @@ const LOG_ROWS: [
   "success" | "failure" | "none",
   1 | 2,
 ][] = [
-  [
-    "Dodge (Blitzer)",
-    "1d6",
-    5,
-    "Dodge (Blitzer): 5, needs 3+",
-    "success",
-    1,
-  ],
+  ["Dodge (Blitzer)", "1d6", 5, "Dodge (Blitzer): 5, needs 3+", "success", 1],
   ["Armour", "2d6", [3, 4], "Armour holds: 7 vs AV 9", "failure", 1],
   [
     "Rush (Thrower)",
@@ -322,6 +316,54 @@ function onlineMatch(
     ...overrides,
   } as unknown as OnlineMatch;
 }
+
+const CHAT: ChatMessage[] = [
+  { text: "Good luck, coach", senderName: "Grimgutz", fromSelf: false, ts: 1 },
+  {
+    text: "You too. Mind the Blitzer",
+    senderName: "Joe",
+    fromSelf: true,
+    ts: 2,
+  },
+  { text: "Too late for that", senderName: "Grimgutz", fromSelf: false, ts: 3 },
+];
+
+/**
+ * Makes an online match with chat the active one, so the dice log shows its
+ * Dice and Chat tabs. `say` delivers a message from the other coach.
+ */
+function onlineChat(fx: MatchFixture, history: ChatMessage[]) {
+  const listeners = new Set<(message: ChatMessage) => void>();
+  setActiveOnlineMatch(
+    onlineMatch(fx, {
+      chatHistory: () => history,
+      onChatMessage: (listener: (message: ChatMessage) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      sendChat: () => {},
+    })
+  );
+  return (text: string) =>
+    listeners.forEach((listener) =>
+      listener({
+        text,
+        senderName: "Grimgutz",
+        fromSelf: false,
+        ts: Date.now(),
+      })
+    );
+}
+
+const diceLogIn = (fx: MatchFixture) => (
+  <HUDLayout
+    bottomLeft={
+      <div className="h-[220px] w-full">
+        <DiceLog eventBus={fx.bus} />
+      </div>
+    }
+  />
+);
 const USER = {
   uid: "me",
   displayName: "Joe",
@@ -798,6 +840,42 @@ export const VARIANTS: Variant[] = [
       />
     ),
     drive: (fx) => later(30, () => fillLog(fx, 1)),
+  },
+
+  {
+    id: "log-online-dice",
+    section: "Dice log",
+    title: "Online: the Dice tab",
+    view: (fx) => {
+      onlineChat(fx, CHAT);
+      return diceLogIn(fx);
+    },
+    drive: (fx) => later(30, () => fillLog(fx, 1)),
+  },
+  {
+    id: "log-online-unread",
+    section: "Dice log",
+    title: "Online: two unread messages on the Chat tab",
+    view: (fx) => {
+      const say = onlineChat(fx, CHAT);
+      later(60, () => {
+        say("Nice dodge");
+        say("Shame about the armour");
+      });
+      return diceLogIn(fx);
+    },
+    drive: (fx) => later(30, () => fillLog(fx, 1)),
+  },
+  {
+    id: "log-online-chat",
+    section: "Dice log",
+    title: "Online: the Chat tab",
+    view: (fx) => {
+      onlineChat(fx, CHAT);
+      return diceLogIn(fx);
+    },
+    drive: () =>
+      later(60, () => click('[data-testid="dice-log"] button', "CHAT")),
   },
 
   // ---- Dice tray
