@@ -7,7 +7,7 @@ import { PlayerStatus } from "../../../types/Player";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useEventBus } from "../../hooks/useEventBus";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
-import { Panel } from "../componentWarehouse/HudKit";
+import { Panel, PanelHeader } from "../componentWarehouse/HudKit";
 import { summarizeTurn, TurnIncident, TurnSummary } from "./turnSummary";
 
 const MIN_READ_MS = 5000;
@@ -153,17 +153,16 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
 
   if (!summary) return null;
   return (
-    <Panel className="pointer-events-auto w-full shrink-0 p-3">
-      <section
-        data-testid="turn-catch-up"
-        aria-label="Since your last turn"
-        aria-live="polite"
-        className="max-h-[22vh] overflow-y-auto hud-scroll text-hud-sm text-hud-bone"
-      >
-        <h2 className="font-hud-display text-hud-lg text-hud-gold">
-          Since your last turn
-        </h2>
-        <ul className="mt-1 space-y-1">
+    <Panel
+      as="section"
+      data-testid="turn-catch-up"
+      aria-label="Since your last turn"
+      aria-live="polite"
+      className="pointer-events-auto flex max-h-[22vh] w-full shrink-0 flex-col"
+    >
+      <PanelHeader as="h2" title="Since your last turn" />
+      <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
+        <ul className="space-y-1">
           {summary.players.map((line) => (
             <li key={line}>{line}</li>
           ))}
@@ -176,7 +175,7 @@ export function TurnCatchUpCard({ eventBus }: { eventBus: EventBus }) {
             {summary.ball}
           </p>
         )}
-      </section>
+      </div>
     </Panel>
   );
 }

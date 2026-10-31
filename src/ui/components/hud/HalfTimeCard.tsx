@@ -5,7 +5,7 @@ import { GameEventNames } from "../../../types/events";
 import { GamePhase } from "../../../types/GameState";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
 import { useEventBus } from "../../hooks/useEventBus";
-import { HudButton, Panel } from "../componentWarehouse/HudKit";
+import { HudButton, Panel, PanelHeader } from "../componentWarehouse/HudKit";
 import { HalfTimeSummary, KoRecovery, summarizeHalfTime } from "./turnSummary";
 
 type HalfTimeView =
@@ -85,37 +85,40 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
   if (card.kind === "closed") return null;
   const summary = card.kind === "summary" ? card.summary : null;
   return (
-    <Panel className="pointer-events-auto w-full shrink-0 p-3">
-      <section
-        data-testid="half-time-card"
-        aria-label="Half time"
-        aria-live="polite"
-        className="max-h-[min(45vh,340px)] overflow-y-auto hud-scroll text-hud-sm text-hud-bone"
-      >
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="font-hud-display text-hud-xl text-hud-gold">
-            Half time
-          </h2>
+    <Panel
+      as="section"
+      data-testid="half-time-card"
+      aria-label="Half time"
+      aria-live="polite"
+      className="pointer-events-auto flex max-h-[min(45vh,340px)] w-full shrink-0 flex-col"
+    >
+      <PanelHeader
+        as="h2"
+        title="Half time"
+        controls={
           <HudButton
-            size="sm"
+            size="xs"
+            variant="ghost"
             data-testid="half-time-close"
             aria-label="Close half time summary"
             onClick={close}
           >
             Close
           </HudButton>
-        </div>
+        }
+      />
+      <div className="overflow-y-auto hud-scroll p-3 text-hud-sm text-hud-bone">
         {summary ? (
           <>
-            <p className="mt-1 font-bold">{summary.score}</p>
+            <p className="font-bold">{summary.score}</p>
             <p>{summary.kicker}</p>
-            <h3 className="mt-2 font-bold text-hud-dim">Re-rolls reset</h3>
+            <h3 className="hud-label mt-2">Re-rolls reset</h3>
             <ul data-testid="half-time-rerolls">
               {summary.rerolls.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <h3 className="mt-2 font-bold text-hud-dim">KO recovery</h3>
+            <h3 className="hud-label mt-2">KO recovery</h3>
             {summary.recovery.length ? (
               <ul data-testid="half-time-recovery">
                 {summary.recovery.map((line) => (
@@ -127,7 +130,7 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
                 {ready ? "Nobody was knocked out." : "Rolling for recovery."}
               </p>
             )}
-            <h3 className="mt-2 font-bold text-hud-dim">Out for the match</h3>
+            <h3 className="hud-label mt-2">Out for the match</h3>
             {summary.out.length ? (
               <ul data-testid="half-time-out">
                 {summary.out.map((line) => (
@@ -139,9 +142,9 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
             )}
           </>
         ) : (
-          <p className="mt-1">Second half next</p>
+          <p>Second half next</p>
         )}
-      </section>
+      </div>
     </Panel>
   );
 }

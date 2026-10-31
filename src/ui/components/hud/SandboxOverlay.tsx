@@ -22,7 +22,11 @@ import { ScenarioCasePanel } from "./ScenarioCasePanel";
 import { SCENARIO_CASES } from "../../../testing/cases";
 import { findScenarioCase } from "../../../testing/scenarioCase";
 import { GameEventNames } from "@/types/events";
-import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
+import {
+  hudButtonClass,
+  Panel,
+  PanelHeader,
+} from "../componentWarehouse/HudKit";
 
 interface SandboxOverlayProps {
   eventBus: EventBus;
@@ -186,9 +190,7 @@ export function SandboxOverlay({ eventBus }: SandboxOverlayProps) {
 
   return (
     <Panel accent="blood" className="w-full pointer-events-auto animate-hud-in">
-      <h3 className="flex min-h-[40px] items-center border-b border-hud-gold/20 px-3 font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
-        SANDBOX
-      </h3>
+      <PanelHeader as="h3" title="Sandbox" />
       <div className="flex flex-col gap-2 p-2.5">
         {/* Level 1: Topic */}
         <select
