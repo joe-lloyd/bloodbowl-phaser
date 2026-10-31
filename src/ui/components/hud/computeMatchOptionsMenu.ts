@@ -235,6 +235,8 @@ function connectionLabel(
       return `${opponentName} is connected`;
     case "offline":
       return "You are offline, reconnecting…";
+    case "slow":
+      return "Connection slow: moves may arrive late";
     case "reconnecting":
       return `${opponentName} disconnected — waiting to reconnect…`;
     case "abandonable":
