@@ -2194,7 +2194,9 @@ export class GameplayInteractionController {
           chance,
         },
         message:
-          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\nChance: ${percent(chance)}.\n` +
+          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
+          // Each roll shows its own chance; two rolls also need both
+          (rolls.length > 1 ? `Chance of both: ${percent(chance)}.\n` : "") +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),

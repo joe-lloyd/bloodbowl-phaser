@@ -304,7 +304,10 @@ export class ThrowTeammateOperation extends GameOperation {
         y: this.aimY + dir.y * distance,
       };
     } else {
-      const path = movement.scatter({ x: this.aimX, y: this.aimY });
+      const path = movement.scatter(
+        { x: this.aimX, y: this.aimY },
+        "Team-mate Scatter"
+      );
       landing = path[path.length - 1];
     }
     landing = this.clampToPitch(landing);

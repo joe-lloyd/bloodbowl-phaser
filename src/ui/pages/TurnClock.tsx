@@ -35,6 +35,12 @@ const fmt = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** "15 seconds left", or "1 second left", for screen readers. */
+export const secondsLeftText = (ms: number): string => {
+  const seconds = Math.ceil(ms / 1000);
+  return `${seconds} ${seconds === 1 ? "second" : "seconds"} left`;
+};
+
 /** How early a turn may end and still count as ending on the clock. */
 const TIME_UP_GRACE_MS = 1000;
 /** How long a resumed clock waits for its new deadline to come back. */
@@ -374,9 +380,7 @@ export function TurnClock({
             role="status"
             className="sr-only"
           >
-            {remaining <= 0
-              ? "Time up"
-              : `${Math.ceil(remaining / 1000)} seconds left`}
+            {remaining <= 0 ? "Time up" : secondsLeftText(remaining)}
           </span>
         )}
       </div>

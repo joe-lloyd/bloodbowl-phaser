@@ -15,6 +15,18 @@ import {
   HudButton,
 } from "../componentWarehouse/HudKit";
 
+/** A long label wraps between words, never inside "RE-ROLL". */
+const keepRerollWhole = (label: string) =>
+  label.split(/(RE-ROLL)/).map((part, index) =>
+    part === "RE-ROLL" ? (
+      <span key={index} className="whitespace-nowrap">
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+
 interface RerollDialogProps {
   eventBus: EventBus;
 }
@@ -119,7 +131,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                   block
                   onClick={() => answer(true, source)}
                 >
-                  {label}
+                  {keepRerollWhole(label)}
                 </HudButton>
                 {/* One number per option: the chance it recovers the roll */}
                 {source === "pro" ? (

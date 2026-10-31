@@ -611,7 +611,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "Swoop rolls a template direction and a distance"
               );
               assert(
-                !rolled(r, "Scatter"),
+                !rolled(r, "Team-mate Scatter"),
                 "Swoop does not use the standard 3-square Scatter template"
               );
             },
@@ -667,7 +667,7 @@ export const THROW_TEAMMATE_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 "a Superb Throw lands the Gnoblar on the target square"
               );
               assert(
-                !rolled(r, "Scatter"),
+                !rolled(r, "Team-mate Scatter"),
                 "Bullseye skips the Scatter template entirely"
               );
             },

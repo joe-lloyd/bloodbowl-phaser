@@ -15,8 +15,8 @@ test("route shows every roll and the combined chance before a score run", async 
   await expect(summary).toContainText("6 movement left");
   await expect(summary).toContainText("2 risky steps");
   await expect(summary).toContainText("56%");
-  await expect(summary).toContainText("D 3+");
-  await expect(summary).toContainText("R 2+");
+  await expect(summary).toContainText("Dodge 3+");
+  await expect(summary).toContainText("Rush 2+");
   // The same targets are tagged on the route squares
   expect(await app.bridge.pitchLayers()).toContain("path_roll_label");
   await page.screenshot({ path: test.info().outputPath("route-preview.png") });
@@ -33,7 +33,7 @@ test("route shows every roll and the combined chance before a score run", async 
   await app.pitch.hoverSquare({ x: 18, y: 4 });
   await app.pitch.hoverSquare({ x: 19, y: 5 });
   await expect(summary).toContainText("0 movement left");
-  await expect(summary).toContainText("R 2+");
+  await expect(summary).toContainText("Rush 2+");
   await expect(summary).toContainText("83%");
   await page.screenshot({
     path: test.info().outputPath("second-leg-rush.png"),
@@ -47,7 +47,7 @@ test("pickup asks before entering the ball square and can stop", async ({
   await app.sandbox.open({ scenario: "pickup-success-seeded" });
   await app.hud.declareAction("team1:0", "move");
   await app.pitch.clickSquare({ x: 10, y: 7 });
-  await expect(page.getByTestId("route-summary")).toContainText("P 3+");
+  await expect(page.getByTestId("route-summary")).toContainText("Pick up 3+");
   await app.pitch.clickSquare({ x: 10, y: 7 });
   await expect(page.getByTestId("confirmation-modal")).toContainText(
     "Pick up: 3+ (67%). A fail is a turnover."
