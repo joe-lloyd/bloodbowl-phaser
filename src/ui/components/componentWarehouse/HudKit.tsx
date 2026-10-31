@@ -129,8 +129,9 @@ export function PanelHeader({
 }) {
   return (
     <div
+      data-panel-header=""
       className={cx(
-        "flex min-h-[40px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-2",
+        "flex min-h-[40px] items-center justify-between gap-3 border-b border-hud-gold/20 px-3 py-1.5",
         className
       )}
     >
@@ -170,7 +171,7 @@ export function HudTabs<Id extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className="inline-flex shrink-0 rounded-hud border border-white/15 bg-black/35 p-0.5"
+      className="inline-flex shrink-0 overflow-hidden rounded-hud border border-white/15 bg-black/35"
     >
       {tabs.map((tab) => {
         const selected = tab.id === value;
@@ -182,7 +183,7 @@ export function HudTabs<Id extends string>({
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             className={cx(
-              "inline-flex min-h-[24px] items-center gap-1.5 rounded-[2px] px-2.5 font-hud-label text-hud-sm font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-150 ease-bb",
+              "inline-flex min-h-[24px] items-center gap-1.5 px-2.5 font-hud-label text-hud-sm font-bold uppercase leading-none tracking-[0.08em] transition-colors duration-150 ease-bb",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-hud-gold",
               selected
                 ? "bg-hud-raise text-hud-gold shadow-[inset_0_-2px_0_theme(colors.hud.gold)]"
