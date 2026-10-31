@@ -12,7 +12,7 @@ const RESULT_BEAT_MS = 600;
 const TURNOVER_BEAT_MS = 300;
 /**
  * After a kick-off, how long the board must stay quiet, no die in the air
- * and no decision open, before the first turn banner plays: the catch or
+ * and no decision or touchback open, before the first turn banner plays: the catch or
  * bounce is rolled a moment after the turn starts.
  */
 const KICKOFF_QUIET_MS = 500;
@@ -83,6 +83,14 @@ export class MomentQueue {
   private readonly decisionResolved = () => {
     this.decisionOpen = false;
   };
+  /** A touchback waits for the receiving coach to give someone the ball. */
+  private touchbackOpen = false;
+  private readonly touchbackAwarded = () => {
+    this.touchbackOpen = true;
+  };
+  private readonly ballPlaced = () => {
+    this.touchbackOpen = false;
+  };
   private readonly announce = (moment: AllEvents[GameEventNames.UI_Announce]) =>
     this.enqueue(moment);
   private readonly turnover = (data: AllEvents[GameEventNames.UI_Turnover]) =>
@@ -101,6 +109,8 @@ export class MomentQueue {
     eventBus.on(GameEventNames.KickoffSequenceCompleted, this.kickoffLanded);
     eventBus.on(GameEventNames.DecisionRequested, this.decisionRequested);
     eventBus.on(GameEventNames.DecisionResolved, this.decisionResolved);
+    eventBus.on(GameEventNames.TouchbackAwarded, this.touchbackAwarded);
+    eventBus.on(GameEventNames.BallPlaced, this.ballPlaced);
   }
 
   isBusy(): boolean {
@@ -144,7 +154,7 @@ export class MomentQueue {
     let quietSince = Date.now();
     while (!this.disposed && Date.now() - quietSince < KICKOFF_QUIET_MS) {
       await new Promise((r) => setTimeout(r, 100));
-      if (this.dice.inAir() || this.decisionOpen) {
+      if (this.dice.inAir() || this.decisionOpen || this.touchbackOpen) {
         await this.dice.landed();
         quietSince = Date.now();
       }
@@ -185,6 +195,8 @@ export class MomentQueue {
     );
     this.eventBus.off(GameEventNames.DecisionRequested, this.decisionRequested);
     this.eventBus.off(GameEventNames.DecisionResolved, this.decisionResolved);
+    this.eventBus.off(GameEventNames.TouchbackAwarded, this.touchbackAwarded);
+    this.eventBus.off(GameEventNames.BallPlaced, this.ballPlaced);
     this.finishBeat?.();
     this.idleWaiters.splice(0).forEach((resolve) => resolve());
     if (queues.get(this.eventBus) === this) queues.delete(this.eventBus);

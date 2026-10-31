@@ -58,6 +58,32 @@ it("plays the first turn banner after the kick-off catch and its re-roll", async
   queue.dispose();
 });
 
+it("plays the first turn banner after the touchback choice", async () => {
+  // Round 3, 3:55: the ball went out on the kick-off and the turn banner
+  // covered both screens while the receiving coach chose who takes it
+  vi.useFakeTimers();
+  const bus = new EventBus();
+  const queue = new MomentQueue(bus);
+  const shown: string[] = [];
+  bus.on(GameEventNames.UI_PresentMoment, (moment) => {
+    if (moment) shown.push(moment.kind);
+  });
+  bus.emit(GameEventNames.KickoffSequenceCompleted, { isTouchback: true });
+  bus.emit(GameEventNames.UI_Announce, {
+    kind: "turn-started",
+    headline: "Reikland Reavers' Turn",
+  });
+  bus.emit(GameEventNames.TouchbackAwarded, { teamId: "t1" });
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(shown).toEqual([]);
+
+  // The coach gives the ball to a player
+  bus.emit(GameEventNames.BallPlaced, { x: 4, y: 5 });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(shown).toEqual(["turn-started"]);
+  queue.dispose();
+});
+
 it("plays a later turn banner straight away", async () => {
   vi.useFakeTimers();
   const bus = new EventBus();
