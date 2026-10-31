@@ -81,7 +81,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
               </span>
 
               {/* Label */}
-              <span className="flex-grow font-hud-label text-[15px] font-bold uppercase tracking-[0.05em]">
+              <span className="flex-grow font-hud-label text-hud-base font-bold uppercase tracking-[0.05em]">
                 {step.label}
               </span>
 

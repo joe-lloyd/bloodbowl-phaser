@@ -145,7 +145,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
                     className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
                   />
                 )}
-                <span className="font-hud-label text-xs font-bold uppercase tracking-[0.12em] text-hud-dim">
+                <span className="hud-label">
                   {i === 0 ? "Heads" : "Tails"}
                 </span>
                 <span className="min-w-0 truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">

@@ -287,7 +287,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
           className={`absolute inset-y-0 left-0 w-[4px] ${toneBar(tone)}`}
         />
         <span
-          className={`font-hud-label text-[15px] font-bold uppercase leading-tight tracking-[0.05em] ${
+          className={`font-hud-label text-hud-base font-bold uppercase leading-tight tracking-[0.05em] ${
             disabled ? "text-hud-mute" : "text-hud-bone"
           }`}
         >

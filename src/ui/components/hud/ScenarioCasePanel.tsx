@@ -291,7 +291,7 @@ export function ScenarioCasePanel({ eventBus }: ScenarioCasePanelProps) {
                 >
                   {checkpoint.passed ? "✓" : "✗"} {checkpoint.description}
                   {checkpoint.detail && (
-                    <div className="pl-3 text-[#ff9a8f]">
+                    <div className="pl-3 text-hud-bad-soft">
                       {checkpoint.detail}
                     </div>
                   )}

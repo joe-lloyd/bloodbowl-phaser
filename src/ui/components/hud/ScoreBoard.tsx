@@ -110,7 +110,7 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
             </span>
           </span>
           {row.coach && (
-            <span className="block truncate font-hud-body text-[11px] text-hud-gold/90">
+            <span className="block truncate font-hud-body text-hud-xs tracking-normal text-hud-gold/90">
               <span className="hud-label text-hud-2xs text-hud-gold/70">
                 Coach{" "}
               </span>

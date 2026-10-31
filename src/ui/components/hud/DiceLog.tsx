@@ -13,7 +13,14 @@ import {
   resolveDisplayColor,
   LOG_COLOR_CLASSES,
 } from "./diceLogColor";
-import { DieFace, HudButton, Panel } from "../componentWarehouse/HudKit";
+import {
+  DieFace,
+  HudButton,
+  HudTabs,
+  hudTabId,
+  Panel,
+  PanelHeader,
+} from "../componentWarehouse/HudKit";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
 import {
   appendBallRoll,
@@ -133,6 +140,24 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   const [draft, setDraft] = useState("");
   const tabRef = React.useRef<Tab>("dice");
   tabRef.current = tab;
+  const chatScrollRef = React.useRef<HTMLDivElement>(null);
+  const tabsId = React.useId();
+  // Follow new messages only while the reader is at the bottom, so reading
+  // an older message is not interrupted. Opening the tab jumps to the end.
+  const followChat = React.useRef(true);
+  const onChatScroll = () => {
+    const list = chatScrollRef.current;
+    if (list)
+      followChat.current =
+        list.scrollHeight - list.scrollTop - list.clientHeight < 24;
+  };
+  useEffect(() => {
+    followChat.current = true;
+  }, [tab]);
+  useEffect(() => {
+    const list = chatScrollRef.current;
+    if (list && followChat.current) list.scrollTop = list.scrollHeight;
+  }, [chat, tab]);
 
   // The dice tray throws a roll a moment after the engine makes it. Every
   // change to the log waits until all the rolls the tray has thrown so far
@@ -314,79 +339,69 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     return "bg-white/[0.03] border-hud-edge";
   };
 
-  const tabClass = (active: boolean) =>
-    `relative font-hud-display text-hud-lg uppercase tracking-[0.04em] transition-colors ${
-      active ? "text-hud-bone" : "text-hud-mute hover:text-hud-dim"
-    }`;
-  const sizeButton =
-    "flex h-7 w-7 items-center justify-center rounded-hud border border-white/15 font-hud-label text-[12px] font-bold leading-none text-hud-dim transition-colors hover:border-hud-gold/60 hover:text-hud-gold disabled:cursor-not-allowed disabled:border-white/5 disabled:text-hud-mute/50";
+  // Online, a Dice and Chat switch takes the title's place, so the header
+  // stays one line in the 288px column.
+  const sizeControl = tab === "dice" && (
+    <div className="flex items-center gap-1" title="Dice Log text size">
+      <HudButton
+        size="xs"
+        variant="ghost"
+        onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
+        disabled={fontScale <= FONT_SCALE_MIN}
+        aria-label="Decrease Dice Log text size"
+      >
+        A-
+      </HudButton>
+      <span className="w-9 text-center font-hud-label text-hud-sm font-bold tabular-nums text-hud-dim">
+        {Math.round(fontScale * 100)}%
+      </span>
+      <HudButton
+        size="xs"
+        variant="ghost"
+        onClick={() => adjustFontScale(FONT_SCALE_STEP)}
+        disabled={fontScale >= FONT_SCALE_MAX}
+        aria-label="Increase Dice Log text size"
+      >
+        A+
+      </HudButton>
+    </div>
+  );
 
   return (
     <Panel
       data-testid="dice-log"
       className="w-full h-full max-h-[34vh] flex flex-col pointer-events-auto"
     >
-      {/* Header / Tabs */}
-      <div className="z-10 flex min-h-[40px] items-center justify-between gap-2 border-b border-hud-gold/20 px-3 py-1.5">
-        {match ? (
-          <div className="flex gap-4">
-            <button
-              onClick={() => openTab("dice")}
-              className={tabClass(tab === "dice")}
-            >
-              DICE LOG
-            </button>
-            <button
-              onClick={() => openTab("chat")}
-              className={tabClass(tab === "chat")}
-            >
-              CHAT
-              {unread > 0 && (
-                <span className="absolute -right-4 -top-1 rounded-full bg-hud-blood px-1.5 py-0.5 font-hud-label text-[10px] font-bold leading-none text-white">
-                  {unread}
-                </span>
-              )}
-            </button>
-          </div>
-        ) : (
-          <span className="font-hud-display text-hud-lg uppercase tracking-[0.04em] text-hud-bone">
-            DICE LOG
-          </span>
-        )}
-        <div className="flex items-center gap-2">
-          <span className="hud-label truncate">
-            {tab === "chat" ? match?.opponentName : "Recent Rolls"}
-          </span>
-          {tab === "dice" && (
-            <div className="flex items-center gap-1" title="Dice Log text size">
-              <button
-                type="button"
-                onClick={() => adjustFontScale(-FONT_SCALE_STEP)}
-                disabled={fontScale <= FONT_SCALE_MIN}
-                className={sizeButton}
-                aria-label="Decrease Dice Log text size"
-              >
-                A-
-              </button>
-              <span className="w-8 text-center font-hud-label text-[11px] text-hud-dim">
-                {Math.round(fontScale * 100)}%
-              </span>
-              <button
-                type="button"
-                onClick={() => adjustFontScale(FONT_SCALE_STEP)}
-                disabled={fontScale >= FONT_SCALE_MAX}
-                className={sizeButton}
-                aria-label="Increase Dice Log text size"
-              >
-                A+
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      <PanelHeader
+        className="z-10"
+        title={
+          match ? (
+            <HudTabs
+              label="Dice log view"
+              idBase={tabsId}
+              value={tab}
+              onChange={openTab}
+              tabs={[
+                { id: "dice", label: "Dice" },
+                { id: "chat", label: "Chat", count: unread },
+              ]}
+            />
+          ) : (
+            "Dice log"
+          )
+        }
+        controls={sizeControl || undefined}
+      />
 
       {/* Panel body */}
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div
+        className="relative flex flex-1 flex-col overflow-hidden"
+        {...(match && {
+          role: "tabpanel",
+          id: `${tabsId}-panel`,
+          "aria-labelledby": hudTabId(tabsId, tab),
+        })}
+      >
         {tab === "dice" ? (
           <>
             {/* Scrollable Content - Scrollbar Hidden */}
@@ -443,7 +458,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
                             <span className="truncate font-hud-label text-[0.75em] font-bold uppercase tracking-[0.08em] text-hud-dim">
                               {log.rollType}
                             </span>
-                            <span className="shrink-0 font-mono text-[0.625em] text-hud-mute">
+                            <span className="shrink-0 font-hud-label text-[0.6875em] font-bold text-hud-mute">
                               {log.diceType}
                             </span>
                           </div>
@@ -509,8 +524,15 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
           </>
         ) : (
           <>
-            {/* Chat history (newest at bottom) */}
-            <div className="flex flex-1 flex-col justify-end gap-1 overflow-y-auto no-scrollbar p-2">
+            {/* Chat history, newest at the bottom. A spacer, not
+                justify-end, pushes short histories down: justify-end puts
+                the overflow above the top, where it cannot be scrolled to. */}
+            <div
+              ref={chatScrollRef}
+              onScroll={onChatScroll}
+              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto no-scrollbar p-2"
+            >
+              <div aria-hidden className="flex-1" />
               {chat.length === 0 && (
                 <div className="p-2 text-center text-hud-sm italic text-hud-mute">
                   Say hello…

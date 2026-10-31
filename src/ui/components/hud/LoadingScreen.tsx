@@ -55,16 +55,16 @@ export function LoadingScreen({
       {teams && (
         <div className="flex items-center gap-6 px-6 text-center font-hud-display uppercase tracking-[0.03em] [text-shadow:0_4px_0_#000]">
           <span
-            className="text-4xl sm:text-6xl"
+            className="text-hud-3xl sm:text-hud-4xl"
             style={{ color: css(teams.team1.colors.primary) }}
           >
             {teams.team1.name}
           </span>
-          <span className="-skew-x-12 bg-hud-blood px-3 py-1 text-xl text-white [text-shadow:none] sm:text-2xl">
+          <span className="-skew-x-12 bg-hud-blood px-3 py-1 text-hud-lg text-white [text-shadow:none] sm:text-hud-xl">
             vs
           </span>
           <span
-            className="text-4xl sm:text-6xl"
+            className="text-hud-3xl sm:text-hud-4xl"
             style={{ color: css(teams.team2.colors.primary) }}
           >
             {teams.team2.name}
