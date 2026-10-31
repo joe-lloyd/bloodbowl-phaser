@@ -239,6 +239,7 @@ export enum GameEventNames {
   UI_ApothecaryResponse = "ui:apothecaryResponse",
   UI_RoutePreview = "ui:routePreview",
   UI_TargetRollPreview = "ui:targetRollPreview",
+  UI_PassAimed = "ui:passAimed",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   UI_KeepBlockDice = "ui:keepBlockDice",
@@ -874,6 +875,8 @@ export interface UIEvents {
   [GameEventNames.UI_ApothecaryResponse]: import("./decisions").ApothecaryDecisionAnswer;
 
   [GameEventNames.UI_RoutePreview]: import("../game/rules/rollPreview").RoutePreview | null;
+  /** The pass or hand-off this coach is aiming, for the other coach. */
+  [GameEventNames.UI_PassAimed]: StepPrompt | null;
   [GameEventNames.UI_TargetRollPreview]: (import("../game/rules/rollPreview").TargetRollPreview & { anchor: { x: number; y: number } }) | null;
 
   [GameEventNames.UI_UpdateActionSteps]: {
@@ -976,9 +979,18 @@ export interface AnnouncementMoment {
 }
 
 /** What a coach is asked before a risky step: the rolls and the chance. */
+/** A roll a read-only prompt can name. "armour" is a foul's 2D6. */
+export type PromptRollType =
+  | "dodge"
+  | "rush"
+  | "pickup"
+  | "pass"
+  | "catch"
+  | "armour";
+
 export interface StepPrompt {
   playerId: string;
-  rolls: { type: "dodge" | "rush" | "pickup"; target: number }[];
+  rolls: { type: PromptRollType; target: number }[];
   /** Chance that every roll succeeds, without re-rolls, from 0 to 1. */
   chance: number;
 }

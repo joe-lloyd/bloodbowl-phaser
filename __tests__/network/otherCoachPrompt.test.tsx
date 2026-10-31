@@ -152,7 +152,25 @@ describe("the acting coach's step prompt", () => {
     expect(promptsSent()).toEqual([step, null]);
   });
 
-  it("is not sent for a prompt without a step, such as a foul", async () => {
+  it("sends the pass being aimed, and clears it when aiming stops", async () => {
+    const passer = game.ctx.team1.players[0];
+    const aim: StepPrompt = {
+      playerId: passer.id,
+      rolls: [
+        { type: "pass", target: 3 },
+        { type: "catch", target: 4 },
+      ],
+      chance: 1 / 3,
+    };
+    bus.emit(GameEventNames.UI_PassAimed, aim);
+    bus.emit(GameEventNames.UI_PassAimed, aim);
+    await flush();
+    bus.emit(GameEventNames.UI_PassAimed, null);
+    await flush();
+    expect(promptsSent()).toEqual([aim, null]);
+  });
+
+  it("is not sent for a prompt without a step", async () => {
     bus.emit(GameEventNames.UI_RequestConfirmation, {
       actionId: "foul-1",
       title: "Confirm foul",
@@ -176,6 +194,30 @@ describe("the waiting coach's decision dock", () => {
 
     await fromGuest(null);
     expect(line()).toBeNull();
+  });
+
+  it("shows the other coach's foul, read-only, with its armour roll", async () => {
+    // Round 2, 13:20: a foul or a pass gave the waiting coach no line
+    const orc = game.ctx.team2.players[0];
+    await fromGuest({
+      playerId: orc.id,
+      rolls: [{ type: "armour", target: 8 }],
+      chance: 15 / 36,
+    });
+    expect(line()).toBe("Orc Founders: Foul armour 8+ (42%)");
+  });
+
+  it("shows the pass the other coach is aiming, with the catch", async () => {
+    const orc = game.ctx.team2.players[0];
+    await fromGuest({
+      playerId: orc.id,
+      rolls: [
+        { type: "pass", target: 3 },
+        { type: "catch", target: 4 },
+      ],
+      chance: (4 / 6) * (3 / 6),
+    });
+    expect(line()).toBe("Orc Founders: Pass 3+, then Catch 4+ (33%)");
   });
 
   it("names both rolls of a Rush and Dodge with their combined chance", async () => {

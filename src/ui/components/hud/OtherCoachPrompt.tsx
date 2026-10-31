@@ -10,6 +10,9 @@ const ROLL_NAMES: Record<StepPrompt["rolls"][number]["type"], string> = {
   dodge: "Dodge",
   rush: "Rush",
   pickup: "Pick up",
+  pass: "Pass",
+  catch: "Catch",
+  armour: "Foul armour",
 };
 
 /** "Orc Founders: Rush 2+ (83%)", or both rolls of a Rush and Dodge. */

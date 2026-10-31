@@ -190,7 +190,7 @@ export function foulPreview(
   if (has(fouler, SkillType.DIRTY_PLAYER) && !locked)
     lines.push("Includes Dirty Player on armour");
   lines.push("A double sends the fouler off.");
-  return { analysis, lines };
+  return { analysis, lines, targetNumber };
 }
 
 /**
