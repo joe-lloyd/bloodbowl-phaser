@@ -39,6 +39,21 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "near-corner-blitz",
+    name: "Blitz from the near touchline",
+    description:
+      "A blitzer on the near touchline, beside the dice log, with a reach across most of the pitch. The camera keeps players readable and the squares beside the blitzer clear of the dice log.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 7, y: 9 }],
+      team2Placements: [{ playerIndex: 0, x: 16, y: 2 }],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "far-end-blitz",
     name: "Blitz toward the far corner",
     description:

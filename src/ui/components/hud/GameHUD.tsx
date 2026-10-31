@@ -353,7 +353,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       overlays={
         <>
           {/* Score bug with the turn tab under it - Top Center */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center">
+          <div
+            className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center"
+            data-hud-panels=""
+          >
             <ScoreBoard eventBus={eventBus} />
             <MatchStrip eventBus={eventBus}>
               <TurnIndicator
