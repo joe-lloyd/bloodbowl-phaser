@@ -152,7 +152,9 @@ export function TurnClock({
         : null;
   // The tick reads it without restarting
   const offlineRef = useRef(offline);
-  offlineRef.current = offline;
+  useEffect(() => {
+    offlineRef.current = offline;
+  }, [offline]);
   const resumeRef = useRef<{
     /** Turn time left when the clock stopped */
     remaining: number;
