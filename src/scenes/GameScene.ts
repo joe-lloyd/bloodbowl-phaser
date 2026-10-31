@@ -728,15 +728,6 @@ export class GameScene extends Phaser.Scene {
     // touches only alpha/angle/visibility, never position — so it's safe and
     // catches any status-change event the watcher missed. A resync asks for
     // positions as well: nothing is animating, and it may have rewound.
-    this.subscribe(GameEventNames.SetupRestrictionsUpdated, (status) => {
-      if (
-        !this.isSetupActive ||
-        this.gameService.getPhase() !== GamePhase.SETUP
-      )
-        return;
-      if (status.teamId !== this.gameService.getActiveTeamId()) return;
-      this.pitch.updateSetupLabels(status.teamId === this.team1.id, status);
-    });
     this.subscribe(GameEventNames.UI_SyncBoard, (data) => {
       if (this.gameService.getPhase() === GamePhase.SETUP) {
         this.refreshDugouts();
@@ -816,9 +807,6 @@ export class GameScene extends Phaser.Scene {
   // Visual helper methods called by orchestrator
   public highlightSetupZone(isTeam1: boolean): void {
     this.pitch.highlightSetupZone(isTeam1);
-    const team = isTeam1 ? this.team1 : this.team2;
-    const status = this.gameService.getSetupStatus(team.id);
-    if (status) this.pitch.updateSetupLabels(isTeam1, status);
   }
 
   public enablePlacement(activeTeam: Team, isTeam1: boolean): void {
