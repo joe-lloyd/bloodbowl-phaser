@@ -206,7 +206,7 @@ function TeamChip({ name, me }: { name: string; me: boolean }) {
       }`}
     >
       {name}
-      {me && <span className="ml-1 text-xs text-hud-gold">(you)</span>}
+      {me && <span className="ml-1 text-hud-xs text-hud-gold">(you)</span>}
     </span>
   );
 }

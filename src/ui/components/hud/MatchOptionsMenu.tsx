@@ -164,7 +164,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
         aria-expanded={open}
         aria-controls="match-options-menu"
         onClick={() => (open ? close() : setOpen(true))}
-        className="hud-slab flex min-h-[40px] items-center gap-2 px-3.5 font-hud-label text-[15px] font-bold uppercase tracking-[0.08em] text-hud-bone transition-colors hover:border-hud-gold/70 hover:text-hud-gold aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
+        className="hud-slab flex min-h-[40px] items-center gap-2 px-3.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-bone transition-colors hover:border-hud-gold/70 hover:text-hud-gold aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
       >
         ⚙ Match Options
       </button>
@@ -233,7 +233,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
                       aria-disabled={entry.disabled || undefined}
                       tabIndex={entry.disabled ? -1 : 0}
                       onClick={() => selectEntry(entry)}
-                      className={`w-full rounded-hud border-l-[3px] px-2.5 py-2 text-left font-hud-label text-[15px] font-bold uppercase tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold ${
+                      className={`w-full rounded-hud border-l-[3px] px-2.5 py-2 text-left font-hud-label text-hud-base font-bold uppercase tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold ${
                         entry.disabled
                           ? "cursor-default border-transparent text-hud-mute"
                           : entry.destructive

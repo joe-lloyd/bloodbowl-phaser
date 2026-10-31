@@ -360,7 +360,7 @@ export function MatchResultsScreen({ visible }: Props) {
                             key={playerId}
                             disabled={!!mvpResult}
                             onClick={() => toggleNominee(team, playerId)}
-                            className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-[15px] font-bold transition-colors disabled:cursor-default ${
+                            className={`min-h-[40px] rounded-hud border px-3 py-2 text-left font-hud-label text-hud-base font-bold transition-colors disabled:cursor-default ${
                               slot >= 0
                                 ? "border-hud-gold bg-hud-blood text-white"
                                 : "border-white/10 bg-hud-raise text-hud-bone hover:border-hud-gold/60"

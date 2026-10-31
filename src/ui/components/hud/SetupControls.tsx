@@ -59,7 +59,7 @@ const SetupActionButton = ({
     >
       <span>{label}</span>
       {sub && (
-        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-[11px] font-semibold normal-case tracking-normal opacity-90">
+        <span className="rounded-hud bg-black/30 px-1.5 py-0.5 font-hud-body text-hud-xs font-semibold normal-case tracking-normal opacity-90">
           {sub}
         </span>
       )}
