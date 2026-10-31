@@ -70,3 +70,9 @@ src/data/*.json
 
 # Page captures for the gallery, made by scripts/page-shots
 /gallery/public/shots/pages/
+
+# Perf benchmark build (pnpm perf). Its results JSON and LOG.md are committed.
+/dist-perf/
+/perf-results/shots/
+/perf-results/verify/
+/perf-results/video/
