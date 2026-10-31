@@ -3,6 +3,7 @@ import { GameEventNames } from "../../types/events";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { withRerollOffer } from "../skills";
 import { RerollableRollKind } from "../../types/decisions";
+import { requiredRoll } from "../rules/rollProbability";
 
 /**
  * AgilityTestOperation
@@ -37,13 +38,16 @@ export class AgilityTestOperation extends GameOperation {
     const player = gameService.getPlayerById(this.playerId);
     if (!player) return;
 
-    // Display Notification
+    // The roll needed, as the die and the re-roll dialog say it
     const modString =
       this.modifiers >= 0 ? `+${this.modifiers}` : `${this.modifiers}`;
     const info = this.description || `${this.testName} Test`;
+    const needed = requiredRoll(this.targetNumber, this.modifiers);
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `${info}: ${this.targetNumber}+ (Mod: ${modString})`
+      this.modifiers === 0
+        ? `${info}: ${needed}+`
+        : `${info}: ${needed}+ (${this.targetNumber}+, ${modString})`
     );
 
     // Execute Roll via DiceController; failures may offer a reroll. The

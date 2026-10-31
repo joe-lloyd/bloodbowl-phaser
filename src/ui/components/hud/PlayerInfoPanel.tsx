@@ -163,7 +163,17 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       : undefined;
     const used = state?.turn.movementUsed.get(player.id) ?? 0;
     const activating = !isComparison && state?.activePlayer?.id === player.id;
+    // A failed pickup waiting on its re-roll leaves the ball on the square,
+    // not in the player's hands
+    const pending = ServiceContainer.isInitialized()
+      ? ServiceContainer.getInstance().gameService.getDecisionService().pending()
+      : null;
+    const pickingUp =
+      pending?.type === "reroll" &&
+      pending.rollKind === "pickup" &&
+      pending.playerId === player.id;
     const holdsBall =
+      !pickingUp &&
       player.status === PlayerStatus.ACTIVE &&
       player.gridPosition != null &&
       state?.ballPosition?.x === player.gridPosition.x &&

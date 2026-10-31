@@ -89,6 +89,39 @@ describe("the walk before a re-roll choice", () => {
     expect(walksIn(moved.events)).toEqual([{ x: 9, y: 1 }]);
   });
 
+  it("logs the pickup's needed roll, modifiers counted", async () => {
+    // Round 3, 1:18:50: the log said "Pickup Test: 3+ (Mod: -1)" while the
+    // die and the re-roll dialog said 4+
+    const marked: Scenario = {
+      ...scenario,
+      setup: {
+        ...scenario.setup,
+        team2Placements: [{ playerIndex: 0, x: 7, y: 5 }],
+      },
+    };
+    const game = new HeadlessGame({ scenario: marked, seed: 4 });
+    const mover = game.ctx.team1.players[0];
+    const ag = mover.stats.AG;
+    await game.execute({
+      type: "declare-action",
+      playerId: mover.id,
+      action: "move",
+    });
+    const moved = await game.execute({
+      type: "move",
+      playerId: mover.id,
+      path: [
+        { x: 5, y: 5 },
+        { x: 6, y: 5 },
+      ],
+    });
+
+    const notes = moved.events
+      .filter((event) => event.name === GameEventNames.UI_Notification)
+      .map((event) => String(event.data));
+    expect(notes).toContain(`Pickup Test: ${ag + 1}+ (${ag}+, -1)`);
+  });
+
   it("still arrives as one walk when no roll is needed", async () => {
     const game = new HeadlessGame({ scenario, seed: 4 });
     const runner = game.ctx.team1.players[0];
