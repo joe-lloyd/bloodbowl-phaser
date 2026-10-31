@@ -64,7 +64,7 @@ async function foul(scenario: Scenario, seed: number) {
   const response = await game.execute({ type: "foul", playerId: fouler.id, x: 11, y: 5 });
   return {
     target,
-    armour: diceOf(response.events, "Armor Check"),
+    armour: diceOf(response.events, "Foul Armour Roll"),
     injury: diceOf(response.events, "Injury Roll"),
   };
 }

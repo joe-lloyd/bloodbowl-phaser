@@ -281,7 +281,9 @@ export class DiceController {
     playerName?: string,
     teamId?: string,
     /** Added to the roll, e.g. foul assists or a Chainsaw's +3. */
-    modifier = 0
+    modifier = 0,
+    /** The roll's name in the tray and the log. */
+    rollType = "Armor Check"
   ): { broken: boolean; roll: number; rolls: number[] } {
     const rolls = this.rng.rollMultipleDice(2, 6);
     const total = rolls[0] + rolls[1];
@@ -290,7 +292,7 @@ export class DiceController {
     const label = playerName ? `${playerName} Armour` : "Armour";
     const added = modifier ? ` ${modifier > 0 ? "+" : ""}${modifier}` : "";
     this.emitDiceRoll({
-      rollType: "Armor Check",
+      rollType,
       diceType: "2d6",
       value: rolls,
       total,
