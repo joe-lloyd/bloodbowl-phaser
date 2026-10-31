@@ -237,3 +237,86 @@ freshness check passes at all 10 checkpoints. Idle animation still gives 8
 distinct reserve-area images in 3 s. `pnpm test` 1,966 passed. Lint clean.
 
 Decision: keep.
+
+### Round 6: put the pulsing ◄ arrow on its own compositor layer. Reverted.
+
+Hypothesis: with Phaser drawing 6 frames a second, the held state still
+costs the GPU process about 20% against 5% idle. The difference is the
+action stepper's `animate-pulse` arrow. `will-change: opacity` might let
+Chromium animate it without recompositing the page.
+
+Result (`10-25-20-938Z`, load 4 to 6): gpu/held 37% against 36%, gpu/idle 15%
+against 12%. Chromium still produces a compositor frame every vsync while
+the animation runs. Decision: revert. Removing or slowing the pulse would
+change what the coach sees, so it is listed as a recommendation instead.
+
+### Round 7: compare shape paths by reference in the change check. Kept.
+
+Evidence: a CDP CPU profile of the page at idle showed the change check
+from round 2 was most of the page's JavaScript. On the sandbox board it
+read about 17,000 numbers a tick, nearly all from shape paths, mostly the
+86 player ring ellipses. Phaser assigns a new `pathData` array whenever a
+shape's geometry changes, and the app never touches `pathData`, so the
+array reference is enough.
+
+Whole-process CPU (`10-35-09-855Z`, load 3 to 5) did not separate from noise:
+gpu/idle 14% against 12%, gpu/held 42% against 36%. The renderer process
+fell from 7.7% to 6.9% at idle. The profiler measures the targeted cost
+directly, at a 200 µs sampling interval over 10 s:
+
+| state | page JS ms per 10 s, before | after | change |
+| ----- | --------------------------: | ----: | -----: |
+| idle  |                         456 |   206 |   -55% |
+| held  |                         615 |   341 |   -45% |
+
+The freshness check passes at all 10 checkpoints, and its control is still
+caught. Decision: keep, pushed to #60 because it refines that PR's code.
+
+### Why the loop stopped here
+
+The stop rule is three rounds in a row with nothing kept, or idle CPU near
+zero. Neither held: round 7 was kept, and the idle board still costs 12 to
+14% on the real GPU. The loop stopped because no candidate was left that
+keeps the picture the same and has evidence of a gain over 5%:
+
+- A profile of the action window shows 600 ms of page JavaScript in 12 s.
+  The change check leads; Phaser and the dice scene are small.
+- Versioning graphics redraws would cut the change check's last 1,306
+  values a tick. That is under 1% of a core, and it needs a patch to
+  Phaser's `Graphics` prototype.
+- What remains is compositing driven by animation the coach sees: the
+  6 fps idle breathing, the ◄ pulse, and the dice roll. Cutting those
+  changes the picture, so they are listed as recommendations.
+
+## Final: rounds 2 to 7 (`10-51-25-984Z`, load 3 to 5)
+
+| window             | main cpu % | final cpu % | change | main draw fps | final draw fps |
+| ------------------ | ---------: | ----------: | -----: | ------------: | -------------: |
+| swiftshader/idle   |        986 |         123 |   -88% |          13.4 |            6.0 |
+| swiftshader/action |       1042 |         294 |   -72% |          10.7 |           15.3 |
+| swiftshader/held   |       1115 |         171 |   -85% |          10.9 |            6.1 |
+| gpu/idle           |         41 |          14 |   -66% |          60.4 |            6.0 |
+| gpu/action         |         80 |          56 |   -31% |          60.1 |           17.5 |
+| gpu/held           |         71 |          43 |   -40% |          60.5 |            6.1 |
+
+Main is `08-48-04-200Z` at load 9 to 13. Under SwiftShader, main renders
+fewer frames during the action than final does, because each frame is so
+expensive; final draws the roll's motion at 15 fps against main's 11.
+
+## The online-match rig
+
+SwiftShader, final build. The bench gained `--reduced-motion` and
+`--video WxH`; video CPU counts Playwright's ffmpeg encoder.
+
+| setting                              | idle % | action % | held % | load     | file             |
+| ------------------------------------ | -----: | -------: | -----: | -------- | ---------------- |
+| no video                             |    123 |      294 |    171 | 3 to 5   | `10-51-25-984Z`  |
+| reduced motion, no video             |      8 |      143 |     36 | 3 to 5   | `11-04-14-591Z`  |
+| no video                             |    148 |      220 |    197 | 29 to 39 | `11-39-56-646Z`  |
+| video 720x450, ffmpeg 15% idle       |    178 |      255 |    246 | 29 to 39 | `11-35-26-473Z`  |
+| video 1440x900, ffmpeg 51% idle      |    235 |      325 |    322 | 29 to 39 | `11-31-03-469Z`  |
+
+`11-19-00-960Z` is a no-video run at load about 20, kept for reference.
+Hasaki has an AMD Raven Ridge GPU with `/dev/dri/renderD128`, so a
+GPU-backed browser there is worth trying. Not tested: it means changing
+the launch-server, which this work leaves alone.
