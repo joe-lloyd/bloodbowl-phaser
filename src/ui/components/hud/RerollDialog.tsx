@@ -120,7 +120,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                 label = teamLabel(teamReroll);
                 break;
               case "veteran":
-                label = "USE VETERAN RE-ROLL (once per game)";
+                label = "USE VETERAN RE-ROLL";
                 break;
               default: {
                 const exhaustive: never = source;
@@ -149,13 +149,17 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                     A failed Pro check ends the re-roll.
                   </p>
                 ) : (
-                  request.needed !== undefined && (
+                  (request.needed !== undefined || source === "veteran") && (
                     <p
                       data-testid={`reroll-chance-${source}`}
                       className="mt-1 text-hud-sm"
                     >
-                      {request.needed}+ to succeed:{" "}
-                      {percent(d6Chance(request.needed))}.
+                      {request.needed !== undefined &&
+                        `${request.needed}+ to succeed: ${percent(d6Chance(request.needed))}.`}
+                      {request.needed !== undefined &&
+                        source === "veteran" &&
+                        " "}
+                      {source === "veteran" && "Once per game."}
                     </p>
                   )
                 )}

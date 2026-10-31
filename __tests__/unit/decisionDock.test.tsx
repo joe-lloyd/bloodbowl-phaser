@@ -128,7 +128,7 @@ describe("decision dock", () => {
         "Pro needs 3+, then 3+: 44%. A failed Pro check ends the re-roll.",
       ],
       ["reroll-chance-team", "3+ to succeed: 67%."],
-      ["reroll-chance-veteran", "3+ to succeed: 67%."],
+      ["reroll-chance-veteran", "3+ to succeed: 67%. Once per game."],
     ]);
     expect(container.textContent?.match(/\d+%/g)).toEqual([
       "67%",

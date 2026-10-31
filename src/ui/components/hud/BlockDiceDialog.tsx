@@ -348,7 +348,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       {/* Dice count and who picks */}
       <div className="mt-3 flex items-center justify-center gap-3">
         <div className="font-hud-label text-hud-xl font-bold uppercase tracking-[0.06em] text-hud-bone">
-          {diceCount} DICE{" "}
+          {diceCount} {diceCount === 1 ? "DIE" : "DICE"}{" "}
           {isUphill ? <span className="text-hud-bad">(UPHILL)</span> : ""}
         </div>
         <div className="hud-label">
