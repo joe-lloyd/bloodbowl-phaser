@@ -1,0 +1,458 @@
+{
+  "label": "r4 flatten stadium layers on the CPU",
+  "commit": "89cc1b4",
+  "dirty": true,
+  "scenario": "pickup-success-seeded",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "summary": {
+    "swiftshader/idle": {
+      "cpuPct": 309.47,
+      "gpuProcPct": 302.8,
+      "rendererPct": 7.13,
+      "drawFps": 6.03,
+      "cpuMsPerFrame": 512.93,
+      "rafFps": 49.2,
+      "drawsPerSec": 12.13,
+      "frameMean": 20.45,
+      "frameP95": 50,
+      "heapMb": 73.05,
+      "load": 9.33
+    },
+    "swiftshader/action": {
+      "cpuPct": 492.78,
+      "gpuProcPct": 476.08,
+      "rendererPct": 14.4,
+      "drawFps": 11.7,
+      "cpuMsPerFrame": 421.2,
+      "rafFps": 43.6,
+      "drawsPerSec": 92.55,
+      "frameMean": 23.15,
+      "frameP95": 50,
+      "heapMb": 73.05,
+      "load": 9.05
+    },
+    "swiftshader/held": {
+      "cpuPct": 378.38,
+      "gpuProcPct": 363.02,
+      "rendererPct": 13.5,
+      "drawFps": 6.05,
+      "cpuMsPerFrame": 625.45,
+      "rafFps": 49.8,
+      "drawsPerSec": 12.1,
+      "frameMean": 20.25,
+      "frameP95": 50,
+      "heapMb": 73.05,
+      "load": 10.23
+    },
+    "gpu/idle": {
+      "cpuPct": 17.13,
+      "gpuProcPct": 5.9,
+      "rendererPct": 10.4,
+      "drawFps": 6.03,
+      "cpuMsPerFrame": 28.4,
+      "rafFps": 60.36,
+      "drawsPerSec": 12.07,
+      "frameMean": 16.67,
+      "frameP95": 18.4,
+      "heapMb": 72.95,
+      "load": 6.68
+    },
+    "gpu/action": {
+      "cpuPct": 58.15,
+      "gpuProcPct": 32.95,
+      "rendererPct": 20.8,
+      "drawFps": 18.2,
+      "cpuMsPerFrame": 28.82,
+      "rafFps": 60.1,
+      "drawsPerSec": 169.25,
+      "frameMean": 16.81,
+      "frameP95": 18.4,
+      "heapMb": 94.95,
+      "load": 6.11
+    },
+    "gpu/held": {
+      "cpuPct": 46.85,
+      "gpuProcPct": 27.5,
+      "rendererPct": 17.45,
+      "drawFps": 6.1,
+      "cpuMsPerFrame": 76.8,
+      "rafFps": 60.55,
+      "drawsPerSec": 12.1,
+      "frameMean": 16.67,
+      "frameP95": 18.3,
+      "heapMb": 91.38,
+      "load": 4.96
+    }
+  },
+  "results": [
+    {
+      "config": "swiftshader",
+      "run": 1,
+      "glRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "windows": {
+        "idle": {
+          "seconds": 30,
+          "cpuSeconds": 92.84,
+          "cpuPercent": 309.4666666666667,
+          "cpuByType": {
+            "browser": 0,
+            "gpu-process": 90.84,
+            "utility": 0,
+            "renderer": 2
+          },
+          "rafFps": 49.2,
+          "drawFps": 6.033333333333333,
+          "drawCallsPerSec": 12.133333333333333,
+          "frameMeanMs": 20.448644986449864,
+          "frameP95Ms": 50,
+          "heapMb": 61.03515625,
+          "loadAvg": 9.33349609375
+        },
+        "action": {
+          "seconds": 20,
+          "cpuSeconds": 102.39999999999999,
+          "cpuPercent": 511.99999999999994,
+          "cpuByType": {
+            "browser": 0.09999999999999998,
+            "gpu-process": 99.07999999999998,
+            "utility": 0.35,
+            "renderer": 2.87
+          },
+          "rafFps": 43.6,
+          "drawFps": 13.1,
+          "drawCallsPerSec": 112.6,
+          "frameMeanMs": 23.14518348623853,
+          "frameP95Ms": 50,
+          "heapMb": 61.03515625,
+          "loadAvg": 7.931640625
+        },
+        "held": {
+          "seconds": 20.001,
+          "cpuSeconds": 75.68,
+          "cpuPercent": 378.3810809459527,
+          "cpuByType": {
+            "browser": 0.010000000000000009,
+            "gpu-process": 72.72999999999999,
+            "utility": 0.24000000000000002,
+            "renderer": 2.7
+          },
+          "rafFps": 49.99750012499375,
+          "drawFps": 6.049697515124244,
+          "drawCallsPerSec": 12.099395030248488,
+          "frameMeanMs": 20.165900000000008,
+          "frameP95Ms": 50,
+          "heapMb": 61.03515625,
+          "loadAvg": 6.6787109375
+        }
+      }
+    },
+    {
+      "config": "gpu",
+      "run": 1,
+      "glRenderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) UHD Graphics 630, Unspecified Version)",
+      "windows": {
+        "idle": {
+          "seconds": 30.001,
+          "cpuSeconds": 5.14,
+          "cpuPercent": 17.13276224125862,
+          "cpuByType": {
+            "browser": 0.19000000000000017,
+            "gpu-process": 1.7699999999999998,
+            "utility": 0.05999999999999997,
+            "renderer": 3.1199999999999997
+          },
+          "rafFps": 60.331322289257024,
+          "drawFps": 6.033132228925703,
+          "drawCallsPerSec": 12.066264457851405,
+          "frameMeanMs": 16.666685082872927,
+          "frameP95Ms": 18.30000000000109,
+          "heapMb": 71.6650447845459,
+          "loadAvg": 5.2060546875
+        },
+        "action": {
+          "seconds": 20.001,
+          "cpuSeconds": 11.63,
+          "cpuPercent": 58.147092645367735,
+          "cpuByType": {
+            "browser": 0.31999999999999984,
+            "gpu-process": 6.59,
+            "utility": 0.56,
+            "renderer": 4.16
+          },
+          "rafFps": 60.14699265036748,
+          "drawFps": 17.149142542872855,
+          "drawCallsPerSec": 151.34243287835608,
+          "frameMeanMs": 16.76334164588529,
+          "frameP95Ms": 18.400000000001455,
+          "heapMb": 71.45351696014404,
+          "loadAvg": 5.28271484375
+        },
+        "held": {
+          "seconds": 20,
+          "cpuSeconds": 9.370000000000001,
+          "cpuPercent": 46.85,
+          "cpuByType": {
+            "browser": 0.030000000000000027,
+            "gpu-process": 5.5,
+            "utility": 0.35,
+            "renderer": 3.49
+          },
+          "rafFps": 60.55,
+          "drawFps": 6.1,
+          "drawCallsPerSec": 12.1,
+          "frameMeanMs": 16.668208092485546,
+          "frameP95Ms": 18.30000000000291,
+          "heapMb": 98.51808834075928,
+          "loadAvg": 4.595703125
+        }
+      }
+    },
+    {
+      "config": "swiftshader",
+      "run": 2,
+      "glRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "windows": {
+        "idle": {
+          "seconds": 30.001,
+          "cpuSeconds": 89.26,
+          "cpuPercent": 297.5234158861372,
+          "cpuByType": {
+            "browser": 0,
+            "gpu-process": 86.78,
+            "utility": 0,
+            "renderer": 2.4799999999999995
+          },
+          "rafFps": 49.298356721442616,
+          "drawFps": 6.033132228925703,
+          "drawCallsPerSec": 12.066264457851405,
+          "frameMeanMs": 20.395875591615958,
+          "frameP95Ms": 33.400000000001455,
+          "heapMb": 82.3974609375,
+          "loadAvg": 5.21533203125
+        },
+        "action": {
+          "seconds": 20,
+          "cpuSeconds": 85.84,
+          "cpuPercent": 429.2,
+          "cpuByType": {
+            "browser": 0.12,
+            "gpu-process": 82.24,
+            "utility": 0.43999999999999995,
+            "renderer": 3.04
+          },
+          "rafFps": 34.9,
+          "drawFps": 9.45,
+          "drawCallsPerSec": 62.75,
+          "frameMeanMs": 28.962607449856737,
+          "frameP95Ms": 83.30000000000291,
+          "heapMb": 82.3974609375,
+          "loadAvg": 9.046875
+        },
+        "held": {
+          "seconds": 20.001,
+          "cpuSeconds": 75.25999999999999,
+          "cpuPercent": 376.28118594070287,
+          "cpuByType": {
+            "browser": 0.010000000000000009,
+            "gpu-process": 72.32,
+            "utility": 0.27,
+            "renderer": 2.6599999999999993
+          },
+          "rafFps": 37.998100094995245,
+          "drawFps": 6.049697515124244,
+          "drawCallsPerSec": 12.199390030498474,
+          "frameMeanMs": 26.599868421052633,
+          "frameP95Ms": 83.30000000000291,
+          "heapMb": 82.3974609375,
+          "loadAvg": 11.4794921875
+        }
+      }
+    },
+    {
+      "config": "gpu",
+      "run": 2,
+      "glRenderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) UHD Graphics 630, Unspecified Version)",
+      "windows": {
+        "idle": {
+          "seconds": 30.002,
+          "cpuSeconds": 3.84,
+          "cpuPercent": 12.799146723551763,
+          "cpuByType": {
+            "browser": 0.1399999999999999,
+            "gpu-process": 1.31,
+            "utility": 0.02999999999999997,
+            "renderer": 2.36
+          },
+          "rafFps": 60.395973601759884,
+          "drawFps": 6.032931137924138,
+          "drawCallsPerSec": 12.065862275848277,
+          "frameMeanMs": 16.667825607064017,
+          "frameP95Ms": 18.399999999997817,
+          "heapMb": 72.94756126403809,
+          "loadAvg": 10.6669921875
+        },
+        "action": {
+          "seconds": 20.001,
+          "cpuSeconds": 12.259999999999998,
+          "cpuPercent": 61.29693515324233,
+          "cpuByType": {
+            "browser": 0.41999999999999993,
+            "gpu-process": 7.07,
+            "utility": 0.54,
+            "renderer": 4.2299999999999995
+          },
+          "rafFps": 60.04699765011749,
+          "drawFps": 24.048797560121994,
+          "drawCallsPerSec": 254.08729563521823,
+          "frameMeanMs": 16.83288925895088,
+          "frameP95Ms": 18.099999999998545,
+          "heapMb": 98.52806758880615,
+          "loadAvg": 8.62548828125
+        },
+        "held": {
+          "seconds": 20,
+          "cpuSeconds": 10.830000000000002,
+          "cpuPercent": 54.150000000000006,
+          "cpuByType": {
+            "browser": 0.040000000000000036,
+            "gpu-process": 6.92,
+            "utility": 0.3800000000000001,
+            "renderer": 3.49
+          },
+          "rafFps": 60.85,
+          "drawFps": 6.1,
+          "drawCallsPerSec": 12.2,
+          "frameMeanMs": 16.66631059983566,
+          "frameP95Ms": 18.09999999999127,
+          "heapMb": 77.45996570587158,
+          "loadAvg": 11.55810546875
+        }
+      }
+    },
+    {
+      "config": "swiftshader",
+      "run": 3,
+      "glRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "windows": {
+        "idle": {
+          "seconds": 30.002,
+          "cpuSeconds": 102.8,
+          "cpuPercent": 342.64382374508364,
+          "cpuByType": {
+            "browser": 0,
+            "gpu-process": 100.66,
+            "utility": 0,
+            "renderer": 2.14
+          },
+          "rafFps": 43.53043130457969,
+          "drawFps": 6.032931137924138,
+          "drawCallsPerSec": 12.132524498366775,
+          "frameMeanMs": 23.161408882082696,
+          "frameP95Ms": 66.60000000000036,
+          "heapMb": 73.05145263671875,
+          "loadAvg": 10.6591796875
+        },
+        "action": {
+          "seconds": 20.001,
+          "cpuSeconds": 98.56,
+          "cpuPercent": 492.77536123193835,
+          "cpuByType": {
+            "browser": 0.08999999999999997,
+            "gpu-process": 95.22,
+            "utility": 0.37,
+            "renderer": 2.88
+          },
+          "rafFps": 45.39773011349432,
+          "drawFps": 11.699415029248536,
+          "drawCallsPerSec": 92.54537273136343,
+          "frameMeanMs": 22.245814977973566,
+          "frameP95Ms": 50,
+          "heapMb": 73.05145263671875,
+          "loadAvg": 11.97900390625
+        },
+        "held": {
+          "seconds": 19.999,
+          "cpuSeconds": 75.71,
+          "cpuPercent": 378.5689284464223,
+          "cpuByType": {
+            "browser": 0,
+            "gpu-process": 72.6,
+            "utility": 0.26,
+            "renderer": 2.8499999999999996
+          },
+          "rafFps": 49.80249012450623,
+          "drawFps": 6.050302515125757,
+          "drawCallsPerSec": 12.100605030251513,
+          "frameMeanMs": 20.24678714859438,
+          "frameP95Ms": 50,
+          "heapMb": 73.05145263671875,
+          "loadAvg": 10.22900390625
+        }
+      }
+    },
+    {
+      "config": "gpu",
+      "run": 3,
+      "glRenderer": "ANGLE (Intel, ANGLE Metal Renderer: Intel(R) UHD Graphics 630, Unspecified Version)",
+      "windows": {
+        "idle": {
+          "seconds": 30.001,
+          "cpuSeconds": 5.209999999999999,
+          "cpuPercent": 17.366087797073426,
+          "cpuByType": {
+            "browser": 0.17999999999999994,
+            "gpu-process": 1.8399999999999999,
+            "utility": 0.03999999999999998,
+            "renderer": 3.15
+          },
+          "rafFps": 60.36465451151628,
+          "drawFps": 6.033132228925703,
+          "drawCallsPerSec": 12.066264457851405,
+          "frameMeanMs": 16.665709552733297,
+          "frameP95Ms": 18.5,
+          "heapMb": 73.2231273651123,
+          "loadAvg": 6.681640625
+        },
+        "action": {
+          "seconds": 20,
+          "cpuSeconds": 10.49,
+          "cpuPercent": 52.449999999999996,
+          "cpuByType": {
+            "browser": 0.28,
+            "gpu-process": 5.879999999999999,
+            "utility": 0.51,
+            "renderer": 3.8200000000000003
+          },
+          "rafFps": 60.1,
+          "drawFps": 18.2,
+          "drawCallsPerSec": 169.25,
+          "frameMeanMs": 16.805158069883525,
+          "frameP95Ms": 18.5,
+          "heapMb": 94.94769954681396,
+          "loadAvg": 6.107421875
+        },
+        "held": {
+          "seconds": 20.002,
+          "cpuSeconds": 7.479999999999999,
+          "cpuPercent": 37.3962603739626,
+          "cpuByType": {
+            "browser": 0.020000000000000018,
+            "gpu-process": 4.289999999999999,
+            "utility": 0.27,
+            "renderer": 2.9000000000000004
+          },
+          "rafFps": 60.54394560543946,
+          "drawFps": 6.049395060493951,
+          "drawCallsPerSec": 12.098790120987902,
+          "frameMeanMs": 16.668125516102393,
+          "frameP95Ms": 18.5,
+          "heapMb": 91.37577152252197,
+          "loadAvg": 4.95849609375
+        }
+      }
+    }
+  ]
+}

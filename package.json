@@ -15,6 +15,7 @@
     "headless": "tsx src/headless/cli.ts",
     "sim": "tsx src/simulation/cli.ts",
     "sim:replay": "tsx src/simulation/cli.ts replay",
+    "perf": "tsx scripts/perf/bench.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
