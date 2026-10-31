@@ -102,14 +102,16 @@ export class LockstepSession {
    */
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
+      const { game } = this.options;
+      // Check once this screen has played out what came before: a turnover
+      // still playing can end the turn the click was meant for
+      await whenEngineQuiet();
       const verdict = checkOwnership(
         command,
         this.options.myTeamId,
         this.gateContext()
       );
       if (!verdict.allowed) return this.rejection(verdict.reason);
-      const { game } = this.options;
-      await whenEngineQuiet();
       // Stamped now, so it is ordered before anything this side sends later
       void this.send({
         kind: "command",
