@@ -30,7 +30,7 @@ export function momentDuration(moment: MatchMoment): number {
     case "kickoff-result":
       return 4600;
     case "turnover":
-      return 2500;
+      return 1800; // short: the next coach waits on it
     case "casualty":
     case "time-up":
     case "team-intro":

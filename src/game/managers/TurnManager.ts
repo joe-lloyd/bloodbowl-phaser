@@ -8,7 +8,7 @@ import { GameState, GamePhase, SubPhase, TurnData } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
-import { GameEventNames } from "../../types/events";
+import { AllEvents, GameEventNames } from "../../types/events";
 import { replenishTeamRerolls } from "../teamRerolls";
 
 export interface TurnManagerState {
@@ -335,15 +335,18 @@ export class TurnManager {
    * drops it, etc.) must not stack extra end-of-turn calls, or the turn
    * flips twice and hands play straight back to the offending team.
    *
-   * Returns true if this call latched the turnover (caller schedules the
-   * actual turn end via completeTurnover once the ball is at rest).
+   * Returns the turnover banner if this call latched the turnover, or null.
+   * The caller raises the banner once the fall's dice are thrown, and ends
+   * the turn via completeTurnover once the ball is at rest.
    */
-  public checkTurnover(reason: string): boolean {
+  public checkTurnover(
+    reason: string
+  ): AllEvents[GameEventNames.UI_Turnover] | null {
     if (this.turnoverInProgress) {
       console.log(
         `[TurnManager] Turnover already latched; ignoring: ${reason}`
       );
-      return false;
+      return null;
     }
     this.turnoverInProgress = true;
 
@@ -360,15 +363,14 @@ export class TurnManager {
       detail: `${who}: ${reason}`,
       teamId: this.state.activeTeamId ?? undefined,
     });
-    this.eventBus.emit(GameEventNames.UI_Turnover, {
-      teamId: this.state.activeTeamId || "",
-      reason,
-      playerName: player?.playerName,
-    });
     this.eventBus.emit(GameEventNames.Turnover, {
       teamId: this.state.activeTeamId || "",
     });
-    return true;
+    return {
+      teamId: this.state.activeTeamId || "",
+      reason,
+      playerName: player?.playerName,
+    };
   }
 
   /**

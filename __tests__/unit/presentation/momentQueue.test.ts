@@ -51,7 +51,7 @@ describe("moment queue through the event bus", () => {
     expect(shown).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     expect(shown).toEqual(["turnover"]);
-    await vi.advanceTimersByTimeAsync(2500);
+    await vi.advanceTimersByTimeAsync(1800);
     expect(shown).toEqual(["turnover", "casualty"]);
     await vi.runAllTimersAsync();
     expect(shown).toEqual(["turnover", "casualty", "turn-started"]);

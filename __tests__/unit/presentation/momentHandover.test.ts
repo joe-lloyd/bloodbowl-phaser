@@ -65,7 +65,7 @@ describe("engine boundaries wait for visual moments", () => {
       thrown: 1,
       landedThrough: 1,
     });
-    await vi.advanceTimersByTimeAsync(2499);
+    await vi.advanceTimersByTimeAsync(1799);
     expect(shown).toEqual(["turnover"]);
     expect(visual.snapshot().activeTeamId).toBe(visual.ctx.team1.id);
     await vi.runAllTimersAsync();
