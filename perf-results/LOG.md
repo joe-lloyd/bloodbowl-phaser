@@ -1,11 +1,17 @@
 # Browser cost hill climb
 
 `pnpm perf` builds the app in e2e mode, opens the `pickup-success-seeded`
-sandbox at 1440x900, and measures two windows per run: 30 s idle on the
-board, then 20 s covering a move, a pick-up and its dice roll. It runs
-twice per config: headless SwiftShader, which is what the online-match rig
-uses, and headed Chromium on the real GPU. Numbers are the median of 3 runs.
-The JSON for each run sits next to this file.
+sandbox at 1440x900, and measures three windows per run:
+
+- idle: 30 s on the settled board.
+- action: 20 s covering a move, a pick-up and its dice roll.
+- held: 20 s straight after, with the rolled dice still up in the tray.
+
+It runs in two configs, headless SwiftShader, which is what the online-match
+rig uses, and headed Chromium on the real GPU, 3 runs each by default.
+Numbers are the median of those runs. The JSON for each run sits next to
+this file. Entries before round 1 used only the first two windows; the
+held window was added during round 1.
 
 Under SwiftShader the GPU process is saturated. A cheaper frame shows up as
 more frames per second at the same CPU, so watch `cpuMsPerFrame` and
