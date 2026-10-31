@@ -5,6 +5,7 @@ import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
 import { useEventBus } from "../hooks/useEventBus";
 import { OnlineMatch } from "../../network/OnlineMatch";
+import { DiceWatch } from "../../game/presentation/diceWatch";
 
 /** Phases with no turn to wait on: the drive or the match has stopped. */
 const NO_TURN = new Set<GamePhase>([
@@ -31,8 +32,13 @@ export function WaitingBanner({
     setMoment(shown !== null)
   );
 
+  const dice = DiceWatch.shared(eventBus);
+
   useEffect(() => {
     const tick = () => {
+      // A decision's line gives its roll away: keep the last line until
+      // the dice in the tray have landed
+      if (dice.inAir()) return;
       const phase = ServiceContainer.isInitialized()
         ? ServiceContainer.getInstance().gameService.getPhase()
         : null;
@@ -42,7 +48,7 @@ export function WaitingBanner({
     tick();
     const interval = setInterval(tick, 400);
     return () => clearInterval(interval);
-  }, [match]);
+  }, [match, dice]);
 
   if (!label || moment) return null;
   // Below the turn indicator and the turn clock, which share the top centre;

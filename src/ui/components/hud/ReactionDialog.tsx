@@ -1,4 +1,5 @@
 import { DecisionTeam } from "./DecisionTeam";
+import { useAfterDice } from "../../hooks/useAfterDice";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { DecisionRequest } from "@/types/decisions";
@@ -21,7 +22,7 @@ interface ReactionDialogProps {
  * paused on this decision; both buttons resolve it via UI_ReactionResponse.
  */
 export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
-  const [request, setRequest] = useState<ReactionDecisionRequest | null>(null);
+  const [pending, setRequest] = useState<ReactionDecisionRequest | null>(null);
 
   useEffect(() => {
     const onRequested = (data: DecisionRequest) => {
@@ -40,6 +41,9 @@ export const ReactionDialog: React.FC<ReactionDialogProps> = ({ eventBus }) => {
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
+
+  // Hold the decision until the die it follows has landed in the tray
+  const request = useAfterDice(eventBus, pending);
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner

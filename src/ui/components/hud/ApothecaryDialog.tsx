@@ -1,4 +1,5 @@
 import { DecisionTeam } from "./DecisionTeam";
+import { useAfterDice } from "../../hooks/useAfterDice";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { DecisionRequest } from "@/types/decisions";
@@ -25,7 +26,7 @@ interface ApothecaryDialogProps {
 export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
   eventBus,
 }) => {
-  const [request, setRequest] = useState<ApothecaryDecisionRequest | null>(
+  const [pending, setRequest] = useState<ApothecaryDecisionRequest | null>(
     null
   );
 
@@ -46,6 +47,9 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
+
+  // Hold the decision until the die it follows has landed in the tray
+  const request = useAfterDice(eventBus, pending);
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner
@@ -85,6 +89,7 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
     <DialogShell
       placement="dock"
       eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
+      testId="apothecary-dialog"
       title="Use the Apothecary?"
       width="w-[460px]"
       actions={

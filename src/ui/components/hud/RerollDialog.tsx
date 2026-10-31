@@ -1,4 +1,5 @@
 import { d6Chance, percent } from "../../../game/rules/rollOdds";
+import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
 import type { TeamRerollKind } from "../../../game/skills/RerollArbiter";
 import React, { useState, useEffect } from "react";
@@ -24,7 +25,7 @@ interface RerollDialogProps {
  * UI_RerollResponse → gameService.answerReroll.
  */
 export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
-  const [request, setRequest] = useState<RerollDecisionRequest | null>(null);
+  const [pending, setRequest] = useState<RerollDecisionRequest | null>(null);
 
   useEffect(() => {
     const onRequested = (data: DecisionRequest) => {
@@ -43,6 +44,9 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
+
+  // Hold the decision until the die it follows has landed in the tray
+  const request = useAfterDice(eventBus, pending);
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner

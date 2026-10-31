@@ -1,3 +1,4 @@
+import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState, useEffect, useRef } from "react";
 import { EventBus } from "../../../services/EventBus";
@@ -159,6 +160,9 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     };
   }, [eventBus]);
 
+  // The choices name the faces: hold them until the block dice have landed
+  const shownRoll = useAfterDice(eventBus, rollData);
+
   if (!isOpen || !data) {
     pickRef.current = null;
     return null;
@@ -238,7 +242,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
   };
 
   pickRef.current = (index: number) => {
-    const result = rollData?.results[index];
+    const result = shownRoll?.results[index];
     if (!result) return;
     if (proMode) handleProReroll(index);
     else if (!rerollFirst) handleSelectResult(result);
@@ -344,7 +348,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
       {/* The dice themselves are in the dice tray below: a click on a
           lifted die chooses it. These buttons keep the choice open to a
           keyboard or a screen reader. */}
-      {rollData ? (
+      {shownRoll ? (
         <div className="mt-3">
           {canAct && rerollFirst && (
             <HudButton
@@ -362,7 +366,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
           <div className="flex justify-center gap-2">
             {canAct &&
               (!rerollFirst || proMode) &&
-              rollData.results.map((result, idx) => (
+              shownRoll.results.map((result, idx) => (
                 <button
                   key={idx}
                   data-testid={`block-die-${idx}`}
@@ -387,12 +391,12 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     : "Click a die in the tray to choose the result"}
           </div>
           {canAct &&
-            (rollData.teamRerollAvailable ||
-              rollData.proAvailable ||
-              rollData.brawlerAvailable ||
-              rollData.veteranRerollAvailable) && (
+            (shownRoll.teamRerollAvailable ||
+              shownRoll.proAvailable ||
+              shownRoll.brawlerAvailable ||
+              shownRoll.veteranRerollAvailable) && (
               <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-                {rollData.teamRerollAvailable && (
+                {shownRoll.teamRerollAvailable && (
                   <HudButton
                     data-testid="block-team-reroll"
                     size="sm"
@@ -401,7 +405,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     TEAM RE-ROLL (all dice)
                   </HudButton>
                 )}
-                {rollData.proAvailable && (
+                {shownRoll.proAvailable && (
                   <HudButton
                     size="sm"
                     variant={proMode ? "gold" : "secondary"}
@@ -410,7 +414,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     {proMode ? "PICK A DIE…" : "USE PRO (re-roll one die)"}
                   </HudButton>
                 )}
-                {rollData.brawlerAvailable && (
+                {shownRoll.brawlerAvailable && (
                   <HudButton
                     data-testid="block-brawler-reroll"
                     size="sm"
@@ -419,7 +423,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                     BRAWLER: RE-ROLL 1 BOTH DOWN
                   </HudButton>
                 )}
-                {rollData.veteranRerollAvailable && (
+                {shownRoll.veteranRerollAvailable && (
                   <HudButton
                     data-testid="block-veteran-reroll"
                     size="sm"
@@ -431,7 +435,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               </div>
             )}
         </div>
-      ) : isRolling ? (
+      ) : isRolling || rollData ? (
         <div className="mt-4 text-center font-hud-label text-hud-base uppercase tracking-[0.1em] text-hud-dim">
           Rolling…
         </div>
