@@ -14,7 +14,7 @@
 
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { chromium } from "@playwright/test";
+import { chromium, type Browser, type Page } from "@playwright/test";
 import { GameApp } from "../../e2e/support/pages/game";
 
 const PORT = 5392;
@@ -45,14 +45,9 @@ const preview = spawn(
   ],
   { stdio: "ignore" }
 );
-await sleep(3000);
-const browser = await chromium.launch();
-const page = await browser.newPage({
-  baseURL: `http://127.0.0.1:${PORT}`,
-  viewport: { width: 1440, height: 900 },
-  reducedMotion: "reduce",
-});
-const app = new GameApp(page);
+let browser: Browser | undefined;
+let page: Page;
+let app: GameApp;
 let stale = 0;
 
 // Strings, because tsx would wrap functions in helpers the page lacks
@@ -79,6 +74,23 @@ async function check(name: string) {
 }
 
 try {
+  // Ready when the preview answers, so a slow build machine does not race it
+  for (let tries = 0; ; tries++) {
+    const up = await fetch(`http://127.0.0.1:${PORT}/`).then(
+      (res) => res.ok,
+      () => false
+    );
+    if (up) break;
+    if (tries > 100) throw new Error("vite preview never came up");
+    await sleep(200);
+  }
+  browser = await chromium.launch();
+  page = await browser.newPage({
+    baseURL: `http://127.0.0.1:${PORT}`,
+    viewport: { width: 1440, height: 900 },
+    reducedMotion: "reduce",
+  });
+  app = new GameApp(page);
   await app.sandbox.open({ scenario: "pickup-success-seeded" });
   await app.pitch.waitForCameraToSettle(60_000);
   if (control) {
@@ -109,7 +121,7 @@ try {
     await check("mouse-off");
   }
 } finally {
-  await browser.close();
+  await browser?.close();
   preview.kill();
 }
 console.log(stale ? `${stale} stale checkpoint(s)` : "every checkpoint fresh");

@@ -70,7 +70,9 @@ function frameState(game: Phaser.Game, out: unknown[]): void {
         camera.fadeEffect.progress,
         camera.flashEffect.isRunning,
         camera.flashEffect.progress,
-        camera.shakeEffect.isRunning
+        camera.shakeEffect.isRunning,
+        // A shake moves the camera every frame it runs
+        camera.shakeEffect.progress
       );
     }
     for (const object of scene.children.list) pushObject(object, out);
@@ -119,7 +121,7 @@ function pushObject(object: Phaser.GameObjects.GameObject, out: unknown[]) {
   if (object instanceof Phaser.GameObjects.Graphics) {
     pushTransform(object, out);
     out.push(object.visible, object.alpha, object.depth, object.mask);
-    out.push(...object.commandBuffer);
+    for (const command of object.commandBuffer) out.push(command);
     return;
   }
   if (object instanceof Phaser.GameObjects.Shape) {
