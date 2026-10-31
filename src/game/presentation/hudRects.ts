@@ -38,3 +38,30 @@ export function measureHudRects(
   });
   return rects;
 }
+
+/**
+ * Calls back when a HUD panel stack changes size, such as when the action
+ * menu opens after the camera has framed a player's reach. `watch` picks up
+ * the stacks on the page now, so call it whenever the panels are measured.
+ */
+export function watchHudPanels(onChange: () => void): {
+  watch(): void;
+  stop(): void;
+} {
+  if (typeof ResizeObserver === "undefined" || typeof document === "undefined")
+    return { watch() {}, stop() {} };
+  const watched = new WeakSet<Element>();
+  const observer = new ResizeObserver(() => onChange());
+  return {
+    watch() {
+      document
+        .querySelectorAll(`[${HUD_PANELS_ATTRIBUTE}]`)
+        .forEach((stack) => {
+          if (watched.has(stack)) return;
+          watched.add(stack);
+          observer.observe(stack);
+        });
+    },
+    stop: () => observer.disconnect(),
+  };
+}
