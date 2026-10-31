@@ -12,6 +12,16 @@ const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
 
 /**
+ * The HUD's side columns (HUDLayout): w-72, at most 40vw, 16 px in from the
+ * edge, plus a margin so a square's figure clears the panel too.
+ */
+const HUD_COLUMN_PX = 288;
+const HUD_COLUMN_MAX_SHARE = 0.4;
+const HUD_EDGE_PX = 16 + 24;
+/** The score bug and match strip across the top centre. */
+const SCORE_BUG_PX = 110;
+
+/**
  * CameraController: the match camera.
  *
  * It has two framings. The overview fits the pitch and both dugouts in the
@@ -65,11 +75,15 @@ export class CameraController {
 
   // ------------------------------------------------------------ framings
 
-  /** Fit a set of world points in the window, with headroom for figures. */
+  /**
+   * Fit a set of world points in the window, with headroom for figures.
+   * `sideInset` keeps them out of that many pixels at each side.
+   */
   private frame(
     points: Point[],
     pad = 1.12,
-    topInset = 0
+    topInset = 0,
+    sideInset = 0
   ): { centre: Point; zoom: number } {
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
@@ -79,7 +93,7 @@ export class CameraController {
     const y1 = Math.max(...ys);
     const { width, height } = this.scene.scale;
     const zoom = Math.min(
-      width / ((x1 - x0) * pad),
+      (width - 2 * sideInset) / ((x1 - x0) * pad),
       (height - topInset) / ((y1 - y0) * pad)
     );
     return {
@@ -172,21 +186,26 @@ export class CameraController {
   }
 
   /**
-   * Frame a group of squares, such as the acting team and the ball, as close
-   * as the action framing allows while keeping every one in view. The extra
-   * padding keeps them clear of the HUD panels in the window's corners.
+   * Frame a group of squares, such as the acting team and the ball, or a
+   * player's reach, as close as the action framing allows while keeping
+   * every one in view and clickable. The squares sit between the HUD's
+   * side columns, which hold the action panel, the player card and the dice
+   * log. The camera may pull back past the overview to fit them there.
    */
   public focusSquares(
     squares: { x: number; y: number }[],
     duration = MOVE_MS
   ): void {
     if (this.manual || squares.length === 0) return;
+    const { width } = this.scene.scale;
     const { centre, zoom } = this.frame(
       squares.map((s) => this.pitch.getPixelPosition(s.x, s.y)),
-      1.6
+      1.15,
+      SCORE_BUG_PX,
+      Math.min(HUD_COLUMN_PX, width * HUD_COLUMN_MAX_SHARE) + HUD_EDGE_PX
     );
     const fitted = Math.max(
-      this.overviewFraming().zoom,
+      this.overviewFraming().zoom * 0.7,
       Math.min(zoom, this.actionZoom())
     );
     this.glide(centre, fitted, duration);
