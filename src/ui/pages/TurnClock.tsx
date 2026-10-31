@@ -18,6 +18,7 @@ import {
   defaultAnswer,
 } from "../../network/decisionTimeouts";
 import { AuthUser } from "../../firebase/auth";
+import { possessive } from "../../game/managers/TurnManager";
 
 interface Props {
   code: string;
@@ -34,8 +35,24 @@ const fmt = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+/** "15 seconds left", or "1 second left", for screen readers. */
+export const secondsLeftText = (ms: number): string => {
+  const seconds = Math.ceil(ms / 1000);
+  return `${seconds} ${seconds === 1 ? "second" : "seconds"} left`;
+};
+
 /** How early a turn may end and still count as ending on the clock. */
 const TIME_UP_GRACE_MS = 1000;
+/** How long a resumed clock waits for its new deadline to come back. */
+const RESUME_WAIT_MS = 5000;
+
+/** Names whose time ran out: "Reikland Reavers' turn ended". */
+const endedTurn = (teamId: string): string => {
+  const name = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getTeam(teamId)?.name
+    : undefined;
+  return name ? `${possessive(name)} turn ended` : "Turn ended";
+};
 
 const currentPhase = (): GamePhase | null =>
   ServiceContainer.isInitialized()
@@ -107,6 +124,23 @@ export function TurnClock({
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
+  const resumeRef = useRef<{
+    /** Turn time left when the clock stopped */
+    remaining: number;
+    /** When the clock started again */
+    at: number;
+    /** The deadline from before the pause, still in the lobby */
+    staleDeadline: number | null;
+  } | null>(null);
+  /** The resume still waiting on its new deadline, if any. */
+  const resuming = (at: number) => {
+    const resume = resumeRef.current;
+    return resume &&
+      resume.staleDeadline === (timer?.deadline ?? null) &&
+      at - resume.at < RESUME_WAIT_MS
+      ? resume
+      : null;
+  };
   const decisionRef = useRef<{ key: string; since: number } | null>(null);
   const answeredRef = useRef<string | null>(null);
   useEffect(() => {
@@ -124,6 +158,16 @@ export function TurnClock({
       };
     } else if (!freezeReason && frozen) {
       freezeRef.current = null;
+      // Until the resumed deadline comes back, the lobby still holds the
+      // one from before the pause: count down from what was left instead
+      resumeRef.current =
+        frozen.remaining != null
+          ? {
+              remaining: frozen.remaining,
+              at: Date.now(),
+              staleDeadline: timer?.deadline ?? null,
+            }
+          : null;
       // Resume with the time that was left. The coach who saw the other
       // drop writes it after an absence; the active coach after a decision.
       if (frozen.remaining != null && (frozen.reason === "away" || myTurn())) {
@@ -203,6 +247,7 @@ export function TurnClock({
       setNow(Date.now());
       answerIfOutOfTime();
       if (freezeRef.current) return; // stopped: nobody's turn runs out
+      if (resuming(Date.now())) return; // the old deadline is not this one
       if (!myTurn() || !timer?.deadline || timer.pausedBy) return;
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
@@ -227,7 +272,7 @@ export function TurnClock({
     const onTurnover = () => {
       turnoverThisTurn.current = true;
     };
-    const onTurnEnded = () => {
+    const onTurnEnded = ({ teamId }: { teamId: string }) => {
       const turnover = turnoverThisTurn.current;
       turnoverThisTurn.current = false;
       if (turnover || !timer?.deadline || timer.pausedBy) return;
@@ -237,7 +282,7 @@ export function TurnClock({
       eventBus.emit(GameEventNames.UI_Announce, {
         kind: "time-up",
         headline: "Time up",
-        subtitle: "Turn ended",
+        subtitle: endedTurn(teamId),
       });
     };
     eventBus.on(GameEventNames.Turnover, onTurnover);
@@ -298,11 +343,19 @@ export function TurnClock({
   const pauserName = timer.pausedBy
     ? (match.coachName(timer.pausedBy) ?? "Opponent")
     : null;
-  const remaining = !deadlineIsThisTurn
-    ? turnSeconds * 1000
-    : timer.pausedBy
-      ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
-      : timer.deadline - now;
+  const resume = resuming(now);
+  // Never more than a turn's length: the coach who wrote the deadline may
+  // have a clock a little ahead of this one
+  const remaining = Math.min(
+    turnSeconds * 1000,
+    !deadlineIsThisTurn
+      ? turnSeconds * 1000
+      : resume
+        ? resume.remaining - (now - resume.at)
+        : timer.pausedBy
+          ? (timer.deadline ?? now) - (timer.pausedAt ?? now)
+          : timer.deadline - now
+  );
   const low = remaining <= 15000 && !timer.pausedBy && deadlineIsThisTurn;
 
   return present(
@@ -327,9 +380,7 @@ export function TurnClock({
             role="status"
             className="sr-only"
           >
-            {remaining <= 0
-              ? "Time up"
-              : `${Math.ceil(remaining / 1000)} seconds left`}
+            {remaining <= 0 ? "Time up" : secondsLeftText(remaining)}
           </span>
         )}
       </div>

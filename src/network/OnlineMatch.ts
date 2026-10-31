@@ -145,7 +145,14 @@ export function isValidSelectionClaim(
   return player?.teamId === senderTeamId;
 }
 
-const STEP_ROLLS = new Set<string>(["dodge", "rush", "pickup"]);
+const STEP_ROLLS = new Set<string>([
+  "dodge",
+  "rush",
+  "pickup",
+  "pass",
+  "catch",
+  "armour",
+]);
 
 /**
  * Receiver-side guard for an incoming "prompt" envelope: the player must be
@@ -168,7 +175,8 @@ export function isValidStepPrompt(
         STEP_ROLLS.has(roll.type) &&
         Number.isInteger(roll.target) &&
         roll.target >= 2 &&
-        roll.target <= 6
+        // A foul's armour is a 2D6 roll; the rest are one D6
+        roll.target <= (roll.type === "armour" ? 12 : 6)
     ) &&
     Number.isFinite(prompt.chance) &&
     prompt.chance >= 0 &&
@@ -256,11 +264,21 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       open = null;
       send(null);
     };
+    // The pass being aimed: sent as it changes, not on every hover
+    let aimed = "null";
+    const onAim = (aim: StepPrompt | null) => {
+      const key = JSON.stringify(aim);
+      if (key === aimed) return;
+      aimed = key;
+      send(aim);
+    };
     eventBus.on(GameEventNames.UI_RequestConfirmation, onRequest);
     eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+    eventBus.on(GameEventNames.UI_PassAimed, onAim);
     return () => {
       eventBus.off(GameEventNames.UI_RequestConfirmation, onRequest);
       eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
+      eventBus.off(GameEventNames.UI_PassAimed, onAim);
     };
   };
 

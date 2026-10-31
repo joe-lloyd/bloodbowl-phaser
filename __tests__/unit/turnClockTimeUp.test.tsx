@@ -28,6 +28,8 @@ vi.mock("../../src/services/ServiceContainer", () => ({
         getPhase: () => "PLAY",
         getActiveTeamId: () => state.turn.teamId,
         getState: () => state,
+        getTeam: (id: string) =>
+          ({ "host-team": { name: "Reikland Reavers" } })[id],
         endTurn: vi.fn(),
       },
     }),
@@ -85,12 +87,14 @@ describe("Time up when a turn runs out", () => {
       vi.useFakeTimers();
       const eventBus = new EventBus();
       const queue = new MomentQueue(eventBus);
-      const shown: { text: string; at: number }[] = [];
+      const shown: { text: string; subtitle?: string; at: number }[] = [];
       eventBus.on(
         GameEventNames.UI_PresentMoment,
         (moment: MatchMoment | null) =>
           shown.push({
             text: moment && "headline" in moment ? moment.headline : "",
+            subtitle:
+              moment && "subtitle" in moment ? moment.subtitle : undefined,
             at: Date.now(),
           })
       );
@@ -126,6 +130,8 @@ describe("Time up when a turn runs out", () => {
         "Guest Team's Turn",
       ]);
       expect(banners[1].at - banners[0].at).toBeGreaterThanOrEqual(2000);
+      // Round 2, 6:34: the card did not say whose time ran out
+      expect(banners[0].subtitle).toBe("Reikland Reavers' turn ended");
 
       queue.dispose();
       await act(async () => root.unmount());

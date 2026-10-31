@@ -43,6 +43,7 @@ vi.mock("../../src/services/ServiceContainer", () => ({
         // The host's turn: the active coach keeps the clock
         getActiveTeamId: () => "host-team",
         getState: () => hoisted.state,
+        getTeam: () => undefined,
         endTurn: hoisted.endTurnMock,
       },
     }),
@@ -131,6 +132,61 @@ describe("TurnClock pauses", () => {
     // About the minute that was left when they dropped
     expect(deadline - Date.now()).toBeGreaterThan(59_000);
     expect(deadline - Date.now()).toBeLessThanOrEqual(60_000);
+  });
+
+  it("shows the time left after a pause until the resumed deadline arrives", async () => {
+    // Round 2, 25:47: back from a pause, the clock flashed a stale value
+    // read from the deadline set before the pause
+    const match = {
+      role: "host",
+      myTeamId: "host-team",
+      opponentName: "Guest",
+      coachName: () => "Guest",
+      pendingDecision: () => null,
+      decidingTeamId: () => null,
+      setClockPaused: vi.fn(),
+    } as unknown as OnlineMatch;
+    const before = lobbyAt(Date.now() + 60_000);
+    const render = (lobby: LobbyDoc, opponentAway: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={user}
+          opponentAway={opponentAway}
+        />
+      );
+    await act(async () => render(before, true));
+    await act(async () => vi.advanceTimersByTime(35_000));
+    await act(async () => render(before, false));
+    await act(async () => vi.advanceTimersByTime(1_000));
+    const clock = () =>
+      container.querySelector('[data-testid="turn-clock"]')?.textContent ?? "";
+    expect(clock()).toContain("⏱ 0:59");
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+    // The resumed deadline arrives: the clock follows it
+    await act(async () => render(lobbyAt(Date.now() + 58_000), false));
+    expect(clock()).toContain("⏱ 0:58");
+  });
+
+  it("never shows more than the turn's length at a turn start", async () => {
+    // Round 2: some turns started at 4:01, the writer's clock a little ahead
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobbyAt(Date.now() + 120_700)}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+        />
+      )
+    );
+    expect(
+      container.querySelector('[data-testid="turn-clock"]')?.textContent
+    ).toContain("⏱ 2:00");
   });
 
   const hostMatch = () =>

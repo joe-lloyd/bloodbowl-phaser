@@ -25,12 +25,14 @@ import {
   turnoverHappened,
 } from "../../game/rules-lab";
 
-/** How many Armour Checks were rolled in the run (Lone Fouler's re-roll). */
+/** How many foul Armour Rolls were rolled in the run (Lone Fouler's re-roll). */
 const armourCheckCount = (r: ScriptResult): number =>
   r.events.filter(
     (e) =>
       e.name === GameEventNames.DiceRoll &&
-      (e.data as { rollType?: string }).rollType === "Armor Check"
+      ((e.data as { rollType?: string }).rollType ?? "").startsWith(
+        "Foul Armour Roll"
+      )
   ).length;
 
 export const DEVIOUS_RULE_SCENARIOS: RuleScenarioEntry[] = [

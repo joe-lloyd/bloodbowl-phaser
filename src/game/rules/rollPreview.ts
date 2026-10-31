@@ -97,31 +97,47 @@ export function passTarget(
 export const assistLine = (side: "Our" | "Their", players: Player[]): string =>
   `${side} assists: ${players.length ? players.map((p) => `#${p.number}`).join(", ") : "none"}`;
 
-/** The same details are used on hover and in the block dialog. */
+/** Whose side of a block the coach reading the card is on. */
+export type BlockSide = "attacker" | "defender";
+
+/**
+ * The same details are used on hover and in the block dialog, worded for
+ * the coach reading them: "you pick", "Our assists" and "We have Block"
+ * mean that coach's side, attacker or defender.
+ */
 export function blockPreviewLines(
   analysis: BlockAnalysis,
   attacker: Player,
-  defender: Player
+  defender: Player,
+  viewer: BlockSide
 ): string[] {
+  const viewerPicks = analysis.isUphill === (viewer === "defender");
+  const [ours, theirs] =
+    viewer === "attacker"
+      ? [analysis.attackerAssists, analysis.defenderAssists]
+      : [analysis.defenderAssists, analysis.attackerAssists];
+  // "We" for the viewer's player, "They" for the other one
+  const attackerIs = viewer === "attacker" ? "We" : "They";
+  const defenderIs = viewer === "defender" ? "We" : "They";
   const lines = [
-    `${analysis.diceCount} ${analysis.diceCount === 1 ? "die" : "dice"}, ${analysis.isUphill ? "they" : "you"} pick`,
-    assistLine("Our", analysis.attackerAssists),
-    assistLine("Their", analysis.defenderAssists),
+    `${analysis.diceCount} ${analysis.diceCount === 1 ? "die" : "dice"}, ${viewerPicks ? "you" : "they"} pick`,
+    assistLine("Our", ours),
+    assistLine("Their", theirs),
   ];
   if (has(defender, SkillType.DODGE))
     lines.push(
       has(attacker, SkillType.TACKLE)
-        ? "They have Dodge. Our Tackle cancels it."
-        : "They have Dodge: Stumble becomes Push"
+        ? `${defenderIs} have Dodge. ${attackerIs === "We" ? "Our" : "Their"} Tackle cancels it.`
+        : `${defenderIs} have Dodge: Stumble becomes Push`
     );
   if (has(defender, SkillType.BLOCK))
-    lines.push("They have Block: safe on Both Down");
+    lines.push(`${defenderIs} have Block: safe on Both Down`);
   if (has(attacker, SkillType.BLOCK))
-    lines.push("We have Block: safe on Both Down");
+    lines.push(`${attackerIs} have Block: safe on Both Down`);
   if (has(attacker, SkillType.WRESTLE) || has(defender, SkillType.WRESTLE))
     lines.push("Wrestle can put both players Prone on Both Down");
   if (has(defender, SkillType.STAND_FIRM))
-    lines.push("They have Stand Firm: may refuse a Push");
+    lines.push(`${defenderIs} have Stand Firm: may refuse a Push`);
   return lines;
 }
 
@@ -174,7 +190,7 @@ export function foulPreview(
   if (has(fouler, SkillType.DIRTY_PLAYER) && !locked)
     lines.push("Includes Dirty Player on armour");
   lines.push("A double sends the fouler off.");
-  return { analysis, lines };
+  return { analysis, lines, targetNumber };
 }
 
 /**

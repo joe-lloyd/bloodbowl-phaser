@@ -46,7 +46,8 @@ export class AgilityTestOperation extends GameOperation {
       `${info}: ${this.targetNumber}+ (Mod: ${modString})`
     );
 
-    // Execute Roll via DiceController; failures may offer a reroll
+    // Execute Roll via DiceController; failures may offer a reroll. The
+    // player's own team rolls it, even off its turn (a catch of a bounce).
     const doRoll = () =>
       gameService
         .getDiceController()
@@ -54,7 +55,8 @@ export class AgilityTestOperation extends GameOperation {
           this.testName,
           this.targetNumber,
           this.modifiers,
-          player.playerName
+          player.playerName,
+          player.teamId
         );
     const result = this.rerollKind
       ? await withRerollOffer(

@@ -564,7 +564,14 @@ export interface DiceThrow {
   mark(index: number | null): void;
   /** Stop drawing this throw. */
   stop(): void;
+  /** Play the rest of the tumble faster: more rolls wait behind it. */
+  hurry(): void;
 }
+
+type Control = Pick<DiceThrow, "mark" | "stop" | "hurry">;
+
+/** How much faster a hurried throw tumbles. */
+const HURRY_RATE = 2.2;
 
 /**
  * Throw a roll into `host`. Every roll, D6 or block dice, plays the same way
@@ -580,15 +587,17 @@ export function playRoll(
 ): DiceThrow {
   const pickers: ((index: number) => void)[] = [];
   let marked: number | null = null;
-  let control: Pick<DiceThrow, "mark" | "stop"> | null = null;
+  let control: Control | null = null;
   let stopped = false;
+  let hurried = false;
   const landed = lane.then(() => {
     if (stopped) return roll.kind === "coin" ? [roll.side] : roll.values;
     const hooks = {
       pick: (index: number) => pickers.forEach((listener) => listener(index)),
-      ready: (c: Pick<DiceThrow, "mark" | "stop">) => {
+      ready: (c: Control) => {
         control = c;
         c.mark(marked);
+        if (hurried) c.hurry();
       },
     };
     return roll.kind === "coin"
@@ -606,6 +615,10 @@ export function playRoll(
     stop: () => {
       stopped = true;
       control?.stop();
+    },
+    hurry: () => {
+      hurried = true;
+      control?.hurry();
     },
   };
 }
@@ -653,7 +666,7 @@ function throwCoin(
   host: HTMLElement,
   toss: CoinToss,
   opts: { sound: boolean },
-  hooks: { ready: (control: Pick<DiceThrow, "mark" | "stop">) => void }
+  hooks: { ready: (control: Control) => void }
 ): Promise<number[]> {
   showing?.stop();
   if (opts.sound) void loadClacks();
@@ -726,6 +739,7 @@ function throwCoin(
       resolve([toss.side]);
     },
     mark: () => {},
+    hurry: () => {},
   };
   showing = control;
   hooks.ready(control);
@@ -786,7 +800,7 @@ function throwDice(
   opts: { sound: boolean },
   hooks: {
     pick: (index: number) => void;
-    ready: (control: Pick<DiceThrow, "mark" | "stop">) => void;
+    ready: (control: Control) => void;
   }
 ): Promise<number[]> {
   showing?.stop();
@@ -859,10 +873,15 @@ function throwDice(
     geometry.dispose();
     resolve(roll.values);
   };
+  // Playback speed of the recorded tumble; hurry() raises it
+  let rate = 1;
   const control = {
     stop,
     mark: (index: number | null) => {
       markedIndex = index;
+    },
+    hurry: () => {
+      rate = HURRY_RATE;
     },
   };
   showing = control;
@@ -893,16 +912,21 @@ function throwDice(
   hooks.ready(control);
 
   {
-    const start = performance.now();
+    // Tumble time played so far, at the current rate
+    let tumbleMs = 0;
+    let lastFrame = performance.now();
     let played = 0;
     let settled:
       | { position: THREE.Vector3; quaternion: THREE.Quaternion }[]
       | null = null;
     const tick = () => {
       if (!running) return;
+      const now = performance.now();
+      tumbleMs += (now - lastFrame) * rate;
+      lastFrame = now;
       const f = Math.min(
         sim.frames.length - 1,
-        Math.floor(((performance.now() - start) / 1000) * 60)
+        Math.floor((tumbleMs / 1000) * 60)
       );
       if (!settled) {
         for (

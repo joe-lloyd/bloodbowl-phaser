@@ -60,12 +60,12 @@ describe("Foul resolves as a Foul, never a Block", () => {
 
     expect(fouled.ok).toBe(true);
 
-    // An armour roll was made against the victim (note: the engine labels
-    // this "Armor Check", American spelling).
+    // An armour roll was made against the victim, labelled as the foul's
+    // own ("Foul Armour Roll (name)").
     const armour = fouled.events.filter(
       (e) =>
         e.name === GameEventNames.DiceRoll &&
-        (e.data as { rollType?: string })?.rollType?.includes("Armor")
+        (e.data as { rollType?: string })?.rollType?.startsWith("Foul Armour Roll")
     );
     expect(armour.length).toBeGreaterThan(0);
 

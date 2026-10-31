@@ -47,15 +47,19 @@ export class BallMovementController {
    * @param position Starting position
    * @returns Array of positions (the path)
    */
-  public scatter(position: {
-    x: number;
-    y: number;
-  }): { x: number; y: number }[] {
+  public scatter(
+    position: {
+      x: number;
+      y: number;
+    },
+    /** What scatters, as the log names it: the ball, or a thrown team-mate */
+    rollType: "Scatter" | "Team-mate Scatter" = "Scatter"
+  ): { x: number; y: number }[] {
     const path: { x: number; y: number }[] = [];
     let currentPos = { ...position };
 
     // Roll 3 d8s at once for a single log entry
-    const rolls = this.diceController.rollMultipleD8("Scatter", 3);
+    const rolls = this.diceController.rollMultipleD8(rollType, 3);
 
     for (const direction of rolls) {
       currentPos = this.calculateOffsetPosition(currentPos, direction, 1);

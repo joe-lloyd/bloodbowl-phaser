@@ -246,17 +246,16 @@ describe("TurnManager", () => {
   });
 
   describe("Check Turnover", () => {
-    it("should emit Turnover events", () => {
+    it("emits Turnover and hands back the banner for later", () => {
       mockState.activeTeamId = "team1";
 
-      manager.checkTurnover("Failed Dodge");
-
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
+      // The banner waits for the fall's dice: the caller raises it
+      expect(manager.checkTurnover("Failed Dodge")).toEqual(
+        expect.objectContaining({ teamId: "team1", reason: "Failed Dodge" })
+      );
+      expect(mockEventBus.emit).not.toHaveBeenCalledWith(
         GameEventNames.UI_Turnover,
-        expect.objectContaining({
-          teamId: "team1",
-          reason: "Failed Dodge",
-        })
+        expect.anything()
       );
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(

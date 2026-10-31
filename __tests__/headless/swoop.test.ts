@@ -126,7 +126,7 @@ describe("Swoop", () => {
 
     expect(dice.slice(0, 3)).toEqual([
       "Throw Team-mate (Human Lineman #1): 5, needs 5+",
-      "Scatter: 3, 3, 5",
+      "Team-mate Scatter: 3, 3, 5",
       "Landing (Human Lineman #2): 6, needs 3+",
     ]);
   });
@@ -136,7 +136,7 @@ describe("Swoop", () => {
 
     expect(dice.slice(0, 3)).toEqual([
       "Throw Team-mate (Human Lineman #1): 5, needs 5+",
-      "Scatter: 3, 3, 5",
+      "Team-mate Scatter: 3, 3, 5",
       "Landing (Human Lineman #2): 6, needs 3+",
     ]);
   });

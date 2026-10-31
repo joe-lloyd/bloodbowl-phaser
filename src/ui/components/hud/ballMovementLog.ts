@@ -4,6 +4,8 @@ type Roll = AllEvents[GameEventNames.DiceRoll];
 type Movement = "bounced" | "scattered" | "deviated" | "thrown in";
 export interface BallMovement {
   kind: "ball";
+  /** What moved: the ball, or a thrown team-mate */
+  subject: "Ball" | "Team-mate";
   movement: Movement;
   squares: number;
   mixed?: boolean;
@@ -14,7 +16,7 @@ export interface BallMovement {
 function movementFor(roll: Roll): Movement | null {
   if (/^(Kickoff )?Deviat/i.test(roll.rollType)) return "deviated";
   if (/^Bounce( Direction)?$/i.test(roll.rollType)) return "bounced";
-  if (/^Scatter/i.test(roll.rollType)) return "scattered";
+  if (/^(Team-mate )?Scatter/i.test(roll.rollType)) return "scattered";
   if (/^Throw-in (Direction|Distance)$/i.test(roll.rollType))
     return "thrown in";
   return null;
@@ -27,7 +29,13 @@ export function appendBallRoll(
 ): BallMovement | null {
   const movement = movementFor(roll);
   if (!movement) return null;
-  const group = previous ?? { kind: "ball", movement, squares: 0, rolls: [] };
+  const group: BallMovement = previous ?? {
+    kind: "ball",
+    subject: /^Team-mate/i.test(roll.rollType) ? "Team-mate" : "Ball",
+    movement,
+    squares: 0,
+    rolls: [],
+  };
   const squares = /Distance/i.test(roll.rollType)
     ? roll.total
     : movement === "bounced"
@@ -52,5 +60,5 @@ export function ballMovementText(group: BallMovement): string {
   const destination = group.destination
     ? `, now at ${group.destination.x},${group.destination.y}`
     : "";
-  return `Ball ${group.mixed ? "moved" : group.movement}${distance}${destination}`;
+  return `${group.subject} ${group.mixed ? "moved" : group.movement}${distance}${destination}`;
 }

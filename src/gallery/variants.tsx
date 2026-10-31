@@ -11,7 +11,12 @@ import { RosterName } from "../types/Team";
 import { KickoffEvent } from "../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
 import { getSidelineCrewInfo } from "../game/presentation/sidelineStaff";
-import type { OnlineMatch } from "../network/OnlineMatch";
+import {
+  setActiveOnlineMatch,
+  type OnlineMatch,
+} from "../network/OnlineMatch";
+import { ConnectionBanner } from "../ui/pages/ConnectionBanner";
+import { getSkill, SkillType } from "../types/Skills";
 import type { LobbyDoc } from "../firebase/lobby";
 import type { AuthUser } from "../firebase/auth";
 import type { BlockRollData } from "../services/BlockResolutionService";
@@ -922,6 +927,19 @@ export const VARIANTS: Variant[] = [
     drive: (fx) => later(30, () => openBlock(fx, 3, true, [2, 6])),
   },
   {
+    id: "block-defender",
+    section: "Decision dialogs",
+    title: "Block seen by the defending coach online",
+    view: (fx) => <BlockDiceDialog eventBus={fx.bus} />,
+    drive: (fx) =>
+      later(30, () => {
+        // This coach owns the defender, player 1 of team 1
+        setActiveOnlineMatch(onlineMatch(fx, { myTeamId: fx.team1.id }));
+        fx.player(1, 0).skills.push(getSkill(SkillType.BLOCK));
+        openBlock(fx, 2, true, [3, 4]);
+      }),
+  },
+  {
     id: "block-rolled",
     section: "Decision dialogs",
     title: "Block rolled, re-rolls offered",
@@ -1282,7 +1300,7 @@ export const VARIANTS: Variant[] = [
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "time-up",
           headline: "Time up",
-          subtitle: "Turn ended",
+          subtitle: "Reikland Reavers' turn ended",
         });
         fx.bus.emit(GameEventNames.UI_Announce, {
           kind: "turn-started",
@@ -1424,6 +1442,19 @@ export const VARIANTS: Variant[] = [
           eventBus={fx.bus}
           user={USER}
         />
+      </>
+    ),
+  },
+  {
+    id: "connection-offline",
+    section: "Online turn clock",
+    title: "This coach is offline",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <ConnectionBanner opponentName="Grimgutz" connection="offline" />
       </>
     ),
   },

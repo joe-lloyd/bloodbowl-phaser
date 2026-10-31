@@ -115,7 +115,7 @@ describe("Throw Team-mate landing", () => {
 
     expect(dice.slice(0, 3)).toEqual([
       "Throw Team-mate (Human Lineman #1): 4, needs 5+",
-      "Scatter: 1, 5, 8",
+      "Team-mate Scatter: 1, 5, 8",
       "Landing (Human Lineman #2): 6, needs 4+",
     ]);
   });

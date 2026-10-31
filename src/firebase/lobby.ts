@@ -395,9 +395,31 @@ export const OPPONENT_ABANDON_MS = 30000;
 export type OpponentConnectionState = "online" | "reconnecting" | "abandonable";
 
 /**
- * Single source of truth for opponent presence, shared by the disconnect
- * banner and the in-match options menu so both agree on when reconnect vs.
- * unilateral-abandon wording applies.
+ * The match's connection as this coach sees it. "offline" means this
+ * coach's own link is down: the other coach's heartbeat stops arriving
+ * then too, so their presence says nothing until this coach is back.
+ */
+export type ConnectionState = OpponentConnectionState | "offline";
+
+/**
+ * Single source of truth for the connection banner and the in-match options
+ * menu. This coach's own connection comes first; only while it is up does a
+ * stale heartbeat mean the other coach has gone.
+ */
+export function describeConnection(
+  lobby: LobbyDoc,
+  opponentUid: string,
+  selfOnline: boolean,
+  now: number = Date.now()
+): ConnectionState {
+  return selfOnline
+    ? describeOpponentConnection(lobby, opponentUid, now)
+    : "offline";
+}
+
+/**
+ * Opponent presence from their heartbeat alone. Use describeConnection,
+ * which first rules out this coach being the one offline.
  */
 export function describeOpponentConnection(
   lobby: LobbyDoc,
@@ -409,6 +431,54 @@ export function describeOpponentConnection(
   }
   const last = lobby.players[opponentUid]?.lastSeen ?? now;
   return now - last > OPPONENT_ABANDON_MS ? "abandonable" : "reconnecting";
+}
+
+/**
+ * Reports whether this coach is connected: the browser is online, and the
+ * lobby listener still reaches the server. Firestore marks a snapshot as
+ * from the cache once it loses the server, which counts as offline only
+ * after the server has been reached once, so the cached first read on load
+ * is not a false drop. Calls back with the first state, then on each change.
+ */
+export function subscribeOwnConnection(
+  code: string,
+  onChange: (online: boolean) => void
+): () => void {
+  let browserOnline = navigator.onLine;
+  let serverReached = false;
+  let fromCache = false;
+  let last: boolean | null = null;
+  const report = () => {
+    const online = browserOnline && !(serverReached && fromCache);
+    if (online === last) return;
+    last = online;
+    onChange(online);
+  };
+  const onOnline = () => {
+    browserOnline = true;
+    report();
+  };
+  const onOffline = () => {
+    browserOnline = false;
+    report();
+  };
+  window.addEventListener("online", onOnline);
+  window.addEventListener("offline", onOffline);
+  const stopListening = onSnapshot(
+    lobbyRef(code),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      fromCache = snapshot.metadata.fromCache;
+      if (!fromCache) serverReached = true;
+      report();
+    }
+  );
+  report();
+  return () => {
+    window.removeEventListener("online", onOnline);
+    window.removeEventListener("offline", onOffline);
+    stopListening();
+  };
 }
 
 export function subscribeLobby(

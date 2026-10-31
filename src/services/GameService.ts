@@ -1310,11 +1310,13 @@ export class GameService implements IGameService {
     }
     // Only the first turnover of a resolution latches; later failures in the
     // same chain (bounce → dropped catch → …) are absorbed by it.
-    if (!this.turnManager.checkTurnover(reason)) return;
+    const banner = this.turnManager.checkTurnover(reason);
+    if (!banner) return;
 
     // Let the reaction chain fully settle (ball at rest, armour/injury rolls
-    // done), give the turnover banner its moment, then end the turn once.
-    // A failed Bloodlust activation cut short still gets its bite.
+    // done), then raise the turnover banner, so it plays after the fall's
+    // dice. Give it its moment, then end the turn once. A failed Bloodlust
+    // activation cut short still gets its bite.
     this.flowManager
       .whenIdle()
       .then(() => {
@@ -1325,6 +1327,7 @@ export class GameService implements IGameService {
         );
         return this.flowManager.whenIdle();
       })
+      .then(() => this.eventBus.emit(GameEventNames.UI_Turnover, banner))
       .then(() => this.offerSportsEspionage())
       .then(() => whenMomentsComplete(this.eventBus))
       .then(() => this.turnManager.completeTurnover());

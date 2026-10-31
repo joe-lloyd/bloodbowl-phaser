@@ -1,3 +1,4 @@
+import { useAfterDice } from "../../hooks/useAfterDice";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { DecisionTeam } from "./DecisionTeam";
 import React, { useState } from "react";
@@ -57,7 +58,10 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     });
   };
 
-  if (!data || getActiveOnlineMatch()?.mayAct() === false) return null;
+  // A Rush or Dodge prompt can follow a roll: wait until its die has landed
+  const shown = useAfterDice(eventBus, data);
+  if (!shown || !data || getActiveOnlineMatch()?.mayAct() === false)
+    return null;
 
   return (
     <DialogShell

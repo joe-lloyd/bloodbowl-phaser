@@ -3,6 +3,11 @@ import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames, UIEvents } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";
 
+const ROUTE_ROLL_NAMES: Record<
+  NonNullable<UIEvents[GameEventNames.UI_RoutePreview]>["rolls"][number]["type"],
+  string
+> = { dodge: "Dodge", rush: "Rush", pickup: "Pick up" };
+
 export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
   const [route, setRoute] =
     useState<UIEvents[GameEventNames.UI_RoutePreview]>(null);
@@ -27,8 +32,7 @@ export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
         >
           {route.rolls.map((roll, i) => (
             <span key={i} title={`Square ${roll.square.x}, ${roll.square.y}`}>
-              {roll.type === "dodge" ? "D" : roll.type === "rush" ? "R" : "P"}{" "}
-              {roll.target}+
+              {ROUTE_ROLL_NAMES[roll.type]} {roll.target}+
             </span>
           ))}
         </div>

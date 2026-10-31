@@ -1,4 +1,5 @@
 import { d6Target, d6Chance, percent } from "../../../game/rules/rollOdds";
+import { useAfterDice } from "../../hooks/useAfterDice";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { interceptNeed } from "../../../game/rules/rollPreview";
 import { DecisionTeam } from "./DecisionTeam";
@@ -27,7 +28,7 @@ interface InterceptionDialogProps {
 export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
   eventBus,
 }) => {
-  const [request, setRequest] = useState<InterceptionDecisionRequest | null>(
+  const [pending, setRequest] = useState<InterceptionDecisionRequest | null>(
     null
   );
 
@@ -48,6 +49,9 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
       eventBus.off(GameEventNames.DecisionResolved, onResolved);
     };
   }, [eventBus]);
+
+  // Hold the decision until the die it follows has landed in the tray
+  const request = useAfterDice(eventBus, pending);
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner

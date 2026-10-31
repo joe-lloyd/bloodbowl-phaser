@@ -39,6 +39,21 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "far-end-blitz",
+    name: "Blitz toward the far corner",
+    description:
+      "A blitzer near the far end, where the action panel sits. The squares it can reach in the corner stay clickable while the panel is open.",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 16, y: 2 }],
+      team2Placements: [{ playerIndex: 0, x: 19, y: 0 }],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "chain-push",
     name: "Chain Push Test",
     description: "Defender's push squares are all occupied - block to chain",

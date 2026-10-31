@@ -192,8 +192,10 @@ test("a failed Rush shows the turnover only after its die has landed", async ({
   await page.getByRole("button", { name: "Dodge!" }).click();
   await page.getByRole("button", { name: "Rush!" }).click({ timeout: 15_000 });
 
+  // The banner follows the fall's armour and injury dice too, which take a
+  // while with software rendering in a parallel run
   await expect(page.getByRole("heading", { name: "TURNOVER" })).toBeVisible({
-    timeout: 10_000,
+    timeout: 20_000,
   });
   await page.screenshot({ path: test.info().outputPath("turnover.png") });
   await page.waitForFunction(() =>

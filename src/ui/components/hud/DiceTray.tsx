@@ -21,6 +21,8 @@ export const BLOCK_VALUE: Record<string, number> = {
   pow: 6,
 };
 const HOLD_MS = 1800;
+/** A landed roll's read when another roll waits behind it. */
+const QUEUED_HOLD_MS = 400;
 const MAX_QUEUE = 3;
 
 /**
@@ -110,6 +112,11 @@ export function DiceTray({
     let throwing: DiceThrow | null = null;
     // Ends the hold on the dice now up, so the next roll can play
     let release: (() => void) | null = null;
+    // Shortens a D6's read when another roll arrives during it
+    let cutHold: (() => void) | null = null;
+    // The last read was cut short for this roll: it is part of a burst,
+    // such as a fall's armour and injury, and is hurried like the rest
+    let inBurst = false;
     // The board holds a step or a fall until the dice deciding it land.
     // Rolls are numbered as thrown; every roll up to `landedThrough` has
     // landed or was dropped from a full queue, so it never will.
@@ -149,6 +156,8 @@ export function DiceTray({
           sound: !soundSettings.get().muted,
         });
         throwing = handle;
+        // More rolls wait behind this one, a fall's armour and injury
+        if (queue.current.length > 0 || inBurst) handle.hurry();
         if (next.block) {
           handle.onPick((index) =>
             eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
@@ -171,11 +180,20 @@ export function DiceTray({
         next.settled = true;
         reportInAir();
         setCurrent({ ...next });
+        inBurst = queue.current.length > 0;
         await new Promise<void>((resolve) => {
           release = resolve;
-          if (!next.block) setTimeout(resolve, HOLD_MS);
+          if (next.block) return;
+          // A short read when another roll waits; one arriving during a
+          // full read cuts it short too
+          setTimeout(resolve, inBurst ? QUEUED_HOLD_MS : HOLD_MS);
+          cutHold = () => {
+            inBurst = true;
+            setTimeout(resolve, QUEUED_HOLD_MS);
+          };
         });
         release = null;
+        cutHold = null;
       } catch (error) {
         console.warn("[DiceTray] could not show a roll", error);
         next.settled = true;
@@ -208,6 +226,8 @@ export function DiceTray({
       // Never fall far behind the game: keep the latest few.
       while (queue.current.length > MAX_QUEUE) queue.current.pop();
       if (!playing.current) void playNext();
+      else if (shown && !shown.settled && !shown.block) throwing?.hurry();
+      else cutHold?.();
       reportInAir();
     };
 
@@ -291,6 +311,7 @@ export function DiceTray({
   return (
     <div
       data-testid="dice-tray"
+      data-dice={current ? (current.settled ? "landed" : "in-air") : "empty"}
       className={`hud-slab pointer-events-none absolute bottom-4 left-1/2 z-[110] w-[420px] max-w-[50vw] -translate-x-1/2 overflow-hidden transition-all duration-200 ${
         current ? "opacity-100" : "translate-y-2 opacity-0"
       }`}

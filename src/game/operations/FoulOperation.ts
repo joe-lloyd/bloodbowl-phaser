@@ -154,14 +154,17 @@ export class FoulOperation extends GameOperation {
         effect,
       });
 
-    // 2. Armour Roll. The assists are an opposition modifier, so the
+    // 2. Armour Roll, named as the foul's, like "Injury Roll (name)" beside
+    // it. The assists are an opposition modifier, so the
     // target's own armour rules (Iron Hard Skin) may cancel them. They do
     // not read the natural roll, so a Lone Fouler re-roll reuses the fold.
+    const foulArmourRoll = `Foul Armour Roll (${target.playerName})`;
     let armour = diceController.rollArmorCheck(
       av,
       target.playerName,
       fouler.teamId,
-      analysis.modifier
+      analysis.modifier,
+      foulArmourRoll
     );
     let rolls = armour.rolls;
     const armourCtx = await foldArmourRoll(context, [target], {
@@ -188,7 +191,8 @@ export class FoulOperation extends GameOperation {
         av,
         target.playerName,
         fouler.teamId,
-        analysis.modifier
+        analysis.modifier,
+        foulArmourRoll
       );
       rolls = armour.rolls;
       broken = breaks(0);

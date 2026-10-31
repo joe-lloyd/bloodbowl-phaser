@@ -12,7 +12,8 @@ import {
   finishMatch,
   clearActiveMatchCode,
   heartbeat,
-  describeOpponentConnection,
+  describeConnection,
+  subscribeOwnConnection,
   LobbyDoc,
 } from "../../firebase/lobby";
 import {
@@ -30,8 +31,8 @@ import {
 } from "../components/componentWarehouse/HudKit";
 import { OnlineCoinFlip } from "./OnlineCoinFlip";
 import { TurnClock } from "./TurnClock";
-import { WaitingBanner } from "./WaitingBanner";
 import { RefusalNotice } from "../components/hud/RefusalNotice";
+import { MatchBanner } from "./ConnectionBanner";
 
 interface OnlinePlayPageProps {
   eventBus: EventBus;
@@ -109,6 +110,14 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     return subscribeLobby(code, setLobby);
   }, [code]);
 
+  // This coach's own link: while it is down, the other coach's heartbeat
+  // stops arriving too, which must not read as them leaving
+  const [selfOnline, setSelfOnline] = useState(true);
+  useEffect(() => {
+    if (!code) return;
+    return subscribeOwnConnection(code, setSelfOnline);
+  }, [code]);
+
   // Presence heartbeat so the opponent can detect if we drop
   useEffect(() => {
     if (!code || !user) return;
@@ -163,7 +172,7 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
     : null;
   const connection =
     lobby && opponentUid
-      ? describeOpponentConnection(lobby, opponentUid, now)
+      ? describeConnection(lobby, opponentUid, selfOnline, now)
       : "online";
 
   // A rejected Firestore write must not vanish silently (the coach would
@@ -238,15 +247,13 @@ export function OnlinePlayPage({ eventBus }: OnlinePlayPageProps) {
         pitchThemeId={lobby?.settings.pitchThemeId}
         onlineMenu={onlineMenu}
       />
-      <WaitingBanner match={match} eventBus={eventBus} />
+      <MatchBanner
+        match={match}
+        eventBus={eventBus}
+        opponentName={match.opponentName}
+        connection={connection}
+      />
       <RefusalNotice eventBus={eventBus} />
-
-      {lobby && opponentUid && connection !== "online" && (
-        <DisconnectBanner
-          opponentName={match.opponentName}
-          abandonable={connection === "abandonable"}
-        />
-      )}
 
       {lobby && code && (
         <TurnClock
@@ -329,34 +336,5 @@ function EndMatchModal({
         you?
       </p>
     </DialogShell>
-  );
-}
-
-/**
- * Opponent-presence banner. Their heartbeat goes stale when they drop; after
- * a short grace we show "reconnecting", and after a longer grace the options
- * menu's "End Match (Opponent Left)" entry becomes available (the unilateral
- * abandon action itself lives there now, not on this banner).
- */
-function DisconnectBanner({
-  opponentName,
-  abandonable,
-}: {
-  opponentName: string;
-  abandonable: boolean;
-}) {
-  return (
-    <div className="absolute inset-x-0 top-[15rem] z-[93] flex justify-center pointer-events-none">
-      <div className="hud-slab pointer-events-auto border-t-[3px] border-t-hud-bad px-5 py-3 text-center animate-hud-in">
-        <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.05em] text-[#ff8a8a]">
-          ⚠ {opponentName} disconnected
-        </p>
-        <p className="mt-1 font-hud-body text-hud-sm text-hud-dim">
-          {abandonable
-            ? "You can end the match from the Match Options menu."
-            : "Waiting for them to reconnect…"}
-        </p>
-      </div>
-    </div>
   );
 }

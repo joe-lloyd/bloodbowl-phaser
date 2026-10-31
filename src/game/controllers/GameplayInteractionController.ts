@@ -12,7 +12,7 @@ import { GamePhase, SubPhase } from "../../types/GameState";
 import { IEventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { GameEventNames } from "@/types/events";
+import { GameEventNames, StepPrompt } from "@/types/events";
 import { HighlightManager } from "../managers/HighlightManager";
 import { DiceWatch } from "../presentation/diceWatch";
 import { PassController } from "./PassController";
@@ -2194,7 +2194,9 @@ export class GameplayInteractionController {
           chance,
         },
         message:
-          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\nChance: ${percent(chance)}.\n` +
+          `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
+          // Each roll shows its own chance; two rolls also need both
+          (rolls.length > 1 ? `Chance of both: ${percent(chance)}.\n` : "") +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),
@@ -2307,6 +2309,7 @@ export class GameplayInteractionController {
     this.targetAnchor = null;
     this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
     this.eventBus.emit(GameEventNames.UI_RoutePreview, null);
+    this.eventBus.emit(GameEventNames.UI_PassAimed, null);
     this.pitch.clearLayer("assist_ring");
   }
 
@@ -2319,9 +2322,17 @@ export class GameplayInteractionController {
         resolve(data.confirmed);
       };
       this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
+      const foul = this.foulPreview(fouler, target);
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId, title: "Confirm foul", message: this.foulPreview(fouler, target).lines.join("\n"),
+        actionId, title: "Confirm foul", message: foul.lines.join("\n"),
         confirmLabel: "Foul!", cancelLabel: "Cancel", risky: true,
+        // Online, the other coach sees the foul read-only
+        chooserTeamId: fouler.teamId,
+        step: {
+          playerId: fouler.id,
+          rolls: [{ type: "armour", target: foul.targetNumber }],
+          chance: rollProbability([{ dice: "2d6", target: foul.targetNumber }]),
+        },
       });
     });
   }
@@ -2347,12 +2358,13 @@ export class GameplayInteractionController {
     const opponents = this.gameService.getOpponents(actor.teamId);
     const adjacent = Math.max(Math.abs(actor.gridPosition.x - x), Math.abs(actor.gridPosition.y - y)) === 1;
     let preview: TargetRollPreview | null = null;
+    let aim: StepPrompt | null = null;
     const ringAssists = (ours: Player[], theirs: Player[]) => this.pitch.drawAssistRings(
       ours.flatMap(p => p.gridPosition ? [p.gridPosition] : []), theirs.flatMap(p => p.gridPosition ? [p.gridPosition] : [])
     );
     if ((this.currentActionMode === "block" || this.currentActionMode === "blitz") && !this.currentBlockReplacement && target.teamId !== actor.teamId && target.status === PlayerStatus.ACTIVE) {
       const analysis = new BlockValidator().analyzeBlock(actor, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], state.activeTeamId);
-      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target), danger: analysis.isUphill };
+      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target, "attacker"), danger: analysis.isUphill };
       if (!adjacent) preview.lines.push("At current positions. Move into reach to block.");
       ringAssists(analysis.attackerAssists, analysis.defenderAssists);
     } else if (this.currentActionMode === "foul" && adjacent && target.teamId !== actor.teamId && (target.status === PlayerStatus.PRONE || target.status === PlayerStatus.STUNNED)) {
@@ -2364,8 +2376,19 @@ export class GameplayInteractionController {
       const receiver = withDriveModifiers(target, state);
       const handoff = this.currentActionMode === "handoff";
       const range = this.passController.measureRange(actor.gridPosition, { x, y });
-      const lines = handoff ? [] : [rollLabel(range.type, passTarget(passer, opponents, state.weather, range))];
-      lines.push(rollLabel("Catch", catchTarget(receiver, opponents, state.weather, handoff ? "handoff" : "pass")));
+      const throwNeeds = passTarget(passer, opponents, state.weather, range);
+      const catchNeeds = catchTarget(receiver, opponents, state.weather, handoff ? "handoff" : "pass");
+      const lines = handoff ? [] : [rollLabel(range.type, throwNeeds)];
+      lines.push(rollLabel("Catch", catchNeeds));
+      // Online, the other coach sees the pass being aimed, read-only
+      const aimRolls: StepPrompt["rolls"] = handoff
+        ? [{ type: "catch", target: catchNeeds }]
+        : [{ type: "pass", target: throwNeeds }, { type: "catch", target: catchNeeds }];
+      aim = {
+        playerId: actor.id,
+        rolls: aimRolls,
+        chance: rollProbability(aimRolls.map(roll => ({ dice: "d6" as const, target: roll.target }))),
+      };
       const interceptorRolls: { square: { x: number; y: number }; target: number }[] = [];
       if (!handoff) {
         const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];
@@ -2383,6 +2406,7 @@ export class GameplayInteractionController {
     }
     this.targetRollPreview = preview;
     this.publishTargetPreview();
+    this.eventBus.emit(GameEventNames.UI_PassAimed, aim);
   }
 
   private drawCurrentPath(): void {
