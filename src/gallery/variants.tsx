@@ -57,6 +57,8 @@ import { MatchResultsScreen } from "../ui/components/hud/MatchResultsScreen";
 import { LoadingScreen } from "../ui/components/hud/LoadingScreen";
 import { OnlineCoinFlip } from "../ui/pages/OnlineCoinFlip";
 import { RefusalNotice } from "../ui/components/hud/RefusalNotice";
+import { HalfTimeCard } from "../ui/components/hud/HalfTimeCard";
+import { TurnCatchUpCard } from "../ui/components/hud/TurnCatchUpCard";
 import { TurnClock } from "../ui/pages/TurnClock";
 import { PAGE_VARIANTS } from "./pageVariants";
 export interface Variant {
@@ -877,6 +879,78 @@ export const VARIANTS: Variant[] = [
       later(60, () => click('[data-testid="dice-log"] [role="tab"]', "Chat")),
   },
 
+  // ---- Left column cards
+  {
+    id: "catch-up-card",
+    section: "Left column cards",
+    title: "Online: since your last turn, above the dice log",
+    fixture: { scenario: "block-injury-test", phase: GamePhase.PLAY },
+    view: (fx) => {
+      onlineChat(fx, []);
+      return (
+        <HUDLayout
+          bottomLeft={
+            <>
+              <TurnCatchUpCard eventBus={fx.bus} />
+              <div className="h-[220px] w-full">
+                <DiceLog eventBus={fx.bus} />
+              </div>
+            </>
+          }
+        />
+      );
+    },
+    drive: (fx) =>
+      later(60, () => {
+        const state = fx.services.gameService.getState();
+        state.activeTeamId = fx.team2.id;
+        const hurt = fx.player(1, 0);
+        hurt.status = PlayerStatus.STUNNED;
+        fx.bus.emit(GameEventNames.PlayerKnockedDown, { playerId: hurt.id });
+        fx.bus.emit(GameEventNames.BallScattered, {
+          from: { x: 10, y: 4 },
+          to: { x: 11, y: 4 },
+          reason: "bounce",
+        });
+        fx.bus.emit(GameEventNames.TurnStarted, {
+          teamId: fx.team1.id,
+          turnNumber: 4,
+        });
+      }),
+  },
+  {
+    id: "half-time-card",
+    section: "Left column cards",
+    title: "Half time, with KO recovery rolls in",
+    fixture: { scenario: "block-injury-test" },
+    view: (fx) => (
+      <HUDLayout
+        bottomLeft={
+          <>
+            <HalfTimeCard eventBus={fx.bus} />
+            <div className="h-[220px] w-full">
+              <DiceLog eventBus={fx.bus} />
+            </div>
+          </>
+        }
+      />
+    ),
+    drive: (fx) =>
+      later(60, () => {
+        setScore(fx, 1, 0);
+        fx.player(2, 0).status = PlayerStatus.KO;
+        fx.bus.emit(GameEventNames.DriveEnded, {
+          reason: "halftime",
+          nextKickingTeamId: fx.team2.id,
+        });
+        fx.bus.emit(GameEventNames.KORecoveryRolled, {
+          playerId: fx.player(2, 0).id,
+          roll: 5,
+          recovered: true,
+        });
+      }),
+  },
+
   // ---- Dice tray
   {
     id: "tray-d6",
@@ -1532,6 +1606,55 @@ export const VARIANTS: Variant[] = [
       <>
         {score(fx)}
         <ConnectionBanner opponentName="Grimgutz" connection="offline" />
+      </>
+    ),
+  },
+  {
+    id: "connection-reconnecting",
+    section: "Online turn clock",
+    title: "The other coach dropped, a long name",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <ConnectionBanner
+          opponentName="Grimgutz the Unwashed"
+          connection="reconnecting"
+        />
+      </>
+    ),
+  },
+  {
+    id: "connection-abandonable",
+    section: "Online turn clock",
+    title: "The other coach has been gone long enough to end the match",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <ConnectionBanner opponentName="Grimgutz" connection="abandonable" />
+      </>
+    ),
+  },
+  {
+    id: "waiting-banner",
+    section: "Online turn clock",
+    title: "Waiting on the other coach's decision",
+    height: 320,
+    fixture: { scenario: "basic-scrimmage" },
+    view: (fx) => (
+      <>
+        {score(fx)}
+        <WaitingBanner
+          match={{
+            mayAct: () => false,
+            waitingLabel: () =>
+              "Grimgutz is choosing a block die (Gouged Eye Blitzer)…",
+          }}
+          eventBus={fx.bus}
+        />
       </>
     ),
   },
