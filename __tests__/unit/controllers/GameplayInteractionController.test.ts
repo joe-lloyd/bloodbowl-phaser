@@ -361,6 +361,46 @@ describe("GameplayInteractionController", () => {
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
     });
 
+    it("lists the team re-roll once for a dodge onto the ball", async () => {
+      // Round 3, 1:20:17: "team re-roll (1 left): 5+, 33%, team re-roll
+      // (1 left): 5+, 33%", though one team re-roll covers one roll
+      const state = mockGameService.getState();
+      mockGameService.getState.mockReturnValue({
+        ...state,
+        ballPosition: { x: 6, y: 5 },
+      });
+      const arbiter = mockGameService.getRerollArbiter();
+      arbiter.teamRerollAvailable.mockReturnValue(true);
+      arbiter.nextTeamReroll.mockReturnValue("team");
+      arbiter.teamRerollsLeftFor = vi.fn().mockReturnValue(1);
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
+
+      const prompt = await answerStepPrompt(false);
+      arbiter.teamRerollAvailable.mockReturnValue(false);
+      arbiter.nextTeamReroll.mockReturnValue(null);
+
+      expect(prompt.step.rolls.map((roll: { type: string }) => roll.type)).toEqual([
+        "dodge",
+        "pickup",
+      ]);
+      expect(prompt.message.match(/team re-roll/g)).toHaveLength(1);
+      // The route summary counts the two rolls as two risky steps, as it
+      // does when they fall on different squares
+      const route = mockEventBus.emit.mock.calls
+        .filter(([name, data]) => name === GameEventNames.UI_RoutePreview && data)
+        .at(-1);
+      expect(route?.[1].riskySteps).toBe(2);
+      expect(prompt.message).toContain(
+        "Re-rolls: team re-roll (1 left), for one of the two rolls."
+      );
+    });
+
     it("walks the safe part first and asks again before the risky step", async () => {
       mockGameService.hasPlayerActed.mockReturnValue(false);
       // Player 2 out of the way; a Rush is needed after 6 squares
