@@ -28,6 +28,12 @@ interface Props {
   user: AuthUser;
   /** The other coach has dropped: the clock and all input stop. */
   opponentAway?: boolean;
+  /**
+   * When the drop began, as both coaches can tell: the absent coach's last
+   * heartbeat the server holds. Both clocks stop at this moment, however
+   * late each screen noticed.
+   */
+  awaySince?: number | null;
 }
 
 const fmt = (ms: number) => {
@@ -73,6 +79,7 @@ export function TurnClock({
   eventBus,
   user,
   opponentAway = false,
+  awaySince = null,
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
   useEffect(
@@ -146,6 +153,11 @@ export function TurnClock({
   useEffect(() => {
     const frozen = freezeRef.current;
     if (freezeReason && !frozen) {
+      // A drop stops the clock when it began, not when this screen saw it
+      const stoppedAt =
+        freezeReason === "away" && awaySince != null
+          ? Math.min(awaySince, Date.now())
+          : Date.now();
       freezeRef.current = {
         reason: freezeReason,
         remaining: !deadlineIsThisTurn
@@ -153,7 +165,7 @@ export function TurnClock({
             ? turnSeconds * 1000
             : null
           : timer?.deadline != null
-            ? timer.deadline - Date.now()
+            ? Math.min(turnSeconds * 1000, timer.deadline - stoppedAt)
             : null,
       };
     } else if (!freezeReason && frozen) {
@@ -168,9 +180,10 @@ export function TurnClock({
               staleDeadline: timer?.deadline ?? null,
             }
           : null;
-      // Resume with the time that was left. The coach who saw the other
-      // drop writes it after an absence; the active coach after a decision.
-      if (frozen.remaining != null && (frozen.reason === "away" || myTurn())) {
+      // Resume with the time that was left. Both screens stopped at the
+      // same moment, so they agree on it; the coach whose turn it is writes
+      // it, after an absence or a decision alike.
+      if (frozen.remaining != null && myTurn()) {
         void setTurnDeadline(
           code,
           Date.now() + Math.max(0, frozen.remaining),

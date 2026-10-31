@@ -171,6 +171,77 @@ describe("TurnClock pauses", () => {
     expect(clock()).toContain("⏱ 0:58");
   });
 
+  it("pauses both clocks from the last heartbeat both coaches saw, so neither loses time", async () => {
+    // Round 3, 34:49: the guest dropped and paused at 3:44; the host saw it
+    // 13 s later and paused at 3:32. On resume the guest lost 12 s.
+    const lobby: LobbyDoc = {
+      ...lobbyAt(Date.now() + 224_000),
+      settings: { turnSeconds: 240, timeoutBankMs: 0 },
+    } as unknown as LobbyDoc;
+    // The guest's last heartbeat the server holds, a second before it dropped
+    const awaySince = Date.now() - 1_000;
+    const guestMatch = {
+      ...hostMatch(),
+      role: "guest",
+      myTeamId: "guest-team",
+    } as unknown as OnlineMatch;
+    const guestRoot = document.createElement("div");
+    document.body.appendChild(guestRoot);
+    const guestClock = createRoot(guestRoot);
+    const hostMatchNow = hostMatch();
+    const show = (away: boolean) => {
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostMatchNow}
+          eventBus={eventBus}
+          user={user}
+          opponentAway={away}
+          awaySince={away ? awaySince : null}
+        />
+      );
+      guestClock.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={guestMatch}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+          opponentAway={guestAway}
+          awaySince={guestAway ? awaySince : null}
+        />
+      );
+    };
+    let guestAway = false;
+    await act(async () => show(false));
+    // The guest knows at once; the host after its heartbeat grace
+    guestAway = true;
+    await act(async () => show(false));
+    await act(async () => vi.advanceTimersByTime(13_000));
+    await act(async () => show(true));
+    await act(async () => vi.advanceTimersByTime(500));
+    const stopped = () =>
+      [
+        ...document.querySelectorAll('[data-testid="turn-clock-stopped"]'),
+      ].map((clock) => clock.textContent?.match(/\d+:\d\d/)?.[0]);
+    expect(stopped()).toEqual(["3:45", "3:45"]);
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    hoisted.setTurnDeadlineMock.mockClear();
+    guestAway = false;
+    await act(async () => show(false));
+    // Only the coach whose turn it is writes the resumed deadline
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
+    const [, deadline] = hoisted.setTurnDeadlineMock.mock.calls[0] as unknown as [
+      string,
+      number,
+    ];
+    expect(deadline - Date.now()).toBe(225_000);
+    await act(async () => guestClock.unmount());
+    guestRoot.remove();
+  });
+
   it("never shows more than the turn's length at a turn start", async () => {
     // Round 2: some turns started at 4:01, the writer's clock a little ahead
     await act(async () =>
