@@ -328,6 +328,34 @@ export class MovementManager {
       : null;
     let ballJoinStep = 0;
 
+    // The board is told about the walk in pieces: everything walked so far
+    // goes out before any roll that may stop for a choice, so the board
+    // never draws the mover short of their square while a coach decides.
+    let shownSteps = 0;
+    let shownFrom = { ...currentPos };
+    const walk = (presentationId?: string) => {
+      const steps = completedPath.slice(shownSteps);
+      // A pick-up follows a showWalk, so the ball joins at a piece's start
+      const carried = ballFrom !== null && ballJoinStep <= shownSteps;
+      const piece = {
+        playerId,
+        from: shownFrom,
+        to: { ...currentPos },
+        path: steps,
+        ballFrom: carried ? shownFrom : undefined,
+        ballPath: carried ? steps : undefined,
+        ballJoinStep: 0,
+        presentationId,
+      };
+      shownSteps = completedPath.length;
+      shownFrom = { ...currentPos };
+      return piece;
+    };
+    const showWalk = () => {
+      if (completedPath.length > shownSteps)
+        this.eventBus.emit(GameEventNames.PlayerMoved, walk());
+    };
+
     for (const step of path) {
       if (failed) break;
 
@@ -336,6 +364,7 @@ export class MovementManager {
       const totalUsed = preUsed + stepsTaken + 1;
 
       if (totalUsed > maView.stats.MA) {
+        showWalk();
         // Trigger point: rush declared — rules may modify it (Drunkard)
         const rushCtx: RushDeclaredContext = {
           player,
@@ -393,6 +422,7 @@ export class MovementManager {
       }
 
       if (this.dodgeController.isDodgeRequired(currentPos, opponents)) {
+        showWalk();
         // Trigger point: dodge declared — rules from the dodger AND the
         // opponents marking the vacated or destination square may adjust
         // the roll (Prehensile Tail, Titchy) or deny the skill reroll
@@ -579,6 +609,7 @@ export class MovementManager {
       // team holding it may be Placed Prone there.
       const bananaTeamId =
         gameService && bananaSkinTeam(this.state, step, opponents);
+      if (bananaTeamId) showWalk();
       if (
         bananaTeamId &&
         (await offerMeasure(
@@ -604,6 +635,7 @@ export class MovementManager {
         currentPos.y === this.state.ballPosition.y
       ) {
         if (context) {
+          showWalk();
           const pickupOp = new PickupOperation(playerId);
           await pickupOp.execute(context);
 
@@ -649,16 +681,7 @@ export class MovementManager {
           // The touchdown waits until the scorer is seen standing in the
           // End Zone, not when the dice for the run are rolled.
           const presentationId = nextPresentationId("score-run");
-          this.eventBus.emit(GameEventNames.PlayerMoved, {
-            playerId,
-            from: result.path[0] || currentPos,
-            to: currentPos,
-            path: completedPath,
-            ballFrom: ballFrom ?? undefined,
-            ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
-            ballJoinStep,
-            presentationId,
-          });
+          this.eventBus.emit(GameEventNames.PlayerMoved, walk(presentationId));
           if (context) {
             await awaitPresentation(
               this.eventBus,
@@ -677,15 +700,7 @@ export class MovementManager {
     player.gridPosition = currentPos;
     this.state.turn.movementUsed.set(playerId, preUsed + stepsTaken);
 
-    this.eventBus.emit(GameEventNames.PlayerMoved, {
-      playerId,
-      from: result.path[0] || currentPos,
-      to: currentPos,
-      path: completedPath,
-      ballFrom: ballFrom ?? undefined,
-      ballPath: ballFrom ? completedPath.slice(ballJoinStep) : undefined,
-      ballJoinStep,
-    });
+    showWalk();
 
     if (fellThrough) {
       this.dropThroughTrapdoor(player, currentPos, holdingBall, flowManager);
