@@ -2132,39 +2132,45 @@ export class GameplayInteractionController {
     // each is listed once, for either of them. A skill re-roll belongs to
     // its own roll, as Dodge and Sure Hands are different skills.
     const listed = new Set<RerollSource>();
-    const rerolls = rolls.flatMap(({ type, target }) => {
-      const offer = availableRerolls(
+    const offers = rolls.map((roll) => ({
+      ...roll,
+      offer: availableRerolls(
         { gameService: this.gameService, eventBus: this.eventBus },
         player,
-        type
-      );
+        roll.type
+      ),
+    }));
+    const rerolls = offers.flatMap(({ type, target, offer }) => {
       const sources = offer.sources.filter((source) => !listed.has(source));
       for (const source of sources) if (source !== "skill") listed.add(source);
-      const either = rolls.length > 1;
-      const forOne = `one of the ${["two", "three"][rolls.length - 2] ?? rolls.length} rolls`;
+      // Veteran covers some rolls and not others: name the one it covers
+      const which = rolls.length > 1 ? `${rollName(type)} ` : "";
       return sources.map((source) => {
+        const covers = offers.filter((o) => o.offer.sources.includes(source));
+        const either = covers.length > 1;
+        const forOne = `one of the ${["two", "three"][covers.length - 2] ?? covers.length} rolls`;
         switch (source) {
           case "skill":
             return `${offer.skillSource} re-roll: ${target}+`;
           case "pro":
             return either
               ? `Pro needs 3+, for ${forOne}`
-              : `Pro needs 3+, then ${target}+`;
+              : `Pro needs 3+, then ${which}${target}+`;
           case "team": {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
               case "free":
                 return either
                   ? `Brilliant Coaching free re-roll, for ${forOne}`
-                  : `Brilliant Coaching free re-roll: ${target}+`;
+                  : `Brilliant Coaching free re-roll: ${which}${target}+`;
               case "leader":
                 return either
                   ? `Leader re-roll, for ${forOne}`
-                  : `Leader re-roll: ${target}+`;
+                  : `Leader re-roll: ${which}${target}+`;
               case "team":
                 return either
                   ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
-                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+`;
+                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${which}${target}+`;
               case null:
                 return "No team re-roll available";
               default: {
@@ -2176,7 +2182,7 @@ export class GameplayInteractionController {
           case "veteran":
             return either
               ? `Veteran re-roll, for ${forOne}`
-              : `Veteran re-roll: ${target}+`;
+              : `Veteran re-roll: ${which}${target}+`;
           default: {
             const exhaustive: never = source;
             return exhaustive;

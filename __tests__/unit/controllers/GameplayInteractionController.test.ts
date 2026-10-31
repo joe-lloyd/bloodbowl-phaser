@@ -431,6 +431,32 @@ describe("GameplayInteractionController", () => {
       );
     });
 
+    it("names the one roll Veteran covers on a dodge onto the ball", async () => {
+      // Veteran re-rolls a Pick up but not a Dodge
+      const state = mockGameService.getState();
+      mockGameService.getState.mockReturnValue({
+        ...state,
+        ballPosition: { x: 6, y: 5 },
+      });
+      const arbiter = mockGameService.getRerollArbiter();
+      arbiter.veteranRerollAvailable.mockReturnValue(true);
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
+
+      const prompt = await answerStepPrompt(false);
+      arbiter.veteranRerollAvailable.mockReturnValue(false);
+
+      expect(prompt.message).toBe(
+        "Dodge: 4+, then Pick up: 4+. A fail is a turnover.\n" +
+          "Re-rolls: Veteran re-roll: Pick up 4+."
+      );
+    });
+
     it("walks the safe part first and asks again before the risky step", async () => {
       mockGameService.hasPlayerActed.mockReturnValue(false);
       // Player 2 out of the way; a Rush is needed after 6 squares
