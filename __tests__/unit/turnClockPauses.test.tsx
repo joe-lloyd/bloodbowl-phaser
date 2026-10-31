@@ -390,6 +390,65 @@ describe("TurnClock pauses", () => {
     });
   });
 
+  it("stays stopped, and writes nothing, if this coach drops while the other is away", async () => {
+    // The guest dropped first. Then the host's own link went down too, so
+    // its view of the guest says nothing. A deadline written now would sit
+    // in the queue and land late over the right one.
+    const lobby = lobbyAt(Date.now() + 60_000);
+    const match = hostMatch();
+    const render = (opponentAway: boolean, offline: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={user}
+          opponentAway={opponentAway}
+          awaySince={opponentAway ? Date.now() - 21_000 : null}
+          offline={offline}
+        />
+      );
+    await act(async () => render(true, false));
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => render(false, true));
+    await act(async () => vi.advanceTimersByTime(5_000));
+    expect(
+      container.querySelector('[data-testid="turn-clock-stopped"]')
+    ).not.toBeNull();
+    expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
+
+    // Both back: the host, online, writes the time that was left
+    await act(async () => render(false, false));
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not end its own turn on the clock while it is offline", async () => {
+    // The active host drops with 3 s left. A turn ended now would reach
+    // the guest on reconnect, after the guest may have held play and kept
+    // those 3 s.
+    const lobby = lobbyAt(Date.now() + 3_000);
+    const render = (offline: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+          offline={offline}
+        />
+      );
+    await act(async () => render(true));
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+
+    // Back online, the turn the clock ran out on ends
+    await act(async () => render(false));
+    await act(async () => vi.advanceTimersByTime(1_000));
+    expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves the resumed deadline to the other coach when its own slow link held play", async () => {
     // A slow link is not offline, but a 20 s silence still reads as a
     // disconnect on the other screen: this coach is the absent one

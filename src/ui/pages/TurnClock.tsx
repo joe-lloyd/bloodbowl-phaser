@@ -134,11 +134,6 @@ export function TurnClock({
     currentPhase() === GamePhase.PLAY &&
     decidingTeamId != null &&
     decidingTeamId !== activeTeamId;
-  const freezeReason: "away" | "deciding" | null = opponentAway
-    ? "away"
-    : otherSideDeciding
-      ? "deciding"
-      : null;
   const freezeRef = useRef<{
     reason: "away" | "deciding";
     /** The hold was for this coach's own silence */
@@ -146,6 +141,18 @@ export function TurnClock({
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
+  // A drop this coach shares with the other one stays a hold: while its
+  // own link is down, its view of the other coach says nothing, and a
+  // deadline written then would land late over the right one
+  const freezeReason: "away" | "deciding" | null =
+    opponentAway || (offline && freezeRef.current?.reason === "away")
+      ? "away"
+      : otherSideDeciding
+        ? "deciding"
+        : null;
+  // The tick reads it without restarting
+  const offlineRef = useRef(offline);
+  offlineRef.current = offline;
   const resumeRef = useRef<{
     /** Turn time left when the clock stopped */
     remaining: number;
@@ -201,7 +208,8 @@ export function TurnClock({
       // decision that is the coach whose turn it is. After an absence it is
       // the coach who stayed online: the absent coach may have reloaded and
       // lost its freeze.
-      const writes = frozen.reason === "away" ? !frozen.awayIsMe : myTurn();
+      const writes =
+        !offline && (frozen.reason === "away" ? !frozen.awayIsMe : myTurn());
       if (frozen.remaining != null && writes) {
         void setTurnDeadline(
           code,
@@ -286,6 +294,9 @@ export function TurnClock({
       answerIfOutOfTime();
       if (freezeRef.current) return; // stopped: nobody's turn runs out
       if (resuming(Date.now())) return; // the old deadline is not this one
+      // Offline, an end-turn would reach the other coach late, after they
+      // may have held play and kept the time this coach had left
+      if (offlineRef.current) return;
       if (!myTurn() || !timer?.deadline || timer.pausedBy) return;
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
