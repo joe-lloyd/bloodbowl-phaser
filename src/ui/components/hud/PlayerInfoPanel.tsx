@@ -41,11 +41,15 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(null);
   const [chipOpened, setChipOpened] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const chipRef = useRef<HTMLButtonElement>(null);
   const cardShown = phone && (chipOpened || !!hoveredPlayer || !!hoveredCrew);
   useEffect(() => {
     if (!cardShown) return;
     const putAway = (event: Event) => {
-      if (cardRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      // The chip toggles the card itself
+      if (cardRef.current?.contains(target)) return;
+      if (chipRef.current?.contains(target)) return;
       setChipOpened(false);
       setHoveredPlayer(null);
       setHoveredCrew(null);
@@ -340,6 +344,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     const activating = state?.activePlayer?.id === player.id;
     return (
       <button
+        ref={chipRef}
         type="button"
         data-testid="player-chip"
         aria-label={`${player.playerName}, show card`}

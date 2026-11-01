@@ -60,6 +60,8 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   }
 
   const startHold = () => {
+    // A second finger during a hold must not start a second timer
+    if (timer.current) return;
     setHint(false);
     setHolding(true);
     timer.current = setTimeout(() => {

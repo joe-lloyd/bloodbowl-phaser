@@ -318,6 +318,7 @@ export class GameplayInteractionController {
       return;
     }
 
+    this.dropAim();
     // Reset Action Mode but keep player selected
     this.currentActionMode = null;
     this.currentBlockReplacement = null;
@@ -404,6 +405,7 @@ export class GameplayInteractionController {
       console.warn("Invalid step selected:", data.stepId);
       return;
     }
+    if (data.stepId !== this.currentStepId) this.dropAim();
 
     // Stand Up executes immediately and hands over to the action's next step
     if (data.stepId === "standup" && this.selectedPlayerId) {
@@ -2210,8 +2212,10 @@ export class GameplayInteractionController {
   private onGoMovePlan = (): void => {
     if (this.isBusy) return;
     const aimed = this.aimedAt;
-    if (aimed && aimed.key === this.aimKey()) {
+    if (aimed) {
       this.dropAim();
+      // An aim from a step the coach has left throws nothing
+      if (aimed.key !== this.aimKey()) return;
       if (getActiveOnlineMatch()?.mayAct() === false) return;
       void this.onSquareClicked(aimed.x, aimed.y);
       return;

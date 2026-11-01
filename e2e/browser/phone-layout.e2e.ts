@@ -91,6 +91,11 @@ test("a tap selects and zooms to thumb-sized squares, a tap plans, Go walks", as
   await tapSquare(page, app, start);
   await expect(page.getByTestId("player-chip")).toBeVisible();
   await expect(page.getByTestId("action-move")).toBeVisible();
+  // The chip opens the full card and closes it again
+  await page.getByTestId("player-chip").tap();
+  await expect(page.getByTestId("player-card")).toBeVisible();
+  await page.getByTestId("player-chip").tap();
+  await expect(page.getByTestId("player-card")).toBeHidden();
   await app.pitch.waitForCameraToSettle();
   const a = await app.pitch.viewportPoint(start);
   const b = await app.pitch.viewportPoint({ x: start.x + 1, y: start.y });
@@ -214,6 +219,14 @@ test("a pass aims on the first tap, shows its rolls, and throws on Throw", async
   const receiver = await app.pitch.squareOf("team1:1");
   await tapSquare(page, app, thrower);
   await page.getByTestId("action-pass").tap();
+  await page.getByTestId("action-step-pass").tap();
+  await app.pitch.waitForCameraToSettle();
+
+  // Leaving the pass step drops the aim
+  await tapSquare(page, app, receiver);
+  await expect(page.getByTestId("move-plan")).toContainText("Short Pass");
+  await page.getByTestId("action-step-move").tap();
+  await expect(page.getByTestId("move-plan")).toBeHidden();
   await page.getByTestId("action-step-pass").tap();
   await app.pitch.waitForCameraToSettle();
 
