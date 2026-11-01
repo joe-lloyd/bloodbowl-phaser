@@ -10,6 +10,8 @@ interface MatchOptionsMenuProps {
   // Only ever invoked for action entries — panel entries manage their own
   // interaction internally and never call onSelect.
   onSelect: (id: MatchOptionsMenuActionEntry["id"]) => void;
+  /** A gear button in the top-left corner, as on a phone. */
+  compact?: boolean;
 }
 
 /**
@@ -23,6 +25,7 @@ interface MatchOptionsMenuProps {
 export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   entries,
   onSelect,
+  compact = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] =
@@ -64,7 +67,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
 
   useEffect(() => {
     if (!open) return;
-    const onDocPointerDown = (event: MouseEvent) => {
+    const onDocPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (
         menuRef.current?.contains(target) ||
@@ -76,9 +79,10 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
       setConfirming(null);
     };
     // Capture phase: the HUD stops presses from bubbling past its panels.
-    document.addEventListener("mousedown", onDocPointerDown, true);
+    // Pointer events, as the board cancels a finger's emulated mousedown.
+    document.addEventListener("pointerdown", onDocPointerDown, true);
     return () =>
-      document.removeEventListener("mousedown", onDocPointerDown, true);
+      document.removeEventListener("pointerdown", onDocPointerDown, true);
   }, [open]);
 
   const close = () => {
@@ -164,9 +168,14 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
         aria-expanded={open}
         aria-controls="match-options-menu"
         onClick={() => (open ? close() : setOpen(true))}
-        className="hud-slab flex min-h-[40px] items-center gap-2 px-3.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-bone transition-colors hover:border-hud-gold/70 hover:text-hud-gold aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
+        aria-label={compact ? "Match options" : undefined}
+        className={
+          compact
+            ? "hud-slab flex h-11 w-11 items-center justify-center text-hud-lg text-hud-bone transition-colors aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
+            : "hud-slab flex min-h-[40px] items-center gap-2 px-3.5 font-hud-label text-hud-base font-bold uppercase tracking-[0.08em] text-hud-bone transition-colors hover:border-hud-gold/70 hover:text-hud-gold aria-expanded:border-hud-gold aria-expanded:text-hud-gold"
+        }
       >
-        ⚙ Match Options
+        {compact ? "⚙" : "⚙ Match Options"}
       </button>
 
       {open && (
@@ -175,7 +184,11 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
           ref={menuRef}
           role="menu"
           aria-label="Match options"
-          className="hud-slab absolute right-0 top-full z-50 mt-2 w-72 p-2 animate-hud-in"
+          className={
+            compact
+              ? "hud-slab absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-5rem)] w-72 max-w-[70vw] overflow-y-auto p-2 animate-hud-in"
+              : "hud-slab absolute right-0 top-full z-50 mt-2 w-72 p-2 animate-hud-in"
+          }
         >
           {confirming ? (
             <div

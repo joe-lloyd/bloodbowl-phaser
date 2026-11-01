@@ -250,7 +250,7 @@ describe("MatchOptionsMenu", () => {
     expect(menu()).toBeNull();
   });
 
-  it("clicking outside the menu closes it without selecting anything", async () => {
+  it("pressing outside the menu, with a mouse or a finger, closes it without selecting anything", async () => {
     const onSelect = vi.fn();
     await act(async () => {
       root.render(<MatchOptionsMenu entries={PLAIN} onSelect={onSelect} />);
@@ -261,9 +261,8 @@ describe("MatchOptionsMenu", () => {
     expect(menu()).not.toBeNull();
 
     await act(async () => {
-      document.body.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true })
-      );
+      // A finger on the board sends no mousedown, only the pointer event
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
 
     expect(menu()).toBeNull();

@@ -473,8 +473,11 @@ export function DialogShell({
         placement === "dock"
           ? "w-full pointer-events-auto"
           : "absolute inset-0 flex justify-center px-4 pointer-events-auto",
+        // A phone on its side: dialogs start under the score strip
         placement !== "dock" &&
-          (placement === "top" ? "items-start pt-44" : "items-center"),
+          (placement === "top"
+            ? "items-start pt-44 [@media(max-height:500px)]:pt-14"
+            : "items-center"),
         placement === "dock"
           ? false
           : backdrop === "light"
@@ -487,7 +490,9 @@ export function DialogShell({
         accent={tone}
         className={cx(
           "max-w-full animate-hud-pop",
-          placement === "dock" ? "w-full px-4 py-3" : `px-6 pb-5 pt-5 ${width}`,
+          placement === "dock"
+            ? "w-full px-4 py-3"
+            : `px-6 pb-5 pt-5 ${width} max-h-[calc(100dvh-1rem)] overflow-y-auto [@media(max-height:500px)]:px-4 [@media(max-height:500px)]:py-3`,
           className
         )}
       >

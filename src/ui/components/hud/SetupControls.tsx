@@ -24,6 +24,8 @@ const SETUP_VARIANTS: Record<string, HudButtonVariant> = {
 
 interface SetupControlsProps {
   eventBus: EventBus;
+  /** A phone's short screen: presets only, no saving or deleting layouts. */
+  compact?: boolean;
 }
 
 const SetupActionButton = ({
@@ -67,7 +69,10 @@ const SetupActionButton = ({
   );
 };
 
-export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
+export const SetupControls: React.FC<SetupControlsProps> = ({
+  eventBus,
+  compact = false,
+}) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [activeTeam, setActiveTeam] = useState<{
@@ -139,13 +144,19 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
       accent="gold"
       className="w-full shrink-0 flex flex-col pointer-events-auto animate-hud-in z-50"
     >
-      <PanelHeader
-        title={activeTeam?.name || "Unknown Team"}
-        aside={isDefense ? "Setup Defense" : "Setup Offense"}
-      />
+      {compact ? (
+        <div className="hud-label px-2.5 pt-2 text-hud-gold">
+          {isDefense ? "Setup Defense" : "Setup Offense"}
+        </div>
+      ) : (
+        <PanelHeader
+          title={activeTeam?.name || "Unknown Team"}
+          aside={isDefense ? "Setup Defense" : "Setup Offense"}
+        />
+      )}
 
       {/* Body */}
-      <div className="flex flex-col gap-2 p-2.5">
+      <div className={`flex flex-col gap-2 ${compact ? "p-2" : "p-2.5"}`}>
         {concessionPending && (
           <div className="rounded-hud border border-hud-bad/60 bg-hud-blood-deep/40 p-2.5 text-hud-sm text-hud-bone">
             <div className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.04em] text-hud-bad-soft">
@@ -209,17 +220,27 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
             disabled={!selectedFormation || concessionPending}
             onClick={() => handleAction("load", selectedFormation)}
           />
-          <SetupActionButton
-            onAction={handleAction}
-            action="delete"
-            label="DELETE"
-            color="red"
-            disabled={!selected || selected.builtIn}
-            onClick={() => handleAction("delete", selectedFormation)}
-          />
+          {compact ? (
+            <SetupActionButton
+              onAction={handleAction}
+              action="clear"
+              label="CLEAR"
+              color="red"
+              disabled={concessionPending}
+            />
+          ) : (
+            <SetupActionButton
+              onAction={handleAction}
+              action="delete"
+              label="DELETE"
+              color="red"
+              disabled={!selected || selected.builtIn}
+              onClick={() => handleAction("delete", selectedFormation)}
+            />
+          )}
         </div>
 
-        <div className="flex items-stretch gap-2">
+        <div className={compact ? "hidden" : "flex items-stretch gap-2"}>
           <input
             type="text"
             value={saveName}
@@ -244,16 +265,19 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           </div>
         </div>
 
-        <div className="my-0.5 h-px bg-white/10"></div>
-
-        <SetupActionButton
-          onAction={handleAction}
-          action="clear"
-          label="CLEAR PITCH"
-          sub="Reset"
-          color="red"
-          disabled={concessionPending}
-        />
+        {!compact && (
+          <>
+            <div className="my-0.5 h-px bg-white/10"></div>
+            <SetupActionButton
+              onAction={handleAction}
+              action="clear"
+              label="CLEAR PITCH"
+              sub="Reset"
+              color="red"
+              disabled={concessionPending}
+            />
+          </>
+        )}
 
         {status && <SetupChecklist status={status} />}
 
@@ -263,12 +287,15 @@ export const SetupControls: React.FC<SetupControlsProps> = ({ eventBus }) => {
           label={isComplete ? "CONFIRM SETUP" : "SETUP INCOMPLETE"}
           // A short-handed team fields everyone it has, so the target is the
           // available count — never a hard-coded seven.
+          // On a phone the checklist above already counts the players
           sub={
-            isComplete
-              ? "Ready!"
-              : status
-                ? `Placed ${status.placedPlayerCount} of ${status.requiredPlayerCount} available`
-                : "Place Players"
+            compact
+              ? undefined
+              : isComplete
+                ? "Ready!"
+                : status
+                  ? `Placed ${status.placedPlayerCount} of ${status.requiredPlayerCount} available`
+                  : "Place Players"
           }
           disabled={!isComplete}
           color={isComplete ? "green" : "gray"}

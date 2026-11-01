@@ -127,7 +127,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
       className="text-center"
     >
       {step === "START" && (
-        <div className="space-y-5">
+        <div className="space-y-5 [@media(max-height:500px)]:space-y-3">
           <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-gold">
             Who will kick off?
           </p>
@@ -163,11 +163,13 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
       <div
         ref={coinHost}
         data-testid="coin-stage"
-        className={step === "START" ? "hidden" : "mx-auto h-[220px] w-full"}
+        className={
+          step === "START" ? "hidden" : "mx-auto h-[min(220px,34dvh)] w-full"
+        }
       />
 
       {step === "RESULT" && winner && (
-        <div className="space-y-5 animate-hud-in">
+        <div className="space-y-5 animate-hud-in [@media(max-height:500px)]:space-y-3">
           <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
             {winner.name} Wins!
           </div>

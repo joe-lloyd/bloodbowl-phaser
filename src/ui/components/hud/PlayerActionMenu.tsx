@@ -42,6 +42,8 @@ interface PlayerActionMenuProps {
   // Shape lives in GameHUD (TurnData); kept loose here to avoid a cycle.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   turnData: any;
+  /** A narrow thumb rail of buttons, as on a phone: no header, no hints. */
+  compact?: boolean;
 }
 
 const EMPTY_AVAILABILITY: ActionAvailability = {
@@ -73,6 +75,7 @@ const EMPTY_AVAILABILITY: ActionAvailability = {
 export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   eventBus,
   turnData,
+  compact = false,
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
@@ -274,6 +277,38 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       ? `action-${action ?? "block"}-${blockReplacement}`
       : `action-${action ?? label.toLowerCase().replace(/\s+/g, "-")}`;
 
+    if (compact) {
+      return (
+        <button
+          data-testid={testId}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onClick) onClick();
+            else if (action) handleAction(action, blockReplacement);
+          }}
+          disabled={disabled}
+          className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left shadow-hud active:bg-hud-edge disabled:opacity-45"
+        >
+          <span
+            aria-hidden
+            className={`absolute inset-y-0 left-0 w-[4px] ${toneBar(tone)}`}
+          />
+          <span
+            className={`font-hud-label text-hud-sm font-bold uppercase leading-tight tracking-[0.04em] ${
+              disabled ? "text-hud-mute" : "text-hud-bone"
+            }`}
+          >
+            {label}
+          </span>
+          {sub && (
+            <span className="font-hud-label text-hud-2xs font-bold uppercase leading-none tracking-[0.06em] text-hud-dim">
+              {sub}
+            </span>
+          )}
+        </button>
+      );
+    }
+
     return (
       <button
         data-testid={testId}
@@ -342,11 +377,20 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         e.nativeEvent.stopImmediatePropagation();
       }}
     >
-      <Panel accent="gold" className="flex min-h-0 flex-col">
-        <PanelHeader
-          title={selectedPlayer.playerName || "Unknown"}
-          aside={selectedPlayer.positionName}
-        />
+      <Panel
+        accent="gold"
+        className={
+          compact
+            ? "flex min-h-0 flex-col !border-0 !bg-transparent !shadow-none"
+            : "flex min-h-0 flex-col"
+        }
+      >
+        {!compact && (
+          <PanelHeader
+            title={selectedPlayer.playerName || "Unknown"}
+            aside={selectedPlayer.positionName}
+          />
+        )}
 
         {/* Menu Body */}
         {actionSteps.length > 0 ? (
@@ -355,10 +399,13 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             currentStepId={currentStepId || ""}
             eventBus={eventBus}
             hasMovedInAction={hasMovedInAction}
+            compact={compact}
           />
         ) : (
-          <div className="hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
-            <div className="flex flex-col gap-1">
+          <div
+            className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
+          >
+            <div className={`flex flex-col ${compact ? "gap-1.5" : "gap-1"}`}>
               {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
                 a prone player stands up as its first step. Clicking an empty
                 square still auto-moves. */}
@@ -569,7 +616,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 />
               )}
 
-              {!anyContextual && (
+              {!anyContextual && !compact && (
                 <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
                   No special actions available — click a square to move.
                 </div>

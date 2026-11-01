@@ -78,7 +78,8 @@ export class SandboxPage {
   }
 
   async waitForScenarioLoaded(timeout = 20_000): Promise<void> {
-    await expect(this.scenarioInfo()).toBeVisible({ timeout });
+    // Attached, not visible: on a phone the panel waits in a closed drawer
+    await expect(this.scenarioInfo()).toBeAttached({ timeout });
   }
 
   /** The seed the scene actually ran with, as shown in the overlay. */

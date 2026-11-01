@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Player, PlayerStatus } from "../../../types/Player";
 import { useEventBus } from "../../hooks/useEventBus";
 import { EventBus } from "../../../services/EventBus";
@@ -24,14 +24,36 @@ const statusView = (player: Player): StatusView => ({
 
 interface PlayerInfoPanelProps {
   eventBus: EventBus;
+  /**
+   * A phone has no hover: a small chip for the selected player, and the
+   * full card over the board on a tap of the chip or a press and hold on a
+   * player. A press anywhere else puts the card away.
+   */
+  phone?: boolean;
 }
 
 export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
   eventBus,
+  phone = false,
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
   const [hoveredCrew, setHoveredCrew] = useState<SidelineCrewInfo | null>(null);
+  const [chipOpened, setChipOpened] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const cardShown = phone && (chipOpened || !!hoveredPlayer || !!hoveredCrew);
+  useEffect(() => {
+    if (!cardShown) return;
+    const putAway = (event: Event) => {
+      if (cardRef.current?.contains(event.target as Node)) return;
+      setChipOpened(false);
+      setHoveredPlayer(null);
+      setHoveredCrew(null);
+    };
+    // Capture: before the board or a panel sees the press
+    window.addEventListener("pointerdown", putAway, true);
+    return () => window.removeEventListener("pointerdown", putAway, true);
+  }, [cardShown]);
   const [, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick((tick) => tick + 1);
 
@@ -130,6 +152,7 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     GameEventNames.PlayerSelected,
     (data: { player: Player | null }) => {
       setSelectedPlayer(data.player);
+      setChipOpened(false);
     }
   );
   useEventBus(eventBus, GameEventNames.PlayerMoved, refresh);
@@ -306,6 +329,57 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
     );
   };
 
+  /** The selected player in a thumb's width: tap it for the full card. */
+  const renderChip = (player: Player) => {
+    const state = ServiceContainer.isInitialized()
+      ? ServiceContainer.getInstance().gameService.getState()
+      : null;
+    const ma = state ? effectiveMA(player, state) : player.stats.MA;
+    const av = state ? effectiveAV(player, state) : player.stats.AV;
+    const used = state?.turn.movementUsed.get(player.id) ?? 0;
+    const activating = state?.activePlayer?.id === player.id;
+    return (
+      <button
+        type="button"
+        data-testid="player-chip"
+        aria-label={`${player.playerName}, show card`}
+        onClick={() => setChipOpened((open) => !open)}
+        className="hud-slab flex w-[148px] flex-col items-start gap-1 px-2 py-1.5 text-left pointer-events-auto animate-hud-in"
+      >
+        <span className="flex w-full items-center gap-1.5">
+          <span className="flex h-7 min-w-[28px] items-center justify-center rounded-hud border border-hud-gold/60 font-hud-display text-hud-base leading-none text-hud-gold">
+            {player.number}
+          </span>
+          <span className="min-w-0 flex-1 truncate font-hud-label text-hud-sm font-bold uppercase leading-tight text-hud-bone">
+            {player.positionName}
+          </span>
+        </span>
+        <span className="flex flex-wrap gap-x-2 font-hud-label text-hud-xs font-semibold leading-tight text-hud-dim">
+          {[
+            ["MA", ma],
+            ["ST", player.stats.ST],
+            ["AG", `${player.stats.AG}+`],
+            ["PA", player.stats.PA > 0 ? `${player.stats.PA}+` : "-"],
+            ["AV", av],
+          ].map(([label, value]) => (
+            <span key={label} className="whitespace-nowrap">
+              {label} <span className="text-hud-bone">{value}</span>
+            </span>
+          ))}
+        </span>
+        {activating && (
+          <span
+            data-testid="movement-left"
+            className="font-hud-label text-hud-xs font-bold text-hud-gold"
+          >
+            {Math.max(0, ma - used)} left,{" "}
+            {Math.max(0, rushAllowance(player) - Math.max(0, used - ma))} rush
+          </span>
+        )}
+      </button>
+    );
+  };
+
   // A sideline crew figure (or the NO STAFF placeholder) renders name, its
   // match effect, and the team's real count — no statline, skills, or
   // player status, since it is not a player.
@@ -328,6 +402,37 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       </div>
     </Panel>
   );
+
+  if (phone) {
+    const cardPlayer = chipOpened ? selectedPlayer : hoveredPlayer;
+    return (
+      <div className="flex flex-col items-start empty:hidden">
+        {selectedPlayer && renderChip(selectedPlayer)}
+        {cardShown && (cardPlayer || hoveredCrew) && (
+          <div
+            ref={cardRef}
+            data-testid="player-card"
+            role="dialog"
+            aria-label="Player card"
+            onClick={() => {
+              setChipOpened(false);
+              setHoveredPlayer(null);
+              setHoveredCrew(null);
+            }}
+            className="hud-scroll fixed z-[60] max-h-[calc(100dvh-80px)] w-[min(300px,60vw)] overflow-y-auto pointer-events-auto"
+            style={{
+              left: "calc(env(safe-area-inset-left) + 8px)",
+              top: "calc(env(safe-area-inset-top) + 60px)",
+            }}
+          >
+            {cardPlayer
+              ? renderPanel(cardPlayer, false)
+              : hoveredCrew && renderCrewPanel(hoveredCrew)}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col items-end gap-3 empty:hidden">
