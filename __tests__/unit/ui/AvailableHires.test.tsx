@@ -45,7 +45,7 @@ describe("AvailableHires skill tooltips", () => {
     expect(container.textContent).toContain("Dodge");
 
     const tooltipPanels = Array.from(
-      container.querySelectorAll('[role="tooltip"]')
+      document.querySelectorAll('[role="tooltip"]')
     );
     expect(tooltipPanels.length).toBeGreaterThan(0);
 
@@ -73,7 +73,7 @@ describe("AvailableHires skill tooltips", () => {
     const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
 
     const tooltipPanels = Array.from(
-      container.querySelectorAll('[role="tooltip"]')
+      document.querySelectorAll('[role="tooltip"]')
     ).map((panel) => panel.textContent);
 
     expect(tooltipPanels).toContain(defensiveText);
@@ -109,15 +109,20 @@ describe("AvailableHires skill tooltips", () => {
     const [firstTrigger] = triggers;
     const describedBy = firstTrigger.getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();
-    const panel = container.querySelector(`#${describedBy}`);
+    const panel = document.getElementById(describedBy!);
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute("role")).toBe("tooltip");
-    expect(panel?.className).toContain("group-focus:block");
-    expect(panel?.className).toContain("group-focus-within:block");
 
     act(() => {
       (firstTrigger as HTMLElement).focus();
     });
     expect(document.activeElement).toBe(firstTrigger);
+    // Focus, not just hover, reveals the panel
+    expect(panel?.className).toContain("block");
+    expect(panel?.className).not.toContain("hidden");
+    act(() => {
+      (firstTrigger as HTMLElement).blur();
+    });
+    expect(panel?.className).toContain("hidden");
   });
 });
