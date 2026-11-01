@@ -465,6 +465,19 @@ describe("CameraController", () => {
       }
     });
 
+    it("keeps following the ball when the window resizes", () => {
+      const [, onResize, owner] = ctx.scene.scale.on.mock.calls.find(
+        ([event]) => event === "resize"
+      )!;
+      ctx.controller.follow({} as never);
+      ctx.camera.centerOn.mockClear();
+
+      onResize.call(owner);
+
+      expect(ctx.camera.stopFollow).not.toHaveBeenCalled();
+      expect(ctx.camera.centerOn).not.toHaveBeenCalled();
+    });
+
     it("never moves for the action with follow Off", () => {
       ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
       ctx.camera.pan.mockClear();

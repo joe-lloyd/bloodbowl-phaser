@@ -485,9 +485,9 @@ export class CameraController {
   }
 
   private onResize(): void {
-    if (this.manual) return;
+    // A ball in flight stays followed; the follow adapts to the new size
+    if (this.manual || this.following) return;
     // A glide still running would carry on from the old size
-    this.stopFollow();
     this.camera.panEffect.reset();
     this.camera.zoomEffect.reset();
     // Squares the coach may click stay framed, fitted to the new size
