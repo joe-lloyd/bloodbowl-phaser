@@ -38,7 +38,7 @@ import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { rollLabel } from "../rules/rollTargets";
 import type { RerollSource } from "../../types/decisions";
-import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
+import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RoutePreview, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
 /**
@@ -67,6 +67,8 @@ export class GameplayInteractionController {
   private selectedPlayerId: string | null = null;
   private lastHoverGrid: { x: number; y: number } | null = null;
   private waypoints: { x: number; y: number }[] = [];
+  /** Where a finger aimed a throw, and at which step (see aimKey). */
+  private aimedAt: { key: string; x: number; y: number } | null = null;
   /** Numbers each Dodge/Rush prompt so a stale answer cannot match. */
   private riskPrompts = 0;
   private targetRollPreview: TargetRollPreview | null = null;
@@ -118,7 +120,7 @@ export class GameplayInteractionController {
       this.currentActionMode = null;
       this.currentStepId = null;
       this.actionSteps = [];
-      this.waypoints = [];
+      this.clearWaypoints();
       this.hasMovedInAction = false;
       this.pitch.clearPath();
       this.pitch.clearPassVisualization();
@@ -198,7 +200,7 @@ export class GameplayInteractionController {
       this.currentActionMode = "blitz";
       this.currentStepId = "move";
       this.hasMovedInAction = true;
-      this.waypoints = [];
+      this.clearWaypoints();
       this.pitch.clearPath();
       this.scene.highlightPlayer(data.playerId);
       this.eventBus.emit(GameEventNames.PlayerSelected, { player });
@@ -221,6 +223,8 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.on(GameEventNames.UI_GoMovePlan, this.onGoMovePlan);
+    this.eventBus.on(GameEventNames.UI_ClearMovePlan, this.onClearMovePlan);
     this.eventBus.on(
       GameEventNames.NetworkCommandRejected,
       this.onNetworkCommandRejected
@@ -692,7 +696,7 @@ export class GameplayInteractionController {
   };
 
   public handlePointerDown(
-    pointer: Phaser.Input.Pointer,
+    pointer: { worldX: number; worldY: number },
     isSetupActive: boolean
   ): void {
     if (isSetupActive) return;
@@ -739,7 +743,7 @@ export class GameplayInteractionController {
   }
 
   private getGridFromPointer(
-    pointer: Phaser.Input.Pointer,
+    pointer: { worldX: number; worldY: number },
     marginSquares: number = 0
   ): {
     valid: boolean;
@@ -1399,16 +1403,7 @@ export class GameplayInteractionController {
             ? state.activePlayer?.action
             : undefined;
 
-        if (!currentAction) {
-          // If no action declared for this player, implicitly declare MOVE
-          this.gameService.declareAction(player.id, "move");
-        } else if (currentAction === "block") {
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "Cannot Move during Block action"
-          );
-          return;
-        }
+        if (!this.declareMoveIfNone(player.id, currentAction)) return;
 
         // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
         const lastPos =
@@ -1432,19 +1427,23 @@ export class GameplayInteractionController {
   }
 
   private onSquareHovered(x: number, y: number): void {
-    // 1. Highlight Square Cursor
-    this.pitch.highlightHoverSquare(x, y);
-    this.updateTargetPreview(x, y);
-
-    // 2. Player Info
+    // Player Info
     const player = this.getPlayerAt(x, y);
     if (player) {
       this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
     } else {
       this.eventBus.emit(GameEventNames.UI_HidePlayerInfo);
     }
+    this.previewSquare(x, y);
+  }
 
-    // 3. Visualization
+  /** What a click on this square would do: its rolls, path or throw. */
+  private previewSquare(x: number, y: number): void {
+    // 1. Highlight Square Cursor
+    this.pitch.highlightHoverSquare(x, y);
+    this.updateTargetPreview(x, y);
+
+    // 2. Visualization
     if (this.selectedPlayerId) {
       const isPassMode =
         (this.currentActionMode === "pass" && this.currentStepId === "pass") ||
@@ -1618,7 +1617,7 @@ export class GameplayInteractionController {
         // MOVE MODE: Only visualize if NOT hovering a player
         this.pitch.clearPassVisualization();
 
-        if (!player) {
+        if (!this.getPlayerAt(x, y)) {
           this.drawPath(x, y);
         } else {
           this.pitch.clearPath();
@@ -1955,7 +1954,7 @@ export class GameplayInteractionController {
       this.scene.unhighlightPlayer(this.selectedPlayerId);
       this.selectedPlayerId = null;
     }
-    this.waypoints = [];
+    this.clearWaypoints();
     this.clearRollPreviews();
     this.clearAllInteractionHighlights();
     // Also drop the pitch-layer visuals (range/sprint/tackle overlays, path)
@@ -2046,6 +2045,196 @@ export class GameplayInteractionController {
     void this.moveAlong(this.selectedPlayerId, [...this.waypoints]);
   }
 
+  /** A square click plots a move: declare one if the player has no action. */
+  private declareMoveIfNone(playerId: string, action?: string | null): boolean {
+    if (!action) {
+      this.gameService.declareAction(playerId, "move");
+      return true;
+    }
+    if (action === "block") {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Cannot Move during Block action"
+      );
+      return false;
+    }
+    return true;
+  }
+
+  private clearWaypoints(): void {
+    this.waypoints = [];
+    this.eventBus.emit(GameEventNames.UI_MovePlan, null);
+  }
+
+  /** The player whose route a drag from this square would draw, if any. */
+  private routeOwnerAt(x: number, y: number): Player | null {
+    if (this.isBusy || this.pushSelectionActive) return null;
+    if (getActiveOnlineMatch()?.mayAct() === false) return null;
+    const state = this.gameService.getState();
+    if (state.phase !== GamePhase.PLAY) return null;
+    const mode = this.currentActionMode;
+    if (mode !== null && mode !== "move" && mode !== "blitz") return null;
+    const id = this.selectedPlayerId;
+    const selected = id ? this.gameService.getPlayerById(id) : undefined;
+    const end = this.waypoints[this.waypoints.length - 1];
+    if (selected && end?.x === x && end.y === y) return selected;
+    const there = this.getPlayerAt(x, y);
+    if (
+      !there ||
+      there.teamId !== state.activeTeamId ||
+      !this.gameService.canActivate(there.id)
+    )
+      return null;
+    // Another player only while the selected one has not started an action
+    if (there.id !== id && mode !== null) return null;
+    const online = getActiveOnlineMatch();
+    if (online && online.myTeamId !== there.teamId) return null;
+    return there;
+  }
+
+  /**
+   * A finger pressed here and started to drag: draw a route from the player
+   * standing here, or on from the end of the plotted route. Selects the
+   * player first when needed. False when no route starts here, and the drag
+   * pans the camera instead.
+   */
+  public startRouteDrag(world: { worldX: number; worldY: number }): boolean {
+    const { valid, gridX, gridY } = this.getGridFromPointer(world);
+    if (!valid) return false;
+    const owner = this.routeOwnerAt(gridX, gridY);
+    if (!owner) return false;
+    if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
+    return this.selectedPlayerId === owner.id;
+  }
+
+  /**
+   * The dragging finger reached a square. Back over the route cuts it to
+   * there; anywhere else adds the square, by the shortest legal way from
+   * the route's end, as a click on it would.
+   */
+  public dragRouteTo(world: { worldX: number; worldY: number }): void {
+    const id = this.selectedPlayerId;
+    const player = id ? this.gameService.getPlayerById(id) : undefined;
+    if (!player?.gridPosition) return;
+    const { valid, gridX: x, gridY: y } = this.getGridFromPointer(world);
+    if (!valid) return;
+    const start = player.gridPosition;
+    const end = this.waypoints[this.waypoints.length - 1] ?? start;
+    if (end.x === x && end.y === y) return;
+    if (start.x === x && start.y === y) {
+      this.clearWaypoints();
+      this.clearRollPreviews();
+      this.pitch.clearPath();
+      this.refreshPlayerVisualization(player.id);
+      return;
+    }
+    const back = this.waypoints.findIndex((p) => p.x === x && p.y === y);
+    if (back >= 0) {
+      this.waypoints = this.waypoints.slice(0, back + 1);
+      this.drawCurrentPath();
+      this.refreshPlayerVisualization(player.id);
+      return;
+    }
+    if (this.getPlayerAt(x, y)) return;
+    const state = this.gameService.getState();
+    const action =
+      state.activePlayer?.id === player.id
+        ? state.activePlayer.action
+        : undefined;
+    if (!this.declareMoveIfNone(player.id, action)) return;
+    // A finger going diagonally clips a square beside the corner: one step
+    // reaches here from the square before that, so the clipped one goes
+    const route = this.waypoints;
+    const before = route[route.length - 2] ?? start;
+    if (
+      route.length > 0 &&
+      Math.max(Math.abs(before.x - x), Math.abs(before.y - y)) === 1
+    ) {
+      this.waypoints = route.slice(0, -1);
+    }
+    this.addWaypoint(x, y);
+    // Out of reach: the route stays as it was
+    if (this.waypoints.length <= route.length - 1) this.waypoints = route;
+  }
+
+  /** The throw being aimed now, if any: who, what and from which step. */
+  private aimKey(): string | null {
+    const mode = this.currentActionMode;
+    const step = this.currentStepId;
+    const aiming =
+      (mode === "pass" && step === "pass") ||
+      (mode === "handoff" && step === "handoff") ||
+      (mode === "throwBomb" && step === "bomb");
+    return aiming ? `${this.selectedPlayerId}:${mode}:${step}` : null;
+  }
+
+  /**
+   * A finger tapped here. With no hover to read a throw's rolls from, a
+   * throw aims first: the first tap on a square previews it as a mouse
+   * over it does, and the plan bar shows the rolls; a second tap there, or
+   * Go, throws. Every other tap is a click.
+   */
+  public tap(
+    world: { worldX: number; worldY: number },
+    isSetupActive: boolean
+  ): void {
+    const key = this.aimKey();
+    const { valid, gridX: x, gridY: y } = this.getGridFromPointer(world);
+    const aimed = this.aimedAt;
+    if (
+      valid &&
+      !isSetupActive &&
+      !this.isBusy &&
+      key &&
+      (aimed?.key !== key || aimed.x !== x || aimed.y !== y)
+    ) {
+      this.aimedAt = { key, x, y };
+      this.previewSquare(x, y);
+      this.eventBus.emit(GameEventNames.UI_ThrowAim, {
+        square: { x, y },
+        lines: this.targetRollPreview?.lines ?? [],
+      });
+      return;
+    }
+    this.dropAim();
+    this.handlePointerDown(world, isSetupActive);
+  }
+
+  private dropAim(): void {
+    if (!this.aimedAt) return;
+    this.aimedAt = null;
+    this.eventBus.emit(GameEventNames.UI_ThrowAim, null);
+  }
+
+  /** Throw at the aimed square, or walk the plotted route. */
+  private onGoMovePlan = (): void => {
+    if (this.isBusy) return;
+    const aimed = this.aimedAt;
+    if (aimed && aimed.key === this.aimKey()) {
+      this.dropAim();
+      if (getActiveOnlineMatch()?.mayAct() === false) return;
+      void this.onSquareClicked(aimed.x, aimed.y);
+      return;
+    }
+    this.executeMove();
+  };
+
+  /** Drop the plotted route or the aim; the player stays selected. */
+  private onClearMovePlan = (): void => {
+    if (this.isBusy || !this.selectedPlayerId) return;
+    if (this.aimedAt) {
+      this.dropAim();
+      this.clearRollPreviews();
+      this.pitch.clearHover();
+      this.pitch.clearPassVisualization();
+      return;
+    }
+    this.clearWaypoints();
+    this.clearRollPreviews();
+    this.pitch.clearPath();
+    this.refreshPlayerVisualization(this.selectedPlayerId);
+  };
+
   /**
    * Walk the plotted route a leg at a time. A stretch that rolls nothing goes
    * as one move; each Dodge or Rush stops the player on the square before
@@ -2057,7 +2246,7 @@ export class GameplayInteractionController {
     route: { x: number; y: number }[]
   ): Promise<void> {
     this.isBusy = true;
-    this.waypoints = [];
+    this.clearWaypoints();
     this.clearRollPreviews();
     this.pitch.clearPath();
     let walked = false;
@@ -2234,7 +2423,7 @@ export class GameplayInteractionController {
       this.deselectPlayer();
       return;
     }
-    this.waypoints = [];
+    this.clearWaypoints();
     this.pitch.clearPath();
     // Calling selectPlayer would reset the action mode
     this.refreshPlayerVisualization(playerId);
@@ -2253,6 +2442,8 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(GameEventNames.UI_GoMovePlan, this.onGoMovePlan);
+    this.eventBus.off(GameEventNames.UI_ClearMovePlan, this.onClearMovePlan);
     this.eventBus.off(
       GameEventNames.NetworkCommandRejected,
       this.onNetworkCommandRejected
@@ -2309,19 +2500,22 @@ export class GameplayInteractionController {
     return sources;
   }
 
-  private drawPlannedRoute(player: Player, fullPath: { x: number; y: number }[]): void {
+  private drawPlannedRoute(player: Player, fullPath: { x: number; y: number }[]): RoutePreview {
     const legs = this.planLegs(player, fullPath.slice(1));
     const rolls = legs.flatMap(leg => leg.risk ? stepRolls(leg.risk, leg.path[0]) : []);
     const mover = withDriveModifiers(player, this.gameService.getState());
     const left = Math.max(0, mover.stats.MA - this.gameService.getMovementUsed(player.id) - (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0));
     this.pitch.drawMovementPath(fullPath, rolls, left);
-    this.eventBus.emit(GameEventNames.UI_RoutePreview, {
+    const route: RoutePreview = {
       movementLeft: left, riskySteps: rolls.length,
       rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
-    });
+    };
+    this.eventBus.emit(GameEventNames.UI_RoutePreview, route);
+    return route;
   }
 
   private clearRollPreviews(): void {
+    this.dropAim();
     this.targetRollPreview = null;
     this.targetAnchor = null;
     this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
@@ -2436,7 +2630,11 @@ export class GameplayInteractionController {
         { x: player.gridPosition.x, y: player.gridPosition.y },
         ...this.waypoints,
       ];
-      this.drawPlannedRoute(player, fullPath);
+      const route = this.drawPlannedRoute(player, fullPath);
+      this.eventBus.emit(GameEventNames.UI_MovePlan, {
+        ...route,
+        squares: this.waypoints.length,
+      });
     }
   }
 
@@ -2700,6 +2898,16 @@ export class GameplayInteractionController {
         this.kickoffHighlightedPlayerIds.add(step.charge.activePlayerId);
       }
     }
+  }
+
+  /** Whoever stands on the square at this world point. */
+  public playerAtPoint(world: { worldX: number; worldY: number }): Player | null {
+    const { valid, gridX, gridY } = this.getGridFromPointer(world);
+    return valid ? this.getPlayerAt(gridX, gridY) : null;
+  }
+
+  public hasSelection(): boolean {
+    return this.selectedPlayerId !== null;
   }
 
   private getPlayerAt(x: number, y: number): Player | null {

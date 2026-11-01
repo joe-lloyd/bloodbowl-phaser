@@ -7,7 +7,7 @@ import { playerHitArea } from "../game/elements/InteractiveHitArea";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { Team } from "../types/Team";
-import { Player } from "../types/Player";
+import { Player, PlayerStatus } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
@@ -21,6 +21,8 @@ import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
+import { TouchController } from "../game/controllers/TouchController";
+import { PassController } from "../game/controllers/PassController";
 import {
   measureHudRects,
   watchHudPanels,
@@ -83,6 +85,7 @@ export class GameScene extends Phaser.Scene {
   private movementValidator!: MovementValidator;
   private gameplayController!: GameplayInteractionController;
   protected cameraController!: CameraController;
+  private touchController: TouchController | null = null;
 
   // Services
   protected gameService!: IGameService;
@@ -315,7 +318,8 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-1)
       .setInteractive()
       .on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-        if (!onCanvas(pointer)) return;
+        // Fingers go through the TouchController, which taps on the lift
+        if (!onCanvas(pointer) || pointer.wasTouch) return;
         // Squares on the pitch belong to the gameplay controller; only a
         // click in the stands or the surrounds deselects.
         const square = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
@@ -341,6 +345,8 @@ export class GameScene extends Phaser.Scene {
 
     // Pitch interaction (Now safe to attach)
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      // A finger has no hover
+      if (pointer.wasTouch) return;
       if (this.isSetupActive) {
         // Direct Pitch Highlight for Setup
         const gridPos = this.pitch.worldToGrid(pointer.worldX, pointer.worldY);
@@ -355,7 +361,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (!onCanvas(pointer)) return;
+      if (!onCanvas(pointer) || pointer.wasTouch) return;
       console.log(
         `[GameScene] Global PointerDown: ${pointer.worldX}, ${pointer.worldY}`
       );
@@ -388,6 +394,32 @@ export class GameScene extends Phaser.Scene {
         return measureHudRects(this.game.canvas, this.scale.width);
       }
     );
+
+    this.touchController = new TouchController(this, this.cameraController, {
+      tap: (at) => {
+        // As a mouse click: the stands deselect, then the board takes it
+        const square = this.pitch.worldToGrid(at.worldX, at.worldY);
+        if (!this.pitch.isOnPitch(square)) this.onBackgroundClick();
+        this.gameplayController.tap(at, this.isSetupActive);
+      },
+      fitAll: (at) => {
+        if (
+          this.gameplayController.hasSelection() ||
+          this.gameplayController.playerAtPoint(at)
+        )
+          return false;
+        this.cameraController.reset(600);
+        return true;
+      },
+      showCard: (at) => {
+        const player = this.gameplayController.playerAtPoint(at);
+        if (player) this.eventBus.emit(GameEventNames.UI_ShowPlayerInfo, player);
+        return player !== null;
+      },
+      startRoute: (at) =>
+        !this.isSetupActive && this.gameplayController.startRouteDrag(at),
+      routeTo: (at) => this.gameplayController.dragRouteTo(at),
+    });
 
     // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.
     this.input.keyboard?.on("keydown-ZERO", () => {
@@ -550,6 +582,27 @@ export class GameScene extends Phaser.Scene {
       }
       this.frameActingTeam(teamId);
     });
+    // Aiming a pass: the thrower and every team-mate in range, so the
+    // receiver is on screen to click
+    let aimingPass = false;
+    this.subscribe(GameEventNames.UI_UpdateActionSteps, ({ currentStepId }) => {
+      const aiming = currentStepId === "pass";
+      if (aiming === aimingPass) return;
+      aimingPass = aiming;
+      const id = this.gameService.getState().activePlayer?.id;
+      const from = id ? this.gameService.getPlayerById(id)?.gridPosition : null;
+      if (!aiming || !id || !from) return;
+      const receivers = this.gameService
+        .getTeammates(id)
+        .flatMap((p) =>
+          p.status === PlayerStatus.ACTIVE &&
+          p.gridPosition &&
+          PassController.rangeValue(from, p.gridPosition) !== null
+            ? [p.gridPosition]
+            : []
+        );
+      this.cameraController.focusSquares([from, ...receivers]);
+    });
     // Once a player is done, show the team-mates still to go
     this.subscribe(GameEventNames.PlayerActivated, () => {
       if (choosingInterceptor) return;
@@ -590,6 +643,9 @@ export class GameScene extends Phaser.Scene {
     if (this.orchestrator) {
       this.orchestrator.destroy();
     }
+
+    this.touchController?.destroy();
+    this.touchController = null;
 
     // Camera controller cleanup
     if (this.cameraController) {
