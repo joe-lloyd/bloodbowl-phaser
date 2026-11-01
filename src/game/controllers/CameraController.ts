@@ -126,6 +126,8 @@ export class CameraController {
   private eventBus?: IEventBus;
   private manual = false;
   private settings: CameraSettings = DEFAULT_CAMERA_SETTINGS;
+  /** The last rest was the whole-pitch overview, not the coach's view. */
+  private wide = true;
   private following: Phaser.GameObjects.GameObject | null = null;
   /** The squares the camera last framed, and the clear area it fit them in. */
   private framed: {
@@ -287,6 +289,7 @@ export class CameraController {
   public overview(duration = MOVE_MS): void {
     const { centre, zoom } = this.overviewFraming();
     this.glide(centre, zoom, duration);
+    this.wide = true;
     this.publishState("neutral", duration);
   }
 
@@ -416,6 +419,7 @@ export class CameraController {
     this.release();
     const { centre, zoom } = this.restingFraming();
     this.glide(centre, zoom, duration);
+    this.wide = false;
     this.publishState("neutral", duration);
   }
 
@@ -482,7 +486,7 @@ export class CameraController {
   private onResize(): void {
     if (this.manual) return;
     this.framed = null;
-    this.snap(this.restingFraming());
+    this.snap(this.wide ? this.overviewFraming() : this.restingFraming());
   }
 
   public destroy(): void {

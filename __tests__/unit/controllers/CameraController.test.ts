@@ -400,14 +400,21 @@ describe("CameraController", () => {
       expect(light).toBeGreaterThan(lastZoom());
     });
 
-    it("keeps the coach's zoom when the window resizes", () => {
+    it("keeps the view it rests on when the window resizes", () => {
       const overview = ctx.camera.zoom;
-      ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
       const [, onResize, owner] = ctx.scene.scale.on.mock.calls.find(
         ([event]) => event === "resize"
       )!;
+      ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
+
+      ctx.controller.reset(0);
       onResize.call(owner);
       expect(ctx.camera.zoom).toBeCloseTo(overview * 1.5);
+
+      // Setup shows the whole pitch and both benches at any zoom
+      ctx.controller.showAllPlayers(0);
+      onResize.call(owner);
+      expect(ctx.camera.zoom).toBeCloseTo(overview);
     });
 
     it("never moves for the action with follow Off", () => {

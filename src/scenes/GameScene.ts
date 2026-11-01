@@ -521,10 +521,15 @@ export class GameScene extends Phaser.Scene {
     this.subscribe(GameEventNames.Camera_Reset, (data) => {
       this.cameraController.reset(data.duration || 800);
     });
-    // The coach changed their camera settings: show the new resting view
+    // The coach changed their camera settings: show the new resting view.
+    // Setup keeps the whole pitch so both benches stay in reach.
     this.subscribe(GameEventNames.UI_CameraSettingsChanged, (settings) => {
       this.cameraController.setSettings(settings);
-      this.cameraController.reset(400);
+      if (this.gameService.getPhase() === GamePhase.SETUP) {
+        this.cameraController.showAllPlayers(400);
+      } else {
+        this.cameraController.reset(400);
+      }
     });
     this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
       if (!player?.gridPosition || this.isSetupActive || choosingInterceptor)
