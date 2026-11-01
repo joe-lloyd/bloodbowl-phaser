@@ -21,6 +21,7 @@ import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
+import { loadCameraSettings } from "../config/cameraSettings";
 import {
   measureHudRects,
   watchHudPanels,
@@ -388,8 +389,11 @@ export class GameScene extends Phaser.Scene {
         return measureHudRects(this.game.canvas, this.scale.width);
       }
     );
+    // This coach's own camera settings, kept in this browser only
+    this.cameraController.setSettings(loadCameraSettings());
 
-    // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.
+    // Camera keyboard shortcuts: both hand the camera back, 0 on the
+    // coach's resting view and 1 on the overview.
     this.input.keyboard?.on("keydown-ZERO", () => {
       this.cameraController.reset(600);
     });
@@ -512,6 +516,11 @@ export class GameScene extends Phaser.Scene {
     this.subscribe(GameEventNames.Camera_Reset, (data) => {
       this.cameraController.reset(data.duration || 800);
     });
+    // The coach changed their camera settings: show the new resting view
+    this.subscribe(GameEventNames.UI_CameraSettingsChanged, (settings) => {
+      this.cameraController.setSettings(settings);
+      this.cameraController.reset(400);
+    });
     this.subscribe(GameEventNames.PlayerSelected, ({ player }) => {
       if (!player?.gridPosition || this.isSetupActive || choosingInterceptor)
         return;
@@ -529,7 +538,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.subscribe(GameEventNames.PhaseChanged, ({ phase }) => {
       // Setup wants both benches in view for dragging players on.
-      if (phase === GamePhase.SETUP) this.cameraController.reset();
+      if (phase === GamePhase.SETUP) this.cameraController.showAllPlayers();
     });
     // A loaded scenario or a resumed match shows the whole board first; the
     // turn start that follows the restore keeps the overview

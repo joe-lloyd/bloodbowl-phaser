@@ -348,4 +348,111 @@ describe("CameraController", () => {
       duration: 300,
     });
   });
+
+  describe("the coach's camera settings", () => {
+    const lastZoom = () => ctx.camera.zoomTo.mock.lastCall![0];
+    const lastCentre = () => ctx.camera.pan.mock.lastCall!.slice(0, 2);
+
+    it("rests at the coach's zoom on reset, centred as the overview is", () => {
+      const overview = ctx.camera.zoom;
+      ctx.controller.reset(0);
+      const overviewCentre = lastCentre();
+
+      ctx.controller.setSettings({ zoom: 1.5, follow: "close" });
+      ctx.controller.focusSquare(1, 1);
+      ctx.controller.reset(300);
+
+      expect(lastZoom()).toBeCloseTo(overview * 1.5);
+      expect(lastCentre()).toEqual(overviewCentre);
+      expect(ctx.bus.emit).toHaveBeenLastCalledWith("camera:stateChanged", {
+        state: "neutral",
+        duration: 300,
+      });
+    });
+
+    it("shows the whole pitch on showAllPlayers at any zoom", () => {
+      const overview = ctx.camera.zoom;
+      ctx.controller.setSettings({ zoom: 2, follow: "close" });
+      ctx.controller.showAllPlayers(300);
+      expect(lastZoom()).toBeCloseTo(overview);
+    });
+
+    it("sits closer on the action at a higher zoom", () => {
+      ctx.controller.focusSquare(10, 5);
+      const standard = lastZoom();
+
+      ctx.controller.setSettings({ zoom: 2, follow: "close" });
+      ctx.controller.focusSquare(10, 5);
+
+      expect(lastZoom()).toBeCloseTo(standard * 2);
+    });
+
+    it("frames the action from further back on Light", () => {
+      ctx.controller.focusSquare(10, 5);
+      const close = lastZoom();
+
+      ctx.controller.setSettings({ zoom: 1, follow: "light" });
+      ctx.controller.focusSquare(10, 5);
+      const light = lastZoom();
+
+      ctx.controller.reset(0);
+      expect(light).toBeLessThan(close);
+      expect(light).toBeGreaterThan(lastZoom());
+    });
+
+    it("never moves for the action with follow Off", () => {
+      ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
+      ctx.camera.pan.mockClear();
+
+      ctx.controller.focusSquare(3, 3);
+      ctx.controller.focusSquares([
+        { x: 3, y: 3 },
+        { x: 4, y: 4 },
+      ]);
+      ctx.controller.follow({} as never);
+
+      expect(ctx.camera.pan).not.toHaveBeenCalled();
+      expect(ctx.camera.startFollow).not.toHaveBeenCalled();
+
+      ctx.controller.reset(300);
+      expect(ctx.camera.pan).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps every reachable square clear of the HUD at the closest zoom", () => {
+      const diceLog = { left: 16, top: 484, right: 304, bottom: 704 };
+      const { camera, controller, pitch } = setup(
+        { width: 1280, height: 720 },
+        () => [diceLog]
+      );
+      controller.setSettings({ zoom: 2, follow: "close" });
+      const from = { x: 7, y: 10 };
+      const reach = [
+        { x: 6, y: 9 },
+        { x: 7, y: 9 },
+        { x: 8, y: 9 },
+        { x: 6, y: 10 },
+        { x: 8, y: 10 },
+      ];
+      controller.focusSquares([from, ...reach]);
+
+      for (const square of [from, ...reach]) {
+        const point = screenPoint(
+          camera,
+          pitch.getPixelPosition(square.x, square.y)
+        );
+        const covered =
+          point.x > diceLog.left - 24 &&
+          point.x < diceLog.right + 24 &&
+          point.y > diceLog.top - 24 &&
+          point.y < diceLog.bottom + 24;
+        expect(covered, `square ${square.x},${square.y} is covered`).toBe(
+          false
+        );
+        expect(point.x).toBeGreaterThan(0);
+        expect(point.x).toBeLessThan(1280);
+        expect(point.y).toBeGreaterThan(0);
+        expect(point.y).toBeLessThan(720);
+      }
+    });
+  });
 });

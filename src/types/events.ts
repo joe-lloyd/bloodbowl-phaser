@@ -10,6 +10,7 @@ import { Team } from "./Team";
 import { Player } from "./Player";
 import { BlockResult } from "../services/BlockResolutionService";
 import { SidelineCrewInfo } from "../game/presentation/sidelineStaff";
+import type { CameraSettings } from "../config/cameraSettings";
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -248,6 +249,8 @@ export enum GameEventNames {
   UI_BrawlerRerollBlockDie = "ui:brawlerRerollBlockDie",
   UI_VeteranRerollBlock = "ui:veteranRerollBlock",
   UI_StepSelected = "ui:stepSelected",
+  /** This coach changed their own camera settings. Never sent online. */
+  UI_CameraSettingsChanged = "ui:cameraSettingsChanged",
 
   // Kickoff event step (owning coach only)
   UI_KickoffEventSelectPlayer = "ui:kickoffEventSelectPlayer",
@@ -262,6 +265,17 @@ export enum GameEventNames {
   GameStateChanged = "game:stateChanged",
   PlayerUpdated = "player:updated",
 }
+
+/**
+ * Events about one viewer's camera. They stay out of the headless event
+ * log, which protocol responses carry.
+ */
+export const LOCAL_CAMERA_EVENTS: ReadonlySet<string> = new Set([
+  GameEventNames.Camera_TrackBall,
+  GameEventNames.Camera_Reset,
+  GameEventNames.Camera_StateChanged,
+  GameEventNames.UI_CameraSettingsChanged,
+]);
 
 /**
  * Game Events - Emitted by GameService/Phaser
@@ -926,6 +940,7 @@ export interface UIEvents {
   };
   [GameEventNames.UI_KickoffEventConfirm]: void;
   [GameEventNames.UI_KickoffEventSkip]: void;
+  [GameEventNames.UI_CameraSettingsChanged]: CameraSettings;
 }
 
 /**

@@ -4,6 +4,10 @@ import { GameEventNames } from "../../types/events";
 import { Pitch } from "../elements/Pitch";
 import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
+import {
+  CameraSettings,
+  DEFAULT_CAMERA_SETTINGS,
+} from "../../config/cameraSettings";
 
 type Point = { x: number; y: number };
 
@@ -106,6 +110,10 @@ export function clearArea(
  * The coach can always take over: the mouse wheel zooms around the cursor
  * and a right- or middle-button drag pans. A manual move holds the camera
  * still until the next turn or selection.
+ *
+ * Each coach's camera settings scale both framings by their zoom and set
+ * how close the action framing gets. Follow Off stops the action framing,
+ * so the camera only moves on its own to show the whole pitch.
  */
 /** How long the opening sweep over the pitch takes. */
 export const CAMERA_INTRO_MS = 2200;
@@ -117,6 +125,7 @@ export class CameraController {
   private dugoutPoints: Point[];
   private eventBus?: IEventBus;
   private manual = false;
+  private settings: CameraSettings = DEFAULT_CAMERA_SETTINGS;
   private following: Phaser.GameObjects.GameObject | null = null;
   /** The squares the camera last framed, and the clear area it fit them in. */
   private framed: {
@@ -196,8 +205,35 @@ export class CameraController {
     return this.frame([...this.pitchCorners(), ...this.dugoutPoints], 1.06, 96);
   }
 
+  /** The coach's resting view: the overview at their zoom. */
+  private restingFraming() {
+    const { centre, zoom } = this.overviewFraming();
+    return { centre, zoom: zoom * this.settings.zoom };
+  }
+
+  /** How close the action framing gets, for the coach's settings. */
   private actionZoom(): number {
-    return this.frame(this.pitchCorners()).zoom * ACTION_ZOOM;
+    const rest = this.restingFraming().zoom;
+    const close =
+      this.frame(this.pitchCorners()).zoom * ACTION_ZOOM * this.settings.zoom;
+    switch (this.settings.follow) {
+      case "off":
+        return rest;
+      case "light":
+        return Math.max(rest, (rest + close) / 2);
+      case "close":
+        return Math.max(rest, close);
+    }
+  }
+
+  /** The coach has the camera: by hand, or with follow Off. */
+  private held(): boolean {
+    return this.manual || this.settings.follow === "off";
+  }
+
+  /** Use the coach's camera settings for every framing from now on. */
+  public setSettings(settings: CameraSettings): void {
+    this.settings = settings;
   }
 
   // ----------------------------------------------------------- movement
@@ -256,7 +292,7 @@ export class CameraController {
 
   /** Close on a world point, unless the coach has taken the camera. */
   public focus(point: Point, duration = MOVE_MS, force = false): void {
-    if (this.manual && !force) return;
+    if (this.held() && !force) return;
     this.glide(point, this.actionZoom(), duration);
     this.publishState("active", duration);
   }
@@ -279,7 +315,7 @@ export class CameraController {
     squares: { x: number; y: number }[],
     duration = MOVE_MS
   ): void {
-    if (this.manual || squares.length === 0) return;
+    if (this.held() || squares.length === 0) return;
     const { width, height } = this.scene.scale;
     const area = this.clearAreaNow();
     const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
@@ -331,7 +367,7 @@ export class CameraController {
    */
   public refreshFraming(): void {
     const framed = this.framed;
-    if (!framed || this.manual) return;
+    if (!framed || this.held()) return;
     const area = this.clearAreaNow();
     const moved = (Object.keys(area) as (keyof ScreenRect)[]).some(
       (side) => Math.abs(area[side] - framed.area[side]) > REFRAME_TOLERANCE_PX
@@ -350,7 +386,7 @@ export class CameraController {
 
   /** Keep a moving object (the ball in flight) in the middle of the frame. */
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
-    if (this.manual || reducedMotion()) return;
+    if (this.held() || reducedMotion()) return;
     this.framed = null;
     this.following = target;
     this.camera.zoomTo(
@@ -375,13 +411,18 @@ export class CameraController {
     this.manual = false;
   }
 
+  /** Hand the camera back, on the coach's resting view. */
   public reset(duration = MOVE_MS): void {
     this.release();
-    this.overview(duration);
+    const { centre, zoom } = this.restingFraming();
+    this.glide(centre, zoom, duration);
+    this.publishState("neutral", duration);
   }
 
+  /** Hand the camera back, on the overview at any zoom. */
   public showAllPlayers(duration = MOVE_MS): void {
-    this.reset(duration);
+    this.release();
+    this.overview(duration);
   }
 
   public shake(duration = 220, intensity = 0.006): void {

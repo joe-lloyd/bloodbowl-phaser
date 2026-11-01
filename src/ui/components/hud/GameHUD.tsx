@@ -34,6 +34,7 @@ import { HUDLayout } from "./HUDLayout";
 import { DiceTray } from "./DiceTray";
 import { SandboxOverlay } from "./SandboxOverlay";
 import { SoundToggle } from "./SoundToggle";
+import { CameraControls } from "./CameraControls";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { MatchResultsScreen } from "./MatchResultsScreen";
 import { useNavigate } from "react-router-dom";
@@ -238,10 +239,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   // (SoundToggle), sharing a corner with SandboxOverlay/TurnIndicator. It's
   // now a "panel" entry appended to every context's menu — sound settings
   // apply regardless of sandbox/local/online, so it isn't context-derived
-  // like the rest of computeMatchOptionsMenu's entries.
+  // like the rest of computeMatchOptionsMenu's entries. The camera settings
+  // follow it for the same reason.
   const menuEntries: MatchOptionsMenuEntry[] = [
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
+    {
+      type: "panel",
+      id: "camera-settings",
+      render: () => <CameraControls eventBus={eventBus} />,
+    },
   ];
 
   // A failure here must never strand the coach mid-match with their state
