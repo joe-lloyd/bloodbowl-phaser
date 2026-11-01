@@ -428,6 +428,43 @@ describe("CameraController", () => {
       expect(ctx.camera.zoomEffect.reset).toHaveBeenCalled();
     });
 
+    it("keeps a framed reach in view when the window resizes", () => {
+      const { camera, controller, pitch, scene } = setup({
+        width: 1280,
+        height: 720,
+      });
+      controller.setSettings({ zoom: 2, follow: "close" });
+      // A reach in one corner: the zoomed resting view crops it
+      const reach = [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+        { x: 0, y: 3 },
+        { x: 3, y: 3 },
+      ];
+      controller.focusSquares(reach);
+
+      scene.scale.width = 900;
+      const [, onResize, owner] = scene.scale.on.mock.calls.find(
+        ([event]) => event === "resize"
+      )!;
+      camera.pan.mockClear();
+      camera.zoomTo.mockClear();
+      onResize.call(owner);
+
+      expect(camera.pan).toHaveBeenCalled();
+      const [panX, panY] = camera.pan.mock.lastCall!;
+      const zoom = camera.zoomTo.mock.lastCall![0];
+      for (const square of reach) {
+        const world = pitch.getPixelPosition(square.x, square.y);
+        const x = 450 + (world.x - panX) * zoom;
+        const y = 360 + (world.y - panY) * zoom;
+        expect(x).toBeGreaterThan(0);
+        expect(x).toBeLessThan(900);
+        expect(y).toBeGreaterThan(0);
+        expect(y).toBeLessThan(720);
+      }
+    });
+
     it("never moves for the action with follow Off", () => {
       ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
       ctx.camera.pan.mockClear();

@@ -486,11 +486,15 @@ export class CameraController {
 
   private onResize(): void {
     if (this.manual) return;
-    this.framed = null;
     // A glide still running would carry on from the old size
     this.stopFollow();
     this.camera.panEffect.reset();
     this.camera.zoomEffect.reset();
+    // Squares the coach may click stay framed, fitted to the new size
+    if (this.framed) {
+      this.focusSquares(this.framed.squares, 0);
+      return;
+    }
     this.snap(this.wide ? this.overviewFraming() : this.restingFraming());
   }
 
