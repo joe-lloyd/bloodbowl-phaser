@@ -66,7 +66,7 @@ function setup(
     "bloodbowl",
     hudRects
   );
-  return { camera, controller, inputHandlers, pitch, bus };
+  return { camera, controller, inputHandlers, pitch, bus, scene };
 }
 
 describe("CameraController", () => {
@@ -398,6 +398,16 @@ describe("CameraController", () => {
       ctx.controller.reset(0);
       expect(light).toBeLessThan(close);
       expect(light).toBeGreaterThan(lastZoom());
+    });
+
+    it("keeps the coach's zoom when the window resizes", () => {
+      const overview = ctx.camera.zoom;
+      ctx.controller.setSettings({ zoom: 1.5, follow: "off" });
+      const [, onResize, owner] = ctx.scene.scale.on.mock.calls.find(
+        ([event]) => event === "resize"
+      )!;
+      onResize.call(owner);
+      expect(ctx.camera.zoom).toBeCloseTo(overview * 1.5);
     });
 
     it("never moves for the action with follow Off", () => {

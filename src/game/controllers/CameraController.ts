@@ -482,7 +482,7 @@ export class CameraController {
   private onResize(): void {
     if (this.manual) return;
     this.framed = null;
-    this.snap(this.overviewFraming());
+    this.snap(this.restingFraming());
   }
 
   public destroy(): void {
