@@ -81,7 +81,10 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
       tabIndex={0}
       aria-describedby={tooltipId}
       onMouseEnter={show}
-      onMouseLeave={hide}
+      // A focused trigger keeps its panel until focus leaves
+      onMouseLeave={(event) => {
+        if (document.activeElement !== event.currentTarget) hide();
+      }}
       onFocus={show}
       onBlur={hide}
     >

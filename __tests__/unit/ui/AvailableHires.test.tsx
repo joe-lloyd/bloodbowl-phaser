@@ -79,9 +79,9 @@ describe("AvailableHires skill tooltips", () => {
     expect(tooltipPanels).toContain(defensiveText);
     expect(tooltipPanels).toContain(dodgeText);
     // Independent tooltips, not one combined blob repeating both texts.
-    expect(tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)).toBe(
-      false
-    );
+    expect(
+      tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)
+    ).toBe(false);
   });
 
   /**
@@ -124,5 +124,32 @@ describe("AvailableHires skill tooltips", () => {
       (firstTrigger as HTMLElement).blur();
     });
     expect(panel?.className).toContain("hidden");
+  });
+
+  it("keeps a focused skill's tooltip open when the pointer leaves", async () => {
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={getRosterByRosterName(RosterName.AMAZON)}
+          treasury={1_000_000}
+          onHirePlayer={() => {}}
+        />
+      );
+    });
+    const trigger = container.querySelector<HTMLElement>('span[tabindex="0"]')!;
+    const panel = document.getElementById(
+      trigger.getAttribute("aria-describedby")!
+    )!;
+    act(() => trigger.focus());
+    expect(panel.className).not.toContain("hidden");
+    act(() => {
+      trigger.dispatchEvent(
+        new MouseEvent("mouseout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(panel.className).not.toContain("hidden");
   });
 });
