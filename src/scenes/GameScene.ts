@@ -420,6 +420,11 @@ export class GameScene extends Phaser.Scene {
         GameEventNames.GameStateRestored,
         this.gameService.getState()
       );
+      // No turn starts on a resume, so show the coach's resting view now.
+      // Setup keeps the overview with both benches.
+      if (this.gameService.getPhase() !== GamePhase.SETUP) {
+        this.cameraController.reset(0);
+      }
     }
 
     if (this.autosaveEnabled) {
