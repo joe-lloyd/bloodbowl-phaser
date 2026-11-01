@@ -36,8 +36,8 @@ import { planMoveLegs, StepRisk, stepRolls } from "../rules/moveLegs";
 import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
-import { d6Chance, percent } from "../rules/rollOdds";
-import { rollLabel, rollProbability } from "../rules/rollProbability";
+import { rollLabel } from "../rules/rollTargets";
+import type { RerollSource } from "../../types/decisions";
 import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
@@ -2128,42 +2128,49 @@ export class GameplayInteractionController {
       .map((roll) => rollLabel(rollName(roll.type), roll.target))
       .join(", then ");
     const arbiter = this.gameService.getRerollArbiter();
-    // A team re-roll saves one roll a turn: with two rolls it is listed
-    // once, for either of them
-    let teamListed = false;
-    const rerolls = rolls.flatMap(({ type, target }) => {
-      const offer = availableRerolls(
+    // A team re-roll, Pro and Veteran each save one roll: with two rolls
+    // each is listed once, for either of them. A skill re-roll belongs to
+    // its own roll, as Dodge and Sure Hands are different skills.
+    const listed = new Set<RerollSource>();
+    const offers = rolls.map((roll) => ({
+      ...roll,
+      offer: availableRerolls(
         { gameService: this.gameService, eventBus: this.eventBus },
         player,
-        type
-      );
-      const sources = offer.sources.filter(
-        (source) => source !== "team" || !teamListed
-      );
-      if (sources.includes("team")) teamListed = true;
-      const either = rolls.length > 1;
-      const forOne = `one of the ${["two", "three"][rolls.length - 2] ?? rolls.length} rolls`;
+        roll.type
+      ),
+    }));
+    const rerolls = offers.flatMap(({ type, target, offer }) => {
+      const sources = offer.sources.filter((source) => !listed.has(source));
+      for (const source of sources) if (source !== "skill") listed.add(source);
+      // Veteran covers some rolls and not others: name the one it covers
+      const which = rolls.length > 1 ? `${rollName(type)} ` : "";
       return sources.map((source) => {
+        const covers = offers.filter((o) => o.offer.sources.includes(source));
+        const either = covers.length > 1;
+        const forOne = `one of the ${["two", "three"][covers.length - 2] ?? covers.length} rolls`;
         switch (source) {
           case "skill":
-            return `${offer.skillSource} re-roll: ${target}+, ${percent(d6Chance(target))}`;
+            return `${offer.skillSource} re-roll: ${target}+`;
           case "pro":
-            return `Pro needs 3+, then ${target}+: ${percent((d6Chance(target) * 2) / 3)}`;
+            return either
+              ? `Pro needs 3+, for ${forOne}`
+              : `Pro needs 3+, then ${which}${target}+`;
           case "team": {
             const next = arbiter.nextTeamReroll(player.teamId);
             switch (next) {
               case "free":
                 return either
                   ? `Brilliant Coaching free re-roll, for ${forOne}`
-                  : `Brilliant Coaching free re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                  : `Brilliant Coaching free re-roll: ${which}${target}+`;
               case "leader":
                 return either
                   ? `Leader re-roll, for ${forOne}`
-                  : `Leader re-roll: ${target}+, ${percent(d6Chance(target))}`;
+                  : `Leader re-roll: ${which}${target}+`;
               case "team":
                 return either
                   ? `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left), for ${forOne}`
-                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${target}+, ${percent(d6Chance(target))}`;
+                  : `team re-roll (${arbiter.teamRerollsLeftFor(player.teamId)} left): ${which}${target}+`;
               case null:
                 return "No team re-roll available";
               default: {
@@ -2173,7 +2180,9 @@ export class GameplayInteractionController {
             }
           }
           case "veteran":
-            return `Veteran re-roll: ${target}+, ${percent(d6Chance(target))}`;
+            return either
+              ? `Veteran re-roll, for ${forOne}`
+              : `Veteran re-roll: ${which}${target}+`;
           default: {
             const exhaustive: never = source;
             return exhaustive;
@@ -2181,9 +2190,6 @@ export class GameplayInteractionController {
         }
       });
     });
-    const chance = rollProbability(
-      rolls.map((roll) => ({ dice: "d6" as const, target: roll.target }))
-    );
     const title =
       risk.kind === "dodge"
         ? "Dodge"
@@ -2206,12 +2212,9 @@ export class GameplayInteractionController {
         step: {
           playerId: player.id,
           rolls: rolls.map(({ type, target }) => ({ type, target })),
-          chance,
         },
         message:
           `${rollText}. ${rolls.some((roll) => roll.type === "pickup") ? "A fail" : "A fall"} is a turnover.\n` +
-          // Each roll shows its own chance; two rolls also need both
-          (rolls.length > 1 ? `Chance of both: ${percent(chance)}.\n` : "") +
           (rerolls.length
             ? `Re-rolls: ${rerolls.join(", ")}.`
             : "No re-roll available."),
@@ -2314,7 +2317,6 @@ export class GameplayInteractionController {
     this.pitch.drawMovementPath(fullPath, rolls, left);
     this.eventBus.emit(GameEventNames.UI_RoutePreview, {
       movementLeft: left, riskySteps: rolls.length,
-      chance: rollProbability(rolls.map(roll => ({ dice: "d6", target: roll.target }))),
       rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
     });
   }
@@ -2346,7 +2348,6 @@ export class GameplayInteractionController {
         step: {
           playerId: fouler.id,
           rolls: [{ type: "armour", target: foul.targetNumber }],
-          chance: rollProbability([{ dice: "2d6", target: foul.targetNumber }]),
         },
       });
     });
@@ -2399,11 +2400,7 @@ export class GameplayInteractionController {
       const aimRolls: StepPrompt["rolls"] = handoff
         ? [{ type: "catch", target: catchNeeds }]
         : [{ type: "pass", target: throwNeeds }, { type: "catch", target: catchNeeds }];
-      aim = {
-        playerId: actor.id,
-        rolls: aimRolls,
-        chance: rollProbability(aimRolls.map(roll => ({ dice: "d6" as const, target: roll.target }))),
-      };
+      aim = { playerId: actor.id, rolls: aimRolls };
       const interceptorRolls: { square: { x: number; y: number }; target: number }[] = [];
       if (!handoff) {
         const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];

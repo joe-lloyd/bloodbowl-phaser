@@ -1,4 +1,3 @@
-import { d6Chance, percent } from "../../../game/rules/rollOdds";
 import { useAfterDice } from "../../hooks/useAfterDice";
 import { DecisionTeam } from "./DecisionTeam";
 import type { TeamRerollKind } from "../../../game/skills/RerollArbiter";
@@ -137,25 +136,25 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                 >
                   {keepRerollWhole(label)}
                 </HudButton>
-                {/* One number per option: the chance it recovers the roll */}
+                {/* What each option needs, the target and nothing more */}
                 {source === "pro" ? (
                   <p
-                    data-testid="reroll-chance-pro"
+                    data-testid="reroll-need-pro"
                     className="mt-1 text-hud-sm"
                   >
                     {request.needed !== undefined
-                      ? `Pro needs 3+, then ${request.needed}+: ${percent((d6Chance(request.needed) * 2) / 3)}.`
+                      ? `Pro needs 3+, then ${request.needed}+.`
                       : "Pro needs 3+."}{" "}
                     A failed Pro check ends the re-roll.
                   </p>
                 ) : (
                   (request.needed !== undefined || source === "veteran") && (
                     <p
-                      data-testid={`reroll-chance-${source}`}
+                      data-testid={`reroll-need-${source}`}
                       className="mt-1 text-hud-sm"
                     >
                       {request.needed !== undefined &&
-                        `${request.needed}+ to succeed: ${percent(d6Chance(request.needed))}.`}
+                        `Needs ${request.needed}+.`}
                       {request.needed !== undefined &&
                         source === "veteran" &&
                         " "}

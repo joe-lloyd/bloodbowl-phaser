@@ -19,7 +19,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "ux-foul-preview",
     name: "Foul roll preview",
-    description: "An assisted foul. The coach sees armour odds and can cancel before rolling.",
+    description: "An assisted foul. The coach sees the armour target and can cancel before rolling.",
     setup: {
       team1Placements: [{ playerIndex: 0, x: 9, y: 5 }, { playerIndex: 1, x: 11, y: 5 }],
       team2Placements: [{ playerIndex: 0, x: 10, y: 5, status: PlayerStatus.PRONE }],

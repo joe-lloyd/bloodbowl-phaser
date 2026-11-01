@@ -22,9 +22,6 @@ export function RouteSummary({ eventBus }: { eventBus: IEventBus }) {
         {route.movementLeft} movement left · {route.riskySteps} risky{" "}
         {route.riskySteps === 1 ? "step" : "steps"}
       </div>
-      <div className="mt-1 text-hud-gold">
-        {Math.round(route.chance * 100)}% to make it before re-rolls
-      </div>
       {route.rolls.length > 0 && (
         <div
           data-testid="route-rolls"

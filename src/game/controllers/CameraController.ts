@@ -38,6 +38,11 @@ function defaultHudRects(width: number, height: number): ScreenRect[] {
   ];
 }
 
+/** A clear area that moved less than this keeps the framing as it is. */
+const REFRAME_TOLERANCE_PX = 8;
+/** A reframe for a panel that just opened: short, as the coach is about to click. */
+const REFRAME_MS = 350;
+
 /** Room between a framed square and a panel, so its figure clears it too. */
 const PANEL_MARGIN_PX = 24;
 
@@ -113,6 +118,11 @@ export class CameraController {
   private eventBus?: IEventBus;
   private manual = false;
   private following: Phaser.GameObjects.GameObject | null = null;
+  /** The squares the camera last framed, and the clear area it fit them in. */
+  private framed: {
+    squares: { x: number; y: number }[];
+    area: ScreenRect;
+  } | null = null;
   private unsubscribers: Array<() => void> = [];
 
   constructor(
@@ -199,6 +209,7 @@ export class CameraController {
 
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
     this.stopFollow();
+    this.framed = null;
     if (reducedMotion()) {
       this.snap({ centre, zoom });
       return;
@@ -270,11 +281,7 @@ export class CameraController {
   ): void {
     if (this.manual || squares.length === 0) return;
     const { width, height } = this.scene.scale;
-    const area = clearArea(
-      width,
-      height,
-      this.hudRects?.() ?? defaultHudRects(width, height)
-    );
+    const area = this.clearAreaNow();
     const points = squares.map((s) => this.pitch.getPixelPosition(s.x, s.y));
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
@@ -311,12 +318,40 @@ export class CameraController {
       y: middle.y - ((area.top + area.bottom) / 2 - height / 2) / zoom,
     };
     this.glide(centre, zoom, duration);
+    this.framed = { squares, area };
     this.publishState("active", duration);
+  }
+
+  /**
+   * A HUD panel opened, closed or changed size since the camera last
+   * framed squares, such as the action menu that opens once a player is
+   * selected: frame the same squares again, clear of the panels as they
+   * are now. Nothing moves when the clear area is the same, after the
+   * camera has moved on, or while the coach holds it.
+   */
+  public refreshFraming(): void {
+    const framed = this.framed;
+    if (!framed || this.manual) return;
+    const area = this.clearAreaNow();
+    const moved = (Object.keys(area) as (keyof ScreenRect)[]).some(
+      (side) => Math.abs(area[side] - framed.area[side]) > REFRAME_TOLERANCE_PX
+    );
+    if (moved) this.focusSquares(framed.squares, REFRAME_MS);
+  }
+
+  private clearAreaNow(): ScreenRect {
+    const { width, height } = this.scene.scale;
+    return clearArea(
+      width,
+      height,
+      this.hudRects?.() ?? defaultHudRects(width, height)
+    );
   }
 
   /** Keep a moving object (the ball in flight) in the middle of the frame. */
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
     if (this.manual || reducedMotion()) return;
+    this.framed = null;
     this.following = target;
     this.camera.zoomTo(
       zoom ?? this.actionZoom() * 0.85,
@@ -396,6 +431,7 @@ export class CameraController {
 
   private takeOver(): void {
     this.manual = true;
+    this.framed = null;
     this.stopFollow();
     this.camera.panEffect.reset();
     this.camera.zoomEffect.reset();
@@ -403,7 +439,9 @@ export class CameraController {
   }
 
   private onResize(): void {
-    if (!this.manual) this.snap(this.overviewFraming());
+    if (this.manual) return;
+    this.framed = null;
+    this.snap(this.overviewFraming());
   }
 
   public destroy(): void {

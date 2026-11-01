@@ -6,7 +6,7 @@ import { Weather, weatherEffects } from "./weather";
 import { GameState } from "../../types/GameState";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { FoulValidator } from "../validators/FoulValidator";
-import { rollLabel, rollProbability, requiredRoll } from "./rollProbability";
+import { rollLabel, requiredRoll } from "./rollTargets";
 
 type Square = { x: number; y: number };
 export const markingPlayers = (square: Square, opponents: Player[]) =>
@@ -149,7 +149,6 @@ export type RouteRoll = {
 export interface RoutePreview {
   movementLeft: number;
   riskySteps: number;
-  chance: number;
   rolls: RouteRoll[];
   rerolls: string[];
 }
@@ -172,7 +171,7 @@ export function foulPreview(
     : analysis.modifier + (has(fouler, SkillType.DIRTY_PLAYER) ? 1 : 0);
   const targetNumber = effectiveAV(target, state) - modifier;
   const lines = [
-    rollLabel("Armour", targetNumber, "2d6"),
+    rollLabel("Armour", targetNumber),
     assistLine("Our", analysis.offensiveAssists),
     assistLine("Their", analysis.defensiveAssists),
   ];
@@ -181,10 +180,7 @@ export function foulPreview(
     !analysis.offensiveAssists.length &&
     !analysis.defensiveAssists.length
   ) {
-    const chance = rollProbability([
-      { dice: "2d6", target: targetNumber, reroll: true },
-    ]);
-    lines.push(`${Math.round(chance * 100)}% to break armour with Lone Fouler`);
+    lines.push("Lone Fouler may re-roll the armour roll");
   }
   if (locked) lines.push("Iron Hard Skin cancels armour modifiers");
   if (has(fouler, SkillType.DIRTY_PLAYER) && !locked)

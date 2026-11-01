@@ -26,7 +26,11 @@ interface Props {
   match: OnlineMatch;
   eventBus: EventBus;
   user: AuthUser;
-  /** The other coach has dropped: the clock and all input stop. */
+  /**
+   * A drop both coaches treat as a disconnect: the clock and all input
+   * stop. A shorter cut reads only as slow on the other side, and the
+   * clock runs on.
+   */
   opponentAway?: boolean;
   /**
    * When the drop began, as both coaches can tell: the absent coach's last
@@ -34,7 +38,12 @@ interface Props {
    * late each screen noticed.
    */
   awaySince?: number | null;
-  /** This coach is the one who lost the connection. */
+  /**
+   * The hold is for this coach's own silence, offline or slow: the other
+   * coach, who stayed online, writes the resumed deadline.
+   */
+  awayIsMe?: boolean;
+  /** This coach's link is down: its input waits, though the clock may run. */
   offline?: boolean;
 }
 
@@ -82,6 +91,7 @@ export function TurnClock({
   user,
   opponentAway = false,
   awaySince = null,
+  awayIsMe = false,
   offline = false,
 }: Props) {
   const [stripSlot, setStripSlot] = useState<HTMLElement | null>(null);
@@ -124,18 +134,27 @@ export function TurnClock({
     currentPhase() === GamePhase.PLAY &&
     decidingTeamId != null &&
     decidingTeamId !== activeTeamId;
-  const freezeReason: "away" | "deciding" | null = opponentAway
-    ? "away"
-    : otherSideDeciding
-      ? "deciding"
-      : null;
   const freezeRef = useRef<{
     reason: "away" | "deciding";
-    /** This coach was the one offline */
-    offline: boolean;
+    /** The hold was for this coach's own silence */
+    awayIsMe: boolean;
     /** Turn time left when the clock stopped */
     remaining: number | null;
   } | null>(null);
+  // A drop this coach shares with the other one stays a hold: while its
+  // own link is down, its view of the other coach says nothing, and a
+  // deadline written then would land late over the right one
+  const freezeReason: "away" | "deciding" | null =
+    opponentAway || (offline && freezeRef.current?.reason === "away")
+      ? "away"
+      : otherSideDeciding
+        ? "deciding"
+        : null;
+  // The tick reads it without restarting
+  const offlineRef = useRef(offline);
+  useEffect(() => {
+    offlineRef.current = offline;
+  }, [offline]);
   const resumeRef = useRef<{
     /** Turn time left when the clock stopped */
     remaining: number;
@@ -165,7 +184,7 @@ export function TurnClock({
           : Date.now();
       freezeRef.current = {
         reason: freezeReason,
-        offline,
+        awayIsMe,
         remaining: !deadlineIsThisTurn
           ? turnSeconds > 0
             ? turnSeconds * 1000
@@ -192,7 +211,7 @@ export function TurnClock({
       // the coach who stayed online: the absent coach may have reloaded and
       // lost its freeze.
       const writes =
-        frozen.reason === "away" ? !frozen.offline : myTurn();
+        !offline && (frozen.reason === "away" ? !frozen.awayIsMe : myTurn());
       if (frozen.remaining != null && writes) {
         void setTurnDeadline(
           code,
@@ -220,12 +239,18 @@ export function TurnClock({
     void resumeClock(code, user.uid, remainingBankMs, newDeadline);
   }, [code, user.uid, timer]);
 
-  // Freeze input for both players while paused or while one is away
+  // Freeze input for both players while paused or while one is away. A
+  // coach who is offline cannot reach the other side, so their input waits
+  // too, even while the clock still runs on a short cut.
   useEffect(() => {
     match.setClockPaused(
-      opponentAway ? "opponent-away" : timer?.pausedBy ? "timeout" : null
+      opponentAway || offline
+        ? "opponent-away"
+        : timer?.pausedBy
+          ? "timeout"
+          : null
     );
-  }, [match, timer?.pausedBy, opponentAway]);
+  }, [match, timer?.pausedBy, opponentAway, offline]);
 
   // The new active coach (re)sets the deadline at the start of every turn. turnSeconds
   // <= 0 is the "no time limit" sentinel (nextTurnDeadline returns null),
@@ -271,6 +296,9 @@ export function TurnClock({
       answerIfOutOfTime();
       if (freezeRef.current) return; // stopped: nobody's turn runs out
       if (resuming(Date.now())) return; // the old deadline is not this one
+      // Offline, an end-turn would reach the other coach late, after they
+      // may have held play and kept the time this coach had left
+      if (offlineRef.current) return;
       if (!myTurn() || !timer?.deadline || timer.pausedBy) return;
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
@@ -345,7 +373,9 @@ export function TurnClock({
       frozen.reason === "away"
         ? stripSlot
           ? "Paused"
-          : `${match.opponentName} disconnected: game paused`
+          : frozen.awayIsMe
+            ? "Your connection dropped: game paused"
+            : `${match.opponentName} disconnected: game paused`
         : stripSlot
           ? `${fmt(left)} to decide`
           : `${who} ${fmt(left)} to decide (${pending?.type.replace(/-/g, " ")})`;

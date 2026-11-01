@@ -4,6 +4,7 @@ import { GamePhase, GameState } from "../../../src/types/GameState"; // Adjust p
 import { KickoffEvent } from "../../../src/game/kickoff/kickoffEvents";
 import { PlayerStatus } from "../../../src/types/Player";
 import { GameEventNames } from "../../../src/types/events";
+import { getSkill, SkillType } from "../../../src/types/Skills";
 
 // Mock dependencies
 const mockScene = {
@@ -346,16 +347,15 @@ describe("GameplayInteractionController", () => {
       // (6,5) is next to player 2 as well: AG 3+ with -1 is 4+
       expect(prompt.message).toContain("Dodge: 4+");
       expect(prompt.message).toContain("No re-roll available.");
-      // One roll: its chance is said once, not again as "Chance: 50%"
+      // The target and nothing more: the rules give a coach no odds
       expect(prompt.message).toBe(
-        "Dodge: 4+ (50%). A fall is a turnover.\nNo re-roll available."
+        "Dodge: 4+. A fall is a turnover.\nNo re-roll available."
       );
       expect(prompt.cancelLabel).toBe("Stop here");
       // What the other coach sees read-only online
       expect(prompt.step).toEqual({
         playerId: "p1",
         rolls: [{ type: "dodge", target: 4 }],
-        chance: 0.5,
       });
       expect(mockGameService.movePlayer).not.toHaveBeenCalled();
       expect(mockScene.unhighlightPlayer).not.toHaveBeenCalled();
@@ -398,6 +398,62 @@ describe("GameplayInteractionController", () => {
       expect(route?.[1].riskySteps).toBe(2);
       expect(prompt.message).toContain(
         "Re-rolls: team re-roll (1 left), for one of the two rolls."
+      );
+    });
+
+    it("lists Pro once for a dodge onto the ball", async () => {
+      // Round 4, 19:09: "Pro needs 3+, then 4+: 33%, Pro needs 3+, then
+      // 4+: 33%", though Pro works once a turn
+      const state = mockGameService.getState();
+      mockGameService.getState.mockReturnValue({
+        ...state,
+        ballPosition: { x: 6, y: 5 },
+        activePlayer: { id: "p1", action: "move", committed: true },
+      });
+      const pro = { ...player1, skills: [getSkill(SkillType.PRO)] };
+      mockGameService.getPlayerById.mockReturnValue(pro);
+      const arbiter = mockGameService.getRerollArbiter();
+      arbiter.onceAvailable.mockReturnValue(true);
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
+
+      const prompt = await answerStepPrompt(false);
+      arbiter.onceAvailable.mockReturnValue(false);
+
+      expect(prompt.message).toBe(
+        "Dodge: 4+, then Pick up: 4+. A fail is a turnover.\n" +
+          "Re-rolls: Pro needs 3+, for one of the two rolls."
+      );
+    });
+
+    it("names the one roll Veteran covers on a dodge onto the ball", async () => {
+      // Veteran re-rolls a Pick up but not a Dodge
+      const state = mockGameService.getState();
+      mockGameService.getState.mockReturnValue({
+        ...state,
+        ballPosition: { x: 6, y: 5 },
+      });
+      const arbiter = mockGameService.getRerollArbiter();
+      arbiter.veteranRerollAvailable.mockReturnValue(true);
+      mockMovementValidator.findPath.mockReturnValue({
+        valid: true,
+        path: [{ x: 6, y: 5 }],
+        rolls: [],
+      });
+      (controller as any).onSquareClicked(6, 5);
+      (controller as any).onSquareClicked(6, 5);
+
+      const prompt = await answerStepPrompt(false);
+      arbiter.veteranRerollAvailable.mockReturnValue(false);
+
+      expect(prompt.message).toBe(
+        "Dodge: 4+, then Pick up: 4+. A fail is a turnover.\n" +
+          "Re-rolls: Veteran re-roll: Pick up 4+."
       );
     });
 

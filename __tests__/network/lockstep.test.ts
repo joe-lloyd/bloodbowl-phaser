@@ -22,6 +22,8 @@ import { Envelope } from "../../src/network/envelope";
 import { HeadlessCommand } from "../../src/headless/protocol";
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
+import { trackEngineWork } from "../../src/game/core/GameFlowManager";
+import { refusalMessage } from "../../src/network/OwnershipGate";
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -341,6 +343,49 @@ describe("lockstep sessions send before they animate", () => {
       if (refused) break;
     }
     expect(refused?.ok).toBe(false);
+    expect(resyncs).toEqual({ host: 0, guest: 0 });
+  }, 120_000);
+
+  it("refuses a command as late for the turn when the turn ends while the screen plays out", async () => {
+    // Round 4, 6:56: the host clicked while its own turnover played out.
+    // The gate passed on the turn before, the engine then refused, and the
+    // notice said only "The game did not allow that".
+    const { recording, hostGame, guestGame, host, guest, guestEnd, resyncs } =
+      await pair(4242);
+    const hostTeam = hostGame.ctx.team1.id;
+    let late: { ok: boolean; reason?: string } | null = null;
+    const sent: string[] = [];
+    for (const step of recording.steps) {
+      const hostTurn = hostGame.snapshot().activeTeamId === hostTeam;
+      if (hostTurn && step.command.type === "declare-action" && step.ok) {
+        // This screen is still playing out the turn's last moments
+        let finish: () => void = () => {};
+        const playing = trackEngineWork(
+          new Promise<void>((resolve) => (finish = resolve))
+        );
+        const click = host.run(step.command);
+        await tick();
+        // Meanwhile the turn ends on both engines alike
+        await hostGame.execute({ type: "end-turn" });
+        await guestGame.execute({ type: "end-turn" });
+        const before = stateChecksum(guestGame);
+        guestEnd.subscribe((envelope) => sent.push(envelope.kind));
+        finish();
+        await playing;
+        late = await click;
+        await settle(host, guest);
+        expect(stateChecksum(guestGame)).toBe(before);
+        break;
+      }
+      await play(host, guest, step.command);
+      await settle(host, guest);
+    }
+    expect(late).toMatchObject({ ok: false, reason: "not-your-turn" });
+    expect(refusalMessage(late!.reason!)).toBe(
+      "Your turn has ended, so that was not played."
+    );
+    // Refused before it was sent: the other engine never saw it
+    expect(sent).not.toContain("command");
     expect(resyncs).toEqual({ host: 0, guest: 0 });
   }, 120_000);
 

@@ -21,7 +21,10 @@ import { MovementValidator } from "../game/validators/MovementValidator";
 import { GameplayInteractionController } from "../game/controllers/GameplayInteractionController";
 import { SceneOrchestrator } from "../game/controllers/SceneOrchestrator";
 import { CameraController } from "../game/controllers/CameraController";
-import { measureHudRects } from "../game/presentation/hudRects";
+import {
+  measureHudRects,
+  watchHudPanels,
+} from "../game/presentation/hudRects";
 import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
@@ -366,6 +369,12 @@ export class GameScene extends Phaser.Scene {
 
     this.initializeControllers();
 
+    // A panel that opens after the camera framed, such as the action menu
+    // once a player is selected, frames the squares again clear of it
+    const panels = watchHudPanels(() =>
+      this.cameraController.refreshFraming()
+    );
+    this.busSubscriptions.push(() => panels.stop());
     this.cameraController = new CameraController(
       this,
       this.pitch,
@@ -373,7 +382,11 @@ export class GameScene extends Phaser.Scene {
       Array.from(this.dugouts.values()).flatMap((d) => d.getBounds()),
       this.eventBus,
       this.pitchThemeId,
-      () => measureHudRects(this.game.canvas, this.scale.width)
+      () => {
+        // The HUD may mount after the board: pick up its panels as they come
+        panels.watch();
+        return measureHudRects(this.game.canvas, this.scale.width);
+      }
     );
 
     // Camera keyboard shortcuts: 0 or 1 hands the camera back, on the overview.

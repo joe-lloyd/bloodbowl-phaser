@@ -4,7 +4,7 @@ import { GameApp } from "../support/pages/game";
 
 test.use({ viewport: { width: 1280, height: 720 } });
 
-test("route shows every roll and the combined chance before a score run", async ({
+test("route shows every roll with its target, and no odds, before a score run", async ({
   page,
 }) => {
   const app = new GameApp(page);
@@ -14,7 +14,7 @@ test("route shows every roll and the combined chance before a score run", async 
   const summary = page.getByTestId("route-summary");
   await expect(summary).toContainText("6 movement left");
   await expect(summary).toContainText("2 risky steps");
-  await expect(summary).toContainText("56%");
+  await expect(summary).not.toContainText("%");
   await expect(summary).toContainText("Dodge 3+");
   await expect(summary).toContainText("Rush 2+");
   // The same targets are tagged on the route squares
@@ -23,7 +23,7 @@ test("route shows every roll and the combined chance before a score run", async 
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await app.pitch.clickSquare({ x: 19, y: 5 });
   await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "3+ (67%)"
+    "Dodge: 3+. A fall is a turnover."
   );
   await page.getByRole("button", { name: "Dodge!" }).click();
   await expect(page.getByRole("heading", { name: /: Rush$/ })).toBeVisible({
@@ -34,7 +34,6 @@ test("route shows every roll and the combined chance before a score run", async 
   await app.pitch.hoverSquare({ x: 19, y: 5 });
   await expect(summary).toContainText("0 movement left");
   await expect(summary).toContainText("Rush 2+");
-  await expect(summary).toContainText("83%");
   await page.screenshot({
     path: test.info().outputPath("second-leg-rush.png"),
   });
@@ -50,7 +49,7 @@ test("pickup asks before entering the ball square and can stop", async ({
   await expect(page.getByTestId("route-summary")).toContainText("Pick up 3+");
   await app.pitch.clickSquare({ x: 10, y: 7 });
   await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "Pick up: 3+ (67%). A fail is a turnover."
+    "Pick up: 3+. A fail is a turnover."
   );
   expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 9, y: 7 });
   await page.getByRole("button", { name: "Stop here" }).click();
@@ -93,7 +92,7 @@ test("foul previews armour and asks for confirmation with Cancel", async ({
   await app.hud.declareAction("team1:0", "foul");
   await app.pitch.hoverSquare(await app.pitch.squareOf("team2:0"));
   await expect(page.getByTestId("target-roll-preview")).toContainText(
-    "Armour: 8+ (42%)"
+    "Armour: 8+"
   );
   await expect(page.getByTestId("target-roll-preview")).toContainText(
     "Our assists: #2"
@@ -123,13 +122,12 @@ test("pass hover shows range, catch and each interception roll", async ({
   await app.hud.selectActionStep("pass");
   await app.pitch.hoverSquare(await app.pitch.squareOf("team1:1"));
   const preview = page.getByTestId("target-roll-preview");
-  await expect(preview).toContainText(/Long Pass: \d\+ \(\d+%\)/);
-  await expect(preview).toContainText(/Catch: \d\+ \(\d+%\)/);
+  await expect(preview).toContainText(/Long Pass: \d\+/);
+  await expect(preview).toContainText(/Catch: \d\+/);
   // The pass is not thrown yet: the roll against an inaccurate pass, which
   // the interception dialog would offer then, is named too
-  await expect(preview).toContainText(
-    "Intercept #1: 6+ (17%), if inaccurate 5+ (33%)"
-  );
+  await expect(preview).toContainText("Intercept #1: 6+, if inaccurate 5+");
+  await expect(preview).not.toContainText("%");
   await page.screenshot({ path: test.info().outputPath("pass-preview.png") });
 });
 
@@ -154,7 +152,7 @@ test("a blitz block asks for its Rush before any block dice", async ({
     .toBe(true);
   await page.getByTestId("block-roll-dice").click();
   await expect(page.getByTestId("confirmation-modal")).toContainText(
-    "This block needs a Rush: 2+ (83%)."
+    "This block needs a Rush: 2+."
   );
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
@@ -169,7 +167,7 @@ test("hand-off hover shows only the receiver's catch target", async ({
   await app.hud.selectActionStep("handoff");
   await app.pitch.hoverSquare(await app.pitch.squareOf("team1:1"));
   const preview = page.getByTestId("target-roll-preview");
-  await expect(preview).toContainText("Catch: 4+ (50%)");
+  await expect(preview).toContainText("Catch: 4+");
   await expect(preview).not.toContainText("Intercept");
   await page.screenshot({
     path: test.info().outputPath("handoff-preview.png"),

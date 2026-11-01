@@ -212,6 +212,79 @@ describe("CameraController", () => {
     }
   });
 
+  describe("the action menu opens after the camera frames a reach", () => {
+    // Round 4, 23:36: the blitz route ended on 12,1, under the action menu.
+    // The camera framed the reach when the player was selected, before the
+    // menu was on screen.
+    const menu = { left: 976, top: 272, right: 1264, bottom: 704 };
+    const from = { x: 13, y: 3 };
+    const reach: { x: number; y: number }[] = [];
+    for (let x = 7; x <= 19; x++)
+      for (let y = 0; y <= 8; y++) reach.push({ x, y });
+    const covered = (
+      camera: ReturnType<typeof setup>["camera"],
+      pitch: ReturnType<typeof setup>["pitch"]
+    ) =>
+      [from, ...reach.filter((s) => Math.abs(s.x - from.x) <= 2)]
+        .map((s) => ({
+          s,
+          p: screenPoint(camera, pitch.getPixelPosition(s.x, s.y)),
+        }))
+        .filter(
+          ({ p }) =>
+            p.x > menu.left - 24 &&
+            p.x < menu.right + 24 &&
+            p.y > menu.top - 24 &&
+            p.y < menu.bottom + 24
+        )
+        .map(({ s }) => `${s.x},${s.y}`);
+
+    it("reframes the reach clear of the menu once it is on screen", () => {
+      let panels: ScreenRect[] = [];
+      const { camera, controller, pitch } = setup(
+        { width: 1280, height: 720 },
+        () => panels
+      );
+      controller.focusSquares([from, ...reach]);
+      panels = [menu];
+      expect(covered(camera, pitch)).not.toEqual([]);
+
+      controller.refreshFraming();
+      expect(covered(camera, pitch)).toEqual([]);
+    });
+
+    it("stays put when the panels have not moved, or the coach has the camera", () => {
+      let panels: ScreenRect[] = [menu];
+      const { camera, controller, inputHandlers } = setup(
+        { width: 1280, height: 720 },
+        () => panels
+      );
+      controller.focusSquares([from, ...reach]);
+      camera.pan.mockClear();
+      controller.refreshFraming();
+      expect(camera.pan).not.toHaveBeenCalled();
+
+      inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -100);
+      panels = [];
+      controller.refreshFraming();
+      expect(camera.pan).not.toHaveBeenCalled();
+    });
+
+    it("does not reframe old squares after the camera has moved on", () => {
+      let panels: ScreenRect[] = [];
+      const { camera, controller } = setup(
+        { width: 1280, height: 720 },
+        () => panels
+      );
+      controller.focusSquares([from, ...reach]);
+      controller.overview();
+      camera.pan.mockClear();
+      panels = [menu];
+      controller.refreshFraming();
+      expect(camera.pan).not.toHaveBeenCalled();
+    });
+  });
+
   it("starts on the overview, inside the stadium bounds", () => {
     expect(ctx.camera.setBounds).toHaveBeenCalledWith(0, 0, 5000, 3500);
     const [cx, cy] = ctx.camera.centerOn.mock.calls[0];

@@ -70,7 +70,7 @@ describe("RerollDialog team button", () => {
       container.querySelector('[data-testid="reroll-use-veteran"]')?.textContent
     ).toBe("USE VETERAN RE-ROLL");
     expect(
-      container.querySelector('[data-testid="reroll-chance-veteran"]')
+      container.querySelector('[data-testid="reroll-need-veteran"]')
         ?.textContent
     ).toBe("Once per game.");
   });

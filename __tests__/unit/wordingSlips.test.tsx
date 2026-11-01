@@ -41,7 +41,6 @@ it("names each roll of the route in words", async () => {
     bus.emit(GameEventNames.UI_RoutePreview, {
       movementLeft: 0,
       riskySteps: 2,
-      chance: 0.55,
       rolls: [
         { type: "dodge", target: 3, square: { x: 4, y: 4 } },
         { type: "rush", target: 2, square: { x: 5, y: 4 } },

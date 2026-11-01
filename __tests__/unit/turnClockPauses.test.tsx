@@ -53,7 +53,7 @@ vi.mock("../../src/services/ServiceContainer", () => ({
 import { TurnClock } from "../../src/ui/pages/TurnClock";
 import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
-import { LobbyDoc } from "../../src/firebase/lobby";
+import { LobbyDoc, OwnLink, playHold } from "../../src/firebase/lobby";
 import { OnlineMatch } from "../../src/network/OnlineMatch";
 import { AuthUser } from "../../src/firebase/auth";
 
@@ -248,6 +248,7 @@ describe("TurnClock pauses", () => {
           user={{ uid: "guest-uid" } as AuthUser}
           opponentAway={guestAway}
           awaySince={guestAway ? awaySince : null}
+          awayIsMe={guestAway}
           offline={guestAway}
         />
       );
@@ -279,6 +280,207 @@ describe("TurnClock pauses", () => {
     expect(deadline - Date.now()).toBe(225_000);
     await act(async () => guestClock.unmount());
     guestRoot.remove();
+  });
+
+  describe("a drop, as both coaches see it", () => {
+    /** The guest drops at T0 and comes back after `cut` ms. */
+    async function playCut(cut: number, seconds: number) {
+      const start = Date.now();
+      const deadline = start + 74_000;
+      const hostClock = hostMatch();
+      const guestMatch = {
+        ...hostMatch(),
+        role: "guest",
+        myTeamId: "guest-team",
+        opponentName: "Host",
+      } as unknown as OnlineMatch;
+      const guestDiv = document.createElement("div");
+      document.body.appendChild(guestDiv);
+      const guestRoot = createRoot(guestDiv);
+      // Heartbeats every 6 s; the guest's stop reaching the server while
+      // it is cut off
+      const lastBeat = (at: number, cutOff: boolean) => {
+        const beat = start + Math.floor((at - start) / 6_000) * 6_000;
+        return cutOff ? start : beat;
+      };
+      const frames: { host: string; guest: string }[] = [];
+      const show = () => {
+        const now = Date.now();
+        const cutOff = now - start < cut;
+        const lobby = {
+          ...lobbyAt(deadline),
+          players: {
+            "host-uid": { lastSeen: lastBeat(now, false) },
+            "guest-uid": { lastSeen: lastBeat(now, cutOff) },
+          },
+        } as unknown as LobbyDoc;
+        const props = (opponentUid: string, link: OwnLink) => {
+          const hold = playHold(lobby, opponentUid, link, now);
+          return {
+            opponentAway: hold != null,
+            awaySince: hold?.since ?? null,
+            awayIsMe: hold?.absent === "me",
+            offline: link.state === "offline",
+          };
+        };
+        root.render(
+          <TurnClock
+            code={code}
+            lobby={lobby}
+            match={hostClock}
+            eventBus={eventBus}
+            user={user}
+            {...props("guest-uid", {
+              state: "online",
+              confirmedSeen: lastBeat(now, false),
+            })}
+          />
+        );
+        guestRoot.render(
+          <TurnClock
+            code={code}
+            lobby={lobby}
+            match={guestMatch}
+            eventBus={eventBus}
+            user={{ uid: "guest-uid" } as AuthUser}
+            {...props("host-uid", {
+              state: cutOff ? "offline" : "online",
+              confirmedSeen: lastBeat(now, cutOff),
+            })}
+          />
+        );
+      };
+      // The time on the clock, running or stopped
+      const read = (div: HTMLElement) =>
+        div
+          .querySelector('[data-testid^="turn-clock"]')
+          ?.textContent?.match(/[⏱⏸] \d:\d\d/)?.[0] ?? "";
+      for (let s = 0; s < seconds; s++) {
+        await act(async () => show());
+        frames.push({ host: read(container), guest: read(guestDiv) });
+        await act(async () => vi.advanceTimersByTime(1_000));
+      }
+      await act(async () => guestRoot.unmount());
+      guestDiv.remove();
+      return frames;
+    }
+
+    it("keeps both clocks running through a cut the host reads as slow", async () => {
+      // Round 4, 5:25: the guest paused at 1:14 for an 11 s cut, but the
+      // host only saw a slow link and kept counting. Back online, the
+      // guest jumped from 1:09 to 0:52.
+      const frames = await playCut(11_000, 20);
+      expect(frames.filter((f) => f.host !== f.guest)).toEqual([]);
+      expect(frames.map((f) => f.guest)).toEqual(
+        Array.from({ length: 20 }, (_, s) => {
+          const left = 74 - s;
+          return `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+        })
+      );
+      expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
+    });
+
+    it("stops both clocks at the same time once the cut reads as a disconnect", async () => {
+      const frames = await playCut(30_000, 32);
+      expect(frames.filter((f) => f.host !== f.guest)).toEqual([]);
+      // Both stop at the guest's last heartbeat, with 1:14 left
+      expect(frames[25].guest).toBe("⏸ 1:14");
+      // Only the host, who stayed online, writes the resumed deadline
+      expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("stays stopped, and writes nothing, if this coach drops while the other is away", async () => {
+    // The guest dropped first. Then the host's own link went down too, so
+    // its view of the guest says nothing. A deadline written now would sit
+    // in the queue and land late over the right one.
+    const lobby = lobbyAt(Date.now() + 60_000);
+    const match = hostMatch();
+    const render = (opponentAway: boolean, offline: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={user}
+          opponentAway={opponentAway}
+          awaySince={opponentAway ? Date.now() - 21_000 : null}
+          offline={offline}
+        />
+      );
+    await act(async () => render(true, false));
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => render(false, true));
+    await act(async () => vi.advanceTimersByTime(5_000));
+    expect(
+      container.querySelector('[data-testid="turn-clock-stopped"]')
+    ).not.toBeNull();
+    expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
+
+    // Both back: the host, online, writes the time that was left
+    await act(async () => render(false, false));
+    expect(hoisted.setTurnDeadlineMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not end its own turn on the clock while it is offline", async () => {
+    // The active host drops with 3 s left. A turn ended now would reach
+    // the guest on reconnect, after the guest may have held play and kept
+    // those 3 s.
+    const lobby = lobbyAt(Date.now() + 3_000);
+    const render = (offline: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={hostMatch()}
+          eventBus={eventBus}
+          user={user}
+          offline={offline}
+        />
+      );
+    await act(async () => render(true));
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+
+    // Back online, the turn the clock ran out on ends
+    await act(async () => render(false));
+    await act(async () => vi.advanceTimersByTime(1_000));
+    expect(hoisted.endTurnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the resumed deadline to the other coach when its own slow link held play", async () => {
+    // A slow link is not offline, but a 20 s silence still reads as a
+    // disconnect on the other screen: this coach is the absent one
+    const lobby = lobbyAt(Date.now() + 60_000);
+    const guestMatch = {
+      ...hostMatch(),
+      role: "guest",
+      myTeamId: "guest-team",
+      opponentName: "Host",
+    } as unknown as OnlineMatch;
+    const render = (held: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={guestMatch}
+          eventBus={eventBus}
+          user={{ uid: "guest-uid" } as AuthUser}
+          opponentAway={held}
+          awaySince={held ? Date.now() - 21_000 : null}
+          awayIsMe={held}
+        />
+      );
+    await act(async () => render(true));
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(container.textContent).toContain(
+      "Your connection dropped: game paused"
+    );
+    expect(container.textContent).not.toContain("Host disconnected");
+    await act(async () => vi.advanceTimersByTime(5_000));
+    await act(async () => render(false));
+    expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
   });
 
   it("never shows more than the turn's length at a turn start", async () => {
