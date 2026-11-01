@@ -248,6 +248,7 @@ export class CameraController {
   private glide(centre: Point, zoom: number, duration = MOVE_MS): void {
     this.stopFollow();
     this.framed = null;
+    this.wide = false;
     if (reducedMotion()) {
       this.snap({ centre, zoom });
       return;
@@ -391,6 +392,7 @@ export class CameraController {
   public follow(target: Phaser.GameObjects.GameObject, zoom?: number): void {
     if (this.held() || reducedMotion()) return;
     this.framed = null;
+    this.wide = false;
     this.following = target;
     this.camera.zoomTo(
       zoom ?? this.actionZoom() * 0.85,
@@ -419,7 +421,6 @@ export class CameraController {
     this.release();
     const { centre, zoom } = this.restingFraming();
     this.glide(centre, zoom, duration);
-    this.wide = false;
     this.publishState("neutral", duration);
   }
 
@@ -486,6 +487,10 @@ export class CameraController {
   private onResize(): void {
     if (this.manual) return;
     this.framed = null;
+    // A glide still running would carry on from the old size
+    this.stopFollow();
+    this.camera.panEffect.reset();
+    this.camera.zoomEffect.reset();
     this.snap(this.wide ? this.overviewFraming() : this.restingFraming());
   }
 

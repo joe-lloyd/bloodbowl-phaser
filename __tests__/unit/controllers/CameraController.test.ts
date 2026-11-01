@@ -415,6 +415,17 @@ describe("CameraController", () => {
       ctx.controller.showAllPlayers(0);
       onResize.call(owner);
       expect(ctx.camera.zoom).toBeCloseTo(overview);
+
+      // Once play frames the action, a resize goes to the coach's view,
+      // stopping the glide that was under way
+      ctx.controller.setSettings({ zoom: 1.5, follow: "close" });
+      ctx.controller.focusSquare(4, 4);
+      ctx.camera.panEffect.reset.mockClear();
+      ctx.camera.zoomEffect.reset.mockClear();
+      onResize.call(owner);
+      expect(ctx.camera.zoom).toBeCloseTo(overview * 1.5);
+      expect(ctx.camera.panEffect.reset).toHaveBeenCalled();
+      expect(ctx.camera.zoomEffect.reset).toHaveBeenCalled();
     });
 
     it("never moves for the action with follow Off", () => {
