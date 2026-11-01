@@ -153,7 +153,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
 
   return (
     <div
-      className="relative pointer-events-auto"
+      className="flex flex-col items-end pointer-events-auto"
       onKeyDown={handleKeyDown}
       data-testid="match-options-menu-root"
     >
@@ -175,7 +175,10 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
           ref={menuRef}
           role="menu"
           aria-label="Match options"
-          className="hud-slab absolute right-0 top-full z-50 mt-2 w-72 p-2 animate-hud-in"
+          // In the stack's flow: the top-right stack scrolls, so a dropdown
+          // laid over it was clipped to the trigger. In flow it also counts
+          // as a HUD panel the camera keeps squares clear of.
+          className="hud-slab mt-2 w-72 max-w-full p-2 animate-hud-in"
         >
           {confirming ? (
             <div

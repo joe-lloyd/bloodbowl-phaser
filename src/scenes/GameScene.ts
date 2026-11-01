@@ -540,8 +540,9 @@ export class GameScene extends Phaser.Scene {
       // Setup wants both benches in view for dragging players on.
       if (phase === GamePhase.SETUP) this.cameraController.showAllPlayers();
     });
-    // A loaded scenario or a resumed match shows the whole board first; the
-    // turn start that follows the restore keeps the overview
+    // A loaded scenario or a resumed match shows the coach's resting view
+    // first, the whole board at the default zoom; the turn start that
+    // follows the restore keeps it
     let restored = false;
     this.subscribe(GameEventNames.GameStateRestored, () => {
       restored = true;
@@ -554,7 +555,7 @@ export class GameScene extends Phaser.Scene {
       this.cameraController.release();
       if (restored) {
         restored = false;
-        this.cameraController.overview();
+        this.cameraController.reset();
         return;
       }
       this.frameActingTeam(teamId);
