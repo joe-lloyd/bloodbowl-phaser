@@ -4,6 +4,8 @@ import { GameEventNames } from "../../types/events";
 import { Pitch } from "../elements/Pitch";
 import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
+import { matchesMedia, TOUCH_QUERY } from "../presentation/phoneLayout";
+import { ISO } from "../elements/GridUtils";
 
 type Point = { x: number; y: number };
 
@@ -55,6 +57,14 @@ const READABLE_FIGURE_PX = 28;
 const FIGURE_WORLD_PX = 2 * 25 * Math.cos(Math.PI / 6);
 
 /**
+ * On a touch screen the camera never frames a square shorter than this, so
+ * a thumb can hit it: a diamond 84 by 42 px. Apple asks for 44 pt targets;
+ * a diamond's middle row is about that wide and tall.
+ */
+const THUMB_SQUARE_PX = 42;
+export const THUMB_ZOOM = THUMB_SQUARE_PX / ISO.tileHeight;
+
+/**
  * The part of the screen clear of every panel. Each panel in the way cuts
  * the area from whichever side keeps the most of it, largest panel first.
  */
@@ -104,8 +114,9 @@ export function clearArea(
  * rule change never needs camera code.
  *
  * The coach can always take over: the mouse wheel zooms around the cursor
- * and a right- or middle-button drag pans. A manual move holds the camera
- * still until the next turn or selection.
+ * and a right- or middle-button drag pans; on a touch screen two fingers
+ * pinch and one finger drags empty ground (see TouchController). A manual
+ * move holds the camera still until the next turn or selection.
  */
 /** How long the opening sweep over the pitch takes. */
 export const CAMERA_INTRO_MS = 2200;
@@ -197,7 +208,15 @@ export class CameraController {
   }
 
   private actionZoom(): number {
-    return this.frame(this.pitchCorners()).zoom * ACTION_ZOOM;
+    return Math.max(
+      this.frame(this.pitchCorners()).zoom * ACTION_ZOOM,
+      this.thumbZoom()
+    );
+  }
+
+  /** The closest a touch screen must come for thumb-sized squares. */
+  private thumbZoom(): number {
+    return matchesMedia(TOUCH_QUERY) ? THUMB_ZOOM : 0;
   }
 
   // ----------------------------------------------------------- movement
@@ -300,7 +319,10 @@ export class CameraController {
       areaHeight / ((box.bottom - box.top) * pad)
     );
     const closest = this.actionZoom();
-    const readable = Math.min(READABLE_FIGURE_PX / FIGURE_WORLD_PX, closest);
+    const readable = Math.max(
+      Math.min(READABLE_FIGURE_PX / FIGURE_WORLD_PX, closest),
+      this.thumbZoom()
+    );
     const zoom = Math.max(readable, Math.min(fit, closest));
     // The world point at the middle of the clear area: the box's middle,
     // or as near the first square as keeps the view inside the box
@@ -390,6 +412,31 @@ export class CameraController {
 
   // -------------------------------------------------------------- input
 
+  /**
+   * The coach zooms by `factor`, keeping the world point under the screen
+   * point (x, y) where it is: the wheel, or two fingers pinching.
+   */
+  public zoomAt(x: number, y: number, factor: number): void {
+    this.takeOver();
+    const before = this.camera.getWorldPoint(x, y);
+    const min = this.overviewFraming().zoom * 0.8;
+    const zoom = Math.min(
+      Math.max(this.camera.zoom * factor, min),
+      Math.max(min * 1.2, 4)
+    );
+    this.camera.setZoom(zoom);
+    const after = this.camera.getWorldPoint(x, y);
+    this.camera.scrollX += before.x - after.x;
+    this.camera.scrollY += before.y - after.y;
+  }
+
+  /** The coach drags the board by (dx, dy) screen pixels. */
+  public panBy(dx: number, dy: number): void {
+    this.takeOver();
+    this.camera.scrollX -= dx / this.camera.zoom;
+    this.camera.scrollY -= dy / this.camera.zoom;
+  }
+
   private bindInput(): void {
     const input = this.scene.input;
     // No context menu: the right button pans.
@@ -400,26 +447,13 @@ export class CameraController {
       _over: unknown,
       _dx: number,
       dy: number
-    ) => {
-      this.takeOver();
-      const before = this.camera.getWorldPoint(pointer.x, pointer.y);
-      const min = this.overviewFraming().zoom * 0.8;
-      const zoom = Math.min(
-        Math.max(this.camera.zoom * (dy > 0 ? 0.88 : 1.14), min),
-        Math.max(min * 1.2, 4)
-      );
-      this.camera.setZoom(zoom);
-      const after = this.camera.getWorldPoint(pointer.x, pointer.y);
-      this.camera.scrollX += before.x - after.x;
-      this.camera.scrollY += before.y - after.y;
-    };
+    ) => this.zoomAt(pointer.x, pointer.y, dy > 0 ? 0.88 : 1.14);
     const onMove = (pointer: Phaser.Input.Pointer) => {
       if (!pointer.rightButtonDown() && !pointer.middleButtonDown()) return;
-      this.takeOver();
-      this.camera.scrollX -=
-        (pointer.x - pointer.prevPosition.x) / this.camera.zoom;
-      this.camera.scrollY -=
-        (pointer.y - pointer.prevPosition.y) / this.camera.zoom;
+      this.panBy(
+        pointer.x - pointer.prevPosition.x,
+        pointer.y - pointer.prevPosition.y
+      );
     };
     input.on("wheel", onWheel);
     input.on("pointermove", onMove);

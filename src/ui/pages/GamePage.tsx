@@ -7,6 +7,7 @@ import { GameScene } from "../../scenes/GameScene";
 import { SandboxScene } from "../../scenes/SandboxScene";
 import { GameHUD, OnlineMatchMenuProps } from "../components/hud/GameHUD";
 import { LoadingScreen } from "../components/hud/LoadingScreen";
+import { RotatePrompt } from "../components/hud/RotatePrompt";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
 import { CompetitionContext } from "../../competition/types";
@@ -131,6 +132,20 @@ export function GamePage({
     };
   }, [eventBus]);
 
+  // The match draws under a phone's notch and home bar; the phone HUD keeps
+  // its panels inside the safe area. Other pages keep the default.
+  useEffect(() => {
+    const meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="viewport"]'
+    );
+    if (!meta) return;
+    const before = meta.content;
+    meta.content = `${before}, viewport-fit=cover`;
+    return () => {
+      meta.content = before;
+    };
+  }, []);
+
   useEffect(() => {
     // Get team data from props (online) or location state (local play)
     const { team1, team2 } = matchTeams ?? {};
@@ -177,6 +192,8 @@ export function GamePage({
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.NO_CENTER,
       },
+      // Two fingers pinch to zoom on a touch screen
+      input: { activePointers: 2 },
       callbacks: { postBoot: renderOnlyOnChange },
     };
 
@@ -255,6 +272,8 @@ export function GamePage({
         onlineMenu={onlineMenu}
         styleId={selectedPitchThemeId}
       />
+
+      <RotatePrompt />
     </div>
   );
 }

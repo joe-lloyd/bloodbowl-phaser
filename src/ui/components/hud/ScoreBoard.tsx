@@ -27,7 +27,14 @@ const hexColor = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
  * per-team turn (of 6), half, re-rolls and bribes. The turn tab
  * (TurnIndicator) hangs below it.
  */
-export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
+export function ScoreBoard({
+  eventBus,
+  compact = false,
+}: {
+  eventBus: IEventBus;
+  /** One slim strip for a phone: name, re-rolls and score, half between. */
+  compact?: boolean;
+}) {
   const [rows, setRows] = useState<TeamRow[]>([]);
   const [half, setHalf] = useState(1);
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
@@ -82,6 +89,55 @@ export function ScoreBoard({ eventBus }: { eventBus: IEventBus }) {
   }, [eventBus]);
 
   if (rows.length === 0) return null;
+
+  if (compact) {
+    const slim = (row: TeamRow, mirrored: boolean) => (
+      <div
+        key={row.id}
+        className={`hud-slab relative flex min-w-0 items-center gap-2 px-2.5 py-1 ${
+          mirrored ? "flex-row-reverse" : ""
+        }`}
+        style={{
+          [mirrored ? "borderRight" : "borderLeft"]: `4px solid ${row.color}`,
+        }}
+      >
+        <span className="min-w-0 flex-1 truncate font-hud-label text-hud-base font-bold uppercase leading-none tracking-[0.03em] text-hud-bone">
+          {row.name}
+        </span>
+        <span
+          data-testid={`rerolls-${row.id}`}
+          className="whitespace-nowrap font-hud-display text-hud-sm leading-none text-hud-gold"
+        >
+          RR {row.rerolls}
+          {row.freeRerolls > 0 ? `+${row.freeRerolls}` : ""}
+        </span>
+        <span className="font-hud-display text-hud-2xl leading-none text-hud-bone">
+          {row.score}
+        </span>
+        {row.id === activeTeamId && (
+          <span
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-[3px] bg-hud-gold"
+          />
+        )}
+      </div>
+    );
+    return (
+      <div
+        data-testid="scoreboard"
+        className="grid w-[min(460px,56vw)] grid-cols-[1fr_52px_1fr] pointer-events-auto animate-hud-in"
+      >
+        {rows[0] && slim(rows[0], false)}
+        <div className="flex flex-col items-center justify-center border-y border-hud-gold/30 bg-hud-sunk/95">
+          <span className="hud-label text-hud-2xs">Half</span>
+          <span className="font-hud-display text-hud-lg leading-none text-hud-gold">
+            {half}
+          </span>
+        </div>
+        {rows.slice(1).map((row) => slim(row, true))}
+      </div>
+    );
+  }
 
   // Broadcast score bug: home team left, away team right, the half between.
   const side = (row: TeamRow, mirrored: boolean) => {

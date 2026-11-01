@@ -177,6 +177,47 @@ describe("CameraController", () => {
     }
   });
 
+  it("on a touch screen, frames a long reach with squares a thumb can hit", () => {
+    // A phone in landscape: the whole reach would fit only at squares
+    // about 30 px tall. The camera keeps them 42 px tall instead.
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(pointer: coarse)",
+    }));
+    try {
+      const { camera, controller, pitch } = setup({ width: 844, height: 390 });
+      const from = { x: 3, y: 5 };
+      const reach = [];
+      for (let x = 0; x <= 13; x++)
+        for (let y = 0; y <= 10; y++) reach.push({ x, y });
+      controller.focusSquares([from, ...reach]);
+
+      const zoom = camera.zoomTo.mock.lastCall![0];
+      const a = pitch.getPixelPosition(3, 5);
+      const b = pitch.getPixelPosition(4, 5);
+      // One step along x is half a diamond across and half down
+      expect(Math.round(Math.abs(b.x - a.x) * 2 * zoom)).toBe(84);
+      expect(Math.round(Math.abs(b.y - a.y) * 2 * zoom)).toBe(42);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("zooms around the point between two pinching fingers", () => {
+    const { camera, controller } = setup({ width: 844, height: 390 });
+    // A camera at zoom z, scrolled to (sx, sy), shows world (sx + x/z, ...)
+    camera.getWorldPoint.mockImplementation((x: number, y: number) => ({
+      x: camera.scrollX + x / camera.zoom,
+      y: camera.scrollY + y / camera.zoom,
+    }));
+    const before = camera.getWorldPoint(300, 200);
+    const zoom = camera.zoom;
+    controller.zoomAt(300, 200, 1.5);
+    expect(camera.zoom).toBeCloseTo(zoom * 1.5);
+    const after = camera.getWorldPoint(300, 200);
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+  });
+
   it("keeps every reachable square clear of the HUD panels on screen", () => {
     // Round 3, 56:30: square 7,10 sat under the dice log's A- button. The
     // dice log is the bottom-left panel; nothing else is open.

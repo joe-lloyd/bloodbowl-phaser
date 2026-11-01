@@ -239,6 +239,14 @@ export enum GameEventNames {
   UI_ApothecaryResponse = "ui:apothecaryResponse",
   UI_RoutePreview = "ui:routePreview",
   UI_TargetRollPreview = "ui:targetRollPreview",
+  /** The route the coach has plotted for the selected player, or none. */
+  UI_MovePlan = "ui:movePlan",
+  /** Walk the plotted route, as a second click on its last square does. */
+  UI_GoMovePlan = "ui:goMovePlan",
+  /** Drop the plotted route and keep the player selected. */
+  UI_ClearMovePlan = "ui:clearMovePlan",
+  /** A finger aimed a throw at a square: its rolls, before Go throws. */
+  UI_ThrowAim = "ui:throwAim",
   UI_PassAimed = "ui:passAimed",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
@@ -875,6 +883,10 @@ export interface UIEvents {
   [GameEventNames.UI_ApothecaryResponse]: import("./decisions").ApothecaryDecisionAnswer;
 
   [GameEventNames.UI_RoutePreview]: import("../game/rules/rollPreview").RoutePreview | null;
+  [GameEventNames.UI_MovePlan]: (import("../game/rules/rollPreview").RoutePreview & { squares: number }) | null;
+  [GameEventNames.UI_GoMovePlan]: void;
+  [GameEventNames.UI_ClearMovePlan]: void;
+  [GameEventNames.UI_ThrowAim]: { square: { x: number; y: number }; lines: string[] } | null;
   /** The pass or hand-off this coach is aiming, for the other coach. */
   [GameEventNames.UI_PassAimed]: StepPrompt | null;
   [GameEventNames.UI_TargetRollPreview]: (import("../game/rules/rollPreview").TargetRollPreview & { anchor: { x: number; y: number } }) | null;

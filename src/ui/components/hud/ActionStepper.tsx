@@ -26,6 +26,8 @@ interface ActionStepperProps {
   currentStepId: string;
   eventBus: EventBus;
   hasMovedInAction: boolean;
+  /** A narrow thumb rail, as on a phone: the plan bar sums up the route. */
+  compact?: boolean;
 }
 
 export const ActionStepper: React.FC<ActionStepperProps> = ({
@@ -33,15 +35,22 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
   currentStepId,
   eventBus,
   hasMovedInAction,
+  compact = false,
 }) => {
   const handleStepClick = (stepId: string) => {
     eventBus.emit(GameEventNames.UI_StepSelected, { stepId });
   };
 
   return (
-    <div className="flex min-w-[220px] flex-col p-2">
+    <div
+      className={
+        compact
+          ? "flex flex-col rounded-hud border border-white/10 bg-hud-ink/90 p-1.5 shadow-hud"
+          : "flex min-w-[220px] flex-col p-2"
+      }
+    >
       {/* Header */}
-      <div className="hud-label mb-2 px-1">Action Sequence</div>
+      {!compact && <div className="hud-label mb-2 px-1">Action Sequence</div>}
 
       <div className="flex flex-col gap-1.5">
         {steps.map((step, index) => {
@@ -59,7 +68,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
                 // For now, allow free navigation as per original logic, but usually games restrict going forward without completing action
                 handleStepClick(step.id);
               }}
-              className={`relative flex min-h-[44px] w-full items-center gap-3 rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
+              className={`relative flex min-h-[44px] w-full items-center ${compact ? "gap-1.5" : "gap-3"} rounded-hud border px-2 text-left transition-[background-color,border-color] duration-150 ease-bb ${
                 isActive
                   ? "border-hud-gold bg-hud-gold/15 text-hud-bone shadow-hud-glow"
                   : isPast
@@ -81,12 +90,14 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
               </span>
 
               {/* Label */}
-              <span className="flex-grow font-hud-label text-hud-base font-bold uppercase tracking-[0.05em]">
+              <span
+                className={`flex-grow font-hud-label font-bold uppercase tracking-[0.05em] ${compact ? "text-hud-sm leading-tight" : "text-hud-base"}`}
+              >
                 {step.label}
               </span>
 
               {/* Active Indicator (Chevron) */}
-              {isActive && (
+              {isActive && !compact && (
                 <span className="text-hud-gold animate-pulse">◄</span>
               )}
             </button>
@@ -94,7 +105,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
         })}
       </div>
 
-      <RouteSummary eventBus={eventBus} />
+      {!compact && <RouteSummary eventBus={eventBus} />}
 
       {/* Control Buttons */}
       <div className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
