@@ -120,5 +120,10 @@ test("armour and injury land as two throws before the turnover hands over", asyn
   expect(
     log.throws.filter((t) => t.includes("Armour") && t.includes("Injury"))
   ).toEqual([]);
+  // The tray threw each on its own, armour first
+  const armourThrow = log.throws.findIndex((t) => t.includes("Armour"));
+  const injuryThrow = log.throws.findIndex((t) => t.includes("Injury"));
+  expect(armourThrow).toBeGreaterThanOrEqual(0);
+  expect(injuryThrow).toBeGreaterThan(armourThrow);
   expect(log.bannerAt - log.armourAt).toBeLessThan(6_000);
 });
