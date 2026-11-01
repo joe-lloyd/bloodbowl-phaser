@@ -152,4 +152,32 @@ describe("AvailableHires skill tooltips", () => {
     });
     expect(panel.className).not.toContain("hidden");
   });
+
+  it("shows one tooltip at a time: hovering another skill hides the focused one", async () => {
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={getRosterByRosterName(RosterName.AMAZON)}
+          treasury={1_000_000}
+          onHirePlayer={() => {}}
+        />
+      );
+    });
+    const [first, second] = Array.from(
+      container.querySelectorAll<HTMLElement>('span[tabindex="0"]')
+    );
+    const panelOf = (trigger: HTMLElement) =>
+      document.getElementById(trigger.getAttribute("aria-describedby")!)!;
+    act(() => first.focus());
+    act(() => {
+      second.dispatchEvent(
+        new MouseEvent("mouseover", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(panelOf(second).className).not.toContain("hidden");
+    expect(panelOf(first).className).toContain("hidden");
+  });
 });

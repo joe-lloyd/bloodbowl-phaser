@@ -1,5 +1,6 @@
 import {
   ReactNode,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -15,6 +16,9 @@ interface TooltipProps {
   children: ReactNode;
   className?: string;
 }
+
+/** Closes the tooltip on screen, so only one shows at a time. */
+let openTooltip: (() => void) | null = null;
 
 /** Space kept between the panel, its trigger and the window's edge. */
 const GAP_PX = 6;
@@ -40,11 +44,17 @@ export function Tooltip({ content, children, className = "" }: TooltipProps) {
     null
   );
 
-  const show = (event: React.SyntheticEvent<HTMLElement>) =>
-    setTrigger(event.currentTarget.getBoundingClientRect());
-  const hide = () => {
+  // Stable, so the one-at-a-time check can tell this tooltip's from another's
+  const hide = useCallback(() => {
     setTrigger(null);
     setPlace(null);
+    if (openTooltip === hide) openTooltip = null;
+  }, []);
+  const show = (event: React.SyntheticEvent<HTMLElement>) => {
+    // One panel at a time: a newly shown one closes any other still open
+    if (openTooltip && openTooltip !== hide) openTooltip();
+    openTooltip = hide;
+    setTrigger(event.currentTarget.getBoundingClientRect());
   };
 
   // Place the panel once its height is known: below, or above if it fits
