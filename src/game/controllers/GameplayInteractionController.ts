@@ -2206,6 +2206,8 @@ export class GameplayInteractionController {
     if (!this.aimedAt) return;
     this.aimedAt = null;
     this.eventBus.emit(GameEventNames.UI_ThrowAim, null);
+    // Online, the other coach stops seeing the throw's rolls too
+    this.eventBus.emit(GameEventNames.UI_PassAimed, null);
   }
 
   /** Throw at the aimed square, or walk the plotted route. */

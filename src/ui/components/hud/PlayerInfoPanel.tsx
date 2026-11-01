@@ -49,7 +49,11 @@ export const PlayerInfoPanel: React.FC<PlayerInfoPanelProps> = ({
       const target = event.target as Node;
       // The chip toggles the card itself
       if (cardRef.current?.contains(target)) return;
-      if (chipRef.current?.contains(target)) return;
+      if (chipRef.current?.contains(target)) {
+        setHoveredPlayer(null);
+        setHoveredCrew(null);
+        return;
+      }
       setChipOpened(false);
       setHoveredPlayer(null);
       setHoveredCrew(null);
