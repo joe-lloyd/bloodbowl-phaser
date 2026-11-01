@@ -93,7 +93,10 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     // Only reset action mode if selecting a different player or deselecting
     // AND if the new player is NOT the same as the current one
     if (data.player && data.player.id === selectedPlayer?.id) {
-      // Re-selection of same player - do NOT reset stepper
+      // Re-selection of same player - do NOT reset stepper. Still read the
+      // game again: Charge! re-selects the charger the coach just picked,
+      // and only then may that player act.
+      setRefreshTick((t) => t + 1);
       return;
     }
 

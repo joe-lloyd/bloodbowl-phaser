@@ -94,15 +94,6 @@ export class GameBridge {
     );
   }
 
-  /** Setup rule labels on the pitch, boxed in canvas coordinates. */
-  setupLabels(): Promise<ReturnType<BrowserTestBridge["setupLabels"]>> {
-    return this.page.evaluate(() =>
-      (
-        window as unknown as Record<string, BrowserTestBridge>
-      ).__bbTestBridge.setupLabels()
-    );
-  }
-
   teams(): Promise<[BridgeTeam, BridgeTeam]> {
     return this.page.evaluate(() =>
       (

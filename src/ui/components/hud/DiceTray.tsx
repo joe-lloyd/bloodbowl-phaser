@@ -77,6 +77,11 @@ interface Queued {
   settled: boolean;
   /** Order thrown, from 1. */
   seq: number;
+  /**
+   * The throw ends in a 2D6 roll, such as armour or injury. It is read as a
+   * total that decides what comes next, so no later roll joins it.
+   */
+  closed?: boolean;
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
   /**
@@ -92,9 +97,14 @@ const CHOSEN_MS = 1200;
 /** The most dice one throw carries; the lifted row fits six. */
 const MAX_DICE_PER_THROW = 6;
 
-/** A D6 roll still waiting to be thrown takes the next D6 roll of its team. */
+/**
+ * A D6 roll still waiting to be thrown takes the next D6 roll of its team,
+ * unless it ends in a 2D6 roll: an injury roll must not go up before the
+ * armour roll that allowed it has landed.
+ */
 function joinsThrow(waiting: Queued, next: Queued): boolean {
   return (
+    !waiting.closed &&
     waiting.roll.kind === "d6" &&
     next.roll.kind === "d6" &&
     !waiting.block &&
@@ -255,6 +265,7 @@ export function DiceTray({
         };
         waiting.title = `${waiting.title} · ${item.title}`;
         waiting.result = `${waiting.result} · ${item.result}`;
+        waiting.closed = item.closed;
       } else if (first) queue.current.unshift(item);
       else queue.current.push(item);
       // Never fall far behind the game: keep the latest few.
@@ -277,6 +288,7 @@ export function DiceTray({
         result: event.description || event.rollType,
         teamName: teamName(team.key),
         settled: false,
+        closed: dice.values.length > 1,
       });
     };
 

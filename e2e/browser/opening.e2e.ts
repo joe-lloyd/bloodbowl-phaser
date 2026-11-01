@@ -133,7 +133,12 @@ test("introductions, then the coin, then setup with no zone left glowing", async
       .locator("select")
       .filter({ has: page.locator("optgroup[label=Presets]") });
     await expect(select).toBeVisible({ timeout: 15_000 });
-    expect(await app.bridge.pitchLayers()).toContain("setup_zone_highlight");
+    // The zones are shaded, not labelled; the checklist carries the rules
+    expect(
+      (await app.bridge.pitchLayers())
+        .filter((name) => name.startsWith("setup_zone_"))
+        .sort()
+    ).toEqual(["setup_zone_highlight", "setup_zone_markings"]);
     await expect(page.getByTestId("setup-checklist")).toContainText(
       "Line of scrimmage 0/3"
     );

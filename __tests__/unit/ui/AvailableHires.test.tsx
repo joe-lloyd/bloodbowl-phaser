@@ -45,7 +45,7 @@ describe("AvailableHires skill tooltips", () => {
     expect(container.textContent).toContain("Dodge");
 
     const tooltipPanels = Array.from(
-      container.querySelectorAll('[role="tooltip"]')
+      document.querySelectorAll('[role="tooltip"]')
     );
     expect(tooltipPanels.length).toBeGreaterThan(0);
 
@@ -73,15 +73,15 @@ describe("AvailableHires skill tooltips", () => {
     const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
 
     const tooltipPanels = Array.from(
-      container.querySelectorAll('[role="tooltip"]')
+      document.querySelectorAll('[role="tooltip"]')
     ).map((panel) => panel.textContent);
 
     expect(tooltipPanels).toContain(defensiveText);
     expect(tooltipPanels).toContain(dodgeText);
     // Independent tooltips, not one combined blob repeating both texts.
-    expect(tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)).toBe(
-      false
-    );
+    expect(
+      tooltipPanels.some((t) => t === `${defensiveText} ${dodgeText}`)
+    ).toBe(false);
   });
 
   /**
@@ -109,15 +109,75 @@ describe("AvailableHires skill tooltips", () => {
     const [firstTrigger] = triggers;
     const describedBy = firstTrigger.getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();
-    const panel = container.querySelector(`#${describedBy}`);
+    const panel = document.getElementById(describedBy!);
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute("role")).toBe("tooltip");
-    expect(panel?.className).toContain("group-focus:opacity-100");
-    expect(panel?.className).toContain("group-focus-within:opacity-100");
 
     act(() => {
       (firstTrigger as HTMLElement).focus();
     });
     expect(document.activeElement).toBe(firstTrigger);
+    // Focus, not just hover, reveals the panel
+    expect(panel?.className).toContain("block");
+    expect(panel?.className).not.toContain("hidden");
+    act(() => {
+      (firstTrigger as HTMLElement).blur();
+    });
+    expect(panel?.className).toContain("hidden");
+  });
+
+  it("keeps a focused skill's tooltip open when the pointer leaves", async () => {
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={getRosterByRosterName(RosterName.AMAZON)}
+          treasury={1_000_000}
+          onHirePlayer={() => {}}
+        />
+      );
+    });
+    const trigger = container.querySelector<HTMLElement>('span[tabindex="0"]')!;
+    const panel = document.getElementById(
+      trigger.getAttribute("aria-describedby")!
+    )!;
+    act(() => trigger.focus());
+    expect(panel.className).not.toContain("hidden");
+    act(() => {
+      trigger.dispatchEvent(
+        new MouseEvent("mouseout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(panel.className).not.toContain("hidden");
+  });
+
+  it("shows one tooltip at a time: hovering another skill hides the focused one", async () => {
+    await act(async () => {
+      root.render(
+        <AvailableHires
+          roster={getRosterByRosterName(RosterName.AMAZON)}
+          treasury={1_000_000}
+          onHirePlayer={() => {}}
+        />
+      );
+    });
+    const [first, second] = Array.from(
+      container.querySelectorAll<HTMLElement>('span[tabindex="0"]')
+    );
+    const panelOf = (trigger: HTMLElement) =>
+      document.getElementById(trigger.getAttribute("aria-describedby")!)!;
+    act(() => first.focus());
+    act(() => {
+      second.dispatchEvent(
+        new MouseEvent("mouseover", {
+          bubbles: true,
+          relatedTarget: document.body,
+        })
+      );
+    });
+    expect(panelOf(second).className).not.toContain("hidden");
+    expect(panelOf(first).className).toContain("hidden");
   });
 });

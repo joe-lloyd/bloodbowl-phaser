@@ -65,14 +65,6 @@ export interface BrowserTestBridge {
   cameraMoving(): boolean;
   /** Names of the layers drawn on the pitch, such as "setup_zone_highlight". */
   pitchLayers(): string[];
-  /** Setup rule labels on the pitch, with their boxes in canvas coordinates. */
-  setupLabels(): {
-    text: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }[];
   /**
    * The *live* design-space canvas size. Deliberately read from the running
    * Phaser scale manager rather than `GameConfig`: the scale manager fits the
@@ -139,13 +131,6 @@ interface BridgeScene {
     | {
         getPixelPosition(x: number, y: number): { x: number; y: number };
         layerNames(): string[];
-        setupLabelBounds(): {
-          text: string;
-          x: number;
-          y: number;
-          width: number;
-          height: number;
-        }[];
       }
     | undefined;
 }
@@ -215,19 +200,6 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
       }),
     pitchLayers: () =>
       activeScenes().flatMap((scene) => scene.getPitch?.()?.layerNames() ?? []),
-    setupLabels: () =>
-      activeScenes().flatMap((scene) => {
-        const cam = scene.cameras?.main;
-        const labels = scene.getPitch?.()?.setupLabelBounds() ?? [];
-        if (!cam) return labels;
-        return labels.map((label) => ({
-          text: label.text,
-          x: (label.x - cam.worldView.x) * cam.zoom,
-          y: (label.y - cam.worldView.y) * cam.zoom,
-          width: label.width * cam.zoom,
-          height: label.height * cam.zoom,
-        }));
-      }),
     canvasSize: () => {
       const scale = phaserGame()?.scale;
       return {

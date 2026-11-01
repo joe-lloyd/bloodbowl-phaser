@@ -134,4 +134,78 @@ describe("KickoffEventOverlay", () => {
     expect(container.textContent).not.toContain("PASS");
     expect(container.textContent).not.toContain("FOUL");
   });
+
+  it("opens the menu when the Charge starts with the player the coach just picked", async () => {
+    // Live site: the coach picked one charger and confirmed. The Charge
+    // re-selected that same player, the menu ignored it as a repeat, and
+    // nobody could act.
+    const player = createPlayerOnPitch("team1", 1, 5, 5);
+    const step: {
+      event: KickoffEvent;
+      teamId: string;
+      selectionLimit: number;
+      selectedPlayerIds: string[];
+      movedPlayerIds: string[];
+      awaitingPlacement: string[];
+      charge?: {
+        queue: string[];
+        budget: { blitz: number; throwTeammate: number; kickTeammate: number };
+        activePlayerId: string | null;
+        aborted: boolean;
+      };
+    } = {
+      event: KickoffEvent.CHARGE,
+      teamId: "team1",
+      selectionLimit: 1,
+      selectedPlayerIds: [],
+      movedPlayerIds: [],
+      awaitingPlacement: [],
+    };
+    const gameService = {
+      getKickoffEventStep: vi.fn(() => ({ ...step })),
+      getPlayerById: vi.fn(() => player),
+      getState: vi.fn(() => ({ ballPosition: null })),
+      getOpponents: vi.fn(() => []),
+      getTeammates: vi.fn(() => []),
+      getAvailableMovements: vi.fn(() => [{ x: 6, y: 5 }]),
+    };
+    vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
+    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
+      gameService,
+    } as any);
+    await act(async () => {
+      root.render(
+        <PlayerActionMenu
+          eventBus={eventBus}
+          turnData={{
+            phase: GamePhase.KICKOFF,
+            activeTeamId: "team2",
+            movementUsed: new Map(),
+            hasBlitzed: false,
+            hasPassed: false,
+            hasHandedOff: false,
+            hasFouled: false,
+          }}
+        />
+      );
+    });
+    // Picking the charger selects them; no menu yet
+    step.selectedPlayerIds = [player.id];
+    await act(async () => {
+      eventBus.emit(GameEventNames.PlayerSelected, { player });
+    });
+    expect(container.textContent).not.toContain("MOVE");
+
+    // Confirm: the Charge begins and selects the same player again
+    step.charge = {
+      queue: [],
+      budget: { blitz: 1, throwTeammate: 1, kickTeammate: 1 },
+      activePlayerId: player.id,
+      aborted: false,
+    };
+    await act(async () => {
+      eventBus.emit(GameEventNames.PlayerSelected, { player });
+    });
+    expect(container.textContent).toContain("MOVE");
+  });
 });
