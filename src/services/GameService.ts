@@ -2717,7 +2717,15 @@ export class GameService implements IGameService {
               attacker.teamId
             )
         );
-        if (!check.success) {
+        if (
+          !check.success &&
+          !(await steadyFootingSaves(
+            attacker,
+            this.diceController,
+            this.eventBus,
+            this
+          ))
+        ) {
           attacker.status = PlayerStatus.PRONE;
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
             playerId: attackerId,
