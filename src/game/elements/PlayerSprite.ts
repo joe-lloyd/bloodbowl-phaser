@@ -67,11 +67,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /** The walk or fall being shown; resolves once it has played. */
   public motion: Promise<void> = Promise.resolve();
   private animStart = 0;
-  /**
-   * Whole idle frames, so every player's idle flips on the same beat and a
-   * still board only changes six times a second.
-   */
-  private phase = Math.floor(Math.random() * FPS.idle) * (1000 / FPS.idle);
+  /** Each player keeps its own timing instead of idling on a shared beat. */
+  private phase = Math.random() * 1000;
   private shownFrame = "";
   /** Top of the head relative to the feet, for markers. */
   private headY = -60;
@@ -214,10 +211,9 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private tick(time: number): void {
     if (!this.layers.length || !this.visible) return;
     const count = modelArt(this.model).animations[this.anim] ?? 1;
-    // Idle loops on the scene clock, so it keeps that shared beat
-    const start = this.anim === "idle" ? 0 : this.animStart;
     const step = Math.floor(
-      ((time - start + (this.anim === "fall" ? 0 : this.phase)) / 1000) *
+      ((time - this.animStart + (this.anim === "fall" ? 0 : this.phase)) /
+        1000) *
         FPS[this.anim]
     );
     const index =
