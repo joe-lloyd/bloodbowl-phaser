@@ -17,28 +17,44 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { DiceController } from "../controllers/DiceController";
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
+import { IGameService } from "../../services/interfaces/IGameService";
+import { withRerollOffer } from "../skills/rerolls";
 
 /**
  * Roll Steady Footing for a player about to be Knocked Down / Fall Over.
  * Returns true when they stay standing (trait present and a 6 rolled).
  */
-export function steadyFootingSaves(
+export async function steadyFootingSaves(
   player: Player,
   dice: DiceController,
-  eventBus: IEventBus
-): boolean {
+  eventBus: IEventBus,
+  gameService?: IGameService
+): Promise<boolean> {
   if (!hasSkill(player.skills, SkillType.STEADY_FOOTING)) return false;
 
-  const roll = dice.rollD6(
-    `Steady Footing (${player.playerName})`,
-    player.teamId
-  );
-  if (roll !== 6) return false;
+  const roll = () =>
+    dice.rollSkillCheck(
+      "Steady Footing",
+      6,
+      0,
+      player.playerName,
+      player.teamId
+    );
+  const check = gameService
+    ? await withRerollOffer(
+        { gameService, eventBus },
+        player,
+        "steady-footing",
+        roll,
+        { rollName: "Steady Footing" }
+      )
+    : roll();
+  if (!check.success) return false;
 
   eventBus.emit(GameEventNames.SkillTriggered, {
     playerId: player.id,
     skill: SkillType.STEADY_FOOTING,
-    effect: `${player.playerName} keeps their feet — Steady Footing (6)`,
+    effect: `${player.playerName} keeps their feet with Steady Footing`,
   });
   return true;
 }

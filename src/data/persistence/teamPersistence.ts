@@ -129,15 +129,21 @@ function parseDraftInducements(raw: unknown): InducementSelectionLine[] {
 }
 
 /**
- * A position renamed since a document was stored. Empty today — this is the
- * seam a future roster rename hooks into, so a stored `positionName` never
- * has to silently degrade to the placeholder path just because a template
- * was renamed.
+ * Positions replaced by the March 2026 High Elf roster. Preserve each
+ * player's career while resolving their new profile on load.
  */
-const POSITION_ALIASES: Partial<Record<RosterName, Record<string, string>>> =
-  {};
+const POSITION_ALIASES: Partial<Record<RosterName, Record<string, string>>> = {
+  [RosterName.HIGH_ELF]: {
+    "High Elf Thrower": "Phoenix Warrior",
+    "High Elf Catcher": "White Lion",
+    "High Elf Blitzer": "Dragon Prince",
+  },
+};
 
-function resolvePositionName(rosterName: RosterName, positionName: string): string {
+function resolvePositionName(
+  rosterName: RosterName,
+  positionName: string
+): string {
   return POSITION_ALIASES[rosterName]?.[positionName] ?? positionName;
 }
 
@@ -234,9 +240,7 @@ export function hydratePlayer(
       `Position "${stored.positionName}" is not part of the ` +
       `${rosterName ?? "unknown"} roster. Progression, injuries and career ` +
       `stats are preserved; stats and skills show as placeholders.`;
-    warnings.push(
-      `${teamId}/${stored.id}: ${hydrationWarning}`
-    );
+    warnings.push(`${teamId}/${stored.id}: ${hydrationWarning}`);
   }
 
   const characteristicAdvances = stored.characteristicAdvances ?? {};
@@ -248,7 +252,8 @@ export function hydratePlayer(
       (injury) => STAT_DECREASE_INJURY[injury] === stat
     ).length;
     const direction = isInvertedStat(stat) ? -1 : 1;
-    stats[stat] = baseStats[stat] + direction * advances - direction * decreases;
+    stats[stat] =
+      baseStats[stat] + direction * advances - direction * decreases;
   }
   if (stored.veteran) stats.MA -= 1;
 
@@ -277,7 +282,7 @@ export function hydratePlayer(
   const player: Player = {
     id: stored.id,
     playerName: stored.playerName,
-    positionName: stored.positionName,
+    positionName: resolvedPositionName,
     number: stored.number,
     keywords,
     teamId,
@@ -287,7 +292,7 @@ export function hydratePlayer(
     primary,
     secondary,
     spp: stored.spp ?? 0,
-    level: stored.level ?? (stored.advancements?.length ?? 0),
+    level: stored.level ?? stored.advancements?.length ?? 0,
     playerKind: stored.playerKind ?? "roster",
     advancements: stored.advancements ?? [],
     characteristicAdvances,
@@ -332,7 +337,9 @@ export function dehydratePlayer(player: Player): StoredPlayer {
  * `StoredTeam` or a legacy full-object document. Team value is always
  * recomputed from the hydrated roster, never read from storage.
  */
-export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult {
+export function hydrateStoredTeam(
+  raw: Record<string, unknown>
+): HydrationResult {
   const warnings: string[] = [];
   const rosterName = raw.rosterName as RosterName | undefined;
   const teamId = String(raw.id);
@@ -352,7 +359,9 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
     colors: raw.colors as TeamColors,
     players,
     maxRosterSize: Number(raw.maxRosterSize ?? 11),
-    formations: Array.isArray(raw.formations) ? (raw.formations as Formation[]) : [],
+    formations: Array.isArray(raw.formations)
+      ? (raw.formations as Formation[])
+      : [],
     treasury: Number(raw.treasury ?? 0),
     startingTreasury: Number(raw.startingTreasury ?? 0),
     rerolls: Number(raw.rerolls ?? 0),
@@ -367,7 +376,9 @@ export function hydrateStoredTeam(raw: Record<string, unknown>): HydrationResult
     draws: Number(raw.draws ?? 0),
     touchdowns: Number(raw.touchdowns ?? 0),
     casualties: Number(raw.casualties ?? 0),
-    ...(raw.seedMetadata ? { seedMetadata: raw.seedMetadata as SeedMetadata } : {}),
+    ...(raw.seedMetadata
+      ? { seedMetadata: raw.seedMetadata as SeedMetadata }
+      : {}),
     ...(raw.activeCompetitionId
       ? { activeCompetitionId: raw.activeCompetitionId as string }
       : {}),

@@ -46,6 +46,7 @@ import {
   PushContext,
   spendTeamReroll,
 } from "../skills";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 import { PassController } from "../controllers/PassController";
 
 /**
@@ -846,7 +847,7 @@ export class BlockManager {
 
     switch (result.type) {
       case "skull":
-        this.handleSkull(attacker);
+        await this.handleSkull(attacker);
         break;
       case "both-down":
         await this.handleBothDown(attacker, defender);
@@ -993,7 +994,12 @@ export class BlockManager {
     }
 
     if (pushCtx.refused) {
-      this.resolveRefusedPush(attacker, defender, knockDownDefender, frenzy);
+      await this.resolveRefusedPush(
+        attacker,
+        defender,
+        knockDownDefender,
+        frenzy
+      );
       return;
     }
 
@@ -1021,14 +1027,25 @@ export class BlockManager {
    * Firm "will not prevent a player with the Frenzy Skill from performing a
    * second Block Action, so long as this player is still Standing" (p.136).
    */
-  private resolveRefusedPush(
+  private async resolveRefusedPush(
     attacker: Player,
     defender: Player,
     knockDownDefender: boolean,
     frenzy: boolean
-  ): void {
+  ): Promise<void> {
     const flowManager = this.callbacks.getFlowManager?.();
 
+    if (
+      knockDownDefender &&
+      (await steadyFootingSaves(
+        defender,
+        this.diceController,
+        this.eventBus,
+        flowManager?.context.gameService
+      ))
+    ) {
+      knockDownDefender = false;
+    }
     if (knockDownDefender) {
       this.knockDownPlayer(defender);
       if (hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
@@ -1512,7 +1529,7 @@ export class BlockManager {
     if (!onPitch) {
       // Pushed into the crowd: chain ends at this link
       this.chain.links.push({ playerId: defenderId, from, to: null });
-      this.applyChain(followUp);
+      await this.applyChain(followUp);
       return;
     }
 
@@ -1527,7 +1544,7 @@ export class BlockManager {
       const reaction = await this.foldChainPush(occupant);
       if (!this.chain) return;
       if (reaction.refused) {
-        this.refuseChain();
+        await this.refuseChain();
         return;
       }
       this.chain.sideStepPush = reaction.sideStepPush;
@@ -1535,7 +1552,7 @@ export class BlockManager {
       return;
     }
 
-    this.applyChain(followUp);
+    await this.applyChain(followUp);
   }
 
   /**
@@ -1576,13 +1593,13 @@ export class BlockManager {
    * move, so nobody in the chain moves. The Block's target is treated as
    * having refused the push itself (a POW still knocks them down in place).
    */
-  private refuseChain(): void {
+  private async refuseChain(): Promise<void> {
     const chain = this.chain!;
     this.chain = null;
     const attacker = this.getPlayerById(chain.attackerId);
     const defender = this.getPlayerById(chain.links[0].playerId);
     if (!attacker || !defender) return;
-    this.resolveRefusedPush(
+    await this.resolveRefusedPush(
       attacker,
       defender,
       chain.knockDownDefender ??
@@ -1592,7 +1609,7 @@ export class BlockManager {
   }
 
   /** Apply all chain links innermost-first, then knockdown/follow-up. */
-  private applyChain(followUp: boolean): void {
+  private async applyChain(followUp: boolean): Promise<void> {
     if (!this.chain) return;
     const {
       attackerId,
@@ -1603,7 +1620,7 @@ export class BlockManager {
       forceFollowUp,
       frenzy,
     } = this.chain;
-    const knockDownDefender =
+    let knockDownDefender =
       this.chain.knockDownDefender ??
       (resultType === "pow" || resultType === "pow-dodge");
     this.chain = null;
@@ -1714,7 +1731,19 @@ export class BlockManager {
       !fellThrough.has(first.playerId)
     ) {
       const defender = this.getPlayerById(first.playerId);
-      if (defender) {
+      if (
+        defender &&
+        (await steadyFootingSaves(
+          defender,
+          this.diceController,
+          this.eventBus,
+          flowManager?.context.gameService
+        ))
+      ) {
+        knockDownDefender = false;
+        if (!stripBall)
+          flowManager?.context.gameService.checkForTouchdown(defender.id);
+      } else if (defender) {
         this.knockDownPlayer(defender);
         const attacker = this.getPlayerById(attackerId);
         if (attacker && hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
@@ -1793,7 +1822,19 @@ export class BlockManager {
   /**
    * Handle skull result (attacker down)
    */
-  private handleSkull(attacker: Player): void {
+  private async handleSkull(attacker: Player): Promise<void> {
+    const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
+    if (
+      await steadyFootingSaves(
+        attacker,
+        this.diceController,
+        this.eventBus,
+        gameService
+      )
+    ) {
+      gameService?.finishBlockActivation(attacker.id);
+      return;
+    }
     const attackerHadBall = this.isOnBall(attacker);
     this.knockDownPlayer(attacker);
 
@@ -1837,6 +1878,31 @@ export class BlockManager {
       return;
     }
 
+    const gameService = this.callbacks.getFlowManager?.()?.context.gameService;
+    if (!ctx.placedProne) {
+      if (
+        ctx.attackerKnockedDown &&
+        (await steadyFootingSaves(
+          attacker,
+          this.diceController,
+          this.eventBus,
+          gameService
+        ))
+      ) {
+        ctx.attackerKnockedDown = false;
+      }
+      if (
+        ctx.defenderKnockedDown &&
+        (await steadyFootingSaves(
+          defender,
+          this.diceController,
+          this.eventBus,
+          gameService
+        ))
+      ) {
+        ctx.defenderKnockedDown = false;
+      }
+    }
     const attackerHadBall = this.isOnBall(attacker);
 
     if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
