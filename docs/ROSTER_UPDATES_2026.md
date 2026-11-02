@@ -78,7 +78,12 @@ roster pages 162 and 185 found these remaining errors, now corrected:
 
 The statlines, costs, starting skills on the other positions, skill access,
 positional limits, leagues and Apothecary permissions otherwise match those
-rulebook rosters. Tomb Kings retain their Masters of Undeath special rule.
+rulebook rosters. Masters of Undeath was listed but its Raise the Dead
+effect was missing. Raise the Dead now uses a confirmed Sevens
+Dead result, with ST and Stunty eligibility, a saved once-per-match limit,
+and the free post-match recruitment choice. Regeneration and Apothecary
+saves prevent raising the victim. The Sevens roster limit applies when
+keeping the recruit permanently.
 The historical Anointed Thrower and Anointed Blitzer display names remain
 stable for saved teams. The new Steady Footing fixes also apply to Grail
 Knights. The August Sevens tier list is already present for all 30 teams.

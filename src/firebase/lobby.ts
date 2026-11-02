@@ -148,6 +148,8 @@ function lobbyRef(code: string) {
 
 /** What, with the snapshot, resumes a match exactly where it was saved. */
 export interface MatchResume {
+  /** Full current rosters, including players raised since the lobby was created. */
+  teams?: [Team, Team];
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
   /** Commands run by then: on rejoining, the side with more is ahead. */

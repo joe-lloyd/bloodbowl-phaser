@@ -20,19 +20,12 @@
  * patch-up is declined or fails.
  */
 
-import {
-  Player,
-  PlayerStatus,
-  PositionKeyWord,
-  TraitKeyWord,
-  createPlayer,
-} from "../../types/Player";
-import { Team } from "../../types/Team";
+import { Player, TraitKeyWord } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
-import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { GameEventNames } from "../../types/events";
 import type { IEventBus } from "../../services/EventBus";
 import type { IGameService } from "../../services/interfaces/IGameService";
+import { addReserveLineman, raiseDead } from "./raiseDead";
 
 /**
  * How the casualty was inflicted — only a Block Action arms Plague Ridden.
@@ -79,29 +72,8 @@ export function plagueRiddenApplies(
 }
 
 /**
- * Add a fresh Lineman from the team's roster to its Reserves Box, returning
- * the new player (or null if the roster has no Lineman). This may push the
- * squad past 16 players, which Plague Ridden explicitly allows.
- */
-export function addReserveLineman(team: Team): Player | null {
-  const roster = getRosterByRosterName(team.rosterName);
-  const template = roster?.playerTemplates.find((t) =>
-    t.keywords.includes(PositionKeyWord.LINEMAN)
-  );
-  if (!template) return null;
-
-  const number =
-    team.players.reduce((max, p) => Math.max(max, p.number), 0) + 1;
-  const player = createPlayer(template, team.id, number);
-  player.status = PlayerStatus.RESERVE;
-  team.players.push(player);
-  return player;
-}
-
-/**
- * A Dead result stands: announce the kill and, when the killing Block armed
- * Plague Ridden (see plagueRiddenApplies), spend it to add a Lineman to the
- * killer's Reserves.
+ * A Dead result stands: announce the kill, resolve Masters of Undeath,
+ * then resolve any Plague Ridden effect armed by the killing Block.
  */
 export function confirmKill(
   gameService: IGameService,
@@ -114,6 +86,7 @@ export function confirmKill(
     causerId: killerId,
     victimId: victim.id,
   });
+  raiseDead(gameService, eventBus, victim);
   const killer = killerId ? gameService.getPlayerById(killerId) : undefined;
   if (!armsPlagueRidden || !killer) return;
   const team = gameService.getTeam(killer.teamId);

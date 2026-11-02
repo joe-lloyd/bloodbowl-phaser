@@ -99,6 +99,17 @@ Where the magazine is silent, the engine does this:
   successful patch-up clears the casualty from the player's record. A Dead
   result only counts as a kill, for Plague Ridden too, once the Apothecary
   is declined or fails.
+- Masters of Undeath uses that confirmed Dead result in place of a
+  Casualty Roll. Once per match, an opposition victim with ST 4 or less
+  and without Stunty adds the roster's first Lineman to Reserves. As with
+  Plague Ridden, this happens automatically. Regeneration and successful
+  Apothecary saves prevent it. The extra player may temporarily exceed
+  the Sevens roster limit of 11. After a league match, Manage Team offers
+  the coach a free permanent hire or release. Hiring requires room under
+  that limit and adds the player's full value. Matched Play retains no
+  recruit. An unhired recruit does not count toward team value or the next
+  match's available players. The use and recruit survive a saved match;
+  online resumes retain full rosters, including injuries and skill parameters.
 - Seriously Hurt records Miss Next Game on the player and Dead records Dead.
   In a league, a Miss Next Game player sits the next game out in the
   Casualty box and the record is cleared as that game starts. A dead player

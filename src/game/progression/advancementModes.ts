@@ -23,6 +23,7 @@ import {
   SkillRollCandidate,
   Team,
   TeamRoster,
+  isPendingRaisedDeadRecruit,
 } from "../../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../../types/Skills";
 import { IRNGService } from "../../services/rng/RNGService";
@@ -190,13 +191,14 @@ export function removeMatchedPlayAllocation(
 /** A4: these can never be gained through Sevens Skill Selection. */
 const NEVER_GAINED = new Set<SkillType>([SkillType.LEADER, SkillType.PRO]);
 
-/** Players who did not end the game as a Casualty (A2, A3). Journeymen
- *  leave after the game, so they are not offered. */
+/** Players who did not end the game as a Casualty (A2, A3). Temporary
+ *  players who have not been hired are not offered. */
 export function eligibleSkillSelectionPlayers(team: Team): string[] {
   return team.players
     .filter(
       (player) =>
         player.playerKind !== "journeyman" &&
+        !isPendingRaisedDeadRecruit(team, player.id) &&
         player.status !== PlayerStatus.INJURED &&
         player.status !== PlayerStatus.DEAD &&
         !player.injuries.includes(InjuryType.DEAD)

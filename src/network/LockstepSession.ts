@@ -18,6 +18,7 @@ import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import {
   applySnapshotToTeams,
   deserializeGameState,
+  restoreTeam,
 } from "../headless/serialization";
 import {
   ChatPayload,
@@ -337,12 +338,7 @@ export class LockstepSession {
     const { team1, team2, gameService, rng, matchStats } = game.ctx;
     // Copy into the existing objects: the board holds references to them
     [team1, team2].forEach((team, index) => {
-      const saved = state.teams[index];
-      team.players.forEach((player) => {
-        const match = saved.players.find((p) => p.id === player.id);
-        if (match) Object.assign(player, structuredClone(match));
-      });
-      Object.assign(team, { ...structuredClone(saved), players: team.players });
+      restoreTeam(team, state.teams[index]);
     });
     applySnapshotToTeams(state.snapshot, [team1, team2]);
     Object.assign(gameService.getState(), deserializeGameState(state.snapshot));

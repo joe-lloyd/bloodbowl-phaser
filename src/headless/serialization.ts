@@ -99,6 +99,8 @@ export interface GameSnapshot {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
   veteranRerollsUsed?: string[];
+  /** Masters of Undeath usage and temporary recruits; absent on older saves. */
+  raisedDead?: GameState["raisedDead"];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
@@ -208,6 +210,7 @@ export function serializeGameState(
     veteranRerollsUsed: state.veteranRerollsUsed
       ? [...state.veteranRerollsUsed]
       : undefined,
+    raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -290,6 +293,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     veteranRerollsUsed: snapshot.veteranRerollsUsed
       ? [...snapshot.veteranRerollsUsed]
       : undefined,
+    raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
       : undefined,
@@ -305,6 +309,17 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
     result: snapshot.result ? { ...snapshot.result } : undefined,
   };
+}
+
+/** Restore a saved roster while retaining live team, array and player references. */
+export function restoreTeam(team: Team, saved: Team): void {
+  const copy = structuredClone(saved);
+  const players = copy.players.map((record) => {
+    const player = team.players.find((candidate) => candidate.id === record.id);
+    return player ? Object.assign(player, record) : record;
+  });
+  team.players.splice(0, team.players.length, ...players);
+  Object.assign(team, { ...copy, players: team.players });
 }
 
 /**

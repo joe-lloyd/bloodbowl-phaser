@@ -53,6 +53,12 @@ export interface DraftRecord {
 export type PendingDevelopment =
   | {
       id: string;
+      kind: "raised-dead-recruit";
+      playerId: string;
+      createdAt: number;
+    }
+  | {
+      id: string;
       kind: "advanced-league-advancement";
       playerId: string;
       createdAt: number;
@@ -370,12 +376,24 @@ export function hasBlockingPendingDevelopment(team: Team): boolean {
   return (team.pendingDevelopment?.length ?? 0) > 0;
 }
 
+/** A raised Lineman awaiting the coach's permanent hiring decision. */
+export function isPendingRaisedDeadRecruit(
+  team: Team,
+  playerId: string
+): boolean {
+  return (team.pendingDevelopment ?? []).some(
+    (entry) =>
+      entry.kind === "raised-dead-recruit" && entry.playerId === playerId
+  );
+}
+
 /**
- * Whether a player can play the team's next game: not already in the
+ * Whether a hired player can play the team's next game: not already in the
  * Casualty box, which before kick-off means sitting this game out, and in a
  * league not due to Miss Next Game or Dead.
  */
 export function playsNextGame(team: Team, player: Player): boolean {
+  if (isPendingRaisedDeadRecruit(team, player.id)) return false;
   if (
     player.status === PlayerStatus.INJURED ||
     player.status === PlayerStatus.DEAD
@@ -426,7 +444,9 @@ export function getActivePlayers(team: Team): Player[] {
  * Get reserve players (in dugout)
  */
 export function getReservePlayers(team: Team): Player[] {
-  return team.players.filter((p) => p.status === "Reserve");
+  return team.players.filter(
+    (p) => p.status === "Reserve" && !isPendingRaisedDeadRecruit(team, p.id)
+  );
 }
 
 /**

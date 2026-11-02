@@ -25,6 +25,7 @@ import {
 import {
   applySnapshotToTeams,
   deserializeGameState,
+  restoreTeam,
 } from "../headless/serialization";
 import { AllEvents, GameEventNames, StepPrompt } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
@@ -305,6 +306,12 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   const saved = lobby.snapshot ? lobby : null;
   let initialState;
   if (saved?.snapshot) {
+    for (const team of [team1, team2]) {
+      const roster = saved.resume?.teams?.find(
+        (record) => record.id === team.id
+      );
+      if (roster) restoreTeam(team, roster);
+    }
     applySnapshotToTeams(saved.snapshot, [team1, team2]);
     initialState = deserializeGameState(saved.snapshot);
   } else {
@@ -366,6 +373,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   };
   const saveNow = () => {
     void persistMatch(lobby.code, game.snapshot(), {
+      teams: structuredClone([team1, team2]),
       rng: container.rngService.captureState(),
       matchStats: container.matchStats.captureState(),
       applied: session!.appliedCommands(),

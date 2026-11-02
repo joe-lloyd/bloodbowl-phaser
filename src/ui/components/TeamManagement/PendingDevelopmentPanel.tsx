@@ -4,6 +4,7 @@ import {
   calculateTeamValue,
   PendingDevelopment,
   Team,
+  isPendingRaisedDeadRecruit,
 } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import {
@@ -29,6 +30,11 @@ import {
   startSecondarySelection,
 } from "../../../game/progression/advancementModes";
 import { SkillCategory, SkillType } from "../../../types/Skills";
+import {
+  canKeepRaisedDead,
+  RaisedDeadOffer,
+  resolveRaisedDeadRecruit,
+} from "../../../game/rules/raiseDead";
 import { AdvancementForm } from "../shared/AdvancementForm";
 import {
   cx,
@@ -70,7 +76,17 @@ export function PendingDevelopmentPanel({
       )}
       {pending.map((entry) => {
         switch (entry.kind) {
+          case "raised-dead-recruit":
+            return (
+              <RaisedDeadEntry
+                key={entry.id}
+                team={team}
+                entry={entry}
+                onChange={onChange}
+              />
+            );
           case "advanced-league-advancement":
+            if (isPendingRaisedDeadRecruit(team, entry.playerId)) return null;
             return (
               <AdvancedLeagueEntry
                 key={entry.id}
@@ -101,6 +117,50 @@ export function PendingDevelopmentPanel({
         }
       })}
     </Panel>
+  );
+}
+
+function RaisedDeadEntry({
+  team,
+  entry,
+  onChange,
+}: {
+  team: Team;
+  entry: RaisedDeadOffer;
+  onChange: (team: Team) => void;
+}) {
+  const player = team.players.find(
+    (candidate) => candidate.id === entry.playerId
+  );
+  if (!player) return null;
+  const room = canKeepRaisedDead(team, player.id);
+  const choose = (keep: boolean) => {
+    resolveRaisedDeadRecruit(team, entry, keep);
+    saveTeam(team);
+    onChange({ ...team });
+  };
+  return (
+    <div className={ENTRY}>
+      <p className="mb-2">
+        Masters of Undeath raised <strong>{player.playerName}</strong>. Hire
+        them for free or let them go. Keeping them adds{" "}
+        {(player.cost + player.teamValue).toLocaleString()} to team value.
+      </p>
+      {!room && (
+        <p className="mb-2">
+          Your roster is full. Resolve any other player offers to make room, or
+          let this Lineman go.
+        </p>
+      )}
+      <div className="flex gap-2">
+        <HudButton size="sm" disabled={!room} onClick={() => choose(true)}>
+          Hire for free
+        </HudButton>
+        <HudButton size="sm" variant="danger" onClick={() => choose(false)}>
+          Let them go
+        </HudButton>
+      </div>
+    </div>
   );
 }
 

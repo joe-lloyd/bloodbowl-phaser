@@ -14,6 +14,7 @@ import {
   eligibleSkillSelectionPlayers,
 } from "../../../game/progression/advancementModes";
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
+import { offerRaisedDeadRecruit } from "../../../game/rules/raiseDead";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
@@ -226,6 +227,8 @@ export function MatchResultsScreen({ visible }: Props) {
    */
   const recordPendingDevelopment = (matchId: string) => {
     ownedTeams(teams).forEach((team) => {
+      const raisedId = container?.gameService.getState().raisedDead?.[team.id];
+      if (raisedId) offerRaisedDeadRecruit(team, raisedId);
       if (team.advancementMode === "sevens-skill-selection") {
         const eligible = eligibleSkillSelectionPlayers(team);
         if (eligible.length > 0) {
