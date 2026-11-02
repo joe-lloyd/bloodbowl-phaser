@@ -394,7 +394,12 @@ export class MovementManager {
 
         if (
           !check.success &&
-          !steadyFootingSaves(player, this.diceController, this.eventBus)
+          !(await steadyFootingSaves(
+            player,
+            this.diceController,
+            this.eventBus,
+            gameService
+          ))
         ) {
           failed = true;
           currentPos = step;
@@ -553,7 +558,12 @@ export class MovementManager {
 
         if (
           !resolvedCtx.success &&
-          !steadyFootingSaves(player, this.diceController, this.eventBus)
+          !(await steadyFootingSaves(
+            player,
+            this.diceController,
+            this.eventBus,
+            gameService
+          ))
         ) {
           failed = true;
           // The square the dodger was leaving — Arm Bar markers of it react.
@@ -848,7 +858,12 @@ export class MovementManager {
         : rollRush();
       if (
         !check.success &&
-        !steadyFootingSaves(player, this.diceController, this.eventBus)
+        !(await steadyFootingSaves(
+          player,
+          this.diceController,
+          this.eventBus,
+          gameService
+        ))
       ) {
         player.status = PlayerStatus.PRONE;
         this.state.turn.movementUsed.set(playerId, moveAllowance(maView));
@@ -960,31 +975,43 @@ export class MovementManager {
       }
     }
 
-    if (check.success) {
-      player.gridPosition = { ...target };
+    const saved =
+      !check.success &&
+      (await steadyFootingSaves(
+        player,
+        this.diceController,
+        this.eventBus,
+        gameService
+      ));
+    if (check.success || saved) {
+      const destination = check.success || check.roll !== 1 ? target : from;
+      player.gridPosition = { ...destination };
       this.eventBus.emit(GameEventNames.PlayerMoved, {
         playerId,
         from,
-        to: { ...target },
-        path: [from, { ...target }],
+        to: { ...destination },
+        path: [from, { ...destination }],
         ballFrom: holdingBall ? from : undefined,
-        ballPath: holdingBall ? [from, { ...target }] : undefined,
+        ballPath: holdingBall ? [from, { ...destination }] : undefined,
         ballJoinStep: 0,
       });
-      if (trapdoorOpens(this.state, this.diceController, player, target)) {
-        this.dropThroughTrapdoor(player, target, holdingBall, flowManager);
+      if (
+        destination !== from &&
+        trapdoorOpens(this.state, this.diceController, player, destination)
+      ) {
+        this.dropThroughTrapdoor(player, destination, holdingBall, flowManager);
         return;
       }
       if (holdingBall) {
-        gameService?.setBallPosition(target.x, target.y);
-        this.state.ballPosition = { ...target };
-        this.eventBus.emit(GameEventNames.BallPlaced, { ...target });
+        gameService?.setBallPosition(destination.x, destination.y);
+        this.state.ballPosition = { ...destination };
+        this.eventBus.emit(GameEventNames.BallPlaced, { ...destination });
         const side = player.teamId === this.team1.id ? 1 : 2;
-        if (isInEndZone(target, GameConfig.PITCH_WIDTH, side)) {
+        if (isInEndZone(destination, GameConfig.PITCH_WIDTH, side)) {
           this.callbacks.onTouchdown?.(player.teamId, player.id);
           return;
         }
-      } else if (context && this.isBallAt(target)) {
+      } else if (context && this.isBallAt(destination)) {
         // Landing on the loose ball: the Pick-up comes after the Jump. A
         // failed Pick-up bounces the ball and causes the Turnover itself.
         const pickupOp = new PickupOperation(playerId);

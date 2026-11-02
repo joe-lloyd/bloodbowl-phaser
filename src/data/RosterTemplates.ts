@@ -193,7 +193,6 @@ const BRETONIAN_ROSTER: TeamRoster = {
         getSkill(SkillType.DAUNTLESS),
         getSkill(SkillType.NERVES_OF_STEEL),
         getSkill(SkillType.PASS),
-        getSkill(SkillType.SAFE_PASS),
       ],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
@@ -572,7 +571,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
       stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
       skills: [
         getSkill(SkillType.BONE_HEAD),
-        getSkill(SkillType.LONER, "4+"),
+        getSkill(SkillType.LONER, "3+"),
         getSkill(SkillType.MIGHTY_BLOW),
         getSkill(SkillType.THICK_SKULL),
         getSkill(SkillType.THROW_TEAM_MATE),
@@ -748,7 +747,7 @@ const DWARF_ROSTER: TeamRoster = {
       ],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
-      secondary: [SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
     },
     {
       positionName: "Dwarf Blitzer",
@@ -886,12 +885,12 @@ const HIGH_ELF_ROSTER: TeamRoster = {
       skills: [],
       maxAllowed: 16,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
-      secondary: [SkillCategory.PASSING, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.STRENGTH],
     },
     {
-      positionName: "High Elf Thrower",
+      positionName: "Phoenix Warrior",
       keywords: [PositionKeyWord.THROWER, RaceKeyWord.ELF],
-      cost: 100_000,
+      cost: 90_000,
       stats: { MA: 6, ST: 3, AG: 2, PA: 2, AV: 9 },
       skills: [
         getSkill(SkillType.CLOUD_BURSTER),
@@ -907,24 +906,32 @@ const HIGH_ELF_ROSTER: TeamRoster = {
       secondary: [SkillCategory.STRENGTH],
     },
     {
-      positionName: "High Elf Catcher",
-      keywords: [PositionKeyWord.CATCHER, RaceKeyWord.ELF],
-      cost: 90_000,
-      stats: { MA: 8, ST: 3, AG: 2, PA: 3, AV: 8 },
-      skills: [getSkill(SkillType.CATCH)],
-      maxAllowed: 4,
-      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
-      secondary: [SkillCategory.STRENGTH],
-    },
-    {
-      positionName: "High Elf Blitzer",
+      positionName: "White Lion",
       keywords: [PositionKeyWord.BLITZER, RaceKeyWord.ELF],
-      cost: 100_000,
-      stats: { MA: 7, ST: 3, AG: 2, PA: 4, AV: 9 },
-      skills: [getSkill(SkillType.BLOCK)],
+      cost: 110_000,
+      stats: { MA: 7, ST: 3, AG: 2, PA: 3, AV: 9 },
+      skills: [getSkill(SkillType.CLAWS), getSkill(SkillType.WRESTLE)],
       maxAllowed: 2,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
       secondary: [SkillCategory.PASSING, SkillCategory.STRENGTH],
+    },
+    {
+      positionName: "Dragon Prince",
+      keywords: [
+        PositionKeyWord.BLITZER,
+        RaceKeyWord.ELF,
+        PositionKeyWord.RUNNER,
+      ],
+      cost: 110_000,
+      stats: { MA: 8, ST: 3, AG: 2, PA: 4, AV: 9 },
+      skills: [
+        getSkill(SkillType.BLOCK),
+        getSkill(SkillType.MY_BALL),
+        getSkill(SkillType.STEADY_FOOTING),
+      ],
+      maxAllowed: 2,
+      primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
+      secondary: [SkillCategory.STRENGTH],
     },
   ],
 };
@@ -2146,7 +2153,7 @@ const ORC_ROSTER: TeamRoster = {
       positionName: "Goblin Lineman",
       keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.GOBLIN],
       cost: 40_000,
-      stats: { MA: 6, ST: 2, AG: 3, PA: 3, AV: 8 },
+      stats: { MA: 6, ST: 2, AG: 3, PA: 4, AV: 8 },
       skills: [
         getSkill(SkillType.DODGE),
         getSkill(SkillType.RIGHT_STUFF),
@@ -2545,6 +2552,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
     {
       positionName: "Skeleton Lineman",
       keywords: [
+        RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
         RaceKeyWord.SKELETON,
         TraitKeyWord.UNDEAD,
@@ -2566,8 +2574,9 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
     {
       positionName: "Anointed Thrower",
       keywords: [
-        PositionKeyWord.THROWER,
+        RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
+        PositionKeyWord.THROWER,
         TraitKeyWord.UNDEAD,
       ],
       cost: 65_000,
@@ -2583,7 +2592,6 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       secondary: [
         SkillCategory.AGILITY,
         SkillCategory.DEVIOUS,
-        SkillCategory.MUTATION,
         SkillCategory.STRENGTH,
       ],
     },
@@ -2591,6 +2599,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       positionName: "Anointed Blitzer",
       keywords: [
         PositionKeyWord.BLITZER,
+        RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
         TraitKeyWord.UNDEAD,
       ],
@@ -2609,7 +2618,8 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       positionName: "Tomb Guardian",
       keywords: [
         TraitKeyWord.BIG_GUY,
-        RaceKeyWord.SKELETON,
+        PositionKeyWord.BLOCKER,
+        RaceKeyWord.HUMAN,
         TraitKeyWord.UNDEAD,
       ],
       cost: 115_000,

@@ -1790,10 +1790,13 @@
    "Halfling Hopeful": "halfling_hopeful"
   },
   "High Elf": {
+   "Dragon Prince": "he_blitzer",
    "High Elf Blitzer": "he_blitzer",
    "High Elf Catcher": "he_catcher",
    "High Elf Lineman": "he_lineman",
-   "High Elf Thrower": "he_thrower"
+   "High Elf Thrower": "he_thrower",
+   "Phoenix Warrior": "he_thrower",
+   "White Lion": "he_catcher"
   },
   "Human": {
    "Halfling Hopeful": "halfling_hopeful",

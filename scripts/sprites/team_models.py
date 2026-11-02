@@ -380,8 +380,11 @@ TEAMS = {
               ("Troll Slayer", "troll_slayer"), ("Deathroller", "deathroller")],
     "ELVEN_UNION": [("Union Lineman", "union_lineman"), ("Union Thrower", "union_thrower"),
                     ("Union Catcher", "union_catcher"), ("Union Blitzer", "union_blitzer")],
-    "HIGH_ELF": [("High Elf Lineman", "he_lineman"), ("High Elf Thrower", "he_thrower"),
-                 ("High Elf Catcher", "he_catcher"), ("High Elf Blitzer", "he_blitzer")],
+    "HIGH_ELF": [("High Elf Lineman", "he_lineman"), ("Phoenix Warrior", "he_thrower"),
+                 ("White Lion", "he_catcher"), ("Dragon Prince", "he_blitzer"),
+                 # Historical saved matches still use the old position names.
+                 ("High Elf Thrower", "he_thrower"), ("High Elf Catcher", "he_catcher"),
+                 ("High Elf Blitzer", "he_blitzer")],
     "GNOME": [("Gnome Lineman", "gnome_lineman"), ("Gnome Beastmaster", "gnome_beastmaster"),
               ("Gnome Illusionist", "gnome_illusionist"), ("Woodland Fox", "woodland_fox"),
               ("Altern Forest Treeman", "treeman")],

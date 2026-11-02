@@ -20,7 +20,8 @@ export type RerollableRollKind =
   | "rush"
   | "jump"
   | "activation"
-  | "gaze";
+  | "gaze"
+  | "steady-footing";
 
 export interface RerollDecisionRequest {
   type: "reroll";

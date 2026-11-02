@@ -5,6 +5,7 @@
  * Manages game state, phase transitions, and turn management.
  */
 
+import { steadyFootingSaves } from "../game/rules/steadyFooting";
 import { whenMomentsComplete } from "../game/presentation/momentQueue";
 import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
@@ -1127,7 +1128,16 @@ export class GameService implements IGameService {
           attacker.playerName
         )
     );
-    if (check.success) return true;
+    if (
+      check.success ||
+      (await steadyFootingSaves(
+        attacker,
+        this.diceController,
+        this.eventBus,
+        this
+      ))
+    )
+      return true;
 
     attacker.status = PlayerStatus.PRONE;
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
