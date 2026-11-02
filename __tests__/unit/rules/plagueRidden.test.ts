@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   isPlagueRiddenEligibleTarget,
   plagueRiddenApplies,
-  addReserveLineman,
 } from "../../../src/game/rules/plagueRidden";
+import { addReserveLineman } from "../../../src/game/rules/raiseDead";
 import {
   Player,
   PlayerStatus,

@@ -53,6 +53,12 @@ export interface DraftRecord {
 export type PendingDevelopment =
   | {
       id: string;
+      kind: "raised-dead-recruit";
+      playerId: string;
+      createdAt: number;
+    }
+  | {
+      id: string;
       kind: "advanced-league-advancement";
       playerId: string;
       createdAt: number;

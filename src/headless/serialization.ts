@@ -99,6 +99,8 @@ export interface GameSnapshot {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans who spent their re-roll this game; absent on pre-feature saves. */
   veteranRerollsUsed?: string[];
+  /** Masters of Undeath usage and temporary recruits; absent on older saves. */
+  raisedDead?: GameState["raisedDead"];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
@@ -208,6 +210,7 @@ export function serializeGameState(
     veteranRerollsUsed: state.veteranRerollsUsed
       ? [...state.veteranRerollsUsed]
       : undefined,
+    raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -290,6 +293,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     veteranRerollsUsed: snapshot.veteranRerollsUsed
       ? [...snapshot.veteranRerollsUsed]
       : undefined,
+    raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
       : undefined,

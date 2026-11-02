@@ -115,7 +115,7 @@ export class MatchStats {
 
   constructor(
     private readonly eventBus: IEventBus,
-    teams: Team[],
+    private readonly teams: Team[],
     public readonly progressionEnabled = false
   ) {
     this.sppEligibleTeamIds = new Set(
@@ -135,6 +135,12 @@ export class MatchStats {
   }
 
   private get(playerId: string): PlayerMatchStats | undefined {
+    if (!this.stats.has(playerId)) {
+      const player = this.teams
+        .flatMap((team) => team.players)
+        .find((candidate) => candidate.id === playerId);
+      if (player) this.stats.set(playerId, emptyStats(player));
+    }
     return this.stats.get(playerId);
   }
 
