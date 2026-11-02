@@ -112,6 +112,25 @@ describe("documentation check CLI", () => {
   });
 
   it.each([
+    ["docs/100%-complete.md", "docs/100%-complete.md"],
+    ["docs/100%-complete%20notes.md", "docs/100%-complete notes.md"],
+  ])("accepts literal percent signs in %s", (href, file) => {
+    const result = fixture(`[guide](${href})`, { [file]: "# Guide\n" })();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(
+      "Checked 2 public Markdown files; links resolve and private references are untracked.\n"
+    );
+  });
+
+  it("reports invalid URL encoding without crashing", () => {
+    const result = fixture("[guide](docs/%FF.md)")();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(
+      "README.md: invalid URL encoding in link target docs/%FF.md\n"
+    );
+  });
+
+  it.each([
     'import "../../docs/rulebook/skills.json";',
     'import rules from "../../docs/rulebook/skills.json";',
     'await import("../../docs/rulebook/skills.json");',

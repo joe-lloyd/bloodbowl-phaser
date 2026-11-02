@@ -167,6 +167,7 @@ export interface SkillDefinition {
   description: string;
 }
 
+/** Narrow the constructed record after checking every supported family. */
 function assertCompleteCatalog(
   definitions: Partial<Record<SkillType, SkillDefinition>>
 ): asserts definitions is Record<SkillType, SkillDefinition> {
@@ -176,6 +177,7 @@ function assertCompleteCatalog(
   }
 }
 
+/** Build public descriptions without loading private reference material. */
 function buildSkillDefinitions(): Record<SkillType, SkillDefinition> {
   const definitions: Partial<Record<SkillType, SkillDefinition>> = {};
   for (const type of Object.values(SkillType)) {

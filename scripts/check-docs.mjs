@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+/** List repository paths without traversing ignored reference folders. */
 const gitFiles = (...args) =>
   execFileSync("git", ["ls-files", "-z", ...args], {
     cwd: root,
@@ -47,7 +48,16 @@ for (const file of publicFiles) {
       href.startsWith("//")
     )
       return;
-    const target = decodeURIComponent(href.split(/[?#]/)[0]);
+    let target;
+    try {
+      // A filename may contain bare percent signs alongside URL escapes.
+      target = decodeURIComponent(
+        href.split(/[?#]/)[0].replace(/%(?![0-9a-f]{2})/gi, "%25")
+      );
+    } catch {
+      failures.push(`${file}: invalid URL encoding in link target ${href}`);
+      return;
+    }
     if (!target) return;
     const resolved = target.startsWith("/")
       ? path.resolve(root, target.slice(1))
