@@ -17,7 +17,11 @@ import {
   PositionKeyWord,
   createPlayer,
 } from "../../types/Player";
-import { Team, isLeagueMode } from "../../types/Team";
+import {
+  Team,
+  isLeagueMode,
+  isPendingRaisedDeadRecruit,
+} from "../../types/Team";
 import { SkillType, getSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { movePlayerToBox } from "./playerLocation";
@@ -56,7 +60,9 @@ function takeOnJourneymen(team: Team): void {
   );
   if (!template) return;
   let available = team.players.filter(
-    (player) => player.status === PlayerStatus.RESERVE
+    (player) =>
+      player.status === PlayerStatus.RESERVE &&
+      !isPendingRaisedDeadRecruit(team, player.id)
   ).length;
   while (available < JOURNEYMEN_FILL_TO) {
     const number = nextFreeNumber(team);

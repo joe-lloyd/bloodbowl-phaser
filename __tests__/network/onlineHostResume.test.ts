@@ -11,16 +11,30 @@ import { EventBus } from "../../src/services/EventBus";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
-import { LobbyDoc, DEFAULT_SETTINGS } from "../../src/firebase/lobby";
+import {
+  LobbyDoc,
+  DEFAULT_SETTINGS,
+  MatchResume,
+} from "../../src/firebase/lobby";
+import { Team, RosterName } from "../../src/types/Team";
+import { InjuryType, PlayerStatus } from "../../src/types/Player";
+import { CasualtyOperation } from "../../src/game/operations/CasualtyOperation";
+import { InjuryResult } from "../../src/game/controllers/InjuryController";
 
-const saves = vi.hoisted(() => ({ turns: [] as number[] }));
+const saves = vi.hoisted(() => {
+  const turns: number[] = [];
+  const teams: Array<[Team, Team] | undefined> = [];
+  return { turns, teams };
+});
 vi.mock("../../src/firebase/lobby", async (load) => ({
   ...(await load<typeof import("../../src/firebase/lobby")>()),
   persistMatch: async (
     _code: string,
-    snapshot: { turn: { turnNumber: number } }
+    snapshot: { turn: { turnNumber: number } },
+    resume: MatchResume
   ) => {
     saves.turns.push(snapshot.turn.turnNumber);
+    saves.teams.push(resume.teams);
   },
 }));
 import { Scenario } from "../../src/types/Scenario";
@@ -42,6 +56,84 @@ const midMatch: Scenario = {
 afterEach(() => ServiceContainer.reset());
 
 describe("online host resume", () => {
+  it("restores and persists a complete raised player beyond the original lobby roster", async () => {
+    const scenario: Scenario = {
+      ...midMatch,
+      setup: {
+        ...midMatch.setup,
+        team1Roster: RosterName.TOMB_KINGS,
+        team2Roster: RosterName.HUMAN,
+      },
+    };
+    const before = new HeadlessGame({ scenario, seed: 1 });
+    const { team1, team2 } = before.ctx;
+    const originalTeams = structuredClone([team1, team2]);
+    before.ctx.gameService.flowManager.add(
+      new CasualtyOperation(team2.players[0].id, InjuryResult.DEAD)
+    );
+    await before.ctx.gameService.flowManager.whenIdle();
+    const raised = team1.players.at(-1)!;
+    expect(raised.positionName).toBe("Skeleton Lineman");
+    raised.status = PlayerStatus.INJURED;
+    raised.injuries.push(InjuryType.MISS_NEXT_GAME);
+    const lobby: LobbyDoc = {
+      code: "RAISED",
+      hostUid: "host-uid",
+      guestUid: "guest-uid",
+      status: "active",
+      settings: { ...DEFAULT_SETTINGS },
+      snapshot: before.snapshot(),
+      resume: {
+        rng: before.ctx.rng.captureState(),
+        matchStats: before.ctx.matchStats.captureState(),
+        applied: 4,
+        teams: structuredClone([team1, team2]),
+      },
+      players: {
+        "host-uid": {
+          uid: "host-uid",
+          displayName: "Host",
+          team: originalTeams[0],
+          ready: true,
+        },
+        "guest-uid": {
+          uid: "guest-uid",
+          displayName: "Guest",
+          team: originalTeams[1],
+          ready: true,
+        },
+      },
+      createdAt: null,
+    };
+    const [hostEnd] = createInMemoryTransportPair();
+    const match = createOnlineMatch({
+      lobby,
+      user: {
+        uid: "host-uid",
+        displayName: "Host",
+        email: null,
+        photoURL: null,
+      },
+      eventBus: new EventBus(),
+      transport: hostEnd,
+      seed: 1,
+    });
+    try {
+      expect(match.teams.team1.players.find((p) => p.id === raised.id)).toEqual(
+        {
+          ...raised,
+          conditions: [],
+        }
+      );
+      saves.teams.length = 0;
+      match.saveState();
+      expect(
+        saves.teams[0]?.[0].players.find((p) => p.id === raised.id)
+      ).toEqual({ ...raised, conditions: [] });
+    } finally {
+      match.close();
+    }
+  });
   it("a reloaded coach carries on with the saved dice, match stats and turn counts", () => {
     // The match as the host last saved it
     const before = new HeadlessGame({ scenario: midMatch, seed: 11 });

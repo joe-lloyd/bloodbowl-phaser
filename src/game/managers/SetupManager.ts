@@ -2,7 +2,7 @@ import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
-import { Team } from "@/types/Team";
+import { Team, isPendingRaisedDeadRecruit } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import {
   FormationPosition,
@@ -629,6 +629,8 @@ export class SetupManager {
   }
 
   private isEligible(player: Player): boolean {
+    const team = this.getTeam(player.teamId);
+    if (team && isPendingRaisedDeadRecruit(team, player.id)) return false;
     return (
       ![
         PlayerStatus.KO,

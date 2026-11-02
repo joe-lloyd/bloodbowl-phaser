@@ -107,7 +107,9 @@ Where the magazine is silent, the engine does this:
   the Sevens roster limit of 11. After a league match, Manage Team offers
   the coach a free permanent hire or release. Hiring requires room under
   that limit and adds the player's full value. Matched Play retains no
-  recruit. The use and recruit survive a saved match.
+  recruit. An unhired recruit does not count toward team value or the next
+  match's available players. The use and recruit survive a saved match;
+  online resumes retain full rosters, including injuries and skill parameters.
 - Seriously Hurt records Miss Next Game on the player and Dead records Dead.
   In a league, a Miss Next Game player sits the next game out in the
   Casualty box and the record is cleared as that game starts. A dead player

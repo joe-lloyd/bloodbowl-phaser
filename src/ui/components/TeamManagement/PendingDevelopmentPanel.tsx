@@ -4,6 +4,7 @@ import {
   calculateTeamValue,
   PendingDevelopment,
   Team,
+  isPendingRaisedDeadRecruit,
 } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import {
@@ -85,14 +86,7 @@ export function PendingDevelopmentPanel({
               />
             );
           case "advanced-league-advancement":
-            if (
-              pending.some(
-                (offer) =>
-                  offer.kind === "raised-dead-recruit" &&
-                  offer.playerId === entry.playerId
-              )
-            )
-              return null;
+            if (isPendingRaisedDeadRecruit(team, entry.playerId)) return null;
             return (
               <AdvancedLeagueEntry
                 key={entry.id}

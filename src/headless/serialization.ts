@@ -311,6 +311,17 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
   };
 }
 
+/** Restore a saved roster while retaining live team, array and player references. */
+export function restoreTeam(team: Team, saved: Team): void {
+  const copy = structuredClone(saved);
+  const players = copy.players.map((record) => {
+    const player = team.players.find((candidate) => candidate.id === record.id);
+    return player ? Object.assign(player, record) : record;
+  });
+  team.players.splice(0, team.players.length, ...players);
+  Object.assign(team, { ...copy, players: team.players });
+}
+
 /**
  * Restore player placement/status onto live Team objects from a snapshot,
  * matching players by id.

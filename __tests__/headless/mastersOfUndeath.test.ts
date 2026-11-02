@@ -3,7 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { InjuryType, PlayerStatus } from "../../src/types/Player";
-import { RosterName } from "../../src/types/Team";
+import { RosterName, calculateTeamValue } from "../../src/types/Team";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { createMatchSave } from "../../src/headless/serialization";
 import { GameEventNames } from "../../src/types/events";
@@ -17,6 +17,9 @@ import {
   readStoredTeam,
 } from "../../src/data/persistence/teamPersistence";
 import { eligibleSkillSelectionPlayers } from "../../src/game/progression/advancementModes";
+import { LockstepSession } from "../../src/network/LockstepSession";
+import { createInMemoryTransportPair } from "../../src/network/transport";
+import { stateChecksum } from "../../src/headless/checksum";
 
 function newGame(roster = RosterName.TOMB_KINGS) {
   return new HeadlessGame({
@@ -200,6 +203,51 @@ describe("Masters of Undeath in Sevens", () => {
     await injure(game, game.ctx.team2.players[0].id);
     expect(game.ctx.team1.players).toHaveLength(size + 1);
   });
+
+  it("restores a missing raised player when an online guest resynchronises", async () => {
+    const host = newGame();
+    const guest = newGame();
+    const original = guest.ctx.team1.players[0];
+    const originalRoster = guest.ctx.team1.players;
+    await injure(host, host.ctx.team2.players[0].id);
+    const raised = host.ctx.team1.players.at(-1)!;
+    const [hostEnd, guestEnd] = createInMemoryTransportPair();
+    let restored: () => void = () => {};
+    const done = new Promise<void>((resolve) => {
+      restored = resolve;
+    });
+    const hostSession = new LockstepSession({
+      transport: hostEnd,
+      game: host,
+      selfId: "host",
+      myTeamId: host.ctx.team1.id,
+      peerTeamId: host.ctx.team2.id,
+      hostTeamId: host.ctx.team1.id,
+    });
+    const guestSession = new LockstepSession({
+      transport: guestEnd,
+      game: guest,
+      selfId: "guest",
+      myTeamId: guest.ctx.team2.id,
+      peerTeamId: guest.ctx.team1.id,
+      hostTeamId: guest.ctx.team1.id,
+      onResynced: restored,
+    });
+    try {
+      await guestSession.requestResync();
+      await done;
+      expect(guest.ctx.team1.players.find((p) => p.id === raised.id)).toEqual({
+        ...raised,
+        conditions: [],
+      });
+      expect(guest.ctx.team1.players[0]).toBe(original);
+      expect(guest.ctx.team1.players).toBe(originalRoster);
+      expect(stateChecksum(guest)).toBe(stateChecksum(host));
+    } finally {
+      hostSession.close();
+      guestSession.close();
+    }
+  });
 });
 
 describe("Raised Lineman post-match recruitment", () => {
@@ -306,5 +354,78 @@ describe("Raised Lineman post-match recruitment", () => {
     });
     resolveRaisedDeadRecruit(team, pending, false);
     expect(team.pendingDevelopment).toEqual([]);
+  });
+
+  it("preserves the free recruit for a legacy team without an advancement mode", async () => {
+    const { team, raised } = await offer();
+    delete team.advancementMode;
+    team.pendingDevelopment = [];
+    offerRaisedDeadRecruit(team, raised.id);
+    expect(team.players.map((p) => p.id)).toContain(raised.id);
+    expect(team.pendingDevelopment).toContainEqual(
+      expect.objectContaining({
+        kind: "raised-dead-recruit",
+        playerId: raised.id,
+      })
+    );
+  });
+
+  it("excludes the unhired recruit from current and persisted team value", async () => {
+    const { team, pending } = await offer();
+    expect(calculateTeamValue(team)).toBe(280_000);
+    const loaded = readStoredTeam(
+      JSON.parse(JSON.stringify(dehydrateTeam(team)))
+    ).team;
+    expect(loaded.teamValue).toBe(280_000);
+    resolveRaisedDeadRecruit(loaded, pending, true);
+    expect(loaded.teamValue).toBe(320_000);
+  });
+
+  it("refuses to field an unhired recruit in a subsequent local match", async () => {
+    const { team, raised } = await offer();
+    const game = new HeadlessGame({
+      team1: team,
+      team2: newGame().ctx.team2,
+      seed: 1,
+    });
+    expect(
+      await game.execute({
+        type: "start-setup",
+        kickingTeamId: team.id,
+        rollWeather: false,
+      })
+    ).toMatchObject({ ok: true });
+    expect(
+      game.ctx.gameService.getSetupStatus(team.id)?.availablePlayerCount
+    ).toBe(7);
+    const placed = await game.execute({
+      type: "place-player",
+      playerId: raised.id,
+      x: 5,
+      y: 4,
+    });
+    expect(placed.ok).toBe(false);
+    expect(placed.reason).toContain("not available");
+  });
+
+  it("fills a short-handed team with a Journeyman instead of fielding the unhired recruit", async () => {
+    const { team } = await offer();
+    team.players.splice(0, 1);
+    const game = new HeadlessGame({
+      team1: team,
+      team2: newGame().ctx.team2,
+      seed: 1,
+    });
+    await game.execute({
+      type: "start-setup",
+      kickingTeamId: team.id,
+      rollWeather: false,
+    });
+    expect(
+      game.ctx.team1.players.filter((p) => p.playerKind === "journeyman")
+    ).toHaveLength(1);
+    expect(
+      game.ctx.gameService.getSetupStatus(team.id)?.availablePlayerCount
+    ).toBe(7);
   });
 });

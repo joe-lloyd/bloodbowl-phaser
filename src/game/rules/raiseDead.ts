@@ -14,7 +14,7 @@ import {
   Team,
   TeamSpecialRule,
   calculateTeamValue,
-  isLeagueMode,
+  isPendingRaisedDeadRecruit,
 } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { staysOnRoster } from "./leagueRoster";
@@ -68,10 +68,14 @@ export type RaisedDeadOffer = Extract<
   { kind: "raised-dead-recruit" }
 >;
 
+/** Count permanent survivors, excluding departing temporary players. */
 export function canKeepRaisedDead(team: Team, playerId: string): boolean {
   return (
     team.players.filter(
-      (player) => player.id !== playerId && staysOnRoster(team, player)
+      (player) =>
+        player.id !== playerId &&
+        staysOnRoster(team, player) &&
+        !isPendingRaisedDeadRecruit(team, player.id)
     ).length < team.maxRosterSize
   );
 }
@@ -81,7 +85,7 @@ export function offerRaisedDeadRecruit(team: Team, playerId: string): void {
   const player = team.players.find((candidate) => candidate.id === playerId);
   if (!player) return;
   if (
-    !isLeagueMode(team.advancementMode) ||
+    team.advancementMode === "matched-play" ||
     player.injuries.includes(InjuryType.DEAD)
   ) {
     team.players = team.players.filter(
@@ -105,6 +109,7 @@ export function offerRaisedDeadRecruit(team: Team, playerId: string): void {
   });
 }
 
+/** Hire without a fee when there is room, or release the temporary player. */
 export function resolveRaisedDeadRecruit(
   team: Team,
   entry: RaisedDeadOffer,
