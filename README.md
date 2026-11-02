@@ -1,136 +1,77 @@
 # Blood Bowl Sevens
 
-A browser implementation of **Blood Bowl Sevens** (2025 rules) — the fast,
-7-a-side variant of the tabletop fantasy football game. Phaser 3 renders the
-pitch, React drives every menu and HUD, and the rules engine underneath is
-fully headless: the same match logic runs in the browser, from the terminal,
-or as a JSON protocol for scripted/AI play.
+A browser game of seven-a-side fantasy football. Build a team, play a local
+match with another coach, and carry your players through leagues and tournaments.
+Animated sprites play on an isometric pitch, with a React HUD for actions,
+dice and coaching decisions.
 
-![Main menu](docs/images/main-menu.png)
+[Play the game](https://earnest-jalebi-3179e9.netlify.app/) ·
+[How to play](docs/PLAYING.md) · [Documentation](docs/README.md)
 
-## Features
+![A Sevens match on the isometric stadium pitch](docs/images/live-match.png)
 
-- **107 skills and traits implemented** against the 2025 rulebook, each
-  locked in with seeded scenario tests (`__tests__/headless/rules/gate.test.ts`
-  is the coverage source of truth).
-- **Full match flow**: coin toss, setup with saved/preset formations,
-  kick-off event table, blocking, passing, fouling, injuries, SPP and
-  player advancement, touchdowns and drive resets.
-- **Team management & competitions**: build and manage rosters across every
-  roster in the game, run Leagues (Matched Play / Advanced League) and
-  Tournaments (Sevens Skill Selection), with career stats tracked per player.
-- **Online multiplayer** via Firebase — host/join with a shareable code,
-  cloud team library, in-match chat — or play entirely offline in local
-  hotseat mode with no account needed.
-- **Headless engine + JSON protocol** (`pnpm headless`) so the whole game can
-  be driven from the terminal or by a scripted/AI client, independent of the
-  browser UI.
-- **Sandbox & scenario-case tooling** for reproducing and regression-testing
-  individual rules interactions.
+## What you can play
 
-## Screenshots
+- Local matches for two coaches sharing a screen, with saved-match resume
+  and no account required.
+- Team building across 30 rosters, including the updated High Elves,
+  Bretonnians and Tomb Kings. Hire players, choose team colours and manage
+  development and career statistics.
+- Complete match flow from coin toss and setup through kick-offs,
+  movement, blocking, passing, fouling and post-match results.
+- Leagues and tournaments, with Matched Play, Sevens Skill Selection and
+  Advanced League team modes.
+- Online hosting and joining by code, cloud teams and match chat when
+  Firebase is configured and both coaches sign in.
+- Blood Bowl and Neon stadium styles, with camera zoom and pan.
 
-| Team management | Live match |
-| --- | --- |
-| ![Team management](docs/images/team-management.png) | ![Live match](docs/images/live-match.png) |
+![Team building with positional hires and player statistics](docs/images/team-management.png)
 
-## Development
+## Run it locally
+
+Use Node.js 20.19+, 22.12+, or 24+ and pnpm 10.26.0, the version pinned in
+[package.json](package.json).
 
 ```bash
-pnpm install
-pnpm dev          # Vite dev server
-pnpm test         # Vitest unit tests
-pnpm headless     # play a game in the terminal (add --json for AI stdio mode)
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-### Testing
+Open the address Vite prints. Start with **Build Team**, create two legal
+teams, then choose **Play Local**. Firebase configuration is optional for
+local play. See the [development guide](docs/DEVELOPMENT.md) for tests,
+builds and online setup.
 
-The full test suite is Vitest (unit) plus a three-lane Playwright E2E suite
-— see [`docs/E2E_TESTING.md`](docs/E2E_TESTING.md) for details:
+## The engine behind the game
+
+The same TypeScript rules engine drives the browser, the terminal interface
+and deterministic match simulations. Scenario tests exercise individual rules;
+recorded simulations help reproduce interactions across whole matches.
 
 ```bash
-pnpm test              # unit tests
-pnpm e2e:engine        # headless scenario matrix, no browser
-pnpm e2e:browser       # real Chromium against the dev build
-pnpm e2e:visual        # screenshot regression checks
+pnpm exec vitest run    # unit and headless tests
+pnpm e2e:engine         # deterministic scenario matrix
+pnpm headless           # interactive terminal game
+pnpm sim --games 10      # simulated matches with recorded findings
 ```
 
-## Online multiplayer (Firebase)
+See [testing](docs/technical/testing-guide.md),
+[simulations](docs/SIMULATION.md) and [architecture](docs/technical/architecture.md).
 
-Online play (host/join, cloud team library, chat) uses Firebase: Auth (Google
-sign-in), Firestore (lobbies + message bus), and Cloud Functions (edge
-validation). Without Firebase config the app still runs — local hotseat play
-and team building work signed-out; only Host/Join require it.
+## Project status
 
-### Setup
+This is a playable fan project under active development. It implements a
+20 × 11 Sevens pitch and six turns per coach per half, using the 2025 rules
+as its baseline. There are known rules and online-play gaps. The
+[status page](docs/STATUS.md) names them and links to the evidence.
+There is no browser AI opponent; automated coaches are development tools.
 
-1. Create a Firebase project at <https://console.firebase.google.com>.
-2. Enable **Authentication → Google** provider.
-3. Enable **Firestore** (production mode; rules ship in `firestore.rules`).
-4. Add a **Web app** in Project settings and copy its config into `.env.local`
-   (see `.env.example` for the variable names).
-5. Deploy the security rules (free Spark plan):
-   `npm i -g firebase-tools`, `firebase login`, then
-   `firebase deploy --only firestore:rules`.
-   **Do not deploy functions** unless you've upgraded to Blaze — Cloud
-   Functions can't be deployed on the free plan, and the game fully works
-   without them (join is a client-side transaction enforced by the rules;
-   the Function is an optional extra validation layer).
-6. Recommended: enable a Firestore **TTL policy** on the `games` collection's
-   `expiresAt` field (console → Firestore → TTL) so abandoned lobbies are
-   reaped automatically. Cleanly finished matches delete themselves.
+## Credits and references
 
-### Local emulators
+Blood Bowl and its team names belong to Games Workshop. This project is
+unofficial and is not endorsed by Games Workshop.
 
-```bash
-firebase emulators:start --only auth,firestore   # auth :9099, firestore :8080
-# then set VITE_FIREBASE_USE_EMULATORS=true in .env.local
-```
-
-## Deploy (Netlify)
-
-`netlify.toml` configures the deploy: it builds with `vite build` (skipping the
-`tsc` gate, which has pre-existing UI-layer errors), publishes `dist`, adds the
-SPA fallback so react-router deep links like `/online/play/ABC123` resolve, and
-sets the `Cross-Origin-Opener-Policy: same-origin-allow-popups` header the
-Google sign-in popup needs. Connect the repo in Netlify and it just builds.
-
-For online play to work on the deployed site you must also:
-
-1. **Netlify env vars** — set the `VITE_FIREBASE_*` values (from `.env.example`)
-   in Netlify → Site settings → Environment variables. Vite inlines these at
-   **build time**, so trigger a redeploy after adding them. Without them the
-   site still runs, but Host/Join stay disabled.
-2. **Custom subdomain** — add it in Netlify (Domain settings) and point the DNS
-   from `joe-lloyd.com`. (You said you'll handle this part.)
-3. **Firebase Auth → Authorized domains** *(the allow-list step)* — in the
-   Firebase console → Authentication → Settings → **Authorized domains**, add
-   both the Netlify domain (`your-site.netlify.app`) and the custom subdomain.
-   Google sign-in (`signInWithPopup`) is **rejected on any domain not on this
-   list** — this is the most common "sign-in silently fails after deploy" cause.
-4. **Rules** — `firebase deploy --only firestore:rules` if you haven't since the
-   last rules change (the `users/{uid}` profile/active-match rule, etc.).
-
-Firestore itself has no domain allow-list — access is gated by auth + rules, so
-no rules change is needed for a new domain; only the Auth authorized-domains
-list matters.
-
-### Security model (read this before worrying about the API key)
-
-The Firebase client config in `.env.local` is **publishable, not secret** —
-every Firebase web app ships it to the browser. Security is enforced by:
-
-- **Firestore rules** (`firestore.rules`): your team library is owner-only;
-  only a game's two members can write to it; chat/command messages must be
-  `from` the authenticated writer and are append-only.
-- **Cloud Functions** (`functions/`): validate lobby create/join and roster
-  legality. They do *not* run gameplay — the host browser is authoritative
-  (friends-play trust model), which keeps Function invocations rare and the
-  whole stack inside Firebase's free (Spark) tier.
-
-### Cost posture
-
-Turn-based play writes a handful of Firestore docs per turn and calls a
-Function only at lobby create/join. No per-second writes (the turn timer is
-derived client-side from a stored deadline), one snapshot listener per client,
-and finished games are cleaned up — designed to stay free.
+The repository does not distribute the official rulebooks or extracted
+chapters. Developers can keep their own reference copies in ignored local
+folders. Public skill tooltips use short project-written hints. See
+[private references](docs/DEVELOPMENT.md#private-reference-material).

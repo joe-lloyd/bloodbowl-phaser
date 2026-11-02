@@ -8,8 +8,8 @@ import { SkillType, SKILL_DEFINITIONS } from "../../../src/types/Skills";
 
 /**
  * team-builder-rule-tooltips: "Hovering an available hire's skill shows its
- * rule text" — each skill listed for a hireable player template is its own
- * hoverable element carrying that skill's full rulebook text, rather than a
+ * description" — each skill listed for a hireable player template is its own
+ * hoverable element carrying that skill's project-written hint, rather than a
  * single joined string with a redundant repeated title.
  */
 describe("AvailableHires skill tooltips", () => {
@@ -27,10 +27,10 @@ describe("AvailableHires skill tooltips", () => {
     container.remove();
   });
 
-  it("renders each hire's skill as its own tooltip trigger with the skill's rule text", async () => {
+  it("renders each hire's skill as its own tooltip trigger with the skill's description", async () => {
     const roster = getRosterByRosterName(RosterName.AMAZON);
     // Eagle Warrior is the Amazon Lineman, carrying Dodge (RosterTemplates.ts).
-    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
+    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
     await act(async () => {
       root.render(
@@ -69,8 +69,8 @@ describe("AvailableHires skill tooltips", () => {
       );
     });
 
-    const defensiveText = SKILL_DEFINITIONS[SkillType.DEFENSIVE].text;
-    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
+    const defensiveText = SKILL_DEFINITIONS[SkillType.DEFENSIVE].description;
+    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
     const tooltipPanels = Array.from(
       document.querySelectorAll('[role="tooltip"]')
@@ -85,7 +85,7 @@ describe("AvailableHires skill tooltips", () => {
   });
 
   /**
-   * team-builder-rule-tooltips: "Tabbing to a skill reveals its rule text"
+   * team-builder-rule-tooltips: "Tabbing to a skill reveals its description"
    * — the tooltip is keyboard-reachable, not mouse-only.
    */
   it("makes each hire's skill tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {

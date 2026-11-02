@@ -56,8 +56,9 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
-# Documentation
-/docs/pdfs/*.pdf
+# Private development references. Keep books and extracted text local.
+/docs/pdfs/
+/docs/rulebook/
 
 src/data/*.json
 

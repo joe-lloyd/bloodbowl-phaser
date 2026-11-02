@@ -41,7 +41,8 @@
     "e2e:seeds": "tsx scripts/e2e-seeds.ts",
     "e2e:coverage": "tsx scripts/e2e-coverage.ts",
     "e2e:coverage:baseline": "tsx scripts/e2e-coverage.ts --write-baseline",
-    "e2e:coverage:diff": "tsx scripts/e2e-coverage.ts --compare-baseline"
+    "e2e:coverage:diff": "tsx scripts/e2e-coverage.ts --compare-baseline",
+    "docs:check": "node scripts/check-docs.mjs"
   },
   "dependencies": {
     "cannon-es": "0.20.0",
@@ -70,6 +71,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
     "jsdom": "^27.2.0",
+    "marked": "18.1.2",
     "postcss": "^8.5.6",
     "prettier": "^3.7.4",
     "tailwindcss": "^3.4.18",
