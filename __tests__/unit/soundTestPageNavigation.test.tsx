@@ -7,7 +7,7 @@ import { EventBus } from "../../src/services/EventBus";
 /**
  * Covers the sound debug dashboard's "Back to Main Menu" fix: it used to
  * emit `GameEventNames.UI_SceneChange`, an event nothing in the app ever
- * subscribed to (a dead click, per NOTES_FOR_AI.md). It now navigates via
+ * subscribed to. It now navigates via
  * react-router's `useNavigate()`, the same mechanism every other page uses
  * (see GameHUD's own "Return to Main Menu").
  */
@@ -47,9 +47,9 @@ describe("SoundTest page — Back to Main Menu", () => {
       );
     });
 
-    const backButton = Array.from(
-      container.querySelectorAll("button")
-    ).find((button) => button.textContent?.includes("Back to Main Menu"));
+    const backButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Back to Main Menu")
+    );
     expect(backButton).toBeTruthy();
 
     await act(async () => {

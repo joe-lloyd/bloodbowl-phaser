@@ -1,89 +1,23 @@
-# Blood Bowl Sevens - Visual Design Guide
+# Visual design
 
-> The React UI no longer uses the parchment look described here. The match HUD and every page around it use the dark Stadium Broadcast kit: `hud-*` tokens in tailwind.config.js, classes in src/ui/styles/global.css, and primitives in src/ui/components/componentWarehouse/HudKit.tsx. The HUD gallery (`pnpm gallery`) shows all of it.
->
-> HUD rules, checked by `__tests__/unit/hudDesignDrift.test.ts`:
->
-> - Type sizes come from `text-hud-2xs` to `text-hud-4xl`, never `text-[Npx]` or Tailwind's default sizes.
-> - Faces are `font-hud-display`, `font-hud-label` and `font-hud-body` only.
-> - Colours are `hud-*` tokens. Add a token to tailwind.config.js rather than writing hex.
-> - A panel's title bar is `PanelHeader`. It stays one 40px line: a view switch is `HudTabs` in the title slot, and small buttons are `xs` HudButtons in `controls`. `scripts/hud-shots/check-header-fit.mjs` checks every gallery header.
-> - Every HUD state, online ones included, has a gallery variant.
+The UI uses a dark stadium-broadcast palette. Shared tokens live in
+[`tailwind.config.js`](../../tailwind.config.js), base styles in
+[`global.css`](../../src/ui/styles/global.css), and reusable controls in
+[`HudKit.tsx`](../../src/ui/components/componentWarehouse/HudKit.tsx).
 
-## Color Palette
+## HUD components
 
-### Primary Colors
+Run `pnpm gallery` to inspect component states outside a match.
 
-- **Primary Blue**: `#1d3860` - Headers, borders, primary buttons
-- **Primary Dark Blue**: `#092540` - Hover states, accents
-- **Danger Red**: `#922d26` - Delete/danger buttons, warnings
-- **Danger Dark Red**: `#701d1a` - Danger hover states
-- **Gold Accent**: `#eaaa02` - Highlights, selected indicators, special text
+- Use `hud-*` colours and `text-hud-*` type sizes.
+- Use the display, label and body font tokens from the shared theme.
+- Use `PanelHeader` for panel titles and `HudButton` for actions.
+- Keep panels clear of pitch targets, including at narrow landscape sizes.
+- Add gallery states for new decisions, including online waiting states.
 
-### Supporting Colors
-
-- **Parchment**: `#fffef0` - Background for fantasy theme
-- **Parchment Shadow**: `#8a4d0f` - Inset shadows for depth
-- **Light Blue**: `#d4e8ff` - Hover backgrounds, highlights
-
-## Typography
-
-### Headings
-
-- **Page Title (h1)**: `text-5xl` (48px) - Main page titles
-- **Section Title (h2)**: `text-3xl` (30px) - Section headers
-- **Subsection (h3)**: `text-2xl` (24px) - Cards, panels
-
-### Body Text
-
-- **Large**: `text-xl` (20px) - Important content
-- **Base**: `text-base` (16px) - Standard text
-- **Small**: `text-sm` (14px) - Secondary info
-
-### Font Weights
-
-- **Bold**: `font-bold` - Titles, emphasis
-- **Normal**: `font-normal` - Body text
-
-## Spacing
-
-### Container Padding
-
-- **Desktop**: `p-12` (48px)
-- **Tablet**: `p-10` (40px)
-- **Mobile**: `p-6` (24px)
-
-### Section Spacing
-
-- **Between sections**: `mb-12` (48px)
-- **Between elements**: `mb-8` (32px)
-- **Cards/panels**: `p-8` (32px)
-
-### Grid Gaps
-
-- **Large grids**: `gap-12` (48px)
-- **Medium grids**: `gap-8` (32px)
-- **Small grids**: `gap-6` (24px)
-
-## Component Sizing
-
-### Buttons
-
-- **Large**: `px-8 py-4 text-xl` - Primary CTA buttons
-- **Medium**: `px-6 py-3 text-lg` - Standard buttons
-- **Small**: `px-4 py-2 text-base` - Secondary actions
-
-### Cards
-
-- **Minimum padding**: `p-8` (32px)
-- **Hover lift**: `-translate-y-1`
-- **Shadow on hover**: `shadow-2xl`
-
-### Inputs
-
-- **Height**: `py-4` (16px vertical padding)
-- **Text size**: `text-xl`
-- **Focus ring**: `ring-4 ring-blood-bowl-primary/20`
+[`hudDesignDrift.test.ts`](../../__tests__/unit/hudDesignDrift.test.ts) checks
+these conventions. `scripts/hud-shots/check-header-fit.mjs` checks gallery
+header fit. Inspect actual game screens as well as gallery captures.
 
 ## Canvas & UI Overlay
 

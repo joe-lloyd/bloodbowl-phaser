@@ -7,7 +7,11 @@ import {
   TeamBuilder as TeamTestBuilder,
   PlayerBuilder,
 } from "../../utils/test-builders";
-import { SkillType, SKILL_DEFINITIONS, getSkill } from "../../../src/types/Skills";
+import {
+  SkillType,
+  SKILL_DEFINITIONS,
+  getSkill,
+} from "../../../src/types/Skills";
 
 /**
  * Team Builder readability (overhaul-team-lifecycle-management,
@@ -135,9 +139,9 @@ describe("TeamRoster career-stat columns", () => {
       );
     });
 
-    const headerLabels = Array.from(
-      container.querySelectorAll("thead th")
-    ).map((th) => th.textContent);
+    const headerLabels = Array.from(container.querySelectorAll("thead th")).map(
+      (th) => th.textContent
+    );
     expect(headerLabels).toEqual(
       expect.arrayContaining(["GP", "TD", "CMP", "CAS", "Kills", "MVP"])
     );
@@ -180,9 +184,9 @@ describe("TeamRoster career-stat columns", () => {
 
 /**
  * team-builder-rule-tooltips: "Hovering a rostered player's skill shows its
- * rule text" / "Multiple skills are each independently hoverable" — each
+ * description" / "Multiple skills are each independently hoverable" — each
  * skill on a drafted player is its own hover target carrying only that
- * skill's own rule text.
+ * skill's own description.
  */
 describe("TeamRoster skill tooltips", () => {
   let container: HTMLDivElement;
@@ -199,7 +203,7 @@ describe("TeamRoster skill tooltips", () => {
     container.remove();
   });
 
-  it("renders each rostered player's skill as its own tooltip trigger with the skill's rule text", async () => {
+  it("renders each rostered player's skill as its own tooltip trigger with the skill's description", async () => {
     const player = new PlayerBuilder().withNumber(1).build();
     player.skills = [getSkill(SkillType.BLOCK), getSkill(SkillType.DODGE)];
     const team = new TeamTestBuilder().withCustomPlayers([player]).build();
@@ -216,8 +220,8 @@ describe("TeamRoster skill tooltips", () => {
       );
     });
 
-    const blockText = SKILL_DEFINITIONS[SkillType.BLOCK].text;
-    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].text;
+    const blockText = SKILL_DEFINITIONS[SkillType.BLOCK].description;
+    const dodgeText = SKILL_DEFINITIONS[SkillType.DODGE].description;
 
     const tooltipPanels = Array.from(
       document.querySelectorAll('[role="tooltip"]')
@@ -232,7 +236,7 @@ describe("TeamRoster skill tooltips", () => {
   });
 
   /**
-   * team-builder-rule-tooltips: "Tabbing to a skill reveals its rule text"
+   * team-builder-rule-tooltips: "Tabbing to a skill reveals its description"
    * — the tooltip is keyboard-reachable, not mouse-only.
    */
   it("makes each skill's tooltip reachable and revealed by keyboard focus, not just mouse hover", async () => {

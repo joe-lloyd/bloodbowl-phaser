@@ -51,7 +51,7 @@ catalog (`SeedFixtureError` names the fixture key and rule; the post-build
 state directly:
 
 ```bash
-npx vitest run __tests__/unit/seeding __tests__/integration/developmentSeed.test.ts
+pnpm exec vitest run __tests__/unit/seeding __tests__/integration/developmentSeed.test.ts
 ```
 
 `validateDevelopmentSeedData(teams, competitions)` is the programmatic
@@ -73,9 +73,9 @@ streams (`rngFor("match:…")` named seeds), colors, and timestamps
 (`SEED_EPOCH` offsets) are all fixed, so re-running the same version
 converges on identical records — safe for screenshot and e2e assertions.
 
-## Visual baselines (pending)
+## Visual baselines
 
-Headless-browser fixtures and screenshot baselines (openspec tasks 5.3/5.4)
-are **deferred to the `add-comprehensive-e2e-scenario-testing` change**,
-which owns the Playwright toolchain. When it lands, point its fixtures at
-the stable ids above and record the baseline-update command here.
+The Playwright suite consumes stable fixtures and stores reviewed baselines in
+`e2e/visual/__screenshots__/`. See [E2E testing](../E2E_TESTING.md) for the
+fixture contract and `pnpm e2e:update-snapshots` workflow. Inspect the resulting
+images before committing a baseline change.

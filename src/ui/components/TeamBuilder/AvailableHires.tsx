@@ -79,25 +79,21 @@ export function AvailableHires({
 export function StatCells({ stats }: { stats: PlayerStats }) {
   return (
     <>
-      {[
-        stats.MA,
-        stats.ST,
-        `${stats.AG}+`,
-        `${stats.PA}+`,
-        `${stats.AV}+`,
-      ].map((value, index) => (
-        <td
-          key={index}
-          className="num font-hud-display text-hud-lg leading-none text-hud-bone"
-        >
-          {value}
-        </td>
-      ))}
+      {[stats.MA, stats.ST, `${stats.AG}+`, `${stats.PA}+`, `${stats.AV}+`].map(
+        (value, index) => (
+          <td
+            key={index}
+            className="num font-hud-display text-hud-lg leading-none text-hud-bone"
+          >
+            {value}
+          </td>
+        )
+      )}
     </>
   );
 }
 
-/** Skill names, each with its rule text on hover or focus. */
+/** Skill names, each with a short hint on hover or focus. */
 export function SkillList({ skills }: { skills: Skill[] }) {
   if (skills.length === 0) {
     return <span className="text-hud-mute">None</span>;
@@ -106,7 +102,7 @@ export function SkillList({ skills }: { skills: Skill[] }) {
     <div className="flex flex-wrap gap-x-1 gap-y-0.5 text-hud-sm text-[#ddd5c6]">
       {skills.map((skill, index) => (
         <span key={`${skill.type}-${index}`}>
-          <Tooltip content={SKILL_DEFINITIONS[skill.type].text}>
+          <Tooltip content={SKILL_DEFINITIONS[skill.type].description}>
             <span className="cursor-help underline decoration-hud-gold/40 decoration-dotted underline-offset-2">
               {skill.type}
               {skill.parameter != null ? ` (${skill.parameter})` : ""}

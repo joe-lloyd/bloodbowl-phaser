@@ -3,14 +3,15 @@
 The E2E suite answers one question: **does this rule still work, and can I
 reproduce it when it does not?**
 
-Everything runs under Playwright, split into three projects:
+Playwright separates engine, browser and visual checks. Online emulator checks
+are opt-in.
 
-| project | what it does | cost |
-| --- | --- | --- |
-| `engine-scenarios` | Drives `HeadlessGame` directly. Owns the large deterministic outcome matrix. Never opens a browser. | ~10s for ~250 cases |
-| `browser-gameplay` | Headless Chromium against a built preview. Real canvas clicks, real HUD dialogs. | ~2 min |
-| `visual-regression` | A tagged subset of browser checkpoints that also compares screenshots. | ~40s |
-| `online-emulator` | **Opt-in.** Host/guest flows against the Firebase emulators. | ~1 min + emulator start |
+| Project             | What it checks                                                   |
+| ------------------- | ---------------------------------------------------------------- |
+| `engine-scenarios`  | Deterministic outcomes through `HeadlessGame`, without a browser |
+| `browser-gameplay`  | Chromium canvas interactions and HUD decisions                   |
+| `visual-regression` | Screenshot comparisons at tagged checkpoints                     |
+| `online-emulator`   | Host and guest flows against Firebase emulators                  |
 
 Scenario cases prove one rule at a time. To find what breaks when whole
 matches are played, use the simulation harness, `pnpm sim`: see
@@ -53,7 +54,7 @@ test that asks for `page`, `context` or `browser`.
 
 ## The scenario case
 
-A *case* is the unit everything shares — the engine lane, the browser lane,
+A _case_ is the unit everything shares — the engine lane, the browser lane,
 the coverage report, and the sandbox all consume the same value.
 
 ```ts
@@ -167,7 +168,7 @@ and a live check of its checkpoints.
 
 ## Coverage
 
-Line coverage says how much code ran. This report says which *rules* are
+Line coverage says how much code ran. This report says which _rules_ are
 proved.
 
 ```bash
@@ -182,7 +183,7 @@ opens a gap rather than widening a blind spot. Coverage is reported **per
 layer and never blended**: a case with exhaustive engine variants and no
 screenshot is engine-complete and visually absent, and the report says so.
 
-Coverage is also *observed*, not guessed. Runs write fragments recording the
+Coverage is also _observed_, not guessed. Runs write fragments recording the
 decisions they actually raised and phases they actually reached, because a
 case that answers rerolls through its decision policy mentions no reroll in
 its script.
@@ -210,7 +211,7 @@ The policy, in order:
 3. **Reasoned grant** — anything else needs a written isolation reason
    explaining why the native fixture could not be used.
 
-`grantLegality()` decides which applies, and the gate rejects an *implausible*
+`grantLegality()` decides which applies, and the gate rejects an _implausible_
 grant (a Mutation on a Human, a trait nobody advances into) unless a reason is
 recorded. Where no fielded position owns a skill at all, the grant is recorded
 as `forced` and reported — so adding that position to a composition later
@@ -259,7 +260,7 @@ actual, expected and diff images as artifacts.
 fix and passes after it.** A fix without one is a fix that can silently come
 undone.
 
-1. Reproduce it as a case *first*, and watch it fail. A case written after the
+1. Reproduce it as a case _first_, and watch it fail. A case written after the
    fix has never proved anything.
 2. Give it a regression id and a one-line summary of the original failure:
 
@@ -292,7 +293,7 @@ contexts — two genuinely separate coaches whose only shared state is the
 emulator, so anything one sees of the other really did travel through the
 backend.
 
-Everything runs against `demo-bloodbowl`, a Firebase *demo* project: the
+Everything runs against `demo-bloodbowl`, a Firebase _demo_ project: the
 emulators serve it with no credentials and the SDK refuses to reach a real
 backend for it. There are no secrets and nothing to configure.
 

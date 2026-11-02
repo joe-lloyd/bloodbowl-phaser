@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach } from "vitest";
-import * as fs from "node:fs";
 import {
   SkillType,
   SkillCategory,
@@ -16,61 +15,50 @@ import {
 } from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
 
-/**
- * Book-fidelity gate: the catalog is the 2025 rulebook's skill/trait list,
- * no more and no less, and legacy names migrate losslessly.
- */
-
-const book = JSON.parse(
-  fs.readFileSync("docs/rulebook/skills.json", "utf-8")
-) as {
-  skills: number;
-  traits: number;
-  entries: {
-    name: string;
-    kind: string;
-    category: string | null;
-    usage: string;
-  }[];
-};
-
-describe("skill catalog matches the 2025 rulebook", () => {
-  const enumValues = Object.values(SkillType) as string[];
-
-  it("every book entry has exactly one catalog SkillType", () => {
-    const missing = book.entries
-      .map((e) => e.name)
-      .filter((name) => !enumValues.includes(name));
-    expect(missing).toEqual([]);
-    expect(new Set(enumValues).size).toBe(enumValues.length);
+describe("public skill catalog", () => {
+  it("contains 72 skills and 36 traits with unique family names", () => {
+    const definitions = Object.values(SKILL_DEFINITIONS);
+    expect(definitions).toHaveLength(108);
+    expect(new Set(definitions.map((entry) => entry.type)).size).toBe(108);
+    expect(definitions.filter((entry) => entry.kind === "skill")).toHaveLength(
+      72
+    );
+    expect(definitions.filter((entry) => entry.kind === "trait")).toHaveLength(
+      36
+    );
   });
 
-  it("every catalog SkillType traces to a book entry", () => {
-    const bookNames = new Set(book.entries.map((e) => e.name));
-    const inventions = enumValues.filter((v) => !bookNames.has(v));
-    expect(inventions).toEqual([]);
-    expect(enumValues.length).toBe(book.entries.length);
+  it("retains categories and parameterized trait metadata", () => {
+    expect(getSkill(SkillType.ACCURATE).category).toBe(SkillCategory.PASSING);
+    expect(getSkill(SkillType.DODGE).category).toBe(SkillCategory.AGILITY);
+    expect(SKILL_DEFINITIONS[SkillType.LONER]).toMatchObject({
+      kind: "trait",
+      usage: "passive",
+      compulsory: true,
+      parameterForm: "X+",
+    });
+    expect(getSkill(SkillType.LONER, "4+").parameter).toBe("4+");
   });
 
-  it("skills carry the book's category; traits are marked as traits", () => {
-    for (const entry of book.entries) {
-      const def = SKILL_DEFINITIONS[entry.name as SkillType];
-      expect(def.kind).toBe(entry.kind);
-      expect(def.usage).toBe(entry.usage);
-      if (entry.kind === "skill") {
-        expect(def.category).toBe(entry.category as SkillCategory);
-      }
+  it("supplies readable hints without embedding extracted rules", () => {
+    for (const definition of Object.values(SKILL_DEFINITIONS)) {
+      expect(definition.description.length).toBeGreaterThan(15);
+      expect(definition.description.length).toBeLessThan(180);
+      expect(definition).not.toHaveProperty("text");
     }
-    expect(book.skills).toBe(72);
-    expect(book.traits).toBe(36);
+    expect(getSkill(SkillType.BLOCK).description).toBe(
+      "Helps the player stay standing when a block produces Both Down."
+    );
   });
 
   it("the registry's coverage universe reconciles with the catalog", () => {
-    const cov = SkillRegistry.coverage();
-    expect(cov.total).toBe(book.entries.length);
-    // Implemented rules' names always trace to the book
-    expect(cov.missing).not.toContain(SkillType.BLOCK);
-    expect(cov.implemented + cov.missing.length).toBe(cov.total);
+    const coverage = SkillRegistry.coverage();
+    expect(coverage.total).toBe(108);
+    expect(coverage.implemented).toBe(106);
+    expect(coverage.missing).toEqual([
+      SkillType.DECAY,
+      SkillType.INSIGNIFICANT,
+    ]);
   });
 });
 
@@ -175,10 +163,34 @@ describe("round-trip: a pre-reconciliation saved team loads intact", () => {
           spp: 0,
           level: 4,
           advancements: [
-            { id: "a1", type: "primary-skill", name: "Loner 4+", sppCost: 6, valueIncrease: 20_000 },
-            { id: "a2", type: "primary-skill", name: "Throw Teammate", sppCost: 6, valueIncrease: 20_000 },
-            { id: "a3", type: "primary-skill", name: "Block", sppCost: 6, valueIncrease: 30_000 },
-            { id: "a4", type: "primary-skill", name: "Unchained Fury", sppCost: 6, valueIncrease: 20_000 },
+            {
+              id: "a1",
+              type: "primary-skill",
+              name: "Loner 4+",
+              sppCost: 6,
+              valueIncrease: 20_000,
+            },
+            {
+              id: "a2",
+              type: "primary-skill",
+              name: "Throw Teammate",
+              sppCost: 6,
+              valueIncrease: 20_000,
+            },
+            {
+              id: "a3",
+              type: "primary-skill",
+              name: "Block",
+              sppCost: 6,
+              valueIncrease: 30_000,
+            },
+            {
+              id: "a4",
+              type: "primary-skill",
+              name: "Unchained Fury",
+              sppCost: 6,
+              valueIncrease: 20_000,
+            },
           ],
         },
         {
@@ -188,8 +200,20 @@ describe("round-trip: a pre-reconciliation saved team loads intact", () => {
           spp: 0,
           level: 2,
           advancements: [
-            { id: "a1", type: "primary-skill", name: "Fumbleoskie", sppCost: 6, valueIncrease: 20_000 },
-            { id: "a2", type: "primary-skill", name: "Portal Navigator", sppCost: 6, valueIncrease: 20_000 },
+            {
+              id: "a1",
+              type: "primary-skill",
+              name: "Fumbleoskie",
+              sppCost: 6,
+              valueIncrease: 20_000,
+            },
+            {
+              id: "a2",
+              type: "primary-skill",
+              name: "Portal Navigator",
+              sppCost: 6,
+              valueIncrease: 20_000,
+            },
           ],
         },
       ],

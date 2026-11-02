@@ -80,7 +80,7 @@ Whenever a rule changes a roll, dice count, or result application, the system SH
 - **THEN** the command response events include the skill trigger with player and skill identified
 
 ### Requirement: Every catalog skill enforces 2025 rulebook behavior
-Every skill and trait in the reconciled catalog SHALL have a registered rule enforcing the 2025 rulebook's text for it (verified against the book-derived data file at implementation time), invoked through the framework's trigger points, reroll machinery, decision channel, or flow-queue operations. On completion the registry's coverage report SHALL list zero inert catalog skills, and any deliberate exclusion SHALL be an explicit allowlist entry, not an omission.
+Every skill and trait in the reconciled catalog SHALL have a registered rule enforcing the 2025 rulebook's text for it (verified against legally obtained local reference material at implementation time), invoked through the framework's trigger points, reroll machinery, decision channel, or flow-queue operations. On completion the registry's coverage report SHALL list zero inert catalog skills, and any deliberate exclusion SHALL be an explicit allowlist entry, not an omission.
 
 #### Scenario: Coverage reaches the full catalog
 - **WHEN** the coverage report runs after the final batch
@@ -112,7 +112,7 @@ A rule for a parameterized family (Loner (X+), Mighty Blow (+X), …) SHALL read
 - **THEN** each rolls against their own threshold from the same registered rule
 
 ### Requirement: The catalog reaches full coverage
-Every remaining inert catalog skill (the 30 unimplemented families) SHALL be given a registered rule enforcing its 2025 rulebook text, verified against `docs/rulebook/skills.json` at implementation time. On completion `SkillRegistry.coverage()` SHALL report 107 implemented families with an empty inert list, and the only unregistered catalog entry SHALL be the explicitly allowlisted Insignificant (draft-list construction only). The `gate.test.ts` implemented-set snapshot SHALL be updated in the same batch as each rule so it always names exactly the registered set.
+Every remaining inert catalog skill (the 30 unimplemented families) SHALL be given a registered rule enforcing its 2025 rulebook text, verified against legally obtained local reference material at implementation time. Public metadata and project-written UI hints live in `src/data/skillCatalog.ts`; builds and tests SHALL NOT require private reference files. On completion `SkillRegistry.coverage()` SHALL report 107 implemented families with an empty inert list, and the only unregistered catalog entry SHALL be the explicitly allowlisted Insignificant (draft-list construction only). The `gate.test.ts` implemented-set snapshot SHALL be updated in the same batch as each rule so it always names exactly the registered set.
 
 #### Scenario: No inert catalog skill remains
 - **WHEN** the coverage report runs after the final batch

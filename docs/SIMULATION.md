@@ -5,9 +5,8 @@ and checks the rules after every command. Scenario cases prove that one rule
 works in one set-up. Simulation finds what breaks when the rules meet each
 other in real play.
 
-A match takes about 0.4 seconds. Every match is recorded and can be replayed
-exactly, inspected step by step, opened on the real board, or committed as a
-regression test.
+Recordings can be replayed, inspected step by step, opened on the real board,
+or committed as regression tests. Runtime depends on the coach and workload.
 
 ## Run a batch
 
@@ -44,11 +43,11 @@ The exit code is 1 when any blocking finding appears, so a batch can gate CI.
 A coach only ever picks from candidates that the engine's own legality
 checks produced (`src/simulation/candidates.ts`). It never builds a command.
 
-| Coach | What it is for |
-| --- | --- |
+| Coach       | What it is for                                                                                                                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `heuristic` | Plays recognisable Blood Bowl: carries the ball forward, blocks with the stronger player, chases the opposing carrier. Scores about one touchdown every two matches, so it reaches drive resets, scoring and kick-offs. |
-| `random` | The fuzzer. Picks a command type at random, then a target. Reaches passes, hand-offs, fouls, special actions and odd sequences no sensible coach would try. |
-| `jev` | Asks Jev, TypeSafe's System One model, which player should act next and how. Everything else falls back to the heuristic. |
+| `random`    | The fuzzer. Picks a command type at random, then a target. Reaches passes, hand-offs, fouls, special actions and odd sequences no sensible coach would try.                                                             |
+| `jev`       | Asks Jev, TypeSafe's System One model, which player should act next and how. Everything else falls back to the heuristic.                                                                                               |
 
 ### Jev
 
@@ -163,13 +162,13 @@ on purpose, as with committed seeds.
 
 ## Where things live
 
-| Path | Contents |
-| --- | --- |
-| `src/simulation/candidates.ts` | Legal candidates at any decision point |
-| `src/simulation/coaches/` | The three coaches |
-| `src/simulation/runMatch.ts` | One match, its findings and its recording |
-| `src/simulation/invariants.ts` | Rules checked after every command |
-| `src/simulation/replay.ts` | Replay, trim, and match-save export |
-| `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index |
-| `src/simulation/cli.ts` | `pnpm sim` and `pnpm sim:replay` |
-| `__tests__/simulation/` | Harness test and committed recordings |
+| Path                                      | Contents                                  |
+| ----------------------------------------- | ----------------------------------------- |
+| `src/simulation/candidates.ts`            | Legal candidates at any decision point    |
+| `src/simulation/coaches/`                 | The three coaches                         |
+| `src/simulation/runMatch.ts`              | One match, its findings and its recording |
+| `src/simulation/invariants.ts`            | Rules checked after every command         |
+| `src/simulation/replay.ts`                | Replay, trim, and match-save export       |
+| `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index        |
+| `src/simulation/cli.ts`                   | `pnpm sim` and `pnpm sim:replay`          |
+| `__tests__/simulation/`                   | Harness test and committed recordings     |

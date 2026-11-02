@@ -1,21 +1,5 @@
-/**
- * Skill types and definitions for Blood Bowl (2025 rulebook, 3rd season).
- *
- * The catalog is generated from docs/rulebook/skills.json — the reviewed
- * extraction of the rulebook's skill & trait chapters (see
- * scripts/extract-rulebook-skills.py). Names, categories, skill-vs-trait
- * kind, active/passive usage, pages and rules text therefore match the
- * book by construction; building the definitions throws if the enum and
- * the book data ever diverge, and a gate test cross-checks both ways.
- *
- * Parameterized families (Loner (X+), Animosity (X), …) are ONE SkillType
- * each; the concrete value lives on the Skill instance's `parameter`.
- */
-
-// The explicit import attribute keeps this loadable outside a bundler too:
-// Playwright's engine project runs the real modules under Node ESM, where a
-// bare JSON import is a hard error.
-import rulebook from "../../docs/rulebook/skills.json" with { type: "json" };
+/** Skill families, player instances and public UI descriptions. */
+import { SKILL_CATALOG } from "../data/skillCatalog";
 
 /**
  * Skill categories
@@ -172,76 +156,52 @@ export interface Skill {
   scenarioGranted?: boolean;
 }
 
-/** Full catalog record for one skill/trait, sourced from the rulebook. */
+/** Public metadata for one skill or trait. Descriptions are short UI hints. */
 export interface SkillDefinition {
   type: SkillType;
   category: SkillCategory;
   kind: SkillKind;
   usage: SkillUsage;
-  /** Marked * in the book: must always be used when applicable */
   compulsory: boolean;
-  /** e.g. "X+" for Loner (X+) */
   parameterForm?: string;
-  /** Printed rulebook page */
-  page: number;
-  /** Short summary (first sentence of the book's rules text) */
   description: string;
-  /** The book's rules text (best-effort extraction; see `abridged`) */
-  text: string;
-  /** True when column-interleave forced a hand-abridged transcription */
-  abridged?: boolean;
 }
 
-interface RulebookEntry {
-  name: string;
-  kind: string;
-  category: string | null;
-  usage: string;
-  compulsory: boolean;
-  parameterForm: string | null;
-  page: number;
-  abridged?: boolean | null;
-  text: string;
+function assertCompleteCatalog(
+  definitions: Partial<Record<SkillType, SkillDefinition>>
+): asserts definitions is Record<SkillType, SkillDefinition> {
+  for (const type of Object.values(SkillType)) {
+    if (!definitions[type])
+      throw new Error(`Missing skill definition: ${type}`);
+  }
 }
 
-function firstSentence(text: string): string {
-  const match = /(.+?[.!?])\s/.exec(text + " ");
-  return (match ? match[1] : text).slice(0, 200);
+function buildSkillDefinitions(): Record<SkillType, SkillDefinition> {
+  const definitions: Partial<Record<SkillType, SkillDefinition>> = {};
+  for (const type of Object.values(SkillType)) {
+    const entry = SKILL_CATALOG[type];
+    const category =
+      entry.category === null
+        ? SkillCategory.GENERAL
+        : Object.values(SkillCategory).find(
+            (value) => value === entry.category
+          );
+    if (!category) throw new Error(`Invalid skill category: ${entry.category}`);
+    definitions[type] = {
+      type,
+      category,
+      kind: entry.kind,
+      usage: entry.usage,
+      compulsory: entry.compulsory,
+      parameterForm: entry.parameterForm ?? undefined,
+      description: entry.description,
+    };
+  }
+  assertCompleteCatalog(definitions);
+  return definitions;
 }
 
-const entriesByName = new Map<string, RulebookEntry>(
-  (rulebook.entries as RulebookEntry[]).map((e) => [e.name, e])
-);
-
-/**
- * Skill definitions database — one entry per catalog SkillType, generated
- * from the rulebook data. Throws at load when the enum and the book data
- * diverge (a renamed skill, a missing entry), so drift cannot ship.
- */
-export const SKILL_DEFINITIONS: Record<SkillType, SkillDefinition> =
-  Object.fromEntries(
-    (Object.values(SkillType) as SkillType[]).map((type) => {
-      const entry = entriesByName.get(type);
-      if (!entry) {
-        throw new Error(
-          `SkillType '${type}' has no entry in docs/rulebook/skills.json`
-        );
-      }
-      const definition: SkillDefinition = {
-        type,
-        category: (entry.category as SkillCategory) ?? SkillCategory.GENERAL,
-        kind: entry.kind as SkillKind,
-        usage: entry.usage as SkillUsage,
-        compulsory: entry.compulsory,
-        parameterForm: entry.parameterForm ?? undefined,
-        page: entry.page,
-        description: firstSentence(entry.text),
-        text: entry.text,
-        abridged: entry.abridged ?? undefined,
-      };
-      return [type, definition];
-    })
-  ) as Record<SkillType, SkillDefinition>;
+export const SKILL_DEFINITIONS = buildSkillDefinitions();
 
 /**
  * Get a skill instance by type (optionally with a family parameter,
@@ -337,8 +297,7 @@ export const LEGACY_SKILL_NAMES: Record<
 };
 
 const KNOWN_TYPES = new Set(Object.values(SkillType) as string[]);
-const IS_DEV =
-  (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? true;
+const IS_DEV = (import.meta as { env?: { DEV?: boolean } }).env?.DEV ?? true;
 
 /**
  * Migrate one persisted skill (possibly saved under a legacy name) to a

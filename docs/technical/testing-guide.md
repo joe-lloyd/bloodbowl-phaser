@@ -1,76 +1,72 @@
-# Testing Guide
+# Testing
 
-## Overview
+Choose checks for the behaviour you change. Vitest covers unit and headless
+behaviour. Playwright runs engine scenarios, browser interactions and visual
+comparisons. Simulations exercise rules together across full matches.
 
-We use **Vitest** for all testing (Unit, Integration) and it is configured to mimic a browser environment where needed using `jsdom`.
+## Fast local checks
 
-## Running Tests
-
-- **Run all tests**: `npm test`
-- **Run with UI**: `npm run test:ui`
-- **Check coverage**: `npm run test:coverage`
-
-### Headless visual baselines
-
-Board-state screenshots are deterministic fixed-viewport (1200×660) SVG
-renders, not browser captures — they run under plain Vitest with no browser and
-no Playwright dependency.
-
-- **Run them**: `npx vitest run __tests__/headless/match-state-visual-baseline.test.ts`
-- **Update them after an intentional visual change**:
-  `UPDATE_VISUAL_BASELINES=1 npx vitest run __tests__/headless/match-state-visual-baseline.test.ts`
-- Baseline files live in `__tests__/headless/screenshots/`.
-
-The `match-state-visual-sync` checkpoints (loose ball, carried ball, KO box,
-restored activation) render straight from
-`src/game/presentation/boardState.ts`, so any regression that duplicates the
-ball, leaves a knocked-out player on the pitch, or drops the activated
-treatment after a restore changes the image.
-
-## Test Structure
-
-- `__tests__/unit`: Pure logic tests (Validators, Services).
-- `__tests__/integration`: Component interaction tests.
-- `__tests__/e2e`: Full game scenario tests.
-- `__tests__/mocks`: Phaser and Global mocks.
-- `__tests__/setup`: Global test configuration.
-
-## Writing Tests
-
-### 1. Using Mocks
-
-If you need to test a Scene or GameObject dependent class, use the mocks from `mocks/phaser-mocks.ts`.
-
-```typescript
-import { MockScene } from "../mocks/phaser-mocks";
-
-it("should add sprite", () => {
-  const scene = new MockScene();
-  const sprite = scene.add.sprite(0, 0, "tex");
-  expect(sprite).toBeDefined();
-});
+```bash
+pnpm exec vitest run path/to/test.ts
+pnpm exec vitest run __tests__/unit/skill-catalog.test.ts
+pnpm exec vitest run __tests__/headless/rules/gate.test.ts
+pnpm exec vitest run                         # full Vitest suite
+pnpm docs:check                              # links and private references
 ```
 
-### 2. Using Builders
+Use literal expected outcomes through public entry points. Avoid tests that
+only mirror an implementation helper or confirm which internal function ran.
 
-Use builders to create consistent test data.
+## Scenario and browser checks
 
-```typescript
-import { TeamBuilder } from "../utils/test-builders";
-
-const team = new TeamBuilder().withRace(TeamRace.ORC).build();
+```bash
+pnpm e2e:install       # install the pinned Chromium build once
+pnpm e2e:engine        # scenario matrix without a browser
+pnpm e2e:browser       # real board interactions and HUD decisions
+pnpm e2e:visual        # compare reviewed screenshots
+pnpm e2e:case dodge    # filter by case name or id
+pnpm e2e:report        # open the previous run's report
 ```
 
-### 3. Async Testing
+See [E2E testing](../E2E_TESTING.md) for case definitions, artifacts, emulator
+setup and baseline updates. The tests live in `e2e/`. Browser tests use a
+production bundle in CI and deterministic fixtures rather than a live cloud account.
 
-Use helper utilities execution.
+For online transport and reload checks, use the opt-in emulator project or the
+[two-browser match harness](../../e2e/online-match/README.md).
 
-```typescript
-import { wait, flushPromises } from "../utils/test-helpers";
+## Reproduce dice outcomes
 
-await wait(100);
+Use a fixed seed and reproduce the actual action sequence. A seed depends on
+all dice consumed before the result, so an isolated roll is not always a valid
+seed for the whole operation.
+
+[`__tests__/utils/seed-finder.ts`](../../__tests__/utils/seed-finder.ts) provides
+`findSeedForDiceSequence`, `findSeedForBlockOutcome` and injury-chain helpers.
+The shared rule-case tooling also finds and records outcome seeds; see the
+[E2E seed workflow](../E2E_TESTING.md). Commit stable reproductions rather than
+searching large seed ranges in every test run.
+
+## Whole matches and performance
+
+```bash
+pnpm sim --games 10
+pnpm perf
 ```
 
-## Coverage Requirements
+[Simulations](../SIMULATION.md) record blocking findings and support replay.
+The [performance log](../../perf-results/LOG.md) records measured changes.
+Compare performance on the same hardware and workload. Keep sprite animation
+smooth while testing any reduction in rendering work.
 
-We aim for **80% coverage** on pure logic files (Services, Validators).
+## Type and build checks
+
+```bash
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm build:netlify
+```
+
+The TypeScript check currently reports existing errors. Compare diagnostics
+with the base revision and fix new errors introduced by your change. Vite
+transpilation does not replace this check. See [development](../DEVELOPMENT.md).
