@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { marked } from "marked";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const gitFiles = (...args) =>
@@ -36,18 +37,24 @@ for (const file of publicFiles) {
   const absolute = path.join(root, file);
   if (!existsSync(absolute)) continue;
   documents++;
-  const markdown = readFileSync(absolute, "utf8")
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`[^`\n]+`/g, "");
-  for (const match of markdown.matchAll(/!?\[[^\]\n]*\]\(([^)\n]+)\)/g)) {
-    const href = match[1].replace(/^<|>$/g, "").split(/\s+"/)[0];
-    if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("#")) continue;
-    const target = decodeURIComponent(href.split("#")[0]);
-    if (!target) continue;
-    const resolved = path.resolve(path.dirname(absolute), target);
+  const tokens = marked.lexer(readFileSync(absolute, "utf8"));
+  marked.walkTokens(tokens, (token) => {
+    if (token.type !== "link" && token.type !== "image") return;
+    const href = token.href;
+    if (
+      /^[a-z][a-z0-9+.-]*:/i.test(href) ||
+      href.startsWith("#") ||
+      href.startsWith("//")
+    )
+      return;
+    const target = decodeURIComponent(href.split(/[?#]/)[0]);
+    if (!target) return;
+    const resolved = target.startsWith("/")
+      ? path.resolve(root, target.slice(1))
+      : path.resolve(path.dirname(absolute), target);
     if (!existsSync(resolved))
       failures.push(`${file}: missing link target ${href}`);
-  }
+  });
 }
 // Runtime code must not import an ignored reference folder.
 for (const file of tracked.filter((entry) =>
@@ -57,7 +64,7 @@ for (const file of tracked.filter((entry) =>
   if (
     existsSync(absolute) &&
     statSync(absolute).isFile() &&
-    /(?:from\s*|import\s*\()\s*["'][^"']*docs\/(?:pdfs|rulebook)\//.test(
+    /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)\s*["'][^"']*docs\/(?:pdfs|rulebook)\//.test(
       readFileSync(absolute, "utf8")
     )
   ) {

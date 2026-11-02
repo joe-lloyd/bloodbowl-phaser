@@ -188,7 +188,7 @@ export const SKILL_CATALOG = {
     usage: "passive",
     compulsory: true,
     parameterForm: null,
-    description: "Makes casualty results more dangerous for this player.",
+    description: "Affects Casualty Rolls, which this Sevens game does not use.",
   },
   Defensive: {
     kind: "skill",

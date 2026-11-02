@@ -2,7 +2,7 @@
 
 ## Install and start
 
-Use Node.js 20 or later and pnpm 10.26.0. The package manager version is
+Use Node.js 20.19+, 22.12+, or 24+ and pnpm 10.26.0. The package manager version is
 pinned in [package.json](../package.json).
 
 ```bash
@@ -15,7 +15,9 @@ team building, local matches, unit tests or a Vite production bundle.
 
 [Development fixtures](technical/development-seed-data.md) provide legal teams
 and competitions for inspection. The seed controls appear on the local team
-management page. Their cleanup removes seed-owned data, so use them deliberately.
+management page. Refresh and cleanup remove seed-owned records and legacy teams
+named exactly `<roster> Sample`, even without seed metadata. Rename or back up
+any coach-created team with that exact name before using these controls.
 
 ## Check a change
 
@@ -56,20 +58,29 @@ Firestore persistence and a command transport between the two browsers.
 2. Enable the Google authentication provider and create a Firestore database.
 3. Copy [`.env.example`](../.env.example) to `.env.local` and fill the four
    `VITE_FIREBASE_*` client settings.
-4. Deploy [Firestore rules](../firestore.rules) with the Firebase CLI:
-   `firebase deploy --only firestore:rules`.
+4. Install the Firebase CLI, sign in and deploy the [Firestore rules](../firestore.rules)
+   to your intended project. Replace `YOUR_PROJECT_ID` with that project's ID:
+
+   ```bash
+   npm install --global firebase-tools
+   firebase login
+   firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
+   ```
+
 5. Add the deployed hostname to Firebase Authentication's authorized domains.
 6. Restart Vite, or rebuild the deployed site, after changing environment values.
 
-[Cloud Functions](../functions/) provide an optional join path. The client also
-has a transactional join path, so deploying Functions is not required for the
-standard client flow. Review Firebase's current deployment requirements before
-enabling additional services.
+The `VITE_FIREBASE_*` settings configure the web client. They do not select a
+project for Firebase CLI commands.
+
+The implemented lobby join path is a client-side Firestore transaction in
+[`lobby.ts`](../src/firebase/lobby.ts). The `functions/` directory is a scaffold
+with no exported callable functions; it does not provide a join service.
 
 For local online development:
 
 ```bash
-firebase emulators:start --only auth,firestore
+firebase emulators:start --only auth,firestore --project YOUR_PROJECT_ID
 ```
 
 Set `VITE_FIREBASE_USE_EMULATORS=true` in `.env.local`. Auth uses port 9099 and

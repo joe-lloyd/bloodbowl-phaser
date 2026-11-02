@@ -80,11 +80,11 @@ Whenever a rule changes a roll, dice count, or result application, the system SH
 - **THEN** the command response events include the skill trigger with player and skill identified
 
 ### Requirement: Every catalog skill enforces 2025 rulebook behavior
-Every skill and trait in the reconciled catalog SHALL have a registered rule enforcing the 2025 rulebook's text for it (verified against legally obtained local reference material at implementation time), invoked through the framework's trigger points, reroll machinery, decision channel, or flow-queue operations. On completion the registry's coverage report SHALL list zero inert catalog skills, and any deliberate exclusion SHALL be an explicit allowlist entry, not an omission.
+Each catalog family SHALL either have a registered rule enforcing its applicable Sevens behaviour or appear on the deliberate-exclusion allowlist. Developers SHALL verify rules against legally obtained local reference material. Registered rules SHALL run through the framework's trigger points, reroll machinery, decision channel, or flow-queue operations. The coverage report's missing list SHALL contain only explicit allowlisted exclusions.
 
 #### Scenario: Coverage reaches the full catalog
 - **WHEN** the coverage report runs after the final batch
-- **THEN** implemented equals the catalog total and the inert list is empty (or contains only allowlisted exclusions)
+- **THEN** the registered and missing counts add up to the catalog total, and every missing family is explicitly allowlisted
 
 #### Scenario: A batch cannot land unverified
 - **WHEN** a batch registers rules without rule-scenario catalog configurations for them
@@ -111,12 +111,23 @@ A rule for a parameterized family (Loner (X+), Mighty Blow (+X), …) SHALL read
 - **WHEN** players with Loner (3+) and Loner (5+) each attempt to use a team reroll
 - **THEN** each rolls against their own threshold from the same registered rule
 
-### Requirement: The catalog reaches full coverage
-Every remaining inert catalog skill (the 30 unimplemented families) SHALL be given a registered rule enforcing its 2025 rulebook text, verified against legally obtained local reference material at implementation time. Public metadata and project-written UI hints live in `src/data/skillCatalog.ts`; builds and tests SHALL NOT require private reference files. On completion `SkillRegistry.coverage()` SHALL report 107 implemented families with an empty inert list, and the only unregistered catalog entry SHALL be the explicitly allowlisted Insignificant (draft-list construction only). The `gate.test.ts` implemented-set snapshot SHALL be updated in the same batch as each rule so it always names exactly the registered set.
+### Requirement: The catalog covers applicable Sevens rules
 
-#### Scenario: No inert catalog skill remains
-- **WHEN** the coverage report runs after the final batch
-- **THEN** `implemented` equals 107, `missing` is empty, and only `INSIGNIFICANT` is on the deliberate-inert allowlist
+Every catalog family with an in-match Sevens effect SHALL have a registered
+rule, verified against legally obtained local reference material at implementation
+time. Public metadata and project-written UI hints live in
+`src/data/skillCatalog.ts`; builds and tests SHALL NOT require private reference
+files. `SkillRegistry.coverage()` SHALL report 106 registered families and
+`missing` SHALL equal `[DECAY, INSIGNIFICANT]`. Both exclusions are deliberate:
+Decay modifies a Casualty Roll that Sevens does not use, and Insignificant is
+checked during draft-list construction. The implemented-set snapshot in
+`gate.test.ts` SHALL change with any registration change.
+
+#### Scenario: Only deliberate exclusions remain
+
+- **WHEN** the Sevens coverage report runs
+- **THEN** `implemented` equals 106 and `missing` contains only `DECAY` and
+  `INSIGNIFICANT`, with both on the deliberate-inert allowlist
 
 #### Scenario: A rule cannot land unverified
 - **WHEN** a batch registers a rule without a rule-scenario catalog configuration for it

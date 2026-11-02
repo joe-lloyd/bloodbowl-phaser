@@ -10,9 +10,12 @@ end zone to score. Each half gives each coach six turns.
    The builder shows budget and roster restrictions.
 3. Save the team and create a second team for the other coach.
 4. Return to the menu and choose **Play Local**.
-5. Select a different team in each column, choose a stadium style and start.
-6. Follow the coin-toss and setup prompts. The setup checklist shows what
-   each coach must fix before confirming their formation.
+5. Select a different team in each column and choose a stadium style.
+6. To enable progression, select **League fixture** before starting. It is off
+   by default. Advanced League teams can earn SPP; other modes follow their own
+   development rules. Leave it off for a friendly without progression.
+7. Start the match and follow the coin-toss and setup prompts. The setup checklist
+   shows what each coach must fix before confirming their formation.
 
 Both coaches use the same screen. You can build teams and play locally without
 signing in. Saved teams and a local match are stored in that browser, so clearing

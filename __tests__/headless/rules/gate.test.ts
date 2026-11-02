@@ -153,16 +153,13 @@ describe("rule coverage gate", () => {
     expect(cov.total).toBe(cov.implemented + cov.missing.length);
   });
 
-  it("draft-list-only traits are deliberately inert (allowlist)", () => {
-    // Insignificant (2025 p.129) only constrains Team Draft List
-    // construction, which happens outside a match - nothing to enforce
-    // in-game, so it stays unregistered on purpose. Its rule lives in
-    // src/game/rules/insignificant.ts and is enforced when the team builder
-    // saves a draft list (see __tests__/unit/rules/insignificant.test.ts).
-    const draftListOnly = [SkillType.INSIGNIFICANT];
-    for (const type of draftListOnly) {
-      expect(SkillRegistry.has(type)).toBe(false);
-    }
+  it("only deliberate Sevens exclusions remain unregistered", () => {
+    // Decay modifies a Casualty Roll that Sevens does not use.
+    // Insignificant constrains draft-list construction in rosterLegality.
+    expect(SkillRegistry.coverage().missing).toEqual([
+      SkillType.DECAY,
+      SkillType.INSIGNIFICANT,
+    ]);
   });
 
   it("seed search fails loudly when the outcome is unreachable", async () => {

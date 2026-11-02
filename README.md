@@ -29,7 +29,7 @@ dice and coaching decisions.
 
 ## Run it locally
 
-Use Node.js 20 or later and pnpm 10.26.0, the version pinned in
+Use Node.js 20.19+, 22.12+, or 24+ and pnpm 10.26.0, the version pinned in
 [package.json](package.json).
 
 ```bash
