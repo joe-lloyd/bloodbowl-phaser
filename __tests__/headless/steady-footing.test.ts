@@ -5,6 +5,7 @@ import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
 import { Scenario } from "../../src/types/Scenario";
+import { forceDice } from "../utils/test-helpers";
 
 function board(
   attackerSkills: SkillType[] = [],
@@ -222,6 +223,163 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     );
     expect(attacker.status).toBe(PlayerStatus.ACTIVE);
     expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+  });
+
+  it("saves a failed Rush before a Blitz Stab and completes the attack", async () => {
+    const game = board([SkillType.STEADY_FOOTING, SkillType.STAB]);
+    const attacker = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    expect(
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "blitz",
+        blockReplacement: "stab",
+      })
+    ).toMatchObject({ ok: true });
+    game.ctx.gameService
+      .getState()
+      .turn.movementUsed.set(attacker.id, attacker.stats.MA);
+    forceDice(game.ctx.rng, [1, 6, 1, 1]);
+    const result = await game.execute({
+      type: "stab",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    await game.ctx.gameService.flowManager.whenIdle();
+    expect(result.ok).toBe(true);
+    expect(attacker.status).toBe(PlayerStatus.ACTIVE);
+    expect(game.ctx.gameService.hasPlayerActed(attacker.id)).toBe(true);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(
+      game.events()
+        .filter((event) => event.name === GameEventNames.SkillTriggered)
+        .map((event) => event.data)
+    ).toContainEqual(
+      expect.objectContaining({ playerId: attacker.id, skill: SkillType.STAB })
+    );
+    expect(
+      game.events().filter(
+        (event) => event.name === GameEventNames.PlayerKnockedDown
+      )
+    ).toEqual([]);
+    expect(defender.status).toBe(PlayerStatus.ACTIVE);
+  });
+
+  it("continues the route after saving a failed movement Rush without armour or turnover", async () => {
+    const game = board([SkillType.STEADY_FOOTING]);
+    const player = game.ctx.team1.players[0];
+    game.ctx.team2.players[0].status = PlayerStatus.PRONE;
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+    });
+    game.ctx.gameService
+      .getState()
+      .turn.movementUsed.set(player.id, player.stats.MA);
+    forceDice(game.ctx.rng, [1, 6, 2]);
+    const result = await game.execute({
+      type: "move",
+      playerId: player.id,
+      path: [
+        { x: 5, y: 6 },
+        { x: 5, y: 7 },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(player.status).toBe(PlayerStatus.ACTIVE);
+    expect(player.gridPosition).toEqual({ x: 5, y: 7 });
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(
+      result.events
+        .filter((event) => event.name === GameEventNames.DiceRoll)
+        .map((event) => event.data)
+    ).not.toContainEqual(
+      expect.objectContaining({
+        rollType: expect.stringContaining("Armour Roll"),
+      })
+    );
+  });
+
+  it("continues a saved Dodge and lets Shadowing follow the vacated square", async () => {
+    const game = board([SkillType.STEADY_FOOTING], [SkillType.SHADOWING]);
+    const player = game.ctx.team1.players[0];
+    const shadower = game.ctx.team2.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+    });
+    // Failed Dodge, successful Shadowing, Steady Footing save, then a
+    // successful Dodge and a second Shadowing follow.
+    forceDice(game.ctx.rng, [1, 4, 6, 6, 4]);
+    const result = await game.execute({
+      type: "move",
+      playerId: player.id,
+      path: [
+        { x: 5, y: 6 },
+        { x: 5, y: 7 },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.SHADOWING,
+    });
+    expect(
+      await game.execute({ type: "use-reaction", accept: true })
+    ).toMatchObject({ ok: true });
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.SHADOWING,
+    });
+    expect(
+      await game.execute({ type: "use-reaction", accept: true })
+    ).toMatchObject({ ok: true });
+    expect(player.status).toBe(PlayerStatus.ACTIVE);
+    expect(player.gridPosition).toEqual({ x: 5, y: 7 });
+    expect(shadower.status).toBe(PlayerStatus.ACTIVE);
+    expect(shadower.gridPosition).toEqual({ x: 5, y: 6 });
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team1.id);
+    expect(
+      game
+        .events()
+        .filter((event) => event.name === GameEventNames.DiceRoll)
+        .map((event) => event.data)
+    ).not.toContainEqual(
+      expect.objectContaining({
+        rollType: expect.stringContaining("Armour Roll"),
+      })
+    );
+  });
+
+  it("still falls and loses the Blitz Stab when Steady Footing fails", async () => {
+    const game = board([SkillType.STEADY_FOOTING, SkillType.STAB]);
+    const attacker = game.ctx.team1.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+      blockReplacement: "stab",
+    });
+    game.ctx.gameService
+      .getState()
+      .turn.movementUsed.set(attacker.id, attacker.stats.MA);
+    forceDice(game.ctx.rng, [1, 5, 1, 1, 1]);
+    const result = await game.execute({
+      type: "stab",
+      attackerId: attacker.id,
+      defenderId: game.ctx.team2.players[0].id,
+    });
+    expect(result.ok).toBe(true);
+    expect(attacker.status).toBe(PlayerStatus.PRONE);
+    expect(game.ctx.gameService.getActiveTeamId()).toBe(game.ctx.team2.id);
+    expect(
+      result.events
+        .filter((event) => event.name === GameEventNames.SkillTriggered)
+        .map((event) => event.data)
+    ).not.toContainEqual(expect.objectContaining({ skill: SkillType.STAB }));
   });
 
   it.each([
