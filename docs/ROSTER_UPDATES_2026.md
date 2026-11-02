@@ -59,8 +59,29 @@ rather than a complete re-audit of every ruling in the FAQ.
 
 ## Other releases checked
 
-Bretonnians and Tomb Kings already have their Third Season rosters. The
-August Sevens tier list is already present for all 30 supported teams.
+The release immediately before High Elves was the paired launch of
+Bretonnians and Tomb Kings in November 2025. They appear together in the
+[official launch announcement](https://www.warhammer-community.com/en-gb/articles/glgpuoah/saturday-pre-orders-play-ball-in-a-new-season-of-blood-bowl/),
+with Spike! Journals 19 and 20 respectively.
+
+Both had Third Season profiles, but checking the local 2025 rulebook's
+roster pages 162 and 185 found these remaining errors, now corrected:
+
+- Bretonnian Knight Throwers start with Dauntless, Nerves of Steel and
+  Pass. Removed the extra starting Safe Pass skill. They may still learn
+  it through their primary Passing access.
+- Tomb Kings Throwers have secondary Agility, Devious and Strength access.
+  Removed Mutation access.
+- All four Tomb Kings positions include the Human keyword. Added it.
+- Tomb Guardians have Big Guy, Blocker, Human and Undead keywords.
+  Replaced the incorrect Skeleton keyword and added Blocker.
+
+The statlines, costs, starting skills on the other positions, skill access,
+positional limits, leagues and Apothecary permissions otherwise match those
+rulebook rosters. Tomb Kings retain their Masters of Undeath special rule.
+The historical Anointed Thrower and Anointed Blitzer display names remain
+stable for saved teams. The new Steady Footing fixes also apply to Grail
+Knights. The August Sevens tier list is already present for all 30 teams.
 
 Night Goblins were [announced on 18 September](https://www.warhammer-community.com/en-gb/articles/3zbmjzgp/the-big-autumn-preview-night-goblins-hit-the-gridiron/).
 As checked on 2 November, the official material still describes their full

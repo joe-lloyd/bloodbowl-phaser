@@ -193,7 +193,6 @@ const BRETONIAN_ROSTER: TeamRoster = {
         getSkill(SkillType.DAUNTLESS),
         getSkill(SkillType.NERVES_OF_STEEL),
         getSkill(SkillType.PASS),
-        getSkill(SkillType.SAFE_PASS),
       ],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
@@ -2553,6 +2552,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
     {
       positionName: "Skeleton Lineman",
       keywords: [
+        RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
         RaceKeyWord.SKELETON,
         TraitKeyWord.UNDEAD,
@@ -2574,8 +2574,9 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
     {
       positionName: "Anointed Thrower",
       keywords: [
-        PositionKeyWord.THROWER,
+        RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
+        PositionKeyWord.THROWER,
         TraitKeyWord.UNDEAD,
       ],
       cost: 65_000,
@@ -2591,7 +2592,6 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       secondary: [
         SkillCategory.AGILITY,
         SkillCategory.DEVIOUS,
-        SkillCategory.MUTATION,
         SkillCategory.STRENGTH,
       ],
     },
@@ -2599,6 +2599,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       positionName: "Anointed Blitzer",
       keywords: [
         PositionKeyWord.BLITZER,
+        RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
         TraitKeyWord.UNDEAD,
       ],
@@ -2617,7 +2618,8 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
       positionName: "Tomb Guardian",
       keywords: [
         TraitKeyWord.BIG_GUY,
-        RaceKeyWord.SKELETON,
+        PositionKeyWord.BLOCKER,
+        RaceKeyWord.HUMAN,
         TraitKeyWord.UNDEAD,
       ],
       cost: 115_000,

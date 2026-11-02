@@ -8,6 +8,7 @@ import { createPlayer, InjuryType } from "../../src/types/Player";
 import { createTeam, RosterName } from "../../src/types/Team";
 import { SkillCategory, SkillType } from "../../src/types/Skills";
 import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
+import { eligibleSkills } from "../../src/game/progression/progression";
 
 function recruit(rosterName: RosterName, positionName: string) {
   const template = getRosterByRosterName(rosterName).playerTemplates.find(
@@ -16,6 +17,58 @@ function recruit(rosterName: RosterName, positionName: string) {
   if (!template) throw new Error(`Missing recruit: ${positionName}`);
   return createPlayer(template, "test-team", 1);
 }
+
+describe("Third Season starter team rules", () => {
+  it("recruits a Bretonnian Thrower with Pass, without a free Safe Pass skill", () => {
+    const player = recruit(RosterName.BRETONIAN, "Bretonian Knight Thrower");
+    expect(player.skills.map((skill) => skill.type)).toEqual([
+      SkillType.DAUNTLESS,
+      SkillType.NERVES_OF_STEEL,
+      SkillType.PASS,
+    ]);
+    expect(eligibleSkills(player, player.primary ?? [])).toContain(
+      SkillType.SAFE_PASS
+    );
+  });
+
+  it("offers a Tomb Kings Thrower legal secondary skills without Mutations", () => {
+    const player = recruit(RosterName.TOMB_KINGS, "Anointed Thrower");
+    const choices = eligibleSkills(player, player.secondary ?? []);
+    expect(choices).toContain(SkillType.DODGE);
+    expect(choices).not.toContain(SkillType.TWO_HEADS);
+    expect(player.secondary).toEqual([
+      SkillCategory.AGILITY,
+      SkillCategory.DEVIOUS,
+      SkillCategory.STRENGTH,
+    ]);
+  });
+
+  it.each([
+    {
+      position: "Skeleton Lineman",
+      keywords: ["Human", "Lineman", "Skeleton", "Undead"],
+    },
+    {
+      position: "Anointed Thrower",
+      keywords: ["Human", "Skeleton", "Thrower", "Undead"],
+    },
+    {
+      position: "Anointed Blitzer",
+      keywords: ["Blitzer", "Human", "Skeleton", "Undead"],
+    },
+    {
+      position: "Tomb Guardian",
+      keywords: ["Big Guy", "Blocker", "Human", "Undead"],
+    },
+  ])(
+    "recruits $position with the rulebook keywords",
+    ({ position, keywords }) => {
+      expect(
+        new Set(recruit(RosterName.TOMB_KINGS, position).keywords)
+      ).toEqual(new Set(keywords));
+    }
+  );
+});
 
 describe("March 2026 High Elf recruits", () => {
   it("recruits a Phoenix Warrior at the updated price with passing skills", () => {
