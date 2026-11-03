@@ -13,13 +13,17 @@
  *   pnpm sim:replay <match>.json --html match.html     playback page
  *   pnpm sim --games 20 --html                       playback pages + index.html
  *
+ *   pnpm sim bench --coach heuristic --vs random --games 200   mirrored benchmark
+ *
  * Writes `summary.json` plus one recording per match with findings (or every
  * match with `--record all`) to `--out`. Exits non-zero when any match broke
  * an invariant, crashed, stalled or ran out of budget.
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
+import { fork } from "node:child_process";
 import { RosterName } from "../types/Team";
 import { Coach } from "./coach";
 import { randomCoach } from "./coaches/random";
@@ -35,6 +39,15 @@ import {
 import { createCoachRng } from "./rng";
 import { serializeMatchSave } from "../headless/serialization";
 import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "./viewer";
+import {
+  BenchGame,
+  BenchJob,
+  BenchReport,
+  benchJobs,
+  benchReport,
+  playBenchGame,
+} from "./bench";
+import { solveRates } from "./puzzles";
 
 const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
@@ -518,6 +531,229 @@ async function replay(argv: string[]): Promise<number> {
     : 0;
 }
 
+interface BenchOptions {
+  coach: CoachName;
+  vs: CoachName;
+  games: number;
+  seed: number;
+  rosters: RosterName[];
+  workers: number;
+  puzzleSeeds: number;
+  out: string;
+}
+
+const BENCH_HELP = `Usage: pnpm sim bench [options]
+  --coach <name>       the coach under test (default heuristic)
+  --vs <name>          the baseline it plays (default heuristic)
+  --games <n>          matches, an even number: each seed is played twice
+                       with the coaches swapping sides (default 200)
+  --seed <n>           first seed (default 1)
+  --rosters <list>     "all" or comma-separated roster names (default all)
+  --workers <n>        parallel processes (default: CPUs - 1)
+  --puzzles <n>        seeds per coaching puzzle, 0 to skip (default 50)
+  --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
+
+function parseBenchOptions(argv: string[]): BenchOptions {
+  const options: BenchOptions = {
+    coach: "heuristic",
+    vs: "heuristic",
+    games: 200,
+    seed: 1,
+    rosters: Object.values(RosterName),
+    workers: Math.max(1, os.cpus().length - 1),
+    puzzleSeeds: 50,
+    out: path.join(
+      "sim-results",
+      `bench-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
+    ),
+  };
+  const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+  for (let i = 0; i < argv.length; i++) {
+    switch (argv[i]) {
+      case "--coach":
+        options.coach = parseCoach(value(i++));
+        break;
+      case "--vs":
+        options.vs = parseCoach(value(i++));
+        break;
+      case "--games":
+        options.games = Number(value(i++));
+        break;
+      case "--seed":
+        options.seed = Number(value(i++));
+        break;
+      case "--rosters":
+        options.rosters = parseRosters(value(i++));
+        break;
+      case "--workers":
+        options.workers = Math.max(1, Number(value(i++)));
+        break;
+      case "--puzzles":
+        options.puzzleSeeds = Number(value(i++));
+        break;
+      case "--out":
+        options.out = value(i++);
+        break;
+      case "--help":
+        process.stdout.write(`${BENCH_HELP}\n`);
+        process.exit(0);
+        break;
+      default:
+        fail(`unknown option ${argv[i]}\n\n${BENCH_HELP}`);
+    }
+  }
+  if (
+    !Number.isInteger(options.games) ||
+    options.games < 2 ||
+    options.games % 2
+  )
+    fail("--games must be an even number of at least 2");
+  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
+    fail("--puzzles must be 0 or more");
+  return options;
+}
+
+type BenchMessage = { job: BenchJob } | { done: true };
+
+/** One child process: plays the jobs the parent sends, one at a time. */
+async function benchWorker(argv: string[]): Promise<number> {
+  const [candidate, baseline] = [parseCoach(argv[0]), parseCoach(argv[1])];
+  const coaches = [makeCoach(candidate, []), makeCoach(baseline, [])];
+  await new Promise<void>((resolve) => {
+    process.on("message", (message: BenchMessage) => {
+      if ("done" in message) return resolve();
+      playBenchGame(message.job, coaches[0], coaches[1]).then(
+        (game) => process.send!({ game }),
+        (error) =>
+          process.send!({
+            error: error instanceof Error ? error.message : String(error),
+            job: message.job,
+          })
+      );
+    });
+    process.send!({ ready: true });
+  });
+  return 0;
+}
+
+async function runBench(options: BenchOptions): Promise<number> {
+  const pairing = createCoachRng(options.seed);
+  const jobs = benchJobs(options.games / 2, options.seed, () => [
+    pairing.pick(options.rosters),
+    pairing.pick(options.rosters),
+  ]);
+  const games: BenchGame[] = [];
+  const errors: string[] = [];
+  const started = Date.now();
+  let next = 0;
+  const workers = Math.min(options.workers, jobs.length);
+
+  await Promise.all(
+    Array.from(
+      { length: workers },
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const child = fork(
+            process.argv[1],
+            ["bench-worker", options.coach, options.vs],
+            { execArgv: process.execArgv }
+          );
+          const feed = () => {
+            if (next < jobs.length) child.send({ job: jobs[next++] });
+            else child.send({ done: true });
+          };
+          child.on(
+            "message",
+            (message: { game?: BenchGame; error?: string; job?: BenchJob }) => {
+              if (message.game) games.push(message.game);
+              if (message.error)
+                errors.push(`seed ${message.job?.seed}: ${message.error}`);
+              if (message.game || message.error)
+                process.stderr.write(
+                  `\r${games.length + errors.length}/${jobs.length} games, ${((Date.now() - started) / 1000).toFixed(0)}s`
+                );
+              feed();
+            }
+          );
+          child.on("error", reject);
+          child.on("exit", () => resolve());
+        })
+    )
+  );
+  process.stderr.write("\n");
+
+  const report = benchReport(games);
+  const puzzles =
+    options.puzzleSeeds > 0
+      ? {
+          [options.coach]: await solveRates(
+            makeCoach(options.coach, []),
+            options.puzzleSeeds
+          ),
+          ...(options.vs === options.coach
+            ? {}
+            : {
+                [options.vs]: await solveRates(
+                  makeCoach(options.vs, []),
+                  options.puzzleSeeds
+                ),
+              }),
+        }
+      : {};
+  fs.mkdirSync(path.dirname(options.out), { recursive: true });
+  fs.writeFileSync(
+    options.out,
+    JSON.stringify(
+      {
+        options: { ...options, rosters: options.rosters.length },
+        report,
+        puzzles,
+        errors,
+        games: games.sort(
+          (a, b) => a.seed - b.seed || a.candidateSide - b.candidateSide
+        ),
+      },
+      null,
+      2
+    )
+  );
+  process.stdout.write(
+    `${formatBench(options, report, puzzles)}\n\nReport: ${options.out}\n`
+  );
+  return errors.length || report.blockingFindings ? 1 : 0;
+}
+
+function formatBench(
+  options: BenchOptions,
+  r: BenchReport,
+  puzzles: Record<string, { id: string; solved: number; of: number }[]>
+): string {
+  const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const f = (x: number) => x.toFixed(2);
+  const row = (name: string, s: BenchReport["candidate"]) =>
+    `  ${name.padEnd(12)} ${f(s.touchdownsPerGame).padStart(5)} TD  ` +
+    `${f(s.turnoversPerGame).padStart(5)} turnovers (${pct(s.turnoverRate)} of turns)  ` +
+    `dodges ${f(s.failedDodgesPerGame)} failed of ${f(s.dodgesPerGame)}  ` +
+    `rushes ${f(s.failedRushesPerGame)} failed of ${f(s.rushesPerGame)}  per game`;
+  const lines = [
+    `${options.coach} vs ${options.vs}: ${r.games} games (${r.games / 2} mirrored seeds from ${options.seed})`,
+    `  won ${r.wins}, drew ${r.draws}, lost ${r.losses}: win rate ${pct(r.winRate)} ` +
+      `(95% interval ${pct(r.winRate95[0])} to ${pct(r.winRate95[1])}), ` +
+      `TD difference ${r.touchdownDiffPerGame >= 0 ? "+" : ""}${f(r.touchdownDiffPerGame)} per game`,
+    row(options.coach, r.candidate),
+    row(options.vs, r.baseline),
+    `  ${Math.round(r.averageMs)} ms per game; ${r.incomplete} unfinished; ${r.blockingFindings} blocking findings`,
+  ];
+  for (const [coach, rates] of Object.entries(puzzles)) {
+    lines.push(
+      `Puzzles, ${coach}: ` +
+        rates.map((p) => `${p.id} ${p.solved}/${p.of}`).join(", ")
+    );
+  }
+  return lines.join("\n");
+}
+
 // The engine narrates every operation on console.log; a batch of matches
 // would bury the report. Errors still reach stderr, and are counted.
 let engineErrors = 0;
@@ -543,7 +779,11 @@ const [mode, ...rest] = process.argv.slice(2);
 const run =
   mode === "replay"
     ? replay(rest)
-    : runBatch(parseRunOptions(process.argv.slice(2)));
+    : mode === "bench"
+      ? runBench(parseBenchOptions(rest))
+      : mode === "bench-worker"
+        ? benchWorker(rest)
+        : runBatch(parseRunOptions(process.argv.slice(2)));
 run.then(
   (code) => process.exit(code),
   (error) => {

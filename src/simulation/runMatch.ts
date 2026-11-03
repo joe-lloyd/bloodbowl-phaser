@@ -6,12 +6,13 @@
 
 import { HeadlessGame } from "../headless/HeadlessGame";
 import { stabilizeIds } from "../headless/createHeadlessGame";
-import { HeadlessCommand } from "../headless/protocol";
+import { CommandResponse, HeadlessCommand } from "../headless/protocol";
 import { GameSnapshot } from "../headless/serialization";
 import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
+import { GameEventNames } from "../types/events";
 import { enumerateDecision } from "./candidates";
 import { Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
@@ -80,6 +81,56 @@ export interface MatchRecording {
   steps: RecordedStep[];
   final: { phase: string; score: [number, number]; hash: string };
   findings: Finding[];
+  /** Per team, home first; absent on recordings made before stats. */
+  stats?: [TeamPlayStats, TeamPlayStats];
+}
+
+/** How a team played, counted from the engine's own events. */
+export interface TeamPlayStats {
+  turns: number;
+  turnovers: number;
+  /** Every Dodge and Rush rolled, re-rolls included. */
+  dodges: number;
+  failedDodges: number;
+  rushes: number;
+  failedRushes: number;
+}
+
+const emptyStats = (): TeamPlayStats => ({
+  turns: 0,
+  turnovers: 0,
+  dodges: 0,
+  failedDodges: 0,
+  rushes: 0,
+  failedRushes: 0,
+});
+
+/** Add one command's events to the stats; `team` is who sent the command. */
+function countEvents(
+  stats: [TeamPlayStats, TeamPlayStats],
+  events: CommandResponse["events"],
+  team: 0 | 1,
+  teamIndex: (teamId: string) => 0 | 1
+): void {
+  for (const event of events) {
+    const data = event.data as
+      | { teamId?: string; rollType?: string; resultState?: string }
+      | undefined;
+    if (event.name === GameEventNames.TurnStarted && data?.teamId)
+      stats[teamIndex(data.teamId)].turns++;
+    if (event.name === GameEventNames.Turnover && data?.teamId)
+      stats[teamIndex(data.teamId)].turnovers++;
+    if (event.name !== GameEventNames.DiceRoll || !data?.rollType) continue;
+    const side = stats[data.teamId ? teamIndex(data.teamId) : team];
+    const failed = data.resultState === "failure";
+    if (data.rollType.startsWith("Dodge (")) {
+      side.dodges++;
+      if (failed) side.failedDodges++;
+    } else if (data.rollType.startsWith("Rush (")) {
+      side.rushes++;
+      if (failed) side.failedRushes++;
+    }
+  }
 }
 
 export interface MatchSpec {
@@ -164,6 +215,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   let kickingTeamId: string | null = null;
   /** Candidates refused in the current state, so a coach cannot retry them forever. */
   const monitor = createRuleMonitor();
+  const stats: [TeamPlayStats, TeamPlayStats] = [emptyStats(), emptyStats()];
   let refused = new Set<string>();
 
   const teamIndex = (teamId: string): 0 | 1 =>
@@ -216,6 +268,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     for (const command of candidate.commands) {
       const before = game.snapshot();
       const response = await game.execute(command);
+      countEvents(stats, response.events, team, teamIndex);
       steps.push({
         command,
         ok: response.ok,
@@ -277,9 +330,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   }
   // Progression reads match stats, so every point on the scoreboard must
   // have a credited scorer or a player loses the SPP for it.
-  const stats = game.ctx.matchStats.captureState().players;
+  const playerStats = game.ctx.matchStats.captureState().players;
   for (const team of final.teams) {
-    const credited = stats
+    const credited = playerStats
       .filter((p) => p.teamId === team.id)
       .reduce((sum, p) => sum + p.touchdowns, 0);
     if (credited !== (final.score[team.id] ?? 0)) {
@@ -305,6 +358,7 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
     steps,
     final: summarize(final),
     findings,
+    stats,
   };
 }
 

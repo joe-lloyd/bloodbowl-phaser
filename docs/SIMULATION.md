@@ -70,6 +70,45 @@ early more often than a good coach would. Treat it as a source of
 human-like variety, not as a strong player. The heuristic and random coaches
 find most bugs.
 
+## Compare two coaches
+
+`pnpm sim bench` measures one coach against another. Every seed is played
+twice, with the same two rosters, and the coaches swap sides for the second
+match. That cancels the roster match-up and most of the dice luck. A coach
+playing itself comes out exactly even.
+
+```bash
+pnpm sim bench --coach heuristic --vs random --games 200
+pnpm sim bench --coach heuristic --vs heuristic --games 200 --puzzles 0
+```
+
+Matches run in parallel child processes, one per CPU less one by default
+(`--workers`). The report gives:
+
+- wins, draws and losses for the coach under test, with a 95% Wilson
+  interval on its win rate
+- touchdowns per game for each side, and the touchdown difference
+- turnovers per game and per turn played
+- Dodge and Rush rolls per game, and how many failed, re-rolls included
+
+It also plays the coaching puzzles in `src/simulation/puzzles.ts` for both
+coaches, 50 seeds each by default (`--puzzles`). A puzzle is one turn from a
+fixed position with a known right answer: score this turn, blitz the carrier,
+cage up, break a cage, and stall. The match numbers say whether a coach wins;
+the puzzles say why.
+
+The full report, with every game, is written to `--out` as JSON. The exit
+code is 1 if any game broke an invariant, crashed or stalled.
+
+Baseline on 2026-11-03, 200 games from seed 1:
+
+| Match-up               | Result                     | TD per game | Turnovers per turn |
+| ---------------------- | -------------------------- | ----------- | ------------------ |
+| heuristic vs heuristic | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
+
+The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 46
+times, and never cages up, breaks a cage or stalls.
+
 ## What is checked
 
 After every accepted command (`src/simulation/invariants.ts`):
@@ -167,6 +206,8 @@ on purpose, as with committed seeds.
 | `src/simulation/candidates.ts`            | Legal candidates at any decision point    |
 | `src/simulation/coaches/`                 | The three coaches                         |
 | `src/simulation/runMatch.ts`              | One match, its findings and its recording |
+| `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report   |
+| `src/simulation/puzzles.ts`               | One-turn coaching puzzles                 |
 | `src/simulation/invariants.ts`            | Rules checked after every command         |
 | `src/simulation/replay.ts`                | Replay, trim, and match-save export       |
 | `src/simulation/viewer.ts`, `viewer.html` | Playback pages and the batch index        |
