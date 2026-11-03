@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
+import { PlayerStatus } from "../../src/types/Player";
 import { forceDice } from "../utils/test-helpers";
 
 /**
@@ -56,5 +57,55 @@ describe("Diving Tackle", () => {
     });
     expect(diver.gridPosition).toEqual({ x: 5, y: 5 });
     expect(dodger.gridPosition).toEqual({ x: 4, y: 4 });
+  });
+
+  it("never leaves the diver and a jumper on one square", async () => {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "diving-tackle-jump-square",
+        name: "Diving Tackle jump square",
+        description: "A Jump brought down by Diving Tackle",
+        setup: {
+          team1Placements: [
+            { playerIndex: 0, x: 5, y: 5, skills: [SkillType.STEADY_FOOTING] },
+            { playerIndex: 1, x: 2, y: 2 },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 4, y: 6, skills: [SkillType.DIVING_TACKLE] },
+            { playerIndex: 1, x: 6, y: 5, status: PlayerStatus.PRONE },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        },
+      },
+      seed: 1,
+    });
+    game.ctx.team1.rerolls = 1;
+    const jumper = game.ctx.team1.players[0];
+    const diver = game.ctx.team2.players[0];
+    // Jump 5 (passes 4+, fails after the dive's -2), Steady Footing 1
+    forceDice(game.ctx.rng, [5, 1]);
+
+    await game.execute({
+      type: "declare-action",
+      playerId: jumper.id,
+      action: "move",
+    });
+    const jumped = await game.execute({
+      type: "jump",
+      playerId: jumper.id,
+      x: 7,
+      y: 5,
+    });
+    expect(jumped.pendingDecision?.type).toBe("reaction");
+    const dived = await game.execute({ type: "use-reaction", accept: true });
+
+    expect(dived.pendingDecision).toMatchObject({
+      type: "reroll",
+      rollKind: "steady-footing",
+    });
+    expect(diver.gridPosition).toEqual({ x: 5, y: 5 });
+    expect(jumper.gridPosition).toEqual({ x: 7, y: 5 });
   });
 });
