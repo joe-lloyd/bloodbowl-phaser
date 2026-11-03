@@ -53,7 +53,10 @@
   500 ms automatic end of turn) running at different moments relative to
   incoming commands. Task 1.3 would pin this down.
 - A resync while a decision is pending replaces the state but cannot
-  resume the paused roll path on the receiving engine.
+  resume the paused roll path on the receiving engine. Fixed 3 November
+  2026: a page that comes back is caught up by replaying the commands it
+  missed, which rebuilds the paused path, and a full resync is only the
+  fallback.
 
 ## 7. Feedback from the first recorded playback
 

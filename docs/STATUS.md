@@ -39,8 +39,9 @@ all gameplay. Play with coaches you trust.
 
 The [active lockstep tasks](../openspec/changes/online-lockstep-play/tasks.md)
 still include timing and determinism checks, commit/reveal write restrictions,
-stale-driver clock takeover and agreement on decision timeouts. A resync while
-a decision is pending has known limitations. Treat online play as experimental.
+stale-driver clock takeover and agreement on decision timeouts. A page that
+comes back to a match replays the commands it missed, so a decision it owed
+is still open and can be answered. Treat online play as experimental.
 
 ## Developer tools and build limits
 
