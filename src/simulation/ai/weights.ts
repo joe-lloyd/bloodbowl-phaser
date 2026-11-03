@@ -35,6 +35,8 @@ export const DEFAULT_WEIGHTS = {
   chase: 11,
   knockdown: 12,
   carrierKnockdown: 75,
+  /** Knocking down a player next to the opposing carrier. */
+  cageBreak: 20,
   /** What a turnover costs before counting the players left to act. */
   turnoverBase: 12,
   turnoverPerPlayer: 6,

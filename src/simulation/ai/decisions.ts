@@ -10,6 +10,16 @@ import { SkillType, hasSkill } from "../../types/Skills";
 import { Candidate } from "../candidates";
 import { Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
 
+/** Traits that can stop a player acting on its turn. */
+const UNRELIABLE = [
+  SkillType.ANIMAL_SAVAGERY,
+  SkillType.BONE_HEAD,
+  SkillType.REALLY_STUPID,
+  SkillType.TAKE_ROOT,
+  SkillType.UNCHANNELLED_FURY,
+  SkillType.LONER,
+];
+
 /** How good a block result is for the attacker. */
 function resultRank(
   type: BlockResultType,
@@ -134,7 +144,8 @@ export function decide(
       );
     }
     case "touchback": {
-      // The ball to whoever is furthest from trouble and their end zone.
+      // The ball to a ball handler out of trouble: never a big guy who
+      // may refuse to act, the quicker and surer-handed the better.
       let pick: number | null = null;
       let pickScore = -Infinity;
       candidates.forEach((c, i) => {
@@ -142,8 +153,14 @@ export function decide(
         if (command.type !== "touchback") return;
         const p = gs.getPlayerById(command.playerId);
         if (!p?.gridPosition) return;
+        const unreliable = UNRELIABLE.some((skill) =>
+          hasSkill(p.skills, skill)
+        );
         const score =
           -board.marks[key(p.gridPosition)] * 10 -
+          (unreliable ? 30 : 0) +
+          p.stats.MA -
+          p.stats.AG * 2 -
           toGoal(board, p.gridPosition) * 0.1;
         if (score > pickScore) {
           pickScore = score;

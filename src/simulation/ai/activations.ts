@@ -525,13 +525,22 @@ function passActivations(c: Context, carrier: Player): Activation[] {
 /** How much knocking this opponent down is worth. */
 function targetValue(c: Context, target: Player): number {
   const { board, w } = c;
-  if (carrierOf(board)?.id === target.id) return w.carrierKnockdown;
-  const ourCarrier = carrierOf(board);
-  const nearOurs =
-    ourCarrier && ourCarrier.teamId === board.us
-      ? distance(target.gridPosition!, ourCarrier.gridPosition!) <= 2
-      : false;
-  return w.knockdown + (nearOurs ? w.knockdown : 0) + target.stats.ST;
+  const carrier = carrierOf(board);
+  if (carrier?.id === target.id) return w.carrierKnockdown;
+  const near = carrier
+    ? distance(target.gridPosition!, carrier.gridPosition!)
+    : 99;
+  // Near our carrier: a threat to it. Next to theirs: a cage wall that,
+  // once down, opens the carrier to the next hit.
+  const bonus =
+    carrier?.teamId === board.us
+      ? near <= 2
+        ? w.knockdown
+        : 0
+      : near === 1
+        ? w.cageBreak
+        : 0;
+  return w.knockdown + bonus + target.stats.ST;
 }
 
 /** The odds of `attacker` blocking `target` from square `from`. */
@@ -595,7 +604,14 @@ function blitzActivations(c: Context, player: Player): Activation[] {
   const [normal, rushes] = movesLeft(board, player);
   for (const target of board.theirs) {
     if (!standing(target)) continue;
-    const isCarrier = carrierOf(board)?.id === target.id;
+    const carrier = carrierOf(board);
+    const isCarrier = carrier?.id === target.id;
+    // A player beside the opposing carrier is a wall of its cage.
+    const wallOfCage =
+      !!carrier &&
+      carrier.teamId !== board.us &&
+      !isCarrier &&
+      distance(target.gridPosition!, carrier.gridPosition!) === 1;
     let best: { route: Route | null; value: number; chance: number } | null =
       null;
     const adjacentNow =
@@ -623,7 +639,10 @@ function blitzActivations(c: Context, player: Player): Activation[] {
       player,
       action: "blitz",
       intent: { kind: "blitz", target, route: best.route },
-      tier: isCarrier || best.chance >= w.sureBlock ? "blitz" : "risky",
+      tier:
+        isCarrier || wallOfCage || best.chance >= w.sureBlock
+          ? "blitz"
+          : "risky",
       value: best.value,
       rolls: best.route?.rolls ?? [],
     });
@@ -671,6 +690,11 @@ function roleSquares(c: Context): { role: Role; at: Square; value: number }[] {
   } else if (ball.kind === "carried") {
     const at = ball.at;
     for (const s of neighbours(at)) add("mark", s, w.markCarrier);
+    // Beside the walls of its cage: assists for the hits that break it.
+    for (const wall of board.theirs)
+      if (standing(wall) && distance(wall.gridPosition!, at) === 1)
+        for (const s of neighbours(wall.gridPosition!))
+          if (distance(s, at) > 1) add("mark", s, w.markCarrier / 2);
     // A screen between the carrier and our end zone, two squares apart.
     for (const depth of [2, 4])
       for (const dy of [-4, -2, 0, 2, 4])

@@ -106,7 +106,7 @@ Baseline on 2026-11-03, 200 games from seed 1:
 | Match-up               | Result                     | TD per game | Turnovers per turn |
 | ---------------------- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
-| planner vs heuristic   | 168 won, 29 drawn, 3 lost  | 1.41 / 0.07 | 25.9% / 15.0%      |
+| planner vs heuristic   | 170 won, 29 drawn, 1 lost  | 1.51 / 0.06 | 25.9% / 16.2%      |
 
 The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
