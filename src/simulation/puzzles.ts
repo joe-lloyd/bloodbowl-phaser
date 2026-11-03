@@ -99,7 +99,7 @@ export const PUZZLES: readonly Puzzle[] = [
       ],
     }),
     rerolls: 1,
-    solved: (r) => !r.turnover || holder(r.end) !== "team2",
+    solved: (r) => holder(r.end) !== "team2",
   },
   {
     id: "cage-up",

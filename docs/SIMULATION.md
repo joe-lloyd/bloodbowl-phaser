@@ -106,7 +106,7 @@ Baseline on 2026-11-03, 200 games from seed 1:
 | ---------------------- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
 
-The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 46
+The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
 
 ## What is checked

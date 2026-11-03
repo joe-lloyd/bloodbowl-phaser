@@ -586,7 +586,7 @@ function parseBenchOptions(argv: string[]): BenchOptions {
         options.rosters = parseRosters(value(i++));
         break;
       case "--workers":
-        options.workers = Math.max(1, Number(value(i++)));
+        options.workers = Number(value(i++));
         break;
       case "--puzzles":
         options.puzzleSeeds = Number(value(i++));
@@ -611,6 +611,8 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
   if (!Number.isInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
     fail("--puzzles must be 0 or more");
+  if (!Number.isInteger(options.workers) || options.workers < 1)
+    fail("--workers must be a positive integer");
   return options;
 }
 
@@ -645,6 +647,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   ]);
   const games: BenchGame[] = [];
   const errors: string[] = [];
+  let failedJobs = 0;
   const started = Date.now();
   let next = 0;
   const workers = Math.min(options.workers, jobs.length);
@@ -667,8 +670,10 @@ async function runBench(options: BenchOptions): Promise<number> {
             "message",
             (message: { game?: BenchGame; error?: string; job?: BenchJob }) => {
               if (message.game) games.push(message.game);
-              if (message.error)
+              if (message.error) {
+                failedJobs++;
                 errors.push(`seed ${message.job?.seed}: ${message.error}`);
+              }
               if (message.game || message.error)
                 process.stderr.write(
                   `\r${games.length + errors.length}/${jobs.length} games, ${((Date.now() - started) / 1000).toFixed(0)}s`
@@ -677,11 +682,19 @@ async function runBench(options: BenchOptions): Promise<number> {
             }
           );
           child.on("error", reject);
-          child.on("exit", () => resolve());
+          child.on("exit", (code, signal) => {
+            if (code !== 0)
+              errors.push(
+                `a worker exited with ${signal ?? `code ${code}`} before finishing`
+              );
+            resolve();
+          });
         })
     )
   );
   process.stderr.write("\n");
+  const unfinished = jobs.length - games.length - failedJobs;
+  if (unfinished > 0) errors.push(`${unfinished} games never finished`);
 
   const report = benchReport(games);
   const puzzles =
@@ -719,7 +732,9 @@ async function runBench(options: BenchOptions): Promise<number> {
     )
   );
   process.stdout.write(
-    `${formatBench(options, report, puzzles)}\n\nReport: ${options.out}\n`
+    `${formatBench(options, report, puzzles)}\n` +
+      errors.map((e) => `  error: ${e}\n`).join("") +
+      `\nReport: ${options.out}\n`
   );
   return errors.length || report.blockingFindings ? 1 : 0;
 }
