@@ -542,6 +542,10 @@ export class MovementManager {
             (p) => p.id === resolvedCtx.proneInVacated
           );
           if (diver?.gridPosition) {
+            // The dodger has left the square, whatever its fate: it stands
+            // or falls in the one it dodged into, so it never shares the
+            // diver's while a Steady Footing re-roll is open.
+            player.gridPosition = { ...step };
             const diverFrom = { ...diver.gridPosition };
             diver.gridPosition = { ...currentPos };
             diver.status = PlayerStatus.PRONE;
@@ -961,6 +965,9 @@ export class MovementManager {
     if (resolvedCtx.proneInVacated) {
       const diver = opponents.find((p) => p.id === resolvedCtx.proneInVacated);
       if (diver?.gridPosition) {
+        // A dive only follows a roll that passed, so the jumper lands in
+        // the target square; it must be there before the diver takes `from`.
+        player.gridPosition = { ...target };
         const diverFrom = { ...diver.gridPosition };
         diver.gridPosition = { ...from };
         diver.status = PlayerStatus.PRONE;
