@@ -204,7 +204,11 @@ export function createComputerMatch(
   let endedTurn: unknown = null;
   const think = async (): Promise<boolean> => {
     if (thinking || closed || !owner(computerTeamId)) return false;
-    if (engine!.getState().turn === endedTurn && !game.pendingDecision())
+    if (
+      engine!.getPhase() === GamePhase.PLAY &&
+      engine!.getState().turn === endedTurn &&
+      !game.pendingDecision()
+    )
       return false;
     thinking = true;
     try {
