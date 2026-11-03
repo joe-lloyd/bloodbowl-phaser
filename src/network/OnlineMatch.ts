@@ -444,15 +444,33 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
           playerId: command.playerId,
         });
     },
-    // The state was replaced wholesale: redraw where everyone stands, the
-    // turn and score, and drop a block dialog the old state had open.
+    // The state was replaced or replayed: redraw where everyone stands, the
+    // turn and score, and show the block dice it is waiting on, if any.
+    // Without that card the coach who owes the pick cannot make it.
     onResynced: () => {
       eventBus.emit(GameEventNames.PhaseChanged, {
         phase: engine!.getPhase(),
         subPhase: engine!.getSubPhase(),
       });
       eventBus.emit(GameEventNames.GameStateRestored, engine!.getState());
-      eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      const pending = game.pendingDecision();
+      if (pending?.type === "block-dice") {
+        const attacker = engine!.getPlayerById(pending.attackerId);
+        eventBus.emit(GameEventNames.BlockDiceRolled, {
+          attackerId: pending.attackerId,
+          defenderId: pending.defenderId,
+          numDice: pending.options.length,
+          isAttackerChoice: pending.chooserTeamId === attacker?.teamId,
+          results: pending.options,
+          choiceStage: pending.choiceStage,
+          teamRerollAvailable: pending.teamRerollAvailable,
+          proAvailable: pending.proAvailable,
+          brawlerAvailable: pending.brawlerAvailable,
+          veteranRerollAvailable: pending.veteranRerollAvailable,
+        });
+      } else {
+        eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      }
       eventBus.emit(GameEventNames.UI_SyncBoard, { positions: true });
     },
   });

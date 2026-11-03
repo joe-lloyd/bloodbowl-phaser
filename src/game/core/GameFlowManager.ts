@@ -35,7 +35,26 @@ export async function trackEngineWork(work: Promise<void>): Promise<void> {
   }
 }
 
+/** False while an online page replays commands it missed. */
+let paced = true;
+
+/**
+ * Run engine work with every real-time delay skipped. A page that comes
+ * back to an online match replays the commands it missed; pacing them
+ * would make the coach watch the whole turn again. Delays never change
+ * engine state, so the result is the same.
+ */
+export async function withoutPacing<T>(work: () => Promise<T>): Promise<T> {
+  paced = false;
+  try {
+    return await work();
+  } finally {
+    paced = true;
+  }
+}
+
 export const realTimeDelay: DelayProvider = (ms) => {
+  if (!paced) return Promise.resolve();
   runningDelays++;
   return new Promise((resolve) =>
     setTimeout(() => {

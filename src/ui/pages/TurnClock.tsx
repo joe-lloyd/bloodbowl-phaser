@@ -18,6 +18,7 @@ import {
   defaultAnswer,
 } from "../../network/decisionTimeouts";
 import { AuthUser } from "../../firebase/auth";
+import { PendingDecision } from "../../headless/protocol";
 import { possessive } from "../../game/managers/TurnManager";
 
 interface Props {
@@ -269,6 +270,23 @@ export function TurnClock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, turnSeconds, eventBus]);
 
+  /**
+   * Give an open decision its default answer, once per key while the
+   * answer is in flight. The key clears when it settles, so a refused
+   * answer is tried again and an identical decision that follows, such as
+   * Frenzy's second block, is answered too.
+   */
+  const answerOnce = (pending: PendingDecision, key: string) => {
+    if (answeredRef.current === key) return;
+    answeredRef.current = key;
+    const answer = defaultAnswer(pending);
+    if (!answer) return;
+    const settle = () => {
+      if (answeredRef.current === key) answeredRef.current = null;
+    };
+    void match.run(answer).then(settle, settle);
+  };
+
   /** The deciding coach's own screen answers once their short clock ends. */
   const answerIfOutOfTime = () => {
     const pending = match.pendingDecision();
@@ -283,10 +301,7 @@ export function TurnClock({
     if (match.decidingTeamId() !== match.myTeamId) return;
     const limit = DEFENDER_DECISION_SECONDS[pending.type] * 1000;
     if (Date.now() - decisionRef.current.since < limit) return;
-    if (answeredRef.current === key) return;
-    answeredRef.current = key;
-    const answer = defaultAnswer(pending);
-    if (answer) void match.run(answer);
+    answerOnce(pending, `${decisionRef.current.since}:${key}`);
   };
 
   // Tick, and the active coach ends their own turn on expiry
@@ -303,8 +318,16 @@ export function TurnClock({
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
       if (currentPhase() !== GamePhase.PLAY) return;
-      if (match.pendingDecision()) return; // don't cut off a mid-block decision
       if (endedForRef.current === timer.deadline) return; // end once per turn
+      // A decision of this coach's own is open with no time left: give its
+      // default answer, as the other coach's short clock does, so the turn
+      // can end. The next tick ends it once nothing is open.
+      const pending = match.pendingDecision();
+      if (pending) {
+        if (match.decidingTeamId() !== match.myTeamId) return;
+        answerOnce(pending, `${timer.deadline}:${JSON.stringify(pending)}`);
+        return;
+      }
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.

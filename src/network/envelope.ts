@@ -15,7 +15,7 @@ import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { StepPrompt } from "../types/events";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 export interface HelloPayload {
   protocolVersion: number;
@@ -46,6 +46,16 @@ export interface SettledPayload {
 export interface ChatPayload {
   text: string;
   senderName: string;
+}
+
+/**
+ * The commands a page that came back missed, from its own count on. It
+ * replays them on its engine, which rebuilds any roll path paused on a
+ * decision, such as a re-roll. A full state cannot carry that.
+ */
+export interface CatchUpPayload {
+  from: number;
+  commands: HeadlessCommand[];
 }
 
 /** Everything a side needs to rebuild the other's engine exactly. */
@@ -86,6 +96,7 @@ export type Envelope = { seq: number; from: string; ts: number } & (
   | { kind: "chat"; payload: ChatPayload }
   | { kind: "heartbeat"; payload: Record<string, never> }
   | { kind: "resync"; payload: LockstepState }
+  | { kind: "catch-up"; payload: CatchUpPayload }
   | { kind: "resync-request"; payload: Record<string, never> }
   | { kind: "selection"; payload: SelectionPayload }
   | { kind: "prompt"; payload: PromptPayload }
