@@ -271,20 +271,20 @@ export function TurnClock({
   }, [code, turnSeconds, eventBus]);
 
   /**
-   * Give an open decision its default answer, once per key. A refused
-   * answer clears the key, so the next tick tries again.
+   * Give an open decision its default answer, once per key while the
+   * answer is in flight. The key clears when it settles, so a refused
+   * answer is tried again and an identical decision that follows, such as
+   * Frenzy's second block, is answered too.
    */
   const answerOnce = (pending: PendingDecision, key: string) => {
     if (answeredRef.current === key) return;
     answeredRef.current = key;
     const answer = defaultAnswer(pending);
     if (!answer) return;
-    const retry = () => {
+    const settle = () => {
       if (answeredRef.current === key) answeredRef.current = null;
     };
-    void match.run(answer).then((response) => {
-      if (!response.ok) retry();
-    }, retry);
+    void match.run(answer).then(settle, settle);
   };
 
   /** The deciding coach's own screen answers once their short clock ends. */

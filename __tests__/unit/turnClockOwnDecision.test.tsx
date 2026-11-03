@@ -125,6 +125,47 @@ describe("the acting coach's clock runs out on their own decision", () => {
     container.remove();
   });
 
+  it("answers a second, identical decision too", async () => {
+    vi.useFakeTimers();
+    // Frenzy: the first pick opens an identical second block
+    const queue: PendingDecision[] = [blockDice, blockDice];
+    const run = vi.fn(async () => {
+      queue.shift();
+      return { ok: true };
+    });
+    const match = {
+      role: "host",
+      myTeamId: "host-team",
+      opponentName: "Other",
+      coachName: () => "Other",
+      pendingDecision: () => queue[0] ?? null,
+      decidingTeamId: () => queue[0]?.chooserTeamId ?? null,
+      setClockPaused: vi.fn(),
+      run,
+    } as unknown as OnlineMatch;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code="ABC123"
+          lobby={expiredLobby()}
+          match={match}
+          eventBus={new EventBus()}
+          user={{ uid: "host-uid" } as AuthUser}
+        />
+      )
+    );
+
+    await act(async () => vi.advanceTimersByTimeAsync(1600));
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(endTurn).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("tries the answer again when the engine refuses it", async () => {
     vi.useFakeTimers();
     let pending: PendingDecision | null = blockDice;
