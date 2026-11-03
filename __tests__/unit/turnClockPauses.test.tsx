@@ -646,7 +646,7 @@ describe("TurnClock pauses", () => {
   });
 
   it("stops while the defender decides and answers for them after ten seconds", async () => {
-    const run = vi.fn(() => Promise.resolve());
+    const run = vi.fn(() => Promise.resolve({ ok: true }));
     const pending = {
       type: "block-dice",
       attackerId: "a1",

@@ -18,6 +18,7 @@ import {
   defaultAnswer,
 } from "../../network/decisionTimeouts";
 import { AuthUser } from "../../firebase/auth";
+import { PendingDecision } from "../../headless/protocol";
 import { possessive } from "../../game/managers/TurnManager";
 
 interface Props {
@@ -269,6 +270,23 @@ export function TurnClock({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, turnSeconds, eventBus]);
 
+  /**
+   * Give an open decision its default answer, once per key. A refused
+   * answer clears the key, so the next tick tries again.
+   */
+  const answerOnce = (pending: PendingDecision, key: string) => {
+    if (answeredRef.current === key) return;
+    answeredRef.current = key;
+    const answer = defaultAnswer(pending);
+    if (!answer) return;
+    const retry = () => {
+      if (answeredRef.current === key) answeredRef.current = null;
+    };
+    void match.run(answer).then((response) => {
+      if (!response.ok) retry();
+    }, retry);
+  };
+
   /** The deciding coach's own screen answers once their short clock ends. */
   const answerIfOutOfTime = () => {
     const pending = match.pendingDecision();
@@ -283,10 +301,7 @@ export function TurnClock({
     if (match.decidingTeamId() !== match.myTeamId) return;
     const limit = DEFENDER_DECISION_SECONDS[pending.type] * 1000;
     if (Date.now() - decisionRef.current.since < limit) return;
-    if (answeredRef.current === key) return;
-    answeredRef.current = key;
-    const answer = defaultAnswer(pending);
-    if (answer) void match.run(answer);
+    answerOnce(pending, `${decisionRef.current.since}:${key}`);
   };
 
   // Tick, and the active coach ends their own turn on expiry
@@ -309,12 +324,8 @@ export function TurnClock({
       // can end. The next tick ends it once nothing is open.
       const pending = match.pendingDecision();
       if (pending) {
-        const key = JSON.stringify(pending);
         if (match.decidingTeamId() !== match.myTeamId) return;
-        if (answeredRef.current === key) return;
-        answeredRef.current = key;
-        const answer = defaultAnswer(pending);
-        if (answer) void match.run(answer);
+        answerOnce(pending, `${timer.deadline}:${JSON.stringify(pending)}`);
         return;
       }
       endedForRef.current = timer.deadline;

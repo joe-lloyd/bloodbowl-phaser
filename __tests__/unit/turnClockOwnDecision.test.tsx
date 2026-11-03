@@ -124,4 +124,47 @@ describe("the acting coach's clock runs out on their own decision", () => {
     await act(async () => root.unmount());
     container.remove();
   });
+
+  it("tries the answer again when the engine refuses it", async () => {
+    vi.useFakeTimers();
+    let pending: PendingDecision | null = blockDice;
+    const run = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, reason: "busy" })
+      .mockImplementation(async () => {
+        pending = null;
+        return { ok: true };
+      });
+    const match = {
+      role: "host",
+      myTeamId: "host-team",
+      opponentName: "Other",
+      coachName: () => "Other",
+      pendingDecision: () => pending,
+      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      setClockPaused: vi.fn(),
+      run,
+    } as unknown as OnlineMatch;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code="ABC123"
+          lobby={expiredLobby()}
+          match={match}
+          eventBus={new EventBus()}
+          user={{ uid: "host-uid" } as AuthUser}
+        />
+      )
+    );
+
+    await act(async () => vi.advanceTimersByTimeAsync(1600));
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(endTurn).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
 });
