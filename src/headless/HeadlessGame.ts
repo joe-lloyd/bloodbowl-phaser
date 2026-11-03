@@ -146,12 +146,6 @@ export class HeadlessGame {
   private eventLog: EmittedEvent[] = [];
   private pending: PendingDecision | null = null;
   /**
-   * The follow-up last answered. The board repeats a follow-up prompt once
-   * its push animation has played; a coach who already answered must not
-   * see that echo re-open the decision.
-   */
-  private answeredFollowUp: string | null = null;
-  /**
    * A command suspended mid-execution on an awaitable decision (reroll):
    * its promise parks here while the response goes out with the pending
    * decision; the reply command resumes it and awaits its completion.
@@ -660,7 +654,6 @@ export class HeadlessGame {
       }
       case "choose-follow-up": {
         const pending = this.takePending("follow-up");
-        this.answeredFollowUp = followUpKey(pending);
         if (cmd.followUp) {
           // Free move: no movement cost, no dice (rush/dodge already paid)
           await gs.followUpPush(pending.attackerId, pending.targetSquare);
@@ -865,7 +858,6 @@ export class HeadlessGame {
     ) {
       const attacker = this.findPlayer(data.attackerId);
       const defender = this.findPlayer(data.defenderId);
-      this.answeredFollowUp = null; // a new block, a new follow-up
       this.pending = {
         type: "block-dice",
         attackerId: data.attackerId,
@@ -890,7 +882,6 @@ export class HeadlessGame {
         options: data.validDirections,
       };
     } else if (name === GameEventNames.PlayerMoved && data?.followUpData) {
-      this.answeredFollowUp = null;
       this.pending = {
         type: "follow-up",
         attackerId: data.followUpData.attackerId,
@@ -898,13 +889,7 @@ export class HeadlessGame {
       };
     } else if (name === GameEventNames.TouchbackAwarded) {
       this.pending = { type: "touchback", teamId: data.teamId };
-    } else if (
-      name === GameEventNames.UI_FollowUpPrompt &&
-      followUpKey(data) !== this.answeredFollowUp &&
-      // The engine may be waiting on another decision (a catch re-roll from
-      // the push's bounce). Replacing it would leave that wait unanswerable.
-      (!this.pending || this.pending.type === "follow-up")
-    ) {
+    } else if (name === GameEventNames.UI_FollowUpPrompt && !data.repeat) {
       // Crowd surf: the engine prompts the follow-up directly (there is no
       // PlayerMoved for the surfed defender)
       this.pending = {
@@ -1243,12 +1228,4 @@ export class HeadlessGame {
       pendingDecision: this.pending,
     };
   }
-}
-
-/** One follow-up offer: who follows, into which square. */
-function followUpKey(offer: {
-  attackerId: string;
-  targetSquare: { x: number; y: number };
-}): string {
-  return `${offer.attackerId}@${offer.targetSquare.x},${offer.targetSquare.y}`;
 }

@@ -66,7 +66,13 @@ export function decide(
           has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE)
         );
       const weAttack = attacker.teamId === board.us;
-      const best = Math.max(...pending.options.map((o) => rank(o.type)));
+      const ranks = pending.options.map((o) => rank(o.type));
+      // At the attacker's re-roll stage the defender picks, so the worst die
+      // is the one that counts.
+      const best =
+        pending.choiceStage === "attacker-reroll"
+          ? Math.min(...ranks)
+          : Math.max(...ranks);
       // Re-roll a block that would put our attacker down, if we can.
       if (weAttack && best <= 1) {
         const reroll =

@@ -12,6 +12,11 @@ import { ArmourOperation } from "../../src/game/operations/ArmourOperation";
 import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { GameFlowManager, noDelay } from "../../src/game/core/GameFlowManager";
 import { TeamBuilder } from "../utils/test-builders";
+import {
+  OnlineMatch,
+  setActiveOnlineMatch,
+} from "../../src/network/OnlineMatch";
+import { setMatchSaveRepository } from "../../src/game/persistence/MatchSaveRepository";
 
 describe("MatchResultsScreen", () => {
   let container: HTMLDivElement;
@@ -95,6 +100,33 @@ describe("MatchResultsScreen", () => {
       b.textContent?.includes("Continue to Main Menu")
     )!;
     expect(exitButton.disabled).toBe(false);
+  });
+
+  it("leaves another match's save alone when a match against the computer ends", async () => {
+    setup(false);
+    const clear = vi.fn();
+    setMatchSaveRepository({
+      read: () => null,
+      write: () => {},
+      clear,
+      describe: () => null,
+    });
+    setActiveOnlineMatch({
+      kind: "computer",
+      myTeamId: "team-1",
+      mayAct: () => true,
+    } as unknown as OnlineMatch);
+    try {
+      await render();
+      const exit = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Continue to Main Menu")
+      )!;
+      await act(async () => exit.click());
+      expect(clear).not.toHaveBeenCalled();
+    } finally {
+      setActiveOnlineMatch(null);
+      setMatchSaveRepository(null);
+    }
   });
 
   it("lists injuries suffered by both teams, including players who never activated", async () => {

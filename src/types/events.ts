@@ -869,6 +869,11 @@ export interface UIEvents {
   [GameEventNames.UI_FollowUpPrompt]: {
     attackerId: string;
     targetSquare: { x: number; y: number };
+    /**
+     * The board repeating an offer the engine already announced, once its
+     * push animation has played. It opens the dialog; it is not a new decision.
+     */
+    repeat?: true;
   };
 
   [GameEventNames.UI_FollowUpResponse]: {

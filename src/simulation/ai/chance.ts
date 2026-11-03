@@ -63,19 +63,23 @@ export function chain(
 ): Chance {
   // Without the team re-roll: each roll alone, skill re-roll on its first.
   const used = new Set<string>();
-  const single = rolls.map((r) => {
+  const skilled = new Set<number>();
+  const single = rolls.map((r, i) => {
     const p = d6(r.target);
     if (!used.has(r.kind) && skillReroll(player, r.kind)) {
       used.add(r.kind);
+      skilled.add(i);
       return withReroll(p);
     }
     return p;
   });
   const all = single.reduce((acc, p) => acc * p, 1);
   if (!teamReroll || rolls.length === 0) return all as Chance;
-  // With it: all pass, or exactly one fails and its re-roll passes.
+  // With it: all pass, or exactly one fails and its re-roll passes. A roll
+  // already re-rolled by a skill cannot be re-rolled again.
   let rescued = 0;
   single.forEach((p, i) => {
+    if (skilled.has(i)) return;
     const others = single.reduce((acc, q, j) => (j === i ? acc : acc * q), 1);
     rescued += (1 - p) * d6(rolls[i].target) * others;
   });

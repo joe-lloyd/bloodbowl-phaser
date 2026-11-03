@@ -75,6 +75,7 @@ describe("a follow-up prompt the board repeats", () => {
       game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: prompt.attackerId,
         targetSquare: prompt.targetSquare,
+        repeat: true,
       });
 
       expect(game.pendingDecision()).toBeNull();
@@ -120,6 +121,7 @@ describe("a follow-up prompt arriving over another decision", () => {
     game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
       attackerId: game.ctx.team1.players[0].id,
       targetSquare: { x: 8, y: 5 },
+      repeat: true,
     });
 
     expect(game.pendingDecision()).toEqual(reroll);

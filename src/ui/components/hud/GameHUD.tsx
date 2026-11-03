@@ -239,7 +239,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             connection: onlineMenu.connection,
             endRequest: onlineMenu.endRequest,
           }
-        : { kind: "local", matchOver: turnData.phase === GamePhase.GAME_OVER };
+        : {
+            kind:
+              getActiveOnlineMatch()?.kind === "computer"
+                ? "computer"
+                : "local",
+            matchOver: turnData.phase === GamePhase.GAME_OVER,
+          };
 
   // The mute/volume control used to be its own floating top-right popup
   // (SoundToggle), sharing a corner with SandboxOverlay/TurnIndicator. It's

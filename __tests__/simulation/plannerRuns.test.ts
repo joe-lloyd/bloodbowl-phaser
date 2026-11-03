@@ -5,7 +5,9 @@ import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
-import { SkillType } from "../../src/types/Skills";
+import { SkillType, getSkill } from "../../src/types/Skills";
+import { Player } from "../../src/types/Player";
+import { chain } from "../../src/simulation/ai/chance";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 
@@ -69,5 +71,54 @@ describe("the planner's touchback", () => {
       type: "touchback",
       playerId: game.ctx.team1.players[1].id,
     });
+  });
+});
+
+describe("the planner's dice maths", () => {
+  it("does not re-roll a skill-re-rolled roll again with a team re-roll", () => {
+    const dodger = { skills: [getSkill(SkillType.DODGE)] } as Player;
+    // A 3+ dodge re-rolled once: 2/3 + 1/3 * 2/3.
+    expect(chain(dodger, [{ kind: "dodge", target: 3 }], true)).toBeCloseTo(
+      8 / 9,
+      6
+    );
+  });
+});
+
+describe("the planner's block re-roll", () => {
+  it("re-rolls uphill dice when the defender could take a Skull", async () => {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "planner-uphill",
+        name: "Planner uphill",
+        description: "",
+        setup: {
+          team1Placements: [{ playerIndex: 0, x: 7, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 8, y: 5 }],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        },
+      },
+      seed: 1,
+    });
+    const die = (type: "pow" | "skull") => ({ type, icon: "", label: type });
+    game.adoptPending({
+      type: "block-dice",
+      attackerId: game.ctx.team1.players[0].id,
+      defenderId: game.ctx.team2.players[0].id,
+      chooserTeamId: game.ctx.team2.id,
+      options: [die("pow"), die("skull")],
+      choiceStage: "attacker-reroll",
+      teamRerollAvailable: true,
+    });
+    const point = await enumerateDecision(game, null);
+    const { index } = await plannerCoach.choose({
+      game,
+      snapshot: game.snapshot(),
+      point,
+      rng: createCoachRng(1),
+    });
+    expect(point.candidates[index].commands[0].type).toBe("team-reroll-block");
   });
 });
