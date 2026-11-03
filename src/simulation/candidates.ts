@@ -38,6 +38,7 @@ import {
   withDriveModifiers,
 } from "../game/kickoff/driveEffects";
 import { hasSkill, SkillType } from "../types/Skills";
+import { decisionOwner } from "../network/OwnershipGate";
 
 export type CandidateKind =
   | "decision"
@@ -109,8 +110,17 @@ export async function enumerateDecision(
   const activeTeamId = snapshot.activeTeamId ?? snapshot.teams[0].id;
 
   if (pending) {
+    const gs = game.ctx.gameService;
     return {
-      teamId: decisionOwner(pending, activeTeamId),
+      // The same owner online play enforces: a follow-up stays the
+      // attacker's even when a turnover has already passed the turn.
+      teamId:
+        decisionOwner(pending, {
+          activeTeamId,
+          pendingDecision: pending,
+          teamIdOfPlayer: (id) => gs.getPlayerById(id)?.teamId,
+          hostTeamId: game.ctx.team1.id,
+        }) ?? activeTeamId,
       phase: snapshot.phase,
       pending,
       candidates: decisionCandidates(game, pending),
@@ -148,23 +158,6 @@ export async function enumerateDecision(
       return at(activeTeamId, await playCandidates(game, snapshot));
     default:
       return at(activeTeamId, []);
-  }
-}
-
-function decisionOwner(pending: PendingDecision, activeTeamId: string): string {
-  switch (pending.type) {
-    case "block-dice":
-      return pending.choiceStage === "attacker-reroll"
-        ? activeTeamId
-        : pending.chooserTeamId;
-    case "touchback":
-      return pending.teamId;
-    case "push-direction":
-      return pending.chooserTeamId ?? activeTeamId;
-    case "follow-up":
-      return activeTeamId;
-    default:
-      return pending.chooserTeamId;
   }
 }
 
