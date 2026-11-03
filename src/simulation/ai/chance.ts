@@ -52,38 +52,37 @@ function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
 }
 
 /**
- * The chance a sequence of rolls all succeed. Each skill re-roll covers the
- * first failure of its kind (they are once per turn), and one team re-roll,
- * when we hold one, covers one other failure.
+ * The chance a sequence of rolls all succeed. A failed roll takes its skill
+ * re-roll if that kind's is unspent (they are once per turn), else the team
+ * re-roll if we hold one; no roll is re-rolled twice.
  */
 export function chain(
   player: Player,
   rolls: readonly RollTarget[],
   teamReroll: boolean
 ): Chance {
-  // Without the team re-roll: each roll alone, skill re-roll on its first.
-  const used = new Set<string>();
-  const skilled = new Set<number>();
-  const single = rolls.map((r, i) => {
-    const p = d6(r.target);
-    if (!used.has(r.kind) && skillReroll(player, r.kind)) {
-      used.add(r.kind);
-      skilled.add(i);
-      return withReroll(p);
-    }
-    return p;
-  });
-  const all = single.reduce((acc, p) => acc * p, 1);
-  if (!teamReroll || rolls.length === 0) return all as Chance;
-  // With it: all pass, or exactly one fails and its re-roll passes. A roll
-  // already re-rolled by a skill cannot be re-rolled again.
-  let rescued = 0;
-  single.forEach((p, i) => {
-    if (skilled.has(i)) return;
-    const others = single.reduce((acc, q, j) => (j === i ? acc : acc * q), 1);
-    rescued += (1 - p) * d6(rolls[i].target) * others;
-  });
-  return Math.min(1, all + rescued) as Chance;
+  const seen = new Map<string, number>();
+  const from = (
+    i: number,
+    spent: ReadonlySet<string>,
+    team: boolean
+  ): number => {
+    if (i === rolls.length) return 1;
+    const id = `${i}|${[...spent].join()}|${team}`;
+    const known = seen.get(id);
+    if (known !== undefined) return known;
+    const { kind, target } = rolls[i];
+    const p = d6(target);
+    const next = from(i + 1, spent, team);
+    let saved = 0;
+    if (!spent.has(kind) && skillReroll(player, kind))
+      saved = p * from(i + 1, new Set([...spent, kind]), team);
+    else if (team) saved = p * from(i + 1, spent, false);
+    const chance = p * next + (1 - p) * saved;
+    seen.set(id, chance);
+    return chance;
+  };
+  return from(0, new Set(), teamReroll) as Chance;
 }
 
 /** What a block can do, for the side that takes the result. */

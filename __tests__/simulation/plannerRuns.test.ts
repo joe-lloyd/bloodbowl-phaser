@@ -85,6 +85,18 @@ describe("the planner's dice maths", () => {
   });
 });
 
+describe("the planner's skill re-roll", () => {
+  it("is still there for the second dodge if the first one passes", () => {
+    const dodger = { skills: [getSkill(SkillType.DODGE)] } as Player;
+    const dodges = [
+      { kind: "dodge", target: 3 },
+      { kind: "dodge", target: 3 },
+    ] as const;
+    // Both pass, or either fails and its one re-roll passes.
+    expect(chain(dodger, dodges, false)).toBeCloseTo(20 / 27, 6);
+  });
+});
+
 describe("the planner's block re-roll", () => {
   it("re-rolls uphill dice when the defender could take a Skull", async () => {
     const game = new HeadlessGame({

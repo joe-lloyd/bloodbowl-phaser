@@ -9,6 +9,7 @@ import {
   OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
+import { FollowUpDialog } from "../../src/ui/components/hud/FollowUpDialog";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
 import { BlockRollData } from "../../src/services/BlockResolutionService";
@@ -59,6 +60,24 @@ describe("online dialogs", () => {
     await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
     await act(async () => askReroll());
     expect(container.textContent).toContain("Re-roll");
+  });
+
+  it("shows a follow-up handed back after the other coach's decision", async () => {
+    mayAct = false;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).not.toContain("Follow Up?");
+
+    mayAct = true;
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).toContain("Follow Up?");
   });
 
   it("does not show it on the other coach's screen", async () => {
