@@ -22,6 +22,10 @@ import {
 import { stepPromptLine } from "../../src/ui/components/hud/OtherCoachPrompt";
 import { getSkill, SkillType } from "../../src/types/Skills";
 import { PlayerStatus } from "../../src/types/Player";
+import { runMatch } from "../../src/simulation/runMatch";
+import { plannerCoach } from "../../src/simulation/ai/planner";
+import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
+import { RosterName } from "../../src/types/Team";
 
 /** A percentage, or the words a statistic hides behind. */
 const ODDS = /%|\bchances?\b|\bodds\b|\bprobab/i;
@@ -118,9 +122,28 @@ describe("no odds on a coach's screen", () => {
     );
     expect(foul.lines.join("\n")).not.toMatch(ODDS);
     expect(foul.lines).toContain("Lone Fouler may re-roll the armour roll");
-    expect(
-      interceptPreviewLine(target, [fouler], "Nice").line
-    ).not.toMatch(ODDS);
+    expect(interceptPreviewLine(target, [fouler], "Nice").line).not.toMatch(
+      ODDS
+    );
     ServiceContainer.reset();
   });
+
+  it("explains the computer coach's moves with roll targets only", async () => {
+    const recording = await runMatch({
+      seed: 3,
+      rosters: [RosterName.HUMAN, RosterName.SKAVEN],
+      coaches: [plannerCoach, heuristicCoach],
+    });
+    const notes = recording.steps.flatMap((step) =>
+      step.note ? [step.note] : []
+    );
+    expect(notes.length).toBeGreaterThan(50);
+    expect(
+      notes.filter((note) => ODDS.test(note) || /\d\.\d/.test(note))
+    ).toEqual([]);
+    // Any number in a note is a roll target, written "N+".
+    expect(
+      notes.filter((note) => /\d/.test(note.replace(/\b[2-6]\+/g, "")))
+    ).toEqual([]);
+  }, 60_000);
 });

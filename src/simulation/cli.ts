@@ -28,6 +28,8 @@ import { RosterName } from "../types/Team";
 import { Coach } from "./coach";
 import { randomCoach } from "./coaches/random";
 import { heuristicCoach } from "./coaches/heuristic";
+import { createPlannerCoach, plannerCoach } from "./ai/planner";
+import { parseWeights } from "./ai/weights";
 import { createJevCoach, JevStats } from "./coaches/jev";
 import { Finding, FindingKind, MatchRecording, runMatch } from "./runMatch";
 import {
@@ -56,7 +58,7 @@ const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "budget-exhausted",
 ]);
 
-type CoachName = "random" | "heuristic" | "jev";
+type CoachName = "random" | "heuristic" | "jev" | "planner";
 
 interface RunOptions {
   games: number;
@@ -79,9 +81,14 @@ function fail(message: string): never {
 }
 
 function parseCoach(value: string): CoachName {
-  if (value === "random" || value === "heuristic" || value === "jev")
+  if (
+    value === "random" ||
+    value === "heuristic" ||
+    value === "jev" ||
+    value === "planner"
+  )
     return value;
-  return fail(`unknown coach "${value}" (random | heuristic | jev)`);
+  return fail(`unknown coach "${value}" (random | heuristic | jev | planner)`);
 }
 
 function parseRosters(value: string): RosterName[] {
@@ -176,7 +183,7 @@ const HELP = `Usage: pnpm sim [options]
   --games <n>          matches to play (default 20)
   --seed <n>           first match seed; match i uses seed+i (default 1)
   --rosters <list>     "all" or comma-separated roster names (default all)
-  --coach <name>       both sides: random | heuristic | jev
+  --coach <name>       both sides: random | heuristic | jev | planner
   --home/--away <name> one side each
   --max-commands <n>   per-match budget before a match counts as stuck
   --out <dir>          output directory (default sim-results/<timestamp>)
@@ -187,9 +194,21 @@ const HELP = `Usage: pnpm sim [options]
                        index.html (records every match unless --record says otherwise)
 jev needs TYPESAFE_API_KEY in the environment.`;
 
-function makeCoach(name: CoachName, jevStats: JevStats[]): Coach {
+function makeCoach(
+  name: CoachName,
+  jevStats: JevStats[],
+  weightsFile?: string
+): Coach {
   if (name === "random") return randomCoach;
   if (name === "heuristic") return heuristicCoach;
+  if (name === "planner")
+    return weightsFile
+      ? createPlannerCoach({
+          weights: parseWeights(
+            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
+          ),
+        })
+      : plannerCoach;
   const apiKey = process.env.TYPESAFE_API_KEY;
   if (!apiKey) fail("the jev coach needs TYPESAFE_API_KEY in the environment");
   const coach = createJevCoach({ apiKey, model: process.env.TYPESAFE_MODEL });
@@ -540,6 +559,8 @@ interface BenchOptions {
   workers: number;
   puzzleSeeds: number;
   out: string;
+  /** Weights for the coach under test, when it is the planner. */
+  weights?: string;
 }
 
 const BENCH_HELP = `Usage: pnpm sim bench [options]
@@ -551,6 +572,7 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --rosters <list>     "all" or comma-separated roster names (default all)
   --workers <n>        parallel processes (default: CPUs - 1)
   --puzzles <n>        seeds per coaching puzzle, 0 to skip (default 50)
+  --weights <file>     JSON weights for the planner under test (see ai/weights.ts)
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
@@ -591,6 +613,9 @@ function parseBenchOptions(argv: string[]): BenchOptions {
       case "--puzzles":
         options.puzzleSeeds = Number(value(i++));
         break;
+      case "--weights":
+        options.weights = value(i++);
+        break;
       case "--out":
         options.out = value(i++);
         break;
@@ -621,7 +646,7 @@ type BenchMessage = { job: BenchJob } | { done: true };
 /** One child process: plays the jobs the parent sends, one at a time. */
 async function benchWorker(argv: string[]): Promise<number> {
   const [candidate, baseline] = [parseCoach(argv[0]), parseCoach(argv[1])];
-  const coaches = [makeCoach(candidate, []), makeCoach(baseline, [])];
+  const coaches = [makeCoach(candidate, [], argv[2]), makeCoach(baseline, [])];
   await new Promise<void>((resolve) => {
     process.on("message", (message: BenchMessage) => {
       if ("done" in message) return resolve();
@@ -659,7 +684,12 @@ async function runBench(options: BenchOptions): Promise<number> {
         new Promise<void>((resolve, reject) => {
           const child = fork(
             process.argv[1],
-            ["bench-worker", options.coach, options.vs],
+            [
+              "bench-worker",
+              options.coach,
+              options.vs,
+              ...(options.weights ? [options.weights] : []),
+            ],
             { execArgv: process.execArgv }
           );
           const feed = () => {
@@ -701,7 +731,7 @@ async function runBench(options: BenchOptions): Promise<number> {
     options.puzzleSeeds > 0
       ? {
           [options.coach]: await solveRates(
-            makeCoach(options.coach, []),
+            makeCoach(options.coach, [], options.weights),
             options.puzzleSeeds
           ),
           ...(options.vs === options.coach
