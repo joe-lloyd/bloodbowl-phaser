@@ -146,6 +146,11 @@ export class HeadlessGame {
   private eventLog: EmittedEvent[] = [];
   private pending: PendingDecision | null = null;
   /**
+   * A follow-up another decision displaced: a push's bounce can raise a catch
+   * re-roll before the attacker answers. It comes back once that one is done.
+   */
+  private heldFollowUp: PendingDecision | null = null;
+  /**
    * A command suspended mid-execution on an awaitable decision (reroll):
    * its promise parks here while the response goes out with the pending
    * decision; the reply command resumes it and awaits its completion.
@@ -300,6 +305,9 @@ export class HeadlessGame {
       this.inFlight = run.catch((err) =>
         console.error("[Headless] suspended command failed:", err)
       );
+    } else if (!this.pending && this.heldFollowUp) {
+      this.pending = this.heldFollowUp;
+      this.heldFollowUp = null;
     }
     return this.respond(true);
   }
@@ -654,6 +662,7 @@ export class HeadlessGame {
       }
       case "choose-follow-up": {
         const pending = this.takePending("follow-up");
+        this.heldFollowUp = null;
         if (cmd.followUp) {
           // Free move: no movement cost, no dice (rush/dodge already paid)
           await gs.followUpPush(pending.attackerId, pending.targetSquare);
@@ -796,6 +805,7 @@ export class HeadlessGame {
       return;
     }
     if (name === GameEventNames.DecisionRequested) {
+      if (this.pending?.type === "follow-up") this.heldFollowUp = this.pending;
       // Awaitable decision: the engine is paused on this promise. Surface
       // it and wake execute()'s race so the response goes out now.
       if (data?.type === "reroll") {

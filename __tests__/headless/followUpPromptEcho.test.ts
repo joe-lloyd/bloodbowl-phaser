@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
+import { SkillType } from "../../src/types/Skills";
 
 /**
  * The board re-announces a follow-up prompt once its push animation has
@@ -125,5 +126,77 @@ describe("a follow-up prompt arriving over another decision", () => {
     });
 
     expect(game.pendingDecision()).toEqual(reroll);
+  });
+});
+
+describe("a catch re-roll raised by a push's bounce", () => {
+  it("gives the attacker its follow-up once the re-roll is answered", async () => {
+    for (let seed = 1; seed < 400; seed++) {
+      const game = new HeadlessGame({
+        scenario: {
+          id: "follow-up-after-reroll",
+          name: "Follow-up after a re-roll",
+          description: "",
+          setup: {
+            team1Placements: [
+              { playerIndex: 0, x: 7, y: 5, stats: { ST: 4 } },
+              { playerIndex: 1, x: 2, y: 9 },
+            ],
+            // The carrier falls at (9,5); the ball may bounce to a catcher.
+            team2Placements: [
+              { playerIndex: 0, x: 8, y: 5, stats: { ST: 2 }, hasBall: true },
+              ...[4, 5, 6].map((y, i) => ({
+                playerIndex: i + 1,
+                x: 10,
+                y,
+                skills: [SkillType.CATCH],
+              })),
+            ],
+            activeTeam: "team1",
+            phase: GamePhase.PLAY,
+            subPhase: SubPhase.TURN_RECEIVING,
+          },
+        },
+        seed,
+      });
+      const attacker = game.ctx.team1.players[0];
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      let response = await game.execute({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: game.ctx.team2.players[0].id,
+      });
+      if (response.pendingDecision?.type !== "block-dice") continue;
+      const pow = response.pendingDecision.options.findIndex(
+        (o) => o.type === "pow"
+      );
+      if (pow < 0) continue;
+      response = await game.execute({
+        type: "choose-block-result",
+        index: pow,
+      });
+      if (response.pendingDecision?.type !== "push-direction") continue;
+      response = await game.execute({
+        type: "choose-push-direction",
+        x: 9,
+        y: 5,
+      });
+      if (response.pendingDecision?.type !== "reroll") continue;
+
+      // A dropped ball can bounce to the next catcher, who may fail too.
+      while (response.pendingDecision?.type === "reroll")
+        response = await game.execute({ type: "use-reroll", accept: false });
+
+      expect(response.pendingDecision).toMatchObject({
+        type: "follow-up",
+        attackerId: attacker.id,
+      });
+      return;
+    }
+    throw new Error("no seed bounced the ball into a failed catch");
   });
 });
