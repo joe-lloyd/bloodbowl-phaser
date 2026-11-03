@@ -135,7 +135,7 @@ export const PUZZLES: readonly Puzzle[] = [
   },
   {
     id: "break-the-cage",
-    goal: "Get the ball out of a four-corner cage.",
+    goal: "Knock the carrier of a four-corner cage down, or take the ball.",
     setup: playSetup({
       team1Placements: [
         lineman(0, 9, 3),
