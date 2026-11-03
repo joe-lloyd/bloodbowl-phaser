@@ -213,14 +213,24 @@ function carrierActivations(c: Context, carrier: Player): Activation[] {
   const stall = stallRoute(c, carrier, plain);
   if (bestScore && !stall) {
     const late = board.turnsLeft === 0;
+    const value =
+      gamble(c, bestScore.chance, w.touchdown) -
+      (1 - bestScore.chance) * w.ballLoss;
+    // A carrier already on its way keeps running while the run is worth
+    // it: an opening dodge that spent the re-roll must not turn the rest
+    // of the run into a reason to step back.
+    const underway =
+      board.gs.getMovementUsed(carrier.id) > 0 &&
+      board.gs.getState().activePlayer?.id === carrier.id;
     out.push({
       player: carrier,
       action: "move",
       intent: { kind: "score", route: bestScore },
-      tier: late ? "score" : tierFor(bestScore.chance, w.safeScore, "score"),
-      value:
-        gamble(c, bestScore.chance, w.touchdown) -
-        (1 - bestScore.chance) * w.ballLoss,
+      tier:
+        late || (underway && value > 0)
+          ? "score"
+          : tierFor(bestScore.chance, w.safeScore, "score"),
+      value,
       rolls: bestScore.rolls,
     });
   }
@@ -288,8 +298,14 @@ function stallRoute(
       threats(board, at) === 0
   );
   if (options.length === 0) return null;
-  // Staying put is a stall too; a route of no steps says so.
-  const pick = options[0];
+  // Wait where opponents are furthest away, off the sideline. Staying put
+  // is a stall too; a route of no steps says so.
+  const safety = (at: Square) =>
+    Math.min(99, ...board.theirs.map((o) => distance(o.gridPosition!, at))) +
+    Math.min(2, at.y, HEIGHT - 1 - at.y);
+  const pick = options.reduce((best, o) =>
+    safety(o.at) > safety(best.at) ? o : best
+  );
   return (
     pick.route ?? { to: pick.at, path: [], rolls: [], chance: 1 as Chance }
   );

@@ -200,8 +200,12 @@ export function createComputerMatch(
     new Promise((resolve) => setTimeout(resolve, ms * pace));
 
   /** One decision, if it is the computer's to make; true when it acted. */
+  /** The turn the computer last ended; the hand-over lands a moment later. */
+  let endedTurn: unknown = null;
   const think = async (): Promise<boolean> => {
     if (thinking || closed || !owner(computerTeamId)) return false;
+    if (engine!.getState().turn === endedTurn && !game.pendingDecision())
+      return false;
     thinking = true;
     try {
       const snapshot = game.snapshot();
@@ -233,6 +237,7 @@ export function createComputerMatch(
         await wait(pause(command));
         if (closed) return false;
         showIntent(command);
+        if (command.type === "end-turn") endedTurn = engine!.getState().turn;
         const response = await run(command);
         if (!response.ok) {
           console.warn(
