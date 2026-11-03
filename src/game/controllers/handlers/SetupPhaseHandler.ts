@@ -44,8 +44,9 @@ export class SetupPhaseHandler implements PhaseHandler {
     // host-authoritative sequence handled outside the engine (OnlineCoinFlip
     // over the lobby doc). Neither side runs the local intro or the in-HUD
     // coin flip — the host applies the toss result via UI_CoinFlipComplete.
+    // A match against the computer runs the local opening.
     const match = getActiveOnlineMatch();
-    const isOnline = !!match;
+    const isOnline = !!match && match.kind !== "computer";
 
     if (subPhase === SubPhase.INTRO) {
       if (!isOnline) this.runIntroSequence();

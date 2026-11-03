@@ -54,6 +54,12 @@ export type ProgressionCommand = Extract<
 >;
 
 export interface OnlineMatch {
+  /**
+   * "online": the other coach is in another browser. "computer": the
+   * computer coach plays in this page (ComputerMatch); there is no lobby,
+   * chat, clock or coin-toss handshake.
+   */
+  kind: "online" | "computer";
   role: "host" | "guest";
   code: string;
   myTeamId: string;
@@ -522,6 +528,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     };
 
     const match: OnlineMatch = {
+      kind: "online",
       role: parts.role,
       code: lobby.code,
       myTeamId,

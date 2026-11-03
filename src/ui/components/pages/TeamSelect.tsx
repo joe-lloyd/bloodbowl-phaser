@@ -46,6 +46,9 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   const [filter1, setFilter1] = useState("");
   const [filter2, setFilter2] = useState("");
   const [progressionEnabled, setProgressionEnabled] = useState(false);
+  /** Who coaches Player 2: another person at this screen, or the computer. */
+  const [opponent, setOpponent] = useState<"human" | "computer">("human");
+  const vsComputer = mode === "play" && opponent === "computer";
   const [pitchThemeId, setPitchThemeId] = useState<PitchThemeId>(
     DEFAULT_PITCH_THEME_ID
   );
@@ -106,6 +109,17 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
       selectedTeam1.id === selectedTeam2.id ||
       blockingDevelopment.length > 0
     ) {
+      return;
+    }
+    if (vsComputer) {
+      navigate("/play/computer", {
+        state: {
+          team1: selectedTeam1,
+          team2: selectedTeam2,
+          computerTeamId: selectedTeam2.id,
+          pitchThemeId,
+        },
+      });
       return;
     }
     if (
@@ -186,7 +200,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     >
       <PanelHeader
         as="h2"
-        title={`Player ${player}`}
+        title={player === 2 && vsComputer ? "Computer" : `Player ${player}`}
         aside={`${columnTeams.length} teams`}
         className="px-4"
       />
@@ -295,6 +309,44 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         </Notice>
       )}
 
+      {mode === "play" && (
+        <Section title="Player 2" className="mt-6">
+          <div
+            role="radiogroup"
+            aria-label="Who coaches Player 2"
+            className="grid max-w-2xl grid-cols-2 gap-2"
+          >
+            {(
+              [
+                ["human", "Coach", "Another coach at this screen"],
+                [
+                  "computer",
+                  "Versus computer",
+                  "The computer coaches Player 2",
+                ],
+              ] as const
+            ).map(([value, label, detail]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={opponent === value}
+                className={cx(
+                  hudChoiceClass(opponent === value),
+                  "px-4 py-3 text-left"
+                )}
+                onClick={() => setOpponent(value)}
+              >
+                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                  {label}
+                </span>
+                <span className="block text-hud-sm text-hud-dim">{detail}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title="Choose the pitch" className="mt-6">
         <p className="mb-4 text-hud-sm text-hud-dim">
           Presentation only—the same 20×11 field is used for every theme.
@@ -304,7 +356,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         </div>
       </Section>
 
-      {mode !== "sandbox" && (
+      {mode !== "sandbox" && !vsComputer && (
         <Panel className="p-4">
           <label className="flex cursor-pointer items-center gap-3 text-hud-base text-hud-bone">
             <input
