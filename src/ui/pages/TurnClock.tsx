@@ -303,8 +303,20 @@ export function TurnClock({
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
       if (currentPhase() !== GamePhase.PLAY) return;
-      if (match.pendingDecision()) return; // don't cut off a mid-block decision
       if (endedForRef.current === timer.deadline) return; // end once per turn
+      // A decision of this coach's own is open with no time left: give its
+      // default answer, as the other coach's short clock does, so the turn
+      // can end. The next tick ends it once nothing is open.
+      const pending = match.pendingDecision();
+      if (pending) {
+        const key = JSON.stringify(pending);
+        if (match.decidingTeamId() !== match.myTeamId) return;
+        if (answeredRef.current === key) return;
+        answeredRef.current = key;
+        const answer = defaultAnswer(pending);
+        if (answer) void match.run(answer);
+        return;
+      }
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.
