@@ -900,7 +900,10 @@ export class HeadlessGame {
       this.pending = { type: "touchback", teamId: data.teamId };
     } else if (
       name === GameEventNames.UI_FollowUpPrompt &&
-      followUpKey(data) !== this.answeredFollowUp
+      followUpKey(data) !== this.answeredFollowUp &&
+      // The engine may be waiting on another decision (a catch re-roll from
+      // the push's bounce). Replacing it would leave that wait unanswerable.
+      (!this.pending || this.pending.type === "follow-up")
     ) {
       // Crowd surf: the engine prompts the follow-up directly (there is no
       // PlayerMoved for the surfed defender)

@@ -89,3 +89,39 @@ describe("a follow-up prompt the board repeats", () => {
     throw new Error("no seed rolled a Push");
   });
 });
+
+describe("a follow-up prompt arriving over another decision", () => {
+  it("leaves the open decision in place", () => {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "follow-up-over-reroll",
+        name: "Follow-up over a re-roll",
+        description: "",
+        setup: {
+          team1Placements: [{ playerIndex: 0, x: 7, y: 5 }],
+          team2Placements: [{ playerIndex: 0, x: 8, y: 5 }],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        },
+      },
+      seed: 1,
+    });
+    // A bounce from the push offered a catch re-roll; the engine waits on it.
+    const reroll = {
+      type: "reroll",
+      playerId: game.ctx.team2.players[0].id,
+      chooserTeamId: game.ctx.team2.id,
+      rollKind: "catch",
+      sources: ["skill"],
+    } as const;
+    game.adoptPending(reroll);
+
+    game.ctx.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+      attackerId: game.ctx.team1.players[0].id,
+      targetSquare: { x: 8, y: 5 },
+    });
+
+    expect(game.pendingDecision()).toEqual(reroll);
+  });
+});
