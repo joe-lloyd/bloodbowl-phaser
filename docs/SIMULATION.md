@@ -106,10 +106,10 @@ Baseline on 2026-11-04, from seed 1:
 | Match-up               | Games | Result                     | TD per game | Turnovers per turn |
 | ---------------------- | ----- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 200   | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
-| planner vs heuristic   | 400   | 337 won, 58 drawn, 5 lost  | 1.53        | 24.9%              |
+| planner vs heuristic   | 400   | 334 won, 60 drawn, 6 lost  | 1.52        | 25.1%              |
 
-With no team re-rolls (`--rerolls 0`), the planner wins 144, draws 53 and
-loses 3 of 200, with 1.11 touchdowns a game.
+With no team re-rolls (`--rerolls 0`), the planner wins 145, draws 53 and
+loses 2 of 200, with 1.11 touchdowns a game.
 
 The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
