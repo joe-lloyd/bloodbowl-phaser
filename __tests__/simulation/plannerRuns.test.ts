@@ -128,7 +128,7 @@ describe("the planner's dodge past a Tackle", () => {
       seed: 1,
     });
     const board = readBoard(game, game.ctx.team1.id);
-    const route = routesFor(board, game.ctx.team1.players[0], false).get(
+    const route = routesFor(board, game.ctx.team1.players[0]).get(
       key({ x: 5, y: 5 })
     );
     expect(route?.chance).toBeCloseTo(2 / 3, 6);

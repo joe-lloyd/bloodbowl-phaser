@@ -75,7 +75,8 @@ async function playout(
   rng: CoachRng,
   w: Weights
 ): Promise<number> {
-  const game = new HeadlessGame({ matchSave: save });
+  const game = new HeadlessGame({ matchSave: save, lazySnapshots: true });
+  const live = () => game.ctx.gameService.getState();
   const state = game.ctx.rng.captureState();
   game.ctx.rng.restoreState({ ...state, currentSeed: seed });
   const first = await enumerateDecision(game, null);
@@ -85,21 +86,29 @@ async function playout(
   // Our turn and the other side's answer to it: a position is judged by
   // what the opponent can do to it, not by how it looks before they move.
   let handedOver = false;
+  const startScore = { ...save.snapshot.score };
   for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
-    const snapshot = game.snapshot();
-    const scored = Object.keys(snapshot.score).some(
-      (t) => (snapshot.score[t] ?? 0) !== (save.snapshot.score[t] ?? 0)
+    const state = live();
+    const scored = Object.keys(startScore).some(
+      (t) => (state.score[t] ?? 0) !== startScore[t]
     );
-    if (snapshot.activeTeamId !== us) handedOver = true;
+    if (state.activeTeamId !== us) handedOver = true;
     if (
       scored ||
-      snapshot.phase !== GamePhase.PLAY ||
-      (handedOver && snapshot.activeTeamId === us && !game.pendingDecision())
+      state.phase !== GamePhase.PLAY ||
+      (handedOver && state.activeTeamId === us && !game.pendingDecision())
     )
       break;
     const point = await enumerateDecision(game, null);
     if (point.candidates.length === 0) break;
-    const { index } = await policy.choose({ game, snapshot, point, rng });
+    const { index } = await policy.choose({
+      game,
+      get snapshot() {
+        return game.snapshot();
+      },
+      point,
+      rng,
+    });
     const candidate = point.candidates[index] ?? point.candidates[0];
     let refused = false;
     for (const command of candidate.commands)
