@@ -175,7 +175,9 @@ function parseRunOptions(argv: string[]): RunOptions {
   }
   if (!Number.isInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
-  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isInteger(options.seed) || options.seed < 0)
+    fail("--seed must be a non-negative integer");
+  if (options.confirmGames < 4) fail("--confirm must be at least 4");
   // Pages are for watching matches, so keep every match unless told otherwise.
   if (options.html && !recordChosen) options.record = "all";
   return options;
@@ -653,7 +655,9 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     options.games % 2
   )
     fail("--games must be an even number of at least 2");
-  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isInteger(options.seed) || options.seed < 0)
+    fail("--seed must be a non-negative integer");
+  if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (
     options.rerolls !== undefined &&
     (!Number.isInteger(options.rerolls) || options.rerolls < 0)
@@ -937,7 +941,9 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   ] as const)
     if (!Number.isInteger(n) || n < 1)
       fail(`${name} must be a positive integer`);
-  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (!Number.isInteger(options.seed) || options.seed < 0)
+    fail("--seed must be a non-negative integer");
+  if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
   return options;
@@ -1038,10 +1044,19 @@ async function runTune(options: TuneOptions): Promise<number> {
           })
       )
     );
-    return results.filter((g): g is BenchGame => g !== null);
+    // A failed or stalled game must not quietly shrink what a promotion rests on.
+    return results.map((game, i) => {
+      if (!game?.completed || game.blockingFindings > 0)
+        fail(
+          `tuning stopped: the game on seed ${jobs[i].seed} (side ${jobs[i].candidateSide}) ` +
+            (game?.findingKeys.join(", ") || "did not finish")
+        );
+      return game;
+    });
   };
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
+  fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
   const say = (line: string) => process.stdout.write(`${line}\n`);
   for (let generation = 1; generation <= options.generations; generation++) {
     const seed = nextSeed;
