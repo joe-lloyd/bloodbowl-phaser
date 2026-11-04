@@ -69,6 +69,7 @@ import {
   LeagueDoc,
   TournamentDoc,
 } from "../../src/competition/types";
+import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
 
 const HOST = "host-uid";
@@ -237,6 +238,11 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
           players: { [STRANGER]: mine },
         })
       );
+    });
+
+    it("cannot be the host taking their own guest seat", async () => {
+      const code = await openLobby();
+      await denied(updateDoc(game(HOST, code), { guestUid: HOST }));
     });
 
     it("cannot take a seat in someone else's name", async () => {
@@ -461,6 +467,43 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         recordCompetitionFixture(context(comp, fixture.id), 2, 1)
       );
       expect(raced.fixtures[0].result?.homeScore).toBe(2);
+    });
+
+    it("counts the result for the later coach's team, once", async () => {
+      const comp = await league();
+      const fixture = comp.fixtures[0];
+      const guestTeam = comp.entrants.find((e) => e.ownerUid === GUEST)!;
+      const homeIsGuest = fixture.homeEntrantId === guestTeam.id;
+      expect(homeIsGuest || fixture.awayEntrantId === guestTeam.id).toBe(true);
+      saveTeam(team(guestTeam.teamId));
+      await as(HOST, () =>
+        recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+      );
+      localStorage.clear();
+      saveTeam(team(guestTeam.teamId));
+
+      const report = () =>
+        as(GUEST, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        );
+      await report();
+      await report();
+
+      const counted = getTeamById(guestTeam.teamId)!;
+      expect([counted.wins ?? 0, counted.losses ?? 0]).toEqual(
+        homeIsGuest ? [1, 0] : [0, 1]
+      );
+    });
+
+    it("cannot put an open competition back to draft, or open a draft", async () => {
+      const comp = await league();
+      await denied(
+        updateDoc(leagueRef(GUEST, comp.id), { status: "draft" })
+      );
+      await updateDoc(leagueRef(ORGANIZER, comp.id), { status: "draft" });
+      await denied(
+        updateDoc(leagueRef(GUEST, comp.id), { status: "active" })
+      );
     });
 
     it("cannot rewrite a played result", async () => {

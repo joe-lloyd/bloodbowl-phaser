@@ -74,6 +74,13 @@ service cloud.firestore {
         && fixtureOpen(was, now, 6) && fixtureOpen(was, now, 7);
     }
 
+    // Whether a competition has opened is the organizer's call.
+    function draftKept() {
+      return request.resource.data.status == resource.data.status
+        || (request.resource.data.status != 'draft'
+          && resource.data.status != 'draft');
+    }
+
     // Organizers control competition structure. A participant may report a
     // result and change their own entrant (see the functions above).
     // Standings, status and the champion are only caches: every reader
@@ -87,6 +94,7 @@ service cloud.firestore {
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status', 'updatedAt'])
+            && draftKept()
             && entrantsKept(resource.data.entrants, request.resource.data.entrants)
             && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
       allow delete: if request.auth != null
@@ -103,6 +111,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',
                         'championEntrantId', 'updatedAt'])
+            && draftKept()
             && entrantsKept(resource.data.entrants, request.resource.data.entrants)
             && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
       allow delete: if request.auth != null
@@ -185,6 +194,7 @@ service cloud.firestore {
     function claimsGuestSeat() {
       return resource.data.guestUid == null
         && resource.data.status == 'lobby'
+        && request.auth.uid != resource.data.hostUid
         && request.resource.data.guestUid == request.auth.uid
         && changed().hasOnly(['guestUid', 'players'])
         && request.resource.data.players.diff(resource.data.players)
