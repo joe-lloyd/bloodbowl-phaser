@@ -440,6 +440,7 @@ export class LockstepSession {
     await whenEngineQuiet();
     const { game } = this.options;
     if (
+      game.isSuspended() &&
       state.applied + state.replay.length === this.applied &&
       state.checksum === stateChecksum(game)
     ) {
