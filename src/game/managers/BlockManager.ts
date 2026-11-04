@@ -1668,6 +1668,16 @@ export class BlockManager {
       }
 
       const isOriginalDefender = i === 0;
+      // Pushed onto a loose ball: it bounces. A fallen defender's own bounce
+      // is queued with the knockdown below.
+      if (
+        !carriedBall &&
+        !(isOriginalDefender && knockDownDefender) &&
+        this.state.ballPosition?.x === link.to.x &&
+        this.state.ballPosition?.y === link.to.y
+      ) {
+        flowManager?.add(new BounceOperation(link.to), true);
+      }
       this.eventBus.emit(GameEventNames.PlayerMoved, {
         playerId: link.playerId,
         from: link.from,
