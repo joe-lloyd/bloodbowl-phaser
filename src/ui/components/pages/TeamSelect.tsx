@@ -22,6 +22,7 @@ import {
 } from "../componentWarehouse/HudKit";
 import { numToHex } from "../TeamManagement/TeamStatsOverview";
 import { PitchThemePicker } from "../common/PitchThemePicker";
+import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
 import {
   DEFAULT_PITCH_THEME_ID,
   PitchThemeId,
@@ -49,6 +50,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
   /** Who coaches Player 2: another person at this screen, or the computer. */
   const [opponent, setOpponent] = useState<"human" | "computer">("human");
   const vsComputer = mode === "play" && opponent === "computer";
+  const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [pitchThemeId, setPitchThemeId] = useState<PitchThemeId>(
     DEFAULT_PITCH_THEME_ID
   );
@@ -117,6 +119,7 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           team1: selectedTeam1,
           team2: selectedTeam2,
           computerTeamId: selectedTeam2.id,
+          difficulty,
           pitchThemeId,
         },
       });
@@ -344,6 +347,34 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
               </button>
             ))}
           </div>
+          {vsComputer && (
+            <div
+              role="radiogroup"
+              aria-label="How hard the computer plays"
+              className="mt-3 grid max-w-2xl grid-cols-3 gap-2"
+            >
+              {DIFFICULTIES.map(({ id, label, detail }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={difficulty === id}
+                  className={cx(
+                    hudChoiceClass(difficulty === id),
+                    "px-4 py-3 text-left"
+                  )}
+                  onClick={() => setDifficulty(id)}
+                >
+                  <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                    {label}
+                  </span>
+                  <span className="block text-hud-sm text-hud-dim">
+                    {detail}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </Section>
       )}
 
