@@ -34,10 +34,11 @@ It sorts them in the order the scripted Bot Bowl winners play a turn:
 3. Move the ball carrier to a safe square its team-mates can cage.
 4. Sure blocks.
 5. Pick up a loose ball.
-6. Blitz, the opposing carrier first.
-7. Cage corners, receivers, markers, the screen and chasers.
-8. Risky actions, if they are still worth it.
-9. End the turn.
+6. Bring a free team-mate beside the opposing carrier if it adds a block die.
+7. Blitz, the opposing carrier first.
+8. Cage corners, receivers, markers, the screen and chasers.
+9. Risky actions, if they are still worth it.
+10. End the turn.
 
 Nothing is stored between decisions. A player already acting continues
 with the best activation its declared action still allows, re-planned from
@@ -78,5 +79,16 @@ progression is off for it.
 
 `pnpm sim bench` plays mirrored pairs of matches and also runs the
 coaching puzzles (see [Simulations](../SIMULATION.md)). `--weights` loads
-a weight set for the planner under test, which is how the tuner in step 4
-will try candidates.
+a weight set for the planner under test, which is how `pnpm sim tune` tries
+candidates.
+
+Ideas that lost or changed nothing over 800 to 1000 mirrored games were taken
+out again, so they need new evidence to come back:
+
+| Idea                                                  | Result against the same planner without it |
+| ----------------------------------------------------- | ------------------------------------------ |
+| Fouling players on the ground                         | 255 won, 253 drawn, 292 lost               |
+| Taking pick-ups later in the turn                     | 68 won, 59 drawn, 73 lost                  |
+| The quickest player picks up the ball                 | 275 won, 237 drawn, 288 lost               |
+| Closing the carrier's open run to our end zone        | 347 won, 307 drawn, 346 lost               |
+| Re-rolling a block on the carrier that only pushes it | Even, with more turnovers                  |

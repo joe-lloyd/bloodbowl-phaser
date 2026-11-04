@@ -17,7 +17,7 @@ import {
   HeadlessCommand,
   PendingDecision,
 } from "../headless/protocol";
-import { GamePhase, SubPhase } from "../types/GameState";
+import { GamePhase, GameState, SubPhase } from "../types/GameState";
 import {
   Player,
   PlayerCondition,
@@ -105,9 +105,11 @@ export async function enumerateDecision(
   game: HeadlessGame,
   kickingTeamId: string | null
 ): Promise<DecisionPoint> {
-  const snapshot = game.snapshot();
+  // Read the state directly: a snapshot is costly and this runs thousands
+  // of times in a lookahead.
+  const state = game.ctx.gameService.getState();
   const pending = game.pendingDecision();
-  const activeTeamId = snapshot.activeTeamId ?? snapshot.teams[0].id;
+  const activeTeamId = state.activeTeamId ?? game.ctx.team1.id;
 
   if (pending) {
     const gs = game.ctx.gameService;
@@ -121,7 +123,7 @@ export async function enumerateDecision(
           teamIdOfPlayer: (id) => gs.getPlayerById(id)?.teamId,
           hostTeamId: game.ctx.team1.id,
         }) ?? activeTeamId,
-      phase: snapshot.phase,
+      phase: state.phase,
       pending,
       candidates: decisionCandidates(game, pending),
     };
@@ -129,16 +131,16 @@ export async function enumerateDecision(
 
   const at = (teamId: string, candidates: Candidate[]): DecisionPoint => ({
     teamId,
-    phase: snapshot.phase,
+    phase: state.phase,
     pending: null,
     candidates,
   });
 
-  switch (snapshot.phase) {
+  switch (state.phase) {
     case GamePhase.SETUP: {
       const inSetup =
-        snapshot.subPhase === SubPhase.SETUP_KICKING ||
-        snapshot.subPhase === SubPhase.SETUP_RECEIVING;
+        state.subPhase === SubPhase.SETUP_KICKING ||
+        state.subPhase === SubPhase.SETUP_RECEIVING;
       if (!inSetup) {
         return at(activeTeamId, [
           {
@@ -152,10 +154,10 @@ export async function enumerateDecision(
     }
     case GamePhase.KICKOFF: {
       const kicker = kickingTeamId ?? activeTeamId;
-      return at(kicker, kickoffCandidates(game, snapshot, kicker));
+      return at(kicker, kickoffCandidates(game, game.snapshot(), kicker));
     }
     case GamePhase.PLAY:
-      return at(activeTeamId, await playCandidates(game, snapshot));
+      return at(activeTeamId, await playCandidates(game));
     default:
       return at(activeTeamId, []);
   }
@@ -410,13 +412,11 @@ function kickoffCandidates(
   return out;
 }
 
-async function playCandidates(
-  game: HeadlessGame,
-  snapshot: GameSnapshot
-): Promise<Candidate[]> {
+async function playCandidates(game: HeadlessGame): Promise<Candidate[]> {
   const gs = game.ctx.gameService;
-  const active = snapshot.activePlayer;
-  const activeTeamId = snapshot.activeTeamId;
+  const state = gs.getState();
+  const active = state.activePlayer;
+  const activeTeamId = state.activeTeamId;
   const actor = active ? gs.getPlayerById(active.id) : undefined;
   if (active && actor && actor.teamId === activeTeamId) {
     return stepCandidates(game, actor, active);
@@ -464,7 +464,7 @@ async function playCandidates(
 function stepCandidates(
   game: HeadlessGame,
   player: Player,
-  active: NonNullable<GameSnapshot["activePlayer"]>
+  active: NonNullable<GameState["activePlayer"]>
 ): Candidate[] {
   const gs = game.ctx.gameService;
   const state = gs.getState();

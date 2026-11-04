@@ -38,19 +38,23 @@ export function withReroll(p: Chance): Chance {
 
 export const both = (a: Chance, b: Chance) => (a * b) as Chance;
 
+const KINDS: readonly RollTarget["kind"][] = [
+  "dodge",
+  "rush",
+  "pickup",
+  "catch",
+];
+
+const REROLL_SKILL: Record<RollTarget["kind"], SkillType> = {
+  dodge: SkillType.DODGE,
+  rush: SkillType.SURE_FEET,
+  pickup: SkillType.SURE_HANDS,
+  catch: SkillType.CATCH,
+};
+
 /** The skill that re-rolls a failed roll of this kind, if the player has it. */
 function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
-  const has = (s: SkillType) => hasSkill(player.skills, s);
-  switch (kind) {
-    case "dodge":
-      return has(SkillType.DODGE);
-    case "rush":
-      return has(SkillType.SURE_FEET);
-    case "pickup":
-      return has(SkillType.SURE_HANDS);
-    case "catch":
-      return has(SkillType.CATCH);
-  }
+  return hasSkill(player.skills, REROLL_SKILL[kind]);
 }
 
 /**
@@ -63,28 +67,37 @@ export function chain(
   rolls: readonly RollTarget[],
   teamReroll: boolean
 ): Chance {
-  const seen = new Map<string, number>();
-  const from = (
-    i: number,
-    spent: ReadonlySet<string>,
-    team: boolean
-  ): number => {
-    if (i === rolls.length) return 1;
-    const id = `${i}|${[...spent].join()}|${team}`;
-    const known = seen.get(id);
-    if (known !== undefined) return known;
-    const { kind, target, noSkillReroll } = rolls[i];
-    const p = d6(target);
-    const next = from(i + 1, spent, team);
-    let saved = 0;
-    if (!noSkillReroll && !spent.has(kind) && skillReroll(player, kind))
-      saved = p * from(i + 1, new Set([...spent, kind]), team);
-    else if (team) saved = p * from(i + 1, spent, false);
-    const chance = p * next + (1 - p) * saved;
-    seen.set(id, chance);
-    return chance;
-  };
-  return from(0, new Set(), teamReroll) as Chance;
+  const has = KINDS.map((kind) => skillReroll(player, kind));
+  return chainFrom(0, 0, teamReroll, rolls, has, new Map()) as Chance;
+}
+
+/**
+ * The chance from roll `i` on. `spent` holds a bit per kind whose skill
+ * re-roll is gone; `team` is whether the team re-roll is still in hand.
+ */
+function chainFrom(
+  i: number,
+  spent: number,
+  team: boolean,
+  rolls: readonly RollTarget[],
+  has: readonly boolean[],
+  seen: Map<number, number>
+): number {
+  if (i === rolls.length) return 1;
+  const id = i * 32 + spent * 2 + (team ? 1 : 0);
+  const known = seen.get(id);
+  if (known !== undefined) return known;
+  const { kind, target, noSkillReroll } = rolls[i];
+  const k = KINDS.indexOf(kind);
+  const p = d6(target);
+  let saved = 0;
+  if (!noSkillReroll && has[k] && !(spent & (1 << k)))
+    saved = p * chainFrom(i + 1, spent | (1 << k), team, rolls, has, seen);
+  else if (team) saved = p * chainFrom(i + 1, spent, false, rolls, has, seen);
+  const chance =
+    p * chainFrom(i + 1, spent, team, rolls, has, seen) + (1 - p) * saved;
+  seen.set(id, chance);
+  return chance;
 }
 
 /** What a block can do, for the side that takes the result. */
