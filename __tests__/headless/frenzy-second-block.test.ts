@@ -3,6 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
+import { PlayerCondition, hasCondition } from "../../src/types/Player";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
 
 /**
@@ -216,6 +217,49 @@ describe("Frenzy's follow-up that scores", () => {
     expect(pushed.snapshot.score).toEqual({ team1: 1, team2: 0 });
     expect(pushed.pendingDecision).toBeNull();
     expect(game.pendingDecision()).toBeNull();
+  });
+});
+
+describe("Frenzy's follow-up into the end zone with Bloodlust unsated", () => {
+  it("throws no second Block after the failed bite", async () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const base = scenario(
+        { x: 18, y: 4, skills: [SkillType.FRENZY, SkillType.BLOODLUST] },
+        { x: 19, y: 5 }
+      );
+      const { game, run, attacker, defender } = session(
+        { ...base, setup: { ...base.setup, ballPosition: { x: 18, y: 4 } } },
+        seed
+      );
+      const declared = await run({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      // A failed Bloodlust roll leaves the player unsated.
+      if (declared.pendingDecision?.type !== "reaction") continue;
+      await run({ type: "use-reaction", accept: false });
+      const rolled = await run({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+      if (rolled.pendingDecision?.type !== "block-dice") continue;
+      const push = rolled.pendingDecision.options.findIndex(
+        (o) => o.type === "push"
+      );
+      if (push < 0) continue;
+      await run({ type: "choose-block-result", index: push });
+      const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
+
+      // No Thrall to bite: Distracted, the ball dropped, and no touchdown.
+      expect(hasCondition(attacker, PlayerCondition.DISTRACTED)).toBe(true);
+      expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 0 });
+      expect(pushed.pendingDecision?.type).not.toBe("block-dice");
+      expect(game.pendingDecision()?.type).not.toBe("block-dice");
+      return;
+    }
+    throw new Error("no seed reached the unsated follow-up");
   });
 });
 

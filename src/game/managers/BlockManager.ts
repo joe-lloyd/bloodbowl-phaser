@@ -149,9 +149,37 @@ class FrenzyOperation extends GameOperation {
       );
       // …and let that follow-up move finish before the second Block window opens.
       await context.delay(450);
-      // A carrier following up into the end zone has just scored.
-      if (context.gameService.getPhase() !== GamePhase.PLAY) return;
     }
+    // Queued, so it runs after a Bloodlust bite the follow-up may have raised.
+    context.flowManager.add(
+      new FrenzySecondBlockOperation(
+        this.manager,
+        this.attackerId,
+        this.defenderId,
+        this.targetStanding
+      )
+    );
+  }
+}
+
+class FrenzySecondBlockOperation extends GameOperation {
+  public readonly name = "FrenzySecondBlock";
+
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string,
+    private defenderId: string,
+    private targetStanding: boolean
+  ) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    // A carrier following up into the end zone has just scored.
+    if (context.gameService.getPhase() !== GamePhase.PLAY) return;
+    // Or found no Thrall to bite: Distracted, the ball dropped, the turn over.
+    const attacker = context.gameService.getPlayerById(this.attackerId);
+    if (attacker && hasCondition(attacker, PlayerCondition.DISTRACTED)) return;
     await this.manager.frenzySecondBlock(
       this.attackerId,
       this.defenderId,
