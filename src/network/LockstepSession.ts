@@ -215,6 +215,11 @@ export class LockstepSession {
     if (envelope.kind === "hello") {
       this.seq.acceptFrom(envelope.from, envelope.seq);
       this.options.onHello?.(envelope.payload, envelope.from);
+      // A page on another version speaks shapes this engine cannot read
+      if (envelope.payload.protocolVersion !== PROTOCOL_VERSION) {
+        this.close();
+        return;
+      }
       const { applied, checksum } = envelope.payload;
       // The other page is new, so this side answers for both
       this.awaitingCatchUp = false;

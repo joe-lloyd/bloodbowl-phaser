@@ -217,3 +217,44 @@ describe("a full resync onto a page with nothing paused", () => {
     expect(stateChecksum(freshGame)).toBe(stateChecksum(hostGame));
   }, 120_000);
 });
+
+describe("a hello from a page on another protocol version", () => {
+  it("ends the session, so nothing of theirs reaches the engine", async () => {
+    const game = createSimGame(5150, [RosterName.HUMAN, RosterName.ORC], 3);
+    const [mine, theirs] = createInMemoryTransportPair();
+    const heard: string[] = [];
+    const answers: string[] = [];
+    const session = new LockstepSession({
+      transport: mine,
+      game,
+      selfId: "host-uid",
+      myTeamId: game.ctx.team1.id,
+      peerTeamId: game.ctx.team2.id,
+      hostTeamId: game.ctx.team1.id,
+      onHello: (payload) => heard.push(String(payload.protocolVersion)),
+    });
+    theirs.subscribe((envelope) => answers.push(envelope.kind));
+    const before = stateChecksum(game);
+
+    await theirs.send({
+      kind: "hello",
+      seq: 1,
+      from: "old-uid",
+      ts: 1,
+      payload: { protocolVersion: 1, applied: 0, checksum: "old" },
+    });
+    await settle(session);
+    await theirs.send({
+      kind: "resync",
+      seq: 2,
+      from: "old-uid",
+      ts: 2,
+      payload: {} as never,
+    });
+    await settle(session);
+
+    expect(heard).toEqual(["1"]);
+    expect(answers).toEqual([]);
+    expect(stateChecksum(game)).toBe(before);
+  });
+});
