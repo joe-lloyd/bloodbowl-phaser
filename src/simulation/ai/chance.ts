@@ -21,6 +21,8 @@ export type RollKind = "dodge" | "rush" | "pickup" | "catch" | "block";
 export interface RollTarget {
   kind: Exclude<RollKind, "block">;
   target: number;
+  /** A Tackle marks the square left: the Dodge skill may not re-roll this. */
+  noSkillReroll?: true;
 }
 
 /** One D6 needing `target`+ (a natural 1 fails, a natural 6 passes). */
@@ -71,11 +73,11 @@ export function chain(
     const id = `${i}|${[...spent].join()}|${team}`;
     const known = seen.get(id);
     if (known !== undefined) return known;
-    const { kind, target } = rolls[i];
+    const { kind, target, noSkillReroll } = rolls[i];
     const p = d6(target);
     const next = from(i + 1, spent, team);
     let saved = 0;
-    if (!spent.has(kind) && skillReroll(player, kind))
+    if (!noSkillReroll && !spent.has(kind) && skillReroll(player, kind))
       saved = p * from(i + 1, new Set([...spent, kind]), team);
     else if (team) saved = p * from(i + 1, spent, false);
     const chance = p * next + (1 - p) * saved;

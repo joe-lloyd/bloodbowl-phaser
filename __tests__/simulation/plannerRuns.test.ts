@@ -8,6 +8,8 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { Player } from "../../src/types/Player";
 import { chain } from "../../src/simulation/ai/chance";
+import { key, readBoard } from "../../src/simulation/ai/board";
+import { routesFor } from "../../src/simulation/ai/routes";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
 
@@ -94,6 +96,42 @@ describe("the planner's skill re-roll", () => {
     ] as const;
     // Both pass, or either fails and its one re-roll passes.
     expect(chain(dodger, dodges, false)).toBeCloseTo(20 / 27, 6);
+  });
+});
+
+describe("the planner's dodge past a Tackle", () => {
+  it("does not count on a Dodge re-roll the rules deny", () => {
+    const dodger = { skills: [getSkill(SkillType.DODGE)] } as Player;
+    const roll = { kind: "dodge", target: 3, noSkillReroll: true } as const;
+    expect(chain(dodger, [roll], false)).toBeCloseTo(2 / 3, 6);
+  });
+
+  it("marks the roll when the square left is in a Tackle zone", () => {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "planner-tackle",
+        name: "Planner tackle",
+        description: "",
+        setup: {
+          team1Placements: [
+            { playerIndex: 0, x: 7, y: 5, skills: [SkillType.DODGE] },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 8, y: 5, skills: [SkillType.TACKLE] },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+          ballPosition: { x: 1, y: 1 },
+        },
+      },
+      seed: 1,
+    });
+    const board = readBoard(game, game.ctx.team1.id);
+    const route = routesFor(board, game.ctx.team1.players[0], false).get(
+      key({ x: 5, y: 5 })
+    );
+    expect(route?.chance).toBeCloseTo(2 / 3, 6);
   });
 });
 

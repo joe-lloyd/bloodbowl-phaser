@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
-import { useHeldOnline } from "../../hooks/useHeldOnline";
 import {
   DialogActions,
   DialogShell,
@@ -17,8 +16,6 @@ interface FollowUpDialogProps {
 
 export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   const [isOpen, setIsOpen] = useState(false);
-  // Polled: another decision can hold this one, then hand it back unprompted
-  const held = useHeldOnline();
   const [followUpData, setFollowUpData] = useState<{
     attackerId: string;
     targetSquare: { x: number; y: number };
@@ -57,6 +54,14 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     };
   }, [eventBus]);
 
+  // Another decision can hold this one, then hand it back with no event.
+  const [, setPolled] = useState(0);
+  useEffect(() => {
+    if (!isOpen || !getActiveOnlineMatch()) return;
+    const id = setInterval(() => setPolled((tick) => tick + 1), 400);
+    return () => clearInterval(id);
+  }, [isOpen]);
+
   const handleYes = () => {
     // Online: the follow-up belongs to the attacking coach
     if (getActiveOnlineMatch()?.mayAct() === false) return;
@@ -85,7 +90,19 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner
-  if (!isOpen || !followUpData || held) return null;
+  if (!isOpen || !followUpData) return null;
+  const match = getActiveOnlineMatch();
+  if (match) {
+    // The offer the board repeated may be answered already, or held behind
+    // another decision. Only the coach who owes it an answer sees it, then.
+    const pending = match.pendingDecision();
+    if (
+      !match.mayAct() ||
+      pending?.type !== "follow-up" ||
+      pending.attackerId !== followUpData.attackerId
+    )
+      return null;
+  }
 
   return (
     <DialogShell

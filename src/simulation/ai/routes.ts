@@ -4,14 +4,22 @@
  * by distance.
  */
 
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { requiredRoll } from "../../game/rules/rollTargets";
 import { pickupTarget } from "../../game/rules/rollPreview";
 import { weatherEffects } from "../../game/rules/weather";
 import { rushAllowance, standUpCost } from "../../game/skills/movement";
 import { withDriveModifiers } from "../../game/kickoff/driveEffects";
-import { Board, HEIGHT, Square, WIDTH, key, neighbours } from "./board";
+import {
+  Board,
+  HEIGHT,
+  Square,
+  WIDTH,
+  distance,
+  key,
+  neighbours,
+} from "./board";
 import { Chance, RollTarget, chain } from "./chance";
 
 export interface Route {
@@ -47,9 +55,16 @@ function stepRolls(
       ? 0
       : -board.marks[key(to)];
     const twoHeads = hasSkill(player.skills, SkillType.TWO_HEADS) ? 1 : 0;
+    const tackled = board.theirs.some(
+      (o) =>
+        hasTackleZone(o) &&
+        hasSkill(o.skills, SkillType.TACKLE) &&
+        distance(o.gridPosition!, from) === 1
+    );
     rolls.push({
       kind: "dodge",
       target: requiredRoll(player.stats.AG, modifier + twoHeads),
+      ...(tackled ? { noSkillReroll: true as const } : {}),
     });
   }
   if (board.ball.kind === "loose" && key(board.ball.at) === key(to))
