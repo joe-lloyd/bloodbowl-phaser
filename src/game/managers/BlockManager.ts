@@ -117,6 +117,16 @@ class ForcedFollowUpOperation extends GameOperation {
 }
 
 /**
+ * A touchdown ends the drive, and any block still queued with it. A Charge!
+ * Blitz runs during KICKOFF, so that phase is not over.
+ */
+const driveOver = (phase: GamePhase) =>
+  phase === GamePhase.TOUCHDOWN ||
+  phase === GamePhase.SETUP ||
+  phase === GamePhase.HALFTIME ||
+  phase === GamePhase.GAME_OVER;
+
+/**
  * Frenzy (2025 rulebook p.130): the blocker must follow up a Push Back, and
  * if the target is still Standing must throw a second Block Action at the same
  * player. Runs after the first push settles; the second block re-enters the
@@ -137,8 +147,8 @@ class FrenzyOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
-    // The push scored: the drive is over and the board is being cleared.
-    if (context.gameService.getPhase() !== GamePhase.PLAY) return;
+    // The push scored: the board is being cleared.
+    if (driveOver(context.gameService.getPhase())) return;
     if (this.vacatedSquare) {
       // Let the Push Back animation land before the blocker follows up…
       await context.delay(300);
@@ -176,7 +186,7 @@ class FrenzySecondBlockOperation extends GameOperation {
 
   async execute(context: FlowContext): Promise<void> {
     // A carrier following up into the end zone has just scored.
-    if (context.gameService.getPhase() !== GamePhase.PLAY) return;
+    if (driveOver(context.gameService.getPhase())) return;
     // Or found no Thrall to bite: Distracted, the ball dropped, the turn over.
     const attacker = context.gameService.getPlayerById(this.attackerId);
     if (attacker && hasCondition(attacker, PlayerCondition.DISTRACTED)) return;
@@ -1281,8 +1291,8 @@ export class BlockManager {
     if (!state || state.attackerId !== attackerId) return;
     state.continuationQueued = false;
     // A push that scored ends the drive, and the second Block with it.
-    const driveOver = this.state.phase !== GamePhase.PLAY;
-    if (!driveOver && state.nextIndex < state.defenderIds.length) {
+    const scored = driveOver(this.state.phase);
+    if (!scored && state.nextIndex < state.defenderIds.length) {
       const defenderId = state.defenderIds[state.nextIndex++];
       await this.startBlock(attackerId, defenderId);
       return;
@@ -1291,7 +1301,7 @@ export class BlockManager {
     const attacker = this.getPlayerById(attackerId);
     if (attacker) attacker.stats.ST = state.originalStrength;
     this.multipleBlockState = null;
-    if (driveOver) return;
+    if (scored) return;
     this.callbacks
       .getFlowManager?.()
       ?.context.gameService.finishActivation(attackerId);
