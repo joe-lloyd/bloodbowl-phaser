@@ -44,6 +44,28 @@ describe("rule monitor", () => {
     ]);
   });
 
+  it("lets a player blitz again when Time-Out repeats a turn number", () => {
+    const monitor = createRuleMonitor();
+    const before = playState();
+    before.activePlayer = { id: "team1-player-1", action: "blitz" };
+    const declare = {
+      type: "declare-action" as const,
+      playerId: "team1-player-1",
+      action: "blitz" as const,
+    };
+    const block = {
+      type: "block" as const,
+      attackerId: "team1-player-1",
+      defenderId: "team2-player-1",
+    };
+
+    monitor.observe(declare, before, before, false);
+    expect(rules(monitor.observe(block, before, before, false))).toEqual([]);
+    // Same half, team and turn number, after a score and a Time-Out.
+    monitor.observe(declare, before, before, false);
+    expect(rules(monitor.observe(block, before, before, false))).toEqual([]);
+  });
+
   it("flags a pass that ends in opposition hands while the passing team keeps the turn", () => {
     const monitor = createRuleMonitor();
     const before = playState();
