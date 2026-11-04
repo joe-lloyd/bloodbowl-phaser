@@ -136,6 +136,15 @@ export class GameFlowManager {
   }
 
   /**
+   * Forget everything, including an operation paused on a decision that was
+   * abandoned: it never resumes, and must not hold up what runs next.
+   */
+  public abandon(): void {
+    this.queue = [];
+    this.isProcessing = false;
+  }
+
+  /**
    * Resolves once the queue has fully drained (the current reaction chain —
    * bounces, catches, armour rolls — has come to rest). Resolves immediately
    * when nothing is running.

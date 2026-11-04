@@ -201,7 +201,18 @@ export class HeadlessGame {
    */
   public adoptPending(pending: PendingDecision | null): void {
     this.ctx.gameService.getDecisionService().abandon();
+    // The run paused on it never resumes, so nothing may wait for it
+    this.ctx.gameService.flowManager.abandon();
+    this.inFlight = null;
     this.pending = pending;
+  }
+
+  /** A command's run is parked on a decision, which no state can carry. */
+  public isSuspended(): boolean {
+    return (
+      this.inFlight !== null ||
+      this.ctx.gameService.getDecisionService().pending() !== null
+    );
   }
 
   /**
