@@ -3,6 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType } from "../../src/types/Skills";
+import { PlayerCondition, hasCondition } from "../../src/types/Player";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
 
 /**
@@ -145,5 +146,192 @@ describe("Frenzy's second Block during a Blitz", () => {
     expect(after.pendingDecision).toBeNull();
     expect(attacker.gridPosition).toEqual({ x: 11, y: 5 });
     expect(game.ctx.gameService.getMovementUsed(attacker.id)).toBe(3);
+  });
+});
+
+/**
+ * A push that scores ends the drive, and the second Block with it. The sim
+ * found both ways this went wrong: on a cleared board a POW crashed the
+ * command, and a Both Down left the blocker Prone off the pitch for good.
+ */
+describe("Frenzy after a push that scores", () => {
+  it("throws no second Block once the drive is over", async () => {
+    const { game, run, attacker, defender } = session(
+      {
+        ...scenario({ x: 2, y: 5 }, { x: 1, y: 5 }),
+        setup: {
+          ...scenario({ x: 2, y: 5 }, { x: 1, y: 5 }).setup,
+          ballPosition: { x: 1, y: 5 },
+        },
+      },
+      PUSH_SEED
+    );
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    const rolled = await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(
+      rolled.pendingDecision?.type === "block-dice" &&
+        rolled.pendingDecision.options.map((o) => o.type)
+    ).toEqual(["push"]);
+    await run({ type: "choose-block-result", index: 0 });
+    const pushed = await run({ type: "choose-push-direction", x: 0, y: 5 });
+
+    expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 1 });
+    expect(pushed.pendingDecision).toBeNull();
+    expect(game.pendingDecision()).toBeNull();
+    expect(game.snapshot().phase).not.toBe(GamePhase.PLAY);
+  });
+});
+
+describe("Frenzy's follow-up that scores", () => {
+  it("throws no second Block once the carrier is in the end zone", async () => {
+    const base = scenario({ x: 18, y: 4 }, { x: 19, y: 5 });
+    const { game, run, attacker, defender } = session(
+      { ...base, setup: { ...base.setup, ballPosition: { x: 18, y: 4 } } },
+      PUSH_SEED
+    );
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    const rolled = await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(
+      rolled.pendingDecision?.type === "block-dice" &&
+        rolled.pendingDecision.options.map((o) => o.type)
+    ).toEqual(["push"]);
+    await run({ type: "choose-block-result", index: 0 });
+    const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
+
+    expect(pushed.snapshot.score).toEqual({ team1: 1, team2: 0 });
+    expect(pushed.pendingDecision).toBeNull();
+    expect(game.pendingDecision()).toBeNull();
+  });
+});
+
+describe("Frenzy's follow-up into the end zone with Bloodlust unsated", () => {
+  it("throws no second Block after the failed bite", async () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const base = scenario(
+        { x: 18, y: 4, skills: [SkillType.FRENZY, SkillType.BLOODLUST] },
+        { x: 19, y: 5 }
+      );
+      const { game, run, attacker, defender } = session(
+        { ...base, setup: { ...base.setup, ballPosition: { x: 18, y: 4 } } },
+        seed
+      );
+      const declared = await run({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      // A failed Bloodlust roll leaves the player unsated.
+      if (declared.pendingDecision?.type !== "reaction") continue;
+      await run({ type: "use-reaction", accept: false });
+      const rolled = await run({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+      if (rolled.pendingDecision?.type !== "block-dice") continue;
+      const push = rolled.pendingDecision.options.findIndex(
+        (o) => o.type === "push"
+      );
+      if (push < 0) continue;
+      await run({ type: "choose-block-result", index: push });
+      const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
+
+      // No Thrall to bite: Distracted, the ball dropped, and no touchdown.
+      expect(hasCondition(attacker, PlayerCondition.DISTRACTED)).toBe(true);
+      expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 0 });
+      expect(pushed.pendingDecision?.type).not.toBe("block-dice");
+      expect(game.pendingDecision()?.type).not.toBe("block-dice");
+      return;
+    }
+    throw new Error("no seed reached the unsated follow-up");
+  });
+});
+
+describe("Multiple Block after a push that scores", () => {
+  it("throws no second Block and gives the Strength back", async () => {
+    for (let seed = 1; seed < 80; seed++) {
+      const game = new HeadlessGame({
+        scenario: {
+          id: "multiple-block-scores",
+          name: "Multiple Block scores",
+          description: "",
+          setup: {
+            team1Placements: [
+              {
+                playerIndex: 0,
+                x: 2,
+                y: 5,
+                stats: { ST: 5 },
+                skills: [SkillType.MULTIPLE_BLOCK],
+              },
+              { playerIndex: 1, x: 10, y: 9 },
+            ],
+            team2Placements: [
+              { playerIndex: 0, x: 1, y: 5, stats: { ST: 1 } },
+              { playerIndex: 1, x: 2, y: 6, stats: { ST: 1 } },
+            ],
+            activeTeam: "team1",
+            phase: GamePhase.PLAY,
+            subPhase: SubPhase.TURN_RECEIVING,
+            ballPosition: { x: 1, y: 5 },
+          },
+        },
+        seed,
+      });
+      const attacker = game.ctx.team1.players[0];
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "multipleBlock",
+      });
+      const rolled = await game.execute({
+        type: "multiple-block",
+        attackerId: attacker.id,
+        defender1Id: game.ctx.team2.players[0].id,
+        defender2Id: game.ctx.team2.players[1].id,
+      });
+      if (rolled.pendingDecision?.type !== "block-dice") continue;
+      const push = rolled.pendingDecision.options.findIndex(
+        (o) => o.type === "push"
+      );
+      if (push < 0) continue;
+      const chosen = await game.execute({
+        type: "choose-block-result",
+        index: push,
+      });
+      if (chosen.pendingDecision?.type !== "push-direction") continue;
+      let pushed = await game.execute({
+        type: "choose-push-direction",
+        x: 0,
+        y: 5,
+      });
+      if (pushed.pendingDecision?.type === "follow-up")
+        pushed = await game.execute({
+          type: "choose-follow-up",
+          followUp: false,
+        });
+
+      expect(pushed.snapshot.score).toEqual({ team1: 0, team2: 1 });
+      expect(pushed.pendingDecision).toBeNull();
+      expect(attacker.stats.ST).toBe(5);
+      return;
+    }
+    throw new Error("no seed rolled a Push on the first target");
   });
 });

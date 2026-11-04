@@ -1,5 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
+import { GamePhase, GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import {
   Player,
@@ -117,6 +117,16 @@ class ForcedFollowUpOperation extends GameOperation {
 }
 
 /**
+ * A touchdown ends the drive, and any block still queued with it. A Charge!
+ * Blitz runs during KICKOFF, so that phase is not over.
+ */
+const driveOver = (phase: GamePhase) =>
+  phase === GamePhase.TOUCHDOWN ||
+  phase === GamePhase.SETUP ||
+  phase === GamePhase.HALFTIME ||
+  phase === GamePhase.GAME_OVER;
+
+/**
  * Frenzy (2025 rulebook p.130): the blocker must follow up a Push Back, and
  * if the target is still Standing must throw a second Block Action at the same
  * player. Runs after the first push settles; the second block re-enters the
@@ -137,6 +147,8 @@ class FrenzyOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
+    // The push scored: the board is being cleared.
+    if (driveOver(context.gameService.getPhase())) return;
     if (this.vacatedSquare) {
       // Let the Push Back animation land before the blocker follows up…
       await context.delay(300);
@@ -148,6 +160,36 @@ class FrenzyOperation extends GameOperation {
       // …and let that follow-up move finish before the second Block window opens.
       await context.delay(450);
     }
+    // Queued, so it runs after a Bloodlust bite the follow-up may have raised.
+    context.flowManager.add(
+      new FrenzySecondBlockOperation(
+        this.manager,
+        this.attackerId,
+        this.defenderId,
+        this.targetStanding
+      )
+    );
+  }
+}
+
+class FrenzySecondBlockOperation extends GameOperation {
+  public readonly name = "FrenzySecondBlock";
+
+  constructor(
+    private manager: BlockManager,
+    private attackerId: string,
+    private defenderId: string,
+    private targetStanding: boolean
+  ) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    // A carrier following up into the end zone has just scored.
+    if (driveOver(context.gameService.getPhase())) return;
+    // Or found no Thrall to bite: Distracted, the ball dropped, the turn over.
+    const attacker = context.gameService.getPlayerById(this.attackerId);
+    if (attacker && hasCondition(attacker, PlayerCondition.DISTRACTED)) return;
     await this.manager.frenzySecondBlock(
       this.attackerId,
       this.defenderId,
@@ -1248,7 +1290,9 @@ export class BlockManager {
     const state = this.multipleBlockState;
     if (!state || state.attackerId !== attackerId) return;
     state.continuationQueued = false;
-    if (state.nextIndex < state.defenderIds.length) {
+    // A push that scored ends the drive, and the second Block with it.
+    const scored = driveOver(this.state.phase);
+    if (!scored && state.nextIndex < state.defenderIds.length) {
       const defenderId = state.defenderIds[state.nextIndex++];
       await this.startBlock(attackerId, defenderId);
       return;
@@ -1257,6 +1301,7 @@ export class BlockManager {
     const attacker = this.getPlayerById(attackerId);
     if (attacker) attacker.stats.ST = state.originalStrength;
     this.multipleBlockState = null;
+    if (scored) return;
     this.callbacks
       .getFlowManager?.()
       ?.context.gameService.finishActivation(attackerId);

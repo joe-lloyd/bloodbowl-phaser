@@ -15,7 +15,7 @@ import {
   getDriveEffects,
 } from "../../src/game/kickoff/driveEffects";
 import { RosterName } from "../../src/types/Team";
-import { SkillType } from "../../src/types/Skills";
+import { SkillType, getSkill } from "../../src/types/Skills";
 import { CommandResponse } from "../../src/headless/protocol";
 import { createMatchSave } from "../../src/headless/serialization";
 
@@ -526,6 +526,50 @@ describe("Sevens kickoff events (seeded headless)", () => {
     });
     // Queue exhausted: the step closes.
     expect(game.ctx.gameService.getKickoffEventStep()).toBeNull();
+  });
+
+  it("lets a Frenzy player finish a Charge Blitz: follow-up, then the second Block", async () => {
+    for (let seed = 1; seed < 400; seed++) {
+      const { game, result } = await kick(seed);
+      if (result.event !== KickoffEvent.CHARGE) continue;
+      const attacker = game.ctx.team1.players[0];
+      const defender = game.ctx.team2.players[0];
+      attacker.skills = [...attacker.skills, getSkill(SkillType.FRENZY)];
+      await game.execute({
+        type: "kickoff-select-player",
+        playerId: attacker.id,
+      });
+      await game.execute({ type: "kickoff-confirm" });
+      // Charge! takes an Open player, so the target comes alongside after.
+      attacker.gridPosition = { x: 9, y: 5 };
+      defender.gridPosition = { x: 10, y: 5 };
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "blitz",
+      });
+      const rolled = await game.execute({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: defender.id,
+      });
+      if (rolled.pendingDecision?.type !== "block-dice") continue;
+      const push = rolled.pendingDecision.options.findIndex(
+        (o) => o.type === "push"
+      );
+      if (push < 0) continue;
+      await game.execute({ type: "choose-block-result", index: push });
+      const pushed = await game.execute({
+        type: "choose-push-direction",
+        x: 11,
+        y: 5,
+      });
+      expect(game.snapshot().phase).toBe(GamePhase.KICKOFF);
+      expect(attacker.gridPosition).toEqual({ x: 10, y: 5 });
+      expect(pushed.pendingDecision?.type).toBe("block-dice");
+      return;
+    }
+    throw new Error("no seed rolled Charge! and a Push");
   });
 
   it("aborts Charge immediately when the active player is knocked down", async () => {
