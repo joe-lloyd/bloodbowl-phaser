@@ -82,10 +82,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
 
   const entrant = (entrantId: string | null) =>
     competition.entrants.find((candidate) => candidate.id === entrantId);
-  const canReport =
+  const canReport = (fixture: CompetitionFixture) =>
     !competition.organizerUid ||
     competition.organizerUid === user?.uid ||
-    competition.participantUids.includes(user?.uid ?? "");
+    [fixture.homeEntrantId, fixture.awayEntrantId].some(
+      (id) => !!user && entrant(id)?.ownerUid === user.uid
+    );
   const champion =
     competition.type === "tournament"
       ? entrant(competition.championEntrantId ?? null)
@@ -242,6 +244,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   // component — a component boundary here would remount the score inputs on
   // every keystroke and lose focus.
   const fixtureActions = ({ fixture, home, away }: BracketFixtureContext) => {
+    if (!canReport(fixture)) return null;
     const draft = scores[fixture.id] ?? { home: "", away: "" };
     return (
       <>
@@ -262,44 +265,42 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             Host online
           </HudButton>
         </div>
-        {canReport && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <input
-              aria-label={`${home?.name} score`}
-              type="number"
-              min="0"
-              value={draft.home}
-              onChange={(event) =>
-                setScores((current) => ({
-                  ...current,
-                  [fixture.id]: { ...draft, home: event.target.value },
-                }))
-              }
-              className="hud-field w-16 text-center"
-            />
-            <span className="text-hud-mute">–</span>
-            <input
-              aria-label={`${away?.name} score`}
-              type="number"
-              min="0"
-              value={draft.away}
-              onChange={(event) =>
-                setScores((current) => ({
-                  ...current,
-                  [fixture.id]: { ...draft, away: event.target.value },
-                }))
-              }
-              className="hud-field w-16 text-center"
-            />
-            <HudButton
-              variant="ghost"
-              size="sm"
-              onClick={() => void report(fixture)}
-            >
-              Record result
-            </HudButton>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <input
+            aria-label={`${home?.name} score`}
+            type="number"
+            min="0"
+            value={draft.home}
+            onChange={(event) =>
+              setScores((current) => ({
+                ...current,
+                [fixture.id]: { ...draft, home: event.target.value },
+              }))
+            }
+            className="hud-field w-16 text-center"
+          />
+          <span className="text-hud-mute">–</span>
+          <input
+            aria-label={`${away?.name} score`}
+            type="number"
+            min="0"
+            value={draft.away}
+            onChange={(event) =>
+              setScores((current) => ({
+                ...current,
+                [fixture.id]: { ...draft, away: event.target.value },
+              }))
+            }
+            className="hud-field w-16 text-center"
+          />
+          <HudButton
+            variant="ghost"
+            size="sm"
+            onClick={() => void report(fixture)}
+          >
+            Record result
+          </HudButton>
+        </div>
       </>
     );
   };

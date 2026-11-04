@@ -87,6 +87,8 @@ export interface LeagueDoc {
   entrants: CompetitionEntrant[];
   fixtures: CompetitionFixture[];
   standings: Standing[];
+  /** Where in `entrants` the last reporting coach's team is; rules check it. */
+  reporterEntrantIndex?: number;
   points: LeaguePoints;
   createdAt: number;
   updatedAt: number;
@@ -109,6 +111,8 @@ export interface TournamentDoc {
   entrants: CompetitionEntrant[];
   fixtures: CompetitionFixture[];
   standings: Standing[];
+  /** See LeagueDoc.reporterEntrantIndex. */
+  reporterEntrantIndex?: number;
   championEntrantId?: string;
   createdAt: number;
   updatedAt: number;

@@ -35,6 +35,6 @@ describe("competition Firestore rule contract", () => {
     expect(rules).toContain(
       ".hasOnly(['entrants', 'fixtures', 'standings', 'status'"
     );
-    expect(rules).toContain("'championEntrantId', 'updatedAt']");
+    expect(rules).toContain("'championEntrantId', 'reporterEntrantIndex',");
   });
 });

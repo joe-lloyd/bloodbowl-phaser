@@ -1,3 +1,4 @@
+import { getCurrentUser } from "../firebase/auth";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
 import { recordLeagueResult, recordTournamentResult } from "./logic";
@@ -127,6 +128,16 @@ export async function recordCompetitionFixture(
           homeScore,
           awayScore
         );
+  const uid = getCurrentUser()?.uid;
+  const reporterEntrantIndex = updated.entrants.findIndex(
+    (entrant) =>
+      entrant.ownerUid === uid &&
+      (entrant.id === existing.homeEntrantId ||
+        entrant.id === existing.awayEntrantId)
+  );
+  if (reporterEntrantIndex >= 0) {
+    updated.reporterEntrantIndex = reporterEntrantIndex;
+  }
   try {
     await saveCompetition(updated);
   } catch (reason) {
