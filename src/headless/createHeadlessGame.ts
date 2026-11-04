@@ -42,6 +42,11 @@ export interface HeadlessGameOptions {
   scenario?: Scenario;
   /** Resume from an explicit state (e.g. a deserialized snapshot). Takes precedence over scenario/startingPhase. */
   initialState?: GameState;
+  /**
+   * Build a command response's snapshot only if it is read. For throwaway
+   * copies of a game, such as a lookahead's playouts.
+   */
+  lazySnapshots?: boolean;
   /** Start phase when no scenario given (defaults to SETUP for a full match) */
   startingPhase?: GamePhase;
   startingSubPhase?: SubPhase;
