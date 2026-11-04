@@ -27,7 +27,16 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     const onFollowUpPrompt = (data: {
       attackerId: string;
       targetSquare: { x: number; y: number };
+      repeat?: true;
     }) => {
+      // An older offer's repeat must not replace the one still open.
+      const open = getActiveOnlineMatch()?.pendingDecision();
+      if (
+        data.repeat &&
+        open?.type === "follow-up" &&
+        open.attackerId !== data.attackerId
+      )
+        return;
       const current = ++generation;
       void dice.landed().then(() => {
         if (current !== generation) return;
