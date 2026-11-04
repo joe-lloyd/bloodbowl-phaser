@@ -1699,6 +1699,10 @@ export class BlockManager {
       if (trapdoorOpens(this.state, this.diceController, player, link.to)) {
         fellThrough.add(link.playerId);
         player.gridPosition = undefined;
+        // The fallen defender's deferred bounce would be skipped below.
+        if (onLooseBall && isOriginalDefender && knockDownDefender) {
+          flowManager?.add(new BounceOperation(link.to), true);
+        }
         if (flowManager) {
           const isTurnover =
             player.teamId === flowManager.context.gameService.getActiveTeamId();
