@@ -31,6 +31,8 @@ export const DEFAULT_WEIGHTS = {
   markCarrier: 16,
   /** Stand between the opposing carrier and our end zone. */
   screen: 9,
+  /** Close the opposing carrier's open run to our end zone. */
+  laneCut: 30,
   /** Get next to a loose ball. */
   chase: 11,
   knockdown: 12,
