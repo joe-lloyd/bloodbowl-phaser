@@ -1629,6 +1629,7 @@ export class BlockManager {
     /** Treacherous Trapdoor (L12): pushed players who fell through. */
     const fellThrough = new Set<string>();
 
+    const landedOnLooseBall = new Set<string>();
     for (let i = links.length - 1; i >= 0; i--) {
       const link = links[i];
       const player = this.getPlayerById(link.playerId);
@@ -1668,14 +1669,15 @@ export class BlockManager {
       }
 
       const isOriginalDefender = i === 0;
-      // Pushed onto a loose ball: it bounces. A fallen defender's own bounce
-      // is queued with the knockdown below.
-      if (
+      // Pushed onto a loose ball: it bounces, and a pushed player cannot
+      // score with it. A fallen defender's bounce is queued with the
+      // knockdown below, or there too if Steady Footing keeps them up.
+      const onLooseBall =
         !carriedBall &&
-        !(isOriginalDefender && knockDownDefender) &&
         this.state.ballPosition?.x === link.to.x &&
-        this.state.ballPosition?.y === link.to.y
-      ) {
+        this.state.ballPosition?.y === link.to.y;
+      if (onLooseBall) landedOnLooseBall.add(link.playerId);
+      if (onLooseBall && !(isOriginalDefender && knockDownDefender)) {
         flowManager?.add(new BounceOperation(link.to), true);
       }
       this.eventBus.emit(GameEventNames.PlayerMoved, {
@@ -1713,7 +1715,7 @@ export class BlockManager {
       // A standing carrier pushed into their scoring end zone still scores
       // (the original defender falls on POW, so no score for them)
       const knockedDown = isOriginalDefender && knockDownDefender;
-      if (!knockedDown) {
+      if (!knockedDown && !onLooseBall) {
         flowManager?.context.gameService.checkForTouchdown(link.playerId);
       }
     }
@@ -1751,7 +1753,9 @@ export class BlockManager {
         ))
       ) {
         knockDownDefender = false;
-        if (!stripBall)
+        if (landedOnLooseBall.has(defender.id))
+          flowManager?.add(new BounceOperation(first.to), true);
+        else if (!stripBall)
           flowManager?.context.gameService.checkForTouchdown(defender.id);
       } else if (defender) {
         this.knockDownPlayer(defender);

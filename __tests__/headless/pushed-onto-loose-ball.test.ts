@@ -3,6 +3,8 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { GameEventNames } from "../../src/types/events";
+import { SkillType } from "../../src/types/Skills";
+import { forceDice } from "../utils/test-helpers";
 
 /**
  * A player pushed onto a loose ball does not get to pick it up: it bounces.
@@ -134,5 +136,89 @@ describe("a player pushed onto a loose ball", () => {
       return;
     }
     throw new Error("no seed rolled a Push");
+  });
+});
+
+describe("a push onto a loose ball, further cases", () => {
+  async function pushDefender(
+    defenderAt: { x: number; y: number },
+    ball: { x: number; y: number },
+    result: "push" | "pow",
+    skills: SkillType[] = []
+  ) {
+    for (let seed = 1; seed < 200; seed++) {
+      const game = new HeadlessGame({
+        scenario: {
+          id: "pushed-onto-ball-case",
+          name: "Pushed onto the ball",
+          description: "",
+          setup: {
+            team1Placements: [
+              {
+                playerIndex: 0,
+                x: defenderAt.x + 1,
+                y: defenderAt.y,
+                stats: { ST: 4 },
+              },
+              { playerIndex: 1, x: 18, y: 9 },
+            ],
+            team2Placements: [
+              { playerIndex: 0, ...defenderAt, stats: { ST: 2 }, skills },
+            ],
+            ballPosition: ball,
+            activeTeam: "team1",
+            phase: GamePhase.PLAY,
+            subPhase: SubPhase.TURN_RECEIVING,
+          },
+        },
+        seed,
+      });
+      const attacker = game.ctx.team1.players[0];
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker.id,
+        action: "block",
+      });
+      const rolled = await game.execute({
+        type: "block",
+        attackerId: attacker.id,
+        defenderId: game.ctx.team2.players[0].id,
+      });
+      if (rolled.pendingDecision?.type !== "block-dice") continue;
+      const index = rolled.pendingDecision.options.findIndex(
+        (o) => o.type === result
+      );
+      if (index < 0) continue;
+      const events: string[] = [];
+      game.ctx.eventBus.on(GameEventNames.DiceRoll, (d) =>
+        events.push(d.rollType)
+      );
+      if (result === "pow") forceDice(game.ctx.rng, [6]);
+      await game.execute({ type: "choose-block-result", index });
+      await game.execute({ type: "choose-push-direction", ...ball });
+      return { game, events };
+    }
+    throw new Error(`no seed rolled ${result}`);
+  }
+
+  it("bounces it when Steady Footing keeps a POW defender standing", async () => {
+    const { events, game } = await pushDefender(
+      { x: 8, y: 5 },
+      { x: 7, y: 5 },
+      "pow",
+      [SkillType.STEADY_FOOTING]
+    );
+    expect(game.ctx.team2.players[0].status).toBe(PlayerStatus.ACTIVE);
+    expect(events).toContain("Bounce Direction");
+  });
+
+  it("does not score for a player pushed onto it in their end zone", async () => {
+    const { game, events } = await pushDefender(
+      { x: 1, y: 5 },
+      { x: 0, y: 5 },
+      "push"
+    );
+    expect(events).toContain("Bounce Direction");
+    expect(game.snapshot().score[game.ctx.team2.id] ?? 0).toBe(0);
   });
 });
