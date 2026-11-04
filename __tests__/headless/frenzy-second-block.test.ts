@@ -189,6 +189,36 @@ describe("Frenzy after a push that scores", () => {
   });
 });
 
+describe("Frenzy's follow-up that scores", () => {
+  it("throws no second Block once the carrier is in the end zone", async () => {
+    const base = scenario({ x: 18, y: 4 }, { x: 19, y: 5 });
+    const { game, run, attacker, defender } = session(
+      { ...base, setup: { ...base.setup, ballPosition: { x: 18, y: 4 } } },
+      PUSH_SEED
+    );
+    await run({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "block",
+    });
+    const rolled = await run({
+      type: "block",
+      attackerId: attacker.id,
+      defenderId: defender.id,
+    });
+    expect(
+      rolled.pendingDecision?.type === "block-dice" &&
+        rolled.pendingDecision.options.map((o) => o.type)
+    ).toEqual(["push"]);
+    await run({ type: "choose-block-result", index: 0 });
+    const pushed = await run({ type: "choose-push-direction", x: 19, y: 6 });
+
+    expect(pushed.snapshot.score).toEqual({ team1: 1, team2: 0 });
+    expect(pushed.pendingDecision).toBeNull();
+    expect(game.pendingDecision()).toBeNull();
+  });
+});
+
 describe("Multiple Block after a push that scores", () => {
   it("throws no second Block and gives the Strength back", async () => {
     for (let seed = 1; seed < 80; seed++) {

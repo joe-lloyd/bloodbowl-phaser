@@ -149,6 +149,8 @@ class FrenzyOperation extends GameOperation {
       );
       // …and let that follow-up move finish before the second Block window opens.
       await context.delay(450);
+      // A carrier following up into the end zone has just scored.
+      if (context.gameService.getPhase() !== GamePhase.PLAY) return;
     }
     await this.manager.frenzySecondBlock(
       this.attackerId,
