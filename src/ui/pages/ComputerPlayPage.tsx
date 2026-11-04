@@ -5,6 +5,7 @@ import { Team } from "../../types/Team";
 import { GamePage } from "./GamePage";
 import { OnlineMatch, setActiveOnlineMatch } from "../../network/OnlineMatch";
 import { createComputerMatch } from "../../network/ComputerMatch";
+import { Difficulty, coachFor } from "../../simulation/ai/difficulty";
 import { HudButton, Notice } from "../components/componentWarehouse/HudKit";
 
 export interface ComputerPlayState {
@@ -12,6 +13,7 @@ export interface ComputerPlayState {
   team2: Team;
   /** The team the computer coaches. */
   computerTeamId: string;
+  difficulty?: Difficulty;
   progressionEnabled?: boolean;
   pitchThemeId?: string;
 }
@@ -34,6 +36,7 @@ export function ComputerPlayPage({ eventBus }: { eventBus: EventBus }) {
       team1: structuredClone(state.team1),
       team2: structuredClone(state.team2),
       computerTeamId: state.computerTeamId,
+      coach: coachFor(state.difficulty ?? "standard"),
       progressionEnabled: state.progressionEnabled,
     });
     setActiveOnlineMatch(created);
