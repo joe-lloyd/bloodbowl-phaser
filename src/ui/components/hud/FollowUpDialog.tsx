@@ -14,24 +14,29 @@ interface FollowUpDialogProps {
   eventBus: EventBus;
 }
 
+interface FollowUpOffer {
+  attackerId: string;
+  targetSquare: { x: number; y: number };
+}
+
+const offerKey = ({ attackerId, targetSquare: { x, y } }: FollowUpOffer) =>
+  `${attackerId}:${x},${y}`;
+
 export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [followUpData, setFollowUpData] = useState<{
-    attackerId: string;
-    targetSquare: { x: number; y: number };
-  } | null>(null);
+  const [followUpData, setFollowUpData] = useState<FollowUpOffer | null>(null);
+  // Offers whose dice have landed since the last follow-up was answered.
+  const [presented, setPresented] = useState<readonly string[]>([]);
 
   useEffect(() => {
     const dice = new DiceWatch(eventBus);
     let generation = 0;
-    const onFollowUpPrompt = (data: {
-      attackerId: string;
-      targetSquare: { x: number; y: number };
-    }) => {
-      const current = ++generation;
+    const onFollowUpPrompt = (data: FollowUpOffer) => {
+      const current = generation;
       void dice.landed().then(() => {
         if (current !== generation) return;
         setFollowUpData(data);
+        setPresented((keys) => [...keys, offerKey(data)]);
         setIsOpen(true);
       });
     };
@@ -42,6 +47,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
       generation++;
       setIsOpen(false);
       setFollowUpData(null);
+      setPresented([]);
     };
     eventBus.on(GameEventNames.UI_FollowUpPrompt, onFollowUpPrompt);
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
@@ -62,12 +68,12 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     return () => clearInterval(id);
   }, [isOpen]);
 
-  // In a match the pending decision is the offer: a repeat on the board can
-  // be late, for one answered already or for an earlier block.
+  // In a match the pending decision is the offer, once its own prompt has
+  // landed: a repeat on the board can be late, for an earlier block.
   const match = getActiveOnlineMatch();
   const pending = match?.pendingDecision();
   const offer = match
-    ? pending?.type === "follow-up"
+    ? pending?.type === "follow-up" && presented.includes(offerKey(pending))
       ? pending
       : null
     : followUpData;

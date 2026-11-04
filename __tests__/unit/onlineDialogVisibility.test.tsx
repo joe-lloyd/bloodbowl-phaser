@@ -122,6 +122,10 @@ describe("online dialogs", () => {
     await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
     await act(async () => {
       eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-2",
+        targetSquare: { x: 6, y: 6 },
+      });
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
         attackerId: "team1-player-1",
         targetSquare: { x: 5, y: 5 },
         repeat: true,
@@ -135,6 +139,37 @@ describe("online dialogs", () => {
       targetSquare: { x: 6, y: 6 },
     };
     await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).toContain("Follow Up?");
+  });
+
+  it("waits for a new follow-up's own prompt after an old repeat", async () => {
+    mayAct = true;
+    pending = null;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    // A later block is pending, its dice still in the air.
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-2",
+      targetSquare: { x: 6, y: 6 },
+    };
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).not.toContain("Follow Up?");
+
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-2",
+        targetSquare: { x: 6, y: 6 },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
     expect(container.textContent).toContain("Follow Up?");
   });
 

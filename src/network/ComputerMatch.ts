@@ -320,7 +320,8 @@ export function createComputerMatch(
     opponentName: COMPUTER_NAME,
     coachName: (teamId) => (teamId === computerTeamId ? COMPUTER_NAME : "You"),
     teams: { team1, team2 },
-    mayAct: () => owner(myTeamId),
+    // While the computer's command runs the engine can be between decisions.
+    mayAct: () => !thinking && owner(myTeamId),
     waitingLabel,
     pendingDecision: () => game.pendingDecision(),
     decidingTeamId: () => {
