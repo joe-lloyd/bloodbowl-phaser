@@ -175,9 +175,7 @@ function parseRunOptions(argv: string[]): RunOptions {
   }
   if (!Number.isInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
-  if (!Number.isInteger(options.seed) || options.seed < 0)
-    fail("--seed must be a non-negative integer");
-  if (options.confirmGames < 4) fail("--confirm must be at least 4");
+  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
   // Pages are for watching matches, so keep every match unless told otherwise.
   if (options.html && !recordChosen) options.record = "all";
   return options;
@@ -655,9 +653,7 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     options.games % 2
   )
     fail("--games must be an even number of at least 2");
-  if (!Number.isInteger(options.seed) || options.seed < 0)
-    fail("--seed must be a non-negative integer");
-  if (options.confirmGames < 4) fail("--confirm must be at least 4");
+  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
   if (
     options.rerolls !== undefined &&
     (!Number.isInteger(options.rerolls) || options.rerolls < 0)
