@@ -110,6 +110,34 @@ describe("online dialogs", () => {
     expect(container.textContent).toContain("Follow Up?");
   });
 
+  it("shows a held follow-up even if an older repeat arrived meanwhile", async () => {
+    mayAct = false;
+    pending = {
+      type: "reroll",
+      playerId: "team2-player-2",
+      chooserTeamId: "team2",
+      rollKind: "catch",
+      sources: ["skill"],
+    } as PendingDecision;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    mayAct = true;
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-2",
+      targetSquare: { x: 6, y: 6 },
+    };
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).toContain("Follow Up?");
+  });
+
   it("shows a follow-up handed back after the other coach's decision", async () => {
     mayAct = false;
     pending = {

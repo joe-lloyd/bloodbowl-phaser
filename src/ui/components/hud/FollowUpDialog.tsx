@@ -27,16 +27,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     const onFollowUpPrompt = (data: {
       attackerId: string;
       targetSquare: { x: number; y: number };
-      repeat?: true;
     }) => {
-      // An older offer's repeat must not replace the one still open.
-      const open = getActiveOnlineMatch()?.pendingDecision();
-      if (
-        data.repeat &&
-        open?.type === "follow-up" &&
-        open.attackerId !== data.attackerId
-      )
-        return;
       const current = ++generation;
       void dice.landed().then(() => {
         if (current !== generation) return;
@@ -71,14 +62,24 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     return () => clearInterval(id);
   }, [isOpen]);
 
+  // In a match the pending decision is the offer: a repeat on the board can
+  // be late, for one answered already or for an earlier block.
+  const match = getActiveOnlineMatch();
+  const pending = match?.pendingDecision();
+  const offer = match
+    ? pending?.type === "follow-up"
+      ? pending
+      : null
+    : followUpData;
+
   const handleYes = () => {
     // Online: the follow-up belongs to the attacking coach
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (followUpData) {
+    if (offer) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
-        attackerId: followUpData.attackerId,
+        attackerId: offer.attackerId,
         followUp: true,
-        targetSquare: followUpData.targetSquare,
+        targetSquare: offer.targetSquare,
       });
     }
     setIsOpen(false);
@@ -87,9 +88,9 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   const handleNo = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (followUpData) {
+    if (offer) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
-        attackerId: followUpData.attackerId,
+        attackerId: offer.attackerId,
         followUp: false,
       });
     }
@@ -99,24 +100,12 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner
-  if (!isOpen || !followUpData) return null;
-  const match = getActiveOnlineMatch();
-  if (match) {
-    // The offer the board repeated may be answered already, or held behind
-    // another decision. Only the coach who owes it an answer sees it, then.
-    const pending = match.pendingDecision();
-    if (
-      !match.mayAct() ||
-      pending?.type !== "follow-up" ||
-      pending.attackerId !== followUpData.attackerId
-    )
-      return null;
-  }
+  if (!isOpen || !offer || match?.mayAct() === false) return null;
 
   return (
     <DialogShell
       placement="dock"
-      eyebrow={<DecisionTeam playerId={followUpData.attackerId} />}
+      eyebrow={<DecisionTeam playerId={offer.attackerId} />}
       testId="follow-up-dialog"
       title="Follow Up?"
       width="w-[400px]"
