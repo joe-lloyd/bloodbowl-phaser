@@ -51,10 +51,11 @@ service cloud.firestore {
     // Fixture i's winner, if that fixture feeds this slot of `destination`.
     function winnerFeeding(all, i, destination, slot) {
       return all.size() > i
+          && all[i].status == 'complete'
           && all[i].get('nextFixtureId', '') == destination.id
           && all[i].get('nextSlot', '') == slot
-        ? all[i].get('result', {}).get('winnerEntrantId', '')
-        : '';
+        ? all[i].get('result', {}).get('winnerEntrantId', null)
+        : null;
     }
 
     // An empty entrant slot only takes the winner of the fixture that feeds
@@ -117,8 +118,9 @@ service cloud.firestore {
     }
 
     function validResult(fixture) {
-      return fixture.status != 'complete'
-        || (fixture.result.homeScore is int && fixture.result.homeScore >= 0
+      return (fixture.status != 'complete' && !('result' in fixture))
+        || (fixture.status == 'complete'
+          && fixture.result.homeScore is int && fixture.result.homeScore >= 0
           && fixture.result.awayScore is int && fixture.result.awayScore >= 0);
     }
 

@@ -781,6 +781,31 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       );
     });
 
+    it("cannot advance anyone from an unfinished fixture, or jam a slot", async () => {
+      const cup = await tournament();
+      const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
+      const source = cup.fixtures.find(
+        (f) => f.status === "ready" && f.nextFixtureId
+      )!;
+      const slot = `${source.nextSlot}EntrantId`;
+      const unfinished = JSON.parse(JSON.stringify(cup.fixtures));
+      unfinished.find((f: { id: string }) => f.id === source.id).result = {
+        homeScore: 0,
+        awayScore: 0,
+        winnerEntrantId: `e-${THIRD}`,
+        completedAt: 1,
+      };
+      unfinished.find((f: { id: string }) => f.id === source.nextFixtureId)[
+        slot
+      ] = `e-${THIRD}`;
+      await denied(updateDoc(cupRef, { fixtures: unfinished }));
+
+      const jammed = JSON.parse(JSON.stringify(cup.fixtures));
+      jammed.find((f: { id: string }) => f.id === source.nextFixtureId)[slot] =
+        "";
+      await denied(updateDoc(cupRef, { fixtures: jammed }));
+    });
+
     it("cannot store a far-future stamp when hosting or joining", async () => {
       const stamp = Date.now() + 3_600_000;
       const ref = game(STRANGER, "FUTURE");
