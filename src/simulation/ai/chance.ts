@@ -45,19 +45,16 @@ const KINDS: readonly RollTarget["kind"][] = [
   "catch",
 ];
 
+const REROLL_SKILL: Record<RollTarget["kind"], SkillType> = {
+  dodge: SkillType.DODGE,
+  rush: SkillType.SURE_FEET,
+  pickup: SkillType.SURE_HANDS,
+  catch: SkillType.CATCH,
+};
+
 /** The skill that re-rolls a failed roll of this kind, if the player has it. */
 function skillReroll(player: Player, kind: RollTarget["kind"]): boolean {
-  const has = (s: SkillType) => hasSkill(player.skills, s);
-  switch (kind) {
-    case "dodge":
-      return has(SkillType.DODGE);
-    case "rush":
-      return has(SkillType.SURE_FEET);
-    case "pickup":
-      return has(SkillType.SURE_HANDS);
-    case "catch":
-      return has(SkillType.CATCH);
-  }
+  return hasSkill(player.skills, REROLL_SKILL[kind]);
 }
 
 /**
