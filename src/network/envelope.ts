@@ -15,7 +15,7 @@ import { MatchStatsSnapshot } from "../game/progression/MatchStats";
 import { StepPrompt } from "../types/events";
 
 /** Bumped whenever commands/snapshots change incompatibly. */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 
 export interface HelloPayload {
   protocolVersion: number;
@@ -67,6 +67,14 @@ export interface LockstepState {
   rng: RNGState;
   matchStats: MatchStatsSnapshot;
   applied: number;
+  /**
+   * Commands to run on top of this state. A roll path paused on a decision
+   * cannot travel in a state, so while one is open the state is from before
+   * it, and these commands rebuild the path.
+   */
+  replay: HeadlessCommand[];
+  /** The state after `replay`: a side already there has nothing to rebuild. */
+  checksum: string;
 }
 
 /**
