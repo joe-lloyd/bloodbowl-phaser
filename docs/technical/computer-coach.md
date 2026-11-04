@@ -85,10 +85,9 @@ candidates.
 Ideas that lost or changed nothing over 800 to 1000 mirrored games were taken
 out again, so they need new evidence to come back:
 
-| Idea                                                  | Result against the same planner without it |
-| ----------------------------------------------------- | ------------------------------------------ |
-| Fouling players on the ground                         | 255 won, 253 drawn, 292 lost               |
-| Taking pick-ups later in the turn                     | 68 won, 59 drawn, 73 lost                  |
-| The quickest player picks up the ball                 | 275 won, 237 drawn, 288 lost               |
-| Closing the carrier's open run to our end zone        | 347 won, 307 drawn, 346 lost               |
-| Re-rolling a block on the carrier that only pushes it | Even, with more turnovers                  |
+| Idea                                                                                                           | Result against the same planner without it        |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Fouling players on the ground                                                                                  | 255 won, 253 drawn, 292 lost                      |
+| Taking pick-ups later in the turn                                                                              | 68 won, 59 drawn, 73 lost                         |
+| The quickest player picks up the ball                                                                          | 275 won, 237 drawn, 288 lost                      |
+| Four together: closing open runs, sideline push odds, earlier carrier blocks, re-rolling a Push on the carrier | 347 won, 307 drawn, 346 lost, with more turnovers |
