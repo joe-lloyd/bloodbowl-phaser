@@ -145,7 +145,9 @@ function setupChoice(
   const formations = candidates.filter((c) => c.kind === "setup");
   if (formations.length < 2) return null;
   const pick =
-    formations[Math.min(Math.round(w.formation), formations.length - 1)];
+    formations[
+      Math.max(0, Math.min(Math.round(w.formation), formations.length - 1))
+    ];
   return { index: candidates.indexOf(pick) };
 }
 

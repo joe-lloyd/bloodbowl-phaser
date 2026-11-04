@@ -765,7 +765,10 @@ function roleSquares(c: Context): { role: Role; at: Square; value: number }[] {
       (p) => standing(p) && distance(p.gridPosition!, at) === 1
     ).length;
     const press = w.markCarrier / (1 + markers);
-    for (const s of neighbours(at)) add("mark", s, press);
+    // A square nobody else marks assists a hit; re-planning each step must
+    // keep a helper heading there.
+    for (const s of neighbours(at))
+      add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
     // Beside the walls of its cage: assists for the hits that break it.
     for (const wall of board.theirs)
       if (standing(wall) && distance(wall.gridPosition!, at) === 1)

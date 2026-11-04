@@ -29,6 +29,8 @@ export const DEFAULT_WEIGHTS = {
   receiver: 6,
   /** Put a tackle zone on the opposing carrier. */
   markCarrier: 16,
+  /** More for a square beside the carrier that would give an assist. */
+  assist: 8,
   /** Stand between the opposing carrier and our end zone. */
   screen: 9,
   /** Get next to a loose ball. */

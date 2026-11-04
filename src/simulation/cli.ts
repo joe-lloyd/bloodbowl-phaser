@@ -781,10 +781,14 @@ async function runBench(options: BenchOptions): Promise<number> {
             makeCoach(options.coach, [], options.weights),
             options.puzzleSeeds
           ),
-          ...(options.vs === options.coach && !options.vsModule
+          ...(options.vs === options.coach &&
+          !options.vsModule &&
+          options.weights === options.vsWeights
             ? {}
             : {
-                [options.vs]: await solveRates(
+                [options.vs === options.coach
+                  ? `${options.vs} (baseline)`
+                  : options.vs]: await solveRates(
                   options.vsModule
                     ? await loadFrozenPlanner(
                         options.vsModule,
@@ -929,6 +933,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   ] as const)
     if (!Number.isInteger(n) || n < 1)
       fail(`${name} must be a positive integer`);
+  if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
   return options;
@@ -997,6 +1002,10 @@ async function runTune(options: TuneOptions): Promise<number> {
       running.delete(child);
       idle.push(child);
       feed();
+    });
+    // Better no result than a tuner waiting forever on a game nobody plays.
+    child.on("exit", (code) => {
+      if (code !== 0) fail(`a tune worker exited with code ${code}`);
     });
     return child;
   });
