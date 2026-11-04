@@ -14,10 +14,6 @@ export type Square = GridPosition;
 
 export const WIDTH = GameConfig.PITCH_WIDTH;
 export const HEIGHT = GameConfig.PITCH_HEIGHT;
-
-/** On this square a Push goes off the pitch. */
-export const edge = ({ x, y }: { x: number; y: number }) =>
-  x === 0 || y === 0 || x === WIDTH - 1 || y === HEIGHT - 1;
 const TURNS_PER_HALF = 6;
 
 export const key = (s: Square) => s.y * WIDTH + s.x;

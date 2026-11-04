@@ -31,8 +31,6 @@ export const DEFAULT_WEIGHTS = {
   markCarrier: 16,
   /** Stand between the opposing carrier and our end zone. */
   screen: 9,
-  /** Close the opposing carrier's open run to our end zone. */
-  laneCut: 30,
   /** Get next to a loose ball. */
   chase: 11,
   knockdown: 12,
@@ -60,7 +58,6 @@ export const DEFAULT_WEIGHTS = {
   rerollValue: 4,
   /** How clearly a rival must beat the plan on the same dice to replace it. */
   searchMargin: 0,
-  assist: 8,
   /** Built-in formation to set up in, by its place in the list. */
   formation: 2,
   /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */

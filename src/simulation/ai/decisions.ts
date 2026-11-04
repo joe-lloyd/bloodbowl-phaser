@@ -8,15 +8,7 @@ import { PendingDecision } from "../../headless/protocol";
 import { BlockResultType } from "../../services/BlockResolutionService";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Candidate } from "../candidates";
-import {
-  Board,
-  carrierOf,
-  distance,
-  edge,
-  key,
-  onPitch,
-  toGoal,
-} from "./board";
+import { Board, carrierOf, distance, key, onPitch, toGoal } from "./board";
 
 /** Traits that can stop a player acting on its turn. */
 const UNRELIABLE = [
@@ -81,16 +73,8 @@ export function decide(
         pending.choiceStage === "attacker-reroll"
           ? Math.min(...ranks)
           : Math.max(...ranks);
-      // Re-roll a block that would put our attacker down, if we can, or a
-      // two-dice block that leaves their carrier on its feet with the ball.
-      const carrier = carrierOf(board);
-      const missedCarrier =
-        carrier?.id === defender.id &&
-        carrier.teamId !== board.us &&
-        pending.choiceStage !== "attacker-reroll" &&
-        pending.options.length >= 2 &&
-        best < (edge(defender.gridPosition!) ? 3 : 4);
-      if (weAttack && (best <= 1 || missedCarrier)) {
+      // Re-roll a block that would put our attacker down, if we can.
+      if (weAttack && best <= 1) {
         const reroll =
           find((c) => c.commands[0].type === "veteran-reroll-block") ??
           find((c) => c.commands[0].type === "brawler-reroll-block") ??

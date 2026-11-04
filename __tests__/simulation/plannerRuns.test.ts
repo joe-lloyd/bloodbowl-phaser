@@ -7,7 +7,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { Player } from "../../src/types/Player";
-import { blockOdds, chain } from "../../src/simulation/ai/chance";
+import { chain } from "../../src/simulation/ai/chance";
 import { key, readBoard } from "../../src/simulation/ai/board";
 import { routesFor } from "../../src/simulation/ai/routes";
 import { enumerateDecision } from "../../src/simulation/candidates";
@@ -237,48 +237,5 @@ describe("the planner's hit on their carrier", () => {
       }
     }
     throw new Error("the planner never blocked the carrier");
-  });
-
-  it.each([
-    { faces: 2, y: 5, wanted: "team-reroll-block" },
-    { faces: 1, y: 5, wanted: "choose-block-result" },
-    { faces: 2, y: 0, wanted: "choose-block-result" },
-  ])(
-    "from $faces Push dice with the carrier on row $y answers $wanted",
-    async ({ faces, y, wanted }) => {
-      const game = carrierGame({ x: 10, y });
-      const carrier = game.ctx.team2.players[0];
-      const attacker = game.ctx.team1.players[0];
-      attacker.gridPosition = { x: 9, y };
-      game.adoptPending({
-        type: "block-dice",
-        attackerId: attacker.id,
-        defenderId: carrier.id,
-        chooserTeamId: game.ctx.team1.id,
-        options: Array.from({ length: faces }, () => ({
-          type: "push" as const,
-          icon: "",
-          label: "Push",
-        })),
-        teamRerollAvailable: true,
-      });
-      const point = await enumerateDecision(game, null);
-      const { index } = await plannerCoach.choose({
-        game,
-        snapshot: game.snapshot(),
-        point,
-        rng: createCoachRng(1),
-      });
-      expect(point.candidates[index].commands[0].type).toBe(wanted);
-    }
-  );
-
-  it("counts a Push off the sideline as winning the ball", () => {
-    const player = { skills: [] } as Player;
-    const open = blockOdds(player, player, 1, true, false);
-    const edge = blockOdds(player, player, 1, true, false, true);
-    // Pow and Stumble; on the edge the two Pushes as well.
-    expect(open.knockdown).toBeCloseTo(2 / 6, 6);
-    expect(edge.knockdown).toBeCloseTo(4 / 6, 6);
   });
 });

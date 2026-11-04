@@ -9,8 +9,7 @@
  * the same target and a surprise (a push, a bounce) picks a new one.
  */
 
-import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
-import { moveAllowance } from "../../game/skills/movement";
+import { Player, PlayerStatus } from "../../types/Player";
 import { ActionType } from "../../types/events";
 import { BlockValidator } from "../../game/validators/BlockValidator";
 import {
@@ -27,10 +26,8 @@ import {
   Board,
   HEIGHT,
   Square,
-  WIDTH,
   carrierOf,
   distance,
-  edge,
   key,
   neighbours,
   onPitch,
@@ -587,8 +584,7 @@ function blockFrom(
     target,
     analysis.diceCount,
     !analysis.isUphill,
-    reroll,
-    reroll && edge(target.gridPosition!)
+    reroll
   );
 }
 
@@ -611,12 +607,7 @@ function blockActivations(c: Context, player: Player): Activation[] {
       player,
       action: "block",
       intent: { kind: "block", target },
-      tier:
-        1 - odds.attackerDown >= w.sureBlock
-          ? "sure-block"
-          : carrierOf(board)?.id === target.id
-            ? "blitz"
-            : "risky",
+      tier: 1 - odds.attackerDown >= w.sureBlock ? "sure-block" : "risky",
       value,
       rolls: [],
     });
@@ -774,15 +765,12 @@ function roleSquares(c: Context): { role: Role; at: Square; value: number }[] {
       (p) => standing(p) && distance(p.gridPosition!, at) === 1
     ).length;
     const press = w.markCarrier / (1 + markers);
-    for (const s of neighbours(at))
-      add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
+    for (const s of neighbours(at)) add("mark", s, press);
     // Beside the walls of its cage: assists for the hits that break it.
     for (const wall of board.theirs)
       if (standing(wall) && distance(wall.gridPosition!, at) === 1)
         for (const s of neighbours(wall.gridPosition!))
           if (distance(s, at) > 1) add("mark", s, press / 2);
-    // Anywhere that closes the carrier's open run to our end zone.
-    for (const s of laneCuts(board, ball.carrier)) add("screen", s, w.laneCut);
     // A screen between the carrier and our end zone, two squares apart.
     for (const depth of [2, 4])
       for (const dy of [-4, -2, 0, 2, 4])
@@ -794,64 +782,6 @@ function roleSquares(c: Context): { role: Role; at: Square; value: number }[] {
   } else if (ball.kind === "loose") {
     for (const s of neighbours(ball.at)) add("chase", s, w.chase);
   }
-  return out;
-}
-
-/**
- * The carrier's dodge-free run to the end zone next turn, as squares from
- * its own to the line, or null if it has none. Our standing players block
- * squares and their tackle zones end a run: leaving one takes a dodge.
- */
-function openLane(
-  board: Board,
-  carrier: Player,
-  zones: Uint8Array
-): Square[] | null {
-  const start = carrier.gridPosition!;
-  if (zones[key(start)] > 0) return null;
-  const reach = moveAllowance(carrier);
-  const cameFrom = new Map<number, number>([[key(start), -1]]);
-  let frontier = [start];
-  for (let step = 0; step < reach && frontier.length; step++) {
-    const next: Square[] = [];
-    for (const from of frontier)
-      for (const to of neighbours(from)) {
-        const id = key(to);
-        if (cameFrom.has(id) || board.occupant[id]) continue;
-        cameFrom.set(id, key(from));
-        if (toGoal(board, to, board.them) === 0) {
-          const path: Square[] = [];
-          for (let at = id; at !== -1; at = cameFrom.get(at)!)
-            path.unshift({ x: at % WIDTH, y: Math.floor(at / WIDTH) });
-          return path;
-        }
-        if (zones[id] === 0) next.push(to);
-      }
-    frontier = next;
-  }
-  return null;
-}
-
-/** Empty squares where one more of ours would close the carrier's open run. */
-function laneCuts(board: Board, carrier: Player): Square[] {
-  const zones = new Uint8Array(WIDTH * HEIGHT);
-  for (const p of board.ours)
-    if (hasTackleZone(p))
-      for (const n of neighbours(p.gridPosition!)) zones[key(n)]++;
-  const lane = openLane(board, carrier, zones);
-  if (!lane) return [];
-  const tried = new Set<number>();
-  const out: Square[] = [];
-  for (const on of lane.slice(1))
-    for (const s of [on, ...neighbours(on)]) {
-      const id = key(s);
-      if (tried.has(id) || board.occupant[id]) continue;
-      tried.add(id);
-      const around = neighbours(s);
-      for (const n of around) zones[key(n)]++;
-      if (!openLane(board, carrier, zones)) out.push(s);
-      for (const n of around) zones[key(n)]--;
-    }
   return out;
 }
 
