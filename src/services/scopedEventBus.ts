@@ -2,6 +2,13 @@ import { GameEventMap, IEventBus } from "./EventBus";
 
 type Listener = (data: never) => void;
 
+const parents = new WeakMap<IEventBus, IEventBus>();
+
+/** The shared bus behind a scoped view. Per-bus lookups must key on this. */
+export function rootEventBus(bus: IEventBus): IEventBus {
+  return parents.get(bus) ?? bus;
+}
+
 /**
  * A view of a shared event bus for something that does not live as long as
  * the bus. Events pass straight through; `dispose` removes every listener
@@ -27,7 +34,7 @@ export function scopeEventBus(parent: IEventBus): IEventBus & {
       own.splice(i, 1);
     }
   };
-  return {
+  const view: IEventBus & { dispose(): void } = {
     emit(event, data) {
       if (!disposed) parent.emit(event, data);
     },
@@ -51,4 +58,6 @@ export function scopeEventBus(parent: IEventBus): IEventBus & {
       forget(() => true);
     },
   };
+  parents.set(view, parent);
+  return view;
 }

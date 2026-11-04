@@ -1,4 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
+import { rootEventBus } from "../../services/scopedEventBus";
 import { GameEventNames } from "../../types/events";
 
 /**
@@ -32,10 +33,11 @@ export class DiceWatch {
    * the tray goes quiet. Lives as long as the bus; never dispose it.
    */
   static shared(eventBus: IEventBus): DiceWatch {
-    let watch = shared.get(eventBus);
+    const root = rootEventBus(eventBus);
+    let watch = shared.get(root);
     if (!watch) {
-      watch = new DiceWatch(eventBus);
-      shared.set(eventBus, watch);
+      watch = new DiceWatch(root);
+      shared.set(root, watch);
     }
     return watch;
   }

@@ -511,7 +511,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       unsubscribePromptForwarding();
       session!.close();
       transport.close();
-      eventBus.dispose();
+      // Queued lockstep work still runs: keep its listeners until it is done.
+      void session!.whenIdle().finally(() => eventBus.dispose());
     },
   });
 

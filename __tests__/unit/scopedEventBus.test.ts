@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { scopeEventBus } from "../../src/services/scopedEventBus";
 import { GameEventNames } from "../../src/types/events";
+import {
+  MomentQueue,
+  hasPendingMoments,
+} from "../../src/game/presentation/momentQueue";
+import { DiceWatch } from "../../src/game/presentation/diceWatch";
 
 describe("a scoped event bus", () => {
   it("passes events through, and removes only its own listeners", () => {
@@ -34,5 +39,21 @@ describe("a scoped event bus", () => {
 
     bus.emit(GameEventNames.UI_Notification, "next match");
     expect(heard).toEqual(["page"]);
+  });
+
+  it("finds the page's moment queue, so the engine waits for its banners", () => {
+    const bus = new EventBus();
+    const scoped = scopeEventBus(bus);
+    const queue = new MomentQueue(bus);
+    bus.emit(GameEventNames.UI_Turnover, { reason: "Dropped it" });
+
+    expect(hasPendingMoments(bus)).toBe(true);
+    expect(hasPendingMoments(scoped)).toBe(true);
+    queue.dispose();
+  });
+
+  it("shares the page's dice watch", () => {
+    const bus = new EventBus();
+    expect(DiceWatch.shared(scopeEventBus(bus))).toBe(DiceWatch.shared(bus));
   });
 });
