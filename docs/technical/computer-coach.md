@@ -73,9 +73,11 @@ The opponent's reply is what makes the lookahead pay.
 | -------- | ------- | ------- | -------- | -------------------------------------------------------- |
 | Standard | none    | none    | none     | The planner                                              |
 | Hard     | 4       | 2       | 1.5 s    | Against the planner: 91 won, 55 drawn, 54 lost, +0.26 TD |
-| Legend   | 6       | 4       | 4 s      | Against Hard: 16 won, 12 drawn, 12 lost, +0.23 TD        |
+| Legend   | 4       | 6       | 4 s      | Against Hard: 42 won, 23 drawn, 35 lost, +0.08 TD        |
 
-Legend's 40 games point the right way but do not prove it is stronger.
+Legend's 100 games point the right way but do not prove it stronger than Hard.
+Six options with four samples did no better, 21 won, 20 drawn, 19 lost over 60
+games. More playouts per option helped more than more options.
 
 The bench plays `hard` and `legend` without the deadline, so its games can be
 repeated. The browser applies it.
