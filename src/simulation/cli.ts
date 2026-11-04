@@ -937,8 +937,9 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   ] as const)
     if (!Number.isInteger(n) || n < 1)
       fail(`${name} must be a positive integer`);
-  if (!Number.isInteger(options.seed) || options.seed < 0)
-    fail("--seed must be a non-negative integer");
+  // Match seeds count up from a thousand times this, and must stay distinct.
+  if (!Number.isInteger(options.seed) || options.seed < 0 || options.seed > 1e9)
+    fail("--seed must be an integer from 0 to 1000000000");
   if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
@@ -1023,10 +1024,10 @@ async function runTune(options: TuneOptions): Promise<number> {
       pick.pick(options.rosters),
       pick.pick(options.rosters),
     ]);
-    const results = await Promise.all(
+    return Promise.all(
       jobs.map(
         (job) =>
-          new Promise<BenchGame | null>((done) => {
+          new Promise<BenchGame>((resolve) => {
             queue.push({
               work: {
                 job,
@@ -1034,25 +1035,24 @@ async function runTune(options: TuneOptions): Promise<number> {
                 baseline: b,
                 rerolls: job.seed % 4,
               },
-              done,
+              done(game) {
+                // A failed or stalled game must not quietly shrink what a
+                // promotion rests on, so stop before playing any more.
+                if (!game?.completed || game.blockingFindings > 0)
+                  fail(
+                    `tuning stopped: the game on seed ${job.seed} (side ${job.candidateSide}) ` +
+                      (game?.findingKeys.join(", ") || "did not finish")
+                  );
+                resolve(game);
+              },
             });
             feed();
           })
       )
     );
-    // A failed or stalled game must not quietly shrink what a promotion rests on.
-    return results.map((game, i) => {
-      if (!game?.completed || game.blockingFindings > 0)
-        fail(
-          `tuning stopped: the game on seed ${jobs[i].seed} (side ${jobs[i].candidateSide}) ` +
-            (game?.findingKeys.join(", ") || "did not finish")
-        );
-      return game;
-    });
   };
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
-  fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
   const say = (line: string) => process.stdout.write(`${line}\n`);
   for (let generation = 1; generation <= options.generations; generation++) {
     const seed = nextSeed;
@@ -1093,6 +1093,7 @@ async function runTune(options: TuneOptions): Promise<number> {
       fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
     }
   }
+  fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
   children.forEach((child) => child.send({ done: true }));
   say(`Best weights: ${options.out}`);
   return 0;
