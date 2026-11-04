@@ -15,7 +15,7 @@
 
 - [x] 3.1 Lobby: `seedCommit` and `seedReveal` per player; generate the secret with `crypto.getRandomValues` and hash it with `crypto.subtle`; keep the secret in session storage so a reload in the lobby can still reveal.
 - [x] 3.2 Derive the seed from both secrets once both reveals check out; Start Match stays disabled until then; a bad reveal shows an error to both coaches.
-- [ ] 3.3 Rules: each player may write only their own commit and reveal, and a reveal only after both commits exist. (Partly done: the host-only document and its rule are removed; the per-player write restriction is not in the rules yet.)
+- [x] 3.3 Rules: each player may write only their own commit and reveal, once each, and a reveal only after both commits exist.
 - [x] 3.4 Unit tests for derivation and checking; an emulator check that one coach cannot overwrite the other's commit.
 
 ## 4. Lockstep session

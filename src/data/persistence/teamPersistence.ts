@@ -90,6 +90,7 @@ export interface StoredTeam {
   casualties: number;
   seedMetadata?: SeedMetadata;
   activeCompetitionId?: string;
+  recordedFixtureIds?: string[];
   /** Draft until this is set — see teamLifecycle.ts. */
   firstMatchPlayedAt?: number;
   advancementMode?: TeamAdvancementMode;
@@ -379,6 +380,9 @@ export function hydrateStoredTeam(
     ...(raw.seedMetadata
       ? { seedMetadata: raw.seedMetadata as SeedMetadata }
       : {}),
+    ...(raw.recordedFixtureIds
+      ? { recordedFixtureIds: raw.recordedFixtureIds as string[] }
+      : {}),
     ...(raw.activeCompetitionId
       ? { activeCompetitionId: raw.activeCompetitionId as string }
       : {}),
@@ -438,6 +442,9 @@ export function dehydrateTeam(team: Team): StoredTeam {
     touchdowns: team.touchdowns,
     casualties: team.casualties,
     ...(team.seedMetadata ? { seedMetadata: team.seedMetadata } : {}),
+    ...(team.recordedFixtureIds
+      ? { recordedFixtureIds: team.recordedFixtureIds }
+      : {}),
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
       : {}),

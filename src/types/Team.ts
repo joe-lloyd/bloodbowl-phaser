@@ -254,6 +254,9 @@ export interface Team {
    */
   activeCompetitionId?: string;
 
+  /** `competitionId:fixtureId` of each result in this team's record. */
+  recordedFixtureIds?: string[];
+
   /** Immutable progression lifecycle; absent on unmigrated legacy teams. */
   advancementMode?: TeamAdvancementMode;
   /** True once the mode may no longer change (finalized or entered a

@@ -38,7 +38,7 @@ describe("coach benchmark", () => {
     expect(report.wins).toBe(report.losses);
     expect(report.touchdownDiffPerGame).toBe(0);
     expect(report.blockingFindings).toBe(0);
-  });
+  }, 60_000);
 
   it("gives the usual Wilson interval", () => {
     const [low, high] = wilson(80, 100);

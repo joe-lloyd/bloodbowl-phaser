@@ -6,18 +6,21 @@ import {
   CompetitionContext,
   CompetitionDoc,
   CompetitionEntrant,
+  CompetitionFixture,
 } from "./types";
 import { Team } from "../types/Team";
 
 function updateTeamRecord(
   entrant: CompetitionEntrant,
+  fixtureKey: string,
   ownScore: number,
   opponentScore: number,
   progressedTeam?: Team
 ): void {
   const persisted = getTeamById(entrant.teamId);
-  if (!persisted) return;
+  if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
   const team = structuredClone(persisted);
+  team.recordedFixtureIds = [...(team.recordedFixtureIds ?? []), fixtureKey];
   if (progressedTeam) {
     const progression = new Map(
       progressedTeam.players.map((player) => [player.id, player])
@@ -51,6 +54,38 @@ function updateTeamRecord(
 }
 
 /**
+ * Count a fixture in whichever of its teams this coach's library holds. Both
+ * coaches come through here at full time, whoever recorded the result first,
+ * and each has only their own team.
+ */
+function updateReachableTeams(
+  competition: CompetitionDoc,
+  fixture: CompetitionFixture,
+  homeScore: number,
+  awayScore: number,
+  progressedTeams?: { home: Team; away: Team }
+): void {
+  const entrantFor = (id: string | null) =>
+    competition.entrants.find((entrant) => entrant.id === id);
+  const home = entrantFor(fixture.homeEntrantId);
+  const away = entrantFor(fixture.awayEntrantId);
+  // Fixture ids repeat from one competition to the next
+  const key = `${competition.id}:${fixture.id}`;
+  if (home && away) {
+    updateTeamRecord(home, key, homeScore, awayScore, progressedTeams?.home);
+    updateTeamRecord(away, key, awayScore, homeScore, progressedTeams?.away);
+  }
+  // A completed competition frees every entrant it holds: only the coaches
+  // whose teams are reachable from this session (their own library) can
+  // actually have the field cleared here — see clearActiveCompetition.
+  if (competition.status === "complete") {
+    competition.entrants.forEach((entrant) =>
+      clearActiveCompetition(entrant.teamId, competition.id)
+    );
+  }
+}
+
+/**
  * Idempotent orchestration seam used by manual reports and completed games.
  * Competition math works even when team progression is absent; when either
  * entrant exists in this coach's private/local library, its season record is
@@ -72,6 +107,14 @@ export async function recordCompetitionFixture(
   );
   if (!existing) throw new Error("Fixture not found.");
   if (existing.status === "complete" && !existing.result?.bye) {
+    if (!existing.result) throw new Error("Fixture has no recorded result.");
+    updateReachableTeams(
+      competition,
+      existing,
+      existing.result.homeScore,
+      existing.result.awayScore,
+      progressedTeams
+    );
     return competition;
   }
 
@@ -84,29 +127,32 @@ export async function recordCompetitionFixture(
           homeScore,
           awayScore
         );
-  await saveCompetition(updated);
-
-  if (existing.homeEntrantId && existing.awayEntrantId) {
-    const home = competition.entrants.find(
-      (entrant) => entrant.id === existing.homeEntrantId
+  try {
+    await saveCompetition(updated);
+  } catch (reason) {
+    // Both coaches report at full time. If the other got there first, the
+    // rules refuse this write, and the result stands as they recorded it.
+    const latest = await getCompetition(
+      context.competitionType,
+      context.competitionId
     );
-    const away = competition.entrants.find(
-      (entrant) => entrant.id === existing.awayEntrantId
+    const fixture = latest?.fixtures.find(
+      (candidate) => candidate.id === context.fixtureId
     );
-    if (home)
-      updateTeamRecord(home, homeScore, awayScore, progressedTeams?.home);
-    if (away)
-      updateTeamRecord(away, awayScore, homeScore, progressedTeams?.away);
+    if (!latest || fixture?.status !== "complete" || !fixture.result) {
+      throw reason;
+    }
+    updateReachableTeams(
+      latest,
+      fixture,
+      fixture.result.homeScore,
+      fixture.result.awayScore,
+      progressedTeams
+    );
+    return latest;
   }
 
-  // A completed competition frees every entrant it holds: only the coaches
-  // whose teams are reachable from this session (their own library) can
-  // actually have the field cleared here — see clearActiveCompetition.
-  if (updated.status === "complete") {
-    updated.entrants.forEach((entrant) =>
-      clearActiveCompetition(entrant.teamId, updated.id)
-    );
-  }
+  updateReachableTeams(updated, existing, homeScore, awayScore, progressedTeams);
   return updated;
 }
 
