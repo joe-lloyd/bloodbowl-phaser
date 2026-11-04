@@ -1068,8 +1068,8 @@ async function runTune(options: TuneOptions): Promise<number> {
     );
     nextSeed += options.confirmGames;
     const share = pointShare(confirm);
-    // Two standard errors of a coin flip over the confirming games.
-    const bar = 0.5 + 1 / Math.sqrt(options.confirmGames);
+    // One and a half standard errors of a coin flip over the confirming games.
+    const bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
     const promoted = share >= bar;
     say(
       `generation ${generation}: best mutant ${shares[top].toFixed(3)}, ` +

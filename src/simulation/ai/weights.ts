@@ -62,7 +62,7 @@ export const DEFAULT_WEIGHTS = {
   searchMargin: 0,
   assist: 8,
   /** Built-in formation to set up in, by its place in the list. */
-  formation: 0,
+  formation: 2,
   /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */
   kickDepth: 6,
   /** Above 0.5, kick towards a sideline rather than the middle. */
