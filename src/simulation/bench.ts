@@ -28,6 +28,8 @@ export interface BenchGame extends BenchJob {
   completed: boolean;
   /** Invariant breaks, crashes and stalls; a benchmark run wants none. */
   blockingFindings: number;
+  /** Their grouping keys, so a report says what broke. */
+  findingKeys: string[];
   ms: number;
 }
 
@@ -51,7 +53,9 @@ export function benchJobs(
 export async function playBenchGame(
   job: BenchJob,
   candidate: Coach,
-  baseline: Coach
+  baseline: Coach,
+  /** Team re-rolls each side starts with; runMatch's default if unset. */
+  rerolls?: number
 ): Promise<BenchGame> {
   const started = Date.now();
   const coaches: [Coach, Coach] =
@@ -60,18 +64,21 @@ export async function playBenchGame(
     seed: job.seed,
     rosters: job.rosters,
     coaches,
+    rerolls,
   });
   const ours = job.candidateSide;
   const theirs = ours === 0 ? 1 : 0;
   const stats = recording.stats!;
+  const blocking = recording.findings.filter(
+    (f) => f.kind !== "rejected-candidate"
+  );
   return {
     ...job,
     score: [recording.final.score[ours], recording.final.score[theirs]],
     stats: [stats[ours], stats[theirs]],
     completed: recording.final.phase === "GAME_OVER",
-    blockingFindings: recording.findings.filter(
-      (f) => f.kind !== "rejected-candidate"
-    ).length,
+    blockingFindings: blocking.length,
+    findingKeys: blocking.map((f) => f.key),
     ms: Date.now() - started,
   };
 }

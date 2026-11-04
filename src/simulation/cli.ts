@@ -14,6 +14,7 @@
  *   pnpm sim --games 20 --html                       playback pages + index.html
  *
  *   pnpm sim bench --coach heuristic --vs random --games 200   mirrored benchmark
+ *   pnpm sim tune --generations 20                     hill-climb planner weights
  *
  * Writes `summary.json` plus one recording per match with findings (or every
  * match with `--record all`) to `--out`. Exits non-zero when any match broke
@@ -23,13 +24,14 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fork } from "node:child_process";
+import { ChildProcess, fork } from "node:child_process";
 import { RosterName } from "../types/Team";
 import { Coach } from "./coach";
 import { randomCoach } from "./coaches/random";
 import { heuristicCoach } from "./coaches/heuristic";
 import { createPlannerCoach, plannerCoach } from "./ai/planner";
-import { parseWeights } from "./ai/weights";
+import { DEFAULT_WEIGHTS, Weights, parseWeights } from "./ai/weights";
+import { mutate, pointShare } from "./tune";
 import { createJevCoach, JevStats } from "./coaches/jev";
 import { Finding, FindingKind, MatchRecording, runMatch } from "./runMatch";
 import {
@@ -561,6 +563,11 @@ interface BenchOptions {
   out: string;
   /** Weights for the coach under test, when it is the planner. */
   weights?: string;
+  /** Weights for the baseline, when it is the planner. */
+  vsWeights?: string;
+  /** A frozen copy of planner.ts to play instead of the --vs coach. */
+  vsModule?: string;
+  rerolls?: number;
 }
 
 const BENCH_HELP = `Usage: pnpm sim bench [options]
@@ -573,6 +580,10 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --workers <n>        parallel processes (default: CPUs - 1)
   --puzzles <n>        seeds per coaching puzzle, 0 to skip (default 50)
   --weights <file>     JSON weights for the planner under test (see ai/weights.ts)
+  --vs-weights <file>  JSON weights for a planner baseline
+  --vs-module <file>   play a frozen copy of ai/planner.ts as the baseline, to
+                       compare the coach with an earlier version of itself
+  --rerolls <n>        team re-rolls each side starts with (default 3)
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
@@ -616,6 +627,15 @@ function parseBenchOptions(argv: string[]): BenchOptions {
       case "--weights":
         options.weights = value(i++);
         break;
+      case "--vs-weights":
+        options.vsWeights = value(i++);
+        break;
+      case "--vs-module":
+        options.vsModule = path.resolve(value(i++));
+        break;
+      case "--rerolls":
+        options.rerolls = Number(value(i++));
+        break;
       case "--out":
         options.out = value(i++);
         break;
@@ -634,6 +654,11 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   )
     fail("--games must be an even number of at least 2");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (
+    options.rerolls !== undefined &&
+    (!Number.isInteger(options.rerolls) || options.rerolls < 0)
+  )
+    fail("--rerolls must be 0 or more");
   if (!Number.isInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
     fail("--puzzles must be 0 or more");
   if (!Number.isInteger(options.workers) || options.workers < 1)
@@ -643,14 +668,38 @@ function parseBenchOptions(argv: string[]): BenchOptions {
 
 type BenchMessage = { job: BenchJob } | { done: true };
 
+/**
+ * A coach from a frozen copy of the source tree. The copy brings its own
+ * planner code and reads the same engine through the Coach seam.
+ */
+async function loadFrozenPlanner(
+  file: string,
+  weightsFile?: string
+): Promise<Coach> {
+  const frozen = (await import(file)) as typeof import("./ai/planner");
+  return frozen.createPlannerCoach({
+    name: "champion",
+    ...(weightsFile
+      ? {
+          weights: parseWeights(
+            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
+          ),
+        }
+      : {}),
+  });
+}
+
 /** One child process: plays the jobs the parent sends, one at a time. */
 async function benchWorker(argv: string[]): Promise<number> {
-  const [candidate, baseline] = [parseCoach(argv[0]), parseCoach(argv[1])];
-  const coaches = [makeCoach(candidate, [], argv[2]), makeCoach(baseline, [])];
+  const options = JSON.parse(argv[0]) as BenchOptions;
+  const candidate = makeCoach(options.coach, [], options.weights);
+  const baseline = options.vsModule
+    ? await loadFrozenPlanner(options.vsModule, options.vsWeights)
+    : makeCoach(options.vs, [], options.vsWeights);
   await new Promise<void>((resolve) => {
     process.on("message", (message: BenchMessage) => {
       if ("done" in message) return resolve();
-      playBenchGame(message.job, coaches[0], coaches[1]).then(
+      playBenchGame(message.job, candidate, baseline, options.rerolls).then(
         (game) => process.send!({ game }),
         (error) =>
           process.send!({
@@ -684,12 +733,7 @@ async function runBench(options: BenchOptions): Promise<number> {
         new Promise<void>((resolve, reject) => {
           const child = fork(
             process.argv[1],
-            [
-              "bench-worker",
-              options.coach,
-              options.vs,
-              ...(options.weights ? [options.weights] : []),
-            ],
+            ["bench-worker", JSON.stringify(options)],
             { execArgv: process.execArgv }
           );
           const feed = () => {
@@ -727,6 +771,9 @@ async function runBench(options: BenchOptions): Promise<number> {
   if (unfinished > 0) errors.push(`${unfinished} games never finished`);
 
   const report = benchReport(games);
+  const broke = new Map<string, number>();
+  for (const key of games.flatMap((g) => g.findingKeys))
+    broke.set(key, (broke.get(key) ?? 0) + 1);
   const puzzles =
     options.puzzleSeeds > 0
       ? {
@@ -734,11 +781,16 @@ async function runBench(options: BenchOptions): Promise<number> {
             makeCoach(options.coach, [], options.weights),
             options.puzzleSeeds
           ),
-          ...(options.vs === options.coach
+          ...(options.vs === options.coach && !options.vsModule
             ? {}
             : {
                 [options.vs]: await solveRates(
-                  makeCoach(options.vs, []),
+                  options.vsModule
+                    ? await loadFrozenPlanner(
+                        options.vsModule,
+                        options.vsWeights
+                      )
+                    : makeCoach(options.vs, [], options.vsWeights),
                   options.puzzleSeeds
                 ),
               }),
@@ -763,6 +815,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   );
   process.stdout.write(
     `${formatBench(options, report, puzzles)}\n` +
+      [...broke].map(([key, n]) => `  finding: ${key} ${n}x\n`).join("") +
       errors.map((e) => `  error: ${e}\n`).join("") +
       `\nReport: ${options.out}\n`
   );
@@ -799,6 +852,228 @@ function formatBench(
   return lines.join("\n");
 }
 
+interface TuneOptions {
+  generations: number;
+  mutants: number;
+  games: number;
+  confirmGames: number;
+  seed: number;
+  workers: number;
+  rosters: RosterName[];
+  out: string;
+  from?: string;
+}
+
+const TUNE_HELP = `Usage: pnpm sim tune [options]
+  --generations <n>    rounds of mutation (default 20)
+  --mutants <n>        mutants per generation (default 10)
+  --games <n>          games per mutant against the best, even (default 40)
+  --confirm <n>        fresh games to confirm a promotion, even (default 120)
+  --seed <n>           first seed (default 1)
+  --workers <n>        parallel processes (default: CPUs - 1)
+  --from <file>        start from these weights instead of the defaults
+  --out <file>         best weights so far (default sim-results/tuned-weights.json)`;
+
+function parseTuneOptions(argv: string[]): TuneOptions {
+  const options: TuneOptions = {
+    generations: 20,
+    mutants: 10,
+    games: 40,
+    confirmGames: 120,
+    seed: 1,
+    workers: Math.max(1, os.cpus().length - 1),
+    rosters: Object.values(RosterName),
+    out: path.join("sim-results", "tuned-weights.json"),
+  };
+  const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+  for (let i = 0; i < argv.length; i++) {
+    switch (argv[i]) {
+      case "--generations":
+        options.generations = Number(value(i++));
+        break;
+      case "--mutants":
+        options.mutants = Number(value(i++));
+        break;
+      case "--games":
+        options.games = Number(value(i++));
+        break;
+      case "--confirm":
+        options.confirmGames = Number(value(i++));
+        break;
+      case "--seed":
+        options.seed = Number(value(i++));
+        break;
+      case "--workers":
+        options.workers = Number(value(i++));
+        break;
+      case "--from":
+        options.from = value(i++);
+        break;
+      case "--out":
+        options.out = value(i++);
+        break;
+      case "--help":
+        process.stdout.write(`${TUNE_HELP}\n`);
+        process.exit(0);
+        break;
+      default:
+        fail(`unknown option ${argv[i]}\n\n${TUNE_HELP}`);
+    }
+  }
+  for (const [name, n] of [
+    ["--generations", options.generations],
+    ["--mutants", options.mutants],
+    ["--games", options.games],
+    ["--confirm", options.confirmGames],
+    ["--workers", options.workers],
+  ] as const)
+    if (!Number.isInteger(n) || n < 1)
+      fail(`${name} must be a positive integer`);
+  if (options.games % 2 || options.confirmGames % 2)
+    fail("--games and --confirm must be even: each seed is played twice");
+  return options;
+}
+
+interface TuneJob {
+  job: BenchJob;
+  candidate: Weights;
+  baseline: Weights;
+  rerolls: number;
+}
+
+/** One child process: plays the weight pairs the parent sends. */
+async function tuneWorker(): Promise<number> {
+  const coaches = new Map<string, Coach>();
+  const coach = (weights: Weights) => {
+    const key = JSON.stringify(weights);
+    let found = coaches.get(key);
+    if (!found) coaches.set(key, (found = createPlannerCoach({ weights })));
+    return found;
+  };
+  await new Promise<void>((resolve) => {
+    process.on("message", (message: { work?: TuneJob; done?: true }) => {
+      if (!message.work) return resolve();
+      const { job, candidate, baseline, rerolls } = message.work;
+      playBenchGame(job, coach(candidate), coach(baseline), rerolls).then(
+        (game) => process.send!({ game }),
+        (error) =>
+          process.send!({
+            error: error instanceof Error ? error.message : String(error),
+          })
+      );
+    });
+    process.send!({ ready: true });
+  });
+  return 0;
+}
+
+async function runTune(options: TuneOptions): Promise<number> {
+  const rng = createCoachRng(options.seed);
+  let best: Weights = options.from
+    ? parseWeights(JSON.parse(fs.readFileSync(options.from, "utf8")))
+    : DEFAULT_WEIGHTS;
+  let nextSeed = options.seed * 1000;
+  // Workers pull from one queue, so every batch shares the same processes.
+  const queue: {
+    work: TuneJob;
+    done: (game: BenchGame | null) => void;
+  }[] = [];
+  const idle: ChildProcess[] = [];
+  const feed = () => {
+    while (idle.length && queue.length) {
+      const child = idle.pop()!;
+      const next = queue.shift()!;
+      running.set(child, next.done);
+      child.send({ work: next.work });
+    }
+  };
+  const running = new Map<ChildProcess, (game: BenchGame | null) => void>();
+  const children = Array.from({ length: options.workers }, () => {
+    const child = fork(process.argv[1], ["tune-worker"], {
+      execArgv: process.execArgv,
+    });
+    child.on("message", (message: { game?: BenchGame; error?: string }) => {
+      running.get(child)?.(message.game ?? null);
+      running.delete(child);
+      idle.push(child);
+      feed();
+    });
+    return child;
+  });
+
+  /** Mirrored games of `a` against `b`; team re-rolls vary by seed. */
+  const play = async (a: Weights, b: Weights, games: number, seed: number) => {
+    const pick = createCoachRng(seed);
+    const jobs = benchJobs(games / 2, seed, () => [
+      pick.pick(options.rosters),
+      pick.pick(options.rosters),
+    ]);
+    const results = await Promise.all(
+      jobs.map(
+        (job) =>
+          new Promise<BenchGame | null>((done) => {
+            queue.push({
+              work: {
+                job,
+                candidate: a,
+                baseline: b,
+                rerolls: job.seed % 4,
+              },
+              done,
+            });
+            feed();
+          })
+      )
+    );
+    return results.filter((g): g is BenchGame => g !== null);
+  };
+
+  fs.mkdirSync(path.dirname(options.out), { recursive: true });
+  const say = (line: string) => process.stdout.write(`${line}\n`);
+  for (let generation = 1; generation <= options.generations; generation++) {
+    const seed = nextSeed;
+    nextSeed += options.games;
+    const mutants = Array.from({ length: options.mutants }, () =>
+      mutate(best, rng)
+    );
+    const shares = await Promise.all(
+      mutants.map(async (m) =>
+        pointShare(await play(m, best, options.games, seed))
+      )
+    );
+    const top = shares.indexOf(Math.max(...shares));
+    const confirm = await play(
+      mutants[top],
+      best,
+      options.confirmGames,
+      nextSeed
+    );
+    nextSeed += options.confirmGames;
+    const share = pointShare(confirm);
+    // One and a half standard errors of a coin flip over the confirming games.
+    const bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
+    const promoted = share >= bar;
+    say(
+      `generation ${generation}: best mutant ${shares[top].toFixed(3)}, ` +
+        `confirmed ${share.toFixed(3)} (needs ${bar.toFixed(3)})` +
+        (promoted ? ", promoted" : "")
+    );
+    if (promoted) {
+      const changed = (Object.keys(best) as (keyof Weights)[]).filter(
+        (name) => best[name] !== mutants[top][name]
+      );
+      say(
+        `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${mutants[top][n].toFixed(2)}`).join(", ")}`
+      );
+      best = mutants[top];
+      fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
+    }
+  }
+  children.forEach((child) => child.send({ done: true }));
+  say(`Best weights: ${options.out}`);
+  return 0;
+}
+
 // The engine narrates every operation on console.log; a batch of matches
 // would bury the report. Errors still reach stderr, and are counted.
 let engineErrors = 0;
@@ -828,7 +1103,11 @@ const run =
       ? runBench(parseBenchOptions(rest))
       : mode === "bench-worker"
         ? benchWorker(rest)
-        : runBatch(parseRunOptions(process.argv.slice(2)));
+        : mode === "tune"
+          ? runTune(parseTuneOptions(rest))
+          : mode === "tune-worker"
+            ? tuneWorker()
+            : runBatch(parseRunOptions(process.argv.slice(2)));
 run.then(
   (code) => process.exit(code),
   (error) => {

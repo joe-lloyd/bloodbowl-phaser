@@ -101,18 +101,38 @@ the puzzles say why.
 The full report, with every game, is written to `--out` as JSON. The exit
 code is 1 if any game broke an invariant, crashed or stalled.
 
-Baseline on 2026-11-03, 200 games from seed 1:
+Baseline on 2026-11-04, from seed 1:
 
-| Match-up               | Result                     | TD per game | Turnovers per turn |
-| ---------------------- | -------------------------- | ----------- | ------------------ |
-| heuristic vs heuristic | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
-| planner vs heuristic   | 176 won, 22 drawn, 2 lost  | 1.55 / 0.05 | 23.8% / 16.6%      |
+| Match-up               | Games | Result                     | TD per game | Turnovers per turn |
+| ---------------------- | ----- | -------------------------- | ----------- | ------------------ |
+| heuristic vs heuristic | 200   | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
+| planner vs heuristic   | 400   | 337 won, 58 drawn, 5 lost  | 1.53        | 24.9%              |
+
+With no team re-rolls (`--rerolls 0`), the planner wins 144, draws 53 and
+loses 3 of 200, with 1.11 touchdowns a game.
 
 The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
 
-The planner solves score-this-turn and cage-up 50 times in 50 and stall 45
-times. Neither coach breaks a four-corner cage yet.
+The planner solves score-this-turn and cage-up 50 times in 50, stall 45 times
+and blitz-the-carrier 32 times. Neither coach breaks a four-corner cage yet.
+
+To compare two versions of a coach, freeze a copy of the source tree and play
+against its planner with `--vs-module`. `--vs-weights` does the same for a
+weight file, and `--rerolls` sets the team re-rolls. The heuristic is too weak
+to separate two good planners: both win about 85% of the time against it.
+
+### Tuning the weights
+
+`pnpm sim tune` hill-climbs the planner's weights by self-play. Each
+generation mutates a few weights, plays every mutant against the current best
+on the same mirrored seeds, and plays the best mutant again on fresh seeds. It
+is promoted only if it clears 50% of the points by one and a half standard
+errors.
+
+```bash
+pnpm sim tune --generations 8 --mutants 8 --games 300 --confirm 1000 --workers 15 --out weights.json
+```
 
 ## What is checked
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { RosterName } from "../../src/types/Team";
 import {
   benchJobs,
+  BenchGame,
   benchReport,
   playBenchGame,
   wilson,
@@ -10,6 +11,13 @@ import { PUZZLES, playPuzzle } from "../../src/simulation/puzzles";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { Coach } from "../../src/simulation/coach";
+import { mutate, pointShare } from "../../src/simulation/tune";
+import { createCoachRng } from "../../src/simulation/rng";
+import {
+  DEFAULT_WEIGHTS,
+  Weights,
+  weightBounds,
+} from "../../src/simulation/ai/weights";
 
 /**
  * The benchmark is only a measuring stick if a coach playing itself comes
@@ -77,5 +85,28 @@ describe("coaching puzzles", () => {
     const result = await playPuzzle(puzzle("score-this-turn"), randomCoach, 1);
     expect(result.scored).toBe(false);
     expect(puzzle("score-this-turn").solved(result)).toBe(false);
+  });
+});
+
+describe("the weight tuner", () => {
+  it("keeps mutants inside each weight's bounds", () => {
+    const rng = createCoachRng(4);
+    let weights = DEFAULT_WEIGHTS as Weights;
+    for (let i = 0; i < 200; i++) {
+      weights = mutate(weights, rng);
+      for (const name of Object.keys(weights) as (keyof Weights)[]) {
+        const [low, high] = weightBounds(name);
+        expect(weights[name]).toBeGreaterThanOrEqual(low);
+        expect(weights[name]).toBeLessThanOrEqual(high);
+      }
+    }
+    expect(weights).not.toEqual(DEFAULT_WEIGHTS);
+    expect(weights.touchdown).toBe(DEFAULT_WEIGHTS.touchdown);
+  });
+
+  it("counts a win as a point and a draw as half", () => {
+    const game = (score: [number, number]) => ({ score }) as BenchGame;
+    expect(pointShare([game([2, 0]), game([1, 1]), game([0, 1])])).toBe(0.5);
+    expect(pointShare([game([2, 0]), game([1, 1])])).toBe(0.75);
   });
 });

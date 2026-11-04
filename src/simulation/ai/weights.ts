@@ -48,6 +48,12 @@ export const DEFAULT_WEIGHTS = {
   endInContact: 3,
   /** Standing a Prone player up without moving. */
   standUp: 4,
+  /** Built-in formation to set up in, by its place in the list. */
+  formation: 2,
+  /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */
+  kickDepth: 6,
+  /** Above 0.5, kick towards a sideline rather than the middle. */
+  kickWide: 0,
 } as const satisfies Record<string, number>;
 
 export type Weights = { readonly [K in keyof typeof DEFAULT_WEIGHTS]: number };
@@ -64,4 +70,27 @@ export function parseWeights(raw: unknown): Weights {
     out[name] = value;
   }
   return out as Weights;
+}
+
+/** What a tuner may try: the range for each weight, thresholds kept sane. */
+export function weightBounds(name: keyof Weights): [number, number] {
+  const value = DEFAULT_WEIGHTS[name];
+  switch (name) {
+    case "safeScore":
+    case "safeMove":
+    case "sureBlock":
+    case "pickupMin":
+      return [0.2, 0.99];
+    case "formation":
+      return [0, 2];
+    case "kickDepth":
+      return [2, 6];
+    case "kickWide":
+      return [0, 1];
+    case "touchdown":
+      // The scale everything else is measured against stays put.
+      return [value, value];
+    default:
+      return [value / 4, value * 4];
+  }
 }
