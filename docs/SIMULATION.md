@@ -108,7 +108,7 @@ Baseline on 2026-11-04, from seed 1:
 | ---------------------- | ----- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 200   | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
 | planner vs heuristic   | 400   | 334 won, 60 drawn, 6 lost  | 1.52        | 25.1%              |
-| hard vs heuristic      | 100   | 88 won, 9 drawn, 3 lost    | 1.50        | 23.4%              |
+| hard vs heuristic      | 200   | 173 won, 27 drawn, 0 lost  | 1.56        | 24.3%              |
 
 With no team re-rolls (`--rerolls 0`), the planner wins 145, draws 53 and
 loses 2 of 200, with 1.11 touchdowns a game.
