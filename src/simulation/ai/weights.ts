@@ -49,7 +49,7 @@ export const DEFAULT_WEIGHTS = {
   /** Standing a Prone player up without moving. */
   standUp: 4,
   /** In a lookahead's end position: holding the ball at all. */
-  ballHeld: 40,
+  ballHeld: 60,
   /** In a lookahead's end position: per square the ball is from the line. */
   ballProgress: 3,
   /** In a lookahead's end position: per player out of the game. */
