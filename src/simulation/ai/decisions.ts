@@ -81,12 +81,14 @@ export function decide(
         pending.choiceStage === "attacker-reroll"
           ? Math.min(...ranks)
           : Math.max(...ranks);
-      // Re-roll a block that would put our attacker down, if we can, or that
-      // leaves their carrier on its feet with the ball on the pitch.
+      // Re-roll a block that would put our attacker down, if we can, or a
+      // two-dice block that leaves their carrier on its feet with the ball.
       const carrier = carrierOf(board);
       const missedCarrier =
         carrier?.id === defender.id &&
         carrier.teamId !== board.us &&
+        pending.choiceStage !== "attacker-reroll" &&
+        pending.options.length >= 2 &&
         best < (edge(defender.gridPosition!) ? 3 : 4);
       if (weAttack && (best <= 1 || missedCarrier)) {
         const reroll =

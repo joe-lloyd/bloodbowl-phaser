@@ -112,7 +112,8 @@ export interface BlockOdds {
  * Block dice by face: Skull, Both Down, Push, Push, Stumble, Pow. `dice` is
  * the count; `attackerPicks` is false for an uphill block. A `surf` block
  * has the defender on the edge of the pitch, so a Push puts them out of it.
- * The team re-roll goes on any die that does not put the defender down.
+ * The team re-roll goes on a result that puts the attacker down, or on any
+ * miss when the attacker picks from two dice or more.
  */
 export function blockOdds(
   attacker: Player,
@@ -141,7 +142,7 @@ export function blockOdds(
     attackerDown = 1 - (1 - bad) ** dice;
   }
   if (teamReroll) {
-    const miss = 1 - knockdown;
+    const miss = attackerPicks && dice >= 2 ? 1 - knockdown : attackerDown;
     attackerDown *= miss;
     knockdown += miss * knockdown;
   }
