@@ -786,9 +786,7 @@ async function runBench(options: BenchOptions): Promise<number> {
           options.weights === options.vsWeights
             ? {}
             : {
-                [options.vs === options.coach
-                  ? `${options.vs} (baseline)`
-                  : options.vs]: await solveRates(
+                [baselineName(options)]: await solveRates(
                   options.vsModule
                     ? await loadFrozenPlanner(
                         options.vsModule,
@@ -826,6 +824,12 @@ async function runBench(options: BenchOptions): Promise<number> {
   return errors.length || report.blockingFindings ? 1 : 0;
 }
 
+/** What the report calls the coach the games are played against. */
+function baselineName(options: BenchOptions): string {
+  if (options.vsModule) return "frozen planner";
+  return options.vs === options.coach ? `${options.vs} (baseline)` : options.vs;
+}
+
 function formatBench(
   options: BenchOptions,
   r: BenchReport,
@@ -839,12 +843,12 @@ function formatBench(
     `dodges ${f(s.failedDodgesPerGame)} failed of ${f(s.dodgesPerGame)}  ` +
     `rushes ${f(s.failedRushesPerGame)} failed of ${f(s.rushesPerGame)}  per game`;
   const lines = [
-    `${options.coach} vs ${options.vs}: ${r.games} games (${r.games / 2} mirrored seeds from ${options.seed})`,
+    `${options.coach} vs ${baselineName(options)}: ${r.games} games (${r.games / 2} mirrored seeds from ${options.seed})`,
     `  won ${r.wins}, drew ${r.draws}, lost ${r.losses}: win rate ${pct(r.winRate)} ` +
       `(95% interval ${pct(r.winRate95[0])} to ${pct(r.winRate95[1])}), ` +
       `TD difference ${r.touchdownDiffPerGame >= 0 ? "+" : ""}${f(r.touchdownDiffPerGame)} per game`,
     row(options.coach, r.candidate),
-    row(options.vs, r.baseline),
+    row(baselineName(options), r.baseline),
     `  ${Math.round(r.averageMs)} ms per game; ${r.incomplete} unfinished; ${r.blockingFindings} blocking findings`,
   ];
   for (const [coach, rates] of Object.entries(puzzles)) {
