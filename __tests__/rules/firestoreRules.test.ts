@@ -717,6 +717,91 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await denied(
         updateDoc(doc(dbFor(GUEST), "tournaments", cup.id), { fixtures })
       );
+
+      // A final with neither finalist yet, won by a bye
+      const emptyFinal = JSON.parse(JSON.stringify(cup.fixtures));
+      const final = emptyFinal.find(
+        (f: { nextFixtureId?: string }) => !f.nextFixtureId
+      );
+      final.status = "complete";
+      final.result = {
+        homeScore: 0,
+        awayScore: 0,
+        winnerEntrantId: `e-${GUEST}`,
+        bye: true,
+        completedAt: 0,
+      };
+      await denied(
+        updateDoc(doc(dbFor(GUEST), "tournaments", cup.id), {
+          fixtures: emptyFinal,
+        })
+      );
+    });
+
+    it("cannot name a winner the scores do not support, or send one down the wrong branch", async () => {
+      const cup = await tournament();
+      const ready = cup.fixtures.filter((f) => f.status === "ready");
+      const mine = ready.find((f) =>
+        [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+      )!;
+      const reporterEntrantIndex = cup.entrants.findIndex(
+        (e) => e.ownerUid === GUEST
+      );
+      const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
+      const write = (edit: (fixtures: Record<string, never>[]) => void) => {
+        const fixtures = JSON.parse(JSON.stringify(cup.fixtures));
+        edit(fixtures);
+        return updateDoc(cupRef, { fixtures, reporterEntrantIndex });
+      };
+      const report = (
+        fixtures: { id: string; status: string; result: unknown }[],
+        winnerEntrantId: string | null,
+        homeScore = 2,
+        awayScore = 1
+      ) => {
+        const target = fixtures.find((f) => f.id === mine.id)!;
+        target.status = "complete";
+        target.result = { homeScore, awayScore, winnerEntrantId, completedAt: 1 };
+      };
+
+      // The loser, then a stranger to the fixture
+      for (const winner of [mine.awayEntrantId, `e-${THIRD}`]) {
+        await denied(write((fixtures) => report(fixtures as never, winner)));
+      }
+      // The real winner, placed in the slot it does not feed
+      await denied(
+        write((fixtures) => {
+          report(fixtures as never, mine.homeEntrantId);
+          const next = (fixtures as never as Record<string, unknown>[]).find(
+            (f) => f.id === mine.nextFixtureId
+          )!;
+          const wrong = mine.nextSlot === "home" ? "away" : "home";
+          next[`${wrong}EntrantId`] = mine.homeEntrantId;
+        })
+      );
+    });
+
+    it("cannot store a far-future stamp when hosting or joining", async () => {
+      const stamp = Date.now() + 3_600_000;
+      const ref = game(STRANGER, "FUTURE");
+      await denied(
+        setDoc(ref, {
+          code: "FUTURE",
+          hostUid: STRANGER,
+          guestUid: null,
+          status: "lobby",
+          settings: DEFAULT_SETTINGS,
+          players: { [STRANGER]: { uid: STRANGER, lastSeen: stamp } },
+        })
+      );
+      const code = await openLobby();
+      const players = (await stored(code)).players;
+      await denied(
+        updateDoc(game(STRANGER, code), {
+          guestUid: STRANGER,
+          players: { ...players, [STRANGER]: { uid: STRANGER, lastSeen: stamp } },
+        })
+      );
     });
 
     it("cannot rewrite a played result", async () => {

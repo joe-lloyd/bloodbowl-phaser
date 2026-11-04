@@ -48,19 +48,28 @@ service cloud.firestore {
       return was == null || was == now;
     }
 
-    function winnerOf(now, i) {
-      return now.size() > i
-        ? now[i].get('result', {}).get('winnerEntrantId', '')
+    // Fixture i's winner, if that fixture feeds this slot of `destination`.
+    function winnerFeeding(all, i, destination, slot) {
+      return all.size() > i
+          && all[i].get('nextFixtureId', '') == destination.id
+          && all[i].get('nextSlot', '') == slot
+        ? all[i].get('result', {}).get('winnerEntrantId', '')
         : '';
     }
 
-    // An empty entrant slot only takes a winner from this same write.
-    function entrantSlotKept(was, now, all) {
-      return was == now
-        || (was == null
-          && now in [winnerOf(all, 0), winnerOf(all, 1), winnerOf(all, 2),
-                     winnerOf(all, 3), winnerOf(all, 4), winnerOf(all, 5),
-                     winnerOf(all, 6), winnerOf(all, 7)]);
+    // An empty entrant slot only takes the winner of the fixture that feeds
+    // it, from this same write.
+    function entrantSlotKept(was, now, field, slot, all) {
+      return was[field] == now[field]
+        || (was[field] == null
+          && now[field] in [winnerFeeding(all, 0, was, slot),
+                            winnerFeeding(all, 1, was, slot),
+                            winnerFeeding(all, 2, was, slot),
+                            winnerFeeding(all, 3, was, slot),
+                            winnerFeeding(all, 4, was, slot),
+                            winnerFeeding(all, 5, was, slot),
+                            winnerFeeding(all, 6, was, slot),
+                            winnerFeeding(all, 7, was, slot)]);
     }
 
     // Rules cannot search a list, so the writer names their entrant by its
@@ -71,15 +80,35 @@ service cloud.firestore {
         && entrant.id in [fixture.homeEntrantId, fixture.awayEntrantId];
     }
 
+    // The higher score wins, and a draw has no winner.
+    function winnerMatchesScores(fixture, result) {
+      let winner = result.get('winnerEntrantId', null);
+      return (result.homeScore > result.awayScore
+          && winner == fixture.homeEntrantId)
+        || (result.homeScore < result.awayScore
+          && winner == fixture.awayEntrantId)
+        || (result.homeScore == result.awayScore
+          && winner == null);
+    }
+
+    // A bye has one entrant, who wins it unplayed. Rules cannot read the
+    // fixture feeding the empty slot, so whether it has finished goes unchecked.
+    function byeAllowed(was, now) {
+      return (was.homeEntrantId == null) != (was.awayEntrantId == null)
+        && now.result.winnerEntrantId
+          in [was.homeEntrantId, was.awayEntrantId]
+        && now.result.winnerEntrantId != null;
+    }
+
     // A result comes from a coach in the fixture. A bye has no opponent, and
     // follows from the report that left the slot empty.
     function completionAllowed(was, now) {
       return now.status != 'complete'
-        || (now.result.get('bye', false) == true
-          && (was.homeEntrantId == null || was.awayEntrantId == null))
+        || (now.result.get('bye', false) == true && byeAllowed(was, now))
         || (now.result.get('bye', false) != true
           && was.homeEntrantId != null
           && was.awayEntrantId != null
+          && winnerMatchesScores(was, now.result)
           && reporterPlaysIn(was));
     }
 
@@ -99,8 +128,8 @@ service cloud.firestore {
           && now[i].id == was[i].id
           && now[i].round == was[i].round
           && now[i].order == was[i].order
-          && entrantSlotKept(was[i].homeEntrantId, now[i].homeEntrantId, now)
-          && entrantSlotKept(was[i].awayEntrantId, now[i].awayEntrantId, now)
+          && entrantSlotKept(was[i], now[i], 'homeEntrantId', 'home', now)
+          && entrantSlotKept(was[i], now[i], 'awayEntrantId', 'away', now)
           && linkKept(was[i], now[i], 'nextFixtureId')
           && linkKept(was[i], now[i], 'nextSlot')
           && linkKept(was[i], now[i], 'sourceFixtureIds')
@@ -319,7 +348,8 @@ service cloud.firestore {
         && changed().hasOnly(['guestUid', 'players'])
         && request.resource.data.players.diff(resource.data.players)
           .affectedKeys().hasOnly([request.auth.uid])
-        && request.resource.data.players[request.auth.uid].uid == request.auth.uid;
+        && request.resource.data.players[request.auth.uid].uid == request.auth.uid
+        && lastSeenBelievable();
     }
 
     // Game/lobby docs. A code is the only way in: fetching one by its code
@@ -333,6 +363,7 @@ service cloud.firestore {
         && request.resource.data.guestUid == null
         && request.resource.data.status == 'lobby'
         && request.resource.data.players.keys().hasOnly([request.auth.uid])
+        && lastSeenBelievable()
         && request.resource.data.keys().hasOnly([
           'code', 'hostUid', 'guestUid', 'status', 'settings', 'players',
           'createdAt', 'expiresAt', 'competitionContext', 'fixtureTeams']);
