@@ -59,7 +59,8 @@ export const DEFAULT_WEIGHTS = {
   /** In a lookahead's end position: per team re-roll still in hand. */
   rerollValue: 4,
   /** How clearly a rival must beat the plan on the same dice to replace it. */
-  searchMargin: 6,
+  searchMargin: 0,
+  assist: 8,
   /** Built-in formation to set up in, by its place in the list. */
   formation: 0,
   /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */

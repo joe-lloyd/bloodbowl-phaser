@@ -30,6 +30,7 @@ import {
   WIDTH,
   carrierOf,
   distance,
+  edge,
   key,
   neighbours,
   onPitch,
@@ -55,6 +56,7 @@ export const TIERS = [
   "carrier",
   "sure-block",
   "pickup",
+  "assist",
   "blitz",
   "support",
   "risky",
@@ -558,10 +560,20 @@ function targetValue(c: Context, target: Player): number {
  * on the ball carrier is worth the team re-roll; other blocks are judged
  * on the dice alone.
  */
-function blockFrom(c: Context, attacker: Player, target: Player, from: Square) {
+function blockFrom(
+  c: Context,
+  attacker: Player,
+  target: Player,
+  from: Square,
+  helper?: { player: Player; at: Square }
+) {
   const moved = { ...attacker, gridPosition: from };
   const players = c.board.everyone.map((p) =>
-    p.id === attacker.id ? moved : p
+    p.id === attacker.id
+      ? moved
+      : p.id === helper?.player.id
+        ? { ...p, gridPosition: helper.at }
+        : p
   );
   const analysis = blockValidator.analyzeBlock(
     moved,
@@ -575,7 +587,8 @@ function blockFrom(c: Context, attacker: Player, target: Player, from: Square) {
     target,
     analysis.diceCount,
     !analysis.isUphill,
-    reroll
+    reroll,
+    reroll && edge(target.gridPosition!)
   );
 }
 
@@ -598,7 +611,12 @@ function blockActivations(c: Context, player: Player): Activation[] {
       player,
       action: "block",
       intent: { kind: "block", target },
-      tier: 1 - odds.attackerDown >= w.sureBlock ? "sure-block" : "risky",
+      tier:
+        1 - odds.attackerDown >= w.sureBlock
+          ? "sure-block"
+          : carrierOf(board)?.id === target.id
+            ? "blitz"
+            : "risky",
       value,
       rolls: [],
     });
@@ -659,6 +677,59 @@ function blitzActivations(c: Context, player: Player): Activation[] {
   return out;
 }
 
+/**
+ * Free moves that give the best hit on their carrier a better die, made
+ * before it is thrown. A square beside the carrier only assists if nobody
+ * else marks it.
+ */
+function assistActivations(c: Context, hits: Activation[]): Activation[] {
+  const { board, w } = c;
+  const carrier = carrierOf(board);
+  if (!carrier || carrier.teamId === board.us) return [];
+  let hit: Activation | null = null;
+  for (const a of hits) {
+    const aimed =
+      a.intent.kind === "block" || a.intent.kind === "blitz"
+        ? a.intent.target.id === carrier.id
+        : false;
+    if (aimed && (!hit || a.value > hit.value)) hit = a;
+  }
+  if (!hit || (hit.intent.kind !== "block" && hit.intent.kind !== "blitz"))
+    return [];
+  const from =
+    (hit.intent.kind === "blitz" ? hit.intent.route?.to : null) ??
+    hit.player.gridPosition!;
+  const before = blockFrom(c, hit.player, carrier, from);
+  const out: Activation[] = [];
+  for (const player of board.ours) {
+    if (player.id === hit.player.id || !c.available.get(player.id)?.has("move"))
+      continue;
+    const routes = c.plainRoutes(player);
+    let best: { route: Route; gain: number } | null = null;
+    for (const at of neighbours(carrier.gridPosition!)) {
+      if (board.marks[key(at)] !== 1 || (at.x === from.x && at.y === from.y))
+        continue;
+      const route = routes.get(key(at));
+      if (!route || route.chance < w.safeMove) continue;
+      const odds = blockFrom(c, hit.player, carrier, from, { player, at });
+      const gain =
+        (odds.knockdown - before.knockdown) * w.carrierKnockdown +
+        (before.attackerDown - odds.attackerDown) * c.turnover;
+      if (gain > (best?.gain ?? 0)) best = { route, gain };
+    }
+    if (best)
+      out.push({
+        player,
+        action: "move",
+        intent: { kind: "reposition", role: "mark", route: best.route },
+        tier: "assist",
+        value: best.gain,
+        rolls: best.route.rolls,
+      });
+  }
+  return out;
+}
+
 function pickupActivation(c: Context, player: Player): Activation[] {
   const { board, w } = c;
   if (board.ball.kind !== "loose") return [];
@@ -703,7 +774,8 @@ function roleSquares(c: Context): { role: Role; at: Square; value: number }[] {
       (p) => standing(p) && distance(p.gridPosition!, at) === 1
     ).length;
     const press = w.markCarrier / (1 + markers);
-    for (const s of neighbours(at)) add("mark", s, press);
+    for (const s of neighbours(at))
+      add("mark", s, press + (board.marks[key(s)] === 1 ? w.assist : 0));
     // Beside the walls of its cage: assists for the hits that break it.
     for (const wall of board.theirs)
       if (standing(wall) && distance(wall.gridPosition!, at) === 1)
@@ -909,6 +981,7 @@ export function activations(
   const carrier = carrierOf(board);
   if (carrier?.teamId === board.us && scoreChanceOf(c, carrier) < w.safeScore)
     out.push(...deepReceiverActivations(c, carrier));
+  out.push(...assistActivations(c, out));
   return sortActivations(out);
 }
 

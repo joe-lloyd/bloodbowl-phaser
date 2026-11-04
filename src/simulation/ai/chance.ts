@@ -110,14 +110,17 @@ export interface BlockOdds {
 
 /**
  * Block dice by face: Skull, Both Down, Push, Push, Stumble, Pow. `dice` is
- * the count; `attackerPicks` is false for an uphill block.
+ * the count; `attackerPicks` is false for an uphill block. A `surf` block
+ * has the defender on the edge of the pitch, so a Push puts them out of it.
+ * The team re-roll goes on any die that does not put the defender down.
  */
 export function blockOdds(
   attacker: Player,
   defender: Player,
   dice: number,
   attackerPicks: boolean,
-  teamReroll: boolean
+  teamReroll: boolean,
+  surf = false
 ): BlockOdds {
   const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
   const aBlock = has(attacker, SkillType.BLOCK);
@@ -125,7 +128,8 @@ export function blockOdds(
   const dodges =
     has(defender, SkillType.DODGE) && !has(attacker, SkillType.TACKLE);
   // Per die: does it put the defender down (good) or the attacker (bad)?
-  const good = (1 + (dodges ? 0 : 1) + (aBlock && !dBlock ? 1 : 0)) / 6;
+  const pushes = surf ? 2 + (dodges ? 1 : 0) : 0;
+  const good = (1 + (dodges ? 0 : 1) + (aBlock && !dBlock ? 1 : 0) + pushes) / 6;
   const bad = (1 + (aBlock ? 0 : 1)) / 6;
   let knockdown: number;
   let attackerDown: number;
@@ -137,9 +141,9 @@ export function blockOdds(
     attackerDown = 1 - (1 - bad) ** dice;
   }
   if (teamReroll) {
-    // Re-roll only a result that knocks the attacker down.
-    knockdown += attackerDown * knockdown;
-    attackerDown *= attackerDown;
+    const miss = 1 - knockdown;
+    attackerDown *= miss;
+    knockdown += miss * knockdown;
   }
   return {
     knockdown: knockdown as Chance,
