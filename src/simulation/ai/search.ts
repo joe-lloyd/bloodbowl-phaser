@@ -29,13 +29,14 @@ export interface SearchBudget {
   deadlineMs?: number;
 }
 
-type Option =
-  | { kind: "declare"; index: number; activation: Activation }
-  | { kind: "end-turn"; index: number };
+interface Option {
+  index: number;
+  activation: Activation;
+}
 
 const PLAYOUT_COMMANDS = 200;
 
-/** Which option each declaration is, best-looking first, end of turn last. */
+/** The declarations worth trying, the planner's favourite first. */
 function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
   const { game, point } = context;
   const board = readBoard(game, point.teamId);
@@ -58,11 +59,9 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
         command.action === activation.action
       );
     });
-    if (index >= 0) out.push({ kind: "declare", index, activation });
+    if (index >= 0) out.push({ index, activation });
     if (out.length >= size) break;
   }
-  const end = point.candidates.findIndex((c) => c.kind === "end-turn");
-  if (end >= 0) out.push({ kind: "end-turn", index: end });
   return out;
 }
 
@@ -83,13 +82,19 @@ async function playout(
   const opening = first.candidates[option.index];
   if (opening) await game.execute(opening.commands[0]);
 
+  // Our turn and the other side's answer to it: a position is judged by
+  // what the opponent can do to it, not by how it looks before they move.
+  let handedOver = false;
   for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
     const snapshot = game.snapshot();
-    const scored = (snapshot.score[us] ?? 0) !== (save.snapshot.score[us] ?? 0);
+    const scored = Object.keys(snapshot.score).some(
+      (t) => (snapshot.score[t] ?? 0) !== (save.snapshot.score[t] ?? 0)
+    );
+    if (snapshot.activeTeamId !== us) handedOver = true;
     if (
       scored ||
       snapshot.phase !== GamePhase.PLAY ||
-      (snapshot.activeTeamId !== us && !game.pendingDecision())
+      (handedOver && snapshot.activeTeamId === us && !game.pendingDecision())
     )
       break;
     const point = await enumerateDecision(game, null);
@@ -162,13 +167,14 @@ export function createSearchCoach(options: {
         alive = [...alive]
           .sort((a, b) => mean(b) - mean(a))
           .slice(0, Math.max(1, alive.length >> 1));
+        if (!alive.includes(0) && alive.length > 0) alive.push(0);
+        if (alive.length === 2 && round > 0) break;
       }
-      const best = alive[0] ?? 0;
-      const pick = counts[best] ? list[best] : list[0];
-      return {
-        index: pick.index,
-        ...(pick.kind === "declare" ? { note: noteFor(pick.activation) } : {}),
-      };
+      // The plan stands unless a rival clearly beats it on the same dice.
+      const rival = alive[0] ?? 0;
+      const best = mean(rival) > mean(0) + w.searchMargin ? rival : 0;
+      const pick = list[best];
+      return { index: pick.index, note: noteFor(pick.activation) };
     },
   };
 }

@@ -58,6 +58,8 @@ export const DEFAULT_WEIGHTS = {
   casualty: 25,
   /** In a lookahead's end position: per team re-roll still in hand. */
   rerollValue: 4,
+  /** How clearly a rival must beat the plan on the same dice to replace it. */
+  searchMargin: 6,
   /** Built-in formation to set up in, by its place in the list. */
   formation: 0,
   /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */
@@ -97,6 +99,8 @@ export function weightBounds(name: keyof Weights): [number, number] {
       return [2, 6];
     case "kickWide":
       return [0, 1];
+    case "searchMargin":
+      return [0, 30];
     case "touchdown":
       // The scale everything else is measured against stays put.
       return [value, value];
