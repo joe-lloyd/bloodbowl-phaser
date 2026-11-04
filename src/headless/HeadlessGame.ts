@@ -141,6 +141,26 @@ const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "end-activation",
 ]);
 
+/**
+ * One macrotask. setImmediate in Node; a message in a page or Web Worker,
+ * where setTimeout(0) is clamped to about 4 ms and a lookahead's thousands
+ * of commands would crawl.
+ */
+const tick: () => Promise<void> =
+  typeof setImmediate === "function"
+    ? () => new Promise((resolve) => setImmediate(resolve))
+    : typeof MessageChannel === "function"
+      ? () =>
+          new Promise((resolve) => {
+            const { port1, port2 } = new MessageChannel();
+            port1.onmessage = () => {
+              port1.close();
+              resolve();
+            };
+            port2.postMessage(null);
+          })
+      : () => new Promise((resolve) => setTimeout(resolve, 0));
+
 export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
   private eventLog: EmittedEvent[] = [];
@@ -162,10 +182,12 @@ export class HeadlessGame {
   private kickingTeamId: string | null = null;
 
   private readonly autoStartOnReady: boolean;
+  private readonly lazySnapshots: boolean;
 
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
     this.autoStartOnReady = options.autoStartOnReady !== false;
+    this.lazySnapshots = options.lazySnapshots === true;
     this.kickingTeamId =
       options.matchSave?.drive.kickingTeamId ?? options.kickingTeamId ?? null;
     this.subscribeToAllEvents();
@@ -1159,11 +1181,6 @@ export class HeadlessGame {
    * queue) fully settle before reporting the outcome.
    */
   private async settle(): Promise<void> {
-    // setImmediate beats setTimeout(0) clamping; fall back outside Node
-    const tick =
-      typeof setImmediate === "function"
-        ? () => new Promise((resolve) => setImmediate(resolve))
-        : () => new Promise((resolve) => setTimeout(resolve, 0));
     for (let i = 0; i < 10; i++) {
       await tick();
     }
@@ -1230,12 +1247,20 @@ export class HeadlessGame {
   }
 
   private respond(ok: boolean, reason?: string): CommandResponse {
-    return {
+    const base = {
       ok,
       ...(reason ? { reason } : {}),
       events: [...this.eventLog],
-      snapshot: this.snapshot(),
       pendingDecision: this.pending,
+    };
+    if (!this.lazySnapshots) return { ...base, snapshot: this.snapshot() };
+    // A throwaway copy of the game reads its state directly, if at all.
+    const snapshot = () => this.snapshot();
+    return {
+      ...base,
+      get snapshot() {
+        return snapshot();
+      },
     };
   }
 

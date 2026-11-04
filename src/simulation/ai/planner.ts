@@ -32,7 +32,7 @@ const ROLL_NAMES: Record<RollTarget["kind"], string> = {
 };
 
 /** What the coach did and the rolls it needed, never how likely they were. */
-function noteFor(a: Activation): string {
+export function noteFor(a: Activation): string {
   const what = {
     score: "runs in to score",
     carrier: "moves the ball carrier",
@@ -50,7 +50,7 @@ function noteFor(a: Activation): string {
 }
 
 /** Which actions each player may declare, read off the declare candidates. */
-function availableActions(candidates: readonly Candidate[]): Available {
+export function availableActions(candidates: readonly Candidate[]): Available {
   const out = new Map<string, Set<ActionType>>();
   for (const c of candidates) {
     const command = c.commands[0];

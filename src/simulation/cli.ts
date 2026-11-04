@@ -30,6 +30,7 @@ import { Coach } from "./coach";
 import { randomCoach } from "./coaches/random";
 import { heuristicCoach } from "./coaches/heuristic";
 import { createPlannerCoach, plannerCoach } from "./ai/planner";
+import { BUDGETS, createSearchCoach } from "./ai/search";
 import { DEFAULT_WEIGHTS, Weights, parseWeights } from "./ai/weights";
 import { mutate, pointShare } from "./tune";
 import { createJevCoach, JevStats } from "./coaches/jev";
@@ -60,7 +61,7 @@ const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "budget-exhausted",
 ]);
 
-type CoachName = "random" | "heuristic" | "jev" | "planner";
+type CoachName = "random" | "heuristic" | "jev" | "planner" | "hard" | "legend";
 
 interface RunOptions {
   games: number;
@@ -87,10 +88,14 @@ function parseCoach(value: string): CoachName {
     value === "random" ||
     value === "heuristic" ||
     value === "jev" ||
-    value === "planner"
+    value === "planner" ||
+    value === "hard" ||
+    value === "legend"
   )
     return value;
-  return fail(`unknown coach "${value}" (random | heuristic | jev | planner)`);
+  return fail(
+    `unknown coach "${value}" (random | heuristic | jev | planner | hard | legend)`
+  );
 }
 
 function parseRosters(value: string): RosterName[] {
@@ -203,6 +208,21 @@ function makeCoach(
 ): Coach {
   if (name === "random") return randomCoach;
   if (name === "heuristic") return heuristicCoach;
+  if (name === "hard" || name === "legend")
+    return createSearchCoach({
+      // The bench has no clock: a deadline would make its games unrepeatable.
+      budget: {
+        samples: BUDGETS[name].samples,
+        options: BUDGETS[name].options,
+      },
+      ...(weightsFile
+        ? {
+            weights: parseWeights(
+              JSON.parse(fs.readFileSync(weightsFile, "utf8"))
+            ),
+          }
+        : {}),
+    });
   if (name === "planner")
     return weightsFile
       ? createPlannerCoach({
