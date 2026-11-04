@@ -100,7 +100,9 @@ export interface ComputerMatchOptions {
 export function createComputerMatch(
   options: ComputerMatchOptions
 ): OnlineMatch {
-  const { eventBus, team1, team2, computerTeamId } = options;
+  const { eventBus: pageBus, team1, team2, computerTeamId } = options;
+  // Everything this match does on the page's bus ends when it closes.
+  const eventBus = scopeEventBus(pageBus);
   const coach = options.coach ?? plannerCoach;
   const pace = options.pace ?? 1;
   const myTeamId = computerTeamId === team1.id ? team2.id : team1.id;
@@ -123,9 +125,8 @@ export function createComputerMatch(
   };
 
   let engine: GameService | null = null;
-  const engineBus = scopeEventBus(eventBus);
   const container = ServiceContainer.initialize(
-    engineBus,
+    eventBus,
     team1,
     team2,
     GameService.createInitialState(
@@ -141,14 +142,14 @@ export function createComputerMatch(
         inner,
         run,
         () => game.pendingDecision(),
-        engineBus
+        eventBus
       );
     },
     options.progressionEnabled ?? false
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
-      eventBus: engineBus,
+      eventBus,
       gameService: engine!,
       rng: container.rngService,
       team1,
@@ -342,7 +343,7 @@ export function createComputerMatch(
     close: () => {
       closed = true;
       clearTimeout(timer);
-      engineBus.dispose();
+      eventBus.dispose();
     },
   };
 }

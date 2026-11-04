@@ -200,7 +200,9 @@ interface CreateMatchOptions {
 }
 
 export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
-  const { lobby, user, eventBus, seed } = options;
+  const { lobby, user, eventBus: pageBus, seed } = options;
+  // Everything this match does on the page's bus ends when it closes.
+  const eventBus = scopeEventBus(pageBus);
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
   const guestPlayer = lobby.guestUid ? lobby.players[lobby.guestUid] : null;
@@ -335,9 +337,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     runOwn(command);
 
   let engine: GameService | null = null;
-  const engineBus = scopeEventBus(eventBus);
   const container = ServiceContainer.initialize(
-    engineBus,
+    eventBus,
     team1,
     team2,
     initialState,
@@ -348,7 +349,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         inner,
         dispatch,
         () => game.pendingDecision(),
-        engineBus
+        eventBus
       );
     },
     lobby.settings.progressionEnabled ?? false,
@@ -358,7 +359,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
-      eventBus: engineBus,
+      eventBus,
       gameService: engine!,
       rng: container.rngService,
       team1,
@@ -510,7 +511,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       unsubscribePromptForwarding();
       session!.close();
       transport.close();
-      engineBus.dispose();
+      eventBus.dispose();
     },
   });
 

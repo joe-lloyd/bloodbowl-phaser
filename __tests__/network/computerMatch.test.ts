@@ -54,6 +54,21 @@ describe("a match against the computer, once closed", () => {
     expect(listeners(eventBus)).toBe(0);
   });
 
+  it("sends the page nothing from a command still running as it closes", async () => {
+    const eventBus = new EventBus();
+    match = createComputerMatch({
+      eventBus,
+      ...teams(),
+      computerTeamId: "team2",
+    });
+    const synced: unknown[] = [];
+    eventBus.on(GameEventNames.UI_SyncBoard, (data) => synced.push(data));
+    const running = match.run({ type: "end-turn" });
+    match.close();
+    await running;
+    expect(synced).toEqual([]);
+  });
+
   it("does not announce full time when a later match ends", () => {
     const eventBus = new EventBus();
     match = createComputerMatch({
