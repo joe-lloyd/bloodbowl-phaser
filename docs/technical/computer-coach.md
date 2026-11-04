@@ -72,7 +72,7 @@ The opponent's reply is what makes the lookahead pay.
 | Level    | Options | Samples | Deadline | Measured over mirrored games                             |
 | -------- | ------- | ------- | -------- | -------------------------------------------------------- |
 | Standard | none    | none    | none     | The planner                                              |
-| Hard     | 4       | 2       | 1.5 s    | Against the planner: 42 won, 30 drawn, 28 lost, +0.21 TD |
+| Hard     | 4       | 2       | 1.5 s    | Against the planner: 91 won, 55 drawn, 54 lost, +0.26 TD |
 | Legend   | 6       | 4       | 4 s      | Against Hard: 16 won, 12 drawn, 12 lost, +0.23 TD        |
 
 Legend's 40 games point the right way but do not prove it is stronger.
