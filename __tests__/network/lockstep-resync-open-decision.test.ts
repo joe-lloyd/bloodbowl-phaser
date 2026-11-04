@@ -91,15 +91,24 @@ describe.each([
     }
     expect(hostGame.pendingDecision()?.type).toBe(decision);
 
-    await guest.requestResync();
-    await settle(host, guest);
-    expect(guestGame.pendingDecision()?.type).toBe(decision);
-    expect(stateChecksum(guestGame)).toBe(stateChecksum(hostGame));
-    expect(guest.appliedCommands()).toBe(host.appliedCommands());
-
-    await host.requestResync();
-    await settle(host, guest);
-    expect(hostGame.pendingDecision()?.type).toBe(decision);
+    // Each engine in turn really differs, so the resync has to rebuild it
+    const diverge = (game: typeof hostGame) => {
+      const { score } = game.ctx.gameService.getState();
+      score[game.ctx.team1.id] = (score[game.ctx.team1.id] ?? 0) + 7;
+    };
+    const honest = stateChecksum(hostGame);
+    for (const [game, side] of [
+      [guestGame, guest],
+      [hostGame, host],
+    ] as const) {
+      diverge(game);
+      expect(stateChecksum(game)).not.toBe(honest);
+      await side.requestResync();
+      await settle(host, guest);
+      expect(stateChecksum(game)).toBe(honest);
+      expect(game.pendingDecision()?.type).toBe(decision);
+      expect(guest.appliedCommands()).toBe(host.appliedCommands());
+    }
 
     for (const step of recording.steps.slice(stop + 1, stop + 25)) {
       await play(step.command);
@@ -154,5 +163,57 @@ describe("a full resync while a pre-match inducement choice is open", () => {
       return;
     }
     throw new Error("no seed opens an optional inducement choice");
+  }, 120_000);
+});
+
+describe("a full resync onto a page with nothing paused", () => {
+  it("rebuilds the open re-roll, and the coach can answer it", async () => {
+    const { recording, stop, build } = await playUntilOwed(
+      "reroll",
+      "use-reroll"
+    );
+    const hostGame = await build();
+    const guestGame = await build();
+    const [hostEnd, guestEnd] = createInMemoryTransportPair();
+    const session = (
+      game: typeof hostGame,
+      end: typeof hostEnd,
+      side: string
+    ) =>
+      new LockstepSession({
+        transport: end,
+        game,
+        selfId: `${side}-uid`,
+        myTeamId: side === "host" ? game.ctx.team1.id : game.ctx.team2.id,
+        peerTeamId: side === "host" ? game.ctx.team2.id : game.ctx.team1.id,
+        hostTeamId: game.ctx.team1.id,
+      });
+    const host = session(hostGame, hostEnd, "host");
+    const guest = session(guestGame, guestEnd, "guest");
+    const steps = recording.steps;
+    for (const step of steps.slice(0, stop + 1)) {
+      if (!(await host.run(step.command)).ok) await guest.run(step.command);
+      await settle(host, guest);
+    }
+    const owner = hostGame.pendingDecision()?.chooserTeamId;
+
+    // A page that comes back differing from every state the host ran, so
+    // the host cannot send it a catch-up and falls back to the full state
+    guest.close();
+    const freshGame = await build();
+    const { score } = freshGame.ctx.gameService.getState();
+    score[freshGame.ctx.team1.id] = 7;
+    const fresh = session(freshGame, guestEnd, "guest");
+    await fresh.sendHello();
+    await settle(host, fresh);
+    expect(stateChecksum(freshGame)).toBe(stateChecksum(hostGame));
+    expect(freshGame.pendingDecision()?.type).toBe("reroll");
+
+    const answerer = owner === hostGame.ctx.team1.id ? host : fresh;
+    const answered = await answerer.run(steps[stop + 1].command);
+    await settle(host, fresh);
+    expect(answered.reason).toBeUndefined();
+    expect(answered.ok).toBe(true);
+    expect(stateChecksum(freshGame)).toBe(stateChecksum(hostGame));
   }, 120_000);
 });

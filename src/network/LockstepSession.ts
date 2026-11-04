@@ -399,7 +399,10 @@ export class LockstepSession {
     await this.runMissed(commands);
   }
 
-  private async runMissed(commands: HeadlessCommand[]): Promise<void> {
+  private async runMissed(
+    commands: HeadlessCommand[],
+    expected?: string
+  ): Promise<void> {
     const { game } = this.options;
     const refused = await withoutPacing(async () => {
       for (const command of commands) {
@@ -414,6 +417,13 @@ export class LockstepSession {
     });
     if (refused) {
       this.desync(`catch-up ${refused.type} refused here`);
+      return;
+    }
+    const now = stateChecksum(game);
+    if (expected && now !== expected) {
+      // The next command's checksum asks again, at most once per command
+      console.warn(`[Lockstep] resync led to ${now}, ${expected} there`);
+      this.options.onDesync?.(`resync led to ${now}, ${expected} there`);
       return;
     }
     this.options.onResynced?.();
@@ -455,7 +465,7 @@ export class LockstepSession {
     this.atRest = null;
     this.awaitingResync = false;
     this.awaitingCatchUp = false;
-    await this.runMissed(state.replay);
+    await this.runMissed(state.replay, state.checksum);
   }
 
   // ===== Helpers =====
