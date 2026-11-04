@@ -48,6 +48,16 @@ service cloud.firestore {
       return was == null || was == now;
     }
 
+    function linkKept(was, now, field) {
+      return slotKept(was.get(field, null), now.get(field, null));
+    }
+
+    function validResult(fixture) {
+      return fixture.status != 'complete'
+        || (fixture.result.homeScore is int && fixture.result.homeScore >= 0
+          && fixture.result.awayScore is int && fixture.result.awayScore >= 0);
+    }
+
     function fixtureOpen(was, now, i) {
       return was.size() <= i
         || (was[i].status != 'complete'
@@ -55,7 +65,12 @@ service cloud.firestore {
           && now[i].round == was[i].round
           && now[i].order == was[i].order
           && slotKept(was[i].homeEntrantId, now[i].homeEntrantId)
-          && slotKept(was[i].awayEntrantId, now[i].awayEntrantId));
+          && slotKept(was[i].awayEntrantId, now[i].awayEntrantId)
+          && linkKept(was[i], now[i], 'nextFixtureId')
+          && linkKept(was[i], now[i], 'nextSlot')
+          && linkKept(was[i], now[i], 'sourceFixtureIds')
+          && now[i].status in ['scheduled', 'ready', 'complete']
+          && validResult(now[i]));
     }
 
     // A result may be written to an open fixture, and a winner into an empty
@@ -142,15 +157,21 @@ service cloud.firestore {
             .hasOnly(['lastSeen']));
     }
 
+    function bothCoachesRevealed() {
+      return resource.data.get('seedReveals', {}).keys()
+        .hasAll([resource.data.hostUid, resource.data.guestUid]);
+    }
+
     function statusChangeAllowed() {
       let next = request.resource.data.status;
       return next == resource.data.status
         || (next == 'active'
           && resource.data.status == 'lobby'
           && request.auth.uid == resource.data.hostUid
-          && resource.data.guestUid != null)
-        || next == 'finished'
-        || next == 'abandoned';
+          && resource.data.guestUid != null
+          && bothCoachesRevealed())
+        || (resource.data.status == 'active'
+          && next in ['finished', 'abandoned']);
     }
 
     function bothCoachesCommitted() {
@@ -162,11 +183,41 @@ service cloud.firestore {
     // both have committed. Neither can pick the seed after seeing the other's.
     function seedWriteAllowed() {
       return (!changed().hasAny(['seedCommits'])
-          || (resource.data.status == 'lobby' && addsOwnEntryOnce('seedCommits')))
+          || (request.resource.data.status == 'lobby'
+            && addsOwnEntryOnce('seedCommits')))
         && (!changed().hasAny(['seedReveals'])
-          || (resource.data.status == 'lobby'
+          || (request.resource.data.status == 'lobby'
             && bothCoachesCommitted()
             && addsOwnEntryOnce('seedReveals')));
+    }
+
+    // Each toss field is set once, by the coach it belongs to: their own
+    // ready flag, the host's winner once both are ready, the winner's choice.
+    function coinFlipWriteAllowed() {
+      let before = resource.data.get('coinFlip', {});
+      let after = request.resource.data.coinFlip;
+      let keys = after.diff(before).affectedKeys();
+      let isHost = request.auth.uid == resource.data.hostUid;
+      return !keys.hasAny(before.keys())
+        && keys.hasOnly([isHost ? 'hostReady' : 'guestReady',
+                         'winnerTeamId', 'kickingTeamId'])
+        && (!keys.hasAny(['winnerTeamId'])
+          || (isHost
+            && before.get('hostReady', false) == true
+            && before.get('guestReady', false) == true))
+        && (!keys.hasAny(['kickingTeamId'])
+          || before.get('winnerTeamId', null)
+            == resource.data.players[request.auth.uid].team.id);
+    }
+
+    // A coach only starts or ends their own pause, and spends their own bank.
+    function timerWriteAllowed() {
+      let before = resource.data.get('timer', {}).get('banks', {});
+      let after = request.resource.data.timer;
+      return resource.data.status == 'lobby'
+        || (after.pausedBy in [null, request.auth.uid]
+          && after.banks.diff(before).affectedKeys()
+            .hasOnly([request.auth.uid]));
     }
 
     // Who holds a seat never changes once taken. The match fields a member
@@ -181,6 +232,8 @@ service cloud.firestore {
         && ownPlayerEntryOnly()
         && statusChangeAllowed()
         && seedWriteAllowed()
+        && (!changed().hasAny(['coinFlip']) || coinFlipWriteAllowed())
+        && (!changed().hasAny(['timer']) || timerWriteAllowed())
         && (!changed().hasAny(['settings'])
           || (request.auth.uid == resource.data.hostUid
             && resource.data.status == 'lobby'))

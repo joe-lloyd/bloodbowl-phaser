@@ -12,15 +12,15 @@ import { Team } from "../types/Team";
 
 function updateTeamRecord(
   entrant: CompetitionEntrant,
-  fixtureId: string,
+  fixtureKey: string,
   ownScore: number,
   opponentScore: number,
   progressedTeam?: Team
 ): void {
   const persisted = getTeamById(entrant.teamId);
-  if (!persisted || persisted.recordedFixtureIds?.includes(fixtureId)) return;
+  if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
   const team = structuredClone(persisted);
-  team.recordedFixtureIds = [...(team.recordedFixtureIds ?? []), fixtureId];
+  team.recordedFixtureIds = [...(team.recordedFixtureIds ?? []), fixtureKey];
   if (progressedTeam) {
     const progression = new Map(
       progressedTeam.players.map((player) => [player.id, player])
@@ -69,9 +69,11 @@ function updateReachableTeams(
     competition.entrants.find((entrant) => entrant.id === id);
   const home = entrantFor(fixture.homeEntrantId);
   const away = entrantFor(fixture.awayEntrantId);
+  // Fixture ids repeat from one competition to the next
+  const key = `${competition.id}:${fixture.id}`;
   if (home && away) {
-    updateTeamRecord(home, fixture.id, homeScore, awayScore, progressedTeams?.home);
-    updateTeamRecord(away, fixture.id, awayScore, homeScore, progressedTeams?.away);
+    updateTeamRecord(home, key, homeScore, awayScore, progressedTeams?.home);
+    updateTeamRecord(away, key, awayScore, homeScore, progressedTeams?.away);
   }
   // A completed competition frees every entrant it holds: only the coaches
   // whose teams are reachable from this session (their own library) can
@@ -105,11 +107,12 @@ export async function recordCompetitionFixture(
   );
   if (!existing) throw new Error("Fixture not found.");
   if (existing.status === "complete" && !existing.result?.bye) {
+    if (!existing.result) throw new Error("Fixture has no recorded result.");
     updateReachableTeams(
       competition,
       existing,
-      existing.result?.homeScore ?? homeScore,
-      existing.result?.awayScore ?? awayScore,
+      existing.result.homeScore,
+      existing.result.awayScore,
       progressedTeams
     );
     return competition;
@@ -136,12 +139,14 @@ export async function recordCompetitionFixture(
     const fixture = latest?.fixtures.find(
       (candidate) => candidate.id === context.fixtureId
     );
-    if (!latest || fixture?.status !== "complete") throw reason;
+    if (!latest || fixture?.status !== "complete" || !fixture.result) {
+      throw reason;
+    }
     updateReachableTeams(
       latest,
       fixture,
-      fixture.result?.homeScore ?? homeScore,
-      fixture.result?.awayScore ?? awayScore,
+      fixture.result.homeScore,
+      fixture.result.awayScore,
       progressedTeams
     );
     return latest;

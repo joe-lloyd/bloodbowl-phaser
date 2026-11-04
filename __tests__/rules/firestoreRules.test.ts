@@ -127,8 +127,25 @@ async function joinedLobby(): Promise<string> {
   return code;
 }
 
-async function activeMatch(): Promise<string> {
+async function seededLobby(): Promise<string> {
   const code = await joinedLobby();
+  await as(HOST, () => commitSeed(code, HOST));
+  await as(GUEST, () => commitSeed(code, GUEST));
+  await as(HOST, () => revealSeed(code, HOST));
+  await as(GUEST, () => revealSeed(code, GUEST));
+  return code;
+}
+
+/** The teams are chosen in the lobby; a toss test needs them after it. */
+async function selectTeamDirectly(code: string): Promise<void> {
+  await updateDoc(game(ADMIN, code), {
+    [`players.${HOST}.team`]: { id: "host-team" },
+    [`players.${GUEST}.team`]: { id: "guest-team" },
+  });
+}
+
+async function activeMatch(): Promise<string> {
+  const code = await seededLobby();
   await as(HOST, () => startMatch(code, DEFAULT_SETTINGS, HOST, GUEST));
   return code;
 }
@@ -298,8 +315,38 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await as(GUEST, () => heartbeat(code, GUEST));
     });
 
-    it("cannot start the match or change settings unless they host", async () => {
+    it("cannot close a lobby, nor can the host start one before the seed", async () => {
       const code = await joinedLobby();
+      await denied(as(GUEST, () => finishMatch(code, "abandoned")));
+      await denied(as(HOST, () => startMatch(code, DEFAULT_SETTINGS, HOST, GUEST)));
+    });
+
+    it("cannot write the other coach's part of the toss, or write it twice", async () => {
+      const code = await activeMatch();
+      await as(HOST, () => selectTeamDirectly(code));
+      await denied(as(GUEST, () => setCoinFlipReady(code, true)));
+      await denied(as(GUEST, () => setCoinFlipWinner(code, "guest-team")));
+      await as(HOST, () => setCoinFlipReady(code, true));
+      await denied(as(HOST, () => setCoinFlipWinner(code, "host-team")));
+      await as(GUEST, () => setCoinFlipReady(code, false));
+      await denied(as(GUEST, () => setCoinFlipWinner(code, "guest-team")));
+      await as(HOST, () => setCoinFlipWinner(code, "guest-team"));
+      await denied(as(HOST, () => setCoinFlipWinner(code, "host-team")));
+      await denied(as(HOST, () => setCoinFlipChoice(code, "host-team")));
+      await as(GUEST, () => setCoinFlipChoice(code, "guest-team"));
+      await denied(as(GUEST, () => setCoinFlipChoice(code, "host-team")));
+    });
+
+    it("cannot spend the other coach's clock or pause in their name", async () => {
+      const code = await activeMatch();
+      await denied(as(GUEST, () => pauseClock(code, HOST)));
+      await denied(as(GUEST, () => resumeClock(code, HOST, 0, Date.now())));
+      await as(GUEST, () => pauseClock(code, GUEST));
+      await as(GUEST, () => resumeClock(code, GUEST, 1000, Date.now()));
+    });
+
+    it("cannot start the match or change settings unless they host", async () => {
+      const code = await seededLobby();
       await denied(
         as(GUEST, () => startMatch(code, DEFAULT_SETTINGS, HOST, GUEST))
       );
@@ -503,6 +550,43 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await updateDoc(leagueRef(ORGANIZER, comp.id), { status: "draft" });
       await denied(
         updateDoc(leagueRef(GUEST, comp.id), { status: "active" })
+      );
+    });
+
+    it("counts a same-named fixture in another competition", async () => {
+      const first = await league();
+      const second = await league();
+      const fixture = first.fixtures[0];
+      const guestTeam = first.entrants.find((e) => e.ownerUid === GUEST)!;
+      expect(second.fixtures[0].id).toBe(fixture.id);
+      saveTeam(team(guestTeam.teamId));
+      for (const comp of [first, second]) {
+        await as(GUEST, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        );
+      }
+      const counted = getTeamById(guestTeam.teamId)!;
+      expect((counted.wins ?? 0) + (counted.losses ?? 0)).toBe(2);
+    });
+
+    it("cannot complete a fixture without a real result, or relink a bracket", async () => {
+      const comp = await league();
+      const noResult = JSON.parse(JSON.stringify(comp.fixtures));
+      noResult[0].status = "complete";
+      await denied(updateDoc(leagueRef(GUEST, comp.id), { fixtures: noResult }));
+      const nonsense = JSON.parse(JSON.stringify(comp.fixtures));
+      nonsense[0].status = "complete";
+      nonsense[0].result = { homeScore: -1, awayScore: "two", completedAt: 1 };
+      await denied(updateDoc(leagueRef(GUEST, comp.id), { fixtures: nonsense }));
+
+      const cup = await tournament();
+      const fixtures = JSON.parse(JSON.stringify(cup.fixtures));
+      const linked = fixtures.findIndex(
+        (f: { nextFixtureId?: string }) => f.nextFixtureId
+      );
+      fixtures[linked].nextFixtureId = "somewhere-else";
+      await denied(
+        updateDoc(doc(dbFor(GUEST), "tournaments", cup.id), { fixtures })
       );
     });
 
