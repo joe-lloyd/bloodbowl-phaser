@@ -46,6 +46,7 @@ checks produced (`src/simulation/candidates.ts`). It never builds a command.
 | Coach       | What it is for                                                                                                                                                                                                          |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `heuristic` | Plays recognisable Blood Bowl: carries the ball forward, blocks with the stronger player, chases the opposing carrier. Scores about one touchdown every two matches, so it reaches drive resets, scoring and kick-offs. |
+| `planner`   | The computer coach. Plans each turn in risk order, safe actions first, with paths chosen by the chance of making every roll. See [the computer coach](technical/computer-coach.md).                                     |
 | `random`    | The fuzzer. Picks a command type at random, then a target. Reaches passes, hand-offs, fouls, special actions and odd sequences no sensible coach would try.                                                             |
 | `jev`       | Asks Jev, TypeSafe's System One model, which player should act next and how. Everything else falls back to the heuristic.                                                                                               |
 
@@ -105,9 +106,13 @@ Baseline on 2026-11-03, 200 games from seed 1:
 | Match-up               | Result                     | TD per game | Turnovers per turn |
 | ---------------------- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
+| planner vs heuristic   | 176 won, 22 drawn, 2 lost  | 1.55 / 0.05 | 23.8% / 16.6%      |
 
 The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
+
+The planner solves score-this-turn and cage-up 50 times in 50 and stall 45
+times. Neither coach breaks a four-corner cage yet.
 
 ## What is checked
 
@@ -204,7 +209,8 @@ on purpose, as with committed seeds.
 | Path                                      | Contents                                  |
 | ----------------------------------------- | ----------------------------------------- |
 | `src/simulation/candidates.ts`            | Legal candidates at any decision point    |
-| `src/simulation/coaches/`                 | The three coaches                         |
+| `src/simulation/coaches/`                 | The heuristic, random and Jev coaches     |
+| `src/simulation/ai/`                      | The planner, the computer coach           |
 | `src/simulation/runMatch.ts`              | One match, its findings and its recording |
 | `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report   |
 | `src/simulation/puzzles.ts`               | One-turn coaching puzzles                 |

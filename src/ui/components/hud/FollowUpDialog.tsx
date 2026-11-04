@@ -14,24 +14,29 @@ interface FollowUpDialogProps {
   eventBus: EventBus;
 }
 
+interface FollowUpOffer {
+  attackerId: string;
+  targetSquare: { x: number; y: number };
+}
+
+const offerKey = ({ attackerId, targetSquare: { x, y } }: FollowUpOffer) =>
+  `${attackerId}:${x},${y}`;
+
 export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [followUpData, setFollowUpData] = useState<{
-    attackerId: string;
-    targetSquare: { x: number; y: number };
-  } | null>(null);
+  const [followUpData, setFollowUpData] = useState<FollowUpOffer | null>(null);
+  // Offers whose dice have landed since the last follow-up was answered.
+  const [presented, setPresented] = useState<readonly string[]>([]);
 
   useEffect(() => {
     const dice = new DiceWatch(eventBus);
     let generation = 0;
-    const onFollowUpPrompt = (data: {
-      attackerId: string;
-      targetSquare: { x: number; y: number };
-    }) => {
-      const current = ++generation;
+    const onFollowUpPrompt = (data: FollowUpOffer) => {
+      const current = generation;
       void dice.landed().then(() => {
         if (current !== generation) return;
         setFollowUpData(data);
+        setPresented((keys) => [...keys, offerKey(data)]);
         setIsOpen(true);
       });
     };
@@ -42,6 +47,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
       generation++;
       setIsOpen(false);
       setFollowUpData(null);
+      setPresented([]);
     };
     eventBus.on(GameEventNames.UI_FollowUpPrompt, onFollowUpPrompt);
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
@@ -54,14 +60,32 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
     };
   }, [eventBus]);
 
+  // Another decision can hold this one, then hand it back with no event.
+  const [, setPolled] = useState(0);
+  useEffect(() => {
+    if (!isOpen || !getActiveOnlineMatch()) return;
+    const id = setInterval(() => setPolled((tick) => tick + 1), 400);
+    return () => clearInterval(id);
+  }, [isOpen]);
+
+  // In a match the pending decision is the offer, once its own prompt has
+  // landed: a repeat on the board can be late, for an earlier block.
+  const match = getActiveOnlineMatch();
+  const pending = match?.pendingDecision();
+  const offer = match
+    ? pending?.type === "follow-up" && presented.includes(offerKey(pending))
+      ? pending
+      : null
+    : followUpData;
+
   const handleYes = () => {
     // Online: the follow-up belongs to the attacking coach
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (followUpData) {
+    if (offer) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
-        attackerId: followUpData.attackerId,
+        attackerId: offer.attackerId,
         followUp: true,
-        targetSquare: followUpData.targetSquare,
+        targetSquare: offer.targetSquare,
       });
     }
     setIsOpen(false);
@@ -70,9 +94,9 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   const handleNo = () => {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
-    if (followUpData) {
+    if (offer) {
       eventBus.emit(GameEventNames.UI_FollowUpResponse, {
-        attackerId: followUpData.attackerId,
+        attackerId: offer.attackerId,
         followUp: false,
       });
     }
@@ -82,19 +106,22 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
 
   // Online, only the coach who owns the decision sees it; the other
   // coach has the "Waiting for…" banner
-  if (!isOpen || !followUpData || getActiveOnlineMatch()?.mayAct() === false)
-    return null;
+  if (!isOpen || !offer || match?.mayAct() === false) return null;
 
   return (
     <DialogShell
       placement="dock"
-      eyebrow={<DecisionTeam playerId={followUpData.attackerId} />}
+      eyebrow={<DecisionTeam playerId={offer.attackerId} />}
       testId="follow-up-dialog"
       title="Follow Up?"
       width="w-[400px]"
       actions={
         <DialogActions>
-          <HudButton data-testid="follow-up-no" variant="ghost" onClick={handleNo}>
+          <HudButton
+            data-testid="follow-up-no"
+            variant="ghost"
+            onClick={handleNo}
+          >
             NO
           </HudButton>
           <HudButton

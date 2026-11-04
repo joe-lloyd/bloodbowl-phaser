@@ -9,6 +9,7 @@ import {
 import { PUZZLES, playPuzzle } from "../../src/simulation/puzzles";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
+import { Coach } from "../../src/simulation/coach";
 
 /**
  * The benchmark is only a measuring stick if a coach playing itself comes
@@ -58,6 +59,18 @@ describe("coaching puzzles", () => {
     );
     expect(result.scored).toBe(true);
     expect(puzzle("score-this-turn").solved(result)).toBe(true);
+  });
+
+  it("does not credit a coach that only ends its turn", async () => {
+    const passive: Coach = {
+      name: "passive",
+      async choose({ point }) {
+        const end = point.candidates.findIndex((c) => c.kind === "end-turn");
+        return { index: Math.max(0, end) };
+      },
+    };
+    const result = await playPuzzle(puzzle("blitz-the-carrier"), passive, 1);
+    expect(puzzle("blitz-the-carrier").solved(result)).toBe(false);
   });
 
   it("does not credit a coach that wanders off", async () => {

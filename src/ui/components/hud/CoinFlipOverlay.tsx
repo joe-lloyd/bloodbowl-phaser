@@ -27,9 +27,11 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
   const throwing = useRef<DiceThrow | null>(null);
 
   // Listen for start request. Online matches use the shared OnlineCoinFlip
-  // (ready check + host-authoritative result) instead of this local overlay.
+  // (ready check + host-authoritative result) instead of this local overlay;
+  // a match against the computer tosses here.
   useEventBus(eventBus, GameEventNames.UI_StartCoinFlip, (data) => {
-    if (getActiveOnlineMatch()) return;
+    const match = getActiveOnlineMatch();
+    if (match && match.kind !== "computer") return;
     setTeams({ team1: data.team1, team2: data.team2 });
     setIsVisible(true);
     setStep("START");
@@ -114,6 +116,18 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
     setIsVisible(false);
   };
 
+  // Against the computer, a toss it wins is its call: it receives.
+  const computer = getActiveOnlineMatch();
+  const computerWon =
+    computer?.kind === "computer" &&
+    !!winner &&
+    winner.id !== computer.myTeamId;
+  useEffect(() => {
+    if (step !== "RESULT" || !computerWon) return;
+    const timer = setTimeout(() => handleChoice("receive"), 1500);
+    return () => clearTimeout(timer);
+  }, [step, computerWon]);
+
   if (!isVisible || !teams) return null;
 
   return (
@@ -145,9 +159,7 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
                     className="h-20 w-20 rounded-full border-4 border-hud-gold shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
                   />
                 )}
-                <span className="hud-label">
-                  {i === 0 ? "Heads" : "Tails"}
-                </span>
+                <span className="hud-label">{i === 0 ? "Heads" : "Tails"}</span>
                 <span className="min-w-0 truncate font-hud-label text-hud-lg font-bold uppercase tracking-[0.03em] text-hud-bone">
                   {team.name}
                 </span>
@@ -173,9 +185,15 @@ export const CoinFlipOverlay: React.FC<CoinFlipProps> = ({ eventBus }) => {
           <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
             {winner.name} Wins!
           </div>
-          <p className="text-hud-dim">Choose to Kick or Receive</p>
+          {computerWon ? (
+            <p className="font-hud-label text-hud-lg font-bold uppercase tracking-[0.06em] text-hud-dim">
+              {computer.opponentName} chooses to receive
+            </p>
+          ) : (
+            <p className="text-hud-dim">Choose to Kick or Receive</p>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={computerWon ? "hidden" : "grid grid-cols-2 gap-3"}>
             <HudButton
               variant="gold"
               size="lg"

@@ -131,10 +131,12 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   // Solo/local play has no single "my team" — null tells the classifier to
   // color every good/bad roll the same way regardless of who rolled it.
   const perspectiveTeamId = match?.myTeamId ?? null;
+  // Chat is between two people; the computer coach has nothing to say.
+  const chatMatch = match && match.kind !== "computer" ? match : null;
   const [tab, setTab] = useState<Tab>("dice");
   const [fontScale, setFontScale] = useState<number>(() => loadFontScale());
   const [chat, setChat] = useState<ChatMessage[]>(() =>
-    match ? match.chatHistory() : []
+    chatMatch ? chatMatch.chatHistory() : []
   );
   const [unread, setUnread] = useState(0);
   const [draft, setDraft] = useState("");
@@ -296,8 +298,8 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   // tab). While the player isn't looking at chat, badge the tab AND pop a
   // toast so the message is noticed from anywhere in the HUD.
   useEffect(() => {
-    if (!match) return;
-    return match.onChatMessage((message) => {
+    if (!chatMatch) return;
+    return chatMatch.onChatMessage((message) => {
       setChat((prev) => [...prev, message]);
       if (!message.fromSelf && tabRef.current !== "chat") {
         setUnread((count) => count + 1);
@@ -307,7 +309,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
         );
       }
     });
-  }, [match, eventBus]);
+  }, [chatMatch, eventBus]);
 
   const openTab = (next: Tab) => {
     setTab(next);
@@ -315,8 +317,8 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
   };
 
   const sendDraft = () => {
-    if (!match || !draft.trim()) return;
-    match.sendChat(draft);
+    if (!chatMatch || !draft.trim()) return;
+    chatMatch.sendChat(draft);
     setDraft("");
   };
 
@@ -375,7 +377,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       <PanelHeader
         className="z-10"
         title={
-          match ? (
+          chatMatch ? (
             <HudTabs
               label="Dice log view"
               idBase={tabsId}
@@ -396,7 +398,7 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
       {/* Panel body */}
       <div
         className="relative flex flex-1 flex-col overflow-hidden"
-        {...(match && {
+        {...(chatMatch && {
           role: "tabpanel",
           id: `${tabsId}-panel`,
           "aria-labelledby": hudTabId(tabsId, tab),

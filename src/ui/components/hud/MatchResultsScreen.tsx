@@ -280,7 +280,8 @@ export function MatchResultsScreen({ visible }: Props) {
 
   const leave = () => {
     if (!canExit) return;
-    clearMatchSave();
+    // A match against the computer is never saved: any save is another match.
+    if (getActiveOnlineMatch()?.kind !== "computer") clearMatchSave();
     navigate("/");
   };
 

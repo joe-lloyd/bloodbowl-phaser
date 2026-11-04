@@ -11,6 +11,7 @@ import { CompetitionHub } from "./components/pages/CompetitionHub";
 import { CompetitionBuilder } from "./components/pages/CompetitionBuilder";
 import { CompetitionView } from "./components/pages/CompetitionView";
 import { GamePage } from "./pages/GamePage";
+import { ComputerPlayPage } from "./pages/ComputerPlayPage";
 import { OnlinePlayPage } from "./pages/OnlinePlayPage";
 import { ReactElement } from "react";
 import { EventBus } from "../services/EventBus";
@@ -85,6 +86,10 @@ export function App({ eventBus }: AppProps) {
         <Route
           path="/play"
           element={<GamePage eventBus={eventBus} mode="normal" />}
+        />
+        <Route
+          path="/play/computer"
+          element={<ComputerPlayPage eventBus={eventBus} />}
         />
         <Route
           path="/sand-box"

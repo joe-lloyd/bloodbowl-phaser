@@ -9,6 +9,8 @@ import {
   OnlineMatch,
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
+import { PendingDecision } from "../../src/headless/protocol";
+import { FollowUpDialog } from "../../src/ui/components/hud/FollowUpDialog";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
 import { BlockDiceDialog } from "../../src/ui/components/hud/BlockDiceDialog";
 import { BlockRollData } from "../../src/services/BlockResolutionService";
@@ -22,6 +24,7 @@ describe("online dialogs", () => {
   let root: Root;
   let eventBus: EventBus;
   let mayAct = true;
+  let pending: PendingDecision | null = null;
   let team1Ids: string[];
   let team2Ids: string[];
 
@@ -31,7 +34,10 @@ describe("online dialogs", () => {
     ServiceContainer.initialize(eventBus, game.ctx.team1, game.ctx.team2);
     team1Ids = game.ctx.team1.players.map((p) => p.id);
     team2Ids = game.ctx.team2.players.map((p) => p.id);
-    setActiveOnlineMatch({ mayAct: () => mayAct } as OnlineMatch);
+    setActiveOnlineMatch({
+      mayAct: () => mayAct,
+      pendingDecision: () => pending,
+    } as OnlineMatch);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -59,6 +65,142 @@ describe("online dialogs", () => {
     await act(async () => root.render(<RerollDialog eventBus={eventBus} />));
     await act(async () => askReroll());
     expect(container.textContent).toContain("Re-roll");
+  });
+
+  it("does not show a follow-up the computer has already answered", async () => {
+    mayAct = true;
+    pending = null;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      // The push animation ends after the answer; the board repeats the offer.
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team2-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).not.toContain("Follow Up?");
+  });
+
+  it("keeps a newer follow-up when an older one's repeat arrives", async () => {
+    mayAct = true;
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-2",
+      targetSquare: { x: 6, y: 6 },
+    };
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-2",
+        targetSquare: { x: 6, y: 6 },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).toContain("Follow Up?");
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).toContain("Follow Up?");
+  });
+
+  it("shows a held follow-up even if an older repeat arrived meanwhile", async () => {
+    mayAct = false;
+    pending = {
+      type: "reroll",
+      playerId: "team2-player-2",
+      chooserTeamId: "team2",
+      rollKind: "catch",
+      sources: ["skill"],
+    } as PendingDecision;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-2",
+        targetSquare: { x: 6, y: 6 },
+      });
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    mayAct = true;
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-2",
+      targetSquare: { x: 6, y: 6 },
+    };
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).toContain("Follow Up?");
+  });
+
+  it("waits for a new follow-up's own prompt after an old repeat", async () => {
+    mayAct = true;
+    pending = null;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    // A later block is pending, its dice still in the air.
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-2",
+      targetSquare: { x: 6, y: 6 },
+    };
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).not.toContain("Follow Up?");
+
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-2",
+        targetSquare: { x: 6, y: 6 },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).toContain("Follow Up?");
+  });
+
+  it("shows a follow-up handed back after the other coach's decision", async () => {
+    mayAct = false;
+    pending = {
+      type: "reroll",
+      playerId: "team2-player-2",
+      chooserTeamId: "team2",
+      rollKind: "catch",
+      sources: ["skill"],
+    } as PendingDecision;
+    await act(async () => root.render(<FollowUpDialog eventBus={eventBus} />));
+    await act(async () => {
+      eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+        attackerId: "team1-player-1",
+        targetSquare: { x: 5, y: 5 },
+        repeat: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(container.textContent).not.toContain("Follow Up?");
+
+    mayAct = true;
+    pending = {
+      type: "follow-up",
+      attackerId: "team1-player-1",
+      targetSquare: { x: 5, y: 5 },
+    };
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)));
+    expect(container.textContent).toContain("Follow Up?");
   });
 
   it("does not show it on the other coach's screen", async () => {

@@ -12,17 +12,18 @@ The [project README](../README.md) shows the game and its main features.
 
 ## Contributors
 
-| Guide                                                      | What it covers                                           |
-| ---------------------------------------------------------- | -------------------------------------------------------- |
-| [Development](DEVELOPMENT.md)                              | Installation, builds, Firebase and private references    |
-| [Architecture](technical/architecture.md)                  | React, Phaser, the headless engine, saves and networking |
-| [Testing](technical/testing-guide.md)                      | Choosing and running the appropriate checks              |
-| [E2E scenarios](E2E_TESTING.md)                            | Shared cases, browser tests, baselines and diagnostics   |
-| [Simulations](SIMULATION.md)                               | Automated matches, findings and deterministic replay     |
-| [Development fixtures](technical/development-seed-data.md) | Seed ownership, validation and cleanup                   |
-| [Visual design](design/visual-design.md)                   | HUD components, sprites, stadiums and camera behaviour   |
-| [Art pipeline](../scripts/sprites/README.md)               | Building and rendering the game art                      |
-| [Utility scripts](../scripts/README.md)                    | Capture, performance and test tooling                    |
+| Guide                                                      | What it covers                                            |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| [Development](DEVELOPMENT.md)                              | Installation, builds, Firebase and private references     |
+| [Architecture](technical/architecture.md)                  | React, Phaser, the headless engine, saves and networking  |
+| [Testing](technical/testing-guide.md)                      | Choosing and running the appropriate checks               |
+| [E2E scenarios](E2E_TESTING.md)                            | Shared cases, browser tests, baselines and diagnostics    |
+| [Simulations](SIMULATION.md)                               | Automated matches, findings and deterministic replay      |
+| [Computer coach](technical/computer-coach.md)              | How the computer opponent decides, and how it is wired in |
+| [Development fixtures](technical/development-seed-data.md) | Seed ownership, validation and cleanup                    |
+| [Visual design](design/visual-design.md)                   | HUD components, sprites, stadiums and camera behaviour    |
+| [Art pipeline](../scripts/sprites/README.md)               | Building and rendering the game art                       |
+| [Utility scripts](../scripts/README.md)                    | Capture, performance and test tooling                     |
 
 ## Rules implementation
 

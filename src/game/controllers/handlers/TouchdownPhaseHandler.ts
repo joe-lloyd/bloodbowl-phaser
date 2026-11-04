@@ -60,12 +60,14 @@ export class TouchdownPhaseHandler implements PhaseHandler {
   }
 
   /**
-   * Local matches let the coach click through recovery beats after the
-   * queued touchdown has finished. Online matches do not: the skip is a UI intent that never crosses
+   * Local matches, against the computer too, let the coach click through
+   * recovery beats after the queued touchdown has finished. Online matches
+   * do not: the skip is a UI intent that never crosses
    * the wire, so cutting it locally would desync what the two coaches see.
    */
   private enableLocalSkip(): void {
-    if (getActiveOnlineMatch()) return;
+    const match = getActiveOnlineMatch();
+    if (match && match.kind !== "computer") return;
     const input = this.scene.input;
     if (!input) return;
     const skip = () =>

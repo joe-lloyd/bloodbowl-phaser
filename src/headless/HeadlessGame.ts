@@ -133,7 +133,6 @@ const COMMAND_SHAPES: Record<
   "legal-actions": {},
 };
 
-
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
   "move",
@@ -146,6 +145,11 @@ export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
   private eventLog: EmittedEvent[] = [];
   private pending: PendingDecision | null = null;
+  /**
+   * A follow-up another decision displaced: a push's bounce can raise a catch
+   * re-roll before the attacker answers. It comes back once that one is done.
+   */
+  private heldFollowUp: PendingDecision | null = null;
   /**
    * A command suspended mid-execution on an awaitable decision (reroll):
    * its promise parks here while the response goes out with the pending
@@ -301,6 +305,9 @@ export class HeadlessGame {
       this.inFlight = run.catch((err) =>
         console.error("[Headless] suspended command failed:", err)
       );
+    } else if (!this.pending && this.heldFollowUp) {
+      this.pending = this.heldFollowUp;
+      this.heldFollowUp = null;
     }
     return this.respond(true);
   }
@@ -655,6 +662,7 @@ export class HeadlessGame {
       }
       case "choose-follow-up": {
         const pending = this.takePending("follow-up");
+        this.heldFollowUp = null;
         if (cmd.followUp) {
           // Free move: no movement cost, no dice (rush/dodge already paid)
           await gs.followUpPush(pending.attackerId, pending.targetSquare);
@@ -749,7 +757,10 @@ export class HeadlessGame {
       }
       case "remove-inducement": {
         this.assertTeam(cmd.teamId);
-        const result = gs.removeInducement(cmd.teamId, cmd.inducement as Inducement);
+        const result = gs.removeInducement(
+          cmd.teamId,
+          cmd.inducement as Inducement
+        );
         if (!result.ok) throw new Error(result.errors.join(","));
         break;
       }
@@ -794,6 +805,7 @@ export class HeadlessGame {
       return;
     }
     if (name === GameEventNames.DecisionRequested) {
+      if (this.pending?.type === "follow-up") this.heldFollowUp = this.pending;
       // Awaitable decision: the engine is paused on this promise. Surface
       // it and wake execute()'s race so the response goes out now.
       if (data?.type === "reroll") {
@@ -887,7 +899,7 @@ export class HeadlessGame {
       };
     } else if (name === GameEventNames.TouchbackAwarded) {
       this.pending = { type: "touchback", teamId: data.teamId };
-    } else if (name === GameEventNames.UI_FollowUpPrompt) {
+    } else if (name === GameEventNames.UI_FollowUpPrompt && !data.repeat) {
       // Crowd surf: the engine prompts the follow-up directly (there is no
       // PlayerMoved for the surfed defender)
       this.pending = {
@@ -914,9 +926,7 @@ export class HeadlessGame {
       selectedPlayerIds: [...step.selectedPlayerIds],
       movedPlayerIds: [...step.movedPlayerIds],
       awaitingPlacement: [...step.awaitingPlacement],
-      landingSquare: step.landingSquare
-        ? { ...step.landingSquare }
-        : undefined,
+      landingSquare: step.landingSquare ? { ...step.landingSquare } : undefined,
       charge: step.charge
         ? {
             queue: [...step.charge.queue],
@@ -1004,8 +1014,7 @@ export class HeadlessGame {
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
           if (availability.throwTeammate) actions.push("throwTeamMate");
-          if (canFoul && adjacentDown.length > 0)
-            actions.push("foul");
+          if (canFoul && adjacentDown.length > 0) actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
             if (!actions.includes(replacement)) actions.push(replacement);
           }

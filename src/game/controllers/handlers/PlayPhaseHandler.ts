@@ -384,10 +384,10 @@ export class PlayPhaseHandler implements PhaseHandler {
           : sprite.animateMovement(pixelPath));
         this.scene.refreshDugouts();
         if (data.followUpData) {
-          this.eventBus.emit(
-            GameEventNames.UI_FollowUpPrompt,
-            data.followUpData
-          );
+          this.eventBus.emit(GameEventNames.UI_FollowUpPrompt, {
+            ...data.followUpData,
+            repeat: true,
+          });
         }
       })
       .finally(acknowledge);
