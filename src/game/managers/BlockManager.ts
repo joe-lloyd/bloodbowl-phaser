@@ -1,5 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
-import { GameState } from "@/types/GameState";
+import { GamePhase, GameState } from "@/types/GameState";
 import { Team } from "@/types/Team";
 import {
   Player,
@@ -137,6 +137,8 @@ class FrenzyOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
+    // The push scored: the drive is over and the board is being cleared.
+    if (context.gameService.getPhase() !== GamePhase.PLAY) return;
     if (this.vacatedSquare) {
       // Let the Push Back animation land before the blocker follows up…
       await context.delay(300);
@@ -1248,7 +1250,9 @@ export class BlockManager {
     const state = this.multipleBlockState;
     if (!state || state.attackerId !== attackerId) return;
     state.continuationQueued = false;
-    if (state.nextIndex < state.defenderIds.length) {
+    // A push that scored ends the drive, and the second Block with it.
+    const driveOver = this.state.phase !== GamePhase.PLAY;
+    if (!driveOver && state.nextIndex < state.defenderIds.length) {
       const defenderId = state.defenderIds[state.nextIndex++];
       await this.startBlock(attackerId, defenderId);
       return;
@@ -1257,6 +1261,7 @@ export class BlockManager {
     const attacker = this.getPlayerById(attackerId);
     if (attacker) attacker.stats.ST = state.originalStrength;
     this.multipleBlockState = null;
+    if (driveOver) return;
     this.callbacks
       .getFlowManager?.()
       ?.context.gameService.finishActivation(attackerId);
