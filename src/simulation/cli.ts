@@ -561,6 +561,11 @@ interface BenchOptions {
   out: string;
   /** Weights for the coach under test, when it is the planner. */
   weights?: string;
+  /** Weights for the baseline, when it is the planner. */
+  vsWeights?: string;
+  /** A frozen copy of planner.ts to play instead of the --vs coach. */
+  vsModule?: string;
+  rerolls?: number;
 }
 
 const BENCH_HELP = `Usage: pnpm sim bench [options]
@@ -573,6 +578,10 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --workers <n>        parallel processes (default: CPUs - 1)
   --puzzles <n>        seeds per coaching puzzle, 0 to skip (default 50)
   --weights <file>     JSON weights for the planner under test (see ai/weights.ts)
+  --vs-weights <file>  JSON weights for a planner baseline
+  --vs-module <file>   play a frozen copy of ai/planner.ts as the baseline, to
+                       compare the coach with an earlier version of itself
+  --rerolls <n>        team re-rolls each side starts with (default 3)
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
@@ -616,6 +625,15 @@ function parseBenchOptions(argv: string[]): BenchOptions {
       case "--weights":
         options.weights = value(i++);
         break;
+      case "--vs-weights":
+        options.vsWeights = value(i++);
+        break;
+      case "--vs-module":
+        options.vsModule = path.resolve(value(i++));
+        break;
+      case "--rerolls":
+        options.rerolls = Number(value(i++));
+        break;
       case "--out":
         options.out = value(i++);
         break;
@@ -634,6 +652,11 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   )
     fail("--games must be an even number of at least 2");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  if (
+    options.rerolls !== undefined &&
+    (!Number.isInteger(options.rerolls) || options.rerolls < 0)
+  )
+    fail("--rerolls must be 0 or more");
   if (!Number.isInteger(options.puzzleSeeds) || options.puzzleSeeds < 0)
     fail("--puzzles must be 0 or more");
   if (!Number.isInteger(options.workers) || options.workers < 1)
@@ -643,14 +666,38 @@ function parseBenchOptions(argv: string[]): BenchOptions {
 
 type BenchMessage = { job: BenchJob } | { done: true };
 
+/**
+ * A coach from a frozen copy of the source tree. The copy brings its own
+ * planner code and reads the same engine through the Coach seam.
+ */
+async function loadFrozenPlanner(
+  file: string,
+  weightsFile?: string
+): Promise<Coach> {
+  const frozen = (await import(file)) as typeof import("./ai/planner");
+  return frozen.createPlannerCoach({
+    name: "champion",
+    ...(weightsFile
+      ? {
+          weights: parseWeights(
+            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
+          ),
+        }
+      : {}),
+  });
+}
+
 /** One child process: plays the jobs the parent sends, one at a time. */
 async function benchWorker(argv: string[]): Promise<number> {
-  const [candidate, baseline] = [parseCoach(argv[0]), parseCoach(argv[1])];
-  const coaches = [makeCoach(candidate, [], argv[2]), makeCoach(baseline, [])];
+  const options = JSON.parse(argv[0]) as BenchOptions;
+  const candidate = makeCoach(options.coach, [], options.weights);
+  const baseline = options.vsModule
+    ? await loadFrozenPlanner(options.vsModule, options.vsWeights)
+    : makeCoach(options.vs, [], options.vsWeights);
   await new Promise<void>((resolve) => {
     process.on("message", (message: BenchMessage) => {
       if ("done" in message) return resolve();
-      playBenchGame(message.job, coaches[0], coaches[1]).then(
+      playBenchGame(message.job, candidate, baseline, options.rerolls).then(
         (game) => process.send!({ game }),
         (error) =>
           process.send!({
@@ -684,12 +731,7 @@ async function runBench(options: BenchOptions): Promise<number> {
         new Promise<void>((resolve, reject) => {
           const child = fork(
             process.argv[1],
-            [
-              "bench-worker",
-              options.coach,
-              options.vs,
-              ...(options.weights ? [options.weights] : []),
-            ],
+            ["bench-worker", JSON.stringify(options)],
             { execArgv: process.execArgv }
           );
           const feed = () => {
@@ -727,6 +769,9 @@ async function runBench(options: BenchOptions): Promise<number> {
   if (unfinished > 0) errors.push(`${unfinished} games never finished`);
 
   const report = benchReport(games);
+  const broke = new Map<string, number>();
+  for (const key of games.flatMap((g) => g.findingKeys))
+    broke.set(key, (broke.get(key) ?? 0) + 1);
   const puzzles =
     options.puzzleSeeds > 0
       ? {
@@ -734,11 +779,16 @@ async function runBench(options: BenchOptions): Promise<number> {
             makeCoach(options.coach, [], options.weights),
             options.puzzleSeeds
           ),
-          ...(options.vs === options.coach
+          ...(options.vs === options.coach && !options.vsModule
             ? {}
             : {
                 [options.vs]: await solveRates(
-                  makeCoach(options.vs, []),
+                  options.vsModule
+                    ? await loadFrozenPlanner(
+                        options.vsModule,
+                        options.vsWeights
+                      )
+                    : makeCoach(options.vs, [], options.vsWeights),
                   options.puzzleSeeds
                 ),
               }),
@@ -763,6 +813,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   );
   process.stdout.write(
     `${formatBench(options, report, puzzles)}\n` +
+      [...broke].map(([key, n]) => `  finding: ${key} ${n}x\n`).join("") +
       errors.map((e) => `  error: ${e}\n`).join("") +
       `\nReport: ${options.out}\n`
   );
