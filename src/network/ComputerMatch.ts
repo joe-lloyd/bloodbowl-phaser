@@ -91,7 +91,8 @@ export interface ComputerMatchOptions {
   /** The team the computer coaches; the human has the other. */
   computerTeamId: string;
   progressionEnabled?: boolean;
-  coach?: Coach;
+  /** Who plays the computer's side; Standard difficulty if unset. */
+  coach?: Coach & { close?(): void };
   /** Scale every pause; 0 plays at full speed (tests). */
   pace?: number;
 }
@@ -100,7 +101,7 @@ export function createComputerMatch(
   options: ComputerMatchOptions
 ): OnlineMatch {
   const { eventBus, team1, team2, computerTeamId } = options;
-  const coach = options.coach ?? plannerCoach;
+  const coach: Coach & { close?(): void } = options.coach ?? plannerCoach;
   const pace = options.pace ?? 1;
   const myTeamId = computerTeamId === team1.id ? team2.id : team1.id;
   const teamName = (id: string) => (id === team1.id ? team1 : team2).name;
@@ -340,6 +341,7 @@ export function createComputerMatch(
     close: () => {
       closed = true;
       clearTimeout(timer);
+      coach.close?.();
     },
   };
 }
