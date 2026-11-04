@@ -16,6 +16,7 @@ import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
   CommandResponse,
@@ -334,8 +335,9 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     runOwn(command);
 
   let engine: GameService | null = null;
+  const engineBus = scopeEventBus(eventBus);
   const container = ServiceContainer.initialize(
-    eventBus,
+    engineBus,
     team1,
     team2,
     initialState,
@@ -346,7 +348,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
         inner,
         dispatch,
         () => game.pendingDecision(),
-        eventBus
+        engineBus
       );
     },
     lobby.settings.progressionEnabled ?? false,
@@ -356,7 +358,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
-      eventBus,
+      eventBus: engineBus,
       gameService: engine!,
       rng: container.rngService,
       team1,
@@ -508,6 +510,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       unsubscribePromptForwarding();
       session!.close();
       transport.close();
+      engineBus.dispose();
     },
   });
 

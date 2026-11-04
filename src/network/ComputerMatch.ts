@@ -14,6 +14,7 @@
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
   CommandResponse,
@@ -122,8 +123,9 @@ export function createComputerMatch(
   };
 
   let engine: GameService | null = null;
+  const engineBus = scopeEventBus(eventBus);
   const container = ServiceContainer.initialize(
-    eventBus,
+    engineBus,
     team1,
     team2,
     GameService.createInitialState(
@@ -139,14 +141,14 @@ export function createComputerMatch(
         inner,
         run,
         () => game.pendingDecision(),
-        eventBus
+        engineBus
       );
     },
     options.progressionEnabled ?? false
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
-      eventBus,
+      eventBus: engineBus,
       gameService: engine!,
       rng: container.rngService,
       team1,
@@ -340,6 +342,7 @@ export function createComputerMatch(
     close: () => {
       closed = true;
       clearTimeout(timer);
+      engineBus.dispose();
     },
   };
 }
