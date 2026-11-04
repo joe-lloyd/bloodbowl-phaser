@@ -330,6 +330,47 @@ function completedResult(
   };
 }
 
+/**
+ * Standings, status and the champion follow from the fixtures. They are
+ * stored too, but rules cannot check a whole table, so a reader trusts only
+ * the fixtures, which firestore.rules does protect.
+ */
+export function withResultsFromFixtures<T extends LeagueDoc | TournamentDoc>(
+  competition: T
+): T {
+  const standings = computeStandings(
+    competition.entrants,
+    competition.fixtures,
+    competition.type === "league" ? competition.points : undefined
+  );
+  const allComplete =
+    competition.fixtures.length > 0 &&
+    competition.fixtures.every((fixture) => fixture.status === "complete");
+  const status =
+    competition.status === "draft"
+      ? "draft"
+      : allComplete
+        ? "complete"
+        : "active";
+  if (competition.type === "league") {
+    return { ...competition, standings, status };
+  }
+  const champion =
+    competition.format === "single-elimination"
+      ? competition.fixtures.find((fixture) => !fixture.nextFixtureId)?.result
+          ?.winnerEntrantId
+      : allComplete
+        ? standings[0]?.entrantId
+        : undefined;
+  const { championEntrantId: _stored, ...rest } = competition;
+  return {
+    ...rest,
+    standings,
+    status,
+    ...(champion ? { championEntrantId: champion } : {}),
+  } as T;
+}
+
 export function recordTournamentResult(
   tournament: TournamentDoc,
   fixtureId: string,

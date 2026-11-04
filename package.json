@@ -17,6 +17,7 @@
     "sim:replay": "tsx src/simulation/cli.ts replay",
     "perf": "tsx scripts/perf/bench.ts",
     "test": "vitest",
+    "test:rules": "npx -y firebase-tools@15.34.1 emulators:exec --only firestore --project demo-bloodbowl-rules \"vitest run __tests__/rules\"",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "eslint . --ext .ts,.tsx",

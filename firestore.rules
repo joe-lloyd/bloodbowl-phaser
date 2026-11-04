@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// Baseline rules — tightened in the security task (6.2).
 // Principles: a user owns their own team library; only a game's two members
 // may touch its document and messages; a message's `from` must be the writer.
+// __tests__/rules/ proves these against the emulator: `pnpm test:rules`.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -26,15 +26,58 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Organizers control competition structure (adding/removing entrants,
-    // renaming). Entrant owners may report a fixture result, refresh their
-    // own entrant's cached display fields (a renamed team, e.g.), and clear
-    // their own withdrawal — but cannot touch another coach's entrant or
-    // replace the entrant list itself. `entrants` is writable by
-    // participants because normalize-cloud-data-model replaced the embedded
-    // roster snapshot with a teamId/ownerUid reference plus this cache; the
-    // reference fields themselves are still organizer-only in practice
-    // since only the organizer can add/remove entrants at all.
+    // Competition rules cannot loop, so they compare each list with itself:
+    // `after.removeAll(before)` is what a write changed. `removeAll` keeps
+    // list order, so the Nth changed item before is the Nth changed item after.
+
+    // An entrant may only change if it is the writer's own, and it stays theirs.
+    function entrantsKept(before, after) {
+      let was = before.removeAll(after);
+      let now = after.removeAll(before);
+      return after.size() == before.size()
+        && was.size() == now.size()
+        && (was.size() == 0
+          || (was.size() == 1
+            && was[0].ownerUid == request.auth.uid
+            && now[0].ownerUid == request.auth.uid
+            && now[0].id == was[0].id
+            && now[0].teamId == was[0].teamId));
+    }
+
+    function slotKept(was, now) {
+      return was == null || was == now;
+    }
+
+    function fixtureOpen(was, now, i) {
+      return was.size() <= i
+        || (was[i].status != 'complete'
+          && now[i].id == was[i].id
+          && now[i].round == was[i].round
+          && now[i].order == was[i].order
+          && slotKept(was[i].homeEntrantId, now[i].homeEntrantId)
+          && slotKept(was[i].awayEntrantId, now[i].awayEntrantId));
+    }
+
+    // A result may be written to an open fixture, and a winner into an empty
+    // slot of a later one. A played result and a set pairing cannot change.
+    // One report touches its fixture plus at most one per later round, and
+    // 8 fixtures is a bracket of over a hundred coaches.
+    function fixturesKept(before, after) {
+      let was = before.removeAll(after);
+      let now = after.removeAll(before);
+      return after.size() == before.size()
+        && was.size() == now.size()
+        && was.size() <= 8
+        && fixtureOpen(was, now, 0) && fixtureOpen(was, now, 1)
+        && fixtureOpen(was, now, 2) && fixtureOpen(was, now, 3)
+        && fixtureOpen(was, now, 4) && fixtureOpen(was, now, 5)
+        && fixtureOpen(was, now, 6) && fixtureOpen(was, now, 7);
+    }
+
+    // Organizers control competition structure. A participant may report a
+    // result and change their own entrant (see the functions above).
+    // Standings, status and the champion are only caches: every reader
+    // recomputes them from the fixtures (src/competition/repository.ts).
     match /leagues/{leagueId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -43,7 +86,9 @@ service cloud.firestore {
         && (resource.data.organizerUid == request.auth.uid
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['entrants', 'fixtures', 'standings', 'status', 'updatedAt'])));
+              .hasOnly(['entrants', 'fixtures', 'standings', 'status', 'updatedAt'])
+            && entrantsKept(resource.data.entrants, request.resource.data.entrants)
+            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;
     }
@@ -57,27 +102,118 @@ service cloud.firestore {
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',
-                        'championEntrantId', 'updatedAt'])));
+                        'championEntrantId', 'updatedAt'])
+            && entrantsKept(resource.data.entrants, request.resource.data.entrants)
+            && fixturesKept(resource.data.fixtures, request.resource.data.fixtures)));
       allow delete: if request.auth != null
         && resource.data.organizerUid == request.auth.uid;
     }
 
-    // Game/lobby docs: readable to allow join-by-code; writes members-only.
-    // (Join itself is mediated by the callable Function.)
+    // A map field where this write only adds the writer's own first entry.
+    function addsOwnEntryOnce(field) {
+      let before = resource.data.get(field, {});
+      return !(request.auth.uid in before)
+        && request.resource.data[field].diff(before).affectedKeys()
+          .hasOnly([request.auth.uid]);
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // In the lobby a coach may edit their own player entry; after that, only
+    // their presence stamp. Never the other coach's.
+    function ownPlayerEntryOnly() {
+      let players = request.resource.data.players.diff(resource.data.players);
+      return players.affectedKeys().hasOnly([request.auth.uid])
+        && (resource.data.status == 'lobby'
+          || !players.affectedKeys().hasAny([request.auth.uid])
+          || request.resource.data.players[request.auth.uid]
+            .diff(resource.data.players[request.auth.uid]).affectedKeys()
+            .hasOnly(['lastSeen']));
+    }
+
+    function statusChangeAllowed() {
+      let next = request.resource.data.status;
+      return next == resource.data.status
+        || (next == 'active'
+          && resource.data.status == 'lobby'
+          && request.auth.uid == resource.data.hostUid
+          && resource.data.guestUid != null)
+        || next == 'finished'
+        || next == 'abandoned';
+    }
+
+    function bothCoachesCommitted() {
+      return resource.data.get('seedCommits', {}).keys()
+        .hasAll([resource.data.hostUid, resource.data.guestUid]);
+    }
+
+    // Each coach commits once, before anyone reveals, then reveals only once
+    // both have committed. Neither can pick the seed after seeing the other's.
+    function seedWriteAllowed() {
+      return (!changed().hasAny(['seedCommits'])
+          || (resource.data.status == 'lobby' && addsOwnEntryOnce('seedCommits')))
+        && (!changed().hasAny(['seedReveals'])
+          || (resource.data.status == 'lobby'
+            && bothCoachesCommitted()
+            && addsOwnEntryOnce('seedReveals')));
+    }
+
+    // Who holds a seat never changes once taken. The match fields a member
+    // may write are the ones the running game keeps up to date; both engines
+    // check each other's state, so a false snapshot or clock is a nuisance
+    // between two coaches, not a way into anyone else's data.
+    function memberUpdateAllowed() {
+      return changed().hasOnly(['players', 'settings', 'status', 'timer',
+                                'seedCommits', 'seedReveals', 'snapshot',
+                                'resume', 'snapshotAt', 'coinFlip',
+                                'endRequestBy'])
+        && ownPlayerEntryOnly()
+        && statusChangeAllowed()
+        && seedWriteAllowed()
+        && (!changed().hasAny(['settings'])
+          || (request.auth.uid == resource.data.hostUid
+            && resource.data.status == 'lobby'))
+        && (!changed().hasAny(['endRequestBy'])
+          || request.resource.data.endRequestBy == null
+          || request.resource.data.endRequestBy == request.auth.uid);
+    }
+
+    // A stranger who knows the code may take the empty guest seat as
+    // themselves, and add only their own player entry while doing so.
+    function claimsGuestSeat() {
+      return resource.data.guestUid == null
+        && resource.data.status == 'lobby'
+        && request.resource.data.guestUid == request.auth.uid
+        && changed().hasOnly(['guestUid', 'players'])
+        && request.resource.data.players.diff(resource.data.players)
+          .affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.players[request.auth.uid].uid == request.auth.uid;
+    }
+
+    // Game/lobby docs. A code is the only way in: fetching one by its code
+    // is allowed, listing them is not. Writes are members-only, apart from
+    // claiming the empty guest seat.
     match /games/{code} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if false;
       allow create: if request.auth != null
-        && request.resource.data.hostUid == request.auth.uid;
-      // Members may update; a non-member may only claim the empty guest
-      // seat as themselves while the lobby is still open.
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.guestUid == null
+        && request.resource.data.status == 'lobby'
+        && request.resource.data.players.keys().hasOnly([request.auth.uid])
+        && request.resource.data.keys().hasOnly([
+          'code', 'hostUid', 'guestUid', 'status', 'settings', 'players',
+          'createdAt', 'expiresAt', 'competitionContext', 'fixtureTeams']);
       allow update: if request.auth != null
-        && (request.auth.uid == resource.data.hostUid
-            || request.auth.uid == resource.data.guestUid
-            || (resource.data.guestUid == null
-                && resource.data.status == "lobby"
-                && request.resource.data.guestUid == request.auth.uid));
+        && (((request.auth.uid == resource.data.hostUid
+              || request.auth.uid == resource.data.guestUid)
+            && memberUpdateAllowed())
+          || claimsGuestSeat());
       allow delete: if request.auth != null
-        && request.auth.uid == resource.data.hostUid;
+        && request.auth.uid == resource.data.hostUid
+        && resource.data.status != 'active';
 
       match /messages/{messageId} {
         allow read: if request.auth != null

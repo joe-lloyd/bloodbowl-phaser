@@ -84,7 +84,21 @@ export async function recordCompetitionFixture(
           homeScore,
           awayScore
         );
-  await saveCompetition(updated);
+  try {
+    await saveCompetition(updated);
+  } catch (reason) {
+    // Both coaches report at full time. If the other got there first, the
+    // rules refuse this write, and the result stands as they recorded it.
+    const latest = await getCompetition(
+      context.competitionType,
+      context.competitionId
+    );
+    const fixture = latest?.fixtures.find(
+      (candidate) => candidate.id === context.fixtureId
+    );
+    if (latest && fixture?.status === "complete") return latest;
+    throw reason;
+  }
 
   if (existing.homeEntrantId && existing.awayEntrantId) {
     const home = competition.entrants.find(

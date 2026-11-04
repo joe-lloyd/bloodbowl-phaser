@@ -610,7 +610,7 @@ export async function setReady(
   await updateDoc(lobbyRef(code), { [`players.${uid}.ready`]: ready });
 }
 
-/** Host-only in the UI; rules restrict writes to members. */
+/** Host only, in the lobby; the rules enforce both. */
 export async function updateSettings(
   code: string,
   settings: LobbySettings

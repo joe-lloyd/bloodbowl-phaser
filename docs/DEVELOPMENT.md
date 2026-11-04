@@ -67,6 +67,9 @@ Firestore persistence and a command transport between the two browsers.
    firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
    ```
 
+   `pnpm test:rules` proves the rules against the emulator, which needs Java.
+   Pushing to `main` does not deploy them: run the command above after a change.
+
 5. Add the deployed hostname to Firebase Authentication's authorized domains.
 6. Restart Vite, or rebuild the deployed site, after changing environment values.
 

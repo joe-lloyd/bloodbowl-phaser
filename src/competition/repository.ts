@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { CompetitionDoc, CompetitionType } from "./types";
-import { repairBracketLinkage } from "./logic";
+import { repairBracketLinkage, withResultsFromFixtures } from "./logic";
 
 /**
  * Before this change, a `CompetitionEntrant` embedded a full roster snapshot
@@ -115,9 +115,10 @@ function withRepairedLinkage(
 function normalizeOnRead(
   competition: CompetitionDoc | null
 ): CompetitionDoc | null {
-  return withRepairedLinkage(
+  const repaired = withRepairedLinkage(
     competition ? convertLegacyEntrants(competition) : null
   );
+  return repaired && withResultsFromFixtures(repaired);
 }
 
 export async function getCompetition(
