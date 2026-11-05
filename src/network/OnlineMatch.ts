@@ -509,9 +509,12 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     close: () => {
       unsubscribeSelectionForwarding();
       unsubscribePromptForwarding();
+      // Queued lockstep work still runs. It keeps the match's listeners, so
+      // its match stats stay right, but the page, perhaps already showing the
+      // next match, hears none of it.
+      eventBus.detach();
       session!.close();
       transport.close();
-      // Queued lockstep work still runs: keep its listeners until it is done.
       void session!.whenIdle().finally(() => eventBus.dispose());
     },
   });
