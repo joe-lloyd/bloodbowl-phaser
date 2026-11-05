@@ -1346,9 +1346,11 @@ export class GameService implements IGameService {
   /**
    * Sports Espionage (L26): once the Turnover has resolved, the team that
    * suffered it may gain two team re-rolls for the rest of the half. The
-   * dice that caused the Turnover are long settled by now.
+   * dice that caused the Turnover are long settled by now. A bounce caught
+   * for a touchdown has ended the turn already, so there is no offer then.
    */
   private async offerSportsEspionage(): Promise<void> {
+    if (this.state.phase !== GamePhase.PLAY) return;
     const team = this.state.activeTeamId
       ? this.getTeam(this.state.activeTeamId)
       : undefined;

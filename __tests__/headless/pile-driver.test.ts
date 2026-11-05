@@ -6,6 +6,9 @@ import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import type { ActionType } from "../../src/types/events";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
+import { Inducement } from "../../src/types/Inducements";
+import { forceDice } from "../utils/test-helpers";
+import { bought, commit } from "../utils/inducement-helpers";
 
 /**
  * Pile Driver (2025 rulebook p.133): "When an opposition player is Knocked
@@ -142,6 +145,11 @@ describe("Pile Driver", () => {
     };
     // A POW, then the bounce lands on the team-mate at (19, 4), who catches.
     const game = new HeadlessGame({ scenario: scoring, seed: 3 });
+    // Sports Espionage (D8 6) answers a Turnover, never a touchdown.
+    forceDice(game.ctx.rng, [6]);
+    await commit(game, [
+      bought(game.ctx.team1.id, Inducement.DESPERATE_MEASURES, 1),
+    ]);
     const attacker = game.ctx.team1.players[0];
     const defender = game.ctx.team2.players[0];
     const events: EmittedEvent[] = [];
@@ -164,6 +172,7 @@ describe("Pile Driver", () => {
       subPhase: SubPhase.SETUP_KICKING,
       activeTeamId: "team1",
     });
+    expect(response!.pendingDecision).toBeNull();
   });
 
   it("lets a declined Blitz keep moving", async () => {
