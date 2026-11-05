@@ -1,7 +1,7 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { Player } from "../../types/Player";
-import { Team, TeamSpecialRule } from "../../types/Team";
+import { RosterName, Team, TeamSpecialRule } from "../../types/Team";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 
 export interface PlayerMatchStats {
@@ -67,9 +67,9 @@ const BRAWLIN_BRUTES_SPP_VALUES: SppValues = {
   touchdown: 2,
 };
 
-/** What each achievement is worth to a team's players, by its special rules. */
-export function sppValuesFor(team: Team): SppValues {
-  return getRosterByRosterName(team.rosterName).specialRules.includes(
+/** What each achievement is worth to a roster's players, by its special rules. */
+export function sppValuesFor(rosterName: RosterName): SppValues {
+  return getRosterByRosterName(rosterName).specialRules.includes(
     TeamSpecialRule.BRAWLIN_BRUTES
   )
     ? BRAWLIN_BRUTES_SPP_VALUES
@@ -150,7 +150,7 @@ export class MatchStats {
         .map((team) => team.id)
     );
     this.sppValues = new Map(
-      teams.map((team) => [team.id, sppValuesFor(team)])
+      teams.map((team) => [team.id, sppValuesFor(team.rosterName)])
     );
     teams
       .flatMap((team) => team.players)

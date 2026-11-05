@@ -405,8 +405,8 @@ export function MatchResultsScreen({ visible }: Props) {
                     <div className="mt-5 border-t border-white/10 pt-4">
                       <p className="mb-2 text-hud-sm text-hud-dim">
                         If this team was awarded a touchdown after a concession,
-                        assign its {sppValuesFor(team).touchdown} SPP here.
-                        Repeat for each awarded touchdown.
+                        assign its {sppValuesFor(team.rosterName).touchdown} SPP
+                        here. Repeat for each awarded touchdown.
                       </p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <select
