@@ -87,6 +87,21 @@ describe("a scoped event bus", () => {
     expect(heard).toEqual([]);
   });
 
+  it("fires a once listener that another once listener added on the next emit", () => {
+    const bus = new EventBus();
+    const scoped = scopeEventBus(bus);
+    const heard: string[] = [];
+    scoped.once(GameEventNames.UI_Notification, () => {
+      heard.push("first");
+      scoped.once(GameEventNames.UI_Notification, () => heard.push("second"));
+    });
+
+    scoped.emit(GameEventNames.UI_Notification, "one");
+    expect(heard).toEqual(["first"]);
+    scoped.emit(GameEventNames.UI_Notification, "two");
+    expect(heard).toEqual(["first", "second"]);
+  });
+
   it("finds the page's moment queue, so the engine waits for its banners", () => {
     const bus = new EventBus();
     const scoped = scopeEventBus(bus);

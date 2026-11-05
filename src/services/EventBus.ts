@@ -86,9 +86,11 @@ export class EventBus implements IEventBus {
       });
     }
 
-    // Call and remove once listeners
+    // Call and remove once listeners. They leave the map first, so a once
+    // listener added while they run waits for the next emit.
     const onceListeners = this.onceListeners.get(event as string);
     if (onceListeners) {
+      this.onceListeners.delete(event as string);
       onceListeners.forEach((callback) => {
         try {
           callback(data);
@@ -99,8 +101,6 @@ export class EventBus implements IEventBus {
           );
         }
       });
-      // Clear once listeners after calling
-      this.onceListeners.delete(event as string);
     }
   }
 
