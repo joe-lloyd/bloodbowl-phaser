@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Team } from "../../../types/Team";
+import { RosterName, Team } from "../../../types/Team";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { mustAdvance } from "../../../game/progression/progression";
-import { getRosterByRosterName } from "../../../data/RosterTemplates";
+import {
+  getAvailableRosterNames,
+  getRosterByRosterName,
+} from "../../../data/RosterTemplates";
+import { saveTeam } from "../../../game/managers/TeamManager";
+import { createReadyMadeTeam } from "../../../simulation/lineups";
 import {
   Chip,
   cx,
@@ -40,8 +45,63 @@ interface TeamSelectProps {
  * Team Selection Component
  * Select teams for Player 1 and Player 2 before starting a game
  */
+/** Kit colours for ready-made teams, taken in turn. */
+const READY_MADE_COLORS = [0x8e1b1b, 0x1e3a5f, 0x556b2f, 0xd6b25e];
+
+/**
+ * A legal team of any roster in one click, for a coach who wants to play
+ * now rather than draft first.
+ */
+function ReadyMadeTeamPicker({
+  teams,
+  onAdded,
+}: {
+  teams: Team[];
+  onAdded: () => void;
+}) {
+  const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
+  const add = () => {
+    // The first free name in the series: a deleted team's name is reused.
+    const taken = new Set(teams.map((team) => team.name));
+    const base = `Ready-made ${roster}`;
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+    saveTeam(
+      createReadyMadeTeam(
+        roster,
+        name,
+        READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length]
+      )
+    );
+    onAdded();
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      <select
+        aria-label="Roster for a ready-made team"
+        value={roster}
+        onChange={(event) =>
+          setRoster(
+            getAvailableRosterNames().find(
+              (name) => name === event.target.value
+            ) ?? roster
+          )
+        }
+        className="hud-field w-auto min-w-[180px]"
+      >
+        {getAvailableRosterNames().map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <HudButton onClick={add}>Add ready-made team</HudButton>
+    </div>
+  );
+}
+
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
-  const [teams] = useTeamLibrary();
+  const [teams, reloadTeams] = useTeamLibrary();
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
   const [filter1, setFilter1] = useState("");
@@ -169,18 +229,22 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         <EmptyState
           title="You need at least 2 teams to play!"
           action={
-            <div className="flex flex-wrap justify-center gap-3">
-              <HudButton onClick={handleBack}>← Back to Menu</HudButton>
-              <HudButton
-                variant="primary"
-                onClick={() => navigate("/build-team")}
-              >
-                Build Team
-              </HudButton>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-wrap justify-center gap-3">
+                <HudButton onClick={handleBack}>← Back to Menu</HudButton>
+                <HudButton
+                  variant="primary"
+                  onClick={() => navigate("/build-team")}
+                >
+                  Build Team
+                </HudButton>
+              </div>
+              <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
             </div>
           }
         >
-          Go to Build Team to create teams first.
+          Go to Build Team to draft your own, or add a ready-made team to play
+          now.
         </EmptyState>
       </PageShell>
     );
@@ -311,6 +375,10 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
           Team before this match can start.
         </Notice>
       )}
+
+      <Section title="Ready-made teams" className="mt-6">
+        <ReadyMadeTeamPicker teams={teams} onAdded={reloadTeams} />
+      </Section>
 
       {mode === "play" && (
         <Section title="Player 2" className="mt-6">

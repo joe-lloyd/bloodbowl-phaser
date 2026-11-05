@@ -3,7 +3,7 @@ import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamSelect } from "../../../src/ui/components/pages/TeamSelect";
-import { saveTeams } from "../../../src/game/managers/TeamManager";
+import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
 import { RosterName } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
@@ -149,5 +149,92 @@ describe("TeamSelect filtering", () => {
     ) as HTMLElement;
     expect(player1Column.textContent).toContain("Thunderfoot Warband");
     expect(player1Column.textContent).not.toContain("River Vale Humans");
+  });
+});
+
+describe("TeamSelect ready-made teams", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    localStorage.clear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    localStorage.clear();
+  });
+
+  it("lets a coach with no teams add two and get to the team columns", async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+    const add = async (roster: RosterName) => {
+      const select = container.querySelector(
+        'select[aria-label="Roster for a ready-made team"]'
+      ) as HTMLSelectElement;
+      await act(async () => {
+        select.value = roster;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const button = [...container.querySelectorAll("button")].find(
+        (b) => b.textContent === "Add ready-made team"
+      )!;
+      await act(async () => button.click());
+    };
+
+    await add(RosterName.SKAVEN);
+    expect(loadTeams().map((t) => t.rosterName)).toEqual([RosterName.SKAVEN]);
+    await add(RosterName.DWARF);
+
+    expect(loadTeams().map((t) => t.rosterName)).toEqual([
+      RosterName.SKAVEN,
+      RosterName.DWARF,
+    ]);
+    expect(
+      container.querySelector('input[aria-label="Filter Player 1 teams"]')
+    ).toBeTruthy();
+  });
+
+  it("names a ready-made team after the first name nobody uses", async () => {
+    const named = (id: string, name: string) =>
+      new TeamTestBuilder()
+        .withId(id)
+        .withName(name)
+        .withRosterName(RosterName.HUMAN)
+        .withPlayers(11)
+        .build();
+    // The second was deleted earlier, so its name is free again.
+    saveTeams([
+      named("team-a", "Ready-made Human"),
+      named("team-c", "Ready-made Human 3"),
+    ]);
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+    const button = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Add ready-made team"
+    )!;
+    await act(async () => button.click());
+    await act(async () => button.click());
+
+    expect(loadTeams().map((t) => t.name)).toEqual([
+      "Ready-made Human",
+      "Ready-made Human 3",
+      "Ready-made Human 2",
+      "Ready-made Human 4",
+    ]);
   });
 });

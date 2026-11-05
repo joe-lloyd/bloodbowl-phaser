@@ -22,20 +22,26 @@ import {
   MAX_NON_LINEMEN,
 } from "../game/rules/rosterLegality";
 import { hasSkill, SkillType } from "../types/Skills";
+import { purchase } from "../game/rules/teamPricing";
 
 /** Seven to start, two in reserve for injuries and Sweltering Heat. */
 const LINEUP_SIZE = 9;
 const BUDGET = 600_000;
+/** The most team re-rolls a ready-made team buys before its players. */
+const READY_MADE_REROLLS = 2;
 
 const insignificant = (template: PlayerTemplate) =>
   hasSkill(template.skills, SkillType.INSIGNIFICANT);
 
 /**
  * Up to four different positionals, most expensive first, within roster
- * limits and the draft budget, then Linemen up to nine players. Insignificant
+ * limits and the budget, then Linemen up to nine players. Insignificant
  * Linemen are capped so they never outnumber the rest.
  */
-export function lineupTemplates(rosterName: RosterName): PlayerTemplate[] {
+export function lineupTemplates(
+  rosterName: RosterName,
+  budget = BUDGET
+): PlayerTemplate[] {
   const roster = getRosterByRosterName(rosterName);
   const linemen = roster.playerTemplates.filter((t) =>
     isLinemanPosition(t.keywords)
@@ -70,7 +76,7 @@ export function lineupTemplates(rosterName: RosterName): PlayerTemplate[] {
         continue;
       if (oneBigGuy && bigGuy(template) && picked.some(bigGuy)) continue;
       const linemenStillNeeded = Math.max(0, 7 - picked.length - 1);
-      if (spent + template.cost + linemenStillNeeded * lineman.cost > BUDGET)
+      if (spent + template.cost + linemenStillNeeded * lineman.cost > budget)
         continue;
       picked.push(template);
       spent += template.cost;
@@ -87,7 +93,7 @@ export function lineupTemplates(rosterName: RosterName): PlayerTemplate[] {
     );
   }
   linemenCount = Math.min(linemenCount, lineman.maxAllowed ?? linemenCount);
-  while (linemenCount > 0 && spent + linemenCount * lineman.cost > BUDGET)
+  while (linemenCount > 0 && spent + linemenCount * lineman.cost > budget)
     linemenCount--;
 
   return [...picked, ...Array.from({ length: linemenCount }, () => lineman)];
@@ -111,4 +117,33 @@ export function createLineupTeam(
   });
   chooseFirstLinemanAsVeteran(team);
   return team;
+}
+
+/**
+ * A team to play with straight away: as many team re-rolls as it can buy, up
+ * to two, while the rest of the draft budget still fields seven players.
+ */
+export function createReadyMadeTeam(
+  rosterName: RosterName,
+  name: string,
+  color: number
+): Team {
+  const roster = getRosterByRosterName(rosterName);
+  for (let rerolls = READY_MADE_REROLLS; ; rerolls--) {
+    const team = createTeam(
+      name,
+      rosterName,
+      { primary: color, secondary: 0xffffff },
+      roster.rerollCost,
+      BUDGET
+    );
+    for (let i = 0; i < rerolls; i++) purchase(team, { type: "reroll" });
+    const templates = lineupTemplates(rosterName, team.treasury);
+    if (templates.length < 7 && rerolls > 0) continue;
+    templates.forEach((template, index) => {
+      addPlayerToTeam(team, createPlayer(template, team.id, index + 1));
+    });
+    chooseFirstLinemanAsVeteran(team);
+    return team;
+  }
 }
