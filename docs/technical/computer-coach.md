@@ -24,7 +24,7 @@ offers and never builds a command itself. Its code is in
 | `decisions.ts`   | Block dice, re-rolls, push squares, follow-ups and other decisions   |
 | `weights.ts`     | Every number its judgement rests on, as one plain object             |
 | `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
-| `evaluate.ts`    | The score of an end position, for the lookahead                      |
+| `evaluate.ts`    | The trained score of an end position, for the lookahead              |
 | `search.ts`      | The lookahead: tries the planner's best few options on cloned games  |
 | `difficulty.ts`  | The levels on the team selection page                                |
 
@@ -53,7 +53,8 @@ question and get the same answer, which the lookahead relies on.
 Paths are searched by the chance of making every Dodge, Rush and Pick-up
 on the way, not by distance. Positioning moves are judged without the team
 re-roll, so a re-roll spent on a cage corner is still there for the
-pick-up. Only a block on the ball carrier counts the re-roll.
+pick-up. Only a block on the ball carrier counts the re-roll, and only
+while the team has one left this half.
 
 ### Playing to its roster
 
@@ -75,7 +76,8 @@ Hard and Legend run the planner, but check its next activation first. At each
 new declaration the coach takes the planner's best few options. For each one
 it clones the game, reseeds the dice so a playout cannot see the real ones,
 plays out our turn and the opponent's reply with the planner, and scores the
-end position with `evaluate`. Every option meets the same dice, sample for
+end position with `evaluate` (see [the position score](#the-position-score)).
+Every option meets the same dice, sample for
 sample, and weak options drop out between rounds. The planner's choice stands
 unless a rival beats it.
 
