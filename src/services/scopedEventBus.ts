@@ -55,8 +55,13 @@ export function scopeEventBus(parent: IEventBus): IEventBus & {
       once,
     };
     if (once)
+      // Off the bus before the callback runs, so an emit inside it cannot
+      // call it again, and leave `own` only if it is still there.
       entry.registered = ((data: GameEventMap[K]) => {
-        own.splice(own.indexOf(entry), 1);
+        const at = own.indexOf(entry);
+        if (at < 0) return;
+        own.splice(at, 1);
+        target.off(event, entry.registered as (data: GameEventMap[K]) => void);
         callback(data);
       }) as Listener;
     own.push(entry);
