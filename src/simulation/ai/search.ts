@@ -165,19 +165,20 @@ export function createSearchCoach(options: {
         const samples = round === 0 ? budget.samples : budget.samples * 2;
         for (let s = 0; s < samples && !late(); s++) {
           const seed = sampleSeed(base, sampleAt++);
+          const results: number[] = [];
           for (const i of alive) {
-            totals[i] += await playout(
-              save,
-              list[i],
-              point.teamId,
-              seed,
-              policy,
-              quiet,
-              w
+            results.push(
+              await playout(save, list[i], point.teamId, seed, policy, quiet, w)
             );
-            counts[i]++;
             if (late()) break;
           }
+          // Every option meets the same dice: a sample the deadline cut
+          // short counts for none of them.
+          if (results.length < alive.length) break;
+          alive.forEach((i, k) => {
+            totals[i] += results[k];
+            counts[i]++;
+          });
         }
         alive = [...alive]
           .sort((a, b) => mean(b) - mean(a))
