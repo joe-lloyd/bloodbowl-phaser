@@ -97,8 +97,9 @@ interface Context {
   /** Cost of a turnover now: the activations it would throw away. */
   turnover: number;
   /**
-   * How much each square of progress counts: 1, rising to 3 when the ball
-   * must move faster than four squares a turn to score this half.
+   * How much each square of progress counts: 1 for a team of MA 6, rising
+   * to 3 times that when the ball must move faster than four squares a turn
+   * to score this half.
    */
   urgency: number;
   /** Paths for a play worth a team re-roll: scoring, the ball, a blitz. */
@@ -128,12 +129,17 @@ function context(board: Board, w: Weights, available: Available): Context {
   };
   const ballAt = board.ball.kind === "none" ? null : board.ball.at;
   const pace = ballAt ? toGoal(board, ballAt) / (board.turnsLeft + 1) : 0;
+  // A square is a share of a turn's move, so a slow team prizes each one
+  // more than a fast team does.
+  const speed =
+    board.ours.reduce((sum, p) => sum + p.stats.MA, 0) /
+    Math.max(1, board.ours.length);
   return {
     board,
     w,
     available,
     teamReroll,
-    urgency: Math.min(3, Math.max(1, pace / 4)),
+    urgency: (Math.min(3, Math.max(1, pace / 4)) * 6) / Math.max(3, speed),
     turnover:
       w.turnoverBase + w.turnoverPerPlayer * Math.max(0, available.size - 1),
     routes: teamReroll ? rerollRoutes : plainRoutes,
