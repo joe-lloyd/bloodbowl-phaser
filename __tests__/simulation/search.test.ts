@@ -190,6 +190,28 @@ describe("the lookahead in a worker", () => {
     5000
   );
 
+  it("falls back to the plan when the worker cannot start", async () => {
+    const { context, planned } = await declaration();
+    const coach = createWorkerSearchCoach({
+      budget: { samples: 1, options: 2, deadlineMs: 1 },
+      createWorker: () => {
+        throw new Error("no workers here");
+      },
+    });
+    const choice = await coach.choose(context);
+    expect(choice.index).toBe(planned.index);
+  });
+
+  it("falls back to the plan when the request cannot be sent", async () => {
+    const { context, planned } = await declaration();
+    const worker = new FakeWorker(() => {
+      throw new Error("could not clone");
+    });
+    const choice = await coachOn(worker).choose(context);
+    expect(choice.index).toBe(planned.index);
+    expect(worker.terminated).toBe(true);
+  });
+
   it("does not ask the worker about a decision mid-activation", async () => {
     const { game, context } = await declaration();
     const reroll = {

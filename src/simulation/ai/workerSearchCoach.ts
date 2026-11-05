@@ -28,7 +28,15 @@ export function createWorkerSearchCoach(options: {
 
   const ask = (request: SearchRequest): Promise<SearchReply | null> =>
     new Promise((resolve) => {
-      const live = (worker ??= options.createWorker());
+      // A worker that cannot start, or a request it cannot take, leaves the
+      // decision to the planner rather than stalling the match.
+      let live: Worker;
+      try {
+        live = worker ??= options.createWorker();
+      } catch {
+        resolve(null);
+        return;
+      }
       const finish = (reply: SearchReply | null) => {
         clearTimeout(timer);
         live.removeEventListener("message", onMessage);
@@ -49,7 +57,11 @@ export function createWorkerSearchCoach(options: {
       );
       live.addEventListener("message", onMessage);
       live.addEventListener("error", onError);
-      live.postMessage(request);
+      try {
+        live.postMessage(request);
+      } catch {
+        onError();
+      }
     });
 
   return {
