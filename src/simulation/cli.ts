@@ -1054,6 +1054,13 @@ async function runTune(options: TuneOptions): Promise<number> {
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
   const say = (line: string) => process.stdout.write(`${line}\n`);
+  // Write beside the checkpoint, then rename over it, so an interrupted
+  // write never leaves a half file that `--from` cannot load.
+  const saveWeights = (weights: Weights) => {
+    const temporary = `${options.out}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(weights, null, 2));
+    fs.renameSync(temporary, options.out);
+  };
   for (let generation = 1; generation <= options.generations; generation++) {
     const seed = nextSeed;
     nextSeed += options.games;
@@ -1090,10 +1097,10 @@ async function runTune(options: TuneOptions): Promise<number> {
         `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${mutants[top][n].toFixed(2)}`).join(", ")}`
       );
       best = mutants[top];
-      fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
+      saveWeights(best);
     }
   }
-  fs.writeFileSync(options.out, JSON.stringify(best, null, 2));
+  saveWeights(best);
   children.forEach((child) => child.send({ done: true }));
   say(`Best weights: ${options.out}`);
   return 0;
