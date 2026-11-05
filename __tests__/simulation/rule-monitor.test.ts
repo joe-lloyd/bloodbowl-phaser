@@ -119,4 +119,19 @@ describe("rule monitor", () => {
       "movement-allowance",
     ]);
   });
+
+  it("does not flag movement a lapsed skill allowed earlier in the turn", () => {
+    const monitor = createRuleMonitor();
+    const before = playState();
+    const mover = before.teams[0].players[0];
+    // Sprint gave a third Rush; it lapsed when the drive ended, but the
+    // turn's counter still holds the squares it allowed.
+    before.turn.movementUsed[mover.id] = mover.stats.MA + 3;
+    const after = structuredClone(before);
+    after.phase = GamePhase.GAME_OVER;
+
+    expect(
+      rules(monitor.observe({ type: "end-turn" }, before, after, false))
+    ).toEqual([]);
+  });
 });
