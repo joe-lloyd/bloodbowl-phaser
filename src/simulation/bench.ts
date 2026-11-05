@@ -11,8 +11,10 @@
  */
 
 import { RosterName } from "../types/Team";
+import { ActionType } from "../types/events";
 import { Coach } from "./coach";
 import { runMatch, TeamPlayStats } from "./runMatch";
+import { scoringSpp, Standard, standardFor } from "./standards";
 
 export interface BenchJob {
   seed: number;
@@ -103,6 +105,10 @@ export interface SideReport {
   failedDodgesPerGame: number;
   rushesPerGame: number;
   failedRushesPerGame: number;
+  casualtiesPerGame: number;
+  completionsPerGame: number;
+  blocksPerGame: number;
+  actionsPerGame: Partial<Record<ActionType, number>>;
 }
 
 export interface BenchReport {
@@ -120,11 +126,18 @@ export interface BenchReport {
   averageMs: number;
 }
 
-function side(games: BenchGame[], index: 0 | 1): SideReport {
+function side(games: readonly BenchGame[], index: 0 | 1): SideReport {
   const n = Math.max(1, games.length);
   const total = (pick: (s: TeamPlayStats) => number) =>
     games.reduce((sum, g) => sum + pick(g.stats[index]), 0);
   const turns = total((s) => s.turns);
+  const actionsPerGame: Partial<Record<ActionType, number>> = {};
+  for (const game of games)
+    for (const [action, count] of Object.entries(game.stats[index].actions) as [
+      ActionType,
+      number,
+    ][])
+      actionsPerGame[action] = (actionsPerGame[action] ?? 0) + count / n;
   return {
     touchdownsPerGame: games.reduce((sum, g) => sum + g.score[index], 0) / n,
     turnoversPerGame: total((s) => s.turnovers) / n,
@@ -133,6 +146,10 @@ function side(games: BenchGame[], index: 0 | 1): SideReport {
     failedDodgesPerGame: total((s) => s.failedDodges) / n,
     rushesPerGame: total((s) => s.rushes) / n,
     failedRushesPerGame: total((s) => s.failedRushes) / n,
+    casualtiesPerGame: total((s) => s.casualties) / n,
+    completionsPerGame: total((s) => s.completions) / n,
+    blocksPerGame: total((s) => s.blocks) / n,
+    actionsPerGame,
   };
 }
 
@@ -156,4 +173,45 @@ export function benchReport(games: BenchGame[]): BenchReport {
     blockingFindings: games.reduce((sum, g) => sum + g.blockingFindings, 0),
     averageMs: n ? games.reduce((sum, g) => sum + g.ms, 0) / n : 0,
   };
+}
+
+export interface RosterRow {
+  roster: RosterName;
+  games: number;
+  winRate: number;
+  side: SideReport;
+  standard: Standard;
+  /** From touchdowns and casualties, at the roster's own SPP values. */
+  sppPerGame: number;
+  meets: boolean;
+}
+
+/** The candidate's games by the roster it drove, each against its standard. */
+export function rosterReport(games: readonly BenchGame[]): RosterRow[] {
+  const byRoster = new Map<RosterName, BenchGame[]>();
+  for (const game of games) {
+    const roster = game.rosters[game.candidateSide];
+    byRoster.set(roster, [...(byRoster.get(roster) ?? []), game]);
+  }
+  return [...byRoster]
+    .map(([roster, played]) => {
+      const report = side(played, 0);
+      const standard = standardFor(roster);
+      const sppPerGame = scoringSpp(
+        standard.values,
+        report.touchdownsPerGame,
+        report.casualtiesPerGame
+      );
+      return {
+        roster,
+        games: played.length,
+        winRate:
+          played.filter((g) => g.score[0] > g.score[1]).length / played.length,
+        side: report,
+        standard,
+        sppPerGame,
+        meets: sppPerGame >= standard.spp,
+      };
+    })
+    .sort((a, b) => a.roster.localeCompare(b.roster));
 }

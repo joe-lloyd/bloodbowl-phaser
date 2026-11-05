@@ -5,13 +5,16 @@ import {
   BenchGame,
   benchReport,
   playBenchGame,
+  rosterReport,
   wilson,
 } from "../../src/simulation/bench";
+import { TeamPlayStats } from "../../src/simulation/runMatch";
+import { standardFor } from "../../src/simulation/standards";
 import { PUZZLES, playPuzzle } from "../../src/simulation/puzzles";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { Coach } from "../../src/simulation/coach";
-import { mutate, pointShare } from "../../src/simulation/tune";
+import { mutate, pointShare, standardsShare } from "../../src/simulation/tune";
 import { createCoachRng } from "../../src/simulation/rng";
 import {
   DEFAULT_WEIGHTS,
@@ -53,6 +56,61 @@ describe("coach benchmark", () => {
     const [low, high] = wilson(80, 100);
     expect(low).toBeCloseTo(0.7112, 3);
     expect(high).toBeCloseTo(0.8666, 3);
+  });
+});
+
+describe("roster standards", () => {
+  it("shares two touchdowns a game out by each race's real scoring rate", () => {
+    const rosters = Object.values(RosterName);
+    const mean =
+      rosters.reduce((sum, r) => sum + standardFor(r).touchdowns, 0) /
+      rosters.length;
+    expect(mean).toBeCloseTo(2, 9);
+    expect(standardFor(RosterName.SKAVEN).touchdowns).toBeCloseTo(2.793, 3);
+    expect(standardFor(RosterName.DWARF).touchdowns).toBeCloseTo(1.894, 3);
+    expect(standardFor(RosterName.OGRE).touchdowns).toBeCloseTo(1.419, 3);
+  });
+
+  it("lets a Brawlin' Brutes team meet its standard with casualties", () => {
+    const stats = (casualties: number): TeamPlayStats => ({
+      turns: 12,
+      turnovers: 0,
+      dodges: 0,
+      failedDodges: 0,
+      rushes: 0,
+      failedRushes: 0,
+      casualties,
+      completions: 0,
+      blocks: 10,
+      actions: { block: 6, blitz: 4 },
+    });
+    const game = (roster: RosterName): BenchGame => ({
+      seed: 1,
+      rosters: [roster, RosterName.ELVEN_UNION],
+      candidateSide: 0,
+      score: [1, 0],
+      stats: [stats(2), stats(0)],
+      completed: true,
+      blockingFindings: 0,
+      findingKeys: [],
+      ms: 0,
+    });
+    const [dwarf, human] = rosterReport([
+      game(RosterName.DWARF),
+      game(RosterName.HUMAN),
+    ]);
+
+    // One touchdown and two casualties: 2 + 3 + 3 SPP for Dwarfs, against
+    // 3 x 1.89 = 5.7; Humans count the touchdown only, 3 against 6.9.
+    expect(dwarf).toMatchObject({ roster: RosterName.DWARF, sppPerGame: 8 });
+    expect(dwarf.meets).toBe(true);
+    expect(human).toMatchObject({ roster: RosterName.HUMAN, sppPerGame: 3 });
+    expect(human.meets).toBe(false);
+    expect(dwarf.side.actionsPerGame).toEqual({ block: 6, blitz: 4 });
+    // The Dwarf's surplus does not make up for the Human's shortfall.
+    expect(
+      standardsShare([game(RosterName.DWARF), game(RosterName.HUMAN)])
+    ).toBeCloseTo((1 + 3 / standardFor(RosterName.HUMAN).spp) / 2, 9);
   });
 });
 

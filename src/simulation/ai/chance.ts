@@ -146,3 +146,36 @@ export function blockOdds(
     attackerDown: attackerDown as Chance,
   };
 }
+
+/** Two D6 totalling `target` or more. */
+export function twoD6(target: number): Chance {
+  let hits = 0;
+  for (let a = 1; a <= 6; a++)
+    for (let b = 1; b <= 6; b++) if (a + b >= target) hits++;
+  return (hits / 36) as Chance;
+}
+
+/**
+ * The chance a knockdown ends in a casualty, on the Sevens injury table:
+ * 10+ to injure, 9+ on a Stunty player. Claws break armour on a natural 8+,
+ * and Mighty Blow adds one to the armour roll, or to the injury roll if the
+ * armour broke without it. Iron Hard Skin cancels Claws and any armour
+ * modifier. Regeneration saves half of them.
+ */
+export function casualtyChance(attacker: Player, defender: Player): Chance {
+  const has = (p: Player, s: SkillType) => hasSkill(p.skills, s);
+  const ironHard = has(defender, SkillType.IRON_HARD_SKIN);
+  const claws = has(attacker, SkillType.CLAWS) && !ironHard;
+  const injury = has(defender, SkillType.STUNTY) ? 9 : 10;
+  const blow = has(attacker, SkillType.MIGHTY_BLOW) ? 1 : 0;
+  // The natural roll that breaks armour with `modifier` added to it.
+  const breakAt = (modifier: number) =>
+    claws
+      ? Math.min(8, defender.stats.AV - modifier)
+      : defender.stats.AV - modifier;
+  const breaks = twoD6(breakAt(0));
+  const breaksWithBlow = twoD6(breakAt(ironHard ? 0 : blow));
+  const p =
+    breaks * twoD6(injury - blow) + (breaksWithBlow - breaks) * twoD6(injury);
+  return (has(defender, SkillType.REGENERATION) ? p / 2 : p) as Chance;
+}

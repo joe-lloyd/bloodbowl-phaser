@@ -218,8 +218,16 @@ export function createRuleMonitor(): RuleMonitor {
 
       for (const player of after.teams.flatMap((t) => t.players)) {
         const used = after.turn.movementUsed[player.id] ?? 0;
+        // Judged when it is spent, against the player as they were before
+        // the command: a skill can lapse at the end of a drive, even in the
+        // command that spent the squares it allowed.
+        if (used <= (before.turn.movementUsed[player.id] ?? 0)) continue;
+        const mover =
+          before.teams
+            .flatMap((t) => t.players)
+            .find((p) => p.id === player.id) ?? player;
         const allowance =
-          player.stats.MA + (player.skills.includes("Sprint") ? 3 : 2);
+          mover.stats.MA + (mover.skills.includes("Sprint") ? 3 : 2);
         if (used > allowance) {
           fail(
             "movement-allowance",

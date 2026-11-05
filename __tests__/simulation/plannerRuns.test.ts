@@ -7,7 +7,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { Player } from "../../src/types/Player";
-import { chain } from "../../src/simulation/ai/chance";
+import { casualtyChance, chain } from "../../src/simulation/ai/chance";
 import { key, readBoard } from "../../src/simulation/ai/board";
 import { routesFor } from "../../src/simulation/ai/routes";
 import { enumerateDecision } from "../../src/simulation/candidates";
@@ -84,6 +84,39 @@ describe("the planner's dice maths", () => {
       8 / 9,
       6
     );
+  });
+
+  it("prices a casualty from the armour and the Sevens injury table", () => {
+    const player = (av: number, ...skills: SkillType[]) =>
+      ({ stats: { AV: av }, skills: skills.map(getSkill) }) as Player;
+    // Armour 9+ breaks on 10 of 36; 10+ injures on 6 of 36.
+    expect(casualtyChance(player(9), player(9))).toBeCloseTo(60 / 1296, 9);
+    // Mighty Blow on whichever roll needs it: 10/36 x 10/36 + 5/36 x 6/36.
+    expect(
+      casualtyChance(player(9, SkillType.MIGHTY_BLOW), player(9))
+    ).toBeCloseTo(130 / 1296, 9);
+    // Claws break armour 10+ on 8+; a Stunty player is hurt on 9+.
+    expect(
+      casualtyChance(player(9, SkillType.CLAWS), player(10, SkillType.STUNTY))
+    ).toBeCloseTo((15 / 36) * (10 / 36), 9);
+    // Mighty Blow cannot bring a natural 7 up to Claws' 8: 15/36 x 10/36.
+    expect(
+      casualtyChance(
+        player(9, SkillType.CLAWS, SkillType.MIGHTY_BLOW),
+        player(10)
+      )
+    ).toBeCloseTo(150 / 1296, 9);
+    // Iron Hard Skin: no Claws, no armour modifier; Mighty Blow injures.
+    expect(
+      casualtyChance(
+        player(9, SkillType.CLAWS, SkillType.MIGHTY_BLOW),
+        player(9, SkillType.IRON_HARD_SKIN)
+      )
+    ).toBeCloseTo(100 / 1296, 9);
+    // Regeneration saves half.
+    expect(
+      casualtyChance(player(9), player(9, SkillType.REGENERATION))
+    ).toBeCloseTo(30 / 1296, 9);
   });
 });
 

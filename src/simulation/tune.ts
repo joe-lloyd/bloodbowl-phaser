@@ -1,12 +1,13 @@
 /**
- * Hill-climbing the planner's weights by self-play, the way EvoGrod tuned
- * GrodBot: mutate a few weights, play the mutants against the current best
- * on the same mirrored seeds, and promote one only if a second batch of
- * fresh seeds confirms it. This file is the pure half; the CLI spreads the
- * games across child processes.
+ * Hill-climbing the planner's weights, the way EvoGrod tuned GrodBot:
+ * mutate a few weights, play the mutants on the same mirrored seeds, and
+ * promote one only if a second batch of fresh seeds confirms it. By
+ * self-play each mutant plays the current best; for the standards each one
+ * plays the heuristic and is judged by `standardsShare`. This file is the
+ * pure half; the CLI spreads the games across child processes.
  */
 
-import { BenchGame } from "./bench";
+import { BenchGame, rosterReport } from "./bench";
 import { DEFAULT_WEIGHTS, Weights, weightBounds } from "./ai/weights";
 import { CoachRng } from "./rng";
 
@@ -40,4 +41,19 @@ export function pointShare(games: readonly BenchGame[]): number {
     0
   );
   return points / games.length;
+}
+
+/**
+ * Each roster's SPP a game over its standard, capped at 1 so a roster
+ * beyond its standard cannot make up for one short of it, averaged over the
+ * rosters played.
+ */
+export function standardsShare(games: readonly BenchGame[]): number {
+  const rows = rosterReport(games);
+  return (
+    rows.reduce(
+      (sum, row) => sum + Math.min(1, row.sppPerGame / row.standard.spp),
+      0
+    ) / Math.max(1, rows.length)
+  );
 }

@@ -32,7 +32,7 @@ import { heuristicCoach } from "./coaches/heuristic";
 import { createPlannerCoach, plannerCoach } from "./ai/planner";
 import { BUDGETS, createSearchCoach } from "./ai/search";
 import { DEFAULT_WEIGHTS, Weights, parseWeights } from "./ai/weights";
-import { mutate, pointShare } from "./tune";
+import { mutate, pointShare, standardsShare } from "./tune";
 import { createJevCoach, JevStats } from "./coaches/jev";
 import { Finding, FindingKind, MatchRecording, runMatch } from "./runMatch";
 import {
@@ -50,9 +50,12 @@ import {
   BenchReport,
   benchJobs,
   benchReport,
+  rosterReport,
+  RosterRow,
   playBenchGame,
 } from "./bench";
 import { solveRates } from "./puzzles";
+import { AVERAGE_TOUCHDOWNS } from "./standards";
 
 const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
@@ -588,6 +591,8 @@ interface BenchOptions {
   /** A frozen copy of planner.ts to play instead of the --vs coach. */
   vsModule?: string;
   rerolls?: number;
+  /** Give every roster its share of games, and judge each by its standard. */
+  standards: boolean;
 }
 
 const BENCH_HELP = `Usage: pnpm sim bench [options]
@@ -604,6 +609,8 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --vs-module <file>   play a frozen copy of ai/planner.ts as the baseline, to
                        compare the coach with an earlier version of itself
   --rerolls <n>        team re-rolls each side starts with (default 3)
+  --standards          give every roster the same share of games and judge
+                       each against its standard (see standards.ts)
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
@@ -615,6 +622,7 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     rosters: Object.values(RosterName),
     workers: Math.max(1, os.cpus().length - 1),
     puzzleSeeds: 50,
+    standards: false,
     out: path.join(
       "sim-results",
       `bench-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
@@ -655,6 +663,9 @@ function parseBenchOptions(argv: string[]): BenchOptions {
         break;
       case "--rerolls":
         options.rerolls = Number(value(i++));
+        break;
+      case "--standards":
+        options.standards = true;
         break;
       case "--out":
         options.out = value(i++);
@@ -735,8 +746,13 @@ async function benchWorker(argv: string[]): Promise<number> {
 
 async function runBench(options: BenchOptions): Promise<number> {
   const pairing = createCoachRng(options.seed);
+  let pair = 0;
+  // A mirrored pair plays both rosters, so cycling the first gives every
+  // roster at least its share.
   const jobs = benchJobs(options.games / 2, options.seed, () => [
-    pairing.pick(options.rosters),
+    options.standards
+      ? options.rosters[pair++ % options.rosters.length]
+      : pairing.pick(options.rosters),
     pairing.pick(options.rosters),
   ]);
   const games: BenchGame[] = [];
@@ -791,6 +807,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   if (unfinished > 0) errors.push(`${unfinished} games never finished`);
 
   const report = benchReport(games);
+  const rosters = options.standards ? rosterReport(games) : [];
   const broke = new Map<string, number>();
   for (const key of games.flatMap((g) => g.findingKeys))
     broke.set(key, (broke.get(key) ?? 0) + 1);
@@ -825,6 +842,7 @@ async function runBench(options: BenchOptions): Promise<number> {
       {
         options: { ...options, rosters: options.rosters.length },
         report,
+        rosters,
         puzzles,
         errors,
         games: games.sort(
@@ -837,6 +855,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   );
   process.stdout.write(
     `${formatBench(options, report, puzzles)}\n` +
+      (rosters.length ? `${formatStandards(rosters, games)}\n` : "") +
       [...broke].map(([key, n]) => `  finding: ${key} ${n}x\n`).join("") +
       errors.map((e) => `  error: ${e}\n`).join("") +
       `\nReport: ${options.out}\n`
@@ -880,6 +899,31 @@ function formatBench(
   return lines.join("\n");
 }
 
+function formatStandards(rows: RosterRow[], games: BenchGame[]): string {
+  const f = (x: number, digits = 2) => x.toFixed(digits);
+  const actions = (side: RosterRow["side"]) =>
+    (["block", "blitz", "pass", "handoff", "foul"] as const)
+      .map((a) => `${a} ${f(side.actionsPerGame[a] ?? 0, 1)}`)
+      .join(" ");
+  const met = rows.filter((r) => r.meets).length;
+  const meanTouchdowns =
+    rows.reduce((sum, r) => sum + r.side.touchdownsPerGame, 0) / rows.length;
+  return [
+    "Standards: touchdowns from each race's real scoring rate, in SPP; Brawlin' Brutes casualties count",
+    `  ${"roster".padEnd(20)} games  won   TD (aim)     CAS   SPP (aim)     declared a game`,
+    ...rows.map(
+      (r) =>
+        `  ${r.roster.padEnd(20)} ${String(r.games).padStart(5)} ${`${Math.round(r.winRate * 100)}%`.padStart(4)}  ` +
+        `${f(r.side.touchdownsPerGame)} (${f(r.standard.touchdowns)})  ` +
+        `${f(r.side.casualtiesPerGame).padStart(5)}  ` +
+        `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : "    "}  ` +
+        actions(r.side)
+    ),
+    `  ${met} of ${rows.length} rosters meet their standard; ${f(meanTouchdowns)} TD a game averaged over rosters, against ${f(AVERAGE_TOUCHDOWNS)}`,
+    `  share of the standards ${f(standardsShare(games), 3)} (each roster's SPP over its aim, at most 1)`,
+  ].join("\n");
+}
+
 interface TuneOptions {
   generations: number;
   mutants: number;
@@ -890,6 +934,7 @@ interface TuneOptions {
   rosters: RosterName[];
   out: string;
   from?: string;
+  objective: "self-play" | "standards";
 }
 
 const TUNE_HELP = `Usage: pnpm sim tune [options]
@@ -900,6 +945,9 @@ const TUNE_HELP = `Usage: pnpm sim tune [options]
   --seed <n>           first seed (default 1)
   --workers <n>        parallel processes (default: CPUs - 1)
   --from <file>        start from these weights instead of the defaults
+  --objective <name>   "self-play": point share against the best so far
+                       (default); "standards": each roster's share of its
+                       standard against the heuristic (see standards.ts)
   --out <file>         best weights so far (default sim-results/tuned-weights.json)`;
 
 function parseTuneOptions(argv: string[]): TuneOptions {
@@ -912,8 +960,10 @@ function parseTuneOptions(argv: string[]): TuneOptions {
     workers: Math.max(1, os.cpus().length - 1),
     rosters: Object.values(RosterName),
     out: path.join("sim-results", "tuned-weights.json"),
+    objective: "self-play",
   };
   const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+  let gamesGiven = false;
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case "--generations":
@@ -924,6 +974,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
         break;
       case "--games":
         options.games = Number(value(i++));
+        gamesGiven = true;
         break;
       case "--confirm":
         options.confirmGames = Number(value(i++));
@@ -937,6 +988,13 @@ function parseTuneOptions(argv: string[]): TuneOptions {
       case "--from":
         options.from = value(i++);
         break;
+      case "--objective": {
+        const objective = value(i++);
+        if (objective !== "self-play" && objective !== "standards")
+          fail(`--objective must be self-play or standards, not ${objective}`);
+        options.objective = objective;
+        break;
+      }
       case "--out":
         options.out = value(i++);
         break;
@@ -948,6 +1006,9 @@ function parseTuneOptions(argv: string[]): TuneOptions {
         fail(`unknown option ${argv[i]}\n\n${TUNE_HELP}`);
     }
   }
+  // Standards tuning needs a mirrored pair per roster to judge every one.
+  if (options.objective === "standards" && !gamesGiven)
+    options.games = Math.max(options.games, 2 * options.rosters.length);
   for (const [name, n] of [
     ["--generations", options.generations],
     ["--mutants", options.mutants],
@@ -963,13 +1024,23 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
+  // Each mirrored pair's first roster cycles through the list, so a share
+  // over fewer pairs than rosters would skip some of them.
+  const pairs = Math.min(options.games, options.confirmGames) / 2;
+  if (options.objective === "standards" && pairs < options.rosters.length)
+    fail(
+      `--games and --confirm must each be at least ${2 * options.rosters.length} for --objective standards, one mirrored pair per roster`
+    );
   return options;
 }
+
+/** How far a mutant must beat the best on the same games to replace it. */
+const STANDARDS_MARGIN = 0.015;
 
 interface TuneJob {
   job: BenchJob;
   candidate: Weights;
-  baseline: Weights;
+  baseline: Weights | "heuristic";
   rerolls: number;
 }
 
@@ -986,7 +1057,9 @@ async function tuneWorker(): Promise<number> {
     process.on("message", (message: { work?: TuneJob; done?: true }) => {
       if (!message.work) return resolve();
       const { job, candidate, baseline, rerolls } = message.work;
-      playBenchGame(job, coach(candidate), coach(baseline), rerolls).then(
+      const opponent =
+        baseline === "heuristic" ? heuristicCoach : coach(baseline);
+      playBenchGame(job, coach(candidate), opponent, rerolls).then(
         (game) => process.send!({ game }),
         (error) =>
           process.send!({
@@ -1037,32 +1110,50 @@ async function runTune(options: TuneOptions): Promise<number> {
     return child;
   });
 
-  /** Mirrored games of `a` against `b`; team re-rolls vary by seed. */
-  const play = async (a: Weights, b: Weights, games: number, seed: number) => {
+  const say = (line: string) => process.stdout.write(`${line}\n`);
+  /**
+   * Mirrored games of `a` against `b`; team re-rolls vary by seed. Against
+   * the heuristic every roster gets its share, as in `bench --standards`,
+   * with the bench's three re-rolls.
+   */
+  const play = async (
+    a: Weights,
+    b: Weights | "heuristic",
+    games: number,
+    seed: number
+  ) => {
     const pick = createCoachRng(seed);
+    let pair = 0;
     const jobs = benchJobs(games / 2, seed, () => [
-      pick.pick(options.rosters),
+      b === "heuristic"
+        ? options.rosters[pair++ % options.rosters.length]
+        : pick.pick(options.rosters),
       pick.pick(options.rosters),
     ]);
-    return Promise.all(
+    const broken = new Set<number>();
+    const played = await Promise.all(
       jobs.map(
         (job) =>
-          new Promise<BenchGame>((resolve) => {
+          new Promise<BenchGame | null>((resolve) => {
             queue.push({
               work: {
                 job,
                 candidate: a,
                 baseline: b,
-                rerolls: job.seed % 4,
+                rerolls: b === "heuristic" ? 3 : job.seed % 4,
               },
               done(game) {
-                // A failed or stalled game must not quietly shrink what a
-                // promotion rests on, so stop before playing any more.
-                if (!game?.completed || game.blockingFindings > 0)
-                  fail(
-                    `tuning stopped: the game on seed ${job.seed} (side ${job.candidateSide}) ` +
-                      (game?.findingKeys.join(", ") || "did not finish")
+                // A rare engine bug says nothing about the weights, and must
+                // not end a run of hours, so a broken game and its mirror are
+                // left out of the score. They are never left out quietly.
+                if (!game?.completed || game.blockingFindings > 0) {
+                  broken.add(job.seed);
+                  say(
+                    `  left out seed ${job.seed} (side ${job.candidateSide}): ` +
+                      (game?.findingKeys[0] ?? "did not finish")
                   );
+                  return resolve(null);
+                }
                 resolve(game);
               },
             });
@@ -1070,10 +1161,20 @@ async function runTune(options: TuneOptions): Promise<number> {
           })
       )
     );
+    return {
+      games: played.filter((game): game is BenchGame => game !== null),
+      broken,
+    };
+  };
+  /** Every batch scored on the seeds that finished cleanly in all of them. */
+  const common = (batches: Awaited<ReturnType<typeof play>>[]) => {
+    const broken = new Set(batches.flatMap((batch) => [...batch.broken]));
+    return batches.map((batch) =>
+      batch.games.filter((game) => !broken.has(game.seed))
+    );
   };
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
-  const say = (line: string) => process.stdout.write(`${line}\n`);
   // Write beside the checkpoint, then rename over it, so an interrupted
   // write never leaves a half file that `--from` cannot load.
   const saveWeights = (weights: Weights) => {
@@ -1081,32 +1182,50 @@ async function runTune(options: TuneOptions): Promise<number> {
     fs.writeFileSync(temporary, JSON.stringify(weights, null, 2));
     fs.renameSync(temporary, options.out);
   };
+  const standards = options.objective === "standards";
   for (let generation = 1; generation <= options.generations; generation++) {
     const seed = nextSeed;
     nextSeed += options.games;
     const mutants = Array.from({ length: options.mutants }, () =>
       mutate(best, rng)
     );
-    const shares = await Promise.all(
-      mutants.map(async (m) =>
-        pointShare(await play(m, best, options.games, seed))
+    const screened = common(
+      await Promise.all(
+        mutants.map((m) =>
+          play(m, standards ? "heuristic" : best, options.games, seed)
+        )
       )
     );
+    const shares = screened.map(standards ? standardsShare : pointShare);
     const top = shares.indexOf(Math.max(...shares));
-    const confirm = await play(
-      mutants[top],
-      best,
-      options.confirmGames,
-      nextSeed
-    );
+    let share: number;
+    let bar: number;
+    let judged = true;
+    if (standards) {
+      const [mutant, current] = common(
+        await Promise.all(
+          [mutants[top], best].map((m) =>
+            play(m, "heuristic", options.confirmGames, nextSeed)
+          )
+        )
+      );
+      share = standardsShare(mutant);
+      bar = standardsShare(current) + STANDARDS_MARGIN;
+      // A broken seed can take a roster's only pair with it.
+      judged = rosterReport(mutant).length === options.rosters.length;
+    } else {
+      [share] = common([
+        await play(mutants[top], best, options.confirmGames, nextSeed),
+      ]).map(pointShare);
+      // One and a half standard errors of a coin flip over the confirming games.
+      bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
+    }
     nextSeed += options.confirmGames;
-    const share = pointShare(confirm);
-    // One and a half standard errors of a coin flip over the confirming games.
-    const bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
-    const promoted = share >= bar;
+    const promoted = judged && share >= bar;
     say(
       `generation ${generation}: best mutant ${shares[top].toFixed(3)}, ` +
         `confirmed ${share.toFixed(3)} (needs ${bar.toFixed(3)})` +
+        (judged ? "" : ", but not on every roster") +
         (promoted ? ", promoted" : "")
     );
     if (promoted) {

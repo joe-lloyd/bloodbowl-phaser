@@ -11,7 +11,7 @@ export const DEFAULT_WEIGHTS = {
   /** A move whose rolls all pass at least this often is a safe move. */
   safeMove: 0.92,
   /** A block that leaves the attacker standing this often is a sure block. */
-  sureBlock: 0.9,
+  sureBlock: 0.8,
   /** Try a pick-up only at this chance or better before the risky tier. */
   pickupMin: 0.33,
   pickup: 45,
@@ -37,6 +37,11 @@ export const DEFAULT_WEIGHTS = {
   chase: 11,
   knockdown: 12,
   carrierKnockdown: 75,
+  /**
+   * Per casualty a knockdown is expected to cause, for a team paid the
+   * usual 2 SPP a Casualty and 3 a Touchdown.
+   */
+  casualtyHit: 40,
   /** Knocking down a player next to the opposing carrier. */
   cageBreak: 20,
   /** What a turnover costs before counting the players left to act. */
