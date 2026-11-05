@@ -122,6 +122,50 @@ describe("Pile Driver", () => {
     expect(response.snapshot.ballPosition).not.toEqual(attacker.gridPosition);
   });
 
+  it("starts the next drive when the dropped ball is caught for a touchdown", async () => {
+    // The blocker follows up beside its end zone holding the ball, lies down,
+    // and the bounce reaches a team-mate standing in the end zone. The
+    // Turnover must not end the turn again once the touchdown has.
+    const scoring: Scenario = {
+      ...scenario,
+      setup: {
+        ...scenario.setup,
+        team1Placements: [
+          { playerIndex: 0, x: 17, y: 5, skills: [SkillType.PILE_DRIVER] },
+          { playerIndex: 1, x: 19, y: 4 },
+          { playerIndex: 2, x: 19, y: 6 },
+          { playerIndex: 3, x: 2, y: 2 },
+        ],
+        team2Placements: [{ playerIndex: 0, x: 18, y: 5 }],
+        ballPosition: { x: 17, y: 5 },
+      },
+    };
+    // A POW, then the bounce lands on the team-mate at (19, 4), who catches.
+    const game = new HeadlessGame({ scenario: scoring, seed: 3 });
+    const attacker = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    const events: EmittedEvent[] = [];
+    let response: CommandResponse | undefined;
+    for (const command of [
+      { type: "declare-action", playerId: attacker.id, action: "block" },
+      { type: "block", attackerId: attacker.id, defenderId: defender.id },
+      { type: "choose-block-result", index: 0 },
+      { type: "choose-push-direction", x: 19, y: 5 },
+      { type: "choose-follow-up", followUp: true },
+      { type: "use-reaction", accept: true },
+    ]) {
+      response = await game.execute(command);
+      events.push(...response.events);
+    }
+
+    expect(events.some((e) => e.name === "touchdown")).toBe(true);
+    expect(response!.snapshot).toMatchObject({
+      phase: GamePhase.SETUP,
+      subPhase: SubPhase.SETUP_KICKING,
+      activeTeamId: "team1",
+    });
+  });
+
   it("lets a declined Blitz keep moving", async () => {
     const { run, dice, attacker } = await knockDownAndFollowUp("blitz");
 
