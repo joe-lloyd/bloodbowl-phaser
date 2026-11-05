@@ -4,24 +4,25 @@
  * The brief asks for about two touchdowns a game. Races do not score alike:
  * in real Blood Bowl Skaven score half as much again as Dwarfs. So the two
  * touchdowns are an average over the rosters, shared out by each race's real
- * scoring rate (raceRates.ts). Casualties count too, in the SPP the roster's
- * own rules pay. A Brawlin' Brutes team earns 3 SPP for a Casualty and only
- * 2 for a Touchdown, so for those teams casualties can stand in for a
- * touchdown it does not score.
+ * scoring rate (raceRates.ts). Those rates come from the eleven-player game;
+ * no per-race Sevens figures are published yet.
+ *
+ * The bar is the SPP those touchdowns are worth at the usual 3 each. A team
+ * earns towards it at its own rules' values. A Brawlin' Brutes team earns 2
+ * for a Touchdown and 3 for a Casualty, so its casualties stand in for the
+ * touchdowns it does not score. Other teams count touchdowns only.
  */
 
 import { RosterName } from "../types/Team";
-import { SppValues, sppValuesFor } from "../game/progression/MatchStats";
+import {
+  SPP_VALUES,
+  SppValues,
+  sppValuesFor,
+} from "../game/progression/MatchStats";
 import { RACE_RATES } from "./raceRates";
 
 /** The brief's touchdowns a game, averaged over every roster. */
 export const AVERAGE_TOUCHDOWNS = 2;
-
-/**
- * A Sevens side has seven players and twelve turns against the full game's
- * eleven and sixteen, so it throws about half the blocks a real team does.
- */
-const SEVENS_BLOCK_SHARE = (7 / 11) * (12 / 16);
 
 const ROSTERS = Object.values(RosterName);
 const MEAN_TOUCHDOWNS =
@@ -30,31 +31,32 @@ const MEAN_TOUCHDOWNS =
 
 export interface Standard {
   touchdowns: number;
-  casualties: number;
   /** What the roster's players earn for each. */
   values: SppValues;
-  /** The SPP a game those touchdowns and casualties are worth. */
+  /** The SPP a game the touchdown aim is worth at the usual values. */
   spp: number;
 }
 
-/** SPP a game from touchdowns and casualties, at a roster's own values. */
+/**
+ * SPP a game towards the standard. Casualties count only for a team whose
+ * rules pay at least as much for one as for a touchdown.
+ */
 export function scoringSpp(
   values: SppValues,
   touchdowns: number,
   casualties: number
 ): number {
-  return touchdowns * values.touchdown + casualties * values.casualty;
+  const fromCasualties =
+    values.casualty >= values.touchdown ? casualties * values.casualty : 0;
+  return touchdowns * values.touchdown + fromCasualties;
 }
 
 export function standardFor(roster: RosterName): Standard {
-  const rates = RACE_RATES[roster];
-  const values = sppValuesFor(roster);
-  const touchdowns = (AVERAGE_TOUCHDOWNS * rates.touchdowns) / MEAN_TOUCHDOWNS;
-  const casualties = rates.casualties * SEVENS_BLOCK_SHARE;
+  const touchdowns =
+    (AVERAGE_TOUCHDOWNS * RACE_RATES[roster].touchdowns) / MEAN_TOUCHDOWNS;
   return {
     touchdowns,
-    casualties,
-    values,
-    spp: scoringSpp(values, touchdowns, casualties),
+    values: sppValuesFor(roster),
+    spp: touchdowns * SPP_VALUES.touchdown,
   };
 }

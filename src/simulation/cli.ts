@@ -909,13 +909,13 @@ function formatStandards(rows: RosterRow[], games: BenchGame[]): string {
   const meanTouchdowns =
     rows.reduce((sum, r) => sum + r.side.touchdownsPerGame, 0) / rows.length;
   return [
-    "Standards: touchdowns from each race's real scoring rate, casualties at its own SPP values",
-    `  ${"roster".padEnd(20)} games  won   TD (aim)    CAS (aim)   SPP (aim)     declared a game`,
+    "Standards: touchdowns from each race's real scoring rate, in SPP; Brawlin' Brutes casualties count",
+    `  ${"roster".padEnd(20)} games  won   TD (aim)     CAS   SPP (aim)     declared a game`,
     ...rows.map(
       (r) =>
         `  ${r.roster.padEnd(20)} ${String(r.games).padStart(5)} ${`${Math.round(r.winRate * 100)}%`.padStart(4)}  ` +
         `${f(r.side.touchdownsPerGame)} (${f(r.standard.touchdowns)})  ` +
-        `${f(r.side.casualtiesPerGame)} (${f(r.standard.casualties)})  ` +
+        `${f(r.side.casualtiesPerGame).padStart(5)}  ` +
         `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : "    "}  ` +
         actions(r.side)
     ),

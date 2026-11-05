@@ -140,21 +140,26 @@ pnpm sim bench --coach planner --vs heuristic --games 1200 --standards --puzzles
 The brief asks the coach for about two touchdowns a game against the
 heuristic. Races do not score alike, so the two touchdowns are an average over
 the rosters, shared out by each race's touchdowns a game in real Blood Bowl.
-Skaven aim for 2.79 a game, Dwarfs for 1.89 and Ogres for 1.42. Each roster
-also aims for its real casualty rate, scaled to the blocks a Sevens side
-throws: seven players and twelve turns, against eleven and sixteen.
+Skaven aim for 2.79 a game, Dwarfs for 1.89 and Ogres for 1.42.
 
-Both aims count in the SPP the roster's own rules pay. A Brawlin' Brutes team
-earns 3 SPP for a Casualty and 2 for a Touchdown, so its casualties can make
-up for a touchdown it does not score. A roster meets its standard when its SPP
-a game from touchdowns and casualties reaches the SPP its aims are worth.
+The bar is the SPP those touchdowns are worth at the usual 3 each. Each team
+earns towards it at its own rules' values. A Brawlin' Brutes team earns 2 SPP
+for a Touchdown and 3 for a Casualty, so its casualties stand in for the
+touchdowns it does not score. Other teams count touchdowns only.
 
-For each roster the table gives games, wins, touchdowns, casualties and SPP a
-game against the aims, and the blocks, blitzes, passes, hand-offs and fouls it
-declared a game. The last lines count the rosters that met their standard and
-give the share of the standards: each roster's SPP over its aim, at most 1,
-averaged over the rosters. Over 1200 games that share moves by about 0.015
-from one set of seeds to the next.
+The real rates are from the eleven-player game. A Sevens pitch is 20 squares
+long against 26, and the two Lines of Scrimmage are 7 squares apart, so
+nobody starts in contact. Blocks in Sevens are chosen, not forced, which is
+why casualties count only for the Brutes and no casualty rate is carried over
+from the full game. No per-race Sevens figures are published yet; the
+touchdown shares assume the races rank in Sevens as they do in the full game.
+
+For each roster the table gives games, wins, touchdowns against the aim,
+casualties, SPP a game against the aim, and the blocks, blitzes, passes,
+hand-offs and fouls it declared a game. The last lines count the rosters that
+met their standard and give the share of the standards: each roster's SPP over
+its aim, at most 1, averaged over the rosters. Over 1200 games that share
+moves by about 0.015 from one set of seeds to the next.
 
 The real rates come from the public
 [FUMBBL match dataset](https://github.com/gsverhoeven/fumbbl_datasets) (CC0):
