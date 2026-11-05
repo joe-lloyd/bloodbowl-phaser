@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EventBus } from "../../src/services/EventBus";
 import { Player, PlayerStatus } from "../../src/types/Player";
-import { Team } from "../../src/types/Team";
+import { RosterName, Team } from "../../src/types/Team";
 import { GameEventNames } from "../../src/types/events";
 import { MatchStats } from "../../src/game/progression/MatchStats";
 import {
@@ -34,7 +34,7 @@ function player(id: string, teamId = "team-1"): Player {
 }
 
 function team(id: string, players: Player[]): Team {
-  return { id, players } as Team;
+  return { id, players, rosterName: RosterName.HUMAN } as Team;
 }
 
 describe("career stats fold", () => {

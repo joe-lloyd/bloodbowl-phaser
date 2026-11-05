@@ -1,7 +1,8 @@
 import { IEventBus } from "../../services/EventBus";
 import { GameEventNames } from "../../types/events";
 import { Player } from "../../types/Player";
-import { Team } from "../../types/Team";
+import { RosterName, Team, TeamSpecialRule } from "../../types/Team";
+import { getRosterByRosterName } from "../../data/RosterTemplates";
 
 export interface PlayerMatchStats {
   playerId: string;
@@ -57,6 +58,24 @@ export const SPP_VALUES = {
   mvp: 4,
 } as const;
 
+export type SppValues = { readonly [K in keyof typeof SPP_VALUES]: number };
+
+/** Brawlin' Brutes: 3 SPP for a Casualty and 2 for a Touchdown. */
+const BRAWLIN_BRUTES_SPP_VALUES: SppValues = {
+  ...SPP_VALUES,
+  casualty: 3,
+  touchdown: 2,
+};
+
+/** What each achievement is worth to a roster's players, by its special rules. */
+export function sppValuesFor(rosterName: RosterName): SppValues {
+  return getRosterByRosterName(rosterName).specialRules.includes(
+    TeamSpecialRule.BRAWLIN_BRUTES
+  )
+    ? BRAWLIN_BRUTES_SPP_VALUES
+    : SPP_VALUES;
+}
+
 function emptyStats(player: Player): PlayerMatchStats {
   return {
     playerId: player.id,
@@ -79,16 +98,19 @@ function emptyStats(player: Player): PlayerMatchStats {
   };
 }
 
-export function sppFromMatchStats(stats: PlayerMatchStats): number {
+export function sppFromMatchStats(
+  stats: PlayerMatchStats,
+  values: SppValues = SPP_VALUES
+): number {
   return (
-    stats.completions * SPP_VALUES.completion +
-    stats.superbThrows * SPP_VALUES.superbThrow +
-    stats.safeLandings * SPP_VALUES.safeLanding +
-    stats.interceptions * SPP_VALUES.interception +
-    stats.casualties * SPP_VALUES.casualty +
-    stats.touchdowns * SPP_VALUES.touchdown +
-    (stats.awardedTouchdownSpp ?? 0) * SPP_VALUES.touchdown +
-    stats.mvps * SPP_VALUES.mvp
+    stats.completions * values.completion +
+    stats.superbThrows * values.superbThrow +
+    stats.safeLandings * values.safeLanding +
+    stats.interceptions * values.interception +
+    stats.casualties * values.casualty +
+    stats.touchdowns * values.touchdown +
+    (stats.awardedTouchdownSpp ?? 0) * values.touchdown +
+    stats.mvps * values.mvp
   );
 }
 
@@ -112,6 +134,7 @@ export class MatchStats {
    *  team with no mode yet (unmigrated legacy team) defaults to earning SPP
    *  so existing saves keep behaving as before this feature existed. */
   private readonly sppEligibleTeamIds: Set<string>;
+  private readonly sppValues: Map<string, SppValues>;
 
   constructor(
     private readonly eventBus: IEventBus,
@@ -125,6 +148,9 @@ export class MatchStats {
             !team.advancementMode || team.advancementMode === "advanced-league"
         )
         .map((team) => team.id)
+    );
+    this.sppValues = new Map(
+      teams.map((team) => [team.id, sppValuesFor(team.rosterName)])
     );
     teams
       .flatMap((team) => team.players)
@@ -274,7 +300,7 @@ export class MatchStats {
         ...stats,
         sppEarned:
           this.progressionEnabled && eligible && !zeroed
-            ? sppFromMatchStats(stats)
+            ? sppFromMatchStats(stats, this.sppValues.get(stats.teamId))
             : 0,
       };
     });

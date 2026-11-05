@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { calculateTeamValue, Team } from "../../../types/Team";
 import { MatchResult } from "../../../types/GameState";
-import { MatchStatsSummary } from "../../../game/progression/MatchStats";
+import {
+  MatchStatsSummary,
+  sppValuesFor,
+} from "../../../game/progression/MatchStats";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
@@ -402,8 +405,8 @@ export function MatchResultsScreen({ visible }: Props) {
                     <div className="mt-5 border-t border-white/10 pt-4">
                       <p className="mb-2 text-hud-sm text-hud-dim">
                         If this team was awarded a touchdown after a concession,
-                        assign its 3 SPP here. Repeat for each awarded
-                        touchdown.
+                        assign its {sppValuesFor(team.rosterName).touchdown} SPP
+                        here. Repeat for each awarded touchdown.
                       </p>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <select
