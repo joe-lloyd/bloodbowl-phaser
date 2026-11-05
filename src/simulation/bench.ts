@@ -126,7 +126,7 @@ export interface BenchReport {
   averageMs: number;
 }
 
-function side(games: BenchGame[], index: 0 | 1): SideReport {
+function side(games: readonly BenchGame[], index: 0 | 1): SideReport {
   const n = Math.max(1, games.length);
   const total = (pick: (s: TeamPlayStats) => number) =>
     games.reduce((sum, g) => sum + pick(g.stats[index]), 0);
@@ -187,7 +187,7 @@ export interface RosterRow {
 }
 
 /** The candidate's games by the roster it drove, each against its standard. */
-export function rosterReport(games: BenchGame[]): RosterRow[] {
+export function rosterReport(games: readonly BenchGame[]): RosterRow[] {
   const byRoster = new Map<RosterName, BenchGame[]>();
   for (const game of games) {
     const roster = game.rosters[game.candidateSide];

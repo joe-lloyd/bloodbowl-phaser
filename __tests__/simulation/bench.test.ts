@@ -14,7 +14,11 @@ import { PUZZLES, playPuzzle } from "../../src/simulation/puzzles";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { Coach } from "../../src/simulation/coach";
-import { mutate, pointShare } from "../../src/simulation/tune";
+import {
+  mutate,
+  pointShare,
+  standardsShare,
+} from "../../src/simulation/tune";
 import { createCoachRng } from "../../src/simulation/rng";
 import {
   DEFAULT_WEIGHTS,
@@ -107,6 +111,10 @@ describe("roster standards", () => {
     expect(human).toMatchObject({ roster: RosterName.HUMAN, sppPerGame: 7 });
     expect(human.meets).toBe(false);
     expect(dwarf.side.actionsPerGame).toEqual({ block: 6, blitz: 4 });
+    // The Dwarf's surplus does not make up for the Human's shortfall.
+    expect(
+      standardsShare([game(RosterName.DWARF), game(RosterName.HUMAN)])
+    ).toBeCloseTo((1 + 7 / standardFor(RosterName.HUMAN).spp) / 2, 9);
   });
 });
 
