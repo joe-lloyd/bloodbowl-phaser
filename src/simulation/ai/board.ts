@@ -9,6 +9,7 @@ import { GameConfig } from "../../config/GameConfig";
 import { Player, PlayerStatus, hasTackleZone } from "../../types/Player";
 import { GameService } from "../../services/GameService";
 import { Weather } from "../../game/rules/weather";
+import { teamRerollsLeft } from "../../game/teamRerolls";
 
 export type Square = GridPosition;
 
@@ -92,6 +93,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
       : { kind: "loose", at };
 
   const turn = state.turn;
+  const ourTeam = gs.getTeam(us);
   const ourTurn = turn.teamId === us;
   const score = state.score ?? {};
   return {
@@ -103,7 +105,7 @@ export function readBoard(game: HeadlessGame, us: string): Board {
     everyone,
     ball,
     weather: state.weather,
-    rerolls: gs.getTeam(us)?.rerolls ?? 0,
+    rerolls: ourTeam ? teamRerollsLeft(state, ourTeam) : 0,
     turnsLeft: ourTurn ? Math.max(0, TURNS_PER_HALF - turn.turnNumber) : 0,
     half2: !!turn.isHalf2,
     lead: (score[us] ?? 0) - (score[them] ?? 0),
