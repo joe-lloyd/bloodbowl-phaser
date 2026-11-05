@@ -293,6 +293,7 @@ on purpose, as with committed seeds.
 | `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report   |
 | `src/simulation/standards.ts`             | Each roster's standard                    |
 | `src/simulation/raceRates.ts`             | Real per-race rates, generated            |
+| `src/simulation/ai/evaluationWeights.ts`  | The position score's weights, generated   |
 | `src/simulation/puzzles.ts`               | One-turn coaching puzzles                 |
 | `src/simulation/invariants.ts`            | Rules checked after every command         |
 | `src/simulation/replay.ts`                | Replay, trim, and match-save export       |

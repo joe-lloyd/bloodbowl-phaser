@@ -55,14 +55,6 @@ export const DEFAULT_WEIGHTS = {
   endInContact: 3,
   /** Standing a Prone player up without moving. */
   standUp: 4,
-  /** In a lookahead's end position: holding the ball at all. */
-  ballHeld: 60,
-  /** In a lookahead's end position: per square the ball is from the line. */
-  ballProgress: 3,
-  /** In a lookahead's end position: per player out of the game. */
-  casualty: 25,
-  /** In a lookahead's end position: per team re-roll still in hand. */
-  rerollValue: 4,
   /** Built-in formation to set up in, by its place in the list. */
   formation: 2,
   /** How deep to kick: 2 is nearest their end zone, 6 nearest the line. */

@@ -24,7 +24,7 @@ offers and never builds a command itself. Its code is in
 | `decisions.ts`   | Block dice, re-rolls, push squares, follow-ups and other decisions   |
 | `weights.ts`     | Every number its judgement rests on, as one plain object             |
 | `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
-| `evaluate.ts`    | The score of an end position, for the lookahead                      |
+| `evaluate.ts`    | The trained score of an end position, for the lookahead              |
 | `search.ts`      | The lookahead: tries the planner's best few options on cloned games  |
 | `difficulty.ts`  | The levels on the team selection page                                |
 
@@ -53,7 +53,11 @@ question and get the same answer, which the lookahead relies on.
 Paths are searched by the chance of making every Dodge, Rush and Pick-up
 on the way, not by distance. Positioning moves are judged without the team
 re-roll, so a re-roll spent on a cage corner is still there for the
-pick-up. Only a block on the ball carrier counts the re-roll.
+pick-up. Only a block on the ball carrier counts the re-roll, and only
+while the team has one left this half. Counting the re-rolls left rather than the
+ones bought took 51.1% of the points against the planner that counted the
+bought ones, ±0.8 over 1000 mirrored seed pairs, and cut its turnovers from
+25.3% of turns to 23.1%.
 
 ### Playing to its roster
 
@@ -75,7 +79,8 @@ Hard and Legend run the planner, but check its next activation first. At each
 new declaration the coach takes the planner's best few options. For each one
 it clones the game, reseeds the dice so a playout cannot see the real ones,
 plays out our turn and the opponent's reply with the planner, and scores the
-end position with `evaluate`. Every option meets the same dice, sample for
+end position with `evaluate` (see [the position score](#the-position-score)).
+Every option meets the same dice, sample for
 sample, and weak options drop out between rounds. The planner's choice stands
 unless a rival beats it.
 
@@ -101,6 +106,59 @@ In the browser the search runs in a Web Worker
 worker crashes or overruns, the planner answers at once, so a match cannot
 hang on it. On a machine under load, the median search took about a second,
 and the page's long tasks were the same on Hard as on Standard.
+
+### The position score
+
+`evaluate` gives the touchdowns a team is likely to finish ahead by: the
+score so far plus a weighted sum of 22 features of the board. They cover
+who holds the ball, how far it is from the end zone, whether the carrier
+can reach it next turn, the marks and cage corners around it, who is on
+their feet and out of the game, and the team re-rolls left. The weights in
+`evaluationWeights.ts` are a ridge regression on positions from planner
+self-play, each read at the start of a team turn against the touchdowns
+that side went on to score or concede.
+
+It replaced a score whose weights were set by hand. On held-out games the
+hand-set score explained 4.5% of the variance in the touchdowns still to
+come, and the first fit 8.8%. Of two positions from one game that went on
+differently, the fit ranked the better one higher 62.8% of the time, the
+hand-set score 60.2%. Hard with the fit won 239, drew 181 and lost 180
+against Hard with the hand-set score over 600 mirrored games: 54.9% of the
+points, ±3.0 at 95% over seed pairs, and 0.12 more touchdowns a game.
+
+With the re-roll fix and a refit on 4,200 new games, Hard won 224, drew 163
+and lost 213 against main's Hard, which still had the hand-set score and
+counted the re-rolls bought: 50.9% of the points, ±2.8, over 600 games from
+seed 1001, with turnovers down from 25.1% of turns to 23.0%. The two
+results overlap. Expect a gain of a few points, not five.
+
+The score is linear, so it misses what depends on two things at once. It
+values a loose ball beside our player at the start of our turn below the
+opponent holding the ball far from their end zone.
+
+To refit it, after changing the planner or the features:
+
+```bash
+for i in $(seq 0 13); do
+  pnpm exec tsx scripts/coach/positions.ts $((200000 + i * 1000)) 300 > positions-$i.jsonl &
+done; wait
+pnpm exec tsx scripts/coach/fit-evaluation.ts positions-*.jsonl > weights.ts
+```
+
+That is 4,200 games, about ten minutes on 14 cores. The fit prints how it
+and the committed weights do on held-out games. Keep the new weights only if
+they rank positions better, then bench Hard against a frozen copy of main.
+
+### Looking further did not pay
+
+Hard checks one activation and lets the planner play the rest of the turn.
+A version that stopped at our next declaration, tried the planner's best
+three there and kept the best, lost to plain Hard: 69 won, 54 drawn, 77
+lost over 200 games, with more turnovers, 27.6% of turns against 24.4%.
+Each answer met dice it had already seen, so it picked the answer that
+happened to work and favoured gambles. A fair version averages each answer
+over fresh dice, which costs about ten times the search and does not fit
+the browser's deadline.
 
 ## No odds on the screen
 

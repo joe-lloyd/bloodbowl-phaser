@@ -8,8 +8,8 @@ import { createSearchCoach } from "../../src/simulation/ai/search";
 import { createWorkerSearchCoach } from "../../src/simulation/ai/workerSearchCoach";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { readBoard } from "../../src/simulation/ai/board";
-import { evaluate } from "../../src/simulation/ai/evaluate";
-import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
+import { FEATURES, evaluate } from "../../src/simulation/ai/evaluate";
+import { EVALUATION_WEIGHTS } from "../../src/simulation/ai/evaluationWeights";
 
 const position = (hasBall: "team1" | "team2" | null): Scenario => ({
   id: "search",
@@ -83,6 +83,11 @@ describe("the lookahead", () => {
 });
 
 describe("the position score", () => {
+  it("has a finite weight for every feature, so a missed refit shows", () => {
+    for (const name of ["bias", ...FEATURES] as const)
+      expect(Number.isFinite(EVALUATION_WEIGHTS[name]), name).toBe(true);
+  });
+
   const score = (hasBall: "team1" | "team2" | null) => {
     const scenario = position(hasBall);
     // Nobody marking anybody, so only the ball differs.
@@ -91,12 +96,30 @@ describe("the position score", () => {
       x: 17,
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    return evaluate(readBoard(game, game.ctx.team1.id), DEFAULT_WEIGHTS);
+    return evaluate(readBoard(game, game.ctx.team1.id));
   };
 
-  it("prefers holding the ball to the opponent holding it", () => {
+  it("prefers holding the ball to it lying loose or the opponent holding it", () => {
     expect(score("team1")).toBeGreaterThan(score(null));
-    expect(score(null)).toBeGreaterThan(score("team2"));
+    expect(score("team1")).toBeGreaterThan(score("team2"));
+  });
+
+  it("counts a touchdown once while the scorer still holds the ball", () => {
+    // A decision such as a Bribe can pause the drive's end with the scorer
+    // standing in the end zone; the drive is over all the same.
+    const after = (ball: "scorer" | "gone") => {
+      const scenario = position(null);
+      scenario.setup.team1Placements[0] = {
+        playerIndex: 0,
+        x: 19,
+        y: 5,
+        ...(ball === "scorer" ? { hasBall: true as const } : {}),
+      };
+      delete scenario.setup.ballPosition;
+      const game = new HeadlessGame({ scenario, seed: 1 });
+      return evaluate(readBoard(game, game.ctx.team1.id));
+    };
+    expect(after("scorer")).toBeCloseTo(after("gone"), 9);
   });
 });
 

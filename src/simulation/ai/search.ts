@@ -78,8 +78,7 @@ async function playout(
   us: string,
   seed: number,
   policy: Coach,
-  rng: CoachRng,
-  w: Weights
+  rng: CoachRng
 ): Promise<number> {
   const game = new HeadlessGame({ matchSave: save, lazySnapshots: true });
   const live = () => game.ctx.gameService.getState();
@@ -121,7 +120,7 @@ async function playout(
       if (!(await game.execute(command)).ok) refused = true;
     if (refused) break;
   }
-  return evaluate(readBoard(game, us), w);
+  return evaluate(readBoard(game, us));
 }
 
 /** A seed for one sample of one decision, well spread. */
@@ -168,7 +167,7 @@ export function createSearchCoach(options: {
           const results: number[] = [];
           for (const i of alive) {
             results.push(
-              await playout(save, list[i], point.teamId, seed, policy, quiet, w)
+              await playout(save, list[i], point.teamId, seed, policy, quiet)
             );
             if (late()) break;
           }
