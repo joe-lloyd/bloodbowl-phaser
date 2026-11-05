@@ -203,4 +203,38 @@ describe("TeamSelect ready-made teams", () => {
       container.querySelector('input[aria-label="Filter Player 1 teams"]')
     ).toBeTruthy();
   });
+
+  it("names a ready-made team after the first name nobody uses", async () => {
+    const named = (id: string, name: string) =>
+      new TeamTestBuilder()
+        .withId(id)
+        .withName(name)
+        .withRosterName(RosterName.HUMAN)
+        .withPlayers(11)
+        .build();
+    // The second was deleted earlier, so its name is free again.
+    saveTeams([
+      named("team-a", "Ready-made Human"),
+      named("team-c", "Ready-made Human 3"),
+    ]);
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamSelect mode="play" />
+        </MemoryRouter>
+      );
+    });
+    const button = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Add ready-made team"
+    )!;
+    await act(async () => button.click());
+    await act(async () => button.click());
+
+    expect(loadTeams().map((t) => t.name)).toEqual([
+      "Ready-made Human",
+      "Ready-made Human 3",
+      "Ready-made Human 2",
+      "Ready-made Human 4",
+    ]);
+  });
 });

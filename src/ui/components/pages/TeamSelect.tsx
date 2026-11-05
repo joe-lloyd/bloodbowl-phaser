@@ -60,11 +60,15 @@ function ReadyMadeTeamPicker({
 }) {
   const [roster, setRoster] = useState<RosterName>(RosterName.HUMAN);
   const add = () => {
-    const same = teams.filter((team) => team.rosterName === roster).length;
+    // The first free name in the series: a deleted team's name is reused.
+    const taken = new Set(teams.map((team) => team.name));
+    const base = `Ready-made ${roster}`;
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
     saveTeam(
       createReadyMadeTeam(
         roster,
-        `Ready-made ${roster}${same > 0 ? ` ${same + 1}` : ""}`,
+        name,
         READY_MADE_COLORS[teams.length % READY_MADE_COLORS.length]
       )
     );
