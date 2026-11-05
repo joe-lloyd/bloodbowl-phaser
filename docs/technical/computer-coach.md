@@ -55,6 +55,20 @@ on the way, not by distance. Positioning moves are judged without the team
 re-roll, so a re-roll spent on a cage corner is still there for the
 pick-up. Only a block on the ball carrier counts the re-roll.
 
+### Playing to its roster
+
+The coach reads its own team at every decision, beyond the skills and
+characteristics that set the odds of each roll:
+
+- A square of progress counts six over the team's mean MA, because a square
+  is a share of a turn's move. Dwarfs value a square about 1.4 times as much
+  as a team of MA 6, and Skaven about 0.85 times.
+- A block adds its chance of causing a casualty, times 40 points. The chance
+  comes from the target's armour, Mighty Blow, Claws, Stunty and
+  Regeneration, on the Sevens injury table.
+- A Brawlin' Brutes team earns 3 SPP for a Casualty and 2 for a Touchdown,
+  so it values a casualty 2.25 times as much as other teams do.
+
 ## The lookahead
 
 Hard and Legend run the planner, but check its next activation first. At each
@@ -117,6 +131,50 @@ progression is off for it.
 coaching puzzles (see [Simulations](../SIMULATION.md)). `--weights` loads
 a weight set for the planner under test, which is how `pnpm sim tune` tries
 candidates.
+
+### Against each roster's standard
+
+`pnpm sim bench --standards` judges the planner against a standard for each
+roster: two touchdowns a game on average, shared out by each race's real
+scoring rate, plus its real casualty rate, added up in the roster's own SPP
+(see [Simulations](../SIMULATION.md#judge-each-roster-against-its-standard)).
+Over 1200 games against the heuristic from seed 1:
+
+|                                 | The planner in #92         | Now                          |
+| ------------------------------- | -------------------------- | ---------------------------- |
+| Result                          | 995 won, 196 drawn, 9 lost | 1029 won, 157 drawn, 14 lost |
+| Touchdowns a game, over rosters | 1.51                       | 1.60                         |
+| Blocks a game                   | 11.2                       | 13.6                         |
+| Casualties a game               | 0.61                       | 0.67                         |
+| Share of the standards          | 0.737                      | 0.787                        |
+| Rosters at their standard       | 0 of 30                    | 0 of 30                      |
+| Turnovers per turn              | 24.0%                      | 24.6%                        |
+
+Against the planner from #92, over 600 mirrored games, it won 214, drew 194
+and lost 192. The puzzles did not change.
+
+No roster meets its standard yet. Dark Elves come closest, at 0.96 of their
+SPP aim, and Dwarfs and Snotlings are furthest, at about half. The planner's
+casualties per block match FUMBBL's, about one block in twenty, but it throws
+fewer blocks than a Sevens side's share of a real game's, about 18 a game.
+
+These changed the share of the standards by less than its noise between seed
+sets, about 0.015, or cost more than they gained, and were taken out again.
+The last two were measured with the halved carrier weights in place:
+
+| Idea                                                     | Share of the standards                           |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| Doubling progress for every team, not by team speed      | 0.737 against 0.737                              |
+| A casualty worth 80 points, not 40                       | 0.770 against 0.771                              |
+| Pick-ups only at 60% or better                           | 0.780 against 0.771                              |
+| Safe moves at 85%, not 92%                               | 0.750 against 0.771                              |
+| Scoring runs from 55%, not 70%                           | 0.765 against 0.771                              |
+| A bonus for knocking down a player marking our carrier   | 0.767 against 0.771                              |
+| Scoring passes before the carrier moves, from 50%        | 0.771 against 0.771, with 0.002 passes a game    |
+| Half the weight on threats to the carrier and on corners | 0.791 against 0.771, but cage-up fell to 0 of 50 |
+| A sure block at 70%, not 80%                             | 0.787 against 0.787                              |
+| Scoring at once when ahead, not waiting to score last    | 0.791 against 0.791, the same games              |
+| Hurrying the ball as if a half had 2 or 3 turns left     | 0.798 and 0.790 against 0.791                    |
 
 Ideas that lost or changed nothing over 800 to 1000 mirrored games were taken
 out again, so they need new evidence to come back:

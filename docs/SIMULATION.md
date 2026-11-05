@@ -113,6 +113,10 @@ Baseline on 2026-11-04, from seed 1:
 With no team re-rolls (`--rerolls 0`), the planner wins 145, draws 53 and
 loses 2 of 200, with 1.11 touchdowns a game.
 
+On 2026-11-05, after the standards work, the planner won 1029, drew 157 and
+lost 14 of 1200 against the heuristic with `--standards`, with 1.60
+touchdowns a game and turnovers on 24.6% of turns.
+
 The heuristic solves score-this-turn 50 times in 50 and blitz-the-carrier 20
 times, and never cages up, breaks a cage or stalls.
 
@@ -124,6 +128,40 @@ against its planner with `--vs-module`. `--vs-weights` does the same for a
 weight file, and `--rerolls` sets the team re-rolls. The heuristic is too weak
 to separate two good planners: both win about 85% of the time against it.
 
+### Judge each roster against its standard
+
+`--standards` gives every roster the same share of games and prints how each
+one did against its standard (`src/simulation/standards.ts`):
+
+```bash
+pnpm sim bench --coach planner --vs heuristic --games 1200 --standards --puzzles 0
+```
+
+The brief asks the coach for about two touchdowns a game against the
+heuristic. Races do not score alike, so the two touchdowns are an average over
+the rosters, shared out by each race's touchdowns a game in real Blood Bowl.
+Skaven aim for 2.79 a game, Dwarfs for 1.89 and Ogres for 1.42. Each roster
+also aims for its real casualty rate, scaled to the blocks a Sevens side
+throws: seven players and twelve turns, against eleven and sixteen.
+
+Both aims count in the SPP the roster's own rules pay. A Brawlin' Brutes team
+earns 3 SPP for a Casualty and 2 for a Touchdown, so its casualties can make
+up for a touchdown it does not score. A roster meets its standard when its SPP
+a game from touchdowns and casualties reaches the SPP its aims are worth.
+
+For each roster the table gives games, wins, touchdowns, casualties and SPP a
+game against the aims, and the blocks, blitzes, passes, hand-offs and fouls it
+declared a game. The last lines count the rosters that met their standard and
+give the share of the standards: each roster's SPP over its aim, at most 1,
+averaged over the rosters. Over 1200 games that share moves by about 0.015
+from one set of seeds to the next.
+
+The real rates come from the public
+[FUMBBL match dataset](https://github.com/gsverhoeven/fumbbl_datasets) (CC0):
+452,418 team-games under the BB2020 rules, 2020 to 2024, without concessions,
+mirror matches or teams above 1300k. `scripts/coach/race-rates.ts` rebuilds
+`src/simulation/raceRates.ts` from its CSV files.
+
 ### Tuning the weights
 
 `pnpm sim tune` hill-climbs the planner's weights by self-play. Each
@@ -134,6 +172,19 @@ errors.
 
 ```bash
 pnpm sim tune --generations 8 --mutants 8 --games 300 --confirm 1000 --workers 15 --out weights.json
+```
+
+`--objective standards` climbs the share of the standards instead. Each mutant
+plays the heuristic, every roster getting its share of games. The best one
+replaces the current weights only if it beats them on the same fresh seeds by
+0.015.
+
+A game that breaks an invariant, crashes or stalls is left out of its weights'
+score, and the tuner prints its seed and finding. A worker process that dies
+still stops the run.
+
+```bash
+pnpm sim tune --objective standards --generations 6 --mutants 6 --games 600 --confirm 1200 --workers 13 --out weights.json
 ```
 
 ## What is checked
@@ -235,6 +286,8 @@ on purpose, as with committed seeds.
 | `src/simulation/ai/`                      | The planner, the computer coach           |
 | `src/simulation/runMatch.ts`              | One match, its findings and its recording |
 | `src/simulation/bench.ts`                 | Mirrored coach benchmark and its report   |
+| `src/simulation/standards.ts`             | Each roster's standard                    |
+| `src/simulation/raceRates.ts`             | Real per-race rates, generated            |
 | `src/simulation/puzzles.ts`               | One-turn coaching puzzles                 |
 | `src/simulation/invariants.ts`            | Rules checked after every command         |
 | `src/simulation/replay.ts`                | Replay, trim, and match-save export       |

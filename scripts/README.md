@@ -11,3 +11,4 @@ Use the package commands where available. The scripts behind them live here.
 | `scripts/sprites/`    | Build and render player and stadium art                           | [Art pipeline](sprites/README.md)                        |
 | `pnpm e2e:seeds`      | Inspect and maintain deterministic outcome seeds                  | [E2E testing](../docs/E2E_TESTING.md)                    |
 | `pnpm e2e:replay`     | Replay a scenario or diagnostic recording                         | [E2E testing](../docs/E2E_TESTING.md)                    |
+| `scripts/coach/`      | Rebuild the real per-race rates behind the coach standards        | [Simulations](../docs/SIMULATION.md)                     |
