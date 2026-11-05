@@ -60,6 +60,7 @@ function noting(seen: Seen[]): Coach {
   };
 }
 
+/** Play the games and print a row for every team turn of each clean one. */
 async function main() {
   const [firstSeed, games] = process.argv.slice(2).map(Number);
   if (!Number.isInteger(firstSeed) || !Number.isInteger(games) || games < 1)

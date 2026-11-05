@@ -27,6 +27,7 @@ interface Row {
   f: Record<Feature, number>;
 }
 
+/** Every row of the given files, refusing one without every feature. */
 function readRows(files: string[]): Row[] {
   return files.flatMap((file) =>
     fs
@@ -76,6 +77,7 @@ function fit(xs: number[][], ys: number[]): number[] {
   return a.map((row, i) => row[k] / row[i]);
 }
 
+/** The touchdown difference still to come, as weights `w` see a row. */
 const predict = (w: EvaluationWeights, row: Row) =>
   FEATURES.reduce((sum, n) => sum + w[n] * row.f[n], w.bias);
 
@@ -110,6 +112,7 @@ function ranked(predicted: number[], rows: Row[]): number {
   return right / pairs;
 }
 
+/** Fit, report on the held-out games, and print the weights file. */
 function main() {
   const files = process.argv.slice(2);
   if (files.length === 0)

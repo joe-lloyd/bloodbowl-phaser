@@ -65,7 +65,12 @@ export function features(board: Board): Record<Feature, number> {
   f.rerollsTheirs = theirTeam ? teamRerollsLeft(state, theirTeam) : 0;
 
   const carrier = carrierOf(board);
-  if (carrier) {
+  // A carrier in the end zone it attacks has scored. A decision such as a
+  // Bribe can pause the drive's end there, but the ball is out of play, as
+  // it is once the next drive is set up.
+  const scored =
+    !!carrier && toGoal(board, carrier.gridPosition!, carrier.teamId) === 0;
+  if (carrier && !scored) {
     const at = carrier.gridPosition!;
     const inReach = (dist: number) => (dist <= carrier.stats.MA + 2 ? 1 : 0);
     if (carrier.teamId === board.us) {
