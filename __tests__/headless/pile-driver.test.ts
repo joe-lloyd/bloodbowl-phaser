@@ -37,8 +37,11 @@ const scenario: Scenario = {
 /** One block die, a POW; armour 1+3 holds; the free Foul's armour 1+5 holds. */
 const POW_SEED = 3;
 
-async function knockDownAndFollowUp(action: ActionType) {
-  const game = new HeadlessGame({ scenario, seed: POW_SEED });
+async function knockDownAndFollowUp(
+  action: ActionType,
+  setup: Scenario = scenario
+) {
+  const game = new HeadlessGame({ scenario: setup, seed: POW_SEED });
   const events: EmittedEvent[] = [];
   const run = async (command: unknown): Promise<CommandResponse> => {
     const response = await game.execute(command);
@@ -101,6 +104,22 @@ describe("Pile Driver", () => {
     expect(dice()).toEqual(BLOCK_DICE);
     expect(attacker.status).toBe(PlayerStatus.ACTIVE);
     expect(response.snapshot.activePlayer).toBeNull();
+  });
+
+  it("drops the ball and turns the ball over when the carrier lies down", async () => {
+    // 2025 rulebook, Placed Prone: a player with the ball who is Placed
+    // Prone drops it, and during their own activation that is a Turnover.
+    const carrying: Scenario = {
+      ...scenario,
+      setup: { ...scenario.setup, ballPosition: { x: 10, y: 5 } },
+    };
+    const { run, attacker } = await knockDownAndFollowUp("block", carrying);
+
+    const response = await run({ type: "use-reaction", accept: true });
+
+    expect(attacker.status).toBe(PlayerStatus.PRONE);
+    expect(response.events.some((e) => e.name === "turnover")).toBe(true);
+    expect(response.snapshot.ballPosition).not.toEqual(attacker.gridPosition);
   });
 
   it("lets a declined Blitz keep moving", async () => {
