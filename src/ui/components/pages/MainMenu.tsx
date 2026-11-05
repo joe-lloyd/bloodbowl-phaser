@@ -103,13 +103,12 @@ export function MainMenu() {
       setLocalMatch(null);
       return;
     }
-    navigate("/play", { state: { resumeSave: save } });
+    if (save.computer) navigate("/play/computer");
+    else navigate("/play", { state: { resumeSave: save } });
   };
 
   const discardLocal = () => {
-    if (
-      !window.confirm("Discard this saved local match? This cannot be undone.")
-    ) {
+    if (!window.confirm("Discard this saved match? This cannot be undone.")) {
       return;
     }
     clearMatchSave();
@@ -156,7 +155,9 @@ export function MainMenu() {
                   data-testid="resume-local-match"
                 >
                   <span className="hud-label block text-hud-gold">
-                    Resume local match
+                    {localMatch.againstComputer
+                      ? "Resume match against the computer"
+                      : "Resume local match"}
                   </span>
                   <span className="mt-1 block font-hud-label text-hud-xl font-bold uppercase tracking-[0.03em] text-hud-bone">
                     {localMatch.homeTeamName} {localMatch.homeScore} :{" "}
@@ -253,7 +254,11 @@ export function MainMenu() {
               <span className="text-hud-sm text-hud-mute">
                 Signed in with Google. Your account name stays private.
               </span>
-              <HudButton variant="ghost" size="sm" onClick={() => void signOut()}>
+              <HudButton
+                variant="ghost"
+                size="sm"
+                onClick={() => void signOut()}
+              >
                 Sign out
               </HudButton>
             </>

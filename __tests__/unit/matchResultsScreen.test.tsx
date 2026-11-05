@@ -102,7 +102,7 @@ describe("MatchResultsScreen", () => {
     expect(exitButton.disabled).toBe(false);
   });
 
-  it("leaves another match's save alone when a match against the computer ends", async () => {
+  it("clears the save when a match against the computer ends", async () => {
     setup(false);
     const clear = vi.fn();
     setMatchSaveRepository({
@@ -122,7 +122,7 @@ describe("MatchResultsScreen", () => {
         b.textContent?.includes("Continue to Main Menu")
       )!;
       await act(async () => exit.click());
-      expect(clear).not.toHaveBeenCalled();
+      expect(clear).toHaveBeenCalledTimes(1);
     } finally {
       setActiveOnlineMatch(null);
       setMatchSaveRepository(null);

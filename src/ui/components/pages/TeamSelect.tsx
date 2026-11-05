@@ -173,6 +173,18 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
     ) {
       return;
     }
+    if (
+      mode !== "sandbox" &&
+      readMatchSave() &&
+      !window.confirm(
+        "Starting a new match will replace your saved match. Continue?"
+      )
+    ) {
+      return;
+    }
+    if (mode !== "sandbox") {
+      clearMatchSave();
+    }
     if (vsComputer) {
       navigate("/play/computer", {
         state: {
@@ -184,18 +196,6 @@ export function TeamSelect({ mode = "play" }: TeamSelectProps) {
         },
       });
       return;
-    }
-    if (
-      mode !== "sandbox" &&
-      readMatchSave() &&
-      !window.confirm(
-        "Starting a new local match will replace your saved match. Continue?"
-      )
-    ) {
-      return;
-    }
-    if (mode !== "sandbox") {
-      clearMatchSave();
     }
     const targetRoute = mode === "sandbox" ? "/sand-box" : "/play";
     navigate(targetRoute, {

@@ -35,6 +35,7 @@ describe("MatchAutosave", () => {
         flowManager: { whenIdle: () => idle },
       }),
       getDecisionService: () => ({ pending: () => null }),
+      captureTurnManagerState: () => ({ turnoverInProgress: false }),
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(
@@ -59,6 +60,27 @@ describe("MatchAutosave", () => {
         flowManager: { whenIdle: () => Promise.resolve() },
       }),
       getDecisionService: () => ({ pending: () => ({ type: "reroll" }) }),
+      captureTurnManagerState: () => ({ turnoverInProgress: false }),
+    } as unknown as IGameService;
+    const repository = new MemoryRepository();
+    const autosave = new MatchAutosave(
+      new EventBus(),
+      gameService,
+      () => ({ version: 1 }) as MatchSave,
+      { repository, debounceMs: 10_000 }
+    );
+    expect(await autosave.flushNow()).toBe(false);
+    expect(repository.writes).toHaveLength(0);
+    autosave.dispose();
+  });
+
+  it("does not write while a turnover is still ending the turn", async () => {
+    const gameService = {
+      getFlowContext: () => ({
+        flowManager: { whenIdle: () => Promise.resolve() },
+      }),
+      getDecisionService: () => ({ pending: () => null }),
+      captureTurnManagerState: () => ({ turnoverInProgress: true }),
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(
@@ -78,6 +100,7 @@ describe("MatchAutosave", () => {
         flowManager: { whenIdle: () => Promise.resolve() },
       }),
       getDecisionService: () => ({ pending: () => null }),
+      captureTurnManagerState: () => ({ turnoverInProgress: false }),
     } as unknown as IGameService;
     const repository = new MemoryRepository();
     const autosave = new MatchAutosave(

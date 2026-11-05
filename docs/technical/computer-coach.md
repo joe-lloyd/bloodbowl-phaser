@@ -205,8 +205,10 @@ cannot move the computer's players or answer its decisions. The opening
 runs locally: the intro, the weather and the coin toss. A toss the
 computer wins, it receives.
 
-A match against the computer is not saved for later, and league
-progression is off for it.
+A match against the computer autosaves from the coin toss on, in the same
+single slot as a local match, so starting one replaces the other. Resume it
+from the main menu, or by reloading its page. League progression is off for
+it.
 
 ## Measuring it
 

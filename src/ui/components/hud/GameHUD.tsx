@@ -240,10 +240,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             endRequest: onlineMenu.endRequest,
           }
         : {
-            kind:
-              getActiveOnlineMatch()?.kind === "computer"
-                ? "computer"
-                : "local",
+            kind: "local",
             matchOver: turnData.phase === GamePhase.GAME_OVER,
           };
 

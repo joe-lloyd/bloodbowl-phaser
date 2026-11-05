@@ -13,16 +13,6 @@ import {
  * guest, and every connection/end-request combination.
  */
 describe("computeMatchOptionsMenu", () => {
-  it("against the computer: never promises a resumable match", () => {
-    const entries = computeMatchOptionsMenu({
-      kind: "computer",
-      matchOver: false,
-    });
-    expect(entries.map((e) => e.id)).toEqual(["return-to-menu"]);
-    expect(entries[0].destructive).toBe(true);
-    expect(entries[0].description).not.toMatch(/resumable|saved and/);
-  });
-
   it("sandbox: offers only a plain exit", () => {
     const entries = computeMatchOptionsMenu({ kind: "sandbox" });
     expect(entries.map((e) => e.id)).toEqual(["exit-sandbox"]);

@@ -34,6 +34,8 @@ interface GamePageProps {
   pitchThemeId?: string;
   /** Online-only match-options entries; forwarded to GameHUD untouched. */
   onlineMenu?: OnlineMatchMenuProps;
+  /** The match behind this board was restored from a save. */
+  resumed?: boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export function GamePage({
   competitionContext,
   pitchThemeId,
   onlineMenu,
+  resumed,
 }: GamePageProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const reportedRef = useRef(false);
@@ -62,9 +65,12 @@ export function GamePage({
       pitchThemeId?: string;
       resumeSave?: MatchSave;
     } | null) ?? {};
-  const [persistedResumeSave] = useState(() =>
-    teams || mode === "sandbox" ? undefined : (readMatchSave() ?? undefined)
-  );
+  // A match against the computer only resumes through its own page.
+  const [persistedResumeSave] = useState(() => {
+    if (teams || mode === "sandbox") return undefined;
+    const save = readMatchSave();
+    return save && !save.computer ? save : undefined;
+  });
   const resumeSave = routeState.resumeSave ?? persistedResumeSave;
   const fixtureContext =
     competitionContext ??
@@ -218,6 +224,7 @@ export function GamePage({
           competitionContext: fixtureContext ?? undefined,
           resumeSave,
           autosaveEnabled: !teams,
+          resumed,
         });
       } else {
         // No teams provided, redirect to team selection

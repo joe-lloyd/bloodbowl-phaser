@@ -1,3 +1,4 @@
+import { whenEngineQuiet } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
@@ -12,7 +13,8 @@ export interface MatchAutosaveOptions {
 
 /**
  * One boundary observer for local play. It waits for the operation queue to
- * drain and refuses to persist while a decision is pending.
+ * drain and the engine to settle, and refuses to persist while a decision or
+ * a turnover is open: nothing that resumes the match could finish either.
  */
 export class MatchAutosave {
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -64,8 +66,12 @@ export class MatchAutosave {
 
   private async flushRevision(revision: number): Promise<boolean> {
     await this.gameService.getFlowContext().flowManager.whenIdle();
+    await whenEngineQuiet();
     if (this.disposed || revision !== this.revision) return false;
-    if (this.gameService.getDecisionService().pending()) {
+    if (
+      this.gameService.getDecisionService().pending() ||
+      this.gameService.captureTurnManagerState().turnoverInProgress
+    ) {
       this.schedule();
       return false;
     }
