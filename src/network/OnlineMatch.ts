@@ -16,6 +16,7 @@ import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { IGameService } from "../services/interfaces/IGameService";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
   CommandResponse,
@@ -199,7 +200,9 @@ interface CreateMatchOptions {
 }
 
 export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
-  const { lobby, user, eventBus, seed } = options;
+  const { lobby, user, eventBus: pageBus, seed } = options;
+  // Everything this match does on the page's bus ends when it closes.
+  const eventBus = scopeEventBus(pageBus);
   const isHost = user.uid === lobby.hostUid;
   const hostPlayer = lobby.players[lobby.hostUid];
   const guestPlayer = lobby.guestUid ? lobby.players[lobby.guestUid] : null;
@@ -506,8 +509,13 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     close: () => {
       unsubscribeSelectionForwarding();
       unsubscribePromptForwarding();
+      // Queued lockstep work still runs. It keeps the match's listeners, so
+      // its match stats stay right, but the page, perhaps already showing the
+      // next match, hears none of it.
+      eventBus.detach();
       session!.close();
       transport.close();
+      void session!.whenIdle().finally(() => eventBus.dispose());
     },
   });
 

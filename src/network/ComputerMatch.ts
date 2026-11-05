@@ -14,6 +14,7 @@
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
+import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
 import {
   CommandResponse,
@@ -99,7 +100,9 @@ export interface ComputerMatchOptions {
 export function createComputerMatch(
   options: ComputerMatchOptions
 ): OnlineMatch {
-  const { eventBus, team1, team2, computerTeamId } = options;
+  const { eventBus: pageBus, team1, team2, computerTeamId } = options;
+  // Everything this match does on the page's bus ends when it closes.
+  const eventBus = scopeEventBus(pageBus);
   const coach = options.coach ?? plannerCoach;
   const pace = options.pace ?? 1;
   const myTeamId = computerTeamId === team1.id ? team2.id : team1.id;
@@ -340,6 +343,7 @@ export function createComputerMatch(
     close: () => {
       closed = true;
       clearTimeout(timer);
+      eventBus.dispose();
     },
   };
 }

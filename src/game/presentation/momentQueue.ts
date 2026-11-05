@@ -1,4 +1,5 @@
 import { IEventBus } from "../../services/EventBus";
+import { rootEventBus } from "../../services/scopedEventBus";
 import { GameEventNames, MatchMoment, AllEvents } from "../../types/events";
 import { trackEngineWork } from "../core/GameFlowManager";
 import { DiceWatch } from "./diceWatch";
@@ -20,7 +21,7 @@ const KICKOFF_QUIET_MS = 500;
 const queues = new WeakMap<IEventBus, MomentQueue>();
 
 export function hasPendingMoments(eventBus: IEventBus): boolean {
-  return queues.get(eventBus)?.isBusy() ?? false;
+  return queues.get(rootEventBus(eventBus))?.isBusy() ?? false;
 }
 
 /**
@@ -30,7 +31,9 @@ export function hasPendingMoments(eventBus: IEventBus): boolean {
  * work so online lockstep checks only settled state.
  */
 export function whenMomentsComplete(eventBus: IEventBus): Promise<void> {
-  return trackEngineWork(queues.get(eventBus)?.whenIdle() ?? Promise.resolve());
+  return trackEngineWork(
+    queues.get(rootEventBus(eventBus))?.whenIdle() ?? Promise.resolve()
+  );
 }
 
 /** How long a moment owns the screen, enter and exit included. */

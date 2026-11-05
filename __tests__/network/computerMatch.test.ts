@@ -31,6 +31,61 @@ afterEach(() => {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+describe("a match against the computer, once closed", () => {
+  const teams = () => ({
+    team1: stabilizeIds(createLineupTeam(RosterName.HUMAN, "H", 1), "team1"),
+    team2: stabilizeIds(createLineupTeam(RosterName.ORC, "O", 2), "team2"),
+  });
+  const listeners = (bus: EventBus) =>
+    Object.values(GameEventNames).reduce(
+      (count, name) => count + bus.listenerCount(name),
+      0
+    );
+
+  it("leaves no listeners on the page's event bus", () => {
+    const eventBus = new EventBus();
+    match = createComputerMatch({
+      eventBus,
+      ...teams(),
+      computerTeamId: "team2",
+    });
+    expect(listeners(eventBus)).toBeGreaterThan(0);
+    match.close();
+    expect(listeners(eventBus)).toBe(0);
+  });
+
+  it("sends the page nothing from a command still running as it closes", async () => {
+    const eventBus = new EventBus();
+    match = createComputerMatch({
+      eventBus,
+      ...teams(),
+      computerTeamId: "team2",
+    });
+    const synced: unknown[] = [];
+    eventBus.on(GameEventNames.UI_SyncBoard, (data) => synced.push(data));
+    const running = match.run({ type: "end-turn" });
+    match.close();
+    await running;
+    expect(synced).toEqual([]);
+  });
+
+  it("does not announce full time when a later match ends", () => {
+    const eventBus = new EventBus();
+    match = createComputerMatch({
+      eventBus,
+      ...teams(),
+      computerTeamId: "team2",
+    });
+    match.close();
+    const announced: unknown[] = [];
+    eventBus.on(GameEventNames.UI_Notification, (note) => announced.push(note));
+    eventBus.emit(GameEventNames.PhaseChanged, {
+      phase: GamePhase.GAME_OVER,
+    });
+    expect(announced).toEqual([]);
+  });
+});
+
 describe("a match against the computer", () => {
   // Whoever kicks first decides who ends each half; the computer must set
   // up again after ending a half itself.
