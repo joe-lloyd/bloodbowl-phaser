@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, PlayerStats } from "../../types/Player";
-import { Team } from "../../types/Team";
+import { RosterName, Team } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { MatchStats } from "./MatchStats";
 
@@ -33,8 +33,12 @@ function player(id: string, teamId: string): Player {
   };
 }
 
-function team(id: string, players: Player[]): Team {
-  return { id, players } as Team;
+function team(
+  id: string,
+  players: Player[],
+  rosterName = RosterName.HUMAN
+): Team {
+  return { id, players, rosterName } as Team;
 }
 
 describe("MatchStats — concession bookkeeping (no artificial touchdown)", () => {
@@ -111,8 +115,42 @@ describe("MatchStats — concession bookkeeping (no artificial touchdown)", () =
 
     expect(restored.applied).toBe(true);
     const summary = restored.summary(teams.flatMap((t) => t.players));
-    expect(summary.players.find((p) => p.playerId === "p1")?.sppEarned).toBe(
-      0
-    );
+    expect(summary.players.find((p) => p.playerId === "p1")?.sppEarned).toBe(0);
+  });
+});
+
+describe("MatchStats — Brawlin' Brutes", () => {
+  it("pays a Brawlin' Brutes team 3 SPP a Casualty and 2 a Touchdown", () => {
+    const eventBus = new EventBus();
+    const dwarf = player("p1", "team-1");
+    const human = player("p2", "team-2");
+    const teams = [
+      team("team-1", [dwarf], RosterName.DWARF),
+      team("team-2", [human]),
+    ];
+    const stats = new MatchStats(eventBus, teams, true);
+    for (const [causer, victim] of [
+      [dwarf, human],
+      [human, dwarf],
+    ]) {
+      for (let i = 0; i < 2; i++) {
+        eventBus.emit(GameEventNames.PlayerCasualtyInflicted, {
+          causerId: causer.id,
+          victimId: victim.id,
+          cause: "block",
+          sppEligible: true,
+        });
+      }
+      eventBus.emit(GameEventNames.Touchdown, {
+        teamId: causer.teamId,
+        score: 1,
+        scorerId: causer.id,
+      });
+    }
+
+    stats.applySpp(teams);
+
+    expect(dwarf.spp).toBe(8);
+    expect(human.spp).toBe(7);
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EventBus } from "../../services/EventBus";
 import { Player, PlayerStatus, PlayerStats } from "../../types/Player";
 import { SkillCategory, SkillType } from "../../types/Skills";
-import { Team } from "../../types/Team";
+import { RosterName, Team } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import {
   ADVANCEMENT_COSTS,
@@ -45,7 +45,7 @@ function player(
 }
 
 function team(id: string, players: Player[]): Team {
-  return { id, players } as Team;
+  return { id, players, rosterName: RosterName.HUMAN } as Team;
 }
 
 function stats(overrides: Partial<PlayerMatchStats>): PlayerMatchStats {
