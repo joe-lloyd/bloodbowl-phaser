@@ -11,7 +11,7 @@ export const DEFAULT_WEIGHTS = {
   /** A move whose rolls all pass at least this often is a safe move. */
   safeMove: 0.92,
   /** A block that leaves the attacker standing this often is a sure block. */
-  sureBlock: 0.9,
+  sureBlock: 0.8,
   /** Try a pick-up only at this chance or better before the risky tier. */
   pickupMin: 0.33,
   pickup: 45,
