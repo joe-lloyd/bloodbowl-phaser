@@ -50,9 +50,12 @@ import {
   BenchReport,
   benchJobs,
   benchReport,
+  rosterReport,
+  RosterRow,
   playBenchGame,
 } from "./bench";
 import { solveRates } from "./puzzles";
+import { AVERAGE_TOUCHDOWNS } from "./standards";
 
 const BLOCKING: ReadonlySet<FindingKind> = new Set([
   "invariant",
@@ -588,6 +591,8 @@ interface BenchOptions {
   /** A frozen copy of planner.ts to play instead of the --vs coach. */
   vsModule?: string;
   rerolls?: number;
+  /** Give every roster its share of games, and judge each by its standard. */
+  standards: boolean;
 }
 
 const BENCH_HELP = `Usage: pnpm sim bench [options]
@@ -604,6 +609,8 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --vs-module <file>   play a frozen copy of ai/planner.ts as the baseline, to
                        compare the coach with an earlier version of itself
   --rerolls <n>        team re-rolls each side starts with (default 3)
+  --standards          give every roster the same share of games and judge
+                       each against its standard (see standards.ts)
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
@@ -615,6 +622,7 @@ function parseBenchOptions(argv: string[]): BenchOptions {
     rosters: Object.values(RosterName),
     workers: Math.max(1, os.cpus().length - 1),
     puzzleSeeds: 50,
+    standards: false,
     out: path.join(
       "sim-results",
       `bench-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
@@ -655,6 +663,9 @@ function parseBenchOptions(argv: string[]): BenchOptions {
         break;
       case "--rerolls":
         options.rerolls = Number(value(i++));
+        break;
+      case "--standards":
+        options.standards = true;
         break;
       case "--out":
         options.out = value(i++);
@@ -735,8 +746,13 @@ async function benchWorker(argv: string[]): Promise<number> {
 
 async function runBench(options: BenchOptions): Promise<number> {
   const pairing = createCoachRng(options.seed);
+  let pair = 0;
+  // A mirrored pair plays both rosters, so cycling the first gives every
+  // roster at least its share.
   const jobs = benchJobs(options.games / 2, options.seed, () => [
-    pairing.pick(options.rosters),
+    options.standards
+      ? options.rosters[pair++ % options.rosters.length]
+      : pairing.pick(options.rosters),
     pairing.pick(options.rosters),
   ]);
   const games: BenchGame[] = [];
@@ -791,6 +807,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   if (unfinished > 0) errors.push(`${unfinished} games never finished`);
 
   const report = benchReport(games);
+  const rosters = options.standards ? rosterReport(games) : [];
   const broke = new Map<string, number>();
   for (const key of games.flatMap((g) => g.findingKeys))
     broke.set(key, (broke.get(key) ?? 0) + 1);
@@ -825,6 +842,7 @@ async function runBench(options: BenchOptions): Promise<number> {
       {
         options: { ...options, rosters: options.rosters.length },
         report,
+        rosters,
         puzzles,
         errors,
         games: games.sort(
@@ -837,6 +855,7 @@ async function runBench(options: BenchOptions): Promise<number> {
   );
   process.stdout.write(
     `${formatBench(options, report, puzzles)}\n` +
+      (rosters.length ? `${formatStandards(rosters)}\n` : "") +
       [...broke].map(([key, n]) => `  finding: ${key} ${n}x\n`).join("") +
       errors.map((e) => `  error: ${e}\n`).join("") +
       `\nReport: ${options.out}\n`
@@ -878,6 +897,30 @@ function formatBench(
     );
   }
   return lines.join("\n");
+}
+
+function formatStandards(rows: RosterRow[]): string {
+  const f = (x: number, digits = 2) => x.toFixed(digits);
+  const actions = (side: RosterRow["side"]) =>
+    (["block", "blitz", "pass", "handoff", "foul"] as const)
+      .map((a) => `${a} ${f(side.actionsPerGame[a] ?? 0, 1)}`)
+      .join(" ");
+  const met = rows.filter((r) => r.meets).length;
+  const meanTouchdowns =
+    rows.reduce((sum, r) => sum + r.side.touchdownsPerGame, 0) / rows.length;
+  return [
+    "Standards: touchdowns from each race's real scoring rate, casualties at its own SPP values",
+    `  ${"roster".padEnd(20)} games  won   TD (aim)    CAS (aim)   SPP (aim)     declared a game`,
+    ...rows.map(
+      (r) =>
+        `  ${r.roster.padEnd(20)} ${String(r.games).padStart(5)} ${`${Math.round(r.winRate * 100)}%`.padStart(4)}  ` +
+        `${f(r.side.touchdownsPerGame)} (${f(r.standard.touchdowns)})  ` +
+        `${f(r.side.casualtiesPerGame)} (${f(r.standard.casualties)})  ` +
+        `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : "    "}  ` +
+        actions(r.side)
+    ),
+    `  ${met} of ${rows.length} rosters meet their standard; ${f(meanTouchdowns)} TD a game averaged over rosters, against ${f(AVERAGE_TOUCHDOWNS)}`,
+  ].join("\n");
 }
 
 interface TuneOptions {

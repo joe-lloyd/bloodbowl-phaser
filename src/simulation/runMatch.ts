@@ -12,7 +12,7 @@ import { TeamFactory } from "../game/TeamFactory";
 import { createLineupTeam } from "./lineups";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { RosterName } from "../types/Team";
-import { GameEventNames } from "../types/events";
+import { ActionType, GameEventNames } from "../types/events";
 import { enumerateDecision } from "./candidates";
 import { Coach } from "./coach";
 import { createRuleMonitor } from "./invariants";
@@ -94,6 +94,13 @@ export interface TeamPlayStats {
   failedDodges: number;
   rushes: number;
   failedRushes: number;
+  /** Casualties caused that earn SPP, from the match stats. */
+  casualties: number;
+  completions: number;
+  /** Blocks thrown, Blitz blocks included. */
+  blocks: number;
+  /** Actions declared, by kind. */
+  actions: Partial<Record<ActionType, number>>;
 }
 
 const emptyStats = (): TeamPlayStats => ({
@@ -103,6 +110,10 @@ const emptyStats = (): TeamPlayStats => ({
   failedDodges: 0,
   rushes: 0,
   failedRushes: 0,
+  casualties: 0,
+  completions: 0,
+  blocks: 0,
+  actions: {},
 });
 
 /** Add one command's events to the stats; `team` is who sent the command. */
@@ -279,6 +290,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
       });
       if (command.type === "kick-ball" && response.ok)
         kickingTeamId = point.teamId;
+      if (command.type === "declare-action" && response.ok)
+        stats[team].actions[command.action] =
+          (stats[team].actions[command.action] ?? 0) + 1;
 
       if (!response.ok) {
         const reason = response.reason ?? "unknown";
@@ -331,6 +345,12 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   // Progression reads match stats, so every point on the scoreboard must
   // have a credited scorer or a player loses the SPP for it.
   const playerStats = game.ctx.matchStats.captureState().players;
+  for (const player of playerStats) {
+    const side = stats[teamIndex(player.teamId)];
+    side.casualties += player.casualties;
+    side.completions += player.completions;
+    side.blocks += player.blocks;
+  }
   for (const team of final.teams) {
     const credited = playerStats
       .filter((p) => p.teamId === team.id)
