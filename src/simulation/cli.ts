@@ -1019,6 +1019,13 @@ function parseTuneOptions(argv: string[]): TuneOptions {
   if (options.confirmGames < 4) fail("--confirm must be at least 4");
   if (options.games % 2 || options.confirmGames % 2)
     fail("--games and --confirm must be even: each seed is played twice");
+  // Each mirrored pair's first roster cycles through the list, so a share
+  // over fewer pairs than rosters would skip some of them.
+  const pairs = Math.min(options.games, options.confirmGames) / 2;
+  if (options.objective === "standards" && pairs < options.rosters.length)
+    fail(
+      `--games and --confirm must each be at least ${2 * options.rosters.length} for --objective standards, one mirrored pair per roster`
+    );
   return options;
 }
 
@@ -1118,6 +1125,7 @@ async function runTune(options: TuneOptions): Promise<number> {
         : pick.pick(options.rosters),
       pick.pick(options.rosters),
     ]);
+    const broken = new Set<number>();
     const played = await Promise.all(
       jobs.map(
         (job) =>
@@ -1131,9 +1139,10 @@ async function runTune(options: TuneOptions): Promise<number> {
               },
               done(game) {
                 // A rare engine bug says nothing about the weights, and must
-                // not end a run of hours, so a broken game is left out of the
-                // score. It is never left out quietly.
+                // not end a run of hours, so a broken game and its mirror are
+                // left out of the score. They are never left out quietly.
                 if (!game?.completed || game.blockingFindings > 0) {
+                  broken.add(job.seed);
                   say(
                     `  left out seed ${job.seed} (side ${job.candidateSide}): ` +
                       (game?.findingKeys[0] ?? "did not finish")
@@ -1147,7 +1156,9 @@ async function runTune(options: TuneOptions): Promise<number> {
           })
       )
     );
-    return played.filter((game): game is BenchGame => game !== null);
+    return played.filter(
+      (game): game is BenchGame => game !== null && !broken.has(game.seed)
+    );
   };
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });

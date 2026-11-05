@@ -99,6 +99,20 @@ describe("the planner's dice maths", () => {
     expect(
       casualtyChance(player(9, SkillType.CLAWS), player(10, SkillType.STUNTY))
     ).toBeCloseTo((15 / 36) * (10 / 36), 9);
+    // Mighty Blow cannot bring a natural 7 up to Claws' 8: 15/36 x 10/36.
+    expect(
+      casualtyChance(
+        player(9, SkillType.CLAWS, SkillType.MIGHTY_BLOW),
+        player(10)
+      )
+    ).toBeCloseTo(150 / 1296, 9);
+    // Iron Hard Skin: no Claws, no armour modifier; Mighty Blow injures.
+    expect(
+      casualtyChance(
+        player(9, SkillType.CLAWS, SkillType.MIGHTY_BLOW),
+        player(9, SkillType.IRON_HARD_SKIN)
+      )
+    ).toBeCloseTo(100 / 1296, 9);
     // Regeneration saves half.
     expect(
       casualtyChance(player(9), player(9, SkillType.REGENERATION))

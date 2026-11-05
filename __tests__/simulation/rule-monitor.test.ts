@@ -120,6 +120,26 @@ describe("rule monitor", () => {
     ]);
   });
 
+  it("does not flag movement a skill allowed when the same command ends it", () => {
+    const monitor = createRuleMonitor();
+    const before = playState();
+    const mover = before.teams[0].players[0];
+    mover.skills = [...mover.skills, "Sprint"];
+    const after = structuredClone(before);
+    const moved = after.teams[0].players[0];
+    after.turn.movementUsed[moved.id] = moved.stats.MA + 3;
+    // The move scored and ended the match, and the drive's Sprint lapsed.
+    moved.skills = moved.skills.filter((s) => s !== "Sprint");
+    after.phase = GamePhase.GAME_OVER;
+    const move = {
+      type: "move" as const,
+      playerId: moved.id,
+      path: [{ x: 6, y: 5 }],
+    };
+
+    expect(rules(monitor.observe(move, before, after, false))).toEqual([]);
+  });
+
   it("does not flag movement a lapsed skill allowed earlier in the turn", () => {
     const monitor = createRuleMonitor();
     const before = playState();
