@@ -1098,9 +1098,12 @@ async function runTune(options: TuneOptions): Promise<number> {
     return child;
   });
 
-  /** Mirrored games of `a` against `b`; team re-rolls vary by seed. */
-  // Against the heuristic every roster gets its share, as in
-  // `bench --standards`, with the bench's three re-rolls.
+  const say = (line: string) => process.stdout.write(`${line}\n`);
+  /**
+   * Mirrored games of `a` against `b`; team re-rolls vary by seed. Against
+   * the heuristic every roster gets its share, as in `bench --standards`,
+   * with the bench's three re-rolls.
+   */
   const play = async (
     a: Weights,
     b: Weights | "heuristic",
@@ -1115,10 +1118,10 @@ async function runTune(options: TuneOptions): Promise<number> {
         : pick.pick(options.rosters),
       pick.pick(options.rosters),
     ]);
-    return Promise.all(
+    const played = await Promise.all(
       jobs.map(
         (job) =>
-          new Promise<BenchGame>((resolve) => {
+          new Promise<BenchGame | null>((resolve) => {
             queue.push({
               work: {
                 job,
@@ -1127,13 +1130,16 @@ async function runTune(options: TuneOptions): Promise<number> {
                 rerolls: b === "heuristic" ? 3 : job.seed % 4,
               },
               done(game) {
-                // A failed or stalled game must not quietly shrink what a
-                // promotion rests on, so stop before playing any more.
-                if (!game?.completed || game.blockingFindings > 0)
-                  fail(
-                    `tuning stopped: the game on seed ${job.seed} (side ${job.candidateSide}) ` +
-                      (game?.findingKeys.join(", ") || "did not finish")
+                // A rare engine bug says nothing about the weights, and must
+                // not end a run of hours, so a broken game is left out of the
+                // score. It is never left out quietly.
+                if (!game?.completed || game.blockingFindings > 0) {
+                  say(
+                    `  left out seed ${job.seed} (side ${job.candidateSide}): ` +
+                      (game?.findingKeys[0] ?? "did not finish")
                   );
+                  return resolve(null);
+                }
                 resolve(game);
               },
             });
@@ -1141,10 +1147,10 @@ async function runTune(options: TuneOptions): Promise<number> {
           })
       )
     );
+    return played.filter((game): game is BenchGame => game !== null);
   };
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
-  const say = (line: string) => process.stdout.write(`${line}\n`);
   // Write beside the checkpoint, then rename over it, so an interrupted
   // write never leaves a half file that `--from` cannot load.
   const saveWeights = (weights: Weights) => {
