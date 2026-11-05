@@ -24,6 +24,9 @@ offers and never builds a command itself. Its code is in
 | `decisions.ts`   | Block dice, re-rolls, push squares, follow-ups and other decisions   |
 | `weights.ts`     | Every number its judgement rests on, as one plain object             |
 | `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
+| `evaluate.ts`    | The score of an end position, for the lookahead                      |
+| `search.ts`      | The lookahead: tries the planner's best few options on cloned games  |
+| `difficulty.ts`  | The levels on the team selection page                                |
 
 At each decision the coach re-reads the board and lists whole activations:
 which player, which action, the target square, the full path and its value.
@@ -45,12 +48,45 @@ with the best activation its declared action still allows, re-planned from
 the square it now stands on. A step that went to plan keeps the same
 target. A surprise, such as a push or a bounce, picks a new one. Because
 the coach keeps no plan, a cloned game in a worker can ask it the same
-question and get the same answer, which the lookahead in step 3 relies on.
+question and get the same answer, which the lookahead relies on.
 
 Paths are searched by the chance of making every Dodge, Rush and Pick-up
 on the way, not by distance. Positioning moves are judged without the team
 re-roll, so a re-roll spent on a cage corner is still there for the
 pick-up. Only a block on the ball carrier counts the re-roll.
+
+## The lookahead
+
+Hard and Legend run the planner, but check its next activation first. At each
+new declaration the coach takes the planner's best few options. For each one
+it clones the game, reseeds the dice so a playout cannot see the real ones,
+plays out our turn and the opponent's reply with the planner, and scores the
+end position with `evaluate`. Every option meets the same dice, sample for
+sample, and weak options drop out between rounds. The planner's choice stands
+unless a rival beats it.
+
+Scoring at the end of our own turn lost to the plain planner, 3 won, 12 drawn,
+9 lost in 24 games: it could not see what an exposed carrier would suffer.
+The opponent's reply is what makes the lookahead pay.
+
+| Level    | Options | Samples | Deadline | Measured over mirrored games                             |
+| -------- | ------- | ------- | -------- | -------------------------------------------------------- |
+| Standard | none    | none    | none     | The planner                                              |
+| Hard     | 4       | 2       | 1.5 s    | Against the planner: 91 won, 55 drawn, 54 lost, +0.26 TD |
+| Legend   | 4       | 6       | 4 s      | Against Hard: 42 won, 23 drawn, 35 lost, +0.08 TD        |
+
+Legend's 100 games point the right way but do not prove it stronger than Hard.
+Six options with four samples did no better, 21 won, 20 drawn, 19 lost over 60
+games. More playouts per option helped more than more options.
+
+The bench plays `hard` and `legend` without the deadline, so its games can be
+repeated. The browser applies it.
+
+In the browser the search runs in a Web Worker
+(`workerSearchCoach.ts` and `searchWorker.ts`), on a copy of the match. If the
+worker crashes or overruns, the planner answers at once, so a match cannot
+hang on it. On a machine under load, the median search took about a second,
+and the page's long tasks were the same on Hard as on Standard.
 
 ## No odds on the screen
 

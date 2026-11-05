@@ -47,6 +47,7 @@ checks produced (`src/simulation/candidates.ts`). It never builds a command.
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `heuristic` | Plays recognisable Blood Bowl: carries the ball forward, blocks with the stronger player, chases the opposing carrier. Scores about one touchdown every two matches, so it reaches drive resets, scoring and kick-offs. |
 | `planner`   | The computer coach. Plans each turn in risk order, safe actions first, with paths chosen by the chance of making every roll. See [the computer coach](technical/computer-coach.md).                                     |
+| `hard`      | The planner with a sampled lookahead on each new activation. `legend` looks harder. Both take about a minute a game or more, so run them with few games and many workers.                                               |
 | `random`    | The fuzzer. Picks a command type at random, then a target. Reaches passes, hand-offs, fouls, special actions and odd sequences no sensible coach would try.                                                             |
 | `jev`       | Asks Jev, TypeSafe's System One model, which player should act next and how. Everything else falls back to the heuristic.                                                                                               |
 
@@ -107,6 +108,7 @@ Baseline on 2026-11-04, from seed 1:
 | ---------------------- | ----- | -------------------------- | ----------- | ------------------ |
 | heuristic vs heuristic | 200   | 34 won, 132 drawn, 34 lost | 0.20 each   | 18.0% each         |
 | planner vs heuristic   | 400   | 334 won, 60 drawn, 6 lost  | 1.52        | 25.1%              |
+| hard vs heuristic      | 200   | 173 won, 27 drawn, 0 lost  | 1.56        | 24.3%              |
 
 With no team re-rolls (`--rerolls 0`), the planner wins 145, draws 53 and
 loses 2 of 200, with 1.11 touchdowns a game.
