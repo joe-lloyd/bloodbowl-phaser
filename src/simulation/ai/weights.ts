@@ -37,6 +37,11 @@ export const DEFAULT_WEIGHTS = {
   chase: 11,
   knockdown: 12,
   carrierKnockdown: 75,
+  /**
+   * Per casualty a knockdown is expected to cause, for a team paid the
+   * usual 2 SPP a Casualty and 3 a Touchdown.
+   */
+  casualtyHit: 40,
   /** Knocking down a player next to the opposing carrier. */
   cageBreak: 20,
   /** What a turnover costs before counting the players left to act. */

@@ -40,9 +40,11 @@ import {
   RollTarget,
   blockOdds,
   both,
+  casualtyChance,
   d6,
   withReroll,
 } from "./chance";
+import { SPP_VALUES, sppValuesFor } from "../../game/progression/MatchStats";
 import { Route, movesLeft, routesFor, withTeamReroll } from "./routes";
 import { Weights } from "./weights";
 
@@ -102,6 +104,8 @@ interface Context {
    * to score this half.
    */
   urgency: number;
+  /** Points for a casualty we cause, weighed by what our SPP pays for one. */
+  casualty: number;
   /** Paths for a play worth a team re-roll: scoring, the ball, a blitz. */
   routes: (p: Player) => Map<number, Route>;
   /**
@@ -140,11 +144,26 @@ function context(board: Board, w: Weights, available: Available): Context {
     available,
     teamReroll,
     urgency: (Math.min(3, Math.max(1, pace / 4)) * 6) / Math.max(3, speed),
+    casualty: w.casualtyHit * casualtyWorth(board),
     turnover:
       w.turnoverBase + w.turnoverPerPlayer * Math.max(0, available.size - 1),
     routes: teamReroll ? rerollRoutes : plainRoutes,
     plainRoutes,
   };
+}
+
+/**
+ * A casualty against a touchdown, in SPP, next to the usual 2 against 3: a
+ * Brawlin' Brutes team, paid 3 against 2, prizes casualties 2.25 times as
+ * much.
+ */
+function casualtyWorth(board: Board): number {
+  const team = board.gs.getTeam(board.us);
+  const values = team ? sppValuesFor(team.rosterName) : SPP_VALUES;
+  return (
+    (values.casualty / values.touchdown) *
+    (SPP_VALUES.touchdown / SPP_VALUES.casualty)
+  );
 }
 
 /**
@@ -536,11 +555,12 @@ function passActivations(c: Context, carrier: Player): Activation[] {
   return out;
 }
 
-/** How much knocking this opponent down is worth. */
-function targetValue(c: Context, target: Player): number {
+/** How much `attacker` knocking this opponent down is worth. */
+function targetValue(c: Context, attacker: Player, target: Player): number {
   const { board, w } = c;
   const carrier = carrierOf(board);
-  if (carrier?.id === target.id) return w.carrierKnockdown;
+  if (carrier?.id === target.id)
+    return w.carrierKnockdown + casualtyChance(attacker, target) * c.casualty;
   const near = carrier
     ? distance(target.gridPosition!, carrier.gridPosition!)
     : 99;
@@ -554,7 +574,12 @@ function targetValue(c: Context, target: Player): number {
       : near === 1
         ? w.cageBreak
         : 0;
-  return w.knockdown + bonus + target.stats.ST;
+  return (
+    w.knockdown +
+    bonus +
+    target.stats.ST +
+    casualtyChance(attacker, target) * c.casualty
+  );
 }
 
 /** The odds of `attacker` blocking `target` from square `from`. */
@@ -606,7 +631,7 @@ function blockActivations(c: Context, player: Player): Activation[] {
       continue;
     const odds = blockFrom(c, player, target, player.gridPosition!);
     const value =
-      odds.knockdown * targetValue(c, target) -
+      odds.knockdown * targetValue(c, player, target) -
       odds.attackerDown * (c.turnover + w.ownDown);
     if (value <= 0) continue;
     out.push({
@@ -654,7 +679,7 @@ function blitzActivations(c: Context, player: Player): Activation[] {
         (route && route.path.length >= normal ? d6(2) : 1);
       const chance = reach * (1 - odds.attackerDown);
       const value =
-        reach * odds.knockdown * targetValue(c, target) -
+        reach * odds.knockdown * targetValue(c, player, target) -
         (1 - chance) * (c.turnover + w.ownDown);
       if (!best || value > best.value) best = { route, value, chance };
     }
