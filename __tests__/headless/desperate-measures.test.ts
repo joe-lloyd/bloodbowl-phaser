@@ -380,6 +380,33 @@ describe("Sports Espionage after a Turnover with a choice still open", () => {
       skill: DesperateMeasure.SPORTS_ESPIONAGE,
     });
   });
+
+  it("drops the offer when a resync abandons the open choice", async () => {
+    const game = new HeadlessGame({ scenario: runner, seed: 1 });
+    const team1 = game.ctx.team1;
+    const gs = game.ctx.gameService;
+    await hold(game, team1.id, 6);
+    const reaction = {
+      type: "reaction" as const,
+      playerId: team1.players[0].id,
+      chooserTeamId: team1.id,
+      skill: DesperateMeasure.GRUDGE_MATCH,
+      prompt: "an earlier question",
+    };
+    void gs.getDecisionService().request(reaction);
+    gs.triggerTurnover("a test Turnover");
+    await settle();
+
+    // A restore abandons the choice; a later one is asked and answered.
+    gs.getDecisionService().abandon();
+    const later = gs.getDecisionService().request(reaction);
+    gs.getDecisionService().answer({ accept: false });
+    await later;
+    await settle();
+
+    // The engine's own record: the game's cached copy keeps the abandoned one.
+    expect(gs.getDecisionService().pending()).toBeNull();
+  });
 });
 
 const passing: Scenario = {

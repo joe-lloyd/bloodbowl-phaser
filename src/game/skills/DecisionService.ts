@@ -24,7 +24,25 @@ export class DecisionService {
     resolve: (answer: DecisionAnswer) => void;
   } | null = null;
 
+  /** Told whether the open decision was answered (true) or abandoned. */
+  private closers: ((answered: boolean) => void)[] = [];
+
   constructor(private eventBus: IEventBus) {}
+
+  /**
+   * Resolves true once the open decision is answered, false if it is
+   * abandoned instead, as a resync does. True at once when none is open.
+   */
+  public whenClosed(): Promise<boolean> {
+    if (!this.current) return Promise.resolve(true);
+    return new Promise((resolve) => this.closers.push(resolve));
+  }
+
+  private close(answered: boolean): void {
+    const closers = this.closers;
+    this.closers = [];
+    closers.forEach((close) => close(answered));
+  }
 
   public pending(): DecisionRequest | null {
     return this.current?.request ?? null;
@@ -69,6 +87,7 @@ export class DecisionService {
    */
   public abandon(): void {
     this.current = null;
+    this.close(false);
   }
 
   /** Resolve the pending decision; false when nothing is pending. */
@@ -80,6 +99,7 @@ export class DecisionService {
     // a dialog must close on this one before it opens on that one.
     this.eventBus.emit(GameEventNames.DecisionResolved, { type: request.type });
     resolve(answer);
+    this.close(true);
     return true;
   }
 }
