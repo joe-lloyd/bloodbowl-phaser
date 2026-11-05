@@ -1,61 +1,117 @@
 /**
- * How good a position is for one team, in the planner's points: the score
- * so far, who has the ball and how close it is, and who is still on their
- * feet. The lookahead scores its playouts with this.
+ * How good a position is for one team: the touchdowns it is likely to finish
+ * ahead by. The lookahead scores its playouts with this. The weights are
+ * fitted to planner self-play by `scripts/coach/fit-evaluation.ts`, which
+ * also writes evaluationWeights.ts; edit the features here, then refit.
  */
 
+import { teamRerollsLeft } from "../../game/teamRerolls";
 import { PlayerStatus } from "../../types/Player";
 import { Board, carrierOf, distance, key, standing, toGoal } from "./board";
-import { Weights } from "./weights";
+import { EVALUATION_WEIGHTS } from "./evaluationWeights";
 
-export function evaluate(board: Board, w: Weights): number {
-  const us = board.ours;
-  const them = board.theirs;
-  const down = (players: typeof us) =>
-    players.filter((p) => p.status !== PlayerStatus.ACTIVE).length;
-  const stand = (players: typeof us) => players.filter(standing);
-  const missing = (team: string) =>
+export const FEATURES = [
+  "half2",
+  "turns",
+  "lead",
+  "ours",
+  "oursTurns",
+  "oursToGoal",
+  "oursMarks",
+  "oursCorners",
+  "oursInReach",
+  "theirs",
+  "theirsTurns",
+  "theirsToGoal",
+  "theirsMarkers",
+  "theirsInReach",
+  "loose",
+  "looseNearer",
+  "standingOurs",
+  "standingTheirs",
+  "outOurs",
+  "outTheirs",
+  "rerollsOurs",
+  "rerollsTheirs",
+] as const;
+
+export type Feature = (typeof FEATURES)[number];
+export type EvaluationWeights = Record<"bias" | Feature, number>;
+
+/** What the evaluation reads off a board, 0 where a feature does not apply. */
+export function features(board: Board): Record<Feature, number> {
+  const f = Object.fromEntries(FEATURES.map((n) => [n, 0])) as Record<
+    Feature,
+    number
+  >;
+  const state = board.gs.getState();
+  const out = (team: string) =>
     (board.gs.getTeam(team)?.players ?? []).filter(
       (p) =>
         p.status === PlayerStatus.KO ||
         p.status === PlayerStatus.INJURED ||
         p.status === PlayerStatus.DEAD
     ).length;
-
-  let value =
-    board.lead * w.touchdown +
-    (down(them) - down(us)) * w.knockdown +
-    (missing(board.them) - missing(board.us)) * w.casualty +
-    board.rerolls * w.rerollValue;
+  const theirTeam = board.gs.getTeam(board.them);
+  const turns = board.turnsLeft / 6;
+  f.half2 = board.half2 ? 1 : 0;
+  f.turns = turns;
+  f.lead = board.lead;
+  f.standingOurs = board.ours.filter(standing).length;
+  f.standingTheirs = board.theirs.filter(standing).length;
+  f.outOurs = out(board.us);
+  f.outTheirs = out(board.them);
+  f.rerollsOurs = board.rerolls;
+  f.rerollsTheirs = theirTeam ? teamRerollsLeft(state, theirTeam) : 0;
 
   const carrier = carrierOf(board);
-  if (carrier && carrier.teamId === board.us) {
+  if (carrier) {
     const at = carrier.gridPosition!;
-    const corners = us.filter(
-      (p) =>
-        standing(p) &&
-        Math.abs(p.gridPosition!.x - at.x) === 1 &&
-        Math.abs(p.gridPosition!.y - at.y) === 1
-    ).length;
-    value +=
-      w.ballHeld -
-      toGoal(board, at) * w.ballProgress -
-      board.marks[key(at)] * w.carrierMarked +
-      corners * w.cageCorner;
-  } else if (carrier) {
-    const at = carrier.gridPosition!;
-    const markers = stand(us).filter(
-      (p) => distance(p.gridPosition!, at) === 1
-    );
-    value +=
-      -w.ballHeld +
-      toGoal(board, at, board.them) * w.ballProgress +
-      markers.length * w.markCarrier;
+    const inReach = (dist: number) => (dist <= carrier.stats.MA + 2 ? 1 : 0);
+    if (carrier.teamId === board.us) {
+      const dist = toGoal(board, at);
+      f.ours = 1;
+      f.oursTurns = turns;
+      f.oursToGoal = dist / 19;
+      f.oursMarks = board.marks[key(at)];
+      f.oursCorners = board.ours.filter(
+        (p) =>
+          standing(p) &&
+          Math.abs(p.gridPosition!.x - at.x) === 1 &&
+          Math.abs(p.gridPosition!.y - at.y) === 1
+      ).length;
+      f.oursInReach = inReach(dist);
+    } else {
+      const dist = toGoal(board, at, board.them);
+      f.theirs = 1;
+      f.theirsTurns = turns;
+      f.theirsToGoal = dist / 19;
+      f.theirsMarkers = board.ours.filter(
+        (p) => standing(p) && distance(p.gridPosition!, at) === 1
+      ).length;
+      f.theirsInReach = inReach(dist);
+    }
   } else if (board.ball.kind === "loose") {
     const at = board.ball.at;
-    const nearest = (players: typeof us) =>
-      Math.min(99, ...stand(players).map((p) => distance(p.gridPosition!, at)));
-    value += (nearest(them) - nearest(us)) * w.chase * 0.25;
+    const nearest = (players: Board["ours"]) =>
+      Math.min(
+        10,
+        ...players.filter(standing).map((p) => distance(p.gridPosition!, at))
+      );
+    f.loose = 1;
+    f.looseNearer = (nearest(board.theirs) - nearest(board.ours)) / 10;
   }
-  return value;
+  return f;
+}
+
+/** The score so far plus the touchdowns this side is expected to add. */
+export function evaluate(
+  board: Board,
+  w: EvaluationWeights = EVALUATION_WEIGHTS
+): number {
+  const f = features(board);
+  return FEATURES.reduce(
+    (value, n) => value + w[n] * f[n],
+    board.lead + w.bias
+  );
 }

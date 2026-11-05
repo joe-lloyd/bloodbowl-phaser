@@ -9,7 +9,6 @@ import { createWorkerSearchCoach } from "../../src/simulation/ai/workerSearchCoa
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { readBoard } from "../../src/simulation/ai/board";
 import { evaluate } from "../../src/simulation/ai/evaluate";
-import { DEFAULT_WEIGHTS } from "../../src/simulation/ai/weights";
 
 const position = (hasBall: "team1" | "team2" | null): Scenario => ({
   id: "search",
@@ -91,12 +90,12 @@ describe("the position score", () => {
       x: 17,
     };
     const game = new HeadlessGame({ scenario, seed: 1 });
-    return evaluate(readBoard(game, game.ctx.team1.id), DEFAULT_WEIGHTS);
+    return evaluate(readBoard(game, game.ctx.team1.id));
   };
 
-  it("prefers holding the ball to the opponent holding it", () => {
+  it("prefers holding the ball to it lying loose or the opponent holding it", () => {
     expect(score("team1")).toBeGreaterThan(score(null));
-    expect(score(null)).toBeGreaterThan(score("team2"));
+    expect(score("team1")).toBeGreaterThan(score("team2"));
   });
 });
 
