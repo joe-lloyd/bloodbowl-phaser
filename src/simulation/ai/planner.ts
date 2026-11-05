@@ -19,7 +19,7 @@ import {
   activations,
   continuation,
 } from "./activations";
-import { readBoard } from "./board";
+import { Board, WIDTH, readBoard } from "./board";
 import { decide } from "./decisions";
 import { DEFAULT_WEIGHTS, Weights } from "./weights";
 import { RollTarget } from "./chance";
@@ -138,6 +138,46 @@ export function createPlannerCoach(
   };
 }
 
+function setupChoice(
+  candidates: readonly Candidate[],
+  w: Weights
+): CoachChoice | null {
+  const formations = candidates.filter((c) => c.kind === "setup");
+  if (formations.length < 2) return null;
+  const pick =
+    formations[
+      Math.max(0, Math.min(Math.round(w.formation), formations.length - 1))
+    ];
+  return { index: candidates.indexOf(pick) };
+}
+
+/** The kick nearest the tuned depth, in the middle or on the emptier side. */
+function kickChoice(
+  board: Board,
+  candidates: readonly Candidate[],
+  w: Weights
+): CoachChoice | null {
+  const kicks = candidates.flatMap((c, index) => {
+    const command = c.commands[0];
+    return command.type === "kick-ball"
+      ? [{ index, x: command.x, y: command.y }]
+      : [];
+  });
+  if (kicks.length === 0) return null;
+  const crowd = (y: number) =>
+    board.theirs.filter((o) => Math.abs(o.gridPosition!.y - y) <= 2).length;
+  const wide = w.kickWide > 0.5;
+  const score = (kick: { x: number; y: number }) => {
+    const depth = board.dir === 1 ? WIDTH - 1 - kick.x : kick.x;
+    return (
+      -Math.abs(depth - w.kickDepth) * 10 +
+      (wide ? (kick.y === 5 ? -5 : -crowd(kick.y)) : kick.y === 5 ? 5 : 0)
+    );
+  };
+  const best = kicks.reduce((a, b) => (score(b) > score(a) ? b : a));
+  return { index: best.index };
+}
+
 function planChoice(context: CoachContext, w: Weights): CoachChoice | null {
   const { game, point } = context;
   const candidates = point.candidates;
@@ -147,6 +187,9 @@ function planChoice(context: CoachContext, w: Weights): CoachChoice | null {
     const index = decide(board, point.pending, candidates);
     return index === null ? null : { index };
   }
+  if (point.phase === GamePhase.SETUP) return setupChoice(candidates, w);
+  if (point.phase === GamePhase.KICKOFF)
+    return kickChoice(board, candidates, w);
   if (point.phase !== GamePhase.PLAY) return null;
 
   const state = board.gs.getState();

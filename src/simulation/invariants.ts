@@ -176,10 +176,12 @@ export function createRuleMonitor(): RuleMonitor {
       const fail = (rule: string, message: string) =>
         out.push({ rule, message });
 
+      // Counted per declaration: a Time-Out can repeat a turn number.
+      if (command.type === "declare-action")
+        blitzBlocks.delete(command.playerId);
       if (command.type === "block" && before.activePlayer?.action === "blitz") {
-        const key = `${before.turn.isHalf2}-${before.turn.turnNumber}-${before.activeTeamId}-${command.attackerId}`;
-        const blocks = (blitzBlocks.get(key) ?? 0) + 1;
-        blitzBlocks.set(key, blocks);
+        const blocks = (blitzBlocks.get(command.attackerId) ?? 0) + 1;
+        blitzBlocks.set(command.attackerId, blocks);
         if (blocks > 1) {
           fail(
             "one-block-per-blitz",

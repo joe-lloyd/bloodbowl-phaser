@@ -128,7 +128,7 @@ describe("the planner's dodge past a Tackle", () => {
       seed: 1,
     });
     const board = readBoard(game, game.ctx.team1.id);
-    const route = routesFor(board, game.ctx.team1.players[0], false).get(
+    const route = routesFor(board, game.ctx.team1.players[0]).get(
       key({ x: 5, y: 5 })
     );
     expect(route?.chance).toBeCloseTo(2 / 3, 6);
@@ -170,5 +170,117 @@ describe("the planner's block re-roll", () => {
       rng: createCoachRng(1),
     });
     expect(point.candidates[index].commands[0].type).toBe("team-reroll-block");
+  });
+});
+
+describe("the planner's hit on their carrier", () => {
+  const carrierGame = (carrierAt: { x: number; y: number }) =>
+    new HeadlessGame({
+      scenario: {
+        id: "planner-carrier-hit",
+        name: "Planner carrier hit",
+        description: "",
+        setup: {
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: carrierAt.x - 3,
+              y: carrierAt.y,
+              stats: { ST: 3 },
+            },
+            {
+              playerIndex: 1,
+              x: carrierAt.x - 2,
+              y: carrierAt.y + 2,
+              stats: { ST: 3 },
+            },
+          ],
+          team2Placements: [
+            {
+              playerIndex: 0,
+              x: carrierAt.x,
+              y: carrierAt.y,
+              stats: { ST: 3 },
+              hasBall: true,
+            },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        },
+      },
+      seed: 1,
+    });
+
+  it("walks the helper to a square that assists, past one that does not", async () => {
+    const game = new HeadlessGame({
+      scenario: {
+        id: "planner-assist-square",
+        name: "Planner assist square",
+        description: "",
+        setup: {
+          team1Placements: [
+            { playerIndex: 0, x: 7, y: 7, stats: { ST: 3 } },
+            { playerIndex: 1, x: 7, y: 3, stats: { MA: 6, ST: 3 } },
+          ],
+          team2Placements: [
+            { playerIndex: 0, x: 10, y: 5, stats: { ST: 3 }, hasBall: true },
+            // Marks (9,4) and (10,4), so neither gives an assist.
+            { playerIndex: 1, x: 10, y: 3, stats: { ST: 3 } },
+          ],
+          activeTeam: "team1",
+          phase: GamePhase.PLAY,
+          subPhase: SubPhase.TURN_RECEIVING,
+        },
+      },
+      seed: 1,
+    });
+    const rng = createCoachRng(1);
+    for (let i = 0; i < 30; i++) {
+      const point = await enumerateDecision(game, null);
+      const { index } = await plannerCoach.choose({
+        game,
+        snapshot: game.snapshot(),
+        point,
+        rng,
+      });
+      for (const command of point.candidates[index].commands) {
+        const response = await game.execute(command);
+        expect(response.ok).toBe(true);
+        if (command.type !== "block") continue;
+        expect(response.pendingDecision).toMatchObject({ type: "block-dice" });
+        const dice = response.pendingDecision as { options: unknown[] };
+        expect(dice.options).toHaveLength(2);
+        return;
+      }
+    }
+    throw new Error("the planner never blocked the carrier");
+  });
+
+  it("brings the assist up first, so the blitz throws two dice", async () => {
+    const game = carrierGame({ x: 10, y: 5 });
+    const rng = createCoachRng(1);
+    const helper = game.ctx.team1.players[1];
+    for (let i = 0; i < 20; i++) {
+      const point = await enumerateDecision(game, null);
+      const { index } = await plannerCoach.choose({
+        game,
+        snapshot: game.snapshot(),
+        point,
+        rng,
+      });
+      for (const command of point.candidates[index].commands) {
+        const response = await game.execute(command);
+        expect(response.ok).toBe(true);
+        if (command.type !== "block") continue;
+        expect(command.attackerId).toBe(game.ctx.team1.players[0].id);
+        expect(helper.gridPosition?.x).toBe(9);
+        expect(response.pendingDecision).toMatchObject({ type: "block-dice" });
+        const dice = response.pendingDecision as { options: unknown[] };
+        expect(dice.options).toHaveLength(2);
+        return;
+      }
+    }
+    throw new Error("the planner never blocked the carrier");
   });
 });
