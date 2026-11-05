@@ -685,6 +685,12 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   )
     fail("--games must be an even number of at least 2");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
+  // Each mirrored pair's first roster cycles through the list, so fewer
+  // pairs than rosters would leave some out of the table and the share.
+  if (options.standards && options.games / 2 < options.rosters.length)
+    fail(
+      `--games must be at least ${2 * options.rosters.length} for --standards, one mirrored pair per roster`
+    );
   if (
     options.rerolls !== undefined &&
     (!Number.isInteger(options.rerolls) || options.rerolls < 0)
