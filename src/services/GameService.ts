@@ -1338,9 +1338,25 @@ export class GameService implements IGameService {
         return this.flowManager.whenIdle();
       })
       .then(() => this.eventBus.emit(GameEventNames.UI_Turnover, banner))
+      .then(() => this.whenSettled())
       .then(() => this.offerSportsEspionage())
       .then(() => whenMomentsComplete(this.eventBus))
       .then(() => this.turnManager.completeTurnover());
+  }
+
+  /**
+   * Resolves once the flow is idle and no decision waits for an answer. A
+   * roll outside the flow, such as a re-roll offer, can still be waiting when
+   * the flow empties, and a second question would be refused.
+   */
+  private async whenSettled(): Promise<void> {
+    await this.flowManager.whenIdle();
+    while (this.decisionService.pending()) {
+      await new Promise<void>((resolve) =>
+        this.eventBus.once(GameEventNames.DecisionResolved, () => resolve())
+      );
+      await this.flowManager.whenIdle();
+    }
   }
 
   /**

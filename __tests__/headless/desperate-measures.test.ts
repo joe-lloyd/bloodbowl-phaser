@@ -349,6 +349,39 @@ describe("Sports Espionage", () => {
   });
 });
 
+describe("Sports Espionage after a Turnover with a choice still open", () => {
+  it("waits for the open choice instead of asking a second question", async () => {
+    // A roll outside the flow, such as a re-roll offer, can still be waiting
+    // for an answer when the flow empties and the Turnover chain moves on.
+    const game = new HeadlessGame({ scenario: runner, seed: 1 });
+    const team1 = game.ctx.team1;
+    const gs = game.ctx.gameService;
+    await hold(game, team1.id, 6);
+    const open = gs.getDecisionService().request({
+      type: "reaction",
+      playerId: team1.players[0].id,
+      chooserTeamId: team1.id,
+      skill: DesperateMeasure.GRUDGE_MATCH,
+      prompt: "an earlier question",
+    });
+
+    gs.triggerTurnover("a test Turnover");
+    await settle();
+    expect(game.pendingDecision()).toMatchObject({
+      skill: DesperateMeasure.GRUDGE_MATCH,
+    });
+
+    gs.getDecisionService().answer({ accept: false });
+    await open;
+    await settle();
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      chooserTeamId: team1.id,
+      skill: DesperateMeasure.SPORTS_ESPIONAGE,
+    });
+  });
+});
+
 const passing: Scenario = {
   id: "set-piece",
   name: "Set Piece",
