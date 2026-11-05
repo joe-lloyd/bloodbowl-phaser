@@ -54,7 +54,10 @@ Paths are searched by the chance of making every Dodge, Rush and Pick-up
 on the way, not by distance. Positioning moves are judged without the team
 re-roll, so a re-roll spent on a cage corner is still there for the
 pick-up. Only a block on the ball carrier counts the re-roll, and only
-while the team has one left this half.
+while the team has one left this half. Counting the re-rolls left rather than the
+ones bought took 51.1% of the points against the planner that counted the
+bought ones, ±0.8 over 1000 mirrored seed pairs, and cut its turnovers from
+25.3% of turns to 23.1%.
 
 ### Playing to its roster
 
@@ -103,6 +106,53 @@ In the browser the search runs in a Web Worker
 worker crashes or overruns, the planner answers at once, so a match cannot
 hang on it. On a machine under load, the median search took about a second,
 and the page's long tasks were the same on Hard as on Standard.
+
+### The position score
+
+`evaluate` gives the touchdowns a team is likely to finish ahead by: the
+score so far plus a weighted sum of 22 features of the board. They cover
+who holds the ball, how far it is from the end zone, whether the carrier
+can reach it next turn, the marks and cage corners around it, who is on
+their feet and out of the game, and the team re-rolls left. The weights in
+`evaluationWeights.ts` are a ridge regression on positions from planner
+self-play, each read at the start of a team turn against the touchdowns
+that side went on to score or concede.
+
+It replaced a score whose weights were set by hand. On held-out games the
+hand-set score explained 4.5% of the variance in the touchdowns still to
+come, and the first fit 8.8%. Of two positions from one game that went on
+differently, the fit ranked the better one higher 62.8% of the time, the
+hand-set score 60.2%. Hard with the fit won 239, drew 181 and lost 180
+against Hard with the hand-set score over 600 mirrored games: 54.9% of the
+points, ±3.0 at 95% over seed pairs, and 0.12 more touchdowns a game.
+
+The score is linear, so it misses what depends on two things at once. It
+values a loose ball beside our player at the start of our turn below the
+opponent holding the ball far from their end zone.
+
+To refit it, after changing the planner or the features:
+
+```bash
+for i in $(seq 0 13); do
+  pnpm exec tsx scripts/coach/positions.ts $((200000 + i * 1000)) 300 > positions-$i.jsonl &
+done; wait
+pnpm exec tsx scripts/coach/fit-evaluation.ts positions-*.jsonl > weights.ts
+```
+
+That is 4,200 games, about ten minutes on 14 cores. The fit prints how it
+and the committed weights do on held-out games. Keep the new weights only if
+they rank positions better, then bench Hard against a frozen copy of main.
+
+### Looking further did not pay
+
+Hard checks one activation and lets the planner play the rest of the turn.
+A version that stopped at our next declaration, tried the planner's best
+three there and kept the best, lost to plain Hard: 69 won, 54 drawn, 77
+lost over 200 games, with more turnovers, 27.6% of turns against 24.4%.
+Each answer met dice it had already seen, so it picked the answer that
+happened to work and favoured gambles. A fair version averages each answer
+over fresh dice, which costs about ten times the search and does not fit
+the browser's deadline.
 
 ## No odds on the screen
 
