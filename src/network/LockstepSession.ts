@@ -34,7 +34,11 @@ import {
 } from "./envelope";
 import { Transport } from "./transport";
 import { StepPrompt } from "../types/events";
-import { checkOwnership, GateContext } from "./OwnershipGate";
+import {
+  checkOwnership,
+  gateContextOf,
+  refusalOnceQuiet,
+} from "./OwnershipGate";
 
 export interface LockstepSessionOptions {
   transport: Transport;
@@ -118,16 +122,14 @@ export class LockstepSession {
    */
   run(command: HeadlessCommand): Promise<CommandResponse> {
     return this.enqueue(async () => {
-      const { game } = this.options;
-      // Check once this screen has played out what came before: a turnover
-      // still playing can end the turn the click was meant for
-      await whenEngineQuiet();
-      const verdict = checkOwnership(
+      const { game, myTeamId, hostTeamId } = this.options;
+      const refusal = await refusalOnceQuiet({
+        game,
         command,
-        this.options.myTeamId,
-        this.gateContext()
-      );
-      if (!verdict.allowed) return this.rejection(verdict.reason);
+        senderTeamId: myTeamId,
+        hostTeamId,
+      });
+      if (refusal) return refusal;
       // Stamped now, so it is ordered before anything this side sends later
       const before = this.aboutToRun();
       void this.send({ kind: "command", payload: { command, before } });
@@ -292,7 +294,7 @@ export class LockstepSession {
     const verdict = checkOwnership(
       command,
       this.options.peerTeamId,
-      this.gateContext()
+      gateContextOf(game, this.options.hostTeamId)
     );
     if (!verdict.allowed) {
       this.desync(`${command.type} refused here: ${verdict.reason}`);
@@ -486,29 +488,6 @@ export class LockstepSession {
   private record(before: string, command: HeadlessCommand): void {
     this.log.push({ before, command });
     this.applied++;
-  }
-
-  private gateContext(): GateContext {
-    const { game } = this.options;
-    const gameService = game.ctx.gameService;
-    return {
-      activeTeamId: gameService.getState().activeTeamId,
-      pendingDecision: game.pendingDecision(),
-      teamIdOfPlayer: (playerId) => gameService.getPlayerById(playerId)?.teamId,
-      hostTeamId: this.options.hostTeamId,
-      phase: gameService.getState().phase,
-    };
-  }
-
-  private rejection(reason: string): CommandResponse {
-    const { game } = this.options;
-    return {
-      ok: false,
-      reason,
-      events: [],
-      snapshot: game.snapshot(),
-      pendingDecision: game.pendingDecision(),
-    };
   }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {

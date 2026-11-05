@@ -18,7 +18,10 @@
  *   team's own players.
  */
 
+import { whenEngineQuiet } from "../game/core/GameFlowManager";
+import { HeadlessGame } from "../headless/HeadlessGame";
 import {
+  CommandResponse,
   DECISION_REPLIES,
   HeadlessCommand,
   PendingDecision,
@@ -266,4 +269,46 @@ export function checkOwnership(
       return playerId ? ownsPlayer(playerId) : allow;
     }
   }
+}
+
+export function gateContextOf(
+  game: HeadlessGame,
+  hostTeamId: string
+): GateContext {
+  const gameService = game.ctx.gameService;
+  return {
+    activeTeamId: gameService.getState().activeTeamId,
+    pendingDecision: game.pendingDecision(),
+    teamIdOfPlayer: (playerId) => gameService.getPlayerById(playerId)?.teamId,
+    hostTeamId,
+    phase: gameService.getState().phase,
+  };
+}
+
+/**
+ * The refusal for a command, or null if its sender may run it. Checks once
+ * the engine has played out what came before: a turn can end by itself in
+ * that time, and an End Turn that arrives late must not end the next coach's.
+ */
+export async function refusalOnceQuiet(options: {
+  game: HeadlessGame;
+  command: HeadlessCommand;
+  senderTeamId: string;
+  hostTeamId: string;
+}): Promise<CommandResponse | null> {
+  const { game, command, senderTeamId, hostTeamId } = options;
+  await whenEngineQuiet();
+  const verdict = checkOwnership(
+    command,
+    senderTeamId,
+    gateContextOf(game, hostTeamId)
+  );
+  if (verdict.allowed) return null;
+  return {
+    ok: false,
+    reason: verdict.reason,
+    events: [],
+    snapshot: game.snapshot(),
+    pendingDecision: game.pendingDecision(),
+  };
 }

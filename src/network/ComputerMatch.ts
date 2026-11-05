@@ -11,6 +11,7 @@
  * human cannot move the computer's players or answer its decisions.
  */
 
+import { whenEngineQuiet } from "../game/core/GameFlowManager";
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -29,7 +30,11 @@ import { Coach } from "../simulation/coach";
 import { createCoachRng } from "../simulation/rng";
 import { plannerCoach } from "../simulation/ai/planner";
 import { NetworkedGameService } from "./NetworkedGameService";
-import { decisionOwner } from "./OwnershipGate";
+import {
+  decisionOwner,
+  gateContextOf,
+  refusalOnceQuiet,
+} from "./OwnershipGate";
 import { OnlineMatch } from "./OnlineMatch";
 import { possessive } from "../game/managers/TurnManager";
 
@@ -108,14 +113,14 @@ export function createComputerMatch(
   const pace = options.pace ?? 1;
   const myTeamId = computerTeamId === team1.id ? team2.id : team1.id;
   const teamName = (id: string) => (id === team1.id ? team1 : team2).name;
-  const teamOf = (playerId: string) =>
-    [...team1.players, ...team2.players].find((p) => p.id === playerId)?.teamId;
 
   // One engine, one command queue: the human's and the computer's commands
   // run strictly in turn, as a lockstep session would order them.
   let queue: Promise<unknown> = Promise.resolve();
-  const run = (command: HeadlessCommand): Promise<CommandResponse> => {
-    const next = queue.then(() => game.execute(command));
+  const enqueue = (
+    work: () => Promise<CommandResponse>
+  ): Promise<CommandResponse> => {
+    const next = queue.then(work);
     queue = next.catch(() => undefined);
     return next.then((response) => {
       // The board does not redraw setup placements by itself.
@@ -124,6 +129,21 @@ export function createComputerMatch(
       return response;
     });
   };
+  // The same check a lockstep session makes, for both coaches on this page.
+  const runAs = (
+    senderTeamId: string,
+    command: HeadlessCommand
+  ): Promise<CommandResponse> =>
+    enqueue(async () => {
+      const refusal = await refusalOnceQuiet({
+        game,
+        command,
+        senderTeamId,
+        hostTeamId: myTeamId,
+      });
+      return refusal ?? game.execute(command);
+    });
+  const run = (command: HeadlessCommand) => runAs(myTeamId, command);
 
   let engine: GameService | null = null;
   const container = ServiceContainer.initialize(
@@ -164,14 +184,7 @@ export function createComputerMatch(
     const pending = game.pendingDecision();
     const active = engine!.getActiveTeamId();
     if (pending)
-      return (
-        decisionOwner(pending, {
-          activeTeamId: active,
-          pendingDecision: pending,
-          teamIdOfPlayer: teamOf,
-          hostTeamId: team1.id,
-        }) === teamId
-      );
+      return decisionOwner(pending, gateContextOf(game, myTeamId)) === teamId;
     const state = engine!.getState();
     switch (state.phase) {
       case GamePhase.SETUP:
@@ -204,18 +217,13 @@ export function createComputerMatch(
     new Promise((resolve) => setTimeout(resolve, ms * pace));
 
   /** One decision, if it is the computer's to make; true when it acted. */
-  /** The turn the computer last ended; the hand-over lands a moment later. */
-  let endedTurn: unknown = null;
   const think = async (): Promise<boolean> => {
     if (thinking || closed || !owner(computerTeamId)) return false;
-    if (
-      engine!.getPhase() === GamePhase.PLAY &&
-      engine!.getState().turn === endedTurn &&
-      !game.pendingDecision()
-    )
-      return false;
     thinking = true;
     try {
+      // A turn that is about to end by itself has nothing left to decide.
+      await whenEngineQuiet();
+      if (closed || !owner(computerTeamId)) return false;
       const snapshot = game.snapshot();
       const kicker =
         snapshot.phase === GamePhase.KICKOFF
@@ -245,8 +253,7 @@ export function createComputerMatch(
         await wait(pause(command));
         if (closed) return false;
         showIntent(command);
-        if (command.type === "end-turn") endedTurn = engine!.getState().turn;
-        const response = await run(command);
+        const response = await runAs(computerTeamId, command);
         if (!response.ok) {
           console.warn(
             `[Computer] ${command.type} refused: ${response.reason}`
@@ -340,7 +347,8 @@ export function createComputerMatch(
     onFatalError: () => () => {},
     saveState: () => {},
     setClockPaused: () => {},
-    runProgressionCommand: run,
+    // The results screen settles both teams' awards from this one page.
+    runProgressionCommand: (command) => enqueue(() => game.execute(command)),
     close: () => {
       closed = true;
       clearTimeout(timer);
