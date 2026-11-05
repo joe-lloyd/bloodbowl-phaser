@@ -20,11 +20,11 @@ export const DEFAULT_WEIGHTS = {
   /** Per tackle zone on the carrier's square. */
   carrierMarked: 30,
   /** Per opponent who could reach and hit an uncaged carrier next turn. */
-  carrierThreat: 2,
+  carrierThreat: 4,
   /** A carrier on the sideline, where a push goes into the crowd. */
   sideline: 30,
   /** Per team-mate on a corner of the carrier's square. */
-  cageCorner: 4,
+  cageCorner: 8,
   /** Open team-mate a few squares ahead of the carrier. */
   receiver: 6,
   /** Put a tackle zone on the opposing carrier. */
