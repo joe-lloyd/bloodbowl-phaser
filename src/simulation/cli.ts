@@ -963,6 +963,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
     objective: "self-play",
   };
   const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+  let gamesGiven = false;
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case "--generations":
@@ -973,6 +974,7 @@ function parseTuneOptions(argv: string[]): TuneOptions {
         break;
       case "--games":
         options.games = Number(value(i++));
+        gamesGiven = true;
         break;
       case "--confirm":
         options.confirmGames = Number(value(i++));
@@ -1004,6 +1006,9 @@ function parseTuneOptions(argv: string[]): TuneOptions {
         fail(`unknown option ${argv[i]}\n\n${TUNE_HELP}`);
     }
   }
+  // Standards tuning needs a mirrored pair per roster to judge every one.
+  if (options.objective === "standards" && !gamesGiven)
+    options.games = Math.max(options.games, 2 * options.rosters.length);
   for (const [name, n] of [
     ["--generations", options.generations],
     ["--mutants", options.mutants],
@@ -1156,8 +1161,16 @@ async function runTune(options: TuneOptions): Promise<number> {
           })
       )
     );
-    return played.filter(
-      (game): game is BenchGame => game !== null && !broken.has(game.seed)
+    return {
+      games: played.filter((game): game is BenchGame => game !== null),
+      broken,
+    };
+  };
+  /** Every batch scored on the seeds that finished cleanly in all of them. */
+  const common = (batches: Awaited<ReturnType<typeof play>>[]) => {
+    const broken = new Set(batches.flatMap((batch) => [...batch.broken]));
+    return batches.map((batch) =>
+      batch.games.filter((game) => !broken.has(game.seed))
     );
   };
 
@@ -1176,34 +1189,43 @@ async function runTune(options: TuneOptions): Promise<number> {
     const mutants = Array.from({ length: options.mutants }, () =>
       mutate(best, rng)
     );
-    const shares = await Promise.all(
-      mutants.map(async (m) =>
-        standards
-          ? standardsShare(await play(m, "heuristic", options.games, seed))
-          : pointShare(await play(m, best, options.games, seed))
+    const screened = common(
+      await Promise.all(
+        mutants.map((m) =>
+          play(m, standards ? "heuristic" : best, options.games, seed)
+        )
       )
     );
+    const shares = screened.map(standards ? standardsShare : pointShare);
     const top = shares.indexOf(Math.max(...shares));
-    const [share, bar] = standards
-      ? await Promise.all(
-          [mutants[top], best].map(async (m) =>
-            standardsShare(
-              await play(m, "heuristic", options.confirmGames, nextSeed)
-            )
+    let share: number;
+    let bar: number;
+    let judged = true;
+    if (standards) {
+      const [mutant, current] = common(
+        await Promise.all(
+          [mutants[top], best].map((m) =>
+            play(m, "heuristic", options.confirmGames, nextSeed)
           )
-        ).then(([mutant, current]) => [mutant, current + STANDARDS_MARGIN])
-      : [
-          pointShare(
-            await play(mutants[top], best, options.confirmGames, nextSeed)
-          ),
-          // One and a half standard errors of a coin flip over the confirming games.
-          0.5 + 0.75 / Math.sqrt(options.confirmGames),
-        ];
+        )
+      );
+      share = standardsShare(mutant);
+      bar = standardsShare(current) + STANDARDS_MARGIN;
+      // A broken seed can take a roster's only pair with it.
+      judged = rosterReport(mutant).length === options.rosters.length;
+    } else {
+      [share] = common([
+        await play(mutants[top], best, options.confirmGames, nextSeed),
+      ]).map(pointShare);
+      // One and a half standard errors of a coin flip over the confirming games.
+      bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
+    }
     nextSeed += options.confirmGames;
-    const promoted = share >= bar;
+    const promoted = judged && share >= bar;
     say(
       `generation ${generation}: best mutant ${shares[top].toFixed(3)}, ` +
         `confirmed ${share.toFixed(3)} (needs ${bar.toFixed(3)})` +
+        (judged ? "" : ", but not on every roster") +
         (promoted ? ", promoted" : "")
     );
     if (promoted) {
