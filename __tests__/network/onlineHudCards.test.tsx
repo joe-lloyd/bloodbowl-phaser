@@ -178,6 +178,7 @@ const ENGINE_ONLY = [
   "sweepChomped",
   "takeUnsatedBloodlust",
   "updateDedicatedFans",
+  "whenSettled",
 ];
 
 it("NetworkedGameService offers every GameService method the HUD can call", () => {
