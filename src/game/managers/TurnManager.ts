@@ -380,6 +380,9 @@ export class TurnManager {
   public completeTurnover(): void {
     if (!this.turnoverInProgress) return;
     this.turnoverInProgress = false;
+    // A bounce caught for a touchdown has already ended the turn and begun
+    // the next drive; ending the turn again would put the set-up into play.
+    if (this.state.phase !== GamePhase.PLAY) return;
     this.endTurn();
   }
 
