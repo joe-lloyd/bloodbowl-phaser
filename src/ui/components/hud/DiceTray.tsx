@@ -345,7 +345,9 @@ export function DiceTray({
       }
       if (!shown?.block) return;
       const index = result ? shown.block.indexOf(result) : -1;
-      throwing?.mark(index >= 0 ? index : null);
+      // Until they land, the dice may not be thrown yet: the landing marks it
+      if (!shown.settled) shown.chosen = index;
+      else throwing?.mark(index >= 0 ? index : null);
       if (!release) {
         shown.endAfterMs = CHOSEN_MS;
         return;
