@@ -368,12 +368,12 @@ export async function perform(
             }));
         break;
       case "kickoff-confirm":
-        if (!(await clickIf(page, /CONFIRM|DONE|CONTINUE/i)))
+        if (!(await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i)))
           await clickIf(page, /SKIP/i);
         break;
       case "kickoff-skip":
         if (!(await clickIf(page, /SKIP/i)))
-          await clickIf(page, /CONFIRM|DONE|CONTINUE/i);
+          await clickIf(page, /CONFIRM|DONE|CHARGE!|CONTINUE/i);
         break;
       default:
         log(
