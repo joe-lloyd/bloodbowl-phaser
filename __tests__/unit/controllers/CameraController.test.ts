@@ -18,6 +18,14 @@ function setup(
     zoom: 1,
     scrollX: 0,
     scrollY: 0,
+    x: 0,
+    y: 0,
+    width: viewport.width,
+    height: viewport.height,
+    originX: 0.5,
+    originY: 0.5,
+    /** The zoom Phaser built its matrix with, at the last frame. */
+    renderedZoom: 1,
     setBackgroundColor: vi.fn(),
     setBounds: vi.fn(),
     setZoom: vi.fn(function (this: { zoom: number }, z: number) {
@@ -29,7 +37,17 @@ function setup(
     startFollow: vi.fn(),
     stopFollow: vi.fn(),
     shake: vi.fn(),
-    getWorldPoint: vi.fn((x: number, y: number) => ({ x, y })),
+    // As Phaser does it: the matrix is rebuilt once a frame, while the zoom
+    // and scroll it is combined with are read live.
+    getWorldPoint: vi.fn((x: number, y: number) => {
+      const z = camera.renderedZoom;
+      const ox = camera.width * camera.originX;
+      const oy = camera.height * camera.originY;
+      return {
+        x: (x + camera.scrollX * camera.zoom - camera.x - ox) / z + ox,
+        y: (y + camera.scrollY * camera.zoom - camera.y - oy) / z + oy,
+      };
+    }),
     panEffect: { reset: vi.fn() },
     zoomEffect: { reset: vi.fn() },
   };
@@ -57,6 +75,10 @@ function setup(
     },
   };
   const bus = { emit: vi.fn() };
+  /** Phaser draws a frame: the matrix catches up with the zoom. */
+  const render = () => {
+    camera.renderedZoom = camera.zoom;
+  };
   const controller = new CameraController(
     scene as never,
     pitch as never,
@@ -66,7 +88,7 @@ function setup(
     "bloodbowl",
     hudRects
   );
-  return { camera, controller, inputHandlers, pitch, bus };
+  return { camera, controller, inputHandlers, pitch, bus, render };
 }
 
 describe("CameraController", () => {
@@ -203,19 +225,43 @@ describe("CameraController", () => {
   });
 
   it("zooms around the point between two pinching fingers", () => {
-    const { camera, controller } = setup({ width: 844, height: 390 });
-    // A camera at zoom z, scrolled to (sx, sy), shows world (sx + x/z, ...)
-    camera.getWorldPoint.mockImplementation((x: number, y: number) => ({
-      x: camera.scrollX + x / camera.zoom,
-      y: camera.scrollY + y / camera.zoom,
-    }));
+    const { camera, controller, render } = setup({ width: 844, height: 390 });
+    render();
     const before = camera.getWorldPoint(300, 200);
     const zoom = camera.zoom;
     controller.zoomAt(300, 200, 1.5);
+    render();
     expect(camera.zoom).toBeCloseTo(zoom * 1.5);
     const after = camera.getWorldPoint(300, 200);
     expect(after.x).toBeCloseTo(before.x);
     expect(after.y).toBeCloseTo(before.y);
+  });
+
+  it("keeps the point under the mouse still while the wheel zooms", () => {
+    const { camera, inputHandlers, render } = setup();
+    render();
+    const before = camera.getWorldPoint(1200, 300);
+    for (const dy of [-100, -100, 100, -100]) {
+      inputHandlers.wheel({ x: 1200, y: 300 }, [], 0, dy);
+      render();
+    }
+    const after = camera.getWorldPoint(1200, 300);
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+  });
+
+  it("zooms by how far the wheel turns, not by how many events it sends", () => {
+    const notch = setup();
+    const start = notch.camera.zoom;
+    notch.inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -100);
+    // A trackpad sends the same scroll as many small steps.
+    const pad = setup();
+    for (let i = 0; i < 25; i++)
+      pad.inputHandlers.wheel({ x: 800, y: 450 }, [], 0, -4);
+    expect(pad.camera.zoom).toBeCloseTo(notch.camera.zoom);
+    // One notch of a mouse wheel zooms in by about a tenth.
+    expect(notch.camera.zoom / start).toBeGreaterThan(1.05);
+    expect(notch.camera.zoom / start).toBeLessThan(1.15);
   });
 
   it("keeps every reachable square clear of the HUD panels on screen", () => {

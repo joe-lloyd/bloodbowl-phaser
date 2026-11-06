@@ -121,6 +121,13 @@ export function clearArea(
 /** How long the opening sweep over the pitch takes. */
 export const CAMERA_INTRO_MS = 2200;
 
+/** Zoom per pixel the wheel scrolls: one 100-pixel notch is about 10%. */
+const ZOOM_PER_PIXEL = 0.001;
+/** One wheel event counts for at most this many pixels. */
+const WHEEL_STEP_MAX = 200;
+/** A scroll counted in lines, as Firefox does, in pixels. */
+const LINE_PIXELS = 16;
+
 export class CameraController {
   private camera: Phaser.Cameras.Scene2D.Camera;
   private scene: Phaser.Scene;
@@ -418,16 +425,20 @@ export class CameraController {
    */
   public zoomAt(x: number, y: number, factor: number): void {
     this.takeOver();
-    const before = this.camera.getWorldPoint(x, y);
+    const camera = this.camera;
     const min = this.overviewFraming().zoom * 0.8;
     const zoom = Math.min(
-      Math.max(this.camera.zoom * factor, min),
+      Math.max(camera.zoom * factor, min),
       Math.max(min * 1.2, 4)
     );
-    this.camera.setZoom(zoom);
-    const after = this.camera.getWorldPoint(x, y);
-    this.camera.scrollX += before.x - after.x;
-    this.camera.scrollY += before.y - after.y;
+    // Phaser shows world point scroll + o + (screen - left - o) / zoom, with
+    // o the camera's origin. Its getWorldPoint reads a matrix rebuilt only
+    // once a frame, so it cannot measure the new zoom; hold the point still
+    // with the same sum instead.
+    const shift = 1 / camera.zoom - 1 / zoom;
+    camera.scrollX += (x - camera.x - camera.width * camera.originX) * shift;
+    camera.scrollY += (y - camera.y - camera.height * camera.originY) * shift;
+    camera.setZoom(zoom);
   }
 
   /** The coach drags the board by (dx, dy) screen pixels. */
@@ -442,12 +453,20 @@ export class CameraController {
     // No context menu: the right button pans.
     input.mouse?.disableContextMenu();
 
+    // By how far the wheel turned: a trackpad sends a scroll as dozens of
+    // small events, a mouse as a few notches of about 100 pixels each.
     const onWheel = (
       pointer: Phaser.Input.Pointer,
       _over: unknown,
       _dx: number,
       dy: number
-    ) => this.zoomAt(pointer.x, pointer.y, dy > 0 ? 0.88 : 1.14);
+    ) => {
+      const mode = (pointer.event as WheelEvent | undefined)?.deltaMode;
+      const pixels =
+        dy * (mode === 1 ? LINE_PIXELS : mode === 2 ? this.camera.height : 1);
+      const turn = Math.max(-WHEEL_STEP_MAX, Math.min(WHEEL_STEP_MAX, pixels));
+      this.zoomAt(pointer.x, pointer.y, Math.exp(-turn * ZOOM_PER_PIXEL));
+    };
     const onMove = (pointer: Phaser.Input.Pointer) => {
       if (!pointer.rightButtonDown() && !pointer.middleButtonDown()) return;
       this.panBy(
