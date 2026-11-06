@@ -102,6 +102,12 @@ games: more playouts per option helped more than more options. A deadline
 stops a search on a slow machine with fewer samples rather than keeping the
 player waiting.
 
+The whole climb, measured on 6 November: Hard as it now is played Hard as it
+was at commit 32287fc, before the fitted position score, the re-roll count
+fix and 8 samples. It won 174, drew 110 and lost 116 of 400 mirrored games,
+57.3% of the points with ±3.7 over the seed pairs, and scored 1.00
+touchdowns a game against 0.72.
+
 The bench plays `hard` and `legend` without the deadline, so its games can be
 repeated. The browser applies it.
 
