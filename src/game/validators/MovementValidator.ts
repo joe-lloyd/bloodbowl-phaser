@@ -92,15 +92,23 @@ export class MovementValidator {
     const reachable: { x: number; y: number; cost: number }[] = [];
     const start = player.gridPosition;
     const maxMovement = moveAllowance(player);
+    const width = this.WIDTH;
+
+    // Prone and Stunned players block too: getting past one is a Jump, a
+    // separate action, never a plain step. A grid, because the lookahead
+    // asks this for every player after every command.
+    const blocked = new Uint8Array(width * this.HEIGHT);
+    for (const p of [...opponents, ...teammates]) {
+      const at = p.gridPosition;
+      if (at && this.isInBounds(at.x, at.y)) blocked[at.y * width + at.x] = 1;
+    }
+    blocked[start.y * width + start.x] = 1;
 
     const queue: { x: number; y: number; cost: number }[] = [
       { x: start.x, y: start.y, cost: 0 },
     ];
-    const visited = new Set<string>();
-    visited.add(`${start.x},${start.y}`);
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    for (let head = 0; head < queue.length; head++) {
+      const current = queue[head];
 
       // Add to reachable if not start
       if (current.cost > 0) {
@@ -109,21 +117,14 @@ export class MovementValidator {
 
       if (current.cost >= maxMovement) continue;
 
-      const neighbors = this.getNeighbors(current.x, current.y);
-      for (const neighbor of neighbors) {
-        const key = `${neighbor.x},${neighbor.y}`;
-        if (visited.has(key)) continue;
-
-        // Prone and Stunned players block too: getting past one is a Jump,
-        // a separate action, never a plain step.
-        if (
-          this.isOccupied(neighbor.x, neighbor.y, [...opponents, ...teammates])
-        ) {
-          continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const x = current.x + dx;
+          const y = current.y + dy;
+          if (!this.isInBounds(x, y) || blocked[y * width + x]) continue;
+          blocked[y * width + x] = 1;
+          queue.push({ x, y, cost: current.cost + 1 });
         }
-
-        visited.add(key);
-        queue.push({ x: neighbor.x, y: neighbor.y, cost: current.cost + 1 });
       }
     }
 
