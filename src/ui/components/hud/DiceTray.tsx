@@ -85,10 +85,13 @@ interface Queued {
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
   /**
-   * Block dice answered while still in the air: how long to hold them once
-   * they land. Without it the answer would find no hold to end.
+   * Block dice answered while still in the air, or still waiting behind
+   * another roll: how long to hold them once they land. Without it the
+   * answer would find no hold to end.
    */
   endAfterMs?: number;
+  /** Block dice answered before they were shown: the die that was picked. */
+  chosen?: number;
 }
 
 /** How long a chosen block die stays forward before the tray clears. */
@@ -208,6 +211,8 @@ export function DiceTray({
         clearTimeout(timer);
         if (round !== generation) return;
         next.settled = true;
+        if (next.chosen !== undefined)
+          handle.mark(next.chosen >= 0 ? next.chosen : null);
         reportInAir();
         setCurrent({ ...next });
         inBurst = queue.current.length > 0;
@@ -325,7 +330,16 @@ export function DiceTray({
       type: string;
       result?: string;
     }) => {
-      if (type !== "block-dice" || !shown?.block) return;
+      if (type !== "block-dice") return;
+      // A fast coach can pick before the block dice are on screen, while an
+      // earlier roll still shows: they then show the pick and close.
+      if (!shown?.block) {
+        const waiting = queue.current.find((q) => q.block);
+        if (!waiting?.block) return;
+        waiting.chosen = result ? waiting.block.indexOf(result) : -1;
+        waiting.endAfterMs = CHOSEN_MS;
+        return;
+      }
       const index = result ? shown.block.indexOf(result) : -1;
       throwing?.mark(index >= 0 ? index : null);
       if (!release) {
