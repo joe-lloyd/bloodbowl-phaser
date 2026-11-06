@@ -20,13 +20,17 @@ export const FEATURES = [
   "oursMarks",
   "oursCorners",
   "oursInReach",
+  "oursInTime",
   "theirs",
   "theirsTurns",
   "theirsToGoal",
   "theirsMarkers",
   "theirsInReach",
+  "theirsInTime",
   "loose",
   "looseNearer",
+  "looseOursBeside",
+  "looseTheirsBeside",
   "standingOurs",
   "standingTheirs",
   "outOurs",
@@ -73,6 +77,10 @@ export function features(board: Board): Record<Feature, number> {
   if (carrier && !scored) {
     const at = carrier.gridPosition!;
     const inReach = (dist: number) => (dist <= carrier.stats.MA + 2 ? 1 : 0);
+    // Whether the carrier can walk it in before the half ends: a far carrier
+    // with time is worth more than one the clock will stop.
+    const inTime = (dist: number) =>
+      Math.ceil(dist / (carrier.stats.MA + 2)) <= board.turnsLeft + 1 ? 1 : 0;
     if (carrier.teamId === board.us) {
       const dist = toGoal(board, at);
       f.ours = 1;
@@ -86,6 +94,7 @@ export function features(board: Board): Record<Feature, number> {
           Math.abs(p.gridPosition!.y - at.y) === 1
       ).length;
       f.oursInReach = inReach(dist);
+      f.oursInTime = inTime(dist);
     } else {
       const dist = toGoal(board, at, board.them);
       f.theirs = 1;
@@ -95,6 +104,7 @@ export function features(board: Board): Record<Feature, number> {
         (p) => standing(p) && distance(p.gridPosition!, at) === 1
       ).length;
       f.theirsInReach = inReach(dist);
+      f.theirsInTime = inTime(dist);
     }
   } else if (board.ball.kind === "loose") {
     const at = board.ball.at;
@@ -105,6 +115,9 @@ export function features(board: Board): Record<Feature, number> {
       );
     f.loose = 1;
     f.looseNearer = (nearest(board.theirs) - nearest(board.ours)) / 10;
+    // A player beside the ball can pick it up without a long run
+    f.looseOursBeside = nearest(board.ours) <= 1 ? 1 : 0;
+    f.looseTheirsBeside = nearest(board.theirs) <= 1 ? 1 : 0;
   }
   return f;
 }
