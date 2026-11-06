@@ -27,6 +27,29 @@ describe("HeadlessGame action protocol", () => {
     expect(JSON.stringify(game.snapshot())).toBe(before);
   });
 
+  it("rejects squares and indexes that are not whole numbers", async () => {
+    const game = new HeadlessGame({ scenario: scrimmage, seed: 21 });
+    const before = JSON.stringify(game.snapshot());
+    const playerId = game.ctx.team1.players[0].id;
+
+    for (const command of [
+      { type: "place-player", playerId, x: 2.5, y: 3 },
+      { type: "kick-ball", playerId, x: 10, y: Number.NaN },
+      { type: "move", playerId, path: [{ x: 3.5, y: 4 }] },
+      {
+        type: "apply-formation",
+        teamId: game.ctx.team1.id,
+        formation: [{ playerId, x: 1, y: 0.5 }],
+      },
+      { type: "pro-reroll-block", attackerId: playerId, dieIndex: 1.5 },
+    ]) {
+      const response = await game.execute(command);
+      expect(response.ok, command.type).toBe(false);
+      expect(response.reason, command.type).toContain("whole");
+    }
+    expect(JSON.stringify(game.snapshot())).toBe(before);
+  });
+
   it("answers state and legal-actions queries", async () => {
     const game = new HeadlessGame({ scenario: scrimmage, seed: 22 });
 

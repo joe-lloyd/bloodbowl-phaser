@@ -44,7 +44,7 @@ const COMMAND_SHAPES: Record<
   Record<
     string,
     | "string"
-    | "number"
+    | "integer"
     | "boolean"
     | "boolean?"
     | "string?"
@@ -55,24 +55,24 @@ const COMMAND_SHAPES: Record<
 > = {
   "coin-flip": {},
   "start-setup": { kickingTeamId: "string", rollWeather: "boolean?" },
-  "place-player": { playerId: "string", x: "number", y: "number" },
+  "place-player": { playerId: "string", x: "integer", y: "integer" },
   "remove-player": { playerId: "string" },
   "swap-players": { player1Id: "string", player2Id: "string" },
   "apply-formation": { teamId: "string", formation: "formation" },
   "setup-concession": { teamId: "string", concede: "boolean" },
   "confirm-setup": { teamId: "string" },
   "select-kicker": { playerId: "string" },
-  "kick-ball": { playerId: "string", x: "number", y: "number" },
+  "kick-ball": { playerId: "string", x: "integer", y: "integer" },
   "kickoff-select-player": { playerId: "string" },
-  "kickoff-move-player": { playerId: "string", x: "number", y: "number" },
-  "kickoff-place-player": { playerId: "string", x: "number", y: "number" },
+  "kickoff-move-player": { playerId: "string", x: "integer", y: "integer" },
+  "kickoff-place-player": { playerId: "string", x: "integer", y: "integer" },
   "kickoff-confirm": {},
   "kickoff-skip": {},
   "declare-action": { playerId: "string", action: "string" },
   "cancel-action": { playerId: "string" },
   move: { playerId: "string", path: "path" },
-  fumblerooski: { playerId: "string", x: "number", y: "number" },
-  jump: { playerId: "string", x: "number", y: "number" },
+  fumblerooski: { playerId: "string", x: "integer", y: "integer" },
+  jump: { playerId: "string", x: "integer", y: "integer" },
   "stand-up": { playerId: "string" },
   block: { attackerId: "string", defenderId: "string" },
   "multiple-block": {
@@ -80,23 +80,28 @@ const COMMAND_SHAPES: Record<
     defender1Id: "string",
     defender2Id: "string",
   },
-  pass: { playerId: "string", x: "number", y: "number", hailMary: "boolean?" },
-  punt: { playerId: "string", x: "number", y: "number" },
+  pass: {
+    playerId: "string",
+    x: "integer",
+    y: "integer",
+    hailMary: "boolean?",
+  },
+  punt: { playerId: "string", x: "integer", y: "integer" },
   handoff: { playerId: "string", targetId: "string" },
-  foul: { playerId: "string", x: "number", y: "number" },
+  foul: { playerId: "string", x: "integer", y: "integer" },
   stab: { attackerId: "string", defenderId: "string" },
   "throw-teammate": {
     throwerId: "string",
     teammateId: "string",
-    x: "number",
-    y: "number",
+    x: "integer",
+    y: "integer",
     swoopFacing: "string?",
   },
-  "throw-bomb": { throwerId: "string", x: "number", y: "number" },
-  "ball-and-chain": { playerId: "string", x: "number", y: "number" },
+  "throw-bomb": { throwerId: "string", x: "integer", y: "integer" },
+  "ball-and-chain": { playerId: "string", x: "integer", y: "integer" },
   "keep-block-dice": { attackerId: "string" },
   "team-reroll-block": { attackerId: "string" },
-  "pro-reroll-block": { attackerId: "string", dieIndex: "number" },
+  "pro-reroll-block": { attackerId: "string", dieIndex: "integer" },
   "brawler-reroll-block": { attackerId: "string" },
   "veteran-reroll-block": { attackerId: "string" },
   "special-action": {
@@ -108,8 +113,8 @@ const COMMAND_SHAPES: Record<
   "end-turn": {},
   "award-mvp": { teamId: "string", nominatedPlayerIds: "string-array" },
   "assign-awarded-touchdown": { playerId: "string" },
-  "choose-block-result": { index: "number" },
-  "choose-push-direction": { x: "number", y: "number" },
+  "choose-block-result": { index: "integer" },
+  "choose-push-direction": { x: "integer", y: "integer" },
   "choose-follow-up": { followUp: "boolean" },
   "use-reroll": { accept: "boolean" },
   "use-reaction": { accept: "boolean" },
@@ -125,7 +130,7 @@ const COMMAND_SHAPES: Record<
   "select-inducement": {
     teamId: "string",
     inducement: "string",
-    quantity: "number",
+    quantity: "integer",
   },
   "remove-inducement": { teamId: "string", inducement: "string" },
   "confirm-inducements": { teamId: "string" },
@@ -160,6 +165,11 @@ const tick: () => Promise<void> =
             port2.postMessage(null);
           })
       : () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** A square on the pitch grid: whole coordinates, as every rule assumes. */
+const isSquare = (value: object): boolean =>
+  Number.isInteger((value as GridPosition).x) &&
+  Number.isInteger((value as GridPosition).y);
 
 export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
@@ -1178,12 +1188,12 @@ export class HeadlessGame {
 
   /**
    * Let fire-and-forget engine chains (noDelay .then sequencing, the flow
-   * queue) fully settle before reporting the outcome.
+   * queue) fully settle before reporting the outcome. They are promise
+   * chains, so one macrotask drains them all; more ticks only add a turn of
+   * the event loop to every command, which a lookahead runs millions of.
    */
   private async settle(): Promise<void> {
-    for (let i = 0; i < 10; i++) {
-      await tick();
-    }
+    await tick();
   }
 
   private validateShape(command: unknown): string | null {
@@ -1203,13 +1213,10 @@ export class HeadlessGame {
           value.length > 0 &&
           value.every(
             (step) =>
-              typeof step === "object" &&
-              step !== null &&
-              typeof (step as GridPosition).x === "number" &&
-              typeof (step as GridPosition).y === "number"
+              typeof step === "object" && step !== null && isSquare(step)
           );
         if (!isPath)
-          return `malformed-command: '${field}' must be a non-empty {x,y}[]`;
+          return `malformed-command: '${field}' must be a non-empty {x,y}[] of whole squares`;
       } else if (kind === "formation") {
         const isFormation =
           Array.isArray(value) &&
@@ -1220,11 +1227,10 @@ export class HeadlessGame {
               position !== null &&
               typeof (position as { playerId?: unknown }).playerId ===
                 "string" &&
-              typeof (position as GridPosition).x === "number" &&
-              typeof (position as GridPosition).y === "number"
+              isSquare(position)
           );
         if (!isFormation) {
-          return `malformed-command: '${field}' must be a non-empty formation`;
+          return `malformed-command: '${field}' must be a non-empty formation on whole squares`;
         }
       } else if (kind === "string-array") {
         const isStringArray =
@@ -1239,6 +1245,9 @@ export class HeadlessGame {
         if (value !== undefined && typeof value !== base) {
           return `malformed-command: '${field}' must be a ${base} when given`;
         }
+      } else if (kind === "integer") {
+        if (!Number.isInteger(value))
+          return `malformed-command: '${field}' must be a whole number`;
       } else if (typeof value !== kind) {
         return `malformed-command: '${field}' must be a ${kind}`;
       }
