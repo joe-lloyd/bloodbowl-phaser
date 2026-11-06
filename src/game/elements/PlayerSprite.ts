@@ -514,10 +514,12 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   /**
    * Cheer: a few jumps with the arms up, then back to standing. Team-mates
    * start a moment apart, as a crowd would. A player who is down, or lying
-   * in a dugout box, stays down. Resolves when the cheer is over.
+   * in a dugout box, stays down. A walk still on its way, such as the
+   * scorer's last step, finishes first. Resolves when the cheer is over.
    */
-  public playCelebrateAnimation(): Promise<void> {
-    if (this.isDown() || this.dugoutPose === "lying") return Promise.resolve();
+  public async playCelebrateAnimation(): Promise<void> {
+    if (this.isDown() || this.dugoutPose === "lying") return;
+    await this.motion;
     const frames = modelArt(this.model).animations.cheer;
     return new Promise((resolve) => {
       this.scene.time.delayedCall(Math.random() * 400, () => {
