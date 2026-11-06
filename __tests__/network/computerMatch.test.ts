@@ -16,6 +16,7 @@ import { createLineupTeam } from "../../src/simulation/lineups";
 import { stabilizeIds } from "../../src/headless/createHeadlessGame";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
+import { drawsFor } from "../../src/game/presentation/screenSettled";
 import { Coach } from "../../src/simulation/coach";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
@@ -275,4 +276,46 @@ describe("a match against the computer", () => {
     },
     120_000
   );
+});
+
+describe("the computer's pace", () => {
+  it("waits for the board to finish drawing before its next step", async () => {
+    const team1 = stabilizeIds(
+      createLineupTeam(RosterName.HUMAN, "H", 1),
+      "team1"
+    );
+    const team2 = stabilizeIds(
+      createLineupTeam(RosterName.ORC, "O", 2),
+      "team2"
+    );
+    const eventBus = new EventBus();
+    // A walk is still on screen when the computer is due to set up.
+    let finishWalk = () => {};
+    const walk = new Promise<void>((resolve) => (finishWalk = resolve));
+    const stopDrawing = drawsFor(eventBus, () => walk);
+    match = createComputerMatch({
+      eventBus,
+      team1,
+      team2,
+      computerTeamId: team2.id,
+      pace: 0,
+    });
+    await match.run({ type: "start-setup", kickingTeamId: team2.id });
+    const game = (
+      globalThis.window as unknown as {
+        __computerMatch: { game: HeadlessGame };
+      }
+    ).__computerMatch.game;
+    const placed = () =>
+      game.snapshot().teams[1].players.filter((p) => p.position).length;
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(placed()).toBe(0);
+
+    finishWalk();
+    const end = Date.now() + 5000;
+    while (placed() === 0 && Date.now() < end) await tick();
+    expect(placed()).toBeGreaterThan(0);
+    stopDrawing();
+  });
 });

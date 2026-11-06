@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawsFor } from "../game/presentation/screenSettled";
 import { Pitch } from "../game/elements/Pitch";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
@@ -613,6 +614,16 @@ export class GameScene extends Phaser.Scene {
     // The board is built: the loading screen can go, as the camera comes in.
     this.eventBus.emit(GameEventNames.UI_LoadProgress, { progress: 1 });
     if (!this.resumedMatch) this.cameraController.intro();
+
+    // A coach the page plays waits for the board to finish drawing a step
+    this.busSubscriptions.push(
+      drawsFor(this.eventBus, () =>
+        Promise.all([
+          ...[...this.playerSprites.values()].map((sprite) => sprite.motion),
+          this.ballSprite?.arrived(),
+        ])
+      )
+    );
 
     // Cleanup on scene shutdown
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
