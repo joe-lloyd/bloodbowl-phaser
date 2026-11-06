@@ -112,3 +112,47 @@ describe("block dice chosen while an earlier roll still shows", () => {
     container.remove();
   }, 25_000);
 });
+
+describe("block dice re-rolled while the first throw still tumbles", () => {
+  it("closes the re-rolled dice once a result is picked", async () => {
+    const bus = new EventBus();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<DiceTray eventBus={bus} />));
+    const tray = () =>
+      container.querySelector('[data-testid="dice-tray"]')?.textContent ?? "";
+
+    // A team re-roll replaces the dice before the first throw has landed,
+    // and the coach picks from the new dice at once.
+    await act(async () => {
+      bus.emit(GameEventNames.BlockDiceRolled, {
+        attackerId: "attacker",
+        results: [{ type: "skull", label: "Attacker Down" }],
+      });
+      bus.emit(GameEventNames.BlockDiceRolled, {
+        attackerId: "attacker",
+        results: [{ type: "push", label: "Push" }],
+      });
+      bus.emit(GameEventNames.DecisionResolved, {
+        type: "block-dice",
+        result: "push",
+      });
+    });
+
+    await act(async () => {
+      bus.emit(GameEventNames.DiceRoll, {
+        rollType: "Injury",
+        diceType: "2d6",
+        value: [2, 3],
+        total: 5,
+        description: "Injury: 2 + 3 = 5, stunned",
+      });
+    });
+    await until(() => tray().includes("stunned"), 14_000);
+    expect(tray()).toContain("Injury: 2 + 3 = 5, stunned");
+
+    await act(async () => root.unmount());
+    container.remove();
+  }, 25_000);
+});

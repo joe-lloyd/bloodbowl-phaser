@@ -308,7 +308,10 @@ export function DiceTray({
       const team = teamLook(attacker?.teamId);
       if (!team || !values.every(Boolean)) return;
       // A block is the decision on the table: it goes before older D6s,
-      // and a re-roll replaces the dice still up
+      // and a re-roll replaces the block dice still up, in the air or not,
+      // and any still waiting to be shown
+      queue.current = queue.current.filter((q) => !q.block);
+      if (shown?.block && !release) shown.endAfterMs = 0;
       enqueue(
         {
           roll: { kind: "block", values, team, neon },
@@ -331,15 +334,16 @@ export function DiceTray({
       result?: string;
     }) => {
       if (type !== "block-dice") return;
-      // A fast coach can pick before the block dice are on screen, while an
-      // earlier roll still shows: they then show the pick and close.
-      if (!shown?.block) {
-        const waiting = queue.current.find((q) => q.block);
-        if (!waiting?.block) return;
+      // The pick answers the newest block dice. A fast coach can make it
+      // before they are on screen, behind an earlier roll or a re-rolled
+      // throw still up: they then show the pick and close.
+      const waiting = queue.current.find((q) => q.block);
+      if (waiting?.block) {
         waiting.chosen = result ? waiting.block.indexOf(result) : -1;
         waiting.endAfterMs = CHOSEN_MS;
         return;
       }
+      if (!shown?.block) return;
       const index = result ? shown.block.indexOf(result) : -1;
       throwing?.mark(index >= 0 ? index : null);
       if (!release) {
