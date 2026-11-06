@@ -1076,6 +1076,30 @@ describe("GameplayInteractionController", () => {
       );
     });
 
+    it("shows the empty squares a picked Alert Defence player may step to", () => {
+      mockPitch.highlightSquare.mockReturnValue({ destroy: vi.fn() });
+      mockGameService.getKickoffEventStep.mockReturnValue({
+        event: KickoffEvent.ALERT_DEFENCE,
+        teamId: team1Id,
+        selectionLimit: 2,
+        selectedPlayerIds: [player1.id],
+        movedPlayerIds: [],
+        awaitingPlacement: [],
+      });
+      mockGameService.getTeam.mockReturnValue(mockScene.team1);
+
+      (controller as any).syncKickoffStepInteraction();
+
+      // Around (5, 5), all but (6, 6), where an opponent stands
+      const green = mockPitch.highlightSquare.mock.calls
+        .filter(([, , colour]) => colour === 0x22c55e)
+        .map(([x, y]) => `${x},${y}`)
+        .sort();
+      expect(green).toEqual(
+        ["4,4", "4,5", "4,6", "5,4", "5,6", "6,4", "6,5"].sort()
+      );
+    });
+
     it("places a High Kick receiver under the ball from one pitch click", () => {
       mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
       mockGameService.getKickoffEventStep.mockReturnValue({
