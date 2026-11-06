@@ -64,7 +64,8 @@ This is a playable fan project under active development. It implements a
 20 × 11 Sevens pitch and six turns per coach per half, using the 2025 rules
 as its baseline. There are known rules and online-play gaps. The
 [status page](docs/STATUS.md) names them and links to the evidence.
-There is no browser AI opponent; automated coaches are development tools.
+A [computer coach](docs/technical/computer-coach.md) can take Player 2 at
+Standard, Hard or Legend difficulty.
 
 ## Credits and references
 
