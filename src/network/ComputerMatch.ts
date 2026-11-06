@@ -165,8 +165,13 @@ export function createComputerMatch(
       });
       if (refusal) return refusal;
       const response = await game.execute(command);
-      // Before the toss there is nothing to come back to.
-      if (command.type === "start-setup" && response.ok) autosave?.start();
+      // Before the toss there is nothing to come back to. Either command
+      // makes the toss and starts set-up.
+      if (
+        (command.type === "start-setup" || command.type === "coin-flip") &&
+        response.ok
+      )
+        autosave?.start();
       return response;
     });
   const run = (command: HeadlessCommand) => runAs(myTeamId, command);

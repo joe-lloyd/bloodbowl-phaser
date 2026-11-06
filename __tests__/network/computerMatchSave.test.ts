@@ -174,6 +174,14 @@ describe("saving a match against the computer", () => {
     expect(latest.presentation?.pitchThemeId).toBe("chalk");
   });
 
+  it("saves once a coin-flip command has made the toss", async () => {
+    const live = startNew(0);
+    await live.run({ type: "coin-flip" });
+    const end = Date.now() + 2000;
+    while (!latest && Date.now() < end) await ms(10);
+    expect(latest?.computer?.computerTeamId).toBe("team2");
+  });
+
   it("resumes on the same board, score and turn", async () => {
     const live = startNew(0);
     await live.run({ type: "start-setup", kickingTeamId: "team2" });
