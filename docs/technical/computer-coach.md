@@ -126,11 +126,13 @@ hand-set score 60.2%. Hard with the fit won 239, drew 181 and lost 180
 against Hard with the hand-set score over 600 mirrored games: 54.9% of the
 points, ±3.0 at 95% over seed pairs, and 0.12 more touchdowns a game.
 
-With the re-roll fix and a refit on 4,200 new games, Hard won 224, drew 163
-and lost 213 against main's Hard, which still had the hand-set score and
-counted the re-rolls bought: 50.9% of the points, ±2.8, over 600 games from
-seed 1001, with turnovers down from 25.1% of turns to 23.0%. The two
-results overlap. Expect a gain of a few points, not five.
+With the re-roll fix and a refit on 4,200 new games, Hard won 448, drew 330
+and lost 422 against the Hard before both, which had the hand-set score and
+counted the re-rolls bought. That is 51.1% of the points, ±2.0, over 1200
+games from seeds 1001 and 2001, with 0.06 more touchdowns a game and
+turnovers down from 24.8% of turns to 22.9%. The gain is about a point,
+inside the noise. These games tested the refit, not the first fit, so they
+say nothing about its 54.9%.
 
 The score is linear, so it misses what depends on two things at once. It
 values a loose ball beside our player at the start of our turn below the
