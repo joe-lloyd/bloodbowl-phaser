@@ -215,22 +215,28 @@ export function createComputerMatch(
 
   const saveOptions = options.autosave;
   const autosave = saveOptions
-    ? new MatchAutosave(eventBus, engine!, () => {
-        const kickingTeamId = game.driveKickingTeamId() ?? team1.id;
-        return createMatchSave({
-          state: engine!.getState(),
-          teams: [team1, team2],
-          drive: {
-            kickingTeamId,
-            receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,
-          },
-          rng: container.rngService.captureState(),
-          matchStats: container.matchStats.captureState(),
-          turnManager: engine!.captureTurnManagerState(),
-          presentation: { pitchThemeId: saveOptions.pitchThemeId },
-          computer: { computerTeamId, difficulty: saveOptions.difficulty },
-        });
-      })
+    ? new MatchAutosave(
+        eventBus,
+        engine!,
+        () => {
+          const kickingTeamId = game.driveKickingTeamId() ?? team1.id;
+          return createMatchSave({
+            state: engine!.getState(),
+            teams: [team1, team2],
+            drive: {
+              kickingTeamId,
+              receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,
+            },
+            rng: container.rngService.captureState(),
+            matchStats: container.matchStats.captureState(),
+            turnManager: engine!.captureTurnManagerState(),
+            presentation: { pitchThemeId: saveOptions.pitchThemeId },
+            computer: { computerTeamId, difficulty: saveOptions.difficulty },
+          });
+        },
+        // Block dice, pushes and kick-off events wait here, not in the engine
+        { choiceOpen: () => game.pendingDecision() !== null }
+      )
     : null;
   if (options.resume) autosave?.start();
 

@@ -30,10 +30,13 @@ const ms = (time: number) =>
   new Promise((resolve) => setTimeout(resolve, time));
 
 let latest: MatchSave | null = null;
+/** The choice each save was written over, if one was open. */
+let writtenOver: (string | null)[] = [];
 const repository: MatchSaveRepository = {
   read: () => latest,
   write: (save) => {
     latest = save;
+    writtenOver.push(liveGame().pendingDecision()?.type ?? null);
   },
   clear: () => {
     latest = null;
@@ -46,6 +49,7 @@ afterEach(() => {
   match?.close();
   match = null;
   latest = null;
+  writtenOver = [];
   setMatchSaveRepository(null);
   ServiceContainer.reset();
 });
@@ -205,6 +209,21 @@ describe("saving a match against the computer", () => {
     boardReady();
     while (JSON.stringify(liveGame().snapshot()) === before) await ms(20);
   }, 60_000);
+
+  it("never saves while a block, push or kick-off choice is open", async () => {
+    const live = startNew(0);
+    await live.run({ type: "start-setup", kickingTeamId: "team2" });
+    const rng = createCoachRng(11);
+    while (!liveGame().snapshot().turn.isHalf2) {
+      // A person takes a moment over each action and each choice
+      if (live.mayAct()) await ms(100);
+      await humanStep(live, rng);
+    }
+
+    // A resume restores the board, not the prompt for a choice half-made.
+    expect(writtenOver.length).toBeGreaterThan(10);
+    expect(writtenOver.filter((open) => open !== null)).toEqual([]);
+  }, 120_000);
 
   it("plays to full time across reloads, then clears the save", async () => {
     let live = startNew(0);

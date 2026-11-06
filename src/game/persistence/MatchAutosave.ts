@@ -9,6 +9,11 @@ export interface MatchAutosaveOptions {
   enabled?: boolean;
   debounceMs?: number;
   repository?: MatchSaveRepository;
+  /**
+   * A choice held outside the engine's decisions is open, such as a
+   * headless match's block dice. A save cannot carry its prompt either.
+   */
+  choiceOpen?: () => boolean;
 }
 
 /**
@@ -70,7 +75,8 @@ export class MatchAutosave {
     if (this.disposed || revision !== this.revision) return false;
     if (
       this.gameService.getDecisionService().pending() ||
-      this.gameService.captureTurnManagerState().turnoverInProgress
+      this.gameService.captureTurnManagerState().turnoverInProgress ||
+      this.options.choiceOpen?.()
     ) {
       this.schedule();
       return false;
