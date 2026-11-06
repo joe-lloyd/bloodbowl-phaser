@@ -88,24 +88,39 @@ Scoring at the end of our own turn lost to the plain planner, 3 won, 12 drawn,
 9 lost in 24 games: it could not see what an exposed carrier would suffer.
 The opponent's reply is what makes the lookahead pay.
 
-| Level    | Options | Samples | Deadline | Measured over mirrored games                             |
-| -------- | ------- | ------- | -------- | -------------------------------------------------------- |
-| Standard | none    | none    | none     | The planner                                              |
-| Hard     | 4       | 2       | 1.5 s    | Against the planner: 91 won, 55 drawn, 54 lost, +0.26 TD |
-| Legend   | 4       | 6       | 4 s      | Against Hard: 42 won, 23 drawn, 35 lost, +0.08 TD        |
+| Level    | Options | Samples | Deadline | Measured over mirrored games                               |
+| -------- | ------- | ------- | -------- | ---------------------------------------------------------- |
+| Standard | none    | none    | none     | The planner                                                |
+| Hard     | 4       | 8       | 1.5 s    | Against Hard with 2 samples: 54.7% ±3.8 over 400, +0.16 TD |
+| Legend   | 4       | 16      | 4 s      | Against Hard with 8 samples: 52.7% ±5.1 over 200, +0.10 TD |
 
-Legend's 100 games point the right way but do not prove it stronger than Hard.
-Six options with four samples did no better, 21 won, 20 drawn, 19 lost over 60
-games. More playouts per option helped more than more options.
+Each doubling of the samples buys less. Hard with 2 samples beat the planner,
+91 won, 55 drawn and 54 lost; four times the samples gained another 4.7
+points, and twice that about 2.7, inside the noise. Six options with four
+samples did no better than four options, 21 won, 20 drawn, 19 lost over 60
+games: more playouts per option helped more than more options. A deadline
+stops a search on a slow machine with fewer samples rather than keeping the
+player waiting.
 
 The bench plays `hard` and `legend` without the deadline, so its games can be
 repeated. The browser applies it.
 
-In the browser the search runs in a Web Worker
-(`workerSearchCoach.ts` and `searchWorker.ts`), on a copy of the match. If the
-worker crashes or overruns, the planner answers at once, so a match cannot
-hang on it. On a machine under load, the median search took about a second,
-and the page's long tasks were the same on Hard as on Standard.
+In the browser the search runs on the page and shares its playouts over a
+pool of Web Workers, one for each core but the page's, up to eight
+(`workerSearchCoach.ts` and `searchWorker.ts`). Each worker scores the
+candidates and seeds it is dealt on a copy of the match. A playout depends
+on nothing but its candidate and its seed, so the pool chooses exactly what
+one thread would. A worker that crashes or overruns scores nothing, and with
+nothing scored the planner's plan stands, so a match cannot hang on it.
+
+A search's time in headless Chromium on a Mac whose page saw 8 cores,
+median and slowest over 17 declarations of one match:
+
+| Samples per option | 1 worker       | 4 workers      | 8 workers      |
+| ------------------ | -------------- | -------------- | -------------- |
+| 2                  | 245 ms, 766 ms | 89 ms, 315 ms  | 67 ms, 254 ms  |
+| 8                  | 820 ms, 1.6 s  | 259 ms, 608 ms | 247 ms, 623 ms |
+| 16                 | 1.6 s, 3.3 s   | 507 ms, 915 ms | 350 ms, 882 ms |
 
 ### The position score
 
@@ -151,16 +166,24 @@ That is 4,200 games, about ten minutes on 14 cores. The fit prints how it
 and the committed weights do on held-out games. Keep the new weights only if
 they rank positions better, then bench Hard against a frozen copy of main.
 
-### Looking further did not pay
+### Looking wider pays, looking further does not
 
 Hard checks one activation and lets the planner play the rest of the turn.
-A version that stopped at our next declaration, tried the planner's best
-three there and kept the best, lost to plain Hard: 69 won, 54 drawn, 77
-lost over 200 games, with more turnovers, 27.6% of turns against 24.4%.
-Each answer met dice it had already seen, so it picked the answer that
-happened to work and favoured gambles. A fair version averages each answer
-over fresh dice, which costs about ten times the search and does not fit
-the browser's deadline.
+Two ways to spend four times its search, each over mirrored games against
+Hard as it was:
+
+| Spent on                                          | Games | Points share | TD a game |
+| ------------------------------------------------- | ----- | ------------ | --------- |
+| 8 samples per option, not 2                       | 400   | 54.7% ±3.8   | +0.16     |
+| The planner's best 3 answers after the activation | 200   | 43.8% ±5.4   | −0.18     |
+
+The answers were tried where our next declaration came up, each picked on
+one roll of the dice and scored on another. A first try that picked and
+scored on the same dice lost too: 69 won, 54 drawn and 77 lost over 200
+games, 48.0% of the points, with more turnovers, because it chose the
+answer that happened to come off. The likely reason both lost: an answer
+picked on one roll is often worse than the one the planner would play, so
+the option it follows looks worse than it is.
 
 ## No odds on the screen
 

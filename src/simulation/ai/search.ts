@@ -13,7 +13,7 @@ import { GamePhase } from "../../types/GameState";
 import { Candidate, enumerateDecision } from "../candidates";
 import { Coach, CoachChoice, CoachContext } from "../coach";
 import { matchSaveAt } from "../replay";
-import { CoachRng, createCoachRng } from "../rng";
+import { createCoachRng } from "../rng";
 import { Activation, activations } from "./activations";
 import { readBoard } from "./board";
 import { evaluate } from "./evaluate";
@@ -31,8 +31,8 @@ export interface SearchBudget {
 
 /** The levels above the plain planner, by how hard they look. */
 export const BUDGETS = {
-  hard: { samples: 2, options: 4, deadlineMs: 1500 },
-  legend: { samples: 6, options: 4, deadlineMs: 4000 },
+  hard: { samples: 8, options: 4, deadlineMs: 1500 },
+  legend: { samples: 16, options: 4, deadlineMs: 4000 },
 } as const satisfies Record<string, SearchBudget>;
 
 interface Option {
@@ -71,29 +71,36 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
   return out;
 }
 
-/** Play one option out to the end of our turn and score where it lands. */
-async function playout(
+/**
+ * Candidate `index`'s score on one roll of the dice, from `us`'s side:
+ * copy of the game with the dice reseeded, so it cannot see the real ones,
+ * play our turn and the other side's answer to it with the planner, and
+ * score where it lands. A position is judged by what the opponent can do to
+ * it, not by how it looks before they move. The score depends on nothing
+ * else, so playouts can run in any order, anywhere.
+ */
+export async function scorePlayout(
   save: MatchSave,
-  option: Option,
   us: string,
+  index: number,
   seed: number,
-  policy: Coach,
-  rng: CoachRng
+  w: Weights = DEFAULT_WEIGHTS
 ): Promise<number> {
   const game = new HeadlessGame({ matchSave: save, lazySnapshots: true });
-  const live = () => game.ctx.gameService.getState();
-  const state = game.ctx.rng.captureState();
-  game.ctx.rng.restoreState({ ...state, currentSeed: seed });
+  const dice = game.ctx.rng.captureState();
+  game.ctx.rng.restoreState({ ...dice, currentSeed: seed });
   const first = await enumerateDecision(game, null);
-  const opening = first.candidates[option.index];
+  const opening = first.candidates[index];
   if (opening) await game.execute(opening.commands[0]);
 
-  // Our turn and the other side's answer to it: a position is judged by
-  // what the opponent can do to it, not by how it looks before they move.
+  const policy = createPlannerCoach({ weights: w });
+  // The planner draws nothing at random, but a decision it leaves to the
+  // heuristic does: its own stream keeps the playout a function of its seed.
+  const rng = createCoachRng(sampleSeed(seed, index));
   let handedOver = false;
   const startScore = { ...save.snapshot.score };
   for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
-    const state = live();
+    const state = game.ctx.gameService.getState();
     const scored = Object.keys(startScore).some(
       (t) => (state.score[t] ?? 0) !== startScore[t]
     );
@@ -127,14 +134,52 @@ async function playout(
 const sampleSeed = (base: number, sample: number) =>
   (Math.imul(base ^ (sample + 1), 0x9e3779b1) >>> 0) % 2147483647 || 1;
 
+/** One round of playouts: these candidates, each on each of these seeds. */
+export interface PlayoutRound {
+  save: MatchSave;
+  us: string;
+  indices: number[];
+  seeds: number[];
+  /** Date.now() after which no playout starts. */
+  deadlineAt?: number;
+}
+
+/**
+ * Plays a round out: a row for each seed, a score in each row for each
+ * candidate, in order. Every candidate meets the same dice, so a seed the
+ * deadline cut short is left out for all of them.
+ */
+export type Playouts = (round: PlayoutRound) => Promise<number[][]>;
+
+/** Playouts in this thread, one after another. */
+export function playoutsHere(w: Weights): Playouts {
+  return async ({ save, us, indices, seeds, deadlineAt }) => {
+    const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
+    const rows: number[][] = [];
+    for (const seed of seeds) {
+      const row: number[] = [];
+      for (const index of indices) {
+        if (late()) return rows;
+        row.push(await scorePlayout(save, us, index, seed, w));
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+}
+
+/** The planner, with its next declaration checked by sampled playouts. */
 export function createSearchCoach(options: {
   weights?: Weights;
   name?: string;
   budget: SearchBudget;
+  /** Where the playouts run; in this thread by default. */
+  playouts?: Playouts;
 }): Coach {
   const w = options.weights ?? DEFAULT_WEIGHTS;
   const { budget } = options;
   const policy = createPlannerCoach({ weights: w });
+  const playouts = options.playouts ?? playoutsHere(w);
   return {
     name: options.name ?? "search",
     async choose(context: CoachContext): Promise<CoachChoice> {
@@ -145,13 +190,13 @@ export function createSearchCoach(options: {
       const list = shortlist(context, w, budget.options);
       if (list.length < 2) return policy.choose(context);
 
-      const started = Date.now();
-      const late = () =>
-        budget.deadlineMs !== undefined &&
-        Date.now() - started > budget.deadlineMs;
+      const deadlineAt =
+        budget.deadlineMs === undefined
+          ? undefined
+          : Date.now() + budget.deadlineMs;
+      const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
       const save = matchSaveAt(game);
       const base = context.rng.int(2147483647);
-      const quiet = createCoachRng(base);
       const totals = list.map(() => 0);
       const counts = list.map(() => 0);
       const mean = (i: number) =>
@@ -162,31 +207,32 @@ export function createSearchCoach(options: {
       let sampleAt = 0;
       for (let round = 0; alive.length > 1 && !late(); round++) {
         const samples = round === 0 ? budget.samples : budget.samples * 2;
-        for (let s = 0; s < samples && !late(); s++) {
-          const seed = sampleSeed(base, sampleAt++);
-          const results: number[] = [];
-          for (const i of alive) {
-            results.push(
-              await playout(save, list[i], point.teamId, seed, policy, quiet)
-            );
-            if (late()) break;
-          }
-          // Every option meets the same dice: a sample the deadline cut
-          // short counts for none of them.
-          if (results.length < alive.length) break;
+        const seeds = Array.from({ length: samples }, () =>
+          sampleSeed(base, sampleAt++)
+        );
+        const rows = await playouts({
+          save,
+          us: point.teamId,
+          indices: alive.map((i) => list[i].index),
+          seeds,
+          deadlineAt,
+        });
+        for (const row of rows)
           alive.forEach((i, k) => {
-            totals[i] += results[k];
+            totals[i] += row[k];
             counts[i]++;
           });
-        }
+        // A round the deadline cut short is the last.
+        if (rows.length < seeds.length) break;
         alive = [...alive]
           .sort((a, b) => mean(b) - mean(a))
           .slice(0, Math.max(1, alive.length >> 1));
         if (!alive.includes(0) && alive.length > 0) alive.push(0);
         if (alive.length === 2 && round > 0) break;
       }
-      // The plan stands unless a rival beats it on the same dice.
-      const rival = alive[0] ?? 0;
+      // The plan stands unless a rival still in the running beats it on the
+      // same dice.
+      const rival = [...alive].sort((a, b) => mean(b) - mean(a))[0] ?? 0;
       const best = mean(rival) > mean(0) ? rival : 0;
       const pick = list[best];
       return { index: pick.index, note: noteFor(pick.activation) };

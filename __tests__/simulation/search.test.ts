@@ -4,7 +4,14 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { Scenario } from "../../src/types/Scenario";
 import { enumerateDecision } from "../../src/simulation/candidates";
 import { createCoachRng } from "../../src/simulation/rng";
-import { createSearchCoach } from "../../src/simulation/ai/search";
+import {
+  createSearchCoach,
+  scorePlayout,
+} from "../../src/simulation/ai/search";
+import type {
+  SearchReply,
+  SearchRequest,
+} from "../../src/simulation/ai/searchWorker";
 import { createWorkerSearchCoach } from "../../src/simulation/ai/workerSearchCoach";
 import { plannerCoach } from "../../src/simulation/ai/planner";
 import { readBoard } from "../../src/simulation/ai/board";
@@ -140,26 +147,34 @@ describe("the lookahead's note", () => {
   });
 });
 
-describe("the lookahead in a worker", () => {
+describe("the lookahead over workers", () => {
+  type Answer = (worker: FakeWorker, request: SearchRequest) => void;
   class FakeWorker extends EventTarget {
     asked = 0;
     terminated = false;
-    constructor(private answer: (worker: FakeWorker, id: number) => void) {
+    constructor(private answer: Answer) {
       super();
     }
-    postMessage({ id }: { id: number }) {
+    postMessage(request: SearchRequest) {
       this.asked++;
-      this.answer(this, id);
+      this.answer(this, request);
     }
     terminate() {
       this.terminated = true;
     }
   }
-  const coachOn = (worker: FakeWorker) =>
-    createWorkerSearchCoach({
-      budget: { samples: 1, options: 2, deadlineMs: 1 },
-      createWorker: () => worker as unknown as Worker,
+  const reply = (worker: FakeWorker, data: SearchReply) =>
+    worker.dispatchEvent(new MessageEvent("message", { data }));
+  // Long enough that the first round always starts, however slow the setup.
+  const coachWithin = (deadlineMs: number, ...workers: FakeWorker[]) => {
+    let next = 0;
+    return createWorkerSearchCoach({
+      budget: { samples: 1, options: 2, deadlineMs },
+      createWorker: () => workers[next++ % workers.length] as unknown as Worker,
+      workers: workers.length,
     });
+  };
+  const coachOn = (...workers: FakeWorker[]) => coachWithin(60_000, ...workers);
   const declaration = async () => {
     const game = new HeadlessGame({ scenario: position(null), seed: 1 });
     const point = await enumerateDecision(game, null);
@@ -173,25 +188,41 @@ describe("the lookahead in a worker", () => {
     return { game, point, context, planned };
   };
 
-  it("plays the candidate the worker picked", async () => {
-    const { point, context, planned } = await declaration();
-    const other = point.candidates.findIndex(
-      (c, i) => i !== planned.index && c.commands[0].type === "declare-action"
-    );
-    const worker = new FakeWorker((self, id) =>
-      self.dispatchEvent(
-        new MessageEvent("message", {
-          data: {
-            id,
-            commands: JSON.stringify(point.candidates[other].commands),
-            note: "moves",
-          },
-        })
-      )
+  it("plays the rival the workers score above the plan", async () => {
+    const { context, planned } = await declaration();
+    const worker = new FakeWorker((self, { id, jobs }) =>
+      reply(self, {
+        id,
+        scores: jobs.map(({ index }) => (index === planned.index ? 0 : 1)),
+      })
     );
     const choice = await coachOn(worker).choose(context);
-    expect(choice).toEqual({ index: other, note: "moves" });
+    expect(choice.index).not.toBe(planned.index);
+    expect(choice.note).toBeTruthy();
   });
+
+  it("chooses what the search in this thread chooses, over three workers", async () => {
+    const budget = { samples: 2, options: 3 };
+    const { context } = await declaration();
+    const workers = [0, 1, 2].map(
+      () =>
+        new FakeWorker((self, { id, save, us, jobs }) => {
+          void Promise.all(
+            jobs.map(({ index, seed }) => scorePlayout(save, us, index, seed))
+          ).then((scores) => reply(self, { id, scores }));
+        })
+    );
+    let next = 0;
+    const pooled = createWorkerSearchCoach({
+      budget,
+      createWorker: () => workers[next++] as unknown as Worker,
+      workers: 3,
+    });
+    const here = createSearchCoach({ budget });
+    const fresh = () => ({ ...context, rng: createCoachRng(7) });
+    expect(await pooled.choose(fresh())).toEqual(await here.choose(fresh()));
+    expect(workers.map((w) => w.asked > 0)).toEqual([true, true, true]);
+  }, 60000);
 
   it.each([
     [
@@ -206,7 +237,8 @@ describe("the lookahead in a worker", () => {
     async (_, answer) => {
       const { context, planned } = await declaration();
       const worker = new FakeWorker(answer);
-      const choice = await coachOn(worker).choose(context);
+      // Short, so a silent worker is given up on well inside the timeout.
+      const choice = await coachWithin(250, worker).choose(context);
       expect(choice.index).toBe(planned.index);
       expect(worker.terminated).toBe(true);
     },
@@ -235,7 +267,7 @@ describe("the lookahead in a worker", () => {
     expect(worker.terminated).toBe(true);
   });
 
-  it("does not ask the worker about a decision mid-activation", async () => {
+  it("does not ask the workers about a decision mid-activation", async () => {
     const { game, context } = await declaration();
     const reroll = {
       type: "reroll",
