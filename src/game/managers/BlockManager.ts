@@ -602,20 +602,20 @@ export class BlockManager {
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
-    if (result.fumbled) {
-      flow.add(new BounceOperation(from), true);
-      return;
-    }
-    const landingPlayer = gs.getPlayerAt(finalPosition.x, finalPosition.y);
-    if (landingPlayer) {
-      await new CatchOperation(landingPlayer.id, {
-        origin: "pass",
-        isPassTarget:
-          !!receiver && landingPlayer.id === receiver.id && result.accurate,
-      }).execute(flow.context);
-    } else {
-      flow.add(new BounceOperation(finalPosition), true);
-    }
+    // The ball comes to rest, bounces and catches included, before the
+    // action that provoked the pass goes on.
+    const landingPlayer = result.fumbled
+      ? undefined
+      : gs.getPlayerAt(finalPosition.x, finalPosition.y);
+    await flow.runToRest(
+      landingPlayer
+        ? new CatchOperation(landingPlayer.id, {
+            origin: "pass",
+            isPassTarget:
+              !!receiver && landingPlayer.id === receiver.id && result.accurate,
+          })
+        : new BounceOperation(finalPosition)
+    );
   }
 
   /**

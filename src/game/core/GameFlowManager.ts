@@ -156,12 +156,36 @@ export class GameFlowManager {
     return new Promise((resolve) => this.idleResolvers.push(resolve));
   }
 
+  /**
+   * Run an operation and everything it queues, such as a bounce and the
+   * catch it lands on, before returning. A chain started in the middle of
+   * another step, like a Dump-Off before the block that provoked it, must
+   * come to rest before that step goes on. Waiting for idle cannot do it:
+   * that step may itself be running inside the queue.
+   */
+  public async runToRest(operation: GameOperation): Promise<void> {
+    const later = this.queue;
+    const wasProcessing = this.isProcessing;
+    this.queue = [operation];
+    this.isProcessing = true;
+    await this.drain();
+    this.queue.push(...later);
+    this.isProcessing = wasProcessing;
+    if (!wasProcessing) void this.process();
+  }
+
   private async process(): Promise<void> {
     if (this.isProcessing) return;
-    if (this.queue.length === 0) return;
-
     this.isProcessing = true;
+    await this.drain();
+    this.isProcessing = false;
 
+    const resolvers = this.idleResolvers;
+    this.idleResolvers = [];
+    resolvers.forEach((resolve) => resolve());
+  }
+
+  private async drain(): Promise<void> {
     while (this.queue.length > 0) {
       const op = this.queue.shift();
       if (op) {
@@ -178,11 +202,5 @@ export class GameFlowManager {
         }
       }
     }
-
-    this.isProcessing = false;
-
-    const resolvers = this.idleResolvers;
-    this.idleResolvers = [];
-    resolvers.forEach((resolve) => resolve());
   }
 }
