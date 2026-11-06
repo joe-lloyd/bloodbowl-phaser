@@ -2469,7 +2469,8 @@ export class GameService implements IGameService {
     if (!gate.accepted) return false;
     if (!gate.proceed) return true;
 
-    await this.blockManager.offerDumpOff(targetId);
+    // A Dump-Off caught in the end zone has ended the drive
+    if (!(await this.blockManager.offerDumpOff(targetId))) return true;
     this.flowManager.add(new StabOperation(attackerId, targetId));
     return true;
   }
@@ -2647,8 +2648,12 @@ export class GameService implements IGameService {
     // Dump-Off is resolved before a directly-targeting opposition Special
     // Action, just as it is before a Block.
     const target = this.getPlayerById(targetId);
-    if (target && target.teamId !== attacker.teamId) {
-      await this.blockManager.offerDumpOff(targetId);
+    if (
+      target &&
+      target.teamId !== attacker.teamId &&
+      !(await this.blockManager.offerDumpOff(targetId))
+    ) {
+      return true;
     }
     switch (kind) {
       case "breatheFire":
