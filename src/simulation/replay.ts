@@ -4,7 +4,6 @@
  */
 
 import { HeadlessGame } from "../headless/HeadlessGame";
-import { createMatchSave, MatchSave } from "../headless/serialization";
 import {
   MatchRecording,
   RECORDING_FORMAT,
@@ -103,26 +102,4 @@ export function trimRecording(
     steps: recording.steps.slice(0, steps),
     findings: recording.findings.filter((f) => f.step < steps),
   };
-}
-
-/**
- * A save the browser can resume, so a headless recording can be opened on
- * the real board at any step (see `pnpm sim:replay --save-at`).
- */
-export function matchSaveAt(game: HeadlessGame): MatchSave {
-  const gs = game.ctx.gameService;
-  const { team1, team2 } = game.ctx;
-  const turnManager = gs.captureTurnManagerState();
-  const kickingTeamId = turnManager.driveKickingTeamId ?? team1.id;
-  return createMatchSave({
-    state: gs.getState(),
-    teams: [team1, team2],
-    drive: {
-      kickingTeamId,
-      receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,
-    },
-    rng: game.ctx.rng.captureState(),
-    matchStats: game.ctx.matchStats.captureState(),
-    turnManager,
-  });
 }

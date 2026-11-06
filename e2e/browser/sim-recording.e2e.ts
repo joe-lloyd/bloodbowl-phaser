@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { matchSaveAt, replayRecording } from "../../src/simulation/replay";
+import { replayRecording } from "../../src/simulation/replay";
 import { runMatch } from "../../src/simulation/runMatch";
 import { randomCoach } from "../../src/simulation/coaches/random";
 import { RosterName } from "../../src/types/Team";
@@ -47,7 +47,7 @@ test("a recording's state resumes on the real board unchanged", async ({
   });
   const { game } = await replayRecording(recording);
   const engine = game.snapshot();
-  const save = serializeMatchSave(matchSaveAt(game));
+  const save = serializeMatchSave(game.matchSave());
 
   await page.addInitScript(
     ([key, value]) => window.localStorage.setItem(key, value),
