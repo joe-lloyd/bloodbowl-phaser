@@ -175,7 +175,7 @@ describe("block dice picked before the tray has thrown them", () => {
       });
     });
     await land(0);
-    expect(throws[0].mark).not.toHaveBeenCalledWith(1);
+    expect(throws[0].mark).not.toHaveBeenCalled();
     await thrown(2);
     await land(1);
     expect(throws[1].mark).toHaveBeenCalledWith(1);
