@@ -7,6 +7,8 @@ known gaps, rather than a release promise or a claim of complete rules coverage.
 
 Local two-coach matches support team selection, setup, kick-offs, regular and
 special player actions, scoring, half-time, results and saved-match resume.
+A [computer coach](technical/computer-coach.md) can take Player 2 instead, at
+Standard, Hard or Legend difficulty.
 Teams can develop across matches and enter leagues or tournaments.
 The [roster update audit](ROSTER_UPDATES_2026.md) records the 2026 data updates
 and their sources.
@@ -45,8 +47,7 @@ is still open and can be answered. Treat online play as experimental.
 
 ## Developer tools and build limits
 
-- Automated coaches run through the simulation CLI. There is no AI opponent in
-  the normal browser match menu.
+- The simulation CLI plays whole matches between automated coaches.
 - Sandbox and Sound Test are development tools, gated on configured deployments.
 - The Vite production bundle builds independently of private rulebook files.
   The stricter TypeScript build has existing errors; see

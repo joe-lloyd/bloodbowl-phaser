@@ -5,7 +5,7 @@ match with another coach, and carry your players through leagues and tournaments
 Animated sprites play on an isometric pitch, with a React HUD for actions,
 dice and coaching decisions.
 
-[Play the game](https://earnest-jalebi-3179e9.netlify.app/) ·
+[Play the game](https://bloodbowl-sevens.joe-lloyd.com/) ·
 [How to play](docs/PLAYING.md) · [Documentation](docs/README.md)
 
 ![A Sevens match on the isometric stadium pitch](docs/images/live-match.png)
