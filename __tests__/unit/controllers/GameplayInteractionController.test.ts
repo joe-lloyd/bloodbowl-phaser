@@ -1109,6 +1109,7 @@ describe("GameplayInteractionController", () => {
     });
 
     it("marks squares only around the latest pick, the one a click moves", () => {
+      mockGameService.getPhase.mockReturnValue(GamePhase.KICKOFF);
       mockPitch.highlightSquare.mockReturnValue({ destroy: vi.fn() });
       const second = { ...player1, id: "p3", gridPosition: { x: 10, y: 2 } };
       mockScene.team1.players = [player1, second];
