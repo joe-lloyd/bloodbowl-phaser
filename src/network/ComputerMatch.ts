@@ -12,6 +12,7 @@
  */
 
 import { whenEngineQuiet } from "../game/core/GameFlowManager";
+import { whenScreenSettled } from "../game/presentation/screenSettled";
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
@@ -89,6 +90,20 @@ function pause(command: HeadlessCommand): number {
 }
 
 const COMPUTER_NAME = "Computer";
+
+/** Resolves once the page is in view. */
+function whenWatched(): Promise<void> {
+  if (typeof document === "undefined" || !document.hidden)
+    return Promise.resolve();
+  return new Promise((resolve) => {
+    const onShow = () => {
+      if (document.hidden) return;
+      document.removeEventListener("visibilitychange", onShow);
+      resolve();
+    };
+    document.addEventListener("visibilitychange", onShow);
+  });
+}
 
 export interface ComputerMatchOptions {
   eventBus: IEventBus;
@@ -250,6 +265,11 @@ export function createComputerMatch(
         );
       }
       for (const command of candidate.commands) {
+        // Each step is seen before the next: the walk, the ball, the dice
+        // and the banners it started have all been shown. Nothing plays on
+        // in a tab nobody is watching, to pile up for when they come back.
+        await whenWatched();
+        await whenScreenSettled(eventBus);
         await wait(pause(command));
         if (closed) return false;
         showIntent(command);

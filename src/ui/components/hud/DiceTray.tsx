@@ -85,10 +85,13 @@ interface Queued {
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
   /**
-   * Block dice answered while still in the air: how long to hold them once
-   * they land. Without it the answer would find no hold to end.
+   * Block dice answered while still in the air, or still waiting behind
+   * another roll: how long to hold them once they land. Without it the
+   * answer would find no hold to end.
    */
   endAfterMs?: number;
+  /** Block dice answered before they were shown: the die that was picked. */
+  chosen?: number;
 }
 
 /** How long a chosen block die stays forward before the tray clears. */
@@ -208,6 +211,8 @@ export function DiceTray({
         clearTimeout(timer);
         if (round !== generation) return;
         next.settled = true;
+        if (next.chosen !== undefined)
+          handle.mark(next.chosen >= 0 ? next.chosen : null);
         reportInAir();
         setCurrent({ ...next });
         inBurst = queue.current.length > 0;
@@ -303,7 +308,10 @@ export function DiceTray({
       const team = teamLook(attacker?.teamId);
       if (!team || !values.every(Boolean)) return;
       // A block is the decision on the table: it goes before older D6s,
-      // and a re-roll replaces the dice still up
+      // and a re-roll replaces the block dice still up, in the air or not,
+      // and any still waiting to be shown
+      queue.current = queue.current.filter((q) => !q.block);
+      if (shown?.block && !release) shown.endAfterMs = 0;
       enqueue(
         {
           roll: { kind: "block", values, team, neon },
@@ -325,9 +333,21 @@ export function DiceTray({
       type: string;
       result?: string;
     }) => {
-      if (type !== "block-dice" || !shown?.block) return;
+      if (type !== "block-dice") return;
+      // The pick answers the newest block dice. A fast coach can make it
+      // before they are on screen, behind an earlier roll or a re-rolled
+      // throw still up: they then show the pick and close.
+      const waiting = queue.current.find((q) => q.block);
+      if (waiting?.block) {
+        waiting.chosen = result ? waiting.block.indexOf(result) : -1;
+        waiting.endAfterMs = CHOSEN_MS;
+        return;
+      }
+      if (!shown?.block) return;
       const index = result ? shown.block.indexOf(result) : -1;
-      throwing?.mark(index >= 0 ? index : null);
+      // Until they land, the dice may not be thrown yet: the landing marks it
+      if (!shown.settled) shown.chosen = index;
+      else throwing?.mark(index >= 0 ? index : null);
       if (!release) {
         shown.endAfterMs = CHOSEN_MS;
         return;

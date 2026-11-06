@@ -20,6 +20,8 @@ export class BallSprite extends Phaser.GameObjects.Container {
   /** The flight in progress, so a new flight or a placement can end it. */
   private flight: { tween: Phaser.Tweens.Tween; settle: () => void } | null =
     null;
+  /** The last flight's arrival, so the board can tell when it has landed. */
+  private landing: Promise<void> = Promise.resolve();
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -68,7 +70,7 @@ export class BallSprite extends Phaser.GameObjects.Container {
     this.stopFlight();
     const from = { x: this.x, y: this.y, h: this.heightM };
     const end = opts.endHeight ?? 0;
-    return new Promise((resolve) => {
+    return (this.landing = new Promise((resolve) => {
       const tween = this.scene.tweens.addCounter({
         from: 0,
         to: 1,
@@ -91,7 +93,12 @@ export class BallSprite extends Phaser.GameObjects.Container {
         resolve();
       };
       this.flight = { tween, settle };
-    });
+    }));
+  }
+
+  /** Resolves once the ball has landed from any flight under way. */
+  public arrived(): Promise<void> {
+    return this.landing;
   }
 
   /**
