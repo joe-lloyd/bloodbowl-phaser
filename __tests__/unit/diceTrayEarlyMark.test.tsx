@@ -179,6 +179,8 @@ describe("block dice picked before the tray has thrown them", () => {
     await thrown(2);
     await land(1);
     expect(throws[1].mark).toHaveBeenCalledWith(1);
+    // Nor once the re-rolled dice have come to rest
+    expect(throws[0].mark).not.toHaveBeenCalled();
     await unmount();
   });
 });
