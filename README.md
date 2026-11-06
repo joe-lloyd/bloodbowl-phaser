@@ -5,7 +5,7 @@ match with another coach, and carry your players through leagues and tournaments
 Animated sprites play on an isometric pitch, with a React HUD for actions,
 dice and coaching decisions.
 
-[Play the game](https://earnest-jalebi-3179e9.netlify.app/) ·
+[Play the game](https://bloodbowl-sevens.joe-lloyd.com/) ·
 [How to play](docs/PLAYING.md) · [Documentation](docs/README.md)
 
 ![A Sevens match on the isometric stadium pitch](docs/images/live-match.png)
@@ -64,7 +64,8 @@ This is a playable fan project under active development. It implements a
 20 × 11 Sevens pitch and six turns per coach per half, using the 2025 rules
 as its baseline. There are known rules and online-play gaps. The
 [status page](docs/STATUS.md) names them and links to the evidence.
-There is no browser AI opponent; automated coaches are development tools.
+A [computer coach](docs/technical/computer-coach.md) can take Player 2 at
+Standard, Hard or Legend difficulty.
 
 ## Credits and references
 

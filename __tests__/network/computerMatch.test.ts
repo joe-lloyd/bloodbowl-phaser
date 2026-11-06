@@ -137,7 +137,15 @@ describe("whose turn it is against the computer", () => {
     const rng = createCoachRng(5);
     const live = match;
     // Plays the human's side up to their first turn, touchback included.
-    while (game.snapshot().phase !== GamePhase.PLAY || game.pendingDecision()) {
+    // The turn starts before the kick-off has bounced, so a touchback can
+    // still open once the engine goes quiet.
+    const settled = async () => {
+      await whenEngineQuiet();
+      return (
+        game.snapshot().phase === GamePhase.PLAY && !game.pendingDecision()
+      );
+    };
+    while (!(await settled())) {
       if (!live.mayAct()) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         continue;

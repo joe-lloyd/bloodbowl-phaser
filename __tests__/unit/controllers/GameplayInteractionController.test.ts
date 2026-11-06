@@ -20,7 +20,7 @@ const mockScene = {
 const mockPitch = {
   getContainer: vi.fn(() => ({ x: 0, y: 0 })),
   highlightHoverSquare: vi.fn(),
-  highlightSquare: vi.fn(),
+  highlightSquare: vi.fn(() => ({ destroy: vi.fn() })),
   drawRangeOverlay: vi.fn(),
   drawTackleZones: vi.fn(),
   drawMovementPath: vi.fn(),
