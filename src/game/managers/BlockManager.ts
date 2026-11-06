@@ -329,9 +329,15 @@ export class BlockManager {
     this.pileDriverTargets.delete(attackerId);
 
     // Dump-Off interrupts the declaration and completes its Quick Pass before
-    // the targeting Block proceeds to its dice.
-    if (attacker && defender && attacker.teamId !== defender.teamId) {
-      await this.offerDumpOff(defender.id);
+    // the targeting Block proceeds to its dice; a touchdown from it ends the
+    // Block there.
+    if (
+      attacker &&
+      defender &&
+      attacker.teamId !== defender.teamId &&
+      !(await this.offerDumpOff(defender.id))
+    ) {
+      return;
     }
 
     // Trigger point: block declared — rules may adjust strength/dice, roll a
@@ -486,8 +492,11 @@ export class BlockManager {
    * empty Quick Pass square when no team-mate is in range. This keeps
    * browser/headless/online resolution identical until the target-picker
    * decision gains a payload.
+   *
+   * Resolves false when the pass ended the drive, caught in the end zone
+   * for a touchdown: the action it interrupted must not go on.
    */
-  public async offerDumpOff(targetId: string): Promise<void> {
+  public async offerDumpOff(targetId: string): Promise<boolean> {
     const passer = this.getPlayerById(targetId);
     const flow = this.callbacks.getFlowManager?.();
     const gs = flow?.context.gameService;
@@ -499,7 +508,7 @@ export class BlockManager {
       !hasSkill(passer.skills, SkillType.DUMP_OFF) ||
       !this.isOnBall(passer)
     ) {
-      return;
+      return true;
     }
 
     const from = { ...passer.gridPosition };
@@ -553,7 +562,7 @@ export class BlockManager {
     const targetSquare = receiver?.gridPosition
       ? { ...receiver.gridPosition }
       : emptyQuickPassSquares[0];
-    if (!targetSquare) return;
+    if (!targetSquare) return true;
 
     const answer = (await gs.getDecisionService().request({
       type: "reaction",
@@ -562,7 +571,7 @@ export class BlockManager {
       skill: SkillType.DUMP_OFF,
       prompt: `${passer.playerName} may make an immediate Quick Pass before the action resolves — use Dump-Off?`,
     })) as ReactionDecisionAnswer;
-    if (!answer.accept) return;
+    if (!answer.accept) return true;
 
     this.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: passer.id,
@@ -602,20 +611,21 @@ export class BlockManager {
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
-    if (result.fumbled) {
-      flow.add(new BounceOperation(from), true);
-      return;
-    }
-    const landingPlayer = gs.getPlayerAt(finalPosition.x, finalPosition.y);
-    if (landingPlayer) {
-      await new CatchOperation(landingPlayer.id, {
-        origin: "pass",
-        isPassTarget:
-          !!receiver && landingPlayer.id === receiver.id && result.accurate,
-      }).execute(flow.context);
-    } else {
-      flow.add(new BounceOperation(finalPosition), true);
-    }
+    // The ball comes to rest, bounces and catches included, before the
+    // action that provoked the pass goes on.
+    const landingPlayer = result.fumbled
+      ? undefined
+      : gs.getPlayerAt(finalPosition.x, finalPosition.y);
+    await flow.runToRest(
+      landingPlayer
+        ? new CatchOperation(landingPlayer.id, {
+            origin: "pass",
+            isPassTarget:
+              !!receiver && landingPlayer.id === receiver.id && result.accurate,
+          })
+        : new BounceOperation(finalPosition)
+    );
+    return !driveOver(this.state.phase);
   }
 
   /**

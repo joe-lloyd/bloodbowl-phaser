@@ -103,4 +103,141 @@ describe("GameFlowManager", () => {
     // But we know op2 didn't run because we can spy it if we wanted.
     // For now, reliance on "no side effect" is enough.
   });
+
+  describe("running a chain to rest", () => {
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("runs the chain, and what it queues, before the caller goes on", async () => {
+      const ran: string[] = [];
+      flowManager.add(
+        new MockOperation("Block", async () => {
+          await tick();
+          await flowManager.runToRest(
+            new MockOperation("Bounce", async () => {
+              ran.push("Bounce");
+              flowManager.add(
+                new MockOperation("Catch", async () => {
+                  await tick();
+                  ran.push("Catch");
+                }),
+                true
+              );
+            })
+          );
+          ran.push("Block dice");
+        })
+      );
+      flowManager.add(
+        new MockOperation("Later", async () => {
+          ran.push("Later");
+        })
+      );
+      await tick();
+      await flowManager.whenIdle();
+
+      expect(ran).toEqual(["Bounce", "Catch", "Block dice", "Later"]);
+    });
+
+    it("drops what was queued behind it when the chain clears the flow", async () => {
+      const ran: string[] = [];
+      flowManager.add(
+        new MockOperation("Block", async () => {
+          await tick();
+          await flowManager.runToRest(
+            new MockOperation("Turnover", async () => {
+              ran.push("Turnover");
+              flowManager.clear();
+            })
+          );
+        })
+      );
+      flowManager.add(
+        new MockOperation("Later", async () => {
+          ran.push("Later");
+        })
+      );
+      await tick();
+      await flowManager.whenIdle();
+
+      expect(ran).toEqual(["Turnover"]);
+    });
+
+    it("leaves a flow that was abandoned under it alone", async () => {
+      const ran: string[] = [];
+      let resume = () => {};
+      flowManager.add(
+        new MockOperation("Block", async () => {
+          await tick();
+          await flowManager.runToRest(
+            new MockOperation(
+              "Paused",
+              () => new Promise<void>((resolve) => (resume = resolve))
+            )
+          );
+        })
+      );
+      flowManager.add(
+        new MockOperation("Later", async () => {
+          ran.push("Later");
+        })
+      );
+      await tick();
+
+      // A resync drops the paused run; the flow carries on without it
+      flowManager.abandon();
+      flowManager.add(
+        new MockOperation("Fresh", async () => {
+          ran.push("Fresh");
+        })
+      );
+      await flowManager.whenIdle();
+      // The stale run wakes after all
+      resume();
+      await tick();
+      await tick();
+
+      expect(ran).toEqual(["Fresh"]);
+      await flowManager.whenIdle();
+    });
+
+    it("lets an abandoned operation fail without clearing the fresh flow", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const ran: string[] = [];
+      let fail = (_error: Error) => {};
+      flowManager.add(
+        new MockOperation(
+          "Paused",
+          () => new Promise<void>((_resolve, reject) => (fail = reject))
+        )
+      );
+      await tick();
+      flowManager.abandon();
+
+      let finish = () => {};
+      flowManager.add(
+        new MockOperation(
+          "Fresh",
+          () =>
+            new Promise<void>((resolve) => {
+              finish = () => {
+                ran.push("Fresh");
+                resolve();
+              };
+            })
+        )
+      );
+      flowManager.add(
+        new MockOperation("Queued behind it", async () => {
+          ran.push("Queued behind it");
+        })
+      );
+      // The stale run fails while the fresh one is still going
+      fail(new Error("abandoned"));
+      await tick();
+      finish();
+      await flowManager.whenIdle();
+
+      expect(ran).toEqual(["Fresh", "Queued behind it"]);
+    });
+  });
 });
