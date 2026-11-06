@@ -2,6 +2,8 @@
 
     python3 scripts/sprites/build_game_assets.py STYLE RENDERS_DIR STADIUM_DIR [model_id ...]
 
+STADIUM_DIR "-" leaves the stadium as it is, for a rebuild of the players alone.
+
 RENDERS_DIR holds batch_render.py output (one folder per model with idle,
 run and fall at "lo"); STADIUM_DIR is one stadium.py layout folder. Writes:
 
@@ -100,7 +102,8 @@ def main(style, renders, stadium_dir, only):
         models = {**old, **models}
         manifest["models"] = models
     path.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
-    stadium(stadium_dir, REPO / "public" / "stadium" / style)
+    if str(stadium_dir) != "-":
+        stadium(stadium_dir, REPO / "public" / "stadium" / style)
     missing = sorted({m for rows in manifest["positions"].values() for m in rows.values()} - set(models))
     print(f"{len(models)} models, missing renders: {missing or 'none'}")
 

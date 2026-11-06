@@ -22,7 +22,14 @@ export interface PlayerLook {
   facing: Facing;
 }
 
-const FPS: Record<Animation, number> = { idle: 6, run: 12, fall: 14 };
+const FPS: Record<Animation, number> = {
+  idle: 6,
+  run: 12,
+  fall: 14,
+  cheer: 10,
+};
+/** Jumps in one cheer, for the walk-on and a touchdown. */
+const CHEER_JUMPS = 3;
 /** Ground rings are drawn as flattened ellipses so they lie on the pitch. */
 const RING = { w: 66, h: 30 };
 /** Depth band for players: above the pitch overlays, sorted by screen y. */
@@ -505,25 +512,20 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Play celebration animation (jumping up and down)
-   * Returns a Promise that resolves when the animation is complete.
+   * Cheer: a few jumps with the arms up, then back to standing. Team-mates
+   * start a moment apart, as a crowd would. A player who is down, or lying
+   * in a dugout box, stays down. Resolves when the cheer is over.
    */
   public playCelebrateAnimation(): Promise<void> {
+    if (this.isDown() || this.dugoutPose === "lying") return Promise.resolve();
+    const frames = modelArt(this.model).animations.cheer;
     return new Promise((resolve) => {
-      const startDelay = Math.random() * 500;
-      const duration = 110 + Math.random() * 50;
-      this.scene.time.delayedCall(startDelay, () => {
-        this.scene.tweens.add({
-          targets: this.figure,
-          y: -16,
-          duration,
-          yoyo: true,
-          repeat: 3,
-          ease: "Sine.easeOut",
-          onComplete: () => {
-            this.figure.y = 0;
-            resolve();
-          },
+      this.scene.time.delayedCall(Math.random() * 400, () => {
+        this.play("cheer");
+        const ms = ((CHEER_JUMPS * frames) / FPS.cheer) * 1000;
+        this.scene.time.delayedCall(ms, () => {
+          if (this.anim === "cheer") this.play("idle");
+          resolve();
         });
       });
     });

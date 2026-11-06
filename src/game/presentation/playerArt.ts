@@ -13,7 +13,7 @@ import { PitchThemeId, resolvePitchTheme } from "./pitchThemes";
 
 export const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
 export type Facing = (typeof FACINGS)[number];
-export type Animation = "idle" | "run" | "fall";
+export type Animation = "idle" | "run" | "fall" | "cheer";
 export const LAYERS = ["base", "kit1", "kit2"] as const;
 export type Layer = (typeof LAYERS)[number];
 
