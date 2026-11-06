@@ -131,7 +131,8 @@ and lost 422 against the Hard before both, which had the hand-set score and
 counted the re-rolls bought. That is 51.1% of the points, ±2.0, over 1200
 games from seeds 1001 and 2001, with 0.06 more touchdowns a game and
 turnovers down from 24.8% of turns to 22.9%. The gain is about a point,
-inside the noise, so the first fit's 54.9% was likely on the high side.
+inside the noise. These games tested the refit, not the first fit, so they
+say nothing about its 54.9%.
 
 The score is linear, so it misses what depends on two things at once. It
 values a loose ball beside our player at the start of our turn below the
