@@ -25,7 +25,7 @@ offers and never builds a command itself. Its code is in
 | `weights.ts`     | Every number its judgement rests on, as one plain object             |
 | `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
 | `evaluate.ts`    | The trained score of an end position, for the lookahead              |
-| `search.ts`      | The lookahead: tries the planner's best few options on cloned games  |
+| `search.ts`      | The lookahead: tries the planner's choices against others on copies  |
 | `difficulty.ts`  | The levels on the team selection page                                |
 
 At each decision the coach re-reads the board and lists whole activations:
@@ -87,6 +87,33 @@ unless a rival beats it.
 Scoring at the end of our own turn lost to the plain planner, 3 won, 12 drawn,
 9 lost in 24 games: it could not see what an exposed carrier would suffer.
 The opponent's reply is what makes the lookahead pay.
+
+### Choices inside an action
+
+Block dice, re-rolls, push squares, follow-ups, reactions and the other
+choices an action raises are searched the same way: the planner's answer
+against up to three others, on the same dice. The planner's rules for them
+are fixed, such as always taking a re-roll, and the playouts can tell when a
+rule is wrong for the position.
+
+A save cannot hold a command paused on a choice, so the coach forks the match
+instead. Once asked, `HeadlessGame` keeps a save from the last quiet moment
+between activations and every command played since. Replaying those on the
+save reaches the same choice with the same dice already rolled, because the
+engine is deterministic. The dice are reseeded after the replay, so a playout
+never sees what is coming. A fork whose checksum differs from the live game's
+is never searched, and the planner answers. `__tests__/simulation/fork.test.ts`
+replays the fork at every choice of six matches and requires the checksum.
+
+The fork found a bug the declaration search had lived with. The turn's spent
+Team Re-roll and once-a-turn skill re-rolls were kept outside the game state,
+so a playout, or a match resumed mid-turn, could spend them a second time.
+They now live in the state as `turnUsage`.
+
+In one match in headless Chromium with 7 workers, 35 choices inside actions
+took 65 ms at the median and 283 ms at the slowest, against 174 ms for a
+declaration. In three headless matches against the planner, Hard searched
+33 to 43 such choices a game and overruled the planner at 8 to 12 of them.
 
 | Level    | Options | Samples | Deadline | Measured over mirrored games                               |
 | -------- | ------- | ------- | -------- | ---------------------------------------------------------- |
