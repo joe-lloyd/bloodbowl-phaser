@@ -38,7 +38,7 @@ from mathutils import Euler, Matrix, Vector
 # facing -Y, which is grid +y ("s").
 DIRECTIONS = {"s": 0, "se": 45, "e": 90, "ne": 135, "n": 180, "nw": -135, "w": -90, "sw": -45}
 
-ANIMATIONS = {"idle": 8, "run": 8, "block": 6, "fall": 8}
+ANIMATIONS = {"idle": 8, "run": 8, "block": 6, "fall": 8, "cheer": 8}
 
 CAMERA_ELEVATION_DEG = 30  # sin(30) = 0.5 gives 2:1 diamonds
 CAMERA_AZIMUTH_DEG = 45
@@ -431,7 +431,35 @@ def pose_fall(f, n):
     }
 
 
-POSES = {"idle": pose_idle, "run": pose_run, "block": pose_block, "fall": pose_fall}
+def pose_cheer(f, n):
+    """Celebrating: a jump with both arms thrown up in a V, landing on bent knees."""
+    p = 2 * math.pi * f / n
+    up = max(0.0, math.sin(p))     # off the ground
+    land = max(0.0, -math.sin(p))  # knees taking the landing
+    k = STATE["leg"] / 0.92
+    tilt = 0.04
+    spread = 0.2
+    thigh = -0.2 - 0.45 * land
+    knee = 0.3 + 0.9 * land
+    # Raised out to the side, not forward: a bent elbow on an arm raised
+    # forward folds the hand back onto the head.
+    raise_ = 2.6 - 0.2 * land
+    return {
+        "body": R(rx=tilt, dz=stance_drop(thigh, knee, spread) + 0.3 * k * up),
+        "chest": R(rx=-0.12 + 0.15 * land + STATE["hunch"] * 0.2),
+        "head": R(rx=-0.3 - STATE["hunch"] * 0.3),
+        "hip_l": R(rx=thigh - tilt, ry=OUT["l"] * spread),
+        "hip_r": R(rx=thigh - tilt, ry=OUT["r"] * spread),
+        "knee_l": R(rx=knee),
+        "knee_r": R(rx=knee),
+        "shoulder_l": R(rx=-0.3, ry=OUT["l"] * raise_),
+        "shoulder_r": R(rx=-0.3, ry=OUT["r"] * raise_),
+        "elbow_l": R(rx=-0.15 - 0.5 * land),
+        "elbow_r": R(rx=-0.15 - 0.5 * land),
+    }
+
+
+POSES = {"idle": pose_idle, "run": pose_run, "block": pose_block, "fall": pose_fall, "cheer": pose_cheer}
 
 
 # ------------------------------------------------------------------ render

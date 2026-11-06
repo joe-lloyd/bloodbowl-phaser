@@ -17,7 +17,7 @@ and you must change the other.
 
 | File | What it does |
 | --- | --- |
-| `blender_players.py` | Materials, the rig of empties, poses (idle, run, block, fall), the render loop and the light styles (`neon`, `bloodbowl`). |
+| `blender_players.py` | Materials, the rig of empties, poses (idle, run, block, fall, cheer), the render loop and the light styles (`neon`, `bloodbowl`). |
 | `model_kit.py` | Body presets, rigs and around fifty parts (helmets, pads, horns, tails, weapons). |
 | `team_models.py` | One spec per model (`MODELS`), each roster position's model (`TEAMS`) and review kits. |
 | `check_models.py` | Builds every spec against stub Blender objects and checks every roster position has a model. Run it after editing specs. |
@@ -31,7 +31,7 @@ team's colours.
 
 ```sh
 # on the Blender machine, once per style
-blender -b --factory-startup --python batch_render.py -- OUT --style bloodbowl --anims idle,run,fall --sizes lo
+blender -b --factory-startup --python batch_render.py -- OUT --style bloodbowl --anims idle,run,fall,cheer --sizes lo
 ```
 
 ## Stadium
@@ -58,6 +58,11 @@ colours), `public/stadium/<style>/` layers, meta and a picker thumbnail, and
 `src/game/presentation/spriteManifest.json`, which maps every roster position
 to its model. The manifest is shared by both styles and the script refuses
 to write one whose frames disagree with the other style's.
+
+Pass `-` for the stadium folder to rebuild the players alone. A change that
+moves frames, such as a pose that reaches higher, also changes the manifest:
+delete `spriteManifest.json` before building the first style, so the second
+style is checked against the first rather than against the old frames.
 
 ## Review pages
 

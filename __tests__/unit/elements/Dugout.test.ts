@@ -231,3 +231,44 @@ describe("Dugout", () => {
     expect(cards).toHaveLength(0);
   });
 });
+
+describe("a player's cheer", () => {
+  it("waits for a walk still on its way, such as a scorer's last step", async () => {
+    const { scene, sprites } = await build([
+      player("scorer", PlayerStatus.ACTIVE),
+    ]);
+    const sprite = sprites.get("scorer") as unknown as {
+      motion: Promise<void>;
+      playCelebrateAnimation(): Promise<void>;
+    };
+    let arrive = () => {};
+    sprite.motion = new Promise<void>((resolve) => (arrive = resolve));
+
+    void sprite.playCelebrateAnimation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+
+    arrive();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scene.time.delayedCall).toHaveBeenCalled();
+  });
+
+  it("does not start for a player knocked down while it waited", async () => {
+    const { scene, sprites } = await build([
+      player("scorer", PlayerStatus.ACTIVE),
+    ]);
+    const sprite = sprites.get("scorer") as unknown as {
+      motion: Promise<void>;
+      player: { status: PlayerStatus };
+      playCelebrateAnimation(): Promise<void>;
+    };
+    let arrive = () => {};
+    sprite.motion = new Promise<void>((resolve) => (arrive = resolve));
+
+    void sprite.playCelebrateAnimation();
+    sprite.player.status = PlayerStatus.PRONE;
+    arrive();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+  });
+});

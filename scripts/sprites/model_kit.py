@@ -1020,3 +1020,56 @@ def pose_idle_any(f, n):
 
 
 POSES["idle"] = pose_idle_any
+
+
+def pose_cheer_quad(f, n):
+    p = 2 * math.pi * f / n
+    up = max(0.0, math.sin(p))
+    return {"body": R(dz=0.1 * up, rx=-0.08 * up), "neck": R(rx=-0.45 + 0.1 * math.cos(p), rz=0.15 * math.sin(2 * p)),
+            "head": R(rx=-0.2), "tail": R(rz=0.7 * math.sin(2 * p), rx=0.5)}
+
+
+def pose_cheer_centaur(f, n):
+    p = 2 * math.pi * f / n
+    up, land = max(0.0, math.sin(p)), max(0.0, -math.sin(p))
+    return {"body": R(dz=0.08 * up, rx=-0.06 * up), "tail": R(rz=0.6 * math.sin(2 * p), rx=0.3),
+            "chest": R(rx=-0.1), "head": R(rx=-0.3),
+            "shoulder_l": R(rx=-0.3, ry=OUT["l"] * (2.6 - 0.2 * land)), "shoulder_r": R(rx=-0.3, ry=OUT["r"] * (2.6 - 0.2 * land)),
+            "elbow_l": R(rx=-0.15 - 0.5 * land), "elbow_r": R(rx=-0.15 - 0.5 * land)}
+
+
+def pose_cheer_vehicle(f, n):
+    p = 2 * math.pi * f / n
+    return {"body": R(dz=0.04 * abs(math.sin(p)), rx=0.03 * math.sin(2 * p)), "roller": R(rx=-p / 4),
+            "head": R(rz=0.6 * math.sin(p))}
+
+
+def pose_cheer_float(f, n):
+    p = 2 * math.pi * f / n
+    s = math.sin(p)
+    return {"body": R(dz=0.06 + 0.1 * s, rx=0.02), "chest": R(rx=-0.1), "head": R(rx=-0.3, rz=0.15 * s),
+            "shoulder_l": R(rx=-0.3, ry=OUT["l"] * (2.3 + 0.2 * s)), "shoulder_r": R(rx=-0.3, ry=OUT["r"] * (2.3 - 0.2 * s)),
+            "elbow_l": R(rx=-0.2), "elbow_r": R(rx=-0.2)}
+
+
+def pose_cheer_tree(f, n):
+    p = 2 * math.pi * f / n
+    s = math.sin(p)
+    return {"chest": R(rx=-0.06 + 0.04 * s), "head": R(rx=-0.15, rz=0.1 * s),
+            "shoulder_l": R(rx=-0.2, ry=OUT["l"] * (2.45 + 0.15 * s)), "shoulder_r": R(rx=-0.2, ry=OUT["r"] * (2.45 + 0.15 * s)),
+            "elbow_l": R(rx=-0.4 - 0.2 * max(0.0, -s)), "elbow_r": R(rx=-0.4 - 0.2 * max(0.0, -s)),
+            "hip_l": R(ry=OUT["l"] * 0.15), "hip_r": R(ry=OUT["r"] * 0.15)}
+
+
+def pose_cheer_any(f, n):
+    """Celebrating, for a team-mate's touchdown or the walk-on: each rig its own way."""
+    rig = STATE.get("rig", "biped")
+    if rig == "biped":
+        pose = pose_cheer(f, n)
+        pose["tail"] = R(rx=0.5, rz=0.6 * math.sin(4 * math.pi * f / n))
+        return pose
+    return dict(quad=pose_cheer_quad, centaur=pose_cheer_centaur, vehicle=pose_cheer_vehicle,
+                float=pose_cheer_float, tree=pose_cheer_tree)[rig](f, n)
+
+
+POSES["cheer"] = pose_cheer_any

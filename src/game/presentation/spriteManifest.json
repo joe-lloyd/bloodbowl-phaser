@@ -12,106 +12,114 @@
  "models": {
   "amazon_eagle": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "amazon_jaguar": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "amazon_piranha": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "amazon_python": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "anointed_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "anointed_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "assassin": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "beastman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "beer_boar": {
@@ -120,6 +128,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -129,41 +138,44 @@
   },
   "berserker": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "big_un": {
    "anchor": [
-    64.0,
-    77.42
+    80.0,
+    93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 128,
+   "frame": 160,
    "ppu": 25
   },
   "black_orc": {
    "anchor": [
-    64.0,
-    77.42
+    80.0,
+    93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 128,
+   "frame": 160,
    "ppu": 25
   },
   "bloater": {
@@ -172,6 +184,7 @@
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -181,23 +194,11 @@
   },
   "bloodseeker": {
    "anchor": [
-    64.0,
-    77.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 128,
-   "ppu": 25
-  },
-  "bloodspawn": {
-   "anchor": [
     80.0,
     93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -205,17 +206,32 @@
    "frame": 160,
    "ppu": 25
   },
-  "bodyguard": {
+  "bloodspawn": {
    "anchor": [
-    48.0,
-    61.42
+    112.0,
+    125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 224,
+   "ppu": 25
+  },
+  "bodyguard": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
    "ppu": 25
   },
   "bomma": {
@@ -224,6 +240,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -233,54 +250,58 @@
   },
   "bret_catcher": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "bret_squire": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "bret_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "bull_centaur": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "chameleon_skink": {
@@ -289,6 +310,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -298,15 +320,16 @@
   },
   "chaos_chosen": {
    "anchor": [
-    64.0,
-    77.42
+    80.0,
+    93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 128,
+   "frame": 160,
    "ppu": 25
   },
   "chaos_dwarf": {
@@ -315,6 +338,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -324,67 +348,72 @@
   },
   "chaos_ogre": {
    "anchor": [
-    80.0,
-    93.42
+    96.0,
+    109.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 192,
    "ppu": 25
   },
   "chaos_troll": {
    "anchor": [
-    80.0,
-    93.42
+    112.0,
+    125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 224,
    "ppu": 25
   },
   "de_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "de_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "de_runner": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "deathroller": {
@@ -393,6 +422,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -406,6 +436,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -419,6 +450,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -432,6 +464,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -445,6 +478,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -458,6 +492,7 @@
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -471,6 +506,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -480,15 +516,16 @@
   },
   "flesh_golem": {
    "anchor": [
-    80.0,
-    93.42
+    96.0,
+    109.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 192,
    "ppu": 25
   },
   "fun_hoppa": {
@@ -497,6 +534,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -510,6 +548,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -519,15 +558,16 @@
   },
   "ghoul": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "gnoblar": {
@@ -536,6 +576,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -549,6 +590,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -562,6 +604,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -575,6 +618,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -588,6 +632,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -601,6 +646,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -614,6 +660,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -623,28 +670,30 @@
   },
   "grail_knight": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "gutter_runner": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "halfling_catcher": {
@@ -653,6 +702,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -666,6 +716,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -679,6 +730,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -688,54 +740,58 @@
   },
   "he_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "he_catcher": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "he_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "he_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "hobgoblin": {
@@ -744,6 +800,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -757,6 +814,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -766,106 +824,114 @@
   },
   "human_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "human_catcher": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "human_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "human_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "imperial_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "imperial_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "khorngor": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "kroxigor": {
    "anchor": [
-    80.0,
-    93.42
+    112.0,
+    125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 224,
    "ppu": 25
   },
   "loony": {
@@ -874,6 +940,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -883,36 +950,11 @@
   },
   "marauder": {
    "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "minotaur": {
-   "anchor": [
-    80.0,
-    93.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 160,
-   "ppu": 25
-  },
-  "mummy": {
-   "anchor": [
     64.0,
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -920,51 +962,13 @@
    "frame": 128,
    "ppu": 25
   },
-  "noble_blitzer": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "norse_raider": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "ogre": {
-   "anchor": [
-    80.0,
-    93.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 160,
-   "ppu": 25
-  },
-  "ogre_blocker": {
+  "minotaur": {
    "anchor": [
     96.0,
     109.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -972,17 +976,88 @@
    "frame": 192,
    "ppu": 25
   },
-  "ogre_runt": {
+  "mummy": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "noble_blitzer": {
    "anchor": [
     64.0,
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
    "frame": 128,
+   "ppu": 25
+  },
+  "norse_raider": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "ogre": {
+   "anchor": [
+    96.0,
+    109.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 192,
+   "ppu": 25
+  },
+  "ogre_blocker": {
+   "anchor": [
+    112.0,
+    125.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 224,
+   "ppu": 25
+  },
+  "ogre_runt": {
+   "anchor": [
+    96.0,
+    109.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 192,
    "ppu": 25
   },
   "ooligan": {
@@ -991,6 +1066,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1000,54 +1076,58 @@
   },
   "orc_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "orc_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "orc_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "pestigor": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "pogoer": {
@@ -1056,6 +1136,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1069,6 +1150,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1078,41 +1160,44 @@
   },
   "rat_ogre": {
    "anchor": [
-    80.0,
-    93.42
+    96.0,
+    109.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 192,
    "ppu": 25
   },
   "rat_ogre_mutant": {
    "anchor": [
-    80.0,
-    93.42
+    112.0,
+    125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 224,
    "ppu": 25
   },
   "renegade_dark_elf": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "renegade_goblin": {
@@ -1121,6 +1206,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1130,62 +1216,95 @@
   },
   "renegade_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "renegade_orc": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "renegade_skaven": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "renegade_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "rotspawn": {
+   "anchor": [
+    112.0,
+    125.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 224,
+   "ppu": 25
+  },
+  "rotter": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "saurus": {
    "anchor": [
     80.0,
     93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1193,82 +1312,60 @@
    "frame": 160,
    "ppu": 25
   },
-  "rotter": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "saurus": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
   "skaven_blitzer": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "skaven_lineman": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "skaven_thrower": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "skeleton": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "skink": {
@@ -1277,6 +1374,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1290,6 +1388,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1303,6 +1402,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1316,6 +1416,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1325,23 +1426,11 @@
   },
   "thrall": {
    "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "tk_skeleton": {
-   "anchor": [
     64.0,
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1349,56 +1438,74 @@
    "frame": 128,
    "ppu": 25
   },
-  "tomb_guardian": {
+  "tk_skeleton": {
    "anchor": [
     80.0,
     93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
    "frame": 160,
+   "ppu": 25
+  },
+  "tomb_guardian": {
+   "anchor": [
+    112.0,
+    125.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 224,
    "ppu": 25
   },
   "treeman": {
    "anchor": [
-    112.0,
-    125.42
+    128.0,
+    141.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 224,
+   "frame": 256,
    "ppu": 25
   },
   "treeman_loren": {
    "anchor": [
+    128.0,
+    141.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 256,
+   "ppu": 25
+  },
+  "troll": {
+   "anchor": [
     112.0,
     125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
    "frame": 224,
-   "ppu": 25
-  },
-  "troll": {
-   "anchor": [
-    80.0,
-    93.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 160,
    "ppu": 25
   },
   "troll_slayer": {
@@ -1407,6 +1514,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1416,140 +1524,25 @@
   },
   "troll_underworld": {
    "anchor": [
-    80.0,
-    93.42
+    112.0,
+    125.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 160,
+   "frame": 224,
    "ppu": 25
   },
   "ulfwerener": {
    "anchor": [
-    64.0,
-    77.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 128,
-   "ppu": 25
-  },
-  "union_blitzer": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "union_catcher": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "union_lineman": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "union_thrower": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "valkyrie": {
-   "anchor": [
-    64.0,
-    77.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 128,
-   "ppu": 25
-  },
-  "vampire_blitzer": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "vampire_runner": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "vampire_thrower": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "vargheist": {
-   "anchor": [
     80.0,
     93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1557,64 +1550,13 @@
    "frame": 160,
    "ppu": 25
   },
-  "wardancer": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "we_catcher": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "we_lineman": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "we_thrower": {
-   "anchor": [
-    48.0,
-    61.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 96,
-   "ppu": 25
-  },
-  "werewolf": {
+  "union_blitzer": {
    "anchor": [
     64.0,
     77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1622,30 +1564,214 @@
    "frame": 128,
    "ppu": 25
   },
-  "wight": {
+  "union_catcher": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
+   "ppu": 25
+  },
+  "union_lineman": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "union_thrower": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "valkyrie": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "vampire_blitzer": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "vampire_runner": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "vampire_thrower": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "vargheist": {
+   "anchor": [
+    96.0,
+    109.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 192,
+   "ppu": 25
+  },
+  "wardancer": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "we_catcher": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "we_lineman": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "we_thrower": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
+   "ppu": 25
+  },
+  "werewolf": {
+   "anchor": [
+    80.0,
+    93.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 160,
+   "ppu": 25
+  },
+  "wight": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
    "ppu": 25
   },
   "witch_elf": {
    "anchor": [
-    48.0,
-    61.42
+    64.0,
+    77.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 128,
    "ppu": 25
   },
   "woodland_fox": {
@@ -1654,6 +1780,7 @@
     61.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1663,23 +1790,11 @@
   },
   "wraith": {
    "anchor": [
-    64.0,
-    77.42
-   ],
-   "animations": {
-    "fall": 8,
-    "idle": 8,
-    "run": 8
-   },
-   "frame": 128,
-   "ppu": 25
-  },
-  "yhetee": {
-   "anchor": [
     80.0,
     93.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
@@ -1687,17 +1802,32 @@
    "frame": 160,
    "ppu": 25
   },
-  "zombie": {
+  "yhetee": {
    "anchor": [
-    48.0,
-    61.42
+    96.0,
+    109.42
    ],
    "animations": {
+    "cheer": 8,
     "fall": 8,
     "idle": 8,
     "run": 8
    },
-   "frame": 96,
+   "frame": 192,
+   "ppu": 25
+  },
+  "zombie": {
+   "anchor": [
+    64.0,
+    77.42
+   ],
+   "animations": {
+    "cheer": 8,
+    "fall": 8,
+    "idle": 8,
+    "run": 8
+   },
+   "frame": 128,
    "ppu": 25
   }
  },
