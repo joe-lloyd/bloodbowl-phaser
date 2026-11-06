@@ -9,7 +9,7 @@
  *   turn, and spends one of the team's re-rolls for this half
  */
 
-import { GameState } from "../../types/GameState";
+import { GameState, TurnUsage } from "../../types/GameState";
 import { Team } from "../../types/Team";
 import { Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -22,9 +22,6 @@ import { spendTeamReroll, teamRerollsLeft } from "../teamRerolls";
 export type TeamRerollKind = "free" | "team" | "leader";
 
 export class RerollArbiter {
-  private usedSkill = new Set<string>();
-  private usedTeam = new Set<string>();
-
   constructor(
     private state: GameState,
     private getTeam: (teamId: string) => Team | undefined,
@@ -67,14 +64,28 @@ export class RerollArbiter {
     );
   }
 
-  /** One team turn = one key; usage sets reset naturally as turns advance. */
+  /** One team turn = one key; a new turn finds nothing spent. */
   private turnKey(): string {
     const t = this.state.turn;
     return `${t.teamId}:${t.turnNumber}:${t.isHalf2 ? "h2" : "h1"}`;
   }
 
+  /** What this turn has spent, or undefined when nothing has been yet. */
+  private spent(): TurnUsage | undefined {
+    const usage = this.state.turnUsage;
+    return usage?.turn === this.turnKey() ? usage : undefined;
+  }
+
+  /** This turn's ledger to spend from, begun afresh on a new turn. */
+  private spend(): TurnUsage {
+    const turn = this.turnKey();
+    if (this.state.turnUsage?.turn !== turn)
+      this.state.turnUsage = { turn, teams: [], once: [], uses: {} };
+    return this.state.turnUsage;
+  }
+
   public skillRerollAvailable(player: Player, skill: SkillType): boolean {
-    return !this.usedSkill.has(`${this.turnKey()}|${player.id}|${skill}`);
+    return !this.spent()?.once.includes(`${player.id}|${skill}`);
   }
 
   public teamRerollAvailable(teamId: string): boolean {
@@ -89,7 +100,7 @@ export class RerollArbiter {
   public nextTeamReroll(teamId: string): TeamRerollKind | null {
     // A team reroll may only be spent on that team's own turn
     if (this.state.turn.teamId !== teamId) return null;
-    if (this.usedTeam.has(`${this.turnKey()}|${teamId}`)) return null;
+    if (this.spent()?.teams.includes(teamId)) return null;
     if (freeRerollsFor(this.state, teamId) > 0) return "free";
     if (this.teamRerollsLeftFor(teamId) > 0) return "team";
     if (this.leaderRerollAvailable(teamId)) return "leader";
@@ -123,7 +134,9 @@ export class RerollArbiter {
   }
 
   public consumeSkillReroll(player: Player, skill: SkillType): void {
-    this.usedSkill.add(`${this.turnKey()}|${player.id}|${skill}`);
+    const once = this.spend().once;
+    const key = `${player.id}|${skill}`;
+    if (!once.includes(key)) once.push(key);
   }
 
   /**
@@ -139,19 +152,19 @@ export class RerollArbiter {
   }
 
   /** Counted per-turn skill usage (Shadowing may fire MA times per turn). */
-  private usesCount = new Map<string, number>();
-
   public usesThisTurn(player: Player, skill: SkillType): number {
-    return this.usesCount.get(`${this.turnKey()}|${player.id}|${skill}`) ?? 0;
+    return this.spent()?.uses[`${player.id}|${skill}`] ?? 0;
   }
 
   public consumeUse(player: Player, skill: SkillType): void {
-    const key = `${this.turnKey()}|${player.id}|${skill}`;
-    this.usesCount.set(key, (this.usesCount.get(key) ?? 0) + 1);
+    const uses = this.spend().uses;
+    const key = `${player.id}|${skill}`;
+    uses[key] = (uses[key] ?? 0) + 1;
   }
 
   public consumeTeamReroll(teamId: string): void {
-    this.usedTeam.add(`${this.turnKey()}|${teamId}`);
+    const teams = this.spend().teams;
+    if (!teams.includes(teamId)) teams.push(teamId);
     // Brilliant Coaching's free re-roll is spent before the team's own.
     if (consumeFreeReroll(this.state, teamId)) {
       this.eventBus?.emit(GameEventNames.DriveEffectExpired, {

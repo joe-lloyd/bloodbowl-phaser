@@ -64,6 +64,26 @@ async function findOfferSeed(): Promise<number> {
 }
 
 describe("reroll decisions (headless protocol)", () => {
+  it("keeps this turn's spent Team Re-roll through a save", async () => {
+    const arbiter = (game: HeadlessGame) =>
+      game.ctx.gameService.getRerollArbiter();
+    for (let seed = 1; seed <= 100; seed++) {
+      const game = newGame(seed);
+      const team1Id = game.ctx.team1.id;
+      if ((await moveOntoBall(game)).pendingDecision?.type !== "reroll")
+        continue;
+      await game.execute({ type: "use-reroll", accept: true, source: "team" });
+      // Only a turn the re-roll saved shows anything
+      if (game.ctx.gameService.getState().activeTeamId !== team1Id) continue;
+
+      expect(arbiter(game).teamRerollAvailable(team1Id)).toBe(false);
+      const resumed = new HeadlessGame({ matchSave: game.matchSave() });
+      expect(arbiter(resumed).teamRerollAvailable(team1Id)).toBe(false);
+      return;
+    }
+    throw new Error("no seed whose re-rolled pickup kept the turn");
+  });
+
   it("a failed pickup with a team reroll pauses on a reroll decision", async () => {
     const seed = await findOfferSeed();
     const game = newGame(seed);
