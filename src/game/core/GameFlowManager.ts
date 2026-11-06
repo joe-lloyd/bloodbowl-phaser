@@ -104,6 +104,10 @@ export class GameFlowManager {
   private queue: GameOperation[] = [];
   private isProcessing: boolean = false;
   private idleResolvers: (() => void)[] = [];
+  /** Counts abandons: a run from before one must not touch the flow after. */
+  private epoch = 0;
+  /** Counts clears: what a chain set aside before one is dropped with it. */
+  private clears = 0;
   public readonly context: FlowContext;
 
   constructor(
@@ -133,6 +137,7 @@ export class GameFlowManager {
    */
   public clear(): void {
     this.queue = [];
+    this.clears++;
   }
 
   /**
@@ -142,6 +147,7 @@ export class GameFlowManager {
   public abandon(): void {
     this.queue = [];
     this.isProcessing = false;
+    this.epoch++;
   }
 
   /**
@@ -164,20 +170,24 @@ export class GameFlowManager {
    * that step may itself be running inside the queue.
    */
   public async runToRest(operation: GameOperation): Promise<void> {
+    const { epoch, clears } = this;
     const later = this.queue;
     const wasProcessing = this.isProcessing;
     this.queue = [operation];
     this.isProcessing = true;
-    await this.drain();
-    this.queue.push(...later);
+    await this.drain(epoch);
+    if (this.epoch !== epoch) return;
+    if (this.clears === clears) this.queue.push(...later);
     this.isProcessing = wasProcessing;
     if (!wasProcessing) void this.process();
   }
 
   private async process(): Promise<void> {
     if (this.isProcessing) return;
+    const { epoch } = this;
     this.isProcessing = true;
-    await this.drain();
+    await this.drain(epoch);
+    if (this.epoch !== epoch) return;
     this.isProcessing = false;
 
     const resolvers = this.idleResolvers;
@@ -185,8 +195,8 @@ export class GameFlowManager {
     resolvers.forEach((resolve) => resolve());
   }
 
-  private async drain(): Promise<void> {
-    while (this.queue.length > 0) {
+  private async drain(epoch: number): Promise<void> {
+    while (this.epoch === epoch && this.queue.length > 0) {
       const op = this.queue.shift();
       if (op) {
         console.log(`[Flow] Executing: ${op.name}`);
