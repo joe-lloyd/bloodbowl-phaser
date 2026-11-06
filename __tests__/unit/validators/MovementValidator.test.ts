@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MovementValidator } from "../../../src/game/validators/MovementValidator";
 import { PlayerBuilder } from "../../utils/test-builders";
+import { GameConfig } from "../../../src/config/GameConfig";
 import { Player, PlayerStatus } from "../../../src/types/Player";
 
 describe("MovementValidator", () => {
@@ -214,10 +215,20 @@ describe("MovementValidator", () => {
     it("reaches nothing from a square that is not on the grid", () => {
       // A save or snapshot from elsewhere could hold one; the flood must
       // stay bounded by the pitch rather than wander between fractions.
-      player.gridPosition = { x: 5.5, y: 5 };
-      expect(
-        validator.findReachableSquares(player, opponents, teammates)
-      ).toEqual([]);
+      const { PITCH_WIDTH: w, PITCH_HEIGHT: h } = GameConfig;
+      for (const at of [
+        { x: 5.5, y: 5 },
+        { x: -1, y: 5 },
+        { x: w, y: 5 },
+        { x: 5, y: -1 },
+        { x: 5, y: h },
+      ]) {
+        player.gridPosition = at;
+        expect(
+          validator.findReachableSquares(player, opponents, teammates),
+          JSON.stringify(at)
+        ).toEqual([]);
+      }
     });
   });
 

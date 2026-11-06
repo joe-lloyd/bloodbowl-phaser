@@ -88,8 +88,14 @@ export class MovementValidator {
     teammates: Player[]
   ): { x: number; y: number; cost: number }[] {
     const start = player.gridPosition;
-    // Off the grid, the flood would wander between fractions without end.
-    if (!start || !Number.isInteger(start.x) || !Number.isInteger(start.y))
+    // Only a square on the pitch has neighbours to step to. Off the grid,
+    // the flood would wander between fractions without end.
+    if (
+      !start ||
+      !Number.isInteger(start.x) ||
+      !Number.isInteger(start.y) ||
+      !this.isInBounds(start.x, start.y)
+    )
       return [];
 
     const reachable: { x: number; y: number; cost: number }[] = [];
