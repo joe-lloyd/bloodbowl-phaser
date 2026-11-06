@@ -87,10 +87,12 @@ export class MovementValidator {
     opponents: Player[],
     teammates: Player[]
   ): { x: number; y: number; cost: number }[] {
-    if (!player.gridPosition) return [];
+    const start = player.gridPosition;
+    // Off the grid, the flood would wander between fractions without end.
+    if (!start || !Number.isInteger(start.x) || !Number.isInteger(start.y))
+      return [];
 
     const reachable: { x: number; y: number; cost: number }[] = [];
-    const start = player.gridPosition;
     const maxMovement = moveAllowance(player);
     const width = this.WIDTH;
 

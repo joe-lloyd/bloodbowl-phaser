@@ -210,6 +210,15 @@ describe("MovementValidator", () => {
       // 7,5 is reachable by going around
       expect(squares).toContainEqual({ x: 7, y: 5, cost: 2 });
     });
+
+    it("reaches nothing from a square that is not on the grid", () => {
+      // A save or snapshot from elsewhere could hold one; the flood must
+      // stay bounded by the pitch rather than wander between fractions.
+      player.gridPosition = { x: 5.5, y: 5 };
+      expect(
+        validator.findReachableSquares(player, opponents, teammates)
+      ).toEqual([]);
+    });
   });
 
   describe("Tackle zone fallback pathing", () => {
