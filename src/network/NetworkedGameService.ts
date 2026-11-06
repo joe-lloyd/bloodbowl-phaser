@@ -409,13 +409,21 @@ export class NetworkedGameService implements IGameService {
    * has not ended, so the board keeps showing it until the result is in.
    */
   private kickoffStepInFlight: KickoffEventStepState | null = null;
+  /** A square clicked before the pick landed queues a second command. */
+  private kickoffCommandsInFlight = 0;
 
   private sendKickoffStep(command: HeadlessCommand): boolean {
     this.kickoffStepInFlight = this.getKickoffEventStep();
-    void this.run(command).finally(() => {
-      this.kickoffStepInFlight = null;
-      this.eventBus?.emit(GameEventNames.KickoffEventStepChanged);
-    });
+    this.kickoffCommandsInFlight++;
+    void this.run(command)
+      .catch((error: unknown) =>
+        console.warn(`[Networked] ${command.type} could not run:`, error)
+      )
+      .finally(() => {
+        if (--this.kickoffCommandsInFlight === 0)
+          this.kickoffStepInFlight = null;
+        this.eventBus?.emit(GameEventNames.KickoffEventStepChanged);
+      });
     return true;
   }
   selectKickoffEventPlayer(playerId: string): boolean {
