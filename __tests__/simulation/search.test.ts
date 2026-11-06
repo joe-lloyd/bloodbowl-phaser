@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { Scenario } from "../../src/types/Scenario";
@@ -86,6 +86,110 @@ describe("the lookahead", () => {
       picks.add((await search(game)).label);
     }
     expect(picks.size).toBe(1);
+  });
+});
+
+describe("the lookahead inside an action", () => {
+  // Team 1's player blocks team 2's with an assist: two block dice to choose.
+  const block: Scenario = {
+    ...position(null),
+    setup: {
+      ...position(null).setup,
+      team1Placements: [
+        { playerIndex: 0, x: 12, y: 5 },
+        { playerIndex: 1, x: 14, y: 4 },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 13, y: 5 }],
+    },
+  };
+
+  /** A game paused on block dice that differ, the fork kept from the start. */
+  async function atBlockDice(keepForks: boolean) {
+    for (let seed = 1; seed < 200; seed++) {
+      const game = new HeadlessGame({ scenario: block, seed });
+      if (keepForks) game.keepForks();
+      const attacker = game.ctx.team1.players[0].id;
+      const defender = game.ctx.team2.players[0].id;
+      await game.execute({
+        type: "declare-action",
+        playerId: attacker,
+        action: "block",
+      });
+      const response = await game.execute({
+        type: "block",
+        attackerId: attacker,
+        defenderId: defender,
+      });
+      const pending = response.pendingDecision;
+      if (
+        pending?.type !== "block-dice" ||
+        new Set(pending.options.map((o) => o.type)).size < 2
+      )
+        continue;
+      const point = await enumerateDecision(game, null);
+      const context = {
+        game,
+        snapshot: game.snapshot(),
+        point,
+        rng: createCoachRng(1),
+      };
+      const planned = await plannerCoach.choose(context);
+      return { game, context, planned };
+    }
+    throw new Error("no seed rolled two different block dice");
+  }
+
+  it("plays the answer the playouts score above the plan, from a fork of the block", async () => {
+    const { context, planned } = await atBlockDice(true);
+    const asked: string[][] = [];
+    const choice = await createSearchCoach({
+      budget: { samples: 1, options: 3 },
+      playouts: async ({ root, indices, seeds }) => {
+        asked.push(root.since.map((command) => command.type));
+        return seeds.map(() =>
+          indices.map((index) => (index === planned.index ? 0 : 1))
+        );
+      },
+    }).choose(context);
+
+    expect(choice.index).not.toBe(planned.index);
+    expect(asked[0]).toEqual(["declare-action", "block"]);
+  });
+
+  it("lets the planner answer when no fork reaches the choice", async () => {
+    const { context, planned } = await atBlockDice(false);
+    let rounds = 0;
+    const choice = await createSearchCoach({
+      budget: { samples: 1, options: 3 },
+      playouts: async () => {
+        rounds++;
+        return [];
+      },
+    }).choose(context);
+
+    expect(choice.index).toBe(planned.index);
+    expect(rounds).toBe(0);
+  });
+
+  it("leaves the real game and its dice as they were", async () => {
+    const { game, context } = await atBlockDice(true);
+    const before = {
+      board: JSON.stringify(game.snapshot()),
+      dice: game.ctx.rng.captureState(),
+      pending: game.pendingDecision(),
+    };
+    const warn = vi.spyOn(console, "warn");
+    await createSearchCoach({ budget: { samples: 2, options: 3 } }).choose(
+      context
+    );
+
+    // The fork replayed to this very block, so the search did run
+    expect(warn).not.toHaveBeenCalledWith(
+      expect.stringContaining("did not replay")
+    );
+    expect(JSON.stringify(game.snapshot())).toBe(before.board);
+    expect(game.ctx.rng.captureState()).toEqual(before.dice);
+    expect(game.pendingDecision()).toEqual(before.pending);
   });
 });
 
@@ -206,9 +310,9 @@ describe("the lookahead over workers", () => {
     const { context } = await declaration();
     const workers = [0, 1, 2].map(
       () =>
-        new FakeWorker((self, { id, save, us, jobs }) => {
+        new FakeWorker((self, { id, root, us, jobs }) => {
           void Promise.all(
-            jobs.map(({ index, seed }) => scorePlayout(save, us, index, seed))
+            jobs.map(({ index, seed }) => scorePlayout(root, us, index, seed))
           ).then((scores) => reply(self, { id, scores }));
         })
     );

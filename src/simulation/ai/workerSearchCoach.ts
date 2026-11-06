@@ -72,7 +72,7 @@ export function createWorkerSearchCoach(options: {
     });
 
   const playouts: Playouts = async ({
-    save,
+    root,
     us,
     indices,
     seeds,
@@ -91,7 +91,7 @@ export function createWorkerSearchCoach(options: {
         if (share.length === 0) return;
         const got = await ask(slot, {
           id: nextId++,
-          save,
+          root,
           us,
           jobs: share.map((n) => jobs[n]),
           ...(deadlineAt !== undefined ? { deadlineAt } : {}),

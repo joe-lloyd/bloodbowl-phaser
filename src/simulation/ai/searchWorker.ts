@@ -5,7 +5,7 @@
  * shares out its playouts.
  */
 
-import { MatchSave } from "../../headless/serialization";
+import type { GameFork } from "../../headless/HeadlessGame";
 import { scorePlayout } from "./search";
 import { Weights } from "./weights";
 
@@ -17,7 +17,8 @@ export interface PlayoutJob {
 
 export interface SearchRequest {
   id: number;
-  save: MatchSave;
+  /** The position: a save, and the commands that reach it from there. */
+  root: GameFork;
   /** The side the scores are from. */
   us: string;
   jobs: PlayoutJob[];
@@ -46,7 +47,7 @@ self.onmessage = async ({ data }: MessageEvent<SearchRequest>) => {
     }
     try {
       scores.push(
-        await scorePlayout(data.save, data.us, index, seed, data.weights)
+        await scorePlayout(data.root, data.us, index, seed, data.weights)
       );
     } catch (error) {
       console.warn("[Search worker] playout failed:", error);
