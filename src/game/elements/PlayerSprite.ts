@@ -518,11 +518,15 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
    * scorer's last step, finishes first. Resolves when the cheer is over.
    */
   public async playCelebrateAnimation(): Promise<void> {
-    if (this.isDown() || this.dugoutPose === "lying") return;
+    // Asked again after each wait: a player can go down meanwhile.
+    const standing = () => !this.isDown() && this.dugoutPose !== "lying";
+    if (!standing()) return;
     await this.motion;
+    if (!standing()) return;
     const frames = modelArt(this.model).animations.cheer;
     return new Promise((resolve) => {
       this.scene.time.delayedCall(Math.random() * 400, () => {
+        if (!standing()) return resolve();
         this.play("cheer");
         const ms = ((CHEER_JUMPS * frames) / FPS.cheer) * 1000;
         this.scene.time.delayedCall(ms, () => {
