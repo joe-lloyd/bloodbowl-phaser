@@ -21,12 +21,12 @@ test("a lone charger gets the action menu, then the receiving team plays", async
   await app.pitch.waitForCameraToSettle();
   await app.pitch.clickPlayer("team1:0");
   await app.pitch.clickSquare({ x: 14, y: 5 });
-  const confirm = page.getByRole("button", { name: /confirm/i });
-  await expect(confirm).toBeVisible({ timeout: 30_000 });
+  const charge = page.getByRole("button", { name: /charge!/i });
+  await expect(charge).toBeVisible({ timeout: 30_000 });
 
-  // One charger, confirmed: the menu opens for them
+  // One charger, picked and sent: the menu opens for them
   await app.pitch.clickPlayer("team1:2");
-  await confirm.click();
+  await charge.click();
   await expect(app.hud.actionMenu()).toBeVisible({ timeout: 10_000 });
   await app.hud.actionButton("move").click();
   const from = await app.pitch.squareOf("team1:2");

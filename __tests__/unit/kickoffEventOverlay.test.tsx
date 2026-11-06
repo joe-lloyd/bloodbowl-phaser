@@ -67,7 +67,7 @@ describe("KickoffEventOverlay", () => {
     });
 
     expect(container.textContent).toContain(
-      "Click an eligible player on the pitch, then click one adjacent empty square."
+      "Move up to 3 of your players one square each: click a player in a blue ring, then a green square next to them."
     );
     expect(container.querySelector("section")?.className).toContain("mt-auto");
     expect(container.querySelector(".absolute")).toBeNull();
@@ -77,7 +77,73 @@ describe("KickoffEventOverlay", () => {
       [...container.querySelectorAll("button")].map((button) =>
         button.textContent?.trim()
       )
-    ).toEqual(["Skip", "Confirm"]);
+    ).toEqual(["Skip", "Done"]);
+  });
+
+  it("counts players moved, not picked, and finishes only after a move", async () => {
+    const step = {
+      event: KickoffEvent.QUICK_SNAP,
+      teamId: "team1",
+      selectionLimit: 3,
+      selectedPlayerIds: [] as string[],
+      movedPlayerIds: [] as string[],
+      awaitingPlacement: [],
+    };
+    const gameService = {
+      // The engine hands out a copy each time, as getStep does
+      getKickoffEventStep: vi.fn(() => ({
+        ...step,
+        selectedPlayerIds: [...step.selectedPlayerIds],
+        movedPlayerIds: [...step.movedPlayerIds],
+      })),
+      getTeam: vi.fn(() => ({
+        id: "team1",
+        name: "Reikland Reavers",
+        players: [{ id: "p1", playerName: "Griff", status: "Active" }],
+      })),
+      confirmKickoffEventStep: vi.fn(),
+      skipKickoffEventStep: vi.fn(),
+    };
+    vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
+    vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
+      gameService,
+    } as any);
+    const done = () =>
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Done"
+      ) as HTMLButtonElement;
+    const refresh = () =>
+      act(async () => {
+        eventBus.emit(GameEventNames.KickoffEventStepStarted, {
+          event: KickoffEvent.QUICK_SNAP,
+          teamId: "team1",
+          selectionLimit: 3,
+        });
+      });
+
+    await act(async () => {
+      root.render(<KickoffEventOverlay eventBus={eventBus} />);
+    });
+    await refresh();
+    expect(container.textContent).toContain("0/3 moved");
+    expect(done().disabled).toBe(true);
+
+    // Picking a player is not a move yet: the next click is their square.
+    // Over the network the pick lands after the click, and is announced.
+    step.selectedPlayerIds = ["p1"];
+    await act(async () => {
+      eventBus.emit(GameEventNames.KickoffEventStepChanged);
+    });
+    expect(container.textContent).toContain(
+      "Now click a green square next to Griff to move them there."
+    );
+    expect(container.textContent).toContain("0/3 moved");
+    expect(done().disabled).toBe(true);
+
+    step.movedPlayerIds = ["p1"];
+    await refresh();
+    expect(container.textContent).toContain("1/3 moved");
+    expect(done().disabled).toBe(false);
   });
 
   it("uses the normal player action menu for the active Charge player", async () => {

@@ -16,7 +16,7 @@ import { TeamBuilder } from "../../utils/test-builders";
 
 /**
  * redesign-multiplayer-selection-visibility, tasks.md 1.1/1.4: the passive
- * (non-deciding) coach in an online match must see no Skip/Confirm controls
+ * (non-deciding) coach in an online match must see no Skip/Done controls
  * for a kickoff event step they cannot act in — only the event/outcome text.
  */
 describe("KickoffEventOverlay", () => {
@@ -88,7 +88,7 @@ describe("KickoffEventOverlay", () => {
     });
   }
 
-  it("shows Skip/Confirm to the deciding coach", async () => {
+  it("shows Skip/Done to the deciding coach", async () => {
     const { eventBus, team1 } = setup();
     setActiveOnlineMatch(fakeMatch(team1.id, true));
 
@@ -98,14 +98,14 @@ describe("KickoffEventOverlay", () => {
     const skip = [...container.querySelectorAll("button")].find(
       (b) => b.textContent === "Skip"
     );
-    const confirm = [...container.querySelectorAll("button")].find(
-      (b) => b.textContent === "Confirm"
+    const done = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent === "Done"
     );
     expect(skip).toBeDefined();
-    expect(confirm).toBeDefined();
+    expect(done).toBeDefined();
   });
 
-  it("hides Skip/Confirm from the non-deciding coach, but still shows the event", async () => {
+  it("hides Skip/Done from the non-deciding coach, but still shows the event", async () => {
     const { eventBus, team1, team2 } = setup();
     // team2's coach is watching a step that belongs to team1.
     setActiveOnlineMatch(fakeMatch(team2.id, false));
@@ -117,7 +117,7 @@ describe("KickoffEventOverlay", () => {
     expect(container.textContent).toContain("Waiting for");
   });
 
-  it("shows Skip/Confirm with no online match at all (local/offline play)", async () => {
+  it("shows Skip/Done with no online match at all (local/offline play)", async () => {
     const { eventBus } = setup();
     expect(getActiveOnlineMatch()).toBeNull();
 
@@ -126,6 +126,6 @@ describe("KickoffEventOverlay", () => {
     const buttons = [...container.querySelectorAll("button")].map(
       (b) => b.textContent
     );
-    expect(buttons).toEqual(["Skip", "Confirm"]);
+    expect(buttons).toEqual(["Skip", "Done"]);
   });
 });

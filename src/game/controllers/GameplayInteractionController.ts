@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { Pitch } from "../elements/Pitch";
+import { Pitch, SquareMarker } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
 import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
@@ -25,7 +25,11 @@ import {
   handoffTargetRefusalReason,
 } from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
-import { KickoffEvent, isOneSquareMoveEvent } from "../kickoff/kickoffEvents";
+import {
+  KickoffEvent,
+  isOneSquareMoveEvent,
+  steppingPlayerId,
+} from "../kickoff/kickoffEvents";
 import {
   BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
@@ -102,6 +106,8 @@ export class GameplayInteractionController {
   ) => void;
   private resumeBlitzMoveHandler: (data: { playerId: string }) => void;
   private kickoffHighlightedPlayerIds = new Set<string>();
+  /** The squares a kick-off one-square mover may step to, drawn for them. */
+  private kickoffSquareMarkers: SquareMarker[] = [];
   private kickoffStepSyncHandler = () => this.syncKickoffStepInteraction();
   private kickoffPlayerSelectedHandler = (data: { player: Player | null }) => {
     const step = this.gameService.getKickoffEventStep();
@@ -240,6 +246,10 @@ export class GameplayInteractionController {
     );
     this.eventBus.on(
       GameEventNames.KickoffEventStepResolved,
+      this.kickoffStepSyncHandler
+    );
+    this.eventBus.on(
+      GameEventNames.KickoffEventStepChanged,
       this.kickoffStepSyncHandler
     );
     this.eventBus.on(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
@@ -2472,6 +2482,10 @@ export class GameplayInteractionController {
       GameEventNames.KickoffEventStepResolved,
       this.kickoffStepSyncHandler
     );
+    this.eventBus.off(
+      GameEventNames.KickoffEventStepChanged,
+      this.kickoffStepSyncHandler
+    );
     this.eventBus.off(GameEventNames.UI_SyncBoard, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerMoved, this.kickoffStepSyncHandler);
     this.eventBus.off(GameEventNames.PlayerPlaced, this.kickoffStepSyncHandler);
@@ -2750,15 +2764,15 @@ export class GameplayInteractionController {
         return;
       }
 
-      if (this.selectedPlayerId) {
-        const oneSquare = isOneSquareMoveEvent(eventStep.event);
+      const oneSquare = isOneSquareMoveEvent(eventStep.event);
+      // A one-square move goes to the pick the board has marked squares for
+      const mover = oneSquare
+        ? steppingPlayerId(eventStep)
+        : this.selectedPlayerId;
+      if (mover) {
         const applied = oneSquare
-          ? this.gameService.moveKickoffEventPlayer(this.selectedPlayerId, x, y)
-          : this.gameService.placeKickoffEventPlayer(
-              this.selectedPlayerId,
-              x,
-              y
-            );
+          ? this.gameService.moveKickoffEventPlayer(mover, x, y)
+          : this.gameService.placeKickoffEventPlayer(mover, x, y);
         if (applied) {
           this.selectedPlayerId = null;
           this.syncKickoffStepInteraction();
@@ -2852,6 +2866,8 @@ export class GameplayInteractionController {
       this.scene.unhighlightPlayer(playerId);
     }
     this.kickoffHighlightedPlayerIds.clear();
+    this.kickoffSquareMarkers.forEach((marker) => marker.destroy());
+    this.kickoffSquareMarkers = [];
 
     const step = this.gameService.getKickoffEventStep();
     if (!step) return;
@@ -2895,6 +2911,34 @@ export class GameplayInteractionController {
       for (const playerId of step.selectedPlayerIds) {
         this.scene.highlightPlayer(playerId, 0xffd700);
         this.kickoffHighlightedPlayerIds.add(playerId);
+      }
+      // The pick a square click moves: the empty squares around them, any
+      // of which they may step to.
+      const mover = isOneSquareMoveEvent(step.event)
+        ? steppingPlayerId(step)
+        : null;
+      if (mover) {
+        const everyone = [...team.players, ...opponents];
+        const at = team.players.find((p) => p.id === mover)?.gridPosition;
+        if (at) {
+          for (let dx = -1; dx <= 1; dx++)
+            for (let dy = -1; dy <= 1; dy++) {
+              const x = at.x + dx;
+              const y = at.y + dy;
+              const onPitch =
+                x >= 0 &&
+                y >= 0 &&
+                x < GameConfig.PITCH_WIDTH &&
+                y < GameConfig.PITCH_HEIGHT;
+              const taken = everyone.some(
+                (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
+              );
+              if ((dx || dy) && onPitch && !taken)
+                this.kickoffSquareMarkers.push(
+                  this.pitch.highlightSquare(x, y, 0x22c55e)
+                );
+            }
+        }
       }
     }
     if (step.charge?.activePlayerId) {

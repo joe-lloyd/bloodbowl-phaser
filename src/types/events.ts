@@ -85,6 +85,12 @@ export enum GameEventNames {
   KickoffEventStepStarted = "kickoffEventStepStarted",
   /** The kickoff-event step ended (confirmed or skipped); kick resumes. */
   KickoffEventStepResolved = "kickoffEventStepResolved",
+  /**
+   * A command for the kickoff-event step has run and its result can be read:
+   * a pick, a move or a placement. Sent over the network, the decision the
+   * board reads is away while the command runs.
+   */
+  KickoffEventStepChanged = "kickoffEventStepChanged",
   /** A drive/match-scoped kickoff effect was granted to a team. */
   DriveEffectGranted = "driveEffectGranted",
   /** A drive-scoped kickoff effect expired (drive end, or turn end for
@@ -500,6 +506,7 @@ export interface GameEvents {
     teamId: string;
     skipped: boolean;
   };
+  [GameEventNames.KickoffEventStepChanged]: void;
   [GameEventNames.DriveEffectGranted]: {
     teamId: string;
     /** Short effect id, e.g. "bribe", "free-reroll", "offensive-assist". */

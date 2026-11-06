@@ -6,6 +6,7 @@ import {
   KICKOFF_EVENT_MEANING,
   KickoffEvent,
   isOneSquareMoveEvent,
+  steppingPlayerId,
 } from "../../../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -22,6 +23,7 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
 
   useEventBus(eventBus, GameEventNames.KickoffEventStepStarted, refresh);
   useEventBus(eventBus, GameEventNames.KickoffEventStepResolved, refresh);
+  useEventBus(eventBus, GameEventNames.KickoffEventStepChanged, refresh);
   useEventBus(eventBus, GameEventNames.UI_SyncBoard, refresh);
   useEventBus(eventBus, GameEventNames.GameStateRestored, refresh);
   useEventBus(eventBus, GameEventNames.PlayerMoved, refresh);
@@ -36,21 +38,37 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   if (!team) return null;
   const match = getActiveOnlineMatch();
   const canAct = !match || (match.myTeamId === step.teamId && match.mayAct());
-  const selected = new Set(step.selectedPlayerIds);
   const awaiting = new Set(step.awaitingPlacement);
   const activeChargePlayer = team.players.find(
     (player) => player.id === step.charge?.activePlayerId
   );
+  const oneSquare = isOneSquareMoveEvent(step.event);
+  const limit = step.selectionLimit;
+  const moved = step.movedPlayerIds.length;
+  const picked = step.selectedPlayerIds.length;
+  // The pick a square click will move.
+  const stepping = team.players.find(
+    (player) => player.id === steppingPlayerId(step)
+  );
   const instruction =
     awaiting.size > 0
       ? "Finish placing the highlighted player."
-      : isOneSquareMoveEvent(step.event)
-        ? "Click an eligible player on the pitch, then click one adjacent empty square."
+      : oneSquare
+        ? stepping
+          ? `Now click a green square next to ${stepping.playerName} to move them there.`
+          : `Move up to ${limit} of your players one square each: click a player in a blue ring, then a green square next to them. Press Done when you have finished.`
         : step.event === KickoffEvent.HIGH_KICK
           ? `Click one eligible receiving player on the pitch to place them under the ball at (${step.landingSquare?.x}, ${step.landingSquare?.y}).`
           : step.charge
             ? `${activeChargePlayer?.playerName ?? "The selected player"} is active. Choose an action in the normal player action window.`
-            : "Click up to the limit on the pitch, then confirm to activate them in order.";
+            : `Pick up to ${limit} players in a blue ring, then press Charge! to move them one at a time.`;
+  const count = oneSquare ? `${moved}/${limit} moved` : `${picked}/${limit}`;
+  // Ends the step: once someone has moved, or once Charge! has its players.
+  const finish = oneSquare
+    ? { label: "Done", ready: moved > 0 }
+    : step.event === KickoffEvent.HIGH_KICK
+      ? { label: "Confirm", ready: true }
+      : { label: "Charge!", ready: picked > 0 };
 
   return (
     <Panel
@@ -69,7 +87,7 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           </p>
         </div>
         <Chip tone="gold" className="shrink-0 !text-hud-sm">
-          {selected.size}/{step.selectionLimit}
+          {count}
         </Chip>
       </div>
 
@@ -95,13 +113,13 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
           {!step.charge && (
             <HudButton
               variant="gold"
-              disabled={awaiting.size > 0}
+              disabled={awaiting.size > 0 || !finish.ready}
               onClick={() => {
                 service.confirmKickoffEventStep();
                 refresh();
               }}
             >
-              Confirm
+              {finish.label}
             </HudButton>
           )}
         </div>

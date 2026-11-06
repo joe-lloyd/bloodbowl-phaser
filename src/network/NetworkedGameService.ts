@@ -26,6 +26,7 @@ import { BlockResult } from "../services/BlockResolutionService";
 import { ActionType, GameEventNames } from "../types/events";
 import { BlockReplacement } from "../types/BlockReplacement";
 import { IEventBus } from "../services/EventBus";
+import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager";
 
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
@@ -226,9 +227,9 @@ export class NetworkedGameService implements IGameService {
   isTouchbackPending(): boolean {
     return this.inner.isTouchbackPending();
   }
-  getKickoffEventStep() {
+  getKickoffEventStep(): KickoffEventStepState | null {
     const pending = this.pendingDecision();
-    if (pending?.type !== "kickoff-event") return null;
+    if (pending?.type !== "kickoff-event") return this.kickoffStepInFlight;
     return {
       event: pending.event,
       teamId: pending.chooserTeamId,
@@ -402,25 +403,53 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "touchback", playerId });
     return true;
   }
-  selectKickoffEventPlayer(playerId: string): boolean {
-    this.send({ type: "kickoff-select-player", playerId });
+  /**
+   * The kick-off step as it stood when a command for it went out. The
+   * decision it is read from is away while the command runs, and the step
+   * has not ended, so the board keeps showing it until the result is in.
+   */
+  private kickoffStepInFlight: KickoffEventStepState | null = null;
+  /** A square clicked before the pick landed queues a second command. */
+  private kickoffCommandsInFlight = 0;
+
+  private sendKickoffStep(command: HeadlessCommand): boolean {
+    this.kickoffStepInFlight = this.getKickoffEventStep();
+    this.kickoffCommandsInFlight++;
+    void this.run(command)
+      .catch((error: unknown) =>
+        console.warn(`[Networked] ${command.type} could not run:`, error)
+      )
+      .finally(() => {
+        if (--this.kickoffCommandsInFlight === 0)
+          this.kickoffStepInFlight = null;
+        this.eventBus?.emit(GameEventNames.KickoffEventStepChanged);
+      });
     return true;
+  }
+  selectKickoffEventPlayer(playerId: string): boolean {
+    return this.sendKickoffStep({ type: "kickoff-select-player", playerId });
   }
   moveKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
-    this.send({ type: "kickoff-move-player", playerId, x, y });
-    return true;
+    return this.sendKickoffStep({
+      type: "kickoff-move-player",
+      playerId,
+      x,
+      y,
+    });
   }
   placeKickoffEventPlayer(playerId: string, x: number, y: number): boolean {
-    this.send({ type: "kickoff-place-player", playerId, x, y });
-    return true;
+    return this.sendKickoffStep({
+      type: "kickoff-place-player",
+      playerId,
+      x,
+      y,
+    });
   }
   confirmKickoffEventStep(): boolean {
-    this.send({ type: "kickoff-confirm" });
-    return true;
+    return this.sendKickoffStep({ type: "kickoff-confirm" });
   }
   skipKickoffEventStep(): boolean {
-    this.send({ type: "kickoff-skip" });
-    return true;
+    return this.sendKickoffStep({ type: "kickoff-skip" });
   }
   declareAction(
     playerId: string,
