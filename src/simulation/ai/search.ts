@@ -31,8 +31,8 @@ export interface SearchBudget {
 
 /** The levels above the plain planner, by how hard they look. */
 export const BUDGETS = {
-  hard: { samples: 2, options: 4, deadlineMs: 1500 },
-  legend: { samples: 6, options: 4, deadlineMs: 4000 },
+  hard: { samples: 8, options: 4, deadlineMs: 1500 },
+  legend: { samples: 16, options: 4, deadlineMs: 4000 },
 } as const satisfies Record<string, SearchBudget>;
 
 interface Option {

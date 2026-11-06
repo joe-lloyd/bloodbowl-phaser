@@ -88,15 +88,19 @@ Scoring at the end of our own turn lost to the plain planner, 3 won, 12 drawn,
 9 lost in 24 games: it could not see what an exposed carrier would suffer.
 The opponent's reply is what makes the lookahead pay.
 
-| Level    | Options | Samples | Deadline | Measured over mirrored games                             |
-| -------- | ------- | ------- | -------- | -------------------------------------------------------- |
-| Standard | none    | none    | none     | The planner                                              |
-| Hard     | 4       | 2       | 1.5 s    | Against the planner: 91 won, 55 drawn, 54 lost, +0.26 TD |
-| Legend   | 4       | 6       | 4 s      | Against Hard: 42 won, 23 drawn, 35 lost, +0.08 TD        |
+| Level    | Options | Samples | Deadline | Measured over mirrored games                               |
+| -------- | ------- | ------- | -------- | ---------------------------------------------------------- |
+| Standard | none    | none    | none     | The planner                                                |
+| Hard     | 4       | 8       | 1.5 s    | Against Hard with 2 samples: 54.7% ±3.8 over 400, +0.16 TD |
+| Legend   | 4       | 16      | 4 s      | Against Hard with 8 samples: 52.7% ±5.1 over 200, +0.10 TD |
 
-Legend's 100 games point the right way but do not prove it stronger than Hard.
-Six options with four samples did no better, 21 won, 20 drawn, 19 lost over 60
-games. More playouts per option helped more than more options.
+Each doubling of the samples buys less. Hard with 2 samples beat the planner,
+91 won, 55 drawn and 54 lost; four times the samples gained another 4.7
+points, and twice that about 2.7, inside the noise. Six options with four
+samples did no better than four options, 21 won, 20 drawn, 19 lost over 60
+games: more playouts per option helped more than more options. A deadline
+stops a search on a slow machine with fewer samples rather than keeping the
+player waiting.
 
 The bench plays `hard` and `legend` without the deadline, so its games can be
 repeated. The browser applies it.
