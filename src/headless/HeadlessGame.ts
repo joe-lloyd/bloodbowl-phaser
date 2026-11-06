@@ -1178,12 +1178,12 @@ export class HeadlessGame {
 
   /**
    * Let fire-and-forget engine chains (noDelay .then sequencing, the flow
-   * queue) fully settle before reporting the outcome.
+   * queue) fully settle before reporting the outcome. They are promise
+   * chains, so one macrotask drains them all; more ticks only add a turn of
+   * the event loop to every command, which a lookahead runs millions of.
    */
   private async settle(): Promise<void> {
-    for (let i = 0; i < 10; i++) {
-      await tick();
-    }
+    await tick();
   }
 
   private validateShape(command: unknown): string | null {
