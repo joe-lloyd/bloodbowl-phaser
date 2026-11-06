@@ -128,6 +128,7 @@ export enum GameEventNames {
   ThrowTeammateLanded = "throwTeammateLanded",
   MvpAwarded = "mvpAwarded",
   AwardedTouchdownAssigned = "awardedTouchdownAssigned",
+  MatchSppApplied = "matchSppApplied",
   InterceptionFailed = "interceptionFailed",
   CatchAttempted = "catchAttempted",
   CatchSucceeded = "catchSucceeded",
@@ -607,6 +608,7 @@ export interface GameEvents {
     teamId: string;
     playerId: string;
   };
+  [GameEventNames.MatchSppApplied]: void;
   [GameEventNames.CompetitionResultRecorded]: {
     fixtureId: string;
   };

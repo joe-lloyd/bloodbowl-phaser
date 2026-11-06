@@ -358,15 +358,15 @@ export class MatchStats {
     this.appliedFlag = true;
     const players = teams.flatMap((team) => team.players);
     const summary = this.summary(players);
-    if (!this.progressionEnabled) {
-      return summary;
+    if (this.progressionEnabled) {
+      const byId = new Map(players.map((player) => [player.id, player]));
+      summary.players.forEach((stats) => {
+        const player = byId.get(stats.playerId);
+        if (!player || player.playerKind === "star") return;
+        player.spp = (player.spp ?? 0) + stats.sppEarned;
+      });
     }
-    const byId = new Map(players.map((player) => [player.id, player]));
-    summary.players.forEach((stats) => {
-      const player = byId.get(stats.playerId);
-      if (!player || player.playerKind === "star") return;
-      player.spp = (player.spp ?? 0) + stats.sppEarned;
-    });
+    this.eventBus.emit(GameEventNames.MatchSppApplied);
     return summary;
   }
 }

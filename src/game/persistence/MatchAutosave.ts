@@ -32,6 +32,10 @@ export class MatchAutosave {
     GameEventNames.TurnEnded,
     GameEventNames.PhaseChanged,
     GameEventNames.DriveEnded,
+    // The results screen's steps, so a reload never offers one again
+    GameEventNames.MvpAwarded,
+    GameEventNames.AwardedTouchdownAssigned,
+    GameEventNames.MatchSppApplied,
   ] as const;
 
   constructor(

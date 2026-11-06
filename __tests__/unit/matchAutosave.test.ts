@@ -7,6 +7,9 @@ import {
 } from "../../src/game/persistence/MatchSaveRepository";
 import { MatchSave } from "../../src/headless/serialization";
 import { IGameService } from "../../src/services/interfaces/IGameService";
+import { MatchStats } from "../../src/game/progression/MatchStats";
+import { createLineupTeam } from "../../src/simulation/lineups";
+import { RosterName } from "../../src/types/Team";
 
 class MemoryRepository implements MatchSaveRepository {
   writes: MatchSave[] = [];
@@ -112,5 +115,39 @@ describe("MatchAutosave", () => {
     autosave.start();
     expect(await autosave.flushNow()).toBe(false);
     expect(repository.writes).toHaveLength(0);
+  });
+
+  it("keeps the save in step with the results screen's steps", async () => {
+    const bus = new EventBus();
+    const roster = createLineupTeam(RosterName.HUMAN, "Humans", 1);
+    const stats = new MatchStats(bus, [roster], true);
+    const gameService = {
+      getFlowContext: () => ({
+        flowManager: { whenIdle: () => Promise.resolve() },
+      }),
+      getDecisionService: () => ({ pending: () => null }),
+      captureTurnManagerState: () => ({ turnoverInProgress: false }),
+    } as unknown as IGameService;
+    const repository = new MemoryRepository();
+    const autosave = new MatchAutosave(
+      bus,
+      gameService,
+      () => ({ version: 1, matchStats: stats.captureState() }) as MatchSave,
+      { repository, debounceMs: 1 }
+    );
+    const saved = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return JSON.stringify(repository.writes.at(-1)?.matchStats);
+    };
+    autosave.start();
+    expect(await saved()).toBe(JSON.stringify(stats.captureState()));
+
+    // A reload must not offer a step that has been taken
+    stats.assignAwardedTouchdown(roster.players[0].id);
+    expect(await saved()).toBe(JSON.stringify(stats.captureState()));
+    stats.applySpp([roster]);
+    expect(await saved()).toBe(JSON.stringify(stats.captureState()));
+    expect(repository.writes.at(-1)?.matchStats?.applied).toBe(true);
+    autosave.dispose();
   });
 });
