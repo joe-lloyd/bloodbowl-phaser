@@ -29,6 +29,21 @@ jobs:
       - run: pnpm exec vitest run __tests__/unit/docs-check.test.ts
       - run: pnpm docs:check
 
+  # The pre-commit hook runs this too, but a hook can be skipped.
+  unit:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run
+
   rules:
     name: firestore-rules
     runs-on: ubuntu-latest
