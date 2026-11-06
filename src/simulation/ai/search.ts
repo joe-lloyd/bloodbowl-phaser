@@ -168,6 +168,7 @@ export function playoutsHere(w: Weights): Playouts {
   };
 }
 
+/** The planner, with its next declaration checked by sampled playouts. */
 export function createSearchCoach(options: {
   weights?: Weights;
   name?: string;

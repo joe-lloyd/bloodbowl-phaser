@@ -13,6 +13,7 @@ import { Weights } from "./weights";
 /** Time a worker gets beyond its budget's deadline to answer. */
 const GRACE_MS = 1500;
 
+/** The search coach, with its playouts shared over a pool of workers. */
 export function createWorkerSearchCoach(options: {
   budget: SearchBudget;
   weights?: Weights;

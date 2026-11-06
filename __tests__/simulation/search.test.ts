@@ -165,14 +165,16 @@ describe("the lookahead over workers", () => {
   }
   const reply = (worker: FakeWorker, data: SearchReply) =>
     worker.dispatchEvent(new MessageEvent("message", { data }));
-  const coachOn = (...workers: FakeWorker[]) => {
+  // Long enough that the first round always starts, however slow the setup.
+  const coachWithin = (deadlineMs: number, ...workers: FakeWorker[]) => {
     let next = 0;
     return createWorkerSearchCoach({
-      budget: { samples: 1, options: 2, deadlineMs: 1 },
+      budget: { samples: 1, options: 2, deadlineMs },
       createWorker: () => workers[next++ % workers.length] as unknown as Worker,
       workers: workers.length,
     });
   };
+  const coachOn = (...workers: FakeWorker[]) => coachWithin(60_000, ...workers);
   const declaration = async () => {
     const game = new HeadlessGame({ scenario: position(null), seed: 1 });
     const point = await enumerateDecision(game, null);
@@ -235,7 +237,8 @@ describe("the lookahead over workers", () => {
     async (_, answer) => {
       const { context, planned } = await declaration();
       const worker = new FakeWorker(answer);
-      const choice = await coachOn(worker).choose(context);
+      // Short, so a silent worker is given up on well inside the timeout.
+      const choice = await coachWithin(250, worker).choose(context);
       expect(choice.index).toBe(planned.index);
       expect(worker.terminated).toBe(true);
     },
