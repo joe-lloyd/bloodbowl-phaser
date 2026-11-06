@@ -208,7 +208,8 @@ export class GameFlowManager {
           console.error(`[Flow] Error in ${op.name}:`, err);
           // Stop flow on error? Or turnover?
           // Ideally operations handle their own errors and trigger turnovers via context
-          this.clear();
+          // An abandoned run failing late must not clear the flow after it
+          if (this.epoch === epoch) this.clear();
         }
       }
     }

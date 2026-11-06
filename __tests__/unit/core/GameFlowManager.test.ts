@@ -199,5 +199,45 @@ describe("GameFlowManager", () => {
       expect(ran).toEqual(["Fresh"]);
       await flowManager.whenIdle();
     });
+
+    it("lets an abandoned operation fail without clearing the fresh flow", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const ran: string[] = [];
+      let fail = (_error: Error) => {};
+      flowManager.add(
+        new MockOperation(
+          "Paused",
+          () => new Promise<void>((_resolve, reject) => (fail = reject))
+        )
+      );
+      await tick();
+      flowManager.abandon();
+
+      let finish = () => {};
+      flowManager.add(
+        new MockOperation(
+          "Fresh",
+          () =>
+            new Promise<void>((resolve) => {
+              finish = () => {
+                ran.push("Fresh");
+                resolve();
+              };
+            })
+        )
+      );
+      flowManager.add(
+        new MockOperation("Queued behind it", async () => {
+          ran.push("Queued behind it");
+        })
+      );
+      // The stale run fails while the fresh one is still going
+      fail(new Error("abandoned"));
+      await tick();
+      finish();
+      await flowManager.whenIdle();
+
+      expect(ran).toEqual(["Fresh", "Queued behind it"]);
+    });
   });
 });
