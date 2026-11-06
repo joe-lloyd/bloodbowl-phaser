@@ -27,6 +27,8 @@ export interface SearchBudget {
   options: number;
   /** Give up and take the best so far after this long, if set. */
   deadlineMs?: number;
+  /** Our turns and the other side's replies each playout plays; 1 by default. */
+  rounds?: number;
 }
 
 /** The levels above the plain planner, by how hard they look. */
@@ -84,7 +86,8 @@ export async function scorePlayout(
   us: string,
   index: number,
   seed: number,
-  w: Weights = DEFAULT_WEIGHTS
+  w: Weights = DEFAULT_WEIGHTS,
+  rounds = 1
 ): Promise<number> {
   const game = new HeadlessGame({ matchSave: save, lazySnapshots: true });
   const dice = game.ctx.rng.captureState();
@@ -98,19 +101,19 @@ export async function scorePlayout(
   // heuristic does: its own stream keeps the playout a function of its seed.
   const rng = createCoachRng(sampleSeed(seed, index));
   let handedOver = false;
+  let replies = 0;
   const startScore = { ...save.snapshot.score };
-  for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
+  for (let steps = 0; steps < PLAYOUT_COMMANDS * rounds; steps++) {
     const state = game.ctx.gameService.getState();
     const scored = Object.keys(startScore).some(
       (t) => (state.score[t] ?? 0) !== startScore[t]
     );
     if (state.activeTeamId !== us) handedOver = true;
-    if (
-      scored ||
-      state.phase !== GamePhase.PLAY ||
-      (handedOver && state.activeTeamId === us && !game.pendingDecision())
-    )
-      break;
+    if (handedOver && state.activeTeamId === us && !game.pendingDecision()) {
+      replies++;
+      handedOver = false;
+    }
+    if (scored || state.phase !== GamePhase.PLAY || replies >= rounds) break;
     const point = await enumerateDecision(game, null);
     if (point.candidates.length === 0) break;
     const { index } = await policy.choose({
@@ -152,7 +155,7 @@ export interface PlayoutRound {
 export type Playouts = (round: PlayoutRound) => Promise<number[][]>;
 
 /** Playouts in this thread, one after another. */
-export function playoutsHere(w: Weights): Playouts {
+export function playoutsHere(w: Weights, rounds = 1): Playouts {
   return async ({ save, us, indices, seeds, deadlineAt }) => {
     const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
     const rows: number[][] = [];
@@ -160,7 +163,7 @@ export function playoutsHere(w: Weights): Playouts {
       const row: number[] = [];
       for (const index of indices) {
         if (late()) return rows;
-        row.push(await scorePlayout(save, us, index, seed, w));
+        row.push(await scorePlayout(save, us, index, seed, w, rounds));
       }
       rows.push(row);
     }
@@ -178,7 +181,7 @@ export function createSearchCoach(options: {
   const w = options.weights ?? DEFAULT_WEIGHTS;
   const { budget } = options;
   const policy = createPlannerCoach({ weights: w });
-  const playouts = options.playouts ?? playoutsHere(w);
+  const playouts = options.playouts ?? playoutsHere(w, budget.rounds);
   return {
     name: options.name ?? "search",
     async choose(context: CoachContext): Promise<CoachChoice> {
