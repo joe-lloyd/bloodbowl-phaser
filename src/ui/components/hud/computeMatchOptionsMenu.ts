@@ -64,7 +64,6 @@ export type MatchOptionsMenuEntry =
 export type MatchOptionsMenuContext =
   | { kind: "sandbox" }
   | { kind: "local"; matchOver: boolean }
-  | { kind: "computer"; matchOver: boolean }
   | {
       kind: "online";
       role: "host" | "guest";
@@ -88,37 +87,9 @@ export function computeMatchOptionsMenu(
       ];
     case "local":
       return localEntries(context.matchOver);
-    case "computer":
-      return computerEntries(context.matchOver);
     case "online":
       return onlineEntries(context);
   }
-}
-
-/** A match against the computer is not saved, so leaving ends it. */
-function computerEntries(matchOver: boolean): MatchOptionsMenuEntry[] {
-  return [
-    matchOver
-      ? {
-          id: "return-to-menu",
-          label: "Leave Results",
-          description: "Head back to the main menu.",
-        }
-      : {
-          id: "return-to-menu",
-          label: "Leave Match",
-          description:
-            "End this match. A match against the computer is not saved.",
-          destructive: true,
-          confirm: {
-            title: "Leave this match?",
-            message:
-              "A match against the computer is not saved, so it cannot be resumed afterward.",
-            confirmLabel: "Leave Match",
-            cancelLabel: "Keep Playing",
-          },
-        },
-  ];
 }
 
 function localEntries(matchOver: boolean): MatchOptionsMenuEntry[] {

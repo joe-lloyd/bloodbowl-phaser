@@ -152,6 +152,14 @@ export interface MatchSave {
   presentation?: {
     pitchThemeId?: string;
   };
+  /** Set when a computer coaches one side; absent for two people at one screen. */
+  computer?: ComputerMatchSave;
+}
+
+export interface ComputerMatchSave {
+  computerTeamId: string;
+  /** Checked against the known levels by the page that resumes the match. */
+  difficulty: string;
 }
 
 export interface CreateMatchSaveInput {
@@ -163,6 +171,7 @@ export interface CreateMatchSaveInput {
   turnManager?: TurnManagerState;
   competition?: CompetitionContext;
   presentation?: MatchSave["presentation"];
+  computer?: ComputerMatchSave;
   savedAt?: number;
 }
 
@@ -371,6 +380,7 @@ export function createMatchSave(input: CreateMatchSaveInput): MatchSave {
     ...(input.presentation
       ? { presentation: structuredClone(input.presentation) }
       : {}),
+    ...(input.computer ? { computer: { ...input.computer } } : {}),
   };
 
   return JSON.parse(JSON.stringify(payload)) as MatchSave;
@@ -397,7 +407,11 @@ export function deserializeMatchSave(value: string | unknown): MatchSave {
     typeof parsed.drive.kickingTeamId !== "string" ||
     typeof parsed.drive.receivingTeamId !== "string" ||
     !isRecord(parsed.rng) ||
-    !isRecord(parsed.matchStats)
+    !isRecord(parsed.matchStats) ||
+    (parsed.computer !== undefined &&
+      (!isRecord(parsed.computer) ||
+        typeof parsed.computer.computerTeamId !== "string" ||
+        typeof parsed.computer.difficulty !== "string"))
   ) {
     throw new Error("unsupported-or-invalid-match-save");
   }

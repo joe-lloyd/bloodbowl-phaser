@@ -28,6 +28,7 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
   compact = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<React.CSSProperties>();
   const [confirming, setConfirming] =
     useState<MatchOptionsMenuActionEntry | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -167,7 +168,16 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="match-options-menu"
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => {
+          if (open) return close();
+          // Beside the HUD's corner stack, which scrolls and would clip it
+          const trigger = triggerRef.current!.getBoundingClientRect();
+          setAnchor({
+            top: trigger.bottom + 8,
+            right: window.innerWidth - trigger.right,
+          });
+          setOpen(true);
+        }}
         aria-label={compact ? "Match options" : undefined}
         className={
           compact
@@ -187,8 +197,9 @@ export const MatchOptionsMenu: React.FC<MatchOptionsMenuProps> = ({
           className={
             compact
               ? "hud-slab absolute left-0 top-full z-50 mt-2 max-h-[calc(100dvh-5rem)] w-72 max-w-[70vw] overflow-y-auto p-2 animate-hud-in"
-              : "hud-slab absolute right-0 top-full z-50 mt-2 w-72 p-2 animate-hud-in"
+              : "hud-slab fixed z-50 max-h-[calc(100dvh-5rem)] w-72 overflow-y-auto p-2 animate-hud-in"
           }
+          style={compact ? undefined : anchor}
         >
           {confirming ? (
             <div

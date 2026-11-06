@@ -231,6 +231,11 @@ export class HeadlessGame {
     return this.pending;
   }
 
+  /** Who kicks this drive, once the toss has settled it. */
+  public driveKickingTeamId(): string | null {
+    return this.kickingTeamId;
+  }
+
   /**
    * Take on another engine's state wholesale (an online resync): drop any
    * decision this engine was paused on and show the other's instead.

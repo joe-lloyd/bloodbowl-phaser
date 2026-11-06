@@ -225,6 +225,8 @@ export class GameScene extends Phaser.Scene {
     competitionContext?: CompetitionContext;
     resumeSave?: MatchSave;
     autosaveEnabled?: boolean;
+    /** The match seeded the engine from a save before the board mounted. */
+    resumed?: boolean;
   }): void {
     const restored = data.resumeSave ? restoreMatchSave(data.resumeSave) : null;
     this.team1 = restored?.teams[0] ?? data.team1;
@@ -234,7 +236,7 @@ export class GameScene extends Phaser.Scene {
     ).id;
     this.competitionContext =
       restored?.save.competition ?? data.competitionContext;
-    this.resumedMatch = !!restored;
+    this.resumedMatch = !!restored || data.resumed === true;
     this.autosaveEnabled =
       data.autosaveEnabled ?? this.sys.settings.key === "GameScene";
 

@@ -1,3 +1,4 @@
+import { whenEngineQuiet } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { GameEventNames } from "../../types/events";
@@ -8,11 +9,17 @@ export interface MatchAutosaveOptions {
   enabled?: boolean;
   debounceMs?: number;
   repository?: MatchSaveRepository;
+  /**
+   * A choice held outside the engine's decisions is open, such as a
+   * headless match's block dice. A save cannot carry its prompt either.
+   */
+  choiceOpen?: () => boolean;
 }
 
 /**
  * One boundary observer for local play. It waits for the operation queue to
- * drain and refuses to persist while a decision is pending.
+ * drain and the engine to settle, and refuses to persist while a decision or
+ * a turnover is open: nothing that resumes the match could finish either.
  */
 export class MatchAutosave {
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -25,6 +32,10 @@ export class MatchAutosave {
     GameEventNames.TurnEnded,
     GameEventNames.PhaseChanged,
     GameEventNames.DriveEnded,
+    // The results screen's steps, so a reload never offers one again
+    GameEventNames.MvpAwarded,
+    GameEventNames.AwardedTouchdownAssigned,
+    GameEventNames.MatchSppApplied,
   ] as const;
 
   constructor(
@@ -64,8 +75,13 @@ export class MatchAutosave {
 
   private async flushRevision(revision: number): Promise<boolean> {
     await this.gameService.getFlowContext().flowManager.whenIdle();
+    await whenEngineQuiet();
     if (this.disposed || revision !== this.revision) return false;
-    if (this.gameService.getDecisionService().pending()) {
+    if (
+      this.gameService.getDecisionService().pending() ||
+      this.gameService.captureTurnManagerState().turnoverInProgress ||
+      this.options.choiceOpen?.()
+    ) {
       this.schedule();
       return false;
     }

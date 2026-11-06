@@ -12,12 +12,15 @@
  */
 
 import { whenEngineQuiet } from "../game/core/GameFlowManager";
+import { MatchAutosave } from "../game/persistence/MatchAutosave";
+import { clearMatchSave } from "../game/persistence/MatchSaveRepository";
 import { whenScreenSettled } from "../game/presentation/screenSettled";
 import { IEventBus } from "../services/EventBus";
 import { GameService } from "../services/GameService";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { scopeEventBus } from "../services/scopedEventBus";
 import { HeadlessGame } from "../headless/HeadlessGame";
+import { RestoredMatchSave, createMatchSave } from "../headless/serialization";
 import {
   CommandResponse,
   HeadlessCommand,
@@ -116,6 +119,10 @@ export interface ComputerMatchOptions {
   coach?: Coach & { close?(): void };
   /** Scale every pause; 0 plays at full speed (tests). */
   pace?: number;
+  /** The save this match picks up; team1 and team2 are its restored teams. */
+  resume?: Pick<RestoredMatchSave, "save" | "state">;
+  /** What a save holds beyond the engine. Unset, the match is not saved. */
+  autosave?: { difficulty: string; pitchThemeId?: string };
 }
 
 export function createComputerMatch(
@@ -156,7 +163,16 @@ export function createComputerMatch(
         senderTeamId,
         hostTeamId: myTeamId,
       });
-      return refusal ?? game.execute(command);
+      if (refusal) return refusal;
+      const response = await game.execute(command);
+      // Before the toss there is nothing to come back to. Either command
+      // makes the toss and starts set-up.
+      if (
+        (command.type === "start-setup" || command.type === "coin-flip") &&
+        response.ok
+      )
+        autosave?.start();
+      return response;
     });
   const run = (command: HeadlessCommand) => runAs(myTeamId, command);
 
@@ -165,12 +181,13 @@ export function createComputerMatch(
     eventBus,
     team1,
     team2,
-    GameService.createInitialState(
-      team1,
-      team2,
-      GamePhase.SETUP,
-      SubPhase.INTRO
-    ),
+    options.resume?.state ??
+      GameService.createInitialState(
+        team1,
+        team2,
+        GamePhase.SETUP,
+        SubPhase.INTRO
+      ),
     Math.floor(Math.random() * 2 ** 31),
     (inner: GameService) => {
       engine = inner;
@@ -181,7 +198,12 @@ export function createComputerMatch(
         eventBus
       );
     },
-    options.progressionEnabled ?? false
+    options.resume?.save.matchStats.progressionEnabled ??
+      options.progressionEnabled ??
+      false,
+    options.resume?.save.rng,
+    options.resume?.save.matchStats,
+    options.resume?.save.turnManager
   );
   const game: HeadlessGame = new HeadlessGame({
     ctx: {
@@ -193,7 +215,35 @@ export function createComputerMatch(
       seed: 0,
       matchStats: container.matchStats,
     },
+    kickingTeamId: options.resume?.save.drive.kickingTeamId ?? null,
   });
+
+  const saveOptions = options.autosave;
+  const autosave = saveOptions
+    ? new MatchAutosave(
+        eventBus,
+        engine!,
+        () => {
+          const kickingTeamId = game.driveKickingTeamId() ?? team1.id;
+          return createMatchSave({
+            state: engine!.getState(),
+            teams: [team1, team2],
+            drive: {
+              kickingTeamId,
+              receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,
+            },
+            rng: container.rngService.captureState(),
+            matchStats: container.matchStats.captureState(),
+            turnManager: engine!.captureTurnManagerState(),
+            presentation: { pitchThemeId: saveOptions.pitchThemeId },
+            computer: { computerTeamId, difficulty: saveOptions.difficulty },
+          });
+        },
+        // Block dice, pushes and kick-off events wait here, not in the engine
+        { choiceOpen: () => game.pendingDecision() !== null }
+      )
+    : null;
+  if (options.resume) autosave?.start();
 
   const owner = (teamId: string): boolean => {
     const pending = game.pendingDecision();
@@ -321,7 +371,9 @@ export function createComputerMatch(
       timer = setTimeout(loop, acted ? 0 : Math.max(5, 200 * pace));
     });
   };
-  loop();
+  // A resumed computer waits for the board, so its moves are seen.
+  if (options.resume) eventBus.once(GameEventNames.GameStateRestored, loop);
+  else loop();
   // Dev builds only: lets a scripted coach drive the human side to record
   // whole matches against the computer.
   if (import.meta.env?.DEV)
@@ -372,6 +424,10 @@ export function createComputerMatch(
     close: () => {
       closed = true;
       clearTimeout(timer);
+      autosave?.dispose();
+      // A finished match has nothing to come back to.
+      if (autosave && engine!.getPhase() === GamePhase.GAME_OVER)
+        clearMatchSave();
       coach.close?.();
       eventBus.dispose();
     },

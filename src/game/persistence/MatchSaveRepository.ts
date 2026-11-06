@@ -17,6 +17,7 @@ export interface MatchSaveDescription {
   awayScore: number;
   half: 1 | 2;
   turn: number;
+  againstComputer: boolean;
 }
 
 export interface MatchSaveRepository {
@@ -50,6 +51,7 @@ export function describeMatchSave(save: MatchSave): MatchSaveDescription {
     awayScore: save.snapshot.score[away.id] ?? 0,
     half: save.drive.half,
     turn: save.snapshot.turn.turnNumber,
+    againstComputer: save.computer !== undefined,
   };
 }
 
