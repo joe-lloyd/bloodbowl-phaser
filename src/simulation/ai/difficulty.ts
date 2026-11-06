@@ -28,10 +28,15 @@ export const DIFFICULTIES = [
 
 export type Difficulty = (typeof DIFFICULTIES)[number]["id"];
 
+/** Most workers to share a search over; one core stays with the page. */
+const MAX_WORKERS = 8;
+
 export function coachFor(difficulty: Difficulty): Coach & { close?(): void } {
   if (difficulty === "standard") return plannerCoach;
+  const cores = globalThis.navigator?.hardwareConcurrency ?? 2;
   return createWorkerSearchCoach({
     budget: BUDGETS[difficulty],
+    workers: Math.max(1, Math.min(MAX_WORKERS, cores - 1)),
     createWorker: () =>
       new Worker(new URL("./searchWorker.ts", import.meta.url), {
         type: "module",
