@@ -6,6 +6,7 @@ import {
   KICKOFF_EVENT_MEANING,
   KickoffEvent,
   isOneSquareMoveEvent,
+  steppingPlayerId,
 } from "../../../game/kickoff/kickoffEvents";
 import type { KickoffEventStepState } from "../../../game/kickoff/KickoffEventManager";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
@@ -45,11 +46,9 @@ export function KickoffEventOverlay({ eventBus }: { eventBus: IEventBus }) {
   const limit = step.selectionLimit;
   const moved = step.movedPlayerIds.length;
   const picked = step.selectedPlayerIds.length;
-  // A player picked for a one-square move who has not stepped yet.
+  // The pick a square click will move.
   const stepping = team.players.find(
-    (player) =>
-      step.selectedPlayerIds.includes(player.id) &&
-      !step.movedPlayerIds.includes(player.id)
+    (player) => player.id === steppingPlayerId(step)
   );
   const instruction =
     awaiting.size > 0

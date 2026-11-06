@@ -25,7 +25,11 @@ import {
   handoffTargetRefusalReason,
 } from "../rules/handoff";
 import { getActiveOnlineMatch } from "../../network/OnlineMatch";
-import { KickoffEvent, isOneSquareMoveEvent } from "../kickoff/kickoffEvents";
+import {
+  KickoffEvent,
+  isOneSquareMoveEvent,
+  steppingPlayerId,
+} from "../kickoff/kickoffEvents";
 import {
   BlockReplacement,
   BLOCK_REPLACEMENT_DEFINITIONS,
@@ -2760,15 +2764,15 @@ export class GameplayInteractionController {
         return;
       }
 
-      if (this.selectedPlayerId) {
-        const oneSquare = isOneSquareMoveEvent(eventStep.event);
+      const oneSquare = isOneSquareMoveEvent(eventStep.event);
+      // A one-square move goes to the pick the board has marked squares for
+      const mover = oneSquare
+        ? steppingPlayerId(eventStep)
+        : this.selectedPlayerId;
+      if (mover) {
         const applied = oneSquare
-          ? this.gameService.moveKickoffEventPlayer(this.selectedPlayerId, x, y)
-          : this.gameService.placeKickoffEventPlayer(
-              this.selectedPlayerId,
-              x,
-              y
-            );
+          ? this.gameService.moveKickoffEventPlayer(mover, x, y)
+          : this.gameService.placeKickoffEventPlayer(mover, x, y);
         if (applied) {
           this.selectedPlayerId = null;
           this.syncKickoffStepInteraction();
@@ -2908,14 +2912,15 @@ export class GameplayInteractionController {
         this.scene.highlightPlayer(playerId, 0xffd700);
         this.kickoffHighlightedPlayerIds.add(playerId);
       }
-      // A picked one-square mover: the empty squares around them, any of
-      // which they may step to.
-      if (isOneSquareMoveEvent(step.event)) {
+      // The pick a square click moves: the empty squares around them, any
+      // of which they may step to.
+      const mover = isOneSquareMoveEvent(step.event)
+        ? steppingPlayerId(step)
+        : null;
+      if (mover) {
         const everyone = [...team.players, ...opponents];
-        for (const playerId of step.selectedPlayerIds) {
-          if (step.movedPlayerIds.includes(playerId)) continue;
-          const at = team.players.find((p) => p.id === playerId)?.gridPosition;
-          if (!at) continue;
+        const at = team.players.find((p) => p.id === mover)?.gridPosition;
+        if (at) {
           for (let dx = -1; dx <= 1; dx++)
             for (let dy = -1; dy <= 1; dy++) {
               const x = at.x + dx;

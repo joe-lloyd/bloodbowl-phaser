@@ -71,6 +71,21 @@ export const INTERACTIVE_KICKOFF_EVENTS = new Set<KickoffEvent>([
  * Alert Defence (kicking coach) and Quick Snap (receiving coach) both move
  * chosen Open players exactly one square each.
  */
+/**
+ * Alert Defence / Quick Snap: who a square click moves, the latest pick
+ * still to step. The board marks squares around them alone, and the panel
+ * names them.
+ */
+export function steppingPlayerId(step: {
+  selectedPlayerIds: string[];
+  movedPlayerIds: string[];
+}): string | null {
+  const waiting = step.selectedPlayerIds.filter(
+    (id) => !step.movedPlayerIds.includes(id)
+  );
+  return waiting[waiting.length - 1] ?? null;
+}
+
 export function isOneSquareMoveEvent(event: KickoffEvent): boolean {
   return (
     event === KickoffEvent.ALERT_DEFENCE || event === KickoffEvent.QUICK_SNAP
