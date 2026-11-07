@@ -110,10 +110,18 @@ Team Re-roll and once-a-turn skill re-rolls were kept outside the game state,
 so a playout, or a match resumed mid-turn, could spend them a second time.
 They now live in the state as `turnUsage`.
 
+Against Hard without it (main at 9f4baae, 8 samples), Hard with it won 178,
+drew 99 and lost 123 of 400 mirrored games: 56.9% of the points, ±3.7 over
+the seed pairs, and 1.04 touchdowns a game against 0.82. It turns the ball
+over more, on 27.9% of turns against 24.2%: it keeps re-rolls the rule would
+have spent, and the touchdowns pay for the turnovers.
+
+It overrules the planner at about one choice in five. Over four matches it
+most often declined a Team Re-roll on a failed Bone Head or similar roll (8
+of 25 re-roll choices) and stayed put instead of following up (11 of 42).
 In one match in headless Chromium with 7 workers, 35 choices inside actions
 took 65 ms at the median and 283 ms at the slowest, against 174 ms for a
-declaration. In three headless matches against the planner, Hard searched
-33 to 43 such choices a game and overruled the planner at 8 to 12 of them.
+declaration.
 
 | Level    | Options | Samples | Deadline | Measured over mirrored games                               |
 | -------- | ------- | ------- | -------- | ---------------------------------------------------------- |
