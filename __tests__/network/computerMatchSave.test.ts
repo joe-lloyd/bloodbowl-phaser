@@ -251,7 +251,14 @@ describe("saving a match against the computer", () => {
       // and a fast drive (set-up, kick-off) can outrun the autosave every
       // time: reload once there is something newer to come back to.
       const saved = JSON.stringify(save.snapshot);
-      if (saved === resumedFrom) continue;
+      if (saved === resumedFrom) {
+        // Saves land after each action; only set-up and the kick-off run
+        // long without one. An autosave that stopped would show here.
+        expect(sinceReload, "human commands with no newer save").toBeLessThan(
+          150
+        );
+        continue;
+      }
       resumedFrom = saved;
       live.close();
       const next = resume(save, 0);
