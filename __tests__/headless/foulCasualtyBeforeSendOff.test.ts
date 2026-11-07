@@ -59,6 +59,8 @@ describe("a Foul that causes a Casualty and is spotted", () => {
       const { casualty, sentOff, leaving } = await foul(seed);
       if (!casualty || !sentOff) continue;
       seen++;
+      expect(leaving, `seed ${seed}`).toContain("victim");
+      expect(leaving, `seed ${seed}`).toContain("fouler");
       expect(leaving.lastIndexOf("victim"), `seed ${seed}`).toBeLessThan(
         leaving.indexOf("fouler")
       );
