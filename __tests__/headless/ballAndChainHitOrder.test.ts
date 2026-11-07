@@ -13,6 +13,7 @@ import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
 import { RosterName } from "../../src/types/Team";
+import type { PlayerPlacement } from "../../src/types/Scenario";
 
 const config = TRAIT_RULE_SCENARIOS.find(
   (e) => e.skill === SkillType.BALL_AND_CHAIN
@@ -150,8 +151,10 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       const [first, ...rest] = (await lurch(seed, PlayerStatus.PRONE)).trail;
       if (first !== "lurch 3" && first !== "lurch 4") continue;
       boxedIn++;
+      // Hitting a Prone player never ends the lurch: the Fanatic goes on
       const next = rest.findIndex((step) => step.startsWith("lurch"));
-      const square = next < 0 ? rest : rest.slice(0, next);
+      expect(next, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+      const square = rest.slice(0, next);
       expect(square, `seed ${seed}`).toContain("armour Human Lineman #2");
       expect(square, `seed ${seed}`).not.toContain("pushed Human Lineman #2");
     }
@@ -182,56 +185,101 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     expect(fellAfterHitting).toBeGreaterThanOrEqual(2);
   });
 
-  it("stops when a bounced ball is caught for a touchdown", async () => {
-    // Team 1 scores at x = 19: a ball the Fanatic lurches onto can bounce
-    // to a team-mate waiting in the End Zone.
-    let scored = 0;
-    for (let seed = 1; seed <= 300 && scored < 3; seed++) {
-      const game = new HeadlessGame({
-        seed,
-        scenario: {
-          id: "ball-and-chain-score",
-          name: "Ball & Chain knocks the ball into the End Zone",
-          description: "",
-          setup: {
-            ...config.setup,
-            team1Placements: [
-              { playerIndex: FANATIC, x: 17, y: 5 },
-              { playerIndex: 0, x: 19, y: 4 },
-              { playerIndex: 1, x: 19, y: 5 },
-              { playerIndex: 2, x: 19, y: 6 },
-            ],
-            team2Placements: [{ playerIndex: 0, x: 2, y: 9 }],
-            ballPosition: { x: 18, y: 5 },
-          },
+  /**
+   * The Fanatic lurches East from (17,5) with team-mates waiting in their
+   * End Zone at x = 19, where team 1 scores; null unless a touchdown came.
+   */
+  async function lurchToScore(
+    seed: number,
+    team2Placements: PlayerPlacement[]
+  ) {
+    const game = new HeadlessGame({
+      seed,
+      scenario: {
+        id: "ball-and-chain-score",
+        name: "Ball & Chain knocks the ball into the End Zone",
+        description: "",
+        setup: {
+          ...config.setup,
+          team1Placements: [
+            { playerIndex: FANATIC, x: 17, y: 5 },
+            { playerIndex: 0, x: 19, y: 4 },
+            { playerIndex: 1, x: 19, y: 5 },
+            { playerIndex: 2, x: 19, y: 6 },
+          ],
+          team2Placements,
+          ballPosition: { x: 18, y: 5 },
         },
-      });
-      const fanatic = game.ctx.team1.players[FANATIC];
-      await game.execute({
-        type: "declare-action",
-        playerId: fanatic.id,
-        action: "ballAndChain",
-      });
-      const before = game.snapshot();
-      const response = await game.execute({
-        type: "ball-and-chain",
-        playerId: fanatic.id,
-        x: 1,
-        y: 0,
-      });
-      if (!response.events.some((e) => e.name === GameEventNames.Touchdown))
-        continue;
+      },
+    });
+    const fanatic = game.ctx.team1.players[FANATIC];
+    await game.execute({
+      type: "declare-action",
+      playerId: fanatic.id,
+      action: "ballAndChain",
+    });
+    const before = game.snapshot();
+    const response = await game.execute({
+      type: "ball-and-chain",
+      playerId: fanatic.id,
+      x: 1,
+      y: 0,
+    });
+    const scoredAt = response.events.findIndex(
+      (e) => e.name === GameEventNames.Touchdown
+    );
+    if (scoredAt < 0) return null;
+    // The drive is over: the Fanatic goes back with everyone else
+    expect(fanatic.gridPosition, `seed ${seed}`).toBeUndefined();
+    expect(
+      checkInvariants(
+        before,
+        game.snapshot(),
+        response.pendingDecision !== null
+      ),
+      `seed ${seed}`
+    ).toEqual([]);
+    // Nothing of the lurch comes after the touchdown
+    const afterwards = response.events.slice(scoredAt + 1);
+    expect(
+      afterwards.some(
+        (e) =>
+          (e.name === GameEventNames.PlayerMoved &&
+            (e.data as { playerId: string }).playerId === fanatic.id) ||
+          (e.name === GameEventNames.DiceRoll &&
+            (e.data as { description: string }).description.startsWith(
+              "Ball & Chain Deviation"
+            ))
+      ),
+      `seed ${seed}`
+    ).toBe(false);
+    return { events: response.events, scoredAt };
+  }
+
+  it("stops when a loose ball it lurches onto is caught for a touchdown", async () => {
+    let scored = 0;
+    for (let seed = 1; seed <= 300 && scored < 3; seed++)
+      if (await lurchToScore(seed, [{ playerIndex: 0, x: 2, y: 9 }])) scored++;
+    expect(scored).toBe(3);
+  });
+
+  it("rolls a knocked-down carrier's Armour, then stops when the bounce scores", async () => {
+    // Knocked Down: the Armour Roll, then the carried ball Bounces (2025
+    // rulebook), so the roll is made before the touchdown it leads to
+    let scored = 0;
+    for (let seed = 1; seed <= 400 && scored < 3; seed++) {
+      const run = await lurchToScore(seed, [{ playerIndex: 0, x: 18, y: 5 }]);
+      if (!run) continue;
       scored++;
-      // The drive is over: the Fanatic goes back with everyone else
-      expect(fanatic.gridPosition, `seed ${seed}`).toBeUndefined();
-      expect(
-        checkInvariants(
-          before,
-          game.snapshot(),
-          response.pendingDecision !== null
-        ),
-        `seed ${seed}`
-      ).toEqual([]);
+      const armour = run.events.findIndex(
+        (e) =>
+          e.name === GameEventNames.DiceRoll &&
+          (e.data as { description: string }).description.startsWith(
+            "Armour Roll (Human Lineman #1)"
+          )
+      );
+      expect(armour, `seed ${seed}`).toBeGreaterThanOrEqual(0);
+      expect(armour, `seed ${seed}`).toBeLessThan(run.scoredAt);
     }
     expect(scored).toBe(3);
   });

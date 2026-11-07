@@ -285,12 +285,19 @@ export class BallAndChainOperation extends GameOperation {
     const push = chosen.type === "push";
 
     if (targetDown) {
-      await this.knockDown(context, target);
-      // The ball the target dropped may have been caught for a touchdown
-      if (this.driveOver(context)) return true;
+      // Knocked Down: Prone, the Armour Roll, then a carried ball Bounces
+      // from the square (2025 rulebook, Knocked Down)
+      const square = { ...next };
+      const ball = gameService.getState().ballPosition;
+      const carrying = ball?.x === square.x && ball?.y === square.y;
+      this.knockDown(context, target);
       await context.flowManager.runToRest(
         new ArmourOperation(target.id, fanatic.id, undefined, "block")
       );
+      if (carrying) {
+        await context.flowManager.runToRest(new BounceOperation(square));
+        if (this.driveOver(context)) return true;
+      }
     } else if (push) {
       // The pushed square is now empty — the Fanatic follows up into it.
       if (await this.pushBack(context, from, next, target)) {
@@ -361,28 +368,13 @@ export class BallAndChainOperation extends GameOperation {
     return !!free;
   }
 
-  /** Knock a player down in place (Prone + events + drop a carried ball). */
-  private async knockDown(
-    context: FlowContext,
-    player: Player
-  ): Promise<void> {
-    const gameService = context.gameService as IGameService;
+  /** Knock a player down in place: Prone, with the events to show it. */
+  private knockDown(context: FlowContext, player: Player): void {
     player.status = PlayerStatus.PRONE;
     context.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: player.id,
     });
     context.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    const ball = gameService.getState().ballPosition;
-    if (
-      ball &&
-      player.gridPosition &&
-      ball.x === player.gridPosition.x &&
-      ball.y === player.gridPosition.y
-    ) {
-      await context.flowManager.runToRest(
-        new BounceOperation({ ...player.gridPosition })
-      );
-    }
   }
 
   /**
