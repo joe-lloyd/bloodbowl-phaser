@@ -100,7 +100,7 @@ async function lurch(
 
 /**
  * A player the Fanatic hit whose Armour Roll had not come by its next
- * lurch. A knockdown owes one, and so does a push of a player already
+ * lurch, or by the end. A knockdown owes one, and so does a push of a player already
  * down; pushing a Standing player does not.
  */
 function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
@@ -119,7 +119,8 @@ function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
     } else if (kind === "pushed" && down.has(who)) owed.add(who);
     else if (kind === "armour") owed.delete(who);
   }
-  return null;
+  // The last hit too, a fall straight after it included
+  return owed.size > 0 ? [...owed][0] : null;
 }
 
 describe("a Ball & Chain lurch through a pile of players", () => {
