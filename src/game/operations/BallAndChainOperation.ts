@@ -109,6 +109,8 @@ function pickResult(
  *   - the ball → it Bounces (never a Turnover).
  * If the Fanatic is Knocked Down / Falls Over for any reason it takes an
  * immediate Injury Roll (no Armour Roll) and the lurch ends in a Turnover.
+ * Each square comes to rest (Armour, Injury, crowd, bounce) before the next,
+ * so a player Knocked Out by one hit is gone before the Fanatic moves on.
  *
  * NOT modelled yet (documented in ai_notes): Rushing past MA (double-1 fall);
  * the interactive coach choice of block result and team re-rolls / block-skill
@@ -223,7 +225,7 @@ export class BallAndChainOperation extends GameOperation {
         occupant.status === PlayerStatus.STUNNED)
     ) {
       // A Prone / Stunned player is Pushed Back and takes an Armour Roll.
-      this.pushBack(context, from, next, occupant);
+      await this.pushBack(context, from, next, occupant);
       this.moveTo(context, fanatic, from, next);
       return false;
     }
@@ -231,7 +233,7 @@ export class BallAndChainOperation extends GameOperation {
     // Ball in the square → it Bounces (never a Turnover); then move in.
     const ball = gameService.getState().ballPosition;
     if (ball && ball.x === next.x && ball.y === next.y) {
-      context.flowManager.add(new BounceOperation({ ...next }), true);
+      await context.flowManager.runToRest(new BounceOperation({ ...next }));
     }
     this.moveTo(context, fanatic, from, next);
     return false;
@@ -278,13 +280,12 @@ export class BallAndChainOperation extends GameOperation {
     const push = chosen.type === "push";
 
     if (targetDown) {
-      this.knockDown(context, target);
-      context.flowManager.add(
-        new ArmourOperation(target.id, fanatic.id, undefined, "block"),
-        true
+      await this.knockDown(context, target);
+      await context.flowManager.runToRest(
+        new ArmourOperation(target.id, fanatic.id, undefined, "block")
       );
     } else if (push) {
-      this.pushBack(context, from, next, target);
+      await this.pushBack(context, from, next, target);
       // The pushed square is now empty — the Fanatic follows up into it.
       this.moveTo(context, fanatic, from, next);
     }
@@ -303,12 +304,12 @@ export class BallAndChainOperation extends GameOperation {
    * push-back square; off the pitch is the crowd. Prone/Stunned targets also
    * take an Armour Roll from the shove.
    */
-  private pushBack(
+  private async pushBack(
     context: FlowContext,
     from: { x: number; y: number },
     square: { x: number; y: number },
     target: Player
-  ): void {
+  ): Promise<void> {
     const gameService = context.gameService as IGameService;
     const candidates = pushBackSquares(from, square);
 
@@ -325,9 +326,8 @@ export class BallAndChainOperation extends GameOperation {
     if (!free && offPitch) {
       // Shoved into the crowd.
       target.gridPosition = undefined;
-      context.flowManager.add(
-        new CrowdInjuryOperation(target.id, { ...square }, false),
-        true
+      await context.flowManager.runToRest(
+        new CrowdInjuryOperation(target.id, { ...square }, false)
       );
       return;
     }
@@ -344,15 +344,17 @@ export class BallAndChainOperation extends GameOperation {
       context.eventBus.emit(GameEventNames.PlayerStatusChanged, target);
     }
     if (isDown) {
-      context.flowManager.add(
-        new ArmourOperation(target.id, this.fanaticId, undefined, "block"),
-        true
+      await context.flowManager.runToRest(
+        new ArmourOperation(target.id, this.fanaticId, undefined, "block")
       );
     }
   }
 
   /** Knock a player down in place (Prone + events + drop a carried ball). */
-  private knockDown(context: FlowContext, player: Player): void {
+  private async knockDown(
+    context: FlowContext,
+    player: Player
+  ): Promise<void> {
     const gameService = context.gameService as IGameService;
     player.status = PlayerStatus.PRONE;
     context.eventBus.emit(GameEventNames.PlayerKnockedDown, {
@@ -366,9 +368,8 @@ export class BallAndChainOperation extends GameOperation {
       ball.x === player.gridPosition.x &&
       ball.y === player.gridPosition.y
     ) {
-      context.flowManager.add(
-        new BounceOperation({ ...player.gridPosition }),
-        true
+      await context.flowManager.runToRest(
+        new BounceOperation({ ...player.gridPosition })
       );
     }
   }
