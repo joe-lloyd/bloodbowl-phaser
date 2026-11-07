@@ -504,6 +504,12 @@ export class GameScene extends Phaser.Scene {
       this.setRemoteSelection(null);
     });
 
+    // The rings mark the team whose turn it is. A turn with none after it
+    // (half time, full time) takes them away; the next turn draws its own.
+    this.subscribe(GameEventNames.TurnEnded, () =>
+      this.playerSprites.forEach((sprite) => sprite.setTeamTurnBorder(false))
+    );
+
     // Online only: show a live indicator of which single opposing player
     // the other coach currently has selected, in place of the blanket
     // whole-team highlight suppressed above.
