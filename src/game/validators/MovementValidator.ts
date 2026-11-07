@@ -21,14 +21,16 @@ export class MovementValidator {
   private readonly HEIGHT = GameConfig.PITCH_HEIGHT;
 
   /**
-   * Find the optimal path for a player to a target square
+   * Find the optimal path for a player to a target square, within the
+   * squares left after `movementUsed` (earlier moves and planned legs).
    */
   findPath(
     player: Player,
     targetX: number,
     targetY: number,
     opponents: Player[],
-    teammates: Player[]
+    teammates: Player[],
+    movementUsed = 0
   ): MovementResult {
     if (!player.gridPosition) {
       return this.invalidResult();
@@ -57,7 +59,8 @@ export class MovementValidator {
       player,
       opponents,
       teammates,
-      "safe"
+      "safe",
+      movementUsed
     );
 
     if (path.length === 0) {
@@ -67,7 +70,8 @@ export class MovementValidator {
         player,
         opponents,
         teammates,
-        "direct"
+        "direct",
+        movementUsed
       );
     }
 
@@ -76,7 +80,7 @@ export class MovementValidator {
     }
 
     // 4. Calculate rolls and validation
-    return this.validatePath(player, path, opponents, teammates);
+    return this.validatePath(player, path, opponents, teammates, movementUsed);
   }
 
   /**
@@ -167,7 +171,8 @@ export class MovementValidator {
     player: Player,
     opponents: Player[],
     teammates: Player[],
-    mode: "safe" | "direct" = "safe"
+    mode: "safe" | "direct" = "safe",
+    movementUsed = 0
   ): { x: number; y: number }[] {
     const openSet: { x: number; y: number }[] = [];
     const closedSet: Set<string> = new Set();
@@ -182,15 +187,13 @@ export class MovementValidator {
 
     const startKey = `${start.x},${start.y}`;
 
-    // Stand Up Logic
+    // Squares spent before this leg, standing up included: they limit the
+    // range, and decide which steps are Rushes, but cost no safety.
     const stepsInternal =
-      player.status === PlayerStatus.PRONE ? standUpCost(player) : 0;
+      movementUsed +
+      (player.status === PlayerStatus.PRONE ? standUpCost(player) : 0);
 
-    gScore.set(startKey, 0); // Cost to reach start is 0, regardless of state? Or should it be cost?
-    // Let's keep gScore as "movement points spent".
-    // Actually, to prioritize "safe" paths, we want strict safety weights.
-    // Standing up doesn't affect safety of the path itself.
-    // But it limits range.
+    gScore.set(startKey, 0);
     stepsMap.set(startKey, stepsInternal);
     fScore.set(startKey, this.heuristic(start, end, start, end)); // Pass start/end for tie-breaker calc
 

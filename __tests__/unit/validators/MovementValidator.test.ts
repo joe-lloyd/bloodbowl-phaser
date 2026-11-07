@@ -258,6 +258,32 @@ describe("MovementValidator", () => {
       expect(result.rolls.some((r) => r.type === "dodge")).toBe(true);
     });
 
+    it("takes the direct route when the detour would not fit the squares left", () => {
+      // Two opponents either side of the straight line: every square of it
+      // is Marked, and a Marking-free detour runs six squares or more.
+      for (const y of [4, 6])
+        opponents.push(
+          new PlayerBuilder()
+            .withId(`flank-${y}`)
+            .withStatus(PlayerStatus.ACTIVE)
+            .withGridPosition(7, y)
+            .build()
+        );
+
+      // MA 6 + 2 Rushes, with 5 squares spent: three are left
+      const result = validator.findPath(player, 8, 5, opponents, teammates, 5);
+
+      expect(result.valid).toBe(true);
+      expect(result.path).toHaveLength(3);
+      expect(result.path.at(-1)).toEqual({ x: 8, y: 5 });
+      expect(result.rolls.filter((r) => r.type === "rush")).toHaveLength(2);
+    });
+
+    it("finds nothing past the squares left", () => {
+      const result = validator.findPath(player, 9, 5, opponents, teammates, 5);
+      expect(result.valid).toBe(false);
+    });
+
     it("prefers the tackle-zone-free route when one exists in range", () => {
       // Single opponent adjacent to the straight line; a short detour avoids
       // its tackle zone entirely

@@ -39,6 +39,28 @@ test("route shows every roll with its target, and no odds, before a score run", 
   });
 });
 
+test("a second leg goes straight through when a detour would not fit", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "route-tight-second-leg" });
+  await app.hud.declareAction("team1:0", "move");
+  await app.pitch.clickSquare({ x: 7, y: 5 });
+  await app.pitch.clickSquare({ x: 10, y: 5 });
+  // MA 6 and two Rushes: five squares, then three through the gap
+  await expect(page.getByTestId("route-summary")).toContainText(
+    "Rush 2+Dodge 5+Rush 2+Dodge 5+"
+  );
+  await page.screenshot({ path: test.info().outputPath("tight-leg.png") });
+  await app.pitch.clickSquare({ x: 10, y: 5 });
+  // The unmarked squares are walked, then the board asks before the gap
+  await expect(page.getByRole("heading", { name: /: Rush & Dodge$/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  // (8,4) is Marked once, (8,5) twice
+  expect(await app.pitch.squareOf("team1:0")).toEqual({ x: 8, y: 4 });
+});
+
 test("pickup asks before entering the ball square and can stop", async ({
   page,
 }) => {

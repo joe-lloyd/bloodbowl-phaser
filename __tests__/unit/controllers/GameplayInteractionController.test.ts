@@ -276,6 +276,30 @@ describe("GameplayInteractionController", () => {
       expect(mockPitch.drawMovementPath).toHaveBeenCalled();
     });
 
+    it("says so when a clicked square is out of reach", () => {
+      // clearAllMocks keeps return values: put this one back after
+      mockGameService.getMovementUsed.mockReturnValue(4);
+      try {
+        mockMovementValidator.findPath.mockReturnValue({
+          valid: false,
+          path: [],
+          rolls: [],
+        });
+
+        (controller as any).onSquareClicked(12, 5);
+
+        // The search is given the squares already spent
+        expect(mockMovementValidator.findPath.mock.calls[0][5]).toBe(4);
+        expect(mockEventBus.emit).toHaveBeenCalledWith(
+          GameEventNames.UI_Notification,
+          "Out of reach"
+        );
+        expect(mockPitch.drawMovementPath).not.toHaveBeenCalled();
+      } finally {
+        mockGameService.getMovementUsed.mockReturnValue(0);
+      }
+    });
+
     it("should execute move and deselect if player has acted", async () => {
       // Mock hasPlayerActed to true (turn ended for player)
       mockGameService.hasPlayerActed.mockReturnValue(true);
