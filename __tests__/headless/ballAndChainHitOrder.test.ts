@@ -78,7 +78,9 @@ async function lurch(
       return [`pushed ${name(id!)}`];
     const roll = (e.data as { description?: string }).description ?? "";
     if (e.name !== GameEventNames.DiceRoll) return [];
-    if (roll.startsWith("Ball & Chain Deviation")) return ["lurch"];
+    // "lurch 3": the deviation die, 3 or 4 straight on
+    if (roll.startsWith("Ball & Chain Deviation"))
+      return [`lurch ${roll.slice(roll.indexOf(":") + 2)}`];
     const match = /^(Armour|Injury) Roll \(([^)]+)\)/.exec(roll);
     return match ? [`${match[1].toLowerCase()} ${match[2]}`] : [];
   });
@@ -107,7 +109,7 @@ function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
   const down = new Set(proneAtStart);
   const owed = new Set<string>();
   for (const step of trail) {
-    if (step === "lurch") {
+    if (step.startsWith("lurch")) {
       if (owed.size > 0) return [...owed][0];
       continue;
     }
@@ -138,6 +140,22 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     }
     // The pile is there to hit someone twice; make sure it does
     expect(hitTwice).toBeGreaterThanOrEqual(5);
+  });
+
+  it("rolls Armour for a Prone player with nowhere to be pushed", async () => {
+    // A straight first lurch hits (11,5). The row behind is full, so the
+    // player stays put, and the Armour Roll comes before the next lurch.
+    let boxedIn = 0;
+    for (let seed = 1; seed <= 150 && boxedIn < 3; seed++) {
+      const [first, ...rest] = (await lurch(seed, PlayerStatus.PRONE)).trail;
+      if (first !== "lurch 3" && first !== "lurch 4") continue;
+      boxedIn++;
+      const next = rest.findIndex((step) => step.startsWith("lurch"));
+      const square = next < 0 ? rest : rest.slice(0, next);
+      expect(square, `seed ${seed}`).toContain("armour Human Lineman #2");
+      expect(square, `seed ${seed}`).not.toContain("pushed Human Lineman #2");
+    }
+    expect(boxedIn).toBe(3);
   });
 
   it("blocks Standing players one square at a time, and falls last", async () => {
