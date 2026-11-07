@@ -7,7 +7,7 @@ import { Dugout } from "../game/elements/Dugout";
 import { playerHitArea } from "../game/elements/InteractiveHitArea";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
-import { Team } from "../types/Team";
+import { Team, TeamColors } from "../types/Team";
 import { Player, PlayerStatus } from "../types/Player";
 import { ServiceContainer } from "../services/ServiceContainer";
 import { GameService } from "../services/GameService";
@@ -41,6 +41,7 @@ import {
 import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { getActiveOnlineMatch } from "../network/OnlineMatch";
+import { kitOf } from "../game/presentation/kits";
 import {
   findBoardStateConflicts,
   isActivatedThisTurn,
@@ -300,8 +301,8 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     // 1. The stadium, with team 1 as home (left end zone, far dugout).
     this.stadium = new Stadium(this, this.pitchThemeId, {
-      home: this.team1.colors.primary,
-      away: this.team2.colors.primary,
+      home: this.kitOf(this.team1.id).primary,
+      away: this.kitOf(this.team2.id).primary,
     });
 
     // Only a press on the canvas itself is a board click. A dialog that
@@ -707,6 +708,7 @@ export class GameScene extends Phaser.Scene {
       const dugout = new Dugout(
         this,
         team,
+        this.kitOf(team.id),
         squares,
         toWorld,
         this.pitchThemeId,
@@ -1140,7 +1142,7 @@ export class GameScene extends Phaser.Scene {
         // Each side faces the end zone it attacks.
         const sprite = new PlayerSprite(this, pos.x, pos.y, player, {
           rosterName: team.rosterName,
-          colors: team.colors,
+          colors: this.kitOf(team.id),
           style: this.pitchThemeId,
           facing: isTeam1 ? "e" : "w",
         });
@@ -1209,6 +1211,11 @@ export class GameScene extends Phaser.Scene {
       const gridPos = this.pitch.worldToGrid(x, y);
       this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
     }
+  }
+
+  /** What a team wears in this match: a clashing away side changes kit. */
+  private kitOf(teamId: string): TeamColors {
+    return kitOf([this.team1, this.team2], teamId);
   }
 
   /**

@@ -9,6 +9,7 @@ import type { DiceRoll, DiceTeam, DiceThrow } from "../../dice/diceScene";
 import type { BlockRollData } from "../../../services/BlockResolutionService";
 import { isBlockDice, isD6 } from "../../dice/thrownDice";
 import { DIE_LANDING_TIMEOUT_MS } from "../../../game/presentation/diceWatch";
+import { kitOf } from "../../../game/presentation/kits";
 
 type RollEvent = GameEventMap[GameEventNames.DiceRoll];
 
@@ -58,12 +59,13 @@ export function teamLook(teamId?: string): DiceTeam | null {
   if (!rollerId) return null;
   const team = gameService.getTeam(rollerId);
   if (!team) return null;
+  const kit = kitOf(gameService.getTeams(), team.id);
   return {
     key: team.id,
     race: team.rosterName.split(" ")[0].toLowerCase(),
     initial: team.name.charAt(0).toUpperCase(),
-    primary: team.colors.primary,
-    secondary: team.colors.secondary,
+    primary: kit.primary,
+    secondary: kit.secondary,
   };
 }
 

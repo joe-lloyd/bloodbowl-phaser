@@ -1,4 +1,5 @@
 import { ServiceContainer } from "../../../services/ServiceContainer";
+import { kitOf } from "../../../game/presentation/kits";
 
 export function DecisionTeam({
   teamId,
@@ -29,7 +30,7 @@ export function DecisionTeam({
         aria-hidden="true"
         className="h-2.5 w-2.5 rounded-[2px] ring-1 ring-white/40"
         style={{
-          backgroundColor: `#${team.colors.primary.toString(16).padStart(6, "0")}`,
+          backgroundColor: `#${kitOf(service.getTeams(), team.id).primary.toString(16).padStart(6, "0")}`,
         }}
       />
       {team.name}

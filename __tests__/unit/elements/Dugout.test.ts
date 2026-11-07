@@ -184,9 +184,11 @@ async function build(players: unknown[]) {
   const DugoutCtor = Dugout as unknown as new (...args: unknown[]) => {
     getSprites(): Map<string, FakeContainer>;
   };
+  const team = makeTeam(players);
   const dugout = new DugoutCtor(
     scene,
-    makeTeam(players),
+    team,
+    team.colors,
     SQUARES,
     toWorld,
     "bloodbowl",
