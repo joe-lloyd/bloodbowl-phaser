@@ -2020,36 +2020,24 @@ export class GameplayInteractionController {
     );
     const mockPlayer = { ...effectivePlayer, gridPosition: startPos };
 
+    // The leg must fit the squares left after earlier moves and legs
     const result = this.movementValidator.findPath(
       mockPlayer,
       x,
       y,
       opponents,
-      teammates
+      teammates,
+      this.gameService.getMovementUsed(player.id) + this.waypoints.length
     );
 
-    if (result.valid) {
-      // Add path to waypoints (excluding start, including end)
-      // Result.path includes the steps.
-
-      // Check TOTAL path length limit (Remaining MA + 2)
-      const used = this.gameService.getMovementUsed(player.id);
-      const totalAllowance = moveAllowance(effectivePlayer);
-      const remainingAllowance = Math.max(0, totalAllowance - used);
-
-      const currentLen = this.waypoints.length;
-      const newLen = currentLen + result.path.length;
-
-      if (newLen <= remainingAllowance) {
-        this.waypoints.push(...result.path);
-        this.drawCurrentPath();
-        // Range/sprint overlays now measure from the last node
-        this.refreshPlayerVisualization(player.id);
-      } else {
-        console.warn("Path too long!", { newLen, remainingAllowance, used });
-        // Feedback?
-      }
+    if (!result.valid) {
+      this.eventBus.emit(GameEventNames.UI_Notification, "Out of reach");
+      return;
     }
+    this.waypoints.push(...result.path);
+    this.drawCurrentPath();
+    // Range/sprint overlays now measure from the last node
+    this.refreshPlayerVisualization(player.id);
   }
 
   private executeMove(): void {
@@ -2695,7 +2683,8 @@ export class GameplayInteractionController {
       x,
       y,
       opponents,
-      teammates
+      teammates,
+      this.gameService.getMovementUsed(player.id) + this.waypoints.length
     );
 
     if (result.valid) {

@@ -251,6 +251,27 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "route-tight-second-leg",
+    name: "Route: A Tight Second Leg",
+    description:
+      "Plot (7,5) from (2,5), five squares, then click (10,5) between the " +
+      "two defenders. Only three squares are left, so the route goes " +
+      "straight through their tackle zones, Dodging and Rushing, rather " +
+      "than round them.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 2, y: 5, status: PlayerStatus.ACTIVE }, // Runner
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 9, y: 4, status: PlayerStatus.ACTIVE },
+        { playerIndex: 1, x: 9, y: 6, status: PlayerStatus.ACTIVE },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+    },
+  },
+  {
     id: "score-run-dodge-rush",
     name: "Score Run: Dodge, Then Rush",
     description:
