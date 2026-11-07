@@ -7,7 +7,6 @@ import {
   RaceKeyWord,
   PositionKeyWord,
   TraitKeyWord,
-  Player,
   PlayerTemplate,
 } from "../types/Player";
 import {
@@ -3099,14 +3098,4 @@ export function getPlayerTemplate(
   position: PositionKeyWord
 ): PlayerTemplate | undefined {
   return roster.playerTemplates.find((t) => t.positionName === position);
-}
-
-/**
- * Count players of a specific position in a team
- */
-export function countPlayersByPosition(
-  players: Player[],
-  position: PositionKeyWord
-): number {
-  return players.filter((p) => p.position === position).length;
 }

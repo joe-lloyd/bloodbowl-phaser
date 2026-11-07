@@ -402,46 +402,6 @@ export class MovementValidator {
     return h + cross * 0.001;
   }
 
-  /**
-   * Analyze a path for dodge requirements
-   * Used by GameplayInteractionController to detect dodges before execution
-   */
-  public analyzePath(
-    player: Player,
-    path: { x: number; y: number }[],
-    opponents: Player[]
-  ): {
-    dodgeSquares: { x: number; y: number; modifiers: number }[];
-    requiresDodge: boolean;
-  } {
-    const dodgeSquares: { x: number; y: number; modifiers: number }[] = [];
-
-    for (let i = 0; i < path.length - 1; i++) {
-      const from = path[i];
-      const to = path[i + 1];
-
-      // Check if leaving a tackle zone
-      const leavingTZ = this.getTackleZones(from.x, from.y, opponents) > 0;
-
-      if (leavingTZ) {
-        // Calculate modifiers for destination
-        const zonesInto = this.getTackleZones(to.x, to.y, opponents);
-        const modifiers = -zonesInto;
-
-        dodgeSquares.push({
-          x: to.x,
-          y: to.y,
-          modifiers,
-        });
-      }
-    }
-
-    return {
-      dodgeSquares,
-      requiresDodge: dodgeSquares.length > 0,
-    };
-  }
-
   private invalidResult(): MovementResult {
     return { valid: false, path: [], rolls: [], cost: 0 };
   }

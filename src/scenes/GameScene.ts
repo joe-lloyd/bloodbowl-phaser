@@ -94,12 +94,10 @@ export class GameScene extends Phaser.Scene {
 
   // State
   private playerSprites: Map<string, PlayerSprite> = new Map();
-  private selectedPlayerId: string | null = null;
   /** Online only: which player the OTHER coach currently has selected. */
   private remoteSelectedPlayerId: string | null = null;
   public isSetupActive: boolean = false;
   protected ballSprite: BallSprite | null = null;
-  private pendingKickoffData = null; // Stores kick data for scatter animation
   private pitchThemeId: PitchThemeId = DEFAULT_PITCH_THEME_ID;
   private competitionContext?: CompetitionContext;
   private autosave: MatchAutosave | null = null;
@@ -107,7 +105,6 @@ export class GameScene extends Phaser.Scene {
   private autosaveEnabled = false;
 
   // Store handlers for cleanup
-  private eventHandlers: Map<GameEventNames, () => void> = new Map();
   /** Unsubscribe callbacks for every EventBus listener this scene registers. */
   private busSubscriptions: Array<() => void> = [];
 
@@ -637,10 +634,6 @@ export class GameScene extends Phaser.Scene {
     this.autosave?.dispose();
     this.autosave = null;
     // Remove all listeners attached by this scene
-    this.eventHandlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler);
-    });
-    this.eventHandlers.clear();
     this.busSubscriptions.forEach((unsubscribe) => unsubscribe());
     this.busSubscriptions = [];
 
@@ -694,12 +687,6 @@ export class GameScene extends Phaser.Scene {
       if (container && typeof container.destroy === "function") {
         container.destroy();
       }
-    }
-
-    // Clear placement controller
-    if (this.placementController) {
-      // PlacementController might not have a destroy method, just null it
-      this.placementController = null;
     }
   }
 
@@ -1196,15 +1183,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private deselectPlayer(): void {
-    if (this.selectedPlayerId) {
-      const sprite = this.playerSprites.get(this.selectedPlayerId);
-      if (sprite) sprite.unhighlight();
-      this.selectedPlayerId = null;
-    }
-    this.clearAllHighlights();
-  }
-
   /**
    * Clear all highlights - delegates to controller for proper cleanup order
    */
@@ -1231,11 +1209,6 @@ export class GameScene extends Phaser.Scene {
       const gridPos = this.pitch.worldToGrid(x, y);
       this.placementController.placePlayer(playerId, gridPos.x, gridPos.y);
     }
-  }
-
-  private onPlayerClick(player: Player): void {
-    if (this.isSetupActive) return;
-    this.gameplayController.selectPlayer(player.id);
   }
 
   /**
