@@ -254,9 +254,18 @@ export class HeadlessGame {
     const gs = this.ctx.gameService;
     const { team1, team2 } = this.ctx;
     const turnManager = gs.captureTurnManagerState();
-    const kickingTeamId = turnManager.driveKickingTeamId ?? team1.id;
+    const state = gs.getState();
+    // The turn manager learns a drive's kicker when play starts; until then,
+    // set-up holds the coming drive's.
+    const settingUp =
+      state.phase === GamePhase.SETUP || state.phase === GamePhase.KICKOFF;
+    const kickingTeamId =
+      (settingUp ? state.setup?.kickingTeamId : null) ??
+      turnManager.driveKickingTeamId ??
+      this.kickingTeamId ??
+      team1.id;
     return createMatchSave({
-      state: gs.getState(),
+      state,
       teams: [team1, team2],
       drive: {
         kickingTeamId,
