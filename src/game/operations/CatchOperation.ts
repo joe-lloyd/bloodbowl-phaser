@@ -76,11 +76,14 @@ export class CatchOperation extends GameOperation {
       player.gridPosition,
       opponents
     );
+    // -1 for a ball that Bounced or was Thrown-in (p.76)
     const modifiers =
       catchController.calculateModifiers(
         player,
         player.gridPosition,
-        opponents
+        opponents,
+        this.options.origin === "bounce",
+        this.options.origin === "throw-in"
       ) + weatherEffects(gameService.getState().weather).ballHandling;
 
     // Trigger point: rules may adjust the catch (Extra Arms, Nerves of
