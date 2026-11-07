@@ -98,12 +98,17 @@ export async function clickIf(page: Page, name: RegExp): Promise<boolean> {
   return false;
 }
 
-/** The HUD asks before a Dodge or Rush; the coach already chose to take it. */
+/**
+ * The HUD asks before a Dodge, Rush or Pick-up on the way; the coach already
+ * chose to take it.
+ */
 export async function riskyMoveConfirm(
   page: Page,
   rec: Recorder
 ): Promise<boolean> {
-  const b = page.getByRole("button", { name: /^(Dodge!|Rush!|Rush & Dodge!)$/ });
+  const b = page.getByRole("button", {
+    name: /^(Dodge!|Rush!|Rush & Dodge!|Pick up!)$/,
+  });
   if (!(await visible(b))) return false;
   rec.log(`  confirmed ${await b.first().innerText()}`);
   await b.first().click();
