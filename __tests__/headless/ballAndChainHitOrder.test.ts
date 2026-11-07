@@ -191,7 +191,8 @@ describe("a Ball & Chain lurch through a pile of players", () => {
    */
   async function lurchToScore(
     seed: number,
-    team2Placements: PlayerPlacement[]
+    team2Placements: PlayerPlacement[],
+    team2Roster?: RosterName
   ) {
     const game = new HeadlessGame({
       seed,
@@ -207,6 +208,7 @@ describe("a Ball & Chain lurch through a pile of players", () => {
             { playerIndex: 1, x: 19, y: 5 },
             { playerIndex: 2, x: 19, y: 6 },
           ],
+          team2Roster,
           team2Placements,
           ballPosition: { x: 18, y: 5 },
         },
@@ -253,7 +255,7 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       ),
       `seed ${seed}`
     ).toBe(false);
-    return { events: response.events, scoredAt };
+    return { events: response.events, scoredAt, fanatic: fanatic.playerName };
   }
 
   it("stops when a loose ball it lurches onto is caught for a touchdown", async () => {
@@ -282,5 +284,30 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       expect(armour, `seed ${seed}`).toBeLessThan(run.scoredAt);
     }
     expect(scored).toBe(3);
+  });
+
+  it("on Both Down, rolls the Fanatic's injury before the dropped ball scores", async () => {
+    // Both players are Knocked Down by each other, and only then does the
+    // carrier's ball Bounce. An ST 5 Ogre gives the Fanatic two dice.
+    let scored = 0;
+    for (let seed = 1; seed <= 4000 && scored < 2; seed++) {
+      const run = await lurchToScore(
+        seed,
+        [{ playerIndex: 0, x: 18, y: 5 }],
+        RosterName.OGRE
+      );
+      if (!run) continue;
+      const injury = run.events.findIndex(
+        (e) =>
+          e.name === GameEventNames.DiceRoll &&
+          (e.data as { description: string }).description.startsWith(
+            `Injury Roll (${run.fanatic})`
+          )
+      );
+      if (injury < 0) continue;
+      scored++;
+      expect(injury, `seed ${seed}`).toBeLessThan(run.scoredAt);
+    }
+    expect(scored).toBe(2);
   });
 });
