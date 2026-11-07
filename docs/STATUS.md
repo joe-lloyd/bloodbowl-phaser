@@ -50,7 +50,7 @@ is still open and can be answered. Treat online play as experimental.
 - The simulation CLI plays whole matches between automated coaches.
 - Sandbox and Sound Test are development tools, gated on configured deployments.
 - The Vite production bundle builds independently of private rulebook files.
-  The stricter TypeScript build has existing errors; see
+  The TypeScript check passes, and CI runs it on every pull request; see
   [build instructions](DEVELOPMENT.md#build-and-preview).
 
 ## Evidence to run

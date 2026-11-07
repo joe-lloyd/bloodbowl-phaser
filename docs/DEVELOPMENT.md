@@ -40,9 +40,8 @@ pnpm preview
 
 This produces `dist/` through Vite. It is the same bundle command used by
 [Netlify](../netlify.toml). `pnpm build` additionally runs TypeScript first.
-The repository currently has existing TypeScript errors, so that stricter command
-fails. Run `pnpm exec tsc --noEmit` to inspect them and check that your change
-introduces no additional errors. A successful Vite build does not prove type safety.
+Run `pnpm exec tsc --noEmit` before you push: CI runs it too, and fails on any
+error. A successful Vite build does not prove type safety.
 
 Netlify serves `dist/`, routes SPA deep links back to `index.html` and sends the
 popup-compatible opener policy configured in `netlify.toml`. Other static hosts
