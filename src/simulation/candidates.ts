@@ -28,6 +28,7 @@ import { ActionType } from "../types/events";
 import type { DopeStat } from "../types/decisions";
 import { FormationManager } from "../game/managers/FormationManager";
 import { PassController } from "../game/controllers/PassController";
+import { weatherEffects } from "../game/rules/weather";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
 import { GameConfig } from "../config/GameConfig";
@@ -603,10 +604,14 @@ function stepCandidates(
       // Every in-range square, not just team-mates: passes to opponents and
       // to empty grass are legal, and are where turnover rules get tested.
       const everyone = [...gs.getTeammates(player.id), ...opponents];
+      // A Blizzard allows only Quick and Short Passes.
+      const { passTypes } = weatherEffects(state.weather);
       for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
         for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
           if (x === at.x && y === at.y) continue;
           if (PassController.rangeValue(at, { x, y }) === null) continue;
+          const range = gs.getPassController().measureRange(at, { x, y });
+          if (!passTypes.includes(range.type)) continue;
           const there = everyone.find(
             (p) => p.gridPosition?.x === x && p.gridPosition?.y === y
           );

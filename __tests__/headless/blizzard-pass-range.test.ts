@@ -3,6 +3,8 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { Weather } from "../../src/game/rules/weather";
+import { PassController } from "../../src/game/controllers/PassController";
+import { enumerateDecision } from "../../src/simulation/candidates";
 
 /**
  * In a Blizzard a Pass Action may only be a Quick or a Short Pass (2025
@@ -64,6 +66,26 @@ describe("passing in a Blizzard", () => {
       "Pass (Human Lineman #1): 5, needs 5+",
       "Catch (Human Lineman #2): 5, needs 3+",
     ]);
+  });
+
+  it("offers the computer no pass the Blizzard refuses", async () => {
+    const game = new HeadlessGame({ scenario: scenario("Blizzard"), seed: 5 });
+    const passer = game.ctx.team1.players[0].id;
+    await game.execute({
+      type: "declare-action",
+      playerId: passer,
+      action: "pass",
+    });
+    const { candidates } = await enumerateDecision(game, null);
+    const ranges = candidates.flatMap(({ commands: [command] }) =>
+      command.type === "pass"
+        ? [PassController.rangeValue({ x: 4, y: 5 }, command)]
+        : []
+    );
+
+    // 0 is a Quick Pass and 1 a Short Pass
+    expect(ranges.length).toBeGreaterThan(0);
+    expect(new Set(ranges)).toEqual(new Set([0, 1]));
   });
 
   it("allows a Long Pass in Perfect Conditions", async () => {
