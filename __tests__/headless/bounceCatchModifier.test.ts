@@ -74,24 +74,73 @@ describe("catching a bounced ball", () => {
     for (const roll of catches) expect(roll).toMatch(/needs 4\+$/);
   });
 
-  it("takes the -1 when the ball was Thrown-in, and none from a pass", async () => {
-    // A throw-in landing on a given player needs a run of dice; the catch
-    // it ends in is the same operation, so start it there.
-    const target = async (origin: "throw-in" | "pass") => {
-      const game = new HeadlessGame({ scenario, seed: 1 });
-      const catcher = game.ctx.team1.players[1];
-      game.ctx.gameService.setBallPosition(9, 4);
-      const rolls: string[] = [];
-      game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
-        rolls.push(roll.description)
-      );
-      await game.ctx.gameService
-        .getFlowContext()
-        .flowManager.runToRest(new CatchOperation(catcher.id, { origin }));
-      return rolls.find((d) => d.startsWith("Catch"));
+  it("takes the -1 when the ball was Thrown-in", async () => {
+    // A pick-up fails on the sideline; a bounce out is thrown back in, and
+    // the team-mates spread across the pitch are not Marked.
+    const sideline: Scenario = {
+      ...scenario,
+      id: "throw-in-catch",
+      setup: {
+        ...scenario.setup,
+        team1Placements: [
+          { playerIndex: 0, x: 9, y: 1 },
+          { playerIndex: 1, x: 8, y: 6 },
+          { playerIndex: 2, x: 10, y: 6 },
+          { playerIndex: 3, x: 12, y: 6 },
+          { playerIndex: 4, x: 9, y: 8 },
+          { playerIndex: 5, x: 11, y: 8 },
+          { playerIndex: 6, x: 10, y: 4 },
+        ],
+        ballPosition: { x: 10, y: 0 },
+      },
     };
+    const catches: string[] = [];
+    for (let seed = 1; seed <= 700 && catches.length < 3; seed++) {
+      const game = new HeadlessGame({ scenario: sideline, seed });
+      const moverId = game.ctx.team1.players[0].id;
+      await game.execute({
+        type: "declare-action",
+        playerId: moverId,
+        action: "move",
+      });
+      let response: CommandResponse = await game.execute({
+        type: "move",
+        playerId: moverId,
+        path: [{ x: 10, y: 0 }],
+      });
+      const events = [...response.events];
+      while (response.pendingDecision?.type === "reroll") {
+        response = await game.execute({ type: "use-reroll", accept: false });
+        events.push(...response.events);
+      }
+      const rolls = events
+        .filter((e) => e.name === GameEventNames.DiceRoll)
+        .map((e) => (e.data as { description: string }).description);
+      const thrownIn = rolls.findIndex((d) => d.startsWith("Throw-in"));
+      const caught = rolls.findIndex(
+        (d, i) => thrownIn >= 0 && i > thrownIn && d.startsWith("Catch")
+      );
+      if (caught >= 0) catches.push(rolls[caught]);
+    }
 
-    expect(await target("throw-in")).toMatch(/needs 4\+$/);
-    expect(await target("pass")).toMatch(/needs 3\+$/);
+    expect(catches.length).toBe(3);
+    for (const roll of catches) expect(roll).toMatch(/needs 4\+$/);
+  });
+
+  it("takes no -1 from a pass", async () => {
+    const game = new HeadlessGame({ scenario, seed: 1 });
+    const catcher = game.ctx.team1.players[1];
+    game.ctx.gameService.setBallPosition(9, 4);
+    const rolls: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
+      rolls.push(roll.description)
+    );
+    await game.ctx.gameService
+      .getFlowContext()
+      .flowManager.runToRest(
+        new CatchOperation(catcher.id, { origin: "pass" })
+      );
+
+    expect(rolls.find((d) => d.startsWith("Catch"))).toMatch(/needs 3\+$/);
   });
 });
