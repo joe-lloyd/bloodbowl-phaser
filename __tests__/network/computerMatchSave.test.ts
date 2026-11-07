@@ -239,6 +239,7 @@ describe("saving a match against the computer", () => {
     const rng = createCoachRng(5);
     let reloads = 0;
     let sinceReload = 0;
+    let resumedFrom = "";
     for (let i = 0; i < 60000; i++) {
       if (liveGame().snapshot().phase === GamePhase.GAME_OVER) break;
       sinceReload += await humanStep(live, rng);
@@ -246,6 +247,12 @@ describe("saving a match against the computer", () => {
       await whenEngineQuiet();
       await ms(100);
       const save = latest!;
+      // Coming back to the save last resumed from replays the same stretch,
+      // and a fast drive (set-up, kick-off) can outrun the autosave every
+      // time: reload once there is something newer to come back to.
+      const saved = JSON.stringify(save.snapshot);
+      if (saved === resumedFrom) continue;
+      resumedFrom = saved;
       live.close();
       const next = resume(save, 0);
       live = next.live;
