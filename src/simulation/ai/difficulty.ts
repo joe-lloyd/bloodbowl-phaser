@@ -18,12 +18,13 @@ export const DIFFICULTIES = [
     id: "hard",
     label: "Hard",
     detail:
-      "Also plays out its options before each action, and at each choice along the way.",
+      "Also plays out its options before each action, and at each dice, push or follow-up choice.",
   },
   {
     id: "legend",
     label: "Legend",
-    detail: "Plays out more of its options and takes longer over each action.",
+    detail:
+      "Plays out each option more times and takes longer over each action.",
   },
 ] as const;
 
