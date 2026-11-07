@@ -3,6 +3,8 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import type { CommandResponse } from "../../src/headless/protocol";
+import { CatchOperation } from "../../src/game/operations/CatchOperation";
+import { GameEventNames } from "../../src/types/events";
 
 /**
  * "If the player is attempting to Catch a ball that has Bounced, apply a -1
@@ -70,5 +72,26 @@ describe("catching a bounced ball", () => {
     // Human Linemen are AG 3+: a bounced ball with nobody marking needs 4+.
     expect(catches.length).toBeGreaterThanOrEqual(3);
     for (const roll of catches) expect(roll).toMatch(/needs 4\+$/);
+  });
+
+  it("takes the -1 when the ball was Thrown-in, and none from a pass", async () => {
+    // A throw-in landing on a given player needs a run of dice; the catch
+    // it ends in is the same operation, so start it there.
+    const target = async (origin: "throw-in" | "pass") => {
+      const game = new HeadlessGame({ scenario, seed: 1 });
+      const catcher = game.ctx.team1.players[1];
+      game.ctx.gameService.setBallPosition(9, 4);
+      const rolls: string[] = [];
+      game.ctx.eventBus.on(GameEventNames.DiceRoll, (roll) =>
+        rolls.push(roll.description)
+      );
+      await game.ctx.gameService
+        .getFlowContext()
+        .flowManager.runToRest(new CatchOperation(catcher.id, { origin }));
+      return rolls.find((d) => d.startsWith("Catch"));
+    };
+
+    expect(await target("throw-in")).toMatch(/needs 4\+$/);
+    expect(await target("pass")).toMatch(/needs 3\+$/);
   });
 });
