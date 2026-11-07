@@ -4,16 +4,17 @@
  * so a playout cannot see the real ones, plays the rest of our turn and the
  * opponent's reply with the planner, and scores the end position. Every option
  * meets the same dice, sample for sample, so the comparison is fair on few
- * samples. Only a declaration is searched; the planner carries it out.
+ * samples. The choices inside an action, block dice, re-rolls, pushes and
+ * follow-ups, are searched the same way from a fork of the game; the planner
+ * carries out the rest.
  */
 
-import { HeadlessGame } from "../../headless/HeadlessGame";
-import { MatchSave } from "../../headless/serialization";
+import { stateChecksum } from "../../headless/checksum";
+import { GameFork, HeadlessGame } from "../../headless/HeadlessGame";
 import { GamePhase } from "../../types/GameState";
 import { Candidate, enumerateDecision } from "../candidates";
 import { Coach, CoachChoice, CoachContext } from "../coach";
-import { matchSaveAt } from "../replay";
-import { createCoachRng } from "../rng";
+import { CoachRng, createCoachRng } from "../rng";
 import { Activation, activations } from "./activations";
 import { readBoard } from "./board";
 import { evaluate } from "./evaluate";
@@ -71,6 +72,13 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
   return out;
 }
 
+/** A copy of the game at the fork's position, with the dice as they were. */
+async function replay(root: GameFork): Promise<HeadlessGame> {
+  const game = new HeadlessGame({ matchSave: root.save, lazySnapshots: true });
+  for (const command of root.since) await game.execute(command);
+  return game;
+}
+
 /**
  * Candidate `index`'s score on one roll of the dice, from `us`'s side:
  * copy of the game with the dice reseeded, so it cannot see the real ones,
@@ -80,15 +88,16 @@ function shortlist(context: CoachContext, w: Weights, size: number): Option[] {
  * else, so playouts can run in any order, anywhere.
  */
 export async function scorePlayout(
-  save: MatchSave,
+  root: GameFork,
   us: string,
   index: number,
   seed: number,
   w: Weights = DEFAULT_WEIGHTS
 ): Promise<number> {
-  const game = new HeadlessGame({ matchSave: save, lazySnapshots: true });
+  const game = await replay(root);
   const dice = game.ctx.rng.captureState();
   game.ctx.rng.restoreState({ ...dice, currentSeed: seed });
+  const startScore = { ...game.ctx.gameService.getState().score };
   const first = await enumerateDecision(game, null);
   const opening = first.candidates[index];
   if (opening) await game.execute(opening.commands[0]);
@@ -98,7 +107,6 @@ export async function scorePlayout(
   // heuristic does: its own stream keeps the playout a function of its seed.
   const rng = createCoachRng(sampleSeed(seed, index));
   let handedOver = false;
-  const startScore = { ...save.snapshot.score };
   for (let steps = 0; steps < PLAYOUT_COMMANDS; steps++) {
     const state = game.ctx.gameService.getState();
     const scored = Object.keys(startScore).some(
@@ -136,7 +144,7 @@ const sampleSeed = (base: number, sample: number) =>
 
 /** One round of playouts: these candidates, each on each of these seeds. */
 export interface PlayoutRound {
-  save: MatchSave;
+  root: GameFork;
   us: string;
   indices: number[];
   seeds: number[];
@@ -153,14 +161,14 @@ export type Playouts = (round: PlayoutRound) => Promise<number[][]>;
 
 /** Playouts in this thread, one after another. */
 export function playoutsHere(w: Weights): Playouts {
-  return async ({ save, us, indices, seeds, deadlineAt }) => {
+  return async ({ root, us, indices, seeds, deadlineAt }) => {
     const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
     const rows: number[][] = [];
     for (const seed of seeds) {
       const row: number[] = [];
       for (const index of indices) {
         if (late()) return rows;
-        row.push(await scorePlayout(save, us, index, seed, w));
+        row.push(await scorePlayout(root, us, index, seed, w));
       }
       rows.push(row);
     }
@@ -168,7 +176,7 @@ export function playoutsHere(w: Weights): Playouts {
   };
 }
 
-/** The planner, with its next declaration checked by sampled playouts. */
+/** The planner, with its declarations and in-action choices checked by playouts. */
 export function createSearchCoach(options: {
   weights?: Weights;
   name?: string;
@@ -180,62 +188,108 @@ export function createSearchCoach(options: {
   const { budget } = options;
   const policy = createPlannerCoach({ weights: w });
   const playouts = options.playouts ?? playoutsHere(w);
+
+  /**
+   * Which of `indices` to play, by successive halving: all of them a little,
+   * the leaders some more. The first is the plan, and it stands unless a
+   * rival still in the running beats it on the same dice. Returns a position
+   * in `indices`.
+   */
+  const searchAmong = async (
+    root: GameFork,
+    us: string,
+    indices: number[],
+    rng: CoachRng
+  ): Promise<number> => {
+    const deadlineAt =
+      budget.deadlineMs === undefined
+        ? undefined
+        : Date.now() + budget.deadlineMs;
+    const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
+    const base = rng.int(2147483647);
+    const totals = indices.map(() => 0);
+    const counts = indices.map(() => 0);
+    const mean = (i: number) => (counts[i] ? totals[i] / counts[i] : -Infinity);
+
+    let alive = indices.map((_, i) => i);
+    let sampleAt = 0;
+    for (let round = 0; alive.length > 1 && !late(); round++) {
+      const samples = round === 0 ? budget.samples : budget.samples * 2;
+      const seeds = Array.from({ length: samples }, () =>
+        sampleSeed(base, sampleAt++)
+      );
+      const rows = await playouts({
+        root,
+        us,
+        indices: alive.map((i) => indices[i]),
+        seeds,
+        deadlineAt,
+      });
+      for (const row of rows)
+        alive.forEach((i, k) => {
+          totals[i] += row[k];
+          counts[i]++;
+        });
+      // A round the deadline cut short is the last.
+      if (rows.length < seeds.length) break;
+      alive = [...alive]
+        .sort((a, b) => mean(b) - mean(a))
+        .slice(0, Math.max(1, alive.length >> 1));
+      if (!alive.includes(0) && alive.length > 0) alive.push(0);
+      if (alive.length === 2 && round > 0) break;
+    }
+    const rival = [...alive].sort((a, b) => mean(b) - mean(a))[0] ?? 0;
+    return mean(rival) > mean(0) ? rival : 0;
+  };
+
+  /** A new activation: the planner's best few declarations. */
+  const declare = async (context: CoachContext): Promise<CoachChoice> => {
+    const { game, point } = context;
+    const list = shortlist(context, w, budget.options);
+    if (list.length < 2) return policy.choose(context);
+    const best = await searchAmong(
+      { save: game.matchSave(), since: [] },
+      point.teamId,
+      list.map((option) => option.index),
+      context.rng
+    );
+    const pick = list[best];
+    return { index: pick.index, note: noteFor(pick.activation) };
+  };
+
+  /**
+   * A choice inside an action: the planner's answer against the others,
+   * from a fork of the game. A fork that does not replay to this very
+   * position is never searched; the planner answers.
+   */
+  const answer = async (context: CoachContext): Promise<CoachChoice> => {
+    const { game, point } = context;
+    const planned = await policy.choose(context);
+    const root = game.fork();
+    if (point.candidates.length < 2 || !root) return planned;
+    if (stateChecksum(await replay(root)) !== stateChecksum(game)) {
+      console.warn("[Search] a fork did not replay; the planner answers");
+      return planned;
+    }
+    const rivals = point.candidates
+      .map((_, i) => i)
+      .filter((i) => i !== planned.index)
+      .slice(0, budget.options - 1);
+    const indices = [planned.index, ...rivals];
+    const best = await searchAmong(root, point.teamId, indices, context.rng);
+    return best === 0 ? planned : { index: indices[best] };
+  };
+
   return {
     name: options.name ?? "search",
     async choose(context: CoachContext): Promise<CoachChoice> {
       const { game, point } = context;
-      const active = game.ctx.gameService.getState().activePlayer;
-      if (point.pending || point.phase !== GamePhase.PLAY || active)
+      game.keepForks();
+      if (point.phase !== GamePhase.PLAY) return policy.choose(context);
+      if (point.pending) return answer(context);
+      if (game.ctx.gameService.getState().activePlayer)
         return policy.choose(context);
-      const list = shortlist(context, w, budget.options);
-      if (list.length < 2) return policy.choose(context);
-
-      const deadlineAt =
-        budget.deadlineMs === undefined
-          ? undefined
-          : Date.now() + budget.deadlineMs;
-      const late = () => deadlineAt !== undefined && Date.now() > deadlineAt;
-      const save = matchSaveAt(game);
-      const base = context.rng.int(2147483647);
-      const totals = list.map(() => 0);
-      const counts = list.map(() => 0);
-      const mean = (i: number) =>
-        counts[i] ? totals[i] / counts[i] : -Infinity;
-
-      // Successive halving: all options a little, the leaders some more.
-      let alive = list.map((_, i) => i);
-      let sampleAt = 0;
-      for (let round = 0; alive.length > 1 && !late(); round++) {
-        const samples = round === 0 ? budget.samples : budget.samples * 2;
-        const seeds = Array.from({ length: samples }, () =>
-          sampleSeed(base, sampleAt++)
-        );
-        const rows = await playouts({
-          save,
-          us: point.teamId,
-          indices: alive.map((i) => list[i].index),
-          seeds,
-          deadlineAt,
-        });
-        for (const row of rows)
-          alive.forEach((i, k) => {
-            totals[i] += row[k];
-            counts[i]++;
-          });
-        // A round the deadline cut short is the last.
-        if (rows.length < seeds.length) break;
-        alive = [...alive]
-          .sort((a, b) => mean(b) - mean(a))
-          .slice(0, Math.max(1, alive.length >> 1));
-        if (!alive.includes(0) && alive.length > 0) alive.push(0);
-        if (alive.length === 2 && round > 0) break;
-      }
-      // The plan stands unless a rival still in the running beats it on the
-      // same dice.
-      const rival = [...alive].sort((a, b) => mean(b) - mean(a))[0] ?? 0;
-      const best = mean(rival) > mean(0) ? rival : 0;
-      const pick = list[best];
-      return { index: pick.index, note: noteFor(pick.activation) };
+      return declare(context);
     },
   };
 }

@@ -21,7 +21,12 @@ import {
   GridPosition,
   DECISION_REPLIES,
 } from "./protocol";
-import { serializeGameState, GameSnapshot } from "./serialization";
+import {
+  serializeGameState,
+  GameSnapshot,
+  MatchSave,
+  createMatchSave,
+} from "./serialization";
 import { GameEventNames, ActionType } from "../types/events";
 import { GamePhase } from "../types/GameState";
 import { Player, PlayerStatus } from "../types/Player";
@@ -171,6 +176,16 @@ const isSquare = (value: object): boolean =>
   Number.isInteger((value as GridPosition).x) &&
   Number.isInteger((value as GridPosition).y);
 
+/**
+ * A way back to a position no save can hold: a choice inside an action,
+ * where a command is paused. The engine is deterministic, so replaying
+ * `since` on a game restored from `save` reaches it, dice and all.
+ */
+export interface GameFork {
+  save: MatchSave;
+  since: HeadlessCommand[];
+}
+
 export class HeadlessGame {
   public readonly ctx: HeadlessGameContext;
   private eventLog: EmittedEvent[] = [];
@@ -193,6 +208,9 @@ export class HeadlessGame {
 
   private readonly autoStartOnReady: boolean;
   private readonly lazySnapshots: boolean;
+  /** Set once a coach asks: the last save between activations, and since. */
+  private forkBase: GameFork | null = null;
+  private keepingForks = false;
 
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
@@ -229,6 +247,65 @@ export class HeadlessGame {
 
   public pendingDecision(): PendingDecision | null {
     return this.pending;
+  }
+
+  /** A save of the match as it stands, for a settled engine. */
+  public matchSave(): MatchSave {
+    const gs = this.ctx.gameService;
+    const { team1, team2 } = this.ctx;
+    const turnManager = gs.captureTurnManagerState();
+    const state = gs.getState();
+    // The turn manager learns a drive's kicker when play starts; until then,
+    // set-up holds the coming drive's.
+    const settingUp =
+      state.phase === GamePhase.SETUP || state.phase === GamePhase.KICKOFF;
+    const kickingTeamId =
+      (settingUp ? state.setup?.kickingTeamId : null) ??
+      turnManager.driveKickingTeamId ??
+      this.kickingTeamId ??
+      team1.id;
+    return createMatchSave({
+      state,
+      teams: [team1, team2],
+      drive: {
+        kickingTeamId,
+        receivingTeamId: kickingTeamId === team1.id ? team2.id : team1.id,
+      },
+      rng: this.ctx.rng.captureState(),
+      matchStats: this.ctx.matchStats.captureState(),
+      turnManager,
+    });
+  }
+
+  /**
+   * Start keeping a fork: from the next quiet moment between activations,
+   * a save of it and every command played since. Off until asked, because
+   * a lookahead's thousands of copies never need one.
+   */
+  public keepForks(): void {
+    this.keepingForks = true;
+  }
+
+  /** The way back to the position now, or null if none is kept yet. */
+  public fork(): GameFork | null {
+    return this.forkBase
+      ? { save: this.forkBase.save, since: [...this.forkBase.since] }
+      : null;
+  }
+
+  /**
+   * Between activations in open play, with nothing pending, a save holds
+   * everything; inside an action it cannot, so the commands are kept.
+   */
+  private noteForFork(cmd: HeadlessCommand): void {
+    if (!this.keepingForks) return;
+    const state = this.ctx.gameService.getState();
+    if (!this.pending && !this.inFlight) {
+      if (state.phase !== GamePhase.PLAY) this.forkBase = null;
+      else if (!state.activePlayer)
+        this.forkBase = { save: this.matchSave(), since: [] };
+    }
+    this.forkBase?.since.push(cmd);
   }
 
   /** Who kicks this drive, once the toss has settled it. */
@@ -305,6 +382,7 @@ export class HeadlessGame {
     if (!pendingAtStart && replyFor) {
       return this.reject("no-decision-pending");
     }
+    this.noteForFork(cmd);
 
     this.eventLog = [];
     this.decisionWaiters = [];

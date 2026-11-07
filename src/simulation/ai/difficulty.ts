@@ -17,7 +17,8 @@ export const DIFFICULTIES = [
   {
     id: "hard",
     label: "Hard",
-    detail: "Also tries out its best options before each activation.",
+    detail:
+      "Also tries out its options before each action and at each choice in one.",
   },
   {
     id: "legend",

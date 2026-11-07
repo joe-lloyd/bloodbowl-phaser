@@ -35,12 +35,7 @@ import { DEFAULT_WEIGHTS, Weights, parseWeights } from "./ai/weights";
 import { mutate, pointShare, standardsShare } from "./tune";
 import { createJevCoach, JevStats } from "./coaches/jev";
 import { Finding, FindingKind, MatchRecording, runMatch } from "./runMatch";
-import {
-  matchSaveAt,
-  parseRecording,
-  replayRecording,
-  trimRecording,
-} from "./replay";
+import { parseRecording, replayRecording, trimRecording } from "./replay";
 import { createCoachRng } from "./rng";
 import { serializeMatchSave } from "../headless/serialization";
 import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "./viewer";
@@ -563,7 +558,7 @@ async function replay(argv: string[]): Promise<number> {
 
   const saveOut = flag("--save-out");
   if (saveOut) {
-    fs.writeFileSync(saveOut, serializeMatchSave(matchSaveAt(result.game)));
+    fs.writeFileSync(saveOut, serializeMatchSave(result.game.matchSave()));
     process.stdout.write(`browser save written to ${saveOut}\n`);
   }
   const fullReplayFailed =

@@ -65,6 +65,22 @@ export interface TurnData {
 
 export type TurnState = TurnData;
 
+/**
+ * A team turn's once-a-turn spending: its Team Re-roll, each skill's re-roll
+ * or once-only use, and counted uses such as Shadowing. It lives in the state
+ * so a save, an online snapshot or a lookahead's copy of the turn carries it.
+ */
+export interface TurnUsage {
+  /** The team turn it belongs to: team, turn number and half. */
+  turn: string;
+  /** Teams that have spent their Team Re-roll. */
+  teams: string[];
+  /** `playerId|skill` used once. */
+  once: string[];
+  /** `playerId|skill` to the times used. */
+  uses: Record<string, number>;
+}
+
 export interface GameState {
   phase: GamePhase;
   subPhase?: SubPhase;
@@ -103,6 +119,11 @@ export interface GameState {
   leaderRerolls?: { half: "h1" | "h2"; teamIds: string[] };
   /** Veterans (D8) who have spent their once-per-game re-roll; absent = none. */
   veteranRerollsUsed?: string[];
+  /**
+   * What this team turn has spent of its once-a-turn allowances; absent or
+   * from an earlier turn = none (see skills/RerollArbiter.ts).
+   */
+  turnUsage?: TurnUsage;
   /** Masters of Undeath spent this game: team id to its raised Lineman id. */
   raisedDead?: Record<string, string>;
   /** Present during/after setup so saves and online snapshots preserve it. */
