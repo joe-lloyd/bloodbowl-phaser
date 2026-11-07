@@ -380,7 +380,7 @@ export class GameService implements IGameService {
       this.ballManager.movementController,
       this.diceController
     );
-    this.catchController = new CatchController(eventBus, this.diceController);
+    this.catchController = new CatchController();
     this.armourController = new ArmourController();
     this.injuryController = new InjuryController();
     this.foulController = new FoulController();

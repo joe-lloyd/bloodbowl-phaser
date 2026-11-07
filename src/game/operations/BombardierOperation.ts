@@ -7,6 +7,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameConfig } from "../../config/GameConfig";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
+import { catchRoll } from "./CatchOperation";
 import { weatherEffects } from "../rules/weather";
 import { InterceptionDecisionAnswer } from "../../types/decisions";
 
@@ -182,19 +183,13 @@ export class BombardierOperation extends GameOperation {
     // 5. Landing square.
     const occupant = gameService.getPlayerAt(landing.x, landing.y);
     if (occupant) {
-      // The player in the square must try to Catch the bomb.
-      const catchMarking = catchController.countMarkingOpponents(
-        landing,
-        gameService.getOpponents(occupant.teamId)
-      );
-      const result = catchController.attemptCatch(
-        occupant,
-        landing,
-        false,
-        false,
-        catchMarking
-      );
-      if (result.success) {
+      // The player in the square must try to Catch the bomb, as they would
+      // a ball: it is thrown "following all the usual rules for a Pass".
+      const caught = await catchRoll(context, occupant, {
+        origin: "pass",
+        isPassTarget: test.accurate,
+      });
+      if (caught) {
         eventBus.emit(
           GameEventNames.UI_Notification,
           `${occupant.playerName} catches the bomb — and must throw it again!`

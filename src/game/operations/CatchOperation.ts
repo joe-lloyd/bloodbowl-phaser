@@ -1,7 +1,7 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
 import { FlowContext } from "../core/GameFlowManager";
-import { hasTackleZone } from "../../types/Player";
+import { Player, hasTackleZone } from "../../types/Player";
 import { BounceOperation } from "./BounceOperation";
 import { AgilityTestOperation } from "./AgilityTestOperation";
 import { weatherEffects } from "../rules/weather";
@@ -13,13 +13,90 @@ import {
   CatchContext,
 } from "../skills";
 
+type CatchOrigin = "pass" | "handoff" | "throw-in" | "kick-off" | "bounce";
+
+/**
+ * A player's attempt to Catch, a ball or a bomb (p.76). A Prone, Stunned or
+ * Distracted player fails without a roll. Anyone else makes an Agility Test
+ * with the marking, Bounce, Throw-in and weather modifiers, the skills that
+ * act on a catch, and any re-roll. True when caught.
+ */
+export async function catchRoll(
+  context: FlowContext,
+  player: Player,
+  options: {
+    origin?: CatchOrigin;
+    isPassTarget?: boolean;
+    divingCatch?: boolean;
+    /** Set Piece (L25): the receiver catches on any 2+. */
+    setPiece?: boolean;
+  }
+): Promise<boolean> {
+  const { gameService, eventBus, flowManager } = context;
+  if (!player.gridPosition || !hasTackleZone(player)) return false;
+
+  const catchController = gameService.getCatchController();
+  const opponents = gameService.getOpponents(player.teamId);
+  const marking = catchController.countMarkingOpponents(
+    player.gridPosition,
+    opponents
+  );
+  // -1 for a ball that Bounced or was Thrown-in (p.76)
+  const modifiers =
+    catchController.calculateModifiers(
+      player.gridPosition,
+      opponents,
+      options.origin === "bounce",
+      options.origin === "throw-in"
+    ) + weatherEffects(gameService.getState().weather).ballHandling;
+
+  // Trigger point: rules may adjust the catch (Extra Arms, Nerves of
+  // Steel) or auto-fail it (No Ball)
+  const catchCtx: CatchContext = {
+    player,
+    marking,
+    modifiers,
+    origin: options.origin,
+    isPassTarget: options.isPassTarget,
+    divingCatch: options.divingCatch,
+    decisions: gameService.getDecisionService(),
+    flow: flowManager,
+    arbiter: gameService.getRerollArbiter(),
+    triggers: [],
+  };
+  await foldTrigger(
+    "onCatch",
+    gatherParticipants(player, undefined, [
+      ...adjacentStanding(player.gridPosition, opponents),
+      // Aura skills (Disturbing Presence) reach 3 squares, any status
+      ...playersWithin(player.gridPosition, opponents, 3),
+    ]),
+    catchCtx
+  );
+  catchCtx.triggers.forEach((t) =>
+    eventBus.emit(GameEventNames.SkillTriggered, t)
+  );
+  if (catchCtx.autoFail) return false;
+
+  const agilityTest = new AgilityTestOperation(
+    player.id,
+    "Catch",
+    options.setPiece ? 2 : player.stats.AG,
+    options.setPiece ? 0 : catchCtx.modifiers,
+    undefined,
+    "catch" // failed catches may offer a reroll (Catch skill / team)
+  );
+  await agilityTest.execute(context);
+  return agilityTest.success;
+}
+
 export class CatchOperation extends GameOperation {
   public readonly name = "CatchOperation";
 
   constructor(
     private playerId: string,
     private options: {
-      origin?: "pass" | "handoff" | "throw-in" | "kick-off" | "bounce";
+      origin?: CatchOrigin;
       isPassTarget?: boolean;
       divingCatch?: boolean;
       landingPosition?: { x: number; y: number };
@@ -59,77 +136,12 @@ export class CatchOperation extends GameOperation {
     console.log(
       `[CatchOperation] Player ${player.playerName} attempting catch...`
     );
-
-    // Accurate pass? We need to know if the pass was accurate to apply the +1 modifier.
-    // For now, let's assume if we are catching a pass at the target square, it might be accurate.
-    // However, CatchOperation assumes the ball has *arrived* at the player.
-    // The +1 for Accurate Pass is specifically for an accurate pass.
-    // Hand-off checks slightly different.
-
-    // Simplification: We'll calculate basic modifiers (TZs, specific skills).
-    // TODO: Pass "accurate" flag in constructor?
-
-    const catchController = gameService.getCatchController();
-    const opponents = gameService.getOpponents(player.teamId);
-
-    const marking = catchController.countMarkingOpponents(
-      player.gridPosition,
-      opponents
-    );
-    // -1 for a ball that Bounced or was Thrown-in (p.76)
-    const modifiers =
-      catchController.calculateModifiers(
-        player.gridPosition,
-        opponents,
-        this.options.origin === "bounce",
-        this.options.origin === "throw-in"
-      ) + weatherEffects(gameService.getState().weather).ballHandling;
-
-    // Trigger point: rules may adjust the catch (Extra Arms, Nerves of
-    // Steel) or auto-fail it (No Ball)
-    const catchCtx: CatchContext = {
-      player,
-      marking,
-      modifiers,
-      origin: this.options.origin,
-      isPassTarget: this.options.isPassTarget,
-      divingCatch: this.options.divingCatch,
-      decisions: gameService.getDecisionService(),
-      flow: flowManager,
-      arbiter: gameService.getRerollArbiter(),
-      triggers: [],
-    };
-    await foldTrigger(
-      "onCatch",
-      gatherParticipants(player, undefined, [
-        ...adjacentStanding(player.gridPosition, opponents),
-        // Aura skills (Disturbing Presence) reach 3 squares, any status
-        ...playersWithin(player.gridPosition, opponents, 3),
-      ]),
-      catchCtx
-    );
-    catchCtx.triggers.forEach((t) =>
-      eventBus.emit(GameEventNames.SkillTriggered, t)
-    );
-
-    let success = false;
-    if (!catchCtx.autoFail) {
-      // 2. Perform Agility Test
-      const setPiece =
-        !!this.pass?.setPiece && player.teamId === this.pass.passerTeamId;
-      const agilityTest = new AgilityTestOperation(
-        this.playerId,
-        "Catch",
-        setPiece ? 2 : player.stats.AG,
-        setPiece ? 0 : catchCtx.modifiers,
-        undefined,
-        "catch" // failed catches may offer a reroll (Catch skill / team)
-      );
-
-      // Execute the operation (sub-routine style)
-      await agilityTest.execute(context);
-      success = agilityTest.success;
-    }
+    const setPiece =
+      !!this.pass?.setPiece && player.teamId === this.pass.passerTeamId;
+    const success = await catchRoll(context, player, {
+      ...this.options,
+      setPiece,
+    });
 
     if (success) {
       if (this.options.divingCatch && player.gridPosition) {
