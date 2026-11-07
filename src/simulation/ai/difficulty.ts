@@ -12,18 +12,19 @@ export const DIFFICULTIES = [
   {
     id: "standard",
     label: "Standard",
-    detail: "Plays each turn safest action first.",
+    detail: "Plans each turn and takes the safest actions first.",
   },
   {
     id: "hard",
     label: "Hard",
     detail:
-      "Also tries out its options before each action and at each choice in one.",
+      "Also plays out its options before each action, and at each dice, push or follow-up choice.",
   },
   {
     id: "legend",
     label: "Legend",
-    detail: "Looks harder and takes longer over each activation.",
+    detail:
+      "Plays out each option more times and takes longer over each action.",
   },
 ] as const;
 
