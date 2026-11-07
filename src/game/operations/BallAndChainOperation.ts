@@ -1,5 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
+import { GamePhase } from "../../types/GameState";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus, Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -109,14 +110,17 @@ function pickResult(
  *   - the ball → it Bounces (never a Turnover).
  * If the Fanatic is Knocked Down / Falls Over for any reason it takes an
  * immediate Injury Roll (no Armour Roll) and the lurch ends in a Turnover.
+ * Each square comes to rest (Armour, Injury, crowd, bounce) before the next,
+ * so a player Knocked Out by one hit is gone before the Fanatic moves on.
  *
  * NOT modelled yet (documented in ai_notes): Rushing past MA (double-1 fall);
- * the interactive coach choice of block result and team re-rolls / block-skill
- * folds (the Fanatic auto-takes the attacker's-choice best die); re-steering
- * the facing every square (one facing is chosen for the whole action); and the
- * Injury-Roll "treat Stunned as Knocked-out" upgrade (a plain Injury Roll is
- * made). Shadowing / Tentacles suppression is inherent — a Ball & Chain move
- * never triggers an opponent's reaction.
+ * the interactive coach choice of block result and team re-rolls /
+ * block-skill folds (the Fanatic auto-takes the attacker's-choice best die);
+ * re-steering the facing every square (one facing is chosen for the whole
+ * action); chain pushes (a player with no free square to go to stays put, and
+ * so does the Fanatic); and the Injury-Roll "treat Stunned as Knocked-out"
+ * upgrade (a plain Injury Roll is made). Shadowing / Tentacles suppression is
+ * inherent — a Ball & Chain move never triggers an opponent's reaction.
  */
 export class BallAndChainOperation extends GameOperation {
   public readonly name = "BallAndChainOperation";
@@ -223,15 +227,18 @@ export class BallAndChainOperation extends GameOperation {
         occupant.status === PlayerStatus.STUNNED)
     ) {
       // A Prone / Stunned player is Pushed Back and takes an Armour Roll.
-      this.pushBack(context, from, next, occupant);
-      this.moveTo(context, fanatic, from, next);
-      return false;
+      if (await this.pushBack(context, from, next, occupant)) {
+        if (this.driveOver(context)) return true;
+        this.moveTo(context, fanatic, from, next);
+      }
+      return this.driveOver(context);
     }
 
     // Ball in the square → it Bounces (never a Turnover); then move in.
     const ball = gameService.getState().ballPosition;
     if (ball && ball.x === next.x && ball.y === next.y) {
-      context.flowManager.add(new BounceOperation({ ...next }), true);
+      await context.flowManager.runToRest(new BounceOperation({ ...next }));
+      if (this.driveOver(context)) return true;
     }
     this.moveTo(context, fanatic, from, next);
     return false;
@@ -277,21 +284,34 @@ export class BallAndChainOperation extends GameOperation {
       chosen.type === "both-down";
     const push = chosen.type === "push";
 
+    // Knocked Down: Prone, the Armour Roll, then a carried ball Bounces
+    // from the square (2025 rulebook, Knocked Down). On Both Down both
+    // players go down before the ball moves.
+    const ball = gameService.getState().ballPosition;
+    const dropped = targetDown && ball?.x === next.x && ball?.y === next.y;
     if (targetDown) {
       this.knockDown(context, target);
-      context.flowManager.add(
-        new ArmourOperation(target.id, fanatic.id, undefined, "block"),
-        true
+      await context.flowManager.runToRest(
+        new ArmourOperation(target.id, fanatic.id, undefined, "block")
       );
+    }
+    // The Fanatic falls: an immediate Injury Roll, no Armour Roll
+    if (fanaticDown) await this.fellOver(context, fanatic);
+    if (dropped) {
+      await context.flowManager.runToRest(new BounceOperation({ ...next }));
+      if (this.driveOver(context)) return true;
     } else if (push) {
-      this.pushBack(context, from, next, target);
       // The pushed square is now empty — the Fanatic follows up into it.
-      this.moveTo(context, fanatic, from, next);
+      if (await this.pushBack(context, from, next, target)) {
+        if (this.driveOver(context)) return true;
+        this.moveTo(context, fanatic, from, next);
+      }
     }
 
     if (fanaticDown) {
-      // The Fanatic falls: an immediate Injury Roll (no Armour) and a Turnover.
-      this.fellOver(context, fanatic);
+      // A fall is a Turnover, and ends the activation.
+      context.gameService.triggerTurnover("Ball & Chain fell over");
+      context.flowManager.add(new FinishBallAndChainOperation(this.fanaticId));
       return true;
     }
 
@@ -301,14 +321,15 @@ export class BallAndChainOperation extends GameOperation {
   /**
    * Push a player out of `square` (relative to `from`) into their first free
    * push-back square; off the pitch is the crowd. Prone/Stunned targets also
-   * take an Armour Roll from the shove.
+   * take an Armour Roll from the shove. False when the player could not be
+   * moved and still holds `square`.
    */
-  private pushBack(
+  private async pushBack(
     context: FlowContext,
     from: { x: number; y: number },
     square: { x: number; y: number },
     target: Player
-  ): void {
+  ): Promise<boolean> {
     const gameService = context.gameService as IGameService;
     const candidates = pushBackSquares(from, square);
 
@@ -325,11 +346,10 @@ export class BallAndChainOperation extends GameOperation {
     if (!free && offPitch) {
       // Shoved into the crowd.
       target.gridPosition = undefined;
-      context.flowManager.add(
-        new CrowdInjuryOperation(target.id, { ...square }, false),
-        true
+      await context.flowManager.runToRest(
+        new CrowdInjuryOperation(target.id, { ...square }, false)
       );
-      return;
+      return true;
     }
 
     const dest = free ?? { ...square }; // fully boxed in → stays put (rare)
@@ -344,48 +364,36 @@ export class BallAndChainOperation extends GameOperation {
       context.eventBus.emit(GameEventNames.PlayerStatusChanged, target);
     }
     if (isDown) {
-      context.flowManager.add(
-        new ArmourOperation(target.id, this.fanaticId, undefined, "block"),
-        true
+      await context.flowManager.runToRest(
+        new ArmourOperation(target.id, this.fanaticId, undefined, "block")
       );
     }
+    return !!free;
   }
 
-  /** Knock a player down in place (Prone + events + drop a carried ball). */
+  /** Knock a player down in place: Prone, with the events to show it. */
   private knockDown(context: FlowContext, player: Player): void {
-    const gameService = context.gameService as IGameService;
     player.status = PlayerStatus.PRONE;
     context.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: player.id,
     });
     context.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
-    const ball = gameService.getState().ballPosition;
-    if (
-      ball &&
-      player.gridPosition &&
-      ball.x === player.gridPosition.x &&
-      ball.y === player.gridPosition.y
-    ) {
-      context.flowManager.add(
-        new BounceOperation({ ...player.gridPosition }),
-        true
-      );
-    }
   }
 
   /**
-   * The Fanatic falls over: Prone, an immediate Injury Roll (no Armour Roll,
-   * per the trait), a Turnover, and the activation ends.
+   * The Fanatic falls over: Prone, and an immediate Injury Roll (no Armour
+   * Roll, per the trait). The caller ends the activation with a Turnover.
    */
-  private fellOver(context: FlowContext, fanatic: Player): void {
+  private async fellOver(
+    context: FlowContext,
+    fanatic: Player
+  ): Promise<void> {
     fanatic.status = PlayerStatus.PRONE;
     context.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: fanatic.id,
     });
     context.eventBus.emit(GameEventNames.PlayerStatusChanged, fanatic);
-    context.flowManager.add(new InjuryOperation(fanatic.id), true);
-    context.gameService.triggerTurnover("Ball & Chain fell over");
-    context.flowManager.add(new FinishBallAndChainOperation(this.fanaticId));
+    await context.flowManager.runToRest(new InjuryOperation(fanatic.id));
   }
 
   /** Move the Fanatic from `from` to `to`, emitting the movement tween. */
@@ -402,6 +410,11 @@ export class BallAndChainOperation extends GameOperation {
       to: { ...to },
       path: [{ ...to }],
     });
+  }
+
+  /** A ball caught in an End Zone mid-lurch scores and ends the drive. */
+  private driveOver(context: FlowContext): boolean {
+    return context.gameService.getPhase() !== GamePhase.PLAY;
   }
 
   private inBounds(x: number, y: number): boolean {
