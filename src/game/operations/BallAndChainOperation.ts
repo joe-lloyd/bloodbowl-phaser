@@ -1,5 +1,6 @@
 import { GameOperation } from "../core/GameOperation";
 import { GameEventNames } from "../../types/events";
+import { GamePhase } from "../../types/GameState";
 import { IGameService } from "../../services/interfaces/IGameService";
 import { PlayerStatus, Player } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -226,15 +227,18 @@ export class BallAndChainOperation extends GameOperation {
         occupant.status === PlayerStatus.STUNNED)
     ) {
       // A Prone / Stunned player is Pushed Back and takes an Armour Roll.
-      if (await this.pushBack(context, from, next, occupant))
+      if (await this.pushBack(context, from, next, occupant)) {
+        if (this.driveOver(context)) return true;
         this.moveTo(context, fanatic, from, next);
-      return false;
+      }
+      return this.driveOver(context);
     }
 
     // Ball in the square → it Bounces (never a Turnover); then move in.
     const ball = gameService.getState().ballPosition;
     if (ball && ball.x === next.x && ball.y === next.y) {
       await context.flowManager.runToRest(new BounceOperation({ ...next }));
+      if (this.driveOver(context)) return true;
     }
     this.moveTo(context, fanatic, from, next);
     return false;
@@ -282,13 +286,17 @@ export class BallAndChainOperation extends GameOperation {
 
     if (targetDown) {
       await this.knockDown(context, target);
+      // The ball the target dropped may have been caught for a touchdown
+      if (this.driveOver(context)) return true;
       await context.flowManager.runToRest(
         new ArmourOperation(target.id, fanatic.id, undefined, "block")
       );
     } else if (push) {
       // The pushed square is now empty — the Fanatic follows up into it.
-      if (await this.pushBack(context, from, next, target))
+      if (await this.pushBack(context, from, next, target)) {
+        if (this.driveOver(context)) return true;
         this.moveTo(context, fanatic, from, next);
+      }
     }
 
     if (fanaticDown) {
@@ -406,6 +414,11 @@ export class BallAndChainOperation extends GameOperation {
       to: { ...to },
       path: [{ ...to }],
     });
+  }
+
+  /** A ball caught in an End Zone mid-lurch scores and ends the drive. */
+  private driveOver(context: FlowContext): boolean {
+    return context.gameService.getPhase() !== GamePhase.PLAY;
   }
 
   private inBounds(x: number, y: number): boolean {

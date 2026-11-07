@@ -64,9 +64,18 @@ async function lurch(
     x: 1,
     y: 0,
   });
-  // Each square the Fanatic lurches into, and each Armour and Injury Roll,
-  // in order
+  // In order: each square the Fanatic lurches into, each player it knocks
+  // down or pushes, and each Armour and Injury Roll
+  const name = (id: string) =>
+    [...game.ctx.team1.players, ...game.ctx.team2.players].find(
+      (p) => p.id === id
+    )?.playerName;
   const trail = response.events.flatMap((e) => {
+    const id = (e.data as { playerId?: string }).playerId;
+    if (e.name === GameEventNames.PlayerKnockedDown && id !== fanatic.id)
+      return [`down ${name(id!)}`];
+    if (e.name === GameEventNames.PlayerMoved && id !== fanatic.id)
+      return [`pushed ${name(id!)}`];
     const roll = (e.data as { description?: string }).description ?? "";
     if (e.name !== GameEventNames.DiceRoll) return [];
     if (roll.startsWith("Ball & Chain Deviation")) return ["lurch"];
@@ -75,6 +84,10 @@ async function lurch(
   });
   return {
     trail,
+    proneAtStart:
+      status === PlayerStatus.PRONE
+        ? game.ctx.team2.players.slice(0, 6).map((p) => p.playerName)
+        : [],
     fanatic: fanatic.playerName,
     turnedOver: game.snapshot().activeTeamId !== before.activeTeamId,
     violations: checkInvariants(
@@ -86,19 +99,25 @@ async function lurch(
 }
 
 /**
- * A player rolled for twice with no lurch between: one square can hit a
- * player once, so the second roll belongs to a later square, and was held
- * back past the Fanatic's next move.
+ * A player the Fanatic hit whose Armour Roll had not come by its next
+ * lurch. A knockdown owes one, and so does a push of a player already
+ * down; pushing a Standing player does not.
  */
-function rolledTwiceForOneLurch(trail: string[]): string | null {
-  const rolled = new Set<string>();
+function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
+  const down = new Set(proneAtStart);
+  const owed = new Set<string>();
   for (const step of trail) {
-    if (step === "lurch") rolled.clear();
-    else if (step.startsWith("armour ")) {
-      const who = step.slice("armour ".length);
-      if (rolled.has(who)) return who;
-      rolled.add(who);
+    if (step === "lurch") {
+      if (owed.size > 0) return [...owed][0];
+      continue;
     }
+    const [kind, ...rest] = step.split(" ");
+    const who = rest.join(" ");
+    if (kind === "down") {
+      down.add(who);
+      owed.add(who);
+    } else if (kind === "pushed" && down.has(who)) owed.add(who);
+    else if (kind === "armour") owed.delete(who);
   }
   return null;
 }
@@ -107,10 +126,13 @@ describe("a Ball & Chain lurch through a pile of players", () => {
   it("rolls each Prone player's Armour before the Fanatic moves on", async () => {
     let hitTwice = 0;
     for (let seed = 1; seed <= 150; seed++) {
-      const { trail, violations } = await lurch(seed, PlayerStatus.PRONE);
+      const { trail, proneAtStart, violations } = await lurch(
+        seed,
+        PlayerStatus.PRONE
+      );
       const armoured = trail.filter((t) => t.startsWith("armour "));
       if (armoured.length > new Set(armoured).size) hitTwice++;
-      expect(rolledTwiceForOneLurch(trail), `seed ${seed}`).toBeNull();
+      expect(unresolvedHit(trail, proneAtStart), `seed ${seed}`).toBeNull();
       expect(violations, `seed ${seed}`).toEqual([]);
     }
     // The pile is there to hit someone twice; make sure it does
@@ -122,14 +144,11 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     let hitTwice = 0;
     let fellAfterHitting = 0;
     for (let seed = 1; seed <= 200; seed++) {
-      const { trail, fanatic, turnedOver, violations } = await lurch(
-        seed,
-        PlayerStatus.ACTIVE,
-        RosterName.OGRE
-      );
+      const { trail, proneAtStart, fanatic, turnedOver, violations } =
+        await lurch(seed, PlayerStatus.ACTIVE, RosterName.OGRE);
       const armoured = trail.filter((t) => t.startsWith("armour "));
       if (armoured.length > new Set(armoured).size) hitTwice++;
-      expect(rolledTwiceForOneLurch(trail), `seed ${seed}`).toBeNull();
+      expect(unresolvedHit(trail, proneAtStart), `seed ${seed}`).toBeNull();
       expect(violations, `seed ${seed}`).toEqual([]);
 
       const fell = trail.indexOf(`injury ${fanatic}`);
@@ -142,5 +161,59 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     }
     expect(hitTwice).toBeGreaterThanOrEqual(2);
     expect(fellAfterHitting).toBeGreaterThanOrEqual(2);
+  });
+
+  it("stops when a bounced ball is caught for a touchdown", async () => {
+    // Team 1 scores at x = 19: a ball the Fanatic lurches onto can bounce
+    // to a team-mate waiting in the End Zone.
+    let scored = 0;
+    for (let seed = 1; seed <= 300 && scored < 3; seed++) {
+      const game = new HeadlessGame({
+        seed,
+        scenario: {
+          id: "ball-and-chain-score",
+          name: "Ball & Chain knocks the ball into the End Zone",
+          description: "",
+          setup: {
+            ...config.setup,
+            team1Placements: [
+              { playerIndex: FANATIC, x: 17, y: 5 },
+              { playerIndex: 0, x: 19, y: 4 },
+              { playerIndex: 1, x: 19, y: 5 },
+              { playerIndex: 2, x: 19, y: 6 },
+            ],
+            team2Placements: [{ playerIndex: 0, x: 2, y: 9 }],
+            ballPosition: { x: 18, y: 5 },
+          },
+        },
+      });
+      const fanatic = game.ctx.team1.players[FANATIC];
+      await game.execute({
+        type: "declare-action",
+        playerId: fanatic.id,
+        action: "ballAndChain",
+      });
+      const before = game.snapshot();
+      const response = await game.execute({
+        type: "ball-and-chain",
+        playerId: fanatic.id,
+        x: 1,
+        y: 0,
+      });
+      if (!response.events.some((e) => e.name === GameEventNames.Touchdown))
+        continue;
+      scored++;
+      // The drive is over: the Fanatic goes back with everyone else
+      expect(fanatic.gridPosition, `seed ${seed}`).toBeUndefined();
+      expect(
+        checkInvariants(
+          before,
+          game.snapshot(),
+          response.pendingDecision !== null
+        ),
+        `seed ${seed}`
+      ).toEqual([]);
+    }
+    expect(scored).toBe(3);
   });
 });
