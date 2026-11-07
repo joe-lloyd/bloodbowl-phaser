@@ -1,31 +1,11 @@
-import { IEventBus } from "../../services/EventBus";
-import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
-import { GameEventNames } from "../../types/events";
-
-import { DiceController } from "./DiceController";
-
-export interface CatchResult {
-  success: boolean;
-  roll: number;
-  target: number;
-  modifiers: number;
-}
+import { Player, hasTackleZone } from "@/types/Player";
 
 /**
- * CatchController - Handles Blood Bowl catch mechanics
- *
- * Responsible for:
- * - Executing Agility tests for catching balls
- * - Applying modifiers (bounce, throw-in, marking)
- * - Handling failed catches and ball bounces
- * - Auto-failing for Prone/Stunned/Distracted players
+ * CatchController - the modifiers to a Catch: -1 for a ball that Bounced or
+ * was Thrown-in, and -1 for each opposition player Marking the catcher.
+ * catchRoll in CatchOperation makes the roll.
  */
 export class CatchController {
-  constructor(
-    private eventBus: IEventBus,
-    private diceController: DiceController
-  ) {}
-
   /**
    * Calculate catch modifiers based on circumstances
    */
@@ -33,8 +13,7 @@ export class CatchController {
     position: { x: number; y: number },
     opponents: Player[],
     isBounce: boolean = false,
-    isThrowIn: boolean = false,
-    manualMarkingCount: number = 0
+    isThrowIn: boolean = false
   ): number {
     let modifier = 0;
 
@@ -43,100 +22,9 @@ export class CatchController {
     }
 
     // -1 per opponent marking the catcher
-    const marking =
-      opponents.length > 0
-        ? this.countMarkingOpponents(position, opponents)
-        : manualMarkingCount;
-    modifier -= marking;
-
-    // +1 for Accurate Pass (if not bounce/throw-in)
-    // For now assuming caller handles accurate pass modifier or we add param.
+    modifier -= this.countMarkingOpponents(position, opponents);
 
     return modifier;
-  }
-
-  /**
-   * Check if a player can attempt to catch
-   * Prone, Stunned, or Distracted players auto-fail
-   */
-  public canAttemptCatch(player: Player): boolean {
-    return (
-      player.status === PlayerStatus.ACTIVE && !player.hasActed // Assuming 'Distracted' is tracked via hasActed or similar
-    );
-  }
-
-  /**
-   * Attempt to catch the ball
-   */
-  public attemptCatch(
-    player: Player,
-    position: { x: number; y: number },
-    isBounce: boolean,
-    isThrowIn: boolean,
-    markingOpponents: number
-  ): CatchResult {
-    // Check if player can attempt catch
-    if (!this.canAttemptCatch(player)) {
-      this.eventBus.emit(GameEventNames.DiceRoll, {
-        rollType: "Catch",
-        diceType: "d6",
-        value: 1,
-        total: 1,
-        description: `Catch (${player.playerName}): Auto-fail (${player.status})`,
-        resultState: "failure",
-      });
-
-      this.eventBus.emit(GameEventNames.CatchFailed, {
-        playerId: player.id,
-        position,
-        reason: player.status,
-      });
-
-      return {
-        success: false,
-        roll: 1,
-        target: player.stats.AG,
-        modifiers: 0,
-      };
-    }
-
-    const target = player.stats.AG;
-
-    const modifiers = this.calculateModifiers(
-      position,
-      [], // Empty opponents list -> uses manual count
-      isBounce,
-      isThrowIn,
-      markingOpponents // Pass the count directly
-    );
-
-    // Use centralized Dice Roll
-    const result = this.diceController.rollSkillCheck(
-      "Catch",
-      target,
-      modifiers,
-      player.playerName
-    );
-
-    if (result.success) {
-      this.eventBus.emit(GameEventNames.CatchSucceeded, {
-        playerId: player.id,
-        position,
-      });
-    } else {
-      this.eventBus.emit(GameEventNames.CatchFailed, {
-        playerId: player.id,
-        position,
-        reason: "Failed roll",
-      });
-    }
-
-    return {
-      success: result.success,
-      roll: result.roll,
-      target,
-      modifiers,
-    };
   }
 
   /**

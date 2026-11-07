@@ -1,205 +1,38 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { CatchController } from "../../../src/game/controllers/CatchController";
 import { Player, PlayerStatus } from "../../../src/types/Player";
-import { GameEventNames } from "../../../src/types/events";
 
 describe("CatchController", () => {
   let controller: CatchController;
-  let mockEventBus;
-  let mockDiceController;
-  let player: Player;
+  /** Two standing opponents Marking (5,5). */
+  const marking = [
+    { id: "opp1", gridPosition: { x: 5, y: 6 }, status: PlayerStatus.ACTIVE },
+    { id: "opp2", gridPosition: { x: 6, y: 6 }, status: PlayerStatus.ACTIVE },
+  ] as Player[];
 
   beforeEach(() => {
-    mockEventBus = {
-      emit: vi.fn(),
-    };
-
-    mockDiceController = {
-      rollSkillCheck: vi.fn(),
-      rollD8: vi.fn(),
-    };
-
-    controller = new CatchController(mockEventBus, mockDiceController);
-
-    player = {
-      id: "player1",
-      teamId: "team1",
-      playerName: "Test Player",
-      gridPosition: { x: 5, y: 5 },
-      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 8 },
-      status: PlayerStatus.ACTIVE,
-      hasActed: false,
-    } as Player;
+    controller = new CatchController();
   });
 
   describe("Catch Modifiers", () => {
     it("should apply -1 modifier for bounce", () => {
-      const modifiers = controller.calculateModifiers(
-        { x: 5, y: 5 },
-        [],
-        true,
-        false,
-        0
-      );
-      expect(modifiers).toBe(-1);
+      expect(controller.calculateModifiers({ x: 5, y: 5 }, [], true)).toBe(-1);
     });
 
     it("should apply -1 modifier for throw-in", () => {
-      const modifiers = controller.calculateModifiers(
-        { x: 5, y: 5 },
-        [],
-        false,
-        true,
-        0
-      );
-      expect(modifiers).toBe(-1);
+      expect(
+        controller.calculateModifiers({ x: 5, y: 5 }, [], false, true)
+      ).toBe(-1);
     });
 
     it("should apply -1 per marking opponent", () => {
-      const modifiers = controller.calculateModifiers(
-        { x: 5, y: 5 },
-        [],
-        false,
-        false,
-        2
-      );
-      expect(modifiers).toBe(-2);
+      expect(controller.calculateModifiers({ x: 5, y: 5 }, marking)).toBe(-2);
     });
 
     it("should stack modifiers correctly", () => {
-      const modifiers = controller.calculateModifiers(
-        { x: 5, y: 5 },
-        [],
-        true,
-        false,
-        2
-      );
-      expect(modifiers).toBe(-3); // -1 bounce, -2 marking
-    });
-  });
-
-  describe("Can Attempt Catch", () => {
-    it("should allow active player to catch", () => {
-      expect(controller.canAttemptCatch(player)).toBe(true);
-    });
-
-    it("should not allow prone player to catch", () => {
-      player.status = PlayerStatus.PRONE;
-      expect(controller.canAttemptCatch(player)).toBe(false);
-    });
-
-    it("should not allow stunned player to catch", () => {
-      player.status = PlayerStatus.STUNNED;
-      expect(controller.canAttemptCatch(player)).toBe(false);
-    });
-
-    it("should not allow player who has acted", () => {
-      // Assuming hasActed prevents catch in this test scenario implies pass was thrown to them after they moved?
-      // Actually, standard rules say if you move you can still catch.
-      // But implementation might be strict. Keeping test if it matches implementation.
-      player.hasActed = true;
-      expect(controller.canAttemptCatch(player)).toBe(false);
-    });
-  });
-
-  describe("Attempt Catch", () => {
-    it("should auto-fail for prone player", () => {
-      player.status = PlayerStatus.PRONE;
-      const result = controller.attemptCatch(
-        player,
-        { x: 5, y: 5 },
-        false,
-        false,
-        0
-      );
-
-      expect(result.success).toBe(false);
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.CatchFailed,
-        expect.objectContaining({
-          playerId: player.id,
-          reason: PlayerStatus.PRONE,
-        })
-      );
-    });
-
-    it("should succeed on success from DiceController", () => {
-      // Mock successful skill check
-      mockDiceController.rollSkillCheck.mockReturnValue({
-        success: true,
-        roll: 6,
-        result: 6,
-        target: 3,
-        modifiers: 0,
-      });
-
-      const result = controller.attemptCatch(
-        player,
-        { x: 5, y: 5 },
-        false,
-        false,
-        0
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.roll).toBe(6);
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.CatchSucceeded,
-        expect.any(Object)
-      );
-    });
-
-    it("should fail on failure from DiceController", () => {
-      // Mock failed skill check
-      mockDiceController.rollSkillCheck.mockReturnValue({
-        success: false,
-        roll: 1,
-        result: 1,
-        target: 3,
-        modifiers: 0,
-      });
-
-      const result = controller.attemptCatch(
-        player,
-        { x: 5, y: 5 },
-        false,
-        false,
-        0
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.roll).toBe(1);
-      expect(mockEventBus.emit).toHaveBeenCalledWith(
-        GameEventNames.CatchFailed,
-        expect.objectContaining({
-          reason: "Failed roll",
-        })
-      );
-    });
-
-    it("should apply modifiers correctly by passing them to DiceController", () => {
-      mockDiceController.rollSkillCheck.mockReturnValue({
-        success: false,
-        roll: 3,
-        result: 2, // 3 - 1
-        target: 3,
-        modifiers: -1,
-      });
-
-      // With -1 modifier
-      const result = controller.attemptCatch(
-        player,
-        { x: 5, y: 5 },
-        true, // isBounce = -1
-        false,
-        0
-      );
-
-      expect(mockDiceController.rollSkillCheck).toHaveBeenCalledWith(
-        "Catch",
-        3, // Target AG
-        -1, // Modifiers
-        "Test Player"
+      // -1 bounce, -2 marking
+      expect(controller.calculateModifiers({ x: 5, y: 5 }, marking, true)).toBe(
+        -3
       );
     });
   });
