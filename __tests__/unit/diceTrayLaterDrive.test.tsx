@@ -31,6 +31,7 @@ vi.mock("../../src/services/ServiceContainer", () => {
   const gameService = {
     getActiveTeamId: () => "home",
     getTeam: () => team,
+    getTeams: () => [team, team],
   };
   return {
     ServiceContainer: {

@@ -3,6 +3,7 @@ import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { resolvePitchTheme } from "../../../game/presentation/pitchThemes";
 import { Team } from "../../../types/Team";
+import { matchKits } from "../../../game/presentation/kits";
 
 interface LoadingScreenProps {
   eventBus: IEventBus;
@@ -25,6 +26,7 @@ export function LoadingScreen({
   const [progress, setProgress] = useState(0);
   const [gone, setGone] = useState(false);
   const style = resolvePitchTheme(styleId);
+  const kits = teams && matchKits(teams.team1.colors, teams.team2.colors);
 
   useEffect(() => {
     const onProgress = ({ progress: p }: { progress: number }) =>
@@ -52,11 +54,11 @@ export function LoadingScreen({
         backgroundImage: `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.88)), url(${style.stadiumPath}/preview.webp)`,
       }}
     >
-      {teams && (
+      {teams && kits && (
         <div className="flex items-center gap-6 px-6 text-center font-hud-display uppercase tracking-[0.03em] [text-shadow:0_4px_0_#000]">
           <span
             className="text-hud-3xl sm:text-hud-4xl"
-            style={{ color: css(teams.team1.colors.primary) }}
+            style={{ color: css(kits.home.primary) }}
           >
             {teams.team1.name}
           </span>
@@ -65,7 +67,7 @@ export function LoadingScreen({
           </span>
           <span
             className="text-hud-3xl sm:text-hud-4xl"
-            style={{ color: css(teams.team2.colors.primary) }}
+            style={{ color: css(kits.away.primary) }}
           >
             {teams.team2.name}
           </span>

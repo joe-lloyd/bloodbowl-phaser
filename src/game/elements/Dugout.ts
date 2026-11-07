@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Team } from "../../types/Team";
+import { Team, TeamColors } from "../../types/Team";
 import { Player, PlayerStatus } from "../../types/Player";
 import { playerBoxOf, PlayerBox } from "../rules/playerLocation";
 import { PlayerSprite } from "./PlayerSprite";
@@ -35,6 +35,8 @@ const BOX_SQUARES: Record<Exclude<PlayerBox, "pitch">, DugoutBox> = {
 export class Dugout {
   private scene: Phaser.Scene;
   private team: Team;
+  /** The colours the team wears in this match. */
+  private kit: TeamColors;
   private squares: DugoutSquares;
   private toWorld: (gx: number, gy: number) => { x: number; y: number };
   private style: PitchThemeId;
@@ -48,6 +50,7 @@ export class Dugout {
   constructor(
     scene: Phaser.Scene,
     team: Team,
+    kit: TeamColors,
     squares: DugoutSquares,
     toWorld: (gx: number, gy: number) => { x: number; y: number },
     style: PitchThemeId,
@@ -55,6 +58,7 @@ export class Dugout {
   ) {
     this.scene = scene;
     this.team = team;
+    this.kit = kit;
     this.squares = squares;
     this.toWorld = toWorld;
     this.style = style;
@@ -143,7 +147,7 @@ export class Dugout {
   ): PlayerSprite {
     const sprite = new PlayerSprite(this.scene, x, y, player, {
       rosterName: this.team.rosterName,
-      colors: this.team.colors,
+      colors: this.kit,
       style: this.style,
       facing: this.facing,
     });

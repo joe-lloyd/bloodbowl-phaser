@@ -4,6 +4,7 @@ import { GameEventNames } from "../../../types/events";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { teamRerollsLeft } from "../../../game/teamRerolls";
+import { kitOf } from "../../../game/presentation/kits";
 
 interface TeamRow {
   id: string;
@@ -55,7 +56,7 @@ export function ScoreBoard({
           id: team.id,
           name: team.name,
           roster: team.rosterName,
-          color: hexColor(team.colors.primary),
+          color: hexColor(kitOf(gs.getTeams(), team.id).primary),
           score: state.score[team.id] ?? 0,
           turn: gs.getTurnNumber(team.id),
           rerolls: teamRerollsLeft(state, team),
