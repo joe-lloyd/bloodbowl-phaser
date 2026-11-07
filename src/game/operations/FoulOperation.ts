@@ -233,12 +233,16 @@ export class FoulOperation extends GameOperation {
         announce(SkillType.DIRTY_PLAYER, "Dirty Player: +1 to the Injury Roll");
       }
 
-      await new InjuryOperation(target.id, {
-        roll: injury.total,
-        modifier: dirtyOnInjury ? 1 : 0,
-        causedById: fouler.id,
-        cause: "special",
-      }).execute(context);
+      // The Casualty Roll the injury queues belongs to it: run it now, so
+      // the victim has left the pitch before any Send-off below.
+      await context.flowManager.runToRest(
+        new InjuryOperation(target.id, {
+          roll: injury.total,
+          modifier: dirtyOnInjury ? 1 : 0,
+          causedById: fouler.id,
+          cause: "special",
+        })
+      );
     } else {
       eventBus.emit(GameEventNames.UI_Notification, "Armour Holds.");
     }
