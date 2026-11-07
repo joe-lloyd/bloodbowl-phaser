@@ -31,10 +31,6 @@ interface SceneOrchestratorConfig {
 export class SceneOrchestrator {
   private currentHandler: PhaseHandler | null = null;
   private currentPhase: GamePhase | null = null;
-  private eventHandlers: Map<
-    keyof import("../../types/events").AllEvents,
-    (data?: unknown) => void
-  > = new Map();
 
   constructor(
     private scene: GameScene,
@@ -45,16 +41,16 @@ export class SceneOrchestrator {
     this.setupGlobalListeners();
   }
 
+  // Phase Change Listener (Always Active)
+  private onPhaseChanged = (data: {
+    phase: GamePhase;
+    subPhase?: SubPhase;
+  }) => {
+    this.handlePhaseChange(data.phase, data.subPhase);
+  };
+
   private setupGlobalListeners(): void {
-    // Phase Change Listener (Always Active)
-    const onPhaseChanged = (data: {
-      phase: GamePhase;
-      subPhase?: SubPhase;
-    }) => {
-      this.handlePhaseChange(data.phase, data.subPhase);
-    };
-    this.eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
-    this.eventHandlers.set(GameEventNames.PhaseChanged, onPhaseChanged);
+    this.eventBus.on(GameEventNames.PhaseChanged, this.onPhaseChanged);
   }
 
   public initialize(): void {
@@ -236,9 +232,6 @@ export class SceneOrchestrator {
     if (this.currentHandler) {
       this.currentHandler.exit();
     }
-    this.eventHandlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler as any);
-    });
-    this.eventHandlers.clear();
+    this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChanged);
   }
 }

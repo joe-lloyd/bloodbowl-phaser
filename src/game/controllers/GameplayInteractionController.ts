@@ -1476,7 +1476,7 @@ export class GameplayInteractionController {
             selectedPlayer.gridPosition,
             weatherEffects(this.gameService.getState().weather).passTypes
           );
-          this.pitch.drawPassZones(selectedPlayer.gridPosition, ranges);
+          this.pitch.drawPassZones(ranges);
 
           // Draw pass line to cursor
           const passRange = this.passController.measureRange(
@@ -1550,7 +1550,7 @@ export class GameplayInteractionController {
               const squares = all.get(type as never);
               if (squares) limited.set(type, squares);
             }
-            this.pitch.drawPassZones(thrower.gridPosition, limited);
+            this.pitch.drawPassZones(limited);
 
             const inRange = isThrowTeammateInRange(thrower.gridPosition, {
               x,

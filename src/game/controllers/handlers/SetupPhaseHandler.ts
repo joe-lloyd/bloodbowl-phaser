@@ -2,8 +2,8 @@ import { weatherDescription } from "../../rules/weather";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
-import { IEventBus } from "../../../services/EventBus";
-import { GameEventNames, GameEvents } from "../../../types/events";
+import { GameEventMap, IEventBus } from "../../../services/EventBus";
+import { GameEventNames } from "../../../types/events";
 import { SubPhase } from "../../../types/GameState";
 import { PlayerPlacementController } from "../PlayerPlacementController";
 import { FormationManager } from "@/game/managers/FormationManager";
@@ -23,7 +23,7 @@ const BANNER_MS = 2300;
  * - Setup Actions (Confirm, Clear, Load)
  */
 export class SetupPhaseHandler implements PhaseHandler {
-  private handlers: Map<string, (data: any) => void> = new Map();
+  private unsubscribes: (() => void)[] = [];
   private isIntroSequence = false;
 
   constructor(
@@ -99,34 +99,31 @@ export class SetupPhaseHandler implements PhaseHandler {
 
   private setupListeners(): void {
     // Coin Flip
-    this.register(
-      GameEventNames.UI_CoinFlipComplete as keyof GameEvents,
-      (data) => {
-        this.scene.kickingTeam = data.kickingTeam;
-        this.scene.receivingTeam = data.receivingTeam;
-        // Online skips the local intro (which rolls weather); the
-        // start-setup command rolls it on both engines instead.
-        this.gameService.startSetup(data.kickingTeam.id);
-      }
-    );
+    this.register(GameEventNames.UI_CoinFlipComplete, (data) => {
+      this.scene.kickingTeam = data.kickingTeam;
+      this.scene.receivingTeam = data.receivingTeam;
+      // Online skips the local intro (which rolls weather); the
+      // start-setup command rolls it on both engines instead.
+      this.gameService.startSetup(data.kickingTeam.id);
+    });
 
     // Setup Actions
-    this.register(GameEventNames.UI_SetupAction as keyof GameEvents, (data) =>
+    this.register(GameEventNames.UI_SetupAction, (data) =>
       this.handleSetupAction(data)
     );
   }
 
-  private register(event: string, handler: (data: any) => void): void {
-    this.handlers.set(event, handler);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.eventBus.on(event as any, handler);
+  private register<K extends keyof GameEventMap>(
+    event: K,
+    handler: (data: GameEventMap[K]) => void
+  ): void {
+    this.eventBus.on(event, handler);
+    this.unsubscribes.push(() => this.eventBus.off(event, handler));
   }
 
   private removeListeners(): void {
-    this.handlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler);
-    });
-    this.handlers.clear();
+    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribes = [];
   }
 
   private handleSetupAction(data: { action: string; name?: string }): void {

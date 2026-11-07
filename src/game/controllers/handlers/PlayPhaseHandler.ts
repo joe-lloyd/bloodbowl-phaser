@@ -25,7 +25,7 @@ import { DiceWatch } from "../../presentation/diceWatch";
  * Note: Actual logic is in GameService/FlowManager. This handler connects UI/Visuals to that logic.
  */
 export class PlayPhaseHandler implements PhaseHandler {
-  private handlers: Map<string, (data: any) => void> = new Map();
+  private unsubscribes: (() => void)[] = [];
   /** Blitz block awaiting the rush confirmation dialog */
   private pendingBlitzBlock: {
     attackerId: string;
@@ -54,16 +54,17 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.dice = null;
   }
 
-  private register(event: string, handler: (data: any) => void): void {
-    this.handlers.set(event, handler);
+  private register<K extends keyof GameEventMap>(
+    event: K,
+    handler: (data: GameEventMap[K]) => void
+  ): void {
     this.eventBus.on(event, handler);
+    this.unsubscribes.push(() => this.eventBus.off(event, handler));
   }
 
   private removeListeners(): void {
-    this.handlers.forEach((handler, event) => {
-      this.eventBus.off(event, handler);
-    });
-    this.handlers.clear();
+    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
+    this.unsubscribes = [];
   }
 
   private setupListeners(): void {

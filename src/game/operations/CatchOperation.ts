@@ -79,7 +79,6 @@ export class CatchOperation extends GameOperation {
     // -1 for a ball that Bounced or was Thrown-in (p.76)
     const modifiers =
       catchController.calculateModifiers(
-        player,
         player.gridPosition,
         opponents,
         this.options.origin === "bounce",

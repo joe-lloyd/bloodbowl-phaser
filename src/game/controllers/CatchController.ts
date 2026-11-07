@@ -30,7 +30,6 @@ export class CatchController {
    * Calculate catch modifiers based on circumstances
    */
   public calculateModifiers(
-    player: Player,
     position: { x: number; y: number },
     opponents: Player[],
     isBounce: boolean = false,
@@ -84,7 +83,7 @@ export class CatchController {
         value: 1,
         total: 1,
         description: `Catch (${player.playerName}): Auto-fail (${player.status})`,
-        passed: false,
+        resultState: "failure",
       });
 
       this.eventBus.emit(GameEventNames.CatchFailed, {
@@ -104,7 +103,6 @@ export class CatchController {
     const target = player.stats.AG;
 
     const modifiers = this.calculateModifiers(
-      player,
       position,
       [], // Empty opponents list -> uses manual count
       isBounce,

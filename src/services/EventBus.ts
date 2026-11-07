@@ -66,9 +66,12 @@ export interface IEventBus {
  * EventBus implementation using pure TypeScript
  * No external dependencies, fully testable
  */
+/** Listeners of every event share one set type; on() and off() keep each paired with its event. */
+type Listener = (data?: unknown) => void;
+
 export class EventBus implements IEventBus {
-  private listeners: Map<string, Set<(data?) => void>> = new Map();
-  private onceListeners: Map<string, Set<(data?) => void>> = new Map();
+  private listeners: Map<string, Set<Listener>> = new Map();
+  private onceListeners: Map<string, Set<Listener>> = new Map();
 
   emit<K extends keyof GameEventMap>(event: K, data?: GameEventMap[K]): void {
     // Call regular listeners
@@ -111,7 +114,7 @@ export class EventBus implements IEventBus {
     if (!this.listeners.has(event as string)) {
       this.listeners.set(event as string, new Set());
     }
-    this.listeners.get(event as string)!.add(callback as (data?) => void);
+    this.listeners.get(event as string)!.add(callback as Listener);
   }
 
   off<K extends keyof GameEventMap>(
@@ -120,7 +123,7 @@ export class EventBus implements IEventBus {
   ): void {
     const eventListeners = this.listeners.get(event as string);
     if (eventListeners) {
-      eventListeners.delete(callback);
+      eventListeners.delete(callback as Listener);
       if (eventListeners.size === 0) {
         this.listeners.delete(event as string);
       }
@@ -128,7 +131,7 @@ export class EventBus implements IEventBus {
 
     const onceListeners = this.onceListeners.get(event as string);
     if (onceListeners) {
-      onceListeners.delete(callback);
+      onceListeners.delete(callback as Listener);
       if (onceListeners.size === 0) {
         this.onceListeners.delete(event as string);
       }
@@ -142,7 +145,7 @@ export class EventBus implements IEventBus {
     if (!this.onceListeners.has(event as string)) {
       this.onceListeners.set(event as string, new Set());
     }
-    this.onceListeners.get(event as string)!.add(callback as (data?) => void);
+    this.onceListeners.get(event as string)!.add(callback as Listener);
   }
 
   removeAllListeners(event?: string): void {
