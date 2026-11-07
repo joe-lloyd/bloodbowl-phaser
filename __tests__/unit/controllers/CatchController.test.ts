@@ -34,9 +34,7 @@ describe("CatchController", () => {
 
   describe("Catch Modifiers", () => {
     it("should apply -1 modifier for bounce", () => {
-      // API Change: calculateModifiers(player, pos, opponents, isBounce, isThrowIn, manualMarkingCount)
       const modifiers = controller.calculateModifiers(
-        player,
         { x: 5, y: 5 },
         [],
         true,
@@ -48,7 +46,6 @@ describe("CatchController", () => {
 
     it("should apply -1 modifier for throw-in", () => {
       const modifiers = controller.calculateModifiers(
-        player,
         { x: 5, y: 5 },
         [],
         false,
@@ -60,7 +57,6 @@ describe("CatchController", () => {
 
     it("should apply -1 per marking opponent", () => {
       const modifiers = controller.calculateModifiers(
-        player,
         { x: 5, y: 5 },
         [],
         false,
@@ -72,7 +68,6 @@ describe("CatchController", () => {
 
     it("should stack modifiers correctly", () => {
       const modifiers = controller.calculateModifiers(
-        player,
         { x: 5, y: 5 },
         [],
         true,

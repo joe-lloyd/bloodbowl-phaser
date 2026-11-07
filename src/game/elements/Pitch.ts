@@ -483,10 +483,7 @@ export class Pitch {
   /**
    * Draw pass zones with different colors for each range type
    */
-  public drawPassZones(
-    from: { x: number; y: number },
-    ranges: Map<string, { x: number; y: number }[]>
-  ): void {
+  public drawPassZones(ranges: Map<string, { x: number; y: number }[]>): void {
     this.clearLayer("pass_zone");
     const colors: Record<string, { color: number; alpha: number }> = {
       "Quick Pass": { color: 0x00ff00, alpha: 0.15 },

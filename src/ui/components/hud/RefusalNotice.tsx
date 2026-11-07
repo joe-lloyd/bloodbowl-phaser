@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { useEventBus } from "../../hooks/useEventBus";

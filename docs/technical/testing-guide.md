@@ -67,6 +67,6 @@ pnpm lint
 pnpm build:netlify
 ```
 
-The TypeScript check currently reports existing errors. Compare diagnostics
-with the base revision and fix new errors introduced by your change. Vite
-transpilation does not replace this check. See [development](../DEVELOPMENT.md).
+The TypeScript check reports no errors, and CI fails a pull request that adds
+one. Vite transpilation does not replace this check. See
+[development](../DEVELOPMENT.md).
