@@ -32,7 +32,11 @@ interface Clip {
 }
 
 /** KICKOFF_ONLY=5,10 records just those rolls, for working on one result. */
-const ONLY = process.env.KICKOFF_ONLY?.split(",").map(Number);
+const ONLY = process.env.KICKOFF_ONLY?.split(",").map((roll) => {
+  const n = Number(roll.trim());
+  if (!KICKOFF_TABLE[n]) throw new Error(`KICKOFF_ONLY: no roll "${roll}"`);
+  return n;
+});
 
 const CLIPS: Clip[] = Object.entries(KICKOFF_TABLE)
   .filter(([roll]) => !ONLY || ONLY.includes(Number(roll)))
@@ -477,7 +481,9 @@ test("every kick-off table result, on the pitch", async ({ page }) => {
   await caption(
     page,
     {
-      title: "All eleven results checked",
+      title: ONLY
+        ? `${new Set(CLIPS.map((c) => c.event)).size} of eleven results checked`
+        : "All eleven results checked",
       body: CLIPS.map((c) => `${c.roll} · ${c.event}`).filter(
         (l, i, all) => all.indexOf(l) === i
       ),
