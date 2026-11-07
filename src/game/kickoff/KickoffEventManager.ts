@@ -244,6 +244,18 @@ export class KickoffEventManager {
       );
       return;
     }
+    // A square holds one player: if someone already stands there, nobody
+    // can be placed under the ball.
+    const holder = [...this.team1.players, ...this.team2.players].find(
+      (player) => player.gridPosition?.x === x && player.gridPosition?.y === y
+    );
+    if (holder) {
+      this.eventBus.emit(
+        GameEventNames.UI_GameLog,
+        `High Kick: ${holder.playerName} already stands where the ball will land, so no one else may be placed there.`
+      );
+      return;
+    }
     const receivingTeamId = (isTeam1Kicking ? this.team2 : this.team1).id;
     await this.openStep(KickoffEvent.HIGH_KICK, receivingTeamId, 1, landingSquare);
   }
