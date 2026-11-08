@@ -103,7 +103,17 @@ import { createPlayer, PositionKeyWord } from "../../src/types/Player";
 import { canEdit } from "../../src/game/rules/teamEditLegality";
 import { priceOf } from "../../src/game/rules/teamPricing";
 
-const SEASONS = Number(process.env.CAMPAIGN_SEASONS ?? 3);
+/** League seasons before the cups; a typo must not quietly run none. */
+function seasons(): number {
+  const raw = process.env.CAMPAIGN_SEASONS ?? "3";
+  const count = Number(raw);
+  if (!/^\d+$/.test(raw.trim()) || count < 1) {
+    throw new Error(
+      `CAMPAIGN_SEASONS must be a whole number of 1 or more, got "${raw}"`
+    );
+  }
+  return count;
+}
 const PROGRESSION = process.env.CAMPAIGN_PROGRESSION !== "0";
 
 const SIDES: Record<TeamAdvancementMode, RosterName[]> = {
@@ -1000,6 +1010,7 @@ async function playCompetition(competition: CompetitionDoc): Promise<void> {
 
 describe.runIf(process.env.CAMPAIGN === "1")("a three-season campaign", () => {
   it("plays seasons and a tournament in every advancement mode", async () => {
+    const seasonCount = seasons();
     localStorage.clear();
     const modes = Object.keys(SIDES) as TeamAdvancementMode[];
     const teamsByMode = new Map(
@@ -1012,7 +1023,7 @@ describe.runIf(process.env.CAMPAIGN === "1")("a three-season campaign", () => {
       ])
     );
 
-    for (let season = 1; season <= SEASONS; season++) {
+    for (let season = 1; season <= seasonCount; season++) {
       for (const mode of modes) {
         const teamIds = teamsByMode.get(mode)!;
         const league = await createCompetition(
