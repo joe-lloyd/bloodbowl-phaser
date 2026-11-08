@@ -271,6 +271,11 @@ export interface Team {
   draftHistory?: DraftRecord[];
   /** Unresolved mode-specific development awaiting a Manage Team decision. */
   pendingDevelopment?: PendingDevelopment[];
+  /**
+   * The computer coaches this team in competitions and makes its
+   * development choices between games (src/competition/computerTeams.ts).
+   */
+  computerCoached?: true;
 }
 
 /**
