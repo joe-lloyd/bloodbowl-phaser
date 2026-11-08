@@ -83,7 +83,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
       title="Interception!"
       actions={
         <DialogActions stack>
-          {request.candidates.map((c) => {
+          {request.candidates.map((c, index) => {
             // Two Linemen differ only by number: cut the position, never it
             const name = c.playerName ?? c.playerId;
             const [, position, number] = /^(.*?)(?: (#\d+))?$/.exec(name)!;
@@ -94,6 +94,7 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
                 block
                 className="!justify-between"
                 title={name}
+                hotkey={index < 9 ? String(index + 1) : undefined}
                 onClick={() => respond(c.playerId)}
               >
                 <span className="flex min-w-0 gap-1 whitespace-nowrap">
@@ -106,7 +107,12 @@ export const InterceptionDialog: React.FC<InterceptionDialogProps> = ({
               </HudButton>
             );
           })}
-          <HudButton variant="ghost" block onClick={() => respond(undefined)}>
+          <HudButton
+            variant="ghost"
+            block
+            hotkey="n"
+            onClick={() => respond(undefined)}
+          >
             DECLINE
           </HudButton>
         </DialogActions>

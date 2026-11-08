@@ -74,11 +74,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       width="w-[420px]"
       actions={
         <DialogActions>
-          <HudButton variant="ghost" onClick={handleCancel}>
+          <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>
             {data.cancelLabel || "Cancel"}
           </HudButton>
           <HudButton
             variant={data.risky ? "primary" : "gold"}
+            hotkey="Enter"
             onClick={handleConfirm}
           >
             {data.confirmLabel || "Confirm"}

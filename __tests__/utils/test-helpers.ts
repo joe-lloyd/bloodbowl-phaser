@@ -44,3 +44,11 @@ export const forceDice = (
     Array.from({ length: count }, () => queue.shift() ?? real(1, sides)[0])
   );
 };
+
+/** A button's words, without the key badge that presses it. */
+export const buttonLabel = (button: Element | null | undefined) => {
+  if (!button) return undefined;
+  const words = button.cloneNode(true) as Element;
+  words.querySelectorAll("kbd").forEach((badge) => badge.remove());
+  return words.textContent;
+};

@@ -7,7 +7,8 @@
  * (tailwind.config.js); `.hud-slab`, `.hud-label`, `.hud-field`,
  * `.hud-page`, `.hud-table` and `.hud-check` are in styles/global.css.
  */
-import React, { forwardRef } from "react";
+import React, { forwardRef, useRef } from "react";
+import { Hotkey, hotkeyLabel, useHotkey } from "../../hotkeys";
 
 export const cx = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -308,21 +309,56 @@ export const HudButton = forwardRef<
     variant?: HudButtonVariant;
     size?: HudButtonSize;
     block?: boolean;
+    /** Presses the button from the keyboard, shown on a badge. */
+    hotkey?: Hotkey;
     "data-testid"?: string;
   }
 >(function HudButton(
-  { variant = "secondary", size = "md", block, className, type, ...rest },
+  {
+    variant = "secondary",
+    size = "md",
+    block,
+    className,
+    type,
+    hotkey,
+    children,
+    ...rest
+  },
   ref
 ) {
+  const button = useRef<HTMLButtonElement | null>(null);
+  useHotkey(hotkey, () => button.current?.click(), !rest.disabled, button);
   return (
     <button
-      ref={ref}
+      ref={(node) => {
+        button.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      }}
       type={type ?? "button"}
       className={cx(hudButtonClass(variant, size, block), className)}
       {...rest}
-    />
+    >
+      {children}
+      {hotkey && <KeyBadge hotkey={hotkey} />}
+    </button>
   );
 });
+
+/**
+ * The key that presses a control. Shown only with a mouse or trackpad: a
+ * phone has no keyboard to press it with.
+ */
+export function KeyBadge({ hotkey }: { hotkey: Hotkey }) {
+  return (
+    <kbd
+      aria-hidden="true"
+      className="hidden min-w-[1.4em] rounded-[3px] border border-current px-1 py-0.5 text-center font-hud-label text-[0.7em] font-bold leading-none opacity-60 [@media(pointer:fine)]:inline-block"
+    >
+      {hotkeyLabel(hotkey)}
+    </kbd>
+  );
+}
 
 /** A small outlined tag: a modifier, a count, a status. */
 export function Chip({
@@ -468,6 +504,7 @@ export function DialogShell({
   return (
     <div
       data-testid={testId}
+      data-hotkey-scope=""
       data-decision-dialog={placement === "dock" ? "" : undefined}
       className={cx(
         placement === "dock"

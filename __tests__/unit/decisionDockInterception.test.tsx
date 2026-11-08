@@ -6,6 +6,7 @@ import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { GameEventNames } from "../../src/types/events";
 import { InterceptionDialog } from "../../src/ui/components/hud/InterceptionDialog";
+import { buttonLabel } from "../utils/test-helpers";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -41,7 +42,7 @@ it("shows the interceptor's target and explains a miss", async () => {
     })
   );
   const row = container.querySelector("button")!;
-  expect(row.textContent).toBe("Interceptor5+");
+  expect(buttonLabel(row)).toBe("Interceptor5+");
   expect(container.textContent).toContain("A miss costs nothing");
 });
 

@@ -135,6 +135,28 @@ test("foul previews armour and asks for confirmation with Cancel", async ({
   ).toHaveLength(0);
 });
 
+test("a foul clears its red target square once the foul is over", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "ux-foul-preview" });
+  await app.hud.declareAction("team1:0", "foul");
+  await app.hud.selectActionStep("foul");
+  const target = await app.pitch.squareOf("team2:0");
+  const highlights = async () =>
+    (await app.bridge.pitchLayers()).filter((name) => name === "highlight");
+  // Hovering again redraws the one target square instead of stacking it
+  await app.pitch.hoverSquare(target);
+  await app.pitch.hoverSquare({ x: target.x, y: target.y + 2 });
+  await app.pitch.hoverSquare(target);
+  await expect.poll(highlights).toHaveLength(1);
+
+  await app.pitch.clickPlayer("team2:0");
+  await page.getByRole("button", { name: "Foul!", exact: true }).click();
+  await app.bridge.expectEvent(GameEventNames.DiceRoll);
+  await expect.poll(highlights, { timeout: 15_000 }).toHaveLength(0);
+});
+
 test("pass hover shows range, catch and each interception roll", async ({
   page,
 }) => {

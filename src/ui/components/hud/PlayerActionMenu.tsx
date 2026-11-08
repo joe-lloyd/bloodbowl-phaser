@@ -2,7 +2,7 @@ import { useHeldOnline } from "../../hooks/useHeldOnline";
 /* eslint-disable react/prop-types */
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -14,9 +14,11 @@ import {
   ActionAvailability,
 } from "../../../game/rules/actionAvailability";
 import { ActionStepper } from "./ActionStepper";
+import { Hotkey, useHotkey } from "../../hotkeys";
 import {
   Chip,
   HudTone,
+  KeyBadge,
   Panel,
   PanelHeader,
   toneBar,
@@ -259,6 +261,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     color?: string;
     onClick?: () => void;
     blockReplacement?: BlockReplacement;
+    hotkey?: Hotkey;
   }> = ({
     action,
     label,
@@ -267,8 +270,15 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     color = "blue",
     onClick,
     blockReplacement,
+    hotkey,
   }) => {
     const tone = ACTION_TONES[color] ?? ACTION_TONES.blue;
+    const press = () => {
+      if (onClick) onClick();
+      else if (action) handleAction(action, blockReplacement);
+    };
+    const button = useRef<HTMLButtonElement | null>(null);
+    useHotkey(hotkey, press, !disabled, button);
 
     // A stable hook for E2E: the button's visible label is styling-dependent
     // and duplicated across replacement variants, so cases target the action
@@ -280,11 +290,11 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     if (compact) {
       return (
         <button
+          ref={button}
           data-testid={testId}
           onClick={(e) => {
             e.stopPropagation();
-            if (onClick) onClick();
-            else if (action) handleAction(action, blockReplacement);
+            press();
           }}
           disabled={disabled}
           className="relative flex min-h-[44px] w-full flex-col items-start justify-center overflow-hidden rounded-hud border border-white/10 bg-hud-ink/90 py-1 pl-3 pr-1.5 text-left shadow-hud active:bg-hud-edge disabled:opacity-45"
@@ -311,11 +321,11 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
     return (
       <button
+        ref={button}
         data-testid={testId}
         onClick={(e) => {
           e.stopPropagation();
-          if (onClick) onClick();
-          else if (action) handleAction(action, blockReplacement);
+          press();
         }}
         disabled={disabled}
         className="group relative flex min-h-[40px] w-full items-center justify-between gap-2 overflow-hidden rounded-hud border border-white/10 bg-hud-raise/80 py-1.5 pl-4 pr-2 text-left transition-[background-color,border-color,transform] duration-150 ease-bb hover:-translate-y-px hover:border-hud-gold/60 hover:bg-hud-edge active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:border-white/10 disabled:hover:bg-hud-raise/80"
@@ -331,7 +341,10 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         >
           {label}
         </span>
-        {sub && <Chip tone={disabled ? "neutral" : tone}>{sub}</Chip>}
+        <span className="flex shrink-0 items-center gap-1.5 text-hud-dim">
+          {sub && <Chip tone={disabled ? "neutral" : tone}>{sub}</Chip>}
+          {hotkey && <KeyBadge hotkey={hotkey} />}
+        </span>
       </button>
     );
   };
@@ -413,6 +426,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="move"
                   label="MOVE"
+                  hotkey="m"
                   sub={isProne ? "Stand + Move" : a.jump ? "Jump" : undefined}
                   disabled={false}
                   color="green"
@@ -424,6 +438,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="block"
                   label="BLOCK"
+                  hotkey="b"
                   disabled={false}
                   color="red"
                 />
@@ -443,6 +458,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="blitz"
                   label="BLITZ"
+                  hotkey="z"
                   sub="1/Turn"
                   disabled={false}
                   color="red"
@@ -465,6 +481,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="pass"
                   label="PASS"
+                  hotkey="p"
                   sub="1/Turn"
                   disabled={false}
                   color="yellow"
@@ -483,6 +500,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="handoff"
                   label="HAND-OFF"
+                  hotkey="h"
                   sub="1/Turn"
                   disabled={false}
                   color="yellow"
@@ -492,6 +510,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="foul"
                   label="FOUL"
+                  hotkey="f"
                   sub="1/Turn"
                   disabled={false}
                   color="purple"
@@ -600,6 +619,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 <ActionButton
                   action="standUp"
                   label="STAND UP"
+                  hotkey="u"
                   sub="3 MA"
                   disabled={!a.standUp}
                   color="blue"
@@ -625,6 +645,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
               <ActionButton
                 action="forgoe"
                 label="END ACTIVATION"
+                hotkey="e"
                 sub="Skip"
                 disabled={hasActed}
                 color="gray"
@@ -636,4 +657,3 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     </div>
   );
 };
-

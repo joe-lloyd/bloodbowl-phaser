@@ -1575,8 +1575,11 @@ export class GameplayInteractionController {
         this.currentActionMode === "foul" &&
         this.currentStepId === "foul"
       ) {
-        // FOUL MODE: Highlight valid targets
+        // FOUL MODE: Highlight valid targets, redrawn on every hover. A
+        // foul in flight keeps its victim's square until it resolves.
+        if (this.isBusy) return;
         this.pitch.clearPath();
+        this.pitch.clearLayer("highlight");
         const selectedPlayer = this.gameService.getPlayerById(
           this.selectedPlayerId
         );

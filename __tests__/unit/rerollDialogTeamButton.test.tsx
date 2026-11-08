@@ -9,6 +9,7 @@ import { GameEventNames } from "../../src/types/events";
 import { RerollDecisionRequest } from "../../src/types/decisions";
 import { getDriveEffects } from "../../src/game/kickoff/driveEffects";
 import { RerollDialog } from "../../src/ui/components/hud/RerollDialog";
+import { buttonLabel } from "../utils/test-helpers";
 
 /**
  * The team button names the re-roll it would spend, and is gone when the
@@ -67,7 +68,7 @@ describe("RerollDialog team button", () => {
     // Round 3, 1:16:38: "USE VETERAN RE-ROLL (ONCE PER GAME)" wrapped
     await showDodgeReroll(0);
     expect(
-      container.querySelector('[data-testid="reroll-use-veteran"]')?.textContent
+      buttonLabel(container.querySelector('[data-testid="reroll-use-veteran"]'))
     ).toBe("USE VETERAN RE-ROLL");
     expect(
       container.querySelector('[data-testid="reroll-need-veteran"]')
@@ -76,9 +77,10 @@ describe("RerollDialog team button", () => {
   });
 
   it("counts the team's own re-rolls", async () => {
-    expect((await showDodgeReroll(2))?.textContent).toBe(
-      "USE TEAM RE-ROLL (2 left)"
-    );
+    const button = await showDodgeReroll(2);
+    expect(buttonLabel(button)).toBe("USE TEAM RE-ROLL (2 left)");
+    // The first re-roll offered is pressed with 1
+    expect(button?.querySelector("kbd")?.textContent).toBe("1");
   });
 
   it("names the Leader re-roll when it is the next legal team source", async () => {
@@ -87,11 +89,11 @@ describe("RerollDialog team button", () => {
     team.players[0].gridPosition = { x: 5, y: 5 };
     team.players[0].skills.push(getSkill(SkillType.LEADER));
     service.getRerollArbiter().beginHalf([teamId]);
-    expect((await showDodgeReroll(0))?.textContent).toBe("USE LEADER RE-ROLL");
+    expect(buttonLabel(await showDodgeReroll(0))).toBe("USE LEADER RE-ROLL");
   });
 
   it("names a free Brilliant Coaching re-roll instead of '0 left'", async () => {
-    expect((await showDodgeReroll(0, 1))?.textContent).toBe(
+    expect(buttonLabel(await showDodgeReroll(0, 1))).toBe(
       "USE BRILLIANT COACHING RE-ROLL"
     );
   });

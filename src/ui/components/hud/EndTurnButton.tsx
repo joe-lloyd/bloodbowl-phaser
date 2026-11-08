@@ -1,6 +1,7 @@
 import { GamePhase } from "@/types/GameState";
 import React, { useEffect, useRef, useState } from "react";
-import { hudButtonClass } from "../componentWarehouse/HudKit";
+import { hudButtonClass, KeyBadge } from "../componentWarehouse/HudKit";
+import { useHotkey } from "../../hotkeys";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { useHeldOnline } from "../../hooks/useHeldOnline";
 
@@ -28,6 +29,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   const held = useHeldOnline();
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
+  const button = useRef<HTMLButtonElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -37,24 +39,27 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
     },
     []
   );
-  if (phase !== GamePhase.PLAY) {
-    return null;
-  }
   // Online, only the coach whose turn it is gets the button
   const online = getActiveOnlineMatch();
-  if (online && online.myTeamId !== activeTeamId) {
+  const shown =
+    phase === GamePhase.PLAY && (!online || online.myTeamId === activeTeamId);
+  // Shift as well, so a slip of the E that ends an activation keeps the turn
+  useHotkey("shift+e", onClick, shown && !disabled && !held && !hold, button);
+  if (!shown) {
     return null;
   }
 
   if (!hold) {
     return (
       <button
+        ref={button}
         data-testid="end-turn"
         onClick={onClick}
         disabled={disabled || held}
         className={`${hudButtonClass("primary", "lg")} min-h-[56px] px-10 font-hud-display !text-hud-xl !font-normal !tracking-[0.08em]`}
       >
         End Turn
+        <KeyBadge hotkey="shift+e" />
       </button>
     );
   }

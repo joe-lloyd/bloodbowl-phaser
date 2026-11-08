@@ -78,10 +78,8 @@ export class Pitch {
 
   /** An invisible stand-in for a square off the pitch, so callers keep one type. */
   private offPitchMarker(): SquareMarker {
-    // Half alpha like a plain highlight, so clearHighlights sweeps it up too.
     const marker = this.scene.add
       .polygon(0, 0, [0, 0], 0, 0)
-      .setAlpha(0.5)
       .setVisible(false);
     this.container.add(marker);
     return marker;
@@ -130,7 +128,7 @@ export class Pitch {
     gridY: number,
     color: number
   ): SquareMarker {
-    return this.diamond(gridX, gridY, color, 0.5, 0.04);
+    return this.diamond(gridX, gridY, color, 0.5, 0.04).setName("highlight");
   }
 
   /**
@@ -151,17 +149,7 @@ export class Pitch {
   }
 
   public clearHighlights(): void {
-    // Unnamed half-alpha diamonds are the plain highlights from highlightSquare.
-    this.container.getAll().forEach((child) => {
-      if (
-        child instanceof Phaser.GameObjects.Polygon &&
-        child.alpha === 0.5 &&
-        !child.name
-      ) {
-        child.destroy();
-      }
-    });
-
+    this.clearLayer("highlight");
     this.clearSetupZone();
     this.clearLayer("tackle_zone");
     this.clearLayer("range_overlay");

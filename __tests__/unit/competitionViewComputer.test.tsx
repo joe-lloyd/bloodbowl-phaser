@@ -16,6 +16,7 @@ vi.mock("../../src/firebase/config", () => ({
 import { createCompetition } from "../../src/competition/create";
 import { createComputerTeam } from "../../src/competition/computerTeams";
 import { getCompetition } from "../../src/competition/repository";
+import { withdrawFromCompetition } from "../../src/competition/resultRecording";
 import { CompetitionDoc } from "../../src/competition/types";
 import { saveTeam } from "../../src/game/managers/TeamManager";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
@@ -162,7 +163,8 @@ describe("a league against the computer", () => {
 
   it("simulates a round's computer games and shows what happened", async () => {
     await show(league);
-    expect(buttons("Simulate")).toHaveLength(3);
+    // One computer game a round; only round 1's can be simulated yet
+    expect(buttons("Simulate")).toHaveLength(1);
     await act(async () => button("Simulate round 1")!.click());
     await vi.waitFor(
       () => expect(container.textContent).not.toContain("Simulating"),
@@ -183,13 +185,37 @@ describe("a league against the computer", () => {
     );
     expect(results?.textContent).toContain(`Round 1`);
     expect(results?.textContent).toContain(`${homeScore}–${awayScore}`);
-    expect(button("Simulate round 2")).toBeDefined();
-    expect(buttons("Simulate")).toHaveLength(2);
+    // Later rounds wait too: nothing past round 1 was played
+    expect(
+      stored.fixtures.filter(
+        (fixture) => fixture.round > 1 && fixture.status === "complete"
+      )
+    ).toEqual([]);
+    // Round 2 is not offered while my round-one game is still to play
+    expect(
+      [...container.querySelectorAll("button")].filter((candidate) =>
+        candidate.textContent?.startsWith("Simulate round")
+      )
+    ).toEqual([]);
+    expect(buttons("Simulate")).toEqual([]);
+  }, 60_000);
+
+  it("moves on past my games once I withdraw", async () => {
+    const withdrawn = await withdrawFromCompetition(
+      { competitionType: "league", competitionId: league.id },
+      `own:${mine.id}`
+    );
+    await show(withdrawn);
+    await act(async () => button("Simulate round 1")!.click());
+    await vi.waitFor(
+      () => expect(button("Simulate round 2")).toBeDefined(),
+      { timeout: 30_000 }
+    );
   }, 60_000);
 });
 
 describe("a cup the computer plays", () => {
-  it("simulates every computer game through to a champion", async () => {
+  it("simulates one round at a time through to a champion", async () => {
     const cup = await createCompetition({
       type: "tournament",
       format: "single-elimination",
@@ -203,7 +229,14 @@ describe("a cup the computer plays", () => {
       ).map((team) => ({ team, ownerUid: null })),
     });
     await show(cup);
-    await act(async () => button("Simulate all computer games")!.click());
+    await act(async () => button("Simulate round 1")!.click());
+    await vi.waitFor(
+      () => expect(button("Simulate round 2")).toBeDefined(),
+      { timeout: 60_000 }
+    );
+    // The final waits for its own click
+    expect(container.textContent).not.toContain("Champion:");
+    await act(async () => button("Simulate round 2")!.click());
     await vi.waitFor(
       () => expect(container.textContent).toContain("Champion:"),
       { timeout: 60_000 }
@@ -215,6 +248,10 @@ describe("a cup the computer plays", () => {
         stored.type === "tournament" && entrant.id === stored.championEntrantId
     )!;
     expect(container.textContent).toContain(`Champion: ${champion.name}`);
-    expect(button("Simulate all computer games")).toBeUndefined();
+    expect(
+      [...container.querySelectorAll("button")].filter((candidate) =>
+        candidate.textContent?.startsWith("Simulate")
+      )
+    ).toEqual([]);
   }, 90_000);
 });

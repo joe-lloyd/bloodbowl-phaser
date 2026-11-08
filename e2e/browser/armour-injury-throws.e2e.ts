@@ -3,7 +3,9 @@
  * dice, lets them land and be read, and only then throws the injury dice.
  * Seed 1: the Black Orc's block rolls a Skull, the Orc falls, its armour
  * breaks on a 10, and the turnover hands over. This also measures
- * the hand-over from the armour dice to the next turn banner.
+ * the hand-over from the armour dice to the next turn banner: about 5.1 s
+ * alone since round 4 gave each queued roll a 700 ms read, and over 6 s
+ * with four browsers sharing the machine.
  */
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
@@ -125,5 +127,5 @@ test("armour and injury land as two throws before the turnover hands over", asyn
   const injuryThrow = log.throws.findIndex((t) => t.includes("Injury"));
   expect(armourThrow).toBeGreaterThanOrEqual(0);
   expect(injuryThrow).toBeGreaterThan(armourThrow);
-  expect(log.bannerAt - log.armourAt).toBeLessThan(6_000);
+  expect(log.bannerAt - log.armourAt).toBeLessThan(7_000);
 });
