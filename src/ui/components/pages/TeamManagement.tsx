@@ -59,20 +59,27 @@ export function TeamManagement() {
     navigate(`/build-team/${teamId}`);
   };
 
-  const handleDeleteTeam = (teamId: string) => {
-    // The stored team: another tab may have entered it since this rendered.
-    // Its games in the competition could no longer be played or simulated.
+  /**
+   * A computer team still in a competition stays: its games could no longer
+   * be played or simulated. Reads the stored team, which another tab may
+   * have entered since this page rendered.
+   */
+  const stillPlaying = (teamId: string): boolean => {
     const team = getTeamById(teamId);
-    if (team?.computerCoached && team.activeCompetitionId) {
-      alert(
-        "This computer team is still playing in a competition. Delete it once the competition is over."
-      );
-      return;
-    }
-    if (confirm("Are you sure you want to delete this team?")) {
-      deleteTeam(teamId);
-      reloadTeams();
-    }
+    if (!team?.computerCoached || !team.activeCompetitionId) return false;
+    alert(
+      "This computer team is still playing in a competition. Delete it once the competition is over."
+    );
+    return true;
+  };
+
+  const handleDeleteTeam = (teamId: string) => {
+    if (stillPlaying(teamId)) return;
+    if (!confirm("Are you sure you want to delete this team?")) return;
+    // Again: it may have been entered while the dialog was open
+    if (stillPlaying(teamId)) return;
+    deleteTeam(teamId);
+    reloadTeams();
   };
 
   const handleSeedTeams = () => {

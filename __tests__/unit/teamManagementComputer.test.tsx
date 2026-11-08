@@ -1,7 +1,8 @@
 /**
  * A computer team still playing in a competition cannot be deleted: its
  * games could no longer be played or simulated. The check reads the stored
- * team, so an entry made in another tab after the page rendered counts.
+ * team before and after the confirmation, so an entry made in another tab
+ * counts.
  */
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -34,39 +35,68 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-it.each([
-  { when: "in a competition", activeCompetitionId: "league-1", kept: true },
-  { when: "free", activeCompetitionId: undefined, kept: false },
-])(
-  "deletes a computer team only when it is free ($when)",
-  async ({ activeCompetitionId, kept }) => {
-    const team = createComputerTeam(
-      RosterName.ORC,
-      "Nuln Hammers",
-      0x335577,
-      "advanced-league"
+/** Team Management with one computer team, and its Delete button. */
+async function showTeam(): Promise<{
+  team: ReturnType<typeof createComputerTeam>;
+  remove: () => Promise<void>;
+}> {
+  const team = createComputerTeam(
+    RosterName.ORC,
+    "Nuln Hammers",
+    0x335577,
+    "advanced-league"
+  );
+  saveTeam(team);
+  await act(async () => {
+    root.render(
+      <MemoryRouter>
+        <TeamManagement />
+      </MemoryRouter>
     );
-    saveTeam(team);
-    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    await act(async () => {
-      root.render(
-        <MemoryRouter>
-          <TeamManagement />
-        </MemoryRouter>
-      );
-    });
+  });
+  expect(container.textContent).toContain("Computer");
+  return {
+    team,
+    remove: () =>
+      act(async () =>
+        container
+          .querySelector<HTMLButtonElement>('button[aria-label="Delete team"]')!
+          .click()
+      ),
+  };
+}
 
-    expect(container.textContent).toContain("Computer");
-    // Entered from another tab after this page rendered
-    if (activeCompetitionId) saveTeam({ ...team, activeCompetitionId });
-    await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Delete team"]')!
-        .click()
-    );
+const stored = (teamId: string) =>
+  loadTeams().some((candidate) => candidate.id === teamId);
 
-    expect(loadTeams().some((stored) => stored.id === team.id)).toBe(kept);
-    expect(alert).toHaveBeenCalledTimes(kept ? 1 : 0);
-  }
-);
+it("deletes a computer team that is free", async () => {
+  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { team, remove } = await showTeam();
+  await remove();
+  expect(stored(team.id)).toBe(false);
+  expect(alert).not.toHaveBeenCalled();
+});
+
+it("keeps one entered from another tab after the page rendered", async () => {
+  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { team, remove } = await showTeam();
+  saveTeam({ ...team, activeCompetitionId: "league-1" });
+  await remove();
+  expect(stored(team.id)).toBe(true);
+  expect(alert).toHaveBeenCalledTimes(1);
+  expect(confirm).not.toHaveBeenCalled();
+});
+
+it("keeps one entered while the confirmation was open", async () => {
+  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+  const { team, remove } = await showTeam();
+  vi.spyOn(window, "confirm").mockImplementation(() => {
+    saveTeam({ ...team, activeCompetitionId: "league-1" });
+    return true;
+  });
+  await remove();
+  expect(stored(team.id)).toBe(true);
+  expect(alert).toHaveBeenCalledTimes(1);
+});
