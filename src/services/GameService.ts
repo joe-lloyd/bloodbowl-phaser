@@ -25,7 +25,12 @@ import { BlockResult, BlockResolutionService } from "./BlockResolutionService";
 import { ActivationValidator } from "../game/validators/ActivationValidator.js";
 
 import { SetupManager } from "../game/managers/SetupManager";
-import { TurnManager, TurnManagerState } from "../game/managers/TurnManager";
+import {
+  NextHalf,
+  TurnManager,
+  TurnManagerState,
+} from "../game/managers/TurnManager";
+import { penaltyShootout } from "@/game/rules/extraTime";
 import { BallManager } from "../game/managers/BallManager";
 import { MovementManager } from "../game/managers/MovementManager";
 import { BlockManager } from "../game/managers/BlockManager";
@@ -51,6 +56,7 @@ import { weatherEffects } from "@/game/rules/weather";
 import { canSecureBall, isSecuringBall } from "@/game/rules/secureBall";
 import {
   ClearPitchOperation,
+  ExtraTimeKickoffOperation,
   KORecoveryOperation,
   StartNextDriveOperation,
   TouchdownCelebrationOperation,
@@ -287,8 +293,9 @@ export class GameService implements IGameService {
       {
         onPhaseChanged: (phase, subPhase) =>
           this.eventBus.emit(GameEventNames.PhaseChanged, { phase, subPhase }),
-        onHalfEnded: (secondHalfKickingTeamId) =>
-          this.endDrive("halftime", secondHalfKickingTeamId),
+        onHalfEnded: (next) => this.endDrive("halftime", next),
+        shootout: () =>
+          penaltyShootout(this.diceController, this.team1, this.team2),
         onTurnEnding: (endingTeamId) => this.handleTurnEnding(endingTeamId),
       },
       this.delay
@@ -1799,17 +1806,18 @@ export class GameService implements IGameService {
 
   /**
    * Post-game Update Dedicated Fans for both teams, on the played score: a
-   * concession never invents a result, so a conceded 0-0 is a draw.
+   * concession never invents a result, so a conceded 0-0 is a draw. A
+   * Penalty Shoot-out decides a knockout game left level.
    */
   private updateDedicatedFans(): void {
     const dice = this.diceController;
+    const penalties = this.state.result?.penalties ?? {};
     for (const team of [this.team1, this.team2]) {
-      const own = this.state.score[team.id] ?? 0;
-      const other =
-        this.state.score[
-          team.id === this.team1.id ? this.team2.id : this.team1.id
-        ] ?? 0;
-      const outcome = own > other ? "win" : own < other ? "loss" : "draw";
+      const otherId = team.id === this.team1.id ? this.team2.id : this.team1.id;
+      const lead =
+        (this.state.score[team.id] ?? 0) - (this.state.score[otherId] ?? 0) ||
+        (penalties[team.id] ?? 0) - (penalties[otherId] ?? 0);
+      const outcome = lead > 0 ? "win" : lead < 0 ? "loss" : "draw";
       updateDedicatedFans(team, outcome, () =>
         dice.rollD6(`Dedicated Fans (${team.name})`, team.id)
       );
@@ -1821,27 +1829,31 @@ export class GameService implements IGameService {
    * roll KO recovery, then restart with the given kicking team — no coin
    * flip after drive one. Runs as operations so the UI can pace each stage.
    */
-  endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void {
+  endDrive(reason: "touchdown" | "halftime", next: NextHalf): void {
     // A touchdown scored with no turns left in the half does not start a
     // further drive in that half: the sequence continues into halftime (or,
     // in the second half, to full time) instead.
     const halfOver =
       reason === "touchdown" && this.turnManager.isHalfExhausted();
-    const halftimeKickingTeamId = halfOver
-      ? this.turnManager.beginNextHalf()
-      : nextKickingTeamId;
+    const upNext = halfOver ? this.turnManager.beginNextHalf() : next;
+    const kickingTeamId =
+      upNext && "kickingTeamId" in upNext ? upNext.kickingTeamId : null;
 
     this.flowManager.add(
       new ClearPitchOperation(
         halfOver ? "halftime" : reason,
-        halftimeKickingTeamId ?? nextKickingTeamId,
-        halftimeKickingTeamId !== null
+        kickingTeamId,
+        upNext !== null
       )
     );
     this.flowManager.add(new KORecoveryOperation());
-    // Null kicking team = full time; there is no next drive to set up.
-    if (halftimeKickingTeamId === null) return;
-    this.flowManager.add(new StartNextDriveOperation(halftimeKickingTeamId));
+    // Nothing next = full time; there is no next drive to set up.
+    if (upNext === null) return;
+    this.flowManager.add(
+      kickingTeamId
+        ? new StartNextDriveOperation(kickingTeamId)
+        : new ExtraTimeKickoffOperation()
+    );
   }
 
   /**

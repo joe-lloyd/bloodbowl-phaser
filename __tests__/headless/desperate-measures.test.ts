@@ -146,7 +146,9 @@ describe("You Dope!", () => {
     // End of drive: You Dope! rolls 2, so Knocked-out. Were KO recovery
     // rolled for them, the 6 would bring them back.
     forceDice(game.ctx.rng, [2, 6, 6]);
-    game.ctx.gameService.endDrive("touchdown", game.ctx.team2.id);
+    game.ctx.gameService.endDrive("touchdown", {
+      kickingTeamId: game.ctx.team2.id,
+    });
     await settle();
     expect(doped.status).toBe(PlayerStatus.KO);
   });

@@ -9,6 +9,8 @@ export interface CompetitionContext {
   competitionType: CompetitionType;
   competitionId: string;
   fixtureId: string;
+  /** A knockout tie: a draw goes to Extra Time, then Penalties. */
+  knockout?: boolean;
 }
 
 /**

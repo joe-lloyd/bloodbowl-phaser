@@ -10,7 +10,7 @@ import { HalfTimeSummary, KoRecovery, summarizeHalfTime } from "./turnSummary";
 
 type HalfTimeView =
   | { kind: "closed" }
-  | { kind: "summary"; summary: HalfTimeSummary }
+  | { kind: "summary"; summary: HalfTimeSummary; extraTime: boolean }
   | { kind: "plain" };
 
 /**
@@ -35,6 +35,9 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
       const state = game.getState();
       setCard({
         kind: "summary",
+        // Before Extra Time nothing is replenished, and a roll-off decides
+        // who kicks
+        extraTime: !!state.turn.extraTime,
         summary: summarizeHalfTime(
           game.getTeams(),
           state.score,
@@ -84,17 +87,19 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
 
   if (card.kind === "closed") return null;
   const summary = card.kind === "summary" ? card.summary : null;
+  const extraTime = card.kind === "summary" && card.extraTime;
+  const title = extraTime ? "Extra time" : "Half time";
   return (
     <Panel
       as="section"
       data-testid="half-time-card"
-      aria-label="Half time"
+      aria-label={title}
       aria-live="polite"
       className="pointer-events-auto flex max-h-[min(45vh,340px)] w-full shrink-0 flex-col"
     >
       <PanelHeader
         as="h2"
-        title="Half time"
+        title={title}
         controls={
           <HudButton
             size="xs"
@@ -111,8 +116,10 @@ export function HalfTimeCard({ eventBus }: { eventBus: EventBus }) {
         {summary ? (
           <>
             <p className="font-bold">{summary.score}</p>
-            <p>{summary.kicker}</p>
-            <h3 className="hud-label mt-2">Re-rolls reset</h3>
+            <p>{extraTime ? "A roll-off decides who kicks" : summary.kicker}</p>
+            <h3 className="hud-label mt-2">
+              {extraTime ? "Re-rolls carried over" : "Re-rolls reset"}
+            </h3>
             <ul data-testid="half-time-rerolls">
               {summary.rerolls.map((line) => (
                 <li key={line}>{line}</li>

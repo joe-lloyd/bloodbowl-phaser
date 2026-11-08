@@ -49,6 +49,15 @@ with SPP instead of the official Sevens advancement in section 6.
 | M5 | Throw-in distance is D6+2 instead of 2D6. Everything else is unchanged. | ok |
 | M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | ok |
 
+A knockout tie cannot end level. The 2025 rulebook (p. 87) plays Extra
+Time and then Penalties, and the Sevens rules add nothing. The game plays
+Extra Time as one more Sevens half of 6 turns per team, where the rulebook
+says 8 for its 8-turn halves. Team Re-rolls are not replenished for it. A
+roll-off decides which coach chooses who kicks. If the score is still
+level, a Penalty Shoot-out of five roll-offs, re-rolling ties, decides the
+game and the result records it. A league or round-robin game may still end
+level.
+
 ### Kick-off event table (2D6)
 
 | ID | Roll | Event | Status |
