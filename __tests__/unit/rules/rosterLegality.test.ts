@@ -37,13 +37,21 @@ describe("rosterLegality", () => {
     expect(validateRosterLegality(team, humanRoster)).toEqual([]);
   });
 
-  it("rejects fewer than 7 players", () => {
+  it("rejects a draft of fewer than 7 players", () => {
     const team = teamWith(repeat(lineman, 6));
     expect(
       validateRosterLegality(team, humanRoster).some(
         (v) => v.rule === "roster-size"
       )
     ).toBe(true);
+  });
+
+  it("keeps a league team legal after injuries take it below 7 (D2)", () => {
+    // Journeymen make up the numbers at kick-off (L2)
+    const team = teamWith(repeat(lineman, 6));
+    team.advancementMode = "advanced-league";
+    team.firstMatchPlayedAt = 1;
+    expect(validateRosterLegality(team, humanRoster)).toEqual([]);
   });
 
   it("rejects a fifth non-Lineman", () => {
