@@ -17,6 +17,7 @@ import {
   ballMovementText,
 } from "../../src/ui/components/hud/ballMovementLog";
 import { secondsLeftText } from "../../src/ui/pages/TurnClock";
+import { buttonLabel } from "../utils/test-helpers";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -89,7 +90,7 @@ it("keeps RE-ROLL whole on the re-roll button", async () => {
     })
   );
   const button = container.querySelector('[data-testid="reroll-use-team"]');
-  expect(button?.textContent).toBe("USE TEAM RE-ROLL (2 left)");
+  expect(buttonLabel(button)).toBe("USE TEAM RE-ROLL (2 left)");
   expect(button?.querySelector(".whitespace-nowrap")?.textContent).toBe(
     "RE-ROLL"
   );

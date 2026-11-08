@@ -15,6 +15,7 @@ import { GameEventNames } from "@/types/events";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
 import { DialogShell, HudButton } from "../componentWarehouse/HudKit";
+import { useHotkey } from "../../hotkeys";
 
 interface BlockDiceDialogProps {
   eventBus: EventBus;
@@ -303,7 +304,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
         canAct && (
           <div className="flex items-center justify-between gap-3">
             {!rollData && !isRolling && !heldDice ? (
-              <HudButton variant="ghost" onClick={handleCancel}>
+              <HudButton variant="ghost" hotkey="Escape" onClick={handleCancel}>
                 Cancel
               </HudButton>
             ) : (
@@ -313,6 +314,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
               data-testid="block-roll-dice"
               variant="primary"
               size="lg"
+              hotkey="Enter"
               onClick={handleRoll}
               disabled={isRolling}
             >
@@ -378,28 +380,26 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
             {canAct &&
               (!rerollFirst || proMode) &&
               shownRoll.results.map((result, idx) => (
-                <button
+                <DieChoice
                   key={idx}
-                  data-testid={`block-die-${idx}`}
-                  data-block-result={result.type}
-                  onClick={() => pickRef.current?.(idx)}
-                  // Hidden until a keyboard focuses it, then a plain button
-                  className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
+                  index={idx}
+                  result={result.type}
+                  onPick={() => pickRef.current?.(idx)}
                 >
                   {proMode ? `Re-roll ${result.label}` : result.label}
-                </button>
+                </DieChoice>
               ))}
           </div>
           <div className="rounded-hud border border-hud-gold/30 bg-hud-gold/10 px-3 py-2 text-center font-hud-label text-hud-base font-semibold text-hud-gold">
             {chosen
               ? `Chosen: ${chosen.replace(/-/g, " ").toUpperCase()}`
               : proMode
-                ? "Pro: click a die in the tray to re-roll it (3+)"
+                ? `Pro: click a die in the tray, or press ${dieKeys(shownRoll.results.length)}, to re-roll it (3+)`
                 : getActiveOnlineMatch()?.mayAct() === false
                   ? "The other coach is choosing…"
                   : rerollFirst
                     ? `${attackingTeam?.name ?? "Attacking team"}: re-roll first?`
-                    : "Click a die in the tray to choose the result"}
+                    : `Click a die in the tray, or press ${dieKeys(shownRoll.results.length)}, to choose the result`}
           </div>
           {canAct &&
             (shownRoll.teamRerollAvailable ||
@@ -411,6 +411,7 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
                   <HudButton
                     data-testid="block-team-reroll"
                     size="sm"
+                    hotkey="r"
                     onClick={handleTeamReroll}
                   >
                     TEAM RE-ROLL (all dice)
@@ -454,3 +455,35 @@ export const BlockDiceDialog: React.FC<BlockDiceDialogProps> = ({
     </DialogShell>
   );
 };
+
+/** The keys for the dice in the tray, left to right: "1", "1 or 2", "1 to 3". */
+const dieKeys = (count: number) =>
+  count === 1 ? "1" : count === 2 ? "1 or 2" : `1 to ${count}`;
+
+/**
+ * A die's result as a button, pressed by its number in the tray. Hidden
+ * until a keyboard focuses it, then a plain button.
+ */
+function DieChoice({
+  index,
+  result,
+  onPick,
+  children,
+}: {
+  index: number;
+  result: string;
+  onPick: () => void;
+  children: React.ReactNode;
+}) {
+  useHotkey(String(index + 1), onPick);
+  return (
+    <button
+      data-testid={`block-die-${index}`}
+      data-block-result={result}
+      onClick={onPick}
+      className="sr-only focus:not-sr-only focus:rounded-hud focus:border focus:border-hud-gold focus:bg-hud-raise focus:px-3 focus:py-1 focus:font-hud-label focus:text-hud-sm focus:font-bold focus:text-hud-bone"
+    >
+      {children}
+    </button>
+  );
+}

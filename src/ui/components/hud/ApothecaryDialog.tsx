@@ -94,10 +94,10 @@ export const ApothecaryDialog: React.FC<ApothecaryDialogProps> = ({
       width="w-[460px]"
       actions={
         <DialogActions>
-          <HudButton variant="ghost" onClick={() => answer(false)}>
+          <HudButton variant="ghost" hotkey="n" onClick={() => answer(false)}>
             DECLINE
           </HudButton>
-          <HudButton variant="gold" onClick={() => answer(true)}>
+          <HudButton variant="gold" hotkey="y" onClick={() => answer(true)}>
             USE APOTHECARY
           </HudButton>
         </DialogActions>

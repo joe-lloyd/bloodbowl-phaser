@@ -97,6 +97,11 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
     }
   };
 
+  // Numbered in the order shown, from 1
+  const offered = request.sources.filter(
+    (source) => source !== "team" || teamReroll
+  );
+
   return (
     <DialogShell
       placement="dock"
@@ -105,7 +110,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
       title="Re-roll?"
       actions={
         <DialogActions stack>
-          {request.sources.map((source) => {
+          {offered.map((source, index) => {
             let label: string;
             switch (source) {
               case "skill":
@@ -132,6 +137,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
                   data-testid={`reroll-use-${source}`}
                   variant={source === "veteran" ? "secondary" : "gold"}
                   block
+                  hotkey={String(index + 1)}
                   onClick={() => answer(true, source)}
                 >
                   {keepRerollWhole(label)}
@@ -169,6 +175,7 @@ export const RerollDialog: React.FC<RerollDialogProps> = ({ eventBus }) => {
             data-testid="reroll-decline"
             variant="ghost"
             block
+            hotkey="n"
             onClick={() => answer(false)}
           >
             DECLINE

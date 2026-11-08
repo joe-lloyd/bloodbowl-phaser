@@ -120,6 +120,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
           <HudButton
             data-testid="follow-up-no"
             variant="ghost"
+            hotkey="n"
             onClick={handleNo}
           >
             NO
@@ -127,6 +128,7 @@ export const FollowUpDialog: React.FC<FollowUpDialogProps> = ({ eventBus }) => {
           <HudButton
             data-testid="follow-up-yes"
             variant="gold"
+            hotkey="y"
             onClick={handleYes}
           >
             YES

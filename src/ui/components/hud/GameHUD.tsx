@@ -9,6 +9,7 @@ import { TurnIndicator } from "./TurnIndicator";
 import { MatchStrip } from "./MatchStrip";
 import { ScoreBoard } from "./ScoreBoard";
 import { EndTurnButton } from "./EndTurnButton";
+import { KeyList } from "./KeyList";
 import { Announcer } from "./Announcer";
 import { GamePhase } from "../../../types/GameState";
 import { GameEventNames } from "../../../types/events";
@@ -255,6 +256,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const menuEntries: MatchOptionsMenuEntry[] = [
     ...computeMatchOptionsMenu(menuContext),
     { type: "panel", id: "sound-settings", render: () => <SoundToggle /> },
+    { type: "panel", id: "keys", render: () => <KeyList /> },
   ];
 
   // A failure here must never strand the coach mid-match with their state

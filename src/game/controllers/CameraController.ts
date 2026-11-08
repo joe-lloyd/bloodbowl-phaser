@@ -6,12 +6,15 @@ import { prefersReducedMotion as reducedMotion } from "../presentation/motion";
 import { PitchThemeId, resolvePitchTheme } from "../presentation/pitchThemes";
 import { matchesMedia, TOUCH_QUERY } from "../presentation/phoneLayout";
 import { ISO } from "../elements/GridUtils";
+import { isTyping } from "../presentation/keyboardFocus";
 
 type Point = { x: number; y: number };
 
 /** How much closer than the overview the camera sits on the action. */
 const ACTION_ZOOM = 1.5;
 const MOVE_MS = 700;
+/** How fast WASD or the arrow keys slide the view, in screen pixels a second. */
+const KEY_PAN_PX_PER_S = 900;
 
 /** A rectangle on screen, in the game canvas's pixels. */
 export interface ScreenRect {
@@ -479,6 +482,37 @@ export class CameraController {
     this.unsubscribers.push(() => {
       input.off("wheel", onWheel);
       input.off("pointermove", onMove);
+    });
+    this.bindPanKeys();
+  }
+
+  /** WASD and the arrow keys slide the view while held. */
+  private bindPanKeys(): void {
+    const keyboard = this.scene.input.keyboard;
+    if (!keyboard) return;
+    const { KeyCodes } = Phaser.Input.Keyboard;
+    // No capture: a focused text field still gets its letters and arrows
+    const held = (...codes: number[]) =>
+      codes.map((code) => keyboard.addKey(code, false));
+    const left = held(KeyCodes.A, KeyCodes.LEFT);
+    const right = held(KeyCodes.D, KeyCodes.RIGHT);
+    const up = held(KeyCodes.W, KeyCodes.UP);
+    const down = held(KeyCodes.S, KeyCodes.DOWN);
+    const pressed = (keys: Phaser.Input.Keyboard.Key[]) =>
+      keys.some((key) => key.isDown) ? 1 : 0;
+    const onUpdate = (_time: number, delta: number) => {
+      const x = pressed(right) - pressed(left);
+      const y = pressed(down) - pressed(up);
+      if ((!x && !y) || isTyping(document.activeElement)) return;
+      const step = (KEY_PAN_PX_PER_S * delta) / 1000 / Math.hypot(x, y);
+      // panBy drags the board; the view moves the other way
+      this.panBy(-x * step, -y * step);
+    };
+    this.scene.events.on(Phaser.Scenes.Events.UPDATE, onUpdate);
+    this.unsubscribers.push(() => {
+      this.scene.events.off(Phaser.Scenes.Events.UPDATE, onUpdate);
+      for (const key of [...left, ...right, ...up, ...down])
+        keyboard.removeKey(key, true);
     });
   }
 
