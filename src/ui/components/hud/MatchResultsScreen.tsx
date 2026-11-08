@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ServiceContainer } from "../../../services/ServiceContainer";
-import { calculateTeamValue, Team } from "../../../types/Team";
+import { Team } from "../../../types/Team";
 import { MatchResult } from "../../../types/GameState";
 import {
   MatchStatsSummary,
@@ -10,14 +10,8 @@ import {
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
-import { saveTeam } from "../../../game/managers/TeamManager";
-import { mustAdvance } from "../../../game/progression/progression";
-import {
-  createPendingSkillSelection,
-  eligibleSkillSelectionPlayers,
-} from "../../../game/progression/advancementModes";
-import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
-import { offerRaisedDeadRecruit } from "../../../game/rules/raiseDead";
+import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
+import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import { keepRecordedResult } from "../../../competition/resultRecording";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
@@ -25,11 +19,23 @@ import { injuryLabel, playerLabel } from "./turnSummary";
 
 interface Props {
   visible: boolean;
+  /** Where Leave goes; a competition game returns to its competition. */
+  leaveTo?: string;
 }
 
 function ownedTeams(teams: Team[]): Team[] {
   const online = getActiveOnlineMatch();
   return online ? teams.filter((team) => team.id === online.myTeamId) : teams;
+}
+
+/**
+ * The teams this page saves. Against the computer, every team in this
+ * coach's library: in a competition the computer's team is the organizer's.
+ */
+function savedTeams(teams: Team[]): Team[] {
+  return getActiveOnlineMatch()?.kind === "computer"
+    ? teams.filter((team) => !!getTeamById(team.id))
+    : ownedTeams(teams);
 }
 
 /**
@@ -60,7 +66,7 @@ function outcomeLabel(
   return `${scoreA > scoreB ? a.name : b.name} win`;
 }
 
-export function MatchResultsScreen({ visible }: Props) {
+export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   const navigate = useNavigate();
   const container = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance()
@@ -89,6 +95,9 @@ export function MatchResultsScreen({ visible }: Props) {
   const [competitionRecorded, setCompetitionRecorded] = useState(false);
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
+  const computerMvpRolled = useRef(new Set<string>());
+  /** Computer teams whose MVP did not roll by itself: the coach rolls it. */
+  const [computerMvpFailed, setComputerMvpFailed] = useState<string[]>([]);
 
   // Idempotency across rerender/resume/reconnect: seed from the tracker's
   // own persisted state instead of only from live events, so a remount never
@@ -143,11 +152,49 @@ export function MatchResultsScreen({ visible }: Props) {
     };
   }, [container]);
 
+  // The computer names its own MVP nominees: the first six who took part.
+  useEffect(() => {
+    const online = getActiveOnlineMatch();
+    if (!visible || !tracker?.progressionEnabled || tracker.applied) return;
+    if (online?.kind !== "computer") return;
+    const awarded = new Set(
+      tracker
+        .summary()
+        .players.filter((stats) => stats.mvps > 0)
+        .map((stats) => stats.teamId)
+    );
+    for (const teamId of teamIds) {
+      if (teamId === online.myTeamId || awarded.has(teamId)) continue;
+      if (computerMvpRolled.current.has(teamId)) continue;
+      computerMvpRolled.current.add(teamId);
+      void online
+        .runProgressionCommand({
+          type: "award-mvp",
+          teamId,
+          nominatedPlayerIds: tracker.getEligibleMvpPlayers(teamId).slice(0, 6),
+        })
+        .then((response) => {
+          if (!response.ok) throw new Error(response.reason ?? "MVP rejected");
+          refresh((value) => value + 1);
+        })
+        .catch((cause: unknown) => {
+          setComputerMvpFailed((failed) => [...failed, teamId]);
+          setError(cause instanceof Error ? cause.message : String(cause));
+        });
+    }
+  }, [visible, tracker, teamIds]);
+
   if (!visible || !container || !tracker) return null;
 
   const state = container.gameService.getState();
   const result = state.result;
   const own = ownedTeams(teams);
+  const mvpTeams = [
+    ...own,
+    ...teams.filter(
+      (team) => computerMvpFailed.includes(team.id) && !own.includes(team)
+    ),
+  ];
   const statsSummary = tracker.summary(teams.flatMap((team) => team.players));
   const pendingMvpTeams = teams.filter(
     (team) =>
@@ -228,47 +275,13 @@ export function MatchResultsScreen({ visible }: Props) {
     }
   };
 
-  /**
-   * Records mode-specific pending development but does NOT resolve it here:
-   * per team-advancement-modes, "the results screen SHALL NOT require
-   * direct skill assignment" — Advanced League advancements and Sevens
-   * Skill Selection awards are completed later from Manage Team.
-   */
-  const recordPendingDevelopment = (matchId: string) => {
-    ownedTeams(teams).forEach((team) => {
-      const raisedId = container?.gameService.getState().raisedDead?.[team.id];
-      if (raisedId) offerRaisedDeadRecruit(team, raisedId);
-      if (team.advancementMode === "sevens-skill-selection") {
-        const eligible = eligibleSkillSelectionPlayers(team);
-        if (eligible.length > 0) {
-          createPendingSkillSelection(team, matchId, eligible);
-        }
-      } else if (
-        !team.advancementMode ||
-        team.advancementMode === "advanced-league"
-      ) {
-        team.players.filter(mustAdvance).forEach((player) => {
-          team.pendingDevelopment ??= [];
-          const already = team.pendingDevelopment.some(
-            (entry) =>
-              entry.kind === "advanced-league-advancement" &&
-              entry.playerId === player.id
-          );
-          if (!already) {
-            team.pendingDevelopment.push({
-              id: `pending-${matchId}-${player.id}`,
-              kind: "advanced-league-advancement",
-              playerId: player.id,
-              createdAt: Date.now(),
-            });
-          }
-        });
-      }
-      team.teamValue = calculateTeamValue(team);
-      // A confirmed post-match result is this team's completed match —
-      // stamp it active (idempotent; see teamLifecycle.ts). Abandoning
-      // before this point never reaches here, so it never activates.
-      stampFirstCompletedMatch(team);
+  const recordDevelopment = (matchId: string) => {
+    savedTeams(teams).forEach((team) => {
+      recordPendingDevelopment(
+        team,
+        matchId,
+        container?.gameService.getState().raisedDead?.[team.id]
+      );
       keepRecordedResult(team);
       saveTeam(team);
     });
@@ -280,7 +293,7 @@ export function MatchResultsScreen({ visible }: Props) {
         result?.reason === "concession" ? result.concedingTeamId : undefined;
       const finalSummary = tracker.applySpp(teams, concedingTeamId);
       foldMatchSummaryIntoCareers(teams, finalSummary);
-      recordPendingDevelopment(`match-${Date.now()}`);
+      recordDevelopment(`match-${Date.now()}`);
       setConfirmed(true);
       setError("");
     } catch (cause) {
@@ -291,7 +304,7 @@ export function MatchResultsScreen({ visible }: Props) {
   const leave = () => {
     if (!canExit) return;
     clearMatchSave();
-    navigate("/");
+    navigate(leaveTo);
   };
 
   return (
@@ -346,7 +359,7 @@ export function MatchResultsScreen({ visible }: Props) {
         {progressionEnabled && !confirmed && (
           <>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              {own.map((team) => {
+              {mvpTeams.map((team) => {
                 const eligibleIds = tracker.getEligibleMvpPlayers(team.id);
                 const nominees = nomineesFor(team);
                 const mvpResult = mvpResults[team.id];
@@ -477,7 +490,9 @@ export function MatchResultsScreen({ visible }: Props) {
           }
           className={`${hudButtonClass("primary", "lg")} mt-6`}
         >
-          Continue to Main Menu
+          {leaveTo === "/"
+            ? "Continue to Main Menu"
+            : "Back to the competition"}
         </button>
         {!canExit && (
           <p className="mt-2 text-hud-sm italic text-hud-dim">

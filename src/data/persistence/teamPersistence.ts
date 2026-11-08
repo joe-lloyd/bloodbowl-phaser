@@ -99,6 +99,7 @@ export interface StoredTeam {
   matchedPlayAllocations?: MatchedPlayAllocation[];
   draftInducements?: InducementSelectionLine[];
   draftHistory?: DraftRecord[];
+  computerCoached?: true;
 }
 
 const INDUCEMENTS = new Set<string>(Object.values(Inducement));
@@ -405,6 +406,7 @@ export function hydrateStoredTeam(
     ...(raw.advancementModeLocked
       ? { advancementModeLocked: Boolean(raw.advancementModeLocked) }
       : {}),
+    ...(raw.computerCoached === true ? { computerCoached: true as const } : {}),
     ...(Array.isArray(raw.pendingDevelopment)
       ? { pendingDevelopment: raw.pendingDevelopment as PendingDevelopment[] }
       : {}),
@@ -475,6 +477,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
       ? { draftInducements: team.draftInducements }
       : {}),
     ...(team.draftHistory ? { draftHistory: team.draftHistory } : {}),
+    ...(team.computerCoached ? { computerCoached: true as const } : {}),
   };
 }
 

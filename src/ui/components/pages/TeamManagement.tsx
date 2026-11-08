@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import {
   deleteTeam,
+  getTeamById,
   seedAllRosterTeams,
   deleteAllSeedTeams,
 } from "../../../game/managers/TeamManager";
@@ -58,10 +59,29 @@ export function TeamManagement() {
     navigate(`/build-team/${teamId}`);
   };
 
-  const handleDeleteTeam = (teamId: string) => {
-    if (confirm("Are you sure you want to delete this team?")) {
-      deleteTeam(teamId);
+  /**
+   * A computer team still in a competition stays: its games could no longer
+   * be played or simulated. This early check avoids an unnecessary prompt;
+   * the backend checks current membership when deletion is confirmed.
+   */
+  const stillPlaying = (teamId: string): boolean => {
+    const team = getTeamById(teamId);
+    if (!team?.computerCoached || !team.activeCompetitionId) return false;
+    alert(
+      "This computer team is still playing in a competition. Delete it once the competition is over."
+    );
+    return true;
+  };
+
+  const handleDeleteTeam = async (teamId: string) => {
+    if (stillPlaying(teamId)) return;
+    if (!confirm("Are you sure you want to delete this team?")) return;
+    try {
+      // The backend checks membership again at the point of deletion.
+      await deleteTeam(teamId);
       reloadTeams();
+    } catch (reason) {
+      alert(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
@@ -131,7 +151,10 @@ export function TeamManagement() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => {
+          {[
+            ...teams.filter((team) => !team.computerCoached),
+            ...teams.filter((team) => team.computerCoached),
+          ].map((team) => {
             const status = teamStatus(team);
             return (
               <Panel
@@ -156,6 +179,11 @@ export function TeamManagement() {
                     {team.advancementMode && (
                       <Chip tone="info" title="Advancement mode">
                         {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
+                      </Chip>
+                    )}
+                    {team.computerCoached && (
+                      <Chip title="The computer coaches this team in leagues and cups">
+                        Computer
                       </Chip>
                     )}
                   </div>
@@ -222,7 +250,7 @@ export function TeamManagement() {
                   </HudButton>
                   <HudButton
                     variant="danger"
-                    onClick={() => handleDeleteTeam(team.id)}
+                    onClick={() => void handleDeleteTeam(team.id)}
                     aria-label="Delete team"
                     title="Delete team"
                     className="shrink-0"

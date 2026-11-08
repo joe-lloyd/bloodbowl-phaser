@@ -4,7 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Team } from "../../src/types/Team";
+import { RosterName, Team } from "../../src/types/Team";
+
+const cloudDocuments = vi.hoisted(() => new Map<string, unknown>());
 
 // Mock the Firestore SDK surface used by cloudTeamRepository. Refs encode
 // their path so assertions can check which user's library was touched.
@@ -15,8 +17,30 @@ vi.mock("firebase/firestore", () => ({
   doc: vi.fn((col: { path: string }, id: string) => ({
     path: `${col.path}/${id}`,
   })),
-  setDoc: vi.fn(() => Promise.resolve()),
-  deleteDoc: vi.fn(() => Promise.resolve()),
+  setDoc: vi.fn((ref: { path: string }, data: unknown) => {
+    cloudDocuments.set(ref.path, data);
+    return Promise.resolve();
+  }),
+  runTransaction: vi.fn(
+    async (
+      _db: unknown,
+      run: (transaction: {
+        get: (ref: {
+          path: string;
+        }) => Promise<{ exists: () => boolean; data: () => unknown }>;
+        delete: (ref: { path: string }) => void;
+      }) => Promise<void>
+    ) =>
+      run({
+        get: async (ref) => ({
+          exists: () => cloudDocuments.has(ref.path),
+          data: () => cloudDocuments.get(ref.path),
+        }),
+        delete: (ref) => {
+          cloudDocuments.delete(ref.path);
+        },
+      })
+  ),
   getDocs: vi.fn(() => Promise.resolve({ docs: [] })),
 }));
 
@@ -25,19 +49,20 @@ vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => true),
 }));
 
-import { setDoc, deleteDoc } from "firebase/firestore";
+import { setDoc } from "firebase/firestore";
 import {
   saveTeams,
   loadTeams,
   setTeamRepository,
+  deleteTeam,
 } from "../../src/game/managers/TeamManager";
+import { createComputerTeam } from "../../src/competition/computerTeams";
 import {
   CloudTeamRepository,
   migrateLocalTeams,
 } from "../../src/firebase/cloudTeamRepository";
 
 const setDocMock = vi.mocked(setDoc);
-const deleteDocMock = vi.mocked(deleteDoc);
 
 function makeTeam(id: string, name = id): Team {
   return { id, name, players: [] } as unknown as Team;
@@ -50,9 +75,31 @@ beforeEach(() => {
   localStorage.clear();
   setTeamRepository(null);
   vi.clearAllMocks();
+  cloudDocuments.clear();
 });
 
 describe("signed-out persistence", () => {
+  it("reports a failed deletion and keeps the local team", () => {
+    const team = createComputerTeam(
+      RosterName.ORC,
+      "Local team",
+      0x224488,
+      "advanced-league"
+    );
+    saveTeams([team]);
+    const write = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementationOnce(() => {
+        throw new Error("Storage is unavailable");
+      });
+    try {
+      expect(() => deleteTeam(team.id)).toThrow("Storage is unavailable");
+      expect(loadTeams().map((saved) => saved.id)).toEqual([team.id]);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   it("saves and loads through localStorage", () => {
     saveTeams([makeTeam("t1", "Locals")]);
 
@@ -65,6 +112,61 @@ describe("signed-out persistence", () => {
 });
 
 describe("signed-in cloud repository", () => {
+  it("refuses deletion when another repository entered the computer team", async () => {
+    const team = createComputerTeam(
+      RosterName.ORC,
+      "Nuln Hammers",
+      0x224488,
+      "advanced-league"
+    );
+    const staleTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
+    const otherTab = new CloudTeamRepository("user-a", [structuredClone(team)]);
+    otherTab.saveTeams([{ ...team, activeCompetitionId: "league-1" }]);
+    await flush();
+    setTeamRepository(staleTab);
+    expect(loadTeams()[0].activeCompetitionId).toBeUndefined();
+
+    await expect(
+      Promise.resolve().then(() => deleteTeam(team.id))
+    ).rejects.toThrow("still playing in a competition");
+
+    expect(cloudDocuments.get(`users/user-a/teams/${team.id}`)).toMatchObject({
+      id: team.id,
+      activeCompetitionId: "league-1",
+    });
+    expect(loadTeams().map((saved) => saved.id)).toEqual([team.id]);
+  });
+
+  it("deletes a free team without overwriting another tab's changes to other teams", async () => {
+    const team = createComputerTeam(
+      RosterName.ORC,
+      "Free team",
+      0x224488,
+      "advanced-league"
+    );
+    const keep = createComputerTeam(
+      RosterName.HUMAN,
+      "Keep me",
+      0x224488,
+      "advanced-league"
+    );
+    const staleTab = new CloudTeamRepository("user-a", [team, keep]);
+    const otherTab = new CloudTeamRepository("user-a", [
+      structuredClone(team),
+      structuredClone(keep),
+    ]);
+    otherTab.saveTeams([team, { ...keep, activeCompetitionId: "league-2" }]);
+    await flush();
+    setTeamRepository(staleTab);
+
+    await deleteTeam(team.id);
+
+    expect(cloudDocuments.has(`users/user-a/teams/${team.id}`)).toBe(false);
+    expect(cloudDocuments.get(`users/user-a/teams/${keep.id}`)).toMatchObject({
+      activeCompetitionId: "league-2",
+    });
+    expect(loadTeams().map((saved) => saved.id)).toEqual([keep.id]);
+  });
   it("reads from the primed cache and writes through to own library only", async () => {
     setTeamRepository(new CloudTeamRepository("user-a", [makeTeam("cloud1")]));
 
@@ -92,14 +194,13 @@ describe("signed-in cloud repository", () => {
       new CloudTeamRepository("user-a", [makeTeam("keep"), makeTeam("drop")])
     );
 
+    saveTeams([makeTeam("keep"), makeTeam("drop")]);
+    await flush();
+
     saveTeams([makeTeam("keep")]);
     await flush();
 
-    expect(
-      deleteDocMock.mock.calls.map(
-        (call) => (call[0] as unknown as { path: string }).path
-      )
-    ).toEqual(["users/user-a/teams/drop"]);
+    expect([...cloudDocuments.keys()]).toEqual(["users/user-a/teams/keep"]);
   });
 });
 

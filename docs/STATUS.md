@@ -9,7 +9,8 @@ Local two-coach matches support team selection, setup, kick-offs, regular and
 special player actions, scoring, half-time, results and saved-match resume.
 A [computer coach](technical/computer-coach.md) can take Player 2 instead, at
 Standard, Hard or Legend difficulty.
-Teams can develop across matches and enter leagues or tournaments.
+Teams can develop across matches and enter leagues or tournaments, against
+other coaches or computer teams whose games the computer simulates.
 The [roster update audit](ROSTER_UPDATES_2026.md) records the 2026 data updates
 and their sources.
 

@@ -9,10 +9,18 @@ import {
   fetchEntrantTeam,
   refreshEntrantDisplays,
 } from "../../../competition/teamRefs";
+import { manageComputerTeams } from "../../../competition/computerTeams";
+import {
+  simulatableFixtures,
+  simulateFixture,
+} from "../../../competition/simulateFixture";
+import { RNGService } from "../../../services/rng/RNGService";
+import { injuryLabel, playerLabel } from "../hud/turnSummary";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import {
   CompetitionContext,
   CompetitionDoc,
+  CompetitionEntrant,
   CompetitionFixture,
   CompetitionType,
 } from "../../../competition/types";
@@ -43,6 +51,22 @@ type DraftScore = {
 };
 type DraftScores = Record<string, DraftScore>;
 
+/** A simulated game, as the page lists it. */
+type SimulatedResult = {
+  fixtureId: string;
+  round: number;
+  home: string;
+  away: string;
+  homeScore: number;
+  awayScore: number;
+  penalties?: { home: number; away: number };
+  /** "Grim #4 (Nuln Hammers): Dead" */
+  casualties: string[];
+};
+
+const computerCoached = (entrant?: CompetitionEntrant) =>
+  !!entrant?.computerCoached;
+
 export function CompetitionView({ type }: { type: CompetitionType }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -51,12 +75,25 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   const [scores, setScores] = useState<DraftScores>({});
   const [error, setError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
+  /** The game being simulated, while the computer plays it. */
+  const [simulating, setSimulating] = useState<string | null>(null);
+  const [simulated, setSimulated] = useState<SimulatedResult[]>([]);
 
   useEffect(() => {
     if (!id) return;
     void getCompetition(type, id)
       .then((loaded) => {
         if (!loaded) return setCompetition(loaded);
+        // The computer makes its teams' development choices, including
+        // any left by a game a person played against one.
+        // A failure here must not keep the competition from showing.
+        try {
+          manageComputerTeams(loaded, new RNGService(Date.now() % 2 ** 31));
+        } catch (reason) {
+          setError(
+            `The computer could not manage its teams: ${reason instanceof Error ? reason.message : String(reason)}`
+          );
+        }
         // Cached display names (team renames) refresh for whatever this
         // reader can currently see; the refreshed copy is what renders.
         const refreshed = refreshEntrantDisplays(loaded);
@@ -95,6 +132,13 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     [fixture.homeEntrantId, fixture.awayEntrantId].some(
       (id) => !!user && entrant(id)?.ownerUid === user.uid
     );
+  // The computer's teams are in the organizer's library
+  const canSimulate =
+    !competition.organizerUid || competition.organizerUid === user?.uid;
+  const toSimulate = canSimulate ? simulatableFixtures(competition) : [];
+  const roundToSimulate = Math.min(
+    ...toSimulate.map((fixture) => fixture.round)
+  );
   const champion =
     competition.type === "tournament"
       ? entrant(competition.championEntrantId ?? null)
@@ -178,11 +222,20 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
-  const launchLocal = async (fixture: CompetitionFixture) => {
+  /**
+   * Load both rosters and, when they may play, start the match. A local
+   * match replaces the saved one, so it asks first.
+   */
+  const launch = async (
+    fixture: CompetitionFixture,
+    local: boolean,
+    start: (homeTeam: Team, awayTeam: Team) => void
+  ) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
     if (
+      local &&
       readMatchSave() &&
       !window.confirm(
         "Starting this fixture will replace your saved local match. Continue?"
@@ -190,40 +243,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     ) {
       return;
     }
-    setLaunching(true);
-    try {
-      const [team1, team2] = await Promise.all([
-        fetchEntrantTeam(home),
-        fetchEntrantTeam(away),
-      ]);
-      if (!team1 || !team2) {
-        setError("Could not load one of the entrants' rosters.");
-        return;
-      }
-      const blocked = blockingDevelopment(team1, home.name, team2, away.name);
-      if (blocked) {
-        setError(blocked);
-        return;
-      }
-      clearMatchSave();
-      navigate("/play", {
-        state: {
-          team1,
-          team2,
-          competitionContext: contextFor(fixture),
-          // A league or tournament game counts: SPP and development
-          progressionEnabled: true,
-        },
-      });
-    } finally {
-      setLaunching(false);
-    }
-  };
-
-  const launchHosted = async (fixture: CompetitionFixture) => {
-    const home = entrant(fixture.homeEntrantId);
-    const away = entrant(fixture.awayEntrantId);
-    if (!home || !away) return;
     setLaunching(true);
     try {
       const [homeTeam, awayTeam] = await Promise.all([
@@ -244,6 +263,28 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         setError(blocked);
         return;
       }
+      if (local) clearMatchSave();
+      start(homeTeam, awayTeam);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  const launchLocal = (fixture: CompetitionFixture) =>
+    launch(fixture, true, (team1, team2) =>
+      navigate("/play", {
+        state: {
+          team1,
+          team2,
+          competitionContext: contextFor(fixture),
+          // A league or tournament game counts: SPP and development
+          progressionEnabled: true,
+        },
+      })
+    );
+
+  const launchHosted = (fixture: CompetitionFixture) =>
+    launch(fixture, false, (homeTeam, awayTeam) =>
       navigate("/online/host", {
         state: {
           competitionFixture: {
@@ -252,9 +293,77 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             awayTeam,
           },
         },
-      });
+      })
+    );
+
+  /** A person coaches one side and the computer the other. */
+  const launchComputer = (
+    fixture: CompetitionFixture,
+    humanEntrantId: string
+  ) =>
+    launch(fixture, true, (team1, team2) =>
+      navigate("/play/computer", {
+        state: {
+          team1,
+          team2,
+          computerTeamId:
+            humanEntrantId === fixture.homeEntrantId ? team2.id : team1.id,
+          difficulty: competition.computerDifficulty,
+          progressionEnabled: true,
+          competitionContext: contextFor(fixture),
+        },
+      })
+    );
+
+  /**
+   * Simulate games one after another, each picked from the competition as
+   * the last left it, until `next` finds none.
+   */
+  const simulate = async (
+    next: (latest: CompetitionDoc) => CompetitionFixture | undefined
+  ) => {
+    let latest = competition;
+    const results: SimulatedResult[] = [];
+    setError(null);
+    try {
+      for (let fixture = next(latest); fixture; fixture = next(latest)) {
+        const name = (entrantId: string | null) =>
+          latest.entrants.find((candidate) => candidate.id === entrantId)
+            ?.name ?? "TBD";
+        setSimulating(
+          `${name(fixture.homeEntrantId)} v ${name(fixture.awayEntrantId)}`
+        );
+        // Let the page show which game is on before the match runs
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const outcome = await simulateFixture(latest, fixture.id);
+        latest = refreshEntrantDisplays(outcome.competition);
+        const result = outcome.fixture.result!;
+        results.unshift({
+          fixtureId: fixture.id,
+          round: fixture.round,
+          home: name(fixture.homeEntrantId),
+          away: name(fixture.awayEntrantId),
+          homeScore: result.homeScore,
+          awayScore: result.awayScore,
+          ...(result.penalties ? { penalties: result.penalties } : {}),
+          casualties: outcome.casualties.map(
+            ({ team, player }) =>
+              `${playerLabel(player)} (${team.name}): ${injuryLabel(player) ?? "Casualty"}`
+          ),
+        });
+        setCompetition(latest);
+        setSimulated((shown) => [
+          ...results,
+          ...shown.filter(
+            (earlier) =>
+              !results.some((result) => result.fixtureId === earlier.fixtureId)
+          ),
+        ]);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      setLaunching(false);
+      setSimulating(null);
     }
   };
 
@@ -268,6 +377,56 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   // every keystroke and lose focus.
   const fixtureActions = ({ fixture, home, away }: BracketFixtureContext) => {
     if (!canReport(fixture)) return null;
+    const busy = launching || simulating !== null;
+    if (home && away && computerCoached(home) && computerCoached(away)) {
+      return (
+        <div className="flex flex-wrap gap-2">
+          {canSimulate && (
+            <HudButton
+              variant="primary"
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                void simulate((latest) =>
+                  simulatableFixtures(latest).find(
+                    (candidate) => candidate.id === fixture.id
+                  )
+                )
+              }
+            >
+              Simulate
+            </HudButton>
+          )}
+          {[home, away].map((side) => (
+            <HudButton
+              key={side.id}
+              size="sm"
+              disabled={busy}
+              onClick={() => void launchComputer(fixture, side.id)}
+            >
+              Play as {side.name}
+            </HudButton>
+          ))}
+        </div>
+      );
+    }
+    if (home && away && (computerCoached(home) || computerCoached(away))) {
+      return (
+        <HudButton
+          variant="primary"
+          size="sm"
+          disabled={busy}
+          onClick={() =>
+            void launchComputer(
+              fixture,
+              computerCoached(home) ? away.id : home.id
+            )
+          }
+        >
+          Play vs computer
+        </HudButton>
+      );
+    }
     const draft = scores[fixture.id] ?? { home: "", away: "" };
     return (
       <>
@@ -444,14 +603,22 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                   )}
                 >
                   <span>{candidate.name}</span>
-                  {owned && !candidate.withdrawn && (
-                    <button
-                      onClick={() => void withdraw(candidate.id)}
-                      className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                    >
-                      Withdraw
-                    </button>
+                  {candidate.computerCoached && (
+                    <span className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-mute">
+                      Computer
+                    </span>
                   )}
+                  {/* A computer team withdrawn would leave its games unplayed */}
+                  {owned &&
+                    !candidate.withdrawn &&
+                    !candidate.computerCoached && (
+                      <button
+                        onClick={() => void withdraw(candidate.id)}
+                        className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+                      >
+                        Withdraw
+                      </button>
+                    )}
                 </div>
               );
             })}
@@ -498,7 +665,78 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         </Section>
       )}
 
+      {simulated.length > 0 && (
+        <Section title="Simulated results">
+          <ul className="space-y-3 font-hud-body text-hud-base text-hud-bone">
+            {simulated.map((result) => (
+              <li key={result.fixtureId}>
+                <span className="hud-label mr-2 text-hud-gold">
+                  Round {result.round}
+                </span>
+                {result.home}{" "}
+                <strong className="tabular-nums">
+                  {result.homeScore}–{result.awayScore}
+                </strong>{" "}
+                {result.away}
+                {result.penalties && (
+                  <span className="text-hud-mute tabular-nums">
+                    {" "}
+                    (Penalties {result.penalties.home}–{result.penalties.away})
+                  </span>
+                )}
+                {result.casualties.length > 0 && (
+                  <ul className="mt-1 text-hud-sm text-hud-dim">
+                    {result.casualties.map((casualty) => (
+                      <li key={casualty}>{casualty}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       <Section title={isBracket ? "Bracket" : "Schedule"}>
+        {/* In the body, where the buttons can wrap on a phone */}
+        {(toSimulate.length > 0 || simulating) && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {simulating ? (
+              <span
+                role="status"
+                className="font-hud-body text-hud-sm text-hud-dim"
+              >
+                Simulating {simulating}…
+              </span>
+            ) : (
+              <>
+                <HudButton
+                  variant="primary"
+                  size="sm"
+                  disabled={launching}
+                  onClick={() =>
+                    void simulate((latest) =>
+                      simulatableFixtures(latest).find(
+                        (fixture) => fixture.round === roundToSimulate
+                      )
+                    )
+                  }
+                >
+                  Simulate round {roundToSimulate}
+                </HudButton>
+                <HudButton
+                  size="sm"
+                  disabled={launching}
+                  onClick={() =>
+                    void simulate((latest) => simulatableFixtures(latest)[0])
+                  }
+                >
+                  Simulate all computer games
+                </HudButton>
+              </>
+            )}
+          </div>
+        )}
         {isBracket ? (
           <TournamentBracket
             fixtures={competition.fixtures}

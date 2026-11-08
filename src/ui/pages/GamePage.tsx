@@ -10,7 +10,7 @@ import { LoadingScreen } from "../components/hud/LoadingScreen";
 import { RotatePrompt } from "../components/hud/RotatePrompt";
 import { ServiceContainer } from "../../services/ServiceContainer";
 import { Team } from "../../types/Team";
-import { CompetitionContext } from "../../competition/types";
+import { CompetitionContext, competitionPath } from "../../competition/types";
 import { recordCompetitionFixture } from "../../competition/resultRecording";
 import { GameEventNames } from "../../types/events";
 import { GamePhase } from "../../types/GameState";
@@ -289,6 +289,7 @@ export function GamePage({
         mode={mode}
         onlineMenu={onlineMenu}
         styleId={selectedPitchThemeId}
+        leaveTo={fixtureContext ? competitionPath(fixtureContext) : undefined}
       />
 
       <RotatePrompt />

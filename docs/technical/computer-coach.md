@@ -26,7 +26,7 @@ offers and never builds a command itself. Its code is in
 | `planner.ts`     | The `Coach`: maps the best activation onto a candidate               |
 | `evaluate.ts`    | The trained score of an end position, for the lookahead              |
 | `search.ts`      | The lookahead: tries the planner's choices against others on copies  |
-| `difficulty.ts`  | The levels on the team selection page                                |
+| `difficulty.ts`  | The levels on the team selection page and the competition builder    |
 
 At each decision the coach re-reads the board and lists whole activations:
 which player, which action, the target square, the full path and its value.
@@ -249,7 +249,51 @@ computer wins, it receives.
 A match against the computer autosaves from the coin toss on, in the same
 single slot as a local match, so starting one replaces the other. Resume it
 from the main menu, or by reloading its page. League progression is off for
-it.
+a friendly against the computer, and on for a league or cup game.
+
+## Leagues and cups
+
+The competition builder adds computer teams by roster. Each is a ready-made
+legal team (`createComputerTeam` in `src/competition/computerTeams.ts`) with
+`computerCoached` set, kept in the organizer's team library so it can enter
+next season too. Team selection and the online lobby leave these teams out.
+
+To start a solo season, select your team, then choose **Fill league with
+computer teams**. The default is 16 teams, giving your team 15 different
+opponents. The size selector also offers 8 teams for 7 matches each and
+32 teams for 31 matches each. Every pair meets once.
+
+Filling keeps the teams you selected and the computer teams you already
+added. New teams get unique names and the least-used roster types, so every
+available roster appears before another type repeats. You can change each
+computer team's roster or remove it before generating the league. With no
+human team selected, filling creates a league controlled entirely by the
+computer.
+
+On the competition page:
+
+- A coach plays their own game against a computer team as a league or cup
+  game, at the competition's difficulty. A drawn cup tie goes to Extra Time
+  and Penalties, as any knockout game does.
+- In a game between two computer teams, a coach can take over either side
+  and play the computer with it.
+- Or the computer simulates that game. `simulateFixture`
+  (`src/competition/simulateFixture.ts`) plays the whole match headless with
+  the planner on both sides, at full speed. A game takes about a second.
+  It records the result, rolls both MVPs, awards SPP, and keeps every
+  injury, so a simulated game counts the way a played one does. **Simulate
+  round** plays one round's computer games; **Simulate all computer games**
+  plays every one it can reach, which finishes a cup once the coach is out.
+
+Between games the computer makes each of its teams' development choices
+(`manageComputerTeam`): it takes required advancements and Skill Selection
+awards, keeps drafted players it can afford, spends SPP, and hires Linemen
+back up to seven when the Treasury allows. The page does this when it opens,
+which covers a game a person just played against one of its teams.
+
+Only the organizer's browser holds the computer's teams. In a hosted
+competition another coach can play a computer team, but that team's injuries
+and SPP from the game are not kept, and only the organizer can simulate.
 
 ## Measuring it
 

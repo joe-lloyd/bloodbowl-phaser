@@ -21,8 +21,8 @@ const STORAGE_KEY = "bloodbowl_teams";
  * Storage seam: signed-out play persists to localStorage (the default
  * repository below); when a user signs in, the Firebase layer swaps in a
  * cloud-backed repository (src/firebase/cloudTeamRepository.ts). Both are
- * synchronous so every existing call site keeps working — the cloud repo is
- * a write-through in-memory cache over Firestore.
+ * synchronous for reads and saves. Cloud deletion waits for a transaction
+ * against Firestore so a stale cache cannot delete an entered team.
  *
  * Both backends persist the normalized `StoredTeam` shape
  * (src/data/persistence/teamPersistence.ts) and read tolerantly: a document
@@ -33,6 +33,8 @@ const STORAGE_KEY = "bloodbowl_teams";
 export interface TeamRepository {
   loadTeams(): Team[];
   saveTeams(teams: Team[]): void;
+  /** Cloud deletion waits for a membership check against the current document. */
+  deleteTeam(teamId: string): void | Promise<void>;
 }
 
 function hydrateAll(raw: unknown[]): Team[] {
@@ -43,13 +45,24 @@ function hydrateAll(raw: unknown[]): Team[] {
   });
 }
 
+function writeLocalTeams(teams: Team[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(teams.map(dehydrateTeam)));
+}
+
 const localRepository: TeamRepository = {
+  deleteTeam(teamId: string): void {
+    const teams = localRepository.loadTeams();
+    const team = teams.find((candidate) => candidate.id === teamId);
+    if (team?.computerCoached && team.activeCompetitionId) {
+      throw new Error(
+        "This computer team is still playing in a competition. Delete it once the competition is over."
+      );
+    }
+    writeLocalTeams(teams.filter((candidate) => candidate.id !== teamId));
+  },
   saveTeams(teams: Team[]): void {
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(teams.map(dehydrateTeam))
-      );
+      writeLocalTeams(teams);
     } catch (error) {
       console.error("Failed to save teams:", error);
     }
@@ -157,10 +170,8 @@ export function saveTeam(team: Team): void {
 /**
  * Delete a team
  */
-export function deleteTeam(teamId: string): void {
-  const teams = loadTeams();
-  const filtered = teams.filter((t) => t.id !== teamId);
-  saveTeams(filtered);
+export function deleteTeam(teamId: string): void | Promise<void> {
+  return activeRepository.deleteTeam(teamId);
 }
 
 /**

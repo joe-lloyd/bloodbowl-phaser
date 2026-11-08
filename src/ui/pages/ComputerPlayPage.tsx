@@ -13,6 +13,7 @@ import {
 import { HudButton, Notice } from "../components/componentWarehouse/HudKit";
 import { readMatchSave } from "../../game/persistence/MatchSaveRepository";
 import { restoreMatchSave } from "../../headless/serialization";
+import { CompetitionContext } from "../../competition/types";
 
 export interface ComputerPlayState {
   team1: Team;
@@ -22,6 +23,8 @@ export interface ComputerPlayState {
   difficulty?: Difficulty;
   progressionEnabled?: boolean;
   pitchThemeId?: string;
+  /** The league or cup fixture this match plays. */
+  competitionContext?: CompetitionContext;
 }
 
 function difficultyOf(id: string | undefined): Difficulty {
@@ -38,10 +41,12 @@ function startFrom(state: ComputerPlayState | null) {
     const { computerTeamId, difficulty: savedDifficulty } = save.computer;
     const difficulty = difficultyOf(savedDifficulty);
     const pitchThemeId = save.presentation?.pitchThemeId;
+    const competitionContext = save.competition;
     return {
       resumed: true,
       progressionEnabled: save.matchStats.progressionEnabled,
       pitchThemeId,
+      competitionContext,
       options: (eventBus: EventBus) => {
         const restored = restoreMatchSave(save);
         return {
@@ -52,6 +57,7 @@ function startFrom(state: ComputerPlayState | null) {
           coach: coachFor(difficulty),
           resume: restored,
           autosave: { difficulty, pitchThemeId },
+          competitionContext,
         };
       },
     };
@@ -62,6 +68,7 @@ function startFrom(state: ComputerPlayState | null) {
     resumed: false,
     progressionEnabled: state.progressionEnabled,
     pitchThemeId: state.pitchThemeId,
+    competitionContext: state.competitionContext,
     options: (eventBus: EventBus) => ({
       eventBus,
       team1: structuredClone(state.team1),
@@ -70,6 +77,7 @@ function startFrom(state: ComputerPlayState | null) {
       coach: coachFor(difficulty),
       progressionEnabled: state.progressionEnabled,
       autosave: { difficulty, pitchThemeId: state.pitchThemeId },
+      competitionContext: state.competitionContext,
     }),
   };
 }
@@ -120,6 +128,7 @@ export function ComputerPlayPage({ eventBus }: { eventBus: EventBus }) {
         mode="normal"
         teams={match.teams}
         progressionEnabled={start.progressionEnabled}
+        competitionContext={start.competitionContext}
         pitchThemeId={start.pitchThemeId}
         resumed={start.resumed}
       />
