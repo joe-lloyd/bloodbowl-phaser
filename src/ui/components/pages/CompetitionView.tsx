@@ -215,11 +215,20 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     }
   };
 
-  const launchLocal = async (fixture: CompetitionFixture) => {
+  /**
+   * Load both rosters and, when they may play, start the match. A local
+   * match replaces the saved one, so it asks first.
+   */
+  const launch = async (
+    fixture: CompetitionFixture,
+    local: boolean,
+    start: (homeTeam: Team, awayTeam: Team) => void
+  ) => {
     const home = entrant(fixture.homeEntrantId);
     const away = entrant(fixture.awayEntrantId);
     if (!home || !away) return;
     if (
+      local &&
       readMatchSave() &&
       !window.confirm(
         "Starting this fixture will replace your saved local match. Continue?"
@@ -227,40 +236,6 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     ) {
       return;
     }
-    setLaunching(true);
-    try {
-      const [team1, team2] = await Promise.all([
-        fetchEntrantTeam(home),
-        fetchEntrantTeam(away),
-      ]);
-      if (!team1 || !team2) {
-        setError("Could not load one of the entrants' rosters.");
-        return;
-      }
-      const blocked = blockingDevelopment(team1, home.name, team2, away.name);
-      if (blocked) {
-        setError(blocked);
-        return;
-      }
-      clearMatchSave();
-      navigate("/play", {
-        state: {
-          team1,
-          team2,
-          competitionContext: contextFor(fixture),
-          // A league or tournament game counts: SPP and development
-          progressionEnabled: true,
-        },
-      });
-    } finally {
-      setLaunching(false);
-    }
-  };
-
-  const launchHosted = async (fixture: CompetitionFixture) => {
-    const home = entrant(fixture.homeEntrantId);
-    const away = entrant(fixture.awayEntrantId);
-    if (!home || !away) return;
     setLaunching(true);
     try {
       const [homeTeam, awayTeam] = await Promise.all([
@@ -281,6 +256,28 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         setError(blocked);
         return;
       }
+      if (local) clearMatchSave();
+      start(homeTeam, awayTeam);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  const launchLocal = (fixture: CompetitionFixture) =>
+    launch(fixture, true, (team1, team2) =>
+      navigate("/play", {
+        state: {
+          team1,
+          team2,
+          competitionContext: contextFor(fixture),
+          // A league or tournament game counts: SPP and development
+          progressionEnabled: true,
+        },
+      })
+    );
+
+  const launchHosted = (fixture: CompetitionFixture) =>
+    launch(fixture, false, (homeTeam, awayTeam) =>
       navigate("/online/host", {
         state: {
           competitionFixture: {
@@ -289,58 +286,27 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             awayTeam,
           },
         },
-      });
-    } finally {
-      setLaunching(false);
-    }
-  };
+      })
+    );
 
   /** A person coaches one side and the computer the other. */
-  const launchComputer = async (
+  const launchComputer = (
     fixture: CompetitionFixture,
     humanEntrantId: string
-  ) => {
-    const home = entrant(fixture.homeEntrantId);
-    const away = entrant(fixture.awayEntrantId);
-    if (!home || !away) return;
-    if (
-      readMatchSave() &&
-      !window.confirm(
-        "Starting this fixture will replace your saved local match. Continue?"
-      )
-    ) {
-      return;
-    }
-    setLaunching(true);
-    try {
-      const [team1, team2] = await Promise.all([
-        fetchEntrantTeam(home),
-        fetchEntrantTeam(away),
-      ]);
-      if (!team1 || !team2) {
-        setError("Could not load one of the entrants' rosters.");
-        return;
-      }
-      const blocked = blockingDevelopment(team1, home.name, team2, away.name);
-      if (blocked) {
-        setError(blocked);
-        return;
-      }
-      clearMatchSave();
+  ) =>
+    launch(fixture, true, (team1, team2) =>
       navigate("/play/computer", {
         state: {
           team1,
           team2,
-          computerTeamId: humanEntrantId === home.id ? team2.id : team1.id,
+          computerTeamId:
+            humanEntrantId === fixture.homeEntrantId ? team2.id : team1.id,
           difficulty: competition.computerDifficulty,
           progressionEnabled: true,
           competitionContext: contextFor(fixture),
         },
-      });
-    } finally {
-      setLaunching(false);
-    }
-  };
+      })
+    );
 
   /**
    * Simulate games one after another, each picked from the competition as
