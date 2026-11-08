@@ -73,6 +73,20 @@ export function simulatableFixtures(
   );
 }
 
+/**
+ * The earliest round with a game still to play. A round is simulated only
+ * once it is the current one, so the computer never plays ahead of a game
+ * a person still has to play.
+ */
+export function currentRound(competition: CompetitionDoc): number | undefined {
+  const open = competition.fixtures.filter(
+    (fixture) => fixture.status !== "complete"
+  );
+  return open.length > 0
+    ? Math.min(...open.map((fixture) => fixture.round))
+    : undefined;
+}
+
 export async function simulateFixture(
   competition: CompetitionDoc,
   fixtureId: string,

@@ -11,6 +11,7 @@ import {
 } from "../../../competition/teamRefs";
 import { manageComputerTeams } from "../../../competition/computerTeams";
 import {
+  currentRound,
   simulatableFixtures,
   simulateFixture,
 } from "../../../competition/simulateFixture";
@@ -135,10 +136,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   // The computer's teams are in the organizer's library
   const canSimulate =
     !competition.organizerUid || competition.organizerUid === user?.uid;
-  const toSimulate = canSimulate ? simulatableFixtures(competition) : [];
-  const roundToSimulate = Math.min(
-    ...toSimulate.map((fixture) => fixture.round)
-  );
+  const roundToSimulate = currentRound(competition);
+  const toSimulate = canSimulate
+    ? simulatableFixtures(competition).filter(
+        (fixture) => fixture.round === roundToSimulate
+      )
+    : [];
   const champion =
     competition.type === "tournament"
       ? entrant(competition.championEntrantId ?? null)
@@ -709,31 +712,20 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                 Simulating {simulating}…
               </span>
             ) : (
-              <>
-                <HudButton
-                  variant="primary"
-                  size="sm"
-                  disabled={launching}
-                  onClick={() =>
-                    void simulate((latest) =>
-                      simulatableFixtures(latest).find(
-                        (fixture) => fixture.round === roundToSimulate
-                      )
+              <HudButton
+                variant="primary"
+                size="sm"
+                disabled={launching}
+                onClick={() =>
+                  void simulate((latest) =>
+                    simulatableFixtures(latest).find(
+                      (fixture) => fixture.round === roundToSimulate
                     )
-                  }
-                >
-                  Simulate round {roundToSimulate}
-                </HudButton>
-                <HudButton
-                  size="sm"
-                  disabled={launching}
-                  onClick={() =>
-                    void simulate((latest) => simulatableFixtures(latest)[0])
-                  }
-                >
-                  Simulate all computer games
-                </HudButton>
-              </>
+                  )
+                }
+              >
+                Simulate round {roundToSimulate}
+              </HudButton>
             )}
           </div>
         )}
