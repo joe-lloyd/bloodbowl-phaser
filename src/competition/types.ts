@@ -1,3 +1,4 @@
+import type { Difficulty } from "../simulation/ai/difficulty";
 import { SeedMetadata } from "../types/seedMetadata";
 import { RosterRuleProfile } from "./rosterRules";
 
@@ -38,6 +39,11 @@ export interface CompetitionEntrant {
   seed: number;
   /** Set when the coach withdraws; fixtures and standings are untouched. */
   withdrawn?: boolean;
+  /**
+   * The computer coaches this entrant. Its team is in the organizer's
+   * library; a game between two computer entrants is simulated.
+   */
+  computerCoached?: true;
 }
 
 /**
@@ -111,6 +117,8 @@ export interface LeagueDoc {
    *  creation (see competition-roster-rules). Absent = legacy competition:
    *  compatibility is not enforced until the organizer edits/migrates it. */
   rosterProfile?: RosterRuleProfile;
+  /** How hard the computer plays a person; Standard if unset. */
+  computerDifficulty?: Difficulty;
 }
 
 export interface TournamentDoc {
@@ -133,6 +141,8 @@ export interface TournamentDoc {
   seedMetadata?: SeedMetadata;
   /** See LeagueDoc.rosterProfile. */
   rosterProfile?: RosterRuleProfile;
+  /** See LeagueDoc.computerDifficulty. */
+  computerDifficulty?: Difficulty;
 }
 
 export type CompetitionDoc = LeagueDoc | TournamentDoc;
@@ -142,3 +152,12 @@ export const DEFAULT_LEAGUE_POINTS: LeaguePoints = {
   draw: 1,
   loss: 0,
 };
+
+/** The page a competition is shown on. */
+export function competitionPath(
+  competition: Pick<CompetitionContext, "competitionType" | "competitionId">
+): string {
+  const route =
+    competition.competitionType === "league" ? "leagues" : "tournaments";
+  return `/${route}/${competition.competitionId}`;
+}
