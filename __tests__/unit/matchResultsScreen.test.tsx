@@ -17,6 +17,20 @@ import {
   setActiveOnlineMatch,
 } from "../../src/network/OnlineMatch";
 import { setMatchSaveRepository } from "../../src/game/persistence/MatchSaveRepository";
+import {
+  computeStandings,
+  generateRoundRobin,
+} from "../../src/competition/logic";
+import { saveCompetition } from "../../src/competition/repository";
+import { recordCompetitionFixture } from "../../src/competition/resultRecording";
+import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import { loadTeams, saveTeams } from "../../src/game/managers/TeamManager";
+import { Team } from "../../src/types/Team";
+
+vi.mock("../../src/firebase/config", () => ({
+  isFirebaseConfigured: vi.fn(() => false),
+  getDb: vi.fn(),
+}));
 
 describe("MatchResultsScreen", () => {
   let container: HTMLDivElement;
@@ -224,6 +238,90 @@ describe("MatchResultsScreen", () => {
       b.textContent?.includes("Continue to Main Menu")
     )!;
     expect(exitButton.disabled).toBe(false);
+  });
+
+  /** A league of the two teams, stored with them, as the coach left it at kick-off. */
+  async function leagueOf(teams: Team[]): Promise<LeagueDoc> {
+    const entrants: CompetitionEntrant[] = teams.map((team, index) => ({
+      id: `local:${team.id}`,
+      teamId: team.id,
+      ownerUid: null,
+      name: team.name,
+      rosterName: team.rosterName,
+      seed: index + 1,
+    }));
+    const fixtures = generateRoundRobin(entrants);
+    const league: LeagueDoc = {
+      id: "season-1",
+      type: "league",
+      name: "Season 1",
+      organizerUid: null,
+      participantUids: [],
+      status: "active",
+      entrants,
+      fixtures,
+      standings: computeStandings(entrants, fixtures),
+      points: { win: 3, draw: 1, loss: 0 },
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await saveCompetition(league);
+    teams.forEach((team) => (team.activeCompetitionId = league.id));
+    saveTeams(teams.map((team) => structuredClone(team)));
+    return league;
+  }
+
+  it("keeps the league result recorded at full time when SPP is confirmed", async () => {
+    localStorage.clear();
+    const { services, state, team1, team2 } = setup(true);
+    const league = await leagueOf([team1, team2]);
+    state.score["team-1"] = 1;
+    state.score["team-2"] = 0;
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    // GamePage records the fixture at full time; it is the season's last
+    const fixture = league.fixtures[0];
+    await recordCompetitionFixture(
+      {
+        competitionType: "league",
+        competitionId: league.id,
+        fixtureId: fixture.id,
+      },
+      1,
+      0,
+      { home: team1, away: team2 }
+    );
+
+    await render();
+    for (const button of [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent?.includes("Roll MVP D6")
+    )) {
+      await act(async () => button.click());
+    }
+    const confirm = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Confirm and assign SPP")
+    )!;
+    await act(async () => confirm.click());
+
+    const stored = (id: string) => loadTeams().find((team) => team.id === id)!;
+    const key = `${league.id}:${fixture.id}`;
+    expect(stored("team-1")).toMatchObject({
+      wins: 1,
+      losses: 0,
+      touchdowns: 1,
+      recordedFixtureIds: [key],
+    });
+    expect(stored("team-2")).toMatchObject({
+      wins: 0,
+      losses: 1,
+      touchdowns: 0,
+      recordedFixtureIds: [key],
+    });
+    // The season is over, so both teams are free to enter the next one
+    expect(stored("team-1").activeCompetitionId).toBeUndefined();
+    expect(stored("team-2").activeCompetitionId).toBeUndefined();
+    // And the MVP's SPP is kept as well
+    expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
   });
 
   it("labels a concession without inventing a touchdown or mutating the played score (regression: 0-0 stays 0-0)", async () => {
