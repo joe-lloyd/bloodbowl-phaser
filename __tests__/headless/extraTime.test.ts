@@ -10,6 +10,7 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
+import { GameConfig } from "../../src/config/GameConfig";
 
 const ROSTERS: [RosterName, RosterName] = [RosterName.HUMAN, RosterName.ORC];
 
@@ -29,6 +30,15 @@ async function play(seed: number, knockout: boolean) {
   eventBus.on(GameEventNames.PhaseChanged, ({ phase }) => {
     if (phase === GamePhase.HALFTIME && state().turn.extraTime)
       rerollsInExtraTime = { ...state().teamRerollsUsed };
+  });
+  // The first and last turn each team started in Extra Time
+  const extraTimeTurns: Record<string, [number, number]> = {};
+  eventBus.on(GameEventNames.TurnStarted, ({ teamId, turnNumber }) => {
+    if (!state().turn.extraTime) return;
+    extraTimeTurns[teamId] = [
+      extraTimeTurns[teamId]?.[0] ?? turnNumber,
+      turnNumber,
+    ];
   });
   let fullTime = "";
   eventBus.on(GameEventNames.UI_GameLog, (line) => {
@@ -55,6 +65,7 @@ async function play(seed: number, knockout: boolean) {
     away,
     rerollsAtFullTime,
     rerollsInExtraTime,
+    extraTimeTurns,
     fullTime,
     rollOffWinner: last && (last[home] > last[away] ? 0 : 1),
     kickChoice: recording.steps.find((step) => step.label === "Use Extra Time"),
@@ -95,6 +106,12 @@ describe("a knockout tie", () => {
         continue;
       }
       expect(penalties![home] + penalties![away], `seed ${seed}`).toBe(5);
+      // Extra Time ran its full length, a Sevens half of 6 turns each
+      const fullHalf = [1, GameConfig.TURNS_PER_HALF];
+      expect(game.extraTimeTurns, `seed ${seed}`).toEqual({
+        [home]: fullHalf,
+        [away]: fullHalf,
+      });
       // Full time names the winner, not a draw
       const [won, lost] = [penalties![home], penalties![away]].sort().reverse();
       const winner = penalties![home] > penalties![away] ? "Home" : "Away";
