@@ -252,7 +252,7 @@ export class GameScene extends Phaser.Scene {
     if (!ServiceContainer.isInitialized()) {
       const initialState =
         restored?.state ??
-        GameService.createInitialState(
+        GameService.createMatchState(
           this.team1,
           this.team2,
           GamePhase.SETUP,

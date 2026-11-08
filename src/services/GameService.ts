@@ -171,6 +171,27 @@ export class GameService implements IGameService {
   /**
    * Factory method to create a default initial state
    */
+  /**
+   * The opening state of a fresh match, with both teams readied for it:
+   * everyone in the Reserves and, in a league, injuries served and
+   * Journeymen taken on (leagueRoster.ts). A resumed match keeps its state.
+   */
+  public static createMatchState(
+    team1: Team,
+    team2: Team,
+    startingPhase: GamePhase = GamePhase.SETUP,
+    startingSubPhase?: SubPhase
+  ): GameState {
+    SetupManager.sanitizeTeam(team1);
+    SetupManager.sanitizeTeam(team2);
+    return GameService.createInitialState(
+      team1,
+      team2,
+      startingPhase,
+      startingSubPhase
+    );
+  }
+
   public static createInitialState(
     team1: Team,
     team2: Team,

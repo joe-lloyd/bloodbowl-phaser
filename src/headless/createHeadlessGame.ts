@@ -143,8 +143,8 @@ export function createHeadlessGame(
     restored?.state ?? options.initialState;
   if (options.scenario && !initialState) {
     initialState = applyScenario(options.scenario, team1, team2);
-  } else if (options.startingPhase) {
-    initialState = GameService.createInitialState(
+  } else if (!initialState && options.startingPhase) {
+    initialState = GameService.createMatchState(
       team1,
       team2,
       options.startingPhase,

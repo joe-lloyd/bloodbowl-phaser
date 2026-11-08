@@ -12,6 +12,8 @@ import {
   calculateTeamValue,
 } from "../../src/types/Team";
 import { SkillType } from "../../src/types/Skills";
+import { GamePhase } from "../../src/types/GameState";
+import { GameService } from "../../src/services/GameService";
 import {
   dehydrateTeam,
   hydrateStoredTeam,
@@ -43,9 +45,17 @@ function team(
   return built;
 }
 
-/** Start a game: the engine readies both teams for the match. */
+/**
+ * Start a match from kick-off, as the browser, online play, the computer
+ * and the simulator all do: the engine readies both teams for the match.
+ */
 function startGame(home: Team, away: Team = team("away", 7)): HeadlessGame {
-  return new HeadlessGame({ team1: home, team2: away, seed: 1 });
+  return new HeadlessGame({
+    team1: home,
+    team2: away,
+    seed: 1,
+    startingPhase: GamePhase.SETUP,
+  });
 }
 
 const reload = (saved: Team): Team =>
@@ -195,5 +205,31 @@ describe("Journeymen (L2)", () => {
   it("are never taken on by a Matched Play team", () => {
     const game = startGame(team("home", 6, "matched-play"));
     expect(journeymen(game.ctx.team1)).toEqual([]);
+  });
+});
+
+describe("a resumed match", () => {
+  it("keeps its saved state and teams, even given a starting phase", () => {
+    const home = team("home", 6);
+    home.players[0].injuries.push(InjuryType.MISS_NEXT_GAME);
+    const away = team("away", 7);
+    const initialState = GameService.createInitialState(
+      home,
+      away,
+      GamePhase.PLAY
+    );
+    const game = new HeadlessGame({
+      team1: home,
+      team2: away,
+      seed: 1,
+      initialState,
+      startingPhase: GamePhase.SETUP,
+    });
+    expect(game.ctx.gameService.getState().phase).toBe(GamePhase.PLAY);
+    // Not readied again: no Journeymen, and the injury is still owed
+    expect(game.ctx.team1.players).toHaveLength(6);
+    expect(game.ctx.team1.players[0].injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+    ]);
   });
 });
