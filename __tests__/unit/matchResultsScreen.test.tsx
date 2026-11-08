@@ -271,58 +271,77 @@ describe("MatchResultsScreen", () => {
     return league;
   }
 
-  it("keeps the league result recorded at full time when SPP is confirmed", async () => {
-    localStorage.clear();
-    const { services, state, team1, team2 } = setup(true);
-    const league = await leagueOf([team1, team2]);
-    state.score["team-1"] = 1;
-    state.score["team-2"] = 0;
-    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
-    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
-    // GamePage records the fixture at full time; it is the season's last
-    const fixture = league.fixtures[0];
-    await recordCompetitionFixture(
-      {
-        competitionType: "league",
-        competitionId: league.id,
-        fixtureId: fixture.id,
-      },
-      1,
-      0,
-      { home: team1, away: team2 }
-    );
+  it.each([
+    {
+      result: "a win",
+      score: [1, 0],
+      home: { wins: 1, draws: 0, losses: 0, touchdowns: 1 },
+      away: { wins: 0, draws: 0, losses: 1, touchdowns: 0 },
+    },
+    {
+      result: "a draw",
+      score: [1, 1],
+      home: { wins: 0, draws: 1, losses: 0, touchdowns: 1 },
+      away: { wins: 0, draws: 1, losses: 0, touchdowns: 1 },
+    },
+  ])(
+    "keeps $result recorded at full time when SPP is confirmed",
+    async ({ score, home, away }) => {
+      localStorage.clear();
+      const { services, state, team1, team2 } = setup(true);
+      const league = await leagueOf([team1, team2]);
+      state.score["team-1"] = score[0];
+      state.score["team-2"] = score[1];
+      services.eventBus.emit(
+        GameEventNames.PlayerActivated,
+        team1.players[0].id
+      );
+      services.eventBus.emit(
+        GameEventNames.PlayerActivated,
+        team2.players[0].id
+      );
+      // GamePage records the fixture at full time; it is the season's last
+      const fixture = league.fixtures[0];
+      await recordCompetitionFixture(
+        {
+          competitionType: "league",
+          competitionId: league.id,
+          fixtureId: fixture.id,
+        },
+        score[0],
+        score[1],
+        { home: team1, away: team2 }
+      );
 
-    await render();
-    for (const button of [...container.querySelectorAll("button")].filter((b) =>
-      b.textContent?.includes("Roll MVP D6")
-    )) {
-      await act(async () => button.click());
+      await render();
+      for (const button of [...container.querySelectorAll("button")].filter(
+        (b) => b.textContent?.includes("Roll MVP D6")
+      )) {
+        await act(async () => button.click());
+      }
+      const confirm = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Confirm and assign SPP")
+      )!;
+      await act(async () => confirm.click());
+
+      const stored = (id: string) =>
+        loadTeams().find((team) => team.id === id)!;
+      const key = `${league.id}:${fixture.id}`;
+      expect(stored("team-1")).toMatchObject({
+        ...home,
+        recordedFixtureIds: [key],
+      });
+      expect(stored("team-2")).toMatchObject({
+        ...away,
+        recordedFixtureIds: [key],
+      });
+      // The season is over, so both teams are free to enter the next one
+      expect(stored("team-1").activeCompetitionId).toBeUndefined();
+      expect(stored("team-2").activeCompetitionId).toBeUndefined();
+      // And the MVP's SPP is kept as well
+      expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
     }
-    const confirm = [...container.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Confirm and assign SPP")
-    )!;
-    await act(async () => confirm.click());
-
-    const stored = (id: string) => loadTeams().find((team) => team.id === id)!;
-    const key = `${league.id}:${fixture.id}`;
-    expect(stored("team-1")).toMatchObject({
-      wins: 1,
-      losses: 0,
-      touchdowns: 1,
-      recordedFixtureIds: [key],
-    });
-    expect(stored("team-2")).toMatchObject({
-      wins: 0,
-      losses: 1,
-      touchdowns: 0,
-      recordedFixtureIds: [key],
-    });
-    // The season is over, so both teams are free to enter the next one
-    expect(stored("team-1").activeCompetitionId).toBeUndefined();
-    expect(stored("team-2").activeCompetitionId).toBeUndefined();
-    // And the MVP's SPP is kept as well
-    expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
-  });
+  );
 
   it("labels a concession without inventing a touchdown or mutating the played score (regression: 0-0 stays 0-0)", async () => {
     const { state, team1 } = setup(false);
