@@ -61,8 +61,8 @@ export function TeamManagement() {
 
   /**
    * A computer team still in a competition stays: its games could no longer
-   * be played or simulated. Reads the stored team, which another tab may
-   * have entered since this page rendered.
+   * be played or simulated. This early check avoids an unnecessary prompt;
+   * the backend checks current membership when deletion is confirmed.
    */
   const stillPlaying = (teamId: string): boolean => {
     const team = getTeamById(teamId);
@@ -73,13 +73,16 @@ export function TeamManagement() {
     return true;
   };
 
-  const handleDeleteTeam = (teamId: string) => {
+  const handleDeleteTeam = async (teamId: string) => {
     if (stillPlaying(teamId)) return;
     if (!confirm("Are you sure you want to delete this team?")) return;
-    // Again: it may have been entered while the dialog was open
-    if (stillPlaying(teamId)) return;
-    deleteTeam(teamId);
-    reloadTeams();
+    try {
+      // The backend checks membership again at the point of deletion.
+      await deleteTeam(teamId);
+      reloadTeams();
+    } catch (reason) {
+      alert(reason instanceof Error ? reason.message : String(reason));
+    }
   };
 
   const handleSeedTeams = () => {
@@ -247,7 +250,7 @@ export function TeamManagement() {
                   </HudButton>
                   <HudButton
                     variant="danger"
-                    onClick={() => handleDeleteTeam(team.id)}
+                    onClick={() => void handleDeleteTeam(team.id)}
                     aria-label="Delete team"
                     title="Delete team"
                     className="shrink-0"

@@ -258,6 +258,18 @@ legal team (`createComputerTeam` in `src/competition/computerTeams.ts`) with
 `computerCoached` set, kept in the organizer's team library so it can enter
 next season too. Team selection and the online lobby leave these teams out.
 
+To start a solo season, select your team, then choose **Fill league with
+computer teams**. The default is 16 teams, giving your team 15 different
+opponents. The size selector also offers 8 teams for 7 matches each and
+32 teams for 31 matches each. Every pair meets once.
+
+Filling keeps the teams you selected and the computer teams you already
+added. New teams get unique names and the least-used roster types, so every
+available roster appears before another type repeats. You can change each
+computer team's roster or remove it before generating the league. With no
+human team selected, filling creates a league controlled entirely by the
+computer.
+
 On the competition page:
 
 - A coach plays their own game against a computer team as a league or cup

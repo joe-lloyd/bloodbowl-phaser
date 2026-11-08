@@ -11,9 +11,9 @@
 import {
   collection,
   collectionGroup,
-  deleteDoc,
   doc,
   getDocs,
+  runTransaction,
   setDoc,
 } from "firebase/firestore";
 import { getDb } from "./config";
@@ -87,7 +87,18 @@ async function writeCloudTeam(uid: string, team: Team): Promise<void> {
 }
 
 async function deleteCloudTeam(uid: string, teamId: string): Promise<void> {
-  await deleteDoc(doc(teamsCollection(uid), teamId));
+  const reference = doc(teamsCollection(uid), teamId);
+  await runTransaction(getDb(), async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    if (!snapshot.exists()) return;
+    const { team } = readStoredTeam(snapshot.data());
+    if (team.computerCoached && team.activeCompetitionId) {
+      throw new Error(
+        "This computer team is still playing in a competition. Delete it once the competition is over."
+      );
+    }
+    transaction.delete(reference);
+  });
 }
 
 export class CloudTeamRepository implements TeamRepository {
@@ -102,6 +113,12 @@ export class CloudTeamRepository implements TeamRepository {
 
   loadTeams(): Team[] {
     return [...this.cache];
+  }
+
+  /** Check membership and delete atomically, without rewriting other teams. */
+  async deleteTeam(teamId: string): Promise<void> {
+    await deleteCloudTeam(this.uid, teamId);
+    this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
   saveTeams(teams: Team[]): void {

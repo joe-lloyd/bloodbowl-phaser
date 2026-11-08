@@ -42,7 +42,11 @@ describe("useTeamLibrary", () => {
       name: "Cloud Team",
     };
     await act(async () =>
-      setTeamRepository({ loadTeams: () => [team], saveTeams: () => {} })
+      setTeamRepository({
+        loadTeams: () => [team],
+        saveTeams: () => {},
+        deleteTeam: () => {},
+      })
     );
 
     expect(container.textContent).toBe("Cloud Team");

@@ -71,6 +71,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
     useState<TeamAdvancementMode>("advanced-league");
   const [draftBudget, setDraftBudget] = useState(1_200_000);
   const [computerRows, setComputerRows] = useState<ComputerRow[]>([]);
+  const [leagueSize, setLeagueSize] = useState(16);
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [localTeams] = useTeamLibrary();
 
@@ -119,24 +120,41 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         : [...current, id]
     );
 
-  const addComputerTeam = () =>
+  /** Fill empty places, keeping existing entrants and spreading roster types. */
+  const addComputerTeams = (count: number) =>
     setComputerRows((rows) => {
-      const used = new Set(rows.map((row) => row.rosterName));
-      const fresh = ROSTERS.filter((roster) => !used.has(roster));
-      const pool = fresh.length > 0 ? fresh : ROSTERS;
+      const next = [...rows];
+      const chosen = candidates.filter((candidate) =>
+        selected.includes(candidate.id)
+      );
+      const rosterCounts = new Map<RosterName, number>();
+      for (const roster of [
+        ...chosen.map((candidate) => candidate.team.rosterName),
+        ...rows.map((row) => row.rosterName),
+      ]) {
+        rosterCounts.set(roster, (rosterCounts.get(roster) ?? 0) + 1);
+      }
       const taken = new Set([
         ...rows.map((row) => row.name),
-        ...localTeams.map((team) => team.name),
+        ...candidates.map((candidate) => candidate.team.name),
       ]);
-      return [
-        ...rows,
-        {
-          key: `${Date.now()}-${rows.length}`,
-          name: computerTeamName(taken),
-          rosterName: pool[Math.floor(Math.random() * pool.length)],
-        },
-      ];
+      for (let index = 0; index < count; index++) {
+        const fewest = Math.min(
+          ...ROSTERS.map((roster) => rosterCounts.get(roster) ?? 0)
+        );
+        const pool = ROSTERS.filter(
+          (roster) => (rosterCounts.get(roster) ?? 0) === fewest
+        );
+        const rosterName = pool[Math.floor(Math.random() * pool.length)];
+        const name = computerTeamName(taken);
+        next.push({ key: crypto.randomUUID(), name, rosterName });
+        taken.add(name);
+        rosterCounts.set(rosterName, (rosterCounts.get(rosterName) ?? 0) + 1);
+      }
+      return next;
     });
+
+  const entrantCount = selected.length + computerRows.length;
 
   const computerEntrants =
     computerRows.length +
@@ -285,97 +303,6 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         )}
       </Section>
 
-      <Section title="Computer teams">
-        <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
-          The computer coaches these teams. You play your own games against
-          them, or take one over for a game. A game between two computer teams
-          is played out in seconds, injuries and all. They join your team
-          library, so they can play next season too.
-        </p>
-        {computerRows.length > 0 && (
-          <ul className="mb-4 space-y-2">
-            {computerRows.map((row, index) => (
-              <li
-                key={row.key}
-                className="flex flex-wrap items-center gap-2 font-hud-body text-hud-base text-hud-bone"
-              >
-                <span className="min-w-[12rem] flex-1">
-                  <span className="font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold">
-                    Seed {selected.length + index + 1}:{" "}
-                  </span>
-                  {row.name}
-                </span>
-                <select
-                  aria-label={`${row.name} roster`}
-                  value={row.rosterName}
-                  onChange={(event) =>
-                    setComputerRows((rows) =>
-                      rows.map((candidate) =>
-                        candidate.key === row.key
-                          ? {
-                              ...candidate,
-                              rosterName: event.target.value as RosterName,
-                            }
-                          : candidate
-                      )
-                    )
-                  }
-                  className="hud-field w-auto"
-                >
-                  {ROSTERS.map((roster) => (
-                    <option key={roster} value={roster}>
-                      {roster}
-                    </option>
-                  ))}
-                </select>
-                <HudButton
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Remove ${row.name}`}
-                  onClick={() =>
-                    setComputerRows((rows) =>
-                      rows.filter((candidate) => candidate.key !== row.key)
-                    )
-                  }
-                >
-                  Remove
-                </HudButton>
-              </li>
-            ))}
-          </ul>
-        )}
-        <HudButton onClick={addComputerTeam}>+ Add computer team</HudButton>
-        {computerEntrants > 0 && (
-          <p className="hud-label mb-2 mt-5">How hard the computer plays</p>
-        )}
-        {computerEntrants > 0 && (
-          <div
-            role="radiogroup"
-            aria-label="How hard the computer plays"
-            className="grid max-w-2xl grid-cols-3 gap-2"
-          >
-            {DIFFICULTIES.map(({ id, label, detail }) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={difficulty === id}
-                className={cx(
-                  hudChoiceClass(difficulty === id),
-                  "px-4 py-3 text-left"
-                )}
-                onClick={() => setDifficulty(id)}
-              >
-                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
-                  {label}
-                </span>
-                <span className="block text-hud-sm text-hud-dim">{detail}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </Section>
-
       <Section title="Entrants and seeding">
         <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
           Selection order becomes seed order. Entrants reference live rosters,
@@ -430,6 +357,134 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
             );
           })}
         </div>
+      </Section>
+
+      <Section title="Computer teams">
+        <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
+          The computer coaches these teams. You play your own games against
+          them, or take one over for a game. A game between two computer teams
+          is played out in seconds, injuries and all. They join your team
+          library, so they can play next season too.
+        </p>
+        {type === "league" && (
+          <div className="mb-5 space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <Field label="League size">
+                <select
+                  aria-label="League size"
+                  className="hud-field"
+                  value={leagueSize}
+                  onChange={(event) =>
+                    setLeagueSize(Number(event.target.value))
+                  }
+                >
+                  {[8, 16, 32].map((size) => (
+                    <option key={size} value={size}>
+                      {size} teams · {size - 1} matches per team
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <HudButton
+                variant="primary"
+                disabled={entrantCount >= leagueSize}
+                onClick={() => addComputerTeams(leagueSize - entrantCount)}
+              >
+                Fill league with computer teams
+              </HudButton>
+            </div>
+            <p className="font-hud-body text-hud-sm text-hud-dim" role="status">
+              {entrantCount} of {leagueSize} places filled. Each team plays
+              every opponent once.
+              {entrantCount > leagueSize &&
+                " Remove teams to use a smaller league."}
+            </p>
+          </div>
+        )}
+        {computerRows.length > 0 && (
+          <ul className="mb-4 space-y-2">
+            {computerRows.map((row, index) => (
+              <li
+                key={row.key}
+                className="flex flex-wrap items-center gap-2 font-hud-body text-hud-base text-hud-bone"
+              >
+                <span className="min-w-[12rem] flex-1">
+                  <span className="font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold">
+                    Seed {selected.length + index + 1}:{" "}
+                  </span>
+                  {row.name}
+                </span>
+                <select
+                  aria-label={`${row.name} roster`}
+                  value={row.rosterName}
+                  onChange={(event) =>
+                    setComputerRows((rows) =>
+                      rows.map((candidate) =>
+                        candidate.key === row.key
+                          ? {
+                              ...candidate,
+                              rosterName: event.target.value as RosterName,
+                            }
+                          : candidate
+                      )
+                    )
+                  }
+                  className="hud-field w-auto"
+                >
+                  {ROSTERS.map((roster) => (
+                    <option key={roster} value={roster}>
+                      {roster}
+                    </option>
+                  ))}
+                </select>
+                <HudButton
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove ${row.name}`}
+                  onClick={() =>
+                    setComputerRows((rows) =>
+                      rows.filter((candidate) => candidate.key !== row.key)
+                    )
+                  }
+                >
+                  Remove
+                </HudButton>
+              </li>
+            ))}
+          </ul>
+        )}
+        <HudButton onClick={() => addComputerTeams(1)}>
+          + Add computer team
+        </HudButton>
+        {computerEntrants > 0 && (
+          <p className="hud-label mb-2 mt-5">How hard the computer plays</p>
+        )}
+        {computerEntrants > 0 && (
+          <div
+            role="radiogroup"
+            aria-label="How hard the computer plays"
+            className="grid max-w-2xl grid-cols-3 gap-2"
+          >
+            {DIFFICULTIES.map(({ id, label, detail }) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={difficulty === id}
+                className={cx(
+                  hudChoiceClass(difficulty === id),
+                  "px-4 py-3 text-left"
+                )}
+                onClick={() => setDifficulty(id)}
+              >
+                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                  {label}
+                </span>
+                <span className="block text-hud-sm text-hud-dim">{detail}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </Section>
     </PageShell>
   );
