@@ -81,15 +81,29 @@ service cloud.firestore {
         && entrant.id in [fixture.homeEntrantId, fixture.awayEntrantId];
     }
 
-    // The higher score wins, and a draw has no winner.
+    // The higher score wins, and a draw has no winner. A knockout game left
+    // level goes to Penalties: five roll-offs, and whoever won more goes on.
     function winnerMatchesScores(fixture, result) {
       let winner = result.get('winnerEntrantId', null);
-      return (result.homeScore > result.awayScore
-          && winner == fixture.homeEntrantId)
-        || (result.homeScore < result.awayScore
-          && winner == fixture.awayEntrantId)
-        || (result.homeScore == result.awayScore
-          && winner == null);
+      let penalties = result.get('penalties', null);
+      return (penalties == null
+          && ((result.homeScore > result.awayScore
+              && winner == fixture.homeEntrantId)
+            || (result.homeScore < result.awayScore
+              && winner == fixture.awayEntrantId)
+            || (result.homeScore == result.awayScore
+              && winner == null)))
+        || (penalties != null
+          && resource.data.get('format', '') == 'single-elimination'
+          && result.homeScore == result.awayScore
+          && penalties.keys().hasOnly(['home', 'away'])
+          && penalties.home is int && penalties.away is int
+          && penalties.home >= 0 && penalties.away >= 0
+          && penalties.home + penalties.away == 5
+          && ((penalties.home > penalties.away
+              && winner == fixture.homeEntrantId)
+            || (penalties.home < penalties.away
+              && winner == fixture.awayEntrantId)));
     }
 
     // A bye has one entrant, who wins it unplayed. Rules cannot read the

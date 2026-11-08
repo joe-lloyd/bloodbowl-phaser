@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   generateRoundRobin,
+  generateSingleElimination,
   computeStandings,
 } from "../../src/competition/logic";
 import { saveCompetition } from "../../src/competition/repository";
 import { recordCompetitionFixture } from "../../src/competition/resultRecording";
-import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
+import {
+  CompetitionEntrant,
+  LeagueDoc,
+  TournamentDoc,
+} from "../../src/competition/types";
 import {
   loadTeams,
   saveTeams,
@@ -130,6 +135,60 @@ describe("competition result orchestration", () => {
     const saved = loadTeams();
     expect(saved.find((t) => t.id === "home3")?.dedicatedFans).toBe(3);
     expect(saved.find((t) => t.id === "away3")?.dedicatedFans).toBe(1);
+  });
+
+  it("counts a cup game won on Penalties as a win and a loss", async () => {
+    const teams = [team("home4"), team("away4")];
+    saveTeams(teams);
+    const entrants: CompetitionEntrant[] = teams.map((snapshot, index) => ({
+      id: `local:${snapshot.id}`,
+      teamId: snapshot.id,
+      ownerUid: null,
+      name: snapshot.name,
+      rosterName: snapshot.rosterName,
+      seed: index + 1,
+    }));
+    const fixtures = generateSingleElimination(entrants);
+    const cup: TournamentDoc = {
+      id: "cup4",
+      type: "tournament",
+      format: "single-elimination",
+      name: "Cup4",
+      organizerUid: null,
+      participantUids: [],
+      status: "active",
+      entrants,
+      fixtures,
+      standings: computeStandings(entrants, fixtures),
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await saveCompetition(cup);
+
+    const updated = await recordCompetitionFixture(
+      {
+        competitionType: "tournament",
+        competitionId: cup.id,
+        fixtureId: fixtures[0].id,
+      },
+      1,
+      1,
+      undefined,
+      { home: 3, away: 2 }
+    );
+
+    expect(updated.championEntrantId).toBe("local:home4");
+    const saved = loadTeams();
+    expect(saved.find((t) => t.id === "home4")).toMatchObject({
+      wins: 1,
+      draws: 0,
+      touchdowns: 1,
+    });
+    expect(saved.find((t) => t.id === "away4")).toMatchObject({
+      losses: 1,
+      draws: 0,
+      touchdowns: 1,
+    });
   });
 
   it("activates both teams on their first recorded fixture (team-lifecycle-modes)", async () => {

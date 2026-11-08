@@ -8,6 +8,8 @@ import {
   CompetitionDoc,
   CompetitionEntrant,
   CompetitionFixture,
+  FixtureResult,
+  PenaltyShootout,
 } from "./types";
 import { Team } from "../types/Team";
 
@@ -15,7 +17,7 @@ function updateTeamRecord(
   entrant: CompetitionEntrant,
   fixtureKey: string,
   ownScore: number,
-  opponentScore: number,
+  winnerEntrantId: string | undefined,
   progressedTeam?: Team
 ): void {
   const persisted = getTeamById(entrant.teamId);
@@ -45,9 +47,10 @@ function updateTeamRecord(
     team.dedicatedFans = progressedTeam.dedicatedFans;
   }
   team.touchdowns = (team.touchdowns ?? 0) + ownScore;
-  if (ownScore > opponentScore) team.wins = (team.wins ?? 0) + 1;
-  else if (ownScore < opponentScore) team.losses = (team.losses ?? 0) + 1;
-  else team.draws = (team.draws ?? 0) + 1;
+  // The fixture's winner, so a Penalty Shoot-out counts as a win and a loss
+  if (!winnerEntrantId) team.draws = (team.draws ?? 0) + 1;
+  else if (winnerEntrantId === entrant.id) team.wins = (team.wins ?? 0) + 1;
+  else team.losses = (team.losses ?? 0) + 1;
   // A recorded fixture result is a confirmed completed match — the team is
   // active from here on (see teamLifecycle.ts). A no-op once already set.
   stampFirstCompletedMatch(team);
@@ -62,8 +65,7 @@ function updateTeamRecord(
 function updateReachableTeams(
   competition: CompetitionDoc,
   fixture: CompetitionFixture,
-  homeScore: number,
-  awayScore: number,
+  result: FixtureResult,
   progressedTeams?: { home: Team; away: Team }
 ): void {
   const entrantFor = (id: string | null) =>
@@ -73,8 +75,21 @@ function updateReachableTeams(
   // Fixture ids repeat from one competition to the next
   const key = `${competition.id}:${fixture.id}`;
   if (home && away) {
-    updateTeamRecord(home, key, homeScore, awayScore, progressedTeams?.home);
-    updateTeamRecord(away, key, awayScore, homeScore, progressedTeams?.away);
+    const { homeScore, awayScore, winnerEntrantId } = result;
+    updateTeamRecord(
+      home,
+      key,
+      homeScore,
+      winnerEntrantId,
+      progressedTeams?.home
+    );
+    updateTeamRecord(
+      away,
+      key,
+      awayScore,
+      winnerEntrantId,
+      progressedTeams?.away
+    );
   }
   // A completed competition frees every entrant it holds: only the coaches
   // whose teams are reachable from this session (their own library) can
@@ -96,7 +111,9 @@ export async function recordCompetitionFixture(
   context: CompetitionContext,
   homeScore: number,
   awayScore: number,
-  progressedTeams?: { home: Team; away: Team }
+  progressedTeams?: { home: Team; away: Team },
+  /** How a knockout game left level was decided. */
+  penalties?: PenaltyShootout
 ): Promise<CompetitionDoc> {
   const competition = await getCompetition(
     context.competitionType,
@@ -112,8 +129,7 @@ export async function recordCompetitionFixture(
     updateReachableTeams(
       competition,
       existing,
-      existing.result.homeScore,
-      existing.result.awayScore,
+      existing.result,
       progressedTeams
     );
     return competition;
@@ -126,7 +142,8 @@ export async function recordCompetitionFixture(
           competition,
           context.fixtureId,
           homeScore,
-          awayScore
+          awayScore,
+          penalties
         );
   const uid = getCurrentUser()?.uid;
   const reporterEntrantIndex = updated.entrants.findIndex(
@@ -153,17 +170,15 @@ export async function recordCompetitionFixture(
     if (!latest || fixture?.status !== "complete" || !fixture.result) {
       throw reason;
     }
-    updateReachableTeams(
-      latest,
-      fixture,
-      fixture.result.homeScore,
-      fixture.result.awayScore,
-      progressedTeams
-    );
+    updateReachableTeams(latest, fixture, fixture.result, progressedTeams);
     return latest;
   }
 
-  updateReachableTeams(updated, existing, homeScore, awayScore, progressedTeams);
+  const recorded = updated.fixtures.find(
+    (fixture) => fixture.id === existing.id
+  )?.result;
+  if (!recorded) throw new Error("Fixture has no recorded result.");
+  updateReachableTeams(updated, existing, recorded, progressedTeams);
   return updated;
 }
 

@@ -34,7 +34,14 @@ import {
 } from "../../../game/persistence/MatchSaveRepository";
 import { hasBlockingPendingDevelopment, Team } from "../../../types/Team";
 
-type DraftScores = Record<string, { home: string; away: string }>;
+type DraftScore = {
+  home: string;
+  away: string;
+  /** Roll-offs each side won in a Penalty Shoot-out. */
+  penaltiesHome?: string;
+  penaltiesAway?: string;
+};
+type DraftScores = Record<string, DraftScore>;
 
 export function CompetitionView({ type }: { type: CompetitionType }) {
   const { id } = useParams();
@@ -144,11 +151,21 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       setError("Enter both scores as whole numbers.");
       return;
     }
+    // A knockout game left level was decided on Penalties
+    const penalties =
+      isBracket && home === away
+        ? {
+            home: Number(draft?.penaltiesHome),
+            away: Number(draft?.penaltiesAway),
+          }
+        : undefined;
     try {
       const updated = await recordCompetitionFixture(
         contextFor(fixture),
         home,
-        away
+        away,
+        undefined,
+        penalties
       );
       setCompetition(updated);
       setError(null);
@@ -301,6 +318,28 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             Record result
           </HudButton>
         </div>
+        {isBracket && draft.home !== "" && draft.home === draft.away && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="hud-label">Penalties</span>
+            {(["penaltiesHome", "penaltiesAway"] as const).map((side) => (
+              <input
+                key={side}
+                aria-label={`${side === "penaltiesHome" ? home?.name : away?.name} penalties`}
+                type="number"
+                min="0"
+                max="5"
+                value={draft[side] ?? ""}
+                onChange={(event) =>
+                  setScores((current) => ({
+                    ...current,
+                    [fixture.id]: { ...draft, [side]: event.target.value },
+                  }))
+                }
+                className="hud-field w-16 text-center"
+              />
+            ))}
+          </div>
+        )}
       </>
     );
   };
@@ -339,6 +378,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                         {fixture.result?.awayScore ?? "—"}
                       </strong>
                     </div>
+                    {fixture.result?.penalties && (
+                      <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
+                        Penalties {fixture.result.penalties.home}–
+                        {fixture.result.penalties.away}
+                      </p>
+                    )}
                     {ready && (
                       <div className="mt-3 border-t border-white/10 pt-3">
                         {fixtureActions({ fixture, home, away, ready })}

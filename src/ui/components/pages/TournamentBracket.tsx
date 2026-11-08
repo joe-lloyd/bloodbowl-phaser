@@ -245,6 +245,12 @@ export function TournamentBracket({
                     }
                     bye={!!fixture.result?.bye}
                   />
+                  {fixture.result?.penalties && (
+                    <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
+                      Penalties {fixture.result.penalties.home}–
+                      {fixture.result.penalties.away}
+                    </p>
+                  )}
                   {ready && (
                     <div className="mt-2 border-t border-white/10 pt-2">
                       {renderActions({ fixture, home, away, ready })}

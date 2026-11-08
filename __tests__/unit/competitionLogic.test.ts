@@ -60,6 +60,74 @@ describe("single-elimination brackets", () => {
     expect(tournament.championEntrantId).toBe("three");
   });
 
+  function cupOf(ids: string[]): TournamentDoc {
+    const entrants = ids.map((id, index) => entrant(id, index + 1));
+    return {
+      id: "cup",
+      type: "tournament",
+      name: "Cup",
+      organizerUid: null,
+      participantUids: [],
+      status: "active",
+      format: "single-elimination",
+      entrants,
+      fixtures: generateSingleElimination(entrants),
+      standings: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+  }
+
+  it("sends a level game's Penalty Shoot-out winner through", () => {
+    // Five roll-offs, so 2-3 means the away side won three of them
+    let cup = cupOf(["one", "two"]);
+    cup = recordTournamentResult(cup, "round-1-match-1", 1, 1, {
+      home: 2,
+      away: 3,
+    });
+    expect(cup.fixtures[0].result).toMatchObject({
+      homeScore: 1,
+      awayScore: 1,
+      penalties: { home: 2, away: 3 },
+      winnerEntrantId: "two",
+    });
+    expect(cup.championEntrantId).toBe("two");
+    expect(cup.standings.find((s) => s.entrantId === "two")).toMatchObject({
+      wins: 1,
+      draws: 0,
+    });
+  });
+
+  it("refuses a level knockout game without a Penalty Shoot-out", () => {
+    expect(() =>
+      recordTournamentResult(cupOf(["one", "two"]), "round-1-match-1", 2, 2)
+    ).toThrow(/Penalties/);
+  });
+
+  it.each([
+    [{ home: 2, away: 2 }, "a tied shoot-out"],
+    [{ home: 3, away: 1 }, "fewer than five roll-offs"],
+  ])("refuses %o, %s", (penalties) => {
+    expect(() =>
+      recordTournamentResult(
+        cupOf(["one", "two"]),
+        "round-1-match-1",
+        0,
+        0,
+        penalties
+      )
+    ).toThrow(/five roll-offs/);
+  });
+
+  it("refuses Penalties after a game someone won", () => {
+    expect(() =>
+      recordTournamentResult(cupOf(["one", "two"]), "round-1-match-1", 2, 1, {
+        home: 3,
+        away: 2,
+      })
+    ).toThrow(/level/);
+  });
+
   it("automatically advances a seeded bye", () => {
     const fixtures = generateSingleElimination([
       entrant("one", 1),
