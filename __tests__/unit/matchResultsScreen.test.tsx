@@ -343,6 +343,24 @@ describe("MatchResultsScreen", () => {
     }
   );
 
+  it("names the winner of a knockout tie decided on Penalties", async () => {
+    const { state } = setup(false);
+    state.score["team-1"] = 1;
+    state.score["team-2"] = 1;
+    state.result = {
+      reason: "completed",
+      penalties: { "team-1": 2, "team-2": 3 },
+    };
+
+    await render();
+
+    expect(container.textContent).toContain("1 : 1");
+    expect(container.textContent).toContain(
+      "Bad Badgers win on Penalties, 3–2"
+    );
+    expect(container.textContent).not.toContain("Draw");
+  });
+
   it("labels a concession without inventing a touchdown or mutating the played score (regression: 0-0 stays 0-0)", async () => {
     const { state, team1 } = setup(false);
     state.score["team-1"] = 0;

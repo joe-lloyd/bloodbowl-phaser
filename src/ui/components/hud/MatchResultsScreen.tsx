@@ -51,6 +51,11 @@ function outcomeLabel(
   const [a, b] = teams;
   const scoreA = score[a.id] ?? 0;
   const scoreB = score[b.id] ?? 0;
+  const penalties = result?.penalties;
+  if (scoreA === scoreB && penalties) {
+    const [wonA, wonB] = [penalties[a.id] ?? 0, penalties[b.id] ?? 0];
+    return `${wonA > wonB ? a.name : b.name} win on Penalties, ${Math.max(wonA, wonB)}–${Math.min(wonA, wonB)}`;
+  }
   if (scoreA === scoreB) return "Draw";
   return `${scoreA > scoreB ? a.name : b.name} win`;
 }

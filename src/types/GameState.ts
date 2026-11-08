@@ -45,12 +45,19 @@ export interface MatchResult {
   reason: MatchTerminationReason;
   /** Present for "concession"/"forfeit"; absent for a normally completed match. */
   concedingTeamId?: string;
+  /**
+   * Roll-offs each team won in a Penalty Shoot-out, by team id: a knockout
+   * game still level after Extra Time. The score stays as played.
+   */
+  penalties?: Record<string, number>;
 }
 
 export interface TurnData {
   teamId: string;
   turnNumber: number; // 1-8 (or 1-6 for Sevens)
   isHalf2: boolean;
+  /** The period after a knockout game's second half ended level. */
+  extraTime?: boolean;
   activatedPlayerIds: Set<string>;
   hasBlitzed: boolean;
   hasPassed: boolean;
@@ -87,6 +94,11 @@ export interface GameState {
   activeTeamId: string | null;
   turn: TurnData;
   score: { [key: string]: number };
+  /**
+   * A game that must have a winner, such as a knockout cup tie: a draw goes
+   * to Extra Time and then Penalties (2025 rulebook, p.87).
+   */
+  knockout?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {

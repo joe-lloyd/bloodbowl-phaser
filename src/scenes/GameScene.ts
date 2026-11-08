@@ -258,6 +258,9 @@ export class GameScene extends Phaser.Scene {
           GamePhase.SETUP,
           SubPhase.INTRO
         );
+      if (!restored && this.competitionContext?.knockout) {
+        initialState.knockout = true;
+      }
       ServiceContainer.initialize(
         window.eventBus,
         this.team1,

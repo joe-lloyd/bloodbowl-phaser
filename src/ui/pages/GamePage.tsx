@@ -104,10 +104,21 @@ export function GamePage({
       const gameService = ServiceContainer.getInstance().gameService;
       const homeScore = state.score[matchTeams.team1.id] ?? 0;
       const awayScore = state.score[matchTeams.team2.id] ?? 0;
-      void recordCompetitionFixture(fixtureContext, homeScore, awayScore, {
-        home: gameService.getTeam(matchTeams.team1.id) ?? matchTeams.team1,
-        away: gameService.getTeam(matchTeams.team2.id) ?? matchTeams.team2,
-      })
+      // A knockout tie still level after Extra Time went to Penalties
+      const penalties = state.result?.penalties;
+      void recordCompetitionFixture(
+        fixtureContext,
+        homeScore,
+        awayScore,
+        {
+          home: gameService.getTeam(matchTeams.team1.id) ?? matchTeams.team1,
+          away: gameService.getTeam(matchTeams.team2.id) ?? matchTeams.team2,
+        },
+        penalties && {
+          home: penalties[matchTeams.team1.id] ?? 0,
+          away: penalties[matchTeams.team2.id] ?? 0,
+        }
+      )
         .then(() => {
           eventBus.emit(GameEventNames.CompetitionResultRecorded, {
             fixtureId: fixtureContext.fixtureId,

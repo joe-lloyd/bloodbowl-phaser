@@ -54,6 +54,8 @@ export interface HeadlessGameOptions {
   defaultRoster?: RosterName;
   /** League fixture progression; friendlies default to false. */
   progressionEnabled?: boolean;
+  /** A knockout tie: a draw goes to Extra Time, then Penalties. */
+  knockout?: boolean;
   /** Exact running RNG state when restoring a saved match. */
   rngState?: RNGState;
   /** Accumulated statistics when restoring a saved match. */
@@ -161,6 +163,7 @@ export function createHeadlessGame(
     initialState,
     noDelay
   );
+  if (options.knockout) gameService.getState().knockout = true;
   const turnManagerState =
     restored?.save.turnManager ?? options.turnManagerState;
   if (turnManagerState) {

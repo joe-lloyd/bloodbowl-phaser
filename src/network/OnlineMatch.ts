@@ -330,6 +330,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       GamePhase.SETUP,
       SubPhase.INTRO
     );
+    if (lobby.competitionContext?.knockout) initialState.knockout = true;
   }
 
   let session: LockstepSession | null = null;
