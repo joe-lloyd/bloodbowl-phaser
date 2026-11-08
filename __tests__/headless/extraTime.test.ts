@@ -30,6 +30,10 @@ async function play(seed: number, knockout: boolean) {
     if (phase === GamePhase.HALFTIME && state().turn.extraTime)
       rerollsInExtraTime = { ...state().teamRerollsUsed };
   });
+  let fullTime = "";
+  eventBus.on(GameEventNames.UI_GameLog, (line) => {
+    if (String(line).startsWith("FULL TIME")) fullTime = String(line);
+  });
   const rollOff: Record<string, number>[] = [];
   eventBus.on(GameEventNames.DiceRoll, (roll) => {
     if (!roll.rollType.startsWith("Extra Time roll-off")) return;
@@ -51,6 +55,7 @@ async function play(seed: number, knockout: boolean) {
     away,
     rerollsAtFullTime,
     rerollsInExtraTime,
+    fullTime,
     rollOffWinner: last && (last[home] > last[away] ? 0 : 1),
     kickChoice: recording.steps.find((step) => step.label === "Use Extra Time"),
   };
@@ -90,6 +95,12 @@ describe("a knockout tie", () => {
         continue;
       }
       expect(penalties![home] + penalties![away], `seed ${seed}`).toBe(5);
+      // Full time names the winner, not a draw
+      const [won, lost] = [penalties![home], penalties![away]].sort().reverse();
+      const winner = penalties![home] > penalties![away] ? "Home" : "Away";
+      expect(game.fullTime, `seed ${seed}`).toMatch(
+        `(${winner} win on Penalties, ${won}–${lost})`
+      );
       seen.penalties++;
     }
     for (const [outcome, count] of Object.entries(seen))

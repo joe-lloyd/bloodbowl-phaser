@@ -1794,6 +1794,11 @@ export class GameService implements IGameService {
         undefined;
       const verb = result.reason === "concession" ? "conceded" : "forfeited";
       outcome = conceding ? `${conceding.name} ${verb}` : `Match ${verb}`;
+    } else if (score1 === score2 && result?.penalties) {
+      const won1 = result.penalties[this.team1.id] ?? 0;
+      const won2 = result.penalties[this.team2.id] ?? 0;
+      const winner = won1 > won2 ? this.team1 : this.team2;
+      outcome = `${winner.name} win on Penalties, ${Math.max(won1, won2)}–${Math.min(won1, won2)}`;
     } else if (score1 === score2) {
       outcome = "draw";
     } else {
