@@ -13,6 +13,7 @@ import {
 } from "../../src/types/Team";
 import { SkillType } from "../../src/types/Skills";
 import { GamePhase } from "../../src/types/GameState";
+import { GameService } from "../../src/services/GameService";
 import {
   dehydrateTeam,
   hydrateStoredTeam,
@@ -204,5 +205,31 @@ describe("Journeymen (L2)", () => {
   it("are never taken on by a Matched Play team", () => {
     const game = startGame(team("home", 6, "matched-play"));
     expect(journeymen(game.ctx.team1)).toEqual([]);
+  });
+});
+
+describe("a resumed match", () => {
+  it("keeps its saved state and teams, even given a starting phase", () => {
+    const home = team("home", 6);
+    home.players[0].injuries.push(InjuryType.MISS_NEXT_GAME);
+    const away = team("away", 7);
+    const initialState = GameService.createInitialState(
+      home,
+      away,
+      GamePhase.PLAY
+    );
+    const game = new HeadlessGame({
+      team1: home,
+      team2: away,
+      seed: 1,
+      initialState,
+      startingPhase: GamePhase.SETUP,
+    });
+    expect(game.ctx.gameService.getState().phase).toBe(GamePhase.PLAY);
+    // Not readied again: no Journeymen, and the injury is still owed
+    expect(game.ctx.team1.players).toHaveLength(6);
+    expect(game.ctx.team1.players[0].injuries).toEqual([
+      InjuryType.MISS_NEXT_GAME,
+    ]);
   });
 });
