@@ -42,7 +42,7 @@ type Candidate = {
 };
 
 /** A computer team to build when the competition is generated. */
-type ComputerRow = { key: string; name: string; rosterName: RosterName };
+type ComputerRow = { name: string; rosterName: RosterName };
 
 const ROSTERS = Object.values(RosterName);
 const KIT_COLOURS = [
@@ -147,7 +147,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         );
         const rosterName = pool[Math.floor(Math.random() * pool.length)];
         const name = computerTeamName(taken);
-        next.push({ key: crypto.randomUUID(), name, rosterName });
+        next.push({ name, rosterName });
         taken.add(name);
         rosterCounts.set(rosterName, (rosterCounts.get(rosterName) ?? 0) + 1);
       }
@@ -405,7 +405,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
           <ul className="mb-4 space-y-2">
             {computerRows.map((row, index) => (
               <li
-                key={row.key}
+                key={row.name}
                 className="flex flex-wrap items-center gap-2 font-hud-body text-hud-base text-hud-bone"
               >
                 <span className="min-w-[12rem] flex-1">
@@ -420,7 +420,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   onChange={(event) =>
                     setComputerRows((rows) =>
                       rows.map((candidate) =>
-                        candidate.key === row.key
+                        candidate.name === row.name
                           ? {
                               ...candidate,
                               rosterName: event.target.value as RosterName,
@@ -443,7 +443,7 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                   aria-label={`Remove ${row.name}`}
                   onClick={() =>
                     setComputerRows((rows) =>
-                      rows.filter((candidate) => candidate.key !== row.key)
+                      rows.filter((candidate) => candidate.name !== row.name)
                     )
                   }
                 >

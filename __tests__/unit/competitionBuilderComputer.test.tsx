@@ -35,6 +35,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 async function openBuilder() {
@@ -208,4 +209,14 @@ it.each([8, 32])("fills an entire %i-team computer league", async (size) => {
       )
     ).toHaveLength(size - 1);
   }
+});
+
+it("fills a league without secure-context browser APIs", async () => {
+  vi.stubGlobal("crypto", {});
+  await openBuilder();
+  await act(async () => button("Fill league with computer teams").click());
+  const league = await generatedLeague();
+  expect(league.entrants).toHaveLength(16);
+  expect(new Set(league.entrants.map((team) => team.name)).size).toBe(16);
+  expect(league.fixtures).toHaveLength(120);
 });
