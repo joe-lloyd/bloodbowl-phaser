@@ -1,6 +1,7 @@
 /**
  * A computer team still playing in a competition cannot be deleted: its
- * games could no longer be played or simulated.
+ * games could no longer be played or simulated. The check reads the stored
+ * team, so an entry made in another tab after the page rendered counts.
  */
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
@@ -45,7 +46,6 @@ it.each([
       0x335577,
       "advanced-league"
     );
-    if (activeCompetitionId) team.activeCompetitionId = activeCompetitionId;
     saveTeam(team);
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -58,6 +58,8 @@ it.each([
     });
 
     expect(container.textContent).toContain("Computer");
+    // Entered from another tab after this page rendered
+    if (activeCompetitionId) saveTeam({ ...team, activeCompetitionId });
     await act(async () =>
       container
         .querySelector<HTMLButtonElement>('button[aria-label="Delete team"]')!

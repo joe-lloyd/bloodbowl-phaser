@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Team } from "../../../types/Team";
 import {
   deleteTeam,
+  getTeamById,
   seedAllRosterTeams,
   deleteAllSeedTeams,
 } from "../../../game/managers/TeamManager";
@@ -59,8 +60,9 @@ export function TeamManagement() {
   };
 
   const handleDeleteTeam = (teamId: string) => {
-    const team = teams.find((candidate) => candidate.id === teamId);
-    // Its games in the competition could no longer be played or simulated
+    // The stored team: another tab may have entered it since this rendered.
+    // Its games in the competition could no longer be played or simulated.
+    const team = getTeamById(teamId);
     if (team?.computerCoached && team.activeCompetitionId) {
       alert(
         "This computer team is still playing in a competition. Delete it once the competition is over."
