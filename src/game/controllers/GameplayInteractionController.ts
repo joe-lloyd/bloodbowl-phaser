@@ -1575,8 +1575,9 @@ export class GameplayInteractionController {
         this.currentActionMode === "foul" &&
         this.currentStepId === "foul"
       ) {
-        // FOUL MODE: Highlight valid targets
+        // FOUL MODE: Highlight valid targets, redrawn on every hover
         this.pitch.clearPath();
+        this.pitch.clearLayer("highlight");
         const selectedPlayer = this.gameService.getPlayerById(
           this.selectedPlayerId
         );
