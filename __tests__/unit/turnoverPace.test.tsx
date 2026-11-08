@@ -10,9 +10,13 @@ import { MomentQueue } from "../../src/game/presentation/momentQueue";
  * Round 3, 31:59: a turnover with an armour roll took 4.8 to 7.7 s from the
  * failed die landing to the next turn banner. The fall's bounce, throw-in
  * and armour dice each tumbled and held in turn, then the banner played.
- * They now go up as one throw, and the next turn banner follows in under
- * 4 s. Fake timers, with dice that tumble like the real ones: 1.5 s, or
- * at most 0.7 s once hurried because more rolls wait.
+ * They went up as one throw, and the next turn banner followed in 2.8 s.
+ * Round 4: that was too fast to follow. The failed die was gone in 250 ms
+ * and the armour result was cut off the end of one line of six dice. The
+ * failed die now holds 700 ms and the armour roll goes up on its own, which
+ * takes 4.6 s, still under round 3's fastest. Fake timers, with dice that
+ * tumble like the real ones: 1.5 s, or at most 0.7 s once hurried because
+ * more rolls wait.
  */
 
 const throws = vi.hoisted(() => ({ values: [] as number[][] }));
@@ -64,7 +68,7 @@ vi.mock("../../src/services/ServiceContainer", () => {
 
 afterEach(() => vi.useRealTimers());
 
-it("a failed Rush with its armour roll reaches the next turn banner in under 4 s", async () => {
+it("a failed Rush with its armour roll reaches the next turn banner in under 5 s", async () => {
   vi.useFakeTimers();
   const bus = new EventBus();
   const queue = new MomentQueue(bus);
@@ -116,9 +120,10 @@ it("a failed Rush with its armour roll reaches the next turn banner in under 4 s
   for (let i = 0; i < 100 && !bannerAt; i++)
     await act(async () => vi.advanceTimersByTimeAsync(100));
 
-  expect(throws.values).toEqual([[1], [6, 6, 2, 4, 5, 3]]);
+  // The ball's dice go up together; the armour roll goes up on its own
+  expect(throws.values).toEqual([[1], [6, 6, 2, 4], [5, 3]]);
   expect(failedLandedAt).toBeGreaterThan(0);
-  expect(bannerAt - failedLandedAt).toBeLessThan(4_000);
+  expect(bannerAt - failedLandedAt).toBeLessThan(5_000);
 
   await act(async () => root.unmount());
   container.remove();

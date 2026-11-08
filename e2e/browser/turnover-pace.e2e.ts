@@ -2,10 +2,11 @@
  * Round 3, 31:59: a turnover with an armour roll took 4.8 to 7.7 s from the
  * failed die landing to the next turn banner; without fall dice it took
  * under 3 s. Here, with the real 3D dice, the same failed Rush took 7.3 s
- * before the fix. It now takes about 3.5 s on a quiet machine, and under 5 s
- * with four software-rendered browsers sharing it. The bound sits between,
- * so a busy run stays green and the old pace still fails. The 4 s target
- * itself is proven with fake timers in turnoverPace.test.tsx.
+ * before the fix. Round 4 found the faster pace hard to follow, so the
+ * failed die holds longer and the armour roll goes up on its own. It now
+ * takes about 4.8 s with four browsers sharing the machine. The bound sits
+ * above that, so a busy run stays green and the old pace still fails. The
+ * 5 s target itself is proven with fake timers in turnoverPace.test.tsx.
  */
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";

@@ -22,8 +22,12 @@ export const BLOCK_VALUE: Record<string, number> = {
   pow: 6,
 };
 const HOLD_MS = 1800;
-/** A landed roll's read when another roll waits behind it. */
-const QUEUED_HOLD_MS = 250;
+/**
+ * A landed roll's read when another roll waits behind it. Long enough to
+ * see the die that failed before the fall's dice go up (round 4: at 250 ms
+ * a failed Rush was gone before a coach could read it).
+ */
+const QUEUED_HOLD_MS = 700;
 const MAX_QUEUE = 3;
 
 /**
@@ -104,12 +108,14 @@ const MAX_DICE_PER_THROW = 6;
 
 /**
  * A D6 roll still waiting to be thrown takes the next D6 roll of its team,
- * unless it ends in a 2D6 roll: an injury roll must not go up before the
- * armour roll that allowed it has landed.
+ * such as a bounce and a throw-in. A 2D6 roll, armour or injury, goes up on
+ * its own, so the roll that decides a player's fate reads as one line, and
+ * an injury roll never goes up before the armour roll that allowed it.
  */
 function joinsThrow(waiting: Queued, next: Queued): boolean {
   return (
     !waiting.closed &&
+    !next.closed &&
     waiting.roll.kind === "d6" &&
     next.roll.kind === "d6" &&
     !waiting.block &&
