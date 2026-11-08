@@ -20,7 +20,9 @@ dice and coaching decisions.
 - Complete match flow from coin toss and setup through kick-offs,
   movement, blocking, passing, fouling and post-match results.
 - Leagues and tournaments, with Matched Play, Sevens Skill Selection and
-  Advanced League team modes.
+  Advanced League team modes. Fill them with computer teams: play your own
+  games against the computer, and the computer plays out the rest, injuries
+  and all.
 - Online hosting and joining by code, cloud teams and match chat when
   Firebase is configured and both coaches sign in.
 - Blood Bowl and Neon stadium styles, with camera zoom and pan.
