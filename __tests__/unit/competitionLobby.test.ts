@@ -44,6 +44,8 @@ describe("hosted competition fixtures", () => {
     expect(created.players.host.team?.id).toBe("home");
     expect(created.fixtureTeams?.away.id).toBe("away");
     expect(created.settings.pitchThemeId).toBe("bloodbowl");
+    // A competition fixture counts for the teams: SPP and development
+    expect(created.settings.progressionEnabled).toBe(true);
     expect(setDocMock.mock.calls[0][1]).toMatchObject({
       settings: { pitchThemeId: "bloodbowl" },
       competitionContext: context,
@@ -52,5 +54,10 @@ describe("hosted competition fixtures", () => {
         away: { id: "away" },
       },
     });
+  });
+
+  it("leaves progression off for a friendly", async () => {
+    const created = await createLobby("host", "Coach");
+    expect(created.settings.progressionEnabled).toBe(false);
   });
 });

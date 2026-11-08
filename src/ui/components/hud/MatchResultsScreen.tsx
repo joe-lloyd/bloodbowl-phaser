@@ -19,6 +19,7 @@ import {
 import { stampFirstCompletedMatch } from "../../../game/rules/teamLifecycle";
 import { offerRaisedDeadRecruit } from "../../../game/rules/raiseDead";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
+import { keepRecordedResult } from "../../../competition/resultRecording";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
 
@@ -263,6 +264,7 @@ export function MatchResultsScreen({ visible }: Props) {
       // stamp it active (idempotent; see teamLifecycle.ts). Abandoning
       // before this point never reaches here, so it never activates.
       stampFirstCompletedMatch(team);
+      keepRecordedResult(team);
       saveTeam(team);
     });
   };

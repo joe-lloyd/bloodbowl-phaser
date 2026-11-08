@@ -301,7 +301,10 @@ export async function createLobby(
     hostUid,
     guestUid: null,
     status: "lobby",
-    settings: DEFAULT_SETTINGS,
+    // A league or tournament game counts: SPP and development
+    settings: fixture
+      ? { ...DEFAULT_SETTINGS, progressionEnabled: true }
+      : DEFAULT_SETTINGS,
     players: {
       [hostUid]: {
         uid: hostUid,

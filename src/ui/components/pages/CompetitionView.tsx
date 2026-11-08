@@ -190,6 +190,8 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           team1,
           team2,
           competitionContext: contextFor(fixture),
+          // A league or tournament game counts: SPP and development
+          progressionEnabled: true,
         },
       });
     } finally {

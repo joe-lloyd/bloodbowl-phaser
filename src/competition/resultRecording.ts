@@ -55,6 +55,22 @@ function updateTeamRecord(
 }
 
 /**
+ * The results screen saves the match's own copy of a team, loaded at
+ * kick-off. Full time has already recorded the fixture on the stored team,
+ * and may have closed its competition, so take that record from storage.
+ */
+export function keepRecordedResult(team: Team): void {
+  const stored = getTeamById(team.id);
+  if (!stored) return;
+  team.wins = stored.wins;
+  team.draws = stored.draws;
+  team.losses = stored.losses;
+  team.touchdowns = stored.touchdowns;
+  team.recordedFixtureIds = stored.recordedFixtureIds;
+  team.activeCompetitionId = stored.activeCompetitionId;
+}
+
+/**
  * Count a fixture in whichever of its teams this coach's library holds. Both
  * coaches come through here at full time, whoever recorded the result first,
  * and each has only their own team.
