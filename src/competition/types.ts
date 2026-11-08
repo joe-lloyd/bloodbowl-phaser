@@ -38,9 +38,20 @@ export interface CompetitionEntrant {
   withdrawn?: boolean;
 }
 
+/**
+ * A Penalty Shoot-out (2025 rulebook, Penalties): five roll-offs, each won
+ * by one side, after a knockout game is still level at the end of Extra Time.
+ */
+export interface PenaltyShootout {
+  home: number;
+  away: number;
+}
+
 export interface FixtureResult {
   homeScore: number;
   awayScore: number;
+  /** Decided a level knockout game; the side that won more goes through. */
+  penalties?: PenaltyShootout;
   winnerEntrantId?: string;
   completedAt: number;
   bye?: boolean;

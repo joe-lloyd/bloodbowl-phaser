@@ -542,6 +542,88 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       expect([next.homeEntrantId, next.awayEntrantId]).toContain(winner);
     });
 
+    it("can report a knockout game won on Penalties, which advances the winner", async () => {
+      const comp = await tournament();
+      const mine = comp.fixtures.find(
+        (f) =>
+          f.status === "ready" &&
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+      )!;
+      const updated = await as(GUEST, () =>
+        recordCompetitionFixture(context(comp, mine.id), 1, 1, undefined, {
+          home: 2,
+          away: 3,
+        })
+      );
+      const next = updated.fixtures.find((f) => f.id === mine.nextFixtureId)!;
+      expect([next.homeEntrantId, next.awayEntrantId]).toContain(
+        mine.awayEntrantId
+      );
+    });
+
+    it("cannot name a Penalties winner the shoot-out does not support, or in a league", async () => {
+      const cup = await tournament();
+      const mine = cup.fixtures.find(
+        (f) =>
+          f.status === "ready" &&
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+      )!;
+      const reporterEntrantIndex = cup.entrants.findIndex(
+        (e) => e.ownerUid === GUEST
+      );
+      const reportLevel = (
+        ref: ReturnType<typeof doc>,
+        all: { id: string }[],
+        fixtureId: string,
+        penalties: unknown,
+        winnerEntrantId: string | null
+      ) => {
+        const fixtures = JSON.parse(JSON.stringify(all));
+        const target = fixtures.find((f: { id: string }) => f.id === fixtureId);
+        target.status = "complete";
+        target.result = {
+          homeScore: 1,
+          awayScore: 1,
+          penalties,
+          winnerEntrantId,
+          completedAt: 1,
+        };
+        return updateDoc(ref, { fixtures, reporterEntrantIndex });
+      };
+      const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
+      for (const [penalties, winner] of [
+        // The side that lost the shoot-out
+        [{ home: 3, away: 2 }, mine.awayEntrantId],
+        // A tied shoot-out, and one short of five roll-offs
+        [{ home: 2, away: 2 }, mine.homeEntrantId],
+        [{ home: 3, away: 1 }, mine.homeEntrantId],
+      ] as const) {
+        await denied(
+          reportLevel(cupRef, cup.fixtures, mine.id, penalties, winner)
+        );
+      }
+
+      const comp = await league();
+      const { fixture } = guestsFixture(comp);
+      await denied(
+        reportLevel(
+          leagueRef(GUEST, comp.id),
+          comp.fixtures,
+          fixture.id,
+          { home: 3, away: 2 },
+          fixture.homeEntrantId
+        )
+      );
+      // The same level league result stands as a draw without them
+      await reportLevel(
+        leagueRef(GUEST, comp.id),
+        comp.fixtures,
+        fixture.id,
+        null,
+        null
+      );
+    });
+
     it("sees the result stand when the other coach reports first", async () => {
       const comp = await league();
       const { fixture, rival } = guestsFixture(comp);

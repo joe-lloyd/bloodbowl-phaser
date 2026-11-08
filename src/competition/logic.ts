@@ -4,6 +4,7 @@ import {
   FixtureResult,
   LeagueDoc,
   LeaguePoints,
+  PenaltyShootout,
   Standing,
   TournamentDoc,
 } from "./types";
@@ -270,12 +271,13 @@ export function computeStandings(
     away.scoreFor += fixture.result.awayScore;
     away.scoreAgainst += fixture.result.homeScore;
 
-    if (fixture.result.homeScore > fixture.result.awayScore) {
+    const lead = homeLead(fixture.result);
+    if (lead > 0) {
       home.wins++;
       away.losses++;
       home.points += points.win;
       away.points += points.loss;
-    } else if (fixture.result.awayScore > fixture.result.homeScore) {
+    } else if (lead < 0) {
       away.wins++;
       home.losses++;
       away.points += points.win;
@@ -301,12 +303,23 @@ export function computeStandings(
   );
 }
 
+/** Positive when home won, negative when away won, 0 for a draw. */
+function homeLead(result: Omit<FixtureResult, "completedAt">): number {
+  const { homeScore, awayScore, penalties } = result;
+  return (
+    homeScore - awayScore || (penalties ? penalties.home - penalties.away : 0)
+  );
+}
+
+const SHOOTOUT_ROLL_OFFS = 5;
+
 function completedResult(
   homeEntrantId: string,
   awayEntrantId: string,
   homeScore: number,
   awayScore: number,
-  allowDraw: boolean
+  allowDraw: boolean,
+  penalties?: PenaltyShootout
 ): FixtureResult {
   if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore)) {
     throw new Error("Scores must be whole numbers.");
@@ -314,18 +327,33 @@ function completedResult(
   if (homeScore < 0 || awayScore < 0) {
     throw new Error("Scores cannot be negative.");
   }
-  if (!allowDraw && homeScore === awayScore) {
-    throw new Error("Elimination fixtures require a winner.");
+  if (penalties) {
+    if (allowDraw || homeScore !== awayScore) {
+      throw new Error("Penalties only decide a knockout game left level.");
+    }
+    const { home, away } = penalties;
+    if (
+      !Number.isInteger(home) ||
+      !Number.isInteger(away) ||
+      home < 0 ||
+      away < 0 ||
+      home + away !== SHOOTOUT_ROLL_OFFS
+    ) {
+      throw new Error(
+        "A Penalty Shoot-out is five roll-offs, each won by one side."
+      );
+    }
+  } else if (!allowDraw && homeScore === awayScore) {
+    throw new Error(
+      "A knockout game left level is decided on Penalties: enter the shoot-out."
+    );
   }
+  const result = { homeScore, awayScore, ...(penalties ? { penalties } : {}) };
+  const lead = homeLead(result);
   return {
-    homeScore,
-    awayScore,
+    ...result,
     winnerEntrantId:
-      homeScore === awayScore
-        ? undefined
-        : homeScore > awayScore
-          ? homeEntrantId
-          : awayEntrantId,
+      lead === 0 ? undefined : lead > 0 ? homeEntrantId : awayEntrantId,
     completedAt: Date.now(),
   };
 }
@@ -375,7 +403,8 @@ export function recordTournamentResult(
   tournament: TournamentDoc,
   fixtureId: string,
   homeScore: number,
-  awayScore: number
+  awayScore: number,
+  penalties?: PenaltyShootout
 ): TournamentDoc {
   const next: TournamentDoc = structuredClone(tournament);
   const fixture = next.fixtures.find((candidate) => candidate.id === fixtureId);
@@ -390,7 +419,8 @@ export function recordTournamentResult(
     fixture.awayEntrantId,
     homeScore,
     awayScore,
-    next.format === "round-robin"
+    next.format === "round-robin",
+    penalties
   );
   fixture.status = "complete";
 
