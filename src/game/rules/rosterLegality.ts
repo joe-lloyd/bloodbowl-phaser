@@ -3,7 +3,7 @@
  * shared by the team builder's finalise step and the development seed
  * builders. Rules enforced:
  *
- *   - 7..11 players (Sevens roster size)
+ *   - 7..11 players (Sevens roster size); an active team may drop below 7
  *   - at most 4 players without the Lineman positional keyword
  *   - no position above its roster template maximum (maxAllowed)
  *   - every player's position exists on the roster template
@@ -45,7 +45,12 @@ export function validateRosterLegality(
   const violations: RosterViolation[] = [];
   const players = team.players;
 
-  if (players.length < MIN_ROSTER_PLAYERS || players.length > MAX_ROSTER_PLAYERS) {
+  // D2: league injuries may take a team below 7, and Journeymen make up
+  // the numbers (L2), so only a draft must reach 7.
+  if (
+    (isDraftTeam(team) && players.length < MIN_ROSTER_PLAYERS) ||
+    players.length > MAX_ROSTER_PLAYERS
+  ) {
     violations.push({
       rule: "roster-size",
       detail: `${players.length} players (must be ${MIN_ROSTER_PLAYERS}..${MAX_ROSTER_PLAYERS})`,

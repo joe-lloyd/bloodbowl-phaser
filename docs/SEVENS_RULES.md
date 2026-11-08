@@ -30,7 +30,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | ID | Rule | Status |
 | --- | --- | --- |
 | D1 | The draft budget is 600,000. Unspent gold goes to the Treasury in a league and is lost in Matched Play. | ok for the budget; check what happens to unspent gold |
-| D2 | A team has 7 to 11 permanently hired players. League injuries may take it below 7. | ok |
+| D2 | A team has 7 to 11 permanently hired players. League injuries may take it below 7. | ok: only a draft must reach 7. A league team below 7 stays legal to play and to enter a competition, and Journeymen make up the numbers (L2) |
 | D3 | At most 4 players without the Lineman keyword. Each position's own limit still applies. | ok |
 | D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | ok: capped at 6, the top of the re-roll tracker |
 | D5 | Assistant Coaches and Cheerleaders cost 20,000 each, with at most 3 of each, at the draft or during a league. | ok |
