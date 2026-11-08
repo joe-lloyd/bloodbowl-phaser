@@ -346,10 +346,13 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         )}
         <HudButton onClick={addComputerTeam}>+ Add computer team</HudButton>
         {computerEntrants > 0 && (
+          <p className="hud-label mb-2 mt-5">How hard the computer plays</p>
+        )}
+        {computerEntrants > 0 && (
           <div
             role="radiogroup"
             aria-label="How hard the computer plays"
-            className="mt-4 grid max-w-2xl grid-cols-3 gap-2"
+            className="grid max-w-2xl grid-cols-3 gap-2"
           >
             {DIFFICULTIES.map(({ id, label, detail }) => (
               <button

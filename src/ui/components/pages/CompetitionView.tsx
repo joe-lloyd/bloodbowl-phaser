@@ -635,14 +635,17 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                       Computer
                     </span>
                   )}
-                  {owned && !candidate.withdrawn && (
-                    <button
-                      onClick={() => void withdraw(candidate.id)}
-                      className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                    >
-                      Withdraw
-                    </button>
-                  )}
+                  {/* A computer team withdrawn would leave its games unplayed */}
+                  {owned &&
+                    !candidate.withdrawn &&
+                    !candidate.computerCoached && (
+                      <button
+                        onClick={() => void withdraw(candidate.id)}
+                        className="font-hud-label text-hud-xs font-bold uppercase tracking-[0.08em] text-hud-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
+                      >
+                        Withdraw
+                      </button>
+                    )}
                 </div>
               );
             })}

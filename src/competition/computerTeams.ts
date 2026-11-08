@@ -92,18 +92,35 @@ const NICKNAMES = [
   "Screamers",
 ];
 
-/** A team name not in `taken`, such as "Nuln Bonecrushers". */
+/**
+ * A team name not in `taken`, such as "Nuln Bonecrushers", from a place and
+ * a nickname no taken name uses while any are left.
+ */
 export function computerTeamName(
   taken: ReadonlySet<string>,
   random: () => number = Math.random
 ): string {
-  const pick = <T>(list: T[]) => list[Math.floor(random() * list.length)];
+  const names = [...taken];
+  const unused = (
+    words: string[],
+    inName: (name: string, word: string) => boolean
+  ) => {
+    const left = words.filter(
+      (word) => !names.some((name) => inName(name, word))
+    );
+    return left.length > 0 ? left : words;
+  };
+  const places = unused(PLACES, (name, place) => name.startsWith(`${place} `));
+  const nicknames = unused(NICKNAMES, (name, nickname) =>
+    name.includes(` ${nickname}`)
+  );
+  const pick = (list: string[]) => list[Math.floor(random() * list.length)];
   for (let attempt = 0; attempt < 50; attempt++) {
-    const name = `${pick(PLACES)} ${pick(NICKNAMES)}`;
+    const name = `${pick(places)} ${pick(nicknames)}`;
     if (!taken.has(name)) return name;
   }
   for (let number = 2; ; number++) {
-    const name = `${pick(PLACES)} ${pick(NICKNAMES)} ${number}`;
+    const name = `${pick(places)} ${pick(nicknames)} ${number}`;
     if (!taken.has(name)) return name;
   }
 }
