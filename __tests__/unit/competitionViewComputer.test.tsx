@@ -162,7 +162,8 @@ describe("a league against the computer", () => {
 
   it("simulates a round's computer games and shows what happened", async () => {
     await show(league);
-    expect(buttons("Simulate")).toHaveLength(3);
+    // One computer game a round; only round 1's can be simulated yet
+    expect(buttons("Simulate")).toHaveLength(1);
     await act(async () => button("Simulate round 1")!.click());
     await vi.waitFor(
       () => expect(container.textContent).not.toContain("Simulating"),
@@ -195,7 +196,7 @@ describe("a league against the computer", () => {
         candidate.textContent?.startsWith("Simulate round")
       )
     ).toEqual([]);
-    expect(buttons("Simulate")).toHaveLength(2);
+    expect(buttons("Simulate")).toEqual([]);
   }, 60_000);
 });
 

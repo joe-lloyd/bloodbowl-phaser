@@ -28,7 +28,11 @@ const HOLD_MS = 1800;
  * a failed Rush was gone before a coach could read it).
  */
 const QUEUED_HOLD_MS = 700;
-const MAX_QUEUE = 3;
+/**
+ * A fall can queue a throw-in, then armour, injury and Regeneration on
+ * their own throws, behind the failed roll still showing.
+ */
+const MAX_QUEUE = 5;
 
 /**
  * Turn an engine DiceRoll into dice to throw: D6s and block dice only. A D3,

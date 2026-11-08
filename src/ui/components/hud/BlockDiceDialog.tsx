@@ -475,9 +475,11 @@ function DieChoice({
   onPick: () => void;
   children: React.ReactNode;
 }) {
-  useHotkey(String(index + 1), onPick);
+  const button = useRef<HTMLButtonElement | null>(null);
+  useHotkey(String(index + 1), onPick, true, button);
   return (
     <button
+      ref={button}
       data-testid={`block-die-${index}`}
       data-block-result={result}
       onClick={onPick}

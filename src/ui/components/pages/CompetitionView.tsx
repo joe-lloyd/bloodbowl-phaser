@@ -384,7 +384,8 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     if (home && away && computerCoached(home) && computerCoached(away)) {
       return (
         <div className="flex flex-wrap gap-2">
-          {canSimulate && (
+          {/* The current round only, as for the round's button */}
+          {canSimulate && fixture.round === roundToSimulate && (
             <HudButton
               variant="primary"
               size="sm"
