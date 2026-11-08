@@ -1,23 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createCompetition } from "../../../competition/create";
 import {
-  computeStandings,
-  generateRoundRobin,
-  generateSingleElimination,
-  seedEntrants,
-} from "../../../competition/logic";
+  computerTeamName,
+  createComputerTeam,
+} from "../../../competition/computerTeams";
 import {
-  findCompetitionById,
-  saveCompetition,
-} from "../../../competition/repository";
-import {
-  CompetitionEntrant,
+  competitionPath,
   CompetitionType,
-  DEFAULT_LEAGUE_POINTS,
   TournamentFormat,
 } from "../../../competition/types";
 import {
-  assertEntrantsCompatible,
   checkTeamCompatibility,
   createRosterRuleProfile,
   RosterRuleProfile,
@@ -26,12 +19,9 @@ import {
   fetchAllCoachTeams,
   OwnedTeam,
 } from "../../../firebase/cloudTeamRepository";
-import { saveTeam } from "../../../game/managers/TeamManager";
 import { useTeamLibrary } from "../../hooks/useTeamLibrary";
-import { validateRosterLegality } from "../../../game/rules/rosterLegality";
-import { validateInsignificant } from "../../../game/rules/insignificant";
-import { getRosterByRosterName } from "../../../data/RosterTemplates";
-import { Team, TeamAdvancementMode } from "../../../types/Team";
+import { DIFFICULTIES, Difficulty } from "../../../simulation/ai/difficulty";
+import { RosterName, Team, TeamAdvancementMode } from "../../../types/Team";
 import { useAuth } from "../../hooks/useAuth";
 import {
   cx,
@@ -51,12 +41,22 @@ type Candidate = {
   ownerUid?: string;
 };
 
+/** A computer team to build when the competition is generated. */
+type ComputerRow = { key: string; name: string; rosterName: RosterName };
+
+const ROSTERS = Object.values(RosterName);
+const KIT_COLOURS = [
+  0xb22222, 0x1f4e9c, 0x2e8b57, 0xd4a017, 0x6a0dad, 0xff7f00, 0x008b8b,
+  0x8b4513, 0x708090, 0xc71585, 0x556b2f, 0x4682b4,
+];
+
 /**
  * Every coach's team is added to a competition the same way — as a
  * reference to a live team, whether it is the organizer's own or another
  * coach's (shared-team-library: "no distinction between a 'shared' and a
  * 'local' entrant source"). There is no publish/shared-copy step; other
- * coaches' teams are read directly.
+ * coaches' teams are read directly. Computer teams are built here and kept
+ * in the organizer's library.
  */
 export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const navigate = useNavigate();
@@ -70,6 +70,8 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [advancementMode, setAdvancementModeChoice] =
     useState<TeamAdvancementMode>("advanced-league");
   const [draftBudget, setDraftBudget] = useState(1_200_000);
+  const [computerRows, setComputerRows] = useState<ComputerRow[]>([]);
+  const [difficulty, setDifficulty] = useState<Difficulty>("standard");
   const [localTeams] = useTeamLibrary();
 
   const profile: RosterRuleProfile | undefined = useProfile
@@ -91,12 +93,17 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const candidates: Candidate[] = [
     ...localTeams.map((team) => ({
       id: `own:${team.id}`,
-      label: `${team.name} (${team.rosterName}) — your team`,
+      label: `${team.name} (${team.rosterName}) — ${team.computerCoached ? "computer team" : "your team"}`,
       team,
       ownerUid: user?.uid,
     })),
     ...otherTeams
-      .filter((owned) => !localTeams.some((team) => team.id === owned.team.id))
+      // Another coach's computer team plays from their library, not this one
+      .filter(
+        (owned) =>
+          !owned.team.computerCoached &&
+          !localTeams.some((team) => team.id === owned.team.id)
+      )
       .map((owned) => ({
         id: `coach:${owned.ownerUid}:${owned.team.id}`,
         label: `${owned.team.name} (${owned.team.coachName || "Unnamed"}) — other coach`,
@@ -112,116 +119,68 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         : [...current, id]
     );
 
+  const addComputerTeam = () =>
+    setComputerRows((rows) => {
+      const used = new Set(rows.map((row) => row.rosterName));
+      const fresh = ROSTERS.filter((roster) => !used.has(roster));
+      const pool = fresh.length > 0 ? fresh : ROSTERS;
+      const taken = new Set([
+        ...rows.map((row) => row.name),
+        ...localTeams.map((team) => team.name),
+      ]);
+      return [
+        ...rows,
+        {
+          key: `${Date.now()}-${rows.length}`,
+          name: computerTeamName(taken),
+          rosterName: pool[Math.floor(Math.random() * pool.length)],
+        },
+      ];
+    });
+
+  const computerEntrants =
+    computerRows.length +
+    selected.filter(
+      (id) =>
+        candidates.find((candidate) => candidate.id === id)?.team
+          .computerCoached
+    ).length;
+
   const create = async () => {
     setError(null);
     const chosen = selected
       .map((id) => candidates.find((candidate) => candidate.id === id))
       .filter((candidate): candidate is Candidate => Boolean(candidate));
-    if (!name.trim()) return setError("Give the competition a name.");
-    if (chosen.length < 2) return setError("Select at least two teams.");
-
-    // A team belongs to at most one active competition. Every candidate
-    // here carries a live team object — the organizer's own (local) or
-    // another coach's (read via fetchAllCoachTeams) — so this is
-    // enforceable for every entrant, not only the organizer's own.
-    for (const candidate of chosen) {
-      const existingId = candidate.team.activeCompetitionId;
-      if (!existingId) continue;
-      const existing = await findCompetitionById(existingId);
-      setError(
-        `${candidate.team.name} is already entered in ` +
-          `${existing?.name ?? "another active competition"}.`
-      );
-      return;
-    }
-
-    // Shared roster legality gates competition entry the same way it gates
-    // finalization and match selection (team-lifecycle-modes).
-    const illegal = chosen.filter((candidate) => {
-      try {
-        const teamRoster = getRosterByRosterName(candidate.team.rosterName);
-        return (
-          validateRosterLegality(candidate.team, teamRoster).length > 0 ||
-          !!validateInsignificant(candidate.team.players)
-        );
-      } catch {
-        return true;
-      }
-    });
-    if (illegal.length > 0) {
-      return setError(
-        `These teams are not legal for competition entry: ${illegal
-          .map((candidate) => candidate.team.name)
-          .join(", ")}`
-      );
-    }
-
     try {
-      assertEntrantsCompatible(
-        chosen.map((candidate) => candidate.team),
-        profile
+      const built = computerRows.map((row, index) =>
+        createComputerTeam(
+          row.rosterName,
+          row.name,
+          KIT_COLOURS[index % KIT_COLOURS.length],
+          profile?.advancementMode ?? "advanced-league"
+        )
       );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      return;
-    }
-
-    // A cloud write to another coach's team is refused by Firestore rules
-    // (owner-only write) — only stamp `activeCompetitionId` on teams this
-    // coach actually owns.
-    const ownedChosen = chosen.filter(
-      (candidate) => candidate.ownerUid === user?.uid
-    );
-
-    const entrants = seedEntrants(
-      chosen.map((candidate) => ({
-        id: candidate.id,
-        teamId: candidate.team.id,
-        ownerUid: candidate.ownerUid ?? null,
-        name: candidate.team.name,
-        coachName: candidate.team.coachName ?? undefined,
-        coachUid: candidate.ownerUid ?? null,
-        rosterName: candidate.team.rosterName,
-      }))
-    ) as CompetitionEntrant[];
-    const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const now = Date.now();
-    const participantUids = [
-      ...new Set(entrants.flatMap((entrant) => entrant.ownerUid ?? [])),
-    ];
-    const fixtures =
-      type === "league" || format === "round-robin"
-        ? generateRoundRobin(entrants)
-        : generateSingleElimination(entrants);
-    const base = {
-      id,
-      name: name.trim(),
-      organizerUid: user?.uid ?? null,
-      participantUids,
-      status: "active" as const,
-      entrants,
-      fixtures,
-      standings: computeStandings(entrants, fixtures),
-      createdAt: now,
-      updatedAt: now,
-      ...(profile ? { rosterProfile: profile } : {}),
-    };
-    const competition =
-      type === "league"
-        ? {
-            ...base,
-            type: "league" as const,
-            points: DEFAULT_LEAGUE_POINTS,
-          }
-        : { ...base, type: "tournament" as const, format };
-    try {
-      await saveCompetition(competition);
-      ownedChosen.forEach((candidate) => {
-        candidate.team.activeCompetitionId = id;
-        saveTeam(candidate.team);
+      const competition = await createCompetition({
+        type,
+        name,
+        format,
+        organizerUid: user?.uid ?? null,
+        entrants: [
+          ...chosen.map((candidate) => ({
+            team: candidate.team,
+            ownerUid: candidate.ownerUid ?? null,
+          })),
+          ...built.map((team) => ({ team, ownerUid: user?.uid ?? null })),
+        ],
+        profile,
+        computerDifficulty: difficulty,
       });
-      const route = type === "league" ? "leagues" : "tournaments";
-      navigate(`/${route}/${id}`);
+      navigate(
+        competitionPath({
+          competitionType: competition.type,
+          competitionId: competition.id,
+        })
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
@@ -322,6 +281,94 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                 className="hud-field"
               />
             </Field>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Computer teams">
+        <p className="mb-4 font-hud-body text-hud-sm text-hud-dim">
+          The computer coaches these teams. You play your own games against
+          them, or take one over for a game. A game between two computer teams
+          is played out in seconds, injuries and all. They join your team
+          library, so they can play next season too.
+        </p>
+        {computerRows.length > 0 && (
+          <ul className="mb-4 space-y-2">
+            {computerRows.map((row, index) => (
+              <li
+                key={row.key}
+                className="flex flex-wrap items-center gap-2 font-hud-body text-hud-base text-hud-bone"
+              >
+                <span className="min-w-[12rem] flex-1">
+                  <span className="font-hud-label font-bold uppercase tracking-[0.06em] text-hud-gold">
+                    Seed {selected.length + index + 1}:{" "}
+                  </span>
+                  {row.name}
+                </span>
+                <select
+                  aria-label={`${row.name} roster`}
+                  value={row.rosterName}
+                  onChange={(event) =>
+                    setComputerRows((rows) =>
+                      rows.map((candidate) =>
+                        candidate.key === row.key
+                          ? {
+                              ...candidate,
+                              rosterName: event.target.value as RosterName,
+                            }
+                          : candidate
+                      )
+                    )
+                  }
+                  className="hud-field w-auto"
+                >
+                  {ROSTERS.map((roster) => (
+                    <option key={roster} value={roster}>
+                      {roster}
+                    </option>
+                  ))}
+                </select>
+                <HudButton
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove ${row.name}`}
+                  onClick={() =>
+                    setComputerRows((rows) =>
+                      rows.filter((candidate) => candidate.key !== row.key)
+                    )
+                  }
+                >
+                  Remove
+                </HudButton>
+              </li>
+            ))}
+          </ul>
+        )}
+        <HudButton onClick={addComputerTeam}>+ Add computer team</HudButton>
+        {computerEntrants > 0 && (
+          <div
+            role="radiogroup"
+            aria-label="How hard the computer plays"
+            className="mt-4 grid max-w-2xl grid-cols-3 gap-2"
+          >
+            {DIFFICULTIES.map(({ id, label, detail }) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={difficulty === id}
+                className={cx(
+                  hudChoiceClass(difficulty === id),
+                  "px-4 py-3 text-left"
+                )}
+                onClick={() => setDifficulty(id)}
+              >
+                <span className="block font-hud-label text-hud-base font-bold uppercase tracking-[0.04em] text-hud-bone">
+                  {label}
+                </span>
+                <span className="block text-hud-sm text-hud-dim">{detail}</span>
+              </button>
+            ))}
           </div>
         )}
       </Section>

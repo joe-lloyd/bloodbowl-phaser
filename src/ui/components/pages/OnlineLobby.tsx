@@ -64,7 +64,8 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
   )?.competitionFixture;
 
   const [library] = useTeamLibrary();
-  const myTeams = user ? library : [];
+  // The computer's teams are the computer's to coach
+  const myTeams = user ? library.filter((team) => !team.computerCoached) : [];
 
   // Host mode: resume the user's existing match if any, else create one.
   // A player may only have one active match at a time, so we never spawn a

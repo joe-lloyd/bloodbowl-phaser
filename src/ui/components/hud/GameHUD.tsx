@@ -82,6 +82,8 @@ interface GameHUDProps {
   onlineMenu?: OnlineMatchMenuProps;
   /** The match style, so the dice tray matches the stadium. */
   styleId?: string;
+  /** Where the results screen's Leave goes. */
+  leaveTo?: string;
 }
 
 interface TurnData {
@@ -102,6 +104,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   sevensInducementsEnabled = false,
   onlineMenu,
   styleId,
+  leaveTo,
 }) => {
   const [inducementsPending, setInducementsPending] = useState(
     () =>
@@ -335,7 +338,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <InducementSelectionPanel onDone={() => setInducementsPending(false)} />
       )}
       <TurnoverOverlay eventBus={eventBus} />
-      <MatchResultsScreen visible={turnData.phase === GamePhase.GAME_OVER} />
+      <MatchResultsScreen
+        visible={turnData.phase === GamePhase.GAME_OVER}
+        leaveTo={leaveTo}
+      />
 
       {/* Structural-transition announcer: turn started, round passed,
           halftime, full time — a single centred takeover, not a feed. */}

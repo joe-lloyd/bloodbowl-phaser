@@ -131,7 +131,10 @@ export function TeamManagement() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => {
+          {[
+            ...teams.filter((team) => !team.computerCoached),
+            ...teams.filter((team) => team.computerCoached),
+          ].map((team) => {
             const status = teamStatus(team);
             return (
               <Panel
@@ -156,6 +159,11 @@ export function TeamManagement() {
                     {team.advancementMode && (
                       <Chip tone="info" title="Advancement mode">
                         {ADVANCEMENT_MODE_SHORT_LABELS[team.advancementMode]}
+                      </Chip>
+                    )}
+                    {team.computerCoached && (
+                      <Chip title="The computer coaches this team in leagues and cups">
+                        Computer
                       </Chip>
                     )}
                   </div>

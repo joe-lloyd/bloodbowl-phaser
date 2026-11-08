@@ -24,6 +24,7 @@ import {
 import { GamePhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { RosterName } from "../../src/types/Team";
+import { CompetitionContext } from "../../src/competition/types";
 
 const autosave = { difficulty: "standard", pitchThemeId: "chalk" };
 const ms = (time: number) =>
@@ -61,9 +62,13 @@ const liveGame = () =>
     }
   ).__computerMatch.game;
 
-function startNew(pace: number): OnlineMatch {
+function startNew(
+  pace: number,
+  competitionContext?: CompetitionContext
+): OnlineMatch {
   setMatchSaveRepository(repository);
   match = createComputerMatch({
+    competitionContext,
     eventBus: new EventBus(),
     team1: stabilizeIds(
       createLineupTeam(RosterName.DARK_ELF, "Poin", 0xcc0000),
@@ -172,6 +177,23 @@ describe("saving a match against the computer", () => {
       difficulty: "standard",
     });
     expect(latest.presentation?.pitchThemeId).toBe("chalk");
+  });
+
+  it("plays a cup tie under cup rules and saves which fixture it is", async () => {
+    const tie: CompetitionContext = {
+      competitionType: "tournament",
+      competitionId: "the-cup",
+      fixtureId: "round-1-match-1",
+      knockout: true,
+    };
+    const live = startNew(0, tie);
+    // A draw goes to Extra Time, then Penalties
+    expect(liveGame().ctx.gameService.getState().knockout).toBe(true);
+
+    await live.run({ type: "start-setup", kickingTeamId: "team2" });
+    while (!latest) await ms(10);
+    expect(latest.competition).toEqual(tie);
+    expect(restoreMatchSave(latest).state.knockout).toBe(true);
   });
 
   it("saves once a coin-flip command has made the toss", async () => {

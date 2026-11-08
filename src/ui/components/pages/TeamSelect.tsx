@@ -101,7 +101,9 @@ function ReadyMadeTeamPicker({
 }
 
 export function TeamSelect({ mode = "play" }: TeamSelectProps) {
-  const [teams, reloadTeams] = useTeamLibrary();
+  const [library, reloadTeams] = useTeamLibrary();
+  // The computer's league and cup teams are the computer's to coach
+  const teams = library.filter((team) => !team.computerCoached);
   const [selectedTeam1, setSelectedTeam1] = useState<Team | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<Team | null>(null);
   const [filter1, setFilter1] = useState("");

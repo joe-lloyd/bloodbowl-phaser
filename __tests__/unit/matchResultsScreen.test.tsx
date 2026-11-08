@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceContainer } from "../../src/services/ServiceContainer";
 import { EventBus } from "../../src/services/EventBus";
@@ -342,6 +342,94 @@ describe("MatchResultsScreen", () => {
       expect(stored("team-1").players[0].spp).toBeGreaterThan(0);
     }
   );
+
+  it("settles a league game against the computer: its MVP, both teams, and back to the league", async () => {
+    localStorage.clear();
+    const { services, state, team1, team2 } = setup(true);
+    const league = await leagueOf([team1, team2]);
+    state.score["team-1"] = 0;
+    state.score["team-2"] = 2;
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    await recordCompetitionFixture(
+      {
+        competitionType: "league",
+        competitionId: league.id,
+        fixtureId: league.fixtures[0].id,
+      },
+      0,
+      2,
+      { home: team1, away: team2 }
+    );
+    // The engine rolls the MVP among the nominees
+    const runProgressionCommand = vi.fn(
+      async (command: { teamId: string; nominatedPlayerIds: string[] }) => {
+        services.matchStats.awardMvp(
+          command.teamId,
+          command.nominatedPlayerIds,
+          1
+        );
+        return { ok: true, events: [] };
+      }
+    );
+    setActiveOnlineMatch({
+      kind: "computer",
+      myTeamId: "team-1",
+      mayAct: () => true,
+      runProgressionCommand,
+    } as unknown as OnlineMatch);
+    try {
+      await act(async () => {
+        root.render(
+          <MemoryRouter initialEntries={["/play/computer"]}>
+            <Routes>
+              <Route
+                path="/play/computer"
+                element={
+                  <MatchResultsScreen
+                    visible={true}
+                    leaveTo="/leagues/season-1"
+                  />
+                }
+              />
+              <Route path="/leagues/:id" element={<p>The league page</p>} />
+            </Routes>
+          </MemoryRouter>
+        );
+      });
+
+      // The computer named its own nominees; the coach rolls only theirs
+      expect(runProgressionCommand).toHaveBeenCalledWith({
+        type: "award-mvp",
+        teamId: "team-2",
+        nominatedPlayerIds: [team2.players[0].id],
+      });
+      const rolls = [...container.querySelectorAll("button")].filter((b) =>
+        b.textContent?.includes("Roll MVP D6")
+      );
+      expect(rolls).toHaveLength(1);
+      await act(async () => rolls[0].click());
+      const confirm = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Confirm and assign SPP")
+      )!;
+      await act(async () => confirm.click());
+
+      const stored = (id: string) =>
+        loadTeams().find((team) => team.id === id)!;
+      expect(stored("team-1")).toMatchObject({ losses: 1, wins: 0 });
+      // The computer's team is this coach's too, so its game is kept
+      expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
+      expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
+
+      const leave = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Continue")
+      )!;
+      await act(async () => leave.click());
+      expect(container.textContent).toBe("The league page");
+    } finally {
+      setActiveOnlineMatch(null);
+    }
+  });
 
   it("names the winner of a knockout tie decided on Penalties", async () => {
     const { state } = setup(false);

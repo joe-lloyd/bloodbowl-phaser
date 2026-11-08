@@ -29,6 +29,7 @@ import {
 import { GameEventNames } from "../types/events";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { Team } from "../types/Team";
+import { CompetitionContext } from "../competition/types";
 import { enumerateDecision } from "../simulation/candidates";
 import { Coach } from "../simulation/coach";
 import { createCoachRng } from "../simulation/rng";
@@ -123,6 +124,8 @@ export interface ComputerMatchOptions {
   resume?: Pick<RestoredMatchSave, "save" | "state">;
   /** What a save holds beyond the engine. Unset, the match is not saved. */
   autosave?: { difficulty: string; pitchThemeId?: string };
+  /** The league or cup fixture this match plays. */
+  competitionContext?: CompetitionContext;
 }
 
 export function createComputerMatch(
@@ -177,17 +180,17 @@ export function createComputerMatch(
   const run = (command: HeadlessCommand) => runAs(myTeamId, command);
 
   let engine: GameService | null = null;
+  const initialState =
+    options.resume?.state ??
+    GameService.createMatchState(team1, team2, GamePhase.SETUP, SubPhase.INTRO);
+  // A drawn cup tie goes to Extra Time, then Penalties
+  if (!options.resume && options.competitionContext?.knockout)
+    initialState.knockout = true;
   const container = ServiceContainer.initialize(
     eventBus,
     team1,
     team2,
-    options.resume?.state ??
-      GameService.createMatchState(
-        team1,
-        team2,
-        GamePhase.SETUP,
-        SubPhase.INTRO
-      ),
+    initialState,
     Math.floor(Math.random() * 2 ** 31),
     (inner: GameService) => {
       engine = inner;
@@ -237,6 +240,7 @@ export function createComputerMatch(
             turnManager: engine!.captureTurnManagerState(),
             presentation: { pitchThemeId: saveOptions.pitchThemeId },
             computer: { computerTeamId, difficulty: saveOptions.difficulty },
+            competition: options.competitionContext,
           });
         },
         // Block dice, pushes and kick-off events wait here, not in the engine
