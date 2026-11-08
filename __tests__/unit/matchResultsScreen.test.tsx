@@ -421,11 +421,54 @@ describe("MatchResultsScreen", () => {
       expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
       expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
 
-      const leave = [...container.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Continue")
+      const leave = [...container.querySelectorAll("button")].find(
+        (b) => b.textContent === "Back to the competition"
       )!;
       await act(async () => leave.click());
       expect(container.textContent).toBe("The league page");
+    } finally {
+      setActiveOnlineMatch(null);
+    }
+  });
+
+  it("lets the coach roll the computer's MVP when it did not roll by itself", async () => {
+    const { services, state, team1, team2 } = setup(true);
+    state.score["team-1"] = 1;
+    state.score["team-2"] = 0;
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    let refuse = true;
+    const runProgressionCommand = vi.fn(
+      async (command: { teamId: string; nominatedPlayerIds: string[] }) => {
+        if (refuse) return { ok: false, reason: "engine busy", events: [] };
+        services.matchStats.awardMvp(
+          command.teamId,
+          command.nominatedPlayerIds,
+          1
+        );
+        return { ok: true, events: [] };
+      }
+    );
+    setActiveOnlineMatch({
+      kind: "computer",
+      myTeamId: "team-1",
+      mayAct: () => true,
+      runProgressionCommand,
+    } as unknown as OnlineMatch);
+    try {
+      await render();
+      expect(container.textContent).toContain("engine busy");
+      const rolls = [...container.querySelectorAll("button")].filter((b) =>
+        b.textContent?.includes("Roll MVP D6")
+      );
+      // The coach's own, and the computer's that failed
+      expect(rolls).toHaveLength(2);
+      refuse = false;
+      for (const roll of rolls) await act(async () => roll.click());
+      const confirm = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Confirm and assign SPP")
+      )!;
+      expect(confirm.disabled).toBe(false);
     } finally {
       setActiveOnlineMatch(null);
     }

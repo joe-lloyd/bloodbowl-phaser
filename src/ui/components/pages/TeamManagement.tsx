@@ -59,6 +59,14 @@ export function TeamManagement() {
   };
 
   const handleDeleteTeam = (teamId: string) => {
+    const team = teams.find((candidate) => candidate.id === teamId);
+    // Its games in the competition could no longer be played or simulated
+    if (team?.computerCoached && team.activeCompetitionId) {
+      alert(
+        "This computer team is still playing in a competition. Delete it once the competition is over."
+      );
+      return;
+    }
     if (confirm("Are you sure you want to delete this team?")) {
       deleteTeam(teamId);
       reloadTeams();

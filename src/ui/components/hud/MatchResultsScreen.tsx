@@ -96,6 +96,8 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
   const computerMvpRolled = useRef(new Set<string>());
+  /** Computer teams whose MVP did not roll by itself: the coach rolls it. */
+  const [computerMvpFailed, setComputerMvpFailed] = useState<string[]>([]);
 
   // Idempotency across rerender/resume/reconnect: seed from the tracker's
   // own persisted state instead of only from live events, so a remount never
@@ -175,9 +177,10 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
           if (!response.ok) throw new Error(response.reason ?? "MVP rejected");
           refresh((value) => value + 1);
         })
-        .catch((cause: unknown) =>
-          setError(cause instanceof Error ? cause.message : String(cause))
-        );
+        .catch((cause: unknown) => {
+          setComputerMvpFailed((failed) => [...failed, teamId]);
+          setError(cause instanceof Error ? cause.message : String(cause));
+        });
     }
   }, [visible, tracker, teamIds]);
 
@@ -186,6 +189,12 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   const state = container.gameService.getState();
   const result = state.result;
   const own = ownedTeams(teams);
+  const mvpTeams = [
+    ...own,
+    ...teams.filter(
+      (team) => computerMvpFailed.includes(team.id) && !own.includes(team)
+    ),
+  ];
   const statsSummary = tracker.summary(teams.flatMap((team) => team.players));
   const pendingMvpTeams = teams.filter(
     (team) =>
@@ -350,7 +359,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
         {progressionEnabled && !confirmed && (
           <>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              {own.map((team) => {
+              {mvpTeams.map((team) => {
                 const eligibleIds = tracker.getEligibleMvpPlayers(team.id);
                 const nominees = nomineesFor(team);
                 const mvpResult = mvpResults[team.id];
@@ -481,7 +490,9 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
           }
           className={`${hudButtonClass("primary", "lg")} mt-6`}
         >
-          Continue to Main Menu
+          {leaveTo === "/"
+            ? "Continue to Main Menu"
+            : "Back to the competition"}
         </button>
         {!canExit && (
           <p className="mt-2 text-hud-sm italic text-hud-dim">

@@ -86,7 +86,14 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         if (!loaded) return setCompetition(loaded);
         // The computer makes its teams' development choices, including
         // any left by a game a person played against one.
-        manageComputerTeams(loaded, new RNGService(Date.now() % 2 ** 31));
+        // A failure here must not keep the competition from showing.
+        try {
+          manageComputerTeams(loaded, new RNGService(Date.now() % 2 ** 31));
+        } catch (reason) {
+          setError(
+            `The computer could not manage its teams: ${reason instanceof Error ? reason.message : String(reason)}`
+          );
+        }
         // Cached display names (team renames) refresh for whatever this
         // reader can currently see; the refreshed copy is what renders.
         const refreshed = refreshEntrantDisplays(loaded);

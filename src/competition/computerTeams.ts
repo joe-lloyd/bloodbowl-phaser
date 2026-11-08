@@ -192,7 +192,14 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
     }
   }
   spendSpp(team, rng, report);
-  hireUpToSeven(team, report);
+  try {
+    hireUpToSeven(team, report);
+  } catch (cause) {
+    report.refused.push({
+      rule: "hire-refused",
+      detail: `${team.name}: ${cause}`,
+    });
+  }
   team.teamValue = calculateTeamValue(team);
   return report;
 }
@@ -273,13 +280,10 @@ function resolveEntry(
 function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
   for (const player of team.players) {
     for (let guard = 0; guard < 10 && canAdvance(player); guard++) {
-      const choice = advancementChoice(
-        player,
-        nextAdvancementCosts(player)!,
-        rng
-      );
-      if (!choice) break;
+      let choice: AdvancementChoice | null = null;
       try {
+        choice = advancementChoice(player, nextAdvancementCosts(player)!, rng);
+        if (!choice) break;
         applyAdvancement(player, choice);
         report.done.push(
           `${team.name}: ${player.playerName} took ${describeChoice(choice)}`
@@ -287,7 +291,7 @@ function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
       } catch (cause) {
         report.refused.push({
           rule: "advancement-refused",
-          detail: `${team.name} ${player.playerName} ${describeChoice(choice)}: ${cause}`,
+          detail: `${team.name} ${player.playerName}${choice ? ` ${describeChoice(choice)}` : ""}: ${cause}`,
         });
         break;
       }
