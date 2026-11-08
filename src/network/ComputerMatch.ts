@@ -182,7 +182,7 @@ export function createComputerMatch(
     team1,
     team2,
     options.resume?.state ??
-      GameService.createInitialState(
+      GameService.createMatchState(
         team1,
         team2,
         GamePhase.SETUP,

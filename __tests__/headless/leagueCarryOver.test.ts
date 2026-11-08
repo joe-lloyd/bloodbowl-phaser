@@ -12,6 +12,7 @@ import {
   calculateTeamValue,
 } from "../../src/types/Team";
 import { SkillType } from "../../src/types/Skills";
+import { GamePhase } from "../../src/types/GameState";
 import {
   dehydrateTeam,
   hydrateStoredTeam,
@@ -43,9 +44,17 @@ function team(
   return built;
 }
 
-/** Start a game: the engine readies both teams for the match. */
+/**
+ * Start a match from kick-off, as the browser, online play, the computer
+ * and the simulator all do: the engine readies both teams for the match.
+ */
 function startGame(home: Team, away: Team = team("away", 7)): HeadlessGame {
-  return new HeadlessGame({ team1: home, team2: away, seed: 1 });
+  return new HeadlessGame({
+    team1: home,
+    team2: away,
+    seed: 1,
+    startingPhase: GamePhase.SETUP,
+  });
 }
 
 const reload = (saved: Team): Team =>

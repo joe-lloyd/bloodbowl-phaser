@@ -324,7 +324,7 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
     applySnapshotToTeams(saved.snapshot, [team1, team2]);
     initialState = deserializeGameState(saved.snapshot);
   } else {
-    initialState = GameService.createInitialState(
+    initialState = GameService.createMatchState(
       team1,
       team2,
       GamePhase.SETUP,
