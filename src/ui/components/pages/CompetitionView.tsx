@@ -690,49 +690,46 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         </Section>
       )}
 
-      <Section
-        title={isBracket ? "Bracket" : "Schedule"}
-        aside={
-          toSimulate.length > 0 || simulating ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {simulating ? (
-                <span
-                  role="status"
-                  className="font-hud-body text-hud-sm text-hud-dim"
-                >
-                  Simulating {simulating}…
-                </span>
-              ) : (
-                <>
-                  <HudButton
-                    variant="primary"
-                    size="sm"
-                    disabled={launching}
-                    onClick={() =>
-                      void simulate((latest) =>
-                        simulatableFixtures(latest).find(
-                          (fixture) => fixture.round === roundToSimulate
-                        )
+      <Section title={isBracket ? "Bracket" : "Schedule"}>
+        {/* In the body, where the buttons can wrap on a phone */}
+        {(toSimulate.length > 0 || simulating) && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {simulating ? (
+              <span
+                role="status"
+                className="font-hud-body text-hud-sm text-hud-dim"
+              >
+                Simulating {simulating}…
+              </span>
+            ) : (
+              <>
+                <HudButton
+                  variant="primary"
+                  size="sm"
+                  disabled={launching}
+                  onClick={() =>
+                    void simulate((latest) =>
+                      simulatableFixtures(latest).find(
+                        (fixture) => fixture.round === roundToSimulate
                       )
-                    }
-                  >
-                    Simulate round {roundToSimulate}
-                  </HudButton>
-                  <HudButton
-                    size="sm"
-                    disabled={launching}
-                    onClick={() =>
-                      void simulate((latest) => simulatableFixtures(latest)[0])
-                    }
-                  >
-                    Simulate all computer games
-                  </HudButton>
-                </>
-              )}
-            </div>
-          ) : undefined
-        }
-      >
+                    )
+                  }
+                >
+                  Simulate round {roundToSimulate}
+                </HudButton>
+                <HudButton
+                  size="sm"
+                  disabled={launching}
+                  onClick={() =>
+                    void simulate((latest) => simulatableFixtures(latest)[0])
+                  }
+                >
+                  Simulate all computer games
+                </HudButton>
+              </>
+            )}
+          </div>
+        )}
         {isBracket ? (
           <TournamentBracket
             fixtures={competition.fixtures}
