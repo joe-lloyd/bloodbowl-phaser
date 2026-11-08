@@ -16,6 +16,7 @@ vi.mock("../../src/firebase/config", () => ({
 import { createCompetition } from "../../src/competition/create";
 import { createComputerTeam } from "../../src/competition/computerTeams";
 import { getCompetition } from "../../src/competition/repository";
+import { withdrawFromCompetition } from "../../src/competition/resultRecording";
 import { CompetitionDoc } from "../../src/competition/types";
 import { saveTeam } from "../../src/game/managers/TeamManager";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
@@ -197,6 +198,19 @@ describe("a league against the computer", () => {
       )
     ).toEqual([]);
     expect(buttons("Simulate")).toEqual([]);
+  }, 60_000);
+
+  it("moves on past my games once I withdraw", async () => {
+    const withdrawn = await withdrawFromCompetition(
+      { competitionType: "league", competitionId: league.id },
+      `own:${mine.id}`
+    );
+    await show(withdrawn);
+    await act(async () => button("Simulate round 1")!.click());
+    await vi.waitFor(
+      () => expect(button("Simulate round 2")).toBeDefined(),
+      { timeout: 30_000 }
+    );
   }, 60_000);
 });
 
