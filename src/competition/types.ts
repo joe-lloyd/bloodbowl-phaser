@@ -37,7 +37,10 @@ export interface CompetitionEntrant {
   coachUid?: string | null;
   rosterName: string;
   seed: number;
-  /** Set when the coach withdraws; fixtures and standings are untouched. */
+  /**
+   * Set when the coach withdraws. Games already played stand; the ones left
+   * close as walkovers (FixtureResult.walkover).
+   */
   withdrawn?: boolean;
   /**
    * The computer coaches this entrant. Its team is in the organizer's
@@ -63,6 +66,12 @@ export interface FixtureResult {
   winnerEntrantId?: string;
   completedAt: number;
   bye?: boolean;
+  /**
+   * Never played: one side had withdrawn. The other side wins it, and goes
+   * through in a knockout, but the table leaves it out. The index names the
+   * withdrawn entrant in `entrants`, so the database rules can check it.
+   */
+  walkover?: { withdrawnEntrantIndex: number };
 }
 
 export interface CompetitionFixture {

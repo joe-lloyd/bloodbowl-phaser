@@ -13,8 +13,17 @@ import {
 import {
   CompetitionEntrant,
   CompetitionFixture,
+  FixtureResult,
 } from "../../../competition/types";
 import { cx } from "../componentWarehouse/HudKit";
+
+/** "Walkover: Nuln Hammers withdrew" */
+export function walkoverLine(
+  entrants: CompetitionEntrant[],
+  { withdrawnEntrantIndex }: NonNullable<FixtureResult["walkover"]>
+): string {
+  return `Walkover: ${entrants[withdrawnEntrantIndex]?.name ?? "a team"} withdrew`;
+}
 
 /** Minimum width of a round column; the bracket scrolls past this. */
 const COLUMN_MIN_WIDTH = 210;
@@ -227,7 +236,11 @@ export function TournamentBracket({
                 >
                   <BracketSlot
                     entrant={home}
-                    score={fixture.result?.homeScore}
+                    score={
+                      fixture.result?.walkover
+                        ? undefined
+                        : fixture.result?.homeScore
+                    }
                     isWinner={!!winnerId && winnerId === fixture.homeEntrantId}
                     isEliminated={
                       !!fixture.homeEntrantId &&
@@ -237,7 +250,11 @@ export function TournamentBracket({
                   />
                   <BracketSlot
                     entrant={away}
-                    score={fixture.result?.awayScore}
+                    score={
+                      fixture.result?.walkover
+                        ? undefined
+                        : fixture.result?.awayScore
+                    }
                     isWinner={!!winnerId && winnerId === fixture.awayEntrantId}
                     isEliminated={
                       !!fixture.awayEntrantId &&
@@ -249,6 +266,11 @@ export function TournamentBracket({
                     <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
                       Penalties {fixture.result.penalties.home}–
                       {fixture.result.penalties.away}
+                    </p>
+                  )}
+                  {fixture.result?.walkover && (
+                    <p className="mt-1 text-hud-sm text-hud-mute">
+                      {walkoverLine(entrants, fixture.result.walkover)}
                     </p>
                   )}
                   {ready && (

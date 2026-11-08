@@ -76,20 +76,12 @@ export function simulatableFixtures(
 /**
  * The earliest round with a game still to play. A round is simulated only
  * once it is the current one, so the computer never plays ahead of a game
- * a person still has to play. A withdrawn team's games are never played,
+ * a person still has to play. A withdrawn team's games close as walkovers,
  * so they hold up no round.
  */
 export function currentRound(competition: CompetitionDoc): number | undefined {
-  const withdrawn = new Set(
-    competition.entrants
-      .filter((entrant) => entrant.withdrawn)
-      .map((entrant) => entrant.id)
-  );
   const open = competition.fixtures.filter(
-    (fixture) =>
-      fixture.status !== "complete" &&
-      !withdrawn.has(fixture.homeEntrantId ?? "") &&
-      !withdrawn.has(fixture.awayEntrantId ?? "")
+    (fixture) => fixture.status !== "complete"
   );
   return open.length > 0
     ? Math.min(...open.map((fixture) => fixture.round))

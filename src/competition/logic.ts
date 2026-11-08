@@ -256,6 +256,7 @@ export function computeStandings(
       fixture.status !== "complete" ||
       !fixture.result ||
       fixture.result.bye ||
+      fixture.result.walkover ||
       !fixture.homeEntrantId ||
       !fixture.awayEntrantId
     ) {
@@ -397,6 +398,52 @@ export function withResultsFromFixtures<T extends LeagueDoc | TournamentDoc>(
     status,
     ...(champion ? { championEntrantId: champion } : {}),
   } as T;
+}
+
+/**
+ * Close the next open game a withdrawn entrant would play as a walkover: the
+ * other side wins it unplayed, and in a knockout goes through. Null when no
+ * such game is left. One game at a time, so a caller can save in steps.
+ */
+export function walkOverNext<T extends LeagueDoc | TournamentDoc>(
+  competition: T
+): T | null {
+  const withdrawnIndex = (entrantId: string | null) =>
+    competition.entrants.findIndex(
+      (entrant) => entrant.id === entrantId && entrant.withdrawn
+    );
+  const open = competition.fixtures
+    .filter(
+      (fixture) =>
+        fixture.status !== "complete" &&
+        fixture.homeEntrantId &&
+        fixture.awayEntrantId &&
+        (withdrawnIndex(fixture.homeEntrantId) >= 0 ||
+          withdrawnIndex(fixture.awayEntrantId) >= 0)
+    )
+    .sort((a, b) => a.round - b.round || a.order - b.order)[0];
+  if (!open?.homeEntrantId || !open.awayEntrantId) return null;
+
+  const next = structuredClone(competition);
+  const fixture = next.fixtures.find((candidate) => candidate.id === open.id)!;
+  const homeOut = withdrawnIndex(open.homeEntrantId);
+  // Both withdrawn: the away side goes through, to walk over its next game
+  const loserIndex =
+    homeOut >= 0 ? homeOut : withdrawnIndex(open.awayEntrantId);
+  const winner = homeOut >= 0 ? open.awayEntrantId : open.homeEntrantId;
+  fixture.status = "complete";
+  fixture.result = {
+    homeScore: 0,
+    awayScore: 0,
+    winnerEntrantId: winner,
+    completedAt: Date.now(),
+    walkover: { withdrawnEntrantIndex: loserIndex },
+  };
+  if (next.type === "tournament" && next.format === "single-elimination") {
+    advanceWinner(next.fixtures, fixture, winner);
+    resolveByes(next.fixtures);
+  }
+  return { ...withResultsFromFixtures(next), updatedAt: Date.now() };
 }
 
 export function recordTournamentResult(

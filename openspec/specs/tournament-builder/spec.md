@@ -53,6 +53,17 @@ A team already entered in an active league or tournament SHALL NOT be entered in
 - **WHEN** a tournament reaches a champion and completes
 - **THEN** its entrants can be entered into other competitions
 
+### Requirement: A withdrawn team's knockout games close as walkovers
+When a team withdraws from a knockout tournament, each of its games SHALL close as a walkover once both sides are known, and the other side SHALL go through. A walkover SHALL NOT count in either team's record.
+
+#### Scenario: Withdrawing before a game
+- **WHEN** a team withdraws before its first-round game
+- **THEN** its opponent goes through to the next round
+
+#### Scenario: The opponent arrives after the withdrawal
+- **WHEN** a team wins a game, withdraws, and its next opponent is decided afterwards
+- **THEN** that next game closes as a walkover and the opponent goes through
+
 ### Requirement: Coaches are referenced by uid
 Coach identity on entrants and fixtures SHALL be a uid with a cached display name, not a copied coach record.
 

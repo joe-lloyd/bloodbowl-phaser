@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
 import {
+  closeWalkovers,
   recordCompetitionFixture,
   withdrawFromCompetition,
 } from "../../../competition/resultRecording";
@@ -26,7 +27,11 @@ import {
   CompetitionType,
 } from "../../../competition/types";
 import { useAuth } from "../../hooks/useAuth";
-import { BracketFixtureContext, TournamentBracket } from "./TournamentBracket";
+import {
+  BracketFixtureContext,
+  TournamentBracket,
+  walkoverLine,
+} from "./TournamentBracket";
 import {
   Chip,
   cx,
@@ -83,6 +88,9 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   useEffect(() => {
     if (!id) return;
     void getCompetition(type, id)
+      // Games owed as walkovers by a team that withdrew before they were
+      // closed on withdrawal
+      .then((loaded) => (loaded ? closeWalkovers(loaded) : loaded))
       .then((loaded) => {
         if (!loaded) return setCompetition(loaded);
         // The computer makes its teams' development choices, including
@@ -536,7 +544,9 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                         {home?.name ?? "TBD"}
                       </span>
                       <strong className="tabular-nums">
-                        {fixture.result?.homeScore ?? "—"}
+                        {fixture.result?.walkover
+                          ? "—"
+                          : (fixture.result?.homeScore ?? "—")}
                       </strong>
                     </div>
                     <div className="flex justify-between gap-3">
@@ -544,9 +554,19 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
                         {away?.name ?? (fixture.result?.bye ? "BYE" : "TBD")}
                       </span>
                       <strong className="tabular-nums">
-                        {fixture.result?.awayScore ?? "—"}
+                        {fixture.result?.walkover
+                          ? "—"
+                          : (fixture.result?.awayScore ?? "—")}
                       </strong>
                     </div>
+                    {fixture.result?.walkover && (
+                      <p className="mt-1 text-hud-sm text-hud-mute">
+                        {walkoverLine(
+                          competition.entrants,
+                          fixture.result.walkover
+                        )}
+                      </p>
+                    )}
                     {fixture.result?.penalties && (
                       <p className="mt-1 text-hud-sm text-hud-mute tabular-nums">
                         Penalties {fixture.result.penalties.home}–
