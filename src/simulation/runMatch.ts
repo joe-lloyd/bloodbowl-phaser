@@ -156,6 +156,11 @@ export interface MatchSpec {
   maxCommands?: number;
   /** Give both teams Prayers and Desperate Measures; default true. */
   inducements?: boolean;
+  /**
+   * Play this game instead of building one from `rosters`, such as a
+   * knockout tie or a library team as it stands.
+   */
+  game?: HeadlessGame;
 }
 
 const DEFAULT_MAX_COMMANDS = 6000;
@@ -218,7 +223,9 @@ export async function runMatch(spec: MatchSpec): Promise<MatchRecording> {
   const coachSeed = spec.coachSeed ?? spec.seed;
   const maxCommands = spec.maxCommands ?? DEFAULT_MAX_COMMANDS;
   const inducements = spec.inducements ?? true;
-  const game = createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
+  const game =
+    spec.game ??
+    createSimGame(spec.seed, spec.rosters, rerolls, "sevens-lineup");
   if (inducements) await grantSimInducements(game);
   const rng = createCoachRng(coachSeed);
   const steps: RecordedStep[] = [];

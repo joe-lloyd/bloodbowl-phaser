@@ -67,7 +67,8 @@ export class RerollArbiter {
   /** One team turn = one key; a new turn finds nothing spent. */
   private turnKey(): string {
     const t = this.state.turn;
-    return `${t.teamId}:${t.turnNumber}:${t.isHalf2 ? "h2" : "h1"}`;
+    const period = t.extraTime ? "et" : t.isHalf2 ? "h2" : "h1";
+    return `${t.teamId}:${t.turnNumber}:${period}`;
   }
 
   /** What this turn has spent, or undefined when nothing has been yet. */

@@ -107,6 +107,10 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId: fixture.id,
+    ...(competition.type === "tournament" &&
+    competition.format === "single-elimination"
+      ? { knockout: true }
+      : {}),
   });
 
   const withdraw = async (entrantId: string) => {

@@ -37,7 +37,7 @@ export function ScoreBoard({
   compact?: boolean;
 }) {
   const [rows, setRows] = useState<TeamRow[]>([]);
-  const [half, setHalf] = useState(1);
+  const [half, setHalf] = useState("1");
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function ScoreBoard({
           isMe: online?.myTeamId === team.id,
         }))
       );
-      setHalf(state.turn.isHalf2 ? 2 : 1);
+      setHalf(state.turn.extraTime ? "ET" : state.turn.isHalf2 ? "2" : "1");
       setActiveTeamId(state.activeTeamId);
     };
 

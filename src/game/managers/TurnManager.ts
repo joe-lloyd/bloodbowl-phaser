@@ -10,6 +10,7 @@ import { PlayerStatus } from "@/types/Player";
 import { ActivationValidator } from "../validators/ActivationValidator";
 import { AllEvents, GameEventNames } from "../../types/events";
 import { replenishTeamRerolls } from "../teamRerolls";
+import { undecided } from "../rules/extraTime";
 
 export interface TurnManagerState {
   turnCounts: Record<string, number>;
@@ -19,6 +20,12 @@ export interface TurnManagerState {
   /** Absent in saves made before Stunned players rolled over at turn end. */
   stunnedAtTurnStart?: string[];
 }
+
+/**
+ * Who kicks off the next half: a known team, or, for Extra Time, whichever
+ * team the winner of a roll-off chooses.
+ */
+export type NextHalf = { kickingTeamId: string } | { rollOff: true };
 
 /** "Orc Founders' Turn", but "Skaven's Turn". */
 export function possessive(name: string): string {
@@ -43,8 +50,10 @@ export class TurnManager {
     private team2: Team,
     private callbacks: {
       onPhaseChanged: (phase: GamePhase, subPhase?: SubPhase) => void;
-      /** Fired at halftime with the team kicking off the second half */
-      onHalfEnded?: (secondHalfKickingTeamId: string) => void;
+      /** Fired at halftime with who kicks off the next half */
+      onHalfEnded?: (next: NextHalf) => void;
+      /** A Penalty Shoot-out's roll-offs won, by team id. */
+      shootout?: () => Record<string, number>;
       /** Fired as a turn ends, before the next begins (Pick-Me-Up). */
       onTurnEnding?: (endingTeamId: string) => void;
     },
@@ -146,6 +155,7 @@ export class TurnManager {
       teamId: teamId,
       turnNumber: currentTurn,
       isHalf2: this.state.turn.isHalf2,
+      ...(this.state.turn.extraTime ? { extraTime: true } : {}),
       activatedPlayerIds: new Set(),
       hasBlitzed: false,
       hasPassed: false,
@@ -256,17 +266,30 @@ export class TurnManager {
   /**
    * Cross the half boundary without going through endTurn: swap the kickoff
    * (first-half receiver kicks), reset the turn counts and announce
-   * HALFTIME. Returns the team that kicks the second half, or null when the
-   * second half is already over — the match is finished.
+   * HALFTIME. Returns who kicks the next half, or null when the match is
+   * finished.
+   *
+   * A knockout game level after the second half goes to Extra Time, and
+   * one still level after that is settled on Penalties before full time.
    *
    * Split out of endHalf so a touchdown scored with no turns left can end
    * the half in place, rather than kicking off a further drive in it.
    */
-  public beginNextHalf(): string | null {
+  public beginNextHalf(): NextHalf | null {
+    // A conceded game is over whatever the score
+    const undecidedGame =
+      !this.state.result && undecided(this.state, this.team1, this.team2);
+    if (this.state.turn.isHalf2 && undecidedGame && !this.state.turn.extraTime)
+      return this.beginExtraTime();
     if (this.state.turn.isHalf2) {
       this.state.phase = GamePhase.GAME_OVER;
       this.state.activeTeamId = null;
-      this.state.result ??= { reason: "completed" };
+      this.state.result ??= {
+        reason: "completed",
+        ...(undecidedGame && this.callbacks.shootout
+          ? { penalties: this.callbacks.shootout() }
+          : {}),
+      };
       this.callbacks.onPhaseChanged(GamePhase.GAME_OVER);
       return null;
     }
@@ -275,30 +298,45 @@ export class TurnManager {
     replenishTeamRerolls(this.state);
     this.turnCounts[this.team1.id] = 0;
     this.turnCounts[this.team2.id] = 0;
+    this.announceBreak("Halftime");
 
+    return {
+      kickingTeamId:
+        this.firstHalfKickingTeamId === this.team1.id
+          ? this.team2.id
+          : this.team1.id,
+    };
+  }
+
+  /** Extra Time: a fresh set of turns, but no fresh Team Re-rolls. */
+  private beginExtraTime(): NextHalf {
+    this.state.turn.extraTime = true;
+    this.turnCounts[this.team1.id] = 0;
+    this.turnCounts[this.team2.id] = 0;
+    this.announceBreak("Extra Time");
+    return { rollOff: true };
+  }
+
+  private announceBreak(headline: string): void {
     this.state.phase = GamePhase.HALFTIME;
     this.callbacks.onPhaseChanged(GamePhase.HALFTIME);
     const score = `${this.team1.name} ${this.state.score?.[this.team1.id] ?? 0} : ${this.state.score?.[this.team2.id] ?? 0} ${this.team2.name}`;
     this.eventBus.emit(GameEventNames.UI_LogEntry, {
       category: "drive",
-      headline: "Halftime",
+      headline,
       detail: score,
     });
     this.eventBus.emit(GameEventNames.UI_Announce, {
       kind: "halftime",
-      headline: "Halftime",
+      headline,
       subtitle: score,
     });
-
-    return this.firstHalfKickingTeamId === this.team1.id
-      ? this.team2.id
-      : this.team1.id;
   }
 
   public endHalf(): void {
-    const secondHalfKicker = this.beginNextHalf();
-    // Halftime runs a fresh setup for the second half; full time does not.
-    if (secondHalfKicker) this.callbacks.onHalfEnded?.(secondHalfKicker);
+    const next = this.beginNextHalf();
+    // Halftime runs a fresh setup for the next half; full time does not.
+    if (next) this.callbacks.onHalfEnded?.(next);
   }
 
   public finishActivation(playerId: string): void {

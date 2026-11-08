@@ -26,6 +26,7 @@ import { getDriveEffects } from "../kickoff/driveEffects";
 import { offerBribe } from "../inducements/bribes";
 import { DiceController } from "../controllers/DiceController";
 import { rollYouDopeCollapse } from "../inducements/matchInducements";
+import { rollOff } from "../rules/extraTime";
 import {
   assertSinglePlayerLocation,
   movePlayerToBox,
@@ -77,7 +78,9 @@ export class TouchdownCelebrationOperation extends GameOperation {
       await skippableBeat(context, TOUCHDOWN_CELEBRATION_MS);
     }
     // Rulebook: the team that scored becomes the kicking team next drive.
-    context.gameService.endDrive("touchdown", this.scoringTeamId);
+    context.gameService.endDrive("touchdown", {
+      kickingTeamId: this.scoringTeamId,
+    });
   }
 }
 
@@ -86,7 +89,8 @@ export class ClearPitchOperation extends GameOperation {
 
   constructor(
     private reason: "touchdown" | "halftime",
-    private nextKickingTeamId: string,
+    /** Null when a roll-off decides it (Extra Time), or at full time. */
+    private nextKickingTeamId: string | null,
     /** False at full time: End of Drive effects only prepare a next drive. */
     private anotherDrive: boolean
   ) {
@@ -226,5 +230,38 @@ export class StartNextDriveOperation extends GameOperation {
       headline: `${context.gameService.getTeam(this.kickingTeamId)?.name ?? "Scoring team"} kick next`,
       subtitle: "Set up for the next drive",
     });
+  }
+}
+
+/**
+ * The start of Extra Time (2025 rulebook, p.87): the coaches roll off, and
+ * the winner chooses whether their team kicks. Then setup begins as for
+ * any other drive.
+ */
+export class ExtraTimeKickoffOperation extends GameOperation {
+  public readonly name = "ExtraTimeKickoff";
+
+  async execute(context: FlowContext): Promise<void> {
+    const { gameService } = context;
+    const [team1, team2] = gameService.getTeams();
+    const winnerId = rollOff(
+      gameService.getDiceController(),
+      "Extra Time roll-off",
+      team1,
+      team2
+    );
+    const winner = winnerId === team1.id ? team1 : team2;
+    const other = winner === team1 ? team2 : team1;
+    const answer = await gameService.getDecisionService().request({
+      type: "reaction",
+      playerId: "",
+      chooserTeamId: winner.id,
+      skill: "Extra Time",
+      prompt: `${winner.name} won the roll-off. Kick off Extra Time? Choose No to receive.`,
+    });
+    const kicks = "accept" in answer && answer.accept;
+    await new StartNextDriveOperation(kicks ? winner.id : other.id).execute(
+      context
+    );
   }
 }

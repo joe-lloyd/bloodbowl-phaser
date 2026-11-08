@@ -34,6 +34,8 @@ export interface TurnSnapshot {
   teamId: string;
   turnNumber: number;
   isHalf2: boolean;
+  /** Absent outside Extra Time, and on saves from before it. */
+  extraTime?: boolean;
   activatedPlayerIds: string[];
   hasBlitzed: boolean;
   hasPassed: boolean;
@@ -74,6 +76,8 @@ export interface GameSnapshot {
   activeTeamId: string | null;
   turn: TurnSnapshot;
   score: Record<string, number>;
+  /** A game that must have a winner; absent for every other game. */
+  knockout?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
@@ -194,6 +198,7 @@ export function serializeGameState(
       teamId: state.turn.teamId,
       turnNumber: state.turn.turnNumber,
       isHalf2: state.turn.isHalf2,
+      ...(state.turn.extraTime ? { extraTime: true } : {}),
       activatedPlayerIds: Array.from(state.turn.activatedPlayerIds),
       hasBlitzed: state.turn.hasBlitzed,
       hasPassed: state.turn.hasPassed,
@@ -205,6 +210,7 @@ export function serializeGameState(
       movementUsed,
     },
     score: { ...state.score },
+    ...(state.knockout ? { knockout: true } : {}),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
@@ -236,7 +242,7 @@ export function serializeGameState(
       ? { ...state.kickoffKickResolved }
       : undefined,
     setup: state.setup ? structuredClone(state.setup) : null,
-    result: state.result ? { ...state.result } : undefined,
+    result: state.result ? structuredClone(state.result) : undefined,
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -268,6 +274,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     teamId: snapshot.turn.teamId,
     turnNumber: snapshot.turn.turnNumber,
     isHalf2: snapshot.turn.isHalf2,
+    ...(snapshot.turn.extraTime ? { extraTime: true } : {}),
     activatedPlayerIds: new Set(snapshot.turn.activatedPlayerIds),
     hasBlitzed: snapshot.turn.hasBlitzed,
     hasPassed: snapshot.turn.hasPassed,
@@ -286,6 +293,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     activeTeamId: snapshot.activeTeamId,
     turn,
     score: { ...snapshot.score },
+    ...(snapshot.knockout ? { knockout: true } : {}),
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
@@ -322,7 +330,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? { ...snapshot.kickoffKickResolved }
       : undefined,
     setup: snapshot.setup ? structuredClone(snapshot.setup) : undefined,
-    result: snapshot.result ? { ...snapshot.result } : undefined,
+    result: snapshot.result ? structuredClone(snapshot.result) : undefined,
   };
 }
 

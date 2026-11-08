@@ -8,6 +8,7 @@ import { BallMovementController } from "@/game/controllers/BallMovementControlle
 import { DiceController } from "@/game/controllers/DiceController";
 import { ArmourController } from "@/game/controllers/ArmourController";
 import { InjuryController } from "@/game/controllers/InjuryController";
+import { NextHalf } from "@/game/managers/TurnManager";
 
 export interface IGameService {
   getState(): GameState;
@@ -251,7 +252,7 @@ export interface IGameService {
 
   // Scoring / end of drive
   checkForTouchdown(playerId: string): boolean;
-  endDrive(reason: "touchdown" | "halftime", nextKickingTeamId: string): void;
+  endDrive(reason: "touchdown" | "halftime", next: NextHalf): void;
   resetDriveState(): void;
   /**
    * Roll KO recovery one player at a time. `beat` paces the sequence between
