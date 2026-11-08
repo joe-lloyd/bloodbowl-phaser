@@ -347,6 +347,16 @@ export function hydrateStoredTeam(
   const storedPlayers = Array.isArray(raw.players)
     ? (raw.players as Record<string, unknown>[]).map(toStoredPlayer)
     : [];
+  // Keep only the injuries that carry to the next game. Sevens has no
+  // lasting injuries, so Badly Hurt ends with its game, and nothing carries
+  // in Matched Play (docs/SEVENS_RULES.md I3 to I5).
+  for (const stored of storedPlayers) {
+    stored.injuries = stored.injuries.filter(
+      (injury) =>
+        raw.advancementMode !== "matched-play" &&
+        injury !== InjuryType.BADLY_HURT
+    );
+  }
 
   const players = storedPlayers.map((stored) =>
     hydratePlayer(stored, teamId, rosterName, warnings)

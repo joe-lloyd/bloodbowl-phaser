@@ -115,7 +115,9 @@ Where the magazine is silent, the engine does this:
   Casualty box and the record is cleared as that game starts. A dead player
   is removed from the roster the next time the team is loaded. Team value
   leaves out both, as the rulebook's Current Team Value does. Matched Play
-  teams keep every player: injuries do not carry there.
+  teams keep every player: injuries do not carry there. A team loaded from
+  the library keeps only the injuries that carry, so Badly Hurt is gone
+  after its game and a Matched Play team has none.
 
 ## 4. League play
 

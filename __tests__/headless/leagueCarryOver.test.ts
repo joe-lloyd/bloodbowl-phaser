@@ -82,6 +82,31 @@ describe("Miss Next Game", () => {
     expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.RESERVE);
   });
 
+  it("stays on a reloaded league player, while Badly Hurt does not", () => {
+    // Sevens has no lasting injuries: Badly Hurt only lasts its own game
+    const home = team("home", 9);
+    home.players[0].injuries.push(
+      InjuryType.BADLY_HURT,
+      InjuryType.MISS_NEXT_GAME
+    );
+    home.players[1].injuries.push(InjuryType.BADLY_HURT);
+
+    const loaded = reload(home);
+    expect(loaded.players[0].injuries).toEqual([InjuryType.MISS_NEXT_GAME]);
+    expect(loaded.players[1].injuries).toEqual([]);
+  });
+
+  it("is never stored on a Matched Play team, nor is any injury", () => {
+    const home = team("home", 9, "matched-play");
+    home.players[0].injuries.push(InjuryType.MISS_NEXT_GAME);
+    home.players[1].injuries.push(InjuryType.DEAD);
+    home.players[2].injuries.push(InjuryType.BADLY_HURT);
+
+    const loaded = reload(home);
+    expect(loaded.players).toHaveLength(9);
+    expect(loaded.players.flatMap((p) => p.injuries)).toEqual([]);
+  });
+
   it("is left out of team value until served", () => {
     const home = team("home", 9);
     const full = calculateTeamValue(home);
