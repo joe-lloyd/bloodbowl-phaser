@@ -107,7 +107,7 @@ import { priceOf } from "../../src/game/rules/teamPricing";
 function seasons(): number {
   const raw = process.env.CAMPAIGN_SEASONS ?? "3";
   const count = Number(raw);
-  if (!/^\d+$/.test(raw.trim()) || count < 1) {
+  if (!Number.isSafeInteger(count) || count < 1) {
     throw new Error(
       `CAMPAIGN_SEASONS must be a whole number of 1 or more, got "${raw}"`
     );
