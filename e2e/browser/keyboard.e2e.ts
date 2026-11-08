@@ -48,3 +48,33 @@ test("a foul is declared and confirmed from the keyboard", async ({
   await expect(page.getByTestId("confirmation-modal")).toBeHidden();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
 });
+
+test("the menu's keys wait while a decision is open, and Enter presses the focused button", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "ux-foul-preview" });
+  await app.hud.declareAction("team1:0", "foul");
+  await app.pitch.clickPlayer("team2:0");
+  const confirm = page.getByTestId("confirmation-modal");
+  await expect(confirm).toBeVisible();
+
+  // The dialog hides End Activation and End Turn, so their keys do nothing
+  await page.keyboard.press("e");
+  await page.keyboard.press("Shift+E");
+  await expect(confirm).toBeVisible();
+  expect((await app.bridge.phase()).activeTeamId).toBe(
+    await app.bridge.resolveRef("team1")
+  );
+
+  // Tabbed to Cancel, Enter cancels instead of fouling
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(confirm).toBeHidden();
+  expect(
+    (await app.bridge.events()).filter(
+      (e) => e.name === GameEventNames.DiceRoll
+    )
+  ).toHaveLength(0);
+  await expect(app.hud.actionMenu()).toBeVisible();
+});

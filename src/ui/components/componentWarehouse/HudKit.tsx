@@ -327,7 +327,7 @@ export const HudButton = forwardRef<
   ref
 ) {
   const button = useRef<HTMLButtonElement | null>(null);
-  useHotkey(hotkey, () => button.current?.click(), !rest.disabled);
+  useHotkey(hotkey, () => button.current?.click(), !rest.disabled, button);
   return (
     <button
       ref={(node) => {
@@ -504,6 +504,7 @@ export function DialogShell({
   return (
     <div
       data-testid={testId}
+      data-hotkey-scope=""
       data-decision-dialog={placement === "dock" ? "" : undefined}
       className={cx(
         placement === "dock"

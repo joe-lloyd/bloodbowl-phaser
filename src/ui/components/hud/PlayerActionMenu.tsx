@@ -2,7 +2,7 @@ import { useHeldOnline } from "../../hooks/useHeldOnline";
 /* eslint-disable react/prop-types */
 import { holdsMeasure } from "../../../game/inducements/matchInducements";
 import { DesperateMeasure } from "../../../game/inducements/desperateMeasures";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -277,7 +277,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       if (onClick) onClick();
       else if (action) handleAction(action, blockReplacement);
     };
-    useHotkey(hotkey, press, !disabled);
+    const button = useRef<HTMLButtonElement | null>(null);
+    useHotkey(hotkey, press, !disabled, button);
 
     // A stable hook for E2E: the button's visible label is styling-dependent
     // and duplicated across replacement variants, so cases target the action
@@ -289,6 +290,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     if (compact) {
       return (
         <button
+          ref={button}
           data-testid={testId}
           onClick={(e) => {
             e.stopPropagation();
@@ -319,6 +321,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
 
     return (
       <button
+        ref={button}
         data-testid={testId}
         onClick={(e) => {
           e.stopPropagation();
@@ -654,4 +657,3 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     </div>
   );
 };
-

@@ -29,6 +29,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   const held = useHeldOnline();
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
+  const button = useRef<HTMLButtonElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -43,7 +44,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   const shown =
     phase === GamePhase.PLAY && (!online || online.myTeamId === activeTeamId);
   // Shift as well, so a slip of the E that ends an activation keeps the turn
-  useHotkey("shift+e", onClick, shown && !disabled && !held && !hold);
+  useHotkey("shift+e", onClick, shown && !disabled && !held && !hold, button);
   if (!shown) {
     return null;
   }
@@ -51,6 +52,7 @@ export const EndTurnButton: React.FC<EndTurnButtonProps> = ({
   if (!hold) {
     return (
       <button
+        ref={button}
         data-testid="end-turn"
         onClick={onClick}
         disabled={disabled || held}
