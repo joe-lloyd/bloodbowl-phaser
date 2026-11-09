@@ -166,9 +166,11 @@ export async function updateCompetition(
 ): Promise<CompetitionDoc> {
   if (isFirebaseConfigured()) {
     const ref = doc(getDb(), collectionName(type), id);
+    let foundRemote = false;
     const remote = await runTransaction(getDb(), async (tx) => {
       const snapshot = await tx.get(ref);
       if (!snapshot.exists()) return null;
+      foundRemote = true;
       const latest = normalizeOnRead(snapshot.data() as CompetitionDoc)!;
       const next = change(latest);
       if (!next) return latest;
@@ -176,8 +178,8 @@ export async function updateCompetition(
       return next;
     }).catch((reason: unknown) => {
       // Signed out or offline, a competition that was only ever local is
-      // still here
-      if (localOnly(type, id)) return null;
+      // still here. Once the online one was read, its refusal stands.
+      if (!foundRemote && localOnly(type, id)) return null;
       throw reason;
     });
     if (remote) return remote;

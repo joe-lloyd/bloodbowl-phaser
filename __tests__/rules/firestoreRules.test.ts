@@ -687,6 +687,22 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       ).toBe("ready");
     });
 
+    it("reports a refused online write even with a local competition of the same id", async () => {
+      const comp = await league();
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({
+          [`league:${comp.id}`]: { ...comp, organizerUid: null },
+        })
+      );
+      const { fixture } = guestsFixture(comp);
+      await expect(
+        as(STRANGER, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toMatchObject({ code: "permission-denied" });
+    });
+
     it("refuses a result for an online competition gone from the server", async () => {
       const comp = await league();
       localStorage.setItem(
