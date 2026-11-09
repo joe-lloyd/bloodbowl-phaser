@@ -665,6 +665,28 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       });
     });
 
+    it("never records an online result only in a stale local copy", async () => {
+      const comp = await league();
+      // A copy left on this machine from before the competition went online
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({ [`league:${comp.id}`]: comp })
+      );
+      const { fixture } = guestsFixture(comp);
+      // An outsider's write is refused, and must not land in the copy
+      await expect(
+        as(STRANGER, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toMatchObject({ code: "permission-denied" });
+      const copy = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+      expect(
+        copy[`league:${comp.id}`].fixtures.find(
+          (f: { id: string }) => f.id === fixture.id
+        ).status
+      ).toBe("ready");
+    });
+
     it("keeps a result recorded after the organizer loaded the page", async () => {
       const comp = await league();
       // The host withdrew before walkovers closed on withdrawal

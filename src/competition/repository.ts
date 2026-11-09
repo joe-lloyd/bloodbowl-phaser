@@ -169,8 +169,11 @@ export async function updateCompetition(
       tx.set(ref, plain(next));
       return next;
     }).catch((reason: unknown) => {
-      // Signed out or offline: a local competition may still be stored here
-      if (readLocal()[storageKey(type, id)]) return null;
+      // Signed out or offline, a competition that was only ever local is
+      // still here. One with an organizer lives online: a copy of it left
+      // on this machine must not take a result the server never gets.
+      const local = readLocal()[storageKey(type, id)];
+      if (local && !local.organizerUid) return null;
       throw reason;
     });
     if (remote) return remote;
