@@ -68,6 +68,17 @@ A team SHALL record the single active league or tournament it is entered in. Ent
 - **WHEN** a team is withdrawn from an active league
 - **THEN** its active-competition association is cleared
 
+### Requirement: A withdrawn team's games close as walkovers
+When a team withdraws from a league, its games already played SHALL stand, and each of its unplayed games SHALL close as a walkover won by the other side. A walkover SHALL NOT count in the standings or in either team's record. A league whose remaining games are all walkovers SHALL be able to complete.
+
+#### Scenario: Withdrawing mid-season
+- **WHEN** a team that has played one game withdraws
+- **THEN** that game stays in the standings, and its other games show as walkovers that the standings leave out
+
+#### Scenario: A league finishes after a withdrawal
+- **WHEN** every game not involving the withdrawn team has been played
+- **THEN** the league is complete
+
 ### Requirement: Coaches are referenced by uid
 Coach identity on entrants and fixtures SHALL be stored as a uid with a cached display name. No coach record SHALL be copied into the league document.
 

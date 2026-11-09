@@ -206,6 +206,10 @@ describe("a league against the computer", () => {
       `own:${mine.id}`
     );
     await show(withdrawn);
+    // My three games close as walkovers, so the league can still finish
+    expect(
+      container.textContent?.match(/Walkover: My Team withdrew/g)
+    ).toHaveLength(3);
     await act(async () => button("Simulate round 1")!.click());
     await vi.waitFor(
       () => expect(button("Simulate round 2")).toBeDefined(),

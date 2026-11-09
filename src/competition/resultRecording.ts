@@ -1,7 +1,11 @@
 import { getCurrentUser } from "../firebase/auth";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
-import { recordLeagueResult, recordTournamentResult } from "./logic";
+import {
+  recordLeagueResult,
+  recordTournamentResult,
+  walkOverNext,
+} from "./logic";
 import { getCompetition, saveCompetition } from "./repository";
 import {
   CompetitionContext,
@@ -18,7 +22,9 @@ function updateTeamRecord(
   fixtureKey: string,
   ownScore: number,
   winnerEntrantId: string | undefined,
-  progressedTeam?: Team
+  progressedTeam?: Team,
+  /** False for a walkover: the game counts in no record. */
+  counts = true
 ): void {
   const persisted = getTeamById(entrant.teamId);
   if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
@@ -46,11 +52,13 @@ function updateTeamRecord(
     // Rolled in the post-game sequence at full time (leagueRoster.ts).
     team.dedicatedFans = progressedTeam.dedicatedFans;
   }
-  team.touchdowns = (team.touchdowns ?? 0) + ownScore;
-  // The fixture's winner, so a Penalty Shoot-out counts as a win and a loss
-  if (!winnerEntrantId) team.draws = (team.draws ?? 0) + 1;
-  else if (winnerEntrantId === entrant.id) team.wins = (team.wins ?? 0) + 1;
-  else team.losses = (team.losses ?? 0) + 1;
+  if (counts) {
+    team.touchdowns = (team.touchdowns ?? 0) + ownScore;
+    // The fixture's winner, so a Penalty Shoot-out counts as a win and a loss
+    if (!winnerEntrantId) team.draws = (team.draws ?? 0) + 1;
+    else if (winnerEntrantId === entrant.id) team.wins = (team.wins ?? 0) + 1;
+    else team.losses = (team.losses ?? 0) + 1;
+  }
   // A recorded fixture result is a confirmed completed match — the team is
   // active from here on (see teamLifecycle.ts). A no-op once already set.
   stampFirstCompletedMatch(team);
@@ -92,19 +100,24 @@ function updateReachableTeams(
   const key = `${competition.id}:${fixture.id}`;
   if (home && away) {
     const { homeScore, awayScore, winnerEntrantId } = result;
+    // A game played against a team that withdrew meanwhile still carries
+    // its players' SPP and injuries, but it was walked over
+    const counts = !result.walkover;
     updateTeamRecord(
       home,
       key,
       homeScore,
       winnerEntrantId,
-      progressedTeams?.home
+      progressedTeams?.home,
+      counts
     );
     updateTeamRecord(
       away,
       key,
       awayScore,
       winnerEntrantId,
-      progressedTeams?.away
+      progressedTeams?.away,
+      counts
     );
   }
   // A completed competition frees every entrant it holds: only the coaches
@@ -195,14 +208,42 @@ export async function recordCompetitionFixture(
   )?.result;
   if (!recorded) throw new Error("Fixture has no recorded result.");
   updateReachableTeams(updated, existing, recorded, progressedTeams);
-  return updated;
+  // A knockout winner may have gone through to a withdrawn team
+  return closeWalkovers(updated);
 }
 
 /**
- * A coach withdraws their own entrant: the entrant is marked withdrawn
- * (fixtures and standings are untouched — see design.md decision 3, which
- * gives up the immutable-snapshot property deliberately) and the team's
- * active-competition association is cleared.
+ * Close every open game a withdrawn entrant would play as a walkover. Each
+ * is its own write: the database rules check a walkover, and the knockout
+ * winner it sends through, near the most they can evaluate in one request.
+ * A walkover is owed, not reported, so a refused write leaves the games
+ * open for the next writer rather than failing what the coach did.
+ */
+export async function closeWalkovers(
+  competition: CompetitionDoc
+): Promise<CompetitionDoc> {
+  let current = competition;
+  try {
+    for (let next = walkOverNext(current); next; next = walkOverNext(current)) {
+      await saveCompetition(next);
+      current = next;
+    }
+  } catch (reason) {
+    console.warn("[competition] could not close walkovers", reason);
+  }
+  // A walkover may be what finished it, after the result that came first
+  // found it still active. Opening the page frees another coach's teams.
+  if (current.status === "complete")
+    current.entrants.forEach((entrant) =>
+      clearActiveCompetition(entrant.teamId, current.id)
+    );
+  return current;
+}
+
+/**
+ * A coach withdraws their own entrant: the entrant is marked withdrawn and
+ * the team's active-competition association is cleared. Games already
+ * played stand; the ones left close as walkovers.
  */
 export async function withdrawFromCompetition(
   context: Pick<CompetitionContext, "competitionType" | "competitionId">,
@@ -227,7 +268,7 @@ export async function withdrawFromCompetition(
   };
   await saveCompetition(updated);
   clearActiveCompetition(entrant.teamId, competition.id);
-  return updated;
+  return closeWalkovers(updated);
 }
 
 /**

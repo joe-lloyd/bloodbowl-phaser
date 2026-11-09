@@ -115,16 +115,40 @@ service cloud.firestore {
         && now.result.winnerEntrantId != null;
     }
 
+    // A walkover: one side withdrew, and the other wins it unplayed. The
+    // result names the withdrawn entrant by its place in the list, and only
+    // its owner can mark it withdrawn, so any participant may close the game.
+    function walkoverAllowed(was, now) {
+      let out = request.resource.data.entrants[
+        now.result.walkover.withdrawnEntrantIndex];
+      let winner = now.result.get('winnerEntrantId', null);
+      return was.homeEntrantId != null
+        && was.awayEntrantId != null
+        && out.get('withdrawn', false) == true
+        && now.result.homeScore == 0
+        && now.result.awayScore == 0
+        && now.result.get('penalties', null) == null
+        && ((out.id == was.homeEntrantId && winner == was.awayEntrantId)
+          || (out.id == was.awayEntrantId && winner == was.homeEntrantId));
+    }
+
     // A result comes from a coach in the fixture. A bye has no opponent, and
-    // follows from the report that left the slot empty.
+    // follows from the report that left the slot empty. A walkover follows
+    // from a withdrawal.
     function completionAllowed(was, now) {
       return now.status != 'complete'
         || (now.result.get('bye', false) == true && byeAllowed(was, now))
-        || (now.result.get('bye', false) != true
+        // A walkover skips the played-result checks first: the rules run
+        // close to the 1000 expressions a request may evaluate
+        || (!('walkover' in now.result)
+          && now.result.get('bye', false) != true
           && was.homeEntrantId != null
           && was.awayEntrantId != null
           && winnerMatchesScores(was, now.result)
-          && reporterPlaysIn(was));
+          && reporterPlaysIn(was))
+        || ('walkover' in now.result
+          && now.result.get('bye', false) != true
+          && walkoverAllowed(was, now));
     }
 
     function linkKept(was, now, field) {
