@@ -145,6 +145,12 @@ export async function getCompetition(
   return normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
 }
 
+/** Stored on this machine and never online: it has no organizer. */
+function localOnly(type: CompetitionType, id: string): boolean {
+  const local = readLocal()[storageKey(type, id)];
+  return !!local && !local.organizerUid;
+}
+
 /**
  * Apply `change` to the latest stored copy and save what it returns. Online
  * this is a transaction: a write that lands between the read and the save
@@ -170,13 +176,14 @@ export async function updateCompetition(
       return next;
     }).catch((reason: unknown) => {
       // Signed out or offline, a competition that was only ever local is
-      // still here. One with an organizer lives online: a copy of it left
-      // on this machine must not take a result the server never gets.
-      const local = readLocal()[storageKey(type, id)];
-      if (local && !local.organizerUid) return null;
+      // still here
+      if (localOnly(type, id)) return null;
       throw reason;
     });
     if (remote) return remote;
+    // One with an organizer lives online: a copy of it left on this
+    // machine must not take a result the server never gets
+    if (!localOnly(type, id)) throw new Error("Competition not found.");
   }
   const latest = normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
   if (!latest) throw new Error("Competition not found.");

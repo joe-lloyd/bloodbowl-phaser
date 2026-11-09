@@ -687,6 +687,27 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       ).toBe("ready");
     });
 
+    it("refuses a result for an online competition gone from the server", async () => {
+      const comp = await league();
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({ [`league:${comp.id}`]: comp })
+      );
+      await deleteDoc(leagueRef(ORGANIZER, comp.id));
+      const { fixture } = guestsFixture(comp);
+      await expect(
+        as(GUEST, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toThrow("Competition not found.");
+      const copy = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+      expect(
+        copy[`league:${comp.id}`].fixtures.find(
+          (f: { id: string }) => f.id === fixture.id
+        ).status
+      ).toBe("ready");
+    });
+
     it("keeps a result recorded after the organizer loaded the page", async () => {
       const comp = await league();
       // The host withdrew before walkovers closed on withdrawal
