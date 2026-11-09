@@ -231,6 +231,12 @@ export async function closeWalkovers(
   } catch (reason) {
     console.warn("[competition] could not close walkovers", reason);
   }
+  // A walkover may be what finished it, after the result that came first
+  // found it still active. Opening the page frees another coach's teams.
+  if (current.status === "complete")
+    current.entrants.forEach((entrant) =>
+      clearActiveCompetition(entrant.teamId, current.id)
+    );
   return current;
 }
 

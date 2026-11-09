@@ -17,6 +17,8 @@ import {
   recordCompetitionFixture,
   withdrawFromCompetition,
 } from "../../src/competition/resultRecording";
+import { getTeamById, saveTeams } from "../../src/game/managers/TeamManager";
+import { Team } from "../../src/types/Team";
 import {
   CompetitionEntrant,
   CompetitionFixture,
@@ -200,5 +202,31 @@ describe("a cup team that withdraws", () => {
     expect(after.type === "tournament" && after.championEntrantId).toBe(
       other.homeEntrantId
     );
+  });
+
+  it("frees every team when a walkover finishes the cup", async () => {
+    const draw = await cup(4);
+    saveTeams(
+      draw.entrants.map(
+        (entrant) =>
+          ({
+            id: entrant.teamId,
+            name: entrant.name,
+            rosterName: "Human",
+            players: [],
+            activeCompetitionId: draw.id,
+          }) as unknown as Team
+      )
+    );
+    const semi = draw.fixtures.find((f) => has(f, "e1"))!;
+    const e1Home = semi.homeEntrantId === "e1";
+    await report(draw, semi, e1Home ? 2 : 0, e1Home ? 0 : 2);
+    await withdraw(draw, "e1");
+    const other = draw.fixtures.find((f) => f.round === 1 && f.id !== semi.id)!;
+    // The last game played; the final then closes as a walkover
+    await report(draw, other, 3, 1);
+
+    for (const entrant of draw.entrants)
+      expect(getTeamById(entrant.teamId)?.activeCompetitionId).toBeUndefined();
   });
 });
