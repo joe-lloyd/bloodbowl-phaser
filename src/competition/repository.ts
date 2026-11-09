@@ -1,4 +1,11 @@
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  runTransaction,
+  setDoc,
+} from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
 import { CompetitionDoc, CompetitionType } from "./types";
 import { repairBracketLinkage, withResultsFromFixtures } from "./logic";
@@ -138,6 +145,58 @@ export async function getCompetition(
   return normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
 }
 
+/** Stored on this machine and never online: it has no organizer. */
+function localOnly(type: CompetitionType, id: string): boolean {
+  const local = readLocal()[storageKey(type, id)];
+  return !!local && !local.organizerUid;
+}
+
+/**
+ * Apply `change` to the latest stored copy and save what it returns. Online
+ * this is a transaction: a write that lands between the read and the save
+ * makes it read again and apply `change` again, rather than saving a stale
+ * copy over it. So `change` may run more than once and must not have side
+ * effects. It returns null to leave the document as it is. Resolves with
+ * the document as stored afterwards.
+ */
+export async function updateCompetition(
+  type: CompetitionType,
+  id: string,
+  change: (latest: CompetitionDoc) => CompetitionDoc | null
+): Promise<CompetitionDoc> {
+  if (isFirebaseConfigured()) {
+    const ref = doc(getDb(), collectionName(type), id);
+    let foundRemote = false;
+    const remote = await runTransaction(getDb(), async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) return null;
+      foundRemote = true;
+      const latest = normalizeOnRead(snapshot.data() as CompetitionDoc)!;
+      const next = change(latest);
+      if (!next) return latest;
+      tx.set(ref, plain(next));
+      return next;
+    }).catch((reason: unknown) => {
+      // Signed out or offline, a competition that was only ever local is
+      // still here. Once the online one was read, its refusal stands.
+      if (!foundRemote && localOnly(type, id)) return null;
+      throw reason;
+    });
+    if (remote) return remote;
+    // One with an organizer lives online: a copy of it left on this
+    // machine must not take a result the server never gets
+    if (!localOnly(type, id)) throw new Error("Competition not found.");
+  }
+  const latest = normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
+  if (!latest) throw new Error("Competition not found.");
+  const next = change(latest);
+  if (!next) return latest;
+  const store = readLocal();
+  store[storageKey(type, id)] = structuredClone(next);
+  writeLocal(store);
+  return next;
+}
+
 /**
  * Look up a competition by id without knowing its type in advance — used to
  * name the competition a team is already committed to (single
@@ -146,7 +205,9 @@ export async function getCompetition(
 export async function findCompetitionById(
   id: string
 ): Promise<CompetitionDoc | null> {
-  return (await getCompetition("league", id)) ?? getCompetition("tournament", id);
+  return (
+    (await getCompetition("league", id)) ?? getCompetition("tournament", id)
+  );
 }
 
 /**
@@ -164,7 +225,9 @@ export async function backfillCompetitions(
   const organized = competitions.filter(
     (competition) => !uid || competition.organizerUid === uid
   );
-  await Promise.all(organized.map((competition) => saveCompetition(competition)));
+  await Promise.all(
+    organized.map((competition) => saveCompetition(competition))
+  );
   return organized.length;
 }
 

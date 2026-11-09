@@ -65,6 +65,7 @@ import {
   DEFAULT_SETTINGS,
 } from "../../src/firebase/lobby";
 import {
+  closeWalkovers,
   recordCompetitionFixture,
   withdrawFromCompetition,
 } from "../../src/competition/resultRecording";
@@ -662,6 +663,94 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       await updateDoc(leagueRef(HOST, comp.id), {
         fixtures: walkover(comp.fixtures, rivalWins),
       });
+    });
+
+    it("never records an online result only in a stale local copy", async () => {
+      const comp = await league();
+      // A copy left on this machine from before the competition went online
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({ [`league:${comp.id}`]: comp })
+      );
+      const { fixture } = guestsFixture(comp);
+      // An outsider's write is refused, and must not land in the copy
+      await expect(
+        as(STRANGER, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toMatchObject({ code: "permission-denied" });
+      const copy = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+      expect(
+        copy[`league:${comp.id}`].fixtures.find(
+          (f: { id: string }) => f.id === fixture.id
+        ).status
+      ).toBe("ready");
+    });
+
+    it("reports a refused online write even with a local competition of the same id", async () => {
+      const comp = await league();
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({
+          [`league:${comp.id}`]: { ...comp, organizerUid: null },
+        })
+      );
+      const { fixture } = guestsFixture(comp);
+      await expect(
+        as(STRANGER, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toMatchObject({ code: "permission-denied" });
+    });
+
+    it("refuses a result for an online competition gone from the server", async () => {
+      const comp = await league();
+      localStorage.setItem(
+        "bloodbowl_competitions",
+        JSON.stringify({ [`league:${comp.id}`]: comp })
+      );
+      await deleteDoc(leagueRef(ORGANIZER, comp.id));
+      const { fixture } = guestsFixture(comp);
+      await expect(
+        as(GUEST, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        )
+      ).rejects.toThrow("Competition not found.");
+      const copy = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+      expect(
+        copy[`league:${comp.id}`].fixtures.find(
+          (f: { id: string }) => f.id === fixture.id
+        ).status
+      ).toBe("ready");
+    });
+
+    it("keeps a result recorded after the organizer loaded the page", async () => {
+      const comp = await league();
+      // The host withdrew before walkovers closed on withdrawal
+      await updateDoc(leagueRef(ADMIN, comp.id), {
+        entrants: comp.entrants.map((e) =>
+          e.id === `e-${HOST}` ? { ...e, withdrawn: true } : e
+        ),
+      });
+      const stale = await as(ORGANIZER, () =>
+        getCompetition("league", comp.id)
+      );
+      const played = comp.fixtures.find(
+        (f) =>
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`) &&
+          [f.homeEntrantId, f.awayEntrantId].includes(`e-${THIRD}`)
+      )!;
+      await as(GUEST, () =>
+        recordCompetitionFixture(context(comp, played.id), 2, 1)
+      );
+      // The organizer's page closes the walkovers from the copy it loaded
+      await as(ORGANIZER, () => closeWalkovers(stale!));
+
+      const stored = await storedLeague(comp.id);
+      expect(
+        stored.fixtures.find((f) => f.id === played.id)?.result
+      ).toMatchObject({ homeScore: 2, awayScore: 1 });
+      expect(stored.fixtures.filter((f) => f.result?.walkover)).toHaveLength(3);
     });
 
     it("sends a withdrawn team's knockout opponent through", async () => {
