@@ -6,7 +6,7 @@ import {
   recordTournamentResult,
   walkOverNext,
 } from "./logic";
-import { getCompetition, saveCompetition } from "./repository";
+import { updateCompetition } from "./repository";
 import {
   CompetitionContext,
   CompetitionDoc,
@@ -144,70 +144,44 @@ export async function recordCompetitionFixture(
   /** How a knockout game left level was decided. */
   penalties?: PenaltyShootout
 ): Promise<CompetitionDoc> {
-  const competition = await getCompetition(
-    context.competitionType,
-    context.competitionId
-  );
-  if (!competition) throw new Error("Competition not found.");
-  const existing = competition.fixtures.find(
-    (fixture) => fixture.id === context.fixtureId
-  );
-  if (!existing) throw new Error("Fixture not found.");
-  if (existing.status === "complete" && !existing.result?.bye) {
-    if (!existing.result) throw new Error("Fixture has no recorded result.");
-    updateReachableTeams(
-      competition,
-      existing,
-      existing.result,
-      progressedTeams
-    );
-    return competition;
-  }
-
-  const updated =
-    competition.type === "league"
-      ? recordLeagueResult(competition, context.fixtureId, homeScore, awayScore)
-      : recordTournamentResult(
-          competition,
-          context.fixtureId,
-          homeScore,
-          awayScore,
-          penalties
-        );
   const uid = getCurrentUser()?.uid;
-  const reporterEntrantIndex = updated.entrants.findIndex(
-    (entrant) =>
-      entrant.ownerUid === uid &&
-      (entrant.id === existing.homeEntrantId ||
-        entrant.id === existing.awayEntrantId)
-  );
-  if (reporterEntrantIndex >= 0) {
-    updated.reporterEntrantIndex = reporterEntrantIndex;
-  }
-  try {
-    await saveCompetition(updated);
-  } catch (reason) {
-    // Both coaches report at full time. If the other got there first, the
-    // rules refuse this write, and the result stands as they recorded it.
-    const latest = await getCompetition(
-      context.competitionType,
-      context.competitionId
-    );
-    const fixture = latest?.fixtures.find(
-      (candidate) => candidate.id === context.fixtureId
-    );
-    if (!latest || fixture?.status !== "complete" || !fixture.result) {
-      throw reason;
+  // A result already recorded stands: both coaches report at full time
+  const updated = await updateCompetition(
+    context.competitionType,
+    context.competitionId,
+    (latest) => {
+      const fixture = latest.fixtures.find(
+        (candidate) => candidate.id === context.fixtureId
+      );
+      if (!fixture) throw new Error("Fixture not found.");
+      if (fixture.status === "complete" && !fixture.result?.bye) return null;
+      const next =
+        latest.type === "league"
+          ? recordLeagueResult(latest, context.fixtureId, homeScore, awayScore)
+          : recordTournamentResult(
+              latest,
+              context.fixtureId,
+              homeScore,
+              awayScore,
+              penalties
+            );
+      const reporterEntrantIndex = next.entrants.findIndex(
+        (entrant) =>
+          entrant.ownerUid === uid &&
+          (entrant.id === fixture.homeEntrantId ||
+            entrant.id === fixture.awayEntrantId)
+      );
+      if (reporterEntrantIndex >= 0)
+        next.reporterEntrantIndex = reporterEntrantIndex;
+      return next;
     }
-    updateReachableTeams(latest, fixture, fixture.result, progressedTeams);
-    return latest;
-  }
+  );
 
   const recorded = updated.fixtures.find(
-    (fixture) => fixture.id === existing.id
-  )?.result;
-  if (!recorded) throw new Error("Fixture has no recorded result.");
-  updateReachableTeams(updated, existing, recorded, progressedTeams);
+    (fixture) => fixture.id === context.fixtureId
+  );
+  if (!recorded?.result) throw new Error("Fixture has no recorded result.");
+  updateReachableTeams(updated, recorded, recorded.result, progressedTeams);
   // A knockout winner may have gone through to a withdrawn team
   return closeWalkovers(updated);
 }
@@ -224,9 +198,16 @@ export async function closeWalkovers(
 ): Promise<CompetitionDoc> {
   let current = competition;
   try {
-    for (let next = walkOverNext(current); next; next = walkOverNext(current)) {
-      await saveCompetition(next);
-      current = next;
+    for (let closed = true; closed; ) {
+      current = await updateCompetition(
+        competition.type,
+        competition.id,
+        (latest) => {
+          const next = walkOverNext(latest);
+          closed = next !== null;
+          return next;
+        }
+      );
     }
   } catch (reason) {
     console.warn("[competition] could not close walkovers", reason);
@@ -249,25 +230,27 @@ export async function withdrawFromCompetition(
   context: Pick<CompetitionContext, "competitionType" | "competitionId">,
   entrantId: string
 ): Promise<CompetitionDoc> {
-  const competition = await getCompetition(
+  const updated = await updateCompetition(
     context.competitionType,
-    context.competitionId
+    context.competitionId,
+    (latest) => {
+      if (!latest.entrants.some((candidate) => candidate.id === entrantId))
+        throw new Error("Entrant not found.");
+      return {
+        ...latest,
+        entrants: latest.entrants.map((candidate) =>
+          candidate.id === entrantId
+            ? { ...candidate, withdrawn: true }
+            : candidate
+        ),
+        updatedAt: Date.now(),
+      };
+    }
   );
-  if (!competition) throw new Error("Competition not found.");
-  const entrant = competition.entrants.find(
+  const entrant = updated.entrants.find(
     (candidate) => candidate.id === entrantId
-  );
-  if (!entrant) throw new Error("Entrant not found.");
-
-  const updated: CompetitionDoc = {
-    ...competition,
-    entrants: competition.entrants.map((candidate) =>
-      candidate.id === entrantId ? { ...candidate, withdrawn: true } : candidate
-    ),
-    updatedAt: Date.now(),
-  };
-  await saveCompetition(updated);
-  clearActiveCompetition(entrant.teamId, competition.id);
+  )!;
+  clearActiveCompetition(entrant.teamId, updated.id);
   return closeWalkovers(updated);
 }
 
