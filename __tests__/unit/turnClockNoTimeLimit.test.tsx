@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   setTurnDeadlineMock: vi.fn(() => Promise.resolve()),
   endTurnMock: vi.fn(),
+  activeTeamId: "host-team",
 }));
 
 vi.mock("../../src/firebase/lobby", async (importOriginal) => {
@@ -36,9 +37,9 @@ vi.mock("../../src/services/ServiceContainer", () => ({
       gameService: {
         getPhase: () => "PLAY",
         // The host's turn: the active coach keeps the clock
-        getActiveTeamId: () => "host-team",
+        getActiveTeamId: () => hoisted.activeTeamId,
         getState: () => ({
-          turn: { teamId: "host-team", turnNumber: 1, isHalf2: false },
+          turn: { teamId: hoisted.activeTeamId, turnNumber: 1, isHalf2: false },
         }),
         endTurn: hoisted.endTurnMock,
       },
@@ -87,6 +88,7 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     vi.useFakeTimers();
     hoisted.setTurnDeadlineMock.mockClear();
     hoisted.endTurnMock.mockClear();
+    hoisted.activeTeamId = "host-team";
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -161,5 +163,106 @@ describe("TurnClock — no time limit end-to-end wiring", () => {
     });
 
     expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["host", "guest"] as const)(
+    "leaves the %s's defensive choice open without an invisible timeout",
+    async (role) => {
+      hoisted.activeTeamId = role === "host" ? "guest-team" : "host-team";
+      const myTeamId = `${role}-team`;
+      const run = vi.fn(() => Promise.resolve({ ok: true }));
+      const defenderMatch = {
+        ...match,
+        role,
+        myTeamId,
+        pendingDecision: () => ({
+          type: "reaction",
+          playerId: "defender",
+          skill: "Stand Firm",
+        }),
+        decidingTeamId: () => myTeamId,
+        run,
+      } as unknown as OnlineMatch;
+
+      await act(async () => {
+        root.render(
+          <TurnClock
+            code={code}
+            lobby={noLimitLobby}
+            match={defenderMatch}
+            eventBus={eventBus}
+            user={{ uid: `${role}-uid` } as AuthUser}
+          />
+        );
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(30 * 60 * 1000));
+
+      expect(run).not.toHaveBeenCalled();
+      expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+      expect(container.textContent).toBe("");
+    }
+  );
+
+  it("ignores a leftover deadline in an untimed match", async () => {
+    const announce = vi.fn();
+    eventBus.on(GameEventNames.UI_Announce, announce);
+    const lobby: LobbyDoc = {
+      ...noLimitLobby,
+      timer: {
+        ...noLimitLobby.timer!,
+        deadline: Date.now() - 1000,
+        turn: "host-team:1:1",
+      },
+    };
+    await act(async () => {
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={user}
+        />
+      );
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    await act(async () => {
+      eventBus.emit(GameEventNames.TurnEnded, { teamId: "host-team" });
+    });
+
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+    expect(announce).not.toHaveBeenCalled();
+    expect(container.textContent).toBe("");
+  });
+
+  it("does not restart a leftover deadline after a disconnect", async () => {
+    const lobby: LobbyDoc = {
+      ...noLimitLobby,
+      timer: {
+        ...noLimitLobby.timer!,
+        deadline: Date.now() + 60_000,
+        turn: "host-team:1:1",
+      },
+    };
+    const render = (opponentAway: boolean) =>
+      root.render(
+        <TurnClock
+          code={code}
+          lobby={lobby}
+          match={match}
+          eventBus={eventBus}
+          user={user}
+          opponentAway={opponentAway}
+        />
+      );
+    await act(async () => render(true));
+    expect(match.setClockPaused).toHaveBeenLastCalledWith("opponent-away");
+    await act(async () => vi.advanceTimersByTimeAsync(30 * 60 * 1000));
+    await act(async () => render(false));
+
+    expect(match.setClockPaused).toHaveBeenLastCalledWith(null);
+    expect(hoisted.setTurnDeadlineMock).not.toHaveBeenCalled();
+    expect(hoisted.endTurnMock).not.toHaveBeenCalled();
+    expect(container.textContent).toBe("");
   });
 });

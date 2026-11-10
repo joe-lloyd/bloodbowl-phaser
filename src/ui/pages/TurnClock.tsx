@@ -121,6 +121,7 @@ export function TurnClock({
   // still belongs to the turn before
   const deadlineIsThisTurn = timer?.turn != null && timer.turn === turnKey();
   const turnSeconds = lobby.settings.turnSeconds;
+  const clockEnabled = turnSeconds > 0;
   const [now, setNow] = useState(Date.now());
   const endedForRef = useRef<number | null>(null);
 
@@ -186,13 +187,13 @@ export function TurnClock({
       freezeRef.current = {
         reason: freezeReason,
         awayIsMe,
-        remaining: !deadlineIsThisTurn
-          ? turnSeconds > 0
+        remaining: !clockEnabled
+          ? null
+          : !deadlineIsThisTurn
             ? turnSeconds * 1000
-            : null
-          : timer?.deadline != null
-            ? Math.min(turnSeconds * 1000, timer.deadline - stoppedAt)
-            : null,
+            : timer?.deadline != null
+              ? Math.min(turnSeconds * 1000, timer.deadline - stoppedAt)
+              : null,
       };
     } else if (!freezeReason && frozen) {
       freezeRef.current = null;
@@ -306,6 +307,9 @@ export function TurnClock({
 
   // Tick, and the active coach ends their own turn on expiry
   useEffect(() => {
+    // Untimed friendlies leave every choice to its coach, including
+    // defensive decisions whose short clock would otherwise be hidden.
+    if (!clockEnabled) return;
     const id = setInterval(() => {
       setNow(Date.now());
       answerIfOutOfTime();
@@ -335,7 +339,7 @@ export function TurnClock({
     }, 500);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer?.deadline, timer?.pausedBy, match]);
+  }, [clockEnabled, timer?.deadline, timer?.pausedBy, match]);
 
   // Both coaches say Time up when a turn ends on the clock. TurnEnded is
   // the engine event both screens see, so no message travels for it and the
@@ -349,7 +353,7 @@ export function TurnClock({
     const onTurnEnded = ({ teamId }: { teamId: string }) => {
       const turnover = turnoverThisTurn.current;
       turnoverThisTurn.current = false;
-      if (turnover || !timer?.deadline || timer.pausedBy) return;
+      if (!clockEnabled || turnover || !timer?.deadline || timer.pausedBy) return;
       if (freezeRef.current || currentPhase() !== GamePhase.PLAY) return;
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() < timer.deadline - TIME_UP_GRACE_MS) return;
@@ -365,7 +369,7 @@ export function TurnClock({
       eventBus.off(GameEventNames.Turnover, onTurnover);
       eventBus.off(GameEventNames.TurnEnded, onTurnEnded);
     };
-  }, [eventBus, timer?.deadline, timer?.turn, timer?.pausedBy]);
+  }, [clockEnabled, eventBus, timer?.deadline, timer?.turn, timer?.pausedBy]);
 
   // Auto-resume when my own timeout bank runs dry
   const bankDry = pausedByMe && bankLeft <= 0;
@@ -373,7 +377,12 @@ export function TurnClock({
     if (bankDry) doResume();
   }, [bankDry, doResume]);
 
-  if (!timer || timer.deadline == null || currentPhase() !== GamePhase.PLAY) {
+  if (
+    !clockEnabled ||
+    !timer ||
+    timer.deadline == null ||
+    currentPhase() !== GamePhase.PLAY
+  ) {
     return null;
   }
 
