@@ -415,7 +415,10 @@ export function SettingsPanel({
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Turn timer">
+        <Field
+          label="Turn timer"
+          hint="Choose No time limit for a relaxed game. Turns and decisions can take as long as you need."
+        >
           <select
             disabled={readOnly}
             value={settings.turnSeconds}

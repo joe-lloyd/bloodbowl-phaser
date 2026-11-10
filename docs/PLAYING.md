@@ -54,6 +54,11 @@ On a deployment with Firebase configured, sign in with Google and use
 **Host Game** or **Join Game**. The host shares the game code with the other
 coach. Each coach supplies a team and uses their own browser.
 
+For a relaxed friendly, the host can set **Match settings → Turn timer →
+No time limit** in the lobby before starting. This applies to both coaches:
+there is no countdown, automatic end of turn or time limit on decisions.
+Timed games default to two minutes per turn.
+
 Online play is still in development. Use it with people you trust and read the
 [known limits](STATUS.md#online-play) before relying on a long-running match.
 If Host and Join are disabled with “Needs Firebase config”, use local play or
