@@ -139,6 +139,10 @@ On a result of 10, the kicking coach SHALL roll D3+1 and may select up to that m
 - **WHEN** the Charge! sequence ends and the kicking team's first turn begins
 - **THEN** the players that acted during Charge! are able to activate normally
 
+#### Scenario: A charger moves from the board whatever turn came before
+- **WHEN** the active Charge! player declares Move and the coach clicks a reachable square twice, at the opening kick-off or after a touchdown
+- **THEN** the player walks there with their whole MA, because Charge! runs outside any turn and the previous turn's activations and squares spent do not apply to it
+
 ### Requirement: Charge! ends when a selected player goes down
 If a player selected for Charge! Falls Over or is Knocked Down during their activation, the Charge SHALL end immediately and no further selected players SHALL be activated.
 

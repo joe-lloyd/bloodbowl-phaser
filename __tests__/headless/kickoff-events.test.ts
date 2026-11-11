@@ -432,6 +432,48 @@ describe("Sevens kickoff events (seeded headless)", () => {
     expect(game.ctx.gameService.hasPlayerActed(players[1].id)).toBe(false);
   });
 
+  it("lets the charger up now act, whatever turn the stale ledger holds (regression: Charge! click-to-move)", async () => {
+    const found = await findEveryEvent();
+    const { game } = found.get(KickoffEvent.CHARGE)!;
+    const gs = game.ctx.gameService;
+    const [charger, waiting] = game.ctx.team1.players.slice(1, 3);
+    const receiver = game.ctx.team2.players[1];
+    // The ledger still holds the turn before the kick-off: here the kicking
+    // team's scoring turn, with the charger already spent in it
+    const turn = gs.getState().turn;
+    turn.teamId = game.ctx.team1.id;
+    turn.activatedPlayerIds.add(charger.id);
+    turn.movementUsed.set(charger.id, charger.stats.MA);
+
+    await game.execute({ type: "kickoff-select-player", playerId: charger.id });
+    await game.execute({ type: "kickoff-confirm" });
+
+    expect(gs.canActivate(charger.id)).toBe(true);
+    expect(gs.hasPlayerActed(charger.id)).toBe(false);
+    expect(gs.getMovementUsed(charger.id)).toBe(0);
+    expect(gs.canActivate(waiting.id)).toBe(false);
+    expect(gs.canActivate(receiver.id)).toBe(false);
+
+    await game.execute({
+      type: "declare-action",
+      playerId: charger.id,
+      action: "move",
+    });
+    const from = charger.gridPosition!;
+    const path = [1, 2, 3].map((dx) => ({ x: from.x + dx, y: from.y }));
+    const moved = await game.execute({ type: "move", playerId: charger.id, path });
+    expect(moved.ok).toBe(true);
+    expect(gs.getPlayerById(charger.id)!.gridPosition).toEqual(path[2]);
+    await game.execute({ type: "end-activation", playerId: charger.id });
+
+    // The drive starts on a fresh receiving turn
+    expect(gs.getKickoffEventStep()).toBeNull();
+    expect(gs.getPhase()).toBe(GamePhase.PLAY);
+    expect(gs.getState().turn.teamId).toBe(game.ctx.team2.id);
+    expect(gs.canActivate(receiver.id)).toBe(true);
+    expect(gs.canActivate(charger.id)).toBe(false);
+  });
+
   it("getKickoffEventStep() returns a fresh reference after each mutation (regression: frozen x/x counter)", async () => {
     const found = await findEveryEvent();
     const { game } = found.get(KickoffEvent.QUICK_SNAP)!;

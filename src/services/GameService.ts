@@ -1034,6 +1034,16 @@ export class GameService implements IGameService {
   canActivate(playerId: string): boolean {
     const player = this.getPlayerById(playerId);
     if (!player) return false;
+    // Charge! (kickoff 10) runs before the drive's first turn, so the turn
+    // ledger is not this window's: at the opening kick-off it names no
+    // team, and after a touchdown it holds the scoring turn. Only the
+    // charger up now may act, and only while Standing.
+    if (this.kickoffEventManager.isChargeActive()) {
+      return (
+        this.kickoffEventManager.getChargeActivePlayerId() === playerId &&
+        player.status === PlayerStatus.ACTIVE
+      );
+    }
     return this.activationValidator.canActivate(player, this.state.turn);
   }
 
@@ -1042,6 +1052,10 @@ export class GameService implements IGameService {
   }
 
   hasPlayerActed(playerId: string): boolean {
+    // The charger up now is mid-activation, whatever the stale ledger says
+    if (this.kickoffEventManager.getChargeActivePlayerId() === playerId) {
+      return false;
+    }
     return this.state.turn.activatedPlayerIds.has(playerId);
   }
 

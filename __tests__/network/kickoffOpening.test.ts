@@ -213,6 +213,10 @@ async function resolveOpening(table: Table) {
       expect(
         (await play(owner, { type: "move", playerId, path: [to] })).ok
       ).toBe(true);
+      // An accepted command that left the charger standing still is the bug
+      expect(
+        game.ctx.gameService.getPlayerById(playerId)!.gridPosition
+      ).toEqual(to);
       await play(owner, { type: "end-activation", playerId });
       continue;
     }

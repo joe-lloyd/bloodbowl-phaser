@@ -42,7 +42,17 @@ import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { rollLabel } from "../rules/rollTargets";
 import type { RerollSource } from "../../types/decisions";
-import { foulPreview, blockPreviewLines, catchTarget, interceptPreviewLine, passTarget, pickupTarget, RoutePreview, RouteRoll, TargetRollPreview } from "../rules/rollPreview";
+import {
+  foulPreview,
+  blockPreviewLines,
+  catchTarget,
+  interceptPreviewLine,
+  passTarget,
+  pickupTarget,
+  RoutePreview,
+  RouteRoll,
+  TargetRollPreview,
+} from "../rules/rollPreview";
 import { BlockValidator } from "../validators/BlockValidator";
 
 /**
@@ -80,15 +90,25 @@ export class GameplayInteractionController {
   private publishTargetPreview = () => {
     const preview = this.targetRollPreview;
     if (!preview) return;
-    const world = this.pitch.getPixelPosition(preview.square.x, preview.square.y);
+    const world = this.pitch.getPixelPosition(
+      preview.square.x,
+      preview.square.y
+    );
     const camera = this.scene.cameras.main;
     const anchor = {
-      x: (world.x - camera.worldView.x) * camera.zoom / this.scene.scale.width,
-      y: (world.y - camera.worldView.y) * camera.zoom / this.scene.scale.height,
+      x:
+        ((world.x - camera.worldView.x) * camera.zoom) / this.scene.scale.width,
+      y:
+        ((world.y - camera.worldView.y) * camera.zoom) /
+        this.scene.scale.height,
     };
-    if (this.targetAnchor?.x === anchor.x && this.targetAnchor.y === anchor.y) return;
+    if (this.targetAnchor?.x === anchor.x && this.targetAnchor.y === anchor.y)
+      return;
     this.targetAnchor = anchor;
-    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, { ...preview, anchor });
+    this.eventBus.emit(GameEventNames.UI_TargetRollPreview, {
+      ...preview,
+      anchor,
+    });
   };
   /** A Dodge/Rush prompt waits for the dice before it opens. */
   private readonly dice: DiceWatch;
@@ -293,10 +313,12 @@ export class GameplayInteractionController {
   };
 
   private onEndActivation = () => {
-    if (this.selectedPlayerId) {
-      this.gameService.finishActivation(this.selectedPlayerId);
-      this.deselectPlayer();
-    }
+    const playerId = this.selectedPlayerId;
+    if (!playerId) return;
+    this.gameService.finishActivation(playerId);
+    // Ending a Charge! activation hands the board to the next charger,
+    // already selected: keep them
+    if (this.selectedPlayerId === playerId) this.deselectPlayer();
   };
 
   private onCancelAction = () => {
@@ -1136,7 +1158,8 @@ export class GameplayInteractionController {
           // The confirm repeats the hover card, so only the assist rings stay
           this.targetRollPreview = null;
           this.eventBus.emit(GameEventNames.UI_TargetRollPreview, null);
-          if (!fouler || !(await this.confirmFoul(fouler, playerAtSquare))) return;
+          if (!fouler || !(await this.confirmFoul(fouler, playerAtSquare)))
+            return;
           committed = true;
           this.clearRollPreviews();
           await this.gameService.foulPlayer(this.selectedPlayerId, x, y);
@@ -1860,12 +1883,8 @@ export class GameplayInteractionController {
     if (!player) return;
     const effectivePlayer = withDriveModifiers(player, state);
 
-    const chargePlayerId =
-      this.gameService.getPhase() === GamePhase.KICKOFF
-        ? this.gameService.getKickoffEventStep()?.charge?.activePlayerId
-        : undefined;
-    const canActivate =
-      this.gameService.canActivate(playerId) || chargePlayerId === playerId;
+    // canActivate answers for the Charge! window too
+    const canActivate = this.gameService.canActivate(playerId);
     const isOwnTurn = state.activeTeamId === player.teamId;
 
     if (isOwnTurn && canActivate) {
@@ -2074,7 +2093,9 @@ export class GameplayInteractionController {
     if (this.isBusy || this.pushSelectionActive) return null;
     if (getActiveOnlineMatch()?.mayAct() === false) return null;
     const state = this.gameService.getState();
-    if (state.phase !== GamePhase.PLAY) return null;
+    const charging =
+      !!this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
+    if (state.phase !== GamePhase.PLAY && !charging) return null;
     const mode = this.currentActionMode;
     if (mode !== null && mode !== "move" && mode !== "blitz") return null;
     const id = this.selectedPlayerId;
@@ -2276,8 +2297,7 @@ export class GameplayInteractionController {
         const end = leg.path[leg.path.length - 1];
         const now = this.gameService.getPlayerById(playerId);
         if (
-          this.gameService.getState().phase !== GamePhase.PLAY ||
-          this.gameService.hasPlayerActed(playerId) ||
+          !this.isStillActing(playerId) ||
           now?.status !== PlayerStatus.ACTIVE ||
           now.gridPosition?.x !== end.x ||
           now.gridPosition?.y !== end.y
@@ -2308,9 +2328,19 @@ export class GameplayInteractionController {
         this.gameService.getMovementUsed(player.id) +
         (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0),
       rushModifier: rushModifier(state, player),
-      pickup: state.ballPosition && !this.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
-        ? { square: state.ballPosition, target: pickupTarget(mover, state.ballPosition, this.getOpposingPlayers(player.teamId), state.weather) }
-        : undefined,
+      pickup:
+        state.ballPosition &&
+        !this.getPlayerAt(state.ballPosition.x, state.ballPosition.y)
+          ? {
+              square: state.ballPosition,
+              target: pickupTarget(
+                mover,
+                state.ballPosition,
+                this.getOpposingPlayers(player.teamId),
+                state.weather
+              ),
+            }
+          : undefined,
     });
   }
 
@@ -2421,15 +2451,31 @@ export class GameplayInteractionController {
     });
   }
 
+  /**
+   * Whether this player's activation runs on after a step: a turn of the
+   * drive they have not finished, or the Charge! activation they are up in.
+   */
+  private isStillActing(playerId: string): boolean {
+    const chargerId =
+      this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
+    if (chargerId) return chargerId === playerId;
+    return (
+      this.gameService.getState().phase === GamePhase.PLAY &&
+      !this.gameService.hasPlayerActed(playerId)
+    );
+  }
+
   private afterMove(playerId: string): void {
-    this.hasMovedInAction = true;
-    this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
     // GameService finishes the activation once MA+2 is spent; otherwise the
     // player stays selected to plot the next leg.
-    if (this.gameService.hasPlayerActed(playerId)) {
-      this.deselectPlayer();
+    if (!this.isStillActing(playerId)) {
+      // A Charge! that ran out of squares has already handed the board to
+      // the next charger: leave their unspent movement state alone
+      if (this.selectedPlayerId === playerId) this.deselectPlayer();
       return;
     }
+    this.hasMovedInAction = true;
+    this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
     this.clearWaypoints();
     this.pitch.clearPath();
     // Calling selectPlayer would reset the action mode
@@ -2495,31 +2541,66 @@ export class GameplayInteractionController {
     }
   }
 
-  private availableRerolls(player: Player, kinds: ("dodge" | "rush" | "pickup")[]): string[] {
+  private availableRerolls(
+    player: Player,
+    kinds: ("dodge" | "rush" | "pickup")[]
+  ): string[] {
     const arbiter = this.gameService.getRerollArbiter();
-    const skills = new Set(kinds.map(kind => kind === "dodge" ? SkillType.DODGE : kind === "rush" ? SkillType.SURE_FEET : SkillType.SURE_HANDS));
+    const skills = new Set(
+      kinds.map((kind) =>
+        kind === "dodge"
+          ? SkillType.DODGE
+          : kind === "rush"
+            ? SkillType.SURE_FEET
+            : SkillType.SURE_HANDS
+      )
+    );
     const sources: string[] = [];
     for (const skill of skills) {
-      if (hasSkill(player.skills, skill) && arbiter.skillRerollAvailable(player, skill)) sources.push(skill);
+      if (
+        hasSkill(player.skills, skill) &&
+        arbiter.skillRerollAvailable(player, skill)
+      )
+        sources.push(skill);
     }
     const team = arbiter.nextTeamReroll(player.teamId);
     if (team === "free") sources.push("Brilliant Coaching");
     if (team === "leader") sources.push("Leader");
-    if (team === "team") sources.push(`team ${arbiter.teamRerollsLeftFor(player.teamId)} left`);
-    if (hasSkill(player.skills, SkillType.PRO) && arbiter.onceAvailable(player, SkillType.PRO)) sources.push("Pro on 3+");
+    if (team === "team")
+      sources.push(`team ${arbiter.teamRerollsLeftFor(player.teamId)} left`);
+    if (
+      hasSkill(player.skills, SkillType.PRO) &&
+      arbiter.onceAvailable(player, SkillType.PRO)
+    )
+      sources.push("Pro on 3+");
     if (arbiter.veteranRerollAvailable(player)) sources.push("Veteran");
     return sources;
   }
 
-  private drawPlannedRoute(player: Player, fullPath: { x: number; y: number }[]): RoutePreview {
+  private drawPlannedRoute(
+    player: Player,
+    fullPath: { x: number; y: number }[]
+  ): RoutePreview {
     const legs = this.planLegs(player, fullPath.slice(1));
-    const rolls = legs.flatMap(leg => leg.risk ? stepRolls(leg.risk, leg.path[0]) : []);
+    const rolls = legs.flatMap((leg) =>
+      leg.risk ? stepRolls(leg.risk, leg.path[0]) : []
+    );
     const mover = withDriveModifiers(player, this.gameService.getState());
-    const left = Math.max(0, mover.stats.MA - this.gameService.getMovementUsed(player.id) - (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0));
+    const left = Math.max(
+      0,
+      mover.stats.MA -
+        this.gameService.getMovementUsed(player.id) -
+        (player.status === PlayerStatus.PRONE ? standUpCost(mover) : 0)
+    );
     this.pitch.drawMovementPath(fullPath, rolls, left);
     const route: RoutePreview = {
-      movementLeft: left, riskySteps: rolls.length,
-      rolls, rerolls: this.availableRerolls(player, rolls.map(r => r.type)),
+      movementLeft: left,
+      riskySteps: rolls.length,
+      rolls,
+      rerolls: this.availableRerolls(
+        player,
+        rolls.map((r) => r.type)
+      ),
     };
     this.eventBus.emit(GameEventNames.UI_RoutePreview, route);
     return route;
@@ -2537,7 +2618,7 @@ export class GameplayInteractionController {
 
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {
     const actionId = `foul-${++this.riskPrompts}`;
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const onResult = (data: { actionId: string; confirmed: boolean }) => {
         if (data.actionId !== actionId) return;
         this.eventBus.off(GameEventNames.UI_ConfirmationResult, onResult);
@@ -2546,8 +2627,12 @@ export class GameplayInteractionController {
       this.eventBus.on(GameEventNames.UI_ConfirmationResult, onResult);
       const foul = this.foulPreview(fouler, target);
       this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-        actionId, title: "Confirm foul", message: foul.lines.join("\n"),
-        confirmLabel: "Foul!", cancelLabel: "Cancel", risky: true,
+        actionId,
+        title: "Confirm foul",
+        message: foul.lines.join("\n"),
+        confirmLabel: "Foul!",
+        cancelLabel: "Cancel",
+        risky: true,
         // Online, the other coach sees the foul read-only
         chooserTeamId: fouler.teamId,
         step: {
@@ -2559,7 +2644,12 @@ export class GameplayInteractionController {
   }
 
   private foulPreview(fouler: Player, target: Player) {
-    return foulPreview(fouler, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], this.gameService.getState());
+    return foulPreview(
+      fouler,
+      target,
+      [...this.getSceneTeam1().players, ...this.getSceneTeam2().players],
+      this.gameService.getState()
+    );
   }
 
   private updateTargetPreview(x: number, y: number): void {
@@ -2577,45 +2667,112 @@ export class GameplayInteractionController {
     if (!actor?.gridPosition || !target || target.id === actor.id) return;
     const state = this.gameService.getState();
     const opponents = this.gameService.getOpponents(actor.teamId);
-    const adjacent = Math.max(Math.abs(actor.gridPosition.x - x), Math.abs(actor.gridPosition.y - y)) === 1;
+    const adjacent =
+      Math.max(
+        Math.abs(actor.gridPosition.x - x),
+        Math.abs(actor.gridPosition.y - y)
+      ) === 1;
     let preview: TargetRollPreview | null = null;
     let aim: StepPrompt | null = null;
-    const ringAssists = (ours: Player[], theirs: Player[]) => this.pitch.drawAssistRings(
-      ours.flatMap(p => p.gridPosition ? [p.gridPosition] : []), theirs.flatMap(p => p.gridPosition ? [p.gridPosition] : [])
-    );
-    if ((this.currentActionMode === "block" || this.currentActionMode === "blitz") && !this.currentBlockReplacement && target.teamId !== actor.teamId && target.status === PlayerStatus.ACTIVE) {
-      const analysis = new BlockValidator().analyzeBlock(actor, target, [...this.getSceneTeam1().players, ...this.getSceneTeam2().players], state.activeTeamId);
-      preview = { square: { x, y }, lines: blockPreviewLines(analysis, actor, target, "attacker"), danger: analysis.isUphill };
-      if (!adjacent) preview.lines.push("At current positions. Move into reach to block.");
+    const ringAssists = (ours: Player[], theirs: Player[]) =>
+      this.pitch.drawAssistRings(
+        ours.flatMap((p) => (p.gridPosition ? [p.gridPosition] : [])),
+        theirs.flatMap((p) => (p.gridPosition ? [p.gridPosition] : []))
+      );
+    if (
+      (this.currentActionMode === "block" ||
+        this.currentActionMode === "blitz") &&
+      !this.currentBlockReplacement &&
+      target.teamId !== actor.teamId &&
+      target.status === PlayerStatus.ACTIVE
+    ) {
+      const analysis = new BlockValidator().analyzeBlock(
+        actor,
+        target,
+        [...this.getSceneTeam1().players, ...this.getSceneTeam2().players],
+        state.activeTeamId
+      );
+      preview = {
+        square: { x, y },
+        lines: blockPreviewLines(analysis, actor, target, "attacker"),
+        danger: analysis.isUphill,
+      };
+      if (!adjacent)
+        preview.lines.push("At current positions. Move into reach to block.");
       ringAssists(analysis.attackerAssists, analysis.defenderAssists);
-    } else if (this.currentActionMode === "foul" && adjacent && target.teamId !== actor.teamId && (target.status === PlayerStatus.PRONE || target.status === PlayerStatus.STUNNED)) {
+    } else if (
+      this.currentActionMode === "foul" &&
+      adjacent &&
+      target.teamId !== actor.teamId &&
+      (target.status === PlayerStatus.PRONE ||
+        target.status === PlayerStatus.STUNNED)
+    ) {
       const foul = this.foulPreview(actor, target);
       preview = { square: { x, y }, lines: foul.lines, danger: true };
-      ringAssists(foul.analysis.offensiveAssists, foul.analysis.defensiveAssists);
-    } else if (target.teamId === actor.teamId && ((this.currentActionMode === "pass" && this.currentStepId === "pass") || (this.currentActionMode === "handoff" && this.currentStepId === "handoff"))) {
+      ringAssists(
+        foul.analysis.offensiveAssists,
+        foul.analysis.defensiveAssists
+      );
+    } else if (
+      target.teamId === actor.teamId &&
+      ((this.currentActionMode === "pass" && this.currentStepId === "pass") ||
+        (this.currentActionMode === "handoff" &&
+          this.currentStepId === "handoff"))
+    ) {
       const passer = withDriveModifiers(actor, state);
       const receiver = withDriveModifiers(target, state);
       const handoff = this.currentActionMode === "handoff";
-      const range = this.passController.measureRange(actor.gridPosition, { x, y });
+      const range = this.passController.measureRange(actor.gridPosition, {
+        x,
+        y,
+      });
       const throwNeeds = passTarget(passer, opponents, state.weather, range);
-      const catchNeeds = catchTarget(receiver, opponents, state.weather, handoff ? "handoff" : "pass");
+      const catchNeeds = catchTarget(
+        receiver,
+        opponents,
+        state.weather,
+        handoff ? "handoff" : "pass"
+      );
       const lines = handoff ? [] : [rollLabel(range.type, throwNeeds)];
       lines.push(rollLabel("Catch", catchNeeds));
       // Online, the other coach sees the pass being aimed, read-only
       const aimRolls: StepPrompt["rolls"] = handoff
         ? [{ type: "catch", target: catchNeeds }]
-        : [{ type: "pass", target: throwNeeds }, { type: "catch", target: catchNeeds }];
+        : [
+            { type: "pass", target: throwNeeds },
+            { type: "catch", target: catchNeeds },
+          ];
       aim = { playerId: actor.id, rolls: aimRolls };
-      const interceptorRolls: { square: { x: number; y: number }; target: number }[] = [];
+      const interceptorRolls: {
+        square: { x: number; y: number };
+        target: number;
+      }[] = [];
       if (!handoff) {
         const passingTeam = [actor, ...this.gameService.getTeammates(actor.id)];
-        for (const attempt of this.passController.checkInterceptions(actor.gridPosition, { x, y }, opponents, true)) {
+        for (const attempt of this.passController.checkInterceptions(
+          actor.gridPosition,
+          { x, y },
+          opponents,
+          true
+        )) {
           const interceptor = this.gameService.getPlayerById(attempt.playerId);
           if (!interceptor) continue;
-          if (hasSkill(actor.skills, SkillType.CLOUD_BURSTER) && !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)) continue;
-          const { line, accurate } = interceptPreviewLine(interceptor, passingTeam, state.weather);
+          if (
+            hasSkill(actor.skills, SkillType.CLOUD_BURSTER) &&
+            !hasSkill(interceptor.skills, SkillType.VERY_LONG_LEGS)
+          )
+            continue;
+          const { line, accurate } = interceptPreviewLine(
+            interceptor,
+            passingTeam,
+            state.weather
+          );
           lines.push(line);
-          if (interceptor.gridPosition) interceptorRolls.push({ square: interceptor.gridPosition, target: accurate });
+          if (interceptor.gridPosition)
+            interceptorRolls.push({
+              square: interceptor.gridPosition,
+              target: accurate,
+            });
         }
       }
       this.pitch.drawInterceptionRolls(interceptorRolls);
@@ -2943,7 +3100,10 @@ export class GameplayInteractionController {
   }
 
   /** Whoever stands on the square at this world point. */
-  public playerAtPoint(world: { worldX: number; worldY: number }): Player | null {
+  public playerAtPoint(world: {
+    worldX: number;
+    worldY: number;
+  }): Player | null {
     const { valid, gridX, gridY } = this.getGridFromPointer(world);
     return valid ? this.getPlayerAt(gridX, gridY) : null;
   }
