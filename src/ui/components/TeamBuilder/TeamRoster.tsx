@@ -17,6 +17,18 @@ interface TeamRosterProps {
 }
 
 /**
+ * Clicks on the row's own controls (name, Make Veteran, Fire, the drag
+ * handle) keep their own behaviour instead of also opening the player.
+ */
+function isRowControl(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("button, a, input, select, textarea, [data-drag-handle]") !==
+      null
+  );
+}
+
+/**
  * The team roster table — readable at the application's normal body-text
  * scale (overhaul-team-lifecycle-management, team-lifecycle-modes). Column
  * widths are declared once on the shared header/row `<colgroup>` so headers
@@ -28,6 +40,10 @@ interface TeamRosterProps {
  * (team-management-layout: "Per-player career statistics are shown on the
  * team detail page, not the overview") — this replaced a separate
  * career-stats block that used to live on the Team Management overview page.
+ *
+ * Clicking a player row opens that player's page (full stats and
+ * advancement). Reordering starts only from the ≡ handle; every row,
+ * including empty slots, stays a drop target.
  */
 export function TeamRoster({
   team,
@@ -36,12 +52,14 @@ export function TeamRoster({
   onChooseVeteran,
 }: TeamRosterProps) {
   const navigate = useNavigate();
+  const openPlayer = (playerId: string) =>
+    navigate(`/build-team/${team.id}/player/${playerId}`);
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
   return (
     <BloodBowlTable
       title={team.name.toUpperCase()}
-      aside={`${team.players.length} / 11 players · drag to reorder`}
+      aside={`${team.players.length} / 11 players · click a player to open · drag ≡ to reorder`}
       accent={{ color: numToHex(team.colors.primary) }}
       headers={[
         { label: "#", width: "40px", className: "num" },
@@ -72,13 +90,16 @@ export function TeamRoster({
         return (
           <tr
             key={slotNumber}
-            className={player ? "cursor-move" : ""}
-            draggable={!!player}
-            onDragStart={(e) => {
-              if (player) {
-                e.dataTransfer.setData("text/plain", slotNumber.toString());
-                e.dataTransfer.effectAllowed = "move";
-              }
+            data-testid={`roster-row-${slotNumber}`}
+            className={
+              player ? "cursor-pointer transition-colors hover:bg-white/5" : ""
+            }
+            title={player ? "Open player details" : undefined}
+            onClick={(e) => {
+              if (!player || isRowControl(e.target)) return;
+              // Finishing a text selection is not a request to open the player.
+              if (window.getSelection()?.toString()) return;
+              openPlayer(player.id);
             }}
             onDragEnter={(e) => e.preventDefault()}
             onDragOver={(e) => {
@@ -104,15 +125,16 @@ export function TeamRoster({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <button
                       className="rounded-hud text-left font-hud-label font-bold uppercase tracking-[0.03em] text-hud-bone hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold"
-                      onClick={() =>
-                        navigate(`/build-team/${team.id}/player/${player.id}`)
-                      }
+                      onClick={() => openPlayer(player.id)}
                       title="View player development page"
                     >
                       {player.playerName}
                     </button>
                     {required ? (
-                      <Chip tone="blood" title="Must advance before another match">
+                      <Chip
+                        tone="blood"
+                        title="Must advance before another match"
+                      >
                         Must advance
                       </Chip>
                     ) : eligible ? (
@@ -178,8 +200,33 @@ export function TeamRoster({
                 <td>
                   <div className="flex items-center justify-end gap-1">
                     <span
-                      className="cursor-grab select-none px-1 text-lg font-bold text-hud-mute hover:text-hud-gold"
+                      data-drag-handle
+                      data-testid="drag-handle"
+                      draggable
+                      aria-label={`Drag ${player.playerName} to reorder`}
+                      className="cursor-grab select-none rounded-hud px-2 py-1 text-lg font-bold text-hud-mute hover:text-hud-gold active:cursor-grabbing"
                       title="Drag to Reorder"
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          "text/plain",
+                          slotNumber.toString()
+                        );
+                        e.dataTransfer.effectAllowed = "move";
+                        // Show the whole row under the cursor, not just the
+                        // handle glyph, so it still reads as moving the player.
+                        const row = e.currentTarget.closest("tr");
+                        if (
+                          row &&
+                          typeof e.dataTransfer.setDragImage === "function"
+                        ) {
+                          const rect = row.getBoundingClientRect();
+                          e.dataTransfer.setDragImage(
+                            row,
+                            e.clientX - rect.left,
+                            e.clientY - rect.top
+                          );
+                        }
+                      }}
                     >
                       ≡
                     </span>

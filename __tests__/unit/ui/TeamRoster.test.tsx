@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TeamRoster } from "../../../src/ui/components/TeamBuilder/TeamRoster";
 import {
@@ -282,5 +282,133 @@ describe("TeamRoster skill tooltips", () => {
       });
       expect(panel?.className).toContain("hidden");
     });
+  });
+});
+
+/**
+ * Player rows open on click; reordering starts only from the ≡ handle.
+ * A whole-row `draggable` swallowed clicks, so coaches could not open a
+ * player to see their stats or advance them.
+ */
+describe("TeamRoster row click and drag handle", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  async function renderRoster(
+    overrides: {
+      onFirePlayer?: (id: string) => void;
+      onReorderPlayers?: (source: number, target: number) => void;
+      onChooseVeteran?: (id: string) => void;
+    } = {}
+  ) {
+    const team = new TeamTestBuilder().withPlayers(3).build();
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[`/build-team/${team.id}`]}>
+          <Routes>
+            <Route
+              path="/build-team/:teamId"
+              element={
+                <TeamRoster
+                  team={team}
+                  onFirePlayer={overrides.onFirePlayer ?? (() => {})}
+                  onReorderPlayers={overrides.onReorderPlayers ?? (() => {})}
+                  onChooseVeteran={overrides.onChooseVeteran}
+                />
+              }
+            />
+            <Route
+              path="/build-team/:teamId/player/:playerId"
+              element={<PlayerRouteProbe />}
+            />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+    return team;
+  }
+
+  function PlayerRouteProbe() {
+    const { playerId } = useParams();
+    return <div data-testid="player-page">{playerId}</div>;
+  }
+
+  function click(element: Element) {
+    act(() => {
+      element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  }
+
+  function dragEvent(type: string, data: Map<string, string>) {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+      value: {
+        setData: (format: string, value: string) => data.set(format, value),
+        getData: (format: string) => data.get(format) ?? "",
+        setDragImage: () => {},
+        effectAllowed: "",
+        dropEffect: "",
+      },
+    });
+    return event;
+  }
+
+  it("does not make the whole row draggable, only the ≡ handle", async () => {
+    await renderRoster();
+    const row = container.querySelector('[data-testid="roster-row-1"]');
+    expect(row?.getAttribute("draggable")).toBeNull();
+    const handle = row?.querySelector('[data-testid="drag-handle"]');
+    expect(handle?.getAttribute("draggable")).toBe("true");
+  });
+
+  it("opens the player's page when the row is clicked", async () => {
+    const team = await renderRoster();
+    const positionCell = container.querySelectorAll(
+      '[data-testid="roster-row-2"] td'
+    )[2];
+    click(positionCell);
+    const page = container.querySelector('[data-testid="player-page"]');
+    const player = team.players.find((p) => p.number === 2)!;
+    expect(page?.textContent).toBe(player.id);
+  });
+
+  it("does not open the player when the handle or Fire button is clicked", async () => {
+    const fired: string[] = [];
+    const team = await renderRoster({ onFirePlayer: (id) => fired.push(id) });
+    const row = container.querySelector('[data-testid="roster-row-1"]')!;
+    click(row.querySelector('[data-testid="drag-handle"]')!);
+    click(row.querySelector('button[title="Fire Player"]')!);
+    expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
+    expect(fired).toEqual([team.players.find((p) => p.number === 1)!.id]);
+  });
+
+  it("reorders when the handle is dragged onto another row, including an empty slot", async () => {
+    const moves: [number, number][] = [];
+    await renderRoster({
+      onReorderPlayers: (source, target) => moves.push([source, target]),
+    });
+    const data = new Map<string, string>();
+    const handle = container.querySelector(
+      '[data-testid="roster-row-1"] [data-testid="drag-handle"]'
+    )!;
+    act(() => {
+      handle.dispatchEvent(dragEvent("dragstart", data));
+    });
+    const emptyRow = container.querySelector('[data-testid="roster-row-9"]')!;
+    act(() => {
+      emptyRow.dispatchEvent(dragEvent("drop", data));
+    });
+    expect(moves).toEqual([[1, 9]]);
   });
 });
