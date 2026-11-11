@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayerDevelopment } from "../../../src/ui/components/hud/PlayerDevelopment";
 import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
-import { rollPendingRandomPrimary } from "../../../src/game/progression/progression";
+import {
+  applyAdvancement,
+  rollPendingRandomPrimary,
+} from "../../../src/game/progression/progression";
 import { createPlayer } from "../../../src/types/Player";
 import {
   calculateTeamValue,
@@ -300,5 +303,50 @@ describe("PlayerDevelopment", () => {
     expect(
       after.players.find((p) => p.id === playerId)!.advancements
     ).toHaveLength(1);
+  });
+
+  it("refuses a candidate another window has already spent, and shows the latest state", async () => {
+    const { team, playerId } = savedTeam(20);
+    const category = team.players.find((p) => p.id === playerId)!.primary![0];
+    // A roll is saved, and this window shows its candidates
+    const first = loadTeams().find((t) => t.id === team.id)!;
+    const roll = rollPendingRandomPrimary(
+      first.players.find((p) => p.id === playerId)!,
+      category,
+      dice(1, 2, 4, 5)
+    );
+    saveTeams([first]);
+    await renderFromStorage(team.id, playerId, dice(6));
+    expect(
+      container.querySelectorAll('[data-testid="random-candidate"]').length
+    ).toBeGreaterThan(0);
+
+    // Another window spends that roll
+    const other = loadTeams().find((t) => t.id === team.id)!;
+    if (roll.kind !== "random-primary") throw new Error("unexpected roll");
+    applyAdvancement(other.players.find((p) => p.id === playerId)!, {
+      kind: "random-primary",
+      skill: roll.candidates[0].skill,
+    });
+    saveTeams([other]);
+
+    // Pick the other candidate, which is still a legal skill
+    const spent = roll.candidates[0].skill;
+    expect(roll.candidates[1].skill).not.toBe(spent);
+    const stale = Array.from(
+      container.querySelectorAll('[data-testid="random-candidate"]')
+    ).find((button) => !button.textContent?.endsWith(spent))!;
+    click(stale);
+
+    const after = storedPlayer(team.id, playerId);
+    expect(after.advancements).toHaveLength(1);
+    expect(after.spp).toBe(17);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "another window"
+    );
+    // The form now shows the latest state: the roll is gone
+    expect(
+      container.querySelectorAll('[data-testid="random-candidate"]')
+    ).toHaveLength(0);
   });
 });

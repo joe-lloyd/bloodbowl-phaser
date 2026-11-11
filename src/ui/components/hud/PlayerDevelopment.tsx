@@ -55,8 +55,14 @@ function commit(
   ) {
     throw new Error("The team could not be saved, so nothing was changed.");
   }
-  // Update the caller's objects in place (the player and team props this
-  // component and its parent hold) rather than swapping in new ones.
+  adopt(team, latestTeam);
+}
+
+/**
+ * Update the caller's objects in place (the player and team props this
+ * component and its parent hold) rather than swapping in new ones.
+ */
+function adopt(team: Team, latestTeam: Team): void {
   const previous = new Map(team.players.map((p) => [p.id, p]));
   const players = latestTeam.players.map((latest) => {
     const existing = previous.get(latest.id);
@@ -65,6 +71,9 @@ function commit(
   replaceContents(team, latestTeam);
   team.players = players;
 }
+
+/** Another window changed this player's saved roll since it was shown. */
+class StaleRollError extends Error {}
 
 /** Make `target` hold exactly `source`'s fields, keeping its identity. */
 function replaceContents<T extends object>(target: T, source: T): T {
@@ -138,23 +147,44 @@ export function PlayerDevelopment({
 
   const applyChoice = (choice: AdvancementChoice) =>
     attempt(() => {
-      commit(team, player.id, (latestTeam, latestPlayer) => {
-        applyAdvancement(latestPlayer, choice);
-        latestTeam.teamValue = calculateTeamValue(latestTeam);
-        // Resolve Manage Team's Advanced League entry in the same save, so
-        // a spent player is never left with an unresolved entry.
-        if (!mustAdvance(latestPlayer)) {
-          latestTeam.pendingDevelopment = (
-            latestTeam.pendingDevelopment ?? []
-          ).filter(
-            (entry) =>
-              !(
-                entry.kind === "advanced-league-advancement" &&
-                entry.playerId === latestPlayer.id
-              )
-          );
+      const shownRoll = JSON.stringify(savedRoll ?? null);
+      try {
+        commit(team, player.id, (latestTeam, latestPlayer) => {
+          // Only spend the roll this form is showing: if another window has
+          // already spent (or made) a roll, this choice is out of date
+          if (
+            JSON.stringify(latestPlayer.pendingAdvancementRoll ?? null) !==
+            shownRoll
+          ) {
+            throw new StaleRollError(
+              "This player's roll changed in another window. The latest version is shown now; check it before choosing."
+            );
+          }
+          applyAdvancement(latestPlayer, choice);
+          latestTeam.teamValue = calculateTeamValue(latestTeam);
+          // Resolve Manage Team's Advanced League entry in the same save, so
+          // a spent player is never left with an unresolved entry.
+          if (!mustAdvance(latestPlayer)) {
+            latestTeam.pendingDevelopment = (
+              latestTeam.pendingDevelopment ?? []
+            ).filter(
+              (entry) =>
+                !(
+                  entry.kind === "advanced-league-advancement" &&
+                  entry.playerId === latestPlayer.id
+                )
+            );
+          }
+        });
+      } catch (cause) {
+        if (cause instanceof StaleRollError) {
+          const latestTeam = loadTeams().find((t) => t.id === team.id);
+          if (latestTeam) adopt(team, latestTeam);
+          setRevision((value) => value + 1);
+          onSaved?.();
         }
-      });
+        throw cause;
+      }
       setSelectedKind(null);
       setAccess("primary");
       setCategory("");
