@@ -26,6 +26,12 @@ interface PlayerDevelopmentProps {
    * been updated in place to the saved copy; re-render from it.
    */
   onSaved?: () => void;
+  /**
+   * Show a message that must outlive this form: after another window's
+   * change, the refreshed player may no longer be able to advance, and the
+   * caller then replaces this form.
+   */
+  onNotice?: (message: string) => void;
 }
 
 /**
@@ -97,6 +103,7 @@ export function PlayerDevelopment({
   team,
   rngService,
   onSaved,
+  onNotice,
 }: PlayerDevelopmentProps) {
   const [selectedKind, setSelectedKind] = useState<
     AdvancementChoice["kind"] | null
@@ -182,6 +189,10 @@ export function PlayerDevelopment({
           if (latestTeam) adopt(team, latestTeam);
           setRevision((value) => value + 1);
           onSaved?.();
+          if (onNotice) {
+            onNotice(cause.message);
+            return;
+          }
         }
         throw cause;
       }

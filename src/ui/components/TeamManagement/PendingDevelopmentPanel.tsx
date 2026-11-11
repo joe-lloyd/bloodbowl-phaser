@@ -85,6 +85,7 @@ export function PendingDevelopmentPanel({
                 team={team}
                 entry={entry}
                 onChange={onChange}
+                onNotice={setNotice}
               />
             );
           case "sevens-skill-selection":
@@ -166,10 +167,13 @@ function AdvancedLeagueEntry({
   team,
   entry,
   onChange,
+  onNotice,
 }: {
   team: Team;
   entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>;
   onChange: (team: Team) => void;
+  /** Shown by the panel, so it survives this entry disappearing. */
+  onNotice: (notice: string) => void;
 }) {
   const player = team.players.find(
     (candidate) => candidate.id === entry.playerId
@@ -196,6 +200,7 @@ function AdvancedLeagueEntry({
           team={team}
           rngService={panelRng()}
           onSaved={() => onChange({ ...team })}
+          onNotice={onNotice}
         />
       )}
     </div>

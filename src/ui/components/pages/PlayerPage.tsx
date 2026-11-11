@@ -13,6 +13,7 @@ import {
   Chip,
   EmptyState,
   HudButton,
+  Notice,
   PageHeader,
   PageShell,
   Section,
@@ -45,6 +46,7 @@ export function PlayerPage() {
     playerId: string;
   }>();
   const [, setRefreshTick] = useState(0);
+  const [notice, setNotice] = useState("");
   const rngService = useMemo(() => new RNGService(Date.now()), []);
 
   const teams = loadTeams();
@@ -239,6 +241,11 @@ export function PlayerPage() {
         title="Pending development"
         accent={required ? "blood" : undefined}
       >
+        {notice && (
+          <Notice tone="info" role="status" className="mb-3">
+            {notice}
+          </Notice>
+        )}
         {!eligible ? (
           <p className="text-hud-mute">
             {costs
@@ -250,7 +257,11 @@ export function PlayerPage() {
             player={player}
             team={team}
             rngService={rngService}
-            onSaved={refresh}
+            onSaved={() => {
+              setNotice("");
+              refresh();
+            }}
+            onNotice={setNotice}
           />
         )}
       </Section>
