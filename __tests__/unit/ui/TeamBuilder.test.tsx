@@ -3,7 +3,12 @@ import { createRoot, Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TeamBuilder } from "../../../src/ui/components/pages/TeamBuilder";
-import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
+import {
+  loadTeams,
+  saveTeams,
+  setTeamRepository,
+} from "../../../src/game/managers/TeamManager";
+import { Team } from "../../../src/types/Team";
 import { TeamBuilder as TeamTestBuilder } from "../../utils/test-builders";
 
 /**
@@ -72,6 +77,7 @@ describe("TeamBuilder opening a player", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    setTeamRepository(null);
     await act(async () => root.unmount());
     container.remove();
     localStorage.clear();
@@ -198,5 +204,93 @@ describe("TeamBuilder opening a player", () => {
     ).not.toContain("Empty slot");
     const stored = loadTeams().find((t) => t.id === team.id)!;
     expect(stored.players.some((p) => p.number === 9)).toBe(false);
+  });
+
+  it("saves edits first even when the repository hands out its cached team (signed in)", async () => {
+    // Like the cloud repository: reads return the cached team objects, so
+    // edits on this page change the cache itself
+    const team = new TeamTestBuilder()
+      .withId("cloud-team")
+      .withPlayers(3)
+      .withTreasury(1_000_000)
+      .build();
+    const cache: Team[] = [team];
+    const saves: Team[][] = [];
+    setTeamRepository({
+      loadTeams: () => [...cache],
+      saveTeams: (teams) => {
+        saves.push(teams);
+        cache.splice(0, cache.length, ...teams);
+      },
+      deleteTeam: () => {},
+    });
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[`/build-team/${team.id}`]}>
+          <Routes>
+            <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+            <Route
+              path="/build-team/:teamId/player/:playerId"
+              element={<PlayerRouteProbe />}
+            />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+    // Hiring adds the player to the cached team object in place
+    const hire = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "HIRE" && !button.disabled
+    )!;
+    act(() => {
+      hire.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(
+      container.querySelector('[data-testid="roster-row-4"]')?.textContent
+    ).not.toContain("Empty slot");
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    clickRow(4);
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(saves).toHaveLength(1);
+    expect(container.querySelector('[data-testid="player-page"]')).toBeTruthy();
+  });
+
+  it("leaves a chosen mode changeable when the save before opening fails", async () => {
+    const team = new TeamTestBuilder()
+      .withId("mode-team")
+      .withPlayers(3)
+      .build();
+    team.advancementMode = "advanced-league";
+    delete team.advancementModeLocked;
+    saveTeams([team]);
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={[`/build-team/${team.id}`]}>
+          <Routes>
+            <Route path="/build-team/:teamId" element={<TeamBuilder />} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+    const modeButtons = () =>
+      Array.from(
+        container.querySelectorAll<HTMLButtonElement>(
+          '[aria-label="Advancement Mode"] button'
+        )
+      );
+    expect(modeButtons().length).toBeGreaterThan(0);
+    expect(modeButtons().every((button) => !button.disabled)).toBe(true);
+
+    moveSlot(1, 9);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    clickRow(9);
+    // Any later change re-renders from the same team object
+    moveSlot(2, 8);
+
+    expect(modeButtons().every((button) => !button.disabled)).toBe(true);
   });
 });
