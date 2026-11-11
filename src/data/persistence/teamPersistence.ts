@@ -21,6 +21,7 @@ import {
   DRAFT_KEEP_VALUE_INCREASE,
   InjuryType,
   KeyWord,
+  PendingAdvancementRoll,
   Player,
   PlayerAdvancement,
   PlayerCareerStats,
@@ -62,6 +63,8 @@ export interface StoredPlayer {
   timesKeptFromDraft?: number;
   /** Sevens D8 Veteran; hydration applies its MA -1. */
   veteran?: true;
+  /** An SPP advancement roll made but not yet spent. */
+  pendingAdvancementRoll?: PendingAdvancementRoll;
 }
 
 /** A persisted team: resources, staff, history, and its stored players. */
@@ -185,6 +188,12 @@ function toStoredPlayer(raw: Record<string, unknown>): StoredPlayer {
       ? { timesKeptFromDraft: raw.timesKeptFromDraft }
       : {}),
     ...(raw.veteran === true ? { veteran: true } : {}),
+    ...(raw.pendingAdvancementRoll
+      ? {
+          pendingAdvancementRoll:
+            raw.pendingAdvancementRoll as PendingAdvancementRoll,
+        }
+      : {}),
   };
 }
 
@@ -310,6 +319,9 @@ export function hydratePlayer(
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
+  if (stored.pendingAdvancementRoll) {
+    player.pendingAdvancementRoll = stored.pendingAdvancementRoll;
+  }
   return player;
 }
 
@@ -331,6 +343,9 @@ export function dehydratePlayer(player: Player): StoredPlayer {
       ? { timesKeptFromDraft: player.timesKeptFromDraft }
       : {}),
     ...(player.veteran ? { veteran: true } : {}),
+    ...(player.pendingAdvancementRoll
+      ? { pendingAdvancementRoll: player.pendingAdvancementRoll }
+      : {}),
   };
 }
 

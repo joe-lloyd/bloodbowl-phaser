@@ -1,30 +1,43 @@
-import { Player } from "../../../types/Player";
-import {
-  SkillCategory,
-  SkillType,
-  SKILL_DEFINITIONS,
-} from "../../../types/Skills";
+import { PendingAdvancementRoll, Player } from "../../../types/Player";
+import { SkillCategory, SkillType } from "../../../types/Skills";
 import {
   AdvancementChoice,
   characteristicChoices,
   nextAdvancementCosts,
-  RandomSkillCandidate,
 } from "../../../game/progression/progression";
-import { cx, HudButton, hudChoiceClass } from "../componentWarehouse/HudKit";
+import {
+  cx,
+  HudButton,
+  hudChoiceClass,
+  Notice,
+} from "../componentWarehouse/HudKit";
 
 const CHOICE_TEXT =
   "px-3 py-2 font-hud-label text-hud-sm font-bold uppercase tracking-[0.04em] text-hud-bone";
 
-/**
- * Advanced League advancement UI: extracted from the old post-match results
- * screen so Manage Team's pending-development panel can present the same
- * SPP-spend flow (see team-advancement-modes: "Team development is
- * completed from Manage Team").
- */
 export type SkillAccess = "primary" | "secondary";
+type AdvancementKind = AdvancementChoice["kind"];
 
+const OPTION_HELP: Record<
+  Exclude<AdvancementKind, "characteristic-fallback">,
+  string
+> = {
+  "random-primary":
+    "Pick a Primary category, roll two skills from it and keep one.",
+  "chosen-primary": "Pick any legal skill from a Primary category.",
+  "chosen-secondary": "Pick any legal skill from a Secondary category.",
+  characteristic:
+    "Roll a D8 to see which characteristics can improve, or take a chosen skill instead.",
+};
+
+/**
+ * The SPP advancement view (state and saving live in PlayerDevelopment).
+ * Only advancements the player can afford can be picked, nothing else is
+ * shown until one is, and a saved roll locks the form to that roll.
+ */
 export function AdvancementForm({
   player,
+  savedRoll,
   kind,
   setKind,
   access,
@@ -35,15 +48,14 @@ export function AdvancementForm({
   skill,
   setSkill,
   skills,
-  randomCandidates,
   rollRandom,
-  characteristicRoll,
   rollCharacteristic,
   applyChoice,
 }: {
   player: Player;
-  kind: AdvancementChoice["kind"];
-  setKind: (kind: AdvancementChoice["kind"]) => void;
+  savedRoll: PendingAdvancementRoll | undefined;
+  kind: AdvancementKind | null;
+  setKind: (kind: AdvancementKind) => void;
   access: SkillAccess;
   setAccess: (access: SkillAccess) => void;
   category: SkillCategory | "";
@@ -52,15 +64,14 @@ export function AdvancementForm({
   skill: SkillType | "";
   setSkill: (skill: SkillType | "") => void;
   skills: SkillType[];
-  randomCandidates: [RandomSkillCandidate, RandomSkillCandidate] | null;
   rollRandom: () => void;
-  characteristicRoll: number | null;
   rollCharacteristic: () => void;
   applyChoice: (choice: AdvancementChoice) => void;
 }) {
   const costs = nextAdvancementCosts(player)!;
+  const spp = player.spp ?? 0;
   const options: {
-    kind: AdvancementChoice["kind"];
+    kind: Exclude<AdvancementKind, "characteristic-fallback">;
     label: string;
     cost: number;
   }[] = [
@@ -87,93 +98,78 @@ export function AdvancementForm({
   ];
 
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <button
-            type="button"
-            key={option.kind}
-            disabled={player.spp < option.cost}
-            onClick={() => setKind(option.kind)}
-            className={cx(hudChoiceClass(kind === option.kind), CHOICE_TEXT)}
-          >
-            {option.label} ({option.cost} SPP)
-          </button>
-        ))}
+    <div className="mt-2" data-testid="advancement-form">
+      <p className="text-hud-base text-hud-bone">
+        <strong>{spp} SPP</strong> to spend.{" "}
+        {savedRoll
+          ? "Finish the saved roll below."
+          : "Pick an advancement you can afford:"}
+      </p>
+      <div
+        className="mt-2 flex flex-wrap gap-2"
+        role="group"
+        aria-label="Advancement type"
+      >
+        {options.map((option) => {
+          const short = option.cost - spp;
+          const lockedByRoll = !!savedRoll && savedRoll.kind !== option.kind;
+          return (
+            <button
+              type="button"
+              key={option.kind}
+              data-testid={`advancement-${option.kind}`}
+              disabled={short > 0 || lockedByRoll}
+              aria-pressed={kind === option.kind}
+              title={
+                short > 0
+                  ? `Needs ${short} more SPP`
+                  : lockedByRoll
+                    ? "Finish the saved roll first"
+                    : OPTION_HELP[option.kind]
+              }
+              onClick={() => setKind(option.kind)}
+              className={cx(hudChoiceClass(kind === option.kind), CHOICE_TEXT)}
+            >
+              <span className="block">{option.label}</span>
+              <span className="block font-hud-body font-normal normal-case tracking-normal text-hud-dim">
+                {option.cost} SPP
+                {short > 0 ? ` · needs ${short} more` : ""}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {kind === "characteristic" ? (
-        <div className="mt-4">
-          <HudButton
-            size="sm"
-            onClick={rollCharacteristic}
-            disabled={characteristicRoll !== null}
-          >
-            Roll D8
-          </HudButton>
-          {characteristicRoll !== null && (
-            <>
-              <p className="my-3 font-hud-label text-hud-lg font-bold uppercase text-hud-gold">
-                Rolled {characteristicRoll}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {characteristicChoices(player, characteristicRoll).map(
-                  (stat) => (
-                    <button
-                      type="button"
-                      key={stat}
-                      onClick={() =>
-                        applyChoice({
-                          kind: "characteristic",
-                          roll: characteristicRoll,
-                          stat,
-                        })
-                      }
-                      className={cx(hudChoiceClass(false), CHOICE_TEXT)}
-                    >
-                      Improve {stat}
-                    </button>
-                  )
-                )}
-              </div>
-              <p className="mt-4 text-hud-dim">
-                Or take a chosen skill at the spent Characteristic cost:
-              </p>
-              <SkillSelectors
-                access={access}
-                setAccess={setAccess}
-                category={category}
-                setCategory={setCategory}
-                categories={
-                  access === "primary"
-                    ? (player.primary ?? [])
-                    : (player.secondary ?? [])
-                }
-                skill={skill}
-                setSkill={setSkill}
-                skills={skills}
-              />
-              <HudButton
-                size="sm"
-                className="mt-3"
-                disabled={!skill}
-                onClick={() =>
-                  skill &&
-                  applyChoice({
-                    kind: "characteristic-fallback",
-                    roll: characteristicRoll,
-                    skill,
-                    access,
-                  })
-                }
-              >
-                Confirm skill fallback
-              </HudButton>
-            </>
-          )}
-        </div>
+      {savedRoll && (
+        <Notice tone="info" role="status" className="mt-3">
+          This roll is saved. Take one of its results to finish the advancement;
+          it cannot be rolled again.
+        </Notice>
+      )}
+
+      {kind === null ? (
+        <p className="mt-3 text-hud-dim">
+          Choose an advancement above to see its options.
+        </p>
+      ) : kind === "characteristic" ? (
+        <CharacteristicStep
+          player={player}
+          roll={savedRoll?.kind === "characteristic" ? savedRoll.roll : null}
+          rollCharacteristic={rollCharacteristic}
+          access={access}
+          setAccess={setAccess}
+          category={category}
+          setCategory={setCategory}
+          skill={skill}
+          setSkill={setSkill}
+          skills={skills}
+          applyChoice={applyChoice}
+        />
       ) : (
-        <div className="mt-4">
+        <div className="mt-3">
+          <p className="text-hud-dim">
+            {OPTION_HELP[kind as keyof typeof OPTION_HELP]}
+          </p>
           <SkillSelectors
             access={access}
             setAccess={setAccess}
@@ -181,48 +177,49 @@ export function AdvancementForm({
             category={category}
             setCategory={setCategory}
             categories={categories}
+            categoryLocked={savedRoll?.kind === "random-primary"}
+            showSkill={kind !== "random-primary"}
             skill={skill}
             setSkill={setSkill}
             skills={skills}
           />
           {kind === "random-primary" ? (
-            <>
+            savedRoll?.kind === "random-primary" ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  ...new Map(
+                    savedRoll.candidates.map((candidate) => [
+                      candidate.skill,
+                      candidate,
+                    ])
+                  ).values(),
+                ].map((candidate) => (
+                  <button
+                    type="button"
+                    key={candidate.skill}
+                    data-testid="random-candidate"
+                    onClick={() =>
+                      applyChoice({
+                        kind: "random-primary",
+                        skill: candidate.skill,
+                      })
+                    }
+                    className={cx(hudChoiceClass(false), CHOICE_TEXT)}
+                  >
+                    {candidate.firstD6}, {candidate.secondD6}: {candidate.skill}
+                  </button>
+                ))}
+              </div>
+            ) : (
               <HudButton
                 size="sm"
                 className="mt-3"
-                disabled={!category || !!randomCandidates}
+                disabled={!category}
                 onClick={rollRandom}
               >
                 Roll two candidates
               </HudButton>
-              {randomCandidates && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    ...new Map(
-                      randomCandidates.map((candidate) => [
-                        candidate.skill,
-                        candidate,
-                      ])
-                    ).values(),
-                  ].map((candidate) => (
-                    <button
-                      type="button"
-                      key={candidate.skill}
-                      onClick={() =>
-                        applyChoice({
-                          kind: "random-primary",
-                          skill: candidate.skill,
-                        })
-                      }
-                      className={cx(hudChoiceClass(false), CHOICE_TEXT)}
-                    >
-                      {candidate.firstD6}, {candidate.secondD6}:{" "}
-                      {candidate.skill}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+            )
           ) : (
             <HudButton
               size="sm"
@@ -245,6 +242,95 @@ export function AdvancementForm({
   );
 }
 
+function CharacteristicStep({
+  player,
+  roll,
+  rollCharacteristic,
+  access,
+  setAccess,
+  category,
+  setCategory,
+  skill,
+  setSkill,
+  skills,
+  applyChoice,
+}: {
+  player: Player;
+  roll: number | null;
+  rollCharacteristic: () => void;
+  access: SkillAccess;
+  setAccess: (access: SkillAccess) => void;
+  category: SkillCategory | "";
+  setCategory: (category: SkillCategory | "") => void;
+  skill: SkillType | "";
+  setSkill: (skill: SkillType | "") => void;
+  skills: SkillType[];
+  applyChoice: (choice: AdvancementChoice) => void;
+}) {
+  if (roll === null) {
+    return (
+      <div className="mt-3">
+        <p className="text-hud-dim">{OPTION_HELP.characteristic}</p>
+        <HudButton size="sm" className="mt-3" onClick={rollCharacteristic}>
+          Roll D8
+        </HudButton>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <p className="my-3 font-hud-label text-hud-lg font-bold uppercase text-hud-gold">
+        Rolled {roll}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {characteristicChoices(player, roll).map((stat) => (
+          <button
+            type="button"
+            key={stat}
+            onClick={() => applyChoice({ kind: "characteristic", roll, stat })}
+            className={cx(hudChoiceClass(false), CHOICE_TEXT)}
+          >
+            Improve {stat}
+          </button>
+        ))}
+      </div>
+      <p className="mt-4 text-hud-dim">
+        Or take a chosen skill at the spent Characteristic cost:
+      </p>
+      <SkillSelectors
+        access={access}
+        setAccess={setAccess}
+        category={category}
+        setCategory={setCategory}
+        categories={
+          access === "primary"
+            ? (player.primary ?? [])
+            : (player.secondary ?? [])
+        }
+        skill={skill}
+        setSkill={setSkill}
+        skills={skills}
+      />
+      <HudButton
+        size="sm"
+        className="mt-3"
+        disabled={!skill}
+        onClick={() =>
+          skill &&
+          applyChoice({
+            kind: "characteristic-fallback",
+            roll,
+            skill,
+            access,
+          })
+        }
+      >
+        Confirm skill fallback
+      </HudButton>
+    </div>
+  );
+}
+
 export function SkillSelectors({
   access,
   setAccess,
@@ -252,6 +338,8 @@ export function SkillSelectors({
   category,
   setCategory,
   categories,
+  categoryLocked = false,
+  showSkill = true,
   skill,
   setSkill,
   skills,
@@ -262,6 +350,8 @@ export function SkillSelectors({
   category: SkillCategory | "";
   setCategory: (category: SkillCategory | "") => void;
   categories: SkillCategory[];
+  categoryLocked?: boolean;
+  showSkill?: boolean;
   skill: SkillType | "";
   setSkill: (skill: SkillType | "") => void;
   skills: SkillType[];
@@ -270,6 +360,7 @@ export function SkillSelectors({
     <div className="mt-3 flex flex-wrap gap-2">
       {!lockAccess && (
         <select
+          aria-label="Skill access"
           value={access}
           onChange={(event) => setAccess(event.target.value as SkillAccess)}
           className="hud-field w-auto max-w-full"
@@ -279,33 +370,40 @@ export function SkillSelectors({
         </select>
       )}
       <select
+        aria-label="Skill category"
         value={category}
+        disabled={categoryLocked}
         onChange={(event) =>
           setCategory(event.target.value as SkillCategory | "")
         }
-        className="hud-field w-auto max-w-full"
+        className="hud-field w-auto max-w-full disabled:opacity-60"
       >
         <option value="">Choose category</option>
-        {categories.map((item) => (
+        {(categoryLocked && category && !categories.includes(category)
+          ? [category, ...categories]
+          : categories
+        ).map((item) => (
           <option key={item} value={item}>
             {item}
           </option>
         ))}
       </select>
-      <select
-        value={skill}
-        disabled={!category}
-        onChange={(event) => setSkill(event.target.value as SkillType | "")}
-        className="hud-field w-auto max-w-full disabled:opacity-40"
-      >
-        <option value="">Choose skill</option>
-        {skills.map((item) => (
-          <option key={item} value={item}>
-            {item}
-            {SKILL_DEFINITIONS[item].category ? "" : ""}
-          </option>
-        ))}
-      </select>
+      {showSkill && (
+        <select
+          aria-label="Skill"
+          value={skill}
+          disabled={!category}
+          onChange={(event) => setSkill(event.target.value as SkillType | "")}
+          className="hud-field w-auto max-w-full disabled:opacity-40"
+        >
+          <option value="">Choose skill</option>
+          {skills.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

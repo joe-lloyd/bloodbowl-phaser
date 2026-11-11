@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PlayerStats } from "../../../types/Player";
 import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
-import { canAdvance, mustAdvance } from "../../../game/progression/progression";
+import {
+  canAdvance,
+  mustAdvance,
+  nextAdvancementCosts,
+} from "../../../game/progression/progression";
 import { RNGService } from "../../../services/rng/RNGService";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
 import {
@@ -87,16 +91,17 @@ export function PlayerPage() {
     (skill) => !startingSkillNames.has(skill.type)
   );
 
-  const characteristicRows = (Object.keys(player.stats) as (keyof PlayerStats)[]).map(
-    (stat) => {
-      const current = player.stats[stat];
-      const base = player.baseStats[stat];
-      const advances = player.characteristicAdvances?.[stat] ?? 0;
-      return { stat, current, base, advances };
-    }
-  );
+  const characteristicRows = (
+    Object.keys(player.stats) as (keyof PlayerStats)[]
+  ).map((stat) => {
+    const current = player.stats[stat];
+    const base = player.baseStats[stat];
+    const advances = player.characteristicAdvances?.[stat] ?? 0;
+    return { stat, current, base, advances };
+  });
 
   const eligible = canAdvance(player);
+  const costs = nextAdvancementCosts(player);
   const required = mustAdvance(player);
 
   return (
@@ -170,7 +175,7 @@ export function PlayerPage() {
                       <Chip tone="skill">{skill.type}</Chip>
                       {advancement && (
                         <span className="ml-2 text-hud-sm text-hud-dim">
-                          ({advancement.type.replace("-", " ")}, {" "}
+                          ({advancement.type.replace("-", " ")},{" "}
                           {advancement.sppCost} SPP
                           {advancement.elite ? ", elite" : ""})
                         </span>
@@ -230,10 +235,15 @@ export function PlayerPage() {
         </p>
       </Section>
 
-      <Section title="Pending development" accent={required ? "blood" : undefined}>
+      <Section
+        title="Pending development"
+        accent={required ? "blood" : undefined}
+      >
         {!eligible ? (
           <p className="text-hud-mute">
-            Not enough SPP to advance yet.
+            {costs
+              ? `Not enough SPP to advance yet: ${player.spp} SPP, and the cheapest advancement (Random Primary) costs ${costs.randomPrimary}.`
+              : "This player is a Legend and cannot advance further."}
           </p>
         ) : (
           <PlayerDevelopment

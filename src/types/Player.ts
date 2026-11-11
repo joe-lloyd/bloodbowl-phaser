@@ -2,7 +2,7 @@
  * Player types and interfaces for Blood Bowl Sevens (2020 Rules)
  */
 
-import { Skill, SkillCategory } from "./Skills";
+import { Skill, SkillCategory, SkillType } from "./Skills";
 
 /**
  * Player status on the pitch
@@ -97,6 +97,11 @@ export interface Player {
   playerKind?: "roster" | "journeyman" | "star";
   advancements?: PlayerAdvancement[];
   characteristicAdvances?: Partial<Record<keyof PlayerStats, number>>;
+  /**
+   * An SPP advancement roll made but not yet spent. It is saved the moment
+   * it is rolled, so leaving or reloading the page cannot re-roll it.
+   */
+  pendingAdvancementRoll?: PendingAdvancementRoll;
 
   // Status
   status: PlayerStatus;
@@ -148,6 +153,22 @@ export type AdvancementSource =
   | "advanced-league-spp"
   | "matched-play-package"
   | "sevens-skill-selection";
+
+/** One Random Primary skill candidate: the two D6 and the skill they gave. */
+export interface RandomSkillCandidate {
+  skill: SkillType;
+  firstD6: number;
+  secondD6: number;
+}
+
+/** A saved SPP advancement roll that must be resolved before another. */
+export type PendingAdvancementRoll =
+  | {
+      kind: "random-primary";
+      category: SkillCategory;
+      candidates: [RandomSkillCandidate, RandomSkillCandidate];
+    }
+  | { kind: "characteristic"; roll: number };
 
 export interface PlayerAdvancement {
   id: string;

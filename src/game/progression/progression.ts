@@ -1,4 +1,10 @@
-import { Player, PlayerAdvancement, PlayerStats } from "../../types/Player";
+import {
+  PendingAdvancementRoll,
+  Player,
+  PlayerAdvancement,
+  PlayerStats,
+  RandomSkillCandidate,
+} from "../../types/Player";
 import {
   getSkill,
   SkillCategory,
@@ -232,11 +238,7 @@ export function eligibleSkills(
   });
 }
 
-export interface RandomSkillCandidate {
-  skill: SkillType;
-  firstD6: number;
-  secondD6: number;
-}
+export type { PendingAdvancementRoll, RandomSkillCandidate };
 
 export function rollRandomPrimaryCandidates(
   player: Player,
@@ -256,6 +258,74 @@ export function rollRandomPrimaryCandidates(
     throw new Error("No legal random skill could be rolled");
   };
   return [rollCandidate(), rollCandidate()];
+}
+
+function requireCost(player: Player, cost: keyof AdvancementCosts): void {
+  if (player.pendingAdvancementRoll) {
+    throw new Error("Resolve this player's saved roll first");
+  }
+  const costs = nextAdvancementCosts(player);
+  if (!costs) throw new Error("Legend players cannot gain another advancement");
+  if ((player.spp ?? 0) < costs[cost]) throw new Error("Not enough SPP");
+}
+
+/**
+ * Roll two Random Primary candidates and store them on the player. The
+ * caller saves the team straight away, so the coach must take one of these
+ * two: reloading the page shows the same roll rather than a fresh one.
+ */
+export function rollPendingRandomPrimary(
+  player: Player,
+  category: SkillCategory,
+  rng: Pick<IRNGService, "rollDie">
+): PendingAdvancementRoll {
+  requireCost(player, "randomPrimary");
+  const roll: PendingAdvancementRoll = {
+    kind: "random-primary",
+    category,
+    candidates: rollRandomPrimaryCandidates(player, category, rng),
+  };
+  player.pendingAdvancementRoll = roll;
+  return roll;
+}
+
+/** Roll the Characteristic D8 and store it on the player (see above). */
+export function rollPendingCharacteristic(
+  player: Player,
+  rng: Pick<IRNGService, "rollDie">
+): PendingAdvancementRoll {
+  requireCost(player, "characteristic");
+  const roll: PendingAdvancementRoll = {
+    kind: "characteristic",
+    roll: rng.rollDie(8),
+  };
+  player.pendingAdvancementRoll = roll;
+  return roll;
+}
+
+/** A saved roll can only be spent on a choice that uses that roll. */
+function assertMatchesSavedRoll(
+  player: Player,
+  choice: AdvancementChoice
+): void {
+  const saved = player.pendingAdvancementRoll;
+  if (!saved) return;
+  if (saved.kind === "random-primary") {
+    if (
+      choice.kind !== "random-primary" ||
+      !saved.candidates.some((candidate) => candidate.skill === choice.skill)
+    ) {
+      throw new Error("Pick one of the two rolled skills");
+    }
+    return;
+  }
+  if (
+    (choice.kind !== "characteristic" &&
+      choice.kind !== "characteristic-fallback") ||
+    choice.roll !== saved.roll
+  ) {
+    throw new Error(`Use the saved Characteristic roll of ${saved.roll}`);
+  }
 }
 
 export function characteristicChoices(
@@ -331,6 +401,7 @@ export function applyAdvancement(
   player: Player,
   choice: AdvancementChoice
 ): Player {
+  assertMatchesSavedRoll(player, choice);
   const cost = costFor(player, choice);
   if ((player.spp ?? 0) < cost) throw new Error("Not enough SPP");
 
@@ -380,5 +451,6 @@ export function applyAdvancement(
   player.advancements.push(record);
   player.level = Math.min(6, player.advancements.length);
   player.teamValue = (player.teamValue ?? 0) + record.valueIncrease;
+  delete player.pendingAdvancementRoll;
   return player;
 }

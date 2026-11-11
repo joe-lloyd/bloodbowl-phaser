@@ -7,15 +7,7 @@ import {
   isPendingRaisedDeadRecruit,
 } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
-import {
-  AdvancementChoice,
-  applyAdvancement,
-  canAdvance,
-  eligibleSkills,
-  mustAdvance,
-  RandomSkillCandidate,
-  rollRandomPrimaryCandidates,
-} from "../../../game/progression/progression";
+import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import {
   chooseSecondarySkill,
   draftedPlayerPrice,
@@ -35,7 +27,7 @@ import {
   RaisedDeadOffer,
   resolveRaisedDeadRecruit,
 } from "../../../game/rules/raiseDead";
-import { AdvancementForm } from "../shared/AdvancementForm";
+import { PlayerDevelopment } from "../hud/PlayerDevelopment";
 import {
   cx,
   HudButton,
@@ -179,21 +171,6 @@ function AdvancedLeagueEntry({
   entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>;
   onChange: (team: Team) => void;
 }) {
-  const [kind, setKind] = useState<AdvancementChoice["kind"]>("random-primary");
-  const [access, setAccess] = useState<"primary" | "secondary">("primary");
-  const [category, setCategory] = useState<SkillCategory | "">("");
-  const [skill, setSkill] = useState<SkillType | "">("");
-  const [randomCandidates, setRandomCandidates] = useState<
-    [RandomSkillCandidate, RandomSkillCandidate] | null
-  >(null);
-  const [characteristicRoll, setCharacteristicRoll] = useState<number | null>(
-    null
-  );
-  const [error, setError] = useState("");
-  const rng = ServiceContainer.isInitialized()
-    ? ServiceContainer.getInstance().rngService
-    : { rollDie: (sides: number) => 1 + Math.floor(Math.random() * sides) };
-
   const player = team.players.find(
     (candidate) => candidate.id === entry.playerId
   );
@@ -201,23 +178,6 @@ function AdvancedLeagueEntry({
     removePending(team, entry.id);
     return null;
   }
-
-  const categories =
-    access === "primary" ? (player.primary ?? []) : (player.secondary ?? []);
-  const skills = category ? eligibleSkills(player, [category]) : [];
-
-  const applyChoice = (choice: AdvancementChoice) => {
-    try {
-      applyAdvancement(player, choice);
-      team.teamValue = calculateTeamValue(team);
-      if (!mustAdvance(player)) removePending(team, entry.id);
-      saveTeam(team);
-      onChange({ ...team });
-      setError("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  };
 
   return (
     <div className={ENTRY}>
@@ -231,49 +191,16 @@ function AdvancedLeagueEntry({
           Not enough SPP yet — this resolves automatically once they qualify.
         </p>
       ) : (
-        <AdvancementForm
+        <PlayerDevelopment
           player={player}
-          kind={kind}
-          setKind={(next) => {
-            setKind(next);
-            setAccess(next === "chosen-secondary" ? "secondary" : "primary");
-            setCategory("");
-            setSkill("");
-            setRandomCandidates(null);
-            setCharacteristicRoll(null);
+          team={team}
+          rngService={panelRng()}
+          onApplied={() => {
+            if (!mustAdvance(player)) removePending(team, entry.id);
+            saveTeam(team);
+            onChange({ ...team });
           }}
-          access={access}
-          setAccess={(next) => {
-            setAccess(next);
-            setCategory("");
-            setSkill("");
-          }}
-          category={category}
-          setCategory={(next) => {
-            setCategory(next);
-            setSkill("");
-            setRandomCandidates(null);
-          }}
-          categories={categories}
-          skill={skill}
-          setSkill={setSkill}
-          skills={skills}
-          randomCandidates={randomCandidates}
-          rollRandom={() => {
-            if (!category) return;
-            setRandomCandidates(
-              rollRandomPrimaryCandidates(player, category, rng)
-            );
-          }}
-          characteristicRoll={characteristicRoll}
-          rollCharacteristic={() => setCharacteristicRoll(rng.rollDie(8))}
-          applyChoice={applyChoice}
         />
-      )}
-      {error && (
-        <Notice tone="bad" role="alert" className="mt-2">
-          {error}
-        </Notice>
       )}
     </div>
   );
