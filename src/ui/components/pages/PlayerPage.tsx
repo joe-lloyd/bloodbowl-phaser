@@ -1,14 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PlayerStats } from "../../../types/Player";
-import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
-import { canAdvance, mustAdvance } from "../../../game/progression/progression";
+import { loadTeams } from "../../../game/managers/TeamManager";
+import {
+  canAdvance,
+  mustAdvance,
+  nextAdvancementCosts,
+} from "../../../game/progression/progression";
 import { RNGService } from "../../../services/rng/RNGService";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
 import {
   Chip,
   EmptyState,
   HudButton,
+  Notice,
   PageHeader,
   PageShell,
   Section,
@@ -41,6 +46,7 @@ export function PlayerPage() {
     playerId: string;
   }>();
   const [, setRefreshTick] = useState(0);
+  const [notice, setNotice] = useState("");
   const rngService = useMemo(() => new RNGService(Date.now()), []);
 
   const teams = loadTeams();
@@ -87,16 +93,17 @@ export function PlayerPage() {
     (skill) => !startingSkillNames.has(skill.type)
   );
 
-  const characteristicRows = (Object.keys(player.stats) as (keyof PlayerStats)[]).map(
-    (stat) => {
-      const current = player.stats[stat];
-      const base = player.baseStats[stat];
-      const advances = player.characteristicAdvances?.[stat] ?? 0;
-      return { stat, current, base, advances };
-    }
-  );
+  const characteristicRows = (
+    Object.keys(player.stats) as (keyof PlayerStats)[]
+  ).map((stat) => {
+    const current = player.stats[stat];
+    const base = player.baseStats[stat];
+    const advances = player.characteristicAdvances?.[stat] ?? 0;
+    return { stat, current, base, advances };
+  });
 
   const eligible = canAdvance(player);
+  const costs = nextAdvancementCosts(player);
   const required = mustAdvance(player);
 
   return (
@@ -170,7 +177,7 @@ export function PlayerPage() {
                       <Chip tone="skill">{skill.type}</Chip>
                       {advancement && (
                         <span className="ml-2 text-hud-sm text-hud-dim">
-                          ({advancement.type.replace("-", " ")}, {" "}
+                          ({advancement.type.replace("-", " ")},{" "}
                           {advancement.sppCost} SPP
                           {advancement.elite ? ", elite" : ""})
                         </span>
@@ -230,35 +237,31 @@ export function PlayerPage() {
         </p>
       </Section>
 
-      <Section title="Pending development" accent={required ? "blood" : undefined}>
+      <Section
+        title="Pending development"
+        accent={required ? "blood" : undefined}
+      >
+        {notice && (
+          <Notice tone="info" role="status" className="mb-3">
+            {notice}
+          </Notice>
+        )}
         {!eligible ? (
           <p className="text-hud-mute">
-            Not enough SPP to advance yet.
+            {costs
+              ? `Not enough SPP to advance yet: ${player.spp} SPP, and the cheapest advancement (Random Primary) costs ${costs.randomPrimary}.`
+              : "This player is a Legend and cannot advance further."}
           </p>
         ) : (
           <PlayerDevelopment
             player={player}
             team={team}
             rngService={rngService}
-            onApplied={() => {
-              // Keep Manage Team's pending-development queue consistent
-              // with an advancement applied from this page directly —
-              // otherwise a resolved entry lingers and blocks the team's
-              // next required fixture (team-advancement-modes).
-              if (!mustAdvance(player)) {
-                team.pendingDevelopment = (
-                  team.pendingDevelopment ?? []
-                ).filter(
-                  (entry) =>
-                    !(
-                      entry.kind === "advanced-league-advancement" &&
-                      entry.playerId === player.id
-                    )
-                );
-              }
-              saveTeam(team);
+            onSaved={() => {
+              setNotice("");
               refresh();
             }}
+            onNotice={setNotice}
           />
         )}
       </Section>
