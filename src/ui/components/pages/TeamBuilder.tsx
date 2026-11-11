@@ -286,6 +286,16 @@ export function TeamBuilder() {
     navigate("/build-team");
   };
 
+  /** Whether storage already holds exactly this team. */
+  const isStored = (current: Team): boolean => {
+    const stored = TeamManager.loadTeams().find((t) => t.id === current.id);
+    return (
+      !!stored &&
+      JSON.stringify(dehydrateTeam(stored)) ===
+        JSON.stringify(dehydrateTeam(current))
+    );
+  };
+
   /**
    * The player page reads the team from storage, so unsaved edits here
    * (a hire, a reorder, a brand-new team) would be missing there. Offer to
@@ -293,18 +303,21 @@ export function TeamBuilder() {
    */
   const handleOpenPlayer = (playerId: string) => {
     if (!team) return;
-    const stored = TeamManager.loadTeams().find((t) => t.id === team.id);
-    const unsaved =
-      !stored ||
-      JSON.stringify(dehydrateTeam(stored)) !==
-        JSON.stringify(dehydrateTeam(team));
-    if (unsaved) {
+    if (!isStored(team)) {
       if (
         !confirm("Save your changes to this team before opening the player?")
       ) {
         return;
       }
       persistTeam(team);
+      // The repository logs a failed write instead of throwing (a full
+      // localStorage, say), so read it back before leaving these edits.
+      if (!isStored(team)) {
+        alert(
+          "Your changes could not be saved, so the player was not opened. Your edits are still here."
+        );
+        return;
+      }
     }
     navigate(`/build-team/${team.id}/player/${playerId}`);
   };

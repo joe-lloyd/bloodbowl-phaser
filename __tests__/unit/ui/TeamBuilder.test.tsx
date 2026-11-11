@@ -166,6 +166,27 @@ describe("TeamBuilder opening a player", () => {
     expect(stored.players.find((p) => p.id === moved.id)?.number).toBe(9);
   });
 
+  it("stays on the team and says so when the save does not stick", async () => {
+    const team = await renderSavedTeam();
+    moveSlot(1, 9);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    // A full localStorage: the repository logs the failed write and carries on
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    clickRow(9);
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="player-page"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="roster-row-9"]')?.textContent
+    ).not.toContain("Empty slot");
+    vi.mocked(Storage.prototype.setItem).mockRestore();
+    const stored = loadTeams().find((t) => t.id === team.id)!;
+    expect(stored.players.some((p) => p.number === 9)).toBe(false);
+  });
+
   it("stays on the team with edits intact when the coach declines to save", async () => {
     const team = await renderSavedTeam();
     moveSlot(1, 9);
