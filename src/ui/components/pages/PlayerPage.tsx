@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PlayerStats } from "../../../types/Player";
-import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
+import { loadTeams } from "../../../game/managers/TeamManager";
 import {
   canAdvance,
   mustAdvance,
@@ -250,25 +250,7 @@ export function PlayerPage() {
             player={player}
             team={team}
             rngService={rngService}
-            onApplied={() => {
-              // Keep Manage Team's pending-development queue consistent
-              // with an advancement applied from this page directly —
-              // otherwise a resolved entry lingers and blocks the team's
-              // next required fixture (team-advancement-modes).
-              if (!mustAdvance(player)) {
-                team.pendingDevelopment = (
-                  team.pendingDevelopment ?? []
-                ).filter(
-                  (entry) =>
-                    !(
-                      entry.kind === "advanced-league-advancement" &&
-                      entry.playerId === player.id
-                    )
-                );
-              }
-              saveTeam(team);
-              refresh();
-            }}
+            onSaved={refresh}
           />
         )}
       </Section>

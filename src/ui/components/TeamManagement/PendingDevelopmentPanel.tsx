@@ -195,11 +195,7 @@ function AdvancedLeagueEntry({
           player={player}
           team={team}
           rngService={panelRng()}
-          onApplied={() => {
-            if (!mustAdvance(player)) removePending(team, entry.id);
-            saveTeam(team);
-            onChange({ ...team });
-          }}
+          onSaved={() => onChange({ ...team })}
         />
       )}
     </div>

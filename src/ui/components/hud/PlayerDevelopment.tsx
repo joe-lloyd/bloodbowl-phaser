@@ -2,13 +2,15 @@ import { useState } from "react";
 import { Player } from "../../../types/Player";
 import { SkillCategory, SkillType } from "../../../types/Skills";
 import { calculateTeamValue, Team } from "../../../types/Team";
-import { saveTeam } from "../../../game/managers/TeamManager";
+import { loadTeams, saveTeam } from "../../../game/managers/TeamManager";
+import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
 import { IRNGService } from "../../../services/rng/RNGService";
 import { Notice } from "../componentWarehouse/HudKit";
 import {
   AdvancementChoice,
   applyAdvancement,
   eligibleSkills,
+  mustAdvance,
   nextAdvancementCosts,
   rollPendingCharacteristic,
   rollPendingRandomPrimary,
@@ -19,8 +21,57 @@ interface PlayerDevelopmentProps {
   player: Player;
   team: Team;
   rngService: Pick<IRNGService, "rollDie">;
-  /** Called after an advancement is applied and the team is saved. */
-  onApplied?: () => void;
+  /**
+   * Called after a roll or an advancement is saved. The caller's `team` has
+   * been updated in place to the saved copy; re-render from it.
+   */
+  onSaved?: () => void;
+}
+
+/**
+ * Apply a change to the latest stored copy of the team, save it, and read
+ * it back. Working on the stored copy means another tab's saved roll is
+ * seen rather than overwritten; reading back catches a write the repository
+ * only logged (a full localStorage, say). The caller's team is replaced
+ * in place only once the save is confirmed.
+ */
+function commit(
+  team: Team,
+  playerId: string,
+  change: (latestTeam: Team, latestPlayer: Player) => void
+): void {
+  const latestTeam = loadTeams().find((t) => t.id === team.id);
+  const latestPlayer = latestTeam?.players.find((p) => p.id === playerId);
+  if (!latestTeam || !latestPlayer) {
+    throw new Error("This player could not be found in the saved team.");
+  }
+  change(latestTeam, latestPlayer);
+  saveTeam(latestTeam);
+  const stored = loadTeams().find((t) => t.id === team.id);
+  if (
+    !stored ||
+    JSON.stringify(dehydrateTeam(stored)) !==
+      JSON.stringify(dehydrateTeam(latestTeam))
+  ) {
+    throw new Error("The team could not be saved, so nothing was changed.");
+  }
+  // Update the caller's objects in place (the player and team props this
+  // component and its parent hold) rather than swapping in new ones.
+  const previous = new Map(team.players.map((p) => [p.id, p]));
+  const players = latestTeam.players.map((latest) => {
+    const existing = previous.get(latest.id);
+    return existing ? replaceContents(existing, latest) : latest;
+  });
+  replaceContents(team, latestTeam);
+  team.players = players;
+}
+
+/** Make `target` hold exactly `source`'s fields, keeping its identity. */
+function replaceContents<T extends object>(target: T, source: T): T {
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) delete (target as Record<string, unknown>)[key];
+  }
+  return Object.assign(target, source);
 }
 
 /**
@@ -36,7 +87,7 @@ export function PlayerDevelopment({
   player,
   team,
   rngService,
-  onApplied,
+  onSaved,
 }: PlayerDevelopmentProps) {
   const [selectedKind, setSelectedKind] = useState<
     AdvancementChoice["kind"] | null
@@ -73,25 +124,42 @@ export function PlayerDevelopment({
     }
   };
 
-  const rollAndSave = (roll: () => void) =>
+  const rollAndSave = (roll: (latestPlayer: Player) => void) =>
     attempt(() => {
-      roll();
-      saveTeam(team);
+      commit(team, player.id, (_latestTeam, latestPlayer) => {
+        // Another tab may have rolled already: keep that roll instead
+        if (!latestPlayer.pendingAdvancementRoll) roll(latestPlayer);
+      });
       setCategory("");
       setSkill("");
       setRevision((value) => value + 1);
+      onSaved?.();
     });
 
   const applyChoice = (choice: AdvancementChoice) =>
     attempt(() => {
-      applyAdvancement(player, choice);
-      team.teamValue = calculateTeamValue(team);
-      saveTeam(team);
+      commit(team, player.id, (latestTeam, latestPlayer) => {
+        applyAdvancement(latestPlayer, choice);
+        latestTeam.teamValue = calculateTeamValue(latestTeam);
+        // Resolve Manage Team's Advanced League entry in the same save, so
+        // a spent player is never left with an unresolved entry.
+        if (!mustAdvance(latestPlayer)) {
+          latestTeam.pendingDevelopment = (
+            latestTeam.pendingDevelopment ?? []
+          ).filter(
+            (entry) =>
+              !(
+                entry.kind === "advanced-league-advancement" &&
+                entry.playerId === latestPlayer.id
+              )
+          );
+        }
+      });
       setSelectedKind(null);
       setAccess("primary");
       setCategory("");
       setSkill("");
-      onApplied?.();
+      onSaved?.();
     });
 
   return (
@@ -124,12 +192,14 @@ export function PlayerDevelopment({
         skills={skills}
         rollRandom={() =>
           category &&
-          rollAndSave(() =>
-            rollPendingRandomPrimary(player, category, rngService)
+          rollAndSave((latestPlayer) =>
+            rollPendingRandomPrimary(latestPlayer, category, rngService)
           )
         }
         rollCharacteristic={() =>
-          rollAndSave(() => rollPendingCharacteristic(player, rngService))
+          rollAndSave((latestPlayer) =>
+            rollPendingCharacteristic(latestPlayer, rngService)
+          )
         }
         applyChoice={applyChoice}
       />

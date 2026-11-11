@@ -1,9 +1,10 @@
 import { act } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayerDevelopment } from "../../../src/ui/components/hud/PlayerDevelopment";
 import { loadTeams, saveTeams } from "../../../src/game/managers/TeamManager";
 import { getRosterByRosterName } from "../../../src/data/RosterTemplates";
+import { rollPendingRandomPrimary } from "../../../src/game/progression/progression";
 import { createPlayer } from "../../../src/types/Player";
 import {
   calculateTeamValue,
@@ -52,6 +53,7 @@ describe("PlayerDevelopment", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await act(async () => root.unmount());
     container.remove();
     localStorage.clear();
@@ -194,5 +196,109 @@ describe("PlayerDevelopment", () => {
     expect(container.textContent).toContain("Rolled 3");
     expect(buttonWithText("Roll D8")).toBeUndefined();
     expect(option("random-primary").disabled).toBe(true);
+  });
+
+  function storedPlayer(teamId: string, playerId: string) {
+    return loadTeams()
+      .find((t) => t.id === teamId)!
+      .players.find((p) => p.id === playerId)!;
+  }
+
+  async function rollCandidatesFor(
+    teamId: string,
+    playerId: string,
+    category: string
+  ) {
+    click(option("random-primary"));
+    choose(
+      container.querySelector<HTMLSelectElement>(
+        'select[aria-label="Skill category"]'
+      )!,
+      category
+    );
+    click(buttonWithText("Roll two candidates")!);
+  }
+
+  it("keeps a roll another tab already saved instead of rolling again", async () => {
+    const { team, playerId } = savedTeam(20);
+    const category = team.players.find((p) => p.id === playerId)!.primary![0];
+    await renderFromStorage(team.id, playerId, dice(6));
+
+    // Another tab loads the same team, rolls and saves first
+    const otherTab = loadTeams().find((t) => t.id === team.id)!;
+    const otherRoll = rollPendingRandomPrimary(
+      otherTab.players.find((p) => p.id === playerId)!,
+      category,
+      dice(1, 2, 4, 5)
+    );
+    saveTeams([otherTab]);
+
+    await rollCandidatesFor(team.id, playerId, category);
+
+    expect(storedPlayer(team.id, playerId).pendingAdvancementRoll).toEqual(
+      otherRoll
+    );
+    const shown = Array.from(
+      container.querySelectorAll('[data-testid="random-candidate"]')
+    ).map((button) => button.textContent ?? "");
+    const otherSkills =
+      otherRoll.kind === "random-primary"
+        ? otherRoll.candidates.map((candidate) => candidate.skill)
+        : [];
+    expect(shown.length).toBeGreaterThan(0);
+    shown.forEach((text) =>
+      expect(otherSkills.some((skill) => text.endsWith(skill))).toBe(true)
+    );
+  });
+
+  it("shows no roll and says so when the roll cannot be saved", async () => {
+    const { team, playerId } = savedTeam(20);
+    const category = team.players.find((p) => p.id === playerId)!.primary![0];
+    await renderFromStorage(team.id, playerId, dice(1, 2, 4, 5));
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await rollCandidatesFor(team.id, playerId, category);
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "could not be saved"
+    );
+    expect(
+      container.querySelectorAll('[data-testid="random-candidate"]')
+    ).toHaveLength(0);
+    vi.mocked(Storage.prototype.setItem).mockRestore();
+    expect(
+      storedPlayer(team.id, playerId).pendingAdvancementRoll
+    ).toBeUndefined();
+  });
+
+  it("spends the roll and resolves the Advanced League entry in one save", async () => {
+    const { team, playerId } = savedTeam(15);
+    const stored = loadTeams().find((t) => t.id === team.id)!;
+    stored.pendingDevelopment = [
+      {
+        id: "entry-1",
+        kind: "advanced-league-advancement",
+        playerId,
+      } as NonNullable<Team["pendingDevelopment"]>[number],
+    ];
+    saveTeams([stored]);
+    const category = team.players.find((p) => p.id === playerId)!.primary![0];
+    await renderFromStorage(team.id, playerId, dice(1, 2, 4, 5));
+    await rollCandidatesFor(team.id, playerId, category);
+
+    // 15 SPP must advance (Characteristic costs 14); after Random Primary
+    // (3) 12 SPP is below the next Characteristic cost (16), so it is done.
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    click(container.querySelector('[data-testid="random-candidate"]')!);
+
+    expect(writes).toHaveBeenCalledTimes(1);
+    const after = loadTeams().find((t) => t.id === team.id)!;
+    expect(after.pendingDevelopment ?? []).toHaveLength(0);
+    expect(
+      after.players.find((p) => p.id === playerId)!.advancements
+    ).toHaveLength(1);
   });
 });
