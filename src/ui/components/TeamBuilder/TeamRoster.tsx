@@ -14,6 +14,11 @@ interface TeamRosterProps {
   onReorderPlayers: (sourceSlot: number, targetSlot: number) => void;
   /** Draft teams only: make this Lineman the Veteran (D8). */
   onChooseVeteran?: (playerId: string) => void;
+  /**
+   * Open a player's page. Defaults to navigating straight there; the Team
+   * Builder passes one that saves unsaved edits first.
+   */
+  onOpenPlayer?: (playerId: string) => void;
 }
 
 /**
@@ -50,10 +55,13 @@ export function TeamRoster({
   onFirePlayer,
   onReorderPlayers,
   onChooseVeteran,
+  onOpenPlayer,
 }: TeamRosterProps) {
   const navigate = useNavigate();
-  const openPlayer = (playerId: string) =>
-    navigate(`/build-team/${team.id}/player/${playerId}`);
+  const openPlayer =
+    onOpenPlayer ??
+    ((playerId: string) =>
+      navigate(`/build-team/${team.id}/player/${playerId}`));
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
   return (

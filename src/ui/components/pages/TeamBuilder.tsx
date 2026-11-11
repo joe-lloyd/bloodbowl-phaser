@@ -26,6 +26,7 @@ import {
   getAvailableRosterNames,
 } from "../../../data/RosterTemplates";
 import * as TeamManager from "../../../game/managers/TeamManager";
+import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
 import {
   cx,
   Field,
@@ -258,27 +259,54 @@ export function TeamBuilder() {
     return messages;
   };
 
-  const handleSave = () => {
-    if (!team) return;
-
+  /** Write the current team to storage (shared by Save and opening a player). */
+  const persistTeam = (toSave: Team) => {
     // Draft work may be persisted incomplete or illegal — only play and
     // competition entry require a valid roster (team-lifecycle-modes).
     // Locking is a no-op until a mode has actually been chosen, so this is
     // safe to call unconditionally on every save (team-advancement-modes:
     // the mode is immutable from the moment it's first set).
-    lockAdvancementMode(team);
+    lockAdvancementMode(toSave);
 
     const teams = TeamManager.loadTeams();
-    const existingIndex = teams.findIndex((t) => t.id === team.id);
+    const existingIndex = teams.findIndex((t) => t.id === toSave.id);
 
     if (existingIndex >= 0) {
-      teams[existingIndex] = team;
+      teams[existingIndex] = toSave;
     } else {
-      teams.push(team);
+      teams.push(toSave);
     }
 
     TeamManager.saveTeams(teams);
+  };
+
+  const handleSave = () => {
+    if (!team) return;
+    persistTeam(team);
     navigate("/build-team");
+  };
+
+  /**
+   * The player page reads the team from storage, so unsaved edits here
+   * (a hire, a reorder, a brand-new team) would be missing there. Offer to
+   * save them first; cancelling stays on this page with the edits intact.
+   */
+  const handleOpenPlayer = (playerId: string) => {
+    if (!team) return;
+    const stored = TeamManager.loadTeams().find((t) => t.id === team.id);
+    const unsaved =
+      !stored ||
+      JSON.stringify(dehydrateTeam(stored)) !==
+        JSON.stringify(dehydrateTeam(team));
+    if (unsaved) {
+      if (
+        !confirm("Save your changes to this team before opening the player?")
+      ) {
+        return;
+      }
+      persistTeam(team);
+    }
+    navigate(`/build-team/${team.id}/player/${playerId}`);
   };
 
   const handleBack = () => {
@@ -469,6 +497,7 @@ export function TeamBuilder() {
           team={team}
           onFirePlayer={handleFirePlayer}
           onReorderPlayers={handleReorderPlayers}
+          onOpenPlayer={handleOpenPlayer}
           onChooseVeteran={active ? undefined : handleChooseVeteran}
         />
       </div>
