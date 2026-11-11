@@ -746,6 +746,10 @@ export class KickoffEventManager {
       return;
     }
     charge.activePlayerId = charge.queue.shift()!;
+    // A free activation starts with the whole MA. The turn ledger still
+    // holds the turn before the kick-off (a scorer's squares, say); the
+    // drive's first turn starts a fresh one, so nothing else reads it.
+    this.state.turn.movementUsed.delete(charge.activePlayerId);
     const player = this.stepPlayers(this.step.teamId).find(
       (candidate) => candidate.id === charge.activePlayerId
     );

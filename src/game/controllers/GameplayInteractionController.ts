@@ -293,10 +293,12 @@ export class GameplayInteractionController {
   };
 
   private onEndActivation = () => {
-    if (this.selectedPlayerId) {
-      this.gameService.finishActivation(this.selectedPlayerId);
-      this.deselectPlayer();
-    }
+    const playerId = this.selectedPlayerId;
+    if (!playerId) return;
+    this.gameService.finishActivation(playerId);
+    // Ending a Charge! activation hands the board to the next charger,
+    // already selected: keep them
+    if (this.selectedPlayerId === playerId) this.deselectPlayer();
   };
 
   private onCancelAction = () => {
@@ -1860,12 +1862,8 @@ export class GameplayInteractionController {
     if (!player) return;
     const effectivePlayer = withDriveModifiers(player, state);
 
-    const chargePlayerId =
-      this.gameService.getPhase() === GamePhase.KICKOFF
-        ? this.gameService.getKickoffEventStep()?.charge?.activePlayerId
-        : undefined;
-    const canActivate =
-      this.gameService.canActivate(playerId) || chargePlayerId === playerId;
+    // canActivate answers for the Charge! window too
+    const canActivate = this.gameService.canActivate(playerId);
     const isOwnTurn = state.activeTeamId === player.teamId;
 
     if (isOwnTurn && canActivate) {
@@ -2074,7 +2072,9 @@ export class GameplayInteractionController {
     if (this.isBusy || this.pushSelectionActive) return null;
     if (getActiveOnlineMatch()?.mayAct() === false) return null;
     const state = this.gameService.getState();
-    if (state.phase !== GamePhase.PLAY) return null;
+    const charging =
+      !!this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
+    if (state.phase !== GamePhase.PLAY && !charging) return null;
     const mode = this.currentActionMode;
     if (mode !== null && mode !== "move" && mode !== "blitz") return null;
     const id = this.selectedPlayerId;
@@ -2276,8 +2276,7 @@ export class GameplayInteractionController {
         const end = leg.path[leg.path.length - 1];
         const now = this.gameService.getPlayerById(playerId);
         if (
-          this.gameService.getState().phase !== GamePhase.PLAY ||
-          this.gameService.hasPlayerActed(playerId) ||
+          !this.isStillActing(playerId) ||
           now?.status !== PlayerStatus.ACTIVE ||
           now.gridPosition?.x !== end.x ||
           now.gridPosition?.y !== end.y
@@ -2421,13 +2420,28 @@ export class GameplayInteractionController {
     });
   }
 
+  /**
+   * Whether this player's activation runs on after a step: a turn of the
+   * drive they have not finished, or the Charge! activation they are up in.
+   */
+  private isStillActing(playerId: string): boolean {
+    const chargerId =
+      this.gameService.getKickoffEventStep()?.charge?.activePlayerId;
+    if (chargerId) return chargerId === playerId;
+    return (
+      this.gameService.getState().phase === GamePhase.PLAY &&
+      !this.gameService.hasPlayerActed(playerId)
+    );
+  }
+
   private afterMove(playerId: string): void {
     this.hasMovedInAction = true;
     this.eventBus.emit(GameEventNames.PlayerMovedInAction, { playerId });
     // GameService finishes the activation once MA+2 is spent; otherwise the
     // player stays selected to plot the next leg.
-    if (this.gameService.hasPlayerActed(playerId)) {
-      this.deselectPlayer();
+    if (!this.isStillActing(playerId)) {
+      // A Charge! that ran out of squares has moved on to the next charger
+      if (this.selectedPlayerId === playerId) this.deselectPlayer();
       return;
     }
     this.clearWaypoints();
