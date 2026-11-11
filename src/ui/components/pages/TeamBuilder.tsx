@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Team,
@@ -26,6 +26,7 @@ import {
   getAvailableRosterNames,
 } from "../../../data/RosterTemplates";
 import * as TeamManager from "../../../game/managers/TeamManager";
+import { dehydrateTeam } from "../../../data/persistence/teamPersistence";
 import {
   cx,
   Field,
@@ -63,6 +64,11 @@ const TEAM_COLORS = [
   0x000000, // Black
 ];
 
+/** A comparable copy of what storage would hold for this team. */
+function snapshotOf(team: Team): string {
+  return JSON.stringify(dehydrateTeam(team));
+}
+
 export function TeamBuilder() {
   const [team, setTeam] = useState<Team | null>(null);
   const [selectedRace, setSelectedRace] = useState<RosterName>(
@@ -71,6 +77,10 @@ export function TeamBuilder() {
   const [selectedColor, setSelectedColor] = useState<number>(0x8e1b1b);
   const navigate = useNavigate();
   const { teamId } = useParams<{ teamId: string }>();
+  // What storage held when this team was loaded or last saved from here.
+  // Kept as a string because a cloud repository hands out its cached team
+  // objects, which this page then edits in place.
+  const savedSnapshot = useRef<string | null>(null);
 
   useEffect(() => {
     // Load existing team or create new one
@@ -78,6 +88,7 @@ export function TeamBuilder() {
       const teams = TeamManager.loadTeams();
       const existingTeam = teams.find((t) => t.id === teamId);
       if (existingTeam) {
+        savedSnapshot.current = snapshotOf(existingTeam);
         setTeam(existingTeam);
         setSelectedRace(existingTeam.rosterName);
         setSelectedColor(existingTeam.colors.primary);
@@ -86,6 +97,7 @@ export function TeamBuilder() {
     }
 
     // Create new team
+    savedSnapshot.current = null;
     const newTeam = createTeam(
       "New Team",
       selectedRace,
@@ -258,27 +270,73 @@ export function TeamBuilder() {
     return messages;
   };
 
-  const handleSave = () => {
-    if (!team) return;
-
+  /** Write the current team to storage (shared by Save and opening a player). */
+  const persistTeam = (toSave: Team) => {
     // Draft work may be persisted incomplete or illegal — only play and
     // competition entry require a valid roster (team-lifecycle-modes).
     // Locking is a no-op until a mode has actually been chosen, so this is
     // safe to call unconditionally on every save (team-advancement-modes:
     // the mode is immutable from the moment it's first set).
-    lockAdvancementMode(team);
+    lockAdvancementMode(toSave);
 
     const teams = TeamManager.loadTeams();
-    const existingIndex = teams.findIndex((t) => t.id === team.id);
+    const existingIndex = teams.findIndex((t) => t.id === toSave.id);
 
     if (existingIndex >= 0) {
-      teams[existingIndex] = team;
+      teams[existingIndex] = toSave;
     } else {
-      teams.push(team);
+      teams.push(toSave);
     }
 
     TeamManager.saveTeams(teams);
+  };
+
+  const handleSave = () => {
+    if (!team) return;
+    persistTeam(team);
     navigate("/build-team");
+  };
+
+  /** Whether storage already holds exactly this team. */
+  const isStored = (current: Team): boolean => {
+    const stored = TeamManager.loadTeams().find((t) => t.id === current.id);
+    return (
+      !!stored &&
+      JSON.stringify(dehydrateTeam(stored)) ===
+        JSON.stringify(dehydrateTeam(current))
+    );
+  };
+
+  /**
+   * The player page reads the team from storage, so unsaved edits here
+   * (a hire, a reorder, a brand-new team) would be missing there. Offer to
+   * save them first; cancelling stays on this page with the edits intact.
+   */
+  const handleOpenPlayer = (playerId: string) => {
+    if (!team) return;
+    if (savedSnapshot.current !== snapshotOf(team)) {
+      if (
+        !confirm("Save your changes to this team before opening the player?")
+      ) {
+        return;
+      }
+      const wasLocked = team.advancementModeLocked;
+      persistTeam(team);
+      // The repository logs a failed write instead of throwing (a full
+      // localStorage, say), so read it back before leaving these edits.
+      if (!isStored(team)) {
+        // Saving locks a chosen mode; an unsaved team must stay changeable
+        if (wasLocked) team.advancementModeLocked = wasLocked;
+        else delete team.advancementModeLocked;
+        setTeam({ ...team });
+        alert(
+          "Your changes could not be saved, so the player was not opened. Your edits are still here."
+        );
+        return;
+      }
+      savedSnapshot.current = snapshotOf(team);
+    }
+    navigate(`/build-team/${team.id}/player/${playerId}`);
   };
 
   const handleBack = () => {
@@ -469,6 +527,7 @@ export function TeamBuilder() {
           team={team}
           onFirePlayer={handleFirePlayer}
           onReorderPlayers={handleReorderPlayers}
+          onOpenPlayer={handleOpenPlayer}
           onChooseVeteran={active ? undefined : handleChooseVeteran}
         />
       </div>
