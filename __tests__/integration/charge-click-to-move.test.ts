@@ -197,4 +197,51 @@ describe("Charge! click-to-move on the board", () => {
     expect(gs.canActivate(team2.players[2].id)).toBe(false);
     controller.destroy();
   });
+
+  it("hands a fresh, cancellable activation to the next charger when a move ends the last one", async () => {
+    const game = await kickedIntoCharge("team1");
+    const gs = game.ctx.gameService;
+    const { eventBus, team1 } = game.ctx;
+    const controller = board(game);
+    const chargers = [team1.players[1].id, team1.players[3].id];
+    for (const id of chargers) controller.handlePlayerClick(id);
+    gs.confirmKickoffEventStep();
+
+    // The engine ends an activation as part of a move once the player's
+    // squares are spent (or they fall); here it ends on arrival, before the
+    // board's own after-move step runs
+    let ended = false;
+    eventBus.on(GameEventNames.PlayerMoved, (data: { playerId: string }) => {
+      if (!ended && data.playerId === chargers[0]) {
+        ended = true;
+        gs.finishActivation(chargers[0]);
+      }
+    });
+    const movedInAction: string[] = [];
+    eventBus.on(
+      GameEventNames.PlayerMovedInAction,
+      (data: { playerId: string }) => movedInAction.push(data.playerId)
+    );
+
+    const from = { ...gs.getPlayerById(chargers[0])!.gridPosition! };
+    const to = { x: from.x + 2, y: from.y };
+    eventBus.emit(GameEventNames.UI_ActionSelected, {
+      action: "move",
+      playerId: chargers[0],
+    });
+    controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
+    controller.handlePointerDown({ worldX: to.x, worldY: to.y }, false);
+    await settle();
+
+    expect(ended).toBe(true);
+    expect(gs.getKickoffEventStep()?.charge?.activePlayerId).toBe(chargers[1]);
+    // The next charger has not moved: nothing marks them as having moved,
+    // and Back still returns them to the action menu
+    expect(movedInAction).not.toContain(chargers[1]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    eventBus.emit(GameEventNames.UI_CancelAction);
+    expect(warn).not.toHaveBeenCalledWith("Cannot cancel action after moving");
+    warn.mockRestore();
+    controller.destroy();
+  });
 });
