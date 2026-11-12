@@ -243,7 +243,16 @@ export function MainMenu() {
           )}
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-3">
+        {/* Auth resolves after the first paint, and a restored session swaps
+            the Sign in button for the taller signed-in controls. The page is
+            vertically centred, so this box holds their height from the start
+            and spans the full width: the menu stays still when they arrive. */}
+        <div
+          className={cx(
+            "mt-10 flex w-full flex-col items-center gap-3",
+            onlineAvailable && SIGNED_IN_CONTROLS_HEIGHT
+          )}
+        >
           {user ? (
             <>
               <CoachNameEditor
@@ -292,6 +301,13 @@ export function MainMenu() {
 }
 
 const ONLINE_HINT = "Online play requires Firebase config (see .env.example)";
+
+/**
+ * Height of the signed-in account controls: the coach name editor (36px),
+ * the privacy note (18px) and the small Sign out button (32px), with two
+ * 12px gaps between them.
+ */
+const SIGNED_IN_CONTROLS_HEIGHT = "min-h-[110px]";
 
 /** Inline editor for the coach display name (privacy-preserving). */
 function CoachNameEditor({
