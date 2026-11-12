@@ -356,7 +356,10 @@ describe("PlayerPlacementController dugout drops", () => {
     return sprite;
   };
 
-  const dropOn = (square: { x: number; y: number }) => {
+  const dropOn = (
+    square: { x: number; y: number },
+    isAvailable?: (playerId: string) => boolean
+  ) => {
     const pitch = {
       getContainer: () => ({ x: 0, y: 0 }),
       worldToGrid: () => square,
@@ -364,7 +367,8 @@ describe("PlayerPlacementController dugout drops", () => {
     const controller = new PlayerPlacementController(
       {} as Phaser.Scene,
       pitch,
-      new SetupValidator()
+      new SetupValidator(),
+      isAvailable
     );
     const sprite = dugoutSprite({ x: 900, y: 40 });
     const team = {
@@ -394,6 +398,13 @@ describe("PlayerPlacementController dugout drops", () => {
 
   it("snaps a refused drop back to the dugout slot", () => {
     const sprite = dropOn({ x: 20, y: 5 });
+    expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 900, y: 40 });
+  });
+
+  it("snaps a knocked-out reserve back even from an empty square", () => {
+    // The engine will not place them (IGameService.isSetupEligible), so
+    // the drop is refused here rather than left waiting on the engine
+    const sprite = dropOn({ x: 1, y: 1 }, (playerId) => playerId !== "p1");
     expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 900, y: 40 });
   });
 });

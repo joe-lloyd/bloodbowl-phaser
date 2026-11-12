@@ -29,11 +29,20 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   /** Dugout sprites given the square hit area, to restore when setup ends. */
   private squareSprites: Set<Phaser.GameObjects.Container> = new Set();
 
-  constructor(_scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
+  /** The engine's rule for who may be placed this drive (IGameService.isSetupEligible). */
+  private isAvailable: (playerId: string) => boolean;
+
+  constructor(
+    _scene: Phaser.Scene,
+    pitch: Pitch,
+    validator: SetupValidator,
+    isAvailable: (playerId: string) => boolean = () => true
+  ) {
     super();
     // this.scene = scene;
     this.pitch = pitch;
     this.validator = validator;
+    this.isAvailable = isAvailable;
   }
 
   /**
@@ -212,6 +221,18 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
    */
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
     if (!this.currentTeam) return false;
+
+    // A knocked-out or injured reserve can be picked up, but the engine
+    // will not place them: refuse here so the drop snaps back at once
+    if (!this.isAvailable(playerId)) {
+      this.emit(GameEventNames.PlacementInvalid, {
+        playerId,
+        x: gridX,
+        y: gridY,
+        reason: "That player is not available for this drive.",
+      });
+      return false;
+    }
 
     const current = Array.from(this.placedPlayers.values()).filter(
       (position) => position.playerId !== playerId

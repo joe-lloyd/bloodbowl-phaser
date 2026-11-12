@@ -97,6 +97,11 @@ export interface IGameService {
     teamId: string
   ): import("@/types/SetupTypes").SetupTeamStatus | undefined;
   getLastSetupError(): string | null;
+  /**
+   * Whether a player may be placed this drive (not knocked out, a casualty,
+   * sent off or otherwise held in Reserves). The engine's own setup rule.
+   */
+  isSetupEligible(playerId: string): boolean;
   applySetupFormation(
     teamId: string,
     formation: import("@/types/SetupTypes").FormationPosition[]

@@ -738,6 +738,10 @@ export class GameService implements IGameService {
     return this.setupManager.getLastError();
   }
 
+  isSetupEligible(playerId: string): boolean {
+    return this.setupManager.isAvailable(playerId);
+  }
+
   applySetupFormation(
     teamId: string,
     formation: import("../types/SetupTypes").FormationPosition[]

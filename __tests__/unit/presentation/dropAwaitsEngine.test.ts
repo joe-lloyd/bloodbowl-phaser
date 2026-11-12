@@ -3,6 +3,7 @@ import { GameScene } from "../../../src/scenes/GameScene";
 import { EventBus } from "../../../src/services/EventBus";
 import { GameEventNames } from "../../../src/types/events";
 import { GamePhase } from "../../../src/types/GameState";
+import { NetworkedGameService } from "../../../src/network/NetworkedGameService";
 
 /**
  * A dropped player goes straight to where they were dropped. Against the
@@ -46,7 +47,7 @@ describe("a drop waits for the engine before redrawing", () => {
     getPhase: () => GamePhase;
   };
 
-  const build = (runsCommandsLater: boolean) => {
+  const build = (runsCommandsLater: boolean, gameService?: unknown) => {
     service = {
       runsCommandsLater: runsCommandsLater || undefined,
       placePlayer: vi.fn(() => true),
@@ -59,7 +60,7 @@ describe("a drop waits for the engine before redrawing", () => {
       eventBus,
       busSubscriptions: [],
       sys: { settings: { status: 5, key: "GameScene" } },
-      gameService: service,
+      gameService: gameService ?? service,
       team1: { id: "team1", players: [] },
       team2: { id: "team2", players: [] },
       playerSprites: new Map(),
@@ -157,6 +158,37 @@ describe("a drop waits for the engine before redrawing", () => {
         reason: "refused",
       });
       expect(scene.refreshDugouts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a drop whose command never reaches the engine", () => {
+    /** The real networked service, over a dispatch that fails outright. */
+    const offline = () =>
+      new NetworkedGameService(
+        {} as never,
+        () => Promise.reject(new Error("connection lost")),
+        () => null,
+        eventBus
+      );
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("redraws a placement, putting the player back on their old square", async () => {
+      build(true, offline());
+      controller.fire(GameEventNames.PlayerPlaced, {
+        playerId: "p1",
+        x: 1,
+        y: 3,
+      });
+      expect(scene.refreshDugouts).not.toHaveBeenCalled();
+      await settle();
+      expect(scene.refreshDugouts).toHaveBeenCalledTimes(1);
+    });
+
+    it("redraws a player sent to the dugout", async () => {
+      build(true, offline());
+      controller.fire(GameEventNames.PlayerRemoved, "p1");
+      await settle();
+      expect(scene.refreshDugouts).toHaveBeenCalledTimes(1);
     });
   });
 

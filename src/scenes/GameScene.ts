@@ -761,7 +761,8 @@ export class GameScene extends Phaser.Scene {
     this.placementController = new PlayerPlacementController(
       this,
       this.pitch,
-      this.validator
+      this.validator,
+      (playerId) => this.gameService.isSetupEligible(playerId)
     );
 
     // Handle late UI mounting (handshake).
