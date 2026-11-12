@@ -27,7 +27,9 @@ function fullTime(home: Side, away: Side, dice: number[]) {
   team2.dedicatedFans = away.fans;
   gameService.getState().score[team1.id] = home.score;
   gameService.getState().score[team2.id] = away.score;
-  forceDice(rng, dice);
+  // The Fans come first: each team's Fan Factor D3 for league winnings
+  const leagueGame = [home, away].some((side) => side.mode !== "matched-play");
+  forceDice(rng, leagueGame ? [3, 3, ...dice] : dice);
   eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
   return [team1.dedicatedFans, team2.dedicatedFans];
 }
