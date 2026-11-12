@@ -9,6 +9,7 @@ import {
   rollPendingRandomPrimary,
 } from "../../../src/game/progression/progression";
 import { createPlayer } from "../../../src/types/Player";
+import { getSkill, SkillCategory, SkillType } from "../../../src/types/Skills";
 import {
   calculateTeamValue,
   createTeam,
@@ -186,6 +187,65 @@ describe("PlayerDevelopment", () => {
     expect(after.pendingAdvancementRoll).toBeUndefined();
     expect(rolledSkills).toContain(after.advancements?.[0].name);
     expect(after.spp).toBe(17);
+  });
+
+  it("rolls again before saving when a roll lands on a skill the player has", async () => {
+    const { team, playerId } = savedTeam(20);
+    const stored = loadTeams().find((t) => t.id === team.id)!;
+    const player = stored.players.find((p) => p.id === playerId)!;
+    expect(player.primary).toContain(SkillCategory.GENERAL);
+    // Learned as earlier advancements, which is how a save keeps a skill
+    for (const skill of [SkillType.BLOCK, SkillType.DAUNTLESS]) {
+      player.skills.push(getSkill(skill));
+      player.advancements = [
+        ...(player.advancements ?? []),
+        {
+          id: `adv-${(player.advancements?.length ?? 0) + 1}`,
+          type: "primary-skill",
+          name: skill,
+          sppCost: 0,
+          valueIncrease: 0,
+        },
+      ];
+    }
+    saveTeams([stored]);
+    const owned = loadTeams()
+      .find((t) => t.id === team.id)!
+      .players.find((p) => p.id === playerId)!
+      .skills.map((skill) => skill.type);
+    expect(owned).toEqual(
+      expect.arrayContaining([SkillType.BLOCK, SkillType.DAUNTLESS])
+    );
+    // General 1,1 Block and 1,2 Dauntless are owned, so each is rolled again.
+    await renderFromStorage(team.id, playerId, dice(1, 1, 4, 1, 1, 2, 1, 3));
+
+    click(option("random-primary"));
+    choose(
+      container.querySelector<HTMLSelectElement>(
+        'select[aria-label="Skill category"]'
+      )!,
+      SkillCategory.GENERAL
+    );
+    click(buttonWithText("Roll two candidates")!);
+
+    const expected = ["4, 1: Steady Footing", "1, 3: Fend"];
+    const shownNow = () =>
+      Array.from(
+        container.querySelectorAll('[data-testid="random-candidate"]')
+      ).map((button) => button.textContent);
+    expect(shownNow()).toEqual(expected);
+    const saved = loadTeams()
+      .find((t) => t.id === team.id)!
+      .players.find((p) => p.id === playerId)!.pendingAdvancementRoll;
+    expect(saved).toMatchObject({
+      candidates: [
+        { skill: SkillType.STEADY_FOOTING },
+        { skill: SkillType.FEND },
+      ],
+    });
+
+    await reload(team.id, playerId, dice(1, 1));
+    expect(shownNow()).toEqual(expected);
   });
 
   it("saves the Characteristic D8 so a reload shows the same result", async () => {

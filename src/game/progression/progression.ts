@@ -240,6 +240,36 @@ export function eligibleSkills(
 
 export type { PendingAdvancementRoll, RandomSkillCandidate };
 
+/**
+ * Most rolls one skill may take. A skill the player can take is checked for
+ * first, so fair dice land on one long before this; the cap only stops a
+ * broken dice source from looping forever.
+ */
+const MAX_SKILL_ROLLS = 1000;
+
+/**
+ * Roll on a category's skill table until the result is a skill the player
+ * can take. A skill they already have, or cannot have, is rolled again
+ * (rulebook: "if the player already has that Skill or if they roll a Skill
+ * they cannot have"), so it is never offered or saved.
+ */
+export function rollTakeableSkill(
+  category: SkillCategory,
+  canTake: (skill: SkillType) => boolean,
+  rng: Pick<IRNGService, "rollDie">
+): RandomSkillCandidate {
+  if (!SKILL_ROLL_TABLE[category].some(canTake)) {
+    throw new Error(`No ${category} skill is left that this player can take`);
+  }
+  for (let attempt = 0; attempt < MAX_SKILL_ROLLS; attempt++) {
+    const firstD6 = rng.rollDie(6);
+    const secondD6 = rng.rollDie(6);
+    const skill = rollSkill(category, firstD6, secondD6);
+    if (canTake(skill)) return { skill, firstD6, secondD6 };
+  }
+  throw new Error("The dice never landed on a skill this player can take");
+}
+
 export function rollRandomPrimaryCandidates(
   player: Player,
   category: SkillCategory,
@@ -248,16 +278,11 @@ export function rollRandomPrimaryCandidates(
   if (!player.primary?.includes(category)) {
     throw new Error("Selected category is not Primary for this player");
   }
-  const rollCandidate = (): RandomSkillCandidate => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const firstD6 = rng.rollDie(6);
-      const secondD6 = rng.rollDie(6);
-      const skill = rollSkill(category, firstD6, secondD6);
-      if (isSkillLegal(player, skill)) return { skill, firstD6, secondD6 };
-    }
-    throw new Error("No legal random skill could be rolled");
-  };
-  return [rollCandidate(), rollCandidate()];
+  const canTake = (skill: SkillType) => isSkillLegal(player, skill);
+  return [
+    rollTakeableSkill(category, canTake, rng),
+    rollTakeableSkill(category, canTake, rng),
+  ];
 }
 
 function requireCost(player: Player, cost: keyof AdvancementCosts): void {
