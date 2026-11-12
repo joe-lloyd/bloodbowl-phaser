@@ -1478,6 +1478,46 @@ describe("GameplayInteractionController", () => {
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
 
+    it("marks the Thralls again when the host refuses the bite, and a Thrall click still bites", () => {
+      // Online the answer is only sent: the bite stays pending until it returns
+      (mockGameService.answerBiteTarget as any).mockImplementation(() => true);
+      controller.handlePlayerClick("t1");
+      mockScene.highlightPlayer.mockClear();
+      mockPitch.highlightSquare.mockClear();
+
+      handler(GameEventNames.NetworkCommandRejected)({
+        commandType: "choose-bite-target",
+        playerId: "t1",
+        reason: "command-failed: no-bite-target-awaiting",
+      });
+
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t1", 0xef4444);
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("t2", 0xef4444);
+      expect(mockPitch.highlightSquare).toHaveBeenCalledTimes(2);
+      controller.handlePlayerClick("t2");
+      expect(mockGameService.answerBiteTarget).toHaveBeenLastCalledWith("t2");
+      expect(mockGameService.answerBiteTarget).toHaveBeenCalledTimes(2);
+      expect(mockGameService.getAvailableMovements).not.toHaveBeenCalled();
+    });
+
+    it("leaves the board free when a refused bite is no longer pending", () => {
+      controller.handlePlayerClick("t1");
+      mockScene.highlightPlayer.mockClear();
+
+      handler(GameEventNames.NetworkCommandRejected)({
+        commandType: "choose-bite-target",
+        playerId: "t1",
+        reason: "command-failed: no-bite-target-awaiting",
+      });
+
+      expect(mockScene.highlightPlayer).not.toHaveBeenCalledWith(
+        "t1",
+        0xef4444
+      );
+      controller.handlePlayerClick("p1");
+      expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
+    });
+
     it("marks the bite again when a resync restores one", () => {
       mockScene.highlightPlayer.mockClear();
       restored();

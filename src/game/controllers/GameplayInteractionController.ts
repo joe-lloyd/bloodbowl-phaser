@@ -500,6 +500,13 @@ export class GameplayInteractionController {
     action?: string;
     reason: string;
   }) => {
+    if (data.commandType === "choose-bite-target") {
+      // The markers went when the answer was sent; a refused answer leaves
+      // the bite open, so mark its Thralls again for the coach to retry
+      const bite = this.pendingBite();
+      if (bite) this.markBiteTargets(bite);
+      return;
+    }
     if (!this.selectedPlayerId || data.playerId !== this.selectedPlayerId) {
       return;
     }
