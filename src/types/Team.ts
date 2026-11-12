@@ -416,26 +416,42 @@ export function playsNextGame(team: Team, player: Player): boolean {
 }
 
 /**
+ * A player's current value: what they were hired for plus every value
+ * increase since (advancements and Drafted Players keeps).
+ */
+export function playerValue(player: Player): number {
+  return player.cost + (player.teamValue ?? 0);
+}
+
+/**
+ * The players' share of Current Team Value: the value of every player who
+ * can play the next game.
+ */
+export function playersTeamValue(team: Team): number {
+  return team.players
+    .filter((player) => playsNextGame(team, player))
+    .reduce((value, player) => value + playerValue(player), 0);
+}
+
+/**
+ * Re-rolls and Sideline Staff at their Sevens prices. Dedicated Fans are not
+ * part of Team Value.
+ */
+export function staffTeamValue(team: Team): number {
+  return (
+    team.rerolls * TEAM_REROLL_COST +
+    (team.apothecary ? APOTHECARY_COST : 0) +
+    team.coaches * ASSISTANT_COACH_COST +
+    team.cheerleaders * CHEERLEADER_COST
+  );
+}
+
+/**
  * The team's Current Team Value: every player who can play the next game,
  * plus re-rolls and Sideline Staff.
  */
 export function calculateTeamValue(team: Team): number {
-  let value = 0;
-
-  team.players
-    .filter((player) => playsNextGame(team, player))
-    .forEach((player) => {
-      value += player.cost + (player.teamValue ?? 0);
-    });
-
-  // Re-rolls and Sideline Staff count at their Sevens prices. Dedicated
-  // Fans are not part of Team Value.
-  value += team.rerolls * TEAM_REROLL_COST;
-  if (team.apothecary) value += APOTHECARY_COST;
-  value += team.coaches * ASSISTANT_COACH_COST;
-  value += team.cheerleaders * CHEERLEADER_COST;
-
-  return value;
+  return playersTeamValue(team) + staffTeamValue(team);
 }
 
 /**

@@ -12,6 +12,8 @@ import {
   SKILL_DEFINITIONS,
   getSkill,
 } from "../../../src/types/Skills";
+import { InjuryType } from "../../../src/types/Player";
+import { calculateTeamValue } from "../../../src/types/Team";
 
 /**
  * Team Builder readability (overhaul-team-lifecycle-management,
@@ -175,10 +177,10 @@ describe("TeamRoster career-stat columns", () => {
     const cellTexts = Array.from(firstRow?.querySelectorAll("td") ?? []).map(
       (td) => td.textContent
     );
-    // Cost column ("0k") plus six zeroed career-stat columns for a
-    // never-played player.
+    // SPP column plus six zeroed career-stat columns for a never-played
+    // player. The value column reads "0k", not "0".
     const zeroCells = cellTexts.filter((text) => text === "0");
-    expect(zeroCells.length).toBe(6);
+    expect(zeroCells.length).toBe(7);
   });
 });
 
@@ -410,5 +412,103 @@ describe("TeamRoster row click and drag handle", () => {
       emptyRow.dispatchEvent(dragEvent("drop", data));
     });
     expect(moves).toEqual([[1, 9]]);
+  });
+});
+
+/**
+ * Manage Team shows each player's SPP and current value, never their hire
+ * cost. Value is cost plus value gained since (playerValue); a player who
+ * misses the next game is left out of team value (playsNextGame), and the
+ * total row agrees with calculateTeamValue.
+ */
+describe("TeamRoster SPP and value", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  async function renderLeagueTeam() {
+    const team = new TeamTestBuilder().withPlayers(3).withRerolls(1).build();
+    team.advancementMode = "advanced-league";
+    const [skilled, injured, fresh] = team.players;
+    skilled.cost = 85_000;
+    skilled.teamValue = 20_000; // one Primary skill advancement
+    skilled.spp = 4;
+    injured.cost = 50_000;
+    injured.teamValue = 0;
+    injured.spp = 7;
+    injured.injuries = [InjuryType.MISS_NEXT_GAME];
+    fresh.cost = 50_000;
+    fresh.teamValue = 0;
+    fresh.spp = 0;
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+    return team;
+  }
+
+  const cell = (slot: number, testId: string) =>
+    container.querySelector(
+      `[data-testid="roster-row-${slot}"] [data-testid="${testId}"]`
+    );
+
+  it("has SPP and Value columns and no Cost column", async () => {
+    await renderLeagueTeam();
+    const headerLabels = Array.from(container.querySelectorAll("thead th")).map(
+      (th) => th.textContent
+    );
+    expect(headerLabels).toEqual(expect.arrayContaining(["SPP", "Value"]));
+    expect(headerLabels).not.toContain("Cost");
+  });
+
+  it("shows each player's star player points", async () => {
+    await renderLeagueTeam();
+    expect(cell(1, "player-spp")?.textContent).toBe("4");
+    expect(cell(2, "player-spp")?.textContent).toBe("7");
+    expect(cell(3, "player-spp")?.textContent).toBe("0");
+  });
+
+  it("shows a skilled player's value above their hire cost", async () => {
+    await renderLeagueTeam();
+    expect(cell(1, "player-value")?.textContent).toBe("105k");
+    expect(cell(3, "player-value")?.textContent).toBe("50k");
+  });
+
+  it("marks a player who misses the next game as not counted in team value", async () => {
+    await renderLeagueTeam();
+    const value = cell(2, "player-value")!;
+    expect(value.querySelector("s")?.textContent).toBe("50k");
+    expect(value.textContent).toContain("Not in TV");
+    expect(value.querySelector("[title]")?.getAttribute("title")).toBe(
+      "Misses the next game: not counted in team value"
+    );
+  });
+
+  it("totals the counted player values to the team value", async () => {
+    const team = await renderLeagueTeam();
+    const total = container.querySelector('[data-testid="roster-value-total"]');
+    // 105k + 50k (the injured player is left out) + one 100k re-roll.
+    expect(calculateTeamValue(team)).toBe(255_000);
+    expect(total?.textContent).toBe(
+      "Players 155k + re-rolls & staff 100k = TV 255k"
+    );
   });
 });
