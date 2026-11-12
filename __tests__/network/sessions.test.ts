@@ -16,6 +16,8 @@ import { GameSnapshot } from "../../src/headless/serialization";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { SkillType, SkillCategory } from "../../src/types/Skills";
 import { Scenario } from "../../src/types/Scenario";
+import { RosterName } from "../../src/types/Team";
+import { PlayerStatus } from "../../src/types/Player";
 import { LockstepSession } from "../../src/network/LockstepSession";
 import {
   createInMemoryTransportPair,
@@ -1138,6 +1140,83 @@ describe("networked sessions", () => {
       return;
     }
     throw new Error("no push result rolled in seed range");
+  });
+
+  it("a Bloodlust bite target is the biting coach's pick, and both boards bite that Thrall", async () => {
+    // The guest's Bloodlust player fails beside two Thrall Linemen
+    const biteScenario: Scenario = {
+      id: "online-bloodlust-bite-target",
+      name: "Online Bloodlust bite target",
+      description: "a guest Bloodlust player beside two Thrall Linemen",
+      setup: {
+        team2Roster: RosterName.VAMPIRE,
+        team1Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+        team2Placements: [
+          {
+            playerIndex: 0,
+            x: 10,
+            y: 5,
+            skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
+          },
+          { playerIndex: 1, x: 11, y: 5 },
+          { playerIndex: 2, x: 10, y: 6 },
+          { playerIndex: 3, x: 3, y: 9 },
+        ],
+        activeTeam: "team2",
+        phase: GamePhase.PLAY,
+        subPhase: SubPhase.TURN_RECEIVING,
+        ballPosition: { x: 1, y: 1 },
+      },
+    };
+
+    for (let seed = 1; seed <= 60; seed++) {
+      const match = createMatch({ scenario: biteScenario, seed });
+      const [vampire, first, second] = match.game.ctx.team2.players;
+      const declared = await match.guest.sendCommand({
+        type: "declare-action",
+        playerId: vampire.id,
+        action: "move",
+      });
+      // Only a failed roll asks about switching to a Move
+      if (declared.pendingDecision?.type !== "reaction") continue;
+      await match.guest.sendCommand({ type: "use-reaction", accept: false });
+      const ended = await match.guest.sendCommand({
+        type: "end-activation",
+        playerId: vampire.id,
+      });
+      expect(ended.pendingDecision).toMatchObject({
+        type: "bite-target",
+        chooserTeamId: match.guestTeamId,
+        targetIds: [first.id, second.id],
+      });
+
+      // The other coach may not choose for them
+      const hostAttempt = await match.host.executeLocal({
+        type: "choose-bite-target",
+        playerId: first.id,
+      });
+      expect(hostAttempt.ok).toBe(false);
+      expect(hostAttempt.reason).toBe("not-your-decision");
+
+      const bitten = await match.guest.sendCommand({
+        type: "choose-bite-target",
+        playerId: second.id,
+      });
+      expect(bitten.ok).toBe(true);
+      // Both engines bit the same Thrall, and only that one
+      const status = (game: HeadlessGame, id: string) =>
+        game.ctx.team2.players.find((p) => p.id === id)?.status;
+      for (const game of [match.game, match.guestGame]) {
+        expect(status(game, second.id)).not.toBe(PlayerStatus.ACTIVE);
+        expect(status(game, first.id)).toBe(PlayerStatus.ACTIVE);
+      }
+      expect(status(match.guestGame, second.id)).toBe(
+        status(match.game, second.id)
+      );
+      expect(match.resyncs).toBe(0);
+      return;
+    }
+    throw new Error("no failed Bloodlust roll in seed range");
   });
 
   // Regression for a captured bug report: "something fell out of sync and

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { GameScene } from "../../scenes/GameScene";
 import { IGameService } from "../../services/interfaces/IGameService";
-import { Pitch, SquareMarker } from "../elements/Pitch";
+import { BITE_TARGET_LAYER, Pitch, SquareMarker } from "../elements/Pitch";
 import { MovementValidator } from "../validators/MovementValidator";
 import { weatherEffects } from "../rules/weather";
 import { moveAllowance } from "../skills/movement";
@@ -41,7 +41,11 @@ import { standUpCost } from "../skills/movement";
 import { rushModifier } from "../inducements/matchInducements";
 import { availableRerolls } from "../skills/rerolls";
 import { rollLabel } from "../rules/rollTargets";
-import type { RerollSource } from "../../types/decisions";
+import type {
+  BiteTargetDecisionRequest,
+  DecisionRequest,
+  RerollSource,
+} from "../../types/decisions";
 import {
   foulPreview,
   blockPreviewLines,
@@ -68,6 +72,9 @@ const SPECIAL_ACTION_MODES = new Set<string>([
   "chomp",
   "chainsaw",
 ]);
+
+/** The Thrall Linemen a failed Bloodlust may bite: ringed and marked red. */
+const BITE_TARGET_COLOR = 0xef4444;
 
 export class GameplayInteractionController {
   private scene: GameScene;
@@ -112,6 +119,14 @@ export class GameplayInteractionController {
   };
   /** A Dodge/Rush prompt waits for the dice before it opens. */
   private readonly dice: DiceWatch;
+
+  /**
+   * A failed Bloodlust with two or more Thrall Linemen in reach: the ones
+   * this coach may click to bite. Empty when no bite is being chosen here.
+   * Like a push square, it is a mandatory pick: other clicks do nothing.
+   */
+  private biteTargetIds: string[] = [];
+  private biteMarkers: SquareMarker[] = [];
 
   // Push direction selection state
   private pushSelectionActive: boolean = false;
@@ -243,6 +258,10 @@ export class GameplayInteractionController {
       this.pushDirectionHandler
     );
     this.eventBus.on(GameEventNames.DecisionResolved, this.onDecisionResolved);
+    this.eventBus.on(
+      GameEventNames.DecisionRequested,
+      this.onDecisionRequested
+    );
 
     // Listen for player actions (Blitz, Stand Up)
     this.eventBus.on(GameEventNames.UI_ActionSelected, this.onActionSelected);
@@ -260,6 +279,7 @@ export class GameplayInteractionController {
       this.resumeBlitzMoveHandler
     );
     this.eventBus.on(GameEventNames.GameStateRestored, this.resumeActivePlayer);
+    this.eventBus.on(GameEventNames.GameStateRestored, this.onStateRestored);
     this.eventBus.on(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler
@@ -287,8 +307,80 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
   }
 
+  /**
+   * A bite with a choice of Thrall Linemen: mark each on the pitch for the
+   * biting coach to click. Online, only the biting coach's board marks them.
+   */
+  private onDecisionRequested = (request: DecisionRequest) => {
+    if (request.type === "bite-target") this.markBiteTargets(request);
+  };
+
+  /**
+   * A resync replaces the state without resolving the decision it held:
+   * mark the bite the restored game waits on, if it waits on one.
+   */
+  private onStateRestored = () => {
+    this.clearBiteTargets();
+    const bite = this.pendingBite();
+    if (bite) this.markBiteTargets(bite);
+  };
+
+  /** The bite being chosen, if any: online the match's, else the engine's. */
+  private pendingBite(): BiteTargetDecisionRequest | null {
+    const online = getActiveOnlineMatch();
+    const pending = online
+      ? online.pendingDecision()
+      : this.gameService.getDecisionService().pending();
+    return pending?.type === "bite-target" ? pending : null;
+  }
+
+  private markBiteTargets(request: BiteTargetDecisionRequest): void {
+    this.clearBiteTargets();
+    const online = getActiveOnlineMatch();
+    if (online && online.myTeamId !== request.chooserTeamId) return;
+    this.biteTargetIds = [...request.targetIds];
+    for (const id of this.biteTargetIds) {
+      const square = this.gameService.getPlayerById(id)?.gridPosition;
+      if (!square) continue;
+      this.scene.highlightPlayer(id, BITE_TARGET_COLOR);
+      // Its own layer, so clearing the move/selection highlights keeps it
+      this.biteMarkers.push(
+        this.pitch
+          .highlightSquare(square.x, square.y, BITE_TARGET_COLOR)
+          .setName(BITE_TARGET_LAYER)
+      );
+    }
+  }
+
+  private clearBiteTargets(): void {
+    for (const id of this.biteTargetIds) this.scene.unhighlightPlayer(id);
+    for (const marker of this.biteMarkers) if (marker.scene) marker.destroy();
+    this.biteTargetIds = [];
+    this.biteMarkers = [];
+  }
+
+  /**
+   * Route a click while a bite is being chosen: a marked Thrall is bitten,
+   * anything else is ignored. False when no bite is being chosen here.
+   */
+  private handleBiteTargetClick(playerId: string | undefined): boolean {
+    if (this.biteTargetIds.length === 0) return false;
+    // Gone without a resolve (state replaced): the board is free again
+    if (!this.pendingBite()) {
+      this.clearBiteTargets();
+      return false;
+    }
+    if (!playerId || !this.biteTargetIds.includes(playerId)) return true;
+    // Clear first: online, the answer is only pending until it comes back,
+    // and a second click (sprite and square both report it) must not resend
+    this.clearBiteTargets();
+    this.gameService.answerBiteTarget(playerId);
+    return true;
+  }
+
   /** Online, the other coach may pick the push; free this board then. */
   private onDecisionResolved = ({ type }: { type: string }) => {
+    if (type === "bite-target") this.clearBiteTargets();
     if (type !== "push-direction" || !this.pushSelectionActive) return;
     this.pushSelectionActive = false;
     this.pushValidDirections = [];
@@ -307,6 +399,7 @@ export class GameplayInteractionController {
     this.pushDefenderId = "";
     this.pushAttackerId = "";
     this.pushResultType = "";
+    this.clearBiteTargets();
     this.isBusy = false;
     this.deselectPlayer();
     this.pitch.clearHover();
@@ -407,6 +500,13 @@ export class GameplayInteractionController {
     action?: string;
     reason: string;
   }) => {
+    if (data.commandType === "choose-bite-target") {
+      // The markers went when the answer was sent; a refused answer leaves
+      // the bite open, so mark its Thralls again for the coach to retry
+      const bite = this.pendingBite();
+      if (bite) this.markBiteTargets(bite);
+      return;
+    }
     if (!this.selectedPlayerId || data.playerId !== this.selectedPlayerId) {
       return;
     }
@@ -799,6 +899,9 @@ export class GameplayInteractionController {
   }
 
   private async onSquareClicked(x: number, y: number): Promise<void> {
+    // Before the busy lock: the bite may be asked while a move that ends in
+    // the End Zone is still being walked
+    if (this.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return;
     if (this.isBusy) return;
 
     // Check if we're selecting a push direction first
@@ -1670,6 +1773,8 @@ export class GameplayInteractionController {
   public handlePlayerClick(playerId: string): void {
     // Online: input is locked while the opponent owns the turn/decision
     if (getActiveOnlineMatch()?.mayAct() === false) return;
+    // A bite being chosen takes the click, even mid-walk
+    if (this.handleBiteTargetClick(playerId)) return;
     // A route is still being walked
     if (this.isBusy) return;
     console.log(
@@ -2511,6 +2616,12 @@ export class GameplayInteractionController {
     );
     this.eventBus.off(GameEventNames.PhaseChanged, this.onPhaseChangedReset);
     this.eventBus.off(GameEventNames.DecisionResolved, this.onDecisionResolved);
+    this.eventBus.off(
+      GameEventNames.DecisionRequested,
+      this.onDecisionRequested
+    );
+    this.eventBus.off(GameEventNames.GameStateRestored, this.onStateRestored);
+    this.clearBiteTargets();
     this.eventBus.off(
       GameEventNames.KickoffEventStepStarted,
       this.kickoffStepSyncHandler

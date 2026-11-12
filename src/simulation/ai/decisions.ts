@@ -175,6 +175,20 @@ export function decide(
       });
       return pick;
     }
+    case "bite-target": {
+      // Always bite: biting nobody costs a Turnover (or the Pass/Hand-off).
+      // Not the ball carrier while another Thrall is in reach (a bitten
+      // carrier drops the ball: a Turnover), then the first in board order.
+      const carrier = carrierOf(board)?.id;
+      const bitten = (c: Candidate) =>
+        c.commands[0].type === "choose-bite-target"
+          ? c.commands[0].playerId
+          : undefined;
+      return (
+        find((c) => !!bitten(c) && bitten(c) !== carrier) ??
+        find((c) => !!bitten(c))
+      );
+    }
     case "interception":
       return find(
         (c) =>

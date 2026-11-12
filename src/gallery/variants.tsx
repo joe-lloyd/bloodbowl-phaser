@@ -39,6 +39,7 @@ import { BlockDiceDialog } from "../ui/components/hud/BlockDiceDialog";
 import { RerollDialog } from "../ui/components/hud/RerollDialog";
 import { FollowUpDialog } from "../ui/components/hud/FollowUpDialog";
 import { ReactionDialog } from "../ui/components/hud/ReactionDialog";
+import { BiteTargetPrompt } from "../ui/components/hud/BiteTargetPrompt";
 import { InterceptionDialog } from "../ui/components/hud/InterceptionDialog";
 import { ApothecaryDialog } from "../ui/components/hud/ApothecaryDialog";
 import { InducementChoiceDialog } from "../ui/components/hud/InducementChoiceDialog";
@@ -1170,8 +1171,7 @@ export const VARIANTS: Variant[] = [
     section: "Decision dialogs",
     title: "Re-roll: skill or team",
     view: (fx) => <RerollDialog eventBus={fx.bus} />,
-    drive: (fx) =>
-      later(30, () => reroll(fx, ["skill", "team"], "Dodge", 3)),
+    drive: (fx) => later(30, () => reroll(fx, ["skill", "team"], "Dodge", 3)),
   },
   {
     id: "reroll-pro",
@@ -1213,6 +1213,21 @@ export const VARIANTS: Variant[] = [
           chooserTeamId: fx.team1.id,
           skill: "Stand Firm",
           prompt: "Use Stand Firm to refuse the push and stay in place?",
+        })
+      ),
+  },
+  {
+    id: "bite-target",
+    section: "Decision dialogs",
+    title: "Bloodlust: click the Thrall Lineman to bite",
+    view: (fx) => <BiteTargetPrompt eventBus={fx.bus} />,
+    drive: (fx) =>
+      later(30, () =>
+        fx.bus.emit(GameEventNames.DecisionRequested, {
+          type: "bite-target",
+          playerId: fx.player(1, 0).id,
+          chooserTeamId: fx.team1.id,
+          targetIds: [fx.player(1, 1).id, fx.player(1, 2).id],
         })
       ),
   },

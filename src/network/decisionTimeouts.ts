@@ -16,6 +16,7 @@ export const DEFENDER_DECISION_SECONDS: Record<
 > = {
   "block-dice": 10,
   reaction: 10,
+  "bite-target": 10,
   interception: 10,
   apothecary: 10,
   reroll: 10,
@@ -47,6 +48,9 @@ export function defaultAnswer(
     }
     case "reaction":
       return { type: "use-reaction", accept: false };
+    case "bite-target":
+      // As an unanswered single-Thrall bite: nobody is bitten
+      return { type: "choose-bite-target" };
     case "reroll":
       return { type: "use-reroll", accept: false };
     case "interception":

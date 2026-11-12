@@ -27,6 +27,12 @@ const ROLL_LETTER: Record<RouteRoll["type"], string> = {
 export type SquareMarker = Phaser.GameObjects.Polygon;
 
 /**
+ * The layer of the Thrall Linemen a failed Bloodlust may bite. Kept apart
+ * from "highlight" so clearing the move and selection highlights keeps it.
+ */
+export const BITE_TARGET_LAYER = "bite_target";
+
+/**
  * Pitch: the overlay layer over the 20x11 Sevens board.
  *
  * Grass, lines, end zones and the stadium around them are baked into the
@@ -85,9 +91,7 @@ export class Pitch {
 
   /** An invisible stand-in for a square off the pitch, so callers keep one type. */
   private offPitchMarker(): SquareMarker {
-    const marker = this.scene.add
-      .polygon(0, 0, [0, 0], 0, 0)
-      .setVisible(false);
+    const marker = this.scene.add.polygon(0, 0, [0, 0], 0, 0).setVisible(false);
     this.container.add(marker);
     return marker;
   }
@@ -470,7 +474,7 @@ export class Pitch {
       .getAll()
       .filter(
         (child): child is SquareMarker =>
-          child.name === "highlight" &&
+          (child.name === "highlight" || child.name === BITE_TARGET_LAYER) &&
           (child as SquareMarker).visible &&
           !!(child as SquareMarker).getData("grid")
       )

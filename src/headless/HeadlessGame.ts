@@ -123,6 +123,7 @@ const COMMAND_SHAPES: Record<
   "choose-follow-up": { followUp: "boolean" },
   "use-reroll": { accept: "boolean" },
   "use-reaction": { accept: "boolean" },
+  "choose-bite-target": { playerId: "string?" },
   "choose-interception": {},
   touchback: { playerId: "string" },
   "use-apothecary": { accept: "boolean" },
@@ -818,6 +819,21 @@ export class HeadlessGame {
         }
         break;
       }
+      case "choose-bite-target": {
+        const pending = this.takePending("bite-target");
+        if (
+          cmd.playerId !== undefined &&
+          !pending.targetIds.includes(cmd.playerId)
+        ) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-bite-target");
+        }
+        if (!gs.answerBiteTarget(cmd.playerId)) {
+          this.pending = pending;
+          throw new Error("no-bite-target-awaiting");
+        }
+        break;
+      }
       case "choose-interception": {
         const pending = this.takePending("interception");
         if (
@@ -953,6 +969,13 @@ export class HeadlessGame {
           chooserTeamId: data.chooserTeamId,
           skill: data.skill,
           prompt: data.prompt,
+        };
+      } else if (data?.type === "bite-target") {
+        this.pending = {
+          type: "bite-target",
+          playerId: data.playerId,
+          chooserTeamId: data.chooserTeamId,
+          targetIds: [...data.targetIds],
         };
       } else if (data?.type === "interception") {
         this.pending = {

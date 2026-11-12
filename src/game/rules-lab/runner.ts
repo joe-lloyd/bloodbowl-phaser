@@ -79,6 +79,11 @@ export function answerDecision(
     }
     case "reaction":
       return { type: "use-reaction", accept: policy.acceptReactions ?? true };
+    case "bite-target":
+      // As the single-Thrall bite: accepting bites the first in board order.
+      return policy.acceptReactions === false
+        ? { type: "choose-bite-target" }
+        : { type: "choose-bite-target", playerId: pending.targetIds[0] };
     case "interception": {
       // Default: the defending coach picks the least-penalised interceptor.
       if ((policy.acceptInterceptions ?? true) === false) {
