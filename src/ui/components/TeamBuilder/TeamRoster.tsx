@@ -1,5 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Team } from "../../../types/Team";
+import {
+  calculateTeamValue,
+  isPendingRaisedDeadRecruit,
+  playerValue,
+  playersTeamValue,
+  playsNextGame,
+  staffTeamValue,
+  Team,
+} from "../../../types/Team";
+import { InjuryType, Player, PlayerStatus } from "../../../types/Player";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
 import { BloodBowlTable } from "../componentWarehouse/BloodBowlTable";
 import { Chip, hudButtonClass } from "../componentWarehouse/HudKit";
@@ -34,6 +43,24 @@ function isRowControl(target: EventTarget | null): boolean {
 }
 
 /**
+ * Why a player is left out of Current Team Value (see playsNextGame). Only
+ * called for players who will not play the next game.
+ */
+function notInTeamValueReason(team: Team, player: Player): string {
+  if (isPendingRaisedDeadRecruit(team, player.id)) return "Not hired yet";
+  if (
+    player.status === PlayerStatus.DEAD ||
+    player.injuries.includes(InjuryType.DEAD)
+  ) {
+    return "Dead";
+  }
+  if (player.injuries.includes(InjuryType.MISS_NEXT_GAME)) {
+    return "Misses the next game";
+  }
+  return "Injured";
+}
+
+/**
  * The team roster table — readable at the application's normal body-text
  * scale (overhaul-team-lifecycle-management, team-lifecycle-modes). Column
  * widths are declared once on the shared header/row `<colgroup>` so headers
@@ -45,6 +72,12 @@ function isRowControl(target: EventTarget | null): boolean {
  * (team-management-layout: "Per-player career statistics are shown on the
  * team detail page, not the overview") — this replaced a separate
  * career-stats block that used to live on the Team Management overview page.
+ *
+ * Each player shows their unspent SPP and their current value (hire cost
+ * plus value gained since, see playerValue). A player who cannot play the
+ * next game is left out of team value, as calculateTeamValue does, so their
+ * value is struck through. The last row adds the counted player values to
+ * re-rolls and staff, giving the same team value the page shows elsewhere.
  *
  * Clicking a player row opens that player's page (full stats and
  * advancement). Reordering starts only from the ≡ handle; every row,
@@ -79,7 +112,8 @@ export function TeamRoster({
         { label: "PA", className: "num" },
         { label: "AV", className: "num" },
         { label: "Skills", width: "15%" },
-        { label: "Cost", className: "num" },
+        { label: "SPP", className: "num" },
+        { label: "Value", className: "num" },
         { label: "GP", className: "num" },
         { label: "TD", className: "num" },
         { label: "CMP", className: "num" },
@@ -187,8 +221,31 @@ export function TeamRoster({
                 <td>
                   <SkillList skills={player.skills} />
                 </td>
-                <td className="num font-hud-label font-bold text-hud-gold">
-                  {formatGold(player.cost)}
+                <td
+                  className={player.spp ? "num" : "num text-hud-mute"}
+                  data-testid="player-spp"
+                  title="Star Player Points"
+                >
+                  {player.spp}
+                </td>
+                <td
+                  className="num font-hud-label font-bold text-hud-gold"
+                  data-testid="player-value"
+                >
+                  {playsNextGame(team, player) ? (
+                    formatGold(playerValue(player))
+                  ) : (
+                    <span
+                      title={`${notInTeamValueReason(team, player)}: not counted in team value`}
+                    >
+                      <s className="text-hud-mute">
+                        {formatGold(playerValue(player))}
+                      </s>
+                      <span className="block whitespace-nowrap font-normal text-hud-sm text-hud-mute">
+                        Not in TV
+                      </span>
+                    </span>
+                  )}
                 </td>
                 {[
                   player.careerStats?.matches ?? 0,
@@ -249,13 +306,22 @@ export function TeamRoster({
                 </td>
               </>
             ) : (
-              <td colSpan={16} className="italic text-hud-mute">
+              <td colSpan={17} className="italic text-hud-mute">
                 Empty slot
               </td>
             )}
           </tr>
         );
       })}
+      <tr data-testid="roster-value-total">
+        <td colSpan={18} className="text-right text-hud-sm text-hud-mute">
+          Players {formatGold(playersTeamValue(team))} + re-rolls &amp; staff{" "}
+          {formatGold(staffTeamValue(team))} ={" "}
+          <span className="font-hud-label font-bold text-hud-gold">
+            TV {formatGold(calculateTeamValue(team))}
+          </span>
+        </td>
+      </tr>
     </BloodBowlTable>
   );
 }
