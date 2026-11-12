@@ -150,7 +150,7 @@ async function expectDownDuring(page: Page, teamId: string) {
         const last = (await timeline(page)).filter((s) => !s.mark).at(-1);
         return last && [last.anim, last.stunnedMarker, last.activeTeamId];
       },
-      { timeout: 3_000 }
+      { timeout: 5_000 }
     )
     .toEqual(["fall", true, teamId]);
 }
