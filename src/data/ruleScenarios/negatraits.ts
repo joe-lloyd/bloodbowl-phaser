@@ -699,6 +699,39 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           },
         ],
       },
+      {
+        id: "bloodlust-bite",
+        name: "Bloodlust bites a Thrall Lineman",
+        description:
+          "A failed roll owes a bite: at the end of the activation the coach may bite the adjacent Thrall Lineman, who takes an Injury Roll",
+        setup: playSetup({
+          team1Roster: RosterName.VAMPIRE,
+          team1Placements: [
+            {
+              playerIndex: 0,
+              x: 10,
+              y: 5,
+              skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
+            },
+            { playerIndex: 1, x: 11, y: 5 },
+            // Someone left to activate, so the bite does not end the turn
+            { playerIndex: 2, x: 3, y: 9 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 20, y: 2 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          { type: "declare-action", playerId: "team1:0", action: "move" },
+        ],
+        seedSearch: { from: 1, limit: 300 },
+        outcomes: [
+          {
+            id: "thirst",
+            name: "Fails the roll — a Thrall Lineman is in reach",
+            matches: (r) => skillTriggered(r, SkillType.BLOODLUST),
+          },
+        ],
+      },
     ],
   },
   {

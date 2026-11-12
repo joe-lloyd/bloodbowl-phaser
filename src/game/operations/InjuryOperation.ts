@@ -123,6 +123,10 @@ export class InjuryOperation extends GameOperation {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
         player.status = PlayerStatus.STUNNED;
+        // Announce it now: a Bloodlust bite reaches this roll with no Knock
+        // Down before it, so without this the board would leave the player
+        // standing until some later full refresh.
+        eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         break;
       case InjuryResult.KO: {
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
