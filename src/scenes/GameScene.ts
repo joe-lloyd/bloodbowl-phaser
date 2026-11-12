@@ -54,6 +54,13 @@ import {
   resolvePlayerLocation,
 } from "../game/presentation/boardState";
 
+/** The commands a dropped player sends: see GameScene.awaitsEngine. */
+const DROP_COMMANDS = new Set([
+  "place-player",
+  "remove-player",
+  "kickoff-place-player",
+]);
+
 /**
  * Game Scene - Unified scene for Setup and Gameplay
  * Game Scene - Unified scene for Setup and Gameplay
@@ -813,6 +820,13 @@ export class GameScene extends Phaser.Scene {
       this.syncPlayerStatuses();
     });
 
+    // A drop the engine turned down after the board let go of it: the board
+    // left the player where they were dropped (see awaitsEngine), and the
+    // record still has them where they were, so a redraw puts them back.
+    this.subscribe(GameEventNames.NetworkCommandRejected, ({ commandType }) => {
+      if (DROP_COMMANDS.has(commandType)) this.refreshDugouts();
+    });
+
     // Online: the other coach's move, drawn as one line while the player
     // runs it, and cleared once the move has run here and the walk has
     // played, rather than after a guess at how long the walk takes
@@ -983,9 +997,10 @@ export class GameScene extends Phaser.Scene {
             "Solid Defence: drag to a different legal empty setup square."
           );
         }
-        // Local games have already changed authoritative state; online guests
-        // snap to their current state until the host's synchronized result
-        // arrives. Invalid drops always return to the original square.
+        // Local games have already changed authoritative state. Against the
+        // computer and online the engine's PlayerPlaced redraws the board
+        // once the move has run. Invalid drops return to the original square.
+        if (this.awaitsEngine(moved)) return;
         this.placePlayersOnPitch();
       });
     });
@@ -1033,22 +1048,36 @@ export class GameScene extends Phaser.Scene {
       );
       sprite.on("dragend", () => {
         const grid = this.pitch.worldToGrid(sprite.x, sprite.y);
+        if (!this.placementController.isInSetupZone(grid.x, grid.y)) {
+          // Dropped outside the setup zone: back to the dugout. Checked
+          // first, as a refused placement redraws the player on their old
+          // square, where they showed until the dugout took them.
+          this.placementController.removePlayer(player.id);
+          return;
+        }
         const moved = this.placementController.placePlayer(
           player.id,
           grid.x,
           grid.y
         );
         if (!moved) {
-          if (!this.placementController.isInSetupZone(grid.x, grid.y)) {
-            // Dropped outside the setup zone: back to the dugout
-            this.placementController.removePlayer(player.id);
-          } else {
-            // e.g. occupied square: snap back to the current placement
-            this.placePlayersOnPitch();
-          }
+          // e.g. occupied square: snap back to the current placement
+          this.placePlayersOnPitch();
         }
       });
     });
+  }
+
+  /**
+   * Whether a drop the service accepted should stay as it is until the
+   * engine answers. Against the computer and online the engine runs the
+   * command a moment later, and until then the record still has the player
+   * on the square they left: redrawing now drew them back there for a frame
+   * before they jumped to the new square. The answer redraws the board, and
+   * so does a refusal (NetworkCommandRejected), which puts the player back.
+   */
+  private awaitsEngine(accepted: boolean): boolean {
+    return accepted && this.gameService.runsCommandsLater === true;
   }
 
   // Setup-specific event listeners (placement controller events only)
@@ -1059,8 +1088,14 @@ export class GameScene extends Phaser.Scene {
     this.placementController.on(
       GameEventNames.PlayerPlaced,
       (data: { playerId: string; x: number; y: number }) => {
-        this.gameService.placePlayer(data.playerId, data.x, data.y);
+        const accepted = this.gameService.placePlayer(
+          data.playerId,
+          data.x,
+          data.y
+        );
         this.placementController.syncFromTeam();
+        // The engine's answer redraws the board (UI_SyncBoard)
+        if (this.awaitsEngine(accepted)) return;
         this.refreshDugouts();
         this.checkSetupCompleteness();
       }
@@ -1070,6 +1105,8 @@ export class GameScene extends Phaser.Scene {
       GameEventNames.PlayerRemoved,
       (playerId: string) => {
         this.gameService.removePlayer(playerId);
+        // Nothing comes back to check; the engine's answer redraws the board
+        if (this.awaitsEngine(true)) return;
         this.refreshDugouts();
         this.checkSetupCompleteness();
       }

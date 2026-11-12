@@ -31,6 +31,7 @@ import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager"
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
 export class NetworkedGameService implements IGameService {
+  readonly runsCommandsLater = true;
   /** followUpPush + finishActivation arrive as one decision on the wire */
   private swallowNextFinish: string | null = null;
 

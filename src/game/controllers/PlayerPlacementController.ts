@@ -97,11 +97,16 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           const worldY = matrix.ty;
 
           const gridPos = this.pitch.worldToGrid(worldX, worldY);
-          this.placePlayer(playerId, gridPos.x, gridPos.y);
+          if (this.placePlayer(playerId, gridPos.x, gridPos.y)) {
+            // A valid drop: the dugout refresh hides this sprite and the
+            // pitch shows the player. Against the computer and online that
+            // refresh comes a moment later, and snapping home now would
+            // show the player back in the dugout until then.
+            return;
+          }
 
-          // Snap the dugout sprite back to its slot; an invalid drop (off
-          // pitch / outside the zone) leaves the player visibly back in the
-          // dugout, a valid one gets re-laid-out by the dugout refresh
+          // An invalid drop (off pitch / outside the zone) leaves the
+          // player visibly back in their dugout slot
           sprite.x = (sprite.getData("homeX") as number) ?? 0;
           sprite.y = (sprite.getData("homeY") as number) ?? 0;
         });

@@ -329,3 +329,71 @@ describe("PlayerPlacementController", () => {
     });
   });
 });
+
+describe("PlayerPlacementController dugout drops", () => {
+  /** A dugout sprite that keeps its listeners so a test can fire them. */
+  const dugoutSprite = (home: { x: number; y: number }) => {
+    const handlers = new Map<string, (...args: unknown[]) => void>();
+    const data = new Map<string, unknown>();
+    const sprite = {
+      ...home,
+      displayOriginX: 0,
+      displayOriginY: 0,
+      input: {},
+      setInteractive: vi.fn(),
+      disableInteractive: vi.fn(),
+      setAlpha: vi.fn(),
+      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        handlers.set(event, handler);
+      }),
+      off: vi.fn((event: string) => handlers.delete(event)),
+      setData: vi.fn((key: string, value: unknown) => data.set(key, value)),
+      getData: vi.fn((key: string) => data.get(key)),
+      getWorldTransformMatrix: () => ({ tx: sprite.x, ty: sprite.y }),
+      fire: (event: string, ...args: unknown[]) =>
+        handlers.get(event)?.(...args),
+    };
+    return sprite;
+  };
+
+  const dropOn = (square: { x: number; y: number }) => {
+    const pitch = {
+      getContainer: () => ({ x: 0, y: 0 }),
+      worldToGrid: () => square,
+    } as unknown as Pitch;
+    const controller = new PlayerPlacementController(
+      {} as Phaser.Scene,
+      pitch,
+      new SetupValidator()
+    );
+    const sprite = dugoutSprite({ x: 900, y: 40 });
+    const team = {
+      id: "team-1",
+      players: [{ id: "p1", teamId: "team-1", status: "Reserve" }],
+    } as unknown as Team;
+    controller.enablePlacement(
+      team,
+      true,
+      new Map([["p1", sprite as unknown as Phaser.GameObjects.Container]])
+    );
+    sprite.fire("dragstart");
+    // Dragged over the pitch
+    sprite.x = 300;
+    sprite.y = 200;
+    sprite.fire("dragend", { worldX: 300, worldY: 200 });
+    return sprite;
+  };
+
+  it("leaves a placed player's dugout sprite where it was dropped", () => {
+    // The dugout refresh hides it; against the computer or online that
+    // refresh comes a moment later, and a snap home would show the player
+    // back in the dugout until then
+    const sprite = dropOn({ x: 1, y: 1 });
+    expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 300, y: 200 });
+  });
+
+  it("snaps a refused drop back to the dugout slot", () => {
+    const sprite = dropOn({ x: 20, y: 5 });
+    expect({ x: sprite.x, y: sprite.y }).toEqual({ x: 900, y: 40 });
+  });
+});

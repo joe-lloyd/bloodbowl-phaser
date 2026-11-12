@@ -79,6 +79,13 @@ export interface IGameService {
   /** Confirm a team's pregame selection; commits once both teams have. */
   confirmInducements(teamId: string): { ok: boolean; errors: string[] };
 
+  /**
+   * True when a mutator only sends a command and the engine runs it a
+   * moment later (against the computer, online). Until it runs, the record
+   * still shows the board as it was before the command.
+   */
+  readonly runsCommandsLater?: boolean;
+
   // Setup
   startSetup(startingTeamId?: string): void;
   placePlayer(playerId: string, x: number, y: number): boolean;
