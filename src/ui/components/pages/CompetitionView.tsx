@@ -113,13 +113,17 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       );
   }, [id, type]);
 
+  // A link, not a step back: after a match the results screen pushes this
+  // page on top of /play, so a history step would reopen the match.
+  const allCompetitions = {
+    label: type === "league" ? "All leagues" : "All tournaments",
+    to: type === "league" ? "/leagues" : "/tournaments",
+  };
+
   if (!competition) {
     return (
       <PageShell width="wide">
-        <PageHeader
-          back={{ label: "Back", onClick: () => navigate(-1) }}
-          title="Competition"
-        />
+        <PageHeader back={allCompetitions} title="Competition" />
         {error ? (
           <Notice tone="bad" role="alert">
             {error}
@@ -590,10 +594,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   return (
     <PageShell width="wide">
       <PageHeader
-        back={{
-          label: `All ${competition.type}s`,
-          onClick: () => navigate(-1),
-        }}
+        back={allCompetitions}
         eyebrow={
           competition.type === "tournament"
             ? competition.format.replace("-", " ")
