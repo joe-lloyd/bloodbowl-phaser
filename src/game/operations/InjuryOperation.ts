@@ -85,7 +85,7 @@ export class InjuryOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
@@ -165,7 +165,9 @@ export class InjuryOperation extends GameOperation {
         flowManager.add(
           new CasualtyOperation(
             this.playerId,
-            this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : ctx.result,
+            this.opts.casualtyIsBadlyHurt
+              ? InjuryResult.BADLY_HURT
+              : ctx.result,
             this.opts.causedById,
             this.opts.cause
           ),
