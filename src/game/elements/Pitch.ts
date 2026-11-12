@@ -464,7 +464,6 @@ export class Pitch {
     });
   }
 
-  /** Names of the drawn layers, for the browser test bridge. */
   /** The squares under the visible square highlights, in drawing order. */
   public visibleHighlights(): GridPosition[] {
     return this.container
@@ -478,6 +477,7 @@ export class Pitch {
       .map((marker) => ({ ...(marker.getData("grid") as GridPosition) }));
   }
 
+  /** Names of the drawn layers, for the browser test bridge. */
   public layerNames(): string[] {
     return this.container
       .getAll()
