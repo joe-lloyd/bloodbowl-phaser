@@ -353,8 +353,11 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       this.figure.setAlpha(0.55);
     } else {
       // Restore what the canonical status dictates; a turn reset must not
-      // stand a stunned model up.
-      this.updateStatus(false);
+      // stand a stunned model up. A player still standing here whose fall
+      // has not shown yet plays it (a Bloodlust bite settled by End Turn
+      // passes the turn before its Injury dice land); one already down just
+      // lies there.
+      this.updateStatus();
     }
   }
 

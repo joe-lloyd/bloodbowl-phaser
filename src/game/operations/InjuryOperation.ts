@@ -85,7 +85,7 @@ export class InjuryOperation extends GameOperation {
     super();
   }
 
-  async execute(context: any): Promise<void> {
+  async execute(context: FlowContext): Promise<void> {
     const gameService = context.gameService as IGameService;
     const eventBus =
       context.eventBus as import("../../services/EventBus").IEventBus;
@@ -123,6 +123,10 @@ export class InjuryOperation extends GameOperation {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");
         player.status = PlayerStatus.STUNNED;
+        // Announce it now: a Bloodlust bite reaches this roll with no Knock
+        // Down before it, so without this the board would leave the player
+        // standing until some later full refresh.
+        eventBus.emit(GameEventNames.PlayerStatusChanged, player);
         break;
       case InjuryResult.KO: {
         eventBus.emit(GameEventNames.UI_Notification, "KNOCKED OUT!");
@@ -161,7 +165,9 @@ export class InjuryOperation extends GameOperation {
         flowManager.add(
           new CasualtyOperation(
             this.playerId,
-            this.opts.casualtyIsBadlyHurt ? InjuryResult.BADLY_HURT : ctx.result,
+            this.opts.casualtyIsBadlyHurt
+              ? InjuryResult.BADLY_HURT
+              : ctx.result,
             this.opts.causedById,
             this.opts.cause
           ),
