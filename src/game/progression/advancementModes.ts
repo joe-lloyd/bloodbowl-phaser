@@ -32,7 +32,7 @@ import {
   SKILL_ROLL_TABLE,
   advancementCount,
   isSkillLegal,
-  rollSkill,
+  rollTakeableSkill,
 } from "./progression";
 
 type Rng = Pick<IRNGService, "rollDie">;
@@ -453,18 +453,13 @@ export function rollSecondaryCandidates(
   if (!categoriesFor(player, "secondary").includes(category)) {
     throw new Error(`${category} is not a Secondary category for ${player.playerName}.`);
   }
-  const rollCandidate = (): SkillRollCandidate => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const firstD6 = rng.rollDie(6);
-      const secondD6 = rng.rollDie(6);
-      const skill = rollSkill(category, firstD6, secondD6);
-      if (!NEVER_GAINED.has(skill) && isSkillLegal(player, skill)) {
-        return { skill, firstD6, secondD6 };
-      }
-    }
-    throw new Error("No legal random skill could be rolled");
-  };
-  progress.rolled = { category, candidates: [rollCandidate(), rollCandidate()] };
+  const canTake = (skill: SkillType) =>
+    !NEVER_GAINED.has(skill) && isSkillLegal(player, skill);
+  const candidates: SkillRollCandidate[] = [
+    rollTakeableSkill(category, canTake, rng),
+    rollTakeableSkill(category, canTake, rng),
+  ];
+  progress.rolled = { category, candidates };
 }
 
 /** A3: the coach chooses one of the two rolled skills. */

@@ -390,6 +390,29 @@ describe("Sevens Skill Selection, Secondary route (A3, A4, A5)", () => {
       ],
     });
   });
+
+  it("re-rolls a skill the player already has or cannot have", () => {
+    const p1 = withAddedSkill(player("p1"), SkillType.GUARD, 10_000);
+    p1.skills.push(getSkill(SkillType.FRENZY));
+    const team = teamOf([p1]);
+    createPendingSkillSelection(team, "match-1", ["p1"]);
+    const entry = onlySelection(team);
+    startSecondarySelection(team, entry, fakeRng([1]));
+    // Strength 1,6 is Guard (owned) and 1,5 Grab (clashes with Frenzy):
+    // both rolled again, to 1,1 Arm Bar. Then 4,2 Mighty Blow.
+    rollSecondaryCandidates(
+      team,
+      entry,
+      SkillCategory.STRENGTH,
+      fakeRng([1, 6, 1, 5, 1, 1, 4, 2])
+    );
+    expect(skillSelectionDecision(team, entry)).toMatchObject({
+      candidates: [
+        { skill: SkillType.ARM_BAR, firstD6: 1, secondD6: 1 },
+        { skill: SkillType.MIGHTY_BLOW, firstD6: 4, secondD6: 2 },
+      ],
+    });
+  });
 });
 
 describe("Drafted Players (A6)", () => {
