@@ -879,6 +879,19 @@ export class GameService implements IGameService {
 
   endTurn(): void {
     if (this.turnManager.isTurnoverInProgress()) return;
+    // A failed Bloodlust still owes its bite. Ending the turn is one more
+    // way of not biting, so it is settled first, exactly as ending the
+    // activation would: bite a Thrall, or take the Turnover and Distracted.
+    // The turn then ends, through that Turnover if there was one.
+    const live = this.state.activePlayer;
+    if (live && this.takeUnsatedBloodlust(live.id)) {
+      this.flowManager.add(
+        new BloodlustBiteOperation(live.id, "consequences", () =>
+          this.endTurn()
+        )
+      );
+      return;
+    }
     // A turn can be force-ended (the online clock expiring, or a manual End
     // Turn click) while a player's declaration is still live — declared and
     // even committed (movement spent, a die rolled), but never finalized via
