@@ -322,16 +322,19 @@ export function TurnClock({
       if (timer.turn == null || timer.turn !== turnKey()) return;
       if (Date.now() <= timer.deadline) return;
       if (currentPhase() !== GamePhase.PLAY) return;
-      if (endedForRef.current === timer.deadline) return; // end once per turn
       // A decision of this coach's own is open with no time left: give its
       // default answer, as the other coach's short clock does, so the turn
-      // can end. The next tick ends it once nothing is open.
+      // can end. The next tick ends it once nothing is open. This comes
+      // before the end-once guard: ending the turn can itself ask a
+      // question, such as a failed Bloodlust's bite, and nobody may be there
+      // to answer it.
       const pending = match.pendingDecision();
       if (pending) {
         if (match.decidingTeamId() !== match.myTeamId) return;
         answerOnce(pending, `${timer.deadline}:${JSON.stringify(pending)}`);
         return;
       }
+      if (endedForRef.current === timer.deadline) return; // end once per turn
       endedForRef.current = timer.deadline;
       // An end-turn command like any other: the other side replays it.
       // The next TurnStarted rewrites the deadline.

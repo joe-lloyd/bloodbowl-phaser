@@ -166,6 +166,58 @@ describe("the acting coach's clock runs out on their own decision", () => {
     container.remove();
   });
 
+  it("answers a question that ending the turn asks, such as a failed Bloodlust's bite", async () => {
+    vi.useFakeTimers();
+    let pending: PendingDecision | null = null;
+    const bite: PendingDecision = {
+      type: "reaction",
+      playerId: "vampire-1",
+      chooserTeamId: "host-team",
+      skill: "Bloodlust",
+      prompt: "Bloodlust: bite the Thrall Lineman?",
+    } as unknown as PendingDecision;
+    // Ending the turn with the bite still owed asks for it first
+    endTurn.mockImplementationOnce(() => {
+      pending = bite;
+    });
+    const run = vi.fn(async () => {
+      pending = null;
+      return { ok: true };
+    });
+    const match = {
+      role: "host",
+      myTeamId: "host-team",
+      opponentName: "Other",
+      coachName: () => "Other",
+      pendingDecision: () => pending,
+      decidingTeamId: () => pending?.chooserTeamId ?? null,
+      setClockPaused: vi.fn(),
+      run,
+    } as unknown as OnlineMatch;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <TurnClock
+          code="ABC123"
+          lobby={expiredLobby()}
+          match={match}
+          eventBus={new EventBus()}
+          user={{ uid: "host-uid" } as AuthUser}
+        />
+      )
+    );
+
+    await act(async () => vi.advanceTimersByTimeAsync(1600));
+    expect(endTurn).toHaveBeenCalledTimes(1);
+    // Declined on the absent coach's behalf: the penalty ends the turn
+    expect(run.mock.calls).toEqual([[{ type: "use-reaction", accept: false }]]);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("tries the answer again when the engine refuses it", async () => {
     vi.useFakeTimers();
     let pending: PendingDecision | null = blockDice;
