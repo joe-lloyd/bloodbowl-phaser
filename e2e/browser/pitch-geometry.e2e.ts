@@ -105,6 +105,7 @@ test.describe("pitch geometry and the test bridge", () => {
       "events",
       "pendingDecision",
       "phase",
+      "pitchHighlights",
       "pitchLayers",
       "scenes",
       "snapshot",

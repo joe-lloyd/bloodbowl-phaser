@@ -216,6 +216,57 @@ describe("GameplayInteractionController", () => {
     });
   });
 
+  describe("a push into the crowd", () => {
+    const handler = (name: string) =>
+      mockEventBus.on.mock.calls.find(([event]) => event === name)?.[1];
+
+    it("highlights the off-pitch square and resolves the push when it is clicked", () => {
+      handler(GameEventNames.UI_SelectPushDirection)({
+        validDirections: [{ x: 11, y: -1 }],
+        defenderId: "p2",
+        attackerId: "p1",
+        resultType: "push",
+        pushTier: "crowd",
+      });
+
+      expect(mockPitch.highlightSquare).toHaveBeenCalledWith(11, -1, 0xff0000, {
+        crowd: true,
+      });
+
+      // The click lands one square off the pitch, on the highlighted square
+      (mockPitch as Record<string, unknown>).worldToGrid = vi.fn(() => ({
+        x: 11,
+        y: -1,
+      }));
+      controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
+
+      expect(mockGameService.executePush).toHaveBeenCalledWith(
+        "p1",
+        "p2",
+        { x: 11, y: -1 },
+        "push",
+        false
+      );
+    });
+
+    it("ignores a click two squares off the pitch", () => {
+      handler(GameEventNames.UI_SelectPushDirection)({
+        validDirections: [{ x: 11, y: -1 }],
+        defenderId: "p2",
+        attackerId: "p1",
+        resultType: "push",
+        pushTier: "crowd",
+      });
+      (mockPitch as Record<string, unknown>).worldToGrid = vi.fn(() => ({
+        x: 11,
+        y: -2,
+      }));
+      controller.handlePointerDown({ worldX: 0, worldY: 0 }, false);
+
+      expect(mockGameService.executePush).not.toHaveBeenCalled();
+    });
+  });
+
   describe("a push the other coach picks", () => {
     // Online, the push arrows reach both boards; only the attacker picks
     const handler = (name: string) =>

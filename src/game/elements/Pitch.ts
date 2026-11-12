@@ -52,16 +52,22 @@ export class Pitch {
   /**
    * A filled diamond over one square, centred on the square. Some rules
    * helpers still scan a board larger than the Sevens pitch, so squares off
-   * the pitch are drawn nowhere rather than out in the stands.
+   * the pitch are drawn nowhere rather than out in the stands. The one
+   * exception is opted into: a crowd push is chosen on the ring of squares
+   * just outside the pitch, so `crowd` lets a diamond be drawn there.
    */
   private diamond(
     gridX: number,
     gridY: number,
     color: number,
     alpha: number,
-    inset = 0
+    inset = 0,
+    crowd = false
   ): SquareMarker {
-    if (!this.isOnPitch({ x: gridX, y: gridY })) return this.offPitchMarker();
+    const square = { x: gridX, y: gridY };
+    const drawable =
+      this.isOnPitch(square) || (crowd && this.isCrowdSquare(square));
+    if (!drawable) return this.offPitchMarker();
     const w = ISO.tileWidth * (1 - 2 * inset);
     const h = ISO.tileHeight * (1 - 2 * inset);
     const centre = gridToPixel(gridX, gridY);
@@ -72,6 +78,7 @@ export class Pitch {
       color,
       alpha
     );
+    shape.setData("grid", { x: gridX, y: gridY });
     this.container.add(shape);
     return shape;
   }
@@ -121,14 +128,23 @@ export class Pitch {
   }
 
   /**
-   * Highlight a square on the pitch
+   * Highlight a square on the pitch. `crowd: true` also draws a square in
+   * the ring just off the pitch, where a push into the crowd is chosen.
    */
   public highlightSquare(
     gridX: number,
     gridY: number,
-    color: number
+    color: number,
+    options: { crowd?: boolean } = {}
   ): SquareMarker {
-    return this.diamond(gridX, gridY, color, 0.5, 0.04).setName("highlight");
+    return this.diamond(
+      gridX,
+      gridY,
+      color,
+      0.5,
+      0.04,
+      options.crowd ?? false
+    ).setName("highlight");
   }
 
   /**
@@ -448,6 +464,19 @@ export class Pitch {
     });
   }
 
+  /** The squares under the visible square highlights, in drawing order. */
+  public visibleHighlights(): GridPosition[] {
+    return this.container
+      .getAll()
+      .filter(
+        (child): child is SquareMarker =>
+          child.name === "highlight" &&
+          (child as SquareMarker).visible &&
+          !!(child as SquareMarker).getData("grid")
+      )
+      .map((marker) => ({ ...(marker.getData("grid") as GridPosition) }));
+  }
+
   /** Names of the drawn layers, for the browser test bridge. */
   public layerNames(): string[] {
     return this.container
@@ -678,6 +707,17 @@ export class Pitch {
   public isOnPitch(pos: GridPosition): boolean {
     return (
       pos.x >= 0 && pos.y >= 0 && pos.x < this.width && pos.y < this.height
+    );
+  }
+
+  /** A square in the ring one step outside the pitch: where the crowd stands. */
+  public isCrowdSquare(pos: GridPosition): boolean {
+    return (
+      !this.isOnPitch(pos) &&
+      pos.x >= -1 &&
+      pos.y >= -1 &&
+      pos.x <= this.width &&
+      pos.y <= this.height
     );
   }
 

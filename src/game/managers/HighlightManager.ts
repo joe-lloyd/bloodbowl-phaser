@@ -10,14 +10,18 @@ export class HighlightManager {
   constructor(private pitch: Pitch) {}
 
   /**
-   * Add a push direction highlight (yellow squares for block push selection)
+   * Add a push direction highlight (yellow squares for block push selection).
+   * A push into the crowd is chosen one square off the pitch, so push
+   * highlights may be drawn in that ring.
    */
   public addPushHighlight(
     gridX: number,
     gridY: number,
     color: number = 0xffff00
   ): SquareMarker {
-    const square = this.pitch.highlightSquare(gridX, gridY, color);
+    const square = this.pitch.highlightSquare(gridX, gridY, color, {
+      crowd: true,
+    });
     this.pushSquares.push(square);
     return square;
   }
