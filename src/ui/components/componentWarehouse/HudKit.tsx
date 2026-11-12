@@ -8,6 +8,7 @@
  * `.hud-page`, `.hud-table` and `.hud-check` are in styles/global.css.
  */
 import React, { forwardRef, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Hotkey, hotkeyLabel, useHotkey } from "../../hotkeys";
 
 export const cx = (...classes: (string | false | null | undefined)[]) =>
@@ -636,13 +637,16 @@ export function PageHeader({
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
-  /** A small back link above the title. */
-  back?: { label: string; onClick: () => void };
+  /**
+   * A small back link above the title. `to` makes it a real link to that
+   * route; `onClick` is for a back step that depends on where you came from.
+   */
+  back?: BackTarget;
   actions?: React.ReactNode;
 }) {
   return (
     <header className="mb-8">
-      {back && <BackLink label={back.label} onClick={back.onClick} />}
+      {back && <BackLink {...back} />}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
           {eyebrow && <Eyebrow tone="gold">{eyebrow}</Eyebrow>}
@@ -667,27 +671,41 @@ export function PageHeader({
   );
 }
 
-/** A small "← Back" text button. */
+/** Where a back link goes: a route, or a handler. */
+export type BackTarget =
+  | { label: string; to: string; onClick?: never }
+  | { label: string; onClick: () => void; to?: never };
+
+/**
+ * A small "← Back" text control. With `to` it is a link to that route, so
+ * it goes to the same page however you arrived, after a reload, and in a
+ * new tab. With `onClick` it is a button.
+ */
 export function BackLink({
   label,
-  onClick,
   className,
-}: {
-  label: string;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        "mb-4 inline-flex min-h-[32px] items-center gap-1.5 rounded-hud font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-dim transition-colors hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold",
-        className
-      )}
-    >
+  ...target
+}: BackTarget & { className?: string }) {
+  const classes = cx(
+    "mb-4 inline-flex min-h-[32px] items-center gap-1.5 rounded-hud font-hud-label text-hud-sm font-bold uppercase tracking-[0.08em] text-hud-dim transition-colors hover:text-hud-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hud-gold",
+    className
+  );
+  const content = (
+    <>
       <span aria-hidden>←</span>
       {label.replace(/^←\s*/, "")}
+    </>
+  );
+  if (target.to !== undefined) {
+    return (
+      <Link to={target.to} className={classes}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={target.onClick} className={classes}>
+      {content}
     </button>
   );
 }
