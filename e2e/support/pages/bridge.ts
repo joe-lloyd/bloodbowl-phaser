@@ -94,6 +94,15 @@ export class GameBridge {
     );
   }
 
+  /** The grid squares under the square highlights visible on the pitch. */
+  pitchHighlights(): Promise<{ x: number; y: number }[]> {
+    return this.page.evaluate(() =>
+      (
+        window as unknown as Record<string, BrowserTestBridge>
+      ).__bbTestBridge.pitchHighlights()
+    );
+  }
+
   teams(): Promise<[BridgeTeam, BridgeTeam]> {
     return this.page.evaluate(() =>
       (

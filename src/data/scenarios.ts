@@ -200,6 +200,22 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "crowd-surf-corner",
+    name: "Crowd Surf Test - Corner",
+    description:
+      "Defender in the far corner, blocked diagonally: all three push " +
+      "squares are off the pitch, including the corner square",
+    setup: {
+      team1Placements: [{ playerIndex: 0, x: 18, y: 1 }],
+      team2Placements: [{ playerIndex: 0, x: 19, y: 0 }], // corner square
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
     id: "debug-empty",
     name: "Empty Pitch",
     description: "Clear pitch with no players placed",

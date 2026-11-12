@@ -65,6 +65,8 @@ export interface BrowserTestBridge {
   cameraMoving(): boolean;
   /** Names of the layers drawn on the pitch, such as "setup_zone_highlight". */
   pitchLayers(): string[];
+  /** The grid squares under the square highlights actually visible on the pitch. */
+  pitchHighlights(): { x: number; y: number }[];
   /**
    * The *live* design-space canvas size. Deliberately read from the running
    * Phaser scale manager rather than `GameConfig`: the scale manager fits the
@@ -131,6 +133,7 @@ interface BridgeScene {
     | {
         getPixelPosition(x: number, y: number): { x: number; y: number };
         layerNames(): string[];
+        visibleHighlights(): { x: number; y: number }[];
       }
     | undefined;
 }
@@ -200,6 +203,10 @@ export function installBrowserTestBridge(ctx: HeadlessGameContext): void {
       }),
     pitchLayers: () =>
       activeScenes().flatMap((scene) => scene.getPitch?.()?.layerNames() ?? []),
+    pitchHighlights: () =>
+      activeScenes().flatMap(
+        (scene) => scene.getPitch?.()?.visibleHighlights() ?? []
+      ),
     canvasSize: () => {
       const scale = phaserGame()?.scale;
       return {
