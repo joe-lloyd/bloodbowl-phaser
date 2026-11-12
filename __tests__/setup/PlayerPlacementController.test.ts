@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import Phaser from "phaser";
 import { PlayerPlacementController } from "../../src/game/controllers/PlayerPlacementController";
 import { SetupValidator } from "../../src/game/validators/SetupValidator";
 import { Pitch } from "../../src/game/elements/Pitch";
@@ -148,6 +149,81 @@ describe("PlayerPlacementController", () => {
 
       controller.enablePlacement(team, true, dugoutSprites);
       expect(controller.getPlacedCount()).toBe(0);
+    });
+  });
+
+  describe("setup hit areas", () => {
+    /** A dugout sprite that already takes input, picked by its figure. */
+    const figureSprite = () =>
+      ({
+        displayOriginX: 28,
+        displayOriginY: 40,
+        input: {
+          enabled: true,
+          hitArea: { width: 56, height: 82 },
+          hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        },
+        setInteractive: vi.fn(),
+        disableInteractive: vi.fn(),
+        setAlpha: vi.fn(),
+        setDepth: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+      }) as unknown as Phaser.GameObjects.Container;
+
+    it("gives a sprite the dugout adds during setup the square hit area", () => {
+      controller.enablePlacement(team, true, dugoutSprites);
+      // A player entering the dugout for the first time gets a new sprite,
+      // picked by its figure (Dugout.createPlayerSprite)
+      const added = figureSprite();
+      dugoutSprites.set("p2", added);
+
+      controller.applySetupHitAreas();
+
+      expect(added.input!.hitArea).toMatchObject({
+        width: ISO.tileWidth,
+        height: ISO.tileHeight,
+      });
+      expect(added.input!.hitAreaCallback).toBe(squareHitAreaContains);
+    });
+
+    it("picks dugout sprites by their figure again once setup ends", () => {
+      const reserve = figureSprite();
+      dugoutSprites.set("p1", reserve);
+      controller.enablePlacement(team, true, dugoutSprites);
+      expect(reserve.input!.hitAreaCallback).toBe(squareHitAreaContains);
+      const enableCalls = vi.mocked(reserve.setInteractive).mock.calls.length;
+
+      controller.restoreFigureHitAreas();
+
+      expect(reserve.input!.hitArea).toMatchObject({ width: 56, height: 82 });
+      expect(reserve.input!.hitAreaCallback).toBe(
+        Phaser.Geom.Rectangle.Contains
+      );
+      // Only the shape changes: input stays as setup left it
+      expect(reserve.setInteractive).toHaveBeenCalledTimes(enableCalls);
+      expect(reserve.input!.enabled).toBe(true);
+    });
+
+    it("restores the figure hit area when placement is disabled", () => {
+      const reserve = figureSprite();
+      dugoutSprites.set("p1", reserve);
+      dugoutSprites.set("p2", figureSprite());
+      controller.enablePlacement(team, true, dugoutSprites);
+
+      controller.disablePlacement();
+
+      expect(reserve.input!.hitArea).toMatchObject({ width: 56, height: 82 });
+    });
+
+    it("leaves dugout sprites alone outside setup", () => {
+      const reserve = figureSprite();
+      dugoutSprites.set("p1", reserve);
+      const before = reserve.input!.hitArea;
+
+      controller.applySetupHitAreas();
+
+      expect(reserve.input!.hitArea).toBe(before);
     });
   });
 

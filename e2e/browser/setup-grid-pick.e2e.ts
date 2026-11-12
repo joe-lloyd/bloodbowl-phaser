@@ -10,6 +10,9 @@
  * then moves a Snotling from (2, 4) onto (3, 1), the square straight behind
  * the Troll on screen, where the Troll's body covers it.
  *
+ * Once setup is over the dugout is picked by figure again, so hovering a
+ * reserve's body shows their details as it always did.
+ *
  * SHOTS=<dir> also saves a screenshot before each press, with the pressed
  * point marked, and the measured points and picked players as JSON.
  */
@@ -26,6 +29,7 @@ interface Square {
 
 const UNDERWORLD = "Underworld Denizens Founders";
 const OPPONENT = "Human Founders";
+const SNOTLINGS = "Snotling Founders";
 const TROLL = 3;
 const SNOTLING = 5;
 const BEHIND_SNOTLING = 6;
@@ -50,6 +54,13 @@ const DROP_B = { x: 1, y: 5 };
 const DUGOUT_TROLL = { x: 9, y: -2 };
 const DUGOUT_BEHIND = { x: 8, y: -3 };
 const DUGOUT_DROP = { x: 5, y: 5 };
+/** Outside the home setup zone: a drop here sends the player to the dugout. */
+const OFF_ZONE = { x: 10, y: 5 };
+/**
+ * The empty KO square straight behind the first reserves slot, (6, -2), on
+ * screen: a reserve standing there reaches over it.
+ */
+const BEHIND_RESERVE_SLOT = { x: 5, y: -3 };
 
 type Positions = Record<string, Square | null>;
 
@@ -63,7 +74,7 @@ test("setup picks players up by their grid square, not their body", async ({
   const measurements: unknown[] = [];
   let shot = 0;
 
-  await startUnderworldSetup(page, app);
+  await startSetup(page, app, UNDERWORLD);
   const team = (await app.bridge.teams()).find((t) => t.name === UNDERWORLD)!;
   const id = (index: number) => team.players[index].id;
 
@@ -123,7 +134,7 @@ test("setup picks players up by their grid square, not their body", async ({
   };
 
   /** Balanced preset, then a Snotling straight behind the Troll. */
-  const troll_in_front_of_snotling = async () => {
+  const trollInFrontOfSnotling = async () => {
     await loadPreset(page, /balanced/i);
     expect((await positions())[id(TROLL)]).toEqual(TROLL_SQUARE);
     const { after } = await drag(
@@ -137,14 +148,14 @@ test("setup picks players up by their grid square, not their body", async ({
 
   try {
     await test.step("pressing the Troll's own square drags the Troll", async () => {
-      await troll_in_front_of_snotling();
+      await trollInFrontOfSnotling();
       const { picked, after } = await drag("own-square", TROLL_SQUARE, DROP_B);
       expect.soft(picked.map((p) => p.playerId)).toEqual([id(TROLL)]);
       expect.soft(after[id(TROLL)]).toEqual(DROP_B);
     });
 
     await test.step("pressing the Troll's body over the Snotling's square picks the Snotling", async () => {
-      await troll_in_front_of_snotling();
+      await trollInFrontOfSnotling();
       const { picked, after } = await drag("overhang-occupied", BEHIND, DROP_A);
       expect.soft(picked.map((p) => p.playerId)).toEqual([id(SNOTLING)]);
       expect.soft(after[id(SNOTLING)]).toEqual(DROP_A);
@@ -152,7 +163,7 @@ test("setup picks players up by their grid square, not their body", async ({
     });
 
     await test.step("pressing the Troll's body over an empty square picks no one", async () => {
-      await troll_in_front_of_snotling();
+      await trollInFrontOfSnotling();
       const { picked } = await drag("overhang-empty", OVERHANG_EMPTY, DROP_A);
       expect.soft(picked).toEqual([]);
     });
@@ -167,6 +178,20 @@ test("setup picks players up by their grid square, not their body", async ({
       expect.soft(picked.map((p) => p.playerId)).toEqual([id(BEHIND_SNOTLING)]);
       expect.soft(after[id(BEHIND_SNOTLING)]).toEqual(DUGOUT_DROP);
       expect.soft(after[id(TROLL)]).toBeNull();
+    });
+
+    await test.step("a player sent back to the dugout during setup is picked by their square there", async () => {
+      await trollInFrontOfSnotling();
+      const { after } = await drag("troll-to-dugout", TROLL_SQUARE, OFF_ZONE);
+      expect(after[id(TROLL)]).toBeNull();
+      // Every other player is on the pitch, so the Troll takes the first
+      // reserves slot; its figure reaches over the empty square behind it
+      const { picked } = await drag(
+        "dugout-returned-overhang-empty",
+        BEHIND_RESERVE_SLOT,
+        DROP_A
+      );
+      expect.soft(picked).toEqual([]);
     });
 
     await test.step("a dugout player dropped on a square lands there", async () => {
@@ -189,12 +214,63 @@ test("setup picks players up by their grid square, not their body", async ({
   }
 });
 
+test("after setup a reserve is hovered by their body again", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const app = new GameApp(page);
+  // Snotling Founders bring eight players: one stays in reserve
+  await startSetup(page, app, SNOTLINGS);
+  const team = (await app.bridge.teams()).find((t) => t.name === SNOTLINGS)!;
+  const reserve = team.players[7].id;
+
+  for (let side = 0; side < 2; side++) {
+    await loadPreset(page, /balanced/i);
+    await page.getByRole("button", { name: /CONFIRM SETUP/ }).click();
+    await page.waitForTimeout(800);
+  }
+  await expect
+    .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
+    .not.toBe(GamePhase.SETUP);
+  const snapshot = await app.bridge.snapshot();
+  const players = snapshot.teams.find((t) => t.id === team.id)!.players;
+  expect(players.find((p) => p.id === reserve)?.position).toBeNull();
+
+  // Off the dugout first, so moving onto the reserve is a fresh hover
+  const away = await app.pitch.viewportPoint({ x: 10, y: 5 });
+  await page.mouse.move(away.x, away.y);
+  await page.waitForTimeout(100);
+  const since = (await app.bridge.events()).length;
+  const body = await app.pitch.viewportPoint(BEHIND_RESERVE_SLOT);
+  await page.mouse.move(body.x, body.y, { steps: 4 });
+  await expect
+    .poll(
+      async () =>
+        (await app.bridge.events(since))
+          .filter((e) => e.name === GameEventNames.UI_ShowPlayerInfo)
+          .map((e) => (e.data as { id: string }).id),
+      { timeout: 5_000 }
+    )
+    .toContain(reserve);
+  if (process.env.SHOTS) {
+    await markPoint(page, body);
+    await page.screenshot({
+      path: `${process.env.SHOTS}/reserve-hover-after-setup.png`,
+    });
+    await clearMark(page);
+  }
+});
+
 /**
- * Seed the rosters, start Underworld (home) against Humans, and play the
- * coin toss so the Underworld coach is the one setting up. Ends on the
- * Underworld setup screen.
+ * Seed the rosters, start `home` against Humans, and play the coin toss so
+ * the `home` coach kicks and sets up first. Ends on that setup screen.
  */
-async function startUnderworldSetup(page: Page, app: GameApp): Promise<void> {
+async function startSetup(
+  page: Page,
+  app: GameApp,
+  home: string
+): Promise<void> {
   page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/build-team");
   await page.evaluate(() => localStorage.clear());
@@ -202,7 +278,7 @@ async function startUnderworldSetup(page: Page, app: GameApp): Promise<void> {
   await page.getByRole("button", { name: /Seed All Rosters/ }).click();
   await page.goto("/select-team");
   await page
-    .getByRole("button", { name: new RegExp(UNDERWORLD) })
+    .getByRole("button", { name: new RegExp(home) })
     .first()
     .click();
   await page
@@ -222,12 +298,12 @@ async function startUnderworldSetup(page: Page, app: GameApp): Promise<void> {
       (e.data as { rollType: string }).rollType === "Coin Toss"
   );
   const teams = await app.bridge.teams();
-  const underworld = teams.find((t) => t.name === UNDERWORLD)!;
+  const homeTeam = teams.find((t) => t.name === home)!;
   const winner = (toss?.data as { teamId: string }).teamId;
   // The kicking team sets up first
   await page
     .getByRole("button", {
-      name: winner === underworld.id ? "KICK" : "RECEIVE",
+      name: winner === homeTeam.id ? "KICK" : "RECEIVE",
     })
     .click();
 
@@ -238,7 +314,7 @@ async function startUnderworldSetup(page: Page, app: GameApp): Promise<void> {
     .poll(async () => (await app.bridge.phase()).activeTeamId, {
       timeout: 15_000,
     })
-    .toBe(underworld.id);
+    .toBe(homeTeam.id);
   await expect(page.getByTestId("setup-checklist")).toBeVisible({
     timeout: 15_000,
   });

@@ -100,8 +100,19 @@ export function setHitArea(
     hitAreaCallback: contains,
     draggable,
   });
-  if (container.input) {
-    container.input.hitArea = area;
-    container.input.hitAreaCallback = contains;
-  }
+  replaceHitArea(container, area, contains);
+}
+
+/**
+ * Swap the hit area of a container that already takes input, leaving
+ * whether it is enabled or draggable as it was.
+ */
+export function replaceHitArea(
+  container: Phaser.GameObjects.Container,
+  area: Phaser.Geom.Rectangle,
+  contains: Phaser.Types.Input.HitAreaCallback
+): void {
+  if (!container.input) return;
+  container.input.hitArea = area;
+  container.input.hitAreaCallback = contains;
 }

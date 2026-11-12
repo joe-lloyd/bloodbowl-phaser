@@ -1098,6 +1098,9 @@ export class GameScene extends Phaser.Scene {
   public refreshDugouts(): void {
     if (!this.isSceneLive("refreshDugouts")) return;
     this.dugouts.forEach((d) => d.refresh());
+    // A player who first enters the dugout during setup gets a new sprite,
+    // picked by its figure; setup picks by square
+    if (this.isSetupActive) this.placementController?.applySetupHitAreas();
     this.placePlayersOnPitch();
   }
 
@@ -1105,6 +1108,7 @@ export class GameScene extends Phaser.Scene {
     this.isSetupActive = false;
     this.repositionTeam = null;
     this.applyPitchRepositioning(); // strip setup drag handlers
+    this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
@@ -1116,6 +1120,7 @@ export class GameScene extends Phaser.Scene {
     this.isSetupActive = false;
     this.repositionTeam = null;
     this.applyPitchRepositioning(); // strip setup drag handlers
+    this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights();
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
