@@ -5,6 +5,8 @@ import { Pitch } from "../../src/game/elements/Pitch";
 import { Team, RosterName } from "../../src/types/Team";
 import { PositionKeyWord } from "../../src/types/Player";
 import { GameEventNames } from "../../src/types/events";
+import { ISO } from "../../src/game/elements/GridUtils";
+import { squareHitAreaContains } from "../../src/game/elements/InteractiveHitArea";
 
 // Mock Pitch
 const mockPitch = {
@@ -124,11 +126,16 @@ describe("PlayerPlacementController", () => {
       controller.enablePlacement(team, true, dugoutSprites);
 
       const sprite1 = dugoutSprites.get("p1");
-      // Draggable, with a hit area over the standing figure
+      // Draggable, picked by the square the player stands on (one tile),
+      // not by the figure that reaches over the squares behind
       expect(sprite1?.setInteractive).toHaveBeenCalledWith(
         expect.objectContaining({
           draggable: true,
-          hitArea: expect.objectContaining({ width: 56, height: 82 }),
+          hitArea: expect.objectContaining({
+            width: ISO.tileWidth,
+            height: ISO.tileHeight,
+          }),
+          hitAreaCallback: squareHitAreaContains,
         })
       );
       expect(sprite1?.setAlpha).toHaveBeenCalledWith(1);
