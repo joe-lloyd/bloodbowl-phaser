@@ -281,6 +281,16 @@ function decisionCandidates(
           `Do not use ${pending.skill}`
         ),
       ];
+    case "bite-target":
+      return [
+        ...pending.targetIds.map((playerId) =>
+          one(
+            { type: "choose-bite-target", playerId },
+            `Bite ${name(playerId)}`
+          )
+        ),
+        one({ type: "choose-bite-target" }, "Bite nobody"),
+      ];
     case "interception":
       return [
         ...pending.candidates.map((c) =>

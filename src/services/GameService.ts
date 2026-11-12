@@ -538,6 +538,19 @@ export class GameService implements IGameService {
   }
 
   /**
+   * Answer a pending Bloodlust bite-target decision with the Thrall Lineman
+   * the coach clicked, or undefined to bite nobody. False when none is
+   * pending or the player is not one of the offered targets.
+   */
+  public answerBiteTarget(targetId?: string): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "bite-target") return false;
+    if (targetId !== undefined && !pending.targetIds.includes(targetId))
+      return false;
+    return this.decisionService.answer({ targetId });
+  }
+
+  /**
    * Answer a pending interception decision — the defending coach's chosen
    * interceptor, or undefined to decline. False when none is pending.
    */

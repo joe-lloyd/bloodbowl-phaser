@@ -154,6 +154,14 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "use-reaction", accept });
     return true;
   }
+  answerBiteTarget(targetId?: string): boolean {
+    const pending = this.pendingDecision();
+    if (pending?.type !== "bite-target") return false;
+    if (targetId !== undefined && !pending.targetIds.includes(targetId))
+      return false;
+    this.send({ type: "choose-bite-target", playerId: targetId });
+    return true;
+  }
   answerInterception(playerId?: string): boolean {
     if (this.pendingDecision()?.type !== "interception") return false;
     this.send({ type: "choose-interception", playerId });

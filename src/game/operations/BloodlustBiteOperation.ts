@@ -9,7 +9,10 @@ import {
   addCondition,
 } from "../../types/Player";
 import { SkillType } from "../../types/Skills";
-import { ReactionDecisionAnswer } from "../../types/decisions";
+import {
+  BiteTargetDecisionAnswer,
+  ReactionDecisionAnswer,
+} from "../../types/decisions";
 import { BounceOperation } from "./BounceOperation";
 import { InjuryOperation } from "./InjuryOperation";
 
@@ -37,8 +40,10 @@ class ThenOperation extends GameOperation {
  * becomes Distracted, and will immediately drop the ball if they were
  * holding it."
  *
- * The coach is asked about each adjacent Thrall Lineman in board order; the
- * first one accepted is bitten. `unsated` decides what refusing costs: the
+ * The coach chooses who to bite: a lone adjacent Thrall Lineman is offered
+ * as a yes/no question, and two or more raise a "bite-target" decision the
+ * coach answers by clicking the Thrall on the pitch (or by biting nobody).
+ * Nothing picks the Thrall for them. `unsated` decides what refusing costs: the
  * full penalty at the end of the activation or on reaching the End Zone
  * ("consequences"), or only the refused Pass or Hand-off ("refuse").
  * `then` runs after the bite (or the penalty) has resolved.
@@ -130,7 +135,9 @@ export class BloodlustBiteOperation extends GameOperation {
           a.gridPosition!.x - b.gridPosition!.x
       );
     const decisions = context.gameService.getDecisionService();
-    for (const thrall of thralls) {
+    if (thralls.length === 0) return undefined;
+    if (thralls.length === 1) {
+      const [thrall] = thralls;
       const answer = (await decisions.request({
         type: "reaction",
         playerId: player.id,
@@ -138,9 +145,16 @@ export class BloodlustBiteOperation extends GameOperation {
         skill: SkillType.BLOODLUST,
         prompt: `Bloodlust: ${player.playerName} bites ${thrall.playerName}?`,
       })) as ReactionDecisionAnswer;
-      if (answer.accept) return thrall;
+      return answer.accept ? thrall : undefined;
     }
-    return undefined;
+    // More than one in reach: the coach picks which, on the pitch.
+    const answer = (await decisions.request({
+      type: "bite-target",
+      playerId: player.id,
+      chooserTeamId: player.teamId,
+      targetIds: thralls.map((t) => t.id),
+    })) as BiteTargetDecisionAnswer;
+    return thralls.find((t) => t.id === answer.targetId);
   }
 }
 

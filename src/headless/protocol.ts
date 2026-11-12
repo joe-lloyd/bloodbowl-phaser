@@ -139,6 +139,8 @@ export type HeadlessCommand =
       source?: RerollSource;
     }
   | { type: "use-reaction"; accept: boolean }
+  /** The Thrall Lineman a failed Bloodlust bites; no playerId bites nobody. */
+  | { type: "choose-bite-target"; playerId?: string }
   | { type: "choose-interception"; playerId?: string }
   | { type: "touchback"; playerId: string }
   | { type: "use-apothecary"; accept: boolean }
@@ -242,6 +244,14 @@ export type PendingDecision =
       prompt: string;
     }
   | {
+      /** A failed Bloodlust with 2+ Thrall Linemen in reach: its coach picks
+          which to bite, or bites nobody. */
+      type: "bite-target";
+      playerId: string;
+      chooserTeamId: string;
+      targetIds: string[];
+    }
+  | {
       /** A pass' landing square is fixed: the DEFENDING coach picks an
           interceptor under the Range Ruler, or declines. */
       type: "interception";
@@ -335,6 +345,7 @@ export const DECISION_REPLIES: Partial<
   "choose-follow-up": "follow-up",
   "use-reroll": "reroll",
   "use-reaction": "reaction",
+  "choose-bite-target": "bite-target",
   "choose-interception": "interception",
   touchback: "touchback",
   "use-apothecary": "apothecary",

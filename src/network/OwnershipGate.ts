@@ -106,6 +106,7 @@ export function decisionOwner(
     case "kickoff-event":
     case "reroll":
     case "reaction":
+    case "bite-target":
     case "interception":
     case "apothecary":
     case "inducement-choice":

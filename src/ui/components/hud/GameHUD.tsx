@@ -1,4 +1,5 @@
 import { PushChoicePrompt } from "./PushChoicePrompt";
+import { BiteTargetPrompt } from "./BiteTargetPrompt";
 import React, { useState, useEffect } from "react";
 import { EventBus } from "../../../services/EventBus";
 import { useEventBus } from "../../hooks/useEventBus";
@@ -320,6 +321,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <FollowUpDialog eventBus={eventBus} />
       <RerollDialog eventBus={eventBus} />
       <ReactionDialog eventBus={eventBus} />
+      <BiteTargetPrompt eventBus={eventBus} />
       <ApothecaryDialog eventBus={eventBus} />
       <InducementChoiceDialog eventBus={eventBus} />
       <InterceptionDialog eventBus={eventBus} />

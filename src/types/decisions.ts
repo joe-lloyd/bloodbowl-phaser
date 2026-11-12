@@ -69,6 +69,25 @@ export interface ReactionDecisionAnswer {
   accept: boolean;
 }
 
+/**
+ * A failed Bloodlust player with two or more adjacent Thrall Linemen: their
+ * coach picks which one to bite by clicking it on the pitch, or bites
+ * nobody. With a single Thrall the yes/no reaction is asked instead.
+ */
+export interface BiteTargetDecisionRequest {
+  type: "bite-target";
+  /** The Bloodlust player doing the biting */
+  playerId: string;
+  chooserTeamId: string;
+  /** The Thrall Linemen in reach, in board order; never fewer than two. */
+  targetIds: string[];
+}
+
+/** The bitten Thrall; omit/undefined to bite nobody. */
+export interface BiteTargetDecisionAnswer {
+  targetId?: string;
+}
+
 /** One player the defending coach may pick to attempt an interception. */
 export interface InterceptionCandidate {
   playerId: string;
@@ -175,12 +194,14 @@ export interface InducementChoiceDecisionAnswer {
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
+  | BiteTargetDecisionRequest
   | InterceptionDecisionRequest
   | ApothecaryDecisionRequest
   | InducementChoiceDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
+  | BiteTargetDecisionAnswer
   | InterceptionDecisionAnswer
   | ApothecaryDecisionAnswer
   | InducementChoiceDecisionAnswer;

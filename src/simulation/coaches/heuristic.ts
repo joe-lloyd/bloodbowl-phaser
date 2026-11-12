@@ -256,6 +256,16 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
       return command.playerId ? 1 : 0;
     case "choose-interception":
       return command.playerId ? 1 : 0;
+    case "choose-bite-target": {
+      // Always bite, not the ball carrier if another Thrall is in reach,
+      // then in board order (as the planner). Steps of 1 outweigh the noise.
+      if (!command.playerId) return 0;
+      const pending = gs.getDecisionService().pending();
+      const targets = pending?.type === "bite-target" ? pending.targetIds : [];
+      const order = Math.max(0, targets.indexOf(command.playerId));
+      const carrier = board.carrier?.id === command.playerId;
+      return (carrier ? 1 : 2 + targets.length) + (targets.length - order);
+    }
     case "touchback": {
       const player = gs.getPlayerById(command.playerId)!;
       return -tackleZonesOn(board, player.teamId, player.gridPosition!);

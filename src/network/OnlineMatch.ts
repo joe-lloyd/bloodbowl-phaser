@@ -626,6 +626,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
               return `${team} is deciding whether to follow up`;
             case "interception":
               return `${team} is choosing an interceptor`;
+            case "bite-target":
+              return `${team} is choosing who to bite`;
             case "reaction":
               return `${team} is deciding whether to use ${pending.skill}`;
             case "apothecary":

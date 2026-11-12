@@ -45,6 +45,11 @@ export interface IGameService {
   ): boolean;
   /** Answer a pending reaction decision; false when none is pending */
   answerReaction(accept: boolean): boolean;
+  /**
+   * Answer a pending Bloodlust bite-target decision; undefined bites nobody.
+   * False when none is pending or the player is not an offered target.
+   */
+  answerBiteTarget(targetId?: string): boolean;
   /** Answer a pending interception decision; undefined playerId declines */
   answerInterception(playerId?: string): boolean;
   /** Answer a pending Apothecary decision; false when none is pending */
