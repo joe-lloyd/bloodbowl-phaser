@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { GameService } from "../../../src/services/GameService";
 import { IEventBus } from "../../../src/services/EventBus";
 import { Team } from "../../../src/types/Team";
+import { PlayerStatus } from "../../../src/types/Player";
 
 describe("GameService Setup Flow", () => {
   let gameService: GameService;
@@ -63,5 +64,18 @@ describe("GameService Setup Flow", () => {
 
     zone = gameService.getSetupZone(activeId!);
     expect(zone?.minX).toBe(13); // Team 2 is Right
+  });
+
+  it("answers who may be placed this drive from the setup rule", () => {
+    team1.players.push(
+      { id: "fit", teamId: "team1", status: "Active" } as never,
+      { id: "ko", teamId: "team1", status: "Active" } as never
+    );
+    gameService = new GameService(eventBus, team1, team2);
+    // Knocked out during the drive (a new match starts everyone fit)
+    gameService.getPlayerById("ko")!.status = PlayerStatus.KO;
+    expect(gameService.isSetupEligible("fit")).toBe(true);
+    expect(gameService.isSetupEligible("ko")).toBe(false);
+    expect(gameService.isSetupEligible("nobody")).toBe(false);
   });
 });

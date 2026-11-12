@@ -31,6 +31,7 @@ import type { KickoffEventStepState } from "../game/kickoff/KickoffEventManager"
 type Dispatch = (command: HeadlessCommand) => Promise<CommandResponse>;
 
 export class NetworkedGameService implements IGameService {
+  readonly runsCommandsLater = true;
   /** followUpPush + finishActivation arrive as one decision on the wire */
   private swallowNextFinish: string | null = null;
 
@@ -46,7 +47,9 @@ export class NetworkedGameService implements IGameService {
   ) {}
 
   private send(command: HeadlessCommand): void {
-    void this.run(command);
+    void this.run(command).catch((error: unknown) =>
+      this.reportFailure(command, error)
+    );
   }
 
   /**
@@ -62,19 +65,37 @@ export class NetworkedGameService implements IGameService {
       console.warn(
         `[Networked] host rejected ${command.type}: ${response.reason}`
       );
-      const cmd = command as HeadlessCommand & {
-        playerId?: string;
-        attackerId?: string;
-        action?: string;
-      };
-      this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
-        commandType: command.type,
-        playerId: cmd.playerId ?? cmd.attackerId,
-        action: cmd.action,
-        reason: response.reason ?? "unknown",
-      });
+      this.reportRejected(command, response.reason ?? "unknown");
     }
     return response;
+  }
+
+  /**
+   * A command sent without waiting that could not run at all: the dispatch
+   * itself failed, so no response came back. The board was told "true" and
+   * may be waiting on the result (a dropped player stays where they were
+   * dropped until the engine answers), so it hears this as a refusal.
+   */
+  private reportFailure(command: HeadlessCommand, error: unknown): void {
+    console.warn(`[Networked] ${command.type} could not run:`, error);
+    this.reportRejected(
+      command,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  private reportRejected(command: HeadlessCommand, reason: string): void {
+    const cmd = command as HeadlessCommand & {
+      playerId?: string;
+      attackerId?: string;
+      action?: string;
+    };
+    this.eventBus?.emit(GameEventNames.NetworkCommandRejected, {
+      commandType: command.type,
+      playerId: cmd.playerId ?? cmd.attackerId,
+      action: cmd.action,
+      reason,
+    });
   }
 
   // ===== Reads: answered from the replica =====
@@ -228,6 +249,9 @@ export class NetworkedGameService implements IGameService {
   }
   getLastSetupError(): string | null {
     return this.inner.getLastSetupError();
+  }
+  isSetupEligible(playerId: string): boolean {
+    return this.inner.isSetupEligible(playerId);
   }
   getSetupZone(teamId: string) {
     return this.inner.getSetupZone(teamId);
@@ -424,9 +448,7 @@ export class NetworkedGameService implements IGameService {
     this.kickoffStepInFlight = this.getKickoffEventStep();
     this.kickoffCommandsInFlight++;
     void this.run(command)
-      .catch((error: unknown) =>
-        console.warn(`[Networked] ${command.type} could not run:`, error)
-      )
+      .catch((error: unknown) => this.reportFailure(command, error))
       .finally(() => {
         if (--this.kickoffCommandsInFlight === 0)
           this.kickoffStepInFlight = null;

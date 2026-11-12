@@ -29,11 +29,20 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   /** Dugout sprites given the square hit area, to restore when setup ends. */
   private squareSprites: Set<Phaser.GameObjects.Container> = new Set();
 
-  constructor(_scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
+  /** The engine's rule for who may be placed this drive (IGameService.isSetupEligible). */
+  private isAvailable: (playerId: string) => boolean;
+
+  constructor(
+    _scene: Phaser.Scene,
+    pitch: Pitch,
+    validator: SetupValidator,
+    isAvailable: (playerId: string) => boolean = () => true
+  ) {
     super();
     // this.scene = scene;
     this.pitch = pitch;
     this.validator = validator;
+    this.isAvailable = isAvailable;
   }
 
   /**
@@ -97,11 +106,16 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
           const worldY = matrix.ty;
 
           const gridPos = this.pitch.worldToGrid(worldX, worldY);
-          this.placePlayer(playerId, gridPos.x, gridPos.y);
+          if (this.placePlayer(playerId, gridPos.x, gridPos.y)) {
+            // A valid drop: the dugout refresh hides this sprite and the
+            // pitch shows the player. Against the computer and online that
+            // refresh comes a moment later, and snapping home now would
+            // show the player back in the dugout until then.
+            return;
+          }
 
-          // Snap the dugout sprite back to its slot; an invalid drop (off
-          // pitch / outside the zone) leaves the player visibly back in the
-          // dugout, a valid one gets re-laid-out by the dugout refresh
+          // An invalid drop (off pitch / outside the zone) leaves the
+          // player visibly back in their dugout slot
           sprite.x = (sprite.getData("homeX") as number) ?? 0;
           sprite.y = (sprite.getData("homeY") as number) ?? 0;
         });
@@ -207,6 +221,18 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
    */
   placePlayer(playerId: string, gridX: number, gridY: number): boolean {
     if (!this.currentTeam) return false;
+
+    // A knocked-out or injured reserve can be picked up, but the engine
+    // will not place them: refuse here so the drop snaps back at once
+    if (!this.isAvailable(playerId)) {
+      this.emit(GameEventNames.PlacementInvalid, {
+        playerId,
+        x: gridX,
+        y: gridY,
+        reason: "That player is not available for this drive.",
+      });
+      return false;
+    }
 
     const current = Array.from(this.placedPlayers.values()).filter(
       (position) => position.playerId !== playerId

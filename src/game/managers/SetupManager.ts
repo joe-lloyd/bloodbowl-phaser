@@ -78,6 +78,12 @@ export class SetupManager {
     return team ? this.getEligiblePlayers(team) : [];
   }
 
+  /** Whether a player may be placed this drive: one of {@link availablePlayers}. */
+  public isAvailable(playerId: string): boolean {
+    const player = this.getPlayerById(playerId);
+    return !!player && this.isEligible(player);
+  }
+
   /** Convenience count of {@link availablePlayers}. */
   public availablePlayerCount(teamId: string): number {
     return this.availablePlayers(teamId).length;
