@@ -4,7 +4,12 @@ import { Pitch } from "../game/elements/Pitch";
 import { PlayerSprite } from "../game/elements/PlayerSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../game/elements/BallSprite";
 import { Dugout } from "../game/elements/Dugout";
-import { playerHitArea } from "../game/elements/InteractiveHitArea";
+import {
+  playerHitArea,
+  setHitArea,
+  squareHitArea,
+  squareHitAreaContains,
+} from "../game/elements/InteractiveHitArea";
 import { preloadStadium, Stadium } from "../game/elements/Stadium";
 import { preloadPlayerArt } from "../game/presentation/playerArt";
 import { Team, TeamColors } from "../types/Team";
@@ -951,10 +956,9 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(
-        playerHitArea(sprite),
-        Phaser.Geom.Rectangle.Contains
-      );
+      // Still picked by the figure. Set explicitly: setup gives these
+      // sprites their square hit area first, and Phaser would keep it.
+      setHitArea(sprite, playerHitArea(sprite), Phaser.Geom.Rectangle.Contains);
       this.input.setDraggable(sprite);
 
       sprite.on("dragstart", () => {
@@ -999,10 +1003,10 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      sprite.setInteractive(
-        playerHitArea(sprite),
-        Phaser.Geom.Rectangle.Contains
-      );
+      // Picked by the square the player stands on, not by their figure:
+      // a big player's body reaches over the square behind them, and a
+      // press there belongs to whoever stands in that square
+      setHitArea(sprite, squareHitArea(sprite), squareHitAreaContains);
       this.input.setDraggable(sprite);
 
       // Hover shows the info panel the same way the dugout does; it clears
@@ -1094,6 +1098,9 @@ export class GameScene extends Phaser.Scene {
   public refreshDugouts(): void {
     if (!this.isSceneLive("refreshDugouts")) return;
     this.dugouts.forEach((d) => d.refresh());
+    // A player who first enters the dugout during setup gets a new sprite,
+    // picked by its figure; setup picks by square
+    if (this.isSetupActive) this.placementController?.applySetupHitAreas();
     this.placePlayersOnPitch();
   }
 
@@ -1101,6 +1108,7 @@ export class GameScene extends Phaser.Scene {
     this.isSetupActive = false;
     this.repositionTeam = null;
     this.applyPitchRepositioning(); // strip setup drag handlers
+    this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights(); // Clear setup zones
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 
@@ -1112,6 +1120,7 @@ export class GameScene extends Phaser.Scene {
     this.isSetupActive = false;
     this.repositionTeam = null;
     this.applyPitchRepositioning(); // strip setup drag handlers
+    this.placementController?.restoreFigureHitAreas();
     this.pitch.clearHighlights();
     this.eventBus.emit(GameEventNames.UI_HideSetupControls);
 

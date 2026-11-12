@@ -4,7 +4,13 @@ import { Player, PlayerStatus } from "../../types/Player";
 import { SetupValidator } from "../validators/SetupValidator";
 import { FormationPosition } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
-import { playerHitArea } from "../elements/InteractiveHitArea";
+import {
+  playerHitArea,
+  replaceHitArea,
+  setHitArea,
+  squareHitArea,
+  squareHitAreaContains,
+} from "../elements/InteractiveHitArea";
 import { GameEventNames } from "../../types/events";
 
 /**
@@ -20,6 +26,8 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   private selectedPlayerId: string | null = null;
   private dugoutSprites: Map<string, Phaser.GameObjects.Container> = new Map();
   private placedPlayers: Map<string, FormationPosition> = new Map();
+  /** Dugout sprites given the square hit area, to restore when setup ends. */
+  private squareSprites: Set<Phaser.GameObjects.Container> = new Set();
 
   constructor(_scene: Phaser.Scene, pitch: Pitch, validator: SetupValidator) {
     super();
@@ -52,15 +60,11 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
 
       if (player && player.teamId === team.id) {
         // console.log(`[PlayerPlacementController] Enabling sprite for player ${playerId}`);
-        // Phaser keeps the hit area from the sprite's FIRST setInteractive
-        // (the dugout sets the correctly-centered one at creation); this
-        // config only re-enables input — the hitArea here is a fallback for
-        // sprites that were never made interactive
-        sprite.setInteractive({
-          hitArea: playerHitArea(sprite),
-          hitAreaCallback: Phaser.Geom.Rectangle.Contains,
-          draggable: true,
-        });
+        // Picked by the square the player stands on, not by their figure:
+        // a big player's body reaches over the square behind them, and a
+        // press there belongs to whoever stands in that square
+        setHitArea(sprite, squareHitArea(sprite), squareHitAreaContains, true);
+        this.squareSprites.add(sprite);
         sprite.setAlpha(1);
 
         // Remove old listeners to prevent duplicates
@@ -118,11 +122,43 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
   }
 
   /**
+   * Give the active team's dugout sprites the square hit area. The dugout
+   * makes a new sprite, picked by its figure, when a player first enters it,
+   * and that can happen during setup; this runs after every dugout refresh.
+   */
+  applySetupHitAreas(): void {
+    if (!this.currentTeam) return;
+    this.dugoutSprites.forEach((sprite, playerId) => {
+      if (!this.getPlayerById(playerId) || this.squareSprites.has(sprite)) {
+        return;
+      }
+      replaceHitArea(sprite, squareHitArea(sprite), squareHitAreaContains);
+      this.squareSprites.add(sprite);
+    });
+  }
+
+  /**
+   * Setup is over: dugout sprites are picked by their figure again, for
+   * hover and click. Whether each one takes input is left as it was.
+   */
+  restoreFigureHitAreas(): void {
+    this.squareSprites.forEach((sprite) =>
+      replaceHitArea(
+        sprite,
+        playerHitArea(sprite),
+        Phaser.Geom.Rectangle.Contains
+      )
+    );
+    this.squareSprites.clear();
+  }
+
+  /**
    * Disable placement
    */
   disablePlacement(): void {
     this.currentTeam = null;
     this.selectedPlayerId = null;
+    this.restoreFigureHitAreas();
 
     // Disable all sprites
     this.dugoutSprites.forEach((sprite) => {
