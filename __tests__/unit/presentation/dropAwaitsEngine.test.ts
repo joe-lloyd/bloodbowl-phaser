@@ -161,6 +161,27 @@ describe("a drop waits for the engine before redrawing", () => {
     });
   });
 
+  describe("the engine's answer", () => {
+    it("brings the placement controller's map up to date", () => {
+      build(true);
+      // The real redraw, not the stand-in
+      scene.refreshDugouts = GameScene.prototype.refreshDugouts;
+      Object.assign(scene, { dugouts: new Map() });
+      Object.assign(controller, { applySetupHitAreas: vi.fn() });
+      controller.fire(GameEventNames.PlayerPlaced, {
+        playerId: "p1",
+        x: 1,
+        y: 3,
+      });
+      // Synced at the drop, while the record still has the old square
+      expect(controller.syncFromTeam).toHaveBeenCalledTimes(1);
+
+      // ComputerMatch / OnlineMatch once the placement has run
+      eventBus.emit(GameEventNames.UI_SyncBoard);
+      expect(controller.syncFromTeam).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("a drop whose command never reaches the engine", () => {
     /** The real networked service, over a dispatch that fails outright. */
     const offline = () =>

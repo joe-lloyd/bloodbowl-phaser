@@ -118,6 +118,16 @@ test("a dropped player never shows on the square they left", async ({
     expect(lastFrame(log).pitch).toMatchObject(at(log.to));
     expect(lastFrame(log).dugout?.visible).toBe(false);
   });
+
+  await test.step("the reserve just placed can be sent back to the dugout", async () => {
+    // The placement above ran a moment after its drop; the board's own map
+    // of who stands where must have caught up, or this drop does nothing
+    const log = await drop("placed-then-off-zone", DROP_B, OFF_ZONE);
+    expect((await positions())[lineman]).toBeNull();
+    expect(framesAt(log, "pitch", log.from, "after")).toEqual([]);
+    expect(lastFrame(log).pitch?.visible).toBe(false);
+    expect(lastFrame(log).dugout?.visible).toBe(true);
+  });
 });
 
 /** A sample standing on `square`, for toMatchObject. */

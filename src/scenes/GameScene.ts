@@ -1136,9 +1136,18 @@ export class GameScene extends Phaser.Scene {
   public refreshDugouts(): void {
     if (!this.isSceneLive("refreshDugouts")) return;
     this.dugouts.forEach((d) => d.refresh());
-    // A player who first enters the dugout during setup gets a new sprite,
-    // picked by its figure; setup picks by square
-    if (this.isSetupActive) this.placementController?.applySetupHitAreas();
+    if (this.isSetupActive) {
+      // The placement controller checks drops against its own map of who
+      // stands where. Against the computer and online the engine's answer
+      // lands here (UI_SyncBoard), after the drop handler last synced it:
+      // without this the map stays one move behind, and a reserve just
+      // placed is missing from it, so dropping them outside the zone did
+      // not send them back to the dugout.
+      this.placementController?.syncFromTeam();
+      // A player who first enters the dugout during setup gets a new sprite,
+      // picked by its figure; setup picks by square
+      this.placementController?.applySetupHitAreas();
+    }
     this.placePlayersOnPitch();
   }
 
