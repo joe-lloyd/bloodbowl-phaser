@@ -97,9 +97,7 @@ export function GamePage({
 
   useEffect(() => {
     if (!fixtureContext || !matchTeams) return;
-    const onPhaseChanged = (data: { phase: GamePhase }) => {
-      if (data.phase !== GamePhase.GAME_OVER || reportedRef.current) return;
-      reportedRef.current = true;
+    const report = () => {
       const state = ServiceContainer.getInstance().gameService.getState();
       const gameService = ServiceContainer.getInstance().gameService;
       const homeScore = state.score[matchTeams.team1.id] ?? 0;
@@ -148,6 +146,14 @@ export function GamePage({
           reportedRef.current = false;
           console.error("Failed to record competition result:", error);
         });
+    };
+    const onPhaseChanged = (data: { phase: GamePhase }) => {
+      if (data.phase !== GamePhase.GAME_OVER || reportedRef.current) return;
+      reportedRef.current = true;
+      // This page subscribes before the engine does, so the engine's own
+      // full-time steps (Fan Factors, Dedicated Fans) in this same event
+      // have not run yet: report once every listener has
+      queueMicrotask(report);
     };
     eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
     return () => eventBus.off(GameEventNames.PhaseChanged, onPhaseChanged);
