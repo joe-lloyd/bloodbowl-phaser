@@ -138,6 +138,11 @@ export interface GameState {
   turnUsage?: TurnUsage;
   /** Masters of Undeath spent this game: team id to its raised Lineman id. */
   raisedDead?: Record<string, string>;
+  /**
+   * Each team's Fan Factor (Dedicated Fans + D3) by team id, rolled at full
+   * time for league winnings (src/game/rules/winnings.ts); absent = none.
+   */
+  fanFactors?: Record<string, number>;
   /** Present during/after setup so saves and online snapshots preserve it. */
   setup?: import("./SetupTypes").SetupState;
   /** Sevens inducements/Apothecary state; absent = no inducements this match. */

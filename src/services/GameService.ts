@@ -11,7 +11,7 @@ import { IGameService } from "./interfaces/IGameService.js";
 import { IEventBus } from "./EventBus.js";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { ActionType, GameEventNames } from "../types/events";
-import { Team } from "@/types/Team";
+import { Team, isLeagueMode } from "@/types/Team";
 import {
   Player,
   PlayerStatus,
@@ -148,6 +148,7 @@ import {
   legalBlockReplacementTargets,
 } from "@/game/rules/blockReplacements";
 import { updateDedicatedFans } from "@/game/rules/leagueRoster";
+import { fanFactor } from "@/game/rules/winnings";
 
 /** Actions that spend a team's once-per-turn allowance (Throw Team-mate
  *  shares Pass's). Only these carry the release/commit rules of
@@ -394,6 +395,8 @@ export class GameService implements IGameService {
           ...this.team2.players,
         ]);
         this.announceFullTime();
+        // Fan Factor reads the Dedicated Fans the teams kicked off with
+        this.rollFanFactors();
         this.updateDedicatedFans();
       }
     });
@@ -1872,6 +1875,28 @@ export class GameService implements IGameService {
     const line = `FULL TIME — ${scoreline} (${outcome})`;
     this.eventBus.emit(GameEventNames.UI_Notification, line);
     this.eventBus.emit(GameEventNames.UI_GameLog, line);
+  }
+
+  /**
+   * The Fans (pre-game sequence): each team's Fan Factor is its Dedicated
+   * Fans plus a D3. Only league winnings read it, so it is rolled at full
+   * time, before Dedicated Fans change, and only when a league team is
+   * playing. Nothing earlier in a Sevens game uses it: Pitch Invasion adds
+   * Dedicated Fans (docs/SEVENS_RULES.md K12).
+   */
+  private rollFanFactors(): void {
+    if (this.state.fanFactors) return;
+    const teams = [this.team1, this.team2];
+    if (!teams.some((team) => isLeagueMode(team.advancementMode))) return;
+    const fanFactors: Record<string, number> = {};
+    for (const team of teams) {
+      const d3 = this.diceController.rollD3(
+        `Fan Factor (${team.name})`,
+        team.id
+      );
+      fanFactors[team.id] = fanFactor(team.dedicatedFans ?? 0, d3);
+    }
+    this.state.fanFactors = fanFactors;
   }
 
   /**

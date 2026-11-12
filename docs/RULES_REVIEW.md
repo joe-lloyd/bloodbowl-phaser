@@ -104,7 +104,8 @@ Journeymen and firing now follow it. Still open there:
 
 ### Not implemented
 
-- Winnings, Expensive Mistakes and the rest of the post-match treasury.
+- Expensive Mistakes and spending the Treasury after a game. League
+  winnings are paid (see `openspec/specs/league-winnings/spec.md`).
 - Seasons and the re-draft screen. The R1 to R3 steps exist as
   `beginRedraft`, which nothing calls yet.
 - Conceding during play. Only the set-up concession exists.

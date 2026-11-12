@@ -107,6 +107,8 @@ export interface GameSnapshot {
   turnUsage?: GameState["turnUsage"];
   /** Masters of Undeath usage and temporary recruits; absent on older saves. */
   raisedDead?: GameState["raisedDead"];
+  /** Fan Factors rolled at full time; absent on pre-feature saves. */
+  fanFactors?: GameState["fanFactors"];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
@@ -229,6 +231,7 @@ export function serializeGameState(
       : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
+    fanFactors: state.fanFactors ? { ...state.fanFactors } : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -317,6 +320,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? structuredClone(snapshot.turnUsage)
       : undefined,
     raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
+    fanFactors: snapshot.fanFactors ? { ...snapshot.fanFactors } : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
       : undefined,

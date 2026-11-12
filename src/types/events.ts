@@ -611,6 +611,10 @@ export interface GameEvents {
   [GameEventNames.MatchSppApplied]: void;
   [GameEventNames.CompetitionResultRecorded]: {
     fixtureId: string;
+    /** League winnings in gold pieces by team id; absent when none. */
+    winnings?: Record<string, number>;
+    /** Each team's Fan Factor behind the winnings, by team id. */
+    fanFactors?: Record<string, number>;
   };
   [GameEventNames.InterceptionFailed]: {
     passerId: string;

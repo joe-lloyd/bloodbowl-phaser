@@ -1,6 +1,14 @@
 import { getCurrentUser } from "../firebase/auth";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
+import { MIN_DEDICATED_FANS } from "../game/rules/sevensPrices";
+import {
+  fanFactor,
+  fixtureWinnings,
+  payWinnings,
+  rollD3,
+} from "../game/rules/winnings";
+import { IRNGService, RNGService } from "../services/rng/RNGService";
 import {
   recordLeagueResult,
   recordTournamentResult,
@@ -24,7 +32,9 @@ function updateTeamRecord(
   winnerEntrantId: string | undefined,
   progressedTeam?: Team,
   /** False for a walkover: the game counts in no record. */
-  counts = true
+  counts = true,
+  /** Gold the fixture's result pays this side (league games only). */
+  winnings = 0
 ): void {
   const persisted = getTeamById(entrant.teamId);
   if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
@@ -59,6 +69,9 @@ function updateTeamRecord(
     else if (winnerEntrantId === entrant.id) team.wins = (team.wins ?? 0) + 1;
     else team.losses = (team.losses ?? 0) + 1;
   }
+  // Recorded once with the fixture, so a second report or a reload pays
+  // nothing more (league-winnings spec)
+  payWinnings(team, winnings);
   // A recorded fixture result is a confirmed completed match — the team is
   // active from here on (see teamLifecycle.ts). A no-op once already set.
   stampFirstCompletedMatch(team);
@@ -78,6 +91,8 @@ export function keepRecordedResult(team: Team): void {
   team.losses = stored.losses;
   team.touchdowns = stored.touchdowns;
   team.recordedFixtureIds = stored.recordedFixtureIds;
+  // Winnings were paid into the stored Treasury
+  team.treasury = stored.treasury;
   team.activeCompetitionId = stored.activeCompetitionId;
 }
 
@@ -99,7 +114,7 @@ function updateReachableTeams(
   // Fixture ids repeat from one competition to the next
   const key = `${competition.id}:${fixture.id}`;
   if (home && away) {
-    const { homeScore, awayScore, winnerEntrantId } = result;
+    const { homeScore, awayScore, winnerEntrantId, winnings } = result;
     // A game played against a team that withdrew meanwhile still carries
     // its players' SPP and injuries, but it was walked over
     const counts = !result.walkover;
@@ -109,7 +124,8 @@ function updateReachableTeams(
       homeScore,
       winnerEntrantId,
       progressedTeams?.home,
-      counts
+      counts,
+      winnings?.home
     );
     updateTeamRecord(
       away,
@@ -117,7 +133,8 @@ function updateReachableTeams(
       awayScore,
       winnerEntrantId,
       progressedTeams?.away,
-      counts
+      counts,
+      winnings?.away
     );
   }
   // A completed competition frees every entrant it holds: only the coaches
@@ -128,6 +145,39 @@ function updateReachableTeams(
       clearActiveCompetition(entrant.teamId, competition.id)
     );
   }
+}
+
+export interface RecordFixtureOptions {
+  /**
+   * Each side's Fan Factor from the played match (GameState.fanFactors).
+   * A played match without them, which had no league team, pays nothing.
+   */
+  fanFactors?: { home: number; away: number };
+  /** Dice for the Fan Factors of a result reported by score only. */
+  rng?: Pick<IRNGService, "rollDie">;
+}
+
+/**
+ * The Fans for a league result reported by score only: each side's
+ * Dedicated Fans plus a D3. A team outside this coach's library counts the
+ * fewest Dedicated Fans a league team can have.
+ */
+function rollFanFactors(
+  competition: CompetitionDoc,
+  fixture: CompetitionFixture,
+  rng: Pick<IRNGService, "rollDie">
+): { home: number; away: number } {
+  const fansOf = (entrantId: string | null) => {
+    const entrant = competition.entrants.find(
+      (candidate) => candidate.id === entrantId
+    );
+    const team = entrant && getTeamById(entrant.teamId);
+    return team?.dedicatedFans ?? MIN_DEDICATED_FANS;
+  };
+  return {
+    home: fanFactor(fansOf(fixture.homeEntrantId), rollD3(rng)),
+    away: fanFactor(fansOf(fixture.awayEntrantId), rollD3(rng)),
+  };
 }
 
 /**
@@ -142,7 +192,8 @@ export async function recordCompetitionFixture(
   awayScore: number,
   progressedTeams?: { home: Team; away: Team },
   /** How a knockout game left level was decided. */
-  penalties?: PenaltyShootout
+  penalties?: PenaltyShootout,
+  options: RecordFixtureOptions = {}
 ): Promise<CompetitionDoc> {
   const uid = getCurrentUser()?.uid;
   // A result already recorded stands: both coaches report at full time
@@ -155,16 +206,38 @@ export async function recordCompetitionFixture(
       );
       if (!fixture) throw new Error("Fixture not found.");
       if (fixture.status === "complete" && !fixture.result?.bye) return null;
-      const next =
-        latest.type === "league"
-          ? recordLeagueResult(latest, context.fixtureId, homeScore, awayScore)
-          : recordTournamentResult(
-              latest,
-              context.fixtureId,
-              homeScore,
-              awayScore,
-              penalties
-            );
+      let next: CompetitionDoc;
+      if (latest.type === "league") {
+        next = recordLeagueResult(
+          latest,
+          context.fixtureId,
+          homeScore,
+          awayScore
+        );
+        // A score-only report has no match: roll its Fan Factors now
+        const fanFactors =
+          options.fanFactors ??
+          (progressedTeams
+            ? undefined
+            : rollFanFactors(
+                latest,
+                fixture,
+                options.rng ?? new RNGService(Date.now())
+              ));
+        const result = next.fixtures.find(
+          (candidate) => candidate.id === context.fixtureId
+        )?.result;
+        if (result && fanFactors)
+          result.winnings = fixtureWinnings(fanFactors, homeScore, awayScore);
+      } else {
+        next = recordTournamentResult(
+          latest,
+          context.fixtureId,
+          homeScore,
+          awayScore,
+          penalties
+        );
+      }
       const reporterEntrantIndex = next.entrants.findIndex(
         (entrant) =>
           entrant.ownerUid === uid &&

@@ -505,4 +505,37 @@ describe("MatchResultsScreen", () => {
     expect(container.textContent).not.toContain("win");
     expect(container.textContent).not.toContain("Draw");
   });
+
+  it("shows each team's league winnings once the fixture is recorded", async () => {
+    const { services, state } = setup(false);
+    state.score["team-1"] = 2;
+    state.score["team-2"] = 1;
+    services.gameService.getTeam("team-1")!.advancementMode =
+      "sevens-skill-selection";
+    services.gameService.getTeam("team-2")!.advancementMode = "advanced-league";
+
+    await render();
+    expect(
+      container.querySelector('[data-testid="match-winnings"]')
+    ).toBeNull();
+
+    await act(async () => {
+      services.eventBus.emit(GameEventNames.CompetitionResultRecorded, {
+        fixtureId: "f1",
+        winnings: { "team-1": 60_000, "team-2": 50_000 },
+        fanFactors: { "team-1": 4, "team-2": 4 },
+      });
+    });
+
+    const panel = container.querySelector('[data-testid="match-winnings"]')!;
+    expect(panel.textContent).toContain("Fan Attendance 8");
+    expect(
+      container.querySelector('[data-testid="match-winnings-team-1"]')
+        ?.textContent
+    ).toBe("Reikland Reavers: +60,000 gp to the Treasury");
+    expect(
+      container.querySelector('[data-testid="match-winnings-team-2"]')
+        ?.textContent
+    ).toBe("Bad Badgers: +50,000 gp to the Treasury");
+  });
 });
