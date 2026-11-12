@@ -777,10 +777,10 @@ export class GameScene extends Phaser.Scene {
     // End-of-drive: clear the ball visual and refresh dugouts/pitch when the
     // engine resets drive state, and surface KO recovery results.
     this.subscribe(GameEventNames.RefreshBoard, () => {
-      if (this.ballSprite) {
-        this.ballSprite.destroy();
-        this.ballSprite = null;
-      }
+      // The reset takes the ball off the pitch. Derive the ball and the
+      // carrier marker from that state, as during play: destroying only the
+      // ball sprite left the scorer marked as carrier until the kick-off.
+      this.reconcileBallVisual();
       // New drive: nobody is "activated", turn borders reset, and any player
       // left Prone (rotated 90°) is stood back upright so the rotation does
       // not carry into the next drive when the sprite is re-placed.
