@@ -100,11 +100,7 @@ export function registerActionCommands(
 
   // Block Result Selected
   register(GameEventNames.UI_BlockResultSelected, (data) => {
-    gameService.resolveBlock(
-      data.attackerId,
-      data.defenderId,
-      data.result
-    );
+    gameService.resolveBlock(data.attackerId, data.defenderId, data.result);
   });
 
   // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die, Brawler =
@@ -152,7 +148,6 @@ export function registerActionCommands(
     // the activation.
     gameService.finishBlockActivation(data.attackerId);
   });
-
 
   return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 }

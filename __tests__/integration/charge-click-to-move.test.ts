@@ -18,6 +18,8 @@ import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { GameEventNames } from "../../src/types/events";
 import { Scenario } from "../../src/types/Scenario";
+import { KickoffPhaseHandler } from "../../src/game/controllers/handlers/KickoffPhaseHandler";
+import type { BlockRollData } from "../../src/services/BlockResolutionService";
 
 const scenario = (activeTeam: "team1" | "team2"): Scenario => ({
   id: "charge-on-the-board",
@@ -243,5 +245,60 @@ describe("Charge! click-to-move on the board", () => {
     expect(warn).not.toHaveBeenCalledWith("Cannot cancel action after moving");
     warn.mockRestore();
     controller.destroy();
+  });
+});
+
+describe("Charge! Blitz block from the block dialog", () => {
+  it("rolls the dice and applies the picked result during KICKOFF", async () => {
+    // Live game: the dialog sat on "Rolling…" and no dice ever came up
+    const game = await kickedIntoCharge("team2");
+    const gs = game.ctx.gameService;
+    const { eventBus, team1, team2 } = game.ctx;
+    const attacker = team1.players[1];
+    const defender = team2.players[1];
+    await game.execute({
+      type: "kickoff-select-player",
+      playerId: attacker.id,
+    });
+    await game.execute({ type: "kickoff-confirm" });
+    // Charge! takes an Open player, so the target comes alongside after
+    attacker.gridPosition = { x: 9, y: 5 };
+    defender.gridPosition = { x: 10, y: 5 };
+    await game.execute({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    expect(gs.getState().activePlayer?.id).toBe(attacker.id);
+    const handler = new KickoffPhaseHandler(
+      { playerSprites: new Map() } as never,
+      gs,
+      eventBus
+    );
+    handler.enter();
+    const rolls: BlockRollData[] = [];
+    eventBus.on(GameEventNames.BlockDiceRolled, (roll) => rolls.push(roll));
+
+    eventBus.emit(GameEventNames.UI_RollBlockDice, {
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      numDice: 1,
+      isAttackerChoice: true,
+    });
+    await settle();
+
+    expect(gs.getPhase()).toBe(GamePhase.KICKOFF);
+    expect(rolls).toHaveLength(1);
+    expect(rolls[0].attackerId).toBe(attacker.id);
+    expect(game.pendingDecision()?.type).toBe("block-dice");
+
+    eventBus.emit(GameEventNames.UI_BlockResultSelected, {
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      result: rolls[0].results[0],
+    });
+    await settle();
+    expect(game.pendingDecision()?.type).not.toBe("block-dice");
+    handler.exit();
   });
 });
