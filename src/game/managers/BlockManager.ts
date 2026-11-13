@@ -239,6 +239,20 @@ class HitAndRunOperation extends GameOperation {
   }
 }
 
+/**
+ * The block roll as it stands now, for listeners. A re-roll or a kept roll
+ * changes the pending roll in place; sending the same object again would
+ * leave a listener that kept the last one, such as the block dialog's
+ * React state, seeing nothing new.
+ */
+const snapshotRoll = (roll: BlockRollData): BlockRollData => ({
+  ...roll,
+  results: [...roll.results],
+});
+
+/** Each block die's face as the log names it, e.g. "Attacker Down". */
+const faces = (results: BlockResult[]): string[] => results.map((r) => r.label);
+
 export class BlockManager {
   private pileDriverTargets = new Map<string, string>();
   private blockValidator: BlockValidator = new BlockValidator();
@@ -476,7 +490,7 @@ export class BlockManager {
         ? "attacker-reroll"
         : "pick";
     this.pendingBlockRoll = rollData;
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, rollData);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(rollData));
   }
 
   /** The block roll awaiting the coach's result choice (for re-rolls). */
@@ -705,7 +719,7 @@ export class BlockManager {
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
     pending.veteranRerollAvailable = false;
-    this.eventBus.emit(GameEventNames.BlockDiceKept, pending);
+    this.eventBus.emit(GameEventNames.BlockDiceKept, snapshotRoll(pending));
   }
 
   /**
@@ -726,6 +740,7 @@ export class BlockManager {
       return;
     }
     if (spendTeamReroll({ gameService, eventBus: this.eventBus }, attacker)) {
+      const before = pending.results;
       pending.results = this.diceController.rollBlockDice(
         pending.numDice,
         attacker.teamId
@@ -734,8 +749,8 @@ export class BlockManager {
         playerId: attackerId,
         source: "team",
         rollKind: "block",
-        before: 0,
-        after: 0,
+        before: faces(before),
+        after: faces(pending.results),
       });
     }
     pending.teamRerollAvailable = false;
@@ -743,7 +758,7 @@ export class BlockManager {
     pending.brawlerAvailable = false;
     pending.veteranRerollAvailable = false;
     pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
   }
 
   /**
@@ -792,7 +807,7 @@ export class BlockManager {
     pending.brawlerAvailable = false;
     pending.veteranRerollAvailable = false;
     pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
   }
 
   /**
@@ -831,7 +846,7 @@ export class BlockManager {
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
     pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
   }
 
   /**
@@ -861,6 +876,7 @@ export class BlockManager {
       return;
     }
     arbiter.consumeVeteranReroll(attacker);
+    const before = pending.results;
     pending.results = this.diceController.rollBlockDice(
       pending.numDice,
       attacker.teamId
@@ -869,15 +885,15 @@ export class BlockManager {
       playerId: attackerId,
       source: "veteran",
       rollKind: "block",
-      before: 0,
-      after: 0,
+      before: faces(before),
+      after: faces(pending.results),
     });
     pending.veteranRerollAvailable = false;
     pending.teamRerollAvailable = false;
     pending.proAvailable = false;
     pending.brawlerAvailable = false;
     pending.choiceStage = "pick";
-    this.eventBus.emit(GameEventNames.BlockDiceRolled, pending);
+    this.eventBus.emit(GameEventNames.BlockDiceRolled, snapshotRoll(pending));
   }
 
   /**
