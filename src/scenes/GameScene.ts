@@ -47,6 +47,7 @@ import { CompetitionContext } from "../competition/types";
 import { MatchAutosave } from "../game/persistence/MatchAutosave";
 import { getActiveOnlineMatch } from "../network/OnlineMatch";
 import { kitOf } from "../game/presentation/kits";
+import { fixturePaysWinnings } from "../game/rules/winnings";
 import {
   findBoardStateConflicts,
   isActivatedThisTurn,
@@ -272,6 +273,13 @@ export class GameScene extends Phaser.Scene {
         );
       if (!restored && this.competitionContext?.knockout) {
         initialState.knockout = true;
+      }
+      // A league fixture rolls the Fan Factors for its winnings at full time
+      if (
+        !restored &&
+        fixturePaysWinnings(this.competitionContext?.competitionType)
+      ) {
+        initialState.paysWinnings = true;
       }
       ServiceContainer.initialize(
         window.eventBus,

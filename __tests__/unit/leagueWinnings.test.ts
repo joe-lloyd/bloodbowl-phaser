@@ -170,6 +170,8 @@ describe("league winnings in the Treasury", () => {
       {} as never
     );
     const state = engine.getState();
+    // Set from the competition context when a league fixture starts
+    state.paysWinnings = true;
     state.score[home.id] = 2;
     state.score[away.id] = 1;
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
@@ -309,12 +311,38 @@ describe("games that pay nothing", () => {
       fixtureId: fixtures[0].id,
     };
 
+    // Full time of a cup tie between league teams rolls no Fan Factor: the
+    // only dice are the Dedicated Fans update (a win on a 2 at 2 fans, a
+    // loss on a 1 at 1 fan), exactly as before winnings existed
+    const eventBus = new EventBus();
+    const dice = fixedDice(2, 1);
+    const engine = new GameService(
+      eventBus,
+      structuredClone(teams[0]),
+      structuredClone(teams[1]),
+      dice as never,
+      {} as never
+    );
+    const state = engine.getState();
+    state.knockout = true;
+    state.score[teams[0].id] = 2;
+    state.score[teams[1].id] = 1;
+    eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
+    expect(state.fanFactors).toBeUndefined();
+    expect(dice.rollDie).toHaveBeenCalledTimes(2);
+    expect(engine.getTeam(teams[0].id)?.dedicatedFans).toBe(3);
+    expect(engine.getTeam(teams[1].id)?.dedicatedFans).toBe(1);
+
     const updated = await recordCompetitionFixture(
       context,
       2,
       1,
-      { home: structuredClone(teams[0]), away: structuredClone(teams[1]) },
+      {
+        home: engine.getTeam(teams[0].id)!,
+        away: engine.getTeam(teams[1].id)!,
+      },
       undefined,
+      // A caller passing Fan Factors anyway still pays nothing
       { fanFactors: { home: 4, away: 4 } }
     );
     expect(updated.fixtures[0].result?.winnings).toBeUndefined();
@@ -402,14 +430,18 @@ describe("games that pay nothing", () => {
     const stored = libraryTeam("friendly-league", 2, 70_000);
     saveTeams([stored]);
     const eventBus = new EventBus();
+    const dice = fixedDice(6, 6, 6, 6);
     const engine = new GameService(
       eventBus,
       structuredClone(stored),
       libraryTeam("visitor", 1, 0),
-      fixedDice(6, 6, 6, 6) as never,
+      dice as never,
       {} as never
     );
     eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
+    // Not a fixture: no Fan Factor, and a 0-0 draw rolls no Dedicated Fans
+    expect(engine.getState().fanFactors).toBeUndefined();
+    expect(dice.rollDie).not.toHaveBeenCalled();
 
     const matchCopy = engine.getTeam(stored.id)!;
     keepRecordedResult(matchCopy);

@@ -4,6 +4,7 @@ import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
 import { MIN_DEDICATED_FANS } from "../game/rules/sevensPrices";
 import {
   fanFactor,
+  fixturePaysWinnings,
   fixtureWinnings,
   payWinnings,
   rollD3,
@@ -206,14 +207,17 @@ export async function recordCompetitionFixture(
       );
       if (!fixture) throw new Error("Fixture not found.");
       if (fixture.status === "complete" && !fixture.result?.bye) return null;
-      let next: CompetitionDoc;
-      if (latest.type === "league") {
-        next = recordLeagueResult(
-          latest,
-          context.fixtureId,
-          homeScore,
-          awayScore
-        );
+      const next =
+        latest.type === "league"
+          ? recordLeagueResult(latest, context.fixtureId, homeScore, awayScore)
+          : recordTournamentResult(
+              latest,
+              context.fixtureId,
+              homeScore,
+              awayScore,
+              penalties
+            );
+      if (fixturePaysWinnings(latest.type)) {
         // A score-only report has no match: roll its Fan Factors now
         const fanFactors =
           options.fanFactors ??
@@ -229,14 +233,6 @@ export async function recordCompetitionFixture(
         )?.result;
         if (result && fanFactors)
           result.winnings = fixtureWinnings(fanFactors, homeScore, awayScore);
-      } else {
-        next = recordTournamentResult(
-          latest,
-          context.fixtureId,
-          homeScore,
-          awayScore,
-          penalties
-        );
       }
       const reporterEntrantIndex = next.entrants.findIndex(
         (entrant) =>

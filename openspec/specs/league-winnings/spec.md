@@ -59,8 +59,11 @@ keeps league Dedicated Fans between 1 and 5 (D7).
 Each team's Fan Factor SHALL be its Dedicated Fans plus a D3, rolled on the
 game's dice source. A D3 is a D6 halved, rounding up. The engine SHALL roll it
 at full time from the Dedicated Fans the team kicked off with, before the
-post-game Dedicated Fans update. It SHALL roll only when at least one team in
-the game is in a league mode. Nothing earlier in a Sevens game reads Fan
+post-game Dedicated Fans update. It SHALL roll only in a fixture that pays
+winnings (`fixturePaysWinnings`: a league fixture, carried into the game as
+`GameState.paysWinnings`) with at least one team in a league mode. A tournament
+fixture or any other game SHALL roll no Fan Factor, so its dice are the same
+as before winnings existed. Nothing earlier in a Sevens game reads Fan
 Factor (Pitch Invasion adds Dedicated Fans, K12), so this gives the same result
 as a pre-game roll. The Fan Factors SHALL be kept in the game state
 (`GameState.fanFactors`) so a save or an online snapshot carries them.
@@ -75,6 +78,13 @@ as a pre-game roll. The Fan Factors SHALL be kept in the game state
 
 - **WHEN** a game between two Matched Play teams ends
 - **THEN** no Fan Factor is rolled
+
+#### Scenario: Tournament fixture between league teams
+
+- **WHEN** a tournament fixture between two league-mode teams ends, played or
+  simulated
+- **THEN** no Fan Factor is rolled and the Dedicated Fans update uses the
+  first dice of full time
 
 ### Requirement: Each team wins half the Fan Attendance plus its touchdowns
 

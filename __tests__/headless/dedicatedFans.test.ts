@@ -27,9 +27,7 @@ function fullTime(home: Side, away: Side, dice: number[]) {
   team2.dedicatedFans = away.fans;
   gameService.getState().score[team1.id] = home.score;
   gameService.getState().score[team2.id] = away.score;
-  // The Fans come first: each team's Fan Factor D3 for league winnings
-  const leagueGame = [home, away].some((side) => side.mode !== "matched-play");
-  forceDice(rng, leagueGame ? [3, 3, ...dice] : dice);
+  forceDice(rng, dice);
   eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
   return [team1.dedicatedFans, team2.dedicatedFans];
 }
@@ -67,5 +65,63 @@ describe("Dedicated Fans after a league game", () => {
         [6, 1]
       )
     ).toEqual([0, 0]);
+  });
+});
+
+/**
+ * League winnings (openspec/specs/league-winnings): only a fixture that pays
+ * winnings rolls the two Fan Factor D3s, before the Dedicated Fans update.
+ * Every other game, a tournament fixture included, keeps the dice it had.
+ */
+describe("Fan Factors at full time", () => {
+  function leagueTeamsAtFullTime(
+    fixture: { paysWinnings?: boolean; knockout?: boolean },
+    dice: number[]
+  ) {
+    const game = new HeadlessGame({ seed: 1, ...fixture });
+    const { team1, team2, gameService, eventBus, rng } = game.ctx;
+    team1.advancementMode = "sevens-skill-selection";
+    team2.advancementMode = "advanced-league";
+    team1.dedicatedFans = 2;
+    team2.dedicatedFans = 3;
+    gameService.getState().score[team1.id] = 1;
+    gameService.getState().score[team2.id] = 0;
+    forceDice(rng, dice);
+    eventBus.emit(GameEventNames.PhaseChanged, { phase: GamePhase.GAME_OVER });
+    const fanFactorRolls = game
+      .events()
+      .filter(
+        (event) =>
+          event.name === GameEventNames.DiceRoll &&
+          String((event.data as { rollType?: string }).rollType).startsWith(
+            "Fan Factor"
+          )
+      );
+    return {
+      fans: [team1.dedicatedFans, team2.dedicatedFans],
+      fanFactors: (({ fanFactors }) =>
+        fanFactors && [fanFactors[team1.id], fanFactors[team2.id]])(
+        gameService.getState()
+      ),
+      fanFactorRolls: fanFactorRolls.length,
+    };
+  }
+
+  it("a tournament fixture of league teams rolls none, and its Dedicated Fans use the same dice", () => {
+    expect(leagueTeamsAtFullTime({ knockout: true }, [2, 2])).toEqual({
+      fans: [3, 2],
+      fanFactors: undefined,
+      fanFactorRolls: 0,
+    });
+  });
+
+  it("a league fixture rolls both Fan Factors first, then the Dedicated Fans", () => {
+    expect(leagueTeamsAtFullTime({ paysWinnings: true }, [4, 6, 2, 2])).toEqual(
+      {
+        fans: [3, 2],
+        fanFactors: [4, 6],
+        fanFactorRolls: 2,
+      }
+    );
   });
 });

@@ -14,6 +14,18 @@
  */
 
 import { Team, isLeagueMode } from "../../types/Team";
+import type { CompetitionType } from "../../competition/types";
+
+/**
+ * Whether a fixture of this competition type pays winnings. Only a league
+ * does: a tournament, and any game outside a competition, pays nothing and
+ * rolls no Fan Factor. Result recording and the engine both ask this.
+ */
+export function fixturePaysWinnings(
+  type: CompetitionType | undefined
+): boolean {
+  return type === "league";
+}
 
 /** Gold pieces paid per point of the winnings total. */
 export const WINNINGS_MULTIPLIER = 10_000;

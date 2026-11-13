@@ -78,6 +78,8 @@ export interface GameSnapshot {
   score: Record<string, number>;
   /** A game that must have a winner; absent for every other game. */
   knockout?: boolean;
+  /** A fixture that pays winnings; absent on pre-feature saves. */
+  paysWinnings?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
@@ -213,6 +215,7 @@ export function serializeGameState(
     },
     score: { ...state.score },
     ...(state.knockout ? { knockout: true } : {}),
+    ...(state.paysWinnings ? { paysWinnings: true } : {}),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
@@ -297,6 +300,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     turn,
     score: { ...snapshot.score },
     ...(snapshot.knockout ? { knockout: true } : {}),
+    ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,

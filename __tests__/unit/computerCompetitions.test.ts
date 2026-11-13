@@ -28,6 +28,8 @@ import {
 import { CompetitionDoc } from "../../src/competition/types";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import { RNGService } from "../../src/services/rng/RNGService";
+import { HeadlessGame } from "../../src/headless/HeadlessGame";
+import { GameEventNames } from "../../src/types/events";
 import { createReadyMadeTeam } from "../../src/simulation/lineups";
 import { RosterName, Team, TeamAdvancementMode } from "../../src/types/Team";
 
@@ -54,6 +56,19 @@ function coachTeam(name: string): Team {
 }
 
 beforeEach(() => localStorage.clear());
+
+/** Fan Factor D3s the simulated match rolled (league-winnings). */
+function fanFactorRolls(game: HeadlessGame): number {
+  return game
+    .events()
+    .filter(
+      (event) =>
+        event.name === GameEventNames.DiceRoll &&
+        String((event.data as { rollType?: string }).rollType).startsWith(
+          "Fan Factor"
+        )
+    ).length;
+}
 
 describe("computer teams", () => {
   it.each(MODES)(
@@ -164,9 +179,19 @@ describe("simulating a game between two computer teams", () => {
       entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
     });
     const [fixture] = simulatableFixtures(league);
-    const outcome = await simulateFixture(league, fixture.id, { seed: 11 });
+    let game: HeadlessGame | undefined;
+    const outcome = await simulateFixture(league, fixture.id, {
+      seed: 11,
+      inspect: (inspected) => (game = inspected),
+    });
 
     const result = outcome.fixture.result!;
+    // A league fixture pays winnings: full time rolled both Fan Factors
+    expect(fanFactorRolls(game!)).toBe(2);
+    expect(result.winnings?.fanFactor).toEqual({
+      home: game!.ctx.gameService.getState().fanFactors?.[orcs.id],
+      away: game!.ctx.gameService.getState().fanFactors?.[dwarfs.id],
+    });
     expect(outcome.recording.findings).toEqual([]);
     expect(outcome.fixture.status).toBe("complete");
     const stored = (await getCompetition("league", league.id))!;
@@ -249,6 +274,39 @@ describe("simulating a game between two computer teams", () => {
     for (const team of cupTeams)
       expect(getTeamById(team.id)?.activeCompetitionId).toBeUndefined();
   }, 120_000);
+
+  it("rolls no Fan Factor and pays nothing in a simulated cup game between league teams", async () => {
+    const [orcs, dwarfs] = [
+      computerTeam(RosterName.ORC, "Pool Orcs"),
+      computerTeam(RosterName.DWARF, "Pool Dwarfs"),
+    ];
+    const before = [orcs.treasury, dwarfs.treasury];
+    const pool = await createCompetition({
+      type: "tournament",
+      format: "round-robin",
+      name: "The Pool",
+      organizerUid: null,
+      entrants: [orcs, dwarfs].map((team) => ({ team, ownerUid: null })),
+    });
+    let game: HeadlessGame | undefined;
+    const outcome = await simulateFixture(
+      pool,
+      simulatableFixtures(pool)[0].id,
+      {
+        seed: 11,
+        inspect: (inspected) => (game = inspected),
+      }
+    );
+
+    const state = game!.ctx.gameService.getState();
+    expect(state.paysWinnings).toBeUndefined();
+    expect(state.fanFactors).toBeUndefined();
+    expect(fanFactorRolls(game!)).toBe(0);
+    expect(outcome.fixture.result?.winnings).toBeUndefined();
+    // No winnings came in; the computer may only spend between games
+    expect(getTeamById(orcs.id)!.treasury).toBeLessThanOrEqual(before[0]);
+    expect(getTeamById(dwarfs.id)!.treasury).toBeLessThanOrEqual(before[1]);
+  }, 60_000);
 });
 
 describe("computer team names", () => {

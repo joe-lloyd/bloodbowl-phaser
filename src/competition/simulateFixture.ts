@@ -27,6 +27,7 @@ import {
   CompetitionDoc,
   CompetitionFixture,
 } from "./types";
+import { fixturePaysWinnings } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
   fixture: CompetitionFixture;
@@ -128,6 +129,7 @@ export async function simulateFixture(
     startingPhase: GamePhase.SETUP,
     progressionEnabled: true,
     knockout: context.knockout,
+    paysWinnings: fixturePaysWinnings(context.competitionType),
   });
   options.inspect?.(game);
   // Serving a Miss Next Game is not a new casualty

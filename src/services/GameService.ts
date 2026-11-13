@@ -1880,12 +1880,14 @@ export class GameService implements IGameService {
   /**
    * The Fans (pre-game sequence): each team's Fan Factor is its Dedicated
    * Fans plus a D3. Only league winnings read it, so it is rolled at full
-   * time, before Dedicated Fans change, and only when a league team is
-   * playing. Nothing earlier in a Sevens game uses it: Pitch Invasion adds
-   * Dedicated Fans (docs/SEVENS_RULES.md K12).
+   * time, before Dedicated Fans change, and only in a fixture that pays
+   * winnings with a league team playing. A tournament or friendly rolls
+   * nothing, so its dice stay as they were. Nothing earlier in a Sevens
+   * game uses it: Pitch Invasion adds Dedicated Fans (docs/SEVENS_RULES.md
+   * K12).
    */
   private rollFanFactors(): void {
-    if (this.state.fanFactors) return;
+    if (!this.state.paysWinnings || this.state.fanFactors) return;
     const teams = [this.team1, this.team2];
     if (!teams.some((team) => isLeagueMode(team.advancementMode))) return;
     const fanFactors: Record<string, number> = {};

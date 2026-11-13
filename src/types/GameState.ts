@@ -99,6 +99,11 @@ export interface GameState {
    * to Extra Time and then Penalties (2025 rulebook, p.87).
    */
   knockout?: boolean;
+  /**
+   * A fixture that pays winnings (a league fixture, fixturePaysWinnings):
+   * full time rolls the Fan Factors. Absent for every other game.
+   */
+  paysWinnings?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
