@@ -1,13 +1,10 @@
 import Phaser from "phaser";
-import { rollLabel, requiredRoll } from "../../rules/rollTargets";
-import { rushModifier } from "../../inducements/matchInducements";
 import { PhaseHandler } from "./PhaseHandler";
 import { GameScene } from "../../../scenes/GameScene";
 import { IGameService } from "../../../services/interfaces/IGameService";
 import { GameEventMap, IEventBus } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
-import { moveAllowance } from "../../skills/movement";
-import { withDriveModifiers } from "../../kickoff/driveEffects";
+import { registerActionCommands } from "./actionCommands";
 import { BombSprite } from "../../elements/BombSprite";
 import { BallSprite, CARRIED_HEIGHT } from "../../elements/BallSprite";
 import { ISO } from "../../elements/GridUtils";
@@ -26,13 +23,6 @@ import { DiceWatch } from "../../presentation/diceWatch";
  */
 export class PlayPhaseHandler implements PhaseHandler {
   private unsubscribes: (() => void)[] = [];
-  /** Blitz block awaiting the rush confirmation dialog */
-  private pendingBlitzBlock: {
-    attackerId: string;
-    defenderId: string;
-    numDice: number;
-    isAttackerChoice: boolean;
-  } | null = null;
   private dice: DiceWatch | null = null;
 
   constructor(
@@ -127,90 +117,10 @@ export class PlayPhaseHandler implements PhaseHandler {
     // Ready To Start (Kickoff -> Play)
     // REMOVED from PlayPhase, handled in KickoffPhase transition
 
-    // Block Dice. The block at the end of a Blitz costs 1 movement; if that
-    // point is beyond MA it's a Rush — ask the usual rush confirmation
-    // BEFORE any dice are rolled (declining keeps the activation open).
-    this.register(GameEventNames.UI_RollBlockDice, (data) => {
-      const state = this.gameService.getState();
-      const attacker = this.gameService.getPlayerById(data.attackerId);
-      const isBlitzBlock =
-        state.activePlayer?.action === "blitz" &&
-        state.activePlayer.id === data.attackerId;
+    this.unsubscribes.push(
+      registerActionCommands(this.gameService, this.eventBus)
+    );
 
-      if (isBlitzBlock && attacker) {
-        const effectiveAttacker = withDriveModifiers(attacker, state);
-        const used = this.gameService.getMovementUsed(data.attackerId);
-        if (used + 1 > moveAllowance(effectiveAttacker)) {
-          // Even a Rush can't pay for the block any more
-          this.eventBus.emit(
-            GameEventNames.UI_Notification,
-            "No movement left to make the Blitz block!"
-          );
-          this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-          return;
-        }
-        if (used + 1 > effectiveAttacker.stats.MA) {
-          this.pendingBlitzBlock = data;
-          const target = requiredRoll(2, rushModifier(state, attacker));
-          this.eventBus.emit(GameEventNames.UI_RequestConfirmation, {
-            actionId: "blitz-rush-confirm",
-            title: "Rush Required!",
-            message:
-              `${rollLabel("This block needs a Rush", target)}.\n` +
-              "A fail knocks the blitzer down. It is a turnover and no block is rolled.",
-            confirmLabel: "Rush!",
-            cancelLabel: "Cancel",
-            risky: true,
-            chooserTeamId: attacker.teamId,
-            step: {
-              playerId: attacker.id,
-              rolls: [{ type: "rush", target }],
-            },
-          });
-          return;
-        }
-      }
-
-      this.gameService.rollBlockDice(
-        data.attackerId,
-        data.defenderId,
-        data.numDice,
-        data.isAttackerChoice
-      );
-    });
-
-    this.register(GameEventNames.UI_ConfirmationResult, (data) => {
-      if (data.actionId !== "blitz-rush-confirm") return;
-      const pending = this.pendingBlitzBlock;
-      this.pendingBlitzBlock = null;
-      if (data.confirmed && pending) {
-        this.gameService.rollBlockDice(
-          pending.attackerId,
-          pending.defenderId,
-          pending.numDice,
-          pending.isAttackerChoice
-        );
-      } else {
-        // Rush declined: no dice will come — stop the dialog's rolling state
-        this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
-      }
-    });
-
-    // Block Result Selected
-    this.register(GameEventNames.UI_BlockResultSelected, (data) => {
-      this.gameService.resolveBlock(
-        data.attackerId,
-        data.defenderId,
-        data.result
-      );
-    });
-
-    // Block-dice re-rolls (Team Re-roll = all dice, Pro = one die, Brawler =
-    // the one Both Down die). All three re-emit BlockDiceRolled, so the
-    // dialog refreshes in place.
-    this.register(GameEventNames.UI_KeepBlockDice, ({ attackerId }) => {
-      this.gameService.keepBlockDice(attackerId);
-    });
     // The attacker throws the block once the dice are kept.
     this.register(GameEventNames.BlockDiceKept, (data) => {
       const sprites = this.scene["playerSprites"];
@@ -221,45 +131,6 @@ export class PlayPhaseHandler implements PhaseHandler {
           "block",
           defender ? { x: defender.x, y: defender.y } : undefined
         );
-    });
-    this.register(GameEventNames.UI_TeamRerollBlock, (data) => {
-      this.gameService.teamRerollBlock(data.attackerId);
-    });
-    this.register(GameEventNames.UI_ProRerollBlockDie, (data) => {
-      this.gameService.proRerollBlockDie(data.attackerId, data.dieIndex);
-    });
-    this.register(GameEventNames.UI_BrawlerRerollBlockDie, (data) => {
-      this.gameService.brawlerRerollBlockDie(data.attackerId);
-    });
-    this.register(GameEventNames.UI_VeteranRerollBlock, (data) => {
-      this.gameService.veteranRerollBlock(data.attackerId);
-    });
-
-    // Reroll/reaction dialog answers — resolve the paused roll path (or,
-    // on the guest / online host, route the reply over the protocol)
-    this.register(GameEventNames.UI_RerollResponse, (data) => {
-      this.gameService.answerReroll(data.accept, data.source);
-    });
-    this.register(GameEventNames.UI_ReactionResponse, (data) => {
-      this.gameService.answerReaction(data.accept);
-    });
-    this.register(GameEventNames.UI_InterceptionResponse, (data) => {
-      this.gameService.answerInterception(data.playerId);
-    });
-    this.register(GameEventNames.UI_ApothecaryResponse, (data) => {
-      this.gameService.answerApothecary(data.accept);
-    });
-
-    // Push Follow Up Response — the follow-up move is free (no movement
-    // cost, no dice), so it must NOT go through movePlayer
-    this.register(GameEventNames.UI_FollowUpResponse, async (data) => {
-      if (data.followUp && data.targetSquare) {
-        await this.gameService.followUpPush(data.attackerId, data.targetSquare);
-      }
-      // A Blitz block keeps the player active with the rest of their move
-      // (the engine then asks the board to resume it); a plain block ends
-      // the activation.
-      this.gameService.finishBlockActivation(data.attackerId);
     });
 
     // Status Updates
