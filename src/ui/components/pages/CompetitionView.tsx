@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
 import {
@@ -103,13 +103,32 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     []
   );
 
+  /**
+   * Bumped by every load and by every change this page makes. A load that
+   * finishes after a newer load, or after a change (a recorded result, a
+   * withdrawal, a simulated game), read an older competition and must not
+   * replace what the page shows.
+   */
+  const loadGeneration = useRef(0);
+  const supersedeLoads = () => {
+    loadGeneration.current += 1;
+  };
+  /** Show what a change on this page left, over any load still running. */
+  const showChange = (changed: CompetitionDoc) => {
+    supersedeLoads();
+    setCompetition(changed);
+  };
+
   useEffect(() => {
     if (!id) return;
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
     void getCompetition(type, id)
       // Games owed as walkovers by a team that withdrew before they were
       // closed on withdrawal
       .then((loaded) => (loaded ? closeWalkovers(loaded) : loaded))
       .then((loaded) => {
+        if (!current()) return;
         if (!loaded) return setCompetition(loaded);
         // The computer makes its teams' development choices, including
         // any left by a game a person played against one.
@@ -126,9 +145,10 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         const refreshed = refreshEntrantDisplays(loaded);
         setCompetition(refreshed);
       })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : String(reason))
-      );
+      .catch((reason: unknown) => {
+        if (current())
+          setError(reason instanceof Error ? reason.message : String(reason));
+      });
   }, [id, type, library]);
 
   // A link, not a step back: after a match the results screen pushes this
@@ -208,12 +228,13 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
 
   const withdraw = async (entrantId: string) => {
     if (!window.confirm("Withdraw this team from the competition?")) return;
+    supersedeLoads();
     try {
       const updated = await withdrawFromCompetition(
         { competitionType: type, competitionId: competition.id },
         entrantId
       );
-      setCompetition(updated);
+      showChange(updated);
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -256,6 +277,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             away: Number(draft?.penaltiesAway),
           }
         : undefined;
+    supersedeLoads();
     try {
       const updated = await recordCompetitionFixture(
         contextFor(fixture),
@@ -264,7 +286,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         undefined,
         penalties
       );
-      setCompetition(updated);
+      showChange(updated);
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -374,6 +396,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     let latest = competition;
     const results: SimulatedResult[] = [];
     setError(null);
+    supersedeLoads();
     try {
       for (let fixture = next(latest); fixture; fixture = next(latest)) {
         const name = (entrantId: string | null) =>
@@ -400,7 +423,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
               `${playerLabel(player)} (${team.name}): ${injuryLabel(player) ?? "Casualty"}`
           ),
         });
-        setCompetition(latest);
+        showChange(latest);
         setSimulated((shown) => [
           ...results,
           ...shown.filter(
