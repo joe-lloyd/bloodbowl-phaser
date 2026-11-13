@@ -285,8 +285,13 @@ export function DiceTray({
         waiting.closed = item.closed;
       } else if (first) queue.current.unshift(item);
       else queue.current.push(item);
-      // Never fall far behind the game: keep the latest few.
-      while (queue.current.length > MAX_QUEUE) queue.current.pop();
+      // Never fall far behind the game: drop the oldest waiting D6s and
+      // keep the latest few. Block dice wait on a pick, so they stay.
+      while (queue.current.length > MAX_QUEUE) {
+        const oldest = queue.current.findIndex((q) => !q.block);
+        if (oldest < 0) break;
+        queue.current.splice(oldest, 1);
+      }
       if (!playing.current) void playNext();
       else if (shown && !shown.settled && !shown.block) throwing?.hurry();
       else cutHold?.();

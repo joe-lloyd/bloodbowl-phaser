@@ -392,9 +392,12 @@ export interface GameEvents {
     source: import("./decisions").RerollSource;
     rollKind: string;
     skill?: string;
-    /** Die result before and after the reroll */
-    before: number;
-    after: number;
+    /**
+     * The roll before and after the reroll: a D6's value, or each block
+     * die's face, e.g. ["Push"] → ["Attacker Down"]
+     */
+    before: number | string[];
+    after: number | string[];
   };
 
   [GameEventNames.DecisionRequested]: import("./decisions").DecisionRequest;

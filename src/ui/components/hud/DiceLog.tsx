@@ -22,6 +22,7 @@ import {
   PanelHeader,
 } from "../componentWarehouse/HudKit";
 import { DiceWatch } from "../../../game/presentation/diceWatch";
+import type { RerollSource } from "../../../types/decisions";
 import {
   appendBallRoll,
   ballMovementText,
@@ -112,6 +113,24 @@ const CATEGORY_LABELS: Record<LogEntryCategory, string> = {
   action: "Action",
   info: "Info",
 };
+
+/** What paid for a re-roll, as the log names it. */
+function rerollHeadline(source: RerollSource, skill?: string): string {
+  switch (source) {
+    case "skill":
+      return skill ?? "Skill Re-roll";
+    case "team":
+      return "Team Re-roll";
+    case "pro":
+      return "Pro";
+    case "veteran":
+      return "Veteran";
+    default: {
+      const exhaustive: never = source;
+      return exhaustive;
+    }
+  }
+}
 
 /** Resolve a player's team, when the game service is up, for attribution. */
 function teamIdForPlayer(playerId: string): string | undefined {
@@ -286,10 +305,12 @@ export const DiceLog: React.FC<DiceLogProps> = ({ eventBus }) => {
     });
   });
   useEventBus(eventBus, GameEventNames.RerollUsed, (data) => {
+    const roll = (dice: number | string[]) =>
+      Array.isArray(dice) ? dice.join(", ") : String(dice);
     pushLogEntry({
       category: "reroll",
-      headline: data.skill ?? "Team Re-roll",
-      detail: `${data.rollKind}: ${data.before} → ${data.after}`,
+      headline: rerollHeadline(data.source, data.skill),
+      detail: `${data.rollKind}: ${roll(data.before)} → ${roll(data.after)}`,
       teamId: teamIdForPlayer(data.playerId),
     });
   });
