@@ -27,7 +27,12 @@ import {
 } from "../../src/game/rules/purchasePlanner";
 import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
 import { validateInsignificant } from "../../src/game/rules/insignificant";
-import { draftListPlayers } from "../../src/game/rules/teamPricing";
+import { draftListPlayers, hirePlayer } from "../../src/game/rules/teamPricing";
+import {
+  hireJourneyman,
+  journeymanHireRefusal,
+} from "../../src/game/rules/journeymen";
+import { SkillType } from "../../src/types/Skills";
 import { RNGService } from "../../src/services/rng/RNGService";
 import {
   InjuryType,
@@ -386,7 +391,100 @@ describe("the purchase plan of a team with no human coach", () => {
   });
 });
 
+/**
+ * An active Snotling team whose list holds as many Insignificant Snotling
+ * Linemen as other players, 4 and 4, with gold to spare.
+ */
+function snotlingsAtTheLimit(): Team {
+  const team = leagueTeam(RosterName.SNOTLING, {
+    players: 0,
+    treasury: 300_000,
+  });
+  const templates = getRosterByRosterName(RosterName.SNOTLING).playerTemplates;
+  const insignificant = (template: (typeof templates)[number]) =>
+    template.skills.some((skill) => skill.type === SkillType.INSIGNIFICANT);
+  const significant = templates.filter((template) => !insignificant(template));
+  const snotling = templates.find(insignificant)!;
+  const picks = significant.flatMap((template) =>
+    Array(template.maxAllowed ?? 1).fill(template)
+  );
+  team.players = [...picks.slice(0, 4), ...Array(4).fill(snotling)].map(
+    (template, index) => createPlayer(template, team.id, index + 1)
+  );
+  team.rerolls = 6;
+  team.apothecary = true;
+  team.coaches = 3;
+  team.cheerleaders = 3;
+  expect(validateInsignificant(team.players)).toBeNull();
+  return team;
+}
+
+describe("the Insignificant limit between fixtures", () => {
+  it("stops the planner hiring an Insignificant Journeyman past it", () => {
+    const team = snotlingsAtTheLimit();
+    offerJourneyman(team, 9);
+    const plan = planPurchases(team);
+    expect(plan.filter((item) => item.kind === "journeyman")).toEqual([]);
+    applyAll(team, plan);
+    expect(validateInsignificant(draftListPlayers(team))).toBeNull();
+  });
+
+  it("stops a coach hiring one past it too, Journeyman or new player", () => {
+    const team = snotlingsAtTheLimit();
+    const offerId = offerJourneyman(team, 9);
+    const offer = team.pendingDevelopment!.find(
+      (entry) => entry.id === offerId
+    )!;
+    expect(journeymanHireRefusal(team, offer as never)).toMatch(
+      /Insignificant/
+    );
+    expect(() => hireJourneyman(team, offer as never)).toThrow(/Insignificant/);
+    const snotling = getRosterByRosterName(
+      RosterName.SNOTLING
+    ).playerTemplates.find(
+      (template) => template.positionName === "Snotling Lineman"
+    )!;
+    expect(hirePlayer(team, snotling)).toMatchObject({ amount: null });
+    expect(team.treasury).toBe(300_000);
+  });
+});
+
 describe("managing a team after a fixture", () => {
+  it("lets go a Journeyman it cannot pay for when their slot is needed", () => {
+    // 10 hired players, 6 of them fit, a waiting 50,000 gp Journeyman holding
+    // the 11th slot, and 30,000 gp: only a Halfling Hopeful is affordable
+    const team = leagueTeam(RosterName.HUMAN, {
+      players: 10,
+      treasury: 30_000,
+    });
+    for (const player of team.players.slice(6))
+      player.injuries = [InjuryType.MISS_NEXT_GAME];
+    const offerId = offerJourneyman(team, 11);
+    expect(fitPlayers(team)).toHaveLength(6);
+    const plan = planPurchases(team);
+    expect(plan).toEqual([
+      {
+        kind: "release-journeyman",
+        offerId,
+        playerId: `${team.id}-journeyman-11`,
+        playerName: "Journeyman #11",
+        price: 0,
+        reason: "minimum",
+      },
+      {
+        kind: "player",
+        positionName: "Halfling Hopeful",
+        price: 30_000,
+        reason: "minimum",
+      },
+    ]);
+    const report = manageComputerTeam(team, new RNGService(3));
+    expect(fitPlayers(team)).toHaveLength(7);
+    expect(team.treasury).toBe(0);
+    expect(team.pendingDevelopment).toEqual([]);
+    expect(report.setbacks).toEqual([]);
+  });
+
   it("lets go the Journeymen it does not hire", () => {
     const team = leagueTeam(RosterName.HUMAN, { players: 11, treasury: 0 });
     team.players = team.players.slice(0, 7);

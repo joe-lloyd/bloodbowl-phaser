@@ -15,7 +15,8 @@
  *    Journeyman who played, who costs a Lineman's Hiring Fee plus any Value
  *    Increase they bring with them, so the team does not pay for a new
  *    Lineman and then for the Journeyman too; then the cheapest player the
- *    roster allows.
+ *    roster allows. A waiting Journeyman the rules refuse is let go when
+ *    their slot is what stands in the way.
  * 2. Every other Journeyman who played, while there is room and gold.
  * 3. A team re-roll, when the team has none.
  * 4. The cheapest players the roster allows, toward its limit of 11.
@@ -32,15 +33,14 @@ import {
   draftedPlayerPrice,
 } from "../progression/advancementModes";
 import { InjuryType, Player, PlayerTemplate } from "../../types/Player";
-import { SkillType, hasSkill } from "../../types/Skills";
 import { Team, isLeagueMode } from "../../types/Team";
 import { EXPENSIVE_MISTAKES_THRESHOLD } from "./expensiveMistakes";
-import { countInsignificant } from "./insignificant";
 import {
   JourneymanOffer,
   hireJourneyman,
   journeymanHireRefusal,
   journeymanPrice,
+  releaseJourneyman,
 } from "./journeymen";
 import { MIN_ROSTER_PLAYERS } from "./rosterLegality";
 import { canEdit } from "./teamEditLegality";
@@ -52,7 +52,7 @@ import {
   purchase,
 } from "./teamPricing";
 
-/** Why a purchase is in the plan: the priority that chose it. */
+/** Why a step is in the plan: the priority that chose it. */
 export type PurchaseReason =
   | "minimum"
   | "journeyman"
@@ -82,6 +82,18 @@ export type PlannedPurchase =
   | {
       kind: "staff";
       item: PlannedStaff;
+      price: number;
+      reason: PurchaseReason;
+    }
+  | {
+      /**
+       * Let go a waiting Journeyman the rules refuse to hire now, so the
+       * numbered slot they hold is free for a replacement. Costs nothing.
+       */
+      kind: "release-journeyman";
+      offerId: string;
+      playerId: string;
+      playerName: string;
       price: number;
       reason: PurchaseReason;
     };
@@ -168,6 +180,14 @@ export function applyPurchase(team: Team, item: PlannedPurchase): number {
       if (bought.amount == null) throw new Error(bought.reason);
       return bought.amount;
     }
+    case "release-journeyman": {
+      const offer = journeymanOffers(team).find(
+        (entry) => entry.id === item.offerId
+      );
+      if (!offer) throw new Error("This Journeyman offer has been answered.");
+      releaseJourneyman(team, offer);
+      return 0;
+    }
   }
 }
 
@@ -220,11 +240,32 @@ export function planPurchases(team: Team): PlannedPurchase[] {
     );
   };
 
+  /**
+   * Let go the first waiting Journeyman the rules refuse now (no gold, no
+   * room, or the Insignificant limit), once nothing else gets the team
+   * nearer 7: the numbered slot they hold may be what a replacement needs.
+   */
+  const releaseRefusedJourneyman = () => {
+    const offer = journeymanOffers(sim).find(
+      (entry) => journeymanHireRefusal(sim, entry) !== undefined
+    );
+    if (!offer) return false;
+    const player = sim.players.find((p) => p.id === offer.playerId);
+    return buy({
+      kind: "release-journeyman",
+      offerId: offer.id,
+      playerId: offer.playerId,
+      playerName: player?.playerName ?? offer.playerId,
+      reason: "minimum",
+    });
+  };
+
   // 1. Enough fit players to take the field
   while (fitPlayers(sim).length < MIN_ROSTER_PLAYERS) {
     if (
       !hireJourneymanFor("minimum", () => sim.treasury) &&
-      !hireCheapest("minimum", sim.treasury)
+      !hireCheapest("minimum", sim.treasury) &&
+      !releaseRefusedJourneyman()
     )
       break;
   }
@@ -249,6 +290,8 @@ export function planPurchases(team: Team): PlannedPurchase[] {
 
 /** A plan's purchase in words, for the computer's report. */
 export function describePurchase(item: PlannedPurchase): string {
+  if (item.kind === "release-journeyman")
+    return `let Journeyman ${item.playerName} go to free a roster slot`;
   const what =
     item.kind === "journeyman"
       ? `hired Journeyman ${item.playerName}`
@@ -279,26 +322,16 @@ function rosterTemplates(team: Team): PlayerTemplate[] {
 
 /**
  * The cheapest player the roster lets this team hire now for at most
- * `budget`, or undefined. The roster's own order breaks a tie. A player
- * with Insignificant is left out when they would outnumber the rest.
+ * `budget`, or undefined. The roster's own order breaks a tie.
  */
 function cheapestHire(team: Team, budget: number): PlayerTemplate | undefined {
-  const listed = draftListPlayers(team);
-  const insignificant = countInsignificant(listed);
-  // Insignificant: "you may not include more players with this Trait than
-  // players without this Trait" (insignificant.ts)
-  const roomForInsignificant =
-    insignificant + 1 <= listed.length - insignificant;
   return rosterTemplates(team)
     .map((template, index) => ({ template, index }))
     .filter(({ template }) => {
       const price = priceOf(team, { type: "player", cost: template.cost });
       if (price.amount == null || price.amount > budget) return false;
-      if (hireRefusal(team, template) !== undefined) return false;
-      return (
-        roomForInsignificant ||
-        !hasSkill(template.skills, SkillType.INSIGNIFICANT)
-      );
+      // The roster limits a coach's hire meets, Insignificant included
+      return hireRefusal(team, template) === undefined;
     })
     .sort((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
     ?.template;

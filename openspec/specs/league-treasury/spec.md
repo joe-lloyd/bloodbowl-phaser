@@ -137,8 +137,10 @@ Treasury, choosing a Veteran and Matched Play inducements.
 A hire or purchase the Treasury cannot pay SHALL be refused with a reason and
 leave the team unchanged. A hire SHALL be refused when the Team Draft List
 already holds 11 permanently hired players. Between fixtures a hire SHALL
-also be refused when it would take a position over its QTY or the team over
-4 players without the Lineman keyword. A dead player has left the list, and
+also be refused when it would take a position over its QTY, the team over
+4 players without the Lineman keyword, or the Team Draft List over the
+Insignificant limit (no more players with Insignificant than without). The
+same refusal covers hiring a Journeyman. A dead player has left the list, and
 a Journeyman or raised Lineman waiting on a hiring decision is not on it, but
 holds one of the 11 numbered roster slots: a new hire SHALL take a free number
 from 1 to 11 and is refused, before anything is charged, when none is free.
@@ -216,7 +218,8 @@ it would outnumber the players without it. The plan SHALL buy, in order:
 
 1. Players until 7 can play the next game (none dead or due to Miss Next
    Game): first a Journeyman who played and can play, then the cheapest
-   player the roster allows.
+   player the roster allows. When neither is possible, a waiting Journeyman
+   the rules refuse is let go first, so a replacement can take their slot.
 2. Every other Journeyman who played, while there is room and gold.
 3. A team re-roll, when the team has none.
 4. The cheapest players the roster allows, toward 11.
@@ -246,6 +249,13 @@ against it).
   player with an added skill, no re-roll and 200,000 gp is managed
 - **THEN** it buys no re-roll, hires three 30,000 gp Halfling Hopefuls and
   keeps 110,000 gp
+
+#### Scenario: A refused Journeyman frees their slot
+
+- **WHEN** a computer Human league team with 10 hired players, 6 of them
+  fit, a waiting 50,000 gp Journeyman and 30,000 gp is managed
+- **THEN** it lets the Journeyman go and hires a 30,000 gp Halfling Hopeful,
+  so 7 can play
 
 #### Scenario: No gold
 
