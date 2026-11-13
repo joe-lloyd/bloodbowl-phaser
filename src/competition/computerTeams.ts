@@ -34,24 +34,27 @@ import {
   canKeepRaisedDead,
   resolveRaisedDeadRecruit,
 } from "../game/rules/raiseDead";
-import { canEdit } from "../game/rules/teamEditLegality";
-import { draftListPlayers, priceOf } from "../game/rules/teamPricing";
-import { freeRosterNumber, uniquePlayerId } from "../game/rules/playerSlots";
+import { releaseJourneyman } from "../game/rules/journeymen";
+import { isActiveTeam } from "../game/rules/teamLifecycle";
 import {
-  hireJourneyman,
-  journeymanHireRefusal,
-  releaseJourneyman,
-} from "../game/rules/journeymen";
+  applyPurchase,
+  describePurchase,
+  fitPlayers,
+  journeymanOffers,
+  planPurchases,
+} from "../game/rules/purchasePlanner";
+import { MIN_ROSTER_PLAYERS } from "../game/rules/rosterLegality";
 import {
   describeExpensiveMistakes,
   resolveExpensiveMistakes,
 } from "../game/rules/expensiveMistakes";
 import { IRNGService } from "../services/rng/RNGService";
 import { createReadyMadeTeam } from "../simulation/lineups";
-import { createPlayer, Player, PositionKeyWord } from "../types/Player";
+import { Player } from "../types/Player";
 import {
-  addPlayerToTeam,
   calculateTeamValue,
+  isLeagueMode,
+  isPendingRecruit,
   PendingDevelopment,
   RosterName,
   startingDedicatedFans,
@@ -178,18 +181,21 @@ export interface ManagementReport {
 
 /**
  * Resolve every development choice waiting on a computer team, spend its
- * SPP, hire Linemen back up to seven players, and last roll any Expensive
+ * SPP, spend its Treasury (purchasePlanner.ts), and last roll any Expensive
  * Mistakes, the post-game sequence's final money step. Changes `team` in
- * place; the caller saves it.
+ * place; the caller saves it. A team a person coaches is never touched.
  */
 export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   const report: ManagementReport = { done: [], setbacks: [], refused: [] };
-  const beforeMistakes = () =>
+  if (!team.computerCoached) return report;
+  const waiting = () =>
     team.pendingDevelopment?.find(
-      (candidate) => candidate.kind !== "expensive-mistakes"
+      (candidate) =>
+        candidate.kind !== "expensive-mistakes" &&
+        candidate.kind !== "journeyman-offer"
     );
-  for (let guard = 0; guard < 40 && beforeMistakes(); guard++) {
-    const entry = beforeMistakes()!;
+  for (let guard = 0; guard < 40 && waiting(); guard++) {
+    const entry = waiting()!;
     try {
       resolveEntry(team, entry, rng, report);
     } catch (cause) {
@@ -203,14 +209,7 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
     }
   }
   spendSpp(team, rng, report);
-  try {
-    hireUpToSeven(team, report);
-  } catch (cause) {
-    report.refused.push({
-      rule: "hire-refused",
-      detail: `${team.name}: ${cause}`,
-    });
-  }
+  spendTreasury(team, report);
   for (const entry of [...(team.pendingDevelopment ?? [])]) {
     if (entry.kind !== "expensive-mistakes") continue;
     try {
@@ -231,14 +230,16 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
 
 /**
  * Manage every computer team of a competition held in this coach's
- * library, and save those that changed.
+ * library, or only those of `entrantIds`, and save those that changed.
  */
 export function manageComputerTeams(
   competition: CompetitionDoc,
-  rng: Rng
+  rng: Rng,
+  entrantIds?: readonly (string | null)[]
 ): ManagementReport[] {
   return competition.entrants.flatMap((entrant) => {
     if (!entrant.computerCoached) return [];
+    if (entrantIds && !entrantIds.includes(entrant.id)) return [];
     const team = getTeamById(entrant.teamId);
     if (!team) return [];
     const before = JSON.stringify(team);
@@ -287,20 +288,9 @@ function resolveEntry(
     case "sevens-skill-selection":
       resolveSkillSelection(team, entry, rng, report);
       return;
-    case "journeyman-offer": {
-      // Keep a Journeyman only to get back to seven, when it can pay
-      const player = team.players.find((p) => p.id === entry.playerId);
-      const keep =
-        !!player &&
-        draftListPlayers(team).length < 7 &&
-        journeymanHireRefusal(team, entry) === undefined;
-      if (keep) hireJourneyman(team, entry);
-      else releaseJourneyman(team, entry);
-      report.done.push(
-        `${team.name}: Journeyman ${player?.playerName ?? entry.playerId} ${keep ? "hired" : "let go"}`
-      );
+    case "journeyman-offer":
+      // Hired or let go with the Treasury, by spendTreasury
       return;
-    }
     case "expensive-mistakes":
       // Rolled after hiring, by manageComputerTeam
       return;
@@ -321,6 +311,8 @@ function resolveEntry(
 /** Spend what each player has earned, as a keen coach would. */
 function spendSpp(team: Team, rng: Rng, report: ManagementReport): void {
   for (const player of team.players) {
+    // A Journeyman's SPP waits until they are hired
+    if (isPendingRecruit(team, player.id)) continue;
     for (let guard = 0; guard < 10 && canAdvance(player); guard++) {
       let choice: AdvancementChoice | null = null;
       try {
@@ -382,31 +374,39 @@ function advancementChoice(
   return { kind: "random-primary", skill: first.skill };
 }
 
-/** A league team short of seven hires Linemen from the Treasury. */
-function hireUpToSeven(team: Team, report: ManagementReport): void {
-  if (team.players.length >= 7) return;
-  if (!canEdit(team, { type: "hire-player" }).allowed) return;
-  const template = getRosterByRosterName(team.rosterName).playerTemplates.find(
-    (candidate) => candidate.keywords.includes(PositionKeyWord.LINEMAN)
-  );
-  if (!template) return;
-  while (team.players.length < 7) {
-    const price = priceOf(team, { type: "player", cost: template.cost });
-    if (price.amount == null || team.treasury < price.amount) {
-      report.setbacks.push({
-        rule: "cannot-refill",
-        detail: `${team.name}: ${team.players.length} players, ${team.treasury} in the Treasury`,
+/**
+ * Between league fixtures, buy what the purchase planner chooses through
+ * the same code a coach's purchase runs, then let go every Journeyman not
+ * hired, so no offer is left to hold up the next fixture. A team still at
+ * its draft, or one outside a league (Matched Play), keeps its Treasury as
+ * it is.
+ */
+function spendTreasury(team: Team, report: ManagementReport): void {
+  const spends = isLeagueMode(team.advancementMode) && isActiveTeam(team);
+  for (const item of spends ? planPurchases(team) : []) {
+    try {
+      applyPurchase(team, item);
+      report.done.push(`${team.name}: ${describePurchase(item)}`);
+    } catch (cause) {
+      report.refused.push({
+        rule: "purchase-refused",
+        detail: `${team.name} ${describePurchase(item)}: ${cause}`,
       });
-      return;
     }
-    const number = freeRosterNumber(team);
-    if (number === null) return;
-    const player = createPlayer(template, team.id, number);
-    player.id = uniquePlayerId(team, player.id);
-    player.cost = price.amount;
-    if (!addPlayerToTeam(team, player)) return;
-    report.done.push(`${team.name}: hired ${player.playerName}`);
   }
+  for (const offer of journeymanOffers(team)) {
+    const player = team.players.find((p) => p.id === offer.playerId);
+    releaseJourneyman(team, offer);
+    report.done.push(
+      `${team.name}: Journeyman ${player?.playerName ?? offer.playerId} let go`
+    );
+  }
+  const fit = fitPlayers(team).length;
+  if (spends && fit < MIN_ROSTER_PLAYERS)
+    report.setbacks.push({
+      rule: "cannot-refill",
+      detail: `${team.name}: ${fit} fit players, ${team.treasury} in the Treasury`,
+    });
 }
 
 function resolveSkillSelection(

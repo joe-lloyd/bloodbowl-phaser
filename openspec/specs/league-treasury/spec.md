@@ -5,17 +5,19 @@
 Spend the Treasury after a league game, keep a team that has lost players in
 the league with Journeymen, and end the post-game sequence with Expensive
 Mistakes. This is stage 2 of the money system, after the winnings in
-`league-winnings`. Teams with no human coach managing their own money and
-tournament prizes are later stages.
+`league-winnings`, and stage 3, teams with no human coach spending their
+own Treasury. Tournament prizes are a later stage.
 
 The rules are pure functions the screens call:
 `src/game/rules/teamPricing.ts` (hiring, re-rolls, roster limits),
 `src/game/rules/leagueRoster.ts` (taking on Journeymen),
 `src/game/rules/journeymen.ts` (hiring them after the game) and
-`src/game/rules/expensiveMistakes.ts`. Dice come from the caller's dice
+`src/game/rules/expensiveMistakes.ts`, and `src/game/rules/purchasePlanner.ts`
+(what a team with no human coach buys). Dice come from the caller's dice
 source, so tests fix them. The Team Builder and `AvailableHires` spend the
 Treasury; Manage Team's pending development answers Journeyman offers and
-rolls Expensive Mistakes.
+rolls Expensive Mistakes. For a computer team, `manageComputerTeam`
+(`src/competition/computerTeams.ts`) does all of this itself.
 
 ### Rule sources
 
@@ -135,8 +137,10 @@ Treasury, choosing a Veteran and Matched Play inducements.
 A hire or purchase the Treasury cannot pay SHALL be refused with a reason and
 leave the team unchanged. A hire SHALL be refused when the Team Draft List
 already holds 11 permanently hired players. Between fixtures a hire SHALL
-also be refused when it would take a position over its QTY or the team over
-4 players without the Lineman keyword. A dead player has left the list, and
+also be refused when it would take a position over its QTY, the team over
+4 players without the Lineman keyword, or the Team Draft List over the
+Insignificant limit (no more players with Insignificant than without). The
+same refusal covers hiring a Journeyman. A dead player has left the list, and
 a Journeyman or raised Lineman waiting on a hiring decision is not on it, but
 holds one of the 11 numbered roster slots: a new hire SHALL take a free number
 from 1 to 11 and is refused, before anything is charged, when none is free.
@@ -191,8 +195,8 @@ Journeyman SHALL lose Loner and keep their SPP and advancements, and one
 taken on above number 11 SHALL move to the lowest free number. The roster
 SHALL show every retained player, including any numbered above 11. One let
 go, or one who did not play, SHALL leave with them. Nothing is offered after
-any other game. A computer team keeps a Journeyman only to get back to 7
-players when it can pay, and lets the rest go.
+any other game. A computer team hires Journeymen as its purchase plan says
+(below) and lets the rest go.
 
 #### Scenario: Hiring a Journeyman
 
@@ -200,6 +204,89 @@ players when it can pay, and lets the rest go.
   who earned 3 SPP
 - **THEN** the Treasury holds 70,000 gp and the player stays with 3 SPP and
   no Loner
+
+### Requirement: A team with no human coach spends its own Treasury
+
+A computer-coached team SHALL spend its Treasury between league fixtures by
+itself; a team a person coaches SHALL never be managed for them. What it buys
+SHALL come from one pure plan (`planPurchases`), which tries each purchase on
+a copy of the team through the code a coach's purchase runs (`hirePlayer`,
+`purchase`, `hireJourneyman`), so it follows the same prices and roster
+limits, never takes the Treasury below zero, and gives the same plan for the
+same team without dice. A player with Insignificant SHALL not be bought when
+it would outnumber the players without it. The plan SHALL buy, in order:
+
+1. Players until 7 can play the next game (none dead or due to Miss Next
+   Game): first a Journeyman who played and can play, then the cheapest
+   player the roster allows. When neither is possible and waiting
+   Journeymen who cannot help (the rules refuse them, or they cannot play
+   the next game) hold the slot a fit player needs, the fewest of them are
+   let go and that player is hired in the same step. Nobody is let go
+   unless the Treasury can pay for the replacement. No later step spends on
+   an unfit Journeyman while a fit player could still be had.
+2. Every other Journeyman who played, while there is room and gold.
+3. A team re-roll, when the team has none.
+4. The cheapest players the roster allows, toward 11.
+5. While the Treasury holds 100,000 gp or more: an Apothecary, then team
+   re-rolls, then Assistant Coaches, then Cheerleaders.
+
+Steps 2 to 5 SHALL keep back, for a Sevens Skill Selection team, the value
+of its most valuable player with an added skill: a pro team may draft such a
+player after a game, and the team keeps them only by paying that value from
+the Treasury. Anything left SHALL be kept. Journeymen not hired SHALL be let
+go, and
+Expensive Mistakes rolled after the purchases. A team at its draft and a
+Matched Play team SHALL buy nothing this way. The computer SHALL manage its
+teams after a simulated game, after a result reported by score only, and
+when the competition page loads (which covers a game a person played
+against it).
+
+#### Scenario: Short and able to pay
+
+- **WHEN** a computer Orc league team with 3 fit players and 160,000 gp is
+  managed after a fixture
+- **THEN** it hires 4 Goblin Linemen at 40,000 gp and can field 7
+
+#### Scenario: A Skill Selection team keeps a draft reserve
+
+- **WHEN** a computer Skill Selection team that can field 7, has a 105,000 gp
+  player with an added skill, no re-roll and 200,000 gp is managed
+- **THEN** it buys no re-roll, hires three 30,000 gp Halfling Hopefuls and
+  keeps 110,000 gp
+
+#### Scenario: A refused Journeyman frees their slot
+
+- **WHEN** a computer Human league team with 10 hired players, 6 of them
+  fit, a waiting 50,000 gp Journeyman and 30,000 gp is managed
+- **THEN** it lets the Journeyman go and hires a 30,000 gp Halfling Hopeful,
+  so 7 can play
+
+#### Scenario: An unfit Journeyman frees their slot
+
+- **WHEN** the same team's waiting Journeyman is due to miss the next game
+  and the team has 50,000 gp
+- **THEN** it lets the Journeyman go and hires a Halfling Hopeful, keeping
+  20,000 gp, rather than paying 50,000 gp for a Journeyman who cannot play
+
+#### Scenario: No replacement, no release
+
+- **WHEN** the same team has only 25,000 gp
+- **THEN** the purchase plan is empty; the Journeyman, whom the team cannot
+  hire, is let go afterwards like any unanswered offer, and Journeymen make
+  up the numbers at kick-off
+
+#### Scenario: No gold
+
+- **WHEN** a computer league team with 5 players and no gold is managed
+- **THEN** it buys nothing, and in its next league fixture 2 Journeymen join
+  it
+
+#### Scenario: A team a person coaches
+
+- **WHEN** a league fixture between a computer team and a person's team is
+  reported by score only
+- **THEN** the computer team makes its purchases, and the person's team is
+  paid its winnings with nothing bought or rolled for it
 
 ### Requirement: Expensive Mistakes ends the post-game money steps
 

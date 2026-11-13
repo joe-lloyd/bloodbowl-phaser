@@ -1,0 +1,389 @@
+/**
+ * What a team nobody is coaching buys with its Treasury between fixtures.
+ * The spec is openspec/specs/league-treasury/spec.md ("A team with no
+ * human coach spends its own Treasury").
+ *
+ * `planPurchases` is pure: it tries each purchase on a copy of the team
+ * through `applyPurchase`, which is the code a coach's own purchase runs
+ * (`hirePlayer` and `purchase` in teamPricing.ts, `hireJourneyman` in
+ * journeymen.ts). So a plan is only ever what a coach could buy: the same
+ * prices, the same roster limits, and a Treasury that never goes below
+ * zero. It needs no dice, so the same team always gets the same plan.
+ *
+ * Priorities, in order:
+ * 1. Up to the 7 fit players a team needs to take the field: first a fit
+ *    Journeyman who played, who costs a Lineman's Hiring Fee plus any Value
+ *    Increase they bring with them, so the team does not pay for a new
+ *    Lineman and then for the Journeyman too; then the cheapest player the
+ *    roster allows. When waiting Journeymen who cannot help (the rules
+ *    refuse them, or they cannot play the next game) hold the slot a fit
+ *    player needs, the fewest of them are let go and that player is hired
+ *    in one step, only when the Treasury can pay for the player; otherwise
+ *    nobody is let go. Step 1 stops only when no fit player can be had, so
+ *    the later steps never spend on an unfit Journeyman in place of one.
+ * 2. Every other Journeyman who played, while there is room and gold.
+ * 3. A team re-roll, when the team has none.
+ * 4. The cheapest players the roster allows, toward its limit of 11.
+ * 5. While the Treasury still holds the 100,000 gp Expensive Mistakes
+ *    rolls on: an Apothecary, then more re-rolls, then Assistant Coaches
+ *    and Cheerleaders.
+ * Anything left is kept. Steps 2 to 5 never spend a Sevens Skill Selection
+ * team's draft reserve (`draftReserve`).
+ */
+
+import { getRosterByRosterName } from "../../data/RosterTemplates";
+import {
+  addedSkillCount,
+  draftedPlayerPrice,
+} from "../progression/advancementModes";
+import { InjuryType, Player, PlayerTemplate } from "../../types/Player";
+import { Team, isLeagueMode } from "../../types/Team";
+import { EXPENSIVE_MISTAKES_THRESHOLD } from "./expensiveMistakes";
+import {
+  JourneymanOffer,
+  hireJourneyman,
+  journeymanHireRefusal,
+  journeymanPrice,
+  releaseJourneyman,
+} from "./journeymen";
+import { MIN_ROSTER_PLAYERS } from "./rosterLegality";
+import { canEdit } from "./teamEditLegality";
+import {
+  draftListPlayers,
+  hirePlayer,
+  hireRefusal,
+  priceOf,
+  purchase,
+} from "./teamPricing";
+
+/** Why a step is in the plan: the priority that chose it. */
+export type PurchaseReason =
+  | "minimum"
+  | "journeyman"
+  | "reroll"
+  | "roster"
+  | "spend-down";
+
+/** The Sideline Staff and re-rolls a plan may buy. */
+export type PlannedStaff = "reroll" | "apothecary" | "coach" | "cheerleader";
+
+export type PlannedPurchase =
+  | {
+      kind: "journeyman";
+      /** The `journeyman-offer` answered by hiring. */
+      offerId: string;
+      playerId: string;
+      playerName: string;
+      price: number;
+      reason: PurchaseReason;
+    }
+  | {
+      kind: "player";
+      positionName: string;
+      price: number;
+      reason: PurchaseReason;
+    }
+  | {
+      kind: "staff";
+      item: PlannedStaff;
+      price: number;
+      reason: PurchaseReason;
+    }
+  | {
+      /**
+       * Let go a waiting Journeyman the rules refuse to hire now, so the
+       * numbered slot they hold is free for a replacement. Costs nothing.
+       */
+      kind: "release-journeyman";
+      offerId: string;
+      playerId: string;
+      playerName: string;
+      price: number;
+      reason: PurchaseReason;
+    };
+
+/** A purchase before it is priced: the planner prices it by making it. */
+type UnpricedPurchase = PlannedPurchase extends infer Item
+  ? Item extends PlannedPurchase
+    ? Omit<Item, "price">
+    : never
+  : never;
+
+/** Bought while the Treasury could still lose gold to Expensive Mistakes. */
+const SPEND_DOWN: readonly PlannedStaff[] = [
+  "apothecary",
+  "reroll",
+  "coach",
+  "cheerleader",
+];
+
+/** More purchases than any Sevens team can make between two fixtures. */
+const MAX_PURCHASES = 40;
+
+/**
+ * Players on the Team Draft List who can play the next game: in a league
+ * a Miss Next Game or Dead result keeps a player out.
+ */
+export function fitPlayers(team: Team): Player[] {
+  return draftListPlayers(team).filter((player) => isFit(team, player));
+}
+
+/**
+ * Gold a Sevens Skill Selection team keeps back after it can field 7. After
+ * a game a pro team may draft any player with an added skill, and the team
+ * keeps them only by paying their value from the Treasury, or loses them
+ * (Drafted Players, advancementModes.ts). So the extras wait until the team
+ * could pay to keep its most valuable skilled player. Other teams keep
+ * nothing back.
+ */
+export function draftReserve(team: Team): number {
+  if (team.advancementMode !== "sevens-skill-selection") return 0;
+  return Math.max(
+    0,
+    ...draftListPlayers(team)
+      .filter((player) => addedSkillCount(player) >= 1)
+      .map(draftedPlayerPrice)
+  );
+}
+
+/** The Journeymen still waiting on a hiring decision, oldest offer first. */
+export function journeymanOffers(team: Team): JourneymanOffer[] {
+  return (team.pendingDevelopment ?? []).filter(
+    (entry): entry is JourneymanOffer => entry.kind === "journeyman-offer"
+  );
+}
+
+/**
+ * Make one planned purchase on `team` through the code a coach's purchase
+ * runs. Returns the gold charged; throws with the reason when the rules
+ * refuse it, leaving the team unchanged.
+ */
+export function applyPurchase(team: Team, item: PlannedPurchase): number {
+  switch (item.kind) {
+    case "journeyman": {
+      const offer = journeymanOffers(team).find(
+        (entry) => entry.id === item.offerId
+      );
+      if (!offer) throw new Error("This Journeyman offer has been answered.");
+      return hireJourneyman(team, offer);
+    }
+    case "player": {
+      const decision = canEdit(team, { type: "hire-player" });
+      if (!decision.allowed) throw new Error(decision.reason);
+      const template = rosterTemplates(team).find(
+        (candidate) => candidate.positionName === item.positionName
+      );
+      if (!template)
+        throw new Error(`${item.positionName} is not on the roster.`);
+      const hired = hirePlayer(team, template);
+      if (hired.amount == null) throw new Error(hired.reason);
+      return hired.amount;
+    }
+    case "staff": {
+      const bought = purchase(team, { type: item.item });
+      if (bought.amount == null) throw new Error(bought.reason);
+      return bought.amount;
+    }
+    case "release-journeyman": {
+      const offer = journeymanOffers(team).find(
+        (entry) => entry.id === item.offerId
+      );
+      if (!offer) throw new Error("This Journeyman offer has been answered.");
+      releaseJourneyman(team, offer);
+      return 0;
+    }
+  }
+}
+
+/**
+ * The purchases a team with no human coach makes from its Treasury, in
+ * order. Pure: `team` is not changed, and the same team gives the same
+ * plan. Apply it with `applyPurchase`, one purchase at a time.
+ */
+export function planPurchases(team: Team): PlannedPurchase[] {
+  const sim = structuredClone(team);
+  const plan: PlannedPurchase[] = [];
+  const buy = (item: UnpricedPurchase): boolean => {
+    if (plan.length >= MAX_PURCHASES) return false;
+    try {
+      const price = applyPurchase(sim, { ...item, price: 0 });
+      plan.push({ ...item, price });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  /** Gold steps 2 to 5 may spend. */
+  const spare = () => sim.treasury - draftReserve(sim);
+  const hireJourneymanFor = (reason: PurchaseReason, budget: () => number) => {
+    for (const offer of journeymanOffers(sim)) {
+      const player = sim.players.find((p) => p.id === offer.playerId);
+      if (
+        !player ||
+        // Only a Journeyman who can play gets a short team to 7
+        (reason === "minimum" && !isFit(sim, player)) ||
+        journeymanPrice(player) > budget() ||
+        journeymanHireRefusal(sim, offer) !== undefined
+      )
+        continue;
+      return buy({
+        kind: "journeyman",
+        offerId: offer.id,
+        playerId: player.id,
+        playerName: player.playerName,
+        reason,
+      });
+    }
+    return false;
+  };
+  const hireCheapest = (reason: PurchaseReason, budget: number) => {
+    const template = cheapestHire(sim, budget);
+    return (
+      !!template &&
+      buy({ kind: "player", positionName: template.positionName, reason })
+    );
+  };
+
+  /**
+   * Swap waiting Journeymen who cannot help the team reach 7 for a fit
+   * player. Such a Journeyman is one the rules refuse now (no gold, no room,
+   * or the Insignificant limit) or one who cannot play the next game. They
+   * are let go only when the slots they free let the cheapest player the
+   * Treasury can pay for join, and that player is hired in the same step,
+   * so no Journeyman is lost without a replacement. The fewest Journeymen
+   * are let go: usually one, two when a waiting Journeyman numbered above
+   * 11 holds no shirt number. Refused Journeymen come first, then in offer
+   * order, so the same team always makes the same swap.
+   */
+  const swapJourneymenForPlayer = () => {
+    const offers = journeymanOffers(sim);
+    const refused = offers.filter(
+      (entry) => journeymanHireRefusal(sim, entry) !== undefined
+    );
+    const unfit = offers.filter((entry) => {
+      const player = sim.players.find((p) => p.id === entry.playerId);
+      return !refused.includes(entry) && !!player && !isFit(sim, player);
+    });
+    const candidates = [...refused, ...unfit].map(
+      (offer): UnpricedPurchase => ({
+        kind: "release-journeyman",
+        offerId: offer.id,
+        playerId: offer.playerId,
+        playerName:
+          sim.players.find((p) => p.id === offer.playerId)?.playerName ??
+          offer.playerId,
+        reason: "minimum",
+      })
+    );
+    for (let size = 1; size <= candidates.length; size++) {
+      for (const releases of combinations(candidates, size)) {
+        // Try the swap on a copy first: all of it or none of it
+        const trial = structuredClone(sim);
+        let hire: UnpricedPurchase | undefined;
+        try {
+          for (const release of releases)
+            applyPurchase(trial, { ...release, price: 0 });
+          const template = cheapestHire(trial, trial.treasury);
+          if (!template) continue;
+          hire = {
+            kind: "player",
+            positionName: template.positionName,
+            reason: "minimum",
+          };
+          applyPurchase(trial, { ...hire, price: 0 });
+        } catch {
+          continue;
+        }
+        return releases.every((release) => buy(release)) && buy(hire);
+      }
+    }
+    return false;
+  };
+
+  // 1. Enough fit players to take the field
+  while (fitPlayers(sim).length < MIN_ROSTER_PLAYERS) {
+    if (
+      !hireJourneymanFor("minimum", () => sim.treasury) &&
+      !hireCheapest("minimum", sim.treasury) &&
+      !swapJourneymenForPlayer()
+    )
+      break;
+  }
+  // 2. Every Journeyman who played, while there is room and gold
+  while (hireJourneymanFor("journeyman", spare));
+  // 3. A team re-roll, when it has none
+  const reroll = priceOf(sim, { type: "reroll" }).amount;
+  if (sim.rerolls === 0 && reroll != null && reroll <= spare())
+    buy({ kind: "staff", item: "reroll", reason: "reroll" });
+  // 4. The roster toward its limit
+  while (hireCheapest("roster", spare()));
+  // 5. Nothing left sitting where Expensive Mistakes can take it
+  while (sim.treasury >= EXPENSIVE_MISTAKES_THRESHOLD) {
+    const item = SPEND_DOWN.find((candidate) => {
+      const price = priceOf(sim, { type: candidate }).amount;
+      return price != null && price <= spare();
+    });
+    if (!item || !buy({ kind: "staff", item, reason: "spend-down" })) break;
+  }
+  return plan;
+}
+
+/** A plan's purchase in words, for the computer's report. */
+export function describePurchase(item: PlannedPurchase): string {
+  if (item.kind === "release-journeyman")
+    return `let Journeyman ${item.playerName} go to free a roster slot`;
+  const what =
+    item.kind === "journeyman"
+      ? `hired Journeyman ${item.playerName}`
+      : item.kind === "player"
+        ? `hired a ${item.positionName}`
+        : `bought ${STAFF_NAMES[item.item]}`;
+  return `${what} for ${item.price.toLocaleString("en-GB")} gp`;
+}
+
+const STAFF_NAMES: Record<PlannedStaff, string> = {
+  reroll: "a team re-roll",
+  apothecary: "an Apothecary",
+  coach: "an Assistant Coach",
+  cheerleader: "a Cheerleader",
+};
+
+/** Every way to pick `size` items from `items`, keeping their order. */
+function combinations<T>(items: readonly T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  return items.flatMap((item, index) =>
+    combinations(items.slice(index + 1), size - 1).map((rest) => [
+      item,
+      ...rest,
+    ])
+  );
+}
+
+function isFit(team: Team, player: Player): boolean {
+  return !(
+    isLeagueMode(team.advancementMode) &&
+    (player.injuries.includes(InjuryType.MISS_NEXT_GAME) ||
+      player.injuries.includes(InjuryType.DEAD))
+  );
+}
+
+function rosterTemplates(team: Team): PlayerTemplate[] {
+  return getRosterByRosterName(team.rosterName).playerTemplates;
+}
+
+/**
+ * The cheapest player the roster lets this team hire now for at most
+ * `budget`, or undefined. The roster's own order breaks a tie.
+ */
+function cheapestHire(team: Team, budget: number): PlayerTemplate | undefined {
+  return rosterTemplates(team)
+    .map((template, index) => ({ template, index }))
+    .filter(({ template }) => {
+      const price = priceOf(team, { type: "player", cost: template.cost });
+      if (price.amount == null || price.amount > budget) return false;
+      // The roster limits a coach's hire meets, Insignificant included
+      return hireRefusal(team, template) === undefined;
+    })
+    .sort((a, b) => a.template.cost - b.template.cost || a.index - b.index)[0]
+    ?.template;
+}

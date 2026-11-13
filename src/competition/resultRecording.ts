@@ -27,6 +27,7 @@ import {
   PenaltyShootout,
 } from "./types";
 import { Team } from "../types/Team";
+import { manageComputerTeams } from "./computerTeams";
 
 function updateTeamRecord(
   entrant: CompetitionEntrant,
@@ -265,6 +266,20 @@ export async function recordCompetitionFixture(
   );
   if (!recorded?.result) throw new Error("Fixture has no recorded result.");
   updateReachableTeams(updated, recorded, recorded.result, progressedTeams);
+  // A score-only report has no results screen to come back from: the
+  // computer spends its teams' Treasuries now (purchasePlanner.ts). A
+  // played game's teams are managed once their development is recorded.
+  // The result stands either way; the competition page manages them again.
+  if (!progressedTeams) {
+    try {
+      manageComputerTeams(updated, options.rng ?? new RNGService(Date.now()), [
+        recorded.homeEntrantId,
+        recorded.awayEntrantId,
+      ]);
+    } catch (reason) {
+      console.warn("[competition] could not manage computer teams", reason);
+    }
+  }
   // A knockout winner may have gone through to a withdrawn team
   return closeWalkovers(updated);
 }

@@ -27,6 +27,8 @@ import {
   isLinemanPosition,
 } from "./rosterLegality";
 import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
+import { countInsignificant } from "./insignificant";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { sevensInducementCatalog } from "../inducements/catalog";
@@ -79,7 +81,12 @@ function capped(
 export function priceOf(team: Team, item: PriceableItem): PriceResult {
   switch (item.type) {
     case "reroll":
-      return capped(team.rerolls, MAX_TEAM_REROLLS, TEAM_REROLL_COST, "team re-rolls");
+      return capped(
+        team.rerolls,
+        MAX_TEAM_REROLLS,
+        TEAM_REROLL_COST,
+        "team re-rolls"
+      );
     case "dedicated-fan":
       return capped(
         team.dedicatedFans,
@@ -105,7 +112,12 @@ export function priceOf(team: Team, item: PriceableItem): PriceResult {
         "Assistant Coaches"
       );
     case "cheerleader":
-      return capped(team.cheerleaders, MAX_CHEERLEADERS, CHEERLEADER_COST, "Cheerleaders");
+      return capped(
+        team.cheerleaders,
+        MAX_CHEERLEADERS,
+        CHEERLEADER_COST,
+        "Cheerleaders"
+      );
     case "inducement": {
       if (team.advancementMode !== "matched-play") {
         return {
@@ -211,9 +223,10 @@ export function draftListPlayers(team: Team): Player[] {
  * waiting on a hiring decision holds one, so they count against a new hire.
  * Hiring that waiting player counts only the Team Draft List, as the
  * rulebook does. Between fixtures an active team must also respect each
- * position's QTY and the cap of 4 players without the Lineman keyword
- * (D3); a draft list may break those while it is being built, and is
- * checked when it is finalised.
+ * position's QTY, the cap of 4 players without the Lineman keyword (D3)
+ * and the Insignificant limit ("you may not include more players with this
+ * Trait than players without this Trait"); a draft list may break those
+ * while it is being built, and is checked when it is finalised.
  */
 export function hireRefusal(
   team: Team,
@@ -233,8 +246,7 @@ export function hireRefusal(
   }
   if (
     joiningPlayerId === undefined &&
-    team.players.filter((player) => staysOnRoster(team, player)).length >=
-      limit
+    team.players.filter((player) => staysOnRoster(team, player)).length >= limit
   ) {
     return `A Sevens team may have at most ${limit} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }
@@ -251,6 +263,13 @@ export function hireRefusal(
       MAX_NON_LINEMEN
   ) {
     return `A Sevens team may have at most ${MAX_NON_LINEMEN} players without the Lineman keyword.`;
+  }
+  const insignificant = countInsignificant(listed);
+  if (
+    hasSkill(template.skills, SkillType.INSIGNIFICANT) &&
+    insignificant + 1 > listed.length - insignificant
+  ) {
+    return "A Team Draft List may not have more Insignificant players than players without Insignificant.";
   }
   return undefined;
 }
