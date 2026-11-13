@@ -21,11 +21,12 @@ The code is `payTournamentPrize` in `src/competition/resultRecording.ts`, with
 
 The tournament builder SHALL let the organizer set a prize for the champion in
 gold pieces. The default SHALL be no prize. A prize SHALL be a whole number of
-gold pieces, 0 or more; anything else is refused with a message. The prize
-SHALL be stored on the tournament document as `prize`, absent when there is
-none. A league has no prize. A coach who only takes part cannot change the
-prize: the database rules let a participant change only the fixtures and what
-follows from them.
+gold pieces from 0 to 10,000,000 (`MAX_PRIZE`); anything else is refused with
+a message. The prize SHALL be stored on the tournament document as `prize`,
+absent when there is none. A league has no prize. The database rules SHALL hold
+an organizer's tournament document to the same bound. A coach who only takes
+part cannot change the prize: the database rules let a participant change only
+the fixtures and what follows from them.
 
 #### Scenario: No prize by default
 
@@ -34,8 +35,14 @@ follows from them.
 
 #### Scenario: A prize that is not whole gold pieces
 
-- **WHEN** an organizer sets a prize of -10,000 or 1.5 gold pieces
+- **WHEN** an organizer sets a prize of -10,000, 1.5 or 10,000,001 gold pieces
 - **THEN** the tournament is not created and the organizer is told why
+
+#### Scenario: An invalid prize stored on the document
+
+- **WHEN** a completed tournament's stored `prize` is not whole gold pieces from
+  0 to 10,000,000, such as the string "1e309"
+- **THEN** no Treasury takes anything
 
 ### Requirement: The champion's Treasury takes the prize once
 
@@ -79,8 +86,10 @@ Play champion is paid nothing. The prize is a Treasury credit and nothing else.
 The prize SHALL be paid only into a team this coach's session can save, as
 league winnings are: a team in the coach's own library, which includes the
 computer's teams for the organizer. A champion owned by another coach SHALL be
-paid when that coach records a result in the tournament or opens its page. No
-coach SHALL write another coach's team.
+paid when that coach records a result in the tournament or opens its page. When
+a signed-in coach's team library arrives after the tournament page has loaded,
+the page SHALL check the prize again, still paying it once. No coach SHALL
+write another coach's team.
 
 #### Scenario: The champion belongs to another coach
 
