@@ -17,7 +17,10 @@ import {
   getTeamById,
   saveTeams,
   setTeamRepository,
+  TeamRepository,
 } from "../../src/game/managers/TeamManager";
+import { recordCompetitionFixture } from "../../src/competition/resultRecording";
+import { Team } from "../../src/types/Team";
 import { CompetitionView } from "../../src/ui/components/pages/CompetitionView";
 import { TeamBuilder } from "../utils/test-builders";
 
@@ -134,5 +137,83 @@ describe("the tournament page's prize", () => {
     await renderPage();
     expect(outcome()).toBe("+100,000 gp prize paid into the Treasury");
     expect(getTeamById("Reavers")?.treasury).toBe(110_000);
+  });
+
+  it("pays once when the coach's library arrives after the page loads", async () => {
+    const champion = new TeamBuilder()
+      .withId("Reavers")
+      .withName("Reavers")
+      .withPlayers(7)
+      .withTreasury(10_000)
+      .build();
+    champion.advancementMode = "advanced-league";
+    const entrants: CompetitionEntrant[] = ["Reavers", "Badgers"].map(
+      (name, index) => ({
+        id: `local:${name}`,
+        teamId: name,
+        ownerUid: null,
+        name,
+        rosterName: "Human",
+        seed: index + 1,
+      })
+    );
+    const fixtures = generateSingleElimination(entrants);
+    await saveCompetition({
+      id: "cup",
+      type: "tournament",
+      format: "single-elimination",
+      name: "Cup",
+      organizerUid: null,
+      participantUids: [],
+      status: "active",
+      entrants,
+      fixtures,
+      standings: computeStandings(entrants, fixtures),
+      createdAt: 1,
+      updatedAt: 1,
+      prize: 100_000,
+    });
+    // The final is recorded while this coach's library holds no team
+    await recordCompetitionFixture(
+      {
+        competitionType: "tournament",
+        competitionId: "cup",
+        fixtureId: fixtures[0].id,
+      },
+      2,
+      0
+    );
+
+    // A direct load of the page, before the signed-in library is active
+    await renderPage();
+    expect(container.textContent).toContain("Champion: Reavers");
+    expect(getTeamById("Reavers")).toBeUndefined();
+
+    // The cloud library arrives
+    let stored: Team[] = [structuredClone(champion)];
+    const cloud: TeamRepository = {
+      loadTeams: () => structuredClone(stored),
+      saveTeams: (teams) => {
+        stored = structuredClone(teams);
+      },
+      deleteTeam: () => undefined,
+    };
+    await act(async () => setTeamRepository(cloud));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(getTeamById("Reavers")?.treasury).toBe(110_000);
+    expect(
+      container.querySelector('[data-testid="tournament-prize-outcome"]')
+        ?.textContent
+    ).toBe("+100,000 gp prize paid into the Treasury");
+
+    // The library swapped in again pays nothing more
+    await act(async () => setTeamRepository(cloud));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(getTeamById("Reavers")?.treasury).toBe(110_000);
+    setTeamRepository(null);
   });
 });

@@ -18,9 +18,13 @@ import {
 } from "../../../competition/simulateFixture";
 import { RNGService } from "../../../services/rng/RNGService";
 import { injuryLabel, playerLabel } from "../hud/turnSummary";
-import { getTeamById } from "../../../game/managers/TeamManager";
+import {
+  getTeamById,
+  onTeamRepositoryChanged,
+} from "../../../game/managers/TeamManager";
 import {
   earnsWinnings,
+  isValidPrize,
   tournamentPrizeKey,
 } from "../../../game/rules/winnings";
 import {
@@ -88,6 +92,16 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   /** The game being simulated, while the computer plays it. */
   const [simulating, setSimulating] = useState<string | null>(null);
   const [simulated, setSimulated] = useState<SimulatedResult[]>([]);
+  /**
+   * Bumped when the team library is swapped: a signed-in coach's cloud
+   * library can arrive after this page loads, and only then can the page
+   * reach their teams (to pay a champion's prize, say). Load again then.
+   */
+  const [library, setLibrary] = useState(0);
+  useEffect(
+    () => onTeamRepositoryChanged(() => setLibrary((version) => version + 1)),
+    []
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -115,7 +129,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : String(reason))
       );
-  }, [id, type]);
+  }, [id, type, library]);
 
   // A link, not a step back: after a match the results screen pushes this
   // page on top of /play, so a history step would reopen the match.
@@ -166,7 +180,9 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     ...new Set(competition.fixtures.map((fixture) => fixture.round)),
   ];
   const prize =
-    competition.type === "tournament" ? (competition.prize ?? 0) : 0;
+    competition.type === "tournament" && isValidPrize(competition.prize)
+      ? competition.prize
+      : 0;
   const prizeGold = `${prize.toLocaleString("en-US")} gp`;
   /** What became of the prize, once there is a champion to pay. */
   const prizeOutcome = (() => {

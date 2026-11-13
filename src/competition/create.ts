@@ -2,7 +2,7 @@ import { getRosterByRosterName } from "../data/RosterTemplates";
 import { saveTeam } from "../game/managers/TeamManager";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
-import { isValidPrize } from "../game/rules/winnings";
+import { isValidPrize, MAX_PRIZE } from "../game/rules/winnings";
 import type { Difficulty } from "../simulation/ai/difficulty";
 import { Team } from "../types/Team";
 import {
@@ -55,7 +55,7 @@ export async function createCompetition(
   const prize = input.type === "tournament" ? (input.prize ?? 0) : 0;
   if (!isValidPrize(prize))
     throw new Error(
-      "Set the prize as a whole number of gold pieces, 0 or more."
+      `Set the prize as a whole number of gold pieces, from 0 to ${MAX_PRIZE.toLocaleString("en-US")}.`
     );
   const teams = input.entrants.map((choice) => choice.team);
 

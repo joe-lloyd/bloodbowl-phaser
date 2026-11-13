@@ -298,6 +298,26 @@ describe("tournaments that pay no prize", () => {
     expect(treasuryOf("b")).toBe(20_000);
   });
 
+  it.each([
+    ["the string 1e309", "1e309"],
+    ["a negative number", -50_000],
+    ["a fraction", 2.5],
+    ["more than the most a prize can be", 20_000_000],
+  ])("a stored prize of %s pays nothing", async (_label, stored) => {
+    // Written straight to the document, past createCompetition's check
+    const pool = await tournament(
+      "bad",
+      "round-robin",
+      [libraryTeam("a", 10_000), libraryTeam("b", 20_000)],
+      stored as unknown as number
+    );
+    await playOut(pool, ["a", "b"]);
+    await closeWalkovers((await getCompetition("tournament", "bad"))!);
+    expect(treasuryOf("a")).toBe(10_000);
+    expect(treasuryOf("b")).toBe(20_000);
+    expect(getTeamById("a")?.recordedFixtureIds).not.toContain("bad:prize");
+  });
+
   it("a champion outside this coach's library is not written", async () => {
     const pool = await tournament(
       "away",
@@ -375,7 +395,7 @@ describe("setting the prize", () => {
     expect(without).not.toHaveProperty("prize");
   });
 
-  it.each([-10_000, 1.5, Number.NaN])(
+  it.each([-10_000, 1.5, Number.NaN, 10_000_001])(
     "refuses a prize of %s",
     async (prize) => {
       await expect(
@@ -393,4 +413,19 @@ describe("setting the prize", () => {
       ).rejects.toThrow("whole number of gold pieces");
     }
   );
+
+  it("accepts the largest prize, 10,000,000 gp", async () => {
+    const cup = await createCompetition({
+      type: "tournament",
+      name: "Rich Cup",
+      format: "round-robin",
+      organizerUid: null,
+      entrants: [coachTeam("One"), coachTeam("Two")].map((team) => ({
+        team,
+        ownerUid: null,
+      })),
+      prize: 10_000_000,
+    });
+    expect(cup.type === "tournament" && cup.prize).toBe(10_000_000);
+  });
 });

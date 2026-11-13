@@ -81,9 +81,24 @@ export function tournamentPrizeKey(competitionId: string): string {
   return `${competitionId}:prize`;
 }
 
-/** Whether a tournament prize, in gold pieces, is one an organizer may set. */
-export function isValidPrize(prize: number): boolean {
-  return Number.isSafeInteger(prize) && prize >= 0;
+/**
+ * The largest prize an organizer may set, in gold pieces. firestore.rules
+ * holds the same bound for a tournament document's `prize`.
+ */
+export const MAX_PRIZE = 10_000_000;
+
+/**
+ * Whether a tournament prize is whole gold pieces from 0 to MAX_PRIZE. Both
+ * creation and payment ask this: a stored prize is read from a document, so
+ * it may not be a number at all.
+ */
+export function isValidPrize(prize: unknown): prize is number {
+  return (
+    typeof prize === "number" &&
+    Number.isSafeInteger(prize) &&
+    prize >= 0 &&
+    prize <= MAX_PRIZE
+  );
 }
 
 /** Add a game's winnings to the Treasury of a team that earns them. */

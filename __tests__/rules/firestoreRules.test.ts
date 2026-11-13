@@ -1293,6 +1293,18 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       expect((updated as TournamentDoc).prize).toBe(50_000);
     });
 
+    it("lets an organizer store only a prize of whole gold pieces up to 10,000,000", async () => {
+      const cup = await tournament({ prize: 50_000 });
+      const cupRef = doc(dbFor(ORGANIZER), "tournaments", cup.id);
+      for (const prize of ["1e309", -1, 2.5, 10_000_001])
+        await denied(updateDoc(cupRef, { prize }));
+      await updateDoc(cupRef, { prize: 10_000_000 });
+      await updateDoc(cupRef, { prize: 0 });
+      await denied(tournament({ prize: "1e309" as unknown as number }));
+      await denied(tournament({ prize: -10_000 }));
+      await tournament({ prize: 10_000_000 });
+    });
+
     it("can do anything to it as organizer, and nothing as an outsider", async () => {
       const comp = await league();
       await updateDoc(leagueRef(ORGANIZER, comp.id), { name: "Renamed" });

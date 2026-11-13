@@ -6,6 +6,7 @@ import {
   fanFactor,
   fixturePaysWinnings,
   fixtureWinnings,
+  isValidPrize,
   payWinnings,
   rollD3,
   tournamentPrizeKey,
@@ -305,6 +306,11 @@ export function payTournamentPrize(competition: CompetitionDoc): void {
   if (competition.type !== "tournament" || competition.status !== "complete")
     return;
   const prize = competition.prize ?? 0;
+  // Read from the document: anything but whole gold pieces pays nothing
+  if (!isValidPrize(prize)) {
+    console.warn("[competition] ignoring an invalid tournament prize", prize);
+    return;
+  }
   const champion = competition.entrants.find(
     (entrant) => entrant.id === competition.championEntrantId
   );
