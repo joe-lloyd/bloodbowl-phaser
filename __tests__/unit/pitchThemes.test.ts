@@ -19,10 +19,10 @@ describe("match styles", () => {
     expect(DEFAULT_PITCH_THEME_ID).toBe("bloodbowl");
   });
 
-  it("gives every style its own stadium and sprite folders", () => {
+  it("gives every style its own stadium and one shared set of player sprites", () => {
     for (const theme of PITCH_THEMES) {
       expect(theme.stadiumPath).toBe(`/stadium/${theme.id}`);
-      expect(theme.spritePath).toBe(`/sprites/${theme.id}`);
+      expect(theme.spritePath).toBe("/sprites/bloodbowl");
     }
   });
 

@@ -211,6 +211,17 @@ export class PlayPhaseHandler implements PhaseHandler {
     this.register(GameEventNames.UI_KeepBlockDice, ({ attackerId }) => {
       this.gameService.keepBlockDice(attackerId);
     });
+    // The attacker throws the block once the dice are kept.
+    this.register(GameEventNames.BlockDiceKept, (data) => {
+      const sprites = this.scene["playerSprites"];
+      const defender = sprites.get(data.defenderId);
+      sprites
+        .get(data.attackerId)
+        ?.playAction(
+          "block",
+          defender ? { x: defender.x, y: defender.y } : undefined
+        );
+    });
     this.register(GameEventNames.UI_TeamRerollBlock, (data) => {
       this.gameService.teamRerollBlock(data.attackerId);
     });
@@ -405,6 +416,13 @@ export class PlayPhaseHandler implements PhaseHandler {
   private handlePassAnimation(
     data: GameEventMap[GameEventNames.PassAttempted]
   ): void {
+    const thrower = this.scene["playerSprites"].get(data.playerId);
+    if (thrower) {
+      const target = this.scene["pitch"].getPixelPosition(data.to.x, data.to.y);
+      thrower.playAction("pass", target, () =>
+        thrower.animateThrowGesture(Math.sign(target.x - thrower.x) || 1)
+      );
+    }
     if (!this.scene["ballSprite"]) return;
     this.scene["placeBallVisual"](data.from.x, data.from.y, CARRIED_HEIGHT);
     const ball = this.scene["ballSprite"] as BallSprite;

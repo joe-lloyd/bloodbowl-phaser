@@ -27,7 +27,11 @@ const FPS: Record<Animation, number> = {
   run: 12,
   fall: 14,
   cheer: 10,
+  block: 16,
+  pass: 14,
 };
+/** Animations that play once and hold their last frame. */
+const ONE_SHOT: ReadonlySet<Animation> = new Set(["fall", "block", "pass"]);
 /** Jumps in one cheer, for the walk-on and a touchdown. */
 const CHEER_JUMPS = 3;
 /** Ground rings are drawn as flattened ellipses so they lie on the pitch. */
@@ -218,17 +222,16 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private tick(time: number): void {
     if (!this.layers.length || !this.visible) return;
     const count = modelArt(this.model).animations[this.anim] ?? 1;
+    const once = ONE_SHOT.has(this.anim);
     const step = Math.floor(
-      ((time - this.animStart + (this.anim === "fall" ? 0 : this.phase)) /
-        1000) *
+      ((time - this.animStart + (once ? 0 : this.phase)) / 1000) *
         FPS[this.anim]
     );
-    const index =
-      this.anim === "fall"
-        ? Math.min(step, count - 1)
-        : this.anim === "idle" && this.stillIdle
-          ? 0
-          : step % count;
+    const index = once
+      ? Math.min(step, count - 1)
+      : this.anim === "idle" && this.stillIdle
+        ? 0
+        : step % count;
     const name = frameName(this.anim, this.facing, index);
     if (name !== this.shownFrame) {
       this.shownFrame = name;
@@ -259,6 +262,40 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
 
   public getFacing(): Facing {
     return this.facing;
+  }
+
+  /** Whether this sprite's atlas has frames for `anim`; older styles lack block and pass. */
+  private hasAnimation(anim: Animation): boolean {
+    const layer = this.layers[0];
+    return !!layer && layer.texture.has(frameName(anim, this.facing, 0));
+  }
+
+  /**
+   * A one-shot action (block, pass) towards a world point, then back to idle.
+   * A player who is down, or lying in a dugout box, does nothing. When this
+   * style's atlas has no frames for the action, `fallback` runs instead.
+   * Fire-and-forget.
+   */
+  public playAction(
+    anim: "block" | "pass",
+    target?: { x: number; y: number },
+    fallback?: () => void
+  ): void {
+    if (this.isDown() || this.dugoutPose) return;
+    if (target) {
+      const facing = facingForStep(target.x - this.x, target.y - this.y);
+      if (facing) this.facing = facing;
+    }
+    if (!this.hasAnimation(anim)) {
+      fallback?.();
+      return;
+    }
+    this.play(anim);
+    const frames = modelArt(this.model).animations[anim] ?? 1;
+    this.scene.time.delayedCall((frames / FPS[anim]) * 1000 + 150, () => {
+      // A status change meanwhile (knocked down) has already moved on.
+      if (this.anim === anim && !this.isDown()) this.play("idle");
+    });
   }
 
   private isDown(): boolean {
