@@ -2,7 +2,7 @@ import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
-import { Team, isPendingRaisedDeadRecruit } from "@/types/Team";
+import { Team, isPendingRecruit } from "@/types/Team";
 import { Player, PlayerStatus } from "@/types/Player";
 import {
   FormationPosition,
@@ -15,7 +15,7 @@ import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
 import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
-import { readyForLeagueGame } from "../rules/leagueRoster";
+import { GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -60,12 +60,12 @@ export class SetupManager {
     });
   }
 
-  public static sanitizeTeam(team: Team): void {
+  public static sanitizeTeam(team: Team, readiness: GameReadiness = {}): void {
     team.players.forEach((player) => {
       movePlayerToBox(player, { box: "reserves" });
       player.hasActed = false;
     });
-    readyForLeagueGame(team);
+    readyForLeagueGame(team, readiness);
   }
 
   /**
@@ -636,7 +636,7 @@ export class SetupManager {
 
   private isEligible(player: Player): boolean {
     const team = this.getTeam(player.teamId);
-    if (team && isPendingRaisedDeadRecruit(team, player.id)) return false;
+    if (team && isPendingRecruit(team, player.id)) return false;
     return (
       ![
         PlayerStatus.KO,

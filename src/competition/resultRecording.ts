@@ -2,9 +2,11 @@ import { getCurrentUser } from "../firebase/auth";
 import { getTeamById, saveTeam } from "../game/managers/TeamManager";
 import { stampFirstCompletedMatch } from "../game/rules/teamLifecycle";
 import { MIN_DEDICATED_FANS } from "../game/rules/sevensPrices";
+import { queueExpensiveMistakes } from "../game/rules/expensiveMistakes";
 import {
   fanFactor,
   fixturePaysWinnings,
+  earnsWinnings,
   fixtureWinnings,
   payWinnings,
   rollD3,
@@ -35,7 +37,7 @@ function updateTeamRecord(
   /** False for a walkover: the game counts in no record. */
   counts = true,
   /** Gold the fixture's result pays this side (league games only). */
-  winnings = 0
+  winnings?: number
 ): void {
   const persisted = getTeamById(entrant.teamId);
   if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
@@ -72,7 +74,11 @@ function updateTeamRecord(
   }
   // Recorded once with the fixture, so a second report or a reload pays
   // nothing more (league-winnings spec)
-  payWinnings(team, winnings);
+  payWinnings(team, winnings ?? 0);
+  // A league fixture's post-game sequence ends with Expensive Mistakes,
+  // rolled from Manage Team once the coach has finished hiring
+  if (counts && winnings !== undefined && earnsWinnings(team))
+    queueExpensiveMistakes(team, fixtureKey);
   // A recorded fixture result is a confirmed completed match — the team is
   // active from here on (see teamLifecycle.ts). A no-op once already set.
   stampFirstCompletedMatch(team);
@@ -94,6 +100,14 @@ export function keepRecordedResult(team: Team): void {
   team.recordedFixtureIds = stored.recordedFixtureIds;
   // Winnings were paid into the stored Treasury
   team.treasury = stored.treasury;
+  // and the fixture queued its Expensive Mistakes there
+  const queued = (stored.pendingDevelopment ?? []).filter(
+    (entry) =>
+      entry.kind === "expensive-mistakes" &&
+      !team.pendingDevelopment?.some((own) => own.id === entry.id)
+  );
+  if (queued.length > 0)
+    team.pendingDevelopment = [...(team.pendingDevelopment ?? []), ...queued];
   team.activeCompetitionId = stored.activeCompetitionId;
 }
 

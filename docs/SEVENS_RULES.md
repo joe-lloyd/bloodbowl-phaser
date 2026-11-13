@@ -32,7 +32,7 @@ with SPP instead of the official Sevens advancement in section 6.
 | D1 | The draft budget is 600,000. Unspent gold goes to the Treasury in a league and is lost in Matched Play. | ok for the budget; check what happens to unspent gold |
 | D2 | A team has 7 to 11 permanently hired players. League injuries may take it below 7. | ok: only a draft must reach 7. A league team below 7 stays legal to play and to enter a competition, and Journeymen make up the numbers (L2) |
 | D3 | At most 4 players without the Lineman keyword. Each position's own limit still applies. | ok |
-| D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | ok: capped at 6, the top of the re-roll tracker |
+| D4 | Team re-rolls cost 100,000 each, at the draft and during a league. | ok: capped at 6, the top of the re-roll tracker. A league re-roll is not doubled as in the rulebook (league-treasury spec) |
 | D5 | Assistant Coaches and Cheerleaders cost 20,000 each, with at most 3 of each, at the draft or during a league. | ok |
 | D6 | An Apothecary costs 80,000 and needs a roster that allows one. At most one. | ok |
 | D7 | League teams start with Dedicated Fans 1 and can buy more at 20,000 each. Fans stay between 1 and 5. Matched Play teams start at 0. | ok: at full time a league team rolls for Dedicated Fans as on page 99 of the rulebook, then stays within 1 to 5. The result follows the played score, so a conceded 0-0 is a draw |
@@ -132,8 +132,8 @@ Where the magazine is silent, the engine does this:
 
 | ID | Rule | Status |
 | --- | --- | --- |
-| L1 | The league runs as in the rulebook unless a rule here changes it. | ok |
-| L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. They leave after the game, since hiring them in the post-game has no screen yet |
+| L1 | The league runs as in the rulebook unless a rule here changes it. | ok: winnings, spending the Treasury and Expensive Mistakes follow the rulebook, as the league-winnings and league-treasury specs describe |
+| L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: in a league fixture, a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. Friendlies and tournament games take on none. After the game Manage Team offers each one who played for their Hiring Fee plus any Value Increase; the rest leave (league-treasury spec) |
 | L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | ok: Prayers to Nuffle and Desperate Measures can be bought; their tables are L4 and L5. See the notes below the table for what each inducement does. |
 | L4 | Prayers to Nuffle use the D8 table below. | ok |
 | L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | ok, except Razzle-Dazzle and Magic Scroll, which are rolled and held but do nothing |

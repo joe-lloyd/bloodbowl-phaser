@@ -4,10 +4,8 @@ import {
   Team,
   RosterName,
   createTeam,
-  addPlayerToTeam,
   calculateTeamValue,
 } from "../../../types/Team";
-import { createPlayer } from "../../../types/Player";
 import { validateInsignificant } from "../../../game/rules/insignificant";
 import { validateRosterLegality } from "../../../game/rules/rosterLegality";
 import { getTeamMode, isActiveTeam } from "../../../game/rules/teamLifecycle";
@@ -15,6 +13,9 @@ import { canEdit } from "../../../game/rules/teamEditLegality";
 import {
   StaffItem,
   draftInducementCount,
+  draftListPlayers,
+  hirePlayer,
+  hireRefusal,
   priceOf,
   purchase,
 } from "../../../game/rules/teamPricing";
@@ -149,12 +150,6 @@ export function TeamBuilder() {
   const handleHirePlayer = (positionName: string) => {
     if (!team) return;
 
-    // Check for max roster size first
-    if (team.players.length >= 11) {
-      alert("Roster full (max 11 players)! Fire someone to make room.");
-      return;
-    }
-
     const hireDecision = canEdit(team, { type: "hire-player" });
     if (!hireDecision.allowed) {
       alert(hireDecision.reason);
@@ -165,31 +160,16 @@ export function TeamBuilder() {
     const template = roster.playerTemplates.find(
       (p) => p.positionName === positionName
     );
-
     if (!template) return;
-    const price = priceOf(team, { type: "player", cost: template.cost });
-    if (price.amount == null) {
-      alert(price.reason ?? "This player cannot be hired.");
+
+    // The roster limits and the Treasury decide, at the draft and between
+    // league fixtures alike (teamPricing.ts)
+    const hired = hirePlayer(team, template);
+    if (hired.amount == null) {
+      alert(hired.reason ?? "This player cannot be hired.");
       return;
     }
-    if (team.treasury < price.amount) {
-      alert("Not enough gold!");
-      return;
-    }
-
-    // Find the first available number between 1 and 11
-    const usedNumbers = new Set(team.players.map((p) => p.number));
-    let playerNumber = 1;
-    while (usedNumbers.has(playerNumber) && playerNumber <= 11) {
-      playerNumber++;
-    }
-
-    const player = createPlayer(template, team.id, playerNumber);
-    player.cost = price.amount;
-
-    if (addPlayerToTeam(team, player)) {
-      setTeam({ ...team });
-    }
+    setTeam({ ...team });
   };
 
   const handleFirePlayer = (playerId: string) => {
@@ -380,7 +360,7 @@ export function TeamBuilder() {
           <div className="flex items-baseline gap-5 font-hud-label font-bold uppercase tracking-[0.06em]">
             <span>
               <span className="font-hud-display text-hud-xl text-hud-bone">
-                {team.players.length}/11
+                {draftListPlayers(team).length}/11
               </span>{" "}
               <span className="hud-label">Players</span>
             </span>
@@ -402,7 +382,7 @@ export function TeamBuilder() {
         title="TEAM BUILDER"
         subtitle={
           active
-            ? "This team has played its first match. Roster type is locked. Eligible players may still be hired at roster price, and re-rolls and Sideline Staff at their usual prices."
+            ? "This team has played its first match. Roster type is locked and nobody can be fired. Between league fixtures, spend the Treasury on players at roster price, and on re-rolls and Sideline Staff at their Sevens prices, within the roster limits."
             : "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition."
         }
       />
@@ -470,7 +450,7 @@ export function TeamBuilder() {
               step="10000"
               className="hud-field disabled:cursor-not-allowed disabled:opacity-50"
               value={team.startingTreasury}
-              disabled={team.players.length > 0}
+              disabled={active || team.players.length > 0}
               onChange={(e) => {
                 const newVal = parseInt(e.target.value) || 0;
                 setTeam({
@@ -519,6 +499,7 @@ export function TeamBuilder() {
           colors={team.colors}
           treasury={team.treasury}
           onHirePlayer={handleHirePlayer}
+          hireRefusal={(template) => hireRefusal(team, template)}
         />
       </div>
 

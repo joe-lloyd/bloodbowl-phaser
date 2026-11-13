@@ -14,10 +14,11 @@ import {
   Team,
   TeamSpecialRule,
   calculateTeamValue,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
 } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { staysOnRoster } from "./leagueRoster";
+import { uniquePlayerId } from "./playerSlots";
 
 /** Raise a roster Lineman in Reserves, even above the match's roster limit. */
 export function addReserveLineman(team: Team): Player | null {
@@ -28,6 +29,7 @@ export function addReserveLineman(team: Team): Player | null {
   const number =
     team.players.reduce((max, player) => Math.max(max, player.number), 0) + 1;
   const player = createPlayer(template, team.id, number);
+  player.id = uniquePlayerId(team, player.id);
   player.status = PlayerStatus.RESERVE;
   team.players.push(player);
   return player;
@@ -75,7 +77,7 @@ export function canKeepRaisedDead(team: Team, playerId: string): boolean {
       (player) =>
         player.id !== playerId &&
         staysOnRoster(team, player) &&
-        !isPendingRaisedDeadRecruit(team, player.id)
+        !isPendingRecruit(team, player.id)
     ).length < team.maxRosterSize
   );
 }

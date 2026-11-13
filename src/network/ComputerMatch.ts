@@ -183,16 +183,22 @@ export function createComputerMatch(
   let engine: GameService | null = null;
   const initialState =
     options.resume?.state ??
-    GameService.createMatchState(team1, team2, GamePhase.SETUP, SubPhase.INTRO);
+    // A league fixture takes on Journeymen at kick-off and rolls the Fan
+    // Factors for its winnings at full time
+    GameService.createMatchState(
+      team1,
+      team2,
+      GamePhase.SETUP,
+      SubPhase.INTRO,
+      {
+        paysWinnings: fixturePaysWinnings(
+          options.competitionContext?.competitionType
+        ),
+      }
+    );
   // A drawn cup tie goes to Extra Time, then Penalties
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;
-  // A league fixture rolls the Fan Factors for its winnings at full time
-  if (
-    !options.resume &&
-    fixturePaysWinnings(options.competitionContext?.competitionType)
-  )
-    initialState.paysWinnings = true;
   const container = ServiceContainer.initialize(
     eventBus,
     team1,

@@ -56,7 +56,8 @@ export interface HeadlessGameOptions {
   progressionEnabled?: boolean;
   /** A knockout tie: a draw goes to Extra Time, then Penalties. */
   knockout?: boolean;
-  /** A fixture that pays winnings: full time rolls the Fan Factors. */
+  /** A league fixture (one that pays winnings): kick-off takes on
+   *  Journeymen and full time rolls the Fan Factors. */
   paysWinnings?: boolean;
   /** Exact running RNG state when restoring a saved match. */
   rngState?: RNGState;
@@ -152,7 +153,17 @@ export function createHeadlessGame(
       team1,
       team2,
       options.startingPhase,
-      options.startingSubPhase
+      options.startingSubPhase,
+      { paysWinnings: options.paysWinnings }
+    );
+  } else if (!initialState && options.paysWinnings) {
+    // As the engine readies a fresh game itself, but for a league fixture
+    initialState = GameService.createMatchState(
+      team1,
+      team2,
+      GamePhase.SANDBOX_IDLE,
+      undefined,
+      { paysWinnings: true }
     );
   }
 

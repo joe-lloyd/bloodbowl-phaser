@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
   calculateTeamValue,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
   playerValue,
   playersTeamValue,
   playsNextGame,
@@ -47,7 +47,7 @@ function isRowControl(target: EventTarget | null): boolean {
  * called for players who will not play the next game.
  */
 function notInTeamValueReason(team: Team, player: Player): string {
-  if (isPendingRaisedDeadRecruit(team, player.id)) return "Not hired yet";
+  if (isPendingRecruit(team, player.id)) return "Not hired yet";
   if (
     player.status === PlayerStatus.DEAD ||
     player.injuries.includes(InjuryType.DEAD)
@@ -83,6 +83,22 @@ function notInTeamValueReason(team: Team, player: Player): string {
  * advancement). Reordering starts only from the ≡ handle; every row,
  * including empty slots, stays a drop target.
  */
+/**
+ * The 11 roster slots, then any number above 11 a player still wears: a
+ * Journeyman can take a team past 11 for a game (league-treasury spec), and
+ * every retained player must stay visible.
+ */
+function rosterSlots(team: Team): number[] {
+  const extra = team.players
+    .map((player) => player.number)
+    .filter((number) => number > 11)
+    .sort((a, b) => a - b);
+  return [
+    ...Array.from({ length: 11 }, (_, index) => index + 1),
+    ...new Set(extra),
+  ];
+}
+
 export function TeamRoster({
   team,
   onFirePlayer,
@@ -123,8 +139,7 @@ export function TeamRoster({
         { label: "", width: "64px" }, // Actions
       ]}
     >
-      {Array.from({ length: 11 }).map((_, index) => {
-        const slotNumber = index + 1;
+      {rosterSlots(team).map((slotNumber) => {
         const player = team.players.find((p) => p.number === slotNumber);
         const eligible = player ? canAdvance(player) : false;
         const required = player ? mustAdvance(player) : false;

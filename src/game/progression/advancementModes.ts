@@ -23,7 +23,7 @@ import {
   SkillRollCandidate,
   Team,
   TeamRoster,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
 } from "../../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../../types/Skills";
 import { IRNGService } from "../../services/rng/RNGService";
@@ -198,7 +198,7 @@ export function eligibleSkillSelectionPlayers(team: Team): string[] {
     .filter(
       (player) =>
         player.playerKind !== "journeyman" &&
-        !isPendingRaisedDeadRecruit(team, player.id) &&
+        !isPendingRecruit(team, player.id) &&
         player.status !== PlayerStatus.INJURED &&
         player.status !== PlayerStatus.DEAD &&
         !player.injuries.includes(InjuryType.DEAD)

@@ -7,10 +7,26 @@
  * SEVENS_RULES.md D4-D7): re-rolls 100,000 up to 6, Assistant Coaches and
  * Cheerleaders 20,000 up to 3 each, one Apothecary at 80,000 when the
  * roster allows it, and Dedicated Fans 20,000 each up to 5. A Matched Play
- * team also buys inducements onto its draft list (MP2).
+ * team also buys inducements onto its draft list (MP2), at the draft only.
+ *
+ * Between league fixtures a team hires players at their roster Hiring Fee
+ * (`hirePlayer`). Spike! Journal 22 keeps re-rolls at 100,000 then too,
+ * where the core rulebook would charge double: "When drafting a Sevens team
+ * roster, or later during the course of a league, Coaches may purchase Team
+ * Re-rolls. Each Team Re-roll costs 100,000 gold pieces rather than the
+ * cost given on the Team Roster." See openspec/specs/league-treasury.
  */
 
-import { Team } from "../../types/Team";
+import { Team, isPendingRecruit } from "../../types/Team";
+import { Player, PlayerTemplate, createPlayer } from "../../types/Player";
+import { isActiveTeam } from "./teamLifecycle";
+import { staysOnRoster } from "./leagueRoster";
+import {
+  MAX_NON_LINEMEN,
+  MAX_ROSTER_PLAYERS,
+  isLinemanPosition,
+} from "./rosterLegality";
+import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
 import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { sevensInducementCatalog } from "../inducements/catalog";
@@ -97,6 +113,12 @@ export function priceOf(team: Team, item: PriceableItem): PriceResult {
           reason: "Only Matched Play teams buy inducements at the draft.",
         };
       }
+      if (isActiveTeam(team)) {
+        return {
+          amount: null,
+          reason: "Inducements go on the draft list only at the draft.",
+        };
+      }
       const entry = sevensInducementCatalog(team).find(
         (line) => line.inducement === item.inducement
       );
@@ -167,4 +189,100 @@ export function draftInducementCount(
     team.draftInducements?.find((line) => line.inducement === inducement)
       ?.quantity ?? 0
   );
+}
+
+/**
+ * The players on the Team Draft List: everyone hired, leaving out a dead
+ * league player and anyone still waiting on a hiring decision (a raised
+ * Lineman or a Journeyman).
+ */
+export function draftListPlayers(team: Team): Player[] {
+  return team.players.filter(
+    (player) =>
+      staysOnRoster(team, player) && !isPendingRecruit(team, player.id)
+  );
+}
+
+/**
+ * Why `template` cannot join the Team Draft List now, or undefined when it
+ * can. Sevens: "No Blood Bowl Sevens team may ever have more than 11
+ * permanently hired players on their Team Draft List." A new hire also
+ * needs one of the 11 numbered slots, and a Journeyman or raised Lineman
+ * waiting on a hiring decision holds one, so they count against a new hire.
+ * Hiring that waiting player counts only the Team Draft List, as the
+ * rulebook does. Between fixtures an active team must also respect each
+ * position's QTY and the cap of 4 players without the Lineman keyword
+ * (D3); a draft list may break those while it is being built, and is
+ * checked when it is finalised.
+ */
+export function hireRefusal(
+  team: Team,
+  template: PlayerTemplate,
+  /** A player already on the team who is being hired for good. */
+  joiningPlayerId?: string
+): string | undefined {
+  const listed = draftListPlayers(team).filter(
+    (player) => player.id !== joiningPlayerId
+  );
+  const limit = Math.min(
+    team.maxRosterSize ?? MAX_ROSTER_PLAYERS,
+    MAX_ROSTER_PLAYERS
+  );
+  if (listed.length >= limit) {
+    return `A Sevens team may have at most ${limit} permanently hired players.`;
+  }
+  if (
+    joiningPlayerId === undefined &&
+    team.players.filter((player) => staysOnRoster(team, player)).length >=
+      limit
+  ) {
+    return `A Sevens team may have at most ${limit} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
+  }
+  if (!isActiveTeam(team)) return undefined;
+  const ofPosition = listed.filter(
+    (player) => player.positionName === template.positionName
+  ).length;
+  if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed) {
+    return `A ${team.rosterName} team may have at most ${template.maxAllowed} ${template.positionName}.`;
+  }
+  if (
+    !isLinemanPosition(template.keywords) &&
+    listed.filter((player) => !isLinemanPosition(player.keywords)).length >=
+      MAX_NON_LINEMEN
+  ) {
+    return `A Sevens team may have at most ${MAX_NON_LINEMEN} players without the Lineman keyword.`;
+  }
+  return undefined;
+}
+
+/**
+ * Hire a new player from the team's roster, paying their Hiring Fee from
+ * the Treasury. Refused, leaving the team unchanged, when the roster has no
+ * room for them or the Treasury cannot pay.
+ */
+export function hirePlayer(
+  team: Team,
+  template: PlayerTemplate
+): PriceResult & { player?: Player } {
+  const refusal = hireRefusal(team, template);
+  if (refusal) return { amount: null, reason: refusal };
+  const price = priceOf(team, { type: "player", cost: template.cost });
+  if (price.amount == null) return price;
+  if (team.treasury < price.amount) {
+    return { amount: null, reason: "Not enough gold in the treasury." };
+  }
+  // Checked before anything is charged
+  const number = freeRosterNumber(team);
+  if (number === null) {
+    return {
+      amount: null,
+      reason: "Every roster number from 1 to 11 is taken.",
+    };
+  }
+  const player = createPlayer(template, team.id, number);
+  player.id = uniquePlayerId(team, player.id);
+  player.cost = price.amount;
+  team.players.push(player);
+  team.treasury -= price.amount;
+  return { ...price, player };
 }

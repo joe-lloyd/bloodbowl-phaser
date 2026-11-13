@@ -205,7 +205,7 @@ async function playFixture(
     outcome = await simulateFixture(competition, fixture.id, {
       seed,
       rng: coachRng,
-      inspect: (game) => checkKickoff(where, game, before),
+      inspect: (game) => checkKickoff(where, game, before, type === "league"),
     });
   } catch (cause) {
     note(where, "simulation-failed", String(cause));
@@ -271,12 +271,14 @@ async function playFixture(
 
 /**
  * A league team at kick-off (I4, L2): a Miss Next Game player sits in the
- * Casualty box, and Journeymen bring the available players up to 7.
+ * Casualty box, and in a league fixture Journeymen bring the available
+ * players up to 7. A tournament game takes on none.
  */
 function checkKickoff(
   where: string,
   game: HeadlessGame,
-  before: Map<string, Team>
+  before: Map<string, Team>,
+  leagueFixture: boolean
 ): void {
   for (const team of [game.ctx.team1, game.ctx.team2]) {
     if (!isLeagueMode(team.advancementMode)) continue;
@@ -301,7 +303,7 @@ function checkKickoff(
         p.playerKind !== "journeyman" &&
         !isPendingRaisedDeadRecruit(team, p.id)
     ).length;
-    if (journeymen !== Math.max(0, 7 - available))
+    if (journeymen !== (leagueFixture ? Math.max(0, 7 - available) : 0))
       note(
         where,
         "journeymen",

@@ -198,7 +198,10 @@ export async function simulateFixture(
   );
   const matchId = `match-${seed}`;
   const management = both.map((team) => {
-    recordPendingDevelopment(team, matchId, state.raisedDead?.[team.id]);
+    recordPendingDevelopment(team, matchId, state.raisedDead?.[team.id], {
+      leagueFixture: !!state.paysWinnings,
+      playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
+    });
     keepRecordedResult(team);
     saveTeam(team);
     // The computer makes the choices a coach makes from Manage Team

@@ -27,7 +27,6 @@ Its outstanding items include:
 
 - Razzle-Dazzle and Magic Scroll can be awarded but have no gameplay effect.
 - Re-drafting has rules helpers but no season-management screen.
-- Some roster-management flows, including a Journeyman hiring screen, remain absent.
 
 [The October rules review](RULES_REVIEW.md) records reproduced fixes and the
 remaining audit findings. It is a dated review, not a guarantee about every

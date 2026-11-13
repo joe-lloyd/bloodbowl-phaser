@@ -180,23 +180,29 @@ export class GameService implements IGameService {
    */
   /**
    * The opening state of a fresh match, with both teams readied for it:
-   * everyone in the Reserves and, in a league, injuries served and
-   * Journeymen taken on (leagueRoster.ts). A resumed match keeps its state.
+   * everyone in the Reserves, a league team's injuries served and, in a
+   * league fixture, Journeymen taken on (leagueRoster.ts). A fixture that
+   * pays winnings is a league fixture (`fixturePaysWinnings`), and the state
+   * carries that as `paysWinnings`. A resumed match keeps its state.
    */
   public static createMatchState(
     team1: Team,
     team2: Team,
     startingPhase: GamePhase = GamePhase.SETUP,
-    startingSubPhase?: SubPhase
+    startingSubPhase?: SubPhase,
+    fixture: { paysWinnings?: boolean } = {}
   ): GameState {
-    SetupManager.sanitizeTeam(team1);
-    SetupManager.sanitizeTeam(team2);
-    return GameService.createInitialState(
+    const readiness = { leagueFixture: !!fixture.paysWinnings };
+    SetupManager.sanitizeTeam(team1, readiness);
+    SetupManager.sanitizeTeam(team2, readiness);
+    const state = GameService.createInitialState(
       team1,
       team2,
       startingPhase,
       startingSubPhase
     );
+    if (fixture.paysWinnings) state.paysWinnings = true;
+    return state;
   }
 
   public static createInitialState(

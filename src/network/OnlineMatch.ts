@@ -329,11 +329,14 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       team1,
       team2,
       GamePhase.SETUP,
-      SubPhase.INTRO
+      SubPhase.INTRO,
+      {
+        paysWinnings: fixturePaysWinnings(
+          lobby.competitionContext?.competitionType
+        ),
+      }
     );
     if (lobby.competitionContext?.knockout) initialState.knockout = true;
-    if (fixturePaysWinnings(lobby.competitionContext?.competitionType))
-      initialState.paysWinnings = true;
   }
 
   let session: LockstepSession | null = null;

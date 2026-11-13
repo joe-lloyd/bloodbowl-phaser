@@ -1,4 +1,5 @@
 import { TeamColors, TeamRoster } from "../../../types/Team";
+import { PlayerTemplate } from "../../../types/Player";
 import { PlayerPortrait } from "../common/PlayerPortrait";
 import { Skill, SKILL_DEFINITIONS } from "../../../types/Skills";
 import { PlayerStats } from "../../../types/Player";
@@ -12,6 +13,8 @@ interface AvailableHiresProps {
   colors?: TeamColors;
   treasury: number;
   onHirePlayer: (positionName: string) => void;
+  /** Why a position cannot be hired now (roster limits), if it cannot. */
+  hireRefusal?: (template: PlayerTemplate) => string | undefined;
 }
 
 export function AvailableHires({
@@ -19,6 +22,7 @@ export function AvailableHires({
   colors = { primary: 0x8e1b1b, secondary: 0xffffff },
   treasury,
   onHirePlayer,
+  hireRefusal,
 }: AvailableHiresProps) {
   const formatGold = (amount: number) => `${(amount / 1000).toFixed(0)}k`;
 
@@ -38,39 +42,47 @@ export function AvailableHires({
         { label: "", width: "96px" },
       ]}
     >
-      {roster.playerTemplates.map((template) => (
-        <tr key={`hire-${template.positionName}`}>
-          <td>
-            <span className="flex items-center gap-3 font-hud-label text-base font-bold uppercase tracking-[0.03em]">
-              <PlayerPortrait
-                rosterName={roster.rosterName}
-                positionName={template.positionName}
-                colors={colors}
-                size={44}
-              />
-              {template.positionName}
-            </span>
-          </td>
-          <StatCells stats={template.stats} />
-          <td>
-            <SkillList skills={template.skills} />
-          </td>
-          <td className="num font-hud-label text-base font-bold text-hud-gold">
-            {formatGold(template.cost)}
-          </td>
-          <td className="text-right">
-            <HudButton
-              size="sm"
-              variant="secondary"
-              block
-              onClick={() => onHirePlayer(template.positionName)}
-              disabled={treasury < template.cost}
-            >
-              HIRE
-            </HudButton>
-          </td>
-        </tr>
-      ))}
+      {roster.playerTemplates.map((template) => {
+        const refusal =
+          hireRefusal?.(template) ??
+          (treasury < template.cost
+            ? "Not enough gold in the treasury."
+            : undefined);
+        return (
+          <tr key={`hire-${template.positionName}`}>
+            <td>
+              <span className="flex items-center gap-3 font-hud-label text-base font-bold uppercase tracking-[0.03em]">
+                <PlayerPortrait
+                  rosterName={roster.rosterName}
+                  positionName={template.positionName}
+                  colors={colors}
+                  size={44}
+                />
+                {template.positionName}
+              </span>
+            </td>
+            <StatCells stats={template.stats} />
+            <td>
+              <SkillList skills={template.skills} />
+            </td>
+            <td className="num font-hud-label text-base font-bold text-hud-gold">
+              {formatGold(template.cost)}
+            </td>
+            <td className="text-right">
+              <HudButton
+                size="sm"
+                variant="secondary"
+                block
+                onClick={() => onHirePlayer(template.positionName)}
+                disabled={!!refusal}
+                title={refusal}
+              >
+                HIRE
+              </HudButton>
+            </td>
+          </tr>
+        );
+      })}
     </BloodBowlTable>
   );
 }

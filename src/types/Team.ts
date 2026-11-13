@@ -85,6 +85,25 @@ export type PendingDevelopment =
       addedSkillCount: number;
       matchId: string;
       createdAt: number;
+    }
+  | {
+      /** A Journeyman who played a league game, waiting to be hired for
+       *  good or let go (src/game/rules/journeymen.ts). */
+      id: string;
+      kind: "journeyman-offer";
+      playerId: string;
+      matchId: string;
+      createdAt: number;
+    }
+  | {
+      /** The last money step after a league fixture: roll for Expensive
+       *  Mistakes once the coach has finished hiring
+       *  (src/game/rules/expensiveMistakes.ts). */
+      id: string;
+      kind: "expensive-mistakes";
+      /** `competitionId:fixtureId` of the fixture that queued it. */
+      fixtureKey: string;
+      createdAt: number;
     };
 
 /** Two random rolls on the skill table and the skill they landed on. */
@@ -396,12 +415,26 @@ export function isPendingRaisedDeadRecruit(
 }
 
 /**
+ * A player on the team's list who is not hired yet: a raised Lineman or a
+ * Journeyman waiting on the coach's hiring decision. Neither counts toward
+ * the roster limit, team value or the players a game can field.
+ */
+export function isPendingRecruit(team: Team, playerId: string): boolean {
+  return (team.pendingDevelopment ?? []).some(
+    (entry) =>
+      (entry.kind === "raised-dead-recruit" ||
+        entry.kind === "journeyman-offer") &&
+      entry.playerId === playerId
+  );
+}
+
+/**
  * Whether a hired player can play the team's next game: not already in the
  * Casualty box, which before kick-off means sitting this game out, and in a
  * league not due to Miss Next Game or Dead.
  */
 export function playsNextGame(team: Team, player: Player): boolean {
-  if (isPendingRaisedDeadRecruit(team, player.id)) return false;
+  if (isPendingRecruit(team, player.id)) return false;
   if (
     player.status === PlayerStatus.INJURED ||
     player.status === PlayerStatus.DEAD
@@ -469,7 +502,7 @@ export function getActivePlayers(team: Team): Player[] {
  */
 export function getReservePlayers(team: Team): Player[] {
   return team.players.filter(
-    (p) => p.status === "Reserve" && !isPendingRaisedDeadRecruit(team, p.id)
+    (p) => p.status === "Reserve" && !isPendingRecruit(team, p.id)
   );
 }
 

@@ -269,17 +269,17 @@ export class GameScene extends Phaser.Scene {
           this.team1,
           this.team2,
           GamePhase.SETUP,
-          SubPhase.INTRO
+          SubPhase.INTRO,
+          // A league fixture takes on Journeymen at kick-off and rolls the
+          // Fan Factors for its winnings at full time
+          {
+            paysWinnings: fixturePaysWinnings(
+              this.competitionContext?.competitionType
+            ),
+          }
         );
       if (!restored && this.competitionContext?.knockout) {
         initialState.knockout = true;
-      }
-      // A league fixture rolls the Fan Factors for its winnings at full time
-      if (
-        !restored &&
-        fixturePaysWinnings(this.competitionContext?.competitionType)
-      ) {
-        initialState.paysWinnings = true;
       }
       ServiceContainer.initialize(
         window.eventBus,

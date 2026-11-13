@@ -4,8 +4,9 @@
 
 Pay winnings into a team's Treasury after a league game, as step 1 of the
 post-game sequence ("Record Outcome and Winnings"). This is stage 1 of the money
-system. Spending the Treasury, Journeymen, teams with no human coach managing
-their own money, and tournament prizes build on it in later stages.
+system. Spending the Treasury, Journeymen and Expensive Mistakes are stage 2
+(`league-treasury`). Teams with no human coach managing their own money and
+tournament prizes build on it in later stages.
 
 The code is `src/game/rules/winnings.ts`. The engine rolls Fan Factors in
 `GameService`, and `src/competition/resultRecording.ts` records and pays the
