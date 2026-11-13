@@ -165,3 +165,83 @@ describe("KickoffPhaseHandler single-ball lifecycle", () => {
     expect(entries[0].detail).not.toContain("team1:");
   });
 });
+
+/**
+ * Live game: a Charge! Blitz reached the block, the coach pressed Roll and
+ * the dialog sat on "Rolling…" with no dice. Charge! runs during KICKOFF,
+ * and only the play handler passed the block dialog's commands on.
+ */
+describe("KickoffPhaseHandler during a Charge! Blitz", () => {
+  const eventBus = new EventBus();
+  const gameService = {
+    getState: vi.fn(() => ({ activePlayer: null })),
+    getPlayerById: vi.fn(() => null),
+    rollBlockDice: vi.fn(),
+    resolveBlock: vi.fn(),
+    teamRerollBlock: vi.fn(),
+    answerReroll: vi.fn(),
+    answerApothecary: vi.fn(),
+  };
+  let handler: KickoffPhaseHandler;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    handler = new KickoffPhaseHandler(
+      { playerSprites: new Map() } as any,
+      gameService as any,
+      eventBus
+    );
+    handler.enter();
+  });
+
+  afterEach(() => {
+    handler.exit();
+    eventBus.removeAllListeners();
+  });
+
+  it("rolls the block, takes the picked result and answers re-roll offers", () => {
+    eventBus.emit(GameEventNames.UI_RollBlockDice, {
+      attackerId: "charger",
+      defenderId: "receiver",
+      numDice: 2,
+      isAttackerChoice: true,
+    });
+    eventBus.emit(GameEventNames.UI_TeamRerollBlock, { attackerId: "charger" });
+    eventBus.emit(GameEventNames.UI_BlockResultSelected, {
+      attackerId: "charger",
+      defenderId: "receiver",
+      result: { type: "pow", label: "Pow" } as any,
+    });
+    eventBus.emit(GameEventNames.UI_RerollResponse, {
+      accept: true,
+      source: "team",
+    } as any);
+    eventBus.emit(GameEventNames.UI_ApothecaryResponse, { accept: false });
+
+    expect(gameService.rollBlockDice).toHaveBeenCalledWith(
+      "charger",
+      "receiver",
+      2,
+      true
+    );
+    expect(gameService.teamRerollBlock).toHaveBeenCalledWith("charger");
+    expect(gameService.resolveBlock).toHaveBeenCalledWith(
+      "charger",
+      "receiver",
+      { type: "pow", label: "Pow" }
+    );
+    expect(gameService.answerReroll).toHaveBeenCalledWith(true, "team");
+    expect(gameService.answerApothecary).toHaveBeenCalledWith(false);
+  });
+
+  it("stops passing commands on once the kick-off is over", () => {
+    handler.exit();
+    eventBus.emit(GameEventNames.UI_RollBlockDice, {
+      attackerId: "charger",
+      defenderId: "receiver",
+      numDice: 1,
+      isAttackerChoice: true,
+    });
+    expect(gameService.rollBlockDice).not.toHaveBeenCalled();
+  });
+});

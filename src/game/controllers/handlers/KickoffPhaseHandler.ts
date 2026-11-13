@@ -7,6 +7,7 @@ import {
 } from "../../../services/EventBus";
 import { GameEventNames } from "../../../types/events";
 import { BallSprite } from "../../elements/BallSprite";
+import { registerActionCommands } from "./actionCommands";
 
 /**
  * KickoffPhaseHandler
@@ -82,6 +83,11 @@ export class KickoffPhaseHandler implements PhaseHandler {
   }
 
   private setupListeners(): void {
+    // A Charge! Blitz blocks and rolls before the drive's first turn
+    this.removeHandlers.push(
+      registerActionCommands(this.gameService, this.eventBus)
+    );
+
     // Kickoff Started
     this.register(GameEventNames.KickoffStarted, () => {
       this.eventBus.emit(GameEventNames.UI_Notification, "KICKOFF!");
