@@ -15,8 +15,12 @@
  *    Journeyman who played, who costs a Lineman's Hiring Fee plus any Value
  *    Increase they bring with them, so the team does not pay for a new
  *    Lineman and then for the Journeyman too; then the cheapest player the
- *    roster allows. A waiting Journeyman the rules refuse is let go when
- *    their slot is what stands in the way.
+ *    roster allows. When waiting Journeymen who cannot help (the rules
+ *    refuse them, or they cannot play the next game) hold the slot a fit
+ *    player needs, the fewest of them are let go and that player is hired
+ *    in one step, only when the Treasury can pay for the player; otherwise
+ *    nobody is let go. Step 1 stops only when no fit player can be had, so
+ *    the later steps never spend on an unfit Journeyman in place of one.
  * 2. Every other Journeyman who played, while there is room and gold.
  * 3. A team re-roll, when the team has none.
  * 4. The cheapest players the roster allows, toward its limit of 11.
@@ -241,23 +245,59 @@ export function planPurchases(team: Team): PlannedPurchase[] {
   };
 
   /**
-   * Let go the first waiting Journeyman the rules refuse now (no gold, no
-   * room, or the Insignificant limit), once nothing else gets the team
-   * nearer 7: the numbered slot they hold may be what a replacement needs.
+   * Swap waiting Journeymen who cannot help the team reach 7 for a fit
+   * player. Such a Journeyman is one the rules refuse now (no gold, no room,
+   * or the Insignificant limit) or one who cannot play the next game. They
+   * are let go only when the slots they free let the cheapest player the
+   * Treasury can pay for join, and that player is hired in the same step,
+   * so no Journeyman is lost without a replacement. The fewest Journeymen
+   * are let go: usually one, two when a waiting Journeyman numbered above
+   * 11 holds no shirt number. Refused Journeymen come first, then in offer
+   * order, so the same team always makes the same swap.
    */
-  const releaseRefusedJourneyman = () => {
-    const offer = journeymanOffers(sim).find(
+  const swapJourneymenForPlayer = () => {
+    const offers = journeymanOffers(sim);
+    const refused = offers.filter(
       (entry) => journeymanHireRefusal(sim, entry) !== undefined
     );
-    if (!offer) return false;
-    const player = sim.players.find((p) => p.id === offer.playerId);
-    return buy({
-      kind: "release-journeyman",
-      offerId: offer.id,
-      playerId: offer.playerId,
-      playerName: player?.playerName ?? offer.playerId,
-      reason: "minimum",
+    const unfit = offers.filter((entry) => {
+      const player = sim.players.find((p) => p.id === entry.playerId);
+      return !refused.includes(entry) && !!player && !isFit(sim, player);
     });
+    const candidates = [...refused, ...unfit].map(
+      (offer): UnpricedPurchase => ({
+        kind: "release-journeyman",
+        offerId: offer.id,
+        playerId: offer.playerId,
+        playerName:
+          sim.players.find((p) => p.id === offer.playerId)?.playerName ??
+          offer.playerId,
+        reason: "minimum",
+      })
+    );
+    for (let size = 1; size <= candidates.length; size++) {
+      for (const releases of combinations(candidates, size)) {
+        // Try the swap on a copy first: all of it or none of it
+        const trial = structuredClone(sim);
+        let hire: UnpricedPurchase | undefined;
+        try {
+          for (const release of releases)
+            applyPurchase(trial, { ...release, price: 0 });
+          const template = cheapestHire(trial, trial.treasury);
+          if (!template) continue;
+          hire = {
+            kind: "player",
+            positionName: template.positionName,
+            reason: "minimum",
+          };
+          applyPurchase(trial, { ...hire, price: 0 });
+        } catch {
+          continue;
+        }
+        return releases.every((release) => buy(release)) && buy(hire);
+      }
+    }
+    return false;
   };
 
   // 1. Enough fit players to take the field
@@ -265,7 +305,7 @@ export function planPurchases(team: Team): PlannedPurchase[] {
     if (
       !hireJourneymanFor("minimum", () => sim.treasury) &&
       !hireCheapest("minimum", sim.treasury) &&
-      !releaseRefusedJourneyman()
+      !swapJourneymenForPlayer()
     )
       break;
   }
@@ -307,6 +347,17 @@ const STAFF_NAMES: Record<PlannedStaff, string> = {
   coach: "an Assistant Coach",
   cheerleader: "a Cheerleader",
 };
+
+/** Every way to pick `size` items from `items`, keeping their order. */
+function combinations<T>(items: readonly T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  return items.flatMap((item, index) =>
+    combinations(items.slice(index + 1), size - 1).map((rest) => [
+      item,
+      ...rest,
+    ])
+  );
+}
 
 function isFit(team: Team, player: Player): boolean {
   return !(

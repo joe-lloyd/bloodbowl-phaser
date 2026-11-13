@@ -218,8 +218,12 @@ it would outnumber the players without it. The plan SHALL buy, in order:
 
 1. Players until 7 can play the next game (none dead or due to Miss Next
    Game): first a Journeyman who played and can play, then the cheapest
-   player the roster allows. When neither is possible, a waiting Journeyman
-   the rules refuse is let go first, so a replacement can take their slot.
+   player the roster allows. When neither is possible and waiting
+   Journeymen who cannot help (the rules refuse them, or they cannot play
+   the next game) hold the slot a fit player needs, the fewest of them are
+   let go and that player is hired in the same step. Nobody is let go
+   unless the Treasury can pay for the replacement. No later step spends on
+   an unfit Journeyman while a fit player could still be had.
 2. Every other Journeyman who played, while there is room and gold.
 3. A team re-roll, when the team has none.
 4. The cheapest players the roster allows, toward 11.
@@ -256,6 +260,20 @@ against it).
   fit, a waiting 50,000 gp Journeyman and 30,000 gp is managed
 - **THEN** it lets the Journeyman go and hires a 30,000 gp Halfling Hopeful,
   so 7 can play
+
+#### Scenario: An unfit Journeyman frees their slot
+
+- **WHEN** the same team's waiting Journeyman is due to miss the next game
+  and the team has 50,000 gp
+- **THEN** it lets the Journeyman go and hires a Halfling Hopeful, keeping
+  20,000 gp, rather than paying 50,000 gp for a Journeyman who cannot play
+
+#### Scenario: No replacement, no release
+
+- **WHEN** the same team has only 25,000 gp
+- **THEN** the purchase plan is empty; the Journeyman, whom the team cannot
+  hire, is let go afterwards like any unanswered offer, and Journeymen make
+  up the numbers at kick-off
 
 #### Scenario: No gold
 
