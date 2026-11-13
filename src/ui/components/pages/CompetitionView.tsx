@@ -20,6 +20,10 @@ import { RNGService } from "../../../services/rng/RNGService";
 import { injuryLabel, playerLabel } from "../hud/turnSummary";
 import { getTeamById } from "../../../game/managers/TeamManager";
 import {
+  earnsWinnings,
+  tournamentPrizeKey,
+} from "../../../game/rules/winnings";
+import {
   CompetitionContext,
   CompetitionDoc,
   CompetitionEntrant,
@@ -161,6 +165,20 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   const rounds = [
     ...new Set(competition.fixtures.map((fixture) => fixture.round)),
   ];
+  const prize =
+    competition.type === "tournament" ? (competition.prize ?? 0) : 0;
+  const prizeGold = `${prize.toLocaleString("en-US")} gp`;
+  /** What became of the prize, once there is a champion to pay. */
+  const prizeOutcome = (() => {
+    if (!champion || prize <= 0) return null;
+    // Only the champion's coach can see, and pay, their team
+    const team = getTeamById(champion.teamId);
+    if (team?.recordedFixtureIds?.includes(tournamentPrizeKey(competition.id)))
+      return `+${prizeGold} prize paid into the Treasury`;
+    if (team && !earnsWinnings(team))
+      return "No prize paid: Matched Play keeps no Treasury";
+    return `The ${prizeGold} prize goes into ${champion.name}'s Treasury`;
+  })();
 
   const contextFor = (fixture: CompetitionFixture): CompetitionContext => ({
     competitionType: competition.type,
@@ -609,7 +627,26 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
           <span className="font-hud-display text-hud-2xl uppercase tracking-[0.03em] text-hud-gold">
             Champion: {champion.name}
           </span>
+          {prizeOutcome && (
+            <p
+              data-testid="tournament-prize-outcome"
+              className="mt-2 font-hud-label text-hud-lg font-bold text-hud-bone"
+            >
+              {prizeOutcome}
+            </p>
+          )}
         </Panel>
+      )}
+
+      {prize > 0 && (
+        <p
+          data-testid="tournament-prize"
+          className="mb-6 font-hud-body text-hud-lg text-hud-dim"
+        >
+          Champion&apos;s prize:{" "}
+          <span className="font-bold text-hud-gold">{prizeGold}</span>, paid
+          into the champion&apos;s Treasury when the tournament ends.
+        </p>
       )}
 
       {competition.status === "active" && (

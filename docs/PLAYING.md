@@ -46,7 +46,9 @@ and action panels more room.
 Team pages show player statistics, treasury, injuries and development choices.
 The team's advancement mode determines how it gains skills. Leagues and
 tournaments have their own pages in the main menu. Teams must satisfy the
-competition's eligibility checks before entering.
+competition's eligibility checks before entering. An organizer can set a prize
+for a tournament's champion; it is paid into the champion's Treasury when the
+tournament ends.
 
 ## Play online
 

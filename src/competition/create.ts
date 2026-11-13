@@ -2,6 +2,7 @@ import { getRosterByRosterName } from "../data/RosterTemplates";
 import { saveTeam } from "../game/managers/TeamManager";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
+import { isValidPrize } from "../game/rules/winnings";
 import type { Difficulty } from "../simulation/ai/difficulty";
 import { Team } from "../types/Team";
 import {
@@ -37,6 +38,8 @@ export interface NewCompetition {
   entrants: EntrantChoice[];
   profile?: RosterRuleProfile;
   computerDifficulty?: Difficulty;
+  /** Tournaments only: gold pieces for the champion's Treasury; 0 = none. */
+  prize?: number;
 }
 
 /**
@@ -49,6 +52,11 @@ export async function createCompetition(
   const name = input.name.trim();
   if (!name) throw new Error("Give the competition a name.");
   if (input.entrants.length < 2) throw new Error("Select at least two teams.");
+  const prize = input.type === "tournament" ? (input.prize ?? 0) : 0;
+  if (!isValidPrize(prize))
+    throw new Error(
+      "Set the prize as a whole number of gold pieces, 0 or more."
+    );
   const teams = input.entrants.map((choice) => choice.team);
 
   // A team belongs to at most one active competition. Every entrant carries
@@ -134,6 +142,7 @@ export async function createCompetition(
           ...base,
           type: "tournament",
           format: input.format ?? "single-elimination",
+          ...(prize > 0 ? { prize } : {}),
         };
   await saveCompetition(competition);
 

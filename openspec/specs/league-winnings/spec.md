@@ -112,7 +112,8 @@ Treasury (D1, MP1). A tournament fixture, a walkover, a bye, and every game
 outside a competition SHALL leave both Treasuries unchanged. These games pay
 nothing: hot-seat play (`/play`), play against the computer (`/play/computer`),
 online friendlies (`/online/host`, `/online/join`), the sandbox, and the
-headless and simulation runners. Prizes for tournaments are a later stage.
+headless and simulation runners. A tournament can instead pay its champion a
+prize (tournament-prizes spec).
 
 #### Scenario: Tournament fixture
 

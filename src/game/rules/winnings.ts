@@ -73,6 +73,19 @@ export function earnsWinnings(team: Pick<Team, "advancementMode">): boolean {
   return isLeagueMode(team.advancementMode);
 }
 
+/**
+ * The entry a paid tournament prize leaves in `Team.recordedFixtureIds`, so
+ * the prize is paid once however often the tournament is read or recorded.
+ */
+export function tournamentPrizeKey(competitionId: string): string {
+  return `${competitionId}:prize`;
+}
+
+/** Whether a tournament prize, in gold pieces, is one an organizer may set. */
+export function isValidPrize(prize: number): boolean {
+  return Number.isSafeInteger(prize) && prize >= 0;
+}
+
 /** Add a game's winnings to the Treasury of a team that earns them. */
 export function payWinnings(team: Team, winnings: number): void {
   if (!earnsWinnings(team) || winnings <= 0) return;

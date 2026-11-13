@@ -8,6 +8,7 @@ import {
   fixtureWinnings,
   payWinnings,
   rollD3,
+  tournamentPrizeKey,
 } from "../game/rules/winnings";
 import { IRNGService, RNGService } from "../services/rng/RNGService";
 import {
@@ -282,12 +283,41 @@ export async function closeWalkovers(
     console.warn("[competition] could not close walkovers", reason);
   }
   // A walkover may be what finished it, after the result that came first
-  // found it still active. Opening the page frees another coach's teams.
-  if (current.status === "complete")
+  // found it still active. Opening the page frees another coach's teams,
+  // and pays the champion's prize when the champion is theirs.
+  if (current.status === "complete") {
     current.entrants.forEach((entrant) =>
       clearActiveCompetition(entrant.teamId, current.id)
     );
+    payTournamentPrize(current);
+  }
   return current;
+}
+
+/**
+ * Pay a completed tournament's prize into its champion's Treasury, once
+ * (tournament-prizes spec). It goes through the same save as league
+ * winnings, so only a team in this coach's own library is paid: the
+ * champion's coach is paid when they record a result or open the page.
+ * A Matched Play champion keeps no Treasury and is paid nothing.
+ */
+export function payTournamentPrize(competition: CompetitionDoc): void {
+  if (competition.type !== "tournament" || competition.status !== "complete")
+    return;
+  const prize = competition.prize ?? 0;
+  const champion = competition.entrants.find(
+    (entrant) => entrant.id === competition.championEntrantId
+  );
+  if (prize <= 0 || !champion) return;
+  const stored = getTeamById(champion.teamId);
+  const key = tournamentPrizeKey(competition.id);
+  if (!stored || stored.recordedFixtureIds?.includes(key)) return;
+  const team = structuredClone(stored);
+  const treasury = team.treasury;
+  payWinnings(team, prize);
+  if (team.treasury === treasury) return;
+  team.recordedFixtureIds = [...(team.recordedFixtureIds ?? []), key];
+  saveTeam(team);
 }
 
 /**

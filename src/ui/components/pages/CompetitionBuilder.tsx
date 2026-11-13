@@ -73,6 +73,8 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
   const [computerRows, setComputerRows] = useState<ComputerRow[]>([]);
   const [leagueSize, setLeagueSize] = useState(16);
   const [difficulty, setDifficulty] = useState<Difficulty>("standard");
+  /** The champion's prize in gold pieces, as typed; empty is no prize. */
+  const [prize, setPrize] = useState("");
   const [localTeams] = useTeamLibrary();
 
   const profile: RosterRuleProfile | undefined = useProfile
@@ -192,6 +194,9 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
         ],
         profile,
         computerDifficulty: difficulty,
+        ...(type === "tournament"
+          ? { prize: prize.trim() === "" ? 0 : Number(prize) }
+          : {}),
       });
       navigate(
         competitionPath({
@@ -253,6 +258,25 @@ export function CompetitionBuilder({ type }: { type: CompetitionType }) {
                 <option value="single-elimination">Single elimination</option>
                 <option value="round-robin">Round robin</option>
               </select>
+            </Field>
+          )}
+
+          {type === "tournament" && (
+            <Field
+              label="Champion's prize (gold)"
+              hint="Paid into the champion's Treasury when the tournament ends. Leave empty for no prize."
+            >
+              <input
+                type="number"
+                min={0}
+                step={10000}
+                inputMode="numeric"
+                placeholder="No prize"
+                value={prize}
+                onChange={(event) => setPrize(event.target.value)}
+                className="hud-field"
+                data-testid="tournament-prize-input"
+              />
             </Field>
           )}
         </div>
