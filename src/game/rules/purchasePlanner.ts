@@ -22,10 +22,15 @@
  * 5. While the Treasury still holds the 100,000 gp Expensive Mistakes
  *    rolls on: an Apothecary, then more re-rolls, then Assistant Coaches
  *    and Cheerleaders.
- * Anything left is kept.
+ * Anything left is kept. Steps 2 to 5 never spend a Sevens Skill Selection
+ * team's draft reserve (`draftReserve`).
  */
 
 import { getRosterByRosterName } from "../../data/RosterTemplates";
+import {
+  addedSkillCount,
+  draftedPlayerPrice,
+} from "../progression/advancementModes";
 import { InjuryType, Player, PlayerTemplate } from "../../types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { Team, isLeagueMode } from "../../types/Team";
@@ -35,6 +40,7 @@ import {
   JourneymanOffer,
   hireJourneyman,
   journeymanHireRefusal,
+  journeymanPrice,
 } from "./journeymen";
 import { MIN_ROSTER_PLAYERS } from "./rosterLegality";
 import { canEdit } from "./teamEditLegality";
@@ -106,6 +112,24 @@ export function fitPlayers(team: Team): Player[] {
   return draftListPlayers(team).filter((player) => isFit(team, player));
 }
 
+/**
+ * Gold a Sevens Skill Selection team keeps back after it can field 7. After
+ * a game a pro team may draft any player with an added skill, and the team
+ * keeps them only by paying their value from the Treasury, or loses them
+ * (Drafted Players, advancementModes.ts). So the extras wait until the team
+ * could pay to keep its most valuable skilled player. Other teams keep
+ * nothing back.
+ */
+export function draftReserve(team: Team): number {
+  if (team.advancementMode !== "sevens-skill-selection") return 0;
+  return Math.max(
+    0,
+    ...draftListPlayers(team)
+      .filter((player) => addedSkillCount(player) >= 1)
+      .map(draftedPlayerPrice)
+  );
+}
+
 /** The Journeymen still waiting on a hiring decision, oldest offer first. */
 export function journeymanOffers(team: Team): JourneymanOffer[] {
   return (team.pendingDevelopment ?? []).filter(
@@ -165,12 +189,16 @@ export function planPurchases(team: Team): PlannedPurchase[] {
       return false;
     }
   };
-  const hireJourneymanFor = (reason: PurchaseReason, fitOnly: boolean) => {
+  /** Gold steps 2 to 5 may spend. */
+  const spare = () => sim.treasury - draftReserve(sim);
+  const hireJourneymanFor = (reason: PurchaseReason, budget: () => number) => {
     for (const offer of journeymanOffers(sim)) {
       const player = sim.players.find((p) => p.id === offer.playerId);
       if (
         !player ||
-        (fitOnly && !isFit(sim, player)) ||
+        // Only a Journeyman who can play gets a short team to 7
+        (reason === "minimum" && !isFit(sim, player)) ||
+        journeymanPrice(player) > budget() ||
         journeymanHireRefusal(sim, offer) !== undefined
       )
         continue;
@@ -184,8 +212,8 @@ export function planPurchases(team: Team): PlannedPurchase[] {
     }
     return false;
   };
-  const hireCheapest = (reason: PurchaseReason) => {
-    const template = cheapestHire(sim);
+  const hireCheapest = (reason: PurchaseReason, budget: number) => {
+    const template = cheapestHire(sim, budget);
     return (
       !!template &&
       buy({ kind: "player", positionName: template.positionName, reason })
@@ -194,20 +222,25 @@ export function planPurchases(team: Team): PlannedPurchase[] {
 
   // 1. Enough fit players to take the field
   while (fitPlayers(sim).length < MIN_ROSTER_PLAYERS) {
-    if (!hireJourneymanFor("minimum", true) && !hireCheapest("minimum")) break;
+    if (
+      !hireJourneymanFor("minimum", () => sim.treasury) &&
+      !hireCheapest("minimum", sim.treasury)
+    )
+      break;
   }
   // 2. Every Journeyman who played, while there is room and gold
-  while (hireJourneymanFor("journeyman", false));
+  while (hireJourneymanFor("journeyman", spare));
   // 3. A team re-roll, when it has none
-  if (sim.rerolls === 0)
+  const reroll = priceOf(sim, { type: "reroll" }).amount;
+  if (sim.rerolls === 0 && reroll != null && reroll <= spare())
     buy({ kind: "staff", item: "reroll", reason: "reroll" });
   // 4. The roster toward its limit
-  while (hireCheapest("roster"));
+  while (hireCheapest("roster", spare()));
   // 5. Nothing left sitting where Expensive Mistakes can take it
   while (sim.treasury >= EXPENSIVE_MISTAKES_THRESHOLD) {
     const item = SPEND_DOWN.find((candidate) => {
       const price = priceOf(sim, { type: candidate }).amount;
-      return price != null && price <= sim.treasury;
+      return price != null && price <= spare();
     });
     if (!item || !buy({ kind: "staff", item, reason: "spend-down" })) break;
   }
@@ -245,11 +278,11 @@ function rosterTemplates(team: Team): PlayerTemplate[] {
 }
 
 /**
- * The cheapest player the roster lets this team hire now and the Treasury
- * can pay for, or undefined. The roster's own order breaks a tie. A player
+ * The cheapest player the roster lets this team hire now for at most
+ * `budget`, or undefined. The roster's own order breaks a tie. A player
  * with Insignificant is left out when they would outnumber the rest.
  */
-function cheapestHire(team: Team): PlayerTemplate | undefined {
+function cheapestHire(team: Team, budget: number): PlayerTemplate | undefined {
   const listed = draftListPlayers(team);
   const insignificant = countInsignificant(listed);
   // Insignificant: "you may not include more players with this Trait than
@@ -260,7 +293,7 @@ function cheapestHire(team: Team): PlayerTemplate | undefined {
     .map((template, index) => ({ template, index }))
     .filter(({ template }) => {
       const price = priceOf(team, { type: "player", cost: template.cost });
-      if (price.amount == null || price.amount > team.treasury) return false;
+      if (price.amount == null || price.amount > budget) return false;
       if (hireRefusal(team, template) !== undefined) return false;
       return (
         roomForInsignificant ||

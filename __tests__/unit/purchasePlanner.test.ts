@@ -21,6 +21,7 @@ import { readyForLeagueGame } from "../../src/game/rules/leagueRoster";
 import {
   PlannedPurchase,
   applyPurchase,
+  draftReserve,
   fitPlayers,
   planPurchases,
 } from "../../src/game/rules/purchasePlanner";
@@ -216,6 +217,79 @@ describe("the purchase plan of a team with no human coach", () => {
     expect(team.apothecary).toBe(true);
     expect(team.treasury).toBeLessThan(100_000);
     expect(team.treasury).toBeGreaterThanOrEqual(0);
+  });
+
+  it("keeps back what keeping a drafted Skill Selection player costs", () => {
+    const team = leagueTeam(RosterName.HUMAN, {
+      players: 7,
+      treasury: 200_000,
+      rerolls: 0,
+    });
+    team.advancementMode = "sevens-skill-selection";
+    // A player with an added skill a pro team may draft: worth 105,000 gp
+    const star = team.players[0];
+    star.cost = 85_000;
+    star.teamValue = 20_000;
+    star.advancements = [
+      {
+        id: "adv-1",
+        type: "primary-skill",
+        name: "Block",
+        sppCost: 0,
+        valueIncrease: 20_000,
+        source: "sevens-skill-selection",
+      },
+    ];
+    expect(draftReserve(team)).toBe(105_000);
+    const plan = planPurchases(team);
+    // No 100,000 gp re-roll: it would leave 100,000 gp, under the reserve.
+    // Three 30,000 gp Halfling Hopefuls leave 110,000 gp; a Lineman would
+    // leave 60,000 gp, too little to keep the star.
+    expect(plan.map((item) => item.reason)).toEqual([
+      "roster",
+      "roster",
+      "roster",
+    ]);
+    expect(200_000 - spent(plan)).toBe(110_000);
+    // An Advanced League team has no Drafted Players to pay for
+    team.advancementMode = "advanced-league";
+    expect(draftReserve(team)).toBe(0);
+    expect(spent(planPurchases(team))).toBeGreaterThan(90_000);
+
+    // Nor does a spare Journeyman come out of the reserve
+    team.advancementMode = "sevens-skill-selection";
+    team.treasury = 140_000;
+    offerJourneyman(team, 8);
+    expect(planPurchases(team)).toEqual([
+      {
+        kind: "player",
+        positionName: "Halfling Hopeful",
+        price: 30_000,
+        reason: "roster",
+      },
+    ]);
+  });
+
+  it("still brings a Skill Selection team up to 7 before keeping anything back", () => {
+    const team = leagueTeam(RosterName.HUMAN, {
+      players: 5,
+      treasury: 110_000,
+    });
+    team.advancementMode = "sevens-skill-selection";
+    team.players[0].teamValue = 60_000;
+    team.players[0].advancements = [
+      {
+        id: "adv-1",
+        type: "primary-skill",
+        name: "Block",
+        sppCost: 0,
+        valueIncrease: 60_000,
+      },
+    ];
+    const plan = planPurchases(team);
+    applyAll(team, plan);
+    expect(fitPlayers(team)).toHaveLength(7);
+    expect(reasons(plan)).toEqual(["minimum", "minimum"]);
   });
 
   it("keeps its gold when nothing worth buying is left", () => {

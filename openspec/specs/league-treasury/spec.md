@@ -223,7 +223,11 @@ it would outnumber the players without it. The plan SHALL buy, in order:
 5. While the Treasury holds 100,000 gp or more: an Apothecary, then team
    re-rolls, then Assistant Coaches, then Cheerleaders.
 
-Anything left SHALL be kept. Journeymen not hired SHALL be let go, and
+Steps 2 to 5 SHALL keep back, for a Sevens Skill Selection team, the value
+of its most valuable player with an added skill: a pro team may draft such a
+player after a game, and the team keeps them only by paying that value from
+the Treasury. Anything left SHALL be kept. Journeymen not hired SHALL be let
+go, and
 Expensive Mistakes rolled after the purchases. A team at its draft and a
 Matched Play team SHALL buy nothing this way. The computer SHALL manage its
 teams after a simulated game, after a result reported by score only, and
@@ -235,6 +239,13 @@ against it).
 - **WHEN** a computer Orc league team with 3 fit players and 160,000 gp is
   managed after a fixture
 - **THEN** it hires 4 Goblin Linemen at 40,000 gp and can field 7
+
+#### Scenario: A Skill Selection team keeps a draft reserve
+
+- **WHEN** a computer Skill Selection team that can field 7, has a 105,000 gp
+  player with an added skill, no re-roll and 200,000 gp is managed
+- **THEN** it buys no re-roll, hires three 30,000 gp Halfling Hopefuls and
+  keeps 110,000 gp
 
 #### Scenario: No gold
 
