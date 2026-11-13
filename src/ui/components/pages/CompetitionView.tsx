@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
 import {
@@ -104,25 +104,59 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   );
 
   /**
+   * The competition the route shows. The page stays mounted when the route
+   * moves to another competition, so what it shows starts again from
+   * nothing (React's reset-on-prop-change pattern), and work started for the
+   * previous competition may not update it.
+   */
+  const routeKey = `${type}:${id ?? ""}`;
+  const [shownKey, setShownKey] = useState(routeKey);
+  if (shownKey !== routeKey) {
+    setShownKey(routeKey);
+    setCompetition(null);
+    setScores({});
+    setError(null);
+    setLaunching(false);
+    setSimulating(null);
+    setSimulated([]);
+  }
+  const shownRoute = useRef(routeKey);
+  useLayoutEffect(() => {
+    shownRoute.current = routeKey;
+  }, [routeKey]);
+
+  /**
+   * The one guard for work that finishes later: capture it when the work
+   * starts, and the work may update the page only while the route still
+   * shows the competition it started on.
+   */
+  const onShownRoute = () => {
+    const startedOn = shownRoute.current;
+    return () => startedOn === shownRoute.current;
+  };
+  /**
    * Bumped by every load and by every change this page makes. A load that
    * finishes after a newer load, or after a change (a recorded result, a
    * withdrawal, a simulated game), read an older competition and must not
    * replace what the page shows.
    */
   const loadGeneration = useRef(0);
-  const supersedeLoads = () => {
+  /** A change starts: loads still running read the competition before it. */
+  const startChange = () => {
     loadGeneration.current += 1;
+    return onShownRoute();
   };
   /** Show what a change on this page left, over any load still running. */
   const showChange = (changed: CompetitionDoc) => {
-    supersedeLoads();
+    loadGeneration.current += 1;
     setCompetition(changed);
   };
 
   useEffect(() => {
     if (!id) return;
     const generation = ++loadGeneration.current;
-    const current = () => generation === loadGeneration.current;
+    const onRoute = onShownRoute();
+    const current = () => onRoute() && generation === loadGeneration.current;
     void getCompetition(type, id)
       // Games owed as walkovers by a team that withdrew before they were
       // closed on withdrawal
@@ -228,16 +262,18 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
 
   const withdraw = async (entrantId: string) => {
     if (!window.confirm("Withdraw this team from the competition?")) return;
-    supersedeLoads();
+    const stillShown = startChange();
     try {
       const updated = await withdrawFromCompetition(
         { competitionType: type, competitionId: competition.id },
         entrantId
       );
+      if (!stillShown()) return;
       showChange(updated);
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (stillShown())
+        setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
@@ -277,7 +313,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
             away: Number(draft?.penaltiesAway),
           }
         : undefined;
-    supersedeLoads();
+    const stillShown = startChange();
     try {
       const updated = await recordCompetitionFixture(
         contextFor(fixture),
@@ -286,10 +322,12 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         undefined,
         penalties
       );
+      if (!stillShown()) return;
       showChange(updated);
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (stillShown())
+        setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
@@ -315,11 +353,14 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       return;
     }
     setLaunching(true);
+    const stillShown = onShownRoute();
     try {
       const [homeTeam, awayTeam] = await Promise.all([
         fetchEntrantTeam(home),
         fetchEntrantTeam(away),
       ]);
+      // The coach moved on to another competition: start nothing
+      if (!stillShown()) return;
       if (!homeTeam || !awayTeam) {
         setError("Could not load one of the entrants' rosters.");
         return;
@@ -337,7 +378,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
       if (local) clearMatchSave();
       start(homeTeam, awayTeam);
     } finally {
-      setLaunching(false);
+      if (stillShown()) setLaunching(false);
     }
   };
 
@@ -396,9 +437,14 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
     let latest = competition;
     const results: SimulatedResult[] = [];
     setError(null);
-    supersedeLoads();
+    const stillShown = startChange();
     try {
-      for (let fixture = next(latest); fixture; fixture = next(latest)) {
+      // Simulating stops when the page moves to another competition
+      for (
+        let fixture = next(latest);
+        fixture && stillShown();
+        fixture = next(latest)
+      ) {
         const name = (entrantId: string | null) =>
           latest.entrants.find((candidate) => candidate.id === entrantId)
             ?.name ?? "TBD";
@@ -408,6 +454,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         // Let the page show which game is on before the match runs
         await new Promise((resolve) => setTimeout(resolve, 0));
         const outcome = await simulateFixture(latest, fixture.id);
+        if (!stillShown()) return;
         latest = refreshEntrantDisplays(outcome.competition);
         const result = outcome.fixture.result!;
         results.unshift({
@@ -433,9 +480,10 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         ]);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (stillShown())
+        setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      setSimulating(null);
+      if (stillShown()) setSimulating(null);
     }
   };
 
