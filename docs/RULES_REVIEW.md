@@ -104,8 +104,8 @@ Journeymen and firing now follow it. Still open there:
 
 ### Not implemented
 
-- Tournament prizes, and computer teams spending their own Treasury. League
-  winnings, spending, Journeymen and Expensive Mistakes follow
+- Tournament prizes. League winnings, spending, Journeymen, Expensive
+  Mistakes and computer teams spending their own Treasury follow
   `openspec/specs/league-winnings/spec.md` and
   `openspec/specs/league-treasury/spec.md`.
 - Seasons and the re-draft screen. The R1 to R3 steps exist as

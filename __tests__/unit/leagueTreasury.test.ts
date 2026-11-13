@@ -193,14 +193,21 @@ describe("Expensive Mistakes after a recorded fixture", () => {
 });
 
 describe("a computer team's post-game steps", () => {
-  it("hires a Journeyman it needs, then rolls Expensive Mistakes last", () => {
+  it("hires a Journeyman who played, then rolls Expensive Mistakes last", () => {
     const team = libraryTeam("cpu", 400_000);
     team.computerCoached = true;
     team.firstMatchPlayedAt = 1;
-    team.players = team.players.slice(0, 6);
     const lineman = getRosterByRosterName(RosterName.HUMAN).playerTemplates[0];
-    const journeyman = createPlayer(lineman, team.id, 9, "Journeyman #9");
-    journeyman.id = "cpu-journeyman-9";
+    // 10 players and every re-roll and member of staff it may have, so the
+    // Journeyman is the only thing left to buy (purchasePlanner.ts)
+    for (let number = 8; number <= 10; number++)
+      team.players.push(createPlayer(lineman, team.id, number));
+    team.rerolls = 6;
+    team.apothecary = true;
+    team.coaches = 3;
+    team.cheerleaders = 3;
+    const journeyman = createPlayer(lineman, team.id, 11, "Journeyman #11");
+    journeyman.id = "cpu-journeyman-11";
     journeyman.playerKind = "journeyman";
     team.players.push(journeyman);
     team.pendingDevelopment = [
@@ -211,7 +218,7 @@ describe("a computer team's post-game steps", () => {
         createdAt: 1,
       },
       {
-        id: "journeyman-m-9",
+        id: "journeyman-m-11",
         kind: "journeyman-offer",
         playerId: journeyman.id,
         matchId: "m",

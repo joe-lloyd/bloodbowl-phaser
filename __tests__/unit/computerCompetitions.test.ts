@@ -96,16 +96,30 @@ describe("computer teams", () => {
     });
   });
 
-  it("spend SPP and hire back up to seven between games", () => {
+  it("spend SPP and their Treasury between games", () => {
     const team = computerTeam(RosterName.HUMAN, "Altdorf Avengers");
+    team.firstMatchPlayedAt = 1;
     team.players[0].spp = 6;
     team.players.splice(5);
     team.treasury = 200_000;
     const report = manageComputerTeam(team, new RNGService(7));
-    expect(team.players).toHaveLength(7);
+    // purchasePlanner.ts: back to 7, then toward 11 with the cheapest
+    expect(team.players.length).toBeGreaterThanOrEqual(7);
+    expect(team.treasury).toBeGreaterThanOrEqual(0);
+    expect(team.treasury).toBeLessThan(30_000);
     expect(team.players[0].advancements).toHaveLength(1);
     expect(report.refused).toEqual([]);
-    expect(report.done).toHaveLength(3);
+    expect(report.done.filter((line) => / hired a /.test(line))).toHaveLength(
+      team.players.length - 5
+    );
+  });
+
+  it("keep their Treasury before their first game", () => {
+    const team = computerTeam(RosterName.HUMAN, "Altdorf Avengers");
+    team.treasury = 200_000;
+    manageComputerTeam(team, new RNGService(7));
+    expect(team.players).toHaveLength(7);
+    expect(team.treasury).toBe(200_000);
   });
 });
 
