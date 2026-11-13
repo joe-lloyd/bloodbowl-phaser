@@ -173,6 +173,7 @@ const ENGINE_ONLY = [
   "passBall",
   "playerAction",
   "resolveBallPlacement",
+  "rollFanFactors",
   "rollMasterChefs",
   "setCoinFlipWinner",
   "sweepChomped",

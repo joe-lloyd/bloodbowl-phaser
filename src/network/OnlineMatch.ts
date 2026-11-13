@@ -41,6 +41,7 @@ import { possessive } from "../game/managers/TurnManager";
 import { PROTOCOL_VERSION } from "./envelope";
 import { LobbyDoc, persistMatch } from "../firebase/lobby";
 import { AuthUser } from "../firebase/auth";
+import { fixturePaysWinnings } from "../game/rules/winnings";
 
 export interface ChatMessage {
   text: string;
@@ -331,6 +332,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
       SubPhase.INTRO
     );
     if (lobby.competitionContext?.knockout) initialState.knockout = true;
+    if (fixturePaysWinnings(lobby.competitionContext?.competitionType))
+      initialState.paysWinnings = true;
   }
 
   let session: LockstepSession | null = null;

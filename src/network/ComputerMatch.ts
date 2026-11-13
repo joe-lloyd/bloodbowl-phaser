@@ -42,6 +42,7 @@ import {
 } from "./OwnershipGate";
 import { OnlineMatch } from "./OnlineMatch";
 import { possessive } from "../game/managers/TurnManager";
+import { fixturePaysWinnings } from "../game/rules/winnings";
 
 /** The board's engine bridge, plus a coin toss: there is no lobby to toss over. */
 class ComputerGameService extends NetworkedGameService {
@@ -186,6 +187,12 @@ export function createComputerMatch(
   // A drawn cup tie goes to Extra Time, then Penalties
   if (!options.resume && options.competitionContext?.knockout)
     initialState.knockout = true;
+  // A league fixture rolls the Fan Factors for its winnings at full time
+  if (
+    !options.resume &&
+    fixturePaysWinnings(options.competitionContext?.competitionType)
+  )
+    initialState.paysWinnings = true;
   const container = ServiceContainer.initialize(
     eventBus,
     team1,

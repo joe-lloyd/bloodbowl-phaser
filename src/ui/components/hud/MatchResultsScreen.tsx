@@ -14,6 +14,7 @@ import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
 import { keepRecordedResult } from "../../../competition/resultRecording";
+import { earnsWinnings } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
 
@@ -93,6 +94,11 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
     Record<string, string>
   >({});
   const [competitionRecorded, setCompetitionRecorded] = useState(false);
+  /** League winnings the recorded fixture paid, by team id. */
+  const [winnings, setWinnings] = useState<{
+    gold: Record<string, number>;
+    fanFactors: Record<string, number>;
+  } | null>(null);
   const [, refresh] = useState(0);
   const [error, setError] = useState("");
   const computerMvpRolled = useRef(new Set<string>());
@@ -132,7 +138,17 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
       refresh((value) => value + 1);
     };
     const onTouchdown = () => refresh((value) => value + 1);
-    const onCompetitionRecorded = () => setCompetitionRecorded(true);
+    const onCompetitionRecorded = (recorded?: {
+      winnings?: Record<string, number>;
+      fanFactors?: Record<string, number>;
+    }) => {
+      setCompetitionRecorded(true);
+      if (recorded?.winnings)
+        setWinnings({
+          gold: recorded.winnings,
+          fanFactors: recorded.fanFactors ?? {},
+        });
+    };
     container.eventBus.on(GameEventNames.MvpAwarded, onMvp);
     container.eventBus.on(GameEventNames.AwardedTouchdownAssigned, onTouchdown);
     container.eventBus.on(
@@ -342,6 +358,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
             ✓ Competition fixture result recorded.
           </p>
         )}
+        {winnings && <WinningsPanel teams={teams} winnings={winnings} />}
 
         {/* ---- Statistics ---- */}
         <StatsTables
@@ -503,6 +520,68 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
         {error && <p className="mt-4 text-hud-bad-soft">{error}</p>}
       </Panel>
     </div>
+  );
+}
+
+/**
+ * League winnings (Record Outcome and Winnings): half the Fan Attendance
+ * plus the team's own touchdowns, times 10,000 gp, paid into the Treasury.
+ */
+function WinningsPanel({
+  teams,
+  winnings,
+}: {
+  teams: Team[];
+  winnings: {
+    gold: Record<string, number>;
+    fanFactors: Record<string, number>;
+  };
+}) {
+  const attendance = teams.reduce(
+    (total, team) => total + (winnings.fanFactors[team.id] ?? 0),
+    0
+  );
+  return (
+    <section
+      data-testid="match-winnings"
+      className="mt-4 rounded-hud border border-hud-gold/30 bg-black/30 p-4"
+    >
+      <h2 className="font-hud-display text-hud-xl uppercase tracking-[0.03em] text-hud-gold">
+        Winnings
+      </h2>
+      <p className="mt-1 text-hud-sm text-hud-dim">
+        Fan Attendance {attendance} (
+        {teams
+          .map(
+            (team) =>
+              `${team.name} Fan Factor ${winnings.fanFactors[team.id] ?? 0}`
+          )
+          .join(", ")}
+        ). Each team earns half the Fan Attendance plus its own touchdowns,
+        times 10,000 gp.
+      </p>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {teams.map((team) => (
+          <li
+            key={team.id}
+            data-testid={`match-winnings-${team.id}`}
+            className="font-hud-label text-hud-lg font-bold"
+          >
+            {team.name}:{" "}
+            {earnsWinnings(team) ? (
+              <span className="text-hud-gold">
+                +{(winnings.gold[team.id] ?? 0).toLocaleString("en-US")} gp to
+                the Treasury
+              </span>
+            ) : (
+              <span className="text-hud-dim">
+                no winnings (Matched Play keeps no Treasury)
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

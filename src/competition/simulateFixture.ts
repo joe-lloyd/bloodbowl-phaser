@@ -27,6 +27,7 @@ import {
   CompetitionDoc,
   CompetitionFixture,
 } from "./types";
+import { fixturePaysWinnings } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
   fixture: CompetitionFixture;
@@ -128,6 +129,7 @@ export async function simulateFixture(
     startingPhase: GamePhase.SETUP,
     progressionEnabled: true,
     knockout: context.knockout,
+    paysWinnings: fixturePaysWinnings(context.competitionType),
   });
   options.inspect?.(game);
   // Serving a Miss Next Game is not a new casualty
@@ -158,6 +160,7 @@ export async function simulateFixture(
     away: engine.getTeam(away.id) ?? away,
   };
   const penalties = state.result?.penalties;
+  const fanFactors = state.fanFactors;
   const updated = await recordCompetitionFixture(
     context,
     state.score[home.id] ?? 0,
@@ -166,6 +169,12 @@ export async function simulateFixture(
     penalties && {
       home: penalties[home.id] ?? 0,
       away: penalties[away.id] ?? 0,
+    },
+    {
+      fanFactors: fanFactors && {
+        home: fanFactors[home.id] ?? 0,
+        away: fanFactors[away.id] ?? 0,
+      },
     }
   );
 

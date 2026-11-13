@@ -78,6 +78,8 @@ export interface GameSnapshot {
   score: Record<string, number>;
   /** A game that must have a winner; absent for every other game. */
   knockout?: boolean;
+  /** A fixture that pays winnings; absent on pre-feature saves. */
+  paysWinnings?: boolean;
   weather: Weather;
   ballPosition: { x: number; y: number } | null;
   activePlayer: {
@@ -107,6 +109,8 @@ export interface GameSnapshot {
   turnUsage?: GameState["turnUsage"];
   /** Masters of Undeath usage and temporary recruits; absent on older saves. */
   raisedDead?: GameState["raisedDead"];
+  /** Fan Factors rolled at full time; absent on pre-feature saves. */
+  fanFactors?: GameState["fanFactors"];
   /** Sevens inducements/Apothecary state; absent on pre-feature saves. */
   inducements?: InducementsMatchState;
   /** Rolled Prayers and Desperate Measures; absent on pre-feature saves. */
@@ -211,6 +215,7 @@ export function serializeGameState(
     },
     score: { ...state.score },
     ...(state.knockout ? { knockout: true } : {}),
+    ...(state.paysWinnings ? { paysWinnings: true } : {}),
     weather: state.weather,
     ballPosition: state.ballPosition ? { ...state.ballPosition } : null,
     activePlayer: state.activePlayer ? { ...state.activePlayer } : null,
@@ -229,6 +234,7 @@ export function serializeGameState(
       : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
+    fanFactors: state.fanFactors ? { ...state.fanFactors } : undefined,
     inducements: state.inducements
       ? structuredClone(state.inducements)
       : undefined,
@@ -294,6 +300,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     turn,
     score: { ...snapshot.score },
     ...(snapshot.knockout ? { knockout: true } : {}),
+    ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
@@ -317,6 +324,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       ? structuredClone(snapshot.turnUsage)
       : undefined,
     raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
+    fanFactors: snapshot.fanFactors ? { ...snapshot.fanFactors } : undefined,
     inducements: snapshot.inducements
       ? structuredClone(snapshot.inducements)
       : undefined,

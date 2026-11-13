@@ -56,6 +56,8 @@ export interface HeadlessGameOptions {
   progressionEnabled?: boolean;
   /** A knockout tie: a draw goes to Extra Time, then Penalties. */
   knockout?: boolean;
+  /** A fixture that pays winnings: full time rolls the Fan Factors. */
+  paysWinnings?: boolean;
   /** Exact running RNG state when restoring a saved match. */
   rngState?: RNGState;
   /** Accumulated statistics when restoring a saved match. */
@@ -164,6 +166,7 @@ export function createHeadlessGame(
     noDelay
   );
   if (options.knockout) gameService.getState().knockout = true;
+  if (options.paysWinnings) gameService.getState().paysWinnings = true;
   const turnManagerState =
     restored?.save.turnManager ?? options.turnManagerState;
   if (turnManagerState) {

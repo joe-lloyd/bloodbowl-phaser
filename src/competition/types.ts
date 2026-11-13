@@ -1,6 +1,7 @@
 import type { Difficulty } from "../simulation/ai/difficulty";
 import { SeedMetadata } from "../types/seedMetadata";
 import { RosterRuleProfile } from "./rosterRules";
+import type { FixtureWinnings } from "../game/rules/winnings";
 
 export type CompetitionType = "league" | "tournament";
 export type TournamentFormat = "single-elimination" | "round-robin";
@@ -72,6 +73,12 @@ export interface FixtureResult {
    * withdrawn entrant in `entrants`, so the database rules can check it.
    */
   walkover?: { withdrawnEntrantIndex: number };
+  /**
+   * A played league game's winnings (src/game/rules/winnings.ts), fixed by
+   * the first report so both coaches pay the same amounts. Absent for a
+   * tournament game, a walkover, a bye and results recorded before winnings.
+   */
+  winnings?: FixtureWinnings;
 }
 
 export interface CompetitionFixture {

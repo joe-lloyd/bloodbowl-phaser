@@ -97,15 +97,16 @@ export function GamePage({
 
   useEffect(() => {
     if (!fixtureContext || !matchTeams) return;
-    const onPhaseChanged = (data: { phase: GamePhase }) => {
-      if (data.phase !== GamePhase.GAME_OVER || reportedRef.current) return;
-      reportedRef.current = true;
+    const report = () => {
       const state = ServiceContainer.getInstance().gameService.getState();
       const gameService = ServiceContainer.getInstance().gameService;
       const homeScore = state.score[matchTeams.team1.id] ?? 0;
       const awayScore = state.score[matchTeams.team2.id] ?? 0;
       // A knockout tie still level after Extra Time went to Penalties
       const penalties = state.result?.penalties;
+      const [homeId, awayId] = [matchTeams.team1.id, matchTeams.team2.id];
+      // Rolled at full time when a league team played (league-winnings spec)
+      const fanFactors = state.fanFactors;
       void recordCompetitionFixture(
         fixtureContext,
         homeScore,
@@ -117,17 +118,42 @@ export function GamePage({
         penalties && {
           home: penalties[matchTeams.team1.id] ?? 0,
           away: penalties[matchTeams.team2.id] ?? 0,
+        },
+        {
+          fanFactors: fanFactors && {
+            home: fanFactors[homeId] ?? 0,
+            away: fanFactors[awayId] ?? 0,
+          },
         }
       )
-        .then(() => {
+        .then((competition) => {
+          // The first report fixed the winnings: show what was recorded
+          const winnings = competition.fixtures.find(
+            (fixture) => fixture.id === fixtureContext.fixtureId
+          )?.result?.winnings;
           eventBus.emit(GameEventNames.CompetitionResultRecorded, {
             fixtureId: fixtureContext.fixtureId,
+            ...(winnings && {
+              winnings: { [homeId]: winnings.home, [awayId]: winnings.away },
+              fanFactors: {
+                [homeId]: winnings.fanFactor.home,
+                [awayId]: winnings.fanFactor.away,
+              },
+            }),
           });
         })
         .catch((error) => {
           reportedRef.current = false;
           console.error("Failed to record competition result:", error);
         });
+    };
+    const onPhaseChanged = (data: { phase: GamePhase }) => {
+      if (data.phase !== GamePhase.GAME_OVER || reportedRef.current) return;
+      reportedRef.current = true;
+      // This page subscribes before the engine does, so the engine's own
+      // full-time steps (Fan Factors, Dedicated Fans) in this same event
+      // have not run yet: report once every listener has
+      queueMicrotask(report);
     };
     eventBus.on(GameEventNames.PhaseChanged, onPhaseChanged);
     return () => eventBus.off(GameEventNames.PhaseChanged, onPhaseChanged);
