@@ -399,6 +399,18 @@ describe("managing a team after a fixture", () => {
     );
   });
 
+  it("answers a Journeyman offer even when it spends nothing", () => {
+    const team = leagueTeam(RosterName.HUMAN, {
+      players: 6,
+      treasury: 500_000,
+    });
+    delete team.firstMatchPlayedAt;
+    offerJourneyman(team, 7);
+    manageComputerTeam(team, new RNGService(3));
+    expect(team.pendingDevelopment).toEqual([]);
+    expect(team.treasury).toBe(500_000);
+  });
+
   it("never touches a team a person coaches", () => {
     const team = leagueTeam(RosterName.HUMAN, {
       players: 4,

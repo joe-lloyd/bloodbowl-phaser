@@ -377,12 +377,13 @@ function advancementChoice(
 /**
  * Between league fixtures, buy what the purchase planner chooses through
  * the same code a coach's purchase runs, then let go every Journeyman not
- * hired. A team still at its draft, or one outside a league (Matched Play),
- * keeps its Treasury as it is.
+ * hired, so no offer is left to hold up the next fixture. A team still at
+ * its draft, or one outside a league (Matched Play), keeps its Treasury as
+ * it is.
  */
 function spendTreasury(team: Team, report: ManagementReport): void {
-  if (!isLeagueMode(team.advancementMode) || !isActiveTeam(team)) return;
-  for (const item of planPurchases(team)) {
+  const spends = isLeagueMode(team.advancementMode) && isActiveTeam(team);
+  for (const item of spends ? planPurchases(team) : []) {
     try {
       applyPurchase(team, item);
       report.done.push(`${team.name}: ${describePurchase(item)}`);
@@ -401,7 +402,7 @@ function spendTreasury(team: Team, report: ManagementReport): void {
     );
   }
   const fit = fitPlayers(team).length;
-  if (fit < MIN_ROSTER_PLAYERS)
+  if (spends && fit < MIN_ROSTER_PLAYERS)
     report.setbacks.push({
       rule: "cannot-refill",
       detail: `${team.name}: ${fit} fit players, ${team.treasury} in the Treasury`,
