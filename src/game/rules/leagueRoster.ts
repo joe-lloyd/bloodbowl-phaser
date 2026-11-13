@@ -23,6 +23,7 @@ import { SkillType, getSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { movePlayerToBox } from "./playerLocation";
 import { MAX_DEDICATED_FANS, MIN_DEDICATED_FANS } from "./sevensPrices";
+import { uniquePlayerId } from "./playerSlots";
 
 /** L2: Journeymen fill a league team up to this many available players. */
 export const JOURNEYMEN_FILL_TO = 7;
@@ -84,7 +85,8 @@ function takeOnJourneymen(team: Team): void {
       number,
       `Journeyman #${number}`
     );
-    journeyman.id = `${team.id}-journeyman-${number}`;
+    // A hired Journeyman keeps their id when their number changes
+    journeyman.id = uniquePlayerId(team, `${team.id}-journeyman-${number}`);
     journeyman.playerKind = "journeyman";
     journeyman.skills = [
       ...journeyman.skills.filter((skill) => skill.type !== SkillType.LONER),

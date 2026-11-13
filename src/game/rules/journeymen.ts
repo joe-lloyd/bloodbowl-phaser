@@ -25,6 +25,7 @@ import {
   playerValue,
 } from "../../types/Team";
 import { hireRefusal } from "./teamPricing";
+import { ROSTER_SLOTS, freeRosterNumber } from "./playerSlots";
 
 export type JourneymanOffer = Extract<
   PendingDevelopment,
@@ -126,6 +127,9 @@ export function hireJourneyman(team: Team, entry: JourneymanOffer): number {
   const price = journeymanPrice(player);
   team.treasury -= price;
   player.playerKind = "roster";
+  // Taken on above the 11 roster slots, they move to a free one
+  const slot = player.number > ROSTER_SLOTS ? freeRosterNumber(team) : null;
+  if (slot !== null) player.number = slot;
   // A Lineman whose own profile has Loner keeps it
   player.skills = [
     ...player.skills.filter((skill) => skill.type !== SkillType.LONER),

@@ -18,6 +18,7 @@
 import { test, expect, Page } from "@playwright/test";
 import { writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
+import { seedAllRosters } from "../support/seedTeams";
 import { GamePhase } from "../../src/types/GameState";
 
 interface Square {
@@ -54,8 +55,9 @@ interface FrameLog {
 const HOME = "Human Founders";
 const COMPUTER = "Orc Founders";
 const LINEMAN = 6;
-const LINEMAN_SQUARE = { x: 2, y: 4 };
-const OTHER_LINEMAN_SQUARE = { x: 2, y: 6 };
+/** Where the Balanced preset puts them with all 7 Human Founders fit */
+const LINEMAN_SQUARE = { x: 2, y: 6 };
+const OTHER_LINEMAN_SQUARE = { x: 2, y: 4 };
 /** Empty squares in the home setup zone */
 const DROP_A = { x: 1, y: 3 };
 const DROP_B = { x: 1, y: 5 };
@@ -312,10 +314,8 @@ async function dugoutSquare(page: Page, playerId: string): Promise<Square> {
  */
 async function startComputerSetup(page: Page, app: GameApp) {
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto("/build-team");
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByRole("button", { name: /Seed All Rosters/ }).click();
+  // Every seed team at full strength: this is about setting up 7
+  await seedAllRosters(page, { fullStrength: true });
   await page.goto("/select-team");
   await page
     .getByRole("button", { name: new RegExp(HOME) })

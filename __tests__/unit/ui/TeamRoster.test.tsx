@@ -68,6 +68,27 @@ describe("TeamRoster readability", () => {
     expect(firstPlayerName?.closest("td")?.className).toContain("text-base");
   });
 
+  it("shows a retained player wearing a number above 11", async () => {
+    const team = new TeamTestBuilder().withPlayers(7).build();
+    team.players[6].number = 12;
+    team.players[6].playerName = "Late Journeyman";
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter>
+          <TeamRoster
+            team={team}
+            onFirePlayer={() => {}}
+            onReorderPlayers={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const row = container.querySelector('[data-testid="roster-row-12"]');
+    expect(row?.textContent).toContain("Late Journeyman");
+  });
+
   it("wraps the roster table so it scrolls horizontally instead of clipping", async () => {
     const team = new TeamTestBuilder().withPlayers(11).build();
 

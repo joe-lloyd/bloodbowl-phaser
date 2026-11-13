@@ -36,6 +36,7 @@ import {
 } from "../game/rules/raiseDead";
 import { canEdit } from "../game/rules/teamEditLegality";
 import { draftListPlayers, priceOf } from "../game/rules/teamPricing";
+import { freeRosterNumber, uniquePlayerId } from "../game/rules/playerSlots";
 import {
   hireJourneyman,
   journeymanHireRefusal,
@@ -398,10 +399,10 @@ function hireUpToSeven(team: Team, report: ManagementReport): void {
       });
       return;
     }
-    const used = new Set(team.players.map((p) => p.number));
-    let number = 1;
-    while (used.has(number)) number++;
+    const number = freeRosterNumber(team);
+    if (number === null) return;
     const player = createPlayer(template, team.id, number);
+    player.id = uniquePlayerId(team, player.id);
     player.cost = price.amount;
     if (!addPlayerToTeam(team, player)) return;
     report.done.push(`${team.name}: hired ${player.playerName}`);

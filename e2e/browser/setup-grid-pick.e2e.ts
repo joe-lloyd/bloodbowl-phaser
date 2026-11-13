@@ -19,6 +19,7 @@
 import { test, expect, Page } from "@playwright/test";
 import { writeFileSync } from "node:fs";
 import { GameApp } from "../support/pages/game";
+import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 
@@ -272,10 +273,8 @@ async function startSetup(
   home: string
 ): Promise<void> {
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto("/build-team");
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByRole("button", { name: /Seed All Rosters/ }).click();
+  // Every seed team at full strength: this is about setting up 7
+  await seedAllRosters(page, { fullStrength: true });
   await page.goto("/select-team");
   await page
     .getByRole("button", { name: new RegExp(home) })

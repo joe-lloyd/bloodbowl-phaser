@@ -8,6 +8,7 @@
  */
 import { test, expect } from "@playwright/test";
 import { GameApp } from "../support/pages/game";
+import { seedAllRosters } from "../support/seedTeams";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 
@@ -32,10 +33,8 @@ test("introductions, then the coin, then setup with no zone left glowing", async
 
   // Two seed teams, then a match between them
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto("/build-team");
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByRole("button", { name: /Seed All Rosters/ }).click();
+  // Every seed team at full strength: this is about setting up 7
+  await seedAllRosters(page, { fullStrength: true });
   await page.goto("/select-team");
   await page
     .getByRole("button", { name: /Human Founders/ })

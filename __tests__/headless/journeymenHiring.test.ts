@@ -175,6 +175,40 @@ describe("a league team short of players", () => {
   });
 });
 
+describe("Journeyman identity and roster slot", () => {
+  it("never gives a new Journeyman the id of a hired one who changed number", () => {
+    const home = team("home", 5, 200_000);
+    // Hired after an earlier game as Journeyman #6, now wearing #1
+    const hiredBefore = home.players[0];
+    hiredBefore.id = `${home.id}-journeyman-6`;
+    hiredBefore.spp = 6;
+    const inMatch = kickOff(home).ctx.team1;
+    const ids = inMatch.players.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    // Letting the new #6 go leaves the hired player and their SPP alone
+    const newcomer = journeymen(inMatch).find((p) => p.number === 6)!;
+    recordPendingDevelopment(inMatch, "m1", undefined, {
+      leagueFixture: true,
+      playedIds: new Set([newcomer.id]),
+    });
+    releaseJourneyman(inMatch, offerFor(inMatch, newcomer.id));
+    expect(inMatch.players.find((p) => p.number === 1)?.spp).toBe(6);
+  });
+
+  it("moves a hired Journeyman wearing a number above 11 into a free slot", () => {
+    const inMatch = kickOff(team("home", 6, 200_000)).ctx.team1;
+    const [journeyman] = journeymen(inMatch);
+    journeyman.number = 12;
+    recordPendingDevelopment(inMatch, "m1", undefined, {
+      leagueFixture: true,
+      playedIds: new Set([journeyman.id]),
+    });
+    hireJourneyman(inMatch, offerFor(inMatch, journeyman.id));
+    expect(journeyman.number).toBe(7);
+  });
+});
+
 describe("outside a league fixture", () => {
   it("a friendly or tournament game takes on no Journeymen and offers none", () => {
     const home = team("home", 5, 120_000);

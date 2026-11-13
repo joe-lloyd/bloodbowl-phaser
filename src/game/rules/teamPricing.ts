@@ -26,6 +26,7 @@ import {
   MAX_ROSTER_PLAYERS,
   isLinemanPosition,
 } from "./rosterLegality";
+import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
 import { Inducement } from "../../types/Inducements";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { sevensInducementCatalog } from "../inducements/catalog";
@@ -205,10 +206,14 @@ export function draftListPlayers(team: Team): Player[] {
 /**
  * Why `template` cannot join the Team Draft List now, or undefined when it
  * can. Sevens: "No Blood Bowl Sevens team may ever have more than 11
- * permanently hired players on their Team Draft List." Between fixtures an
- * active team must also respect each position's QTY and the cap of 4
- * players without the Lineman keyword (D3); a draft list may break those
- * while it is being built, and is checked when it is finalised.
+ * permanently hired players on their Team Draft List." A new hire also
+ * needs one of the 11 numbered slots, and a Journeyman or raised Lineman
+ * waiting on a hiring decision holds one, so they count against a new hire.
+ * Hiring that waiting player counts only the Team Draft List, as the
+ * rulebook does. Between fixtures an active team must also respect each
+ * position's QTY and the cap of 4 players without the Lineman keyword
+ * (D3); a draft list may break those while it is being built, and is
+ * checked when it is finalised.
  */
 export function hireRefusal(
   team: Team,
@@ -225,6 +230,13 @@ export function hireRefusal(
   );
   if (listed.length >= limit) {
     return `A Sevens team may have at most ${limit} permanently hired players.`;
+  }
+  if (
+    joiningPlayerId === undefined &&
+    team.players.filter((player) => staysOnRoster(team, player)).length >=
+      limit
+  ) {
+    return `A Sevens team may have at most ${limit} players, counting a Journeyman or recruit still waiting on a hiring decision.`;
   }
   if (!isActiveTeam(team)) return undefined;
   const ofPosition = listed.filter(
@@ -259,10 +271,16 @@ export function hirePlayer(
   if (team.treasury < price.amount) {
     return { amount: null, reason: "Not enough gold in the treasury." };
   }
-  const used = new Set(team.players.map((player) => player.number));
-  let number = 1;
-  while (used.has(number)) number++;
+  // Checked before anything is charged
+  const number = freeRosterNumber(team);
+  if (number === null) {
+    return {
+      amount: null,
+      reason: "Every roster number from 1 to 11 is taken.",
+    };
+  }
   const player = createPlayer(template, team.id, number);
+  player.id = uniquePlayerId(team, player.id);
   player.cost = price.amount;
   team.players.push(player);
   team.treasury -= price.amount;

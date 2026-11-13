@@ -125,7 +125,7 @@ describe("between league fixtures", () => {
     expect(team.treasury).toBe(450_000);
   });
 
-  it("does not count a dead player or a Journeyman waiting on an offer", () => {
+  it("does not count a dead player; a Journeyman waiting on an offer holds a slot but is off the Team Draft List", () => {
     const team = leagueTeam(500_000, LINEMEN(11));
     team.players[0].injuries.push("Dead" as never);
     const journeyman = team.players[1];
@@ -149,6 +149,45 @@ describe("between league fixtures", () => {
       allowed: false,
       reason: "Sevens teams cannot fire players after a game.",
     });
+  });
+});
+
+describe("roster slots and player identity", () => {
+  it("counts a Journeyman waiting on an offer against a new hire, so no hire gets a number above 11", () => {
+    const team = leagueTeam(500_000, LINEMEN(6));
+    const journeyman = createPlayer(position("Human Lineman"), team.id, 7);
+    journeyman.id = `${team.id}-journeyman-7`;
+    journeyman.playerKind = "journeyman";
+    team.players.push(journeyman);
+    team.pendingDevelopment = [
+      {
+        id: "journeyman-m-7",
+        kind: "journeyman-offer",
+        playerId: journeyman.id,
+        matchId: "m",
+        createdAt: 1,
+      },
+    ];
+    for (let hire = 0; hire < 4; hire++)
+      expect(hirePlayer(team, position("Human Lineman")).amount).toBe(50_000);
+    expect(team.players.map((p) => p.number).sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    ]);
+    const fifth = hirePlayer(team, position("Human Lineman"));
+    expect(fifth.amount).toBeNull();
+    expect(fifth.reason).toMatch(/waiting on a hiring decision/);
+    expect(team.treasury).toBe(300_000);
+    expect(team.players).toHaveLength(11);
+  });
+
+  it("gives a hire an id no player has, after a player moved to another number", () => {
+    const team = leagueTeam(500_000, LINEMEN(6));
+    // The Team Builder moves #1 to the empty slot 9; the player keeps their id
+    team.players[0].number = 9;
+    const hired = hirePlayer(team, position("Human Lineman"));
+    expect(hired.player?.number).toBe(1);
+    const ids = team.players.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

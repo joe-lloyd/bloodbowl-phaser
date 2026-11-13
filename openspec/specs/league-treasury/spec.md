@@ -137,7 +137,11 @@ leave the team unchanged. A hire SHALL be refused when the Team Draft List
 already holds 11 permanently hired players. Between fixtures a hire SHALL
 also be refused when it would take a position over its QTY or the team over
 4 players without the Lineman keyword. A dead player has left the list, and
-a Journeyman or raised Lineman waiting on a hiring decision is not on it.
+a Journeyman or raised Lineman waiting on a hiring decision is not on it, but
+holds one of the 11 numbered roster slots: a new hire SHALL take a free number
+from 1 to 11 and is refused, before anything is charged, when none is free.
+Every player SHALL keep an id no other player on the team has, whatever
+number they wear, since a coach can move a player to another number.
 
 #### Scenario: Not enough gold
 
@@ -183,7 +187,9 @@ After a league fixture each Journeyman who took part in the game
 decision in Manage Team, and SHALL block the team's next fixture until
 answered. Hiring SHALL cost their Hiring Fee plus any Value Increase, from
 the Treasury, and needs room under 11 permanently hired players. A hired
-Journeyman SHALL lose Loner and keep their SPP and advancements. One let
+Journeyman SHALL lose Loner and keep their SPP and advancements, and one
+taken on above number 11 SHALL move to the lowest free number. The roster
+SHALL show every retained player, including any numbered above 11. One let
 go, or one who did not play, SHALL leave with them. Nothing is offered after
 any other game. A computer team keeps a Journeyman only to get back to 7
 players when it can pay, and lets the rest go.
