@@ -223,12 +223,22 @@ service cloud.firestore {
         && resource.data.organizerUid == request.auth.uid;
     }
 
+    // A tournament's prize, when set, is whole gold pieces from 0 to
+    // 10,000,000 (MAX_PRIZE, src/game/rules/winnings.ts).
+    function prizeValid() {
+      return !('prize' in request.resource.data)
+        || (request.resource.data.prize is int
+          && request.resource.data.prize >= 0
+          && request.resource.data.prize <= 10000000);
+    }
+
     match /tournaments/{tournamentId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
-        && request.resource.data.organizerUid == request.auth.uid;
+        && request.resource.data.organizerUid == request.auth.uid
+        && prizeValid();
       allow update: if request.auth != null
-        && (resource.data.organizerUid == request.auth.uid
+        && ((resource.data.organizerUid == request.auth.uid && prizeValid())
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',

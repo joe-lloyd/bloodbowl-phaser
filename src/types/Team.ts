@@ -273,7 +273,10 @@ export interface Team {
    */
   activeCompetitionId?: string;
 
-  /** `competitionId:fixtureId` of each result in this team's record. */
+  /**
+   * `competitionId:fixtureId` of each result in this team's record, and
+   * `competitionId:prize` once a tournament prize is paid (winnings.ts).
+   */
   recordedFixtureIds?: string[];
 
   /** Immutable progression lifecycle; absent on unmigrated legacy teams. */

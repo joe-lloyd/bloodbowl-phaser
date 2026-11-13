@@ -151,6 +151,12 @@ export interface TournamentDoc {
   /** See LeagueDoc.reporterEntrantIndex. */
   reporterEntrantIndex?: number;
   championEntrantId?: string;
+  /**
+   * Gold pieces paid into the champion's Treasury once the tournament
+   * completes (tournament-prizes spec). Set by the organizer at creation;
+   * absent means no prize.
+   */
+  prize?: number;
   createdAt: number;
   updatedAt: number;
   /** Development seed ownership; absent on coach-created competitions. */
