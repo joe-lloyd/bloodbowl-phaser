@@ -292,11 +292,17 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   };
 
   const recordDevelopment = (matchId: string) => {
+    const gameState = container?.gameService.getState();
     savedTeams(teams).forEach((team) => {
       recordPendingDevelopment(
         team,
         matchId,
-        container?.gameService.getState().raisedDead?.[team.id]
+        gameState?.raisedDead?.[team.id],
+        {
+          // A league fixture's Journeymen who played wait on a hiring decision
+          leagueFixture: !!gameState?.paysWinnings,
+          playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
+        }
       );
       keepRecordedResult(team);
       saveTeam(team);

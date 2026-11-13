@@ -35,7 +35,16 @@ import {
   resolveRaisedDeadRecruit,
 } from "../game/rules/raiseDead";
 import { canEdit } from "../game/rules/teamEditLegality";
-import { priceOf } from "../game/rules/teamPricing";
+import { draftListPlayers, priceOf } from "../game/rules/teamPricing";
+import {
+  hireJourneyman,
+  journeymanHireRefusal,
+  releaseJourneyman,
+} from "../game/rules/journeymen";
+import {
+  describeExpensiveMistakes,
+  resolveExpensiveMistakes,
+} from "../game/rules/expensiveMistakes";
 import { IRNGService } from "../services/rng/RNGService";
 import { createReadyMadeTeam } from "../simulation/lineups";
 import { createPlayer, Player, PositionKeyWord } from "../types/Player";
@@ -168,17 +177,18 @@ export interface ManagementReport {
 
 /**
  * Resolve every development choice waiting on a computer team, spend its
- * SPP, and hire Linemen back up to seven players. Changes `team` in place;
- * the caller saves it.
+ * SPP, hire Linemen back up to seven players, and last roll any Expensive
+ * Mistakes, the post-game sequence's final money step. Changes `team` in
+ * place; the caller saves it.
  */
 export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
   const report: ManagementReport = { done: [], setbacks: [], refused: [] };
-  for (
-    let guard = 0;
-    guard < 40 && (team.pendingDevelopment?.length ?? 0) > 0;
-    guard++
-  ) {
-    const entry = team.pendingDevelopment![0];
+  const beforeMistakes = () =>
+    team.pendingDevelopment?.find(
+      (candidate) => candidate.kind !== "expensive-mistakes"
+    );
+  for (let guard = 0; guard < 40 && beforeMistakes(); guard++) {
+    const entry = beforeMistakes()!;
     try {
       resolveEntry(team, entry, rng, report);
     } catch (cause) {
@@ -199,6 +209,20 @@ export function manageComputerTeam(team: Team, rng: Rng): ManagementReport {
       rule: "hire-refused",
       detail: `${team.name}: ${cause}`,
     });
+  }
+  for (const entry of [...(team.pendingDevelopment ?? [])]) {
+    if (entry.kind !== "expensive-mistakes") continue;
+    try {
+      const result = resolveExpensiveMistakes(team, entry, rng);
+      report.done.push(
+        `${team.name}: Expensive Mistakes, ${describeExpensiveMistakes(result)}`
+      );
+    } catch (cause) {
+      report.refused.push({
+        rule: "development-expensive-mistakes",
+        detail: `${team.name}: ${cause}`,
+      });
+    }
   }
   team.teamValue = calculateTeamValue(team);
   return report;
@@ -261,6 +285,23 @@ function resolveEntry(
     }
     case "sevens-skill-selection":
       resolveSkillSelection(team, entry, rng, report);
+      return;
+    case "journeyman-offer": {
+      // Keep a Journeyman only to get back to seven, when it can pay
+      const player = team.players.find((p) => p.id === entry.playerId);
+      const keep =
+        !!player &&
+        draftListPlayers(team).length < 7 &&
+        journeymanHireRefusal(team, entry) === undefined;
+      if (keep) hireJourneyman(team, entry);
+      else releaseJourneyman(team, entry);
+      report.done.push(
+        `${team.name}: Journeyman ${player?.playerName ?? entry.playerId} ${keep ? "hired" : "let go"}`
+      );
+      return;
+    }
+    case "expensive-mistakes":
+      // Rolled after hiring, by manageComputerTeam
       return;
     case "drafted-player-offer": {
       const player = team.players.find((p) => p.id === entry.playerId)!;

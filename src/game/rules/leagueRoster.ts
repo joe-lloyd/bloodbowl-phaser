@@ -6,8 +6,9 @@
  * on the player. Before a league game the player due to miss it sits in the
  * Casualty box and the record is struck, so the team saved after the game
  * has them back. A dead player leaves the Team Draft List when the team is
- * next loaded. A team left short of 7 players takes on Journeymen, who leave
- * again after the game: there is no post-game hiring yet.
+ * next loaded. In a league fixture, a team left short of 7 players takes on
+ * Journeymen. After the game each one who played waits on the coach's
+ * hiring decision (journeymen.ts); the rest leave.
  */
 
 import {
@@ -17,11 +18,7 @@ import {
   PositionKeyWord,
   createPlayer,
 } from "../../types/Player";
-import {
-  Team,
-  isLeagueMode,
-  isPendingRaisedDeadRecruit,
-} from "../../types/Team";
+import { Team, isLeagueMode, isPendingRecruit } from "../../types/Team";
 import { SkillType, getSkill } from "../../types/Skills";
 import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { movePlayerToBox } from "./playerLocation";
@@ -30,12 +27,27 @@ import { MAX_DEDICATED_FANS, MIN_DEDICATED_FANS } from "./sevensPrices";
 /** L2: Journeymen fill a league team up to this many available players. */
 export const JOURNEYMEN_FILL_TO = 7;
 
+/** What kind of game a team is being readied for. */
+export interface GameReadiness {
+  /**
+   * A league fixture (`fixturePaysWinnings`). Only then does a short team
+   * take on Journeymen: exhibition play skips that step (Second Season:
+   * "This step can be skipped during exhibition play."), and tournament
+   * fixtures run no league pre-game sequence.
+   */
+  leagueFixture?: boolean;
+}
+
 /**
  * Ready a league team at the start of a game, after every player has been
  * put in the Reserves: a dead player goes to the Casualty box, a Miss Next
- * Game player serves the game there, and Journeymen make up the numbers.
+ * Game player serves the game there, and in a league fixture Journeymen make
+ * up the numbers.
  */
-export function readyForLeagueGame(team: Team): void {
+export function readyForLeagueGame(
+  team: Team,
+  { leagueFixture = false }: GameReadiness = {}
+): void {
   if (!isLeagueMode(team.advancementMode)) return;
   for (const player of team.players) {
     if (player.injuries.includes(InjuryType.DEAD)) {
@@ -47,7 +59,7 @@ export function readyForLeagueGame(team: Team): void {
       movePlayerToBox(player, { box: "casualty" });
     }
   }
-  takeOnJourneymen(team);
+  if (leagueFixture) takeOnJourneymen(team);
 }
 
 /**
@@ -62,7 +74,7 @@ function takeOnJourneymen(team: Team): void {
   let available = team.players.filter(
     (player) =>
       player.status === PlayerStatus.RESERVE &&
-      !isPendingRaisedDeadRecruit(team, player.id)
+      !isPendingRecruit(team, player.id)
   ).length;
   while (available < JOURNEYMEN_FILL_TO) {
     const number = nextFreeNumber(team);
@@ -122,11 +134,13 @@ export function updateDedicatedFans(
 }
 
 /**
- * Whether a stored player is still on the Team Draft List: Journeymen leave
- * after the game they played, and a dead league player is removed.
+ * Whether a stored player is still on the team: a Journeyman stays only
+ * while the coach decides whether to hire them, and a dead league player is
+ * removed.
  */
 export function staysOnRoster(team: Team, player: Player): boolean {
-  if (player.playerKind === "journeyman") return false;
+  if (player.playerKind === "journeyman")
+    return isPendingRecruit(team, player.id);
   return !(
     isLeagueMode(team.advancementMode) &&
     player.injuries.includes(InjuryType.DEAD)

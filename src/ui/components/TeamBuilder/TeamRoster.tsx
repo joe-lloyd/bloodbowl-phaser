@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
   calculateTeamValue,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
   playerValue,
   playersTeamValue,
   playsNextGame,
@@ -47,7 +47,7 @@ function isRowControl(target: EventTarget | null): boolean {
  * called for players who will not play the next game.
  */
 function notInTeamValueReason(team: Team, player: Player): string {
-  if (isPendingRaisedDeadRecruit(team, player.id)) return "Not hired yet";
+  if (isPendingRecruit(team, player.id)) return "Not hired yet";
   if (
     player.status === PlayerStatus.DEAD ||
     player.injuries.includes(InjuryType.DEAD)

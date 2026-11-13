@@ -14,7 +14,7 @@ import {
   Team,
   TeamSpecialRule,
   calculateTeamValue,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
 } from "../../types/Team";
 import { GameEventNames } from "../../types/events";
 import { staysOnRoster } from "./leagueRoster";
@@ -75,7 +75,7 @@ export function canKeepRaisedDead(team: Team, playerId: string): boolean {
       (player) =>
         player.id !== playerId &&
         staysOnRoster(team, player) &&
-        !isPendingRaisedDeadRecruit(team, player.id)
+        !isPendingRecruit(team, player.id)
     ).length < team.maxRosterSize
   );
 }

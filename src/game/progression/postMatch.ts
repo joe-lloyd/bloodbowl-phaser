@@ -1,4 +1,5 @@
 import { calculateTeamValue, Team } from "../../types/Team";
+import { offerJourneymen } from "../rules/journeymen";
 import { offerRaisedDeadRecruit } from "../rules/raiseDead";
 import { stampFirstCompletedMatch } from "../rules/teamLifecycle";
 import {
@@ -12,15 +13,27 @@ import { mustAdvance } from "./progression";
  * development, but do not resolve it. Per team-advancement-modes, "the
  * results screen SHALL NOT require direct skill assignment": Advanced League
  * advancements and Sevens Skill Selection awards are completed later, from
- * Manage Team or, for a computer team, by the computer.
+ * Manage Team or, for a computer team, by the computer. After a league
+ * fixture each Journeyman who played waits on a hiring decision there too;
+ * any other Journeyman leaves now.
  */
 export function recordPendingDevelopment(
   team: Team,
   matchId: string,
   /** The player this team's Raise the Dead raised, if any. */
-  raisedDeadPlayerId: string | undefined
+  raisedDeadPlayerId: string | undefined,
+  game: {
+    /** The game was a league fixture (`GameState.paysWinnings`). */
+    leagueFixture?: boolean;
+    /** Who took part (MatchStats participation), when known. */
+    playedIds?: ReadonlySet<string>;
+  } = {}
 ): void {
   if (raisedDeadPlayerId) offerRaisedDeadRecruit(team, raisedDeadPlayerId);
+  offerJourneymen(team, matchId, {
+    leagueFixture: !!game.leagueFixture,
+    playedIds: game.playedIds,
+  });
   if (team.advancementMode === "sevens-skill-selection") {
     const eligible = eligibleSkillSelectionPlayers(team);
     if (eligible.length > 0) {

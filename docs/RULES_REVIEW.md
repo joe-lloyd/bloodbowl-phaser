@@ -76,8 +76,8 @@ Journeymen and firing now follow it. Still open there:
 - Razzle-Dazzle and Magic Scroll are rolled and held but do nothing. A
   second Action needs its own declaration rules, and the engine has no
   Sports-Wizard.
-- There are no screens for re-drafting between seasons or for hiring
-  Journeymen after a game. The re-draft rules exist as a tested function.
+- There is no screen for re-drafting between seasons. The re-draft rules
+  exist as a tested function.
 - Seed teams and old saves still carry characteristic losses from before
   the Sevens injury tables, and loading still applies them.
 - The penalty-free set-up concession still wipes the conceding team's SPP.
@@ -104,8 +104,10 @@ Journeymen and firing now follow it. Still open there:
 
 ### Not implemented
 
-- Expensive Mistakes and spending the Treasury after a game. League
-  winnings are paid (see `openspec/specs/league-winnings/spec.md`).
+- Tournament prizes, and computer teams spending their own Treasury. League
+  winnings, spending, Journeymen and Expensive Mistakes follow
+  `openspec/specs/league-winnings/spec.md` and
+  `openspec/specs/league-treasury/spec.md`.
 - Seasons and the re-draft screen. The R1 to R3 steps exist as
   `beginRedraft`, which nothing calls yet.
 - Conceding during play. Only the set-up concession exists.

@@ -4,7 +4,7 @@ import {
   calculateTeamValue,
   PendingDevelopment,
   Team,
-  isPendingRaisedDeadRecruit,
+  isPendingRecruit,
 } from "../../../types/Team";
 import { saveTeam } from "../../../game/managers/TeamManager";
 import { canAdvance, mustAdvance } from "../../../game/progression/progression";
@@ -27,6 +27,20 @@ import {
   RaisedDeadOffer,
   resolveRaisedDeadRecruit,
 } from "../../../game/rules/raiseDead";
+import {
+  JourneymanOffer,
+  hireJourneyman,
+  journeymanHireRefusal,
+  journeymanPrice,
+  releaseJourneyman,
+} from "../../../game/rules/journeymen";
+import {
+  EXPENSIVE_MISTAKES_THRESHOLD,
+  ExpensiveMistakesEntry,
+  describeExpensiveMistakes,
+  resolveExpensiveMistakes,
+  stepsBeforeExpensiveMistakes,
+} from "../../../game/rules/expensiveMistakes";
 import { PlayerDevelopment } from "../hud/PlayerDevelopment";
 import {
   cx,
@@ -41,7 +55,9 @@ import {
  * advancements, Sevens Skill Selection awards, and Drafted Players offers
  * (see team-advancement-modes "Team development is completed from Manage
  * Team"). Finishing a Skill Selection rolls for Drafted Players, which may
- * add offers for the coach to answer.
+ * add offers for the coach to answer. After a league fixture it also offers
+ * the Journeymen who played, and ends with the Expensive Mistakes roll
+ * (league-treasury).
  */
 export function PendingDevelopmentPanel({
   team,
@@ -51,7 +67,15 @@ export function PendingDevelopmentPanel({
   onChange: (team: Team) => void;
 }) {
   const [notice, setNotice] = useState("");
-  const pending = team.pendingDevelopment ?? [];
+  // Expensive Mistakes is the last step, whatever order it was queued in
+  const pending = [
+    ...(team.pendingDevelopment ?? []).filter(
+      (entry) => entry.kind !== "expensive-mistakes"
+    ),
+    ...(team.pendingDevelopment ?? []).filter(
+      (entry) => entry.kind === "expensive-mistakes"
+    ),
+  ];
   if (pending.length === 0 && !team.players.some(mustAdvance) && !notice) {
     return null;
   }
@@ -78,7 +102,7 @@ export function PendingDevelopmentPanel({
               />
             );
           case "advanced-league-advancement":
-            if (isPendingRaisedDeadRecruit(team, entry.playerId)) return null;
+            if (isPendingRecruit(team, entry.playerId)) return null;
             return (
               <AdvancedLeagueEntry
                 key={entry.id}
@@ -105,6 +129,25 @@ export function PendingDevelopmentPanel({
                 team={team}
                 entry={entry}
                 onChange={onChange}
+              />
+            );
+          case "journeyman-offer":
+            return (
+              <JourneymanEntry
+                key={entry.id}
+                team={team}
+                entry={entry}
+                onChange={onChange}
+              />
+            );
+          case "expensive-mistakes":
+            return (
+              <ExpensiveMistakesStep
+                key={entry.id}
+                team={team}
+                entry={entry}
+                onChange={onChange}
+                onNotice={setNotice}
               />
             );
         }
@@ -153,6 +196,92 @@ function RaisedDeadEntry({
           Let them go
         </HudButton>
       </div>
+    </div>
+  );
+}
+
+function JourneymanEntry({
+  team,
+  entry,
+  onChange,
+}: {
+  team: Team;
+  entry: JourneymanOffer;
+  onChange: (team: Team) => void;
+}) {
+  const player = team.players.find(
+    (candidate) => candidate.id === entry.playerId
+  );
+  if (!player) return null;
+  const refusal = journeymanHireRefusal(team, entry);
+  const price = journeymanPrice(player);
+  const answer = (hire: boolean) => {
+    if (hire) hireJourneyman(team, entry);
+    else releaseJourneyman(team, entry);
+    saveTeam(team);
+    onChange({ ...team });
+  };
+  return (
+    <div className={ENTRY} data-testid="journeyman-offer">
+      <p className="mb-2">
+        Journeyman <strong>{player.playerName}</strong> ({player.positionName},{" "}
+        {player.spp} SPP) played for you. Hire them for good for{" "}
+        {price.toLocaleString("en-GB")} gp from the Treasury: they lose Loner
+        and keep their SPP. Otherwise they leave.
+      </p>
+      {refusal && <p className="mb-2 text-hud-warn">{refusal}</p>}
+      <div className="flex gap-2">
+        <HudButton
+          size="sm"
+          disabled={!!refusal}
+          title={refusal}
+          onClick={() => answer(true)}
+        >
+          Hire for {price.toLocaleString("en-GB")} gp
+        </HudButton>
+        <HudButton size="sm" variant="danger" onClick={() => answer(false)}>
+          Let them go
+        </HudButton>
+      </div>
+    </div>
+  );
+}
+
+function ExpensiveMistakesStep({
+  team,
+  entry,
+  onChange,
+  onNotice,
+}: {
+  team: Team;
+  entry: ExpensiveMistakesEntry;
+  onChange: (team: Team) => void;
+  onNotice: (notice: string) => void;
+}) {
+  const waiting = stepsBeforeExpensiveMistakes(team);
+  const roll = () => {
+    const result = resolveExpensiveMistakes(team, entry, panelRng());
+    saveTeam(team);
+    onNotice(`Expensive Mistakes: ${describeExpensiveMistakes(result)}`);
+    onChange({ ...team });
+  };
+  return (
+    <div className={ENTRY} data-testid="expensive-mistakes">
+      <p className="mb-2">
+        <strong className="text-hud-bone">Expensive Mistakes.</strong> The
+        Treasury holds {team.treasury.toLocaleString("en-GB")} gp. With{" "}
+        {EXPENSIVE_MISTAKES_THRESHOLD.toLocaleString("en-GB")} gp or more, a D6
+        decides how much goes astray. Spend in the Team Builder first if you
+        want to, then roll.
+      </p>
+      {waiting > 0 && (
+        <p className="mb-2 text-hud-warn">
+          Finish the choices above first: this is the last post-game step.
+        </p>
+      )}
+      <HudButton size="sm" disabled={waiting > 0} onClick={roll}>
+        Roll Expensive Mistakes
+      </HudButton>
     </div>
   );
 }

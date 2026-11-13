@@ -46,15 +46,21 @@ function team(
 }
 
 /**
- * Start a match from kick-off, as the browser, online play, the computer
- * and the simulator all do: the engine readies both teams for the match.
+ * Start a league fixture from kick-off, as the browser, online play, the
+ * computer and the simulator all do: the engine readies both teams for the
+ * match. `leagueFixture: false` starts a friendly or a tournament game.
  */
-function startGame(home: Team, away: Team = team("away", 7)): HeadlessGame {
+function startGame(
+  home: Team,
+  away: Team = team("away", 7),
+  { leagueFixture = true }: { leagueFixture?: boolean } = {}
+): HeadlessGame {
   return new HeadlessGame({
     team1: home,
     team2: away,
     seed: 1,
     startingPhase: GamePhase.SETUP,
+    paysWinnings: leagueFixture,
   });
 }
 
@@ -205,6 +211,17 @@ describe("Journeymen (L2)", () => {
   it("are never taken on by a Matched Play team", () => {
     const game = startGame(team("home", 6, "matched-play"));
     expect(journeymen(game.ctx.team1)).toEqual([]);
+  });
+
+  it("are never taken on outside a league fixture: friendlies and tournament games play short", () => {
+    const game = startGame(team("home", 5), team("away", 7), {
+      leagueFixture: false,
+    });
+    expect(journeymen(game.ctx.team1)).toEqual([]);
+    expect(
+      game.ctx.team1.players.filter((p) => p.status === PlayerStatus.RESERVE)
+    ).toHaveLength(5);
+    expect(game.ctx.gameService.getState().paysWinnings).toBeUndefined();
   });
 });
 

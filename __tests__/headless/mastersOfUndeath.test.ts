@@ -415,6 +415,8 @@ describe("Raised Lineman post-match recruitment", () => {
       team1: team,
       team2: newGame().ctx.team2,
       seed: 1,
+      // Journeymen join for league fixtures only
+      paysWinnings: true,
     });
     await game.execute({
       type: "start-setup",
