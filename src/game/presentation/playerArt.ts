@@ -13,7 +13,8 @@ import { PitchThemeId, resolvePitchTheme } from "./pitchThemes";
 
 export const FACINGS = ["s", "se", "e", "ne", "n", "nw", "w", "sw"] as const;
 export type Facing = (typeof FACINGS)[number];
-export type Animation = "idle" | "run" | "fall" | "cheer";
+/** idle, run, fall and cheer loop or hold; block and pass play once. */
+export type Animation = "idle" | "run" | "fall" | "cheer" | "block" | "pass";
 export const LAYERS = ["base", "kit1", "kit2"] as const;
 export type Layer = (typeof LAYERS)[number];
 

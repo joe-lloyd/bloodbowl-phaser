@@ -49,7 +49,8 @@ export const PITCH_THEMES: readonly PitchTheme[] = [
     description:
       "A night-club arena: black turf, glowing lines and a crowd lit in team colours.",
     stadiumPath: "/stadium/neon",
-    spritePath: "/sprites/neon",
+    // Neon plays with the same pixel-art players as the Blood Bowl style.
+    spritePath: "/sprites/bloodbowl",
     bloom: true,
     background: 0x04030a,
     reach: { move: 0x3dff9a, rush: 0xffb81e },
