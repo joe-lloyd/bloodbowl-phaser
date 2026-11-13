@@ -482,7 +482,9 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       return doc_;
     }
 
-    async function tournament(): Promise<TournamentDoc> {
+    async function tournament(
+      extra: Partial<TournamentDoc> = {}
+    ): Promise<TournamentDoc> {
       const list = entrants();
       const fixtures = generateSingleElimination(list);
       const doc_: TournamentDoc = {
@@ -498,6 +500,7 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
         standings: computeStandings(list, fixtures),
         createdAt: 1,
         updatedAt: 1,
+        ...extra,
       };
       await setDoc(
         doc(dbFor(ORGANIZER), "tournaments", doc_.id),
@@ -1275,6 +1278,19 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       expect(
         (cupRead as TournamentDoc | null)?.championEntrantId
       ).toBeUndefined();
+    });
+
+    it("cannot change a tournament's prize, but can still report in it", async () => {
+      const cup = await tournament({ prize: 50_000 });
+      const cupRef = doc(dbFor(GUEST), "tournaments", cup.id);
+      await denied(updateDoc(cupRef, { prize: 1_000_000 }));
+      const fixture = cup.fixtures.find((f) =>
+        [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+      )!;
+      const updated = await as(GUEST, () =>
+        recordCompetitionFixture(context(cup, fixture.id), 2, 1)
+      );
+      expect((updated as TournamentDoc).prize).toBe(50_000);
     });
 
     it("can do anything to it as organizer, and nothing as an outsider", async () => {
