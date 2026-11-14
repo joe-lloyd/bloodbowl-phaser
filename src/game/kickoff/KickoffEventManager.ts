@@ -555,6 +555,7 @@ export class KickoffEventManager {
       this.state.activePlayer = null;
       this.state.activeTeamId = this.chargePreviousActiveTeamId;
       this.chargePreviousActiveTeamId = null;
+      delete this.state.chargeTeamId;
     }
     this.step = null;
     this.eventBus.emit(GameEventNames.KickoffEventStepResolved, {
@@ -703,6 +704,7 @@ export class KickoffEventManager {
       };
       this.chargePreviousActiveTeamId = this.state.activeTeamId;
       this.state.activeTeamId = this.step.teamId;
+      this.state.chargeTeamId = this.step.teamId;
       this.advanceCharge();
       return true;
     }

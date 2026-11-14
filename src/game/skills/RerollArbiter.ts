@@ -6,7 +6,8 @@
  * - a skill reroll is usable once per action (players activate once per team
  *   turn, so per-turn tracking keyed by player+skill is equivalent)
  * - a team reroll is usable once per team turn, only on that team's own
- *   turn, and spends one of the team's re-rolls for this half
+ *   turn, and spends one of the team's re-rolls for this half. A Charge!
+ *   counts as the charging team's own turn, on a ledger of its own
  */
 
 import { GameState, TurnUsage } from "../../types/GameState";
@@ -64,11 +65,18 @@ export class RerollArbiter {
     );
   }
 
-  /** One team turn = one key; a new turn finds nothing spent. */
+  /**
+   * One team turn = one key; a new turn finds nothing spent. A Charge! runs
+   * between turns while `turn` still holds the one before the kick-off, so
+   * it gets a key of its own and neither shares that turn's spending nor
+   * passes its own on to the drive's first turns.
+   */
   private turnKey(): string {
     const t = this.state.turn;
     const period = t.extraTime ? "et" : t.isHalf2 ? "h2" : "h1";
-    return `${t.teamId}:${t.turnNumber}:${period}`;
+    const key = `${t.teamId}:${t.turnNumber}:${period}`;
+    const charge = this.state.chargeTeamId;
+    return charge ? `charge:${charge}:${key}` : key;
   }
 
   /** What this turn has spent, or undefined when nothing has been yet. */
@@ -99,8 +107,9 @@ export class RerollArbiter {
    * the Leader Re-roll.
    */
   public nextTeamReroll(teamId: string): TeamRerollKind | null {
-    // A team reroll may only be spent on that team's own turn
-    if (this.state.turn.teamId !== teamId) return null;
+    // A team reroll may only be spent on that team's own turn or Charge!
+    const turnTeamId = this.state.chargeTeamId ?? this.state.turn.teamId;
+    if (turnTeamId !== teamId) return null;
     if (this.spent()?.teams.includes(teamId)) return null;
     if (freeRerollsFor(this.state, teamId) > 0) return "free";
     if (this.teamRerollsLeftFor(teamId) > 0) return "team";

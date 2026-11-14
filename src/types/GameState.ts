@@ -141,6 +141,12 @@ export interface GameState {
    * from an earlier turn = none (see skills/RerollArbiter.ts).
    */
   turnUsage?: TurnUsage;
+  /**
+   * The team taking a Charge! kick-off sequence while it runs; absent
+   * otherwise. Its Team Re-roll and once-a-turn uses go on a ledger of their
+   * own (FAQ May 2026: Team Re-rolls may be used during Charge!).
+   */
+  chargeTeamId?: string;
   /** Masters of Undeath spent this game: team id to its raised Lineman id. */
   raisedDead?: Record<string, string>;
   /**

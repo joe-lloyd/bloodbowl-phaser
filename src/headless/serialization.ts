@@ -107,6 +107,8 @@ export interface GameSnapshot {
   veteranRerollsUsed?: string[];
   /** This team turn's once-a-turn spending; absent on pre-feature saves. */
   turnUsage?: GameState["turnUsage"];
+  /** The team taking a running Charge!; absent otherwise. */
+  chargeTeamId?: string;
   /** Masters of Undeath usage and temporary recruits; absent on older saves. */
   raisedDead?: GameState["raisedDead"];
   /** Fan Factors rolled at full time; absent on pre-feature saves. */
@@ -233,6 +235,7 @@ export function serializeGameState(
       ? [...state.veteranRerollsUsed]
       : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
+    ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
     fanFactors: state.fanFactors ? { ...state.fanFactors } : undefined,
     inducements: state.inducements
@@ -323,6 +326,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     turnUsage: snapshot.turnUsage
       ? structuredClone(snapshot.turnUsage)
       : undefined,
+    ...(snapshot.chargeTeamId ? { chargeTeamId: snapshot.chargeTeamId } : {}),
     raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
     fanFactors: snapshot.fanFactors ? { ...snapshot.fanFactors } : undefined,
     inducements: snapshot.inducements
