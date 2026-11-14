@@ -305,7 +305,8 @@ describe("Eye Gouge", () => {
 function multipleBlock(
   dice: number[],
   skills: SkillType[] = [],
-  firstSkills: SkillType[] = []
+  firstSkills: SkillType[] = [],
+  secondSkills: SkillType[] = []
 ) {
   const s = session(
     scenario(
@@ -320,7 +321,7 @@ function multipleBlock(
       ],
       [
         { playerIndex: 0, x: 11, y: 5, skills: firstSkills },
-        { playerIndex: 1, x: 10, y: 6 },
+        { playerIndex: 1, x: 10, y: 6, skills: secondSkills },
       ]
     ),
     dice
@@ -364,6 +365,64 @@ describe("Multiple Block", () => {
       "Armour Roll (Human Lineman #1): 1 + 1 = 2",
       "Rolled 1 block dice: push",
     ]);
+  });
+
+  it("keeps the first target's assist when the second target uses Trickster", async () => {
+    // The relocation is weighed against the board before either Block
+    // resolved, so the knocked-down first target still assists: one die.
+    const { start, run, rolled, first, second } = multipleBlock(
+      [5, 1, 1, 3, 3],
+      [],
+      [],
+      [SkillType.TRICKSTER]
+    );
+
+    await start();
+    await run({ type: "choose-block-result", index: 0 });
+    const trickster = await run({ type: "choose-push-direction", x: 12, y: 5 });
+    expect(trickster.pendingDecision).toMatchObject({
+      type: "reaction",
+      playerId: second.id,
+      skill: SkillType.TRICKSTER,
+    });
+    await run({ type: "use-reaction", accept: true });
+
+    expect(first.status).toBe(PlayerStatus.PRONE);
+    expect(second.gridPosition).toEqual({ x: 9, y: 4 });
+    expect(rolled()).toEqual([
+      "Rolled 1 block dice: pow",
+      "Armour Roll (Human Lineman #1): 1 + 1 = 2",
+      "Rolled 1 block dice: push",
+    ]);
+  });
+
+  it("holds Pile Driver on a first-target Both Down until both Blocks resolve", async () => {
+    const { start, run, rolled, attacker, first, second } = multipleBlock(
+      [2, 1, 1, 3],
+      [SkillType.PILE_DRIVER, SkillType.BLOCK]
+    );
+
+    await start();
+    const next = await run({ type: "choose-block-result", index: 0 });
+    expect(next.pendingDecision).toMatchObject({
+      type: "block-dice",
+      defenderId: second.id,
+    });
+    await run({ type: "choose-block-result", index: 0 });
+    const offer = await run({ type: "choose-push-direction", x: 10, y: 7 });
+
+    expect(rolled()).toEqual([
+      "Rolled 1 block dice: both-down",
+      "Armour Roll (Human Lineman #1): 1 + 1 = 2",
+      "Rolled 1 block dice: push",
+    ]);
+    expect(first.status).toBe(PlayerStatus.PRONE);
+    expect(attacker.status).toBe(PlayerStatus.ACTIVE);
+    expect(offer.pendingDecision).toMatchObject({
+      type: "reaction",
+      playerId: attacker.id,
+      skill: SkillType.PILE_DRIVER,
+    });
   });
 
   // FAQ p4: free Fouls from Pile Driver work as normal. Without a

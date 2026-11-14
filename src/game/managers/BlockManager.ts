@@ -265,6 +265,8 @@ export class BlockManager {
     continuationQueued: boolean;
     /** Both Blocks' assists and strengths, analysed before either resolves. */
     analyses: Record<string, BlockAnalysis>;
+    /** The board before either Block resolved, for a Trickster relocation. */
+    board: Player[];
     /** Targets knocked down so far, offered to Pile Driver at the end. */
     pileDriverTargetIds: string[];
   } | null = null;
@@ -409,8 +411,15 @@ export class BlockManager {
       }
 
       // Trickster: the defender relocated before the dice are determined —
-      // re-run the assist analysis from the new square
+      // re-run the assist analysis from the new square. A Multiple Block's
+      // Blocks are simultaneous, so it reads the board before either one.
       if (ctx.relocateDefenderTo && defender.gridPosition) {
+        const board =
+          this.multipleBlockState?.attackerId === attacker.id
+            ? this.multipleBlockState.board.map((p) =>
+                p.id === defender.id ? defender : p
+              )
+            : this.allPlayers();
         const from = { ...defender.gridPosition };
         defender.gridPosition = { ...ctx.relocateDefenderTo };
         this.eventBus.emit(GameEventNames.PlayerMoved, {
@@ -421,7 +430,7 @@ export class BlockManager {
         const moved = this.blockValidator.analyzeBlock(
           attacker,
           defender,
-          this.allPlayers(),
+          board,
           this.state.activeTeamId
         );
         ctx.attackerStrength = moved.attackerST;
@@ -1205,6 +1214,8 @@ export class BlockManager {
    * activation when the coach declines or the Foul is no longer possible.
    */
   public offerPileDriver(attackerId: string, resume: () => void): boolean {
+    // A Multiple Block keeps its knockdowns for the offers after both Blocks.
+    if (this.multipleBlockState?.attackerId === attackerId) return false;
     const targetId = this.pileDriverTargets.get(attackerId);
     this.pileDriverTargets.delete(attackerId);
     const flowManager = this.callbacks.getFlowManager?.();
@@ -1318,6 +1329,11 @@ export class BlockManager {
       originalStrength,
       continuationQueued: false,
       analyses,
+      board: this.allPlayers().map((p) => ({
+        ...p,
+        gridPosition: p.gridPosition && { ...p.gridPosition },
+        conditions: p.conditions && [...p.conditions],
+      })),
       pileDriverTargetIds: [],
     };
     this.eventBus.emit(GameEventNames.SkillTriggered, {
