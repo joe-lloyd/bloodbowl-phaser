@@ -162,7 +162,7 @@ async function foulWith(
     playerId: fouler.id,
     action: "foul",
   });
-  const response = await game.execute({
+  const response = await foulAddingAllAssists(game, {
     type: "foul",
     playerId: fouler.id,
     x: 11,
