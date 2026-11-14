@@ -5,6 +5,7 @@ import {
   Player,
   PlayerStatus,
   PlayerCondition,
+  addCondition,
   hasCondition,
 } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
@@ -262,6 +263,12 @@ export class BlockManager {
     nextIndex: number;
     originalStrength: number;
     continuationQueued: boolean;
+    /** Both Blocks' assists and strengths, analysed before either resolves. */
+    analyses: Record<string, BlockAnalysis>;
+    /** The board before either Block resolved, for a Trickster relocation. */
+    board: Player[];
+    /** Targets knocked down so far, offered to Pile Driver at the end. */
+    pileDriverTargetIds: string[];
   } | null = null;
 
   constructor(
@@ -357,12 +364,7 @@ export class BlockManager {
     // Trigger point: block declared — rules may adjust strength/dice, roll a
     // pre-block die, or cancel the block before any block dice are rolled.
     if (attacker && defender) {
-      const analysis = this.blockValidator.analyzeBlock(
-        attacker,
-        defender,
-        this.allPlayers(),
-        this.state.activeTeamId
-      );
+      const analysis = this.analyzeBlock(attacker, defender);
       // Cheering Fans: the owed assist lands on this first Block of the turn
       if (this.applyOwedAssist(attacker, analysis)) {
         consumeOffensiveAssist(
@@ -409,8 +411,15 @@ export class BlockManager {
       }
 
       // Trickster: the defender relocated before the dice are determined —
-      // re-run the assist analysis from the new square
+      // re-run the assist analysis from the new square. A Multiple Block's
+      // Blocks are simultaneous, so it reads the board before either one.
       if (ctx.relocateDefenderTo && defender.gridPosition) {
+        const board =
+          this.multipleBlockState?.attackerId === attacker.id
+            ? this.multipleBlockState.board.map((p) =>
+                p.id === defender.id ? defender : p
+              )
+            : this.allPlayers();
         const from = { ...defender.gridPosition };
         defender.gridPosition = { ...ctx.relocateDefenderTo };
         this.eventBus.emit(GameEventNames.PlayerMoved, {
@@ -421,7 +430,7 @@ export class BlockManager {
         const moved = this.blockValidator.analyzeBlock(
           attacker,
           defender,
-          this.allPlayers(),
+          board,
           this.state.activeTeamId
         );
         ctx.attackerStrength = moved.attackerST;
@@ -692,18 +701,29 @@ export class BlockManager {
         hasSkill(attacker.skills, SkillType.PRO) &&
         gs.getState().activePlayer?.id === attacker.id &&
         arbiter.onceAvailable(attacker, SkillType.PRO),
-      // Brawler's own trigger is "when this player declares a Block Action"
-      // (2025 rulebook p.127) — narrower than Pro's "during this player's
-      // activation", but the attacker of a block IS by construction the
-      // player who just declared it, so the two checks coincide in practice.
-      // Kept explicit (matching Pro) as defense-in-depth: it costs nothing
-      // today and guards against a future refactor where a block's attacker
-      // and the engine's active player could diverge.
       brawlerAvailable:
-        hasSkill(attacker.skills, SkillType.BRAWLER) &&
-        gs.getState().activePlayer?.id === attacker.id &&
+        this.brawlerUsable(attacker) &&
         results.some((r) => r.type === "both-down"),
     };
+  }
+
+  /**
+   * Brawler (2025 rulebook p.127) works "when this player declares a Block
+   * Action", so never on a Blitz's Block, and only once per activation:
+   * Frenzy's second Block or a Multiple Block cannot use it again (May 2026
+   * FAQ). A player activates once per turn, so the per-turn ledger serves.
+   */
+  private brawlerUsable(attacker: Player): boolean {
+    const arbiter = this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.getRerollArbiter();
+    return (
+      !!arbiter &&
+      hasSkill(attacker.skills, SkillType.BRAWLER) &&
+      this.state.activePlayer?.id === attacker.id &&
+      !this.isBlitzBlock(attacker) &&
+      arbiter.onceAvailable(attacker, SkillType.BRAWLER)
+    );
   }
 
   public keepBlockDice(attackerId: string): void {
@@ -813,7 +833,7 @@ export class BlockManager {
   /**
    * Brawler on a block (2025 rulebook p.127): re-roll the single Both Down
    * die. No skill check is needed — unlike Pro it just works — but it may
-   * only be used once per block, and (matching Pro/Team Re-roll's mutual
+   * only be used once per activation, and (matching Pro/Team Re-roll's mutual
    * exclusion) it locks out the other re-roll sources on this block.
    */
   public brawlerRerollBlockDie(attackerId: string): void {
@@ -821,16 +841,17 @@ export class BlockManager {
     if (!pending || pending.attackerId !== attackerId) return;
     if (!pending.brawlerAvailable) return;
     const attacker = this.getPlayerById(attackerId);
-    const gs = this.callbacks.getFlowManager?.()?.context.gameService;
-    if (!attacker || !gs || !hasSkill(attacker.skills, SkillType.BRAWLER)) {
-      return;
-    }
     // Defense-in-depth, matching Pro: re-derive eligibility rather than
     // trusting the cached `pending.brawlerAvailable` flag alone (host
     // authority — see proRerollBlockDie's identical re-check).
-    if (gs.getState().activePlayer?.id !== attacker.id) return;
+    if (!attacker || !this.brawlerUsable(attacker)) return;
     const index = pending.results.findIndex((r) => r.type === "both-down");
     if (index < 0) return;
+
+    this.callbacks
+      .getFlowManager?.()
+      ?.context.gameService.getRerollArbiter()
+      .consumeOnce(attacker, SkillType.BRAWLER);
 
     pending.results[index] = this.diceController.rollBlockDice(
       1,
@@ -1007,6 +1028,7 @@ export class BlockManager {
       refused: false,
       preventFollowUp: false,
       stripBall: false,
+      eyeGouge: false,
       grabPush: false,
       sideStepPush: false,
       forceFollowUp: false,
@@ -1079,6 +1101,7 @@ export class BlockManager {
       knockDownDefender,
       preventFollowUp: pushCtx.preventFollowUp,
       stripBall: pushCtx.stripBall,
+      eyeGouge: pushCtx.eyeGouge,
       grabPush: pushCtx.grabPush,
       sideStepPush: pushCtx.sideStepPush,
       forceFollowUp: pushCtx.forceFollowUp,
@@ -1191,6 +1214,8 @@ export class BlockManager {
    * activation when the coach declines or the Foul is no longer possible.
    */
   public offerPileDriver(attackerId: string, resume: () => void): boolean {
+    // A Multiple Block keeps its knockdowns for the offers after both Blocks.
+    if (this.multipleBlockState?.attackerId === attackerId) return false;
     const targetId = this.pileDriverTargets.get(attackerId);
     this.pileDriverTargets.delete(attackerId);
     const flowManager = this.callbacks.getFlowManager?.();
@@ -1212,6 +1237,8 @@ export class BlockManager {
     preventFollowUp?: boolean;
     /** Strip Ball: the pushed carrier drops the ball where they land */
     stripBall?: boolean;
+    /** Eye Gouge: the Block's target is Eye Gouged once pushed */
+    eyeGouge?: boolean;
     /** Grab: the blocker picks any unoccupied square adjacent to the target */
     grabPush?: boolean;
     /** Sidestep: the player pushed in the current link picks the square */
@@ -1281,14 +1308,34 @@ export class BlockManager {
       throw new Error("multiple-block-not-declared");
     }
 
+    const originalStrength = attacker.stats.ST;
+    attacker.stats.ST = Math.max(1, attacker.stats.ST - 2);
+    // The Blocks happen simultaneously, so each target's assists are counted
+    // before either resolves, the other target included (May 2026 FAQ).
+    const analyses: Record<string, BlockAnalysis> = {};
+    for (const defender of defenders) {
+      if (!defender) continue;
+      analyses[defender.id] = this.blockValidator.analyzeBlock(
+        attacker,
+        defender,
+        this.allPlayers(),
+        this.state.activeTeamId
+      );
+    }
     this.multipleBlockState = {
       attackerId,
       defenderIds: [defender1Id, defender2Id],
       nextIndex: 1,
-      originalStrength: attacker.stats.ST,
+      originalStrength,
       continuationQueued: false,
+      analyses,
+      board: this.allPlayers().map((p) => ({
+        ...p,
+        gridPosition: p.gridPosition && { ...p.gridPosition },
+        conditions: p.conditions && [...p.conditions],
+      })),
+      pileDriverTargetIds: [],
     };
-    attacker.stats.ST = Math.max(1, attacker.stats.ST - 2);
     this.eventBus.emit(GameEventNames.SkillTriggered, {
       playerId: attackerId,
       skill: SkillType.MULTIPLE_BLOCK,
@@ -1316,6 +1363,10 @@ export class BlockManager {
     const state = this.multipleBlockState;
     if (!state || state.attackerId !== attackerId) return;
     state.continuationQueued = false;
+    // The next Block's dice would forget this one's knockdown.
+    const knockedDown = this.pileDriverTargets.get(attackerId);
+    this.pileDriverTargets.delete(attackerId);
+    if (knockedDown) state.pileDriverTargetIds.push(knockedDown);
     // A push that scored ends the drive, and the second Block with it.
     const scored = driveOver(this.state.phase);
     if (!scored && state.nextIndex < state.defenderIds.length) {
@@ -1328,9 +1379,19 @@ export class BlockManager {
     if (attacker) attacker.stats.ST = state.originalStrength;
     this.multipleBlockState = null;
     if (scored) return;
-    this.callbacks
-      .getFlowManager?.()
-      ?.context.gameService.finishActivation(attackerId);
+    // Pile Driver, once both Blocks have resolved: a declined Foul offers
+    // the other knocked-down target, if any.
+    const offerNext = (): void => {
+      const targetId = state.pileDriverTargetIds.shift();
+      if (targetId) {
+        this.pileDriverTargets.set(attackerId, targetId);
+        if (this.offerPileDriver(attackerId, offerNext)) return;
+      }
+      this.callbacks
+        .getFlowManager?.()
+        ?.context.gameService.finishActivation(attackerId);
+    };
+    offerNext();
   }
 
   /** Analyze and start a fresh Block Action (Frenzy's second block). */
@@ -1341,18 +1402,29 @@ export class BlockManager {
     const attacker = this.getPlayerById(attackerId);
     const defender = this.getPlayerById(defenderId);
     if (!attacker || !defender) return;
-    const analysis = this.blockValidator.analyzeBlock(
-      attacker,
-      defender,
-      this.allPlayers(),
-      this.state.activeTeamId
-    );
+    const analysis = this.analyzeBlock(attacker, defender);
     await this.rollBlockDice(
       attackerId,
       defenderId,
       analysis.diceCount,
       !analysis.isUphill
     );
+  }
+
+  /** The Block as it stands, or as analysed when a Multiple Block began. */
+  private analyzeBlock(attacker: Player, defender: Player): BlockAnalysis {
+    const declared =
+      this.multipleBlockState?.attackerId === attacker.id
+        ? this.multipleBlockState.analyses[defender.id]
+        : undefined;
+    return declared
+      ? { ...declared }
+      : this.blockValidator.analyzeBlock(
+          attacker,
+          defender,
+          this.allPlayers(),
+          this.state.activeTeamId
+        );
   }
 
   /** Frenzy's second block, if the target is still standing and adjacent. */
@@ -1647,6 +1719,7 @@ export class BlockManager {
       refused: false,
       preventFollowUp: false,
       stripBall: false,
+      eyeGouge: false,
       grabPush: false,
       sideStepPush: false,
       forceFollowUp: false,
@@ -1688,6 +1761,7 @@ export class BlockManager {
       links,
       preventFollowUp,
       stripBall,
+      eyeGouge,
       forceFollowUp,
       frenzy,
     } = this.chain;
@@ -1695,6 +1769,19 @@ export class BlockManager {
       this.chain.knockDownDefender ??
       (resultType === "pow" || resultType === "pow-dodge");
     this.chain = null;
+
+    // Eye Gouge: only the Block's target, and only now it is Pushed Back.
+    const target = this.getPlayerById(links[0]?.playerId ?? "");
+    if (eyeGouge && target) {
+      addCondition(target, PlayerCondition.EYE_GOUGED);
+      this.announce([
+        {
+          playerId: attackerId,
+          skill: SkillType.EYE_GOUGE,
+          effect: `Eye Gouge: ${target.playerName} cannot assist until next activated`,
+        },
+      ]);
+    }
 
     const flowManager = this.callbacks.getFlowManager?.();
     /** Treacherous Trapdoor (L12): pushed players who fell through. */

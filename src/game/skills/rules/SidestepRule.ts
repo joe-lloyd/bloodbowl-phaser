@@ -6,9 +6,12 @@
  * adjacent unoccupied squares, then this Skill cannot be used."
  *
  * Grab (p.129) cancels it: "when this player performs a Block Action,
- * opposition players cannot use the Sidestep Skill." Accepting transfers
- * the push-square choice to the pushed player's coach; the push machinery
- * falls back to the normal push when no adjacent square is unoccupied.
+ * opposition players cannot use the Sidestep Skill." The May 2026 FAQ limits
+ * that to the Block's target, and to a declared Block Action, so a
+ * chain-pushed player or a Blitz's target may still Sidestep. Accepting
+ * transfers the push-square choice to the pushed player's coach; the push
+ * machinery falls back to the normal push when no adjacent square is
+ * unoccupied.
  */
 
 import { SkillType, hasSkill } from "../../../types/Skills";
@@ -19,7 +22,12 @@ export const SidestepRule: SkillRule = {
   async onPush(ctx, self) {
     if (self.id !== ctx.pushed.id) return;
     if (ctx.refused || ctx.sideStepPush) return;
-    if (hasSkill(ctx.attacker.skills, SkillType.GRAB)) return;
+    if (
+      hasSkill(ctx.attacker.skills, SkillType.GRAB) &&
+      !ctx.isBlitz &&
+      !ctx.chainPush
+    )
+      return;
     if (!ctx.decisions) return;
 
     const answer = (await ctx.decisions.request({
