@@ -15,6 +15,11 @@ import {
   setCoinFlipChoice,
 } from "../../firebase/lobby";
 import { OnlineMatch } from "../../network/OnlineMatch";
+import { soundSettings } from "../sound/settings";
+import type { DiceThrow } from "../dice/diceScene";
+import { teamLook } from "../components/hud/DiceTray";
+import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
+import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
 
 interface Props {
   code: string;
@@ -44,6 +49,13 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
   // If the toss was already resolved when we mounted (a resumed match), never
   // re-apply it — that would re-run setup. Only a toss completed live applies.
   const appliedRef = useRef(lobby.coinFlip?.kickingTeamId != null);
+  // The 3D coin shows the host's result on both screens before the choice.
+  // A toss already won when we mounted (a resumed match) is not flipped again.
+  const [resumed] = useState(lobby.coinFlip?.winnerTeamId != null);
+  const [landed, setLanded] = useState(resumed);
+  const [coinFailed, setCoinFailed] = useState(false);
+  const coinHost = useRef<HTMLDivElement>(null);
+  const throwing = useRef<DiceThrow | null>(null);
 
   const iAmReady = amHost ? !!cf.hostReady : !!cf.guestReady;
   const bothReady = !!cf.hostReady && !!cf.guestReady;
@@ -103,6 +115,58 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amHost, kickingId]);
 
+  // Flip the coin onto the winner's face once the host's result arrives
+  useEffect(() => {
+    if (!winnerId || landed) return;
+    let live = true;
+    const faces = [teamLook(team1.id), teamLook(team2.id)];
+    void (async () => {
+      try {
+        if (!coinHost.current || !faces[0] || !faces[1])
+          throw new Error("no stage");
+        const scene = await import("../dice/diceScene");
+        if (!live || !coinHost.current) return;
+        const handle = scene.playRoll(
+          coinHost.current,
+          {
+            kind: "coin",
+            side: winnerId === team1.id ? 1 : 2,
+            faces: [faces[0], faces[1]],
+            neon: false,
+          },
+          { sound: !soundSettings.get().muted }
+        );
+        throwing.current = handle;
+        // A coin that never lands (a hidden tab, a stalled renderer) still
+        // gives way to the result, or the winner could never choose
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          handle.landed,
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              handle.stop();
+              resolve();
+            }, DIE_LANDING_TIMEOUT_MS);
+          }),
+        ]).finally(() => clearTimeout(timer));
+        await new Promise((resolve) => setTimeout(resolve, RESULT_BEAT_MS));
+      } catch (error) {
+        console.warn("[OnlineCoinFlip] could not show the coin", error);
+        if (live) setCoinFailed(true);
+      }
+      if (live) setLanded(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [winnerId]);
+
+  // The coin stops drawing once the choice is made or the card goes
+  useEffect(() => {
+    if (kickingId) throwing.current?.stop();
+  }, [kickingId]);
+  useEffect(() => () => throwing.current?.stop(), []);
+
   const ready = () => void setCoinFlipReady(code, amHost);
   const choose = (choice: "kick" | "receive") => {
     if (winnerId !== myTeamId) return; // only the winner chooses
@@ -160,7 +224,17 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
         </div>
       )}
 
-      {winner && (
+      <div
+        ref={coinHost}
+        data-testid="coin-stage"
+        className={
+          winner && !resumed && !coinFailed
+            ? "mx-auto h-[min(220px,34dvh)] w-full"
+            : "hidden"
+        }
+      />
+
+      {winner && landed && (
         <div className="space-y-5 animate-hud-in">
           <div className="font-hud-display text-hud-2xl uppercase tracking-[0.02em] text-hud-gold">
             {winner.name} wins the toss!
