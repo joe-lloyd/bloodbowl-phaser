@@ -231,6 +231,10 @@ test("after setup a reserve is hovered by their body again", async ({
     await page.getByRole("button", { name: /CONFIRM SETUP/ }).click();
     await page.waitForTimeout(800);
   }
+  // Decline Swarming so the spare Snotling remains in reserve for this check.
+  const finishSwarming = page.getByRole("button", { name: "FINISH SWARMING" });
+  await expect(finishSwarming).toBeVisible();
+  await finishSwarming.click();
   await expect
     .poll(async () => (await app.bridge.phase()).phase, { timeout: 15_000 })
     .not.toBe(GamePhase.SETUP);

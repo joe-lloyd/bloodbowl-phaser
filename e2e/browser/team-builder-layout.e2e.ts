@@ -9,7 +9,9 @@ test("the available hires list has no inner vertical scroll at 1440x900", async 
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/build-team/new-team");
-  await page.getByRole("combobox").first().selectOption("Vampire");
+  await page
+    .getByRole("combobox", { name: "Roster", exact: true })
+    .selectOption("Vampire");
   const hires = page
     .locator(".hud-slab")
     .filter({ has: page.getByRole("heading", { name: "AVAILABLE HIRES" }) });
@@ -29,7 +31,9 @@ test("a skill tooltip on the last hire opens whole, outside the table", async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/build-team/new-team");
-  await page.getByRole("combobox").first().selectOption("Vampire");
+  await page
+    .getByRole("combobox", { name: "Roster", exact: true })
+    .selectOption("Vampire");
   const hires = page
     .locator(".hud-slab")
     .filter({ has: page.getByRole("heading", { name: "AVAILABLE HIRES" }) });
