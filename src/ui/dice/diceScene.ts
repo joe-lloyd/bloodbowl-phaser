@@ -2,6 +2,14 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import * as CANNON from "cannon-es";
 import { soundSettings } from "../sound/settings";
+import {
+  D16_FACE_UP,
+  D16_FACES,
+  D16_NORMALS,
+  D16_VERTICES,
+  d16Geometry,
+  d16Labelling,
+} from "./d16";
 
 /**
  * 3D dice: a three.js scene with cannon-es physics that acts out a roll the
@@ -9,13 +17,13 @@ import { soundSettings } from "../sound/settings";
  *
  * The numbers never come from the physics. Each throw is simulated ahead of
  * time; then each die's faces are relabelled (as some rotation of a real
- * die, opposite faces summing to 7) so the face that lands up shows the
- * engine's value. The tumble is for show, the result is exactly the roll.
+ * die) so the face that lands up shows the engine's value. The tumble is
+ * for show, the result is exactly the roll.
  *
  * Loaded lazily by DiceTray, so three.js only downloads during a match.
  */
 
-export type DiceKind = "d6" | "block";
+export type DiceKind = "d6" | "d16" | "block";
 
 /** Block faces in die order: value 1..6 shows this face. */
 export const BLOCK_FACES = [
@@ -104,11 +112,18 @@ export function labelling(up: number, value: number): number[] {
   return options[Math.floor(Math.random() * options.length)];
 }
 
+function normals(kind: DiceKind): Vec3[] {
+  return kind === "d16" ? D16_NORMALS : FACE_NORMALS;
+}
+
 /** Index of the face pointing most nearly up, and how nearly. */
-function upFace(q: THREE.Quaternion): { face: number; dot: number } {
+function upFace(
+  q: THREE.Quaternion,
+  kind: DiceKind
+): { face: number; dot: number } {
   let face = 0;
   let dot = -2;
-  FACE_NORMALS.forEach((n, i) => {
+  normals(kind).forEach((n, i) => {
     const y = new THREE.Vector3(...n).applyQuaternion(q).y;
     if (y > dot) {
       dot = y;
@@ -190,10 +205,11 @@ function blockIcon(
     star(g, S * 0.7, S * 0.5, S * 0.22);
   } else if (face === "push") arrow(g, S * 0.18, S * 0.84, S / 2, S * 0.17);
   else if (face === "pow-dodge") {
-    arrow(g, S * 0.14, S * 0.7, S * 0.5, S * 0.14);
-    g.fillRect(S * 0.79, S * 0.25, S * 0.08, S * 0.32);
+    star(g, S / 2, S / 2, S * 0.4, 11);
+    g.fillStyle = body;
+    g.fillRect(S * 0.46, S * 0.3, S * 0.08, S * 0.25);
     g.beginPath();
-    g.arc(S * 0.83, S * 0.7, S * 0.05, 0, 7);
+    g.arc(S / 2, S * 0.65, S * 0.045, 0, 7);
     g.fill();
   } else {
     star(g, S / 2, S / 2, S * 0.4, 11);
@@ -283,7 +299,15 @@ function faceTexture(
   g.fillStyle = body;
   g.fillRect(0, 0, S, S);
   g.fillStyle = g.strokeStyle = ink;
-  if (roll.kind === "d6") {
+  if (roll.kind === "d16") {
+    g.font = `bold ${S * 0.28}px Georgia, serif`;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(String(value), S / 2, S * 0.65);
+    // Six and nine stay unambiguous as the die tumbles.
+    if (value === 6 || value === 9)
+      g.fillRect(S * 0.42, S * 0.81, S * 0.16, S * 0.025);
+  } else if (roll.kind === "d6") {
     if (value === 6) crest(g, roll.team, S, body);
     else {
       const at: Record<number, [number, number][]> = {
@@ -393,7 +417,7 @@ interface Throw {
 }
 
 /** Throw `count` dice and record them until they rest flat. */
-export function simulate(count: number): Throw {
+export function simulate(count: number, kind: DiceKind = "d6"): Throw {
   for (let attempt = 0; attempt < 12; attempt++) {
     const world = new CANNON.World({
       gravity: new CANNON.Vec3(0, -32, 0),
@@ -428,7 +452,15 @@ export function simulate(count: number): Throw {
       const body = new CANNON.Body({
         mass: 1,
         material: mat,
-        shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)),
+        shape:
+          kind === "d16"
+            ? new CANNON.ConvexPolyhedron({
+                vertices: D16_VERTICES.map(
+                  (v) => new CANNON.Vec3(v.x, v.y, v.z)
+                ),
+                faces: D16_FACES.map((face) => [...face]),
+              })
+            : new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)),
         sleepSpeedLimit: 0.2,
         sleepTimeLimit: 0.25,
       });
@@ -490,7 +522,8 @@ export function simulate(count: number): Throw {
           b.quaternion.y,
           b.quaternion.z,
           b.quaternion.w
-        )
+        ),
+        kind
       );
       return dot > 0.97 ? face : -1;
     });
@@ -579,7 +612,7 @@ const HURRY_RATE = 2.2;
 const HURRIED_TUMBLE_MS = 700;
 
 /**
- * Throw a roll into `host`. Every roll, D6 or block dice, plays the same way
+ * Throw a roll into `host`. Every roll, D6, D16 or block dice, plays the same way
  * in the same box: the dice tumble and land, then lift up toward the viewer
  * with their result face turned to the front, and stay there until the next
  * throw or stop(). A throw asked for while another is in the air starts
@@ -809,13 +842,19 @@ function throwDice(
   }
 ): Promise<number[]> {
   showing?.stop();
-  const sim = simulate(roll.values.length);
+  const sim = simulate(roll.values.length, roll.kind);
   if (opts.sound) void loadClacks();
   const { gl, scene, camera, lookAt } = stage(host, roll.neon);
 
-  const geometry = new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
+  const geometry =
+    roll.kind === "d16"
+      ? d16Geometry()
+      : new RoundedBoxGeometry(1, 1, 1, 4, 0.12);
   const meshes = roll.values.map((value, i) => {
-    const labels = labelling(sim.ups[i], value);
+    const labels =
+      roll.kind === "d16"
+        ? d16Labelling(sim.ups[i], value)
+        : labelling(sim.ups[i], value);
     const mesh = new THREE.Mesh(
       geometry,
       labels.map((v) => faceMaterial(roll, v))
@@ -836,12 +875,18 @@ function throwDice(
     return { position, quaternion: new THREE.Quaternion() };
   });
   const faceForward = (mesh: THREE.Mesh, at: THREE.Vector3) => {
-    const { face } = upFace(mesh.quaternion);
-    const local = new THREE.Vector3(...FACE_NORMALS[face]);
+    const { face } = upFace(mesh.quaternion, roll.kind);
+    const faceNormals = normals(roll.kind);
+    const local = new THREE.Vector3(...faceNormals[face]);
     // A face next to it keeps the face upright on screen
-    const side = new THREE.Vector3(
-      ...FACE_NORMALS[FACE_NORMALS.findIndex((_n, k) => k >> 1 !== face >> 1)]
-    );
+    const side =
+      roll.kind === "d16"
+        ? D16_FACE_UP[face]
+        : new THREE.Vector3(
+            ...FACE_NORMALS[
+              FACE_NORMALS.findIndex((_n, k) => k >> 1 !== face >> 1)
+            ]
+          );
     const toCamera = camera.position.clone().sub(at).normalize();
     const screenUp = new THREE.Vector3(0, 1, 0)
       .applyQuaternion(camera.quaternion)
@@ -979,7 +1024,10 @@ function throwDice(
           liftedAt = performance.now();
           resolve(
             meshes.map(
-              (m) => (m.userData.labels as number[])[upFace(m.quaternion).face]
+              (m) =>
+                (m.userData.labels as number[])[
+                  upFace(m.quaternion, roll.kind).face
+                ]
             )
           );
         }
