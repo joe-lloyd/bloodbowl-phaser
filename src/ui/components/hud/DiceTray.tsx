@@ -215,13 +215,15 @@ export function DiceTray({
           );
         }
         // A die that never settles (a stalled renderer, a hidden tab)
-        // counts as landed after a bound, so it can never block the queue.
+        // counts as landed after a bound, so it can never block the queue,
+        // and shows flat, so a block can still be picked.
         let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
           handle.landed,
           new Promise<void>((resolve) => {
             timer = setTimeout(() => {
               handle.stop();
+              next.failed = "the dice did not land";
               resolve();
             }, DIE_LANDING_TIMEOUT_MS);
           }),

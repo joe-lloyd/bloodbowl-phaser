@@ -5,16 +5,26 @@ import { EventBus } from "../../src/services/EventBus";
 import { GameEventNames } from "../../src/types/events";
 import { DiceTray } from "../../src/ui/components/hud/DiceTray";
 
-// A dice scene that cannot draw, as when the browser refuses the 3D
-// renderer: every throw fails.
+// A dice scene that cannot draw: a throw fails, as when the browser refuses
+// the 3D renderer, or never lands, as when nothing draws its frames.
+const scene = vi.hoisted(() => ({ throws: "fail" as "fail" | "hang" }));
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: () => ({
-    landed: Promise.reject(new Error("Error creating WebGL context.")),
+    landed:
+      scene.throws === "fail"
+        ? Promise.reject(new Error("Error creating WebGL context."))
+        : new Promise(() => {}),
     mark: vi.fn(),
     hurry: vi.fn(),
     onPick: vi.fn(),
     stop: vi.fn(),
   }),
+}));
+
+// A short wait for a die that never lands
+vi.mock("../../src/game/presentation/diceWatch", async (original) => ({
+  ...(await original<object>()),
+  DIE_LANDING_TIMEOUT_MS: 30,
 }));
 
 vi.mock("../../src/services/ServiceContainer", () => {
@@ -38,7 +48,8 @@ vi.mock("../../src/services/ServiceContainer", () => {
   };
 });
 
-const mount = async () => {
+const mount = async (throws: "fail" | "hang" = "fail") => {
+  scene.throws = throws;
   const bus = new EventBus();
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -104,6 +115,38 @@ describe("dice tray when the 3D dice cannot be drawn", () => {
       ...tray().querySelectorAll<HTMLButtonElement>("button[data-flat-die]"),
     ];
     expect(faces.map((face) => face.textContent)).toEqual(["POW!", "Push"]);
+    await act(async () => faces[1].click());
+    expect(picks).toEqual([1]);
+    await unmount();
+  });
+
+  it("shows flat dice to pick from when the block dice never land", async () => {
+    const { bus, tray, unmount } = await mount("hang");
+    const picks: number[] = [];
+    bus.on(GameEventNames.UI_BlockDieClicked, ({ index }) => picks.push(index));
+    await act(async () => {
+      bus.emit(GameEventNames.BlockDiceRolled, {
+        attackerId: "attacker",
+        defenderId: "defender",
+        numDice: 2,
+        isAttackerChoice: true,
+        results: [
+          { type: "skull", label: "Attacker Down", icon: "" },
+          { type: "pow", label: "POW!", icon: "" },
+        ],
+      });
+    });
+    await settle();
+
+    expect(tray().dataset.dice).toBe("landed");
+    const faces = [
+      ...tray().querySelectorAll<HTMLButtonElement>("button[data-flat-die]"),
+    ];
+    expect(faces.map((face) => face.textContent)).toEqual([
+      "Attacker Down",
+      "POW!",
+    ]);
+    expect(tray().textContent).toContain("the dice did not land");
     await act(async () => faces[1].click());
     expect(picks).toEqual([1]);
     await unmount();
