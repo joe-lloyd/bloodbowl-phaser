@@ -2,14 +2,16 @@ import { realTimeDelay } from "../core/GameFlowManager";
 import { IEventBus } from "../../services/EventBus";
 import { GameState, GamePhase, SubPhase } from "@/types/GameState";
 import { GameEventNames } from "@/types/events";
-import { Team, isPendingRecruit } from "@/types/Team";
-import { Player, PlayerStatus } from "@/types/Player";
+import { Team, TeamSpecialRule, isPendingRecruit } from "@/types/Team";
+import { Player, PlayerStatus, PositionKeyWord } from "@/types/Player";
+import { getRosterByRosterName } from "../../data/RosterTemplates";
 import {
   FormationPosition,
   SetupFormationResult,
   SetupState,
   SetupTeamStatus,
   SetupZone,
+  SetupPlayerLimits,
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
@@ -33,6 +35,7 @@ export class SetupManager {
     private weatherService: WeatherManager,
     private callbacks: {
       onKickoffRequested: () => void;
+      rollSwarming: (teamId: string) => number;
     },
     private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
@@ -81,7 +84,13 @@ export class SetupManager {
   /** Whether a player may be placed this drive: one of {@link availablePlayers}. */
   public isAvailable(playerId: string): boolean {
     const player = this.getPlayerById(playerId);
-    return !!player && this.isEligible(player);
+    if (!player || !this.isEligible(player)) return false;
+    const swarm = this.state.setup?.swarming?.teams[player.teamId];
+    return (
+      !swarm ||
+      (!swarm.basePlayerIds.includes(playerId) &&
+        player.keywords.includes(PositionKeyWord.LINEMAN))
+    );
   }
 
   /** Convenience count of {@link availablePlayers}. */
@@ -102,6 +111,10 @@ export class SetupManager {
   }
 
   public startSetup(startingTeamId?: string): void {
+    if (this.state.phase === GamePhase.SETUP && this.state.setup?.swarming) {
+      this.refuse("Finish Swarming before starting another setup.");
+      return;
+    }
     this.state.phase = GamePhase.SETUP;
     this.reportedNoAvailablePlayers.clear();
 
@@ -158,8 +171,16 @@ export class SetupManager {
         "Only the team currently setting up may place players."
       );
     }
+    if (this.setupReady.has(player.teamId) && !this.state.setup?.swarming) {
+      return this.refuse("This team's formation is already confirmed.");
+    }
     if (!this.isEligible(player)) {
       return this.refuse("That player is not available for this drive.");
+    }
+    if (!this.isAvailable(playerId)) {
+      return this.refuse(
+        "Swarming may only add reserve Linemen; the confirmed formation stays in place."
+      );
     }
     const status = this.getSetupStatus(player.teamId);
     if (status?.concessionDecision === "pending") {
@@ -176,7 +197,8 @@ export class SetupManager {
       { playerId, x, y },
       positions,
       player.teamId === this.team1.id,
-      this.getEligiblePlayers(team).length
+      this.getEligiblePlayers(team).length,
+      this.playerLimits(team)
     );
     if (!validation.valid) {
       return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
@@ -212,6 +234,16 @@ export class SetupManager {
       this.refuse("Only the team currently setting up may remove players.");
       return;
     }
+    if (
+      this.state.setup?.swarming?.teams[player.teamId]?.basePlayerIds.includes(
+        playerId
+      )
+    ) {
+      this.refuse(
+        "Swarming cannot remove a player from the confirmed formation."
+      );
+      return;
+    }
     if (this.placedPlayers.delete(playerId)) {
       this.returnToDugout(player);
       this.updateStatus(player.teamId);
@@ -241,6 +273,11 @@ export class SetupManager {
     const pos1 = this.placedPlayers.get(player1Id);
     const pos2 = this.placedPlayers.get(player2Id);
     if (!pos1 && !pos2) return this.refuse("Neither player is on the pitch.");
+    if (this.state.setup?.swarming) {
+      return this.refuse(
+        "Swarming only adds reserve Linemen; players cannot be swapped."
+      );
+    }
 
     if (pos1 && pos2) {
       this.placedPlayers.set(player1Id, pos2);
@@ -275,7 +312,21 @@ export class SetupManager {
   ): SetupFormationResult {
     this.lastError = null;
     const team = this.getTeam(teamId);
-    if (!team || this.state.activeTeamId !== teamId) {
+    if (this.state.setup?.swarming) {
+      const reason =
+        "Swarming adds reserve Linemen to the confirmed formation; presets cannot replace it.";
+      this.refuse(reason);
+      return {
+        placedPlayerIds: [],
+        skipped: [{ reason }],
+        status: this.requireStatus(teamId),
+      };
+    }
+    if (
+      !team ||
+      this.state.activeTeamId !== teamId ||
+      this.setupReady.has(teamId)
+    ) {
       const reason = "Only the team currently setting up may load a formation.";
       this.refuse(reason);
       return {
@@ -350,6 +401,22 @@ export class SetupManager {
       );
     }
 
+    const setup = this.ensureSetupState();
+    if (setup.swarming) {
+      if (
+        !setup.swarming.teams[teamId] ||
+        !this.updateStatus(teamId).canConfirm
+      ) {
+        return this.refuse("The Swarming formation is not legal.");
+      }
+      this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
+      this.advanceSwarming();
+      return true;
+    }
+    if (this.setupReady.has(teamId)) {
+      return this.refuse("This team's formation is already confirmed.");
+    }
+
     const status = this.updateStatus(teamId);
     if (!status.canConfirm) {
       const reason =
@@ -364,7 +431,6 @@ export class SetupManager {
       if (!player.gridPosition) movePlayerToBox(player, { box: "reserves" });
     });
     this.setupReady.add(teamId);
-    const setup = this.ensureSetupState();
     setup.confirmedTeamIds = Array.from(this.setupReady);
     this.eventBus.emit(GameEventNames.SetupConfirmed, teamId);
 
@@ -383,10 +449,82 @@ export class SetupManager {
         this.emitStatus(receivingTeamId);
       });
     } else if (this.state.subPhase === SubPhase.SETUP_RECEIVING) {
-      setup.currentTeamId = null;
-      this.callbacks.onKickoffRequested();
+      setup.swarming = {
+        pendingTeamIds: [setup.kickingTeamId!, setup.receivingTeamId!],
+        teams: {},
+      };
+      this.advanceSwarming();
     }
     return true;
+  }
+
+  /** 2025 Swarming happens after both setups and before the kick. */
+  private advanceSwarming(): void {
+    const setup = this.ensureSetupState();
+    const swarming = setup.swarming;
+    if (!swarming) return;
+    while (swarming.pendingTeamIds.length > 0) {
+      const teamId = swarming.pendingTeamIds.shift()!;
+      const team = this.getTeam(teamId)!;
+      if (
+        !getRosterByRosterName(team.rosterName).specialRules.includes(
+          TeamSpecialRule.SWARMING
+        )
+      )
+        continue;
+      const reserves = this.getEligiblePlayers(team).filter(
+        (player) =>
+          !player.gridPosition &&
+          player.keywords.includes(PositionKeyWord.LINEMAN)
+      );
+      if (reserves.length === 0) continue;
+      const roll = this.callbacks.rollSwarming(teamId);
+      swarming.teams[teamId] = {
+        roll,
+        basePlayerIds: this.getFormationPositions(teamId).map(
+          (position) => position.playerId
+        ),
+      };
+      setup.currentTeamId = teamId;
+      this.state.activeTeamId = teamId;
+      this.state.subPhase =
+        teamId === setup.kickingTeamId
+          ? SubPhase.SETUP_KICKING
+          : SubPhase.SETUP_RECEIVING;
+      this.updateStatus(teamId);
+      this.eventBus.emit(
+        GameEventNames.UI_GameLog,
+        `${team.name}: Swarming rolled ${roll}. Up to ${Math.min(roll, reserves.length)} reserve Linemen may join the pitch.`
+      );
+      this.eventBus.emit(GameEventNames.PhaseChanged, {
+        phase: GamePhase.SETUP,
+        subPhase: this.state.subPhase,
+        activeTeamId: teamId,
+      });
+      this.emitStatus(teamId);
+      return;
+    }
+    setup.currentTeamId = null;
+    // Kickoff ownership expects the receiving team to be active.
+    this.state.activeTeamId = setup.receivingTeamId;
+    this.callbacks.onKickoffRequested();
+  }
+
+  private playerLimits(team: Team): SetupPlayerLimits | undefined {
+    const swarm = this.state.setup?.swarming?.teams[team.id];
+    if (!swarm) return undefined;
+    return {
+      minimum: swarm.basePlayerIds.length,
+      maximum: Math.min(
+        swarm.basePlayerIds.length + swarm.roll,
+        swarm.basePlayerIds.length +
+          this.getEligiblePlayers(team).filter(
+            (player) =>
+              !swarm.basePlayerIds.includes(player.id) &&
+              player.keywords.includes(PositionKeyWord.LINEMAN)
+          ).length
+      ),
+    };
   }
 
   public resolveConcession(teamId: string, concede: boolean): boolean {
@@ -431,10 +569,8 @@ export class SetupManager {
   }
 
   /**
-   * Setup is complete when `min(7, availablePlayers)` are placed (plus the
-   * usual formation restrictions) — never "seven placed". A team depleted by
-   * KOs and casualties fields everyone it has and plays on; the placement cap
-   * stays at seven.
+   * Normal setup fields min(7, available). Swarming can then add its rolled
+   * allowance without moving the confirmed formation.
    */
   public isSetupComplete(teamId: string): boolean {
     return this.updateStatus(teamId).canConfirm;
@@ -528,7 +664,8 @@ export class SetupManager {
     const validation = this.validator.validateFormation(
       positions,
       teamId === this.team1.id,
-      availablePlayerCount
+      availablePlayerCount,
+      this.playerLimits(team)
     );
     const previousDecision = setup.teams[teamId]?.concessionDecision;
     const concessionDecision =
@@ -543,10 +680,17 @@ export class SetupManager {
         message: "Choose whether to concede without penalty or play on.",
       });
     }
+    const swarm = setup.swarming?.teams[teamId];
+    const additionalPlayerCount = swarm
+      ? positions.filter(
+          (position) => !swarm.basePlayerIds.includes(position.playerId)
+        ).length
+      : 0;
     const status: SetupTeamStatus = {
       teamId,
       placedPlayerCount: positions.length,
-      requiredPlayerCount: Math.min(7, availablePlayerCount),
+      requiredPlayerCount:
+        swarm?.basePlayerIds.length ?? Math.min(7, availablePlayerCount),
       availablePlayerCount,
       restrictions,
       canConfirm:
@@ -554,6 +698,22 @@ export class SetupManager {
           (restriction) => !restriction.satisfiable || restriction.satisfied
         ) && concessionDecision !== "pending",
       concessionDecision,
+      ...(swarm
+        ? {
+            swarming: {
+              roll: swarm.roll,
+              additionalPlayerCount,
+              maximumAdditionalPlayers: Math.min(
+                swarm.roll,
+                this.getEligiblePlayers(team).filter(
+                  (player) =>
+                    !swarm.basePlayerIds.includes(player.id) &&
+                    player.keywords.includes(PositionKeyWord.LINEMAN)
+                ).length
+              ),
+            },
+          }
+        : {}),
     };
     setup.teams[teamId] = status;
     return status;

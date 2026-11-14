@@ -159,6 +159,24 @@ describe("SetupValidator", () => {
     ).toBe(true);
   });
 
+  it("requires exactly the available players for a short team without Swarming", () => {
+    const result = validator.validateFormation(
+      legalFormation(true).slice(0, 6),
+      true,
+      6
+    );
+    expect(result.valid).toBe(true);
+    expect(
+      result.restrictions.find((rule) => rule.id === "required-player-count")
+    ).toMatchObject({
+      summary: "Players placed 6/6",
+      message: "Set up all 6 available players.",
+    });
+    expect(
+      validator.validateFormation(legalFormation(true), true, 6).valid
+    ).toBe(false);
+  });
+
   it("relaxes the three-player rule for two players but still requires both on the line", () => {
     const onLine = [
       { playerId: "1", x: 6, y: 4 },

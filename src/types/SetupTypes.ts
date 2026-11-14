@@ -65,6 +65,12 @@ export interface SetupTeamStatus {
   restrictions: SetupRestriction[];
   canConfirm: boolean;
   concessionDecision: SetupConcessionDecision;
+  /** Optional extra Linemen after both normal formations are confirmed. */
+  swarming?: {
+    roll: number;
+    maximumAdditionalPlayers: number;
+    additionalPlayerCount: number;
+  };
 }
 
 export interface SetupState {
@@ -73,6 +79,16 @@ export interface SetupState {
   currentTeamId: string | null;
   confirmedTeamIds: string[];
   teams: Record<string, SetupTeamStatus>;
+  /** Rolled once per drive, persisted for save/resume and lockstep replay. */
+  swarming?: {
+    pendingTeamIds: string[];
+    teams: Record<string, { roll: number; basePlayerIds: string[] }>;
+  };
+}
+
+export interface SetupPlayerLimits {
+  minimum: number;
+  maximum: number;
 }
 
 export interface SetupFormationResult {

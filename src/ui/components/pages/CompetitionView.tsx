@@ -1,3 +1,7 @@
+import {
+  DEFAULT_SEVENS_RULESET,
+  SEVENS_RULESET_LABELS,
+} from "../../../game/rules/sevensRuleset";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCompetition } from "../../../competition/repository";
@@ -163,6 +167,7 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
   ];
 
   const contextFor = (fixture: CompetitionFixture): CompetitionContext => ({
+    ruleset: competition.ruleset ?? DEFAULT_SEVENS_RULESET,
     competitionType: competition.type,
     competitionId: competition.id,
     fixtureId: fixture.id,
@@ -603,6 +608,11 @@ export function CompetitionView({ type }: { type: CompetitionType }) {
         title={competition.name}
         actions={<Chip>{competition.status}</Chip>}
       />
+
+      <p className="mb-6 font-hud-body text-hud-sm text-hud-dim">
+        {SEVENS_RULESET_LABELS[competition.ruleset ?? DEFAULT_SEVENS_RULESET]}
+        {" · "}NAF clarifications apply. Swarming is enabled.
+      </p>
 
       {champion && (
         <Panel accent="gold" className="mb-6 px-5 py-4">

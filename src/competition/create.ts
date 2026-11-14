@@ -20,6 +20,7 @@ import {
   TournamentFormat,
 } from "./types";
 import { COMPUTER_COACH } from "./computerTeams";
+import { readSevensRuleset, SevensRuleset } from "../game/rules/sevensRuleset";
 
 export interface EntrantChoice {
   team: Team;
@@ -28,6 +29,7 @@ export interface EntrantChoice {
 }
 
 export interface NewCompetition {
+  ruleset?: SevensRuleset;
   type: CompetitionType;
   name: string;
   /** Tournaments only. */
@@ -50,6 +52,7 @@ export async function createCompetition(
   if (!name) throw new Error("Give the competition a name.");
   if (input.entrants.length < 2) throw new Error("Select at least two teams.");
   const teams = input.entrants.map((choice) => choice.team);
+  const ruleset = readSevensRuleset(input.ruleset);
 
   // A team belongs to at most one active competition. Every entrant carries
   // a live team object, the organizer's own or another coach's (read via
@@ -70,7 +73,7 @@ export async function createCompetition(
       const roster = getRosterByRosterName(team.rosterName);
       return (
         validateRosterLegality(team, roster).length > 0 ||
-        !!validateInsignificant(team.players)
+        !!validateInsignificant(team.players, ruleset)
       );
     } catch {
       return true;
@@ -83,7 +86,7 @@ export async function createCompetition(
         .join(", ")}`
     );
   }
-  assertEntrantsCompatible(teams, input.profile);
+  assertEntrantsCompatible(teams, input.profile, ruleset);
 
   const entrants = seedEntrants(
     input.entrants.map(({ team, ownerUid }) => ({
@@ -110,6 +113,7 @@ export async function createCompetition(
       ? generateRoundRobin(entrants)
       : generateSingleElimination(entrants);
   const base = {
+    ruleset,
     id,
     name,
     organizerUid: input.organizerUid,

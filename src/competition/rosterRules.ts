@@ -7,6 +7,7 @@
 import { matchedPlaySkillViolations } from "../game/progression/advancementModes";
 import { validateInsignificant } from "../game/rules/insignificant";
 import { validateRosterLegality } from "../game/rules/rosterLegality";
+import { SevensRuleset } from "../game/rules/sevensRuleset";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import {
   calculateTeamValue,
@@ -48,28 +49,29 @@ export interface CompatibilityResult {
 /**
  * The single validator used by both the competition-entry UI and the
  * authoritative save path (CompetitionBuilder.create / addEntrantToCompetition).
- * A missing profile is a legacy competition: always compatible, matching the
- * pre-existing (unrestricted) entry behavior.
+ * With neither a roster profile nor a ruleset, preserve legacy unrestricted
+ * entry. New competitions always declare a ruleset and enforce roster legality.
  */
 export function checkTeamCompatibility(
   team: Team,
-  profile: RosterRuleProfile | undefined
+  profile: RosterRuleProfile | undefined,
+  ruleset?: SevensRuleset
 ): CompatibilityResult {
   const reasons: string[] = [];
-  if (!profile) return { compatible: true, reasons };
+  if (!profile && !ruleset) return { compatible: true, reasons };
 
-  if (!team.advancementMode) {
+  if (profile && !team.advancementMode) {
     reasons.push(
       "Team has not chosen an advancement mode yet (edit it in Team Builder)."
     );
-  } else if (team.advancementMode !== profile.advancementMode) {
+  } else if (profile && team.advancementMode !== profile.advancementMode) {
     reasons.push(
       `Advancement mode mismatch: team is ${team.advancementMode}, competition requires ${profile.advancementMode}.`
     );
   }
 
   const teamValue = calculateTeamValue(team);
-  if (teamValue > profile.draftBudget) {
+  if (profile && teamValue > profile.draftBudget) {
     reasons.push(
       `Team value ${teamValue.toLocaleString()} exceeds the draft budget of ${profile.draftBudget.toLocaleString()}.`
     );
@@ -79,7 +81,7 @@ export function checkTeamCompatibility(
     const roster = getRosterByRosterName(team.rosterName);
     const violations = validateRosterLegality(team, roster);
     violations.forEach((violation) => reasons.push(violation.detail));
-    const insignificantError = validateInsignificant(team.players);
+    const insignificantError = validateInsignificant(team.players, ruleset);
     if (insignificantError) reasons.push(insignificantError);
 
     if (team.advancementMode === "matched-play") {
@@ -89,7 +91,10 @@ export function checkTeamCompatibility(
     reasons.push(error instanceof Error ? error.message : String(error));
   }
 
-  if (profile.requireDevelopmentComplete && hasBlockingPendingDevelopment(team)) {
+  if (
+    profile?.requireDevelopmentComplete &&
+    hasBlockingPendingDevelopment(team)
+  ) {
     reasons.push(
       "Team has unresolved development (Skill Selection or a required advancement) — resolve it in Manage Team."
     );
@@ -105,11 +110,12 @@ export function checkTeamCompatibility(
  */
 export function assertEntrantsCompatible(
   teams: readonly Team[],
-  profile: RosterRuleProfile | undefined
+  profile: RosterRuleProfile | undefined,
+  ruleset?: SevensRuleset
 ): void {
-  if (!profile) return;
+  if (!profile && !ruleset) return;
   for (const team of teams) {
-    const result = checkTeamCompatibility(team, profile);
+    const result = checkTeamCompatibility(team, profile, ruleset);
     if (!result.compatible) {
       throw new Error(
         `${team.name} is not compatible with this competition: ${result.reasons.join(" ")}`

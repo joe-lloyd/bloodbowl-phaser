@@ -11,6 +11,7 @@ import {
   FormationPosition,
   SetupConfig,
   SetupRestriction,
+  SetupPlayerLimits,
 } from "@/types/SetupTypes";
 
 /**
@@ -71,13 +72,15 @@ export class SetupValidator {
     candidate: FormationPosition,
     currentPositions: FormationPosition[],
     isTeam1: boolean,
-    availablePlayerCount: number
+    availablePlayerCount: number,
+    limits?: SetupPlayerLimits
   ): ValidationResult {
     const positions = [...currentPositions, candidate];
     const full = this.validateFormation(
       positions,
       isTeam1,
-      availablePlayerCount
+      availablePlayerCount,
+      limits
     );
     const placementIds = new Set([
       "neutral-zone",
@@ -123,12 +126,13 @@ export class SetupValidator {
   validateFormation(
     positions: FormationPosition[],
     isTeam1: boolean,
-    availablePlayerCount: number = this.config.maxPlayers
+    availablePlayerCount: number = this.config.maxPlayers,
+    limits?: SetupPlayerLimits
   ): ValidationResult {
-    const requiredPlayerCount = Math.min(
-      this.config.maxPlayers,
-      Math.max(0, availablePlayerCount)
-    );
+    const requiredPlayerCount =
+      limits?.minimum ??
+      Math.min(this.config.maxPlayers, Math.max(0, availablePlayerCount));
+    const maximumPlayerCount = limits?.maximum ?? requiredPlayerCount;
     const positionKeys = positions.map((pos) => `${pos.x},${pos.y}`);
     const uniquePositionCount = new Set(positionKeys).size;
     const wideCounts = { top: 0, bottom: 0 };
@@ -167,9 +171,9 @@ export class SetupValidator {
       },
       {
         id: "max-seven",
-        satisfied: positions.length <= this.config.maxPlayers,
+        satisfied: positions.length <= maximumPlayerCount,
         satisfiable: true,
-        message: `A maximum of ${this.config.maxPlayers} players may be set up.`,
+        message: `A maximum of ${maximumPlayerCount} players may be set up.`,
       },
       {
         id: "wide-zone-limit",
@@ -200,13 +204,20 @@ export class SetupValidator {
       },
       {
         id: "required-player-count",
-        summary: `Players placed ${positions.length}/${requiredPlayerCount}`,
-        satisfied: positions.length === requiredPlayerCount,
+        summary:
+          maximumPlayerCount > requiredPlayerCount
+            ? `Players placed ${positions.length} · allowed ${requiredPlayerCount} to ${maximumPlayerCount}`
+            : `Players placed ${positions.length}/${requiredPlayerCount}`,
+        satisfied:
+          positions.length >= requiredPlayerCount &&
+          positions.length <= maximumPlayerCount,
         satisfiable: true,
         message:
-          requiredPlayerCount === this.config.maxPlayers
-            ? `Set up exactly ${this.config.maxPlayers} players; extras remain in Reserves.`
-            : `Set up all ${requiredPlayerCount} available players.`,
+          maximumPlayerCount > requiredPlayerCount
+            ? `Swarming allows up to ${maximumPlayerCount - requiredPlayerCount} additional Linemen; the confirmed formation stays in place.`
+            : requiredPlayerCount === this.config.maxPlayers
+              ? `Set up exactly ${this.config.maxPlayers} players; extras remain in Reserves.`
+              : `Set up all ${requiredPlayerCount} available players.`,
       },
     ];
 

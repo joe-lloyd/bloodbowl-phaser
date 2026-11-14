@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { Team } from "../../types/Team";
 import { Player, PlayerStatus } from "../../types/Player";
 import { SetupValidator } from "../validators/SetupValidator";
-import { FormationPosition } from "../../types/SetupTypes";
+import { FormationPosition, SetupPlayerLimits } from "../../types/SetupTypes";
 import { Pitch } from "../elements/Pitch";
 import {
   playerHitArea,
@@ -36,7 +36,10 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
     _scene: Phaser.Scene,
     pitch: Pitch,
     validator: SetupValidator,
-    isAvailable: (playerId: string) => boolean = () => true
+    isAvailable: (playerId: string) => boolean = () => true,
+    private getPlayerLimits: (
+      teamId: string
+    ) => SetupPlayerLimits | undefined = () => undefined
   ) {
     super();
     // this.scene = scene;
@@ -253,7 +256,8 @@ export class PlayerPlacementController extends Phaser.Events.EventEmitter {
       { playerId, x: gridX, y: gridY },
       current,
       this.isTeam1,
-      availablePlayerCount
+      availablePlayerCount,
+      this.getPlayerLimits(this.currentTeam.id)
     );
     if (!validation.valid) {
       this.emit(GameEventNames.PlacementInvalid, {

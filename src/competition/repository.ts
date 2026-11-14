@@ -7,6 +7,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { isFirebaseConfigured, getDb } from "../firebase/config";
+import { readSevensRuleset } from "../game/rules/sevensRuleset";
 import { CompetitionDoc, CompetitionType } from "./types";
 import { repairBracketLinkage, withResultsFromFixtures } from "./logic";
 
@@ -62,6 +63,17 @@ function plain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
+function assertRulesetKept(
+  before: CompetitionDoc["ruleset"],
+  after: CompetitionDoc
+): void {
+  if (readSevensRuleset(before) !== readSevensRuleset(after.ruleset)) {
+    throw new Error(
+      "The Sevens rules cannot change during a tournament or league season."
+    );
+  }
+}
+
 export async function saveCompetition(
   competition: CompetitionDoc
 ): Promise<void> {
@@ -73,6 +85,8 @@ export async function saveCompetition(
     return;
   }
   const store = readLocal();
+  const before = store[storageKey(competition.type, competition.id)];
+  if (before) assertRulesetKept(before.ruleset, competition);
   store[storageKey(competition.type, competition.id)] =
     structuredClone(competition);
   writeLocal(store);
@@ -125,6 +139,8 @@ function normalizeOnRead(
   const repaired = withRepairedLinkage(
     competition ? convertLegacyEntrants(competition) : null
   );
+  // Preserve absent legacy metadata: participants may only edit results and entrants.
+  if (repaired?.ruleset !== undefined) readSevensRuleset(repaired.ruleset);
   return repaired && withResultsFromFixtures(repaired);
 }
 
@@ -172,8 +188,10 @@ export async function updateCompetition(
       if (!snapshot.exists()) return null;
       foundRemote = true;
       const latest = normalizeOnRead(snapshot.data() as CompetitionDoc)!;
+      const ruleset = latest.ruleset;
       const next = change(latest);
       if (!next) return latest;
+      assertRulesetKept(ruleset, next);
       tx.set(ref, plain(next));
       return next;
     }).catch((reason: unknown) => {
@@ -189,8 +207,10 @@ export async function updateCompetition(
   }
   const latest = normalizeOnRead(readLocal()[storageKey(type, id)] ?? null);
   if (!latest) throw new Error("Competition not found.");
+  const ruleset = latest.ruleset;
   const next = change(latest);
   if (!next) return latest;
+  assertRulesetKept(ruleset, next);
   const store = readLocal();
   store[storageKey(type, id)] = structuredClone(next);
   writeLocal(store);

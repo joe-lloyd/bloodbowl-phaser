@@ -30,7 +30,9 @@ export async function buildTeam(
 ) {
   await page.goto("/build-team/new-team");
   await page.getByPlaceholder("Enter Team Name").fill(name);
-  await page.locator("select").first().selectOption(roster);
+  await page
+    .getByRole("combobox", { name: "Roster", exact: true })
+    .selectOption(roster);
   await page.getByPlaceholder("Coach Name").fill(`${name} coach`);
   await page.getByRole("button", { name: /Sevens Skill Selection/ }).click();
   for (const pos of hires) {

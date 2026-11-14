@@ -43,6 +43,10 @@ import { SeedMetadata } from "../../types/seedMetadata";
 import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
 import { Inducement, InducementSelectionLine } from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
+import {
+  readSevensRuleset,
+  SevensRuleset,
+} from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
 
 export const TEAM_SCHEMA_VERSION = 1;
@@ -93,6 +97,7 @@ export interface StoredTeam {
   casualties: number;
   seedMetadata?: SeedMetadata;
   activeCompetitionId?: string;
+  draftRuleset?: SevensRuleset;
   recordedFixtureIds?: string[];
   /** Draft until this is set — see teamLifecycle.ts. */
   firstMatchPlayedAt?: number;
@@ -409,6 +414,9 @@ export function hydrateStoredTeam(
     ...(raw.recordedFixtureIds
       ? { recordedFixtureIds: raw.recordedFixtureIds as string[] }
       : {}),
+    ...(raw.draftRuleset !== undefined
+      ? { draftRuleset: readSevensRuleset(raw.draftRuleset) }
+      : {}),
     ...(raw.activeCompetitionId
       ? { activeCompetitionId: raw.activeCompetitionId as string }
       : {}),
@@ -472,6 +480,7 @@ export function dehydrateTeam(team: Team): StoredTeam {
     ...(team.recordedFixtureIds
       ? { recordedFixtureIds: team.recordedFixtureIds }
       : {}),
+    ...(team.draftRuleset ? { draftRuleset: team.draftRuleset } : {}),
     ...(team.activeCompetitionId
       ? { activeCompetitionId: team.activeCompetitionId }
       : {}),

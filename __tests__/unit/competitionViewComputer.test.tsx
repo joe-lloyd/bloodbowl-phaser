@@ -135,6 +135,7 @@ describe("a league against the computer", () => {
       difficulty: "hard",
       progressionEnabled: true,
       competitionContext: {
+        ruleset: "gw-2025",
         competitionType: "league",
         competitionId: league.id,
         fixtureId: mineFirst.id,
@@ -211,10 +212,9 @@ describe("a league against the computer", () => {
       container.textContent?.match(/Walkover: My Team withdrew/g)
     ).toHaveLength(3);
     await act(async () => button("Simulate round 1")!.click());
-    await vi.waitFor(
-      () => expect(button("Simulate round 2")).toBeDefined(),
-      { timeout: 30_000 }
-    );
+    await vi.waitFor(() => expect(button("Simulate round 2")).toBeDefined(), {
+      timeout: 30_000,
+    });
   }, 60_000);
 });
 
@@ -234,10 +234,9 @@ describe("a cup the computer plays", () => {
     });
     await show(cup);
     await act(async () => button("Simulate round 1")!.click());
-    await vi.waitFor(
-      () => expect(button("Simulate round 2")).toBeDefined(),
-      { timeout: 60_000 }
-    );
+    await vi.waitFor(() => expect(button("Simulate round 2")).toBeDefined(), {
+      timeout: 60_000,
+    });
     // The final waits for its own click
     expect(container.textContent).not.toContain("Champion:");
     await act(async () => button("Simulate round 2")!.click());

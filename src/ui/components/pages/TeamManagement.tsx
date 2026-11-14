@@ -40,7 +40,7 @@ function teamStatus(team: Team): { mode: "draft" | "active"; legal: boolean } {
     const roster = getRosterByRosterName(team.rosterName);
     legal =
       validateRosterLegality(team, roster).length === 0 &&
-      !validateInsignificant(team.players);
+      !validateInsignificant(team.players, team.draftRuleset);
   } catch {
     legal = false;
   }

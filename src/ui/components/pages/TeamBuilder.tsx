@@ -58,6 +58,7 @@ import {
   stepsBeforeExpensiveMistakes,
 } from "../../../game/rules/expensiveMistakes";
 import { RNGService } from "../../../services/rng/RNGService";
+import { SevensRulesetSelector } from "../common/SevensRulesetSelector";
 import { PendingDevelopmentPanel } from "../TeamManagement/PendingDevelopmentPanel";
 
 // interface TeamBuilderProps {}
@@ -152,6 +153,7 @@ export function TeamBuilder() {
       { primary: selectedColor, secondary: 0xffffff },
       team?.treasury || 50000
     );
+    newTeam.draftRuleset = team.draftRuleset;
     setTeam(newTeam);
   };
 
@@ -267,7 +269,10 @@ export function TeamBuilder() {
   const rosterViolations = (): string[] => {
     if (!team) return [];
     const messages: string[] = [];
-    const insignificantError = validateInsignificant(team.players);
+    const insignificantError = validateInsignificant(
+      team.players,
+      team.draftRuleset
+    );
     if (insignificantError) messages.push(insignificantError);
     const roster = getRosterByRosterName(team.rosterName);
     messages.push(...validateRosterLegality(team, roster).map((v) => v.detail));
@@ -510,6 +515,18 @@ export function TeamBuilder() {
             : "Draft teams may be edited freely and saved even while incomplete, but must pass roster legality before they can be selected for a match or entered in a competition."
         }
       />
+
+      <Section title="Draft rules">
+        <SevensRulesetSelector
+          value={team.draftRuleset}
+          disabled={saving || active || !!team.activeCompetitionId}
+          onChange={(draftRuleset) => setTeam({ ...team, draftRuleset })}
+        />
+        <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
+          Prepare a roster for these rules. Tournament and league entry use the
+          competition's own choice. Friendly matches use GW rules.
+        </p>
+      </Section>
 
       {(postMatch || pendingMistakes || completion) && (
         <Section title="Post-match team management" accent="gold">

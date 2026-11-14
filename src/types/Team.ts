@@ -4,6 +4,7 @@
 
 import { InjuryType, Player, PlayerStatus, PlayerTemplate } from "./Player";
 import { SeedMetadata } from "./seedMetadata";
+import type { SevensRuleset } from "../game/rules/sevensRuleset";
 import type { InducementSelectionLine } from "./Inducements";
 import { SkillCategory, SkillType } from "./Skills";
 import {
@@ -272,6 +273,9 @@ export interface Team {
    * competition completes or the team withdraws (src/competition/logic.ts).
    */
   activeCompetitionId?: string;
+
+  /** Draft validation only. A competition chooses its own rules independently. */
+  draftRuleset?: SevensRuleset;
 
   /** `competitionId:fixtureId` of each result in this team's record. */
   recordedFixtureIds?: string[];

@@ -17,7 +17,10 @@ and their sources.
 The public catalog contains 108 skill and trait families. The
 [rule coverage gate](../__tests__/headless/rules/gate.test.ts) currently expects
 106 registered in-match rules. Insignificant is enforced during roster
-construction instead. Decay also stays unregistered: Sevens does not use the Casualty Roll that it modifies.
+construction instead, unless the competition selects the dated NAF Sevens
+rulings. Swarming is a team special rule implemented in setup, and applies
+under both rule choices. See the [rules policy](SEVENS_RULES.md).
+Decay also stays unregistered: Sevens does not use the Casualty Roll that it modifies.
 A registered rule and a passing scenario do not prove every interaction is correct.
 
 ## Rules and progression gaps

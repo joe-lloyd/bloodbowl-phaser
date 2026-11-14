@@ -2,12 +2,15 @@ import type { Difficulty } from "../simulation/ai/difficulty";
 import { SeedMetadata } from "../types/seedMetadata";
 import { RosterRuleProfile } from "./rosterRules";
 import type { FixtureWinnings } from "../game/rules/winnings";
+import type { SevensRuleset } from "../game/rules/sevensRuleset";
 
 export type CompetitionType = "league" | "tournament";
 export type TournamentFormat = "single-elimination" | "round-robin";
 export type CompetitionStatus = "draft" | "active" | "complete";
 
 export interface CompetitionContext {
+  /** The competition's dated rules choice, carried by saves and online lobbies. */
+  ruleset?: SevensRuleset;
   competitionType: CompetitionType;
   competitionId: string;
   fixtureId: string;
@@ -113,6 +116,8 @@ export interface LeaguePoints {
 }
 
 export interface LeagueDoc {
+  /** Fixed for this competition. Older records use GW 2025 Sevens. */
+  ruleset?: SevensRuleset;
   id: string;
   type: "league";
   name: string;
@@ -138,6 +143,8 @@ export interface LeagueDoc {
 }
 
 export interface TournamentDoc {
+  /** See LeagueDoc.ruleset. */
+  ruleset?: SevensRuleset;
   id: string;
   type: "tournament";
   name: string;

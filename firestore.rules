@@ -201,17 +201,32 @@ service cloud.firestore {
           && resource.data.status != 'draft');
     }
 
+    function validCompetitionRules() {
+      return request.resource.data.get('ruleset', 'gw-2025')
+        in ['gw-2025', 'naf-sevens-2026-09-26'];
+    }
+
+    function competitionRulesKept() {
+      return validCompetitionRules()
+        && request.resource.data.get('ruleset', 'gw-2025')
+          == resource.data.get('ruleset', 'gw-2025');
+    }
+
     // Organizers control competition structure and may report any fixture. A
     // participant may report their own fixtures and change their own entrant
     // (see the functions above).
+    // Participants cannot change ruleset through their affectedKeys allowlist;
+    // only the organizer path needs the additional ruleset comparison.
     // Standings, status and the champion are only caches: every reader
     // recomputes them from the fixtures (src/competition/repository.ts).
     match /leagues/{leagueId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+        && validCompetitionRules()
         && request.resource.data.organizerUid == request.auth.uid;
       allow update: if request.auth != null
-        && (resource.data.organizerUid == request.auth.uid
+        && ((resource.data.organizerUid == request.auth.uid
+            && competitionRulesKept())
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',
@@ -226,9 +241,11 @@ service cloud.firestore {
     match /tournaments/{tournamentId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+        && validCompetitionRules()
         && request.resource.data.organizerUid == request.auth.uid;
       allow update: if request.auth != null
-        && (resource.data.organizerUid == request.auth.uid
+        && ((resource.data.organizerUid == request.auth.uid
+            && competitionRulesKept())
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',
