@@ -2369,6 +2369,16 @@ export class GameService implements IGameService {
 
   async standUp(playerId: string): Promise<void> {
     if (this.awaitingSecondAction(playerId)) return;
+    // Standing up in place is a Move Action. Declaring it rolls the
+    // activation gate (Bone Head, Bloodlust, …) before the player rises,
+    // and a failed gate that ends the activation leaves them Prone.
+    if (this.state.activePlayer?.id !== playerId) {
+      if (!this.declareAction(playerId, "move")) {
+        throw new Error("This player cannot be activated");
+      }
+      if (!(await this.whenSettled())) return;
+      if (this.state.activePlayer?.id !== playerId) return;
+    }
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
