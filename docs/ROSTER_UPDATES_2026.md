@@ -93,3 +93,76 @@ As checked on 2 November, the official material still describes their full
 rules as forthcoming in Spike! Journal 23. It does not publish a complete
 roster or the Squig Rage rule. They remain pending until those rules are
 available. No speculative roster or skill has been added.
+
+## Full rulebook roster check, 14 November 2026
+
+Every team was compared field by field with the 2025 rulebook roster pages
+160 to 188. Three separate transcriptions of the scanned pages were compared
+with the data, and disputed cells were read again from the scans. The May
+errata were then applied on top. All 30 Sevens tiers already matched.
+
+Profile corrections:
+
+- Chaos Chosen: Chosen AG 3+. Minotaur secondary Agility and General.
+- Chaos Dwarf: Bull Centaur keyword Dwarf, not Beastman. Minotaur primary
+  Mutation and Strength, secondary Agility and General.
+- Chaos Renegades: Renegade Linemen start with Animosity (all). The Goblin,
+  Orc, Skaven and Dark Elf are Linemen, so they no longer count towards the
+  Sevens four non-Lineman limit. The Rat Ogre costs 150,000, has PA 6+ and
+  AV 9+, and starts with Animal Savagery, Frenzy, Loner (4+), Mighty Blow
+  and Prehensile Tail.
+- Dark Elf: two Blitzers, with Devious, Passing and Strength secondary
+  access. Witch Elves have Devious and Strength secondary access.
+- Dwarf: re-rolls 60,000 on the full-size roster. The Deathroller has MA 5
+  and the Special keyword. Its Dirty Player carries no parameter, as
+  printed; the foul rules already apply the +1.
+- Imperial Nobility: Thrower PA 2+, two Noble Blitzers, four Bodyguards.
+- Human, Imperial Nobility and Old World Alliance Ogres have Loner (3+).
+- Human: Thrower secondary Agility, Devious and Strength. Blitzer secondary
+  Agility and Devious. Halfling secondary Devious, General and Strength.
+- Old World Alliance: Troll Slayer PA 5+.
+- Orc: Thrower MA 6 without Animosity. Big Un Blockers have Thick Skull.
+- Shambling Undead: Skeleton secondary Agility, Devious and Strength.
+- Skaven: two Gutter Runners, with Mutation and Strength secondary access.
+- Snotling: re-rolls 70,000 on the full-size roster. Pump Wagon 100,000.
+- Underworld Denizens: Skaven Blitzer PA 4+.
+- Wood Elf: two Catchers. Wardancer PA 3+.
+
+Keyword corrections, which decide Sevens Lineman status, Veteran choice,
+Animosity and Hatred targets, and Big Guy restrictions:
+
+- Gnome Beastmaster Blocker, Woodland Fox Animal and Runner (not Big Guy),
+  Halfling Hefty Blocker.
+- Khorngor Beastman and Runner. Bloodspawn and Rotspawn Spawn. Pestigor
+  Runner.
+- Every Lizardmen position uses the Lizardman keyword. The Chameleon Skink
+  is a Thrower.
+- Necromantic Horror: Zombies Human, Ghouls Ghoul, Wraiths Blocker and
+  Wraith, Werewolves Blitzer and Undead, Flesh Golems Blocker and Construct.
+- Norse Raiders, Berserkers, Valkyries and Ulfwereners are Human. Valkyries
+  are Catchers and Throwers. The Yhetee is a Yhetee.
+- Ogre: Gnoblars Gnoblar, Runt Punters Thrower, Ogre Blockers Blocker.
+- Shambling Undead: Skeletons and Zombies Human, Ghouls Ghoul, Wights
+  Human and Skeleton, Mummies Blocker and Human.
+- Rat Ogres on the Skaven, Renegade and Underworld rosters are Skaven.
+- Snotling Stilty Runnas Runner, Pump Wagons Special.
+- Every Vampire position except the Thrall is Undead.
+
+Shared Big Guy limits are now enforced in the draft check and when hiring
+between fixtures. Chaos Chosen, Old World Alliance and Underworld Denizens
+may field one Big Guy. Chaos Renegades may field three.
+
+A public comparison table and an earlier automated audit claimed two more
+changes. The scans disprove both: the Wood Elf Treeman keeps Agility,
+General and Passing secondary access, and the Underworld Skaven Blitzer
+keeps Agility and Devious.
+
+Saved teams rebuild their base profiles from these templates on load.
+No player is removed. A saved team above a corrected maximum, such as
+three Dark Elf Blitzers or two Underworld Big Guys, shows the violation and
+must resolve it before it is legal.
+
+Still open: the Norse roster grants Favoured of Khorne when the team picks
+Chaos Clash, and the game does not store a league choice yet. Team display
+names keep their historical spellings, such as Bretonian, so saved teams
+still resolve.

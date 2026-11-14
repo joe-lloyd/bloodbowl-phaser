@@ -6,6 +6,7 @@
  *   - 7..11 players (Sevens roster size); an active team may drop below 7
  *   - at most 4 players without the Lineman positional keyword
  *   - no position above its roster template maximum (maxAllowed)
+ *   - no more Big Guys than the roster's shared limit (maxBigGuys)
  *   - every player's position exists on the roster template
  *   - treasury never negative (purchases fit the draft budget)
  *   - a draft with a Lineman has exactly one Veteran, a Lineman (D8)
@@ -16,7 +17,7 @@
  */
 
 import { Team, TeamRoster } from "../../types/Team";
-import { PositionKeyWord } from "../../types/Player";
+import { PositionKeyWord, TraitKeyWord } from "../../types/Player";
 import { isDraftTeam } from "./teamLifecycle";
 
 export const MIN_ROSTER_PLAYERS = 7;
@@ -32,6 +33,10 @@ export interface RosterViolation {
 
 export function isLinemanPosition(keywords: readonly string[]): boolean {
   return keywords.includes(PositionKeyWord.LINEMAN);
+}
+
+export function isBigGuy(keywords: readonly string[]): boolean {
+  return keywords.includes(TraitKeyWord.BIG_GUY);
 }
 
 /**
@@ -83,12 +88,25 @@ export function validateRosterLegality(
         rule: "unknown-position",
         detail: `${positionName} is not on the ${roster.rosterName} roster`,
       });
-    } else if (template.maxAllowed !== undefined && count > template.maxAllowed) {
+    } else if (
+      template.maxAllowed !== undefined &&
+      count > template.maxAllowed
+    ) {
       violations.push({
         rule: "positional-limit",
         detail: `${count} × ${positionName} (roster max ${template.maxAllowed})`,
       });
     }
+  }
+
+  const bigGuys = players.filter((player) => isBigGuy(player.keywords));
+  if (roster.maxBigGuys !== undefined && bigGuys.length > roster.maxBigGuys) {
+    violations.push({
+      rule: "big-guy-limit",
+      detail:
+        `${bigGuys.length} Big Guys (roster max ${roster.maxBigGuys}): ` +
+        bigGuys.map((player) => player.positionName).join(", "),
+    });
   }
 
   // D8: a draft with a Lineman names exactly one Lineman as its Veteran. A

@@ -777,18 +777,24 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         description:
           "Passing to a matching team-mate (here Animosity (all)) risks a 1: the player refuses and the activation ends",
         setup: playSetup({
+          team1Roster: RosterName.CHAOS_RENEGADE,
           team1Placements: [
-            {
-              playerIndex: 0,
-              x: 5,
-              y: 5,
-              skills: [{ type: SkillType.ANIMOSITY, parameter: "all" }],
-            },
+            { playerIndex: 0, x: 5, y: 5 },
             { playerIndex: 1, x: 8, y: 5 },
           ],
           team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
           ballPosition: { x: 5, y: 5 },
         }),
+        skillProvenance: [
+          {
+            playerRef: "team1:0",
+            skill: SkillType.ANIMOSITY,
+            roster: RosterName.CHAOS_RENEGADE,
+            positionName: "Renegade Lineman",
+            source: "roster-default",
+            reason: "Renegade Linemen begin with Animosity (all).",
+          },
+        ],
         script: [
           { type: "declare-action", playerId: "team1:0", action: "pass" },
           { type: "pass", playerId: "team1:0", x: 8, y: 5 },
