@@ -65,6 +65,16 @@ Simulated matches now field a legal line-up for every roster, with up to
 four positionals, instead of mostly Linemen. That is how the Rooted and My
 Ball bugs surfaced.
 
+### Third pass, 14 November 2026
+
+| Area | Fix |
+| --- | --- |
+| Stalling | A ball carrier who could score without rolling any dice and ends the activation without scoring is Stalling (p.80). The crowd rolls a D6 at the end of the activation and Knocks them Down for a Turnover on a result equal to or higher than the team's Turn number. Forgoing the activation still rolls, and putting the ball down with Fumblerooski still counts (May 2026 FAQ). A league team with no Stalling player earns +1 to its Winnings (p.95). |
+| Ball & Chain | Each square is its own command with its own facing, up to MA and then two Rushes. A failed Rush enters the square first and then Falls Over. A Standing player in the square gets a normal Block Action: the coach sees the dice and the re-roll window, Stand Firm can refuse the push, a boxed-in target is chain-pushed, and Foul Appearance is ignored. Against a team-mate the coach always picks the die, and a team-mate Knocked Down is a Turnover. |
+| Ball & Chain | Knocked Down, Falling Over or Placed Prone, the Fanatic takes an Injury Roll with no Armour Roll, Stunned counting as Knocked-out. Off the pitch counts as Pushed into the Crowd, where Stunned is Reserves (FAQ). Stand Firm leaves the Fanatic where it started, the square still counted (FAQ). Chomped never stops the lurch (FAQ). A sabotaged weapon going off is a KO with no Injury Roll (FAQ). |
+| Blocking | A Knocked Down player's Armour Roll, and any Injury, come before the ball they dropped Bounces (p.44). A Skull or a Both Down on a carrier bounced the ball first. |
+| Simulation | The computer coach's Ball & Chain command passed a square where the protocol takes a facing, so every simulated lurch went East. |
+
 ## Still open
 
 ### Sevens rules from Spike! 22

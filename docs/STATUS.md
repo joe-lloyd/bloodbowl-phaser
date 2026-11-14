@@ -1,6 +1,6 @@
 # Project status
 
-Last checked: 2 November 2026. This page describes implemented behaviour and
+Last checked: 14 November 2026. This page describes implemented behaviour and
 known gaps, rather than a release promise or a claim of complete rules coverage.
 
 ## Playable now
@@ -32,6 +32,8 @@ Its outstanding items include:
 
 - Razzle-Dazzle and Magic Scroll can be awarded but have no gameplay effect.
 - Re-drafting has rules helpers but no season-management screen.
+- The computer coaches do not weigh Stalling's crowd roll, so the simulator's
+  stall puzzle now risks a Turnover.
 
 [The October rules review](RULES_REVIEW.md) records reproduced fixes and the
 remaining audit findings. It is a dated review, not a guarantee about every

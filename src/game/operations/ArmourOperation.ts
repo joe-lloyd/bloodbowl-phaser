@@ -6,7 +6,7 @@ import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { Player } from "../../types/Player";
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import {
   foldTrigger,
   gatherParticipants,
@@ -138,6 +138,21 @@ export class ArmourOperation extends GameOperation {
     const causedBy = this.causedById
       ? gameService.getPlayerById(this.causedById)
       : undefined;
+
+    // Ball & Chain (2025 rulebook p.124): "if this player is Knocked Down,
+    // Falls Over or Placed Prone for any reason, immediately make an Injury
+    // Roll for them treating any result of Stunned as Knocked-out instead."
+    if (hasSkill(player.skills, SkillType.BALL_AND_CHAIN)) {
+      flowManager.add(
+        new InjuryOperation(this.playerId, {
+          causedById: this.causedById,
+          cause: this.fall?.cause ?? this.cause,
+          stunnedIsKnockedOut: true,
+        }),
+        true
+      );
+      return;
+    }
 
     eventBus.emit(
       GameEventNames.UI_Notification,

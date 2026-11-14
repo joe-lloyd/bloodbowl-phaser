@@ -623,7 +623,7 @@ export const SCENARIOS: Scenario[] = [
     id: "ball-and-chain-fanatic",
     name: "Ball & Chain (Goblin Fanatic)",
     description:
-      "The Goblin Fanatic (ST 7) can only swing its ball and chain. Declare Ball & Chain, then click a direction (an End Zone or a Sideline) — it lurches up to 3 squares by the Throw-in Template, auto-Blocking anyone it hits, pushing downed players, and risking the crowd if it wanders off the pitch.",
+      "The Goblin Fanatic (ST 7) can only swing its ball and chain. Declare Ball & Chain, then click a direction (an End Zone or a Sideline) for each square: the Throw-in Template moves it one square per click, up to 3 and then two Rushes. Anyone Standing it hits gets a normal Block, with the dice, re-rolls and pushes yours to choose; downed players are pushed and take an Armour Roll; off the pitch is the crowd.",
     setup: {
       team1Roster: RosterName.GOBLIN,
       team1Placements: [
@@ -640,6 +640,24 @@ export const SCENARIOS: Scenario[] = [
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 1, y: 1 },
+    },
+  },
+  {
+    id: "stalling-crowd",
+    name: "Stalling: the Crowd Takes Action",
+    description:
+      "Turn 3. The Human Lineman holds the ball four empty squares from the End Zone, so it could score without rolling a die. End the activation without scoring and it is Stalling: the crowd rolls a D6 and hits on a 3+, the Turn number, Knocking the carrier Down for a Turnover. Walk it in to score instead and nothing happens.",
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 15, y: 5, hasBall: true },
+        { playerIndex: 1, x: 14, y: 5 },
+        { playerIndex: 2, x: 2, y: 9 },
+      ],
+      team2Placements: [{ playerIndex: 0, x: 2, y: 1 }],
+      activeTeam: "team1",
+      turn: 3,
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
     },
   },
   {

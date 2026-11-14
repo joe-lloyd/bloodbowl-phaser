@@ -84,6 +84,21 @@ level, a Penalty Shoot-out of five roll-offs, re-rolling ties, decides the
 game and the result records it. A league or round-robin game may still end
 level.
 
+The magazine does not mention Stalling, so the 2025 rulebook's rule (p.80)
+applies unchanged. A player who holds the ball when activated, could score
+without rolling any dice, and ends the activation without scoring is
+Stalling. The crowd then rolls a D6 and hits on a result equal to or higher
+than the team's Turn number: the player is Knocked Down, a Turnover. With
+six-turn halves the roll can always hit, on a 6 or more on Turn 6, where an
+eight-turn half has two turns it never can. The engine keeps the rule as
+written rather than rescaling it. Forgoing the activation still rolls; a turn
+that ends before the player is activated does not. A Pass or Hand-off that
+gets rid of the ball is not Stalling, but putting the ball down with
+Fumblerooski is (May 2026 FAQ). Each player deemed to be Stalling is
+recorded (`GameState.stallingPlayerIds`), and a league team with none earns
+the rulebook's +1 to its Winnings (L1). The computer coaches do not weigh the
+crowd's roll yet.
+
 ### Kick-off event table (2D6)
 
 | ID | Roll | Event | Status |

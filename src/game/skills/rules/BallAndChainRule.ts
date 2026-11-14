@@ -4,7 +4,9 @@
  * lurches with the Throw-in Template, auto-passing dodges, blocking whoever it
  * bumps into, and hurting itself easily.
  *
- * The behaviour lives in BallAndChainOperation and the action gate in
+ * The lurch lives in BallAndChainOperation, its collisions in BlockManager's
+ * startBallAndChainBlock/startBallAndChainPush, the Injury Roll in place of
+ * Armour in ArmourOperation, and the action gate in
  * GameService.declareAction/ballAndChain (a Standing Fanatic may declare
  * nothing else). Resolved outside the skill fold, so there is nothing to hook
  * here — the registration marks the trait implemented for the coverage gate.

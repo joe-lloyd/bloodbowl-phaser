@@ -264,6 +264,10 @@ export class GameplayInteractionController {
       GameEventNames.UI_SelectPushDirection,
       this.pushDirectionHandler
     );
+    this.eventBus.on(
+      GameEventNames.UI_ResumeBallAndChain,
+      this.resumeBallAndChain
+    );
     this.eventBus.on(GameEventNames.DecisionResolved, this.onDecisionResolved);
     this.eventBus.on(
       GameEventNames.DecisionRequested,
@@ -934,6 +938,31 @@ export class GameplayInteractionController {
    * players mid-action while the board has nothing selected, so clicks on
    * the pitch did nothing. Select that player again and resume its action.
    */
+  /**
+   * A Ball & Chain square has resolved with squares left: pick the Fanatic
+   * back up, wherever the square left it, for the coach's next facing.
+   */
+  private resumeBallAndChain = (data: { playerId: string }) => {
+    const player = this.gameService.getPlayerById(data.playerId);
+    if (!player || this.gameService.hasPlayerActed(data.playerId)) return;
+    const online = getActiveOnlineMatch();
+    if (online && online.myTeamId !== player.teamId) return;
+    this.selectedPlayerId = data.playerId;
+    this.currentActionMode = "ballAndChain";
+    this.currentStepId = "swing";
+    this.hasMovedInAction = true;
+    this.scene.highlightPlayer(data.playerId);
+    this.eventBus.emit(GameEventNames.PlayerSelected, { player });
+    this.eventBus.emit(GameEventNames.UI_UpdateActionSteps, {
+      steps: [{ id: "swing", label: "Swing (pick a direction)" }],
+      currentStepId: "swing",
+    });
+    this.eventBus.emit(GameEventNames.PlayerMovedInAction, {
+      playerId: data.playerId,
+    });
+    this.refreshPlayerVisualization(data.playerId);
+  };
+
   private resumeActivePlayer = () => {
     const active = this.gameService.getState().activePlayer;
     const player = active ? this.gameService.getPlayerById(active.id) : null;
@@ -1245,7 +1274,8 @@ export class GameplayInteractionController {
     }
 
     // BALL & CHAIN Execution (Fanatic): the click picks a facing — a cardinal
-    // direction (an End Zone or a Sideline) — and the Fanatic lurches off.
+    // direction (an End Zone or a Sideline) — and the Fanatic lurches one
+    // square. UI_ResumeBallAndChain picks it back up for the next.
     if (
       this.currentActionMode === "ballAndChain" &&
       this.currentStepId === "swing" &&
@@ -2115,8 +2145,12 @@ export class GameplayInteractionController {
 
     if (isOwnTurn && canActivate) {
       // Show Movement Range
-      // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode
-      if (this.currentActionMode !== "pass" || this.currentStepId === "move") {
+      // Show range if NOT in Pass Mode OR if in Move Step of Pass Mode. A
+      // Ball & Chain lurch goes where the Throw-in Template sends it.
+      if (
+        this.currentActionMode !== "ballAndChain" &&
+        (this.currentActionMode !== "pass" || this.currentStepId === "move")
+      ) {
         // Calculate remaining SAFE MA (for overlay coloring)
         let used = this.gameService.getMovementUsed(playerId);
 
@@ -2175,7 +2209,7 @@ export class GameplayInteractionController {
         // Show Sprint Risks
         this.pitch.drawSprintRisks(sprintMoves);
       } else {
-        // If in Pass Step (aiming), clear the movement overlays to reduce clutter
+        // Aiming a pass or swinging the chain: clear the movement overlays
         this.pitch.clearLayer("range_overlay");
         this.pitch.clearLayer("sprint_risk");
       }
@@ -2742,6 +2776,10 @@ export class GameplayInteractionController {
     this.eventBus.off(
       GameEventNames.UI_ResumeBlitzMove,
       this.resumeBlitzMoveHandler
+    );
+    this.eventBus.off(
+      GameEventNames.UI_ResumeBallAndChain,
+      this.resumeBallAndChain
     );
     this.eventBus.off(
       GameEventNames.GameStateRestored,

@@ -38,6 +38,7 @@ describe("KickoffEventOverlay", () => {
       awaitingPlacement: [],
     };
     const gameService = {
+      getMovementUsed: vi.fn(() => 0),
       getKickoffEventStep: vi.fn(() => step),
       getTeam: vi.fn(() => ({
         id: "team1",
@@ -90,6 +91,7 @@ describe("KickoffEventOverlay", () => {
       awaitingPlacement: [],
     };
     const gameService = {
+      getMovementUsed: vi.fn(() => 0),
       // The engine hands out a copy each time, as getStep does
       getKickoffEventStep: vi.fn(() => ({
         ...step,
@@ -163,6 +165,7 @@ describe("KickoffEventOverlay", () => {
       },
     };
     const gameService = {
+      getMovementUsed: vi.fn(() => 0),
       getKickoffEventStep: vi.fn(() => chargeStep),
       getPlayerById: vi.fn(() => player),
       getState: vi.fn(() => ({ ballPosition: null })),
@@ -212,6 +215,7 @@ describe("KickoffEventOverlay", () => {
       const player = createPlayerOnPitch("team1", 1, 5, 5);
       const defender = createPlayerOnPitch("team2", 1, 7, 5);
       const gameService = {
+      getMovementUsed: vi.fn(() => 0),
         getKickoffEventStep: () => ({
           event: KickoffEvent.CHARGE,
           teamId: "team1",
@@ -293,6 +297,7 @@ describe("KickoffEventOverlay", () => {
       awaitingPlacement: [],
     };
     const gameService = {
+      getMovementUsed: vi.fn(() => 0),
       getKickoffEventStep: vi.fn(() => ({ ...step })),
       getPlayerById: vi.fn(() => player),
       getState: vi.fn(() => ({ ballPosition: null })),

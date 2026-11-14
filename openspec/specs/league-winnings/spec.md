@@ -44,13 +44,17 @@ The Blood Bowl Second Season rulebook, as read on rulespal.com
 
 The rulebook does not round the half. The 2025 rulebook's worked example keeps
 it: a Fan Attendance of 7 "divides this by two, to give 3.5", and the winnings
-come to 65,000 gold pieces. The 2025 rulebook also adds 1 when no player on the
-team was Stalling. This game does not apply that, because it follows the Second
-Season formula.
+come to 65,000 gold pieces: 3.5, plus 2 touchdowns, plus 1 "if no Player on
+your team was deemed to be Stalling during the match" (2025 rulebook p.95).
+The engine records each player deemed to be Stalling
+(`GameState.stallingPlayerIds`, rulebook p.80), so it applies that +1. A
+result reported by score only has no match to read, so it records nobody
+Stalling and pays the +1.
 
 Sevens: the Spike! Journal 22 summary in `docs/SEVENS_RULES.md` changes nothing
-here (L1: the league runs as in the rulebook). A fan-made Sevens rules summary
-sheet gives the same formula: "each team W = 10K x (FA / 2 + team TD)". Sevens
+here (L1: the league runs as in the rulebook), so the Stalling +1 applies too.
+A fan-made Sevens rules summary sheet gives the older formula without it:
+"each team W = 10K x (FA / 2 + team TD)". Sevens
 keeps league Dedicated Fans between 1 and 5 (D7).
 
 ## Requirements
@@ -90,18 +94,19 @@ as a pre-game roll. The Fan Factors SHALL be kept in the game state
 ### Requirement: Each team wins half the Fan Attendance plus its touchdowns
 
 Fan Attendance SHALL be the two Fan Factors added together. Each team SHALL win
-(Fan Attendance / 2 + its own touchdowns) x 10,000 gold pieces. The half SHALL
-NOT be rounded, so an odd Fan Attendance pays a 5,000 gp half. Winner, loser
-and draw SHALL use the same formula.
+(Fan Attendance / 2 + its own touchdowns + 1) x 10,000 gold pieces, without
+the + 1 when a player on the team was deemed to be Stalling during the match.
+The half SHALL NOT be rounded, so an odd Fan Attendance pays a 5,000 gp half.
+Winner, loser and draw SHALL use the same formula.
 
 #### Scenario: Worked example winnings
 
-- **WHEN** both Fan Factors are 4 and the score is 2-1
-- **THEN** Fan Attendance is 8, Team A wins 60,000 gp and Team B wins 50,000 gp
+- **WHEN** both Fan Factors are 4, the score is 2-1 and nobody Stalled
+- **THEN** Fan Attendance is 8, Team A wins 70,000 gp and Team B wins 60,000 gp
 
 #### Scenario: Odd Fan Attendance
 
-- **WHEN** Fan Attendance is 7 and a team scored no touchdowns
+- **WHEN** Fan Attendance is 7 and a team scored no touchdowns and Stalled
 - **THEN** the team wins 35,000 gp
 
 ### Requirement: Only league fixtures pay, into league teams' Treasuries
@@ -152,7 +157,7 @@ counts 1 Dedicated Fan, the fewest a league team can have (D7).
 
 - **WHEN** the worked example's teams are reported 2-1 by score only and the
   D3s come up 2 and 3
-- **THEN** Team A's Treasury rises by 60,000 gp and Team B's by 50,000 gp
+- **THEN** Team A's Treasury rises by 70,000 gp and Team B's by 60,000 gp
 
 ### Requirement: Concessions
 
@@ -167,7 +172,7 @@ plus its touchdowns, times 10,000 gp.
 
 - **WHEN** a team concedes without penalty at a 0-0 score, with Fan Factors 2
   and 3
-- **THEN** each team wins 25,000 gp
+- **THEN** each team wins 35,000 gp
 
 ### Requirement: Dedicated Fans change after the game
 

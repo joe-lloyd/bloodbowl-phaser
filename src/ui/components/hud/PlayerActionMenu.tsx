@@ -131,8 +131,13 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   // Determine initial movement state on selection
   React.useEffect(() => {
     if (selectedPlayer && turnData) {
-      const movementUsed =
-        turnData.movementUsed instanceof Map
+      // The engine's own count: a Ball & Chain square or a Blitz block
+      // spends movement that this copy of the turn never hears about
+      const movementUsed = ServiceContainer.isInitialized()
+        ? ServiceContainer.getInstance().gameService.getMovementUsed(
+            selectedPlayer.id
+          )
+        : turnData.movementUsed instanceof Map
           ? turnData.movementUsed.get(selectedPlayer.id)
           : turnData.movementUsed?.[selectedPlayer.id] || 0;
 

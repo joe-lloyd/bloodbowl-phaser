@@ -172,6 +172,11 @@ export interface RecordFixtureOptions {
    * A played match without them, which had no league team, pays nothing.
    */
   fanFactors?: { home: number; away: number };
+  /**
+   * Whether each side had a player deemed to be Stalling in the played
+   * match. A result reported by score only records nobody Stalling.
+   */
+  stalled?: { home: boolean; away: boolean };
   /** Dice for the Fan Factors of a result reported by score only. */
   rng?: Pick<IRNGService, "rollDie">;
 }
@@ -250,7 +255,12 @@ export async function recordCompetitionFixture(
           (candidate) => candidate.id === context.fixtureId
         )?.result;
         if (result && fanFactors)
-          result.winnings = fixtureWinnings(fanFactors, homeScore, awayScore);
+          result.winnings = fixtureWinnings(
+            fanFactors,
+            homeScore,
+            awayScore,
+            options.stalled ?? { home: false, away: false }
+          );
       }
       const reporterEntrantIndex = next.entrants.findIndex(
         (entrant) =>

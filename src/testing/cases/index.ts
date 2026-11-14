@@ -29,6 +29,7 @@ import { SEVENS_SETUP_CASES } from "./sevens-setup";
 import { DRIVE_RESET_CASES } from "./drive-reset";
 import { DRIVE_TRANSITION_CASES } from "./drive-transition";
 import { TEAM_SPECIAL_RULE_CASES } from "./team-special-rules";
+import { STALLING_CASES } from "./stalling";
 import { ruleScenarioCases } from "./fromRuleConfigs";
 
 /** Cases written directly against the shared contract, by section. */
@@ -42,6 +43,7 @@ export const AUTHORED_CASES: ScenarioCase[] = [
   ...TEAM_SPECIAL_RULE_CASES,
   ...DRIVE_RESET_CASES,
   ...DRIVE_TRANSITION_CASES,
+  ...STALLING_CASES,
 ];
 
 /** Seeded sandbox scenarios, wrapped so they run and report like cases. */
@@ -70,6 +72,7 @@ export {
   SEVENS_SETUP_CASES,
   DRIVE_RESET_CASES,
   DRIVE_TRANSITION_CASES,
+  STALLING_CASES,
 };
 export { ruleScenarioCases, ruleOutcomesMissingSeeds } from "./fromRuleConfigs";
 

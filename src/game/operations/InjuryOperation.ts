@@ -80,6 +80,8 @@ export class InjuryOperation extends GameOperation {
       roll?: number;
       /** Any Casualty is Badly Hurt (a Bloodlust bite). */
       casualtyIsBadlyHurt?: boolean;
+      /** Stunned counts as Knocked-out (Ball & Chain, on the pitch). */
+      stunnedIsKnockedOut?: boolean;
     } = {}
   ) {
     super();
@@ -119,6 +121,9 @@ export class InjuryOperation extends GameOperation {
     );
 
     // 3. Apply status
+    if (this.opts.stunnedIsKnockedOut && ctx.result === InjuryResult.STUNNED) {
+      ctx.result = InjuryResult.KO;
+    }
     switch (ctx.result) {
       case InjuryResult.STUNNED:
         eventBus.emit(GameEventNames.UI_Notification, "STUNNED!");

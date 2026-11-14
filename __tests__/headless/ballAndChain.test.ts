@@ -2,12 +2,11 @@
  * The Fanatic's Ball & Chain Special Action (2025 rulebook), driven through the
  * headless protocol. The catalog pins the two rule facets (an auto-Block on the
  * first Standing player it lurches into; a crowd surf when it wanders off the
- * pitch). These tests drive the raw `ball-and-chain` command: the lurch spends
- * the activation, and a Standing Fanatic is refused every other action.
+ * pitch). These tests drive the raw `ball-and-chain` command: each command is
+ * one square, and a Standing Fanatic is refused every other action.
  */
 
 import { describe, it, expect } from "vitest";
-import { findSeed } from "../../src/game/rules-lab";
 import { TRAIT_RULE_SCENARIOS } from "../../src/data/ruleScenarios/traits";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
@@ -34,20 +33,19 @@ describe("ball & chain protocol round-trip", () => {
   /** Any other placed Goblin, to keep the turn alive as a bystander. */
   const BYSTANDER_INDEX = FANATIC_INDEX === 1 ? 2 : 1;
 
-  it("lurches via the `ball-and-chain` command and ends the activation", async () => {
-    const { seed } = await findSeed(BC_CONFIG, "auto-block");
-    // A bystander keeps the turn from flipping so `hasPlayerActed` survives.
-    const withBystander: Scenario = {
+  it("lurches one square per `ball-and-chain` command until the coach ends it", async () => {
+    // Open ground East of the Fanatic, so the square holds nobody
+    const openGround: Scenario = {
       ...scenario,
       setup: {
         ...scenario.setup,
         team1Placements: [
-          ...scenario.setup.team1Placements,
+          { playerIndex: FANATIC_INDEX, x: 5, y: 5 },
           { playerIndex: BYSTANDER_INDEX, x: 3, y: 9 },
         ],
       },
     };
-    const game = new HeadlessGame({ scenario: withBystander, seed });
+    const game = new HeadlessGame({ scenario: openGround, seed: 1 });
     const fanaticId = game.ctx.team1.players[FANATIC_INDEX].id;
 
     await game.execute({
@@ -63,6 +61,11 @@ describe("ball & chain protocol round-trip", () => {
     });
 
     expect(res.ok).toBe(true);
+    expect(game.ctx.gameService.getMovementUsed(fanaticId)).toBe(1);
+    expect(game.ctx.team1.players[FANATIC_INDEX].gridPosition?.x).toBe(6);
+    expect(game.ctx.gameService.hasPlayerActed(fanaticId)).toBe(false);
+
+    await game.execute({ type: "end-activation", playerId: fanaticId });
     expect(game.ctx.gameService.hasPlayerActed(fanaticId)).toBe(true);
   });
 

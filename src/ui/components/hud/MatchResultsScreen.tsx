@@ -17,7 +17,7 @@ import {
   keepRecordedResult,
   recordCompetitionFixture,
 } from "../../../competition/resultRecording";
-import { earnsWinnings } from "../../../game/rules/winnings";
+import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
 import { CompetitionContext } from "../../../competition/types";
@@ -147,6 +147,7 @@ export function MatchResultsScreen({
           home: state.fanFactors[homeId] ?? 0,
           away: state.fanFactors[awayId] ?? 0,
         },
+        stalled: stalledSides(state.stallingPlayerIds, home, away),
       }
     )
       .then((competition) => {

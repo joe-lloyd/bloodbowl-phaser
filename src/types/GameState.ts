@@ -130,7 +130,14 @@ export interface GameState {
       awaitingSecond?: boolean;
       movementBefore?: number;
     };
+    /** Held the ball and could score without dice when activated (p.80). */
+    stalling?: boolean;
   } | null;
+  /**
+   * Players deemed to be Stalling this match (2025 rulebook p.80); a team
+   * with none earns +1 to its Winnings. Absent = nobody has stalled.
+   */
+  stallingPlayerIds?: string[];
   /** Kickoff-event effects scoped to the current drive; absent = none. */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;
   /** Bribes held per team (Get the Ref); match-scoped, lost at full time. */

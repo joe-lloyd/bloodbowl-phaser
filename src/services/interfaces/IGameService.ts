@@ -242,11 +242,20 @@ export interface IGameService {
   ): Promise<void>;
   /** Throw Bomb Special Action (Bombardier): lob a bomb at a target square */
   throwBomb(throwerId: string, x: number, y: number): Promise<void>;
-  /** Ball & Chain Special Action (Fanatic): lurch up to MA in a chosen facing */
+  /** Ball & Chain Special Action (Fanatic): lurch one square in a chosen facing */
   ballAndChain(
     fanaticId: string,
     facingX: number,
     facingY: number
+  ): Promise<void>;
+  /**
+   * The lurching Fanatic enters an occupied square: a Block Action against a
+   * Standing player, a push against a Prone one. The square finishes once
+   * the block engine has resolved it.
+   */
+  ballAndChainCollision(
+    square: import("../../game/operations/BallAndChainOperation").BallAndChainSquare,
+    targetId: string
   ): Promise<void>;
   /** Special activation actions (Breathe Fire, Projectile Vomit, Hypnotic Gaze, Chomp) */
   performSpecialAction(
