@@ -140,6 +140,7 @@ export class PlayerActionManager {
       this.state.activePlayer = {
         id: playerId,
         action: razzle.actions[0],
+        ...(active.bloodlustUnsated ? { bloodlustUnsated: true } : {}),
         committed: true,
         razzleDazzle: { actions: [razzle.actions[0]], awaitingSecond: true },
       };

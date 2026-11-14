@@ -614,6 +614,7 @@ export class HeadlessGame {
         const declaration = gs.getState().activePlayer;
         if (
           declaration?.id !== attacker.id ||
+          declaration.razzleDazzle?.awaitingSecond ||
           (declaration.action !== "block" && declaration.action !== "blitz") ||
           declaration.blockReplacement
         ) {

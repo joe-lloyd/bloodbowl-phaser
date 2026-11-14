@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
+import { PlayerCondition, PlayerStatus } from "../../src/types/Player";
+import { RosterName } from "../../src/types/Team";
+import { SkillType } from "../../src/types/Skills";
 import { Inducement } from "../../src/types/Inducements";
 import { DesperateMeasure } from "../../src/game/inducements/desperateMeasures";
 import { forceDice } from "../utils/test-helpers";
@@ -62,7 +65,11 @@ async function actionsOf(game: HeadlessGame, playerId: string) {
 }
 
 /** Block the adjacent defender, Push them east, and do not follow up. */
-async function pushEast(game: HeadlessGame, attackerId: string) {
+async function pushEast(
+  game: HeadlessGame,
+  attackerId: string,
+  followUp = false
+) {
   const defender = game.ctx.team2.players[0];
   forceDice(game.ctx.rng, [3]);
   const rolled = await game.execute({
@@ -78,7 +85,7 @@ async function pushEast(game: HeadlessGame, attackerId: string) {
     x: square.x + 1,
     y: square.y,
   });
-  await game.execute({ type: "choose-follow-up", followUp: false });
+  await game.execute({ type: "choose-follow-up", followUp });
   await settle();
 }
 
@@ -110,6 +117,9 @@ describe("Razzle-Dazzle", () => {
       razzleDazzle: { actions: ["move"], awaitingSecond: true },
     });
     expect(state.turn.activatedPlayerIds.has(player.id)).toBe(false);
+    // A stale pitch Move cannot execute before a legal second declaration.
+    await game.ctx.gameService.movePlayer(player.id, [{ x: 9, y: 6 }]);
+    expect(player.gridPosition).toEqual({ x: 9, y: 5 });
     const second = await actionsOf(game, player.id);
     expect(second).toContain("block");
     expect(second).not.toContain("move");
@@ -177,6 +187,143 @@ describe("Razzle-Dazzle", () => {
     await game.execute({ type: "end-activation", playerId: player.id });
     expect(state.activePlayer).toBeNull();
     expect(state.turn.activatedPlayerIds.has(player.id)).toBe(true);
+  });
+
+  it("refuses a pitch shortcut that reuses the completed first Block", async () => {
+    const game = await razzleGame(adjacent);
+    const player = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    const gs = game.ctx.gameService;
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+      razzleDazzle: true,
+    });
+    await pushEast(game, player.id, true);
+    expect(player.gridPosition).toEqual({ x: 10, y: 5 });
+    expect(gs.getState().activePlayer?.razzleDazzle?.awaitingSecond).toBe(true);
+
+    // The pitch calls rollBlockDice directly with the retained declaration.
+    forceDice(game.ctx.rng, [3]);
+    await gs.rollBlockDice(player.id, defender.id, 1, true);
+    await settle();
+    expect(game.pendingDecision()).toBeNull();
+    const forged = await game.execute({
+      type: "block",
+      attackerId: player.id,
+      defenderId: defender.id,
+    });
+    expect(forged.ok).toBe(false);
+    expect(gs.declareAction(player.id, "block")).toBe(false);
+    expect(gs.declareAction(player.id, "move")).toBe(true);
+    expect(
+      (
+        await game.execute({
+          type: "move",
+          playerId: player.id,
+          path: [{ x: 9, y: 5 }],
+        })
+      ).ok
+    ).toBe(true);
+  });
+
+  it("settles failed Bloodlust after the second Action, beside the newly reachable Thrall", async () => {
+    const scenario: Scenario = {
+      ...adjacent,
+      setup: {
+        ...adjacent.setup,
+        team1Roster: RosterName.VAMPIRE,
+        team1Placements: [
+          {
+            playerIndex: 0,
+            x: 9,
+            y: 5,
+            skills: [{ type: SkillType.BLOODLUST, parameter: "2+" }],
+          },
+          { playerIndex: 1, x: 7, y: 7 },
+          { playerIndex: 2, x: 2, y: 9 },
+        ],
+      },
+    };
+    const game = await razzleGame(scenario);
+    const [vampire, thrall] = game.ctx.team1.players;
+    const state = game.ctx.gameService.getState();
+    forceDice(game.ctx.rng, [1]);
+    expect(
+      (
+        await game.execute({
+          type: "declare-action",
+          playerId: vampire.id,
+          action: "block",
+          razzleDazzle: true,
+        })
+      ).ok
+    ).toBe(true);
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.BLOODLUST,
+    });
+    await game.execute({ type: "use-reaction", accept: false });
+    await pushEast(game, vampire.id);
+    expect(state.activePlayer).toMatchObject({
+      id: vampire.id,
+      bloodlustUnsated: true,
+      razzleDazzle: { awaitingSecond: true },
+    });
+    expect(vampire.conditions ?? []).toEqual([]);
+    expect(thrall.status).toBe(PlayerStatus.ACTIVE);
+    expect(
+      (
+        await game.execute({
+          type: "declare-action",
+          playerId: vampire.id,
+          action: "move",
+        })
+      ).ok
+    ).toBe(true);
+    expect(state.activePlayer?.bloodlustUnsated).toBe(true);
+    // Cancelling and reselecting the second declaration still owes the bite.
+    expect(
+      (await game.execute({ type: "cancel-action", playerId: vampire.id })).ok
+    ).toBe(true);
+    expect(state.activePlayer?.bloodlustUnsated).toBe(true);
+    expect(
+      (
+        await game.execute({
+          type: "declare-action",
+          playerId: vampire.id,
+          action: "move",
+        })
+      ).ok
+    ).toBe(true);
+    expect(state.activePlayer?.bloodlustUnsated).toBe(true);
+    forceDice(game.ctx.rng, [6]);
+    expect(
+      (
+        await game.execute({
+          type: "move",
+          playerId: vampire.id,
+          path: [{ x: 8, y: 6 }],
+        })
+      ).ok
+    ).toBe(true);
+    await game.execute({ type: "end-activation", playerId: vampire.id });
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.BLOODLUST,
+    });
+    forceDice(game.ctx.rng, [1, 1]);
+    expect(
+      (await game.execute({ type: "use-reaction", accept: true })).ok
+    ).toBe(true);
+    expect(thrall.status).toBe(PlayerStatus.STUNNED);
+    expect(vampire.conditions?.map((c) => c.type) ?? []).not.toContain(
+      PlayerCondition.DISTRACTED
+    );
+    expect(state.activeTeamId).toBe(game.ctx.team1.id);
+    expect(state.activePlayer).toBeNull();
+    expect(state.turn.activatedPlayerIds.has(vampire.id)).toBe(true);
   });
 
   it("keeps the team's one Blitz a turn: a Blitz already spent cannot be the second Action", async () => {

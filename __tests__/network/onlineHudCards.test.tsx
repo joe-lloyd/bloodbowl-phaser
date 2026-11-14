@@ -159,6 +159,7 @@ describe("online HUD cards", () => {
 const ENGINE_ONLY = [
   "addTouchdown",
   "announceFullTime",
+  "awaitingSecondAction",
   "biteBeforeBallAction",
   "blockPlayer",
   "castSportsWizards",

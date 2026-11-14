@@ -1518,8 +1518,9 @@ export class GameplayInteractionController {
               // Implicit Action Declaration
               // Only check current action if it's for THIS player
               const currentAction =
-                state.activePlayer?.id === selectedPlayer.id
-                  ? state.activePlayer?.action
+                state.activePlayer?.id === selectedPlayer.id &&
+                !state.activePlayer.razzleDazzle?.awaitingSecond
+                  ? state.activePlayer.action
                   : undefined;
 
               // A Blitz allows only one Block; after it, further clicks move.
@@ -1537,6 +1538,7 @@ export class GameplayInteractionController {
               // player, a guest, and the host all take the same path.
               const declaredReplacement =
                 state.activePlayer?.id === selectedPlayer.id &&
+                !state.activePlayer.razzleDazzle?.awaitingSecond &&
                 !state.activePlayer.blockReplacementUsed
                   ? state.activePlayer.blockReplacement
                   : undefined;
@@ -2293,6 +2295,10 @@ export class GameplayInteractionController {
 
   /** A square click plots a move: declare one if the player has no action. */
   private declareMoveIfNone(playerId: string, action?: string | null): boolean {
+    const active = this.gameService.getState().activePlayer;
+    if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
+      return this.gameService.declareAction(playerId, "move");
+    }
     if (!action) {
       this.gameService.declareAction(playerId, "move");
       return true;

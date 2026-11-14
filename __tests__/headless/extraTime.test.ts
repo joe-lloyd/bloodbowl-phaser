@@ -10,6 +10,7 @@ import { heuristicCoach } from "../../src/simulation/coaches/heuristic";
 import { GameEventNames } from "../../src/types/events";
 import { GamePhase } from "../../src/types/GameState";
 import { RosterName } from "../../src/types/Team";
+import { KickoffEvent } from "../../src/game/kickoff/kickoffEvents";
 import { GameConfig } from "../../src/config/GameConfig";
 
 const ROSTERS: [RosterName, RosterName] = [RosterName.HUMAN, RosterName.ORC];
@@ -33,6 +34,11 @@ async function play(seed: number, knockout: boolean) {
   });
   // The first and last turn each team started in Extra Time
   const extraTimeTurns: Record<string, [number, number]> = {};
+  let extraTimeOpeningKickoff: KickoffEvent | undefined;
+  eventBus.on(GameEventNames.KickoffResult, ({ event }) => {
+    if (state().turn.extraTime && Object.keys(extraTimeTurns).length === 0)
+      extraTimeOpeningKickoff = event;
+  });
   eventBus.on(GameEventNames.TurnStarted, ({ teamId, turnNumber }) => {
     if (!state().turn.extraTime) return;
     extraTimeTurns[teamId] = [
@@ -66,6 +72,7 @@ async function play(seed: number, knockout: boolean) {
     rerollsAtFullTime,
     rerollsInExtraTime,
     extraTimeTurns,
+    extraTimeOpeningKickoff,
     fullTime,
     rollOffWinner: last && (last[home] > last[away] ? 0 : 1),
     kickChoice: recording.steps.find((step) => step.label === "Use Extra Time"),
@@ -106,8 +113,10 @@ describe("a knockout tie", () => {
         continue;
       }
       expect(penalties![home] + penalties![away], `seed ${seed}`).toBe(5);
-      // Extra Time ran its full length, a Sevens half of 6 turns each
-      const fullHalf = [1, GameConfig.TURNS_PER_HALF];
+      // Extra Time has six turn markers; an opening Time-Out advances both.
+      const firstTurn =
+        game.extraTimeOpeningKickoff === KickoffEvent.TIME_OUT ? 2 : 1;
+      const fullHalf = [firstTurn, GameConfig.TURNS_PER_HALF];
       expect(game.extraTimeTurns, `seed ${seed}`).toEqual({
         [home]: fullHalf,
         [away]: fullHalf,
@@ -125,10 +134,10 @@ describe("a knockout tie", () => {
   }, 120_000);
 
   it("ends a game level after the second half as a draw when it is not a knockout", async () => {
-    // Seed 4 is level at full time, and goes to Penalties as a knockout
-    const knockout = await play(4, true);
+    // Seed 2 is level at full time, and goes to Penalties as a knockout
+    const knockout = await play(2, true);
     expect(knockout.state.result?.penalties).toBeDefined();
-    const friendly = await play(4, false);
+    const friendly = await play(2, false);
     expect(friendly.state.score[friendly.home]).toBe(
       friendly.state.score[friendly.away]
     );

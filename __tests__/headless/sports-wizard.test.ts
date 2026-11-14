@@ -8,6 +8,7 @@ import { DesperateMeasure } from "../../src/game/inducements/desperateMeasures";
 import { forceDice } from "../utils/test-helpers";
 import { bought, commit, settle } from "../utils/inducement-helpers";
 import { SCENARIOS } from "../../src/data/scenarios";
+import { CrowdInjuryOperation } from "../../src/game/operations/CrowdInjuryOperation";
 import { defaultAnswer } from "../../src/network/decisionTimeouts";
 
 /**
@@ -185,6 +186,41 @@ describe("the Sports-Wizard", () => {
       game.ctx.gameService.getState().matchInducements?.sportsWizards
     ).toEqual([]);
   });
+
+  it.each(["crowd", "trapdoor"] as const)(
+    "a Frog suffering a fatal %s roll is only Badly Hurt",
+    async (route) => {
+      const game = await withWizard();
+      const target = game.ctx.team2.players[0];
+      await endTurn(game);
+      forceDice(game.ctx.rng, [6]);
+      expect(
+        (
+          await game.execute({
+            type: "choose-inducement",
+            spell: "zap",
+            playerId: target.id,
+          })
+        ).ok
+      ).toBe(true);
+      await settle();
+      expect(target.conditions?.map((c) => c.type)).toContain("Frog");
+      forceDice(game.ctx.rng, [6, 6]);
+      game.ctx.gameService.flowManager.add(
+        new CrowdInjuryOperation(
+          target.id,
+          { x: 0, y: 5 },
+          false,
+          route === "trapdoor" ? { carriedBall: false } : undefined
+        )
+      );
+      await settle();
+      expect(target.injuries).toEqual([InjuryType.BADLY_HURT]);
+      expect(target.status).toBe(PlayerStatus.INJURED);
+      expect(target.gridPosition).toBeUndefined();
+      expect(game.pendingDecision()).toBeNull();
+    }
+  );
 
   it("asks both coaches, and a Frog's Casualty is always Badly Hurt", async () => {
     const game = await withWizard({ both: true });

@@ -968,7 +968,12 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
-    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
+    // Both Razzle-Dazzle Actions share one activation: the bite is due after both.
+    if (this.holdForSecondAction(playerId)) {
+      this.blitzBlockUsed.delete(playerId);
+      return;
+    }
+    // A failed Bloodlust is settled before ending the activation.
     if (this.takeUnsatedBloodlust(playerId)) {
       this.flowManager.add(
         new BloodlustBiteOperation(playerId, "consequences", () =>
@@ -1001,7 +1006,6 @@ export class GameService implements IGameService {
     ) {
       this.triggerTurnover("Secure the Ball ended off the ball");
     }
-    if (this.holdForSecondAction(playerId)) return;
     if (this.state.activePlayer?.id === playerId) {
       // The activation being finalized commits the declaration — a Blitz
       // ended without moving or rolling still spends the team's Blitz.
@@ -1010,6 +1014,13 @@ export class GameService implements IGameService {
     }
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+  }
+
+  private awaitingSecondAction(playerId: string): boolean {
+    return (
+      this.state.activePlayer?.id === playerId &&
+      !!this.state.activePlayer.razzleDazzle?.awaitingSecond
+    );
   }
 
   /**
@@ -1028,7 +1039,10 @@ export class GameService implements IGameService {
       this.state.phase !== GamePhase.PLAY ||
       this.isTurnoverInProgress() ||
       player?.status !== PlayerStatus.ACTIVE ||
-      !player.gridPosition
+      !player.gridPosition ||
+      // An unsuccessful Secure the Ball must end in a Turnover, not a second Action.
+      (isSecuringBall(this.state, playerId) &&
+        !this.ballManager.hasBall(playerId))
     ) {
       return false;
     }
@@ -1176,6 +1190,7 @@ export class GameService implements IGameService {
   // ===== Action Methods =====
 
   previewBlock(attackerId: string, defenderId: string): void {
+    if (this.awaitingSecondAction(attackerId)) return;
     this.blockManager.previewBlock(attackerId, defenderId);
   }
 
@@ -1184,6 +1199,7 @@ export class GameService implements IGameService {
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
+    if (this.awaitingSecondAction(attackerId)) return;
     await this.blockManager.startMultipleBlock(
       attackerId,
       defender1Id,
@@ -1200,6 +1216,7 @@ export class GameService implements IGameService {
     const declaration = this.state.activePlayer;
     if (
       declaration?.id !== attackerId ||
+      this.awaitingSecondAction(attackerId) ||
       (declaration.action !== "block" && declaration.action !== "blitz") ||
       declaration.blockReplacement ||
       this.hasUsedBlitzBlock(attackerId)
@@ -1577,6 +1594,8 @@ export class GameService implements IGameService {
     targetY: number,
     hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
+    if (this.awaitingSecondAction(passerId))
+      return { success: false, result: "second-action-not-declared" };
     // NOTE: Signature kept async for compatibility, but it resolves immediately
     // while the operation runs in background/flow.
 
@@ -1671,6 +1690,8 @@ export class GameService implements IGameService {
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
+    if (this.awaitingSecondAction(passerId))
+      return { success: false, result: "second-action-not-declared" };
     if (this.state.phase !== GamePhase.PLAY) {
       return { success: false, result: "Not in play phase" };
     }
@@ -1716,6 +1737,7 @@ export class GameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     const player = this.getPlayerById(playerId);
     if (
       !player?.gridPosition ||
@@ -2220,6 +2242,7 @@ export class GameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     // Bombardier: "A player that declared a Throw Bomb Special Action may
     // not perform a Move Action before throwing the bomb" (p.125).
     const declared = this.state.activePlayer;
@@ -2236,6 +2259,7 @@ export class GameService implements IGameService {
     playerId: string,
     square: { x: number; y: number }
   ): boolean {
+    if (this.awaitingSecondAction(playerId)) return false;
     const player = this.getPlayerById(playerId);
     const active = this.state.activePlayer;
     if (
@@ -2262,6 +2286,7 @@ export class GameService implements IGameService {
   }
 
   async standUp(playerId: string): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
@@ -2271,6 +2296,7 @@ export class GameService implements IGameService {
     playerId: string,
     target: { x: number; y: number }
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     const context = this.getFlowContext();
     await this.movementManager.jumpPlayer(playerId, target, context);
     this.playerActionManager.commitAction(playerId);
@@ -2619,6 +2645,7 @@ export class GameService implements IGameService {
         actions: [firstAction, action],
         movementBefore: this.state.turn.movementUsed.get(playerId) ?? 0,
       };
+      if (held?.bloodlustUnsated) declared.bloodlustUnsated = true;
       // The activation's rolls (Bone Head, …) came with its first Action
       return true;
     }
@@ -2705,6 +2732,7 @@ export class GameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(foulerId)) return;
     if (this.state.phase !== GamePhase.PLAY) {
       return;
     }
@@ -2726,6 +2754,7 @@ export class GameService implements IGameService {
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
+    if (this.awaitingSecondAction(attackerId)) return false;
     const gate = await this.commitBlockReplacement(
       attackerId,
       targetId,
@@ -2754,6 +2783,7 @@ export class GameService implements IGameService {
     mode?: "throw" | "kick",
     swoopFacing?: SwoopFacing
   ): Promise<void> {
+    if (this.awaitingSecondAction(throwerId)) return;
     if (
       this.state.phase !== GamePhase.PLAY &&
       !this.kickoffEventManager.isChargeActive()
@@ -2808,6 +2838,7 @@ export class GameService implements IGameService {
     x: number,
     y: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(throwerId)) return;
     if (this.state.phase !== GamePhase.PLAY) return;
 
     const thrower = this.getPlayerById(throwerId);
@@ -2834,6 +2865,7 @@ export class GameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(fanaticId)) return;
     if (this.state.phase !== GamePhase.PLAY) return;
 
     const fanatic = this.getPlayerById(fanaticId);
@@ -2862,6 +2894,7 @@ export class GameService implements IGameService {
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
+    if (this.awaitingSecondAction(attackerId)) return false;
     if (this.state.phase !== GamePhase.PLAY) return false;
     const attacker = this.getPlayerById(attackerId);
     if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return false;

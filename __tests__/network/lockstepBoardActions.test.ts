@@ -13,6 +13,8 @@ import { NetworkedGameService } from "../../src/network/NetworkedGameService";
 import { createInMemoryTransportPair } from "../../src/network/transport";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { Scenario } from "../../src/types/Scenario";
+import { SCENARIOS } from "../../src/data/scenarios";
+import { PlayerStatus } from "../../src/types/Player";
 import { forceDice } from "../utils/test-helpers";
 
 afterEach(() => vi.restoreAllMocks());
@@ -83,6 +85,42 @@ function twoEngines(scenario: Scenario) {
 }
 
 describe("board actions in an online match", () => {
+  it("casts Fireball from a pitch square through the network facade on both engines", async () => {
+    const scenario = structuredClone(
+      SCENARIOS.find((s) => s.id === "sports-wizard-spells")!
+    );
+    // The guest owns the scroll; their turn ends before the spell is offered.
+    scenario.setup.activeTeam = "team2";
+    scenario.setup.measures = { team2: scenario.setup.measures!.team1! };
+    const { host, guest, board, settled } = twoEngines(scenario);
+    board.endTurn();
+    await settled();
+    expect(guest.pendingDecision()).toMatchObject({
+      type: "inducement-choice",
+      kind: "sports-wizard",
+      chooserTeamId: guest.ctx.team2.id,
+    });
+    const target = guest.ctx.team1.players[0];
+    const square = { ...target.gridPosition! };
+    // Hit every target, but fail their Armour Rolls.
+    for (const game of [host, guest]) forceDice(game.ctx.rng, [6, 1, 1]);
+    expect(board.answerInducementChoice({ spell: "fireball", square })).toBe(
+      true
+    );
+    await settled();
+    for (const game of [host, guest]) {
+      expect(game.pendingDecision()).toBeNull();
+      expect(game.ctx.team1.players[0].status).toBe(PlayerStatus.PRONE);
+      expect(
+        game.ctx.gameService.getState().matchInducements?.sportsWizards
+      ).toEqual([]);
+      expect(game.ctx.gameService.getState().activeTeamId).toBe(
+        game.ctx.team1.id
+      );
+    }
+    expect(stateChecksum(host)).toBe(stateChecksum(guest));
+  });
+
   it("a blitz block with a Rush charges the square on both engines", async () => {
     const probe = new HeadlessGame({ scenario: blitzScenario(12), seed: 9 });
     const ma = probe.ctx.team2.players[0].stats.MA;
