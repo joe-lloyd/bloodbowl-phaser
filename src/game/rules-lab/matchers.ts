@@ -96,8 +96,8 @@ export function playerAt(
 }
 
 /**
- * total − value of the FIRST skill-check dice event whose rollType starts
- * with the prefix — i.e. the net modifier that was applied to the roll.
+ * The net modifier applied to the FIRST skill-check dice event whose
+ * rollType starts with the prefix.
  */
 export function skillCheckDiff(
   result: ScriptResult,
@@ -109,8 +109,14 @@ export function skillCheckDiff(
       (e.data as { rollType?: string })?.rollType?.startsWith(rollTypePrefix)
   );
   if (!event) return undefined;
-  const data = event.data as { value: number; total: number };
-  return data.total - data.value;
+  const data = event.data as {
+    value: number;
+    total: number;
+    context?: { modifier?: number };
+  };
+  // The applied modifier, not total - roll: a total is capped at 6
+  // (errata p.33), which would hide part of a large modifier
+  return data.context?.modifier ?? data.total - data.value;
 }
 
 /**
