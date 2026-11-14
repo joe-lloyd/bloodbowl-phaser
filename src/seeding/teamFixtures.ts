@@ -29,6 +29,7 @@ import { PlayerTemplate, createPlayer } from "../types/Player";
 import { SkillType, hasSkill } from "../types/Skills";
 import {
   RosterViolation,
+  isBigGuy,
   isLinemanPosition,
   validateRosterLegality,
 } from "../game/rules/rosterLegality";
@@ -123,7 +124,9 @@ const ADVANCEMENT_MODE_CYCLE: readonly TeamAdvancementMode[] = [
 /** Deterministic advancement mode for a seeded roster (see the module
  *  doc-comment and development-seed-data: "Seed teams carry an explicit,
  *  locked advancement mode"). */
-export function seedAdvancementMode(rosterName: RosterName): TeamAdvancementMode {
+export function seedAdvancementMode(
+  rosterName: RosterName
+): TeamAdvancementMode {
   if (PROGRESSED_ADVANCED_LEAGUE_ROSTERS.has(rosterName)) {
     return "advanced-league";
   }
@@ -151,8 +154,12 @@ function planSquad(roster: TeamRoster, fixtureKey: string): SquadPlan {
   const picks: PlayerTemplate[] = [];
   const counts = new Map<string, number>();
   const countOf = (t: PlayerTemplate) => counts.get(t.positionName) ?? 0;
+  const bigGuyRoom = (t: PlayerTemplate) =>
+    roster.maxBigGuys === undefined ||
+    !isBigGuy(t.keywords) ||
+    picks.filter((p) => isBigGuy(p.keywords)).length < roster.maxBigGuys;
   const canTake = (t: PlayerTemplate) =>
-    t.maxAllowed === undefined || countOf(t) < t.maxAllowed;
+    (t.maxAllowed === undefined || countOf(t) < t.maxAllowed) && bigGuyRoom(t);
   const take = (t: PlayerTemplate) => {
     picks.push(t);
     counts.set(t.positionName, countOf(t) + 1);

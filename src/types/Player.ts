@@ -241,33 +241,31 @@ export interface PlayerTemplate {
 export enum RaceKeyWord {
   ANIMAL = "Animal",
   BEASTMAN = "Beastman",
+  CONSTRUCT = "Construct",
   DWARF = "Dwarf",
   ELF = "Elf",
+  GHOUL = "Ghoul",
+  GNOBLAR = "Gnoblar",
   GNOME = "Gnome",
   GOBLIN = "Goblin",
   HALFLING = "Halfling",
   HUMAN = "Human",
-  KHORNGOR = "Khorngor",
-  KROXIGOR = "Kroxigor",
   LIZARDMAN = "Lizardman",
   MINOTAUR = "Minotaur",
-  MUMMY = "Mummy",
-  NORSE = "Norse",
   OGRE = "Ogre",
   ORC = "Orc",
-  SAURUS = "Saurus",
   SKAVEN = "Skaven",
   SKELETON = "Skeleton",
-  SKINK = "Skink",
   SNOTLING = "Snotling",
+  SPAWN = "Spawn",
   TREEMAN = "Treeman",
   TROLL = "Troll",
   UNDEAD = "Undead",
   VAMPIRE = "Vampire",
   WEREWOLF = "Werewolf",
-  WIGHT = "Wight",
+  WRAITH = "Wraith",
+  YHETEE = "Yhetee",
   ZOMBIE = "Zombie",
-  RAT_OGRE = "Rat Ogre",
 }
 
 export enum PositionKeyWord {
@@ -282,7 +280,6 @@ export enum PositionKeyWord {
 
 export enum TraitKeyWord {
   BIG_GUY = "Big Guy",
-  UNDEAD = "Undead",
   /** Vampire Thrall Linemen: the team-mates a failed Bloodlust may bite. */
   THRALL = "Thrall",
 }

@@ -1,6 +1,7 @@
 /**
  * Roster templates for different Blood Bowl races
- * Based on Blood Bowl 2020 rules
+ * Based on the 2025 rulebook (Third Season) roster pages, the March 2026
+ * High Elf release and the May 2026 errata
  */
 
 import {
@@ -219,10 +220,8 @@ const CHAOS_CHOSEN_ROSTER: TeamRoster = {
   rerollCost: 50_000,
   leagues: [League.CHAOS_CLASH],
   specialRules: [TeamSpecialRule.FAVOURED_OF],
-  additionalRules: [
-    AdditionalRule.FAVOURED_OF,
-    AdditionalRule.ONLY_ALLOWED_ONE_BIG_GUY,
-  ],
+  additionalRules: [AdditionalRule.FAVOURED_OF],
+  maxBigGuys: 1,
   tier: 3,
   apothecary: true,
   playerTemplates: [
@@ -245,7 +244,7 @@ const CHAOS_CHOSEN_ROSTER: TeamRoster = {
       positionName: "Chaos Chosen",
       keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.HUMAN],
       cost: 100_000,
-      stats: { MA: 5, ST: 4, AG: 5, PA: 5, AV: 10 },
+      stats: { MA: 5, ST: 4, AG: 3, PA: 5, AV: 10 },
       skills: [getSkill(SkillType.ARM_BAR)],
       maxAllowed: 4,
       primary: [
@@ -308,11 +307,7 @@ const CHAOS_CHOSEN_ROSTER: TeamRoster = {
       ],
       maxAllowed: 1,
       primary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
-      secondary: [
-        SkillCategory.AGILITY,
-        SkillCategory.GENERAL,
-        SkillCategory.PASSING,
-      ],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
     },
   ],
 };
@@ -389,7 +384,7 @@ const CHAOS_DWARF_ROSTER: TeamRoster = {
     },
     {
       positionName: "Bull Centaur Blitzer",
-      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.BEASTMAN],
+      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.DWARF],
       cost: 130_000,
       stats: { MA: 6, ST: 4, AG: 4, PA: 6, AV: 10 },
       skills: [
@@ -420,12 +415,8 @@ const CHAOS_DWARF_ROSTER: TeamRoster = {
         getSkill(SkillType.UNCHANNELLED_FURY),
       ],
       maxAllowed: 1,
-      primary: [SkillCategory.STRENGTH],
-      secondary: [
-        SkillCategory.AGILITY,
-        SkillCategory.GENERAL,
-        SkillCategory.MUTATION,
-      ],
+      primary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
     },
   ],
 };
@@ -442,6 +433,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     AdditionalRule.PICK_FAVOURED_OF_SLAANESH,
     AdditionalRule.PICK_FAVOURED_OF_TZEENTCH,
   ],
+  maxBigGuys: 3,
   tier: 3,
   apothecary: true,
   playerTemplates: [
@@ -450,7 +442,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
       keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.HUMAN],
       cost: 50_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
-      skills: [],
+      skills: [getSkill(SkillType.ANIMOSITY, "all")],
       maxAllowed: 16,
       primary: [
         SkillCategory.DEVIOUS,
@@ -480,7 +472,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Renegade Goblin",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.GOBLIN],
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.GOBLIN],
       cost: 40_000,
       stats: { MA: 6, ST: 2, AG: 3, PA: 4, AV: 8 },
       skills: [
@@ -499,7 +491,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Renegade Orc",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.ORC],
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.ORC],
       cost: 50_000,
       stats: { MA: 5, ST: 3, AG: 3, PA: 4, AV: 10 },
       skills: [getSkill(SkillType.ANIMOSITY, "all")],
@@ -513,7 +505,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Renegade Skaven",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.SKAVEN],
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.SKAVEN],
       cost: 50_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 4, AV: 8 },
       skills: [getSkill(SkillType.ANIMOSITY, "all")],
@@ -527,7 +519,7 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Renegade Dark Elf",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.ELF],
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.ELF],
       cost: 65_000,
       stats: { MA: 6, ST: 3, AG: 2, PA: 3, AV: 9 },
       skills: [getSkill(SkillType.ANIMOSITY, "all")],
@@ -586,15 +578,15 @@ const CHAOS_RENEGADE_ROSTER: TeamRoster = {
     {
       // @TODO check stats
       positionName: "Renegade Rat Ogre",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.RAT_OGRE],
-      cost: 140_000,
-      stats: { MA: 6, ST: 5, AG: 4, PA: 5, AV: 10 },
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SKAVEN],
+      cost: 150_000,
+      stats: { MA: 6, ST: 5, AG: 4, PA: 6, AV: 9 },
       skills: [
         getSkill(SkillType.ANIMAL_SAVAGERY),
+        getSkill(SkillType.FRENZY),
         getSkill(SkillType.LONER, "4+"),
         getSkill(SkillType.MIGHTY_BLOW),
-        getSkill(SkillType.THICK_SKULL),
-        getSkill(SkillType.THROW_TEAM_MATE),
+        getSkill(SkillType.PREHENSILE_TAIL),
       ],
       maxAllowed: 1,
       primary: [SkillCategory.STRENGTH],
@@ -670,9 +662,13 @@ const DARK_ELF_ROSTER: TeamRoster = {
       cost: 105_000,
       stats: { MA: 7, ST: 3, AG: 2, PA: 3, AV: 9 },
       skills: [getSkill(SkillType.BLOCK)],
-      maxAllowed: 4,
+      maxAllowed: 2,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
-      secondary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
+      secondary: [
+        SkillCategory.DEVIOUS,
+        SkillCategory.PASSING,
+        SkillCategory.STRENGTH,
+      ],
     },
     {
       positionName: "Assassin",
@@ -700,7 +696,7 @@ const DARK_ELF_ROSTER: TeamRoster = {
       ],
       maxAllowed: 2,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
-      secondary: [SkillCategory.PASSING, SkillCategory.STRENGTH],
+      secondary: [SkillCategory.DEVIOUS, SkillCategory.STRENGTH],
     },
   ],
 };
@@ -710,7 +706,7 @@ const DARK_ELF_ROSTER: TeamRoster = {
  */
 const DWARF_ROSTER: TeamRoster = {
   rosterName: RosterName.DWARF,
-  rerollCost: 50_000,
+  rerollCost: 60_000,
   leagues: [League.WORLDS_EDGE_SUPERLEAGUE],
   specialRules: [
     TeamSpecialRule.BRAWLIN_BRUTES,
@@ -781,12 +777,16 @@ const DWARF_ROSTER: TeamRoster = {
     },
     {
       positionName: "Deathroller",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.DWARF],
+      keywords: [
+        TraitKeyWord.BIG_GUY,
+        RaceKeyWord.DWARF,
+        PositionKeyWord.SPECIAL,
+      ],
       cost: 170_000,
-      stats: { MA: 4, ST: 7, AG: 5, PA: 6, AV: 11 },
+      stats: { MA: 5, ST: 7, AG: 5, PA: 6, AV: 11 },
       skills: [
         getSkill(SkillType.BREAK_TACKLE),
-        getSkill(SkillType.DIRTY_PLAYER, "+2"),
+        getSkill(SkillType.DIRTY_PLAYER),
         getSkill(SkillType.JUGGERNAUT),
         getSkill(SkillType.LONER, "4+"),
         getSkill(SkillType.MIGHTY_BLOW),
@@ -965,7 +965,7 @@ const GNOME_ROSTER: TeamRoster = {
     },
     {
       positionName: "Gnome Beastmaster",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.GNOME],
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.GNOME],
       cost: 55_000,
       stats: { MA: 5, ST: 2, AG: 3, PA: 4, AV: 8 },
       skills: [
@@ -999,7 +999,7 @@ const GNOME_ROSTER: TeamRoster = {
     },
     {
       positionName: "Woodland Fox",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.ANIMAL],
+      keywords: [RaceKeyWord.ANIMAL, PositionKeyWord.RUNNER],
       cost: 50_000,
       stats: { MA: 7, ST: 2, AG: 2, PA: 6, AV: 6 },
       skills: [
@@ -1222,7 +1222,7 @@ const HALFLING_ROSTER: TeamRoster = {
     },
     {
       positionName: "Halfling Hefty",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.HALFLING],
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.HALFLING],
       cost: 50_000,
       stats: { MA: 5, ST: 2, AG: 3, PA: 3, AV: 8 },
       skills: [
@@ -1313,7 +1313,11 @@ const HUMAN_ROSTER: TeamRoster = {
       skills: [getSkill(SkillType.PASS), getSkill(SkillType.SURE_HANDS)],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
-      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
+      secondary: [
+        SkillCategory.AGILITY,
+        SkillCategory.DEVIOUS,
+        SkillCategory.STRENGTH,
+      ],
     },
     {
       positionName: "Human Catcher",
@@ -1337,7 +1341,7 @@ const HUMAN_ROSTER: TeamRoster = {
       skills: [getSkill(SkillType.BLOCK), getSkill(SkillType.TACKLE)],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
-      secondary: [SkillCategory.AGILITY, SkillCategory.PASSING],
+      secondary: [SkillCategory.AGILITY, SkillCategory.DEVIOUS],
     },
     {
       positionName: "Halfling Hopeful",
@@ -1351,7 +1355,11 @@ const HUMAN_ROSTER: TeamRoster = {
       ],
       maxAllowed: 3,
       primary: [SkillCategory.AGILITY],
-      secondary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
+      secondary: [
+        SkillCategory.DEVIOUS,
+        SkillCategory.GENERAL,
+        SkillCategory.STRENGTH,
+      ],
     },
     {
       positionName: "Ogre",
@@ -1360,7 +1368,7 @@ const HUMAN_ROSTER: TeamRoster = {
       stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
       skills: [
         getSkill(SkillType.BONE_HEAD),
-        getSkill(SkillType.LONER, "4+"),
+        getSkill(SkillType.LONER, "3+"),
         getSkill(SkillType.MIGHTY_BLOW),
         getSkill(SkillType.THICK_SKULL),
         getSkill(SkillType.THROW_TEAM_MATE),
@@ -1395,7 +1403,7 @@ const IMPERIAL_NOBILITY_ROSTER: TeamRoster = {
       positionName: "Imperial Thrower",
       keywords: [PositionKeyWord.THROWER, RaceKeyWord.HUMAN],
       cost: 75_000,
-      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 9 },
+      stats: { MA: 6, ST: 3, AG: 3, PA: 2, AV: 9 },
       skills: [
         getSkill(SkillType.GIVE_AND_GO),
         getSkill(SkillType.PASS),
@@ -1415,7 +1423,7 @@ const IMPERIAL_NOBILITY_ROSTER: TeamRoster = {
         getSkill(SkillType.CATCH),
         getSkill(SkillType.PRO),
       ],
-      maxAllowed: 4,
+      maxAllowed: 2,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
       secondary: [SkillCategory.PASSING, SkillCategory.STRENGTH],
     },
@@ -1425,7 +1433,7 @@ const IMPERIAL_NOBILITY_ROSTER: TeamRoster = {
       cost: 85_000,
       stats: { MA: 5, ST: 3, AG: 3, PA: 4, AV: 9 },
       skills: [getSkill(SkillType.STAND_FIRM), getSkill(SkillType.WRESTLE)],
-      maxAllowed: 2,
+      maxAllowed: 4,
       primary: [SkillCategory.GENERAL, SkillCategory.STRENGTH],
       secondary: [SkillCategory.AGILITY],
     },
@@ -1436,7 +1444,7 @@ const IMPERIAL_NOBILITY_ROSTER: TeamRoster = {
       stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
       skills: [
         getSkill(SkillType.BONE_HEAD),
-        getSkill(SkillType.LONER, "4+"),
+        getSkill(SkillType.LONER, "3+"),
         getSkill(SkillType.MIGHTY_BLOW),
         getSkill(SkillType.THICK_SKULL),
         getSkill(SkillType.THROW_TEAM_MATE),
@@ -1475,7 +1483,7 @@ const KHORNE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Khorngor",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.KHORNGOR],
+      keywords: [RaceKeyWord.BEASTMAN, PositionKeyWord.RUNNER],
       cost: 70_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
       skills: [
@@ -1512,7 +1520,7 @@ const KHORNE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Bloodspawn",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.HUMAN],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SPAWN],
       cost: 160_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 6, AV: 9 },
       skills: [
@@ -1539,7 +1547,7 @@ const LIZARDMEN_ROSTER: TeamRoster = {
   playerTemplates: [
     {
       positionName: "Skink Lineman",
-      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.SKINK],
+      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.LIZARDMAN],
       cost: 60_000,
       stats: { MA: 8, ST: 2, AG: 3, PA: 4, AV: 8 },
       skills: [getSkill(SkillType.DODGE), getSkill(SkillType.STUNTY)],
@@ -1554,7 +1562,7 @@ const LIZARDMEN_ROSTER: TeamRoster = {
     },
     {
       positionName: "Chameleon Skink",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.SKINK],
+      keywords: [RaceKeyWord.LIZARDMAN, PositionKeyWord.THROWER],
       cost: 70_000,
       stats: { MA: 7, ST: 2, AG: 3, PA: 3, AV: 8 },
       skills: [
@@ -1573,7 +1581,7 @@ const LIZARDMEN_ROSTER: TeamRoster = {
     },
     {
       positionName: "Saurus Blocker",
-      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.SAURUS],
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.LIZARDMAN],
       cost: 90_000,
       stats: { MA: 6, ST: 4, AG: 5, PA: 6, AV: 10 },
       skills: [getSkill(SkillType.JUGGERNAUT), getSkill(SkillType.UNSTEADY)],
@@ -1583,7 +1591,7 @@ const LIZARDMEN_ROSTER: TeamRoster = {
     },
     {
       positionName: "Kroxigor",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.KROXIGOR],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.LIZARDMAN],
       cost: 140_000,
       stats: { MA: 6, ST: 5, AG: 5, PA: 6, AV: 10 },
       skills: [
@@ -1611,9 +1619,10 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
     {
       positionName: "Zombie Lineman",
       keywords: [
+        RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
+        RaceKeyWord.UNDEAD,
         RaceKeyWord.ZOMBIE,
-        TraitKeyWord.UNDEAD,
       ],
       cost: 40_000,
       stats: { MA: 4, ST: 3, AG: 4, PA: 6, AV: 9 },
@@ -1628,7 +1637,7 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
     },
     {
       positionName: "Ghoul Runner",
-      keywords: [PositionKeyWord.RUNNER, RaceKeyWord.UNDEAD],
+      keywords: [RaceKeyWord.GHOUL, PositionKeyWord.RUNNER, RaceKeyWord.UNDEAD],
       cost: 75_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 3, AV: 8 },
       skills: [getSkill(SkillType.DODGE), getSkill(SkillType.REGENERATION)],
@@ -1643,9 +1652,9 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
     {
       positionName: "Wraith",
       keywords: [
-        PositionKeyWord.SPECIAL,
+        PositionKeyWord.BLOCKER,
         RaceKeyWord.UNDEAD,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.WRAITH,
       ],
       cost: 85_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 6, AV: 9 },
@@ -1662,7 +1671,11 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
     },
     {
       positionName: "Werewolf",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.WEREWOLF],
+      keywords: [
+        PositionKeyWord.BLITZER,
+        RaceKeyWord.UNDEAD,
+        RaceKeyWord.WEREWOLF,
+      ],
       cost: 120_000,
       stats: { MA: 8, ST: 3, AG: 3, PA: 3, AV: 9 },
       skills: [
@@ -1680,7 +1693,11 @@ const NECROMANTIC_HORROR_ROSTER: TeamRoster = {
     },
     {
       positionName: "Flesh Golem",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.UNDEAD],
+      keywords: [
+        PositionKeyWord.BLOCKER,
+        RaceKeyWord.CONSTRUCT,
+        RaceKeyWord.UNDEAD,
+      ],
       cost: 110_000,
       stats: { MA: 4, ST: 4, AG: 4, PA: 6, AV: 10 },
       skills: [
@@ -1706,7 +1723,7 @@ const NORSE_ROSTER: TeamRoster = {
   playerTemplates: [
     {
       positionName: "Norse Raider Lineman",
-      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.NORSE],
+      keywords: [RaceKeyWord.HUMAN, PositionKeyWord.LINEMAN],
       cost: 50_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 8 },
       skills: [
@@ -1741,7 +1758,7 @@ const NORSE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Norse Berserker",
-      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.NORSE],
+      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.HUMAN],
       cost: 90_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 5, AV: 8 },
       skills: [
@@ -1755,7 +1772,11 @@ const NORSE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Valkyrie",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.NORSE],
+      keywords: [
+        PositionKeyWord.CATCHER,
+        RaceKeyWord.HUMAN,
+        PositionKeyWord.THROWER,
+      ],
       cost: 95_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 3, AV: 8 },
       skills: [
@@ -1774,7 +1795,7 @@ const NORSE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Ulfwerener",
-      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.NORSE],
+      keywords: [PositionKeyWord.BLOCKER, RaceKeyWord.HUMAN],
       cost: 105_000,
       stats: { MA: 6, ST: 4, AG: 4, PA: 6, AV: 9 },
       skills: [getSkill(SkillType.FRENZY), getSkill(SkillType.UNSTEADY)],
@@ -1784,7 +1805,7 @@ const NORSE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Yhetee",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.HUMAN],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.YHETEE],
       cost: 140_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 6, AV: 9 },
       skills: [
@@ -1828,7 +1849,7 @@ const NURGLE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Pestigor",
-      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.BEASTMAN],
+      keywords: [RaceKeyWord.BEASTMAN, PositionKeyWord.RUNNER],
       cost: 70_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 4, AV: 9 },
       skills: [
@@ -1873,7 +1894,7 @@ const NURGLE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Rotspawn",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.HUMAN],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SPAWN],
       cost: 140_000,
       stats: { MA: 4, ST: 5, AG: 5, PA: 6, AV: 10 },
       skills: [
@@ -1911,7 +1932,7 @@ const OGRE_ROSTER: TeamRoster = {
   playerTemplates: [
     {
       positionName: "Gnoblar Lineman",
-      keywords: [PositionKeyWord.LINEMAN, RaceKeyWord.GNOME],
+      keywords: [RaceKeyWord.GNOBLAR, PositionKeyWord.LINEMAN],
       cost: 15_000,
       stats: { MA: 5, ST: 1, AG: 3, PA: 4, AV: 6 },
       skills: [
@@ -1927,7 +1948,11 @@ const OGRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Ogre Runt Punter",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.OGRE],
+      keywords: [
+        TraitKeyWord.BIG_GUY,
+        RaceKeyWord.OGRE,
+        PositionKeyWord.THROWER,
+      ],
       cost: 145_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 4, AV: 10 },
       skills: [
@@ -1946,7 +1971,11 @@ const OGRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Ogre Blocker",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.OGRE],
+      keywords: [
+        TraitKeyWord.BIG_GUY,
+        PositionKeyWord.BLOCKER,
+        RaceKeyWord.OGRE,
+      ],
       cost: 140_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
       skills: [
@@ -1972,6 +2001,7 @@ const OLD_WORLD_ALLIANCE_ROSTER: TeamRoster = {
   leagues: [League.OLD_WORLD_CLASSIC],
   specialRules: [],
   additionalRules: [],
+  maxBigGuys: 1,
   tier: 1,
   apothecary: true,
   playerTemplates: [
@@ -2062,7 +2092,7 @@ const OLD_WORLD_ALLIANCE_ROSTER: TeamRoster = {
       positionName: "Troll Slayer",
       keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.DWARF],
       cost: 95_000,
-      stats: { MA: 5, ST: 3, AG: 4, PA: 6, AV: 9 },
+      stats: { MA: 5, ST: 3, AG: 4, PA: 5, AV: 9 },
       skills: [
         getSkill(SkillType.BLOCK),
         getSkill(SkillType.DAUNTLESS),
@@ -2095,7 +2125,7 @@ const OLD_WORLD_ALLIANCE_ROSTER: TeamRoster = {
       stats: { MA: 5, ST: 5, AG: 4, PA: 5, AV: 10 },
       skills: [
         getSkill(SkillType.BONE_HEAD),
-        getSkill(SkillType.LONER, "4+"),
+        getSkill(SkillType.LONER, "3+"),
         getSkill(SkillType.MIGHTY_BLOW),
         getSkill(SkillType.THICK_SKULL),
         getSkill(SkillType.THROW_TEAM_MATE),
@@ -2170,12 +2200,8 @@ const ORC_ROSTER: TeamRoster = {
       positionName: "Orc Thrower",
       keywords: [PositionKeyWord.THROWER, RaceKeyWord.ORC],
       cost: 75_000,
-      stats: { MA: 5, ST: 3, AG: 3, PA: 3, AV: 9 },
-      skills: [
-        getSkill(SkillType.ANIMOSITY, "all"),
-        getSkill(SkillType.PASS),
-        getSkill(SkillType.SURE_HANDS),
-      ],
+      stats: { MA: 6, ST: 3, AG: 3, PA: 3, AV: 9 },
+      skills: [getSkill(SkillType.PASS), getSkill(SkillType.SURE_HANDS)],
       maxAllowed: 2,
       primary: [SkillCategory.GENERAL, SkillCategory.PASSING],
       secondary: [
@@ -2202,6 +2228,7 @@ const ORC_ROSTER: TeamRoster = {
       skills: [
         getSkill(SkillType.MIGHTY_BLOW),
         getSkill(SkillType.TAUNT),
+        getSkill(SkillType.THICK_SKULL),
         getSkill(SkillType.UNSTEADY),
       ],
       maxAllowed: 2,
@@ -2244,9 +2271,10 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
     {
       positionName: "Skeleton Lineman",
       keywords: [
+        RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
         RaceKeyWord.SKELETON,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 40_000,
       stats: { MA: 5, ST: 3, AG: 4, PA: 6, AV: 8 },
@@ -2256,14 +2284,19 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
       ],
       maxAllowed: 16,
       primary: [SkillCategory.GENERAL],
-      secondary: [SkillCategory.AGILITY, SkillCategory.STRENGTH],
+      secondary: [
+        SkillCategory.AGILITY,
+        SkillCategory.DEVIOUS,
+        SkillCategory.STRENGTH,
+      ],
     },
     {
       positionName: "Zombie Lineman",
       keywords: [
+        RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
+        RaceKeyWord.UNDEAD,
         RaceKeyWord.ZOMBIE,
-        TraitKeyWord.UNDEAD,
       ],
       cost: 40_000,
       stats: { MA: 4, ST: 3, AG: 4, PA: 6, AV: 9 },
@@ -2278,7 +2311,7 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
     },
     {
       positionName: "Ghoul Runner",
-      keywords: [PositionKeyWord.RUNNER, RaceKeyWord.UNDEAD],
+      keywords: [RaceKeyWord.GHOUL, PositionKeyWord.RUNNER, RaceKeyWord.UNDEAD],
       cost: 75_000,
       stats: { MA: 7, ST: 3, AG: 3, PA: 3, AV: 8 },
       skills: [getSkill(SkillType.DODGE), getSkill(SkillType.REGENERATION)],
@@ -2294,8 +2327,9 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
       positionName: "Wight Blitzer",
       keywords: [
         PositionKeyWord.BLITZER,
-        RaceKeyWord.WIGHT,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.HUMAN,
+        RaceKeyWord.SKELETON,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 95_000,
       stats: { MA: 6, ST: 3, AG: 3, PA: 5, AV: 9 },
@@ -2311,7 +2345,12 @@ const SHAMBLING_UNDEAD_ROSTER: TeamRoster = {
     },
     {
       positionName: "Mummy",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.MUMMY, TraitKeyWord.UNDEAD],
+      keywords: [
+        TraitKeyWord.BIG_GUY,
+        PositionKeyWord.BLOCKER,
+        RaceKeyWord.HUMAN,
+        RaceKeyWord.UNDEAD,
+      ],
       cost: 125_000,
       stats: { MA: 3, ST: 5, AG: 5, PA: 6, AV: 10 },
       skills: [
@@ -2368,17 +2407,13 @@ const SKAVEN_ROSTER: TeamRoster = {
       cost: 85_000,
       stats: { MA: 9, ST: 2, AG: 2, PA: 4, AV: 8 },
       skills: [getSkill(SkillType.DODGE), getSkill(SkillType.STAB)],
-      maxAllowed: 4,
+      maxAllowed: 2,
       primary: [
         SkillCategory.AGILITY,
         SkillCategory.DEVIOUS,
         SkillCategory.GENERAL,
       ],
-      secondary: [
-        SkillCategory.MUTATION,
-        SkillCategory.PASSING,
-        SkillCategory.STRENGTH,
-      ],
+      secondary: [SkillCategory.MUTATION, SkillCategory.STRENGTH],
     },
     {
       positionName: "Skaven Blitzer",
@@ -2396,7 +2431,7 @@ const SKAVEN_ROSTER: TeamRoster = {
     },
     {
       positionName: "Rat Ogre",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.OGRE],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SKAVEN],
       cost: 150_000,
       stats: { MA: 6, ST: 5, AG: 4, PA: 6, AV: 9 },
       skills: [
@@ -2418,7 +2453,7 @@ const SKAVEN_ROSTER: TeamRoster = {
 };
 const SNOTLING_ROSTER: TeamRoster = {
   rosterName: RosterName.SNOTLING,
-  rerollCost: 60_000,
+  rerollCost: 70_000,
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [
     TeamSpecialRule.BRIBERY_AND_CORRUPTION,
@@ -2486,7 +2521,7 @@ const SNOTLING_ROSTER: TeamRoster = {
     },
     {
       positionName: "Stilty Runna",
-      keywords: [PositionKeyWord.SPECIAL, RaceKeyWord.SNOTLING],
+      keywords: [PositionKeyWord.RUNNER, RaceKeyWord.SNOTLING],
       cost: 20_000,
       stats: { MA: 6, ST: 1, AG: 3, PA: 4, AV: 6 },
       skills: [
@@ -2502,8 +2537,12 @@ const SNOTLING_ROSTER: TeamRoster = {
     },
     {
       positionName: "Pump Wagon",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SNOTLING],
-      cost: 105_000,
+      keywords: [
+        TraitKeyWord.BIG_GUY,
+        RaceKeyWord.SNOTLING,
+        PositionKeyWord.SPECIAL,
+      ],
+      cost: 100_000,
       stats: { MA: 5, ST: 5, AG: 5, PA: 6, AV: 9 },
       skills: [
         getSkill(SkillType.DIRTY_PLAYER),
@@ -2554,7 +2593,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
         RaceKeyWord.HUMAN,
         PositionKeyWord.LINEMAN,
         RaceKeyWord.SKELETON,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 40_000,
       stats: { MA: 5, ST: 3, AG: 4, PA: 6, AV: 8 },
@@ -2576,7 +2615,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
         RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
         PositionKeyWord.THROWER,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 65_000,
       stats: { MA: 6, ST: 3, AG: 4, PA: 3, AV: 9 },
@@ -2600,7 +2639,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
         PositionKeyWord.BLITZER,
         RaceKeyWord.HUMAN,
         RaceKeyWord.SKELETON,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 85_000,
       stats: { MA: 6, ST: 3, AG: 4, PA: 5, AV: 9 },
@@ -2619,7 +2658,7 @@ const TOMB_KINGS_ROSTER: TeamRoster = {
         TraitKeyWord.BIG_GUY,
         PositionKeyWord.BLOCKER,
         RaceKeyWord.HUMAN,
-        TraitKeyWord.UNDEAD,
+        RaceKeyWord.UNDEAD,
       ],
       cost: 115_000,
       stats: { MA: 4, ST: 5, AG: 5, PA: 6, AV: 10 },
@@ -2640,6 +2679,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
   leagues: [League.UNDERWORLD_CHALLENGE],
   specialRules: [TeamSpecialRule.BRIBERY_AND_CORRUPTION],
   additionalRules: [],
+  maxBigGuys: 1,
   tier: 3,
   apothecary: true,
   playerTemplates: [
@@ -2745,7 +2785,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
       positionName: "Skaven Blitzer",
       keywords: [PositionKeyWord.BLITZER, RaceKeyWord.SKAVEN],
       cost: 90_000,
-      stats: { MA: 8, ST: 3, AG: 3, PA: 5, AV: 9 },
+      stats: { MA: 8, ST: 3, AG: 3, PA: 4, AV: 9 },
       skills: [
         getSkill(SkillType.ANIMOSITY, "Goblin"),
         getSkill(SkillType.BLOCK),
@@ -2783,7 +2823,7 @@ const UNDERWORLD_DENIZENS_ROSTER: TeamRoster = {
     },
     {
       positionName: "Mutant Rat Ogre",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.OGRE],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.SKAVEN],
       cost: 150_000,
       stats: { MA: 6, ST: 5, AG: 4, PA: 6, AV: 9 },
       skills: [
@@ -2824,7 +2864,11 @@ const VAMPIRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Vampire Thrower",
-      keywords: [PositionKeyWord.THROWER, RaceKeyWord.VAMPIRE],
+      keywords: [
+        PositionKeyWord.THROWER,
+        RaceKeyWord.UNDEAD,
+        RaceKeyWord.VAMPIRE,
+      ],
       cost: 110_000,
       stats: { MA: 6, ST: 4, AG: 2, PA: 2, AV: 9 },
       skills: [
@@ -2843,7 +2887,11 @@ const VAMPIRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Vampire Blitzer",
-      keywords: [PositionKeyWord.BLITZER, RaceKeyWord.VAMPIRE],
+      keywords: [
+        PositionKeyWord.BLITZER,
+        RaceKeyWord.UNDEAD,
+        RaceKeyWord.VAMPIRE,
+      ],
       cost: 110_000,
       stats: { MA: 6, ST: 4, AG: 2, PA: 4, AV: 9 },
       skills: [
@@ -2862,7 +2910,11 @@ const VAMPIRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Vampire Runner",
-      keywords: [PositionKeyWord.RUNNER, RaceKeyWord.VAMPIRE],
+      keywords: [
+        PositionKeyWord.RUNNER,
+        RaceKeyWord.UNDEAD,
+        RaceKeyWord.VAMPIRE,
+      ],
       cost: 100_000,
       stats: { MA: 8, ST: 3, AG: 2, PA: 3, AV: 8 },
       skills: [
@@ -2876,7 +2928,7 @@ const VAMPIRE_ROSTER: TeamRoster = {
     },
     {
       positionName: "Vargheist",
-      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.VAMPIRE],
+      keywords: [TraitKeyWord.BIG_GUY, RaceKeyWord.UNDEAD, RaceKeyWord.VAMPIRE],
       cost: 150_000,
       stats: { MA: 5, ST: 5, AG: 4, PA: 6, AV: 10 },
       skills: [
@@ -2938,7 +2990,7 @@ const WOOD_ELF_ROSTER: TeamRoster = {
         getSkill(SkillType.DODGE),
         getSkill(SkillType.SPRINT),
       ],
-      maxAllowed: 4,
+      maxAllowed: 2,
       primary: [SkillCategory.AGILITY, SkillCategory.GENERAL],
       secondary: [SkillCategory.PASSING, SkillCategory.STRENGTH],
     },
@@ -2946,7 +2998,7 @@ const WOOD_ELF_ROSTER: TeamRoster = {
       positionName: "Wardancer",
       keywords: [PositionKeyWord.BLITZER, RaceKeyWord.ELF],
       cost: 130_000,
-      stats: { MA: 8, ST: 3, AG: 2, PA: 4, AV: 8 },
+      stats: { MA: 8, ST: 3, AG: 2, PA: 3, AV: 8 },
       skills: [
         getSkill(SkillType.BLOCK),
         getSkill(SkillType.DODGE),

@@ -195,7 +195,6 @@ export enum TeamSpecialRule {
 
 export enum AdditionalRule {
   FAVOURED_OF = "Favoured of",
-  ONLY_ALLOWED_ONE_BIG_GUY = "Only allowed one Big Guy",
   PICK_FAVOURED_OF_CHAOS_UNDIVIDED = "Pick: Favoured of Chaos Undivided",
   PICK_FAVOURED_OF_KHORNE = "Pick: Favoured of Khorne",
   PICK_FAVOURED_OF_NURGLE = "Pick: Favoured of Nurgle",
@@ -310,6 +309,12 @@ export interface TeamRoster {
   leagues: League[];
   specialRules: TeamSpecialRule[];
   additionalRules: AdditionalRule[];
+  /**
+   * Most Big Guys the team may field across all its Big Guy positions, for
+   * rosters that print a shared limit ("may have a single Big Guy, chosen
+   * from the following"). Per-position maxima still apply.
+   */
+  maxBigGuys?: number;
   tier: number;
   apothecary: boolean;
   playerTemplates: PlayerTemplate[];

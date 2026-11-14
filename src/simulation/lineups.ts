@@ -7,17 +7,12 @@
  * players by roster index, and many rosters there are all Linemen.
  */
 
-import {
-  Team,
-  RosterName,
-  AdditionalRule,
-  createTeam,
-  addPlayerToTeam,
-} from "../types/Team";
-import { createPlayer, PlayerTemplate, TraitKeyWord } from "../types/Player";
+import { Team, RosterName, createTeam, addPlayerToTeam } from "../types/Team";
+import { createPlayer, PlayerTemplate } from "../types/Player";
 import { getRosterByRosterName } from "../data/RosterTemplates";
 import { chooseFirstLinemanAsVeteran } from "../game/rules/veteran";
 import {
+  isBigGuy,
   isLinemanPosition,
   MAX_NON_LINEMEN,
 } from "../game/rules/rosterLegality";
@@ -53,11 +48,6 @@ export function lineupTemplates(
     .filter((t) => !isLinemanPosition(t.keywords))
     .sort((a, b) => b.cost - a.cost);
 
-  const oneBigGuy = roster.additionalRules.includes(
-    AdditionalRule.ONLY_ALLOWED_ONE_BIG_GUY
-  );
-  const bigGuy = (t: PlayerTemplate) =>
-    t.keywords.includes(TraitKeyWord.BIG_GUY);
   const picked: PlayerTemplate[] = [];
   const count = (t: PlayerTemplate) => picked.filter((p) => p === t).length;
   let spent = 0;
@@ -74,7 +64,12 @@ export function lineupTemplates(
         count(template) >= template.maxAllowed
       )
         continue;
-      if (oneBigGuy && bigGuy(template) && picked.some(bigGuy)) continue;
+      if (
+        roster.maxBigGuys !== undefined &&
+        isBigGuy(template.keywords) &&
+        picked.filter((t) => isBigGuy(t.keywords)).length >= roster.maxBigGuys
+      )
+        continue;
       const linemenStillNeeded = Math.max(0, 7 - picked.length - 1);
       if (spent + template.cost + linemenStillNeeded * lineman.cost > budget)
         continue;

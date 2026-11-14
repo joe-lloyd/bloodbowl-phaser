@@ -24,6 +24,7 @@ import { staysOnRoster } from "./leagueRoster";
 import {
   MAX_NON_LINEMEN,
   MAX_ROSTER_PLAYERS,
+  isBigGuy,
   isLinemanPosition,
 } from "./rosterLegality";
 import { freeRosterNumber, uniquePlayerId } from "./playerSlots";
@@ -256,6 +257,14 @@ export function hireRefusal(
   ).length;
   if (template.maxAllowed !== undefined && ofPosition >= template.maxAllowed) {
     return `A ${team.rosterName} team may have at most ${template.maxAllowed} ${template.positionName}.`;
+  }
+  const { maxBigGuys } = getRosterByRosterName(team.rosterName);
+  if (
+    maxBigGuys !== undefined &&
+    isBigGuy(template.keywords) &&
+    listed.filter((player) => isBigGuy(player.keywords)).length >= maxBigGuys
+  ) {
+    return `${team.rosterName} teams may have at most ${maxBigGuys} Big Guy${maxBigGuys === 1 ? "" : "s"}.`;
   }
   if (
     !isLinemanPosition(template.keywords) &&

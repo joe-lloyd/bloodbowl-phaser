@@ -201,7 +201,7 @@ export function TeamBuilder() {
   const handleFirePlayer = (playerId: string) => {
     if (!team) return;
 
-    const fireDecision = canEdit(team, { type: "fire-player" });
+    const fireDecision = canEdit(team, { type: "fire-player", playerId });
     if (!fireDecision.allowed) {
       alert(fireDecision.reason);
       return;
@@ -211,9 +211,10 @@ export function TeamBuilder() {
     if (!player) return;
 
     // Only a draft team may let a player go (L6), and it gets a full refund
-    // since the roster is still being assembled.
+    // since the roster is still being assembled. An active team may only
+    // release a player above a corrected roster limit, for nothing back.
     team.players = team.players.filter((p) => p.id !== playerId);
-    team.treasury += Math.floor(player.cost);
+    if (!isActiveTeam(team)) team.treasury += Math.floor(player.cost);
     setTeam({ ...team });
   };
 

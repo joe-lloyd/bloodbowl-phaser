@@ -6,6 +6,7 @@
  *   - 7..11 players (Sevens roster size); an active team may drop below 7
  *   - at most 4 players without the Lineman positional keyword
  *   - no position above its roster template maximum (maxAllowed)
+ *   - no more Big Guys than the roster's shared limit (maxBigGuys)
  *   - every player's position exists on the roster template
  *   - treasury never negative (purchases fit the draft budget)
  *   - a draft with a Lineman has exactly one Veteran, a Lineman (D8)
@@ -16,8 +17,9 @@
  */
 
 import { Team, TeamRoster } from "../../types/Team";
-import { PositionKeyWord } from "../../types/Player";
+import { PositionKeyWord, TraitKeyWord } from "../../types/Player";
 import { isDraftTeam } from "./teamLifecycle";
+import { isDeadLeaguePlayer } from "./leagueRoster";
 
 export const MIN_ROSTER_PLAYERS = 7;
 export const MAX_ROSTER_PLAYERS = 11;
@@ -32,6 +34,41 @@ export interface RosterViolation {
 
 export function isLinemanPosition(keywords: readonly string[]): boolean {
   return keywords.includes(PositionKeyWord.LINEMAN);
+}
+
+export function isBigGuy(keywords: readonly string[]): boolean {
+  return keywords.includes(TraitKeyWord.BIG_GUY);
+}
+
+/**
+ * Whether this player is part of a surplus over a positional maximum or the
+ * shared Big Guy limit, as a team saved before a rulebook correction can be.
+ * Dead league players have already left and are not counted.
+ */
+export function exceedsRosterLimit(
+  team: Team,
+  roster: TeamRoster,
+  playerId: string
+): boolean {
+  const rostered = team.players.filter(
+    (player) => !isDeadLeaguePlayer(team, player)
+  );
+  const player = rostered.find((candidate) => candidate.id === playerId);
+  if (!player) return false;
+  const template = roster.playerTemplates.find(
+    (candidate) => candidate.positionName === player.positionName
+  );
+  const ofPosition = rostered.filter(
+    (candidate) => candidate.positionName === player.positionName
+  ).length;
+  if (template?.maxAllowed !== undefined && ofPosition > template.maxAllowed)
+    return true;
+  return (
+    roster.maxBigGuys !== undefined &&
+    isBigGuy(player.keywords) &&
+    rostered.filter((candidate) => isBigGuy(candidate.keywords)).length >
+      roster.maxBigGuys
+  );
 }
 
 /**
@@ -70,8 +107,12 @@ export function validateRosterLegality(
     });
   }
 
+  // A dead league player no longer holds a position, as when hiring
+  const rostered = players.filter(
+    (player) => !isDeadLeaguePlayer(team, player)
+  );
   const counts = new Map<string, number>();
-  for (const player of players) {
+  for (const player of rostered) {
     counts.set(player.positionName, (counts.get(player.positionName) ?? 0) + 1);
   }
   for (const [positionName, count] of counts) {
@@ -83,12 +124,25 @@ export function validateRosterLegality(
         rule: "unknown-position",
         detail: `${positionName} is not on the ${roster.rosterName} roster`,
       });
-    } else if (template.maxAllowed !== undefined && count > template.maxAllowed) {
+    } else if (
+      template.maxAllowed !== undefined &&
+      count > template.maxAllowed
+    ) {
       violations.push({
         rule: "positional-limit",
         detail: `${count} × ${positionName} (roster max ${template.maxAllowed})`,
       });
     }
+  }
+
+  const bigGuys = rostered.filter((player) => isBigGuy(player.keywords));
+  if (roster.maxBigGuys !== undefined && bigGuys.length > roster.maxBigGuys) {
+    violations.push({
+      rule: "big-guy-limit",
+      detail:
+        `${bigGuys.length} Big Guys (roster max ${roster.maxBigGuys}): ` +
+        bigGuys.map((player) => player.positionName).join(", "),
+    });
   }
 
   // D8: a draft with a Lineman names exactly one Lineman as its Veteran. A
