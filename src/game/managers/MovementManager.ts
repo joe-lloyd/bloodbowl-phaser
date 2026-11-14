@@ -488,7 +488,7 @@ export class MovementManager {
           : rollDodge();
 
         // Trigger point: dodge resolved — markers of the vacated square
-        // react after any re-rolls (Diving Tackle, Shadowing)
+        // react after any re-rolls (Diving Tackle)
         const resolvedCtx: DodgeResolvedContext = {
           player,
           from: { ...currentPos },
@@ -512,6 +512,20 @@ export class MovementManager {
           ),
           resolvedCtx
         );
+        // Trigger point: the dodge stood, so markers of the vacated square
+        // may Shadow into it — only once Diving Tackle has had its say
+        // (FAQ May 2026), so a dive never shares the square with a shadower
+        if (resolvedCtx.success) {
+          await foldTrigger(
+            "onDodgeSucceeded",
+            gatherParticipants(
+              player,
+              undefined,
+              adjacentStanding(currentPos, opponents)
+            ),
+            resolvedCtx
+          );
+        }
         resolvedCtx.triggers.forEach((t) =>
           this.eventBus.emit(GameEventNames.SkillTriggered, t)
         );
@@ -578,8 +592,6 @@ export class MovementManager {
           this.eventBus.emit(GameEventNames.PlayerKnockedDown, { playerId });
           this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
 
-          applyShadowFollow(vacatedSquare);
-
           if ((holdingBall || this.isBallAt(currentPos)) && flowManager) {
             gameService.setBallPosition(currentPos.x, currentPos.y);
             flowManager.add(new BounceOperation(currentPos), true);
@@ -601,7 +613,8 @@ export class MovementManager {
         }
         // A failed dodge that Steady Footing saved keeps the player Standing:
         // fall through as if it had succeeded — they move on and continue their
-        // activation, no Armour Roll and no Turnover.
+        // activation, no Armour Roll and no Turnover. It is still no
+        // successful dodge, so nobody Shadowed it.
 
         applyShadowFollow({ ...resolvedCtx.from });
       }

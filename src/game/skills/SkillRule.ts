@@ -565,6 +565,11 @@ export interface SkillRule {
     ctx: DodgeResolvedContext,
     self: Player
   ): void | Promise<void>;
+  /** The dodge stood after every onDodgeResolved reaction (Shadowing). */
+  onDodgeSucceeded?(
+    ctx: DodgeResolvedContext,
+    self: Player
+  ): void | Promise<void>;
   onPickup?(ctx: PickupContext, self: Player): void | Promise<void>;
   onCatch?(ctx: CatchContext, self: Player): void | Promise<void>;
   onPassDeclared?(ctx: PassDeclaredContext, self: Player): void | Promise<void>;

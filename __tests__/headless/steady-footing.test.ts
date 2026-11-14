@@ -302,7 +302,7 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
     );
   });
 
-  it("continues a saved Dodge and lets Shadowing follow the vacated square", async () => {
+  it("continues a saved Dodge, and only the successful Dodge is Shadowed", async () => {
     const game = board([SkillType.STEADY_FOOTING], [SkillType.SHADOWING]);
     const player = game.ctx.team1.players[0];
     const shadower = game.ctx.team2.players[0];
@@ -311,9 +311,9 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       playerId: player.id,
       action: "move",
     });
-    // Failed Dodge, successful Shadowing, Steady Footing save, then a
-    // successful Dodge and a second Shadowing follow.
-    forceDice(game.ctx.rng, [1, 4, 6, 6, 4]);
+    // Failed Dodge and a Steady Footing save, which is no successful Dodge
+    // to Shadow (FAQ May 2026); then a successful Dodge and a Shadowing follow.
+    forceDice(game.ctx.rng, [1, 6, 6, 4]);
     const result = await game.execute({
       type: "move",
       playerId: player.id,
@@ -323,13 +323,6 @@ describe("Steady Footing block knockdowns, May 2026 FAQ", () => {
       ],
     });
     expect(result.ok).toBe(true);
-    expect(game.pendingDecision()).toMatchObject({
-      type: "reaction",
-      skill: SkillType.SHADOWING,
-    });
-    expect(
-      await game.execute({ type: "use-reaction", accept: true })
-    ).toMatchObject({ ok: true });
     expect(game.pendingDecision()).toMatchObject({
       type: "reaction",
       skill: SkillType.SHADOWING,

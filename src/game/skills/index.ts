@@ -4,8 +4,14 @@
  * call. Add a rule by creating one file under rules/ and registering it here.
  */
 
-import { SkillType } from "../../types/Skills";
-import { Player, hasTackleZone } from "../../types/Player";
+import { SKILL_DEFINITIONS, SkillType } from "../../types/Skills";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStatus,
+  hasCondition,
+  hasTackleZone,
+} from "../../types/Player";
 import { SkillRegistry } from "./SkillRegistry";
 import {
   ActionDeclaredContext,
@@ -241,6 +247,7 @@ registerBuiltinSkills();
 export type TriggerHook =
   | "onDodgeDeclared"
   | "onDodgeResolved"
+  | "onDodgeSucceeded"
   | "onBlockDeclared"
   | "onBlockDiceRolled"
   | "onPush"
@@ -323,9 +330,41 @@ export function adjacentStanding(
 }
 
 /**
+ * Active skills whose text says they work while the holder is down: Mighty
+ * Blow "even if this player is also Knocked Down", and Lethal Flight for a
+ * player thrown into an opponent. Neither works while Distracted.
+ */
+const IN_EFFECT_WHILE_DOWN = new Set<SkillType>([
+  SkillType.MIGHTY_BLOW,
+  SkillType.LETHAL_FLIGHT,
+]);
+
+/**
+ * Chainsaw's +3 against its downed wielder "must always be applied", so it
+ * holds whatever the wielder's status, Distracted or not.
+ */
+const ALWAYS_IN_EFFECT = new Set<SkillType>([SkillType.CHAINSAW]);
+
+/**
+ * Rulebook p.125: an Active skill or trait works only while its holder is
+ * Standing and not Distracted, unless its text says otherwise; a Passive
+ * one is always in effect. So a Distracted player has no Dodge against a
+ * Stumble, no Block on a Both Down and no Pick-me-up (FAQ May 2026).
+ */
+export function skillInEffect(player: Player, type: SkillType): boolean {
+  if (SKILL_DEFINITIONS[type].usage === "passive") return true;
+  if (ALWAYS_IN_EFFECT.has(type)) return true;
+  if (hasCondition(player, PlayerCondition.DISTRACTED)) return false;
+  return (
+    player.status === PlayerStatus.ACTIVE || IN_EFFECT_WHILE_DOWN.has(type)
+  );
+}
+
+/**
  * Fold every participant's registered rules over a trigger context, in
  * gather order. Async because a reaction hook may pause on a decision.
- * A rule without the hook is skipped; unregistered skills are inert.
+ * A rule without the hook is skipped; unregistered skills are inert, and
+ * so are skills not in effect for their holder (skillInEffect).
  */
 export async function foldTrigger(
   hook: TriggerHook,
@@ -334,6 +373,7 @@ export async function foldTrigger(
 ): Promise<void> {
   for (const self of participants) {
     for (const skill of self.skills) {
+      if (!skillInEffect(self, skill.type)) continue;
       const rule = SkillRegistry.get(skill.type) as
         | Record<
             string,
@@ -379,6 +419,7 @@ export function foldCountAssists(
 ): void {
   for (const self of participants) {
     for (const skill of self.skills) {
+      if (!skillInEffect(self, skill.type)) continue;
       SkillRegistry.get(skill.type)?.onCountAssists?.(ctx, self);
     }
   }
@@ -395,6 +436,7 @@ export function foldTurnEnding(
 ): void {
   for (const self of participants) {
     for (const skill of self.skills) {
+      if (!skillInEffect(self, skill.type)) continue;
       SkillRegistry.get(skill.type)?.onTurnEnding?.(ctx, self);
     }
   }
@@ -407,6 +449,7 @@ export function foldTurnEnding(
  */
 export function foldActionDeclared(ctx: ActionDeclaredContext): void {
   for (const skill of ctx.player.skills) {
+    if (!skillInEffect(ctx.player, skill.type)) continue;
     SkillRegistry.get(skill.type)?.onActionDeclared?.(ctx, ctx.player);
   }
 }

@@ -141,6 +141,9 @@ export class KickoffEventManager {
     const existing = this.state.kickoffResolution;
     if (existing) {
       this.lastEvent = existing.event;
+      // A Charge! saved mid-sequence ends here with its step, so its re-roll
+      // window must close too or the drive's first turn loses its re-roll
+      delete this.state.chargeTeamId;
       this.eventBus.emit(GameEventNames.KickoffResult, {
         roll: existing.roll,
         event: existing.event,
@@ -555,6 +558,7 @@ export class KickoffEventManager {
       this.state.activePlayer = null;
       this.state.activeTeamId = this.chargePreviousActiveTeamId;
       this.chargePreviousActiveTeamId = null;
+      delete this.state.chargeTeamId;
     }
     this.step = null;
     this.eventBus.emit(GameEventNames.KickoffEventStepResolved, {
@@ -703,6 +707,7 @@ export class KickoffEventManager {
       };
       this.chargePreviousActiveTeamId = this.state.activeTeamId;
       this.state.activeTeamId = this.step.teamId;
+      this.state.chargeTeamId = this.step.teamId;
       this.advanceCharge();
       return true;
     }

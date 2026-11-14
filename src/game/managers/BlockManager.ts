@@ -7,6 +7,7 @@ import {
   PlayerCondition,
   addCondition,
   hasCondition,
+  removeCondition,
 } from "@/types/Player";
 import { SkillType, hasSkill } from "../../types/Skills";
 import { ReactionDecisionAnswer } from "../../types/decisions";
@@ -427,6 +428,12 @@ export class BlockManager {
           from,
           to: { ...ctx.relocateDefenderTo },
         });
+        // Removed from the pitch and placed elsewhere: free of any Chomp,
+        // even beside the chomper (FAQ May 2026)
+        if (hasCondition(defender, PlayerCondition.CHOMPED)) {
+          removeCondition(defender, PlayerCondition.CHOMPED);
+          this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
+        }
         const moved = this.blockValidator.analyzeBlock(
           attacker,
           defender,
