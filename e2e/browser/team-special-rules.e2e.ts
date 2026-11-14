@@ -79,7 +79,7 @@ test("the team builder picks a League, an alignment and a Captain", async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/build-team/new-team");
-  const roster = page.getByRole("combobox").first();
+  const roster = page.getByRole("combobox", { name: "Roster", exact: true });
   const league = page.getByTestId("team-league");
   const rules = page.getByTestId("team-special-rules");
 
