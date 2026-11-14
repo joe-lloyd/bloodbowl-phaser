@@ -8,7 +8,8 @@
  *
  * `self` is the attacker; sets the flag that widens the push squares (the
  * BlockManager falls back to the normal push when the target is boxed in).
- * The Sidestep-cancel clause lands with Sidestep (batch 6).
+ * The Sidestep-cancel clause lives in SidestepRule. Neither applies to the
+ * Block of a Blitz, which is not a declared Block Action (May 2026 FAQ).
  */
 
 import { SkillType } from "../../../types/Skills";
@@ -16,7 +17,7 @@ import { SkillRule } from "../SkillRule";
 
 export const GrabRule: SkillRule = {
   onPush(ctx, self) {
-    if (self.id !== ctx.attacker.id) return;
+    if (self.id !== ctx.attacker.id || ctx.isBlitz) return;
     ctx.grabPush = true;
     ctx.triggers.push({
       playerId: self.id,

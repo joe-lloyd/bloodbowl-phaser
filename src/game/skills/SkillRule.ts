@@ -165,6 +165,11 @@ export interface PushContext extends TriggerContextBase {
    */
   stripBall: boolean;
   /**
+   * The Block's target becomes Eye Gouged once actually Pushed Back, never
+   * when the push is refused (Eye Gouge).
+   */
+  eyeGouge: boolean;
+  /**
    * The blocker chooses any unoccupied square adjacent to the pushed player,
    * not just the three behind them (Grab).
    */
