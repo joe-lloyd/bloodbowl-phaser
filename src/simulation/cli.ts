@@ -21,65 +21,14 @@
  * an invariant, crashed, stalled or ran out of budget.
  */
 
-import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ChildProcess, fork } from "node:child_process";
 import { RosterName } from "../types/Team";
-import { Coach } from "./coach";
-import { randomCoach } from "./coaches/random";
-import { heuristicCoach } from "./coaches/heuristic";
-import { createPlannerCoach, plannerCoach } from "./ai/planner";
-import { BUDGETS, createSearchCoach } from "./ai/search";
-import { DEFAULT_WEIGHTS, Weights, parseWeights } from "./ai/weights";
-import { mutate, pointShare, standardsShare } from "./tune";
-import { createJevCoach, JevStats } from "./coaches/jev";
-import { Finding, FindingKind, MatchRecording, runMatch } from "./runMatch";
-import { parseRecording, replayRecording, trimRecording } from "./replay";
-import { createCoachRng } from "./rng";
-import { serializeMatchSave } from "../headless/serialization";
-import { buildMatchDump, renderIndexHtml, renderMatchHtml } from "./viewer";
-import {
-  BenchGame,
-  BenchJob,
-  BenchReport,
-  benchJobs,
-  benchReport,
-  rosterReport,
-  RosterRow,
-  playBenchGame,
-} from "./bench";
-import { solveRates } from "./puzzles";
-import { AVERAGE_TOUCHDOWNS } from "./standards";
-
-const BLOCKING: ReadonlySet<FindingKind> = new Set([
-  "invariant",
-  "engine-error",
-  "no-candidates",
-  "budget-exhausted",
-]);
-
-type CoachName = "random" | "heuristic" | "jev" | "planner" | "hard" | "legend";
-
-interface RunOptions {
-  games: number;
-  seed: number;
-  rosters: RosterName[];
-  home: CoachName;
-  away: CoachName;
-  maxCommands?: number;
-  out: string;
-  record: "all" | "failures" | "none";
-  concurrency: number;
-  strict: boolean;
-  /** Write a playback page next to every recording, plus an index. */
-  html: boolean;
-}
-
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(2);
-}
+import { CoachName, fail } from "./commands/shared";
+import { RunOptions, runBatch } from "./commands/run";
+import { replay } from "./commands/replay";
+import { BenchOptions, benchWorker, runBench } from "./commands/bench";
+import { TuneOptions, runTune, tuneWorker } from "./commands/tune";
 
 function parseCoach(value: string): CoachName {
   if (
@@ -107,75 +56,75 @@ function parseRosters(value: string): RosterName[] {
   });
 }
 
-function parseRunOptions(argv: string[]): RunOptions {
-  const options: RunOptions = {
-    games: 20,
-    seed: 1,
-    rosters: Object.values(RosterName),
-    home: "heuristic",
-    away: "heuristic",
-    out: path.join(
-      "sim-results",
-      new Date().toISOString().replace(/[:.]/g, "-")
-    ),
-    record: "failures",
-    concurrency: 1,
-    strict: false,
-    html: false,
-  };
-  let recordChosen = false;
-  const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+/** Each flag a subcommand takes; one that needs a value reads it. */
+type Flags<T> = Record<string, (options: T, value: () => string) => void>;
+
+function parseFlags<T>(
+  argv: string[],
+  options: T,
+  flags: Flags<T>,
+  help: string
+): T {
   for (let i = 0; i < argv.length; i++) {
-    switch (argv[i]) {
-      case "--games":
-        options.games = Number(value(i++));
-        break;
-      case "--seed":
-        options.seed = Number(value(i++));
-        break;
-      case "--rosters":
-        options.rosters = parseRosters(value(i++));
-        break;
-      case "--coach":
-        options.home = options.away = parseCoach(value(i++));
-        break;
-      case "--home":
-        options.home = parseCoach(value(i++));
-        break;
-      case "--away":
-        options.away = parseCoach(value(i++));
-        break;
-      case "--max-commands":
-        options.maxCommands = Number(value(i++));
-        break;
-      case "--out":
-        options.out = value(i++);
-        break;
-      case "--record": {
-        const record = value(i++);
+    if (argv[i] === "--help") {
+      process.stdout.write(`${help}\n`);
+      process.exit(0);
+    }
+    const flag = Object.prototype.hasOwnProperty.call(flags, argv[i])
+      ? flags[argv[i]]
+      : undefined;
+    if (!flag) fail(`unknown option ${argv[i]}\n\n${help}`);
+    let taken = false;
+    flag(options, () => {
+      taken = true;
+      return argv[i + 1] ?? fail(`${argv[i]} needs a value`);
+    });
+    if (taken) i++;
+  }
+  return options;
+}
+
+const timestamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+
+function parseRunOptions(argv: string[]): RunOptions {
+  let recordChosen = false;
+  const options = parseFlags<RunOptions>(
+    argv,
+    {
+      games: 20,
+      seed: 1,
+      rosters: Object.values(RosterName),
+      home: "heuristic",
+      away: "heuristic",
+      out: path.join("sim-results", timestamp()),
+      record: "failures",
+      concurrency: 1,
+      strict: false,
+      html: false,
+    },
+    {
+      "--games": (o, value) => (o.games = Number(value())),
+      "--seed": (o, value) => (o.seed = Number(value())),
+      "--rosters": (o, value) => (o.rosters = parseRosters(value())),
+      "--coach": (o, value) => (o.home = o.away = parseCoach(value())),
+      "--home": (o, value) => (o.home = parseCoach(value())),
+      "--away": (o, value) => (o.away = parseCoach(value())),
+      "--max-commands": (o, value) => (o.maxCommands = Number(value())),
+      "--out": (o, value) => (o.out = value()),
+      "--record": (o, value) => {
+        const record = value();
         if (record !== "all" && record !== "failures" && record !== "none")
           fail("--record all | failures | none");
-        options.record = record;
+        o.record = record;
         recordChosen = true;
-        break;
-      }
-      case "--concurrency":
-        options.concurrency = Math.max(1, Number(value(i++)));
-        break;
-      case "--strict":
-        options.strict = true;
-        break;
-      case "--html":
-        options.html = true;
-        break;
-      case "--help":
-        process.stdout.write(`${HELP}\n`);
-        process.exit(0);
-        break;
-      default:
-        fail(`unknown option ${argv[i]}\n\n${HELP}`);
-    }
-  }
+      },
+      "--concurrency": (o, value) =>
+        (o.concurrency = Math.max(1, Number(value()))),
+      "--strict": (o) => (o.strict = true),
+      "--html": (o) => (o.html = true),
+    },
+    HELP
+  );
   if (!Number.isInteger(options.games) || options.games < 1)
     fail("--games must be a positive integer");
   if (!Number.isInteger(options.seed)) fail("--seed must be an integer");
@@ -199,397 +148,6 @@ const HELP = `Usage: pnpm sim [options]
                        index.html (records every match unless --record says otherwise)
 jev needs TYPESAFE_API_KEY in the environment.`;
 
-function makeCoach(
-  name: CoachName,
-  jevStats: JevStats[],
-  weightsFile?: string
-): Coach {
-  if (name === "random") return randomCoach;
-  if (name === "heuristic") return heuristicCoach;
-  if (name === "hard" || name === "legend")
-    return createSearchCoach({
-      // The bench has no clock: a deadline would make its games unrepeatable.
-      budget: {
-        samples: BUDGETS[name].samples,
-        options: BUDGETS[name].options,
-      },
-      ...(weightsFile
-        ? {
-            weights: parseWeights(
-              JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-            ),
-          }
-        : {}),
-    });
-  if (name === "planner")
-    return weightsFile
-      ? createPlannerCoach({
-          weights: parseWeights(
-            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-          ),
-        })
-      : plannerCoach;
-  const apiKey = process.env.TYPESAFE_API_KEY;
-  if (!apiKey) fail("the jev coach needs TYPESAFE_API_KEY in the environment");
-  const coach = createJevCoach({ apiKey, model: process.env.TYPESAFE_MODEL });
-  jevStats.push(coach.stats);
-  return coach;
-}
-
-interface MatchSummary {
-  file: string | null;
-  seed: number;
-  rosters: [string, string];
-  score: [number, number];
-  phase: string;
-  commands: number;
-  ms: number;
-  findings: number;
-}
-
-async function runBatch(options: RunOptions): Promise<number> {
-  fs.mkdirSync(options.out, { recursive: true });
-  const jevStats: JevStats[] = [];
-  const coaches: [Coach, Coach] = [
-    makeCoach(options.home, jevStats),
-    makeCoach(options.away, jevStats),
-  ];
-  const pairing = createCoachRng(options.seed);
-  const plan = Array.from({ length: options.games }, (_, i) => ({
-    seed: options.seed + i,
-    rosters: [pairing.pick(options.rosters), pairing.pick(options.rosters)] as [
-      RosterName,
-      RosterName,
-    ],
-  }));
-
-  const matches: MatchSummary[] = [];
-  const findings: (Finding & { file: string | null; seed: number })[] = [];
-  const commandCounts: Record<string, number> = {};
-  let next = 0;
-  let done = 0;
-  const started = Date.now();
-
-  const worker = async () => {
-    while (next < plan.length) {
-      const { seed, rosters } = plan[next++];
-      const t0 = Date.now();
-      let recording: MatchRecording;
-      try {
-        recording = await runMatch({
-          seed,
-          rosters,
-          coaches,
-          maxCommands: options.maxCommands,
-        });
-      } catch (error) {
-        // The runner itself threw: report it like any other finding.
-        findings.push({
-          kind: "engine-error",
-          key: "engine-error:runner-threw",
-          message:
-            error instanceof Error
-              ? (error.stack ?? error.message)
-              : String(error),
-          step: -1,
-          phase: "?",
-          turn: "?",
-          file: null,
-          seed,
-        });
-        done++;
-        continue;
-      }
-      const ms = Date.now() - t0;
-      const keep =
-        options.record === "all" ||
-        (options.record === "failures" && recording.findings.length > 0);
-      const file = keep
-        ? path.join(
-            options.out,
-            `${seed}-${slug(rosters[0])}-vs-${slug(rosters[1])}.json`
-          )
-        : null;
-      if (file) fs.writeFileSync(file, JSON.stringify(recording));
-      if (file && options.html) {
-        fs.writeFileSync(
-          file.replace(/\.json$/, ".html"),
-          renderMatchHtml(await buildMatchDump(recording))
-        );
-      }
-      for (const step of recording.steps) {
-        if (step.ok)
-          commandCounts[step.command.type] =
-            (commandCounts[step.command.type] ?? 0) + 1;
-      }
-      for (const finding of recording.findings)
-        findings.push({ ...finding, file, seed });
-      matches.push({
-        file,
-        seed,
-        rosters,
-        score: recording.final.score,
-        phase: recording.final.phase,
-        commands: recording.steps.length,
-        ms,
-        findings: recording.findings.length,
-      });
-      done++;
-      process.stderr.write(
-        `\r${done}/${plan.length} matches, ${findings.length} findings, ${((Date.now() - started) / 1000).toFixed(0)}s`
-      );
-    }
-  };
-  await Promise.all(Array.from({ length: options.concurrency }, worker));
-  process.stderr.write("\n");
-
-  const groups = new Map<
-    string,
-    {
-      kind: FindingKind;
-      count: number;
-      matches: Set<number>;
-      example: (typeof findings)[number];
-    }
-  >();
-  for (const finding of findings) {
-    const group = groups.get(finding.key) ?? {
-      kind: finding.kind,
-      count: 0,
-      matches: new Set(),
-      example: finding,
-    };
-    group.count++;
-    group.matches.add(finding.seed);
-    groups.set(finding.key, group);
-  }
-  const grouped = [...groups.entries()]
-    .map(([key, g]) => ({
-      key,
-      kind: g.kind,
-      blocking: BLOCKING.has(g.kind),
-      count: g.count,
-      matches: g.matches.size,
-      example: {
-        file: g.example.file,
-        step: g.example.step,
-        phase: g.example.phase,
-        turn: g.example.turn,
-        message: g.example.message,
-      },
-    }))
-    .sort(
-      (a, b) => Number(b.blocking) - Number(a.blocking) || b.matches - a.matches
-    );
-
-  const completed = matches.filter((m) => m.phase === "GAME_OVER").length;
-  const touchdowns = matches.reduce(
-    (sum, m) => sum + m.score[0] + m.score[1],
-    0
-  );
-  const summary = {
-    options: { ...options, rosters: options.rosters.length },
-    matches: matches.length,
-    completed,
-    touchdowns,
-    averageCommands: Math.round(
-      matches.reduce((s, m) => s + m.commands, 0) / Math.max(1, matches.length)
-    ),
-    averageMs: Math.round(
-      matches.reduce((s, m) => s + m.ms, 0) / Math.max(1, matches.length)
-    ),
-    commandCoverage: commandCounts,
-    jev: jevStats.length ? jevStats : undefined,
-    findings: grouped,
-    perMatch: matches.sort((a, b) => a.seed - b.seed),
-  };
-  if (options.html) {
-    fs.writeFileSync(
-      path.join(options.out, "index.html"),
-      renderIndexHtml({
-        title: `Simulation: ${options.home} vs ${options.away}, ${options.games} matches from seed ${options.seed}`,
-        coaches: [options.home, options.away],
-        matches: matches.flatMap((m) =>
-          m.file
-            ? [
-                {
-                  ...m,
-                  page: path.basename(m.file).replace(/\.json$/, ".html"),
-                },
-              ]
-            : []
-        ),
-        commandCoverage: commandCounts,
-        findings: grouped,
-      })
-    );
-  }
-  fs.writeFileSync(
-    path.join(options.out, "summary.json"),
-    JSON.stringify(summary, null, 2)
-  );
-  printSummary(summary, grouped, options);
-
-  const blocking = grouped.some(
-    (g) => g.blocking || (options.strict && g.kind === "rejected-candidate")
-  );
-  return blocking ? 1 : 0;
-}
-
-function printSummary(
-  summary: {
-    matches: number;
-    completed: number;
-    touchdowns: number;
-    averageCommands: number;
-    averageMs: number;
-    commandCoverage: Record<string, number>;
-    jev?: JevStats[];
-  },
-  grouped: {
-    key: string;
-    blocking: boolean;
-    count: number;
-    matches: number;
-    example: { file: string | null; step: number; message: string };
-  }[],
-  options: RunOptions
-): void {
-  const lines = [
-    `${summary.completed}/${summary.matches} matches reached full time, ${summary.touchdowns} touchdowns, ` +
-      `${summary.averageCommands} commands and ${summary.averageMs} ms per match on average.`,
-    `Commands exercised: ${Object.entries(summary.commandCoverage)
-      .sort((a, b) => b[1] - a[1])
-      .map(([k, v]) => `${k} ${v}`)
-      .join(", ")}`,
-  ];
-  for (const stats of summary.jev ?? []) {
-    lines.push(
-      `Jev: ${stats.calls} calls, ${stats.failures} failed, ${stats.calls ? Math.round(stats.totalMs / stats.calls) : 0} ms average, ` +
-        `${stats.inputTokens} input and ${stats.outputTokens} output tokens.`
-    );
-  }
-  lines.push(
-    "",
-    grouped.length ? "Findings (blocking first):" : "No findings."
-  );
-  for (const g of grouped) {
-    lines.push(
-      `  ${g.blocking ? "FAIL" : "warn"} ${g.key}: ${g.count}x in ${g.matches} matches`
-    );
-    lines.push(`       ${g.example.message}`);
-    if (g.example.file)
-      lines.push(
-        `       pnpm sim:replay ${g.example.file} --step ${g.example.step}`
-      );
-  }
-  lines.push("", `Summary: ${path.join(options.out, "summary.json")}`);
-  process.stdout.write(`${lines.join("\n")}\n`);
-}
-
-const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, "-");
-
-async function replay(argv: string[]): Promise<number> {
-  const file =
-    argv[0] ??
-    fail(
-      "usage: pnpm sim:replay <recording.json> [--step n] [--save-at n --save-out file]"
-    );
-  const flag = (name: string) => {
-    const i = argv.indexOf(name);
-    return i >= 0 ? argv[i + 1] : undefined;
-  };
-  const recording = parseRecording(fs.readFileSync(file, "utf8"));
-  const stepFlag = flag("--step") ?? flag("--save-at");
-  const until =
-    stepFlag === undefined ? recording.steps.length - 1 : Number(stepFlag);
-  const result = await replayRecording(recording, until);
-  const snapshot = result.game.snapshot();
-
-  process.stdout.write(
-    `${recording.rosters[0]} (${recording.coaches[0]}) vs ${recording.rosters[1]} (${recording.coaches[1]}), seed ${recording.seed}\n` +
-      `replayed ${result.executed}/${recording.steps.length} steps; ` +
-      (result.divergedAt === null
-        ? "every step behaved as recorded"
-        : `step ${result.divergedAt} behaved differently than recorded`) +
-      (result.executed === recording.steps.length
-        ? result.matches
-          ? "; final state matches"
-          : "; FINAL STATE DIFFERS"
-        : "") +
-      "\n"
-  );
-  const from = Math.max(0, until - 5);
-  for (let i = from; i <= Math.min(until, recording.steps.length - 1); i++) {
-    const step = recording.steps[i];
-    process.stdout.write(
-      `  ${i}: ${step.ok ? "ok  " : "FAIL"} ${step.label}${step.reason ? ` (${step.reason})` : ""}\n`
-    );
-  }
-  for (const finding of recording.findings.filter((f) => f.step === until)) {
-    process.stdout.write(`  finding: ${finding.key}: ${finding.message}\n`);
-  }
-  process.stdout.write(
-    `state: ${snapshot.phase}${snapshot.subPhase ? "/" + snapshot.subPhase : ""}, ` +
-      `${snapshot.turn.isHalf2 ? "H2" : "H1"} turn ${snapshot.turn.turnNumber}, ${snapshot.activeTeamId} to act, ` +
-      `ball ${snapshot.ballPosition ? `(${snapshot.ballPosition.x},${snapshot.ballPosition.y})` : "off pitch"}\n`
-  );
-
-  for (const violation of result.violations) {
-    process.stdout.write(
-      `  invariant broken at step ${violation.step}: ${violation.rule}: ${violation.message}\n`
-    );
-  }
-
-  const htmlOut = flag("--html");
-  if (htmlOut) {
-    fs.writeFileSync(htmlOut, renderMatchHtml(await buildMatchDump(recording)));
-    process.stdout.write(`playback page written to ${htmlOut}\n`);
-  }
-
-  const trimOut = flag("--trim-out");
-  if (trimOut) {
-    fs.writeFileSync(
-      trimOut,
-      JSON.stringify(trimRecording(recording, until + 1))
-    );
-    process.stdout.write(`steps 0-${until} written to ${trimOut}\n`);
-  }
-
-  const saveOut = flag("--save-out");
-  if (saveOut) {
-    fs.writeFileSync(saveOut, serializeMatchSave(result.game.matchSave()));
-    process.stdout.write(`browser save written to ${saveOut}\n`);
-  }
-  const fullReplayFailed =
-    result.executed === recording.steps.length && !result.matches;
-  return result.divergedAt !== null ||
-    fullReplayFailed ||
-    result.violations.length > 0
-    ? 1
-    : 0;
-}
-
-interface BenchOptions {
-  coach: CoachName;
-  vs: CoachName;
-  games: number;
-  seed: number;
-  rosters: RosterName[];
-  workers: number;
-  puzzleSeeds: number;
-  out: string;
-  /** Weights for the coach under test, when it is the planner. */
-  weights?: string;
-  /** Weights for the baseline, when it is the planner. */
-  vsWeights?: string;
-  /** A frozen copy of planner.ts to play instead of the --vs coach. */
-  vsModule?: string;
-  rerolls?: number;
-  /** Give every roster its share of games, and judge each by its standard. */
-  standards: boolean;
-}
-
 const BENCH_HELP = `Usage: pnpm sim bench [options]
   --coach <name>       the coach under test (default heuristic)
   --vs <name>          the baseline it plays (default heuristic)
@@ -609,70 +167,36 @@ const BENCH_HELP = `Usage: pnpm sim bench [options]
   --out <file>         report path (default sim-results/bench-<timestamp>.json)`;
 
 function parseBenchOptions(argv: string[]): BenchOptions {
-  const options: BenchOptions = {
-    coach: "heuristic",
-    vs: "heuristic",
-    games: 200,
-    seed: 1,
-    rosters: Object.values(RosterName),
-    workers: Math.max(1, os.cpus().length - 1),
-    puzzleSeeds: 50,
-    standards: false,
-    out: path.join(
-      "sim-results",
-      `bench-${new Date().toISOString().replace(/[:.]/g, "-")}.json`
-    ),
-  };
-  const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
-  for (let i = 0; i < argv.length; i++) {
-    switch (argv[i]) {
-      case "--coach":
-        options.coach = parseCoach(value(i++));
-        break;
-      case "--vs":
-        options.vs = parseCoach(value(i++));
-        break;
-      case "--games":
-        options.games = Number(value(i++));
-        break;
-      case "--seed":
-        options.seed = Number(value(i++));
-        break;
-      case "--rosters":
-        options.rosters = parseRosters(value(i++));
-        break;
-      case "--workers":
-        options.workers = Number(value(i++));
-        break;
-      case "--puzzles":
-        options.puzzleSeeds = Number(value(i++));
-        break;
-      case "--weights":
-        options.weights = value(i++);
-        break;
-      case "--vs-weights":
-        options.vsWeights = value(i++);
-        break;
-      case "--vs-module":
-        options.vsModule = path.resolve(value(i++));
-        break;
-      case "--rerolls":
-        options.rerolls = Number(value(i++));
-        break;
-      case "--standards":
-        options.standards = true;
-        break;
-      case "--out":
-        options.out = value(i++);
-        break;
-      case "--help":
-        process.stdout.write(`${BENCH_HELP}\n`);
-        process.exit(0);
-        break;
-      default:
-        fail(`unknown option ${argv[i]}\n\n${BENCH_HELP}`);
-    }
-  }
+  const options = parseFlags<BenchOptions>(
+    argv,
+    {
+      coach: "heuristic",
+      vs: "heuristic",
+      games: 200,
+      seed: 1,
+      rosters: Object.values(RosterName),
+      workers: Math.max(1, os.cpus().length - 1),
+      puzzleSeeds: 50,
+      standards: false,
+      out: path.join("sim-results", `bench-${timestamp()}.json`),
+    },
+    {
+      "--coach": (o, value) => (o.coach = parseCoach(value())),
+      "--vs": (o, value) => (o.vs = parseCoach(value())),
+      "--games": (o, value) => (o.games = Number(value())),
+      "--seed": (o, value) => (o.seed = Number(value())),
+      "--rosters": (o, value) => (o.rosters = parseRosters(value())),
+      "--workers": (o, value) => (o.workers = Number(value())),
+      "--puzzles": (o, value) => (o.puzzleSeeds = Number(value())),
+      "--weights": (o, value) => (o.weights = value()),
+      "--vs-weights": (o, value) => (o.vsWeights = value()),
+      "--vs-module": (o, value) => (o.vsModule = path.resolve(value())),
+      "--rerolls": (o, value) => (o.rerolls = Number(value())),
+      "--standards": (o) => (o.standards = true),
+      "--out": (o, value) => (o.out = value()),
+    },
+    BENCH_HELP
+  );
   if (
     !Number.isInteger(options.games) ||
     options.games < 2 ||
@@ -698,246 +222,6 @@ function parseBenchOptions(argv: string[]): BenchOptions {
   return options;
 }
 
-type BenchMessage = { job: BenchJob } | { done: true };
-
-/**
- * A coach from a frozen copy of the source tree. The copy brings its own
- * planner code and reads the same engine through the Coach seam.
- */
-async function loadFrozenPlanner(
-  file: string,
-  weightsFile?: string
-): Promise<Coach> {
-  const frozen = (await import(file)) as typeof import("./ai/planner");
-  return frozen.createPlannerCoach({
-    name: "champion",
-    ...(weightsFile
-      ? {
-          weights: parseWeights(
-            JSON.parse(fs.readFileSync(weightsFile, "utf8"))
-          ),
-        }
-      : {}),
-  });
-}
-
-/** One child process: plays the jobs the parent sends, one at a time. */
-async function benchWorker(argv: string[]): Promise<number> {
-  const options = JSON.parse(argv[0]) as BenchOptions;
-  const candidate = makeCoach(options.coach, [], options.weights);
-  const baseline = options.vsModule
-    ? await loadFrozenPlanner(options.vsModule, options.vsWeights)
-    : makeCoach(options.vs, [], options.vsWeights);
-  await new Promise<void>((resolve) => {
-    process.on("message", (message: BenchMessage) => {
-      if ("done" in message) return resolve();
-      playBenchGame(message.job, candidate, baseline, options.rerolls).then(
-        (game) => process.send!({ game }),
-        (error) =>
-          process.send!({
-            error: error instanceof Error ? error.message : String(error),
-            job: message.job,
-          })
-      );
-    });
-    process.send!({ ready: true });
-  });
-  return 0;
-}
-
-async function runBench(options: BenchOptions): Promise<number> {
-  const pairing = createCoachRng(options.seed);
-  let pair = 0;
-  // A mirrored pair plays both rosters, so cycling the first gives every
-  // roster at least its share.
-  const jobs = benchJobs(options.games / 2, options.seed, () => [
-    options.standards
-      ? options.rosters[pair++ % options.rosters.length]
-      : pairing.pick(options.rosters),
-    pairing.pick(options.rosters),
-  ]);
-  const games: BenchGame[] = [];
-  const errors: string[] = [];
-  let failedJobs = 0;
-  const started = Date.now();
-  let next = 0;
-  const workers = Math.min(options.workers, jobs.length);
-
-  await Promise.all(
-    Array.from(
-      { length: workers },
-      () =>
-        new Promise<void>((resolve, reject) => {
-          const child = fork(
-            process.argv[1],
-            ["bench-worker", JSON.stringify(options)],
-            { execArgv: process.execArgv }
-          );
-          const feed = () => {
-            if (next < jobs.length) child.send({ job: jobs[next++] });
-            else child.send({ done: true });
-          };
-          child.on(
-            "message",
-            (message: { game?: BenchGame; error?: string; job?: BenchJob }) => {
-              if (message.game) games.push(message.game);
-              if (message.error) {
-                failedJobs++;
-                errors.push(`seed ${message.job?.seed}: ${message.error}`);
-              }
-              if (message.game || message.error)
-                process.stderr.write(
-                  `\r${games.length + errors.length}/${jobs.length} games, ${((Date.now() - started) / 1000).toFixed(0)}s`
-                );
-              feed();
-            }
-          );
-          child.on("error", reject);
-          child.on("exit", (code, signal) => {
-            if (code !== 0)
-              errors.push(
-                `a worker exited with ${signal ?? `code ${code}`} before finishing`
-              );
-            resolve();
-          });
-        })
-    )
-  );
-  process.stderr.write("\n");
-  const unfinished = jobs.length - games.length - failedJobs;
-  if (unfinished > 0) errors.push(`${unfinished} games never finished`);
-
-  const report = benchReport(games);
-  const rosters = options.standards ? rosterReport(games) : [];
-  const broke = new Map<string, number>();
-  for (const key of games.flatMap((g) => g.findingKeys))
-    broke.set(key, (broke.get(key) ?? 0) + 1);
-  const puzzles =
-    options.puzzleSeeds > 0
-      ? {
-          [options.coach]: await solveRates(
-            makeCoach(options.coach, [], options.weights),
-            options.puzzleSeeds
-          ),
-          ...(options.vs === options.coach &&
-          !options.vsModule &&
-          options.weights === options.vsWeights
-            ? {}
-            : {
-                [baselineName(options)]: await solveRates(
-                  options.vsModule
-                    ? await loadFrozenPlanner(
-                        options.vsModule,
-                        options.vsWeights
-                      )
-                    : makeCoach(options.vs, [], options.vsWeights),
-                  options.puzzleSeeds
-                ),
-              }),
-        }
-      : {};
-  fs.mkdirSync(path.dirname(options.out), { recursive: true });
-  fs.writeFileSync(
-    options.out,
-    JSON.stringify(
-      {
-        options: { ...options, rosters: options.rosters.length },
-        report,
-        rosters,
-        puzzles,
-        errors,
-        games: games.sort(
-          (a, b) => a.seed - b.seed || a.candidateSide - b.candidateSide
-        ),
-      },
-      null,
-      2
-    )
-  );
-  process.stdout.write(
-    `${formatBench(options, report, puzzles)}\n` +
-      (rosters.length ? `${formatStandards(rosters, games)}\n` : "") +
-      [...broke].map(([key, n]) => `  finding: ${key} ${n}x\n`).join("") +
-      errors.map((e) => `  error: ${e}\n`).join("") +
-      `\nReport: ${options.out}\n`
-  );
-  return errors.length || report.blockingFindings ? 1 : 0;
-}
-
-/** What the report calls the coach the games are played against. */
-function baselineName(options: BenchOptions): string {
-  if (options.vsModule) return "frozen planner";
-  return options.vs === options.coach ? `${options.vs} (baseline)` : options.vs;
-}
-
-function formatBench(
-  options: BenchOptions,
-  r: BenchReport,
-  puzzles: Record<string, { id: string; solved: number; of: number }[]>
-): string {
-  const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
-  const f = (x: number) => x.toFixed(2);
-  const row = (name: string, s: BenchReport["candidate"]) =>
-    `  ${name.padEnd(12)} ${f(s.touchdownsPerGame).padStart(5)} TD  ` +
-    `${f(s.turnoversPerGame).padStart(5)} turnovers (${pct(s.turnoverRate)} of turns)  ` +
-    `dodges ${f(s.failedDodgesPerGame)} failed of ${f(s.dodgesPerGame)}  ` +
-    `rushes ${f(s.failedRushesPerGame)} failed of ${f(s.rushesPerGame)}  per game`;
-  const lines = [
-    `${options.coach} vs ${baselineName(options)}: ${r.games} games (${r.games / 2} mirrored seeds from ${options.seed})`,
-    `  won ${r.wins}, drew ${r.draws}, lost ${r.losses}: win rate ${pct(r.winRate)} ` +
-      `(95% interval ${pct(r.winRate95[0])} to ${pct(r.winRate95[1])}), ` +
-      `TD difference ${r.touchdownDiffPerGame >= 0 ? "+" : ""}${f(r.touchdownDiffPerGame)} per game`,
-    row(options.coach, r.candidate),
-    row(baselineName(options), r.baseline),
-    `  ${Math.round(r.averageMs)} ms per game; ${r.incomplete} unfinished; ${r.blockingFindings} blocking findings`,
-  ];
-  for (const [coach, rates] of Object.entries(puzzles)) {
-    lines.push(
-      `Puzzles, ${coach}: ` +
-        rates.map((p) => `${p.id} ${p.solved}/${p.of}`).join(", ")
-    );
-  }
-  return lines.join("\n");
-}
-
-function formatStandards(rows: RosterRow[], games: BenchGame[]): string {
-  const f = (x: number, digits = 2) => x.toFixed(digits);
-  const actions = (side: RosterRow["side"]) =>
-    (["block", "blitz", "pass", "handoff", "foul"] as const)
-      .map((a) => `${a} ${f(side.actionsPerGame[a] ?? 0, 1)}`)
-      .join(" ");
-  const met = rows.filter((r) => r.meets).length;
-  const meanTouchdowns =
-    rows.reduce((sum, r) => sum + r.side.touchdownsPerGame, 0) / rows.length;
-  return [
-    "Standards: touchdowns from each race's real scoring rate, in SPP; Brawlin' Brutes casualties count",
-    `  ${"roster".padEnd(20)} games  won   TD (aim)     CAS   SPP (aim)     declared a game`,
-    ...rows.map(
-      (r) =>
-        `  ${r.roster.padEnd(20)} ${String(r.games).padStart(5)} ${`${Math.round(r.winRate * 100)}%`.padStart(4)}  ` +
-        `${f(r.side.touchdownsPerGame)} (${f(r.standard.touchdowns)})  ` +
-        `${f(r.side.casualtiesPerGame).padStart(5)}  ` +
-        `${f(r.sppPerGame, 1).padStart(4)} (${f(r.standard.spp, 1).padStart(4)}) ${r.meets ? "met " : "    "}  ` +
-        actions(r.side)
-    ),
-    `  ${met} of ${rows.length} rosters meet their standard; ${f(meanTouchdowns)} TD a game averaged over rosters, against ${f(AVERAGE_TOUCHDOWNS)}`,
-    `  share of the standards ${f(standardsShare(games), 3)} (each roster's SPP over its aim, at most 1)`,
-  ].join("\n");
-}
-
-interface TuneOptions {
-  generations: number;
-  mutants: number;
-  games: number;
-  confirmGames: number;
-  seed: number;
-  workers: number;
-  rosters: RosterName[];
-  out: string;
-  from?: string;
-  objective: "self-play" | "standards";
-}
-
 const TUNE_HELP = `Usage: pnpm sim tune [options]
   --generations <n>    rounds of mutation (default 20)
   --mutants <n>        mutants per generation (default 10)
@@ -952,61 +236,41 @@ const TUNE_HELP = `Usage: pnpm sim tune [options]
   --out <file>         best weights so far (default sim-results/tuned-weights.json)`;
 
 function parseTuneOptions(argv: string[]): TuneOptions {
-  const options: TuneOptions = {
-    generations: 20,
-    mutants: 10,
-    games: 40,
-    confirmGames: 120,
-    seed: 1,
-    workers: Math.max(1, os.cpus().length - 1),
-    rosters: Object.values(RosterName),
-    out: path.join("sim-results", "tuned-weights.json"),
-    objective: "self-play",
-  };
-  const value = (i: number) => argv[i + 1] ?? fail(`${argv[i]} needs a value`);
   let gamesGiven = false;
-  for (let i = 0; i < argv.length; i++) {
-    switch (argv[i]) {
-      case "--generations":
-        options.generations = Number(value(i++));
-        break;
-      case "--mutants":
-        options.mutants = Number(value(i++));
-        break;
-      case "--games":
-        options.games = Number(value(i++));
+  const options = parseFlags<TuneOptions>(
+    argv,
+    {
+      generations: 20,
+      mutants: 10,
+      games: 40,
+      confirmGames: 120,
+      seed: 1,
+      workers: Math.max(1, os.cpus().length - 1),
+      rosters: Object.values(RosterName),
+      out: path.join("sim-results", "tuned-weights.json"),
+      objective: "self-play",
+    },
+    {
+      "--generations": (o, value) => (o.generations = Number(value())),
+      "--mutants": (o, value) => (o.mutants = Number(value())),
+      "--games": (o, value) => {
+        o.games = Number(value());
         gamesGiven = true;
-        break;
-      case "--confirm":
-        options.confirmGames = Number(value(i++));
-        break;
-      case "--seed":
-        options.seed = Number(value(i++));
-        break;
-      case "--workers":
-        options.workers = Number(value(i++));
-        break;
-      case "--from":
-        options.from = value(i++);
-        break;
-      case "--objective": {
-        const objective = value(i++);
+      },
+      "--confirm": (o, value) => (o.confirmGames = Number(value())),
+      "--seed": (o, value) => (o.seed = Number(value())),
+      "--workers": (o, value) => (o.workers = Number(value())),
+      "--from": (o, value) => (o.from = value()),
+      "--objective": (o, value) => {
+        const objective = value();
         if (objective !== "self-play" && objective !== "standards")
           fail(`--objective must be self-play or standards, not ${objective}`);
-        options.objective = objective;
-        break;
-      }
-      case "--out":
-        options.out = value(i++);
-        break;
-      case "--help":
-        process.stdout.write(`${TUNE_HELP}\n`);
-        process.exit(0);
-        break;
-      default:
-        fail(`unknown option ${argv[i]}\n\n${TUNE_HELP}`);
-    }
-  }
+        o.objective = objective;
+      },
+      "--out": (o, value) => (o.out = value()),
+    },
+    TUNE_HELP
+  );
   // Standards tuning needs a mirrored pair per roster to judge every one.
   if (options.objective === "standards" && !gamesGiven)
     options.games = Math.max(options.games, 2 * options.rosters.length);
@@ -1033,217 +297,6 @@ function parseTuneOptions(argv: string[]): TuneOptions {
       `--games and --confirm must each be at least ${2 * options.rosters.length} for --objective standards, one mirrored pair per roster`
     );
   return options;
-}
-
-/** How far a mutant must beat the best on the same games to replace it. */
-const STANDARDS_MARGIN = 0.015;
-
-interface TuneJob {
-  job: BenchJob;
-  candidate: Weights;
-  baseline: Weights | "heuristic";
-  rerolls: number;
-}
-
-/** One child process: plays the weight pairs the parent sends. */
-async function tuneWorker(): Promise<number> {
-  const coaches = new Map<string, Coach>();
-  const coach = (weights: Weights) => {
-    const key = JSON.stringify(weights);
-    let found = coaches.get(key);
-    if (!found) coaches.set(key, (found = createPlannerCoach({ weights })));
-    return found;
-  };
-  await new Promise<void>((resolve) => {
-    process.on("message", (message: { work?: TuneJob; done?: true }) => {
-      if (!message.work) return resolve();
-      const { job, candidate, baseline, rerolls } = message.work;
-      const opponent =
-        baseline === "heuristic" ? heuristicCoach : coach(baseline);
-      playBenchGame(job, coach(candidate), opponent, rerolls).then(
-        (game) => process.send!({ game }),
-        (error) =>
-          process.send!({
-            error: error instanceof Error ? error.message : String(error),
-          })
-      );
-    });
-    process.send!({ ready: true });
-  });
-  return 0;
-}
-
-async function runTune(options: TuneOptions): Promise<number> {
-  const rng = createCoachRng(options.seed);
-  let best: Weights = options.from
-    ? parseWeights(JSON.parse(fs.readFileSync(options.from, "utf8")))
-    : DEFAULT_WEIGHTS;
-  let nextSeed = options.seed * 1000;
-  // Workers pull from one queue, so every batch shares the same processes.
-  const queue: {
-    work: TuneJob;
-    done: (game: BenchGame | null) => void;
-  }[] = [];
-  const idle: ChildProcess[] = [];
-  const feed = () => {
-    while (idle.length && queue.length) {
-      const child = idle.pop()!;
-      const next = queue.shift()!;
-      running.set(child, next.done);
-      child.send({ work: next.work });
-    }
-  };
-  const running = new Map<ChildProcess, (game: BenchGame | null) => void>();
-  const children = Array.from({ length: options.workers }, () => {
-    const child = fork(process.argv[1], ["tune-worker"], {
-      execArgv: process.execArgv,
-    });
-    child.on("message", (message: { game?: BenchGame; error?: string }) => {
-      running.get(child)?.(message.game ?? null);
-      running.delete(child);
-      idle.push(child);
-      feed();
-    });
-    // Better no result than a tuner waiting forever on a game nobody plays.
-    child.on("exit", (code) => {
-      if (code !== 0) fail(`a tune worker exited with code ${code}`);
-    });
-    return child;
-  });
-
-  const say = (line: string) => process.stdout.write(`${line}\n`);
-  /**
-   * Mirrored games of `a` against `b`; team re-rolls vary by seed. Against
-   * the heuristic every roster gets its share, as in `bench --standards`,
-   * with the bench's three re-rolls.
-   */
-  const play = async (
-    a: Weights,
-    b: Weights | "heuristic",
-    games: number,
-    seed: number
-  ) => {
-    const pick = createCoachRng(seed);
-    let pair = 0;
-    const jobs = benchJobs(games / 2, seed, () => [
-      b === "heuristic"
-        ? options.rosters[pair++ % options.rosters.length]
-        : pick.pick(options.rosters),
-      pick.pick(options.rosters),
-    ]);
-    const broken = new Set<number>();
-    const played = await Promise.all(
-      jobs.map(
-        (job) =>
-          new Promise<BenchGame | null>((resolve) => {
-            queue.push({
-              work: {
-                job,
-                candidate: a,
-                baseline: b,
-                rerolls: b === "heuristic" ? 3 : job.seed % 4,
-              },
-              done(game) {
-                // A rare engine bug says nothing about the weights, and must
-                // not end a run of hours, so a broken game and its mirror are
-                // left out of the score. They are never left out quietly.
-                if (!game?.completed || game.blockingFindings > 0) {
-                  broken.add(job.seed);
-                  say(
-                    `  left out seed ${job.seed} (side ${job.candidateSide}): ` +
-                      (game?.findingKeys[0] ?? "did not finish")
-                  );
-                  return resolve(null);
-                }
-                resolve(game);
-              },
-            });
-            feed();
-          })
-      )
-    );
-    return {
-      games: played.filter((game): game is BenchGame => game !== null),
-      broken,
-    };
-  };
-  /** Every batch scored on the seeds that finished cleanly in all of them. */
-  const common = (batches: Awaited<ReturnType<typeof play>>[]) => {
-    const broken = new Set(batches.flatMap((batch) => [...batch.broken]));
-    return batches.map((batch) =>
-      batch.games.filter((game) => !broken.has(game.seed))
-    );
-  };
-
-  fs.mkdirSync(path.dirname(options.out), { recursive: true });
-  // Write beside the checkpoint, then rename over it, so an interrupted
-  // write never leaves a half file that `--from` cannot load.
-  const saveWeights = (weights: Weights) => {
-    const temporary = `${options.out}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify(weights, null, 2));
-    fs.renameSync(temporary, options.out);
-  };
-  const standards = options.objective === "standards";
-  for (let generation = 1; generation <= options.generations; generation++) {
-    const seed = nextSeed;
-    nextSeed += options.games;
-    const mutants = Array.from({ length: options.mutants }, () =>
-      mutate(best, rng)
-    );
-    const screened = common(
-      await Promise.all(
-        mutants.map((m) =>
-          play(m, standards ? "heuristic" : best, options.games, seed)
-        )
-      )
-    );
-    const shares = screened.map(standards ? standardsShare : pointShare);
-    const top = shares.indexOf(Math.max(...shares));
-    let share: number;
-    let bar: number;
-    let judged = true;
-    if (standards) {
-      const [mutant, current] = common(
-        await Promise.all(
-          [mutants[top], best].map((m) =>
-            play(m, "heuristic", options.confirmGames, nextSeed)
-          )
-        )
-      );
-      share = standardsShare(mutant);
-      bar = standardsShare(current) + STANDARDS_MARGIN;
-      // A broken seed can take a roster's only pair with it.
-      judged = rosterReport(mutant).length === options.rosters.length;
-    } else {
-      [share] = common([
-        await play(mutants[top], best, options.confirmGames, nextSeed),
-      ]).map(pointShare);
-      // One and a half standard errors of a coin flip over the confirming games.
-      bar = 0.5 + 0.75 / Math.sqrt(options.confirmGames);
-    }
-    nextSeed += options.confirmGames;
-    const promoted = judged && share >= bar;
-    say(
-      `generation ${generation}: best mutant ${shares[top].toFixed(3)}, ` +
-        `confirmed ${share.toFixed(3)} (needs ${bar.toFixed(3)})` +
-        (judged ? "" : ", but not on every roster") +
-        (promoted ? ", promoted" : "")
-    );
-    if (promoted) {
-      const changed = (Object.keys(best) as (keyof Weights)[]).filter(
-        (name) => best[name] !== mutants[top][name]
-      );
-      say(
-        `  ${changed.map((n) => `${n} ${best[n].toFixed(2)} -> ${mutants[top][n].toFixed(2)}`).join(", ")}`
-      );
-      best = mutants[top];
-      saveWeights(best);
-    }
-  }
-  saveWeights(best);
-  children.forEach((child) => child.send({ done: true }));
-  say(`Best weights: ${options.out}`);
-  return 0;
 }
 
 // The engine narrates every operation on console.log; a batch of matches
