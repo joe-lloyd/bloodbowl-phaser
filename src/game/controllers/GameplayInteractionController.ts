@@ -1496,6 +1496,10 @@ export class GameplayInteractionController {
       this.selectedPlayerId
     ) {
       if (playerAtSquare && playerAtSquare.id !== this.selectedPlayerId) {
+        if (this.isDownedOpponent(playerAtSquare)) {
+          await this.foulInsteadOfBlock(this.selectedPlayerId, x, y);
+          return;
+        }
         // Initiate Block
         this.isBusy = true;
         // Don't wait for preview? Preview is sync usually?
@@ -1543,6 +1547,10 @@ export class GameplayInteractionController {
             const dy = Math.abs((selectedPlayer.gridPosition?.y || 0) - y);
 
             if (dx <= 1 && dy <= 1) {
+              if (this.isDownedOpponent(playerAtSquare)) {
+                await this.foulInsteadOfBlock(selectedPlayer.id, x, y);
+                return;
+              }
               // IT'S A BLOCK!
 
               // Implicit Action Declaration
@@ -2896,6 +2904,39 @@ export class GameplayInteractionController {
     this.eventBus.emit(GameEventNames.UI_RoutePreview, null);
     this.eventBus.emit(GameEventNames.UI_PassAimed, null);
     this.pitch.clearLayer("assist_ring");
+  }
+
+  private isDownedOpponent(target: Player): boolean {
+    const selected = this.selectedPlayerId
+      ? this.gameService.getPlayerById(this.selectedPlayerId)
+      : undefined;
+    return (
+      !!selected &&
+      target.teamId !== selected.teamId &&
+      (target.status === PlayerStatus.PRONE ||
+        target.status === PlayerStatus.STUNNED)
+    );
+  }
+
+  /**
+   * A downed opponent can never be Blocked, only Fouled. A click on one
+   * declares the Foul in place of whatever is still uncommitted and hands
+   * the click to the Foul step, whose confirm lets the coach back out.
+   */
+  private async foulInsteadOfBlock(
+    playerId: string,
+    x: number,
+    y: number
+  ): Promise<void> {
+    if (!this.gameService.declareAction(playerId, "foul")) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "A downed player can only be Fouled, and this player cannot Foul now."
+      );
+      return;
+    }
+    this.enterActionMode(playerId, "foul", null);
+    await this.onSquareClicked(x, y);
   }
 
   private confirmFoul(fouler: Player, target: Player): Promise<boolean> {

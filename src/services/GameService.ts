@@ -1322,6 +1322,21 @@ export class GameService implements IGameService {
       return;
     }
 
+    // Only a Standing opponent can be Blocked; a downed one is Fouled
+    const target = this.getPlayerById(defenderId);
+    if (
+      !target ||
+      target.teamId === blocker.teamId ||
+      target.status !== PlayerStatus.ACTIVE
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Only a Standing opponent can be Blocked."
+      );
+      this.eventBus.emit(GameEventNames.UI_BlockRollCancelled);
+      return;
+    }
+
     // The block is happening — commit the declaration (a Blitz declared and
     // blocked without moving first still spends the team's Blitz).
     this.playerActionManager.commitAction(attackerId);

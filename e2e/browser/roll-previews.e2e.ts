@@ -54,7 +54,9 @@ test("a second leg goes straight through when a detour would not fit", async ({
   await page.screenshot({ path: test.info().outputPath("tight-leg.png") });
   await app.pitch.clickSquare({ x: 10, y: 5 });
   // The unmarked squares are walked, then the board asks before the gap
-  await expect(page.getByRole("heading", { name: /: Rush & Dodge$/ })).toBeVisible({
+  await expect(
+    page.getByRole("heading", { name: /: Rush & Dodge$/ })
+  ).toBeVisible({
     timeout: 20_000,
   });
   // (8,4) is Marked once, (8,5) twice
@@ -135,6 +137,25 @@ test("foul previews armour and asks for confirmation with Cancel", async ({
   ).toHaveLength(0);
 });
 
+test("clicking a downed opponent with nothing declared offers a Foul, not a Block", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "ux-foul-preview" });
+  await app.pitch.clickPlayer("team1:0");
+  await app.pitch.clickPlayer("team2:0");
+  await expect(page.getByTestId("confirmation-modal")).toContainText(
+    "A double sends the fouler off."
+  );
+  await expect(page.getByTestId("block-dice-dialog")).toBeHidden();
+  // Backing out leaves the Foul uncommitted, free to become something else
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  const { activePlayer } = await app.bridge.snapshot();
+  expect(activePlayer).toMatchObject({ action: "foul" });
+  expect(activePlayer?.committed ?? false).toBe(false);
+});
+
 test("a foul clears its red target square once the foul is over", async ({
   page,
 }) => {
@@ -190,10 +211,13 @@ test("a blitz block asks for its Rush before any block dice", async ({
   await expect(page.getByTestId("action-step-block")).toBeVisible();
   await app.hud.selectActionStep("block");
   await expect
-    .poll(async () => {
-      await app.pitch.clickPlayer("team2:0");
-      return page.getByTestId("block-dice-dialog").isVisible();
-    }, { timeout: 30_000 })
+    .poll(
+      async () => {
+        await app.pitch.clickPlayer("team2:0");
+        return page.getByTestId("block-dice-dialog").isVisible();
+      },
+      { timeout: 30_000 }
+    )
     .toBe(true);
   await page.getByTestId("block-roll-dice").click();
   await expect(page.getByTestId("confirmation-modal")).toContainText(
