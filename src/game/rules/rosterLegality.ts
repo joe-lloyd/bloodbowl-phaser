@@ -41,6 +41,37 @@ export function isBigGuy(keywords: readonly string[]): boolean {
 }
 
 /**
+ * Whether this player is part of a surplus over a positional maximum or the
+ * shared Big Guy limit, as a team saved before a rulebook correction can be.
+ * Dead league players have already left and are not counted.
+ */
+export function exceedsRosterLimit(
+  team: Team,
+  roster: TeamRoster,
+  playerId: string
+): boolean {
+  const rostered = team.players.filter(
+    (player) => !isDeadLeaguePlayer(team, player)
+  );
+  const player = rostered.find((candidate) => candidate.id === playerId);
+  if (!player) return false;
+  const template = roster.playerTemplates.find(
+    (candidate) => candidate.positionName === player.positionName
+  );
+  const ofPosition = rostered.filter(
+    (candidate) => candidate.positionName === player.positionName
+  ).length;
+  if (template?.maxAllowed !== undefined && ofPosition > template.maxAllowed)
+    return true;
+  return (
+    roster.maxBigGuys !== undefined &&
+    isBigGuy(player.keywords) &&
+    rostered.filter((candidate) => isBigGuy(candidate.keywords)).length >
+      roster.maxBigGuys
+  );
+}
+
+/**
  * Validate a finished draft list against its roster template. Returns every
  * violation found (empty when the list is legal).
  */

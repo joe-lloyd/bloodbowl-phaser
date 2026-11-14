@@ -145,7 +145,9 @@ describe("between league fixtures", () => {
 
   it("still refuses firing a player after a game (Sevens)", () => {
     const team = leagueTeam(100_000, LINEMEN(7));
-    expect(canEdit(team, { type: "fire-player" })).toEqual({
+    expect(
+      canEdit(team, { type: "fire-player", playerId: team.players[0].id })
+    ).toEqual({
       allowed: false,
       reason: "Sevens teams cannot fire players after a game.",
     });

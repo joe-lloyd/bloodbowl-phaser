@@ -159,8 +159,9 @@ keeps Agility and Devious.
 
 Saved teams rebuild their base profiles from these templates on load.
 No player is removed. A saved team above a corrected maximum, such as
-three Dark Elf Blitzers or two Underworld Big Guys, shows the violation and
-must resolve it before it is legal.
+three Dark Elf Blitzers or two Underworld Big Guys, shows the violation.
+Even after it has played, it may release players from the surplus, and
+only from the surplus, for no refund, until it is legal again.
 
 Still open: the Norse roster grants Favoured of Khorne when the team picks
 Chaos Clash, and the game does not store a league choice yet. Team display

@@ -5,7 +5,8 @@
  *
  * Draft teams may use every draft-only operation; once a team is active
  * (see teamLifecycle.ts) roster-type changes are refused, and so is firing a
- * player (Sevens L6). Re-rolls and Sideline Staff are on sale at the same
+ * player (Sevens L6), except a player above a roster limit the rulebook
+ * corrected after the team was saved. Re-rolls and Sideline Staff are on sale at the same
  * Sevens prices for draft and active teams, so their limits live in
  * teamPricing.ts; an active team can never sell them back. Every refusal
  * carries a structured reason naming the rule so the UI can render it
@@ -13,13 +14,15 @@
  */
 
 import { Team } from "../../types/Team";
+import { getRosterByRosterName } from "../../data/RosterTemplates";
 import { isActiveTeam } from "./teamLifecycle";
+import { exceedsRosterLimit } from "./rosterLegality";
 
 export type TeamOperation =
   | { type: "rename" }
   | { type: "change-roster-type" }
   | { type: "hire-player" }
-  | { type: "fire-player" }
+  | { type: "fire-player"; playerId: string }
   | { type: "reorder-players" }
   | { type: "select-for-match" }
   | { type: "enter-competition" };
@@ -48,10 +51,16 @@ export function canEdit(team: Team, operation: TeamOperation): EditDecision {
           "Active teams cannot change roster type once their first match is played.",
       };
     case "fire-player":
-      return {
-        allowed: false,
-        reason: "Sevens teams cannot fire players after a game.",
-      };
+      return exceedsRosterLimit(
+        team,
+        getRosterByRosterName(team.rosterName),
+        operation.playerId
+      )
+        ? ALLOWED
+        : {
+            allowed: false,
+            reason: "Sevens teams cannot fire players after a game.",
+          };
     case "rename":
     case "hire-player":
     case "reorder-players":
