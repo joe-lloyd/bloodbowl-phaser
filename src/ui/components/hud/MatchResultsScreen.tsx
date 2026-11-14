@@ -10,6 +10,8 @@ import {
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { GameEventNames } from "../../../types/events";
 import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
+import { getCurrentUser } from "../../../firebase/auth";
+import { clearActiveMatchCode } from "../../../firebase/lobby";
 import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
@@ -27,6 +29,19 @@ interface Props {
   /** Where Leave goes; a competition game returns to its competition. */
   leaveTo?: string;
   fixtureContext?: CompetitionContext;
+}
+
+/**
+ * The coach is done with this match: drop the local save and, online, the
+ * home screen's pointer to it. The lobby stays as it is, so the other coach
+ * can finish their own post-match steps.
+ */
+function finishWithMatch(): void {
+  clearMatchSave();
+  const user = getCurrentUser();
+  if (getActiveOnlineMatch()?.kind === "online" && user) {
+    void clearActiveMatchCode(user.uid).catch(() => {});
+  }
 }
 
 function ownedTeams(teams: Team[]): Team[] {
@@ -415,7 +430,7 @@ export function MatchResultsScreen({
       const gold = winnings?.gold[team.id];
       if (gold !== undefined) params.set(`winnings-${team.id}`, String(gold));
     });
-    clearMatchSave();
+    finishWithMatch();
     navigate(`/build-team/${first.id}?${params}`, { replace: true });
     return true;
   };
@@ -449,7 +464,7 @@ export function MatchResultsScreen({
     if (!canExit) return;
     if (progressionEnabled && !(await confirmSpp(false))) return;
     if (!managePostMatchTeam()) {
-      clearMatchSave();
+      finishWithMatch();
       navigate(leaveTo);
     }
   };
