@@ -201,6 +201,71 @@ describe("KickoffEventOverlay", () => {
     expect(container.textContent).not.toContain("FOUL");
   });
 
+  it.each([
+    { phase: GamePhase.KICKOFF, hasBlitzed: true, budget: 1, offered: true },
+    { phase: GamePhase.KICKOFF, hasBlitzed: false, budget: 1, offered: true },
+    { phase: GamePhase.KICKOFF, hasBlitzed: false, budget: 0, offered: false },
+    { phase: GamePhase.PLAY, hasBlitzed: true, budget: 1, offered: false },
+  ])(
+    "uses the current action window for Blitz: $phase, previous turn spent=$hasBlitzed, Charge budget=$budget",
+    async ({ phase, hasBlitzed, budget, offered }) => {
+      const player = createPlayerOnPitch("team1", 1, 5, 5);
+      const defender = createPlayerOnPitch("team2", 1, 7, 5);
+      const gameService = {
+        getKickoffEventStep: () => ({
+          event: KickoffEvent.CHARGE,
+          teamId: "team1",
+          charge: {
+            activePlayerId: player.id,
+            budget: { blitz: budget, throwTeammate: 1, kickTeammate: 1 },
+          },
+        }),
+        getPlayerById: () => player,
+        getState: () => ({ ballPosition: null }),
+        getOpponents: () => [defender],
+        getTeammates: () => [],
+        getAvailableMovements: () => [{ x: 6, y: 5 }],
+      };
+      vi.spyOn(ServiceContainer, "isInitialized").mockReturnValue(true);
+      vi.spyOn(ServiceContainer, "getInstance").mockReturnValue({
+        gameService,
+      } as any);
+      const selected = vi.fn();
+      eventBus.on(GameEventNames.UI_ActionSelected, selected);
+      const turnData = {
+        phase,
+        activeTeamId: "team1",
+        movementUsed: new Map(),
+        hasBlitzed,
+        hasPassed: false,
+        hasHandedOff: false,
+        hasFouled: false,
+      };
+      await act(async () =>
+        root.render(
+          <PlayerActionMenu eventBus={eventBus} turnData={turnData} />
+        )
+      );
+      await act(async () =>
+        eventBus.emit(GameEventNames.PlayerSelected, { player })
+      );
+
+      const blitz = container.querySelector<HTMLButtonElement>(
+        '[data-testid="action-blitz"]'
+      );
+      expect(!!blitz).toBe(offered);
+      if (blitz) {
+        await act(async () => blitz.click());
+        expect(selected).toHaveBeenCalledWith({
+          playerId: player.id,
+          action: "blitz",
+        });
+      }
+      // Showing a Charge option must not reset the previous turn's ledger.
+      expect(turnData.hasBlitzed).toBe(hasBlitzed);
+    }
+  );
+
   it("opens the menu when the Charge starts with the player the coach just picked", async () => {
     // Live site: the coach picked one charger and confirmed. The Charge
     // re-selected that same player, the menu ignored it as a repeat, and
