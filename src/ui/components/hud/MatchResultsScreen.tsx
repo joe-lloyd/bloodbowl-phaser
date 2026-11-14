@@ -420,8 +420,14 @@ export function MatchResultsScreen({
     for (const team of managed) await saveTeam(team);
   };
 
-  /** Each of this coach's teams keeps the game in its played games. */
-  const recordPlayedGames = async () => {
+  /**
+   * Each of this coach's teams keeps the game in its played games. Built
+   * from the match's copy of the team, which still has a player who died
+   * and has left the stored roster. The save is not waited for: offline,
+   * a cloud write never settles, and the history must not hold the coach
+   * here.
+   */
+  const recordPlayedGames = () => {
     if (!tracker || teams.length < 2) return;
     const stats = tracker.summary().players;
     const id = fixtureContext
@@ -433,7 +439,7 @@ export function MatchResultsScreen({
       const opponent = teams.find((other) => other.id !== team.id);
       if (!stored || !opponent) continue;
       const game = playedGameFor(
-        stored,
+        team,
         opponent,
         { score: state.score, result: state.result },
         stats,
@@ -445,9 +451,8 @@ export function MatchResultsScreen({
         }
       );
       const updated = withPlayedGame(stored, game);
-      // The history never holds the coach on this screen
       if (updated !== stored)
-        await saveTeam(updated).catch((cause) =>
+        void saveTeam(updated).catch((cause) =>
           console.warn("[MatchResults] played game not saved:", cause)
         );
     }
@@ -485,7 +490,7 @@ export function MatchResultsScreen({
       }
       setConfirmed(true);
       await recordDevelopment();
-      await recordPlayedGames();
+      recordPlayedGames();
       setError("");
       if (openManagement) managePostMatchTeam();
       return true;
@@ -501,7 +506,7 @@ export function MatchResultsScreen({
   const leave = async () => {
     if (!canExit) return;
     if (progressionEnabled && !(await confirmSpp(false))) return;
-    await recordPlayedGames();
+    recordPlayedGames();
     if (!managePostMatchTeam()) {
       finishWithMatch();
       navigate(leaveTo);

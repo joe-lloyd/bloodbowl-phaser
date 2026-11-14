@@ -209,6 +209,83 @@ describe("MatchResultsScreen", () => {
     ]);
   });
 
+  it("leaves full time while offline, with the played game still saving", async () => {
+    const { team1, team2 } = setup(false);
+    let cache = [structuredClone(team1), structuredClone(team2)];
+    setTeamRepository({
+      loadTeams: () => cache,
+      // A cloud write that never settles, as it does with no connection
+      saveTeams: (teams) => {
+        cache = teams;
+        return new Promise(() => {});
+      },
+      deleteTeam: () => {},
+    });
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/play"]}>
+          <Routes>
+            <Route path="/play" element={<MatchResultsScreen visible />} />
+            <Route path="/" element={<p>Main menu</p>} />
+          </Routes>
+        </MemoryRouter>
+      )
+    );
+    const exit = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Continue to Main Menu")
+    )!;
+    await act(async () => exit.click());
+    expect(container.textContent).toContain("Main menu");
+  });
+
+  it("keeps a player who died in the game in the team's played games", async () => {
+    const { services, team1, team2 } = setup(false);
+    const fallen = team1.players[0];
+    const line = (playerId: string, teamId: string, extra = {}) => ({
+      playerId,
+      teamId,
+      participated: true,
+      completions: 0,
+      attempts: 0,
+      superbThrows: 0,
+      safeLandings: 0,
+      interceptions: 0,
+      casualties: 0,
+      kills: 0,
+      touchdowns: 0,
+      mvps: 0,
+      blocks: 0,
+      yards: 0,
+      injuriesSuffered: 0,
+      sppEarned: 0,
+      ...extra,
+    });
+    vi.spyOn(services.matchStats, "summary").mockReturnValue({
+      progressionEnabled: false,
+      players: [
+        line(fallen.id, "team-1", { touchdowns: 1, injuriesSuffered: 1 }),
+        line(team2.players[0].id, "team-2"),
+      ],
+    });
+    // A dead league player has already left the stored roster
+    const stored = structuredClone(team1);
+    stored.players = stored.players.filter((p) => p.id !== fallen.id);
+    saveTeams([stored, structuredClone(team2)]);
+
+    await render();
+    const exit = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Continue to Main Menu")
+    )!;
+    await act(async () => exit.click());
+
+    const played = loadTeams().find(
+      (team) => team.id === "team-1"
+    )!.playedGames!;
+    expect(played[0].players).toMatchObject([
+      { playerId: fallen.id, touchdowns: 1, injured: true },
+    ]);
+  });
+
   it("lists injuries suffered by both teams, including players who never activated", async () => {
     const { team1, team2 } = setup(false);
     team1.players[0].status = PlayerStatus.INJURED;
