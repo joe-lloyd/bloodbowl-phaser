@@ -10,12 +10,7 @@ import {
   TraitKeyWord,
   PlayerTemplate,
 } from "../types/Player";
-import {
-  League,
-  TeamRoster,
-  TeamSpecialRule,
-  RosterName,
-} from "../types/Team";
+import { League, TeamRoster, TeamSpecialRule, RosterName } from "../types/Team";
 import { SkillCategory, SkillType, getSkill } from "../types/Skills";
 
 const AMAZON_ROSTER: TeamRoster = {
