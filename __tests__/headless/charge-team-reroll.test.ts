@@ -143,3 +143,35 @@ describe("Team Re-rolls during Charge!", () => {
     expect(game.snapshot().teams[0].rerolls).toBe(1);
   });
 });
+
+describe("a save taken during Charge!", () => {
+  it("gives the drive's first turn its Team Re-roll after a cold restore", async () => {
+    const game = await chargeGame();
+    game.ctx.team1.rerolls = 3;
+    game.ctx.team2.rerolls = 3;
+    for (const player of game.ctx.team1.players.slice(0, 2)) {
+      await game.execute({ type: "kickoff-select-player", playerId: player.id });
+    }
+    await game.execute({ type: "kickoff-confirm" });
+    const save = game.matchSave();
+    expect(save.snapshot.chargeTeamId).toBe(game.ctx.team1.id);
+
+    // The Charge's own progress cannot survive a restore, so the kick-off
+    // finishes without it and play starts on team two's turn.
+    const resumed = new HeadlessGame({ matchSave: save });
+    const gs = resumed.ctx.gameService;
+    const kick = await resumed.execute({
+      type: "kick-ball",
+      playerId: resumed.ctx.team1.players[0].id,
+      x: 14,
+      y: 5,
+    });
+    expect(kick.ok).toBe(true);
+    expect(gs.getState().phase).toBe(GamePhase.PLAY);
+    expect(gs.getState().turn.teamId).toBe(resumed.ctx.team2.id);
+    expect(resumed.snapshot().chargeTeamId).toBeUndefined();
+    expect(gs.getRerollArbiter().nextTeamReroll(resumed.ctx.team2.id)).toBe(
+      "team"
+    );
+  });
+});

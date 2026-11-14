@@ -141,6 +141,9 @@ export class KickoffEventManager {
     const existing = this.state.kickoffResolution;
     if (existing) {
       this.lastEvent = existing.event;
+      // A Charge! saved mid-sequence ends here with its step, so its re-roll
+      // window must close too or the drive's first turn loses its re-roll
+      delete this.state.chargeTeamId;
       this.eventBus.emit(GameEventNames.KickoffResult, {
         roll: existing.roll,
         event: existing.event,

@@ -296,14 +296,16 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     movementUsed: new Map(Object.entries(snapshot.turn.movementUsed)),
   };
 
+  // Every optional field is written, undefined when absent: a resync copies
+  // this onto the live state, where an omitted key would keep a stale value.
   return {
     phase: snapshot.phase,
     subPhase: snapshot.subPhase ?? undefined,
     activeTeamId: snapshot.activeTeamId,
     turn,
     score: { ...snapshot.score },
-    ...(snapshot.knockout ? { knockout: true } : {}),
-    ...(snapshot.paysWinnings ? { paysWinnings: true } : {}),
+    knockout: snapshot.knockout ? true : undefined,
+    paysWinnings: snapshot.paysWinnings ? true : undefined,
     weather: snapshot.weather,
     ballPosition: snapshot.ballPosition ? { ...snapshot.ballPosition } : null,
     activePlayer: snapshot.activePlayer ? { ...snapshot.activePlayer } : null,
@@ -326,7 +328,7 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
     turnUsage: snapshot.turnUsage
       ? structuredClone(snapshot.turnUsage)
       : undefined,
-    ...(snapshot.chargeTeamId ? { chargeTeamId: snapshot.chargeTeamId } : {}),
+    chargeTeamId: snapshot.chargeTeamId,
     raisedDead: snapshot.raisedDead ? { ...snapshot.raisedDead } : undefined,
     fanFactors: snapshot.fanFactors ? { ...snapshot.fanFactors } : undefined,
     inducements: snapshot.inducements

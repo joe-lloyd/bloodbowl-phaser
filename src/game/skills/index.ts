@@ -331,14 +331,19 @@ export function adjacentStanding(
 
 /**
  * Active skills whose text says they work while the holder is down: Mighty
- * Blow "even if this player is also Knocked Down", Chainsaw's +3 against a
- * downed wielder, and Lethal Flight for a player thrown into an opponent.
+ * Blow "even if this player is also Knocked Down", and Lethal Flight for a
+ * player thrown into an opponent. Neither works while Distracted.
  */
 const IN_EFFECT_WHILE_DOWN = new Set<SkillType>([
   SkillType.MIGHTY_BLOW,
-  SkillType.CHAINSAW,
   SkillType.LETHAL_FLIGHT,
 ]);
+
+/**
+ * Chainsaw's +3 against its downed wielder "must always be applied", so it
+ * holds whatever the wielder's status, Distracted or not.
+ */
+const ALWAYS_IN_EFFECT = new Set<SkillType>([SkillType.CHAINSAW]);
 
 /**
  * Rulebook p.125: an Active skill or trait works only while its holder is
@@ -348,10 +353,10 @@ const IN_EFFECT_WHILE_DOWN = new Set<SkillType>([
  */
 export function skillInEffect(player: Player, type: SkillType): boolean {
   if (SKILL_DEFINITIONS[type].usage === "passive") return true;
-  if (IN_EFFECT_WHILE_DOWN.has(type)) return true;
+  if (ALWAYS_IN_EFFECT.has(type)) return true;
+  if (hasCondition(player, PlayerCondition.DISTRACTED)) return false;
   return (
-    player.status === PlayerStatus.ACTIVE &&
-    !hasCondition(player, PlayerCondition.DISTRACTED)
+    player.status === PlayerStatus.ACTIVE || IN_EFFECT_WHILE_DOWN.has(type)
   );
 }
 

@@ -11,6 +11,7 @@ import {
 import { SkillType, getSkill } from "../../src/types/Skills";
 import { GameEventNames } from "../../src/types/events";
 import { forceDice } from "../utils/test-helpers";
+import { whenEngineQuiet } from "../../src/game/core/GameFlowManager";
 
 /**
  * Rulebook p.125: an Active skill or trait works only while its holder is
@@ -132,4 +133,46 @@ describe("Distracted players cannot use Active skills", () => {
     ]);
     expect(defender.status).toBe(PlayerStatus.ACTIVE);
   });
+
+  it.each([
+    [false, ["Mighty Blow: +1 saved for the injury roll"]],
+    [true, []],
+  ])(
+    "a Mighty Blow defender, Distracted %s, on a Both Down: %j",
+    async (distracted, effects) => {
+      const { game, attacker, defender } = setUp(
+        SkillType.MIGHTY_BLOW,
+        distracted
+      );
+      const triggered: string[] = [];
+      game.ctx.eventBus.on(GameEventNames.SkillTriggered, (data) => {
+        if (data.skill === SkillType.MIGHTY_BLOW) triggered.push(data.effect);
+      });
+      // Both players go down and both armour rolls hold
+      forceDice(game.ctx.rng, [1, 1, 1, 1]);
+      await game.ctx.gameService.resolveBlock(
+        attacker.id,
+        defender.id,
+        bothDown
+      );
+      await whenEngineQuiet();
+      expect(attacker.status).toBe(PlayerStatus.PRONE);
+      expect(triggered).toEqual(effects);
+    }
+  );
+
+  it("a Distracted Chainsaw wielder still takes +3 on their Armour Roll", async () => {
+    const { game, attacker, defender } = setUp(SkillType.CHAINSAW, true);
+    const triggered: string[] = [];
+    game.ctx.eventBus.on(GameEventNames.SkillTriggered, (data) => {
+      if (data.skill === SkillType.CHAINSAW) triggered.push(data.effect);
+    });
+    await resolve(game, attacker, defender, stumble);
+    await whenEngineQuiet();
+    expect(defender.status).not.toBe(PlayerStatus.ACTIVE);
+    expect(triggered).toEqual([
+      "Chainsaw: +3 to the Armour Roll against the downed wielder",
+    ]);
+  });
 });
+
