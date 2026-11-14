@@ -119,6 +119,17 @@ export interface GameState {
     bloodlustUnsated?: boolean;
     /** A second Foul this turn, declared on the team's Grudge Match. */
     grudgeMatch?: boolean;
+    /**
+     * Razzle-Dazzle (L22): two Actions in this activation. `actions` holds
+     * those declared so far; `awaitingSecond` is set once the first ends.
+     * `movementBefore` is the movement the first Action spent, which the
+     * second one's commitment does not count.
+     */
+    razzleDazzle?: {
+      actions: string[]; // ActionType
+      awaitingSecond?: boolean;
+      movementBefore?: number;
+    };
   } | null;
   /** Kickoff-event effects scoped to the current drive; absent = none. */
   driveEffects?: import("../game/kickoff/driveEffects").DriveEffects;

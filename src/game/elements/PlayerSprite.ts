@@ -71,6 +71,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
   private carrierBadge: Phaser.GameObjects.Container;
   /** Distracted is a condition of a Standing player, so it gets its own mark. */
   private distractedMarker: Phaser.GameObjects.Container;
+  /** Zap!: a frog's face over a shrunken figure until the drive ends. */
+  private frogMarker: Phaser.GameObjects.Container;
   /** Stars over a Stunned player, who lies like a Prone one. */
   private stunnedMarker: Phaser.GameObjects.Text;
 
@@ -149,6 +151,17 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.distractedMarker.add([swirl, dizzy]);
     this.distractedMarker.setVisible(false);
     this.add(this.distractedMarker);
+
+    this.frogMarker = scene.add.container(0, this.headY + 4);
+    const frogFace = scene.add.ellipse(0, 0, 22, 15, 0x4ade80);
+    frogFace.setStrokeStyle(2, 0x14532d);
+    const eyes = [-6, 6].flatMap((x) => [
+      scene.add.circle(x, -6, 4, 0xffffff).setStrokeStyle(1, 0x14532d),
+      scene.add.circle(x, -6, 1.6, 0x111111),
+    ]);
+    this.frogMarker.add([frogFace, ...eyes]);
+    this.frogMarker.setVisible(false);
+    this.add(this.frogMarker);
 
     this.carrierBadge = scene.add.container(0, this.headY - 18);
     const disc = scene.add.circle(0, 0, 10, 0x140c08, 0.85);
@@ -316,6 +329,8 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       this.stunnedMarker.setVisible(false);
       this.teamTurnBorder.setVisible(false);
       this.distractedMarker.setVisible(false);
+      this.frogMarker.setVisible(false);
+      this.figure.setScale(1);
       return;
     }
     // Turn-start activation resets and delayed status updates also reach
@@ -335,6 +350,13 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.stunnedMarker.setVisible(this.player.status === "Stunned");
     this.refreshTeamTurnBorder();
     this.refreshDistractedMarker();
+    this.refreshFrog();
+  }
+
+  private refreshFrog(): void {
+    const frog = hasCondition(this.player, PlayerCondition.FROG);
+    this.frogMarker.setVisible(frog);
+    this.figure.setScale(frog ? 0.55 : 1);
   }
 
   /**

@@ -32,6 +32,39 @@ import {
   hasReachableBlockReplacementTarget,
   legalBlockReplacementTargets,
 } from "./blockReplacements";
+import { ActionType } from "../../types/events";
+
+/**
+ * The Actions that include a Move Action: each lets the player move first
+ * (2025 rulebook pp.54-55, and the Punt and Hypnotic Gaze Special Actions).
+ */
+const ACTIONS_WITH_A_MOVE: ReadonlySet<ActionType> = new Set<ActionType>([
+  "move",
+  "blitz",
+  "pass",
+  "handoff",
+  "foul",
+  "secureBall",
+  "throwTeamMate",
+  "punt",
+  "gaze",
+  "ballAndChain",
+]);
+
+/**
+ * Razzle-Dazzle (Spike! Journal 22, L22): the second of a player's two
+ * Actions may not be the first again, and the two may not both contain a
+ * Move Action.
+ */
+export function razzleDazzleAllows(
+  first: ActionType,
+  second: ActionType
+): boolean {
+  return (
+    first !== second &&
+    !(ACTIONS_WITH_A_MOVE.has(first) && ACTIONS_WITH_A_MOVE.has(second))
+  );
+}
 
 export interface TurnFlags {
   hasBlitzed: boolean;
@@ -52,6 +85,11 @@ export interface ActionAvailabilityInput {
   turn: TurnFlags;
   /** The player already moved this activation (blocks move-first actions). */
   hasMovedInAction: boolean;
+  /**
+   * Razzle-Dazzle: the player's first Action has ended and this is the one
+   * it was. The menu then offers the second Action, from where they stand.
+   */
+  secondActionAfter?: ActionType;
 }
 
 export interface ActionAvailability {
@@ -98,6 +136,44 @@ const isDown = (p: Player): boolean =>
 export function computeActionAvailability(
   input: ActionAvailabilityInput
 ): ActionAvailability {
+  const first = input.secondActionAfter;
+  if (first) {
+    // The second Action starts afresh: moving in the first one does not
+    // stop a Block, only the Razzle-Dazzle limits do.
+    const all = computeActionAvailability({
+      ...input,
+      hasMovedInAction: false,
+      secondActionAfter: undefined,
+    });
+    const allows = (action: ActionType) => razzleDazzleAllows(first, action);
+    return {
+      move: all.move && allows("move"),
+      block: all.block && allows("block"),
+      multipleBlock: all.multipleBlock && allows("multipleBlock"),
+      jump: all.jump && allows("move"),
+      blitz: all.blitz && allows("blitz"),
+      pass: all.pass && allows("pass"),
+      punt: all.punt && allows("punt"),
+      handoff: all.handoff && allows("handoff"),
+      foul: all.foul && allows("foul"),
+      standUp: false,
+      secureBall: all.secureBall && allows("secureBall"),
+      stab: all.stab && allows("stab"),
+      breatheFire: all.breatheFire && allows("breatheFire"),
+      vomit: all.vomit && allows("vomit"),
+      gaze: all.gaze && allows("gaze"),
+      chomp: all.chomp && allows("chomp"),
+      chainsaw: all.chainsaw && allows("chainsaw"),
+      throwTeammate: all.throwTeammate && allows("throwTeamMate"),
+      kickTeammate: all.kickTeammate && allows("throwTeamMate"),
+      throwBomb: all.throwBomb && allows("throwBomb"),
+      ballAndChain: all.ballAndChain && allows("ballAndChain"),
+      directBlockReplacements: all.directBlockReplacements.filter((r) =>
+        allows(r)
+      ),
+      blitzBlockReplacements: allows("blitz") ? all.blitzBlockReplacements : [],
+    };
+  }
   const { player, ballPosition, opponents, teammates, reachable, turn } = input;
   const here = player.gridPosition;
   const none: ActionAvailability = {

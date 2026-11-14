@@ -118,12 +118,16 @@ import {
   ResolvePregameInducementsOperation,
   getMatchInducements,
   holdsMeasure,
+  holdsSportsWizard,
+  restoreFrogs,
   offerMeasure,
   revokeMatchGrants,
   rushModifier,
   trapdoorOpens,
   validChoiceAnswer,
 } from "@/game/inducements/matchInducements";
+import { razzleDazzleAllows } from "../game/rules/actionAvailability";
+import { CastSportsWizardOperation } from "../game/inducements/sportsWizard";
 import { CrowdInjuryOperation } from "@/game/operations/CrowdInjuryOperation";
 import { DesperateMeasure } from "@/game/inducements/desperateMeasures";
 import {
@@ -329,6 +333,7 @@ export class GameService implements IGameService {
         shootout: () =>
           penaltyShootout(this.diceController, this.team1, this.team2),
         onTurnEnding: (endingTeamId) => this.handleTurnEnding(endingTeamId),
+        betweenTurns: (endingTeamId) => this.castSportsWizards(endingTeamId),
       },
       this.delay
     );
@@ -963,7 +968,12 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
-    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
+    // Both Razzle-Dazzle Actions share one activation: the bite is due after both.
+    if (this.holdForSecondAction(playerId)) {
+      this.blitzBlockUsed.delete(playerId);
+      return;
+    }
+    // A failed Bloodlust is settled before ending the activation.
     if (this.takeUnsatedBloodlust(playerId)) {
       this.flowManager.add(
         new BloodlustBiteOperation(playerId, "consequences", () =>
@@ -1004,6 +1014,46 @@ export class GameService implements IGameService {
     }
     this.turnManager.finishActivation(playerId);
     this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
+  }
+
+  private awaitingSecondAction(playerId: string): boolean {
+    return (
+      this.state.activePlayer?.id === playerId &&
+      !!this.state.activePlayer.razzleDazzle?.awaitingSecond
+    );
+  }
+
+  /**
+   * Razzle-Dazzle (L22): the first of the player's two Actions has ended,
+   * so the activation stays open for the second, unless the player can no
+   * longer act: down, off the pitch, or the turn is over.
+   */
+  private holdForSecondAction(playerId: string): boolean {
+    const active = this.state.activePlayer;
+    const razzle = active?.id === playerId ? active.razzleDazzle : undefined;
+    const player = this.getPlayerById(playerId);
+    if (
+      !razzle ||
+      razzle.actions.length !== 1 ||
+      razzle.awaitingSecond ||
+      this.state.phase !== GamePhase.PLAY ||
+      this.isTurnoverInProgress() ||
+      player?.status !== PlayerStatus.ACTIVE ||
+      !player.gridPosition ||
+      // An unsuccessful Secure the Ball must end in a Turnover, not a second Action.
+      (isSecuringBall(this.state, playerId) &&
+        !this.ballManager.hasBall(playerId))
+    ) {
+      return false;
+    }
+    this.playerActionManager.commitAction(playerId);
+    razzle.awaitingSecond = true;
+    this.eventBus.emit(
+      GameEventNames.UI_GameLog,
+      `Razzle-Dazzle: ${player.playerName} may declare a second Action`
+    );
+    this.eventBus.emit(GameEventNames.RazzleDazzleSecondAction, { playerId });
+    return true;
   }
 
   /** True once per failed Bloodlust activation; clears the mark. */
@@ -1140,6 +1190,7 @@ export class GameService implements IGameService {
   // ===== Action Methods =====
 
   previewBlock(attackerId: string, defenderId: string): void {
+    if (this.awaitingSecondAction(attackerId)) return;
     this.blockManager.previewBlock(attackerId, defenderId);
   }
 
@@ -1148,6 +1199,7 @@ export class GameService implements IGameService {
     defender1Id: string,
     defender2Id: string
   ): Promise<void> {
+    if (this.awaitingSecondAction(attackerId)) return;
     await this.blockManager.startMultipleBlock(
       attackerId,
       defender1Id,
@@ -1164,6 +1216,7 @@ export class GameService implements IGameService {
     const declaration = this.state.activePlayer;
     if (
       declaration?.id !== attackerId ||
+      this.awaitingSecondAction(attackerId) ||
       (declaration.action !== "block" && declaration.action !== "blitz") ||
       declaration.blockReplacement ||
       this.hasUsedBlitzBlock(attackerId)
@@ -1541,6 +1594,8 @@ export class GameService implements IGameService {
     targetY: number,
     hailMary = false
   ): Promise<{ success: boolean; result?: string }> {
+    if (this.awaitingSecondAction(passerId))
+      return { success: false, result: "second-action-not-declared" };
     // NOTE: Signature kept async for compatibility, but it resolves immediately
     // while the operation runs in background/flow.
 
@@ -1635,6 +1690,8 @@ export class GameService implements IGameService {
     passerId: string,
     targetPlayerId: string
   ): Promise<{ success: boolean; result?: string }> {
+    if (this.awaitingSecondAction(passerId))
+      return { success: false, result: "second-action-not-declared" };
     if (this.state.phase !== GamePhase.PLAY) {
       return { success: false, result: "Not in play phase" };
     }
@@ -1680,6 +1737,7 @@ export class GameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     const player = this.getPlayerById(playerId);
     if (
       !player?.gridPosition ||
@@ -1760,6 +1818,25 @@ export class GameService implements IGameService {
         this.eventBus.emit(GameEventNames.PlayerStatusChanged, player);
       }
     }
+  }
+
+  /**
+   * Sports-Wizards cast "at the end of any Turn, before the next Turn
+   * begins" (2025 rulebook p.149): the coach whose turn ended is asked
+   * first. Null when neither team has a spell left.
+   */
+  private castSportsWizards(endingTeamId: string): Promise<void> | null {
+    if (this.state.phase !== GamePhase.PLAY) return null;
+    const other =
+      endingTeamId === this.team1.id ? this.team2.id : this.team1.id;
+    const casters = [endingTeamId, other].filter((teamId) =>
+      holdsSportsWizard(this.state, teamId)
+    );
+    if (casters.length === 0) return null;
+    for (const teamId of casters) {
+      this.flowManager.add(new CastSportsWizardOperation(teamId));
+    }
+    return this.whenSettled().then(() => undefined);
   }
 
   /** End-of-opposition-turn trigger: fold the reacting team (Pick-Me-Up). */
@@ -2003,6 +2080,8 @@ export class GameService implements IGameService {
    * placement bookkeeping reset, ball off the pitch.
    */
   resetDriveState(): void {
+    // Zap!'s Frogs are themselves again at the end of the drive
+    restoreFrogs(this.state, [...this.team1.players, ...this.team2.players]);
     this.setupManager.resetForNewDrive();
     this.state.ballPosition = null;
     this.state.activePlayer = null;
@@ -2163,6 +2242,7 @@ export class GameService implements IGameService {
     playerId: string,
     path: { x: number; y: number }[]
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     // Bombardier: "A player that declared a Throw Bomb Special Action may
     // not perform a Move Action before throwing the bomb" (p.125).
     const declared = this.state.activePlayer;
@@ -2179,6 +2259,7 @@ export class GameService implements IGameService {
     playerId: string,
     square: { x: number; y: number }
   ): boolean {
+    if (this.awaitingSecondAction(playerId)) return false;
     const player = this.getPlayerById(playerId);
     const active = this.state.activePlayer;
     if (
@@ -2205,6 +2286,7 @@ export class GameService implements IGameService {
   }
 
   async standUp(playerId: string): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
@@ -2214,6 +2296,7 @@ export class GameService implements IGameService {
     playerId: string,
     target: { x: number; y: number }
   ): Promise<void> {
+    if (this.awaitingSecondAction(playerId)) return;
     const context = this.getFlowContext();
     await this.movementManager.jumpPlayer(playerId, target, context);
     this.playerActionManager.commitAction(playerId);
@@ -2222,7 +2305,8 @@ export class GameService implements IGameService {
   declareAction(
     playerId: string,
     action: ActionType,
-    requestedReplacement?: BlockReplacement
+    requestedReplacement?: BlockReplacement,
+    options: { razzleDazzle?: boolean } = {}
   ): boolean {
     // Charge! (kickoff 10): the current Charge player acts outside any turn
     if (this.kickoffEventManager.isChargeActive()) {
@@ -2237,13 +2321,43 @@ export class GameService implements IGameService {
     const activating = this.getPlayerById(playerId);
     if (!activating) return false;
 
+    // Razzle-Dazzle (L22): a player whose first Action has ended declares
+    // the second. Another player acting ends that activation instead.
+    const held = this.state.activePlayer;
+    if (held?.razzleDazzle?.awaitingSecond && held.id !== playerId) {
+      this.finishActivation(held.id);
+    }
+    const firstAction =
+      held?.id === playerId && held.razzleDazzle?.awaitingSecond
+        ? (held.razzleDazzle.actions[0] as ActionType)
+        : undefined;
+    if (firstAction && !razzleDazzleAllows(firstAction, action)) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        "Razzle-Dazzle: the second Action cannot repeat the first, and only one of them may contain a Move."
+      );
+      return false;
+    }
+    if (
+      options.razzleDazzle &&
+      (firstAction ||
+        !holdsMeasure(
+          this.state,
+          activating.teamId,
+          DesperateMeasure.RAZZLE_DAZZLE
+        ) ||
+        this.playerActionManager.isActionCommitted(playerId).committed)
+    ) {
+      return false;
+    }
+
     const directReplacement = blockReplacementForDirectAction(action);
     const blockReplacement = requestedReplacement ?? directReplacement;
     // A direct Special Action is a no-move declaration, exactly like a
     // standalone Block. Once this activation has spent movement the attack
     // must have been declared as a Blitz before the move began — refuse here
     // so a forged or stale command cannot bypass the availability gate.
-    if (directReplacement) {
+    if (directReplacement && !firstAction) {
       const movementSpent =
         (this.state.turn.movementUsed.get(playerId) ?? 0) > 0;
       if (movementSpent) {
@@ -2260,6 +2374,7 @@ export class GameService implements IGameService {
     // player has started. Preserve the engine's existing Move-then-Block
     // declaration compatibility for ordinary actions.
     if (
+      !firstAction &&
       this.state.activePlayer &&
       (this.state.activePlayer.blockReplacement || blockReplacement)
     ) {
@@ -2283,7 +2398,7 @@ export class GameService implements IGameService {
     // the once-per-turn case above: isActionCommitted() reports "movement"
     // instead of "gate" the moment real movement is spent, so the Move-
     // then-Block carve-out above is untouched by this check.
-    if (this.state.activePlayer) {
+    if (this.state.activePlayer && !firstAction) {
       const existingId = this.state.activePlayer.id;
       const status = this.playerActionManager.isActionCommitted(existingId);
       // Nor may a player who has started the activation switch to another
@@ -2311,6 +2426,7 @@ export class GameService implements IGameService {
     }
     if (
       this.state.activePlayer &&
+      !firstAction &&
       ONCE_PER_TURN_ACTIONS.has(this.state.activePlayer.action as ActionType)
     ) {
       const existingId = this.state.activePlayer.id;
@@ -2523,6 +2639,17 @@ export class GameService implements IGameService {
     ) {
       return false;
     }
+    const declared = this.state.activePlayer!;
+    if (firstAction) {
+      declared.razzleDazzle = {
+        actions: [firstAction, action],
+        movementBefore: this.state.turn.movementUsed.get(playerId) ?? 0,
+      };
+      if (held?.bloodlustUnsated) declared.bloodlustUnsated = true;
+      // The activation's rolls (Bone Head, …) came with its first Action
+      return true;
+    }
+    if (options.razzleDazzle) declared.razzleDazzle = { actions: [action] };
     // Negatraits roll between declaring and performing (Bone Head, …):
     // queued at the FRONT of the flow so the gate — decisions included —
     // resolves before the declared action can proceed
@@ -2605,6 +2732,7 @@ export class GameService implements IGameService {
     targetX: number,
     targetY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(foulerId)) return;
     if (this.state.phase !== GamePhase.PLAY) {
       return;
     }
@@ -2626,6 +2754,7 @@ export class GameService implements IGameService {
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
+    if (this.awaitingSecondAction(attackerId)) return false;
     const gate = await this.commitBlockReplacement(
       attackerId,
       targetId,
@@ -2654,6 +2783,7 @@ export class GameService implements IGameService {
     mode?: "throw" | "kick",
     swoopFacing?: SwoopFacing
   ): Promise<void> {
+    if (this.awaitingSecondAction(throwerId)) return;
     if (
       this.state.phase !== GamePhase.PLAY &&
       !this.kickoffEventManager.isChargeActive()
@@ -2708,6 +2838,7 @@ export class GameService implements IGameService {
     x: number,
     y: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(throwerId)) return;
     if (this.state.phase !== GamePhase.PLAY) return;
 
     const thrower = this.getPlayerById(throwerId);
@@ -2734,6 +2865,7 @@ export class GameService implements IGameService {
     facingX: number,
     facingY: number
   ): Promise<void> {
+    if (this.awaitingSecondAction(fanaticId)) return;
     if (this.state.phase !== GamePhase.PLAY) return;
 
     const fanatic = this.getPlayerById(fanaticId);
@@ -2762,6 +2894,7 @@ export class GameService implements IGameService {
     attackerId: string,
     targetId: string
   ): Promise<boolean> {
+    if (this.awaitingSecondAction(attackerId)) return false;
     if (this.state.phase !== GamePhase.PLAY) return false;
     const attacker = this.getPlayerById(attackerId);
     if (!attacker || attacker.status !== PlayerStatus.ACTIVE) return false;

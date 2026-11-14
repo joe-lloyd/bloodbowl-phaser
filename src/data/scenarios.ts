@@ -3,6 +3,7 @@ import { Scenario } from "../types/Scenario";
 import { GamePhase, SubPhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { RosterName } from "../types/Team";
+import { DesperateMeasure } from "../game/inducements/desperateMeasures";
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -1024,6 +1025,60 @@ export const SCENARIOS: Scenario[] = [
       subPhase: SubPhase.ROLL_KICKOFF,
       team1Roster: RosterName.HUMAN,
       team2Roster: RosterName.HUMAN,
+    },
+  },
+  {
+    id: "razzle-dazzle-two-actions",
+    name: "Razzle-Dazzle: two Actions",
+    description:
+      "The home team holds Razzle-Dazzle. Select the Lineman, switch " +
+      "Razzle-Dazzle on and declare a Move; step next to the opponent and " +
+      "end the first Action. The menu returns for a second Action: a Block, " +
+      "but no Pass, Blitz or second Move, since only one may contain a Move.",
+    seed: 4,
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5 },
+        { playerIndex: 1, x: 4, y: 8 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 10, y: 5 },
+        { playerIndex: 1, x: 15, y: 2 },
+      ],
+      ballPosition: { x: 3, y: 3 },
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+      measures: { team1: [DesperateMeasure.RAZZLE_DAZZLE] },
+    },
+  },
+  {
+    id: "sports-wizard-spells",
+    name: "Magic Scroll: the Sports-Wizard",
+    description:
+      "The home team read a Magic Scroll and has a free Sports-Wizard. End " +
+      "the turn: before the away team's turn begins, cast Fireball at the " +
+      "huddle round the ball carrier, or Zap! a player into a Frog.",
+    seed: 3,
+    setup: {
+      team1Placements: [
+        { playerIndex: 0, x: 8, y: 5 },
+        { playerIndex: 1, x: 4, y: 8 },
+      ],
+      team2Placements: [
+        { playerIndex: 0, x: 12, y: 5, hasBall: true },
+        { playerIndex: 1, x: 12, y: 4 },
+        { playerIndex: 2, x: 13, y: 6, status: PlayerStatus.PRONE },
+        { playerIndex: 3, x: 16, y: 2 },
+      ],
+      activeTeam: "team1",
+      phase: GamePhase.PLAY,
+      subPhase: SubPhase.TURN_RECEIVING,
+      team1Roster: RosterName.HUMAN,
+      team2Roster: RosterName.HUMAN,
+      measures: { team1: [DesperateMeasure.MAGIC_SCROLL] },
     },
   },
   {

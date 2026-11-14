@@ -11,6 +11,7 @@ import type {
   FoulAssistsDecisionRequest,
   InducementChoiceDecisionRequest,
   RerollSource,
+  WizardSpell,
 } from "../types/decisions";
 import { GameSnapshot } from "./serialization";
 import type {
@@ -61,6 +62,8 @@ export type HeadlessCommand =
       playerId: string;
       action: ActionType;
       blockReplacement?: BlockReplacement;
+      /** Use the team's Razzle-Dazzle: this is the first of two Actions. */
+      razzleDazzle?: boolean;
     }
   | { type: "cancel-action"; playerId: string }
   | { type: "move"; playerId: string; path: GridPosition[] }
@@ -151,6 +154,10 @@ export type HeadlessCommand =
       playerId?: string;
       skill?: string;
       stat?: DopeStat;
+      /** Sports-Wizard: Zap! names `playerId`, Fireball the square x, y. */
+      spell?: WizardSpell;
+      x?: number;
+      y?: number;
     }
   /** How many of a Foul's Offensive Assists add +1 (0 to available). */
   | { type: "choose-foul-assists"; count: number }

@@ -15,6 +15,7 @@ import { foldTrigger, CasualtyContext } from "../skills";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { ApothecaryCasualtyType } from "../../types/decisions";
 import { offerApothecary } from "../inducements/apothecary";
+import { isFrog } from "../inducements/matchInducements";
 import { rerollFailedRegeneration } from "../inducements/regeneration";
 
 function apothecaryCasualtyType(result: CasualtyType): ApothecaryCasualtyType {
@@ -92,7 +93,10 @@ export class CasualtyOperation extends GameOperation {
       return;
     }
 
-    const result = this.result;
+    // Zap!: every casualty route, including crowd and trapdoors, is Badly Hurt.
+    const result = isFrog(gameService.getState(), player.id)
+      ? InjuryResult.BADLY_HURT
+      : this.result;
     eventBus.emit(GameEventNames.UI_Notification, `Result: ${result}`);
 
     eventBus.emit(GameEventNames.UI_Announce, {

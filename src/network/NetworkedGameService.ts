@@ -197,7 +197,8 @@ export class NetworkedGameService implements IGameService {
     answer: import("../types/decisions").InducementChoiceDecisionAnswer
   ): boolean {
     if (this.pendingDecision()?.type !== "inducement-choice") return false;
-    this.send({ type: "choose-inducement", ...answer });
+    const { square, ...choice } = answer;
+    this.send({ type: "choose-inducement", ...choice, ...square });
     return true;
   }
   answerFoulAssists(count: number): boolean {
@@ -496,13 +497,15 @@ export class NetworkedGameService implements IGameService {
   declareAction(
     playerId: string,
     action: ActionType,
-    blockReplacement?: BlockReplacement
+    blockReplacement?: BlockReplacement,
+    options: { razzleDazzle?: boolean } = {}
   ): boolean {
     this.send({
       type: "declare-action",
       playerId,
       action,
       blockReplacement,
+      ...(options.razzleDazzle ? { razzleDazzle: true } : {}),
     });
     return true;
   }

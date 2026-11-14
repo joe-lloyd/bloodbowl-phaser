@@ -65,6 +65,7 @@ const mockGameService = {
   cancelAction: vi.fn(),
   previewBlock: vi.fn(),
   hasPlayerActed: vi.fn(),
+  hasUsedBlitzBlock: vi.fn().mockReturnValue(false),
   getSubPhase: vi.fn(),
   selectKicker: vi.fn(),
   kickBall: vi.fn(),
@@ -292,6 +293,48 @@ describe("GameplayInteractionController", () => {
       expect(mockGameService.executePush).not.toHaveBeenCalled();
       expect(mockScene.highlightPlayer).toHaveBeenCalledWith("p1");
     });
+  });
+
+  describe("Razzle-Dazzle pitch shortcuts", () => {
+    beforeEach(() => {
+      mockGameService.getState.mockReturnValue({
+        activeTeamId: team1Id,
+        phase: GamePhase.PLAY,
+        activePlayer: {
+          id: player1.id,
+          action: "block",
+          committed: true,
+          razzleDazzle: { actions: ["block"], awaitingSecond: true },
+        },
+      } as GameState);
+      mockGameService.getPlayerById.mockReturnValue(player1);
+      controller["selectedPlayerId"] = player1.id;
+    });
+
+    it("validates a second Block declaration before previewing the adjacent defender", async () => {
+      (controller as any).getPlayerAt = vi.fn().mockReturnValue(player2);
+      mockGameService.declareAction.mockReturnValueOnce(false);
+      await (controller as any).onSquareClicked(6, 6);
+      expect(mockGameService.declareAction).toHaveBeenCalledWith(
+        player1.id,
+        "block"
+      );
+      expect(mockGameService.previewBlock).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+      "uses the second Move declaration's verdict (%s)",
+      (accepted) => {
+        mockGameService.declareAction.mockReturnValueOnce(accepted);
+        expect((controller as any).declareMoveIfNone(player1.id, "block")).toBe(
+          accepted
+        );
+        expect(mockGameService.declareAction).toHaveBeenCalledWith(
+          player1.id,
+          "move"
+        );
+      }
+    );
   });
 
   describe("Movement Planning (Waypoints)", () => {

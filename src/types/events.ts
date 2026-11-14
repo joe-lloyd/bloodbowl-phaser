@@ -27,6 +27,8 @@ export enum GameEventNames {
   TurnStarted = "turnStarted",
   TurnEnded = "turnEnded",
   ActionResolved = "actionResolved",
+  /** Razzle-Dazzle: the player's first Action ended; the second is next. */
+  RazzleDazzleSecondAction = "razzleDazzleSecondAction",
   TurnDataUpdated = "turnDataUpdated", // New event
   PlayerPlaced = "playerPlaced",
   PlayerRemoved = "playerRemoved",
@@ -257,6 +259,8 @@ export enum GameEventNames {
   UI_PassAimed = "ui:passAimed",
   UI_UpdateActionSteps = "ui:updateActionSteps",
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
+  /** The Sports-Wizard's spell was picked; the pitch now picks its target. */
+  UI_WizardTargeting = "ui:wizardTargeting",
   UI_KeepBlockDice = "ui:keepBlockDice",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
@@ -301,6 +305,7 @@ export interface GameEvents {
   };
   [GameEventNames.TurnEnded]: { teamId: string };
   [GameEventNames.ActionResolved]: { playerId: string };
+  [GameEventNames.RazzleDazzleSecondAction]: { playerId: string };
   [GameEventNames.TurnDataUpdated]: {
     hasBlitzed: boolean;
     hasPassed: boolean;
@@ -719,6 +724,8 @@ export interface UIEvents {
     action: ActionType;
     playerId: string;
     blockReplacement?: import("./BlockReplacement").BlockReplacement;
+    /** Use Razzle-Dazzle: the first of two Actions this activation. */
+    razzleDazzle?: boolean;
   };
   [GameEventNames.UI_ConfirmAction]: { actionId: string };
   [GameEventNames.UI_CancelAction]: void;
@@ -918,6 +925,9 @@ export interface UIEvents {
   };
 
   /** A Blitz block resolved with movement left — resume the move. */
+  [GameEventNames.UI_WizardTargeting]: {
+    spell: import("./decisions").WizardSpell | null;
+  };
   [GameEventNames.UI_ResumeBlitzMove]: {
     playerId: string;
   };

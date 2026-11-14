@@ -69,6 +69,12 @@ with SPP instead of the official Sevens advancement in section 6.
 | M6 | Argue the Call: on a D6, 1 to 4 means the player is still Sent-off; 5 or 6 means the player returns to their square. Either way the Turnover stands, and the coach is never ejected. | ok: Bribery and Corruption re-rolls a 1 once per game (T3) |
 | M7 | After both normal setups, a team with Swarming may add D3 reserve Linemen before the kick. Only available Linemen may join. The confirmed formation stays in place, and the usual setup-area and Wide Zone limits apply. The coach may decline some or all extras. | ok: the allowance and placements survive save/resume and online snapshots. Each new drive rolls again. Computer coaches place eligible extras through the same setup commands. |
 
+Swarming does not apply in Sevens. The 2025 rulebook's Snotling special
+rule (p.155) adds D3 Linemen after both set-ups, beyond "the usual maximum
+of 11 players". Sevens caps a set-up at seven (M1), so the engine treats
+Swarming as a dead rule: the Snotling roster still lists it, and nothing
+reads it.
+
 A knockout tie cannot end level. The 2025 rulebook (p. 87) plays Extra
 Time and then Penalties, and the Sevens rules add nothing. The game plays
 Extra Time as one more Sevens half of 6 turns per team, where the rulebook
@@ -156,7 +162,7 @@ Where the magazine is silent, the engine does this:
 | L2 | Journeymen may be hired only up to 7 available players, and they have Loner (5+) instead of Loner (4+). | ok: in a league fixture, a league team with fewer than 7 available players gets Journeymen from its first Lineman position at kick-off. Friendlies and tournament games take on none. After the game Manage Team offers each one who played for their Hiring Fee plus any Value Increase; the rest leave (league-treasury spec) |
 | L3 | Inducements available: up to 2 Temp Agency Cheerleaders at 15,000; up to 2 Part-time Assistant Coaches at 15,000; up to 2 Blitzer's Best Kegs at 50,000; up to 2 Prayers to Nuffle at 5,000; up to 6 Extra Team Training at 125,000; up to 2 Bribes at 100,000, or 50,000 with Bribery and Corruption; 1 Wandering Apothecary at 100,000 for teams that may hire an Apothecary; 1 Mortuary Assistant at 100,000 with Masters of Undeath; 1 Plague Doctor at 100,000 with Favoured of Nurgle; 1 Halfling Master Chef at 300,000, or 100,000 for Halfling teams; up to 5 Desperate Measures at 50,000. Nothing else, so no Star Players. | ok: Prayers to Nuffle and Desperate Measures can be bought; their tables are L4 and L5. See the notes below the table for what each inducement does. |
 | L4 | Prayers to Nuffle use the D8 table below. | ok |
-| L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | ok, except Razzle-Dazzle and Magic Scroll, which are rolled and held but do nothing |
+| L5 | Desperate Measures: each one bought rolls on the D8 table below, re-rolling duplicates. Each result can be used once per game. | ok |
 | L6 | No player or Sideline Staff may be fired after a game, and nobody can Temporarily Retire. | ok: a team that has played is refused when it fires a player, and cannot sell back staff. The game has no Temporary Retirement |
 
 What each L3 inducement does in the engine, from the 2025 rulebook pages
@@ -228,13 +234,13 @@ Where the magazine is silent, the engine does this:
 | ID | Roll | Measure | When it is used | Status |
 | --- | --- | --- | --- | --- |
 | L21 | 1 | You Dope!: one player gets +1 ST or +1 AG for the game. At the end of each drive they played, roll a D6: on 1 or 2 they are Knocked-out and cannot recover this end-of-drive. | after both set-ups, before the kick | ok |
-| L22 | 2 | Razzle-Dazzle: the player declares two different Actions in one activation, at most one of which includes a Move. | when activating a player | missing: rolled and held, no effect |
+| L22 | 2 | Razzle-Dazzle: the player declares two different Actions in one activation, at most one of which includes a Move. | when activating a player | ok |
 | L23 | 3 | Hangover: one chosen opposition player misses the first drive. | before the first set-up | ok |
 | L24 | 4 | Grudge Match: this player may Foul even if your team already has, and cannot be Sent-off for it. | when activating a player | ok |
 | L25 | 5 | Set Piece: this Pass is Accurate on any 2+ whatever the passer's PA, and the receiver catches on any 2+ whatever their AG. | when a player passes | ok |
 | L26 | 6 | Sports Espionage: after a Turnover resolves, your team gains two team re-rolls. They cannot re-roll the dice that caused that Turnover. | when your team suffers a Turnover | ok |
 | L27 | 7 | Discarded Banana Skin: an opposition player entering one of your Tackle Zones is Placed Prone and their activation ends. It is a Turnover only if they held the ball. | when an opponent enters your Tackle Zone | ok |
-| L28 | 8 | Magic Scroll: your team gets a free Sports-Wizard Inducement. | before set-up | missing: the engine has no Sports-Wizard, so it is rolled and held but does nothing |
+| L28 | 8 | Magic Scroll: your team gets a free Sports-Wizard Inducement. | before set-up | ok |
 
 Where the magazine is silent, the engine does this:
 
@@ -258,16 +264,50 @@ Where the magazine is silent, the engine does this:
   ends in a Tackle Zone of the holding team, after any Trapdoor roll and
   before any pick-up. There is no Armour Roll. A ball on that square
   Bounces either way; only a held ball makes it a Turnover.
-- Razzle-Dazzle is not implemented. An activation in the engine is one
-  declared Action that ends through a single finish path shared by every
-  Action, the Charge! kick-off and Bloodlust. A second Action in the same
-  activation needs its own declaration, movement and commit rules threaded
-  through that path, the protocol and the action menu.
-- Magic Scroll would need the rulebook's Sports-Wizard (page 149), with its
-  Fireball and Zap! spells, which the engine does not have.
+- Razzle-Dazzle is switched on in the action menu as the player is
+  activated, and goes with the first Action declared (`razzleDazzle` on the
+  protocol's `declare-action`). It is spent once that Action binds, so a
+  declaration cancelled before anything happens keeps it. When the first
+  Action ends, the activation stays open and the menu comes back for the
+  second. Ending the activation then forgoes it.
+- The second Action may not be the first again, and the two may not both
+  contain a Move. The Actions with a Move are Move, Blitz, Pass, Hand-off,
+  Foul, Secure the Ball, Throw Team-mate, Punt, Hypnotic Gaze and Ball &
+  Chain. So Move then Block, or Block then Pass, are allowed; Move then
+  Pass is not. Blitz then Block counts as two different Actions.
+- The second Action starts from where the player stands. Movement the
+  first one spent still counts against the player's MA, which matters only
+  when the first was a Block and the second moves. Once-per-turn limits
+  apply as usual, so a team that has passed cannot Pass as a second Action.
+  Activation rolls such as Bone Head come with the first Action only.
+- A Turnover, or the player ending the first Action down or off the pitch,
+  ends the activation with the turn: there is no second Action.
+- Magic Scroll is read as soon as the measures are rolled, before the first
+  set-up, since nothing is gained by keeping it. The team gains the
+  Sports-Wizard from page 149 of the rulebook.
+- The Sports-Wizard casts once per game. At the end of each Turn, ended by
+  End Turn or by a Turnover once it has resolved, each coach with an uncast
+  wizard is asked, the coach whose Turn ended first. That includes the last
+  Turn of a half. The coach may keep it. Nothing between Turns is a
+  Turnover. A touchdown ends the drive rather than the Turn, so the wizard
+  is not offered then.
+- Fireball picks any square on the pitch. Every player in it or next to it
+  rolls a D6 and is hit on a 4+. A Standing player hit is Knocked Down, and
+  every player hit has an Armour Roll at +1. A ball dropped this way
+  Bounces once the Armour Rolls are made.
+- Zap! picks any player on the pitch, either team's. On a natural 1, or
+  under the player's ST, nothing happens; at or over ST, or a natural 6,
+  the player becomes a Frog: MA 5, ST 1, AG 2+, PA -, AV 5+, with Dodge,
+  Leap, No Ball, Stunty, Titchy and Very Long Legs. A held ball Bounces. A
+  Frog's Casualty is Badly Hurt and no Apothecary may treat it. At the end
+  of the drive the player gets their own profile back; a Frog knocked out
+  or hurt stays knocked out or hurt.
 - Prayer and measure choices reach the browser as a dialog and the headless
   protocol as an `inducement-choice` decision answered with
-  `choose-inducement`. Grudge Match, Set Piece, Sports Espionage and
+  `choose-inducement`. The Sports-Wizard's offer is one too, of kind
+  `sports-wizard`, answered with a `spell` and a `playerId` for Zap! or
+  `x` and `y` for Fireball. In the browser the coach picks the spell in
+  the dialog, then clicks its target on the pitch. Grudge Match, Set Piece, Sports Espionage and
   Discarded Banana Skin are yes or no `reaction` decisions.
 - The simulator gives both teams 2 Prayers to Nuffle and 5 Desperate
   Measures, free, in every match it plays.

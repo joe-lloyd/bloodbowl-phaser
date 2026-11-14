@@ -12,6 +12,11 @@ import { GameState, GamePhase } from "../types/GameState";
 import { PlayerStatus } from "../types/Player";
 import { SkillType, getSkill, hasSkill } from "../types/Skills";
 import { SetupManager } from "./managers/SetupManager";
+import { DesperateMeasure } from "./inducements/desperateMeasures";
+import {
+  MatchInducementsState,
+  emptyMatchInducements,
+} from "./inducements/matchInducements";
 
 function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
   placements.forEach((p) => {
@@ -45,6 +50,30 @@ function applyPlacements(team: Team, placements: PlayerPlacement[]): void {
       });
     });
   });
+}
+
+/** The scenario's Desperate Measures, already rolled; none when omitted. */
+function scenarioMeasures(
+  scenario: Scenario,
+  team1: Team,
+  team2: Team
+): MatchInducementsState | undefined {
+  const measures = scenario.setup.measures;
+  if (!measures) return undefined;
+  const state = { ...emptyMatchInducements(), rolled: true };
+  for (const [team, held] of [
+    [team1, measures.team1 ?? []],
+    [team2, measures.team2 ?? []],
+  ] as const) {
+    state.measures[team.id] = held.map((measure) => ({
+      measure,
+      used: measure === DesperateMeasure.MAGIC_SCROLL,
+    }));
+    if (held.includes(DesperateMeasure.MAGIC_SCROLL)) {
+      state.sportsWizards = [...(state.sportsWizards ?? []), team.id];
+    }
+  }
+  return state;
 }
 
 /** Where the ball starts: in a carrier's hands, on the ground, or nowhere. */
@@ -118,5 +147,8 @@ export function applyScenario(
     weather: scenario.setup.weather ?? "Nice",
     ballPosition: ballSquare(scenario),
     activePlayer: null,
+    ...(scenario.setup.measures
+      ? { matchInducements: scenarioMeasures(scenario, team1, team2) }
+      : {}),
   };
 }

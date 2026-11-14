@@ -87,6 +87,8 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
   >([]);
   const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   const [hasMovedInAction, setHasMovedInAction] = useState(false);
+  // Razzle-Dazzle (L22) switched on for the Action about to be declared
+  const [razzleOn, setRazzleOn] = useState(false);
   // Bumped by board-changing events so the contextual menu re-evaluates.
   const [refreshTick, setRefreshTick] = useState(0);
   // Online, the panel goes while this coach cannot send a command (the
@@ -109,6 +111,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       setActionSteps([]);
       setCurrentStepId(null);
       setHasMovedInAction(false);
+      setRazzleOn(false);
     }
     setSelectedPlayer(data.player);
   });
@@ -173,6 +176,30 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
       : null;
   const effectiveActiveTeamId = activeCharge?.teamId ?? turnData?.activeTeamId;
 
+  // Razzle-Dazzle: offered as the player is activated, then the menu comes
+  // back for the second Action once the first has ended.
+  const liveState = ServiceContainer.isInitialized()
+    ? ServiceContainer.getInstance().gameService.getState()
+    : null;
+  const declaration =
+    selectedPlayer && liveState?.activePlayer?.id === selectedPlayer.id
+      ? liveState.activePlayer
+      : null;
+  const secondActionAfter = declaration?.razzleDazzle?.awaitingSecond
+    ? (declaration.razzleDazzle.actions[0] as ActionType)
+    : undefined;
+  const canRazzle =
+    !!selectedPlayer &&
+    !!liveState &&
+    !activeCharge &&
+    !declaration?.committed &&
+    !declaration?.razzleDazzle &&
+    holdsMeasure(
+      liveState,
+      selectedPlayer.teamId,
+      DesperateMeasure.RAZZLE_DAZZLE
+    );
+
   // Contextual availability: recomputed from live game state whenever the
   // selection, the turn flags, movement, or the board changes.
   const availability: ActionAvailability = React.useMemo(() => {
@@ -208,6 +235,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             ),
         },
         hasMovedInAction,
+        secondActionAfter,
       });
       if (!activeCharge || activeCharge.charge?.activePlayerId !== live.id) {
         return normal;
@@ -230,6 +258,7 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
     refreshTick,
     effectiveActiveTeamId,
     activeCharge,
+    secondActionAfter,
   ]);
 
   if (!selectedPlayer || held) return null;
@@ -250,6 +279,9 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         action,
         playerId: selectedPlayer.id,
         blockReplacement,
+        ...(razzleOn && canRazzle && action !== "forgoe"
+          ? { razzleDazzle: true }
+          : {}),
       });
     }
   };
@@ -406,7 +438,11 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         {!compact && (
           <PanelHeader
             title={selectedPlayer.playerName || "Unknown"}
-            aside={selectedPlayer.positionName}
+            aside={
+              secondActionAfter
+                ? "Razzle-Dazzle: 2nd Action"
+                : selectedPlayer.positionName
+            }
           />
         )}
 
@@ -418,12 +454,21 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
             eventBus={eventBus}
             hasMovedInAction={hasMovedInAction}
             compact={compact}
+            firstOfTwo={declaration?.razzleDazzle?.actions.length === 1}
           />
         ) : (
           <div
             className={`hud-scroll flex min-h-0 flex-1 flex-col overflow-y-auto ${compact ? "" : "p-2"}`}
           >
             <div className={`flex flex-col ${compact ? "gap-1.5" : "gap-1"}`}>
+              {canRazzle && (
+                <ActionButton
+                  label="RAZZLE-DAZZLE"
+                  sub={razzleOn ? "On: pick 1st Action" : "Two Actions"}
+                  color={razzleOn ? "yellow" : "gray"}
+                  onClick={() => setRazzleOn((on) => !on)}
+                />
+              )}
               {/* Move opens the Move sequence panel (Stand Up → Move → Jump);
                 a prone player stands up as its first step. Clicking an empty
                 square still auto-moves. */}
@@ -641,7 +686,12 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
                 />
               )}
 
-              {!anyContextual && !compact && (
+              {secondActionAfter && !compact && (
+                <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
+                  Pick the second Action, or end the activation.
+                </div>
+              )}
+              {!anyContextual && !secondActionAfter && !compact && (
                 <div className="px-1 py-1 text-center text-hud-sm italic text-hud-dim">
                   No special actions available — click a square to move.
                 </div>

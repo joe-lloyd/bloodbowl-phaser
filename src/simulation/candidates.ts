@@ -311,6 +311,9 @@ function decisionCandidates(
         one({ type: "use-apothecary", accept: false }, "Keep the Apothecary"),
       ];
     case "inducement-choice": {
+      if (pending.kind === "sports-wizard") {
+        return wizardCandidates(game, pending.chooserTeamId, pending.playerIds);
+      }
       // Every offered player, with every offered skill or characteristic;
       // a Desperate Measure may also be kept for later.
       const extras: { skill?: string; stat?: DopeStat }[] = pending.skills
@@ -457,6 +460,42 @@ async function setupCandidates(
         { type: "confirm-setup", teamId },
       ],
     }));
+}
+
+/**
+ * The Sports-Wizard: keep it, or Zap! or Fireball an opponent on the pitch.
+ * Spells on the coach's own players are legal but never worth offering.
+ */
+function wizardCandidates(
+  game: HeadlessGame,
+  teamId: string,
+  playerIds: string[]
+): Candidate[] {
+  const gs = game.ctx.gameService;
+  const opponents = playerIds
+    .map((id) => gs.getPlayerById(id)!)
+    .filter((p) => p.teamId !== teamId && p.gridPosition);
+  return [
+    {
+      kind: "decision",
+      commands: [{ type: "choose-inducement" }],
+      label: "Keep the Sports-Wizard for later",
+    },
+    ...opponents.flatMap((p): Candidate[] => [
+      {
+        kind: "decision",
+        commands: [{ type: "choose-inducement", spell: "zap", playerId: p.id }],
+        label: `Zap! ${p.playerName}`,
+      },
+      {
+        kind: "decision",
+        commands: [
+          { type: "choose-inducement", spell: "fireball", ...p.gridPosition! },
+        ],
+        label: `Fireball at ${square(p.gridPosition!)}`,
+      },
+    ]),
+  ];
 }
 
 function kickoffCandidates(

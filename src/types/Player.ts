@@ -35,6 +35,8 @@ export enum PlayerCondition {
    * engine clears it when the player activates).
    */
   EYE_GOUGED = "Eye Gouged",
+  /** Zap!: turned into a Frog until the end of the drive (Sports-Wizard). */
+  FROG = "Frog",
 }
 
 export interface PlayerConditionInstance {

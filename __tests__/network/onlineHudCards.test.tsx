@@ -159,8 +159,10 @@ describe("online HUD cards", () => {
 const ENGINE_ONLY = [
   "addTouchdown",
   "announceFullTime",
+  "awaitingSecondAction",
   "biteBeforeBallAction",
   "blockPlayer",
+  "castSportsWizards",
   "chargeDeclareAction",
   "commitBlockReplacement",
   "draftListInventory",
@@ -168,6 +170,7 @@ const ENGINE_ONLY = [
   "getOrCreateInducementSession",
   "getScore",
   "handleTurnEnding",
+  "holdForSecondAction",
   "offerSportsEspionage",
   "onPlayerDowned",
   "passBall",

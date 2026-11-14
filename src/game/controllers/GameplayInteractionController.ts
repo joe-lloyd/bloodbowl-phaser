@@ -44,7 +44,9 @@ import { rollLabel } from "../rules/rollTargets";
 import type {
   BiteTargetDecisionRequest,
   DecisionRequest,
+  InducementChoiceDecisionRequest,
   RerollSource,
+  WizardSpell,
 } from "../../types/decisions";
 import {
   foulPreview,
@@ -75,6 +77,8 @@ const SPECIAL_ACTION_MODES = new Set<string>([
 
 /** The Thrall Linemen a failed Bloodlust may bite: ringed and marked red. */
 const BITE_TARGET_COLOR = 0xef4444;
+/** A Fireball's blast, and the players Zap! may pick. */
+const SPELL_TARGET_COLOR = 0xf97316;
 
 export class GameplayInteractionController {
   private scene: GameScene;
@@ -127,6 +131,9 @@ export class GameplayInteractionController {
    */
   private biteTargetIds: string[] = [];
   private biteMarkers: SquareMarker[] = [];
+  /** The Sports-Wizard spell whose target the next pitch click picks. */
+  private wizardSpell: WizardSpell | null = null;
+  private spellMarkers: SquareMarker[] = [];
 
   // Push direction selection state
   private pushSelectionActive: boolean = false;
@@ -268,6 +275,11 @@ export class GameplayInteractionController {
     this.eventBus.on(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.on(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.on(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.on(
+      GameEventNames.RazzleDazzleSecondAction,
+      this.onRazzleDazzleSecondAction
+    );
+    this.eventBus.on(GameEventNames.UI_WizardTargeting, this.onWizardTargeting);
     this.eventBus.on(GameEventNames.UI_GoMovePlan, this.onGoMovePlan);
     this.eventBus.on(GameEventNames.UI_ClearMovePlan, this.onClearMovePlan);
     this.eventBus.on(
@@ -378,9 +390,89 @@ export class GameplayInteractionController {
     return true;
   }
 
+  /** The Sports-Wizard offer waiting on this coach, if any. */
+  private pendingSpell(): InducementChoiceDecisionRequest | null {
+    const online = getActiveOnlineMatch();
+    const pending = online
+      ? online.pendingDecision()
+      : this.gameService.getDecisionService().pending();
+    return pending?.type === "inducement-choice" &&
+      pending.kind === "sports-wizard"
+      ? pending
+      : null;
+  }
+
+  /** The dialog picked a spell, or went back: aim it with the pitch. */
+  private onWizardTargeting = ({ spell }: { spell: WizardSpell | null }) => {
+    this.wizardSpell = spell;
+    this.clearSpellMarkers();
+    const pending = this.pendingSpell();
+    if (spell !== "zap" || !pending) return;
+    for (const id of pending.playerIds) {
+      const square = this.gameService.getPlayerById(id)?.gridPosition;
+      if (square) this.markSpellSquare(square);
+    }
+  };
+
+  private markSpellSquare(square: { x: number; y: number }): void {
+    this.spellMarkers.push(
+      this.pitch
+        .highlightSquare(square.x, square.y, SPELL_TARGET_COLOR)
+        .setName(BITE_TARGET_LAYER)
+    );
+  }
+
+  private clearSpellMarkers(): void {
+    for (const marker of this.spellMarkers) if (marker.scene) marker.destroy();
+    this.spellMarkers = [];
+  }
+
+  /** Fireball shows its blast, the square and its eight neighbours. */
+  private previewFireball(x: number, y: number): void {
+    if (this.wizardSpell !== "fireball") return;
+    this.clearSpellMarkers();
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++) {
+        const square = { x: x + dx, y: y + dy };
+        if (
+          square.x >= 0 &&
+          square.y >= 0 &&
+          square.x < GameConfig.PITCH_WIDTH &&
+          square.y < GameConfig.PITCH_HEIGHT
+        )
+          this.markSpellSquare(square);
+      }
+  }
+
+  /**
+   * Route a click while a spell is aimed: Fireball takes the square, Zap!
+   * an offered player. False when no spell is being aimed here.
+   */
+  private handleSpellClick(x: number, y: number): boolean {
+    const spell = this.wizardSpell;
+    if (!spell) return false;
+    if (!this.pendingSpell()) {
+      this.wizardSpell = null;
+      this.clearSpellMarkers();
+      return false;
+    }
+    if (spell === "fireball") {
+      this.gameService.answerInducementChoice({ spell, square: { x, y } });
+    } else {
+      const target = this.getPlayerAt(x, y);
+      if (!target) return true;
+      this.gameService.answerInducementChoice({ spell, playerId: target.id });
+    }
+    return true;
+  }
+
   /** Online, the other coach may pick the push; free this board then. */
   private onDecisionResolved = ({ type }: { type: string }) => {
     if (type === "bite-target") this.clearBiteTargets();
+    if (type === "inducement-choice") {
+      this.wizardSpell = null;
+      this.clearSpellMarkers();
+    }
     if (type !== "push-direction" || !this.pushSelectionActive) return;
     this.pushSelectionActive = false;
     this.pushValidDirections = [];
@@ -412,6 +504,20 @@ export class GameplayInteractionController {
     // Ending a Charge! activation hands the board to the next charger,
     // already selected: keep them
     if (this.selectedPlayerId === playerId) this.deselectPlayer();
+  };
+
+  /**
+   * Razzle-Dazzle: the first Action ended and the activation stays open.
+   * Whatever ended it deselects the player first, so the board picks them
+   * up again a moment later with the menu for the second Action.
+   */
+  private onRazzleDazzleSecondAction = ({ playerId }: { playerId: string }) => {
+    setTimeout(() => {
+      const active = this.gameService.getState().activePlayer;
+      if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
+        this.selectPlayer(playerId);
+      }
+    }, 50);
   };
 
   private onCancelAction = () => {
@@ -621,6 +727,7 @@ export class GameplayInteractionController {
     action: import("@/types/events").ActionType;
     playerId: string;
     blockReplacement?: BlockReplacement;
+    razzleDazzle?: boolean;
   }) => {
     // Immediate Actions
     if (data.action === "standUp") {
@@ -651,7 +758,8 @@ export class GameplayInteractionController {
     const success = this.gameService.declareAction(
       data.playerId,
       data.action,
-      blockReplacement ?? undefined
+      blockReplacement ?? undefined,
+      ...(data.razzleDazzle ? [{ razzleDazzle: true }] : [])
     );
     if (success) {
       this.enterActionMode(data.playerId, data.action, blockReplacement);
@@ -908,6 +1016,7 @@ export class GameplayInteractionController {
     // Before the busy lock: the bite may be asked while a move that ends in
     // the End Zone is still being walked
     if (this.handleBiteTargetClick(this.getPlayerAt(x, y)?.id)) return;
+    if (this.handleSpellClick(x, y)) return;
     if (this.isBusy) return;
 
     // Check if we're selecting a push direction first
@@ -1409,8 +1518,9 @@ export class GameplayInteractionController {
               // Implicit Action Declaration
               // Only check current action if it's for THIS player
               const currentAction =
-                state.activePlayer?.id === selectedPlayer.id
-                  ? state.activePlayer?.action
+                state.activePlayer?.id === selectedPlayer.id &&
+                !state.activePlayer.razzleDazzle?.awaitingSecond
+                  ? state.activePlayer.action
                   : undefined;
 
               // A Blitz allows only one Block; after it, further clicks move.
@@ -1428,6 +1538,7 @@ export class GameplayInteractionController {
               // player, a guest, and the host all take the same path.
               const declaredReplacement =
                 state.activePlayer?.id === selectedPlayer.id &&
+                !state.activePlayer.razzleDazzle?.awaitingSecond &&
                 !state.activePlayer.blockReplacementUsed
                   ? state.activePlayer.blockReplacement
                   : undefined;
@@ -1571,6 +1682,7 @@ export class GameplayInteractionController {
   }
 
   private onSquareHovered(x: number, y: number): void {
+    this.previewFireball(x, y);
     // Player Info
     const player = this.getPlayerAt(x, y);
     if (player) {
@@ -1781,6 +1893,8 @@ export class GameplayInteractionController {
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     // A bite being chosen takes the click, even mid-walk
     if (this.handleBiteTargetClick(playerId)) return;
+    const square = this.gameService.getPlayerById(playerId)?.gridPosition;
+    if (square && this.handleSpellClick(square.x, square.y)) return;
     // A route is still being walked
     if (this.isBusy) return;
     console.log(
@@ -1973,6 +2087,7 @@ export class GameplayInteractionController {
     if (
       resumed?.id === playerId &&
       resumed.action &&
+      !resumed.razzleDazzle?.awaitingSecond &&
       ownTeamsTurn &&
       !this.gameService.hasPlayerActed(playerId)
     ) {
@@ -2180,6 +2295,10 @@ export class GameplayInteractionController {
 
   /** A square click plots a move: declare one if the player has no action. */
   private declareMoveIfNone(playerId: string, action?: string | null): boolean {
+    const active = this.gameService.getState().activePlayer;
+    if (active?.id === playerId && active.razzleDazzle?.awaitingSecond) {
+      return this.gameService.declareAction(playerId, "move");
+    }
     if (!action) {
       this.gameService.declareAction(playerId, "move");
       return true;
@@ -2606,6 +2725,14 @@ export class GameplayInteractionController {
     this.eventBus.off(GameEventNames.UI_StepSelected, this.onStepSelected);
     this.eventBus.off(GameEventNames.UI_CancelAction, this.onCancelAction);
     this.eventBus.off(GameEventNames.UI_EndActivation, this.onEndActivation);
+    this.eventBus.off(
+      GameEventNames.RazzleDazzleSecondAction,
+      this.onRazzleDazzleSecondAction
+    );
+    this.eventBus.off(
+      GameEventNames.UI_WizardTargeting,
+      this.onWizardTargeting
+    );
     this.eventBus.off(GameEventNames.UI_GoMovePlan, this.onGoMovePlan);
     this.eventBus.off(GameEventNames.UI_ClearMovePlan, this.onClearMovePlan);
     this.eventBus.off(
