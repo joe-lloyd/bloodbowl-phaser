@@ -22,10 +22,11 @@ service cloud.firestore {
     }
 
     // The house bot's open lobby (src/firebase/houseBot.ts): any coach may
-    // look for it, only the bot writes its own.
+    // look for it, and only the bot's own account may announce one.
     match /houseBots/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid
+        && request.auth.token.email == 'house-bot@home.arpa'
         && request.resource.data.keys().hasOnly(['code', 'updatedAt'])
         && (request.resource.data.code == null
           || request.resource.data.code is string)

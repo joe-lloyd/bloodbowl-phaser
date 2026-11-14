@@ -15,18 +15,20 @@ If no bot is waiting it says so.
   Google account. On its first run the runner makes up a password and
   keeps it in `~/.bb-house-bot/credentials.json`, readable only by your
   user. It hands the login to the bot's page in memory, and the app signs
-  in, creating the account (coach name House Bot) the first time.
-  `HOUSE_BOT_EMAIL` changes the address from `house-bot@home.arpa`.
+  in, creating the account (coach name House Bot) the first time. The
+  address is `house-bot@home.arpa`, and `firestore.rules` lets only that
+  account announce a lobby, so another coach cannot pose as the bot.
 - The runner sets the `bb-house-bot` flag in that browser. While the bot's
   lobby waits for a guest, the app writes the code to `houseBots/{uid}`
-  every minute. Any signed-in coach may read it, and only that account may
-  write it (see `firestore.rules`). An announcement older than three
-  minutes is ignored.
+  every minute. Any signed-in coach may read it. An announcement older
+  than three minutes is ignored.
 - The page loads the app from a Vite dev server on old-mac, because the AI
   driver (`e2e/fullgame/brain.ts`) imports the running engine from it. That
   server reads the production Firebase config from `.env`.
 - The bot's team, House Bot Orcs, uses Matched Play, so it owes no skill
   pick after a game and can start the next one at once.
+- If the other coach ends the match early, the bot agrees and hosts the
+  next one.
 
 ## Running it
 

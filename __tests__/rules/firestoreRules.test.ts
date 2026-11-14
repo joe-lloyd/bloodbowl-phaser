@@ -45,6 +45,7 @@ import {
   announceHouseBotLobby,
   findHouseBotLobby,
 } from "../../src/firebase/houseBot";
+import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
 import {
   cancelEndMatch,
   commitSeed,
@@ -96,6 +97,8 @@ const STRANGER = "stranger-uid";
 const ORGANIZER = "organizer-uid";
 const THIRD = "third-uid";
 const ADMIN = "owner";
+/** Signed in as the house bot's email account. */
+const BOT = "house-bot-uid";
 
 const apps: FirebaseApp[] = [];
 const dbs = new Map<string, Firestore>();
@@ -112,7 +115,16 @@ function dbFor(uid: string): Firestore {
     host,
     Number(port),
     // The emulator treats the token "owner" as having no rules at all
-    { mockUserToken: uid === ADMIN ? ADMIN : { sub: uid, user_id: uid } }
+    {
+      mockUserToken:
+        uid === ADMIN
+          ? ADMIN
+          : {
+              sub: uid,
+              user_id: uid,
+              ...(uid === BOT ? { email: HOUSE_BOT_EMAIL } : {}),
+            },
+    }
   );
   dbs.set(uid, db);
   return db;
@@ -202,28 +214,36 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   });
 
   describe("the house bot's lobby", () => {
-    it("is announced by the bot, found by another coach, and nobody else may write it", async () => {
-      const code = await openLobby();
-      await as(HOST, () => announceHouseBotLobby(HOST, code));
+    const botLobby = async () =>
+      (await as(BOT, () => createLobby(BOT, "House Bot"))).code;
+
+    it("is announced by the bot and found by another coach", async () => {
+      const code = await botLobby();
+      await as(BOT, () => announceHouseBotLobby(BOT, code));
       expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
 
-      await denied(as(GUEST, () => announceHouseBotLobby(HOST, "FAKE00")));
+      await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
+      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+      await as(BOT, () => announceHouseBotLobby(BOT, null));
+    });
+
+    it("cannot be announced by any other account", async () => {
+      const code = await openLobby();
+      // Not even in their own document: only the bot's email may announce
+      await denied(as(HOST, () => announceHouseBotLobby(HOST, code)));
+      await denied(as(GUEST, () => announceHouseBotLobby(BOT, code)));
       await denied(
-        setDoc(doc(dbFor(HOST), "houseBots", HOST), {
+        setDoc(doc(dbFor(BOT), "houseBots", BOT), {
           code,
           updatedAt: Date.now(),
           extra: true,
         })
       );
-
-      await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
-      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
-      await as(HOST, () => announceHouseBotLobby(HOST, null));
     });
 
     it("is ignored once the bot has stopped announcing it", async () => {
-      const code = await openLobby();
-      await setDoc(doc(dbFor(HOST), "houseBots", HOST), {
+      const code = await botLobby();
+      await setDoc(doc(dbFor(BOT), "houseBots", BOT), {
         code,
         updatedAt: Date.now() - 10 * 60 * 1000,
       });

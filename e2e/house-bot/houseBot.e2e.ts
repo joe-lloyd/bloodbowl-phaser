@@ -19,7 +19,7 @@ import {
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { GameApp } from "../support/pages/game";
-import { OnlinePage } from "../support/pages/online";
+import { HOUSE_BOT_EMAIL } from "../../src/firebase/houseBotAccount";
 import {
   answerDialog,
   brainCall,
@@ -81,12 +81,11 @@ test("the house bot hosts games until stopped", async () => {
   for (let played = 0; MATCHES === 0 || played < MATCHES; played++) {
     await page.goto("/");
     await signOut.waitFor({ timeout: 60_000 });
-    const code = await new OnlinePage(page).hostGame();
+    const code = await hostFreshGame(page);
     log(`waiting in lobby ${code}`);
     await waitForGuestAndStart(page);
     log(`match ${code} started`);
-    await playMatch(page);
-    await leaveFullTime(page);
+    if ((await playMatch(page)) === "full time") await leaveFullTime(page);
     log(`match ${code} over`);
   }
   await context.close();
@@ -105,7 +104,8 @@ function botLogin(): { email: string; password: string } {
       password: string;
     };
   const login = {
-    email: process.env.HOUSE_BOT_EMAIL ?? "house-bot@home.arpa",
+    // firestore.rules lets only this address announce a lobby
+    email: HOUSE_BOT_EMAIL,
     password: randomBytes(24).toString("base64url"),
   };
   mkdirSync(dirname(file), { recursive: true });
@@ -165,16 +165,50 @@ async function waitForGuestAndStart(page: Page) {
   await page.waitForURL(/\/online\/play\//, { timeout: 60_000 });
 }
 
-/** The scripted AI plays every move that is the bot's to make. */
-async function playMatch(page: Page) {
+/**
+ * Open a new lobby. Just after a match the bot's pointer may still name
+ * the old one, and Host Game resumes it; wait for the pointer to clear.
+ */
+async function hostFreshGame(page: Page): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await page.goto("/online/host");
+    const code = page.getByTestId("lobby-code");
+    const landed = await Promise.race([
+      code.waitFor({ timeout: 30_000 }).then(() => "lobby" as const),
+      page
+        .waitForURL(/\/online\/play\//, { timeout: 30_000 })
+        .then(() => "old match" as const),
+    ]).catch(() => "nothing" as const);
+    if (landed === "lobby") {
+      const value = await code.getAttribute("data-code");
+      if (value) return value;
+    }
+    log(`hosting landed on ${landed}; trying again`);
+    await page.goto("/");
+    await page.waitForTimeout(5000);
+  }
+  throw new Error("could not open a fresh lobby");
+}
+
+/**
+ * The scripted AI plays every move that is the bot's to make, until full
+ * time or until the match ends early and the page leaves it.
+ */
+async function playMatch(page: Page): Promise<"full time" | "ended"> {
   const app = new GameApp(page);
   let kicked = false;
   for (let i = 0; ; i++) {
     await page.waitForTimeout(250);
+    if (!page.url().includes("/online/play/")) return "ended";
+    // The other coach asked to end the match: agree, so neither waits
+    if (await clickIf(page, /^End Match$/)) {
+      log("the other coach ended the match");
+      continue;
+    }
     if (await clickIf(page, /^READY — FLIP COIN$/)) continue;
     if (await clickIf(page, /^RECEIVE$/)) continue;
     const next = await brainNext(page).catch(() => null);
-    if (next?.over) return;
+    if (next?.over) return "full time";
     if (!(await brainCall(page, "mayAct").catch(() => false))) continue;
     if (await riskyMoveConfirm(page, rec)) continue;
     if (await answerDialog(page, app, i, rec)) continue;
