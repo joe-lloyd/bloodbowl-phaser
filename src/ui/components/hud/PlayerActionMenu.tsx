@@ -190,7 +190,12 @@ export const PlayerActionMenu: React.FC<PlayerActionMenuProps> = ({
         teammates: gs.getTeammates(selectedPlayer.id),
         reachable: gs.getAvailableMovements(selectedPlayer.id),
         turn: {
-          hasBlitzed: !!turnData.hasBlitzed,
+          // Charge! runs before the next TurnStarted refreshes the HUD's
+          // turn flags. Its Blitz belongs to this kick-off's own budget,
+          // regardless of whether the previous turn used a Blitz.
+          hasBlitzed: activeCharge?.charge
+            ? activeCharge.charge.budget.blitz <= 0
+            : !!turnData.hasBlitzed,
           hasPassed: !!turnData.hasPassed,
           hasHandedOff: !!turnData.hasHandedOff,
           // Grudge Match (L24) allows a second Foul this turn.
