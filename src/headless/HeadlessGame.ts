@@ -1173,6 +1173,9 @@ export class HeadlessGame {
           if (availability.move) actions.push("move");
           if (!state.turn.hasBlitzed) actions.push("blitz");
           if (canFoul) actions.push("foul");
+          // Move-first Special Actions may be declared Prone (errata p.122)
+          if (availability.punt) actions.push("punt");
+          if (availability.gaze) actions.push("gaze");
         } else if (p.status === PlayerStatus.ACTIVE) {
           if (availability.move) actions.push("move");
           if (adjacentStanding.length > 0) actions.push("block");
@@ -1181,6 +1184,8 @@ export class HeadlessGame {
           if (availability.handoff) actions.push("handoff");
           if (availability.secureBall) actions.push("secureBall");
           if (availability.throwTeammate) actions.push("throwTeamMate");
+          if (availability.punt) actions.push("punt");
+          if (availability.gaze) actions.push("gaze");
           if (canFoul && adjacentDown.length > 0) actions.push("foul");
           for (const replacement of availability.directBlockReplacements) {
             if (!actions.includes(replacement)) actions.push(replacement);

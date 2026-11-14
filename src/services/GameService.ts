@@ -1084,6 +1084,20 @@ export class GameService implements IGameService {
     this.blockManager.endBlockActivation(attackerId);
   }
 
+  /**
+   * A Stab always ends the activation, on a Blitz too. Hit and Run (p.123)
+   * covers "a Block Action or a Stab Special Action", so it may take its
+   * free square first (FAQ: also when the Stab replaced a Blitz's Block).
+   */
+  public async finishStabActivation(attackerId: string): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    if (attacker && hasSkill(attacker.skills, SkillType.HIT_AND_RUN)) {
+      await this.blockManager.resolveHitAndRun(attackerId);
+      return;
+    }
+    this.finishActivation(attackerId);
+  }
+
   canActivate(playerId: string): boolean {
     const player = this.getPlayerById(playerId);
     if (!player) return false;
@@ -2411,11 +2425,15 @@ export class GameService implements IGameService {
       if (!player || player.status !== PlayerStatus.ACTIVE) return false;
       if (!hasSkill(player.skills, SkillType.BOMBARDIER)) return false;
     }
+    // Punt and Hypnotic Gaze let the player Move first, so a Prone player may
+    // still declare them and stand up as part of that Move (errata p.122).
+    const canDeclareMoveFirst = (p: Player) =>
+      p.status === PlayerStatus.ACTIVE || p.status === PlayerStatus.PRONE;
     if (action === "punt") {
       const player = this.getPlayerById(playerId);
       if (
         !player ||
-        player.status !== PlayerStatus.ACTIVE ||
+        !canDeclareMoveFirst(player) ||
         !hasSkill(player.skills, SkillType.PUNT) ||
         this.puntUsedThisTurn
       ) {
@@ -2445,7 +2463,14 @@ export class GameService implements IGameService {
       action === "chainsaw"
     ) {
       const player = this.getPlayerById(playerId);
-      if (!player || player.status !== PlayerStatus.ACTIVE) return false;
+      if (!player) return false;
+      if (
+        action === "gaze"
+          ? !canDeclareMoveFirst(player)
+          : player.status !== PlayerStatus.ACTIVE
+      ) {
+        return false;
+      }
       const needed =
         action === "breatheFire"
           ? SkillType.BREATHE_FIRE

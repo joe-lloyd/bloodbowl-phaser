@@ -7,9 +7,9 @@
  *
  * "Reachable-adjacent" means the player could END their move on a square
  * adjacent to the target (so Blitz/Foul/Hand-off, which move first, are
- * offered when a legal end square exists). The special actions target an
- * already-adjacent Standing opponent (no pre-move in this first cut), so
- * they use plain adjacency.
+ * offered when a legal end square exists). Hypnotic Gaze and Punt also move
+ * first, and a Prone player may declare them (errata p.122); the other
+ * special actions target an already-adjacent Standing opponent.
  */
 
 import {
@@ -226,8 +226,9 @@ export function computeActionAvailability(
       canJumpAnything,
       inBounds
     ).length > 0;
-  const special = (type: SkillType) =>
-    hasSkill(player.skills, type) && adjacentStandingEnemy;
+  const gaze =
+    hasSkill(player.skills, SkillType.HYPNOTIC_GAZE) &&
+    standingEnemies.some((e) => canEndAdjacentTo(e.gridPosition!));
   // A direct block-replacing Special Action is a no-move declaration, exactly
   // like a standalone Block: once the activation has spent movement, the only
   // way to attack is the Blitz variant (declared before moving).
@@ -268,7 +269,7 @@ export function computeActionAvailability(
     !input.hasMovedInAction;
   const punt =
     hasSkill(player.skills, SkillType.PUNT) &&
-    isStanding(player) &&
+    (isStanding(player) || isProne) &&
     canHaveBall;
 
   // Rooted (Take Root) and Chomped players may not leave their square, so
@@ -295,7 +296,7 @@ export function computeActionAvailability(
     stab: directBlockReplacements.includes("stab"),
     breatheFire: directBlockReplacements.includes("breatheFire"),
     vomit: directBlockReplacements.includes("vomit"),
-    gaze: special(SkillType.HYPNOTIC_GAZE),
+    gaze,
     chomp: directBlockReplacements.includes("chomp"),
     chainsaw: directBlockReplacements.includes("chainsaw"),
     throwTeammate,

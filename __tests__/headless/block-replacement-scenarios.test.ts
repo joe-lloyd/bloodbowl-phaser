@@ -159,10 +159,20 @@ describe("roster-authentic block-replacement scenario catalog", () => {
       playerId: firstAssassin.id,
       path: [{ x: 11, y: 5 }],
     });
-    const resolved = await game.execute({
+    const stabbed = await game.execute({
       type: "stab",
       attackerId: firstAssassin.id,
       defenderId: firstTarget.id,
+    });
+    expect(stabbed.ok).toBe(true);
+    // The Assassin's Hit and Run is offered once the Stab resolves.
+    expect(stabbed.pendingDecision).toMatchObject({
+      type: "reaction",
+      skill: SkillType.HIT_AND_RUN,
+    });
+    const resolved = await game.execute({
+      type: "use-reaction",
+      accept: false,
     });
     expect(resolved.ok).toBe(true);
     expect(resolved.snapshot.turn.hasBlitzed).toBe(true);

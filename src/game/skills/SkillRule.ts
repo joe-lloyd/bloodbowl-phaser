@@ -218,6 +218,10 @@ export interface PickupContext extends TriggerContextBase {
   player: Player;
   /** Opponents marking the pickup square */
   marking: number;
+  /** The weather's pick-up modifier, e.g. -1 in Pouring Rain */
+  weather: number;
+  /** False for Secure the Ball's D6, which is not an Agility Test (FAQ) */
+  agilityTest: boolean;
   /** Net pickup modifier; rules may adjust (Big Hand, Extra Arms) */
   modifiers: number;
   /** Fail without rolling, as a natural 1 (No Ball) */

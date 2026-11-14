@@ -316,6 +316,33 @@ describe("DiceController", () => {
       expect(result.success).toBe(false);
     });
 
+    // Errata (May 2026, p.33): "The score on a D6 can never be modified to
+    // above 6, regardless of modifiers." Below 1 is allowed.
+    it("caps a modified total at 6", () => {
+      const testRng = new RNGService(findSeedForDiceSequence([5])!.seed);
+      const testController = new DiceController(eventBus, testRng);
+
+      const result = testController.rollSkillCheck("Catch", 4, 2);
+
+      expect(result.roll).toBe(5);
+      expect(result.effectiveTotal).toBe(6);
+      expect(emitSpy).toHaveBeenCalledWith(
+        GameEventNames.DiceRoll,
+        expect.objectContaining({ value: 5, total: 6 })
+      );
+    });
+
+    it("keeps a modified total below 1", () => {
+      const testRng = new RNGService(findSeedForDiceSequence([2])!.seed);
+      const testController = new DiceController(eventBus, testRng);
+
+      const result = testController.rollSkillCheck("Dodge", 3, -3);
+
+      expect(result.roll).toBe(2);
+      expect(result.effectiveTotal).toBe(-1);
+      expect(result.success).toBe(false);
+    });
+
     it("should always succeed on natural 6", () => {
       // Find a seed that rolls a 6
       const seedResult = findSeedForDiceSequence([6]);

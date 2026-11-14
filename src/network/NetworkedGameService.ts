@@ -324,6 +324,10 @@ export class NetworkedGameService implements IGameService {
    * engines. Charging it here would change this coach's engine only and
    * leave the two a square apart, so the board may not.
    */
+  /** Engine-internal: only the Stab operation calls it, on the engine. */
+  finishStabActivation(_playerId: string): Promise<void> {
+    return Promise.resolve();
+  }
   chargeBlitzBlockSquare(_attackerId: string): Promise<boolean> {
     return Promise.resolve(false);
   }

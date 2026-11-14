@@ -1149,8 +1149,8 @@ export class BlockManager {
    * End the blocker's activation after a Block resolves — but if they are a
    * still-Standing Hit and Run player with a legal free square, queue the
    * Hit and Run move (which ends the activation itself). Currently wired into
-   * the knockdown-in-place completion; the push/follow-up and Stab paths are
-   * a further increment.
+   * the knockdown-in-place completion; the push/follow-up path is a further
+   * increment. The Stab path goes through GameService.finishStabActivation.
    */
   public endBlockActivation(attackerId: string): void {
     if (this.multipleBlockState?.attackerId === attackerId) {

@@ -689,11 +689,17 @@ export class GameplayInteractionController {
       case "stab":
       case "breatheFire":
       case "vomit":
-      case "gaze":
       case "chomp":
       case "chainsaw":
         // Single-target special action: pick an adjacent Standing opponent
         this.actionSteps = [{ id: "target", label: "Select Target" }];
+        break;
+      case "gaze":
+        // Hypnotic Gaze may Move first, then picks an adjacent target
+        this.actionSteps = [
+          { id: "move", label: "Move" },
+          { id: "target", label: "Select Target" },
+        ];
         break;
       case "pass":
         this.actionSteps = [

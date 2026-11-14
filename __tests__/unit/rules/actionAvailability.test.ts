@@ -233,6 +233,40 @@ describe("computeActionAvailability", () => {
     expect(computeActionAvailability(input).gaze).toBe(false);
   });
 
+  // Errata (May 2026, p.122/125): a Prone player may still declare a Special
+  // Action that lets them first make a free Move Action: Punt and Gaze.
+  it("offers a Prone player Hypnotic Gaze against a reachable opponent", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      status: PlayerStatus.PRONE,
+      skills: [getSkill(SkillType.HYPNOTIC_GAZE)],
+    });
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 7, y: 5 } }),
+    ];
+    expect(computeActionAvailability(input).gaze).toBe(false);
+    input.reachable = [{ x: 6, y: 5, cost: 4 }];
+    expect(computeActionAvailability(input).gaze).toBe(true);
+  });
+
+  it("offers a Prone player Punt with the ball reachable, but not Stab", () => {
+    const input = base();
+    input.player = P({
+      gridPosition: { x: 5, y: 5 },
+      status: PlayerStatus.PRONE,
+      skills: [getSkill(SkillType.PUNT), getSkill(SkillType.STAB)],
+    });
+    input.opponents = [
+      P({ id: "e", teamId: "team2", gridPosition: { x: 6, y: 5 } }),
+    ];
+    input.ballPosition = { x: 5, y: 7 };
+    input.reachable = [{ x: 5, y: 7, cost: 5 }];
+    const availability = computeActionAvailability(input);
+    expect(availability.punt).toBe(true);
+    expect(availability.stab).toBe(false);
+  });
+
   it("offers typed direct and labelled Blitz replacements for every eligible attack", () => {
     const input = base();
     input.player = P({

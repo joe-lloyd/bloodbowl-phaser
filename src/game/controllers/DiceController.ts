@@ -241,7 +241,9 @@ export class DiceController {
   } {
     const roll = this.rng.rollDie(6);
     let success = false;
-    const effectiveTotal = roll + modifier;
+    // "The score on a D6 can never be modified to above 6" (errata p.33);
+    // below 1 is allowed
+    const effectiveTotal = Math.min(6, roll + modifier);
 
     if (roll === 6)
       success = true; // Natural 6 always succeeds
