@@ -28,6 +28,8 @@ interface ActionStepperProps {
   hasMovedInAction: boolean;
   /** A narrow thumb rail, as on a phone: the plan bar sums up the route. */
   compact?: boolean;
+  /** Razzle-Dazzle: this is the first of two Actions, so ending it goes on. */
+  firstOfTwo?: boolean;
 }
 
 export const ActionStepper: React.FC<ActionStepperProps> = ({
@@ -36,6 +38,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
   eventBus,
   hasMovedInAction,
   compact = false,
+  firstOfTwo = false,
 }) => {
   const handleStepClick = (stepId: string) => {
     eventBus.emit(GameEventNames.UI_StepSelected, { stepId });
@@ -135,7 +138,7 @@ export const ActionStepper: React.FC<ActionStepperProps> = ({
             eventBus.emit(GameEventNames.UI_EndActivation);
           }}
         >
-          End Activation
+          {firstOfTwo ? "End First Action" : "End Activation"}
         </HudButton>
       </div>
     </div>

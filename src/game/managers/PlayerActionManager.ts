@@ -4,7 +4,8 @@ import { ActionType, GameEventNames } from "@/types/events";
 import { BlockReplacement } from "@/types/BlockReplacement";
 import { Player } from "@/types/Player";
 import { SkillType, hasSkill } from "@/types/Skills";
-import { foulSpent } from "../inducements/matchInducements";
+import { foulSpent, spendMeasure } from "../inducements/matchInducements";
+import { DesperateMeasure } from "../inducements/desperateMeasures";
 
 /** Which term made a declaration binding — used to name a refusal. */
 export type CommitReason =
@@ -73,7 +74,9 @@ export class PlayerActionManager {
   public isActionCommitted(playerId: string): CommitStatus {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return { committed: false };
-    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > 0) {
+    // A Razzle-Dazzle second Action is not bound by the first one's moves
+    const before = active.razzleDazzle?.movementBefore ?? 0;
+    if ((this.state.turn.movementUsed.get(playerId) ?? 0) > before) {
       return { committed: true, reason: "movement" };
     }
     if (active.blockReplacementUsed) {
@@ -113,6 +116,11 @@ export class PlayerActionManager {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId || active.committed) return;
     active.committed = true;
+    // Razzle-Dazzle is spent once the first of its two Actions binds
+    const player = this.getPlayer(playerId);
+    if (active.razzleDazzle?.actions.length === 1 && player) {
+      spendMeasure(this.state, player.teamId, DesperateMeasure.RAZZLE_DAZZLE);
+    }
     this.updateTurnFlags(active.action, playerId);
   }
 
@@ -123,8 +131,20 @@ export class PlayerActionManager {
   public cancelAction(playerId: string): boolean {
     const active = this.state.activePlayer;
     if (!active || active.id !== playerId) return false;
+    if (active.razzleDazzle?.awaitingSecond) return false;
     if (this.isActionCommitted(playerId).committed) return false;
 
+    // A Razzle-Dazzle second Action goes back to waiting for its choice
+    const razzle = active.razzleDazzle;
+    if (razzle && razzle.actions.length === 2) {
+      this.state.activePlayer = {
+        id: playerId,
+        action: razzle.actions[0],
+        committed: true,
+        razzleDazzle: { actions: [razzle.actions[0]], awaitingSecond: true },
+      };
+      return true;
+    }
     this.state.activePlayer = null;
     return true;
   }

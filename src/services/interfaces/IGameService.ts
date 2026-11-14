@@ -152,7 +152,9 @@ export interface IGameService {
   declareAction(
     playerId: string,
     action: import("@/types/events").ActionType,
-    blockReplacement?: import("@/types/BlockReplacement").BlockReplacement
+    blockReplacement?: import("@/types/BlockReplacement").BlockReplacement,
+    /** Razzle-Dazzle (L22): declare the first of two Actions. */
+    options?: { razzleDazzle?: boolean }
   ): boolean;
   /** Cancel a declaration only before movement/attack commitment. */
   cancelAction(playerId: string): boolean;

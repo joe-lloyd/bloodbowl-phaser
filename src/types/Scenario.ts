@@ -3,6 +3,7 @@ import { PlayerStatus, PlayerStats, PlayerCondition } from "./Player";
 import { RosterName } from "./Team";
 import { SkillType } from "./Skills";
 import type { Weather } from "../game/rules/weather";
+import type { DesperateMeasure } from "../game/inducements/desperateMeasures";
 
 /**
  * A skill to grant a placement — either the bare type, or a type plus its
@@ -47,6 +48,11 @@ export interface ScenarioSetup {
   weather?: Weather;
   /** Team Re-rolls each team holds; the team's own count when omitted. */
   teamRerolls?: { team1?: number; team2?: number };
+  /**
+   * Desperate Measures each team holds, as if rolled before the game. A
+   * Magic Scroll is read at once, so that team starts with its Sports-Wizard.
+   */
+  measures?: { team1?: DesperateMeasure[]; team2?: DesperateMeasure[] };
 }
 
 export interface Scenario {

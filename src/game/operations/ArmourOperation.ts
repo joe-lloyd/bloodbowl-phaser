@@ -121,7 +121,9 @@ export class ArmourOperation extends GameOperation {
      * Plague Ridden. Blocks are the default; a non-block causer passes its
      * own cause (Breathe Fire "special", Animal Savagery "lash-out").
      */
-    private cause: CasualtyCause = "block"
+    private cause: CasualtyCause = "block",
+    /** A modifier the roll always takes, such as a Fireball's +1. */
+    private armourModifier = 0
   ) {
     super();
   }
@@ -169,7 +171,7 @@ export class ArmourOperation extends GameOperation {
         vacatedSquare: this.fall?.vacatedSquare,
         knockedDown: true,
         roll,
-        armourModifier: 0,
+        armourModifier: this.armourModifier,
       }
     );
     const isBroken = armourBroken(ctx, roll, gameService);

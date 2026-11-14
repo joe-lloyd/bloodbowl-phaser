@@ -1,0 +1,295 @@
+import { describe, expect, it } from "vitest";
+import { HeadlessGame } from "../../src/headless/HeadlessGame";
+import { Scenario } from "../../src/types/Scenario";
+import { GamePhase, SubPhase } from "../../src/types/GameState";
+import { Inducement } from "../../src/types/Inducements";
+import { DesperateMeasure } from "../../src/game/inducements/desperateMeasures";
+import { forceDice } from "../utils/test-helpers";
+import { bought, commit, settle } from "../utils/inducement-helpers";
+import { SCENARIOS } from "../../src/data/scenarios";
+
+/**
+ * Razzle-Dazzle (Spike! Journal 22 p.15, rule L22): "You may use this
+ * Desperate Measure when you Activate a player. The player may declare two
+ * Actions during their activation rather than one. However, they may not
+ * declare the same Action twice, and may not declare two Actions that both
+ * contain a Move Action." Every die is forced: 3 on a block die is a Push.
+ */
+
+/** Team 1's player 0 starts at `x`: 8 is two squares from the opponent. */
+const scenarioAt = (x: number): Scenario => ({
+  id: "razzle-dazzle-test",
+  name: "Razzle-Dazzle",
+  description: "a team 1 player on the same row as an opponent",
+  setup: {
+    team1Placements: [
+      { playerIndex: 0, x, y: 5 },
+      { playerIndex: 1, x: 2, y: 9 },
+    ],
+    team2Placements: [
+      { playerIndex: 0, x: 10, y: 5 },
+      { playerIndex: 1, x: 18, y: 1 },
+    ],
+    ballPosition: { x: 1, y: 1 },
+    activeTeam: "team1",
+    phase: GamePhase.PLAY,
+    subPhase: SubPhase.TURN_RECEIVING,
+  },
+});
+const apart = scenarioAt(8);
+const adjacent = scenarioAt(9);
+
+async function razzleGame(scenario = apart) {
+  const game = new HeadlessGame({ scenario, seed: 1 });
+  // A D8 of 2 is Razzle-Dazzle
+  forceDice(game.ctx.rng, [2]);
+  await commit(game, [
+    bought(game.ctx.team1.id, Inducement.DESPERATE_MEASURES, 1),
+  ]);
+  return game;
+}
+
+function measure(game: HeadlessGame) {
+  return game.ctx.gameService.getState().matchInducements?.measures[
+    game.ctx.team1.id
+  ];
+}
+
+async function actionsOf(game: HeadlessGame, playerId: string) {
+  const legal = (await game.execute({ type: "legal-actions", playerId }))
+    .legalActions;
+  return legal?.players.find((p) => p.playerId === playerId)?.actions ?? [];
+}
+
+/** Block the adjacent defender, Push them east, and do not follow up. */
+async function pushEast(game: HeadlessGame, attackerId: string) {
+  const defender = game.ctx.team2.players[0];
+  forceDice(game.ctx.rng, [3]);
+  const rolled = await game.execute({
+    type: "block",
+    attackerId,
+    defenderId: defender.id,
+  });
+  expect(rolled.ok).toBe(true);
+  await game.execute({ type: "choose-block-result", index: 0 });
+  const square = defender.gridPosition!;
+  await game.execute({
+    type: "choose-push-direction",
+    x: square.x + 1,
+    y: square.y,
+  });
+  await game.execute({ type: "choose-follow-up", followUp: false });
+  await settle();
+}
+
+describe("Razzle-Dazzle", () => {
+  it("a Move then a Block: the activation stays open after the Move, and the second Action may not contain a Move", async () => {
+    const game = await razzleGame();
+    const player = game.ctx.team1.players[0];
+    const state = game.ctx.gameService.getState();
+
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+      razzleDazzle: true,
+    });
+    expect(declared.ok).toBe(true);
+    await game.execute({
+      type: "move",
+      playerId: player.id,
+      path: [{ x: 9, y: 5 }],
+    });
+    expect(measure(game)).toEqual([
+      { measure: DesperateMeasure.RAZZLE_DAZZLE, used: true },
+    ]);
+    await game.execute({ type: "end-activation", playerId: player.id });
+
+    expect(state.activePlayer).toMatchObject({
+      id: player.id,
+      razzleDazzle: { actions: ["move"], awaitingSecond: true },
+    });
+    expect(state.turn.activatedPlayerIds.has(player.id)).toBe(false);
+    const second = await actionsOf(game, player.id);
+    expect(second).toContain("block");
+    expect(second).not.toContain("move");
+    expect(second).not.toContain("blitz");
+    expect(second).not.toContain("pass");
+
+    const pass = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "pass",
+    });
+    expect(pass.ok).toBe(false);
+    const block = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+    });
+    expect(block.ok).toBe(true);
+    await pushEast(game, player.id);
+
+    expect(game.ctx.team2.players[0].gridPosition).toEqual({ x: 11, y: 5 });
+    expect(state.activePlayer).toBeNull();
+    expect(state.turn.activatedPlayerIds.has(player.id)).toBe(true);
+  });
+
+  it("a Block then a Move, and never the same Action twice", async () => {
+    const game = await razzleGame(adjacent);
+    const player = game.ctx.team1.players[0];
+    const state = game.ctx.gameService.getState();
+
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+      razzleDazzle: true,
+    });
+    await pushEast(game, player.id);
+    expect(state.activePlayer).toMatchObject({
+      id: player.id,
+      razzleDazzle: { actions: ["block"], awaitingSecond: true },
+    });
+
+    const again = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+    });
+    expect(again.ok).toBe(false);
+    const move = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+    });
+    expect(move.ok).toBe(true);
+    const moved = await game.execute({
+      type: "move",
+      playerId: player.id,
+      path: [
+        { x: 9, y: 6 },
+        { x: 9, y: 7 },
+      ],
+    });
+    expect(moved.ok).toBe(true);
+    expect(player.gridPosition).toEqual({ x: 9, y: 7 });
+    await game.execute({ type: "end-activation", playerId: player.id });
+    expect(state.activePlayer).toBeNull();
+    expect(state.turn.activatedPlayerIds.has(player.id)).toBe(true);
+  });
+
+  it("keeps the team's one Blitz a turn: a Blitz already spent cannot be the second Action", async () => {
+    const game = await razzleGame(adjacent);
+    const [player, blitzer] = game.ctx.team1.players;
+
+    await game.execute({
+      type: "declare-action",
+      playerId: blitzer.id,
+      action: "blitz",
+    });
+    await game.execute({
+      type: "move",
+      playerId: blitzer.id,
+      path: [{ x: 3, y: 9 }],
+    });
+    await game.execute({ type: "end-activation", playerId: blitzer.id });
+
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+      razzleDazzle: true,
+    });
+    await pushEast(game, player.id);
+    expect(await actionsOf(game, player.id)).not.toContain("blitz");
+    const blitz = await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "blitz",
+    });
+    expect(blitz.ok).toBe(false);
+  });
+
+  it("a Turnover in the first Action ends the activation and the turn", async () => {
+    const game = await razzleGame(adjacent);
+    const player = game.ctx.team1.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "block",
+      razzleDazzle: true,
+    });
+    // A skull: the attacker is Knocked Down. Armour 1+1 holds.
+    forceDice(game.ctx.rng, [1, 1, 1]);
+    await game.execute({
+      type: "block",
+      attackerId: player.id,
+      defenderId: game.ctx.team2.players[0].id,
+    });
+    await game.execute({ type: "choose-block-result", index: 0 });
+    for (let i = 0; i < 10 && game.pendingDecision(); i++) {
+      await game.execute({ type: "use-reroll", accept: false });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await settle();
+
+    const state = game.ctx.gameService.getState();
+    expect(state.activeTeamId).toBe(game.ctx.team2.id);
+    expect(measure(game)).toEqual([
+      { measure: DesperateMeasure.RAZZLE_DAZZLE, used: true },
+    ]);
+  });
+
+  it("is only spent once the first Action commits, and needs the measure", async () => {
+    const game = await razzleGame();
+    const player = game.ctx.team1.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+      razzleDazzle: true,
+    });
+    await game.execute({ type: "cancel-action", playerId: player.id });
+    expect(measure(game)).toEqual([
+      { measure: DesperateMeasure.RAZZLE_DAZZLE, used: false },
+    ]);
+
+    const plain = new HeadlessGame({ scenario: apart, seed: 1 });
+    const refused = await plain.execute({
+      type: "declare-action",
+      playerId: plain.ctx.team1.players[0].id,
+      action: "move",
+      razzleDazzle: true,
+    });
+    expect(refused.ok).toBe(false);
+  });
+});
+
+describe("the Razzle-Dazzle sandbox scenario", () => {
+  it("holds the measure, and offers a Block but no second Move after a Move", async () => {
+    const scenario = SCENARIOS.find(
+      (s) => s.id === "razzle-dazzle-two-actions"
+    )!;
+    const game = new HeadlessGame({ scenario });
+    const player = game.ctx.team1.players[0];
+    expect(measure(game)).toEqual([
+      { measure: DesperateMeasure.RAZZLE_DAZZLE, used: false },
+    ]);
+    await game.execute({
+      type: "declare-action",
+      playerId: player.id,
+      action: "move",
+      razzleDazzle: true,
+    });
+    await game.execute({
+      type: "move",
+      playerId: player.id,
+      path: [{ x: 9, y: 5 }],
+    });
+    await game.execute({ type: "end-activation", playerId: player.id });
+    const second = await actionsOf(game, player.id);
+    expect(second).toContain("block");
+    expect(second).not.toContain("move");
+  });
+});

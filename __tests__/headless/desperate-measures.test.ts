@@ -36,7 +36,7 @@ function measuresOf(game: HeadlessGame, teamId: string) {
 }
 
 describe("rolling Desperate Measures", () => {
-  it("re-rolls a duplicate and records Magic Scroll without an effect", async () => {
+  it("re-rolls a duplicate, and reads a Magic Scroll at once", async () => {
     const game = new HeadlessGame({ seed: 1, startingPhase: GamePhase.SETUP });
     const team1 = game.ctx.team1;
     // 8 = Magic Scroll; 8 again is re-rolled into 6 = Sports Espionage.
@@ -44,7 +44,7 @@ describe("rolling Desperate Measures", () => {
     await commit(game, [bought(team1.id, Inducement.DESPERATE_MEASURES, 2)]);
 
     expect(measuresOf(game, team1.id)).toEqual([
-      { measure: DesperateMeasure.MAGIC_SCROLL, used: false },
+      { measure: DesperateMeasure.MAGIC_SCROLL, used: true },
       { measure: DesperateMeasure.SPORTS_ESPIONAGE, used: false },
     ]);
     expect(game.pendingDecision()).toBeNull();

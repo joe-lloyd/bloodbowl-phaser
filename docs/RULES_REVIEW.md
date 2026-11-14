@@ -112,9 +112,6 @@ Journeymen and firing now follow it. Still open there:
   `beginRedraft`, which nothing calls yet.
 - Conceding during play. Only the set-up concession exists.
 - Deflections, and their SPP.
-- Swarming, and the one-big-guy limit in the team builder. Team Captain,
-  Bribery and Corruption, the Favoured of rules and League choice follow
-  [section 8 of the Sevens checklist](SEVENS_RULES.md#8-team-special-rules).
 
 ## Claims the rulebook overturned
 

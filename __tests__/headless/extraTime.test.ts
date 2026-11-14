@@ -125,10 +125,10 @@ describe("a knockout tie", () => {
   }, 120_000);
 
   it("ends a game level after the second half as a draw when it is not a knockout", async () => {
-    // Seed 1 is 0-0 at full time, and goes to Penalties as a knockout
-    const knockout = await play(1, true);
+    // Seed 4 is level at full time, and goes to Penalties as a knockout
+    const knockout = await play(4, true);
     expect(knockout.state.result?.penalties).toBeDefined();
-    const friendly = await play(1, false);
+    const friendly = await play(4, false);
     expect(friendly.state.score[friendly.home]).toBe(
       friendly.state.score[friendly.away]
     );

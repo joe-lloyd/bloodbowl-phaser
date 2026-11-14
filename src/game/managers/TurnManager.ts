@@ -34,6 +34,8 @@ export function possessive(name: string): string {
 
 export class TurnManager {
   private handoverPending = false;
+  /** Between two turns, while a spell resolves: no Turnover can latch. */
+  private betweenTurnsActive = false;
   private maxTurns: number = 6; // Sevens default
   private turnCounts: { [key: string]: number } = {};
   private driveKickingTeamId: string | null = null;
@@ -56,6 +58,11 @@ export class TurnManager {
       shootout?: () => Record<string, number>;
       /** Fired as a turn ends, before the next begins (Pick-Me-Up). */
       onTurnEnding?: (endingTeamId: string) => void;
+      /**
+       * Something to resolve between this turn and the next, such as a
+       * Sports-Wizard's spell; the next turn waits for it. Null for none.
+       */
+      betweenTurns?: (endingTeamId: string) => Promise<void> | null;
     },
     private delay: import("../core/GameFlowManager").DelayProvider = realTimeDelay
   ) {
@@ -228,6 +235,24 @@ export class TurnManager {
     // stand-ups) are in place when that turn begins
     this.callbacks.onTurnEnding?.(currentTeamId);
 
+    const between = this.callbacks.betweenTurns?.(currentTeamId);
+    if (between) {
+      // Nothing between turns is a Turnover: no team is taking its turn
+      this.handoverPending = true;
+      this.betweenTurnsActive = true;
+      const turn = this.state.turn;
+      void between.then(() => {
+        this.handoverPending = false;
+        this.betweenTurnsActive = false;
+        if (this.state.turn === turn && this.state.phase === GamePhase.PLAY)
+          this.beginNextTurn(currentTeamId);
+      });
+      return;
+    }
+    this.beginNextTurn(currentTeamId);
+  }
+
+  private beginNextTurn(currentTeamId: string): void {
     // Play alternates, but a team that has used all its turns never gets
     // another: the other team plays on, and the half ends once both are out.
     const otherTeamId =
@@ -380,6 +405,7 @@ export class TurnManager {
   public checkTurnover(
     reason: string
   ): AllEvents[GameEventNames.UI_Turnover] | null {
+    if (this.betweenTurnsActive) return null;
     if (this.turnoverInProgress) {
       console.log(
         `[TurnManager] Turnover already latched; ignoring: ${reason}`

@@ -30,6 +30,7 @@ import { emptyInducementsState, Inducement } from "../../types/Inducements";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { inducementUsesLeft, spendInducement } from "./inventory";
 import { confirmKill } from "../rules/plagueRidden";
+import { isFrog } from "./matchInducements";
 
 /** The record CasualtyOperation left on the player for each casualty. */
 function recordedInjury(casualtyType: ApothecaryCasualtyType): InjuryType {
@@ -125,6 +126,8 @@ export async function offerApothecary(
 ): Promise<boolean> {
   const teamId = player.teamId;
   if (!apothecaryAvailable(gameService, teamId)) return false;
+  // "An Apothecary cannot be used on a Frog" (Sports-Wizard, Zap!)
+  if (isFrog(gameService.getState(), player.id)) return false;
 
   const inducements = ensureInducementsState(gameService);
   const id = `apothecary-${++inducements.decisionSeq}`;

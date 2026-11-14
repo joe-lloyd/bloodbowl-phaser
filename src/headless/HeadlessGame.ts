@@ -32,7 +32,10 @@ import { GamePhase } from "../types/GameState";
 import { Player, PlayerStatus } from "../types/Player";
 import { BlockValidator } from "../game/validators/BlockValidator";
 import { FormationManager } from "../game/managers/FormationManager";
-import { computeActionAvailability } from "../game/rules/actionAvailability";
+import {
+  computeActionAvailability,
+  razzleDazzleAllows,
+} from "../game/rules/actionAvailability";
 import { legalHandoffTargets } from "../game/rules/handoff";
 import {
   BLOCK_REPLACEMENTS,
@@ -53,6 +56,7 @@ const COMMAND_SHAPES: Record<
     | "boolean"
     | "boolean?"
     | "string?"
+    | "integer?"
     | "path"
     | "formation"
     | "string-array"
@@ -73,7 +77,11 @@ const COMMAND_SHAPES: Record<
   "kickoff-place-player": { playerId: "string", x: "integer", y: "integer" },
   "kickoff-confirm": {},
   "kickoff-skip": {},
-  "declare-action": { playerId: "string", action: "string" },
+  "declare-action": {
+    playerId: "string",
+    action: "string",
+    razzleDazzle: "boolean?",
+  },
   "cancel-action": { playerId: "string" },
   move: { playerId: "string", path: "path" },
   fumblerooski: { playerId: "string", x: "integer", y: "integer" },
@@ -131,6 +139,9 @@ const COMMAND_SHAPES: Record<
     playerId: "string?",
     skill: "string?",
     stat: "string?",
+    spell: "string?",
+    x: "integer?",
+    y: "integer?",
   },
   "choose-foul-assists": { count: "integer" },
   "offer-inducements": {},
@@ -568,7 +579,11 @@ export class HeadlessGame {
         ) {
           throw new Error("invalid-block-replacement");
         }
-        if (!gs.declareAction(cmd.playerId, cmd.action, cmd.blockReplacement)) {
+        if (
+          !gs.declareAction(cmd.playerId, cmd.action, cmd.blockReplacement, {
+            razzleDazzle: cmd.razzleDazzle,
+          })
+        ) {
           throw new Error("illegal-action-declaration");
         }
         break;
@@ -869,13 +884,18 @@ export class HeadlessGame {
 
       case "choose-inducement": {
         const pending = this.takePending("inducement-choice");
-        const stat = cmd.stat;
+        const { stat, spell } = cmd;
         if (
           (stat !== undefined && stat !== "ST" && stat !== "AG") ||
+          (spell !== undefined && spell !== "fireball" && spell !== "zap") ||
           !gs.answerInducementChoice({
             playerId: cmd.playerId,
             skill: cmd.skill,
             stat,
+            spell,
+            ...(cmd.x !== undefined && cmd.y !== undefined
+              ? { square: { x: cmd.x, y: cmd.y } }
+              : {}),
           })
         ) {
           this.pending = pending; // restore, reply was invalid
@@ -1001,6 +1021,7 @@ export class HeadlessGame {
           playerIds: [...data.playerIds],
           ...(data.skills ? { skills: [...data.skills] } : {}),
           ...(data.stats ? { stats: [...data.stats] } : {}),
+          ...(data.spells ? { spells: [...data.spells] } : {}),
           optional: data.optional,
         };
       } else if (data?.type === "foul-assists") {
@@ -1162,7 +1183,7 @@ export class HeadlessGame {
         });
         const canFoul = !foulSpent(state, activeTeam.id);
 
-        const actions: ActionType[] = [];
+        let actions: ActionType[] = [];
         if (availability.ballAndChain) {
           // A Standing Fanatic may declare nothing but Ball & Chain.
           actions.push("ballAndChain");
@@ -1190,6 +1211,14 @@ export class HeadlessGame {
           for (const replacement of availability.directBlockReplacements) {
             if (!actions.includes(replacement)) actions.push(replacement);
           }
+        }
+        // Razzle-Dazzle: the second Action, within the measure's limits
+        const razzle = state.activePlayer?.razzleDazzle;
+        if (state.activePlayer?.id === p.id && razzle?.awaitingSecond) {
+          const first = razzle.actions[0] as ActionType;
+          actions = actions.filter((action) =>
+            razzleDazzleAllows(first, action)
+          );
         }
         if (actions.length === 0) continue;
 
@@ -1375,6 +1404,9 @@ export class HeadlessGame {
         if (value !== undefined && typeof value !== base) {
           return `malformed-command: '${field}' must be a ${base} when given`;
         }
+      } else if (kind === "integer?") {
+        if (value !== undefined && !Number.isInteger(value))
+          return `malformed-command: '${field}' must be a whole number when given`;
       } else if (kind === "integer") {
         if (!Number.isInteger(value))
           return `malformed-command: '${field}' must be a whole number`;

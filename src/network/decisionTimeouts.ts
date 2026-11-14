@@ -63,9 +63,13 @@ export function defaultAnswer(
     case "foul-assists":
       // As before the choice existed: every assist adds +1
       return { type: "choose-foul-assists", count: pending.available };
+    case "inducement-choice":
+      // The Sports-Wizard is asked between turns, of either coach: keep it
+      return pending.kind === "sports-wizard"
+        ? { type: "choose-inducement" }
+        : null;
     case "touchback":
     case "kickoff-event":
-    case "inducement-choice":
       return null;
   }
 }

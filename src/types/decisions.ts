@@ -168,7 +168,11 @@ export type InducementChoiceKind =
   | "intensive-training"
   | "hangover"
   | "you-dope"
-  | "team-captain";
+  | "team-captain"
+  | "sports-wizard";
+
+/** The Sports-Wizard's two spells (2025 rulebook p.149). */
+export type WizardSpell = "fireball" | "zap";
 
 export type DopeStat = "ST" | "AG";
 
@@ -182,6 +186,8 @@ export interface InducementChoiceDecisionRequest {
   skills?: string[];
   /** You Dope!: the characteristics the coach may raise. */
   stats?: DopeStat[];
+  /** Sports-Wizard: the spells it may cast; `playerIds` are Zap! targets. */
+  spells?: WizardSpell[];
   /** True when the coach may decline and keep the measure for later. */
   optional: boolean;
 }
@@ -191,6 +197,10 @@ export interface InducementChoiceDecisionAnswer {
   playerId?: string;
   skill?: string;
   stat?: DopeStat;
+  /** Sports-Wizard: the spell cast; Zap! names `playerId`. */
+  spell?: WizardSpell;
+  /** Fireball's target square. */
+  square?: { x: number; y: number };
 }
 
 /**

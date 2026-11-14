@@ -11,8 +11,17 @@
 
 import { GameState } from "@/types/GameState";
 import { Inducement, PrayerToNuffle } from "@/types/Inducements";
-import { Player, PlayerStatus, hasTackleZone } from "@/types/Player";
-import { SkillType, getSkill, hasSkill } from "@/types/Skills";
+import {
+  Player,
+  PlayerCondition,
+  PlayerStats,
+  PlayerStatus,
+  addCondition,
+  hasCondition,
+  hasTackleZone,
+  removeCondition,
+} from "@/types/Player";
+import { Skill, SkillType, getSkill, hasSkill } from "@/types/Skills";
 import { Team } from "@/types/Team";
 import {
   DopeStat,
@@ -21,7 +30,7 @@ import {
   ReactionDecisionAnswer,
 } from "@/types/decisions";
 import { GameEventNames } from "@/types/events";
-import { isTrapdoorSquare } from "@/config/GameConfig";
+import { GameConfig, isTrapdoorSquare } from "@/config/GameConfig";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { DiceController } from "../controllers/DiceController";
@@ -45,6 +54,13 @@ export type MatchGrant =
   | { kind: "skill"; playerId: string; skill: SkillType }
   | { kind: "stat"; playerId: string; stat: "AV" | DopeStat; delta: number };
 
+/** A player Zap! turned into a Frog, and what they were before. */
+export interface FrogRecord {
+  playerId: string;
+  stats: PlayerStats;
+  skills: Skill[];
+}
+
 export interface MatchInducementsState {
   /** Set once both teams' prayers and measures have been rolled. */
   rolled: boolean;
@@ -55,6 +71,10 @@ export interface MatchInducementsState {
   dopedPlayerIds: string[];
   /** Knocked out by You Dope! this end of drive: they skip KO recovery. */
   noRecoveryPlayerIds: string[];
+  /** Teams holding a Sports-Wizard that has not cast yet (Magic Scroll). */
+  sportsWizards?: string[];
+  /** Zap!'s Frogs, who are themselves again at the end of the drive. */
+  frogs?: FrogRecord[];
 }
 
 export function emptyMatchInducements(): MatchInducementsState {
@@ -241,10 +261,71 @@ function grantStat(
   });
 }
 
+/** Magic Scroll (L28): the team gains a Sports-Wizard for free. */
+export function grantSportsWizard(state: GameState, teamId: string): void {
+  const mi = getMatchInducements(state);
+  mi.sportsWizards = [...(mi.sportsWizards ?? []), teamId];
+}
+
+export function holdsSportsWizard(state: GameState, teamId: string): boolean {
+  return state.matchInducements?.sportsWizards?.includes(teamId) ?? false;
+}
+
+/** The Sports-Wizard casts once per game: spend it. */
+export function spendSportsWizard(state: GameState, teamId: string): void {
+  const mi = getMatchInducements(state);
+  mi.sportsWizards = (mi.sportsWizards ?? []).filter((id) => id !== teamId);
+}
+
+/**
+ * Zap! (2025 rulebook p.149): the player takes the Frog's profile, MA 5,
+ * ST 1, AG 2+, PA -, AV 5+, with Dodge, Leap, No Ball, Stunty, Titchy and
+ * Very Long Legs, until the end of the drive.
+ */
+export function turnIntoFrog(state: GameState, player: Player): void {
+  const mi = getMatchInducements(state);
+  if (hasCondition(player, PlayerCondition.FROG)) return;
+  mi.frogs = [
+    ...(mi.frogs ?? []),
+    { playerId: player.id, stats: { ...player.stats }, skills: player.skills },
+  ];
+  // PA 0 shows as "-"; No Ball keeps a Frog from ever passing
+  player.stats = { MA: 5, ST: 1, AG: 2, PA: 0, AV: 5 };
+  player.skills = [
+    SkillType.DODGE,
+    SkillType.LEAP,
+    SkillType.NO_BALL,
+    SkillType.STUNTY,
+    SkillType.TITCHY,
+    SkillType.VERY_LONG_LEGS,
+  ].map((type) => getSkill(type));
+  addCondition(player, PlayerCondition.FROG);
+}
+
+export function isFrog(state: GameState, playerId: string): boolean {
+  return (
+    state.matchInducements?.frogs?.some((f) => f.playerId === playerId) ?? false
+  );
+}
+
+/** End of the drive: every Frog returns to normal with no ill effects. */
+export function restoreFrogs(state: GameState, players: Player[]): void {
+  const mi = state.matchInducements;
+  for (const frog of mi?.frogs ?? []) {
+    const player = players.find((p) => p.id === frog.playerId);
+    if (!player) continue;
+    player.stats = { ...frog.stats };
+    player.skills = frog.skills;
+    removeCondition(player, PlayerCondition.FROG);
+  }
+  if (mi) mi.frogs = [];
+}
+
 /** Full time: take back every skill and characteristic granted for the game. */
 export function revokeMatchGrants(state: GameState, players: Player[]): void {
   const mi = state.matchInducements;
   if (!mi) return;
+  restoreFrogs(state, players);
   for (const grant of mi.grants) {
     const player = players.find((p) => p.id === grant.playerId);
     if (!player) continue;
@@ -467,6 +548,14 @@ export class ResolvePregameInducementsOperation extends GameOperation {
     for (const team of teams) {
       await offerHangover(context, team);
     }
+    // Magic Scroll is used before set-up too. Nothing is gained by keeping
+    // it, so it is read at once.
+    for (const team of teams) {
+      if (spendMeasure(state, team.id, DesperateMeasure.MAGIC_SCROLL)) {
+        grantSportsWizard(state, team.id);
+        announce(context, `Magic Scroll: ${team.name} gains a Sports-Wizard`);
+      }
+    }
   }
 }
 
@@ -566,6 +655,7 @@ export function validChoiceAnswer(
   request: InducementChoiceDecisionRequest,
   answer: InducementChoiceDecisionAnswer
 ): InducementChoiceDecisionAnswer | null {
+  if (request.kind === "sports-wizard") return validSpell(request, answer);
   if (answer.playerId === undefined) return request.optional ? {} : null;
   if (!request.playerIds.includes(answer.playerId)) return null;
   switch (request.kind) {
@@ -584,4 +674,29 @@ export function validChoiceAnswer(
     case "team-captain":
       return answer;
   }
+}
+
+/** No spell keeps the wizard; Zap! names an offered player, Fireball a square. */
+function validSpell(
+  request: InducementChoiceDecisionRequest,
+  answer: InducementChoiceDecisionAnswer
+): InducementChoiceDecisionAnswer | null {
+  if (answer.spell === undefined) return {};
+  if (!request.spells?.includes(answer.spell)) return null;
+  if (answer.spell === "zap") {
+    return answer.playerId !== undefined &&
+      request.playerIds.includes(answer.playerId)
+      ? { spell: "zap", playerId: answer.playerId }
+      : null;
+  }
+  const square = answer.square;
+  return square &&
+    Number.isInteger(square.x) &&
+    Number.isInteger(square.y) &&
+    square.x >= 0 &&
+    square.y >= 0 &&
+    square.x < GameConfig.PITCH_WIDTH &&
+    square.y < GameConfig.PITCH_HEIGHT
+    ? { spell: "fireball", square: { x: square.x, y: square.y } }
+    : null;
 }

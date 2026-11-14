@@ -8,6 +8,7 @@ import { CasualtyCause } from "../rules/plagueRidden";
 import { movePlayerToBox } from "../rules/playerLocation";
 import { foldTrigger, InjuryRollContext } from "../skills";
 import { offerApothecary } from "../inducements/apothecary";
+import { isFrog } from "../inducements/matchInducements";
 import { FlowContext } from "../core/GameFlowManager";
 
 /**
@@ -165,7 +166,9 @@ export class InjuryOperation extends GameOperation {
         flowManager.add(
           new CasualtyOperation(
             this.playerId,
-            this.opts.casualtyIsBadlyHurt
+            // A Frog's Casualty is always Badly Hurt (Sports-Wizard, Zap!)
+            this.opts.casualtyIsBadlyHurt ||
+              isFrog(gameService.getState(), player.id)
               ? InjuryResult.BADLY_HURT
               : ctx.result,
             this.opts.causedById,

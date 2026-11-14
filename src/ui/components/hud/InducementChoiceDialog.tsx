@@ -7,6 +7,7 @@ import {
   InducementChoiceDecisionAnswer,
   InducementChoiceDecisionRequest,
   InducementChoiceKind,
+  WizardSpell,
 } from "@/types/decisions";
 import { getActiveOnlineMatch } from "../../../network/OnlineMatch";
 import { ServiceContainer } from "../../../services/ServiceContainer";
@@ -23,6 +24,24 @@ const TITLES: Record<InducementChoiceKind, string> = {
   hangover: "Hangover: who misses the first drive?",
   "you-dope": "You Dope!: +1 ST or +1 AG for the game",
   "team-captain": "Appoint a new Team Captain",
+  "sports-wizard": "Sports-Wizard: cast a spell?",
+};
+
+/** What each spell does, in a line, and what the pitch picks for it. */
+const SPELLS: Record<
+  WizardSpell,
+  { label: string; hint: string; aim: string }
+> = {
+  fireball: {
+    label: "Fireball",
+    hint: "Each player in or next to a square is hit on 4+: Knocked Down, Armour +1",
+    aim: "Fireball: click the square to aim at",
+  },
+  zap: {
+    label: "Zap!",
+    hint: "A Frog until the drive ends, on a D6 of their ST or more",
+    aim: "Zap!: click the player to zap",
+  },
 };
 
 /**
@@ -35,16 +54,26 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
 }) => {
   const [request, setRequest] =
     useState<InducementChoiceDecisionRequest | null>(null);
+  // Sports-Wizard: the spell picked, whose target the pitch is choosing
+  const [spell, setSpell] = useState<WizardSpell | null>(null);
+  const aim = (next: WizardSpell | null) => {
+    setSpell(next);
+    eventBus.emit(GameEventNames.UI_WizardTargeting, { spell: next });
+  };
 
   useEffect(() => {
     const onRequested = (data: DecisionRequest) => {
       if (data.type === "inducement-choice") {
         setRequest(data);
+        setSpell(null);
       }
     };
     // The other coach may be the one who answers
     const onResolved = ({ type }: { type: string }) => {
-      if (type === "inducement-choice") setRequest(null);
+      if (type !== "inducement-choice") return;
+      setRequest(null);
+      setSpell(null);
+      eventBus.emit(GameEventNames.UI_WizardTargeting, { spell: null });
     };
     eventBus.on(GameEventNames.DecisionRequested, onRequested);
     eventBus.on(GameEventNames.DecisionResolved, onResolved);
@@ -70,6 +99,50 @@ export const InducementChoiceDialog: React.FC<InducementChoiceDialogProps> = ({
     if (getActiveOnlineMatch()?.mayAct() === false) return;
     if (gameService.answerInducementChoice(choice)) setRequest(null);
   };
+
+  if (request.kind === "sports-wizard") {
+    return (
+      <DialogShell
+        testId="sports-wizard-dialog"
+        placement="dock"
+        eyebrow={<DecisionTeam teamId={request.chooserTeamId} />}
+        title={spell ? SPELLS[spell].aim : TITLES[request.kind]}
+        width="w-[520px]"
+        actions={
+          spell ? (
+            <HudButton variant="ghost" block onClick={() => aim(null)}>
+              Back
+            </HudButton>
+          ) : (
+            <HudButton variant="ghost" block onClick={() => answer({})}>
+              Keep it for later
+            </HudButton>
+          )
+        }
+      >
+        {!spell && (
+          <div className="grid grid-cols-2 gap-2">
+            {(request.spells ?? []).map((option) => (
+              <HudButton
+                key={option}
+                data-testid={`spell-${option}`}
+                variant="secondary"
+                className="!h-auto !py-2 !normal-case !tracking-normal text-left"
+                onClick={() => aim(option)}
+              >
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-bold">{SPELLS[option].label}</span>
+                  <span className="text-hud-xs text-hud-dim">
+                    {SPELLS[option].hint}
+                  </span>
+                </span>
+              </HudButton>
+            ))}
+          </div>
+        )}
+      </DialogShell>
+    );
+  }
 
   const options: { label: string; choice: InducementChoiceDecisionAnswer }[] =
     request.playerIds.flatMap((playerId) => {

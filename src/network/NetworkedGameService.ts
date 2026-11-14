@@ -496,13 +496,15 @@ export class NetworkedGameService implements IGameService {
   declareAction(
     playerId: string,
     action: ActionType,
-    blockReplacement?: BlockReplacement
+    blockReplacement?: BlockReplacement,
+    options: { razzleDazzle?: boolean } = {}
   ): boolean {
     this.send({
       type: "declare-action",
       playerId,
       action,
       blockReplacement,
+      ...(options.razzleDazzle ? { razzleDazzle: true } : {}),
     });
     return true;
   }
