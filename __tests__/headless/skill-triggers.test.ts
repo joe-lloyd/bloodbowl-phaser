@@ -247,6 +247,41 @@ describe("Wrestle (5.2) — both prone without armour, a coach decision", () => 
     expect(game.ctx.gameService.getState().ballPosition).not.toEqual(square);
   });
 
+  // Juggernaut bars only the opposition's Wrestle, and its optional push
+  // must not undo the blitzer's own accepted Wrestle, in either skill order
+  it.each([
+    [[SkillType.WRESTLE, SkillType.JUGGERNAUT]],
+    [[SkillType.JUGGERNAUT, SkillType.WRESTLE]],
+  ])("lets a Juggernaut blitzer Wrestle (%j)", async (skills) => {
+    const game = new HeadlessGame({ scenario, seed: 5 });
+    const attacker = game.ctx.team1.players[0];
+    const defender = game.ctx.team2.players[0];
+    skills.forEach((skill) => give(attacker, skill));
+    const declared = await game.execute({
+      type: "declare-action",
+      playerId: attacker.id,
+      action: "blitz",
+    });
+    expect(declared.ok).toBe(true);
+
+    const resolveDone = game.ctx.gameService.resolveBlock(
+      attacker.id,
+      defender.id,
+      bothDown
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(game.pendingDecision()).toMatchObject({
+      type: "reaction",
+      skill: SkillType.WRESTLE,
+      chooserTeamId: game.ctx.team1.id,
+    });
+    await game.execute({ type: "use-reaction", accept: true });
+    await resolveDone;
+
+    expect(attacker.status).toBe(PlayerStatus.PRONE);
+    expect(defender.status).toBe(PlayerStatus.PRONE);
+  });
+
   it("declining applies the normal Both Down", async () => {
     const game = new HeadlessGame({ scenario, seed: 5 });
     const attacker = game.ctx.team1.players[0];

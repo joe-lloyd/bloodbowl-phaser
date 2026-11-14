@@ -2184,8 +2184,9 @@ export class BlockManager {
     this.announce(ctx.triggers);
 
     // Juggernaut on a Blitz may treat the Both Down as a Push Back instead:
-    // nobody is knocked down and there is no turnover.
-    if (ctx.treatAsPush) {
+    // nobody is knocked down and there is no turnover. A Wrestle the blitzer
+    // accepted is their choice not to, and it holds whatever the skill order.
+    if (ctx.treatAsPush && !ctx.placedProne) {
       await this.beginPush(attacker, defender, "push", false);
       return;
     }
