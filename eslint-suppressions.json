@@ -464,14 +464,6 @@
       "count": 1
     }
   },
-  "src/scenes/GameScene.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines": {
-      "count": 1
-    }
-  },
   "src/scenes/SandboxScene.ts": {
     "complexity": {
       "count": 1
