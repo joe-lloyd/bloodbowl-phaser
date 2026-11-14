@@ -640,6 +640,8 @@ export function createOnlineMatch(options: CreateMatchOptions): OnlineMatch {
               return `${team} is deciding whether to use the apothecary`;
             case "inducement-choice":
               return `${team} is choosing an inducement`;
+            case "foul-assists":
+              return `${team} is choosing the foul's assists`;
             case "touchback":
               return `${team} is choosing who takes the ball`;
             case "kickoff-event":

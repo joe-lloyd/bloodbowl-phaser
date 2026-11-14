@@ -132,6 +132,7 @@ const COMMAND_SHAPES: Record<
     skill: "string?",
     stat: "string?",
   },
+  "choose-foul-assists": { count: "integer" },
   "offer-inducements": {},
   "select-inducement": {
     teamId: "string",
@@ -882,6 +883,14 @@ export class HeadlessGame {
         }
         break;
       }
+      case "choose-foul-assists": {
+        const pending = this.takePending("foul-assists");
+        if (!gs.answerFoulAssists(cmd.count)) {
+          this.pending = pending; // restore, reply was invalid
+          throw new Error("invalid-foul-assists");
+        }
+        break;
+      }
 
       // --- Sevens pregame inducements ---
       case "offer-inducements":
@@ -993,6 +1002,15 @@ export class HeadlessGame {
           ...(data.skills ? { skills: [...data.skills] } : {}),
           ...(data.stats ? { stats: [...data.stats] } : {}),
           optional: data.optional,
+        };
+      } else if (data?.type === "foul-assists") {
+        this.pending = {
+          type: "foul-assists",
+          playerId: data.playerId,
+          targetId: data.targetId,
+          chooserTeamId: data.chooserTeamId,
+          available: data.available,
+          defensive: data.defensive,
         };
       } else if (data?.type === "apothecary") {
         this.pending = {

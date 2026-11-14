@@ -8,6 +8,7 @@ import { ActionType } from "../types/events";
 import { BlockResult } from "../services/BlockResolutionService";
 import type {
   DopeStat,
+  FoulAssistsDecisionRequest,
   InducementChoiceDecisionRequest,
   RerollSource,
 } from "../types/decisions";
@@ -151,6 +152,8 @@ export type HeadlessCommand =
       skill?: string;
       stat?: DopeStat;
     }
+  /** How many of a Foul's Offensive Assists add +1 (0 to available). */
+  | { type: "choose-foul-assists"; count: number }
   // Sevens pregame inducements
   | { type: "offer-inducements" }
   | {
@@ -271,7 +274,9 @@ export type PendingDecision =
       casualtyType?: "badly-hurt" | "seriously-hurt" | "dead";
     }
   /** A Prayer to Nuffle or Desperate Measure waits on its coach's pick. */
-  | InducementChoiceDecisionRequest;
+  | InducementChoiceDecisionRequest
+  /** The fouling coach declares how many Offensive Assists add +1. */
+  | FoulAssistsDecisionRequest;
 
 export interface EmittedEvent {
   name: string;
@@ -350,6 +355,7 @@ export const DECISION_REPLIES: Partial<
   touchback: "touchback",
   "use-apothecary": "apothecary",
   "choose-inducement": "inducement-choice",
+  "choose-foul-assists": "foul-assists",
   "kickoff-select-player": "kickoff-event",
   "kickoff-move-player": "kickoff-event",
   "kickoff-place-player": "kickoff-event",

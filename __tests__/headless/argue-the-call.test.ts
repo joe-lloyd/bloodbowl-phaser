@@ -5,7 +5,7 @@ import { GameEventNames } from "../../src/types/events";
 import { Scenario } from "../../src/types/Scenario";
 import { PlayerStatus } from "../../src/types/Player";
 import { playerBoxOf } from "../../src/game/rules/playerLocation";
-import { forceDice } from "../utils/test-helpers";
+import { foulAddingAllAssists, forceDice } from "../utils/test-helpers";
 
 /**
  * Sevens rule M6: Argue the Call. On a D6 of 1 to 4 the fouler is still
@@ -40,7 +40,7 @@ async function foul(game: HeadlessGame, playerIndex: number, argue: number) {
     playerId: fouler.id,
     action: "foul",
   });
-  const response = await game.execute({
+  const response = await foulAddingAllAssists(game, {
     type: "foul",
     playerId: fouler.id,
     x: 11,

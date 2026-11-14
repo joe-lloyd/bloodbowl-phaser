@@ -10,6 +10,7 @@ import { ReactionDialog } from "../../src/ui/components/hud/ReactionDialog";
 import { InterceptionDialog } from "../../src/ui/components/hud/InterceptionDialog";
 import { ApothecaryDialog } from "../../src/ui/components/hud/ApothecaryDialog";
 import { InducementChoiceDialog } from "../../src/ui/components/hud/InducementChoiceDialog";
+import { FoulAssistsDialog } from "../../src/ui/components/hud/FoulAssistsDialog";
 
 /**
  * Online, both coaches see the engine's decision prompts, but only the one
@@ -104,6 +105,18 @@ describe("decision dialogs close once the decision is settled", () => {
           chooserTeamId: teamId,
           playerIds: [playerId],
         }) as DecisionRequest,
+    ],
+    [
+      "foul-assists",
+      FoulAssistsDialog as React.FC<{ eventBus: EventBus }>,
+      () => ({
+        type: "foul-assists",
+        playerId,
+        targetId: playerId,
+        chooserTeamId: teamId,
+        available: 2,
+        defensive: 0,
+      }),
     ],
   ];
 

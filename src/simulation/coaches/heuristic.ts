@@ -256,6 +256,9 @@ function scoreDecision(command: HeadlessCommand, board: Board): number {
       return command.playerId ? 1 : 0;
     case "choose-interception":
       return command.playerId ? 1 : 0;
+    case "choose-foul-assists":
+      // Every assist: more +1s break more armour (steps of 1 beat the noise)
+      return command.count;
     case "choose-bite-target": {
       // Always bite, not the ball carrier if another Thrall is in reach,
       // then in board order (as the planner). Steps of 1 outweigh the noise.

@@ -96,6 +96,8 @@ export function answerDecision(
     }
     case "apothecary":
       return { type: "use-apothecary", accept: policy.useApothecary ?? false };
+    case "foul-assists":
+      return { type: "choose-foul-assists", count: pending.available };
     case "inducement-choice":
       // The first option offered; a Desperate Measure is kept for later.
       return pending.optional

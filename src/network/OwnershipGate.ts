@@ -110,6 +110,7 @@ export function decisionOwner(
     case "interception":
     case "apothecary":
     case "inducement-choice":
+    case "foul-assists":
       // The deciding team rides on the decision itself
       return pending.chooserTeamId;
     case "push-direction":

@@ -1,4 +1,6 @@
 import { vi } from "vitest";
+import type { HeadlessGame } from "../../src/headless/HeadlessGame";
+import type { HeadlessCommand } from "../../src/headless/protocol";
 
 /**
  * Wait for a specified amount of time (for async operations)
@@ -51,4 +53,22 @@ export const buttonLabel = (button: Element | null | undefined) => {
   const words = button.cloneNode(true) as Element;
   words.querySelectorAll("kbd").forEach((badge) => badge.remove());
   return words.textContent;
+};
+
+/**
+ * Run a Foul and add every Offensive Assist it offers, as Fouls did before
+ * the coach could choose. The response carries both commands' events.
+ */
+export const foulAddingAllAssists = async (
+  game: HeadlessGame,
+  command: Extract<HeadlessCommand, { type: "foul" }>
+) => {
+  const response = await game.execute(command);
+  const pending = response.pendingDecision;
+  if (pending?.type !== "foul-assists") return response;
+  const reply = await game.execute({
+    type: "choose-foul-assists",
+    count: pending.available,
+  });
+  return { ...reply, events: [...response.events, ...reply.events] };
 };

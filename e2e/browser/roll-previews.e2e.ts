@@ -153,6 +153,7 @@ test("a foul clears its red target square once the foul is over", async ({
 
   await app.pitch.clickPlayer("team2:0");
   await page.getByRole("button", { name: "Foul!", exact: true }).click();
+  await page.getByTestId("foul-assists-1").click();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
   await expect.poll(highlights, { timeout: 15_000 }).toHaveLength(0);
 });

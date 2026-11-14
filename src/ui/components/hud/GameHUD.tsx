@@ -27,6 +27,7 @@ import { BlockDiceDialog } from "./BlockDiceDialog";
 import { FollowUpDialog } from "./FollowUpDialog";
 import { RerollDialog } from "./RerollDialog";
 import { ReactionDialog } from "./ReactionDialog";
+import { FoulAssistsDialog } from "./FoulAssistsDialog";
 import { ApothecaryDialog } from "./ApothecaryDialog";
 import { InducementChoiceDialog } from "./InducementChoiceDialog";
 import { InterceptionDialog } from "./InterceptionDialog";
@@ -324,6 +325,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <FollowUpDialog eventBus={eventBus} />
       <RerollDialog eventBus={eventBus} />
       <ReactionDialog eventBus={eventBus} />
+      <FoulAssistsDialog eventBus={eventBus} />
       <BiteTargetPrompt eventBus={eventBus} />
       <ApothecaryDialog eventBus={eventBus} />
       <InducementChoiceDialog eventBus={eventBus} />

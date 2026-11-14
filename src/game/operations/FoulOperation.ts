@@ -15,6 +15,7 @@ import {
   underScrutiny,
 } from "../inducements/matchInducements";
 import { DesperateMeasure } from "../inducements/desperateMeasures";
+import { FoulAssistsDecisionAnswer } from "../../types/decisions";
 
 /**
  * Grudge Match (L24), used when the player Fouls: a second Foul this turn
@@ -131,9 +132,26 @@ export class FoulOperation extends GameOperation {
 
     const analysis = foulController.analyzeFoul(fouler, target, allPlayers);
 
+    // Offensive Assists "may apply" (FAQ, May 2026): the coach declares how
+    // many add +1 before the roll. Defensive Assists always apply.
+    let offensive = analysis.offensiveAssists.length;
+    const defensive = analysis.defensiveAssists.length;
+    if (offensive > 0) {
+      const answer = (await gameService.getDecisionService().request({
+        type: "foul-assists",
+        playerId: fouler.id,
+        targetId: target.id,
+        chooserTeamId: fouler.teamId,
+        available: offensive,
+        defensive,
+      })) as FoulAssistsDecisionAnswer;
+      offensive = answer.count;
+    }
+    const modifier = offensive - defensive;
+
     eventBus.emit(
       GameEventNames.UI_Notification,
-      `Assists: +${analysis.offensiveAssists.length} Offensive, -${analysis.defensiveAssists.length} Defensive. Mod: ${analysis.modifier >= 0 ? "+" : ""}${analysis.modifier}`
+      `Assists: +${offensive} Offensive, -${defensive} Defensive. Mod: ${modifier >= 0 ? "+" : ""}${modifier}`
     );
 
     await context.delay(1000);
@@ -163,7 +181,7 @@ export class FoulOperation extends GameOperation {
       av,
       target.playerName,
       target.teamId,
-      analysis.modifier,
+      modifier,
       foulArmourRoll
     );
     let rolls = armour.rolls;
@@ -171,7 +189,7 @@ export class FoulOperation extends GameOperation {
       player: target,
       knockedDown: false,
       roll: rolls[0] + rolls[1],
-      armourModifier: analysis.modifier,
+      armourModifier: modifier,
     });
     const breaks = (bonus: number) =>
       armourBroken(armourCtx, rolls[0] + rolls[1] + bonus, gameService);
@@ -191,7 +209,7 @@ export class FoulOperation extends GameOperation {
         av,
         target.playerName,
         target.teamId,
-        analysis.modifier,
+        modifier,
         foulArmourRoll
       );
       rolls = armour.rolls;
