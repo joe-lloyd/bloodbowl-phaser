@@ -2393,7 +2393,12 @@ export class GameService implements IGameService {
       }
     }
     if (!(await this.whenSettled())) return;
-    if (this.state.activePlayer?.id !== playerId) return;
+    // A gate can end the turn too: Animal Savagery downing the carrier
+    if (
+      this.state.activePlayer?.id !== playerId ||
+      this.turnManager.isTurnoverInProgress()
+    )
+      return;
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
@@ -2862,10 +2867,27 @@ export class GameService implements IGameService {
     // one that ended the activation or changed it to a Move stops it here
     if (!(await this.whenSettled())) return;
     const declared = this.state.activePlayer;
-    if (declared?.id !== foulerId || declared.action !== "foul") {
+    if (
+      declared?.id !== foulerId ||
+      declared.action !== "foul" ||
+      this.turnManager.isTurnoverInProgress()
+    ) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
         `${fouler.playerName} has no Foul declared.`
+      );
+      return;
+    }
+    // A Foul is made on a downed opponent the fouler stands next to
+    const square = fouler.gridPosition;
+    if (
+      !square ||
+      Math.max(Math.abs(square.x - targetX), Math.abs(square.y - targetY)) !==
+        1
+    ) {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${fouler.playerName} must stand next to the player to Foul them.`
       );
       return;
     }

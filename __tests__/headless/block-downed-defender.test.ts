@@ -93,3 +93,35 @@ describe("a Foul whose declaration a failed negatrait ended", () => {
     throw new Error("no seed failed the Bone Head roll");
   });
 });
+
+describe("a Foul on a downed opponent out of reach", () => {
+  it("is refused until the fouler stands next to them", async () => {
+    const scenario: Scenario = {
+      ...downedNeighbour,
+      id: "foul-out-of-reach",
+      setup: {
+        ...downedNeighbour.setup,
+        team2Placements: [
+          { playerIndex: 0, x: 14, y: 5, status: PlayerStatus.PRONE },
+        ],
+      },
+    };
+    const game = new HeadlessGame({ scenario, seed: 1 });
+    const foulerId = game.ctx.team1.players[0].id;
+    await game.execute({
+      type: "declare-action",
+      playerId: foulerId,
+      action: "foul",
+    });
+    const fouled = await game.execute({
+      type: "foul",
+      playerId: foulerId,
+      x: 14,
+      y: 5,
+    });
+    expect(fouled.events.some((e) => e.name === GameEventNames.DiceRoll)).toBe(
+      false
+    );
+    expect(fouled.snapshot.turn.hasFouled).toBe(false);
+  });
+});

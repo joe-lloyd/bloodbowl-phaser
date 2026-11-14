@@ -112,4 +112,45 @@ describe("standing up rolls the activation gate", () => {
     }
     throw new Error("no seed failed the Bloodlust roll");
   });
+
+  it("a lash-out that downs the ball carrier is a Turnover: the player stays Prone", async () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const game = new HeadlessGame({
+        scenario: {
+          id: `stand-savage-${seed}`,
+          name: "stand-savage",
+          description: "stand-savage",
+          setup: {
+            team1Placements: [
+              {
+                playerIndex: 0,
+                x: 10,
+                y: 5,
+                skills: [SkillType.ANIMAL_SAVAGERY],
+                status: PlayerStatus.PRONE,
+              },
+              // The only team-mate in reach, holding the ball
+              { playerIndex: 1, x: 11, y: 5, hasBall: true },
+            ],
+            team2Placements: [{ playerIndex: 0, x: 18, y: 8 }],
+            activeTeam: "team1",
+            turn: 1,
+            phase: GamePhase.PLAY,
+            subPhase: SubPhase.TURN_RECEIVING,
+          },
+        },
+        seed,
+      });
+      const playerId = game.ctx.team1.players[0].id;
+      const response = await game.execute({ type: "stand-up", playerId });
+      if (response.pendingDecision) continue;
+      const carrier = response.snapshot.teams[0].players[1];
+      if (carrier.status === PlayerStatus.ACTIVE) continue;
+      expect(response.snapshot.teams[0].players[0].status).toBe(
+        PlayerStatus.PRONE
+      );
+      return;
+    }
+    throw new Error("no seed made the lash-out hit the carrier");
+  });
 });

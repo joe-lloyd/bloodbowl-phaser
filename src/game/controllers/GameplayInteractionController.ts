@@ -1496,7 +1496,14 @@ export class GameplayInteractionController {
       this.selectedPlayerId
     ) {
       if (playerAtSquare && playerAtSquare.id !== this.selectedPlayerId) {
-        if (this.isDownedOpponent(playerAtSquare)) {
+        const blitzer = this.gameService.getPlayerById(this.selectedPlayerId);
+        const inReach =
+          !!blitzer?.gridPosition &&
+          Math.max(
+            Math.abs(blitzer.gridPosition.x - x),
+            Math.abs(blitzer.gridPosition.y - y)
+          ) === 1;
+        if (inReach && this.isDownedOpponent(playerAtSquare)) {
           await this.foulInsteadOfBlock(this.selectedPlayerId, x, y);
           return;
         }
