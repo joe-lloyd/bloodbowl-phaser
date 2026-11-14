@@ -350,15 +350,27 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
   };
 }
 
-/** Restore a saved roster while retaining live team, array and player references. */
+/** Make `target` hold exactly `source`'s fields, dropping any it lacks. */
+function replaceFields<T extends object>(target: T, source: T): T {
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) Reflect.deleteProperty(target, key);
+  }
+  return Object.assign(target, source);
+}
+
+/**
+ * Restore a saved roster while retaining live team, array and player
+ * references. A field the saved record lacks, such as a Team Captain title
+ * granted since, is cleared rather than kept.
+ */
 export function restoreTeam(team: Team, saved: Team): void {
   const copy = structuredClone(saved);
   const players = copy.players.map((record) => {
     const player = team.players.find((candidate) => candidate.id === record.id);
-    return player ? Object.assign(player, record) : record;
+    return player ? replaceFields(player, record) : record;
   });
   team.players.splice(0, team.players.length, ...players);
-  Object.assign(team, { ...copy, players: team.players });
+  replaceFields(team, { ...copy, players: team.players });
 }
 
 /**

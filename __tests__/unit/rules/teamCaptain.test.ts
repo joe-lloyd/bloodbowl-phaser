@@ -102,6 +102,56 @@ describe("naming the Team Captain", () => {
   });
 });
 
+describe("loading a stored Team Captain", () => {
+  /** Save `team` with a Captain flag on each of `flagged`, then load it. */
+  function loadFlagged(team: ReturnType<typeof draft>, flagged: number[]) {
+    const stored = dehydrateTeam(team);
+    flagged.forEach((index) => (stored.players[index].teamCaptain = true));
+    return readStoredTeam(JSON.parse(JSON.stringify(stored))).team;
+  }
+
+  it("drops the title from a Big Guy, with no Pro", () => {
+    const loaded = loadFlagged(
+      draft(RosterName.ORC, ["Untrained Troll", "Orc Lineman"]),
+      [0]
+    );
+
+    expect(loaded.players[0].teamCaptain).toBeUndefined();
+    expect(skillsOf(loaded.players[0])).not.toContain(SkillType.PRO);
+  });
+
+  it("drops the title from a Human team's Ogre", () => {
+    const loaded = loadFlagged(
+      draft(RosterName.HUMAN, ["Ogre", "Human Lineman"]),
+      [0]
+    );
+
+    expect(loaded.players[0].teamCaptain).toBeUndefined();
+    expect(skillsOf(loaded.players[0])).not.toContain(SkillType.PRO);
+  });
+
+  it("drops the title on a roster without the rule", () => {
+    const loaded = loadFlagged(
+      draft(RosterName.NORSE, ["Norse Raider Lineman"]),
+      [0]
+    );
+
+    expect(loaded.players[0].teamCaptain).toBeUndefined();
+    expect(skillsOf(loaded.players[0])).not.toContain(SkillType.PRO);
+  });
+
+  it("keeps one Captain when two players carry the title", () => {
+    const loaded = loadFlagged(
+      draft(RosterName.HUMAN, ["Human Blitzer", "Human Lineman"]),
+      [0, 1]
+    );
+
+    expect(loaded.players.map((p) => !!p.teamCaptain)).toEqual([true, false]);
+    expect(skillsOf(loaded.players[0])).toContain(SkillType.PRO);
+    expect(skillsOf(loaded.players[1])).toEqual([]);
+  });
+});
+
 describe("replacing the Team Captain (errata p.155)", () => {
   function activeLeagueTeam() {
     const team = draft(RosterName.HUMAN, [

@@ -42,14 +42,7 @@ import {
   calculateTeamValue,
 } from "../../types/Team";
 import { SeedMetadata } from "../../types/seedMetadata";
-import {
-  Skill,
-  SkillCategory,
-  SkillType,
-  getSkill,
-  hasSkill,
-  migrateSkill,
-} from "../../types/Skills";
+import { Skill, SkillCategory, migrateSkill } from "../../types/Skills";
 import { Inducement, InducementSelectionLine } from "../../types/Inducements";
 import { getRosterByRosterName } from "../RosterTemplates";
 import {
@@ -58,6 +51,11 @@ import {
 } from "../../game/rules/sevensRuleset";
 import { staysOnRoster } from "../../game/rules/leagueRoster";
 import { parseAllegiance } from "../../game/rules/teamAllegiance";
+import {
+  appointTeamCaptain,
+  hasTeamCaptainRule,
+  mayCaptain,
+} from "../../game/rules/teamCaptain";
 
 export const TEAM_SCHEMA_VERSION = 1;
 
@@ -302,9 +300,6 @@ export function hydratePlayer(
     .map((advancement) => migrateSkill({ type: advancement.name }))
     .filter((skill): skill is Skill => skill !== null);
   const skills = [...templateSkills, ...advancementSkills];
-  if (stored.teamCaptain && !hasSkill(skills, SkillType.PRO)) {
-    skills.push(getSkill(SkillType.PRO));
-  }
 
   const teamValue =
     (stored.advancements ?? []).reduce(
@@ -342,7 +337,6 @@ export function hydratePlayer(
   };
   if (hydrationWarning) player.hydrationWarning = hydrationWarning;
   if (stored.veteran) player.veteran = true;
-  if (stored.teamCaptain) player.teamCaptain = true;
   if (stored.pendingAdvancementRoll) {
     player.pendingAdvancementRoll = stored.pendingAdvancementRoll;
   }
@@ -471,6 +465,15 @@ export function hydrateStoredTeam(
     ...(knownRoster ? parseAllegiance(knownRoster, raw) : {}),
   };
   team.players = team.players.filter((player) => staysOnRoster(team, player));
+  // A stored Team Captain title stands only where the rules allow one:
+  // the roster has the rule, the player may lead it, and one Captain only.
+  const flagged = new Set(
+    storedPlayers.filter((stored) => stored.teamCaptain).map((p) => p.id)
+  );
+  const captain = team.players.find(
+    (player) => flagged.has(player.id) && mayCaptain(player)
+  );
+  if (captain && hasTeamCaptainRule(team)) appointTeamCaptain(team, captain);
   team.teamValue = calculateTeamValue(team);
   return { team, warnings };
 }
