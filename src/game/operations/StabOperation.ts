@@ -12,7 +12,8 @@ import { gatherParticipants } from "../skills";
 
 /**
  * Ends the stabber's activation once the stab (and any injury/casualty it
- * queued) has fully settled — queued at the BACK of the flow.
+ * queued) has fully settled — queued at the BACK of the flow. Hit and Run
+ * may take its free square first.
  */
 class FinishStabOperation extends GameOperation {
   public readonly name = "FinishStab";
@@ -22,7 +23,7 @@ class FinishStabOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
-    context.gameService.finishActivation(this.attackerId);
+    await context.gameService.finishStabActivation(this.attackerId);
   }
 }
 

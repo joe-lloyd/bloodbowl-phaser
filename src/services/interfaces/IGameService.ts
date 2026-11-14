@@ -295,6 +295,8 @@ export interface IGameService {
    * Block ends it; a Blitz block keeps the player active while MA+rush remains.
    */
   finishBlockActivation(playerId: string): void;
+  /** End a stabber's activation; Hit and Run may take a free square first. */
+  finishStabActivation(playerId: string): Promise<void>;
   /** Charge a Blitz block's square of movement (Rush if needed). */
   chargeBlitzBlockSquare(attackerId: string): Promise<boolean>;
   /** The single block a Blitz allows has been spent this activation. */

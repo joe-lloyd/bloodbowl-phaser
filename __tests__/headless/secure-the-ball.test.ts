@@ -4,6 +4,7 @@ import { Scenario, PlayerPlacement } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus, TraitKeyWord } from "../../src/types/Player";
 import { SkillType } from "../../src/types/Skills";
+import type { Weather } from "../../src/game/rules/weather";
 
 /**
  * Secure the Ball (2025 rulebook, Performing a Secure the Ball Action):
@@ -19,6 +20,7 @@ import { SkillType } from "../../src/types/Skills";
 function scenario(opts: {
   securer?: Partial<PlayerPlacement>;
   opponent?: Partial<PlayerPlacement>;
+  weather?: Weather;
 }): Scenario {
   return {
     id: "secure-the-ball",
@@ -34,6 +36,7 @@ function scenario(opts: {
       phase: GamePhase.PLAY,
       subPhase: SubPhase.TURN_RECEIVING,
       ballPosition: { x: 7, y: 5 },
+      weather: opts.weather,
     },
   };
 }
@@ -98,6 +101,31 @@ describe("a Secure the Ball pick-up", () => {
     const declined = await game.execute({ type: "use-reroll", accept: false });
     expect(diceOf(declined.events)).toEqual(["Bounce Direction: 1"]);
     expect(declined.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+  });
+});
+
+/**
+ * FAQ (May 2026): "Do modifiers that apply to picking up a ball, such as
+ * Pouring Rain, apply to a Secure the Ball Action? Yes". The 2+ was rolled
+ * with no modifier. Seed 9 rolls a 2 (committed, never searched).
+ */
+describe("a Secure the Ball pick-up in Pouring Rain", () => {
+  it("takes the pick-up modifier, so a 2 fails", async () => {
+    const game = new HeadlessGame({
+      scenario: scenario({ weather: "Pouring Rain" }),
+      seed: 9,
+    });
+    game.ctx.team1.rerolls = 0;
+    const failed = await secure(game, [
+      { x: 6, y: 5 },
+      { x: 7, y: 5 },
+    ]);
+
+    expect(diceOf(failed.events)).toEqual([
+      "Secure the Ball (Human Lineman #1): 2, needs 3+",
+      "Bounce Direction: 7",
+    ]);
+    expect(failed.snapshot.activeTeamId).toBe(game.ctx.team2.id);
   });
 });
 

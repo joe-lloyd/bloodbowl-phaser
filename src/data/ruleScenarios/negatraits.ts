@@ -946,7 +946,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "always-hungry-ttm",
         name: "Always Hungry on a Throw Team-mate Action",
         description:
-          "Before completing a throw, an Always Hungry player rolls to eat the team-mate: 1 then 1 = eaten (removed, turnover); 1 then 2+ = squirm free (Fumbled Throw); 2+ = throw proceeds normally",
+          "Before completing a throw, an Always Hungry player rolls to eat the team-mate: 1 then 1 = eaten (removed; a turnover only if they had the ball); 1 then 2+ = squirm free (Fumbled Throw); 2+ = throw proceeds normally",
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
           team1Placements: [
@@ -977,7 +977,7 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         outcomes: [
           {
             id: "eats-teammate",
-            name: "Eats the team-mate — removed, turnover",
+            name: "Eats the team-mate — removed, no ball so no turnover",
             matches: (r) =>
               skillTriggered(r, SkillType.ALWAYS_HUNGRY) &&
               sawEvent(
@@ -985,8 +985,13 @@ export const NEGATRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
                 GameEventNames.UI_Notification,
                 (d) => typeof d === "string" && d.includes("EATS")
               ),
+            // FAQ (May 2026): a Turnover "only if that eaten player was in
+            // possession of the ball"
             verify: (r) =>
-              assert(turnoverHappened(r), "eating a team-mate is a turnover"),
+              assert(
+                !turnoverHappened(r),
+                "eating a team-mate without the ball is no turnover"
+              ),
           },
           {
             id: "squirms-free",

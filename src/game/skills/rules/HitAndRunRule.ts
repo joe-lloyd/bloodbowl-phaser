@@ -8,8 +8,8 @@
  * The behaviour lives in BlockManager (hitAndRunSquares / resolveHitAndRun /
  * freeMove, offered as a reacting decision after a Block resolves). This
  * registration marks the trait implemented for the coverage gate. Currently
- * wired into the knockdown-in-place Block completion; the push/follow-up and
- * Stab paths are a further increment. (Cannot be combined with Frenzy — a
+ * wired into the knockdown-in-place Block completion and the Stab (standalone
+ * or on a Blitz); the push/follow-up path is a further increment. (Cannot be combined with Frenzy — a
  * roster-construction constraint, not enforced in a match.)
  */
 

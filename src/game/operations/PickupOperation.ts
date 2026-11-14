@@ -100,8 +100,9 @@ export class PickupOperation extends GameOperation {
       this.success = false;
       roll = 1;
     } else if (isSecuringBall(gameService.getState(), this.playerId)) {
-      // Secure the Ball: no Agility Test, a D6 for 2+. Sure Hands may not
-      // re-roll it; a team re-roll still may.
+      // Secure the Ball: no Agility Test, a D6 for 2+, though pick-up
+      // modifiers still apply (FAQ). Sure Hands may not re-roll it; a team
+      // re-roll still may.
       const check = await withRerollOffer(
         { gameService, eventBus },
         player,
@@ -109,7 +110,12 @@ export class PickupOperation extends GameOperation {
         () =>
           gameService
             .getDiceController()
-            .rollSkillCheck("Secure the Ball", 2, 0, player.playerName),
+            .rollSkillCheck(
+              "Secure the Ball",
+              2,
+              pickupCtx.modifiers,
+              player.playerName
+            ),
         { skillAllowed: false }
       );
       this.success = check.success;

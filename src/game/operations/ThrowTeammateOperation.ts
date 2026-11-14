@@ -180,12 +180,14 @@ export class ThrowTeammateOperation extends GameOperation {
             GameEventNames.UI_Notification,
             `${thrower.playerName} EATS ${teammate.playerName}!`
           );
-          this.bounceIfCarried(gameService, context, teammate);
+          const hadBall = this.bounceIfCarried(gameService, context, teammate);
           teammate.gridPosition = undefined;
           teammate.status = PlayerStatus.DEAD;
           gameService.removePlayer(teammate.id);
           eventBus.emit(GameEventNames.PlayerStatusChanged, teammate);
-          gameService.triggerTurnover("Ate Team-mate");
+          // A Turnover "only if that eaten player was in possession of the
+          // ball" (FAQ); the activation ends either way.
+          this.finishLanding(gameService, context, hadBall, "Ate Team-mate");
           return;
         }
         // Squirmed free: the throw is automatically fumbled.
@@ -485,12 +487,15 @@ export class ThrowTeammateOperation extends GameOperation {
     eventBus.emit(GameEventNames.PlayerStatusChanged, player);
   }
 
-  /** If the given player is standing on the ball, bounce it from their square. */
+  /**
+   * If the given player is standing on the ball, bounce it from their square.
+   * Returns whether they had it.
+   */
   private bounceIfCarried(
     gameService: IGameService,
     context: FlowContext,
     player: Player
-  ): void {
+  ): boolean {
     const ball = gameService.getState().ballPosition;
     if (
       ball &&
@@ -502,7 +507,9 @@ export class ThrowTeammateOperation extends GameOperation {
         new BounceOperation({ ...player.gridPosition }),
         true
       );
+      return true;
     }
+    return false;
   }
 
   /** Keep a scattered landing square on the pitch (crowd handling deferred). */
