@@ -129,10 +129,10 @@ export class SetupValidator {
     availablePlayerCount: number = this.config.maxPlayers,
     limits?: SetupPlayerLimits
   ): ValidationResult {
-    const maximumPlayerCount = limits?.maximum ?? this.config.maxPlayers;
     const requiredPlayerCount =
       limits?.minimum ??
       Math.min(this.config.maxPlayers, Math.max(0, availablePlayerCount));
+    const maximumPlayerCount = limits?.maximum ?? requiredPlayerCount;
     const positionKeys = positions.map((pos) => `${pos.x},${pos.y}`);
     const uniquePositionCount = new Set(positionKeys).size;
     const wideCounts = { top: 0, bottom: 0 };
