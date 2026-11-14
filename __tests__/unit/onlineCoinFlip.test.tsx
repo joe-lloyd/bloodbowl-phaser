@@ -7,22 +7,25 @@ import type { LobbyDoc } from "../../src/firebase/lobby";
 import type { OnlineMatch } from "../../src/network/OnlineMatch";
 
 // A coin that lands when the test says so, and the side it was thrown on
-const coins = vi.hoisted(() => [] as { side: number; land: () => void }[]);
+const coins = vi.hoisted(
+  () => [] as { side: number; land: () => void; stop: () => void }[]
+);
 vi.mock("../../src/ui/dice/diceScene", () => ({
   playRoll: (_host: HTMLElement, roll: { side: number }) => {
     let land = () => {};
     const landed = new Promise<number[]>(
       (resolve) => (land = () => resolve([roll.side]))
     );
-    coins.push({ side: roll.side, land });
-    return {
-      landed,
-      mark: vi.fn(),
-      hurry: vi.fn(),
-      onPick: vi.fn(),
-      stop: vi.fn(),
-    };
+    const stop = vi.fn();
+    coins.push({ side: roll.side, land, stop });
+    return { landed, mark: vi.fn(), hurry: vi.fn(), onPick: vi.fn(), stop };
   },
+}));
+
+// A short wait for a coin that never lands
+vi.mock("../../src/game/presentation/diceWatch", async (original) => ({
+  ...(await original<object>()),
+  DIE_LANDING_TIMEOUT_MS: 300,
 }));
 
 vi.mock("../../src/firebase/lobby", () => ({
@@ -134,6 +137,23 @@ describe("online coin toss", () => {
     expect(coins).toEqual([]);
     expect(card.text()).toContain("Gouged Eye wins the toss!");
     expect(card.text()).toContain("KICK");
+    await card.unmount();
+  });
+
+  it("names the winner and offers the choice when the coin never lands", async () => {
+    const card = await mount(lobby({ hostReady: true, guestReady: true }));
+    // The guest wins, and their tab stops drawing frames mid-flip
+    await card.render(
+      lobby({ hostReady: true, guestReady: true, winnerTeamId: "away" })
+    );
+    await tick(20);
+    expect(coins.length).toBe(1);
+
+    await tick(1100);
+    expect(coins[0].stop).toHaveBeenCalled();
+    expect(card.text()).toContain("Gouged Eye wins the toss!");
+    expect(card.text()).toContain("KICK");
+    expect(card.text()).toContain("RECEIVE");
     await card.unmount();
   });
 });

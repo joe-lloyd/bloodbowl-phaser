@@ -19,6 +19,7 @@ import { soundSettings } from "../sound/settings";
 import type { DiceThrow } from "../dice/diceScene";
 import { teamLook } from "../components/hud/DiceTray";
 import { RESULT_BEAT_MS } from "../components/hud/CoinFlipOverlay";
+import { DIE_LANDING_TIMEOUT_MS } from "../../game/presentation/diceWatch";
 
 interface Props {
   code: string;
@@ -136,7 +137,18 @@ export function OnlineCoinFlip({ code, lobby, match, eventBus }: Props) {
           { sound: !soundSettings.get().muted }
         );
         throwing.current = handle;
-        await handle.landed;
+        // A coin that never lands (a hidden tab, a stalled renderer) still
+        // gives way to the result, or the winner could never choose
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          handle.landed,
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              handle.stop();
+              resolve();
+            }, DIE_LANDING_TIMEOUT_MS);
+          }),
+        ]).finally(() => clearTimeout(timer));
         await new Promise((resolve) => setTimeout(resolve, RESULT_BEAT_MS));
       } catch (error) {
         console.warn("[OnlineCoinFlip] could not show the coin", error);
