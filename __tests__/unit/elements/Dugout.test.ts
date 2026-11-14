@@ -227,6 +227,19 @@ describe("Dugout", () => {
     expect(sprites.get("off")!.list).toContain(card!.value);
   });
 
+  it("gives the red card to a player sent off after the match began", async () => {
+    const offender = player("late", PlayerStatus.RESERVE);
+    const { scene, dugout, sprites } = await build([offender]);
+    offender.status = PlayerStatus.REMOVED;
+    dugout.refresh();
+    dugout.refresh();
+    const cards = scene.add.rectangle.mock.results.filter(
+      (r) => (r.value as FakeGameObject).angle === -10
+    );
+    expect(cards).toHaveLength(1);
+    expect(sprites.get("late")!.list).toContain(cards[0].value);
+  });
+
   it("gives a reserve no red card", async () => {
     const { scene } = await build([player("bench", PlayerStatus.RESERVE)]);
     const cards = scene.add.rectangle.mock.calls.filter(

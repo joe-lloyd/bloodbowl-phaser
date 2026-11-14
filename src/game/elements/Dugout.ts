@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { Team, TeamColors } from "../../types/Team";
-import { Player, PlayerStatus } from "../../types/Player";
+import { Player } from "../../types/Player";
 import { playerBoxOf, PlayerBox } from "../rules/playerLocation";
 import { PlayerSprite } from "./PlayerSprite";
 import { GameEventNames } from "../../types/events";
@@ -8,6 +8,7 @@ import { playerHitArea } from "./InteractiveHitArea";
 import { PitchThemeId } from "../presentation/pitchThemes";
 import { Facing } from "../presentation/playerArt";
 import type { DugoutBox, DugoutSquares } from "./Stadium";
+import { PitchExit, playPitchExit } from "./pitchExits";
 
 /** How long a player takes to slide between dugout slots (KO -> Reserves). */
 const DUGOUT_SLOT_MOVE_MS = 320;
@@ -44,6 +45,15 @@ export class Dugout {
   private playerSprites: Map<string, PlayerSprite> = new Map();
   /** Who was on screen when the current refresh started (see place). */
   private visibleBeforeRefresh: Set<string> = new Set();
+  /** Players leaving the pitch, by the point they leave it from. */
+  private arrivals = new Map<
+    string,
+    { from: { x: number; y: number }; exit: PitchExit }
+  >();
+  /** Players still on their way to a box: a refresh leaves them be. */
+  private inTransit = new Set<string>();
+  /** Players already wearing the red card. */
+  private sentOff = new Set<string>();
   private onPlayerDragStart?: (playerId: string) => void;
   private onPlayerDragEnd?: (playerId: string, x: number, y: number) => void;
 
@@ -73,7 +83,9 @@ export class Dugout {
         .filter(([, sprite]) => sprite.visible)
         .map(([id]) => id)
     );
-    this.playerSprites.forEach((sprite) => sprite.setVisible(false));
+    this.playerSprites.forEach((sprite, id) => {
+      if (!this.inTransit.has(id)) sprite.setVisible(false);
+    });
 
     for (const box of Object.keys(
       BOX_SQUARES
@@ -88,12 +100,41 @@ export class Dugout {
     }
   }
 
+  /**
+   * The next refresh brings this player in from the pitch, `from` being
+   * where they lay or stood, rather than drawing them in the box at once.
+   */
+  public arriveFrom(
+    playerId: string,
+    from: { x: number; y: number },
+    exit: PitchExit
+  ): void {
+    this.arrivals.set(playerId, { from, exit });
+  }
+
   private place(
     player: Player,
     at: { x: number; y: number },
     box: keyof typeof BOX_SQUARES
   ): void {
+    if (this.inTransit.has(player.id)) return;
     let sprite = this.playerSprites.get(player.id);
+    const arrival = this.arrivals.get(player.id);
+    if (arrival) {
+      this.arrivals.delete(player.id);
+      sprite ??= this.createPlayerSprite(player, at.x, at.y);
+      this.playerSprites.set(player.id, sprite);
+      this.markSentOff(player.id, sprite, box);
+      sprite.setPosition(arrival.from.x, arrival.from.y);
+      sprite.setDugoutPose(arrival.exit === "walk" ? "standing" : "lying");
+      sprite.setVisible(true);
+      this.inTransit.add(player.id);
+      void playPitchExit(this.scene, sprite, at, arrival.exit).then(() => {
+        this.inTransit.delete(player.id);
+        this.refresh();
+      });
+      return;
+    }
     if (!sprite) {
       sprite = this.createPlayerSprite(player, at.x, at.y);
       this.playerSprites.set(player.id, sprite);
@@ -116,10 +157,22 @@ export class Dugout {
         sprite.setPosition(at.x, at.y);
       }
     }
+    this.markSentOff(player.id, sprite, box);
     sprite.setDugoutPose(
       box === "ko" || box === "casualty" ? "lying" : "standing"
     );
     sprite.setVisible(true);
+  }
+
+  /** A sent-off player wears the red card, however late they got it. */
+  private markSentOff(
+    playerId: string,
+    sprite: PlayerSprite,
+    box: keyof typeof BOX_SQUARES
+  ): void {
+    if (box !== "sent-off" || this.sentOff.has(playerId)) return;
+    this.sentOff.add(playerId);
+    this.addSentOffMarker(sprite);
   }
 
   /**
@@ -190,9 +243,6 @@ export class Dugout {
       this.refresh();
     });
 
-    if (player.status === PlayerStatus.REMOVED) {
-      this.addSentOffMarker(sprite);
-    }
     return sprite;
   }
 
