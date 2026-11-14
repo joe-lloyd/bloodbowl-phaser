@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
-import { createPlayer, PlayerTemplate } from "../../src/types/Player";
+import {
+  createPlayer,
+  InjuryType,
+  PlayerTemplate,
+} from "../../src/types/Player";
 import { createTeam, RosterName, Team } from "../../src/types/Team";
 import { SkillCategory } from "../../src/types/Skills";
 import { validateRosterLegality } from "../../src/game/rules/rosterLegality";
@@ -409,6 +413,21 @@ describe("shared Big Guy limits", () => {
     const violations = validateRosterLegality(
       team,
       getRosterByRosterName(RosterName.CHAOS_RENEGADE)
+    );
+    expect(violations.filter((v) => v.rule === "big-guy-limit")).toEqual([]);
+  });
+
+  it("does not count a dead league Big Guy against the limit", () => {
+    const team = draft(RosterName.UNDERWORLD_DENIZENS, [
+      ...Array(6).fill("Underworld Goblin Lineman"),
+      "Underworld Troll",
+      "Mutant Rat Ogre",
+    ]);
+    team.advancementMode = "advanced-league";
+    team.players[6].injuries = [InjuryType.DEAD];
+    const violations = validateRosterLegality(
+      team,
+      getRosterByRosterName(RosterName.UNDERWORLD_DENIZENS)
     );
     expect(violations.filter((v) => v.rule === "big-guy-limit")).toEqual([]);
   });

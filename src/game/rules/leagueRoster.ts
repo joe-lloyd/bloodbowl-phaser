@@ -143,7 +143,12 @@ export function updateDedicatedFans(
 export function staysOnRoster(team: Team, player: Player): boolean {
   if (player.playerKind === "journeyman")
     return isPendingRecruit(team, player.id);
-  return !(
+  return !isDeadLeaguePlayer(team, player);
+}
+
+/** A league player who has died, removed from the team after the match. */
+export function isDeadLeaguePlayer(team: Team, player: Player): boolean {
+  return (
     isLeagueMode(team.advancementMode) &&
     player.injuries.includes(InjuryType.DEAD)
   );

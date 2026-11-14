@@ -19,6 +19,7 @@
 import { Team, TeamRoster } from "../../types/Team";
 import { PositionKeyWord, TraitKeyWord } from "../../types/Player";
 import { isDraftTeam } from "./teamLifecycle";
+import { isDeadLeaguePlayer } from "./leagueRoster";
 
 export const MIN_ROSTER_PLAYERS = 7;
 export const MAX_ROSTER_PLAYERS = 11;
@@ -75,8 +76,12 @@ export function validateRosterLegality(
     });
   }
 
+  // A dead league player no longer holds a position, as when hiring
+  const rostered = players.filter(
+    (player) => !isDeadLeaguePlayer(team, player)
+  );
   const counts = new Map<string, number>();
-  for (const player of players) {
+  for (const player of rostered) {
     counts.set(player.positionName, (counts.get(player.positionName) ?? 0) + 1);
   }
   for (const [positionName, count] of counts) {
@@ -99,7 +104,7 @@ export function validateRosterLegality(
     }
   }
 
-  const bigGuys = players.filter((player) => isBigGuy(player.keywords));
+  const bigGuys = rostered.filter((player) => isBigGuy(player.keywords));
   if (roster.maxBigGuys !== undefined && bigGuys.length > roster.maxBigGuys) {
     violations.push({
       rule: "big-guy-limit",
