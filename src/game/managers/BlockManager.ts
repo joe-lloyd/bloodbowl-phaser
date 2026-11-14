@@ -38,6 +38,7 @@ import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { PileDriverOperation } from "../operations/PileDriverOperation";
+import { moveBallAndChain } from "../operations/BallAndChainOperation";
 import {
   foldBlockResult,
   foldTrigger,
@@ -115,6 +116,16 @@ class ForcedFollowUpOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
+    const active = context.gameService.getState().activePlayer;
+    const attacker = context.gameService.getPlayerById(this.attackerId);
+    if (
+      attacker &&
+      active?.id === attacker.id &&
+      active.action === "ballAndChain"
+    ) {
+      await moveBallAndChain(context, attacker, this.targetSquare);
+      return;
+    }
     await context.gameService.followUpPush(this.attackerId, this.targetSquare);
   }
 }
@@ -2206,8 +2217,15 @@ export class BlockManager {
     }
     const attackerHadBall = this.isOnBall(attacker);
 
-    if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
-    if (ctx.defenderKnockedDown) this.knockDownTarget(defender);
+    if (ctx.placedProne) {
+      [attacker, defender].forEach((p) => {
+        p.status = PlayerStatus.PRONE;
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
+      });
+    } else {
+      if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
+      if (ctx.defenderKnockedDown) this.knockDownTarget(defender);
+    }
     if (
       ctx.defenderKnockedDown &&
       !ctx.placedProne &&

@@ -15,6 +15,9 @@ import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
 import { RosterName } from "../../src/types/Team";
 import { ActionType } from "../../src/types/events";
+import { SkillType } from "../../src/types/Skills";
+import { nativeFixtures } from "../../src/testing/fixtures/rosterFixtures";
+import { forceDice } from "../utils/test-helpers";
 
 /** A carrier at (15,5), four empty squares from team 1's End Zone at x = 19. */
 function scenario(opts: {
@@ -62,6 +65,59 @@ async function declareAndEnd(game: HeadlessGame, action: ActionType) {
 }
 
 describe("Stalling: the Crowd Takes Action", () => {
+  for (const saved of [true, false]) {
+    const outcome = saved ? "prevents" : "fails to prevent";
+    it(`native Steady Footing ${outcome} the crowd knockdown and Turnover`, async () => {
+      const slot = nativeFixtures(SkillType.STEADY_FOOTING).find(
+        (slot) => slot.positionName === "Grail Knight"
+      )!;
+      const game = new HeadlessGame({
+        seed: 1,
+        scenario: scenario({
+          turn: 1,
+          team1Roster: slot.roster,
+          carrier: { playerIndex: slot.playerIndex },
+        }),
+      });
+      const carrier = game.ctx.team1.players[slot.playerIndex];
+      // Pin a crowd hit and a successful save; seed 1's unforced save is a 1.
+      if (saved) forceDice(game.ctx.rng, [4, 6]);
+      await game.execute({
+        type: "declare-action",
+        playerId: carrier.id,
+        action: "move",
+      });
+      const response = await game.execute({
+        type: "end-activation",
+        playerId: carrier.id,
+      });
+
+      expect(crowdRolls(response.events)).toHaveLength(1);
+      expect(response.events).toContainEqual(
+        expect.objectContaining({
+          name: "diceRoll",
+          data: expect.objectContaining({
+            description: `Steady Footing (${carrier.playerName}): ${saved ? 6 : 1}, needs 6+`,
+          }),
+        })
+      );
+      if (!saved) {
+        expect(carrier.status).not.toBe(PlayerStatus.ACTIVE);
+        expect(response.snapshot.activeTeamId).toBe(game.ctx.team2.id);
+        return;
+      }
+      expect(carrier.status).toBe(PlayerStatus.ACTIVE);
+      expect(response.snapshot.activeTeamId).toBe(game.ctx.team1.id);
+      expect(response.snapshot.ballPosition).toEqual({ x: 15, y: 5 });
+      expect(
+        response.events.some(
+          (e) => e.name === "turnover" || e.name === "playerKnockedDown"
+        )
+      ).toBe(false);
+      expect(game.ctx.gameService.hasPlayerActed(carrier.id)).toBe(true);
+    });
+  }
+
   it("on Turn 1 the crowd always hits: Knocked Down and a Turnover", async () => {
     const game = new HeadlessGame({ scenario: scenario({}), seed: 1 });
     const carrier = game.ctx.team1.players[0];

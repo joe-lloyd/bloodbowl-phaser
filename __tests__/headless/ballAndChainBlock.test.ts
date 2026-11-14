@@ -59,7 +59,11 @@ function fanaticGame(opts: {
         activeTeam: opts.activeTeam ?? "team1",
         phase: GamePhase.PLAY,
         subPhase: SubPhase.TURN_RECEIVING,
-        ballPosition: { x: 1, y: 1 },
+        ballPosition: [...(opts.team1 ?? []), ...(opts.team2 ?? [])].some(
+          (p) => p.hasBall
+        )
+          ? undefined
+          : { x: 1, y: 1 },
       },
     },
   });
@@ -115,6 +119,114 @@ const WALL: PlayerPlacement[] = [
 ];
 
 describe("a Ball & Chain collision is a normal Block", () => {
+  it("bounces a dropped ball when moving into the vacated square, without a pickup Turnover", async () => {
+    const { game, fanatic } = fanaticGame({
+      seed: 25,
+      team2: [{ playerIndex: 0, x: 11, y: 5, hasBall: true }],
+    });
+    await declare(game, fanatic.id);
+    const collision = await swing(game, fanatic.id, EAST);
+    expect(straight(collision)).toBe(true);
+    expect(collision.pendingDecision?.type).toBe("block-dice");
+    const options =
+      collision.pendingDecision?.type === "block-dice"
+        ? collision.pendingDecision.options
+        : [];
+    const pow = options.findIndex((o) => o.type === "pow");
+    expect(pow).toBeGreaterThanOrEqual(0);
+    await game.execute({ type: "choose-block-result", index: pow });
+    const moved = await game.execute({
+      type: "choose-push-direction",
+      x: 12,
+      y: 5,
+    });
+
+    expect(fanatic.gridPosition).toEqual({ x: 11, y: 5 });
+    expect(dice(moved).filter((d) => d.startsWith("Bounce"))).toHaveLength(2);
+    expect(moved.events.some((e) => e.name === GameEventNames.Turnover)).toBe(
+      false
+    );
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
+    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(false);
+  });
+
+  it("does not turn over when a team-mate Wrestles the Fanatic Prone", async () => {
+    // A Goblin team-mate takes Wrestle as an advancement.
+    const { game, fanatic } = fanaticGame({
+      seed: 6,
+      team1: [{ playerIndex: 1, x: 11, y: 5, skills: [SkillType.WRESTLE] }],
+    });
+    await declare(game, fanatic.id);
+    const collision = await swing(game, fanatic.id, EAST);
+    expect(straight(collision)).toBe(true);
+    const options =
+      collision.pendingDecision?.type === "block-dice"
+        ? collision.pendingDecision.options
+        : [];
+    const bothDown = options.findIndex((o) => o.type === "both-down");
+    expect(bothDown).toBeGreaterThanOrEqual(0);
+    const offer = await game.execute({
+      type: "choose-block-result",
+      index: bothDown,
+    });
+    expect(offer.pendingDecision).toMatchObject({
+      type: "reaction",
+      skill: SkillType.WRESTLE,
+    });
+    const wrestled = await game.execute({ type: "use-reaction", accept: true });
+
+    expect(game.ctx.team1.players[1].status).toBe(PlayerStatus.PRONE);
+    expect(
+      dice(wrestled).filter((d) => d.startsWith("Injury Roll (Fanatic #7)"))
+    ).toHaveLength(1);
+    expect(dice(wrestled).some((d) => d.startsWith("Armour Roll"))).toBe(false);
+    expect(
+      wrestled.events.some((e) => e.name === GameEventNames.PlayerKnockedDown)
+    ).toBe(false);
+    expect(
+      wrestled.events.some((e) => e.name === GameEventNames.Turnover)
+    ).toBe(false);
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
+  });
+
+  it("rolls immediate Injury when Pile Driver places the Fanatic Prone", async () => {
+    const { game, fanatic } = fanaticGame({
+      seed: 10,
+      fanaticSkills: [SkillType.PILE_DRIVER],
+      team2: [{ playerIndex: 0, x: 11, y: 5 }],
+    });
+    await declare(game, fanatic.id);
+    const collision = await swing(game, fanatic.id, EAST);
+    expect(straight(collision)).toBe(true);
+    const options =
+      collision.pendingDecision?.type === "block-dice"
+        ? collision.pendingDecision.options
+        : [];
+    const pow = options.findIndex((o) => o.type === "pow");
+    expect(pow).toBeGreaterThanOrEqual(0);
+    await game.execute({ type: "choose-block-result", index: pow });
+    const offer = await game.execute({
+      type: "choose-push-direction",
+      x: 12,
+      y: 5,
+    });
+    expect(offer.pendingDecision).toMatchObject({
+      type: "reaction",
+      skill: SkillType.PILE_DRIVER,
+    });
+    const piled = await game.execute({ type: "use-reaction", accept: true });
+
+    expect(
+      dice(piled).filter((d) => d.startsWith("Injury Roll (Fanatic #7)"))
+    ).toHaveLength(1);
+    expect(
+      dice(piled).some((d) => d.startsWith("Armour Roll (Fanatic #7)"))
+    ).toBe(false);
+    expect([PlayerStatus.KO, PlayerStatus.INJURED]).toContain(fanatic.status);
+    expect(game.ctx.gameService.hasPlayerActed(fanatic.id)).toBe(true);
+    expect(game.snapshot().activeTeamId).toBe(game.ctx.team1.id);
+  });
+
   it("lets the Fanatic's coach pick the die, assists counted: ST 7 against 3 + 2", async () => {
     const { game, fanatic } = fanaticGame({ seed: 1, team2: WALL });
     await declare(game, fanatic.id);
@@ -370,6 +482,58 @@ describe("Ball & Chain movement", () => {
 });
 
 describe("a Ball & Chain player getting hurt", () => {
+  it("keeps Mighty Blow's Injury modifier when the Fanatic skips Armour", async () => {
+    const { game, fanatic } = fanaticGame({
+      seed: 10,
+      activeTeam: "team2",
+      team2Roster: RosterName.GOBLIN,
+      team2: [
+        { playerIndex: 0, x: 11, y: 5 },
+        { playerIndex: 1, x: 12, y: 5 },
+      ],
+    });
+    const troll = game.ctx.team2.players[0];
+    await game.execute({
+      type: "declare-action",
+      playerId: troll.id,
+      action: "block",
+    });
+    const block = await game.execute({
+      type: "block",
+      attackerId: troll.id,
+      defenderId: fanatic.id,
+    });
+    const options =
+      block.pendingDecision?.type === "block-dice"
+        ? block.pendingDecision.options
+        : [];
+    const pow = options.findIndex((o) => o.type === "pow");
+    expect(pow).toBeGreaterThanOrEqual(0);
+    await game.execute({ type: "choose-block-result", index: pow });
+    const downed = await game.execute({
+      type: "choose-push-direction",
+      x: 9,
+      y: 5,
+    });
+
+    expect(
+      dice(downed).filter((d) => d.startsWith("Injury Roll (Fanatic #7)"))
+    ).toEqual(["Injury Roll (Fanatic #7): 5 + 3 = 8"]);
+    expect(
+      dice(downed).some((d) => d.startsWith("Armour Roll (Fanatic #7)"))
+    ).toBe(false);
+    expect(downed.events).toContainEqual(
+      expect.objectContaining({
+        name: GameEventNames.SkillTriggered,
+        data: expect.objectContaining({
+          playerId: troll.id,
+          skill: SkillType.MIGHTY_BLOW,
+        }),
+      })
+    );
+    expect(fanatic.status).toBe(PlayerStatus.INJURED);
+  });
+
   it("rolls Injury with no Armour Roll when Knocked Down, and Stunned is KO", async () => {
     const { fanatic, rolls } = await firstSeed(async (seed) => {
       const { game, fanatic } = fanaticGame({ seed, team2: WALL });

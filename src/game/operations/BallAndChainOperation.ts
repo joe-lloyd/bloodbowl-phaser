@@ -179,12 +179,7 @@ export class BallAndChainOperation extends GameOperation {
       return;
     }
 
-    moveTo(context, fanatic, from, next);
-    // The ball in the square Bounces; it is never a Turnover
-    const ball = gameService.getState().ballPosition;
-    if (ball?.x === next.x && ball.y === next.y) {
-      await context.flowManager.runToRest(new BounceOperation({ ...next }));
-    }
+    await moveBallAndChain(context, fanatic, next);
     context.flowManager.add(new FinishBallAndChainSquare(square));
   }
 }
@@ -251,13 +246,14 @@ export class FinishBallAndChainSquare extends GameOperation {
   }
 }
 
-/** Move the Fanatic from `from` to `to`, emitting the movement tween. */
-function moveTo(
+/** Enter a square, including one vacated by a Block: Bounce, never pick up. */
+export async function moveBallAndChain(
   context: FlowContext,
   fanatic: Player,
-  from: { x: number; y: number },
   to: { x: number; y: number }
-): void {
+): Promise<void> {
+  const from = fanatic.gridPosition;
+  if (!from) return;
   fanatic.gridPosition = { ...to };
   context.eventBus.emit(GameEventNames.PlayerMoved, {
     playerId: fanatic.id,
@@ -265,6 +261,10 @@ function moveTo(
     to: { ...to },
     path: [{ ...to }],
   });
+  const ball = context.gameService.getState().ballPosition;
+  if (ball?.x === to.x && ball.y === to.y) {
+    await context.flowManager.runToRest(new BounceOperation({ ...to }));
+  }
 }
 
 function inBounds({ x, y }: { x: number; y: number }): boolean {

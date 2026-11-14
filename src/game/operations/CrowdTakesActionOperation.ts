@@ -3,6 +3,7 @@ import { FlowContext } from "../core/GameFlowManager";
 import { GameEventNames } from "../../types/events";
 import { PlayerStatus } from "../../types/Player";
 import { crowdHits } from "../rules/stalling";
+import { steadyFootingSaves } from "../rules/steadyFooting";
 import { ArmourOperation } from "./ArmourOperation";
 import { BounceOperation } from "./BounceOperation";
 
@@ -42,6 +43,17 @@ export class CrowdTakesActionOperation extends GameOperation {
           GameEventNames.UI_Notification,
           `The crowd pelts ${player.playerName}!`
         );
+        if (
+          await steadyFootingSaves(
+            player,
+            gameService.getDiceController(),
+            eventBus,
+            gameService
+          )
+        ) {
+          this.then();
+          return;
+        }
         const ball = gameService.getState().ballPosition;
         const carried = ball?.x === square.x && ball.y === square.y;
         player.status = PlayerStatus.PRONE;
