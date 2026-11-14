@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  announceHouseBotLobby,
+  isHouseBotBrowser,
+} from "../../../firebase/houseBot";
+import {
   Chip,
   EmptyState,
   Eyebrow,
@@ -130,6 +134,24 @@ export function OnlineLobby({ mode }: { mode: Mode }) {
       void revealSeed(lobby.code, myUid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobby?.code, lobby?.status, lobby?.guestUid, myUid, !!commits[myUid ?? ""], bothCommitted, !!reveals[myUid ?? ""]]);
+
+  // The house bot says where it waits, until a guest arrives
+  const botWaitingIn =
+    isHouseBotBrowser() &&
+    lobby?.status === "lobby" &&
+    lobby.hostUid === myUid &&
+    !lobby.guestUid
+      ? lobby.code
+      : null;
+  useEffect(() => {
+    if (!myUid || !isHouseBotBrowser()) return;
+    const announce = () =>
+      void announceHouseBotLobby(myUid, botWaitingIn).catch(() => {});
+    announce();
+    if (!botWaitingIn) return;
+    const id = setInterval(announce, 60_000);
+    return () => clearInterval(id);
+  }, [myUid, botWaitingIn]);
 
   // Both ready + host started → everyone moves to the match
   useEffect(() => {

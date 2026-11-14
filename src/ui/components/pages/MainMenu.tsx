@@ -11,7 +11,13 @@ import {
 } from "../componentWarehouse/HudKit";
 import { useAuth } from "../../hooks/useAuth";
 import { useCoachProfile } from "../../hooks/useCoachProfile";
-import { getActiveMatchCode, fetchLobby } from "../../../firebase/lobby";
+import {
+  getActiveMatchCode,
+  fetchLobby,
+  joinLobby,
+  resolveCoachName,
+} from "../../../firebase/lobby";
+import { findHouseBotLobby } from "../../../firebase/houseBot";
 import { isAdminUser } from "../../../firebase/admin";
 import {
   clearMatchSave,
@@ -95,6 +101,25 @@ export function MainMenu() {
       }
     }
     navigate(path);
+  };
+
+  /** Admin: join the lobby the house bot on old-mac keeps open. */
+  const playHouseBot = async () => {
+    setAuthError(null);
+    try {
+      const coach = user ?? (await signIn());
+      const code = await findHouseBotLobby();
+      if (!code) {
+        setAuthError(
+          "The house bot is not waiting for a game. Start it on old-mac with pnpm house-bot."
+        );
+        return;
+      }
+      await joinLobby(code, coach.uid, await resolveCoachName(coach.uid));
+      navigate(`/online/lobby/${code}`);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const resumeLocal = () => {
@@ -238,6 +263,15 @@ export function MainMenu() {
                 onClick={() => navigate("/music")}
               >
                 Sound Test
+              </HudButton>
+              <HudButton
+                variant="ghost"
+                block
+                disabled={onlineDisabled}
+                title={onlineAvailable ? undefined : ONLINE_HINT}
+                onClick={() => void playHouseBot()}
+              >
+                Play the House Bot
               </HudButton>
             </MenuSection>
           )}

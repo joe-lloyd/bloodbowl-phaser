@@ -21,6 +21,17 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // The house bot's open lobby (src/firebase/houseBot.ts): any coach may
+    // look for it, only the bot writes its own.
+    match /houseBots/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code', 'updatedAt'])
+        && (request.resource.data.code == null
+          || request.resource.data.code is string)
+        && request.resource.data.updatedAt is int;
+    }
+
     // One resumable local match per coach, mirrored from localStorage.
     match /users/{uid}/saved-matches/{saveId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;

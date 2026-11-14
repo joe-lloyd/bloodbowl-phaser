@@ -42,6 +42,10 @@ vi.mock("../../src/firebase/auth", () => ({
 }));
 
 import {
+  announceHouseBotLobby,
+  findHouseBotLobby,
+} from "../../src/firebase/houseBot";
+import {
   cancelEndMatch,
   commitSeed,
   createLobby,
@@ -195,6 +199,36 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
   beforeEach(() => {
     sessionStorage.clear();
     localStorage.clear();
+  });
+
+  describe("the house bot's lobby", () => {
+    it("is announced by the bot, found by another coach, and nobody else may write it", async () => {
+      const code = await openLobby();
+      await as(HOST, () => announceHouseBotLobby(HOST, code));
+      expect(await as(GUEST, () => findHouseBotLobby())).toBe(code);
+
+      await denied(as(GUEST, () => announceHouseBotLobby(HOST, "FAKE00")));
+      await denied(
+        setDoc(doc(dbFor(HOST), "houseBots", HOST), {
+          code,
+          updatedAt: Date.now(),
+          extra: true,
+        })
+      );
+
+      await as(GUEST, () => joinLobby(code, GUEST, "Guest"));
+      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+      await as(HOST, () => announceHouseBotLobby(HOST, null));
+    });
+
+    it("is ignored once the bot has stopped announcing it", async () => {
+      const code = await openLobby();
+      await setDoc(doc(dbFor(HOST), "houseBots", HOST), {
+        code,
+        updatedAt: Date.now() - 10 * 60 * 1000,
+      });
+      expect(await as(GUEST, () => findHouseBotLobby())).toBeNull();
+    });
   });
 
   describe("a whole online match, as the app writes it", () => {

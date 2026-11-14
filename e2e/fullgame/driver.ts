@@ -26,7 +26,8 @@ export async function buildTeam(
   name: string,
   roster: string,
   hires: string[],
-  rec: Recorder
+  rec: Recorder,
+  mode: RegExp = /Sevens Skill Selection/
 ) {
   await page.goto("/build-team/new-team");
   await page.getByPlaceholder("Enter Team Name").fill(name);
@@ -34,7 +35,7 @@ export async function buildTeam(
     .getByRole("combobox", { name: "Roster", exact: true })
     .selectOption(roster);
   await page.getByPlaceholder("Coach Name").fill(`${name} coach`);
-  await page.getByRole("button", { name: /Sevens Skill Selection/ }).click();
+  await page.getByRole("button", { name: mode }).click();
   for (const pos of hires) {
     await page
       .getByRole("row")
