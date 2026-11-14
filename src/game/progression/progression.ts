@@ -182,6 +182,12 @@ const INCOMPATIBLE_SKILLS: readonly (readonly [SkillType, SkillType])[] = [
   [SkillType.FRENZY, SkillType.MULTIPLE_BLOCK],
 ];
 
+/** Skills a player may only have alongside another (rulebook: "A player
+ *  without the Secret Weapon Trait cannot have this Skill"). */
+const REQUIRED_WITH: Partial<Record<SkillType, SkillType>> = {
+  [SkillType.SABOTEUR]: SkillType.SECRET_WEAPON,
+};
+
 export function advancementCount(player: Player): number {
   return player.advancements?.length ?? 0;
 }
@@ -216,6 +222,8 @@ export function rollSkill(
 
 export function isSkillLegal(player: Player, skill: SkillType): boolean {
   if (player.skills.some((existing) => existing.type === skill)) return false;
+  const required = REQUIRED_WITH[skill];
+  if (required && !player.skills.some((s) => s.type === required)) return false;
   return !INCOMPATIBLE_SKILLS.some(
     ([left, right]) =>
       (skill === left && player.skills.some((s) => s.type === right)) ||
