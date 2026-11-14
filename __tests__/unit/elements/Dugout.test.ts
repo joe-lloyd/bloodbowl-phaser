@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { PlayerStatus } from "../../../src/types/Player";
+import { movePlayerToBox } from "../../../src/game/rules/playerLocation";
 
 /**
  * The dugout places each player on a square of their box in the stadium's
@@ -183,6 +184,7 @@ async function build(players: unknown[]) {
   const scene = makeFakeScene();
   const DugoutCtor = Dugout as unknown as new (...args: unknown[]) => {
     getSprites(): Map<string, FakeContainer>;
+    refresh(): void;
   };
   const team = makeTeam(players);
   const dugout = new DugoutCtor(
@@ -194,7 +196,7 @@ async function build(players: unknown[]) {
     "bloodbowl",
     "s"
   );
-  return { scene, sprites: dugout.getSprites() };
+  return { scene, dugout, sprites: dugout.getSprites() };
 }
 
 describe("Dugout", () => {
@@ -232,6 +234,58 @@ describe("Dugout", () => {
     );
     expect(cards).toHaveLength(0);
   });
+});
+
+describe("pitch visibility after a crowd push", () => {
+  it.each(["before", "after"])(
+    "keeps a surfed reserve off the pitch when activation resets %s the dugout refresh",
+    async (order) => {
+      const ogre = {
+        ...player("ogre", PlayerStatus.ACTIVE),
+        positionName: "Ogre",
+        gridPosition: { x: 11, y: 0 },
+      };
+      const { scene, dugout, sprites } = await build([ogre]);
+      const { PlayerSprite } =
+        await import("../../../src/game/elements/PlayerSprite");
+      const pitchSprite = new PlayerSprite(
+        scene as never,
+        110,
+        0,
+        ogre as never,
+        {
+          rosterName: "Human",
+          colors: makeTeam([]).colors,
+          style: "bloodbowl",
+          facing: "w",
+        }
+      );
+      expect(pitchSprite.visible).toBe(true);
+
+      // A non-injuring crowd result puts the player in reserves. The crowd
+      // animation hides their old pitch sprite, which is kept for next drive.
+      movePlayerToBox(ogre as never, { box: "reserves" });
+      pitchSprite.setVisible(false);
+
+      if (order === "before") pitchSprite.setActivated(false);
+      dugout.refresh();
+      // GameScene resets activation on every pitch sprite at TurnStarted.
+      if (order === "after") pitchSprite.setActivated(false);
+
+      expect(pitchSprite.visible).toBe(false);
+      expect(sprites.get(ogre.id)!.visible).toBe(true);
+
+      // The retained pitch sprite is usable when placed in a later drive.
+      movePlayerToBox(ogre as never, {
+        box: "pitch",
+        position: { x: 10, y: 5 },
+      });
+      dugout.refresh();
+      pitchSprite.updateStatus();
+      expect(pitchSprite.visible).toBe(true);
+      expect(sprites.get(ogre.id)!.visible).toBe(false);
+    }
+  );
 });
 
 describe("a player's cheer", () => {

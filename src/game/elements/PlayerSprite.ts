@@ -13,6 +13,7 @@ import {
   textureKey,
 } from "../presentation/playerArt";
 import { prefersReducedMotion } from "../presentation/motion";
+import { playerBoxOf } from "../rules/playerLocation";
 
 /** How a player is drawn: which roster's models, in which kit and style, facing where. */
 export interface PlayerLook {
@@ -317,21 +318,20 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       this.distractedMarker.setVisible(false);
       return;
     }
-    switch (this.player.status) {
-      case "KO":
-      case "Injured":
-      case "Dead":
-        this.setVisible(false);
-        break;
-      default:
-        this.setVisible(true);
-        if (this.isDown()) {
-          if (this.anim !== "fall") this.play("fall", animate);
-        } else if (this.anim === "fall") {
-          this.play("idle");
-        }
-        this.figure.setAlpha(1);
+    // Turn-start activation resets and delayed status updates also reach
+    // retained pitch sprites. Use the dugout's location rule so a reserve
+    // or sent-off player cannot reappear on their old pitch square.
+    if (playerBoxOf(this.player) !== "pitch") {
+      this.setVisible(false);
+      return;
     }
+    this.setVisible(true);
+    if (this.isDown()) {
+      if (this.anim !== "fall") this.play("fall", animate);
+    } else if (this.anim === "fall") {
+      this.play("idle");
+    }
+    this.figure.setAlpha(1);
     this.stunnedMarker.setVisible(this.player.status === "Stunned");
     this.refreshTeamTurnBorder();
     this.refreshDistractedMarker();
