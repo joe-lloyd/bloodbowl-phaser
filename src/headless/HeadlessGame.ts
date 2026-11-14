@@ -16,9 +16,6 @@ import {
   CommandResponse,
   PendingDecision,
   EmittedEvent,
-  LegalActions,
-  PlayerActions,
-  GridPosition,
   DECISION_REPLIES,
 } from "./protocol";
 import {
@@ -27,134 +24,13 @@ import {
   MatchSave,
   createMatchSave,
 } from "./serialization";
-import { GameEventNames, ActionType } from "../types/events";
+import { CommandHost, dispatchCommand } from "./commandHandlers";
+import { validateShape } from "./commandShape";
+import { enumerateLegalActions } from "./legalActions";
+import { engineDecision, requestedDecision } from "./pendingDecisions";
+import { GameEventNames } from "../types/events";
 import { GamePhase } from "../types/GameState";
-import { Player, PlayerStatus } from "../types/Player";
-import { BlockValidator } from "../game/validators/BlockValidator";
-import { FormationManager } from "../game/managers/FormationManager";
-import {
-  computeActionAvailability,
-  razzleDazzleAllows,
-} from "../game/rules/actionAvailability";
-import { legalHandoffTargets } from "../game/rules/handoff";
-import {
-  BLOCK_REPLACEMENTS,
-  BLOCK_REPLACEMENT_DEFINITIONS,
-  isBlockReplacement,
-} from "../types/BlockReplacement";
-import { legalBlockReplacementTargets } from "../game/rules/blockReplacements";
-import { Inducement } from "../types/Inducements";
-import { foulSpent } from "../game/inducements/matchInducements";
-
-/** Field requirements per command type, used for malformed-command rejection. */
-const COMMAND_SHAPES: Record<
-  string,
-  Record<
-    string,
-    | "string"
-    | "integer"
-    | "boolean"
-    | "boolean?"
-    | "string?"
-    | "integer?"
-    | "path"
-    | "formation"
-    | "string-array"
-  >
-> = {
-  "coin-flip": {},
-  "start-setup": { kickingTeamId: "string", rollWeather: "boolean?" },
-  "place-player": { playerId: "string", x: "integer", y: "integer" },
-  "remove-player": { playerId: "string" },
-  "swap-players": { player1Id: "string", player2Id: "string" },
-  "apply-formation": { teamId: "string", formation: "formation" },
-  "setup-concession": { teamId: "string", concede: "boolean" },
-  "confirm-setup": { teamId: "string" },
-  "select-kicker": { playerId: "string" },
-  "kick-ball": { playerId: "string", x: "integer", y: "integer" },
-  "kickoff-select-player": { playerId: "string" },
-  "kickoff-move-player": { playerId: "string", x: "integer", y: "integer" },
-  "kickoff-place-player": { playerId: "string", x: "integer", y: "integer" },
-  "kickoff-confirm": {},
-  "kickoff-skip": {},
-  "declare-action": {
-    playerId: "string",
-    action: "string",
-    razzleDazzle: "boolean?",
-  },
-  "cancel-action": { playerId: "string" },
-  move: { playerId: "string", path: "path" },
-  fumblerooski: { playerId: "string", x: "integer", y: "integer" },
-  jump: { playerId: "string", x: "integer", y: "integer" },
-  "stand-up": { playerId: "string" },
-  block: { attackerId: "string", defenderId: "string" },
-  "multiple-block": {
-    attackerId: "string",
-    defender1Id: "string",
-    defender2Id: "string",
-  },
-  pass: {
-    playerId: "string",
-    x: "integer",
-    y: "integer",
-    hailMary: "boolean?",
-  },
-  punt: { playerId: "string", x: "integer", y: "integer" },
-  handoff: { playerId: "string", targetId: "string" },
-  foul: { playerId: "string", x: "integer", y: "integer" },
-  stab: { attackerId: "string", defenderId: "string" },
-  "throw-teammate": {
-    throwerId: "string",
-    teammateId: "string",
-    x: "integer",
-    y: "integer",
-    swoopFacing: "string?",
-  },
-  "throw-bomb": { throwerId: "string", x: "integer", y: "integer" },
-  "ball-and-chain": { playerId: "string", x: "integer", y: "integer" },
-  "keep-block-dice": { attackerId: "string" },
-  "team-reroll-block": { attackerId: "string" },
-  "pro-reroll-block": { attackerId: "string", dieIndex: "integer" },
-  "brawler-reroll-block": { attackerId: "string" },
-  "veteran-reroll-block": { attackerId: "string" },
-  "special-action": {
-    action: "string",
-    attackerId: "string",
-    defenderId: "string",
-  },
-  "end-activation": { playerId: "string" },
-  "end-turn": {},
-  "award-mvp": { teamId: "string", nominatedPlayerIds: "string-array" },
-  "assign-awarded-touchdown": { playerId: "string" },
-  "choose-block-result": { index: "integer" },
-  "choose-push-direction": { x: "integer", y: "integer" },
-  "choose-follow-up": { followUp: "boolean" },
-  "use-reroll": { accept: "boolean" },
-  "use-reaction": { accept: "boolean" },
-  "choose-bite-target": { playerId: "string?" },
-  "choose-interception": {},
-  touchback: { playerId: "string" },
-  "use-apothecary": { accept: "boolean" },
-  "choose-inducement": {
-    playerId: "string?",
-    skill: "string?",
-    stat: "string?",
-    spell: "string?",
-    x: "integer?",
-    y: "integer?",
-  },
-  "choose-foul-assists": { count: "integer" },
-  "offer-inducements": {},
-  "select-inducement": {
-    teamId: "string",
-    inducement: "string",
-    quantity: "integer",
-  },
-  "remove-inducement": { teamId: "string", inducement: "string" },
-  "confirm-inducements": { teamId: "string" },
-  state: {},
-  "legal-actions": {},
-};
+import { Player } from "../types/Player";
 
 const CHARGE_COMMANDS = new Set<HeadlessCommand["type"]>([
   "declare-action",
@@ -184,11 +60,6 @@ const tick: () => Promise<void> =
           })
       : () => new Promise((resolve) => setTimeout(resolve, 0));
 
-/** A square on the pitch grid: whole coordinates, as every rule assumes. */
-const isSquare = (value: object): boolean =>
-  Number.isInteger((value as GridPosition).x) &&
-  Number.isInteger((value as GridPosition).y);
-
 /**
  * A way back to a position no save can hold: a choice inside an action,
  * where a command is paused. The engine is deterministic, so replaying
@@ -215,7 +86,6 @@ export class HeadlessGame {
    */
   private inFlight: Promise<void> | null = null;
   private decisionWaiters: (() => void)[] = [];
-  private blockValidator = new BlockValidator();
   /** Kicking team of the current drive; set by coin-flip/start-setup/kick-ball */
   private kickingTeamId: string | null = null;
 
@@ -224,9 +94,27 @@ export class HeadlessGame {
   /** Set once a coach asks: the last save between activations, and since. */
   private forkBase: GameFork | null = null;
   private keepingForks = false;
+  /** What the command handlers may touch here. */
+  private readonly commandHost: CommandHost;
 
   constructor(options: HeadlessGameOptions = {}) {
     this.ctx = createHeadlessGame(options);
+    this.commandHost = {
+      ctx: this.ctx,
+      takePending: (type) => this.takePending(type),
+      restorePending: (pending) => {
+        this.pending = pending;
+      },
+      dropHeldFollowUp: () => {
+        this.heldFollowUp = null;
+      },
+      setKickingTeam: (teamId) => {
+        this.kickingTeamId = teamId;
+      },
+      logEvent: (event) => {
+        this.eventLog.push(event);
+      },
+    };
     this.autoStartOnReady = options.autoStartOnReady !== false;
     this.lazySnapshots = options.lazySnapshots === true;
     this.kickingTeamId =
@@ -356,7 +244,7 @@ export class HeadlessGame {
   }
 
   public async execute(command: unknown): Promise<CommandResponse> {
-    const shapeError = this.validateShape(command);
+    const shapeError = validateShape(command);
     if (shapeError) return this.reject(shapeError);
 
     const cmd = command as HeadlessCommand;
@@ -367,7 +255,11 @@ export class HeadlessGame {
     }
     if (cmd.type === "legal-actions") {
       const response = this.respond(true);
-      response.legalActions = this.enumerateLegalActions(cmd.playerId);
+      response.legalActions = enumerateLegalActions({
+        ctx: this.ctx,
+        pending: this.pending,
+        focusPlayerId: cmd.playerId,
+      });
       return response;
     }
     if (cmd.type === "offer-inducements") {
@@ -376,25 +268,8 @@ export class HeadlessGame {
       return response;
     }
 
-    // Gate: while a decision is pending, only its reply is accepted
-    const pendingAtStart = this.pending;
-    const replyFor = DECISION_REPLIES[cmd.type];
-    if (pendingAtStart?.type === "kickoff-event") {
-      const chargeCommand =
-        !!pendingAtStart.charge && CHARGE_COMMANDS.has(cmd.type);
-      if (replyFor !== "kickoff-event" && !chargeCommand) {
-        return this.reject(
-          "decision-pending:kickoff-event — resolve it before other commands"
-        );
-      }
-    } else if (pendingAtStart && replyFor !== pendingAtStart.type) {
-      return this.reject(
-        `decision-pending:${pendingAtStart.type} — resolve it before other commands`
-      );
-    }
-    if (!pendingAtStart && replyFor) {
-      return this.reject("no-decision-pending");
-    }
+    const gateError = this.pendingGate(cmd);
+    if (gateError) return this.reject(gateError);
     this.noteForFork(cmd);
 
     this.eventLog = [];
@@ -410,7 +285,7 @@ export class HeadlessGame {
     const prior = this.inFlight;
     this.inFlight = null;
     const run = (async () => {
-      await this.dispatch(cmd);
+      await dispatchCommand(this.commandHost, cmd.type, cmd);
       if (prior) {
         if (this.ctx.gameService.getKickoffEventStep()) {
           this.inFlight ??= prior;
@@ -451,498 +326,20 @@ export class HeadlessGame {
     return this.respond(true);
   }
 
-  // ===== Dispatch =====
-
-  private async dispatch(cmd: HeadlessCommand): Promise<void> {
-    const gs = this.ctx.gameService;
-
-    switch (cmd.type) {
-      case "coin-flip": {
-        // Coin flip lives UI-side in the browser; headless resolves it with
-        // the seeded RNG so it stays deterministic and replayable.
-        if (!gs.canCoinFlip()) {
-          throw new Error("coin-flip-only-before-first-drive");
-        }
-        const roll = this.ctx.rng.rollDie(2);
-        const kickingTeam = roll === 1 ? this.ctx.team1 : this.ctx.team2;
-        this.eventLog.push({
-          name: "headless:coinFlip",
-          data: { kickingTeamId: kickingTeam.id },
-        });
-        // A coin is a d2 — log it like every other roll
-        this.ctx.eventBus.emit(GameEventNames.DiceRoll, {
-          rollType: "Coin Toss",
-          diceType: "1d2",
-          value: roll,
-          total: roll,
-          description: `Coin Toss: ${kickingTeam.name} kicks`,
-          resultState: "none",
-          teamId: kickingTeam.id,
-        });
-        this.kickingTeamId = kickingTeam.id;
-        gs.startSetup(kickingTeam.id);
-        break;
-      }
-      case "start-setup":
-        this.assertTeam(cmd.kickingTeamId);
-        this.kickingTeamId = cmd.kickingTeamId;
-        if (cmd.rollWeather) gs.rollInitialWeather();
-        gs.startSetup(cmd.kickingTeamId);
-        break;
-      case "place-player":
-        if (!gs.placePlayer(cmd.playerId, cmd.x, cmd.y)) {
-          throw new Error(gs.getLastSetupError() ?? "illegal-placement");
-        }
-        break;
-      case "remove-player":
-        gs.removePlayer(cmd.playerId);
-        break;
-      case "swap-players":
-        if (!gs.swapPlayers(cmd.player1Id, cmd.player2Id)) {
-          throw new Error(gs.getLastSetupError() ?? "illegal-swap");
-        }
-        break;
-      case "apply-formation": {
-        this.assertTeam(cmd.teamId);
-        const result = gs.applySetupFormation(cmd.teamId, cmd.formation);
-        if (result.placedPlayerIds.length === 0 && result.skipped.length > 0) {
-          throw new Error(result.skipped[0].reason);
-        }
-        break;
-      }
-      case "setup-concession":
-        this.assertTeam(cmd.teamId);
-        if (!gs.resolveSetupConcession(cmd.teamId, cmd.concede)) {
-          throw new Error(gs.getLastSetupError() ?? "illegal-concession");
-        }
-        break;
-      case "confirm-setup":
-        this.assertTeam(cmd.teamId);
-        if (!gs.confirmSetup(cmd.teamId)) {
-          throw new Error(gs.getLastSetupError() ?? "illegal-setup");
-        }
-        break;
-      case "select-kicker":
-        gs.selectKicker(cmd.playerId);
-        break;
-      case "kick-ball": {
-        const kicker = this.requirePlayer(cmd.playerId);
-        const isTeam1Kicking = kicker.teamId === this.ctx.team1.id;
-        this.kickingTeamId = kicker.teamId;
-        await gs.kickBall(isTeam1Kicking, cmd.playerId, cmd.x, cmd.y);
-        break;
-      }
-      case "kickoff-select-player": {
-        const pending = this.takePending("kickoff-event");
-        if (!gs.selectKickoffEventPlayer(cmd.playerId)) {
-          this.pending = pending;
-          throw new Error("invalid-kickoff-player");
-        }
-        break;
-      }
-      case "kickoff-move-player": {
-        const pending = this.takePending("kickoff-event");
-        if (!gs.moveKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y)) {
-          this.pending = pending;
-          throw new Error("invalid-kickoff-move");
-        }
-        break;
-      }
-      case "kickoff-place-player": {
-        const pending = this.takePending("kickoff-event");
-        if (!gs.placeKickoffEventPlayer(cmd.playerId, cmd.x, cmd.y)) {
-          this.pending = pending;
-          throw new Error("invalid-kickoff-placement");
-        }
-        break;
-      }
-      case "kickoff-confirm": {
-        const pending = this.takePending("kickoff-event");
-        if (!gs.confirmKickoffEventStep()) {
-          this.pending = pending;
-          throw new Error("kickoff-step-not-confirmable");
-        }
-        break;
-      }
-      case "kickoff-skip": {
-        const pending = this.takePending("kickoff-event");
-        if (!gs.skipKickoffEventStep()) {
-          this.pending = pending;
-          throw new Error("kickoff-step-not-skippable");
-        }
-        break;
-      }
-      case "declare-action":
-        if (
-          cmd.blockReplacement !== undefined &&
-          !isBlockReplacement(cmd.blockReplacement)
-        ) {
-          throw new Error("invalid-block-replacement");
-        }
-        if (
-          !gs.declareAction(cmd.playerId, cmd.action, cmd.blockReplacement, {
-            razzleDazzle: cmd.razzleDazzle,
-          })
-        ) {
-          throw new Error("illegal-action-declaration");
-        }
-        break;
-      case "cancel-action":
-        if (!gs.cancelAction(cmd.playerId)) {
-          throw new Error("action-already-committed");
-        }
-        break;
-      case "move":
-        await gs.movePlayer(cmd.playerId, cmd.path);
-        break;
-      case "fumblerooski":
-        if (
-          !gs.dropBallWithFumblerooski(cmd.playerId, {
-            x: cmd.x,
-            y: cmd.y,
-          })
-        ) {
-          throw new Error("illegal-fumblerooski");
-        }
-        break;
-      case "stand-up":
-        await gs.standUp(cmd.playerId);
-        break;
-      case "block": {
-        const attacker = this.requirePlayer(cmd.attackerId);
-        const defender = this.requirePlayer(cmd.defenderId);
-        const declaration = gs.getState().activePlayer;
-        if (
-          declaration?.id !== attacker.id ||
-          declaration.razzleDazzle?.awaitingSecond ||
-          (declaration.action !== "block" && declaration.action !== "blitz") ||
-          declaration.blockReplacement
-        ) {
-          // Keep the established cancellation-event contract for a downed
-          // player's direct Block attempt. Other undeclared/forged commands
-          // remain protocol failures.
-          if (attacker.status !== PlayerStatus.ACTIVE) {
-            await gs.rollBlockDice(cmd.attackerId, cmd.defenderId, 0, false);
-            break;
-          }
-          throw new Error("block-not-declared");
-        }
-        // A Blitz allows only one block; report that invariant before target
-        // legality because the first block may have pushed the defender away.
-        if (gs.hasUsedBlitzBlock(cmd.attackerId)) {
-          throw new Error("blitz-block-already-used");
-        }
-        if (
-          defender.teamId === attacker.teamId ||
-          !this.isAdjacent(attacker, defender) ||
-          defender.status !== PlayerStatus.ACTIVE
-        ) {
-          throw new Error("illegal-block-target");
-        }
-        const allPlayers = [
-          ...this.ctx.team1.players,
-          ...this.ctx.team2.players,
-        ];
-        const analysis = this.blockValidator.analyzeBlock(
-          attacker,
-          defender,
-          allPlayers,
-          gs.getActiveTeamId()
-        );
-        await gs.rollBlockDice(
-          cmd.attackerId,
-          cmd.defenderId,
-          analysis.diceCount,
-          !analysis.isUphill
-        );
-        break;
-      }
-      case "multiple-block":
-        await gs.multipleBlock(
-          cmd.attackerId,
-          cmd.defender1Id,
-          cmd.defender2Id
-        );
-        break;
-      case "jump":
-        await gs.jumpPlayer(cmd.playerId, { x: cmd.x, y: cmd.y });
-        break;
-      case "pass": {
-        const result = await gs.throwBall(
-          cmd.playerId,
-          cmd.x,
-          cmd.y,
-          cmd.hailMary ?? false
-        );
-        if (!result.success) {
-          throw new Error(result.result || "pass-failed");
-        }
-        break;
-      }
-      case "handoff": {
-        const result = await gs.handOffBall(cmd.playerId, cmd.targetId);
-        if (!result.success) {
-          throw new Error(result.result || "handoff-failed");
-        }
-        break;
-      }
-      case "punt":
-        await gs.puntBall(cmd.playerId, cmd.x, cmd.y);
-        break;
-      case "foul":
-        await gs.foulPlayer(cmd.playerId, cmd.x, cmd.y);
-        break;
-      case "stab":
-        if (!(await gs.stabPlayer(cmd.attackerId, cmd.defenderId))) {
-          throw new Error("illegal-stab-target");
-        }
-        break;
-      case "throw-teammate":
-        await gs.throwTeammate(
-          cmd.throwerId,
-          cmd.teammateId,
-          cmd.x,
-          cmd.y,
-          cmd.mode,
-          cmd.swoopFacing
-        );
-        break;
-      case "throw-bomb":
-        await gs.throwBomb(cmd.throwerId, cmd.x, cmd.y);
-        break;
-      case "ball-and-chain":
-        await gs.ballAndChain(cmd.playerId, cmd.x, cmd.y);
-        break;
-      case "special-action":
-        if (
-          (cmd.action as string) !== "gaze" &&
-          !isBlockReplacement(cmd.action)
-        ) {
-          throw new Error("invalid-special-action");
-        }
-        if ((cmd.action as string) === "stab") {
-          throw new Error("use-stab-command");
-        }
-        if (
-          !(await gs.performSpecialAction(
-            cmd.action,
-            cmd.attackerId,
-            cmd.defenderId
-          ))
-        ) {
-          throw new Error("illegal-special-action-target");
-        }
-        break;
-      case "end-activation":
-        gs.finishActivation(cmd.playerId);
-        break;
-      case "end-turn":
-        gs.endTurn();
-        break;
-      case "award-mvp": {
-        if (gs.getPhase() !== GamePhase.GAME_OVER) {
-          throw new Error("mvp-only-after-match");
-        }
-        this.assertTeam(cmd.teamId);
-        const roll = this.ctx.rng.rollDie(cmd.nominatedPlayerIds.length);
-        this.ctx.matchStats.awardMvp(cmd.teamId, cmd.nominatedPlayerIds, roll);
-        break;
-      }
-      case "assign-awarded-touchdown": {
-        if (gs.getPhase() !== GamePhase.GAME_OVER) {
-          throw new Error("awarded-touchdown-only-after-match");
-        }
-        this.requirePlayer(cmd.playerId);
-        this.ctx.matchStats.assignAwardedTouchdown(cmd.playerId);
-        break;
-      }
-
-      // --- Decision replies ---
-      case "keep-block-dice":
-        gs.keepBlockDice(cmd.attackerId);
-        break;
-      case "team-reroll-block":
-        gs.teamRerollBlock(cmd.attackerId);
-        break;
-      case "pro-reroll-block":
-        gs.proRerollBlockDie(cmd.attackerId, cmd.dieIndex);
-        break;
-      case "brawler-reroll-block":
-        gs.brawlerRerollBlockDie(cmd.attackerId);
-        break;
-      case "veteran-reroll-block":
-        gs.veteranRerollBlock(cmd.attackerId);
-        break;
-      case "choose-block-result": {
-        const pending = this.takePending("block-dice");
-        if (cmd.index < 0 || cmd.index >= pending.options.length) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-block-result-index");
-        }
-        await gs.resolveBlock(
-          pending.attackerId,
-          pending.defenderId,
-          pending.options[cmd.index]
-        );
-        break;
-      }
-      case "choose-push-direction": {
-        const pending = this.takePending("push-direction");
-        const valid = pending.options.some(
-          (d) => d.x === cmd.x && d.y === cmd.y
-        );
-        if (!valid) {
-          this.pending = pending;
-          throw new Error("invalid-push-direction");
-        }
-        await gs.executePush(
-          pending.attackerId,
-          pending.defenderId,
-          { x: cmd.x, y: cmd.y },
-          pending.resultType,
-          false
-        );
-        break;
-      }
-      case "choose-follow-up": {
-        const pending = this.takePending("follow-up");
-        this.heldFollowUp = null;
-        if (cmd.followUp) {
-          // Free move: no movement cost, no dice (rush/dodge already paid)
-          await gs.followUpPush(pending.attackerId, pending.targetSquare);
-        }
-        // A Blitz block leaves the player active to continue moving; a plain
-        // block ends the activation here.
-        gs.finishBlockActivation(pending.attackerId);
-        break;
-      }
-      case "use-reroll": {
-        const pending = this.takePending("reroll");
-        if (cmd.source !== undefined && !pending.sources.includes(cmd.source)) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-reroll-source");
-        }
-        if (!gs.answerReroll(cmd.accept, cmd.source)) {
-          this.pending = pending;
-          throw new Error("no-reroll-awaiting");
-        }
-        break;
-      }
-      case "use-reaction": {
-        const pending = this.takePending("reaction");
-        if (!gs.answerReaction(cmd.accept)) {
-          this.pending = pending;
-          throw new Error("no-reaction-awaiting");
-        }
-        break;
-      }
-      case "choose-bite-target": {
-        const pending = this.takePending("bite-target");
-        if (
-          cmd.playerId !== undefined &&
-          !pending.targetIds.includes(cmd.playerId)
-        ) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-bite-target");
-        }
-        if (!gs.answerBiteTarget(cmd.playerId)) {
-          this.pending = pending;
-          throw new Error("no-bite-target-awaiting");
-        }
-        break;
-      }
-      case "choose-interception": {
-        const pending = this.takePending("interception");
-        if (
-          cmd.playerId !== undefined &&
-          !pending.candidates.some((c) => c.playerId === cmd.playerId)
-        ) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-interception-player");
-        }
-        if (!gs.answerInterception(cmd.playerId)) {
-          this.pending = pending;
-          throw new Error("no-interception-awaiting");
-        }
-        break;
-      }
-      case "touchback": {
-        const pending = this.takePending("touchback");
-        if (!gs.awardTouchback(cmd.playerId)) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-touchback-player");
-        }
-        break;
-      }
-      case "use-apothecary": {
-        const pending = this.takePending("apothecary");
-        if (!gs.answerApothecary(cmd.accept)) {
-          this.pending = pending;
-          throw new Error("no-apothecary-awaiting");
-        }
-        break;
-      }
-
-      case "choose-inducement": {
-        const pending = this.takePending("inducement-choice");
-        const { stat, spell } = cmd;
-        if (
-          (stat !== undefined && stat !== "ST" && stat !== "AG") ||
-          (spell !== undefined && spell !== "fireball" && spell !== "zap") ||
-          !gs.answerInducementChoice({
-            playerId: cmd.playerId,
-            skill: cmd.skill,
-            stat,
-            spell,
-            ...(cmd.x !== undefined && cmd.y !== undefined
-              ? { square: { x: cmd.x, y: cmd.y } }
-              : {}),
-          })
-        ) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-inducement-choice");
-        }
-        break;
-      }
-      case "choose-foul-assists": {
-        const pending = this.takePending("foul-assists");
-        if (!gs.answerFoulAssists(cmd.count)) {
-          this.pending = pending; // restore, reply was invalid
-          throw new Error("invalid-foul-assists");
-        }
-        break;
-      }
-
-      // --- Sevens pregame inducements ---
-      case "offer-inducements":
-        // Handled as a query above `dispatch`; never reached here.
-        break;
-      case "select-inducement": {
-        this.assertTeam(cmd.teamId);
-        const result = gs.selectInducement(
-          cmd.teamId,
-          cmd.inducement as Inducement,
-          cmd.quantity
-        );
-        if (!result.ok) throw new Error(result.errors.join(","));
-        break;
-      }
-      case "remove-inducement": {
-        this.assertTeam(cmd.teamId);
-        const result = gs.removeInducement(
-          cmd.teamId,
-          cmd.inducement as Inducement
-        );
-        if (!result.ok) throw new Error(result.errors.join(","));
-        break;
-      }
-      case "confirm-inducements": {
-        this.assertTeam(cmd.teamId);
-        const result = gs.confirmInducements(cmd.teamId);
-        if (!result.ok) throw new Error(result.errors.join(","));
-        break;
-      }
+  /** Gate: while a decision is pending, only its reply is accepted. */
+  private pendingGate(cmd: HeadlessCommand): string | null {
+    const pending = this.pending;
+    const replyFor = DECISION_REPLIES[cmd.type];
+    if (pending?.type === "kickoff-event") {
+      const chargeCommand = !!pending.charge && CHARGE_COMMANDS.has(cmd.type);
+      return replyFor !== "kickoff-event" && !chargeCommand
+        ? "decision-pending:kickoff-event — resolve it before other commands"
+        : null;
     }
+    if (pending && replyFor !== pending.type) {
+      return `decision-pending:${pending.type} — resolve it before other commands`;
+    }
+    return !pending && replyFor ? "no-decision-pending" : null;
   }
 
   // ===== Decision interception =====
@@ -959,144 +356,36 @@ export class HeadlessGame {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private interceptDecision(name: string, data: any): void {
-    if (name === GameEventNames.KickoffEventStepStarted) {
-      this.surfaceKickoffPending();
-      this.decisionWaiters.splice(0).forEach((wake) => wake());
-      return;
-    }
-    if (name === GameEventNames.KickoffEventStepResolved) {
-      if (this.pending?.type === "kickoff-event") this.pending = null;
-      return;
-    }
-    if (name === GameEventNames.ReadyToStart) {
-      // In the browser KickoffPhaseHandler starts play on this signal;
-      // headless mirrors that so the kickoff chain flows into PLAY.
-      if (this.autoStartOnReady && this.kickingTeamId) {
-        this.ctx.gameService.startGame(this.kickingTeamId);
-      }
-      return;
-    }
-    if (name === GameEventNames.DecisionRequested) {
-      if (this.pending?.type === "follow-up") this.heldFollowUp = this.pending;
-      // Awaitable decision: the engine is paused on this promise. Surface
-      // it and wake execute()'s race so the response goes out now.
-      if (data?.type === "reroll") {
-        this.pending = {
-          type: "reroll",
-          playerId: data.playerId,
-          chooserTeamId: data.chooserTeamId,
-          rollKind: data.rollKind,
-          rollName: data.rollName,
-          sources: data.sources,
-          skill: data.skill,
-          roll: data.roll,
-          needed: data.needed,
-        };
-      } else if (data?.type === "reaction") {
-        this.pending = {
-          type: "reaction",
-          playerId: data.playerId,
-          chooserTeamId: data.chooserTeamId,
-          skill: data.skill,
-          prompt: data.prompt,
-        };
-      } else if (data?.type === "bite-target") {
-        this.pending = {
-          type: "bite-target",
-          playerId: data.playerId,
-          chooserTeamId: data.chooserTeamId,
-          targetIds: [...data.targetIds],
-        };
-      } else if (data?.type === "interception") {
-        this.pending = {
-          type: "interception",
-          chooserTeamId: data.chooserTeamId,
-          passerId: data.passerId,
-          candidates: data.candidates,
-        };
-      } else if (data?.type === "inducement-choice") {
-        this.pending = {
-          type: "inducement-choice",
-          kind: data.kind,
-          chooserTeamId: data.chooserTeamId,
-          playerIds: [...data.playerIds],
-          ...(data.skills ? { skills: [...data.skills] } : {}),
-          ...(data.stats ? { stats: [...data.stats] } : {}),
-          ...(data.spells ? { spells: [...data.spells] } : {}),
-          optional: data.optional,
-        };
-      } else if (data?.type === "foul-assists") {
-        this.pending = {
-          type: "foul-assists",
-          playerId: data.playerId,
-          targetId: data.targetId,
-          chooserTeamId: data.chooserTeamId,
-          available: data.available,
-          defensive: data.defensive,
-        };
-      } else if (data?.type === "apothecary") {
-        this.pending = {
-          type: "apothecary",
-          id: data.id,
-          chooserTeamId: data.chooserTeamId,
-          playerId: data.playerId,
-          resultKind: data.resultKind,
-          location: data.location,
-          position: data.position,
-          casualtyType: data.casualtyType,
-        };
-      } else {
+    switch (name) {
+      case GameEventNames.KickoffEventStepStarted:
+        this.surfaceKickoffPending();
+        this.decisionWaiters.splice(0).forEach((wake) => wake());
+        return;
+      case GameEventNames.KickoffEventStepResolved:
+        if (this.pending?.type === "kickoff-event") this.pending = null;
+        return;
+      case GameEventNames.ReadyToStart:
+        // In the browser KickoffPhaseHandler starts play on this signal;
+        // headless mirrors that so the kickoff chain flows into PLAY.
+        if (this.autoStartOnReady && this.kickingTeamId) {
+          this.ctx.gameService.startGame(this.kickingTeamId);
+        }
+        return;
+      case GameEventNames.DecisionRequested: {
+        if (this.pending?.type === "follow-up") {
+          this.heldFollowUp = this.pending;
+        }
+        // Awaitable decision: the engine is paused on this promise. Surface
+        // it and wake execute()'s race so the response goes out now.
+        const requested = requestedDecision(data);
+        if (!requested) return;
+        this.pending = requested;
+        this.decisionWaiters.splice(0).forEach((wake) => wake());
         return;
       }
-      this.decisionWaiters.splice(0).forEach((wake) => wake());
-      return;
     }
-    if (
-      name === GameEventNames.BlockDiceRolled ||
-      name === GameEventNames.BlockDiceKept
-    ) {
-      const attacker = this.findPlayer(data.attackerId);
-      const defender = this.findPlayer(data.defenderId);
-      this.pending = {
-        type: "block-dice",
-        attackerId: data.attackerId,
-        defenderId: data.defenderId,
-        chooserTeamId: data.isAttackerChoice
-          ? (attacker?.teamId ?? "")
-          : (defender?.teamId ?? ""),
-        options: data.results,
-        choiceStage: data.choiceStage,
-        teamRerollAvailable: data.teamRerollAvailable,
-        proAvailable: data.proAvailable,
-        brawlerAvailable: data.brawlerAvailable,
-        veteranRerollAvailable: data.veteranRerollAvailable,
-      };
-    } else if (name === GameEventNames.UI_SelectPushDirection) {
-      this.pending = {
-        type: "push-direction",
-        attackerId: data.attackerId,
-        defenderId: data.defenderId,
-        resultType: data.resultType,
-        chooserTeamId: data.chooserTeamId,
-        options: data.validDirections,
-      };
-    } else if (name === GameEventNames.PlayerMoved && data?.followUpData) {
-      this.pending = {
-        type: "follow-up",
-        attackerId: data.followUpData.attackerId,
-        targetSquare: data.followUpData.targetSquare,
-      };
-    } else if (name === GameEventNames.TouchbackAwarded) {
-      this.pending = { type: "touchback", teamId: data.teamId };
-    } else if (name === GameEventNames.UI_FollowUpPrompt && !data.repeat) {
-      // Crowd surf: the engine prompts the follow-up directly (there is no
-      // PlayerMoved for the surfed defender)
-      this.pending = {
-        type: "follow-up",
-        attackerId: data.attackerId,
-        targetSquare: data.targetSquare,
-      };
-    }
+    const decision = engineDecision(name, data, (id) => this.findPlayer(id));
+    if (decision) this.pending = decision;
   }
 
   /** Mirror the engine-owned kickoff step into the protocol decision shape. */
@@ -1138,212 +427,10 @@ export class HeadlessGame {
     return pending;
   }
 
-  // ===== Legal action enumeration (built on existing validators) =====
-
-  private enumerateLegalActions(focusPlayerId?: string): LegalActions {
-    const gs = this.ctx.gameService;
-    const state = gs.getState();
-    const players: PlayerActions[] = [];
-
-    const activeTeam = state.activeTeamId
-      ? gs.getTeam(state.activeTeamId)
-      : undefined;
-
-    if (state.phase === GamePhase.PLAY && !this.pending && activeTeam) {
-      const opponents = gs.getOpponents(activeTeam.id);
-
-      for (const p of activeTeam.players) {
-        if (!p.gridPosition) continue;
-        if (!gs.canActivate(p.id)) continue;
-
-        const adjacentStanding = opponents.filter(
-          (o) => this.isAdjacent(p, o) && o.status === PlayerStatus.ACTIVE
-        );
-        const adjacentDown = opponents.filter(
-          (o) =>
-            this.isAdjacent(p, o) &&
-            (o.status === PlayerStatus.PRONE ||
-              o.status === PlayerStatus.STUNNED)
-        );
-        const carriesBall =
-          !!state.ballPosition &&
-          state.ballPosition.x === p.gridPosition.x &&
-          state.ballPosition.y === p.gridPosition.y;
-        const reachable = gs.getAvailableMovements(p.id);
-        const availability = computeActionAvailability({
-          player: p,
-          ballPosition: state.ballPosition,
-          opponents,
-          teammates: gs.getTeammates(p.id),
-          reachable,
-          turn: {
-            ...state.turn,
-            hasFouled: foulSpent(state, activeTeam.id),
-          },
-          hasMovedInAction: false,
-        });
-        const canFoul = !foulSpent(state, activeTeam.id);
-
-        let actions: ActionType[] = [];
-        if (availability.ballAndChain) {
-          // A Standing Fanatic may declare nothing but Ball & Chain.
-          actions.push("ballAndChain");
-        } else if (p.status === PlayerStatus.PRONE) {
-          // Standing up only costs movement, so every movement-based action
-          // stays available to a prone player. Only plain Block is not.
-          actions.push("standUp");
-          if (availability.move) actions.push("move");
-          if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (canFoul) actions.push("foul");
-          // Move-first Special Actions may be declared Prone (errata p.122)
-          if (availability.punt) actions.push("punt");
-          if (availability.gaze) actions.push("gaze");
-        } else if (p.status === PlayerStatus.ACTIVE) {
-          if (availability.move) actions.push("move");
-          if (adjacentStanding.length > 0) actions.push("block");
-          if (!state.turn.hasBlitzed) actions.push("blitz");
-          if (carriesBall && availability.pass) actions.push("pass");
-          if (availability.handoff) actions.push("handoff");
-          if (availability.secureBall) actions.push("secureBall");
-          if (availability.throwTeammate) actions.push("throwTeamMate");
-          if (availability.punt) actions.push("punt");
-          if (availability.gaze) actions.push("gaze");
-          if (canFoul && adjacentDown.length > 0) actions.push("foul");
-          for (const replacement of availability.directBlockReplacements) {
-            if (!actions.includes(replacement)) actions.push(replacement);
-          }
-        }
-        // Razzle-Dazzle: the second Action, within the measure's limits
-        const razzle = state.activePlayer?.razzleDazzle;
-        if (state.activePlayer?.id === p.id && razzle?.awaitingSecond) {
-          const first = razzle.actions[0] as ActionType;
-          actions = actions.filter((action) =>
-            razzleDazzleAllows(first, action)
-          );
-        }
-        if (actions.length === 0) continue;
-
-        const entry: PlayerActions = {
-          playerId: p.id,
-          playerName: p.playerName,
-          actions,
-          replacementActions: BLOCK_REPLACEMENTS.flatMap((replacement) => {
-            const direct =
-              availability.directBlockReplacements.includes(replacement);
-            const blitz =
-              availability.blitzBlockReplacements.includes(replacement);
-            if (!direct && !blitz) return [];
-            const directTargets = legalBlockReplacementTargets(
-              p,
-              opponents,
-              replacement
-            ).map((target) => target.id);
-            const endSquares = [p.gridPosition!, ...reachable];
-            const blitzTargets = opponents
-              .filter(
-                (target) =>
-                  !!target.gridPosition &&
-                  target.status === PlayerStatus.ACTIVE &&
-                  endSquares.some(
-                    (square) =>
-                      Math.max(
-                        Math.abs(square.x - target.gridPosition!.x),
-                        Math.abs(square.y - target.gridPosition!.y)
-                      ) === 1
-                  )
-              )
-              .map((target) => target.id);
-            return [
-              {
-                blockReplacement: replacement,
-                label: `Blitz (with ${BLOCK_REPLACEMENT_DEFINITIONS[replacement].label})`,
-                direct,
-                blitz,
-                ...(focusPlayerId === p.id
-                  ? { directTargets, blitzTargets }
-                  : {}),
-              },
-            ];
-          }),
-        };
-        if (focusPlayerId === p.id) {
-          entry.moveTargets = gs
-            .getAvailableMovements(p.id)
-            .map(({ x, y }) => ({ x, y }) as GridPosition);
-          entry.blockTargets = adjacentStanding.map((o) => o.id);
-          entry.foulTargets = adjacentDown.map((o) => o.id);
-          entry.handoffTargets = legalHandoffTargets(
-            p,
-            gs.getTeammates(p.id)
-          ).map((mate) => mate.id);
-        }
-        players.push(entry);
-      }
-    }
-
-    const legal: LegalActions = {
-      phase: state.phase,
-      subPhase: state.subPhase ?? null,
-      activeTeamId: state.activeTeamId,
-      pendingDecision: this.pending,
-      players,
-      canEndTurn: state.phase === GamePhase.PLAY && !this.pending,
-    };
-    if (
-      state.phase === GamePhase.SETUP &&
-      state.activeTeamId &&
-      !this.pending
-    ) {
-      const status = gs.getSetupStatus(state.activeTeamId);
-      if (status) {
-        const isTeam1 = state.activeTeamId === this.ctx.team1.id;
-        legal.setup = {
-          status,
-          placements: (isTeam1
-            ? this.ctx.team1
-            : this.ctx.team2
-          ).players.flatMap((player) =>
-            player.gridPosition
-              ? [{ playerId: player.id, ...player.gridPosition }]
-              : []
-          ),
-          presetNames: new FormationManager()
-            .getBuiltInFormations(isTeam1)
-            .map((formation) => formation.name),
-          canPlace: status.concessionDecision !== "pending",
-          canApplyPreset:
-            status.concessionDecision !== "pending" && !status.swarming,
-          canChooseConcession: status.concessionDecision === "pending",
-          canConfirm: status.canConfirm,
-        };
-      }
-    }
-    return legal;
-  }
-
   // ===== Helpers =====
-
-  private isAdjacent(a: Player, b: Player): boolean {
-    if (!a.gridPosition || !b.gridPosition) return false;
-    const dx = Math.abs(a.gridPosition.x - b.gridPosition.x);
-    const dy = Math.abs(a.gridPosition.y - b.gridPosition.y);
-    return dx <= 1 && dy <= 1 && dx + dy > 0;
-  }
 
   private findPlayer(playerId: string): Player | undefined {
     return this.ctx.gameService.getPlayerById(playerId);
-  }
-
-  private requirePlayer(playerId: string): Player {
-    const player = this.findPlayer(playerId);
-    if (!player) throw new Error(`unknown-player:${playerId}`);
-    return player;
-  }
-
-  private assertTeam(teamId: string): void {
-    if (teamId !== this.ctx.team1.id && teamId !== this.ctx.team2.id) {
-      throw new Error(`unknown-team:${teamId}`);
-    }
   }
 
   /**
@@ -1354,68 +441,6 @@ export class HeadlessGame {
    */
   private async settle(): Promise<void> {
     await tick();
-  }
-
-  private validateShape(command: unknown): string | null {
-    if (typeof command !== "object" || command === null) {
-      return "malformed-command: not an object";
-    }
-    const cmd = command as Record<string, unknown>;
-    if (typeof cmd.type !== "string" || !(cmd.type in COMMAND_SHAPES)) {
-      return `unknown-command-type: ${String(cmd.type)}`;
-    }
-    const shape = COMMAND_SHAPES[cmd.type];
-    for (const [field, kind] of Object.entries(shape)) {
-      const value = cmd[field];
-      if (kind === "path") {
-        const isPath =
-          Array.isArray(value) &&
-          value.length > 0 &&
-          value.every(
-            (step) =>
-              typeof step === "object" && step !== null && isSquare(step)
-          );
-        if (!isPath)
-          return `malformed-command: '${field}' must be a non-empty {x,y}[] of whole squares`;
-      } else if (kind === "formation") {
-        const isFormation =
-          Array.isArray(value) &&
-          value.length > 0 &&
-          value.every(
-            (position) =>
-              typeof position === "object" &&
-              position !== null &&
-              typeof (position as { playerId?: unknown }).playerId ===
-                "string" &&
-              isSquare(position)
-          );
-        if (!isFormation) {
-          return `malformed-command: '${field}' must be a non-empty formation on whole squares`;
-        }
-      } else if (kind === "string-array") {
-        const isStringArray =
-          Array.isArray(value) &&
-          value.length > 0 &&
-          value.every((entry) => typeof entry === "string");
-        if (!isStringArray) {
-          return `malformed-command: '${field}' must be a non-empty string[]`;
-        }
-      } else if (kind === "boolean?" || kind === "string?") {
-        const base = kind.slice(0, -1);
-        if (value !== undefined && typeof value !== base) {
-          return `malformed-command: '${field}' must be a ${base} when given`;
-        }
-      } else if (kind === "integer?") {
-        if (value !== undefined && !Number.isInteger(value))
-          return `malformed-command: '${field}' must be a whole number when given`;
-      } else if (kind === "integer") {
-        if (!Number.isInteger(value))
-          return `malformed-command: '${field}' must be a whole number`;
-      } else if (typeof value !== kind) {
-        return `malformed-command: '${field}' must be a ${kind}`;
-      }
-    }
-    return null;
   }
 
   private respond(ok: boolean, reason?: string): CommandResponse {

@@ -395,17 +395,6 @@
       "count": 2
     }
   },
-  "src/headless/HeadlessGame.ts": {
-    "complexity": {
-      "count": 5
-    },
-    "max-lines": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 5
-    }
-  },
   "src/headless/cli.ts": {
     "complexity": {
       "count": 1
