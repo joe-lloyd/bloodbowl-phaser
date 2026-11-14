@@ -30,9 +30,7 @@ test("WASD and the arrow keys slide the camera while held", async ({
   expect(Math.abs(up.x - right.x)).toBeLessThan(2);
 });
 
-test("a foul is declared and confirmed from the keyboard", async ({
-  page,
-}) => {
+test("a foul is declared and confirmed from the keyboard", async ({ page }) => {
   const app = new GameApp(page);
   await app.sandbox.open({ scenario: "ux-foul-preview" });
   await app.pitch.clickPlayer("team1:0");
@@ -51,6 +49,31 @@ test("a foul is declared and confirmed from the keyboard", async ({
   await page.keyboard.press("1");
   await expect(page.getByTestId("foul-assists-dialog")).toBeHidden();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
+});
+
+test("a step's number key switches to that part of the action", async ({
+  page,
+}) => {
+  const app = new GameApp(page);
+  await app.sandbox.open({ scenario: "ux-foul-preview" });
+  await app.pitch.clickPlayer("team1:0");
+  await expect(app.hud.actionMenu()).toBeVisible();
+  await page.keyboard.press("f");
+  await expect(page.getByTestId("action-step-move")).toHaveAttribute(
+    "data-active",
+    "true"
+  );
+
+  await page.keyboard.press("2");
+  await expect(page.getByTestId("action-step-foul")).toHaveAttribute(
+    "data-active",
+    "true"
+  );
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("action-step-move")).toHaveAttribute(
+    "data-active",
+    "true"
+  );
 });
 
 test("the menu's keys wait while a decision is open, and Enter presses the focused button", async ({
