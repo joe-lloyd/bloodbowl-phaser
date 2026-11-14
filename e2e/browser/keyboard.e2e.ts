@@ -46,6 +46,10 @@ test("a foul is declared and confirmed from the keyboard", async ({
   await expect(page.getByTestId("confirmation-modal")).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("confirmation-modal")).toBeHidden();
+  // The one Offensive Assist is chosen from the keyboard too
+  await expect(page.getByTestId("foul-assists-dialog")).toBeVisible();
+  await page.keyboard.press("1");
+  await expect(page.getByTestId("foul-assists-dialog")).toBeHidden();
   await app.bridge.expectEvent(GameEventNames.DiceRoll);
 });
 
