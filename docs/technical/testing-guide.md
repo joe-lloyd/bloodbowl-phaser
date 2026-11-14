@@ -92,6 +92,8 @@ pnpm lint --prune-suppressions
 ```
 
 Commit the smaller file with the change. Do not add entries to it by hand.
+Deleting or renaming a file does not fail lint, and its entry stays until you
+prune, so run the same command after any split or rename.
 
 `pnpm dupes` runs jscpd over `src`, `scripts`, `e2e` and `functions/src`. It
 fails when copied blocks of eight lines or more pass 1% of the code.

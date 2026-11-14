@@ -16,6 +16,8 @@ export default tseslint.config(
       "**/dist/",
       "**/lib/",
       "**/node_modules/",
+      // ESLint 8 skipped dot folders such as .claude/worktrees; keep that.
+      "**/.*",
       "**/*.{js,mjs,cjs}",
       "**/refined-data-rules.ts",
       "**/refined-data-skills.ts",
