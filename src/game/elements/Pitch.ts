@@ -23,6 +23,14 @@ const ROLL_LETTER: Record<RouteRoll["type"], string> = {
   pickup: "P",
 };
 
+/**
+ * The layer for what a coach reads while planning: the route, its roll
+ * tags and the pass line. It draws over every player, so a +2 behind a
+ * standing player is never hidden. Players sit just above 100 and the ball
+ * in flight at 5000, by screen y.
+ */
+const READOUT_DEPTH = 50_000;
+
 /** A highlighted square: a diamond on the isometric pitch. */
 export type SquareMarker = Phaser.GameObjects.Polygon;
 
@@ -44,6 +52,8 @@ export const BITE_TARGET_LAYER = "bite_target";
 export class Pitch {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
+  /** Route, roll tags and pass line, drawn over the players. */
+  private readout: Phaser.GameObjects.Container;
   private width = GameConfig.PITCH_WIDTH;
   private height = GameConfig.PITCH_HEIGHT;
 
@@ -52,6 +62,7 @@ export class Pitch {
     this.container = scene.add.container(x, y);
     // Above the stadium, below players (whose depth follows their screen y).
     this.container.setDepth(5);
+    this.readout = scene.add.container(x, y).setDepth(READOUT_DEPTH);
     this.drawTrapdoors();
   }
 
@@ -296,7 +307,7 @@ export class Pitch {
       .setResolution(2)
       .setOrigin(0.5, originY)
       .setName(name);
-    this.container.add(tag);
+    this.readout.add(tag);
   }
 
   /**
@@ -350,14 +361,14 @@ export class Pitch {
       lines.strokePath();
       overs.set(`${t.over.x},${t.over.y}`, t.over);
     }
-    this.container.add(lines);
+    this.readout.add(lines);
 
     for (const t of targets) {
       const b = gridToPixel(t.dest.x, t.dest.y);
       const dot = this.scene.add.ellipse(b.x, b.y, 16, 8, 0x22c55e);
       dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
-      this.container.add(dot);
+      this.readout.add(dot);
     }
     for (const o of overs.values()) {
       const ring = this.diamond(o.x, o.y, 0xf59e0b, 0.2, 0.18);
@@ -389,7 +400,7 @@ export class Pitch {
       graphics.lineTo(to.x, to.y);
       graphics.strokePath();
     }
-    this.container.add(graphics);
+    this.readout.add(graphics);
 
     path.forEach((step) => {
       const local = gridToPixel(step.x, step.y);
@@ -416,7 +427,7 @@ export class Pitch {
       );
       dot.setName("path_dot");
       dot.setStrokeStyle(2, 0x000000);
-      this.container.add(dot);
+      this.readout.add(dot);
       const labels = rolls
         .filter((r) => r.square.x === step.x && r.square.y === step.y)
         .map((r) => `${ROLL_LETTER[r.type]} ${r.target}+`);
@@ -483,14 +494,17 @@ export class Pitch {
 
   /** Names of the drawn layers, for the browser test bridge. */
   public layerNames(): string[] {
-    return this.container
-      .getAll()
+    return this.children()
       .map((child) => child.name)
       .filter(Boolean);
   }
 
+  private children(): Phaser.GameObjects.GameObject[] {
+    return [...this.container.getAll(), ...this.readout.getAll()];
+  }
+
   public clearLayer(name: string): void {
-    this.container.getAll().forEach((child) => {
+    this.children().forEach((child) => {
       if (child.name === name) {
         child.destroy();
       }
@@ -571,7 +585,7 @@ export class Pitch {
     graphics.closePath();
     graphics.fillPath();
 
-    this.container.add(graphics);
+    this.readout.add(graphics);
     // A third of the way from the thrower, above the line, so the name does
     // not sit on a player standing in the corridor.
     this.addRollTag(
@@ -725,10 +739,8 @@ export class Pitch {
     );
   }
 
-  /**
-   * getContainer
-   */
-  public getContainer(): Phaser.GameObjects.Container {
-    return this.container;
+  public destroy(): void {
+    this.container.destroy();
+    this.readout.destroy();
   }
 }

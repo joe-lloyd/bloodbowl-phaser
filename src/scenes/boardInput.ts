@@ -37,6 +37,7 @@ export function wirePointerInput(scene: GameScene): void {
   scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
     // A finger has no hover
     if (pointer.wasTouch) return;
+    scene.raisePlayerAt(pointer.worldX, pointer.worldY);
     if (scene.isSetupActive) {
       // Direct Pitch Highlight for Setup
       const gridPos = pitch().worldToGrid(pointer.worldX, pointer.worldY);

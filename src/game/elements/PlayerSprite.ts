@@ -39,6 +39,8 @@ const CHEER_JUMPS = 3;
 const RING = { w: 66, h: 30 };
 /** Depth band for players: above the pitch overlays, sorted by screen y. */
 export const PLAYER_DEPTH = 100;
+/** A hovered player draws over every other player, number and all. */
+const RAISED_DEPTH = 10_000;
 
 /**
  * PlayerSprite: one player on the pitch or in a dugout.
@@ -188,7 +190,7 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
     this.add(this.stunnedMarker);
 
     this.setSize(56, 80);
-    this.setDepth(PLAYER_DEPTH + y);
+    this.setDepth(this.depthNow());
     this.updateStatus(false);
 
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
@@ -251,7 +253,19 @@ export class PlayerSprite extends Phaser.GameObjects.Container {
       this.shownFrame = name;
       for (const layer of this.layers) layer.setFrame(name);
     }
-    this.setDepth(PLAYER_DEPTH + this.y);
+    this.setDepth(this.depthNow());
+  }
+
+  private raised = false;
+
+  /** Lift this player over the others while the pointer is on their square. */
+  public setRaised(raised: boolean): void {
+    this.raised = raised;
+    this.setDepth(this.depthNow());
+  }
+
+  private depthNow(): number {
+    return PLAYER_DEPTH + this.y + (this.raised ? RAISED_DEPTH : 0);
   }
 
   private play(anim: Animation, fromStart = true): void {
