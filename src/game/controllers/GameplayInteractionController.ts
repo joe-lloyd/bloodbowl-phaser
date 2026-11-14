@@ -736,15 +736,14 @@ export class GameplayInteractionController {
     razzleDazzle?: boolean;
   }) => {
     // A negatrait roll binds the player to the action: ask before it
-    if (
-      data.action !== "forgoe" &&
-      !(await this.confirmGates(
-        data.playerId,
-        data.action === "standUp" ? "move" : data.action
-      ))
-    ) {
-      return;
-    }
+    const asked =
+      data.action === "forgoe"
+        ? null
+        : this.askGates(
+            data.playerId,
+            data.action === "standUp" ? "move" : data.action
+          );
+    if (asked && !(await asked)) return;
 
     // Immediate Actions
     if (data.action === "standUp") {
@@ -1642,8 +1641,8 @@ export class GameplayInteractionController {
               }
 
               if (!currentAction) {
-                if (!(await this.confirmGates(selectedPlayer.id, "block")))
-                  return;
+                const asked = this.askGates(selectedPlayer.id, "block");
+                if (asked && !(await asked)) return;
                 // If no action declared for this player, implicitly declare
                 // BLOCK — refused e.g. for a prone/stunned blocker
                 if (
@@ -1718,8 +1717,8 @@ export class GameplayInteractionController {
             ? state.activePlayer?.action
             : undefined;
 
-        if (!currentAction && !(await this.confirmGates(player.id, "move")))
-          return;
+        const asked = currentAction ? null : this.askGates(player.id, "move");
+        if (asked && !(await asked)) return;
         if (!this.declareMoveIfNone(player.id, currentAction)) return;
 
         // Check if clicking the LAST added waypoint (or current pos if none) -> CONFIRM
@@ -2426,10 +2425,9 @@ export class GameplayInteractionController {
     if (owner.id !== this.selectedPlayerId) this.selectPlayer(owner.id);
     if (this.selectedPlayerId !== owner.id) return false;
     // A negatrait roll comes first: ask, declare the Move, then drag again
-    if (this.pendingGates(owner.id, "move").length > 0) {
-      void this.confirmGates(owner.id, "move").then(
-        (ok) => ok && this.declareMoveIfNone(owner.id)
-      );
+    const asked = this.askGates(owner.id, "move");
+    if (asked) {
+      void asked.then((ok) => ok && this.declareMoveIfNone(owner.id));
       return false;
     }
     return true;
@@ -2960,7 +2958,8 @@ export class GameplayInteractionController {
     x: number,
     y: number
   ): Promise<void> {
-    if (!(await this.confirmGates(playerId, "foul"))) return;
+    const asked = this.askGates(playerId, "foul");
+    if (asked && !(await asked)) return;
     if (!this.gameService.declareAction(playerId, "foul")) {
       this.eventBus.emit(
         GameEventNames.UI_Notification,
@@ -2988,11 +2987,16 @@ export class GameplayInteractionController {
    * Bone Head, Bloodlust and the other negatraits roll the moment an action
    * is declared, and the roll binds the player to it. Ask first, so a coach
    * who only meant to measure a route can back out with nothing spent.
+   * Null when there is nothing to ask, so the declaration goes ahead in
+   * the same tick.
    */
-  private confirmGates(playerId: string, action: ActionType): Promise<boolean> {
+  private askGates(
+    playerId: string,
+    action: ActionType
+  ): Promise<boolean> | null {
     const gates = this.pendingGates(playerId, action);
     const player = this.gameService.getPlayerById(playerId);
-    if (gates.length === 0 || !player) return Promise.resolve(true);
+    if (gates.length === 0 || !player) return null;
     const actionId = `gate-${++this.riskPrompts}`;
     return new Promise((resolve) => {
       const onResult = (data: { actionId: string; confirmed: boolean }) => {
