@@ -131,8 +131,9 @@ describe("Bribery and Corruption", () => {
   it("re-rolls once per game, even across a save", async () => {
     const game = new HeadlessGame({ scenario: goblins, seed: 1 });
     await foulWith(game, 1, [1, 2]);
+    // The send-off was a Turnover: ending the other team's turn hands back
     await game.execute({ type: "end-turn" });
-    await game.execute({ type: "end-turn" });
+    expect(game.snapshot().activeTeamId).toBe("team1");
     const resumed = new HeadlessGame({ matchSave: game.matchSave() });
 
     const { fouler, argueRolls } = await foulWith(resumed, 2, [1]);

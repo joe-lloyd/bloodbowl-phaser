@@ -3,6 +3,8 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
+import { SkillType } from "../../src/types/Skills";
+import { GameEventNames } from "../../src/types/events";
 
 const downedNeighbour: Scenario = {
   id: "block-downed",
@@ -49,5 +51,45 @@ describe("a Block against a downed opponent", () => {
       id: blockerId,
       action: "foul",
     });
+  });
+});
+
+describe("a Foul whose declaration a failed negatrait ended", () => {
+  it("is not performed", async () => {
+    const scenario: Scenario = {
+      ...downedNeighbour,
+      id: "foul-after-bone-head",
+      setup: {
+        ...downedNeighbour.setup,
+        team1Placements: [
+          { playerIndex: 0, x: 10, y: 5, skills: [SkillType.BONE_HEAD] },
+          { playerIndex: 1, x: 3, y: 8 },
+        ],
+      },
+    };
+    for (let seed = 1; seed <= 300; seed++) {
+      const game = new HeadlessGame({ scenario, seed });
+      const foulerId = game.ctx.team1.players[0].id;
+      const declared = await game.execute({
+        type: "declare-action",
+        playerId: foulerId,
+        action: "foul",
+      });
+      if (declared.pendingDecision || declared.snapshot.activePlayer) continue;
+      const fouled = await game.execute({
+        type: "foul",
+        playerId: foulerId,
+        x: 11,
+        y: 5,
+      });
+      expect(
+        fouled.events.some((e) => e.name === GameEventNames.DiceRoll)
+      ).toBe(false);
+      expect(fouled.snapshot.teams[1].players[0].status).toBe(
+        PlayerStatus.PRONE
+      );
+      return;
+    }
+    throw new Error("no seed failed the Bone Head roll");
   });
 });

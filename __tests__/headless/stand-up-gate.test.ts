@@ -80,7 +80,7 @@ describe("standing up rolls the activation gate", () => {
     throw new Error("no seed passed the Bone Head roll");
   });
 
-  it("a failed Bloodlust roll offers the Move downgrade on a stand-up", async () => {
+  it("a failed Bloodlust roll waits for the coach, then stands the player up", async () => {
     for (let seed = 1; seed <= 300; seed++) {
       const game = new HeadlessGame({
         scenario: proneWith(SkillType.BLOODLUST, `stand-bloodlust-${seed}`),
@@ -88,12 +88,27 @@ describe("standing up rolls the activation gate", () => {
       });
       const playerId = game.ctx.team1.players[0].id;
       const response = await game.execute({ type: "stand-up", playerId });
-      const pending = response.pendingDecision;
-      if (pending?.type === "reroll") continue;
-      if (pending?.type === "reaction") {
-        expect(pending).toMatchObject({ skill: SkillType.BLOODLUST });
-        return;
-      }
+      if (response.pendingDecision?.type !== "reaction") continue;
+      expect(response.pendingDecision).toMatchObject({
+        skill: SkillType.BLOODLUST,
+      });
+      // Nothing stands until the coach answers
+      expect(response.snapshot.teams[0].players[0].status).toBe(
+        PlayerStatus.PRONE
+      );
+      const answered = await game.execute({
+        type: "use-reaction",
+        accept: true,
+      });
+      expect(answered.snapshot.teams[0].players[0].status).toBe(
+        PlayerStatus.ACTIVE
+      );
+      expect(answered.snapshot.activePlayer).toMatchObject({
+        id: playerId,
+        action: "move",
+        bloodlustUnsated: true,
+      });
+      return;
     }
     throw new Error("no seed failed the Bloodlust roll");
   });

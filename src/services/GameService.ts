@@ -2391,9 +2391,9 @@ export class GameService implements IGameService {
       if (!this.declareAction(playerId, "move")) {
         throw new Error("This player cannot be activated");
       }
-      if (!(await this.whenSettled())) return;
-      if (this.state.activePlayer?.id !== playerId) return;
     }
+    if (!(await this.whenSettled())) return;
+    if (this.state.activePlayer?.id !== playerId) return;
     await this.movementManager.standUp(playerId);
     // Standing up spends movement — commits the declared action.
     this.playerActionManager.commitAction(playerId);
@@ -2856,6 +2856,17 @@ export class GameService implements IGameService {
 
     const fouler = this.getPlayerById(foulerId);
     if (!fouler || !fouler.gridPosition) {
+      return;
+    }
+    // The Foul's activation gate (Bone Head, …) settles first, and a failed
+    // one that ended the activation or changed it to a Move stops it here
+    if (!(await this.whenSettled())) return;
+    const declared = this.state.activePlayer;
+    if (declared?.id !== foulerId || declared.action !== "foul") {
+      this.eventBus.emit(
+        GameEventNames.UI_Notification,
+        `${fouler.playerName} has no Foul declared.`
+      );
       return;
     }
 
