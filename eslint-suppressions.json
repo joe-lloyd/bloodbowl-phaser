@@ -226,9 +226,6 @@
   "src/game/managers/SetupManager.ts": {
     "complexity": {
       "count": 1
-    },
-    "max-lines": {
-      "count": 1
     }
   },
   "src/game/operations/ArmourOperation.ts": {

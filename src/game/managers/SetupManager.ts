@@ -11,7 +11,6 @@ import {
   SetupState,
   SetupTeamStatus,
   SetupZone,
-  SetupPlayerLimits,
 } from "@/types/SetupTypes";
 import { SetupValidator } from "../validators/SetupValidator";
 import { WeatherManager } from "./WeatherManager";
@@ -19,6 +18,11 @@ import { movePlayerToBox, playerBoxOf } from "../rules/playerLocation";
 import { isConfinedToReserves } from "../kickoff/driveEffects";
 import { GameReadiness, readyForLeagueGame } from "../rules/leagueRoster";
 import { teamCaptain } from "../rules/teamCaptain";
+import {
+  emptySetupStatus,
+  swarmPlayerLimits,
+  teamSetupStatus,
+} from "./setupStatus";
 
 export class SetupManager {
   private placedPlayers: Map<string, { x: number; y: number }> = new Map();
@@ -194,12 +198,13 @@ export class SetupManager {
     const positions = this.getFormationPositions(player.teamId).filter(
       (position) => position.playerId !== playerId
     );
+    const eligible = this.getEligiblePlayers(team);
     const validation = this.validator.validatePlacement(
       { playerId, x, y },
       positions,
       player.teamId === this.team1.id,
-      this.getEligiblePlayers(team).length,
-      this.playerLimits(team)
+      eligible.length,
+      swarmPlayerLimits(this.state.setup, team.id, eligible)
     );
     if (!validation.valid) {
       return this.refuse(validation.errors[0] ?? "Illegal setup placement.", {
@@ -526,23 +531,6 @@ export class SetupManager {
     this.callbacks.onKickoffRequested();
   }
 
-  private playerLimits(team: Team): SetupPlayerLimits | undefined {
-    const swarm = this.state.setup?.swarming?.teams[team.id];
-    if (!swarm) return undefined;
-    return {
-      minimum: swarm.basePlayerIds.length,
-      maximum: Math.min(
-        swarm.basePlayerIds.length + swarm.roll,
-        swarm.basePlayerIds.length +
-          this.getEligiblePlayers(team).filter(
-            (player) =>
-              !swarm.basePlayerIds.includes(player.id) &&
-              player.keywords.includes(PositionKeyWord.LINEMAN)
-          ).length
-      ),
-    };
-  }
-
   public resolveConcession(teamId: string, concede: boolean): boolean {
     this.lastError = null;
     const status = this.getSetupStatus(teamId);
@@ -675,90 +663,22 @@ export class SetupManager {
     const setup = this.ensureSetupState();
     const team = this.getTeam(teamId);
     if (!team) return this.requireStatus(teamId);
-    const availablePlayerCount = this.getEligiblePlayers(team).length;
-    const positions = this.getFormationPositions(teamId);
-    const validation = this.validator.validateFormation(
-      positions,
-      teamId === this.team1.id,
-      availablePlayerCount,
-      this.playerLimits(team)
-    );
-    const previousDecision = setup.teams[teamId]?.concessionDecision;
-    const concessionDecision =
-      previousDecision ??
-      (availablePlayerCount <= 3 ? "pending" : "not-offered");
-    const restrictions = [...validation.restrictions];
     const captain = teamCaptain(team);
-    if (captain && this.isEligible(captain)) {
-      restrictions.push({
-        id: "team-captain",
-        summary: `Team Captain: ${captain.playerName}`,
-        satisfied: positions.some(
-          (position) => position.playerId === captain.id
-        ),
-        satisfiable: true,
-        message: "The Team Captain must be set up while they are able to play.",
-      });
-    }
-    if (concessionDecision === "pending") {
-      restrictions.push({
-        id: "concession-decision",
-        satisfied: false,
-        satisfiable: true,
-        message: "Choose whether to concede without penalty or play on.",
-      });
-    }
-    const swarm = setup.swarming?.teams[teamId];
-    const additionalPlayerCount = swarm
-      ? positions.filter(
-          (position) => !swarm.basePlayerIds.includes(position.playerId)
-        ).length
-      : 0;
-    const status: SetupTeamStatus = {
+    const status = teamSetupStatus({
       teamId,
-      placedPlayerCount: positions.length,
-      requiredPlayerCount:
-        swarm?.basePlayerIds.length ?? Math.min(7, availablePlayerCount),
-      availablePlayerCount,
-      restrictions,
-      canConfirm:
-        restrictions.every(
-          (restriction) => !restriction.satisfiable || restriction.satisfied
-        ) && concessionDecision !== "pending",
-      concessionDecision,
-      ...(swarm
-        ? {
-            swarming: {
-              roll: swarm.roll,
-              additionalPlayerCount,
-              maximumAdditionalPlayers: Math.min(
-                swarm.roll,
-                this.getEligiblePlayers(team).filter(
-                  (player) =>
-                    !swarm.basePlayerIds.includes(player.id) &&
-                    player.keywords.includes(PositionKeyWord.LINEMAN)
-                ).length
-              ),
-            },
-          }
-        : {}),
-    };
+      isTeam1: teamId === this.team1.id,
+      positions: this.getFormationPositions(teamId),
+      eligible: this.getEligiblePlayers(team),
+      captain: captain && this.isEligible(captain) ? captain : undefined,
+      setup,
+      validator: this.validator,
+    });
     setup.teams[teamId] = status;
     return status;
   }
 
   private requireStatus(teamId: string): SetupTeamStatus {
-    const existing = this.state.setup?.teams[teamId];
-    if (existing) return existing;
-    return {
-      teamId,
-      placedPlayerCount: 0,
-      requiredPlayerCount: 0,
-      availablePlayerCount: 0,
-      restrictions: [],
-      canConfirm: false,
-      concessionDecision: "not-offered",
-    };
+    return this.state.setup?.teams[teamId] ?? emptySetupStatus(teamId);
   }
 
   private emitStatus(teamId: string): void {
