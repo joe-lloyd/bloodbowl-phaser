@@ -206,10 +206,10 @@
   },
   "src/game/managers/BlockManager.ts": {
     "complexity": {
-      "count": 4
+      "count": 2
     },
     "sonarjs/cognitive-complexity": {
-      "count": 3
+      "count": 2
     }
   },
   "src/game/managers/MovementManager.ts": {

@@ -32,7 +32,8 @@ import {
   BlockDiceRolledContext,
 } from "../skills";
 import { steadyFootingSaves } from "../rules/steadyFooting";
-import { PassController } from "../controllers/PassController";
+import { PassController, PassResult } from "../controllers/PassController";
+import { FlowContext } from "../core/GameFlowManager";
 import { InOrderOperation, driveOver } from "./BlockOperations";
 import { snapshotRoll } from "./BlockRerolls";
 import { BlockPushChain } from "./BlockPushChain";
@@ -297,57 +298,13 @@ export class BlockManager extends BlockPushChain {
     }
 
     const from = { ...passer.gridPosition };
-    const quickTargets = this.allPlayers()
-      .filter(
-        (candidate) =>
-          candidate.id !== passer.id &&
-          candidate.teamId === passer.teamId &&
-          candidate.status === PlayerStatus.ACTIVE &&
-          !!candidate.gridPosition &&
-          PassController.rangeValue(from, candidate.gridPosition) === 0
-      )
-      .sort((a, b) => {
-        const ad = Math.max(
-          Math.abs(a.gridPosition!.x - from.x),
-          Math.abs(a.gridPosition!.y - from.y)
-        );
-        const bd = Math.max(
-          Math.abs(b.gridPosition!.x - from.x),
-          Math.abs(b.gridPosition!.y - from.y)
-        );
-        return (
-          ad - bd ||
-          a.gridPosition!.y - b.gridPosition!.y ||
-          a.gridPosition!.x - b.gridPosition!.x
-        );
-      });
-    const receiver = quickTargets[0];
-    const emptyQuickPassSquares: Array<{ x: number; y: number }> = [];
-    if (!receiver?.gridPosition) {
-      for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
-        for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
-          const square = { x, y };
-          if (
-            (x !== from.x || y !== from.y) &&
-            !gs.getPlayerAt(x, y) &&
-            PassController.rangeValue(from, square) === 0
-          ) {
-            emptyQuickPassSquares.push(square);
-          }
-        }
-      }
-      emptyQuickPassSquares.sort(
-        (a, b) =>
-          Math.max(Math.abs(a.x - from.x), Math.abs(a.y - from.y)) -
-            Math.max(Math.abs(b.x - from.x), Math.abs(b.y - from.y)) ||
-          a.y - b.y ||
-          a.x - b.x
-      );
-    }
-    const targetSquare = receiver?.gridPosition
-      ? { ...receiver.gridPosition }
-      : emptyQuickPassSquares[0];
-    if (!targetSquare) return true;
+    const target = this.dumpOffTarget(
+      passer,
+      from,
+      (x, y) => !!gs.getPlayerAt(x, y)
+    );
+    if (!target) return true;
+    const { receiver, square: targetSquare } = target;
 
     const answer = (await gs.getDecisionService().request({
       type: "reaction",
@@ -376,19 +333,94 @@ export class BlockManager extends BlockPushChain {
         gameService: gs,
         eventBus: this.eventBus,
       });
+    // The ball comes to rest, bounces and catches included, before the
+    // action that provoked the pass goes on.
+    await flow.runToRest(
+      this.landDumpOff(passer, { from, to: targetSquare, receiver, result }, gs)
+    );
+    return !driveOver(this.state.phase);
+  }
+
+  /**
+   * Dump-Off's Quick Pass target: the nearest team-mate in Quick Pass range,
+   * or else the nearest empty Quick Pass square. Ties go to the lower row,
+   * then the lower column.
+   */
+  private dumpOffTarget(
+    passer: Player,
+    from: { x: number; y: number },
+    isOccupied: (x: number, y: number) => boolean
+  ): { receiver?: Player; square: { x: number; y: number } } | null {
+    const distance = (square: { x: number; y: number }) =>
+      Math.max(Math.abs(square.x - from.x), Math.abs(square.y - from.y));
+    const nearestFirst = (
+      a: { x: number; y: number },
+      b: { x: number; y: number }
+    ) => distance(a) - distance(b) || a.y - b.y || a.x - b.x;
+
+    const receiver = this.allPlayers()
+      .filter(
+        (candidate) =>
+          candidate.id !== passer.id &&
+          candidate.teamId === passer.teamId &&
+          candidate.status === PlayerStatus.ACTIVE &&
+          !!candidate.gridPosition &&
+          PassController.rangeValue(from, candidate.gridPosition) === 0
+      )
+      .sort((a, b) => nearestFirst(a.gridPosition!, b.gridPosition!))[0];
+    if (receiver?.gridPosition) {
+      return { receiver, square: { ...receiver.gridPosition } };
+    }
+
+    const emptyQuickPassSquares: Array<{ x: number; y: number }> = [];
+    for (let y = 0; y < GameConfig.PITCH_HEIGHT; y++) {
+      for (let x = 0; x < GameConfig.PITCH_WIDTH; x++) {
+        const square = { x, y };
+        if (
+          (x !== from.x || y !== from.y) &&
+          !isOccupied(x, y) &&
+          PassController.rangeValue(from, square) === 0
+        ) {
+          emptyQuickPassSquares.push(square);
+        }
+      }
+    }
+    const square = emptyQuickPassSquares.sort(nearestFirst)[0];
+    return square ? { receiver, square } : null;
+  }
+
+  /**
+   * Where Dump-Off's pass ends: the ball is placed there, and the returned
+   * operation catches or Bounces it.
+   */
+  private landDumpOff(
+    passer: Player,
+    {
+      from,
+      to,
+      receiver,
+      result,
+    }: {
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      receiver: Player | undefined;
+      result: PassResult;
+    },
+    gs: FlowContext["gameService"]
+  ): GameOperation {
     // A Dump-off offers no interception, so an inaccurate one scatters at once.
     const scatterPath =
       result.fumbled || result.accurate
         ? undefined
-        : gs.getPassController().scatterPass(targetSquare);
+        : gs.getPassController().scatterPass(to);
     const finalPosition = result.fumbled
       ? { ...from }
-      : (scatterPath?.[scatterPath.length - 1] ?? { ...targetSquare });
+      : (scatterPath?.[scatterPath.length - 1] ?? { ...to });
 
     this.eventBus.emit(GameEventNames.PassAttempted, {
       playerId: passer.id,
       from,
-      to: { ...targetSquare },
+      to: { ...to },
       passType: result.passType,
       accurate: result.accurate,
       finalPosition,
@@ -396,21 +428,16 @@ export class BlockManager extends BlockPushChain {
     });
 
     gs.setBallPosition(finalPosition.x, finalPosition.y);
-    // The ball comes to rest, bounces and catches included, before the
-    // action that provoked the pass goes on.
     const landingPlayer = result.fumbled
       ? undefined
       : gs.getPlayerAt(finalPosition.x, finalPosition.y);
-    await flow.runToRest(
-      landingPlayer
-        ? new CatchOperation(landingPlayer.id, {
-            origin: "pass",
-            isPassTarget:
-              !!receiver && landingPlayer.id === receiver.id && result.accurate,
-          })
-        : new BounceOperation(finalPosition)
-    );
-    return !driveOver(this.state.phase);
+    return landingPlayer
+      ? new CatchOperation(landingPlayer.id, {
+          origin: "pass",
+          isPassTarget:
+            !!receiver && landingPlayer.id === receiver.id && result.accurate,
+        })
+      : new BounceOperation(finalPosition);
   }
 
   /**
@@ -460,17 +487,7 @@ export class BlockManager extends BlockPushChain {
         this.announce(resultCtx.triggers);
 
         if (resultCtx.saboteurExploded) {
-          const flowManager = this.callbacks.getFlowManager?.();
-          this.knockDownPlayer(attacker);
-          this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
-          if (flowManager) {
-            flowManager.add(new ArmourOperation(attacker.id), true);
-            if (this.isOnBall(attacker) && attacker.gridPosition) {
-              flowManager.add(new BounceOperation(attacker.gridPosition), true);
-              this.callbacks.onTurnover("Ball carrier hit by Saboteur");
-            }
-          }
-          this.endBlockActivation(attacker.id);
+          this.explodeSaboteur(attacker, defender);
           break;
         }
 
@@ -532,6 +549,21 @@ export class BlockManager extends BlockPushChain {
       },
     });
     await this.rollBlockDice(attackerId, defenderId, diceCount, true);
+  }
+
+  /** A Saboteur target exploded: the blocker goes down instead. */
+  private explodeSaboteur(attacker: Player, defender: Player): void {
+    const flowManager = this.callbacks.getFlowManager?.();
+    this.knockDownPlayer(attacker);
+    this.eventBus.emit(GameEventNames.PlayerStatusChanged, defender);
+    if (flowManager) {
+      flowManager.add(new ArmourOperation(attacker.id), true);
+      if (this.isOnBall(attacker) && attacker.gridPosition) {
+        flowManager.add(new BounceOperation(attacker.gridPosition), true);
+        this.callbacks.onTurnover("Ball carrier hit by Saboteur");
+      }
+    }
+    this.endBlockActivation(attacker.id);
   }
 
   /**
