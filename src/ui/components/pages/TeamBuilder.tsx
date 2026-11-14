@@ -519,7 +519,7 @@ export function TeamBuilder() {
       <Section title="Draft rules">
         <SevensRulesetSelector
           value={team.draftRuleset}
-          disabled={active || !!team.activeCompetitionId}
+          disabled={saving || active || !!team.activeCompetitionId}
           onChange={(draftRuleset) => setTeam({ ...team, draftRuleset })}
         />
         <p className="mt-3 font-hud-body text-hud-sm text-hud-dim">
