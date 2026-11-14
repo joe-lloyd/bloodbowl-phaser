@@ -96,6 +96,10 @@ interface Queued {
   closed?: boolean;
   /** Block dice: held until a result is chosen; the face of each die */
   block?: string[];
+  /** Block dice: each die's result as the coach reads it */
+  labels?: string[];
+  /** The 3D dice could not be drawn: why. The tray shows flat dice. */
+  failed?: string;
   /**
    * Block dice answered while still in the air, or still waiting behind
    * another roll: how long to hold them once they land. Without it the
@@ -221,37 +225,38 @@ export function DiceTray({
               resolve();
             }, DIE_LANDING_TIMEOUT_MS);
           }),
-        ]);
-        clearTimeout(timer);
-        if (round !== generation) return;
-        next.settled = true;
+        ]).finally(() => clearTimeout(timer));
         if (next.chosen !== undefined)
           handle.mark(next.chosen >= 0 ? next.chosen : null);
-        reportInAir();
-        setCurrent({ ...next });
-        inBurst = queue.current.length > 0;
-        await new Promise<void>((resolve) => {
-          release = resolve;
-          if (next.block) {
-            if (next.endAfterMs !== undefined)
-              setTimeout(resolve, next.endAfterMs);
-            return;
-          }
-          // A short read when another roll waits; one arriving during a
-          // full read cuts it short too
-          setTimeout(resolve, inBurst ? QUEUED_HOLD_MS : HOLD_MS);
-          cutHold = () => {
-            inBurst = true;
-            setTimeout(resolve, QUEUED_HOLD_MS);
-          };
-        });
-        release = null;
-        cutHold = null;
       } catch (error) {
+        // No 3D dice: the roll still shows, as flat dice a block can be
+        // picked from, and says why on screen
         console.warn("[DiceTray] could not show a roll", error);
-        next.settled = true;
-        reportInAir();
+        throwing = null;
+        next.failed = error instanceof Error ? error.message : String(error);
       }
+      if (round !== generation) return;
+      next.settled = true;
+      reportInAir();
+      setCurrent({ ...next });
+      inBurst = queue.current.length > 0;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+        if (next.block) {
+          if (next.endAfterMs !== undefined)
+            setTimeout(resolve, next.endAfterMs);
+          return;
+        }
+        // A short read when another roll waits; one arriving during a
+        // full read cuts it short too
+        setTimeout(resolve, inBurst ? QUEUED_HOLD_MS : HOLD_MS);
+        cutHold = () => {
+          inBurst = true;
+          setTimeout(resolve, QUEUED_HOLD_MS);
+        };
+      });
+      release = null;
+      cutHold = null;
       if (round !== generation) return;
       void playNext();
     };
@@ -339,6 +344,7 @@ export function DiceTray({
           teamName: teamName(team.key),
           settled: false,
           block: faces,
+          labels: payload.results.map((r) => r.label),
         },
         true
       );
@@ -365,8 +371,11 @@ export function DiceTray({
       if (!shown?.block) return;
       const index = result ? shown.block.indexOf(result) : -1;
       // Until they land, the dice may not be thrown yet: the landing marks it
-      if (!shown.settled) shown.chosen = index;
-      else throwing?.mark(index >= 0 ? index : null);
+      shown.chosen = index;
+      if (shown.settled) {
+        throwing?.mark(index >= 0 ? index : null);
+        setCurrent({ ...shown });
+      }
       if (!release) {
         shown.endAfterMs = CHOSEN_MS;
         return;
@@ -431,11 +440,78 @@ export function DiceTray({
           {current?.settled ? current.result : current?.title}
         </span>
       </div>
-      <div
-        ref={host}
-        data-testid="dice-tray-dice"
-        className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
-      />
+      <div className="relative">
+        <div
+          ref={host}
+          data-testid="dice-tray-dice"
+          className={`h-[180px] w-full bg-[radial-gradient(ellipse_at_50%_85%,rgba(44,48,57,0.6),transparent_70%)] ${pickable ? "pointer-events-auto" : ""}`}
+        />
+        {current?.settled && current.failed !== undefined && (
+          <FlatDice
+            roll={current}
+            color={color}
+            onPick={(index) =>
+              eventBus.emit(GameEventNames.UI_BlockDieClicked, { index })
+            }
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The dice drawn flat, for a browser that could not draw them in 3D. Block
+ * dice are buttons, so the coach can still pick one here.
+ */
+function FlatDice({
+  roll,
+  color,
+  onPick,
+}: {
+  roll: Queued;
+  color?: string;
+  onPick: (index: number) => void;
+}) {
+  const face =
+    "flex min-w-[56px] items-center justify-center rounded-hud border-2 px-2 py-3 font-hud-label text-hud-lg font-bold text-hud-bone";
+  return (
+    <div className="pointer-events-auto absolute inset-0 flex flex-col items-center justify-center gap-3 bg-hud-ink px-3">
+      <div className="flex flex-wrap justify-center gap-2">
+        {roll.labels
+          ? roll.labels.map((label, index) => (
+              <button
+                key={index}
+                type="button"
+                data-flat-die
+                onClick={() => onPick(index)}
+                className={`${face} ${
+                  roll.chosen === undefined || roll.chosen === index
+                    ? ""
+                    : "opacity-40"
+                } ${roll.chosen === index ? "ring-2 ring-hud-gold" : ""}`}
+                style={{ borderColor: color }}
+              >
+                {label}
+              </button>
+            ))
+          : roll.roll.values.map((value, index) => (
+              <span
+                key={index}
+                data-flat-die
+                className={face}
+                style={{ borderColor: color }}
+              >
+                {value}
+              </span>
+            ))}
+      </div>
+      <p
+        title={roll.failed}
+        className="max-w-full truncate text-hud-xs text-hud-dim"
+      >
+        3D dice unavailable: {roll.failed}
+      </p>
     </div>
   );
 }
