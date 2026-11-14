@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { PlayerStats } from "../../../types/Player";
 import { loadTeams } from "../../../game/managers/TeamManager";
 import {
@@ -41,6 +41,7 @@ const STAT_LABELS: Record<keyof PlayerStats, string> = {
  */
 export function PlayerPage() {
   const navigate = useNavigate();
+  const { search } = useLocation();
   const { teamId, playerId } = useParams<{
     teamId: string;
     playerId: string;
@@ -62,7 +63,7 @@ export function PlayerPage() {
           action={
             <HudButton
               variant="ghost"
-              onClick={() => navigate(`/build-team/${teamId ?? ""}`)}
+              onClick={() => navigate(`/build-team/${teamId ?? ""}${search}`)}
             >
               Back to Manage Team
             </HudButton>
@@ -114,7 +115,7 @@ export function PlayerPage() {
         actions={
           <HudButton
             variant="ghost"
-            onClick={() => navigate(`/build-team/${team.id}`)}
+            onClick={() => navigate(`/build-team/${team.id}${search}`)}
           >
             Back to Manage Team
           </HudButton>

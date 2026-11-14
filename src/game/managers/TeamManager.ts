@@ -9,6 +9,7 @@ import {
 } from "../../data/persistence/teamPersistence";
 import { backfillFirstMatchPlayedAt } from "../rules/teamLifecycle";
 import { chooseFirstLinemanAsVeteran } from "../rules/veteran";
+import { clearUnneededExpensiveMistakes } from "../rules/expensiveMistakes";
 import { isSeedOwned } from "../../seeding/seedMeta";
 import {
   cleanupDevelopmentSeedData,
@@ -21,8 +22,9 @@ const STORAGE_KEY = "bloodbowl_teams";
  * Storage seam: signed-out play persists to localStorage (the default
  * repository below); when a user signs in, the Firebase layer swaps in a
  * cloud-backed repository (src/firebase/cloudTeamRepository.ts). Both are
- * synchronous for reads and saves. Cloud deletion waits for a transaction
- * against Firestore so a stale cache cannot delete an entered team.
+ * synchronous for reads. Saves return an acknowledgement. Cloud deletion
+ * waits for a transaction against Firestore so a stale cache cannot delete
+ * an entered team.
  *
  * Both backends persist the normalized `StoredTeam` shape
  * (src/data/persistence/teamPersistence.ts) and read tolerantly: a document
@@ -32,7 +34,7 @@ const STORAGE_KEY = "bloodbowl_teams";
  */
 export interface TeamRepository {
   loadTeams(): Team[];
-  saveTeams(teams: Team[]): void;
+  saveTeams(teams: Team[]): void | Promise<void>;
   /** Cloud deletion waits for a membership check against the current document. */
   deleteTeam(teamId: string): void | Promise<void>;
 }
@@ -61,11 +63,7 @@ const localRepository: TeamRepository = {
     writeLocalTeams(teams.filter((candidate) => candidate.id !== teamId));
   },
   saveTeams(teams: Team[]): void {
-    try {
-      writeLocalTeams(teams);
-    } catch (error) {
-      console.error("Failed to save teams:", error);
-    }
+    writeLocalTeams(teams);
   },
   loadTeams(): Team[] {
     try {
@@ -106,8 +104,20 @@ export function getLocalRepository(): TeamRepository {
 /**
  * Save teams to the active backend
  */
-export function saveTeams(teams: Team[]): void {
-  activeRepository.saveTeams(teams);
+export function saveTeams(teams: Team[]): Promise<void> {
+  teams.forEach(clearUnneededExpensiveMistakes);
+  let saved: Promise<void>;
+  try {
+    saved = Promise.resolve(activeRepository.saveTeams(teams));
+  } catch (cause) {
+    saved = Promise.reject(cause);
+  }
+  // Legacy callers save in the background. Callers that must leave only
+  // after persistence await the same promise and handle its rejection.
+  void saved.catch((error: unknown) =>
+    console.error("Failed to save teams:", error)
+  );
+  return saved;
 }
 
 /**
@@ -119,6 +129,7 @@ export function saveTeams(teams: Team[]): void {
 export function loadTeams(): Team[] {
   const teams = activeRepository.loadTeams();
   teams.forEach((team) => {
+    clearUnneededExpensiveMistakes(team);
     // Teams saved before firstMatchPlayedAt existed: a team with recorded
     // win/loss/draw history has necessarily completed a match, so it is
     // active; an unplayed team is left in draft (see teamLifecycle.ts).
@@ -154,7 +165,7 @@ function migrateAdvancementMode(team: Team): void {
 /**
  * Save a single team
  */
-export function saveTeam(team: Team): void {
+export function saveTeam(team: Team): Promise<void> {
   const teams = loadTeams();
   const index = teams.findIndex((t) => t.id === team.id);
 
@@ -164,7 +175,7 @@ export function saveTeam(team: Team): void {
     teams.push(team);
   }
 
-  saveTeams(teams);
+  return saveTeams(teams);
 }
 
 /**

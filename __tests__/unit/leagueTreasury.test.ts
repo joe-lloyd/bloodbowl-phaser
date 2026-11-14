@@ -23,6 +23,7 @@ import {
 } from "../../src/competition/types";
 import {
   getTeamById,
+  saveTeam,
   saveTeams,
   setTeamRepository,
 } from "../../src/game/managers/TeamManager";
@@ -30,11 +31,47 @@ import { RosterName, Team } from "../../src/types/Team";
 import { createPlayer } from "../../src/types/Player";
 import { getRosterByRosterName } from "../../src/data/RosterTemplates";
 import { TeamBuilder } from "../utils/test-builders";
+import { queueExpensiveMistakes } from "../../src/game/rules/expensiveMistakes";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
   getDb: vi.fn(),
 }));
+
+describe("Expensive Mistakes after spending", () => {
+  it("clears the saved task below 100,000 while preserving other development", () => {
+    const team = libraryTeam("spending", 150_000);
+    queueExpensiveMistakes(team, "league:f1");
+    team.pendingDevelopment!.push({
+      id: "skill-f1",
+      kind: "sevens-skill-selection",
+      matchId: "f1",
+      eligibleParticipantIds: [team.players[0].id],
+      createdAt: 1,
+    });
+    saveTeam(team);
+    expect(getTeamById(team.id)?.pendingDevelopment).toHaveLength(2);
+
+    team.treasury = 30_000;
+    saveTeam(team);
+    expect(getTeamById(team.id)).toMatchObject({
+      treasury: 30_000,
+      pendingDevelopment: [{ id: "skill-f1", kind: "sevens-skill-selection" }],
+    });
+  });
+
+  it("clears a stale task already stored with a low Treasury", () => {
+    const team = libraryTeam("legacy-spending", 150_000);
+    queueExpensiveMistakes(team, "league:f1");
+    team.treasury = 30_000;
+    localStorage.setItem("bloodbowl_teams", JSON.stringify([team]));
+    expect(getTeamById(team.id)).toMatchObject({
+      name: "LEGACY-SPENDING",
+      treasury: 30_000,
+      pendingDevelopment: [],
+    });
+  });
+});
 
 function fixedDice(...rolls: number[]) {
   const queue = [...rolls];

@@ -39,9 +39,13 @@ function updateTeamRecord(
   counts = true,
   /** Gold the fixture's result pays this side (league games only). */
   winnings?: number
-): void {
+): void | Promise<void> {
   const persisted = getTeamById(entrant.teamId);
-  if (!persisted || persisted.recordedFixtureIds?.includes(fixtureKey)) return;
+  if (!persisted) return;
+  // The cloud cache may contain an earlier attempt whose write failed.
+  // Saving that snapshot again retries the write without paying twice.
+  if (persisted.recordedFixtureIds?.includes(fixtureKey))
+    return saveTeam(persisted);
   const team = structuredClone(persisted);
   team.recordedFixtureIds = [...(team.recordedFixtureIds ?? []), fixtureKey];
   if (progressedTeam) {
@@ -83,7 +87,7 @@ function updateTeamRecord(
   // A recorded fixture result is a confirmed completed match — the team is
   // active from here on (see teamLifecycle.ts). A no-op once already set.
   stampFirstCompletedMatch(team);
-  saveTeam(team);
+  return saveTeam(team);
 }
 
 /**
@@ -117,12 +121,12 @@ export function keepRecordedResult(team: Team): void {
  * coaches come through here at full time, whoever recorded the result first,
  * and each has only their own team.
  */
-function updateReachableTeams(
+async function updateReachableTeams(
   competition: CompetitionDoc,
   fixture: CompetitionFixture,
   result: FixtureResult,
   progressedTeams?: { home: Team; away: Team }
-): void {
+): Promise<void> {
   const entrantFor = (id: string | null) =>
     competition.entrants.find((entrant) => entrant.id === id);
   const home = entrantFor(fixture.homeEntrantId);
@@ -134,7 +138,7 @@ function updateReachableTeams(
     // A game played against a team that withdrew meanwhile still carries
     // its players' SPP and injuries, but it was walked over
     const counts = !result.walkover;
-    updateTeamRecord(
+    await updateTeamRecord(
       home,
       key,
       homeScore,
@@ -143,7 +147,7 @@ function updateReachableTeams(
       counts,
       winnings?.home
     );
-    updateTeamRecord(
+    await updateTeamRecord(
       away,
       key,
       awayScore,
@@ -157,9 +161,8 @@ function updateReachableTeams(
   // whose teams are reachable from this session (their own library) can
   // actually have the field cleared here — see clearActiveCompetition.
   if (competition.status === "complete") {
-    competition.entrants.forEach((entrant) =>
-      clearActiveCompetition(entrant.teamId, competition.id)
-    );
+    for (const entrant of competition.entrants)
+      await clearActiveCompetition(entrant.teamId, competition.id);
   }
 }
 
@@ -265,7 +268,12 @@ export async function recordCompetitionFixture(
     (fixture) => fixture.id === context.fixtureId
   );
   if (!recorded?.result) throw new Error("Fixture has no recorded result.");
-  updateReachableTeams(updated, recorded, recorded.result, progressedTeams);
+  await updateReachableTeams(
+    updated,
+    recorded,
+    recorded.result,
+    progressedTeams
+  );
   // A score-only report has no results screen to come back from: the
   // computer spends its teams' Treasuries now (purchasePlanner.ts). A
   // played game's teams are managed once their development is recorded.
@@ -313,9 +321,8 @@ export async function closeWalkovers(
   // A walkover may be what finished it, after the result that came first
   // found it still active. Opening the page frees another coach's teams.
   if (current.status === "complete")
-    current.entrants.forEach((entrant) =>
-      clearActiveCompetition(entrant.teamId, current.id)
-    );
+    for (const entrant of current.entrants)
+      await clearActiveCompetition(entrant.teamId, current.id);
   return current;
 }
 
@@ -348,7 +355,7 @@ export async function withdrawFromCompetition(
   const entrant = updated.entrants.find(
     (candidate) => candidate.id === entrantId
   )!;
-  clearActiveCompetition(entrant.teamId, updated.id);
+  await clearActiveCompetition(entrant.teamId, updated.id);
   return closeWalkovers(updated);
 }
 
@@ -361,9 +368,9 @@ export async function withdrawFromCompetition(
 export function clearActiveCompetition(
   teamId: string,
   competitionId: string
-): void {
+): void | Promise<void> {
   const team = getTeamById(teamId);
   if (!team || team.activeCompetitionId !== competitionId) return;
   delete team.activeCompetitionId;
-  saveTeam(team);
+  return saveTeam(team);
 }

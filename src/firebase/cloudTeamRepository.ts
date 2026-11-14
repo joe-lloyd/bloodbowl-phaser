@@ -4,8 +4,7 @@
  * Teams live at users/{uid}/teams/{teamId}, readable/writable only by their
  * owner (firestore.rules). The repository is a synchronous write-through
  * cache: reads come from memory (primed at sign-in), writes update the cache
- * immediately and sync to Firestore in the background — so TeamManager's
- * synchronous API keeps working unchanged for every existing call site.
+ * immediately. Saves resolve after Firestore acknowledges every write.
  */
 
 import {
@@ -121,24 +120,18 @@ export class CloudTeamRepository implements TeamRepository {
     this.cache = this.cache.filter((team) => team.id !== teamId);
   }
 
-  saveTeams(teams: Team[]): void {
+  async saveTeams(teams: Team[]): Promise<void> {
     const previousIds = new Set(this.cache.map((t) => t.id));
     const nextIds = new Set(teams.map((t) => t.id));
     this.cache = [...teams];
 
-    // Background sync; the cache is already correct for the UI
-    for (const team of teams) {
-      writeCloudTeam(this.uid, team).catch((error) =>
-        console.error(`Failed to sync team ${team.id} to cloud:`, error)
-      );
-    }
+    const writes = teams.map((team) => writeCloudTeam(this.uid, team));
     for (const id of previousIds) {
       if (!nextIds.has(id)) {
-        deleteCloudTeam(this.uid, id).catch((error) =>
-          console.error(`Failed to delete team ${id} from cloud:`, error)
-        );
+        writes.push(deleteCloudTeam(this.uid, id));
       }
     }
+    await Promise.all(writes);
   }
 }
 

@@ -13,15 +13,20 @@ import { clearMatchSave } from "../../../game/persistence/MatchSaveRepository";
 import { getTeamById, saveTeam } from "../../../game/managers/TeamManager";
 import { recordPendingDevelopment } from "../../../game/progression/postMatch";
 import { foldMatchSummaryIntoCareers } from "../../../game/progression/careerStats";
-import { keepRecordedResult } from "../../../competition/resultRecording";
+import {
+  keepRecordedResult,
+  recordCompetitionFixture,
+} from "../../../competition/resultRecording";
 import { earnsWinnings } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
+import { CompetitionContext } from "../../../competition/types";
 
 interface Props {
   visible: boolean;
   /** Where Leave goes; a competition game returns to its competition. */
   leaveTo?: string;
+  fixtureContext?: CompetitionContext;
 }
 
 function ownedTeams(teams: Team[]): Team[] {
@@ -67,7 +72,11 @@ function outcomeLabel(
   return `${scoreA > scoreB ? a.name : b.name} win`;
 }
 
-export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
+export function MatchResultsScreen({
+  visible,
+  leaveTo = "/",
+  fixtureContext,
+}: Props) {
   const navigate = useNavigate();
   const container = ServiceContainer.isInitialized()
     ? ServiceContainer.getInstance()
@@ -104,6 +113,79 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
   const computerMvpRolled = useRef(new Set<string>());
   /** Computer teams whose MVP did not roll by itself: the coach rolls it. */
   const [computerMvpFailed, setComputerMvpFailed] = useState<string[]>([]);
+  const [recordingAttempt, setRecordingAttempt] = useState(0);
+  const [recordingError, setRecordingError] = useState("");
+  const [savingTeams, setSavingTeams] = useState(false);
+  const savingTeamsRef = useRef(false);
+  const developmentRecorded = useRef(false);
+  const developmentMatchId = useRef(`match-${Date.now()}`);
+
+  // The results screen owns recording and retry, including on resume.
+  // A complete fixture alone does not mean this client's teams were saved.
+  useEffect(() => {
+    if (!visible || !fixtureContext || !container || teamIds.length < 2) return;
+    let cancelled = false;
+    setCompetitionRecorded(false);
+    setRecordingError("");
+    const game = container.gameService;
+    const state = game.getState();
+    const [homeId, awayId] = teamIds;
+    const home = game.getTeam(homeId);
+    const away = game.getTeam(awayId);
+    if (!home || !away) return;
+    void recordCompetitionFixture(
+      fixtureContext,
+      state.score[homeId] ?? 0,
+      state.score[awayId] ?? 0,
+      { home, away },
+      state.result?.penalties && {
+        home: state.result.penalties[homeId] ?? 0,
+        away: state.result.penalties[awayId] ?? 0,
+      },
+      {
+        fanFactors: state.fanFactors && {
+          home: state.fanFactors[homeId] ?? 0,
+          away: state.fanFactors[awayId] ?? 0,
+        },
+      }
+    )
+      .then((competition) => {
+        if (cancelled) return;
+        const fixture = competition.fixtures.find(
+          (entry) => entry.id === fixtureContext.fixtureId
+        );
+        setCompetitionRecorded(true);
+        const saved = fixture?.result?.winnings;
+        const recorded = {
+          fixtureId: fixtureContext.fixtureId,
+          ...(saved && {
+            winnings: { [homeId]: saved.home, [awayId]: saved.away },
+            fanFactors: {
+              [homeId]: saved.fanFactor.home,
+              [awayId]: saved.fanFactor.away,
+            },
+          }),
+        };
+        if (recorded.winnings)
+          setWinnings({
+            gold: recorded.winnings,
+            fanFactors: recorded.fanFactors ?? {},
+          });
+        container.eventBus.emit(
+          GameEventNames.CompetitionResultRecorded,
+          recorded
+        );
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled)
+          setRecordingError(
+            cause instanceof Error ? cause.message : String(cause)
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, fixtureContext, container, teamIds, recordingAttempt]);
 
   // Idempotency across rerender/resume/reconnect: seed from the tracker's
   // own persisted state instead of only from live events, so a remount never
@@ -142,6 +224,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
       winnings?: Record<string, number>;
       fanFactors?: Record<string, number>;
     }) => {
+      if (fixtureContext) return;
       setCompetitionRecorded(true);
       if (recorded?.winnings)
         setWinnings({
@@ -166,7 +249,7 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
         onCompetitionRecorded
       );
     };
-  }, [container]);
+  }, [container, fixtureContext]);
 
   // The computer names its own MVP nominees: the first six who took part.
   useEffect(() => {
@@ -218,7 +301,9 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
         (stats) => stats.teamId === team.id && stats.mvps > 0
       )
   );
-  const canExit = !progressionEnabled || confirmed;
+  const recordingPending = !!fixtureContext && !competitionRecorded;
+  const canExit =
+    (!progressionEnabled || confirmed) && !recordingPending && !savingTeams;
 
   const nomineesFor = (team: Team): string[] => {
     const existing = nominations[team.id];
@@ -291,42 +376,81 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
     }
   };
 
-  const recordDevelopment = (matchId: string) => {
+  const recordDevelopment = async () => {
     const gameState = container?.gameService.getState();
-    savedTeams(teams).forEach((team) => {
-      recordPendingDevelopment(
-        team,
-        matchId,
-        gameState?.raisedDead?.[team.id],
-        {
-          // A league fixture's Journeymen who played wait on a hiring decision
-          leagueFixture: !!gameState?.paysWinnings,
-          playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
-        }
-      );
-      keepRecordedResult(team);
-      saveTeam(team);
-    });
+    const managed = savedTeams(teams);
+    if (!developmentRecorded.current) {
+      managed.forEach((team) => {
+        recordPendingDevelopment(
+          team,
+          fixtureContext
+            ? `${fixtureContext.competitionId}:${fixtureContext.fixtureId}`
+            : developmentMatchId.current,
+          gameState?.raisedDead?.[team.id],
+          {
+            // A league fixture's Journeymen who played wait on a hiring decision
+            leagueFixture: !!gameState?.paysWinnings,
+            playedIds: new Set(tracker.getEligibleMvpPlayers(team.id)),
+          }
+        );
+        keepRecordedResult(team);
+      });
+      developmentRecorded.current = true;
+    }
+    for (const team of managed) await saveTeam(team);
   };
 
-  const confirmSpp = () => {
+  const managePostMatchTeam = (): boolean => {
+    if (!state.paysWinnings) return false;
+    const managed = own.filter(
+      (team) =>
+        !team.computerCoached && earnsWinnings(team) && !!getTeamById(team.id)
+    );
+    const [first, ...next] = managed;
+    if (!first) return false;
+    const params = new URLSearchParams({ postMatch: "1", returnTo: leaveTo });
+    next.forEach((team) => params.append("nextTeam", team.id));
+    managed.forEach((team) => {
+      const gold = winnings?.gold[team.id];
+      if (gold !== undefined) params.set(`winnings-${team.id}`, String(gold));
+    });
+    clearMatchSave();
+    navigate(`/build-team/${first.id}?${params}`, { replace: true });
+    return true;
+  };
+
+  const confirmSpp = async (openManagement = true): Promise<boolean> => {
+    if (recordingPending || savingTeamsRef.current) return false;
+    savingTeamsRef.current = true;
+    setSavingTeams(true);
     try {
-      const concedingTeamId =
-        result?.reason === "concession" ? result.concedingTeamId : undefined;
-      const finalSummary = tracker.applySpp(teams, concedingTeamId);
-      foldMatchSummaryIntoCareers(teams, finalSummary);
-      recordDevelopment(`match-${Date.now()}`);
+      if (!tracker.applied) {
+        const concedingTeamId =
+          result?.reason === "concession" ? result.concedingTeamId : undefined;
+        const finalSummary = tracker.applySpp(teams, concedingTeamId);
+        foldMatchSummaryIntoCareers(teams, finalSummary);
+      }
       setConfirmed(true);
+      await recordDevelopment();
       setError("");
+      if (openManagement) managePostMatchTeam();
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
+    } finally {
+      savingTeamsRef.current = false;
+      setSavingTeams(false);
     }
   };
 
-  const leave = () => {
+  const leave = async () => {
     if (!canExit) return;
-    clearMatchSave();
-    navigate(leaveTo);
+    if (progressionEnabled && !(await confirmSpp(false))) return;
+    if (!managePostMatchTeam()) {
+      clearMatchSave();
+      navigate(leaveTo);
+    }
   };
 
   return (
@@ -485,8 +609,10 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
               })}
             </div>
             <button
-              onClick={confirmSpp}
-              disabled={pendingMvpTeams.length > 0}
+              onClick={() => void confirmSpp()}
+              disabled={
+                pendingMvpTeams.length > 0 || recordingPending || savingTeams
+              }
               className={`${hudButtonClass("gold", "lg")} mt-5`}
             >
               Confirm and assign SPP
@@ -513,14 +639,36 @@ export function MatchResultsScreen({ visible, leaveTo = "/" }: Props) {
           }
           className={`${hudButtonClass("primary", "lg")} mt-6`}
         >
-          {leaveTo === "/"
-            ? "Continue to Main Menu"
-            : "Back to the competition"}
+          {savingTeams
+            ? "Saving team..."
+            : error && confirmed
+              ? "Retry saving team"
+              : state.paysWinnings
+                ? "Manage team"
+                : leaveTo === "/"
+                  ? "Continue to Main Menu"
+                  : "Back to the competition"}
         </button>
         {!canExit && (
           <p className="mt-2 text-hud-sm italic text-hud-dim">
-            Confirm MVP nomination and SPP for both teams before leaving.
+            {recordingPending
+              ? "Saving the competition result and winnings..."
+              : "Confirm MVP nomination and SPP for both teams before leaving."}
           </p>
+        )}
+
+        {recordingError && (
+          <div className="mt-4">
+            <p role="alert" className="text-hud-bad-soft">
+              The competition result could not be saved. {recordingError}
+            </p>
+            <button
+              className={`${hudButtonClass("primary")} mt-2`}
+              onClick={() => setRecordingAttempt((attempt) => attempt + 1)}
+            >
+              Retry saving result
+            </button>
+          </div>
         )}
 
         {error && <p className="mt-4 text-hud-bad-soft">{error}</p>}

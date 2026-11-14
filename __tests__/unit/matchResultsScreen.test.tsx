@@ -24,8 +24,13 @@ import {
 import { saveCompetition } from "../../src/competition/repository";
 import { recordCompetitionFixture } from "../../src/competition/resultRecording";
 import { CompetitionEntrant, LeagueDoc } from "../../src/competition/types";
-import { loadTeams, saveTeams } from "../../src/game/managers/TeamManager";
+import {
+  loadTeams,
+  saveTeams,
+  setTeamRepository,
+} from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
+import { TeamBuilder as TeamBuilderPage } from "../../src/ui/components/pages/TeamBuilder";
 
 vi.mock("../../src/firebase/config", () => ({
   isFirebaseConfigured: vi.fn(() => false),
@@ -43,6 +48,8 @@ describe("MatchResultsScreen", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
+    setTeamRepository(null);
     await act(async () => root.unmount());
     container.remove();
     ServiceContainer.reset();
@@ -271,6 +278,136 @@ describe("MatchResultsScreen", () => {
     return league;
   }
 
+  it("keeps confirmed SPP and the match save when storage fails, then retries without another award", async () => {
+    localStorage.clear();
+    const { services, state, team1, team2 } = setup(true);
+    team1.advancementMode = "advanced-league";
+    team2.advancementMode = "advanced-league";
+    state.paysWinnings = true;
+    saveTeams([team1, team2]);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    const clear = vi.fn();
+    setMatchSaveRepository({
+      read: () => null,
+      write: () => {},
+      clear,
+      describe: () => null,
+    });
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/play"]}>
+          <Routes>
+            <Route
+              path="/play"
+              element={
+                <MatchResultsScreen visible leaveTo="/leagues/season-1" />
+              }
+            />
+            <Route
+              path="/build-team/:teamId"
+              element={<p>Team management</p>}
+            />
+          </Routes>
+        </MemoryRouter>
+      )
+    );
+    for (const button of [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent?.includes("Roll MVP D6")
+    ))
+      await act(async () => button.click());
+    const write = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("Storage full");
+      });
+    const confirm = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Confirm and assign SPP")
+    )!;
+    await act(async () => confirm.click());
+    expect(container.textContent).toContain("Full Time");
+    expect(container.textContent).toContain("Storage full");
+    expect(clear).not.toHaveBeenCalled();
+    write.mockRestore();
+    const retry = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Retry saving team")
+    )!;
+    await act(async () => retry.click());
+    expect(container.textContent).toBe("Team management");
+    expect(loadTeams().map((team) => team.players[0].spp)).toEqual([4, 4]);
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries fixture recording and waits for this client's saved teams even when the fixture is complete", async () => {
+    localStorage.clear();
+    const { services, state, team1, team2 } = setup(true);
+    team1.advancementMode = "advanced-league";
+    team2.advancementMode = "advanced-league";
+    state.paysWinnings = true;
+    const league = await leagueOf([team1, team2]);
+    const fixtureContext = {
+      competitionType: "league" as const,
+      competitionId: league.id,
+      fixtureId: league.fixtures[0].id,
+    };
+    await recordCompetitionFixture(fixtureContext, 1, 0, {
+      home: team1,
+      away: team2,
+    });
+    let cache = loadTeams();
+    let fail = true;
+    let acknowledge!: () => void;
+    const written = new Promise<void>((resolve) => {
+      acknowledge = resolve;
+    });
+    setTeamRepository({
+      loadTeams: () => cache,
+      saveTeams: (teams) => {
+        cache = teams;
+        return fail ? Promise.reject(new Error("Cloud offline")) : written;
+      },
+      deleteTeam: () => {},
+    });
+    services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
+    services.eventBus.emit(GameEventNames.PlayerActivated, team2.players[0].id);
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <MatchResultsScreen visible fixtureContext={fixtureContext} />
+        </MemoryRouter>
+      )
+    );
+    expect(container.textContent).toContain(
+      "The competition result could not be saved. Cloud offline"
+    );
+    for (const button of [...container.querySelectorAll("button")].filter((b) =>
+      b.textContent?.includes("Roll MVP D6")
+    ))
+      await act(async () => button.click());
+    const confirm = () =>
+      [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Confirm and assign SPP")
+      )!;
+    expect(confirm().disabled).toBe(true);
+    fail = false;
+    const retry = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Retry saving result")
+    )!;
+    await act(async () => retry.click());
+    expect(confirm().disabled).toBe(true);
+    await act(async () => acknowledge());
+    expect(confirm().disabled).toBe(false);
+    expect(container.textContent).toContain(
+      "Competition fixture result recorded"
+    );
+    expect(
+      loadTeams().map((team) => ({ wins: team.wins, losses: team.losses }))
+    ).toEqual([
+      { wins: 1, losses: 0 },
+      { wins: 0, losses: 1 },
+    ]);
+  });
+
   it.each([
     {
       result: "a win",
@@ -343,10 +480,13 @@ describe("MatchResultsScreen", () => {
     }
   );
 
-  it("settles a league game against the computer: its MVP, both teams, and back to the league", async () => {
+  it("confirms a league game and opens the human team's management before returning to the league", async () => {
     localStorage.clear();
     const { services, state, team1, team2 } = setup(true);
+    team1.advancementMode = "advanced-league";
+    team2.advancementMode = "advanced-league";
     const league = await leagueOf([team1, team2]);
+    state.paysWinnings = true;
     state.score["team-1"] = 0;
     state.score["team-2"] = 2;
     services.eventBus.emit(GameEventNames.PlayerActivated, team1.players[0].id);
@@ -389,10 +529,16 @@ describe("MatchResultsScreen", () => {
                   <MatchResultsScreen
                     visible={true}
                     leaveTo="/leagues/season-1"
+                    fixtureContext={{
+                      competitionType: "league",
+                      competitionId: league.id,
+                      fixtureId: league.fixtures[0].id,
+                    }}
                   />
                 }
               />
               <Route path="/leagues/:id" element={<p>The league page</p>} />
+              <Route path="/build-team/:teamId" element={<TeamBuilderPage />} />
             </Routes>
           </MemoryRouter>
         );
@@ -421,10 +567,16 @@ describe("MatchResultsScreen", () => {
       expect(stored("team-2")).toMatchObject({ wins: 1, touchdowns: 2 });
       expect(stored("team-2").players[0].spp).toBeGreaterThan(0);
 
-      const leave = [...container.querySelectorAll("button")].find(
-        (b) => b.textContent === "Back to the competition"
+      expect(container.textContent).toContain("Post-match team management");
+      expect(
+        container
+          .querySelector('input[placeholder="Enter Team Name"]')
+          ?.getAttribute("value")
+      ).toBe("Reikland Reavers");
+      const finish = [...container.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes("Finish post-match")
       )!;
-      await act(async () => leave.click());
+      await act(async () => finish.click());
       expect(container.textContent).toBe("The league page");
     } finally {
       setActiveOnlineMatch(null);

@@ -62,9 +62,14 @@ import {
 export function PendingDevelopmentPanel({
   team,
   onChange,
+  showExpensiveMistakes = true,
+  onOpenPlayer,
 }: {
   team: Team;
   onChange: (team: Team) => void;
+  /** The team detail page checks the Treasury when the coach finishes. */
+  showExpensiveMistakes?: boolean;
+  onOpenPlayer?: (playerId: string) => void;
 }) {
   const [notice, setNotice] = useState("");
   // Expensive Mistakes is the last step, whatever order it was queued in
@@ -73,7 +78,7 @@ export function PendingDevelopmentPanel({
       (entry) => entry.kind !== "expensive-mistakes"
     ),
     ...(team.pendingDevelopment ?? []).filter(
-      (entry) => entry.kind === "expensive-mistakes"
+      (entry) => showExpensiveMistakes && entry.kind === "expensive-mistakes"
     ),
   ];
   if (pending.length === 0 && !team.players.some(mustAdvance) && !notice) {
@@ -110,6 +115,7 @@ export function PendingDevelopmentPanel({
                 entry={entry}
                 onChange={onChange}
                 onNotice={setNotice}
+                onOpenPlayer={onOpenPlayer}
               />
             );
           case "sevens-skill-selection":
@@ -297,12 +303,14 @@ function AdvancedLeagueEntry({
   entry,
   onChange,
   onNotice,
+  onOpenPlayer,
 }: {
   team: Team;
   entry: Extract<PendingDevelopment, { kind: "advanced-league-advancement" }>;
   onChange: (team: Team) => void;
   /** Shown by the panel, so it survives this entry disappearing. */
   onNotice: (notice: string) => void;
+  onOpenPlayer?: (playerId: string) => void;
 }) {
   const player = team.players.find(
     (candidate) => candidate.id === entry.playerId
@@ -323,6 +331,10 @@ function AdvancedLeagueEntry({
         <p className="mt-1 text-hud-warn">
           Not enough SPP yet — this resolves automatically once they qualify.
         </p>
+      ) : onOpenPlayer ? (
+        <HudButton size="sm" onClick={() => onOpenPlayer(player.id)}>
+          Advance player
+        </HudButton>
       ) : (
         <PlayerDevelopment
           player={player}

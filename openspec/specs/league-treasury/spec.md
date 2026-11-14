@@ -295,8 +295,10 @@ fixture) and a league team's Treasury then holds 100,000 gp or more, an
 Expensive Mistakes step SHALL wait in Manage Team. The coach SHALL roll it
 after every other post-game choice, and MAY spend in the Team Builder first.
 The roll SHALL use the table above on the Treasury at that moment, and a
-Treasury under 100,000 gp rolls nothing. It blocks the next fixture until
-rolled. A computer team rolls it after its own hiring. A tournament fixture,
+Treasury under 100,000 gp rolls nothing. Loading or saving a team below that
+threshold SHALL clear obsolete Expensive Mistakes tasks while preserving
+other pending development. It blocks the next fixture until resolved.
+A computer team rolls it after its own hiring. A tournament fixture,
 a walkover and any game outside a competition SHALL never queue it.
 
 #### Scenario: Crisis Averted
@@ -323,3 +325,28 @@ a walkover and any game outside a competition SHALL never queue it.
 
 - **WHEN** a Treasury of 95,000 gp reaches this step
 - **THEN** nothing is rolled and it stays 95,000 gp
+
+#### Scenario: Spending removes the pending roll
+
+- **WHEN** a team with a pending Expensive Mistakes task spends its Treasury
+  from 150,000 gp down to 30,000 gp and saves
+- **THEN** the task is cleared and Manage Team shows no roll prompt
+
+### Requirement: League results continue into team management
+
+After confirming MVP and SPP for a league fixture, the coach SHALL continue
+directly to the existing team detail page. The fixture result and winnings
+SHALL be saved before confirmation can proceed. The detail page SHALL show
+the team's winnings and pending development beside its existing purchases
+and roster. Visiting a player SHALL preserve the post-match return path and
+save any purchases first.
+
+Finish post-match SHALL save the team and resolve Expensive Mistakes using
+the Treasury after purchases. Required development SHALL be completed first.
+If dice are rolled, the result SHALL remain visible before the coach returns
+to the league. Finishing or reloading SHALL NOT roll the same task again.
+The handoff and finish actions SHALL wait for acknowledged team saves.
+A rejected save SHALL keep the coach on the current page with a retry action.
+Retrying SHALL save the confirmed SPP and dice results without applying them again.
+Local games with two human teams SHALL visit each team in turn. Computer
+teams SHALL keep their automatic management.
