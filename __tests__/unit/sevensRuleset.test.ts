@@ -129,9 +129,18 @@ describe("GW baseline and dated NAF Sevens rulings", () => {
     expect(competition.ruleset).toBe("gw-2025");
     delete competition.ruleset;
     await saveCompetition(competition);
-    expect((await getCompetition("league", competition.id))?.ruleset).toBe(
-      DEFAULT_SEVENS_RULESET
-    );
+    const loaded = await getCompetition("league", competition.id);
+    expect(loaded).not.toHaveProperty("ruleset");
+    expect(readSevensRuleset(loaded?.ruleset)).toBe("gw-2025");
+    await updateCompetition("league", competition.id, (latest) => ({
+      ...latest,
+      name: "Renamed legacy league",
+    }));
+    const stored = JSON.parse(localStorage.getItem("bloodbowl_competitions")!);
+    expect(stored[`league:${competition.id}`]).toMatchObject({
+      name: "Renamed legacy league",
+    });
+    expect(stored[`league:${competition.id}`]).not.toHaveProperty("ruleset");
   });
 
   it("keeps a season's choice fixed when it is saved or updated", async () => {

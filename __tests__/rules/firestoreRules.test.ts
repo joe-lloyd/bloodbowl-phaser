@@ -84,6 +84,7 @@ import {
 } from "../../src/competition/types";
 import { getTeamById, saveTeam } from "../../src/game/managers/TeamManager";
 import { Team } from "../../src/types/Team";
+import { SevensRuleset } from "../../src/game/rules/sevensRuleset";
 
 const HOST = "host-uid";
 const GUEST = "guest-uid";
@@ -484,13 +485,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       );
     let nextId = 0;
 
-    async function league(): Promise<LeagueDoc> {
+    async function league(ruleset?: SevensRuleset): Promise<LeagueDoc> {
       const list = entrants();
       const fixtures = generateRoundRobin(list);
       const doc_: LeagueDoc = {
         id: `league-${Date.now()}-${nextId++}`,
         type: "league",
         name: "League",
+        ...(ruleset === undefined ? {} : { ruleset }),
         organizerUid: ORGANIZER,
         participantUids: [HOST, GUEST, THIRD, ORGANIZER],
         status: "active",
@@ -508,13 +510,14 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       return doc_;
     }
 
-    async function tournament(): Promise<TournamentDoc> {
+    async function tournament(ruleset?: SevensRuleset): Promise<TournamentDoc> {
       const list = entrants();
       const fixtures = generateSingleElimination(list);
       const doc_: TournamentDoc = {
         id: `cup-${Date.now()}-${nextId++}`,
         type: "tournament",
         name: "Cup",
+        ...(ruleset === undefined ? {} : { ruleset }),
         organizerUid: ORGANIZER,
         participantUids: [HOST, GUEST, THIRD, ORGANIZER],
         status: "active",
@@ -550,26 +553,39 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       return { fixture, rival };
     };
 
-    it("can report a league result and withdraw their own team", async () => {
-      const comp = await league();
-      const { fixture } = guestsFixture(comp);
-      const updated = await as(GUEST, () =>
-        recordCompetitionFixture(context(comp, fixture.id), 2, 1)
-      );
-      expect(updated.fixtures.find((f) => f.id === fixture.id)?.status).toBe(
-        "complete"
-      );
+    it.each([undefined, "gw-2025", "naf-sevens-2026-09-26"] as const)(
+      "can report a league result and withdraw their own team with ruleset %s",
+      async (ruleset) => {
+        const comp = await league(ruleset);
+        const { fixture } = guestsFixture(comp);
+        const updated = await as(GUEST, () =>
+          recordCompetitionFixture(context(comp, fixture.id), 2, 1)
+        );
+        expect(updated.fixtures.find((f) => f.id === fixture.id)?.status).toBe(
+          "complete"
+        );
 
-      const after = await as(GUEST, () =>
-        withdrawFromCompetition(
-          { competitionType: "league", competitionId: comp.id },
-          `e-${GUEST}`
-        )
-      );
-      expect(after.entrants.find((e) => e.id === `e-${GUEST}`)?.withdrawn).toBe(
-        true
-      );
-    });
+        const after = await as(GUEST, () =>
+          withdrawFromCompetition(
+            { competitionType: "league", competitionId: comp.id },
+            `e-${GUEST}`
+          )
+        );
+        expect(
+          after.entrants.find((e) => e.id === `e-${GUEST}`)?.withdrawn
+        ).toBe(true);
+        const stored = (await getDoc(leagueRef(ADMIN, comp.id))).data();
+        expect(stored?.ruleset).toBe(ruleset);
+        await denied(
+          updateDoc(leagueRef(GUEST, comp.id), {
+            ruleset:
+              ruleset === "naf-sevens-2026-09-26"
+                ? "gw-2025"
+                : "naf-sevens-2026-09-26",
+          })
+        );
+      }
+    );
 
     const storedLeague = async (id: string) =>
       (await getDoc(leagueRef(ADMIN, id))).data() as LeagueDoc;
@@ -851,24 +867,37 @@ describe.skipIf(!EMULATOR)("firestore.rules", () => {
       expect([next.homeEntrantId, next.awayEntrantId]).toContain(winner);
     });
 
-    it("can report a knockout game won on Penalties, which advances the winner", async () => {
-      const comp = await tournament();
-      const mine = comp.fixtures.find(
-        (f) =>
-          f.status === "ready" &&
-          [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
-      )!;
-      const updated = await as(GUEST, () =>
-        recordCompetitionFixture(context(comp, mine.id), 1, 1, undefined, {
-          home: 2,
-          away: 3,
-        })
-      );
-      const next = updated.fixtures.find((f) => f.id === mine.nextFixtureId)!;
-      expect([next.homeEntrantId, next.awayEntrantId]).toContain(
-        mine.awayEntrantId
-      );
-    });
+    it.each([undefined, "gw-2025", "naf-sevens-2026-09-26"] as const)(
+      "can report a knockout game won on Penalties with ruleset %s, which advances the winner",
+      async (ruleset) => {
+        const comp = await tournament(ruleset);
+        const mine = comp.fixtures.find(
+          (f) =>
+            f.status === "ready" &&
+            [f.homeEntrantId, f.awayEntrantId].includes(`e-${GUEST}`)
+        )!;
+        const updated = await as(GUEST, () =>
+          recordCompetitionFixture(context(comp, mine.id), 1, 1, undefined, {
+            home: 2,
+            away: 3,
+          })
+        );
+        const next = updated.fixtures.find((f) => f.id === mine.nextFixtureId)!;
+        expect([next.homeEntrantId, next.awayEntrantId]).toContain(
+          mine.awayEntrantId
+        );
+        const ref = doc(dbFor(GUEST), "tournaments", comp.id);
+        expect((await getDoc(ref)).data()?.ruleset).toBe(ruleset);
+        await denied(
+          updateDoc(ref, {
+            ruleset:
+              ruleset === "naf-sevens-2026-09-26"
+                ? "gw-2025"
+                : "naf-sevens-2026-09-26",
+          })
+        );
+      }
+    );
 
     it("cannot name a Penalties winner the shoot-out does not support, or in a league", async () => {
       const cup = await tournament();

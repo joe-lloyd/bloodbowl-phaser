@@ -215,6 +215,8 @@ service cloud.firestore {
     // Organizers control competition structure and may report any fixture. A
     // participant may report their own fixtures and change their own entrant
     // (see the functions above).
+    // Participants cannot change ruleset through their affectedKeys allowlist;
+    // only the organizer path needs the additional ruleset comparison.
     // Standings, status and the champion are only caches: every reader
     // recomputes them from the fixtures (src/competition/repository.ts).
     match /leagues/{leagueId} {
@@ -223,8 +225,8 @@ service cloud.firestore {
         && validCompetitionRules()
         && request.resource.data.organizerUid == request.auth.uid;
       allow update: if request.auth != null
-        && competitionRulesKept()
-        && (resource.data.organizerUid == request.auth.uid
+        && ((resource.data.organizerUid == request.auth.uid
+            && competitionRulesKept())
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',
@@ -242,8 +244,8 @@ service cloud.firestore {
         && validCompetitionRules()
         && request.resource.data.organizerUid == request.auth.uid;
       allow update: if request.auth != null
-        && competitionRulesKept()
-        && (resource.data.organizerUid == request.auth.uid
+        && ((resource.data.organizerUid == request.auth.uid
+            && competitionRulesKept())
           || (request.auth.uid in resource.data.participantUids
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['entrants', 'fixtures', 'standings', 'status',

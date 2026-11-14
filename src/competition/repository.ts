@@ -139,13 +139,9 @@ function normalizeOnRead(
   const repaired = withRepairedLinkage(
     competition ? convertLegacyEntrants(competition) : null
   );
-  return (
-    repaired &&
-    withResultsFromFixtures({
-      ...repaired,
-      ruleset: readSevensRuleset(repaired.ruleset),
-    })
-  );
+  // Preserve absent legacy metadata: participants may only edit results and entrants.
+  if (repaired?.ruleset !== undefined) readSevensRuleset(repaired.ruleset);
+  return repaired && withResultsFromFixtures(repaired);
 }
 
 export async function getCompetition(
