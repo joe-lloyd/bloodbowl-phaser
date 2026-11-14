@@ -28,7 +28,7 @@ import {
   CompetitionFixture,
 } from "./types";
 import { DEFAULT_SEVENS_RULESET } from "../game/rules/sevensRuleset";
-import { fixturePaysWinnings } from "../game/rules/winnings";
+import { fixturePaysWinnings, stalledSides } from "../game/rules/winnings";
 
 export interface SimulatedFixture {
   fixture: CompetitionFixture;
@@ -177,6 +177,7 @@ export async function simulateFixture(
         home: fanFactors[home.id] ?? 0,
         away: fanFactors[away.id] ?? 0,
       },
+      stalled: stalledSides(state.stallingPlayerIds, teams.home, teams.away),
     }
   );
 

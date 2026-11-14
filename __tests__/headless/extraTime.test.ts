@@ -51,6 +51,12 @@ async function play(seed: number, knockout: boolean) {
     if (String(line).startsWith("FULL TIME")) fullTime = String(line);
   });
   const rollOff: Record<string, number>[] = [];
+  // A Time-Out kick-off (3) moves both turn markers forward one
+  let extraTimeKickoff: number | undefined;
+  eventBus.on(GameEventNames.DiceRoll, (roll) => {
+    if (state().turn.extraTime && roll.rollType === "Kickoff Event")
+      extraTimeKickoff ??= roll.total;
+  });
   eventBus.on(GameEventNames.DiceRoll, (roll) => {
     if (!roll.rollType.startsWith("Extra Time roll-off")) return;
     if (roll.teamId === home) rollOff.push({ [home]: roll.value });

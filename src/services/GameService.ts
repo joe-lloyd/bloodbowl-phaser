@@ -84,7 +84,13 @@ import { PuntOperation } from "@/game/operations/PuntOperation";
 import { ThrowTeammateOperation } from "@/game/operations/ThrowTeammateOperation";
 import { SwoopFacing, isSwoopFacing } from "@/game/rules/throwTeammate";
 import { BombardierOperation } from "@/game/operations/BombardierOperation";
-import { BallAndChainOperation } from "@/game/operations/BallAndChainOperation";
+import {
+  BallAndChainOperation,
+  BallAndChainSquare,
+  FinishBallAndChainSquare,
+} from "@/game/operations/BallAndChainOperation";
+import { CrowdTakesActionOperation } from "@/game/operations/CrowdTakesActionOperation";
+import { canScoreWithoutDice } from "@/game/rules/stalling";
 import { IRNGService } from "./rng/RNGService.js";
 import {
   RerollArbiter,
@@ -419,6 +425,8 @@ export class GameService implements IGameService {
     eventBus.on(GameEventNames.TurnStarted, () => {
       this.blitzBlockUsed.clear();
       this.puntUsedThisTurn = false;
+      this.ballAndChainSquare = null;
+      this.crowdRolledFor = null;
     });
 
     this.passController = new PassController(
@@ -956,6 +964,13 @@ export class GameService implements IGameService {
     // declaration must release first" guard then refuses the NEXT team's
     // very first declaration, making the turn look like it never ended.
     // Finalize it the same way finishActivation() would.
+    if (live && this.takeStalling(live.id)) {
+      this.flowManager.add(
+        new CrowdTakesActionOperation(live.id, () => this.endTurn())
+      );
+      return;
+    }
+    this.crowdRolledFor = null;
     if (this.state.activePlayer) {
       this.playerActionManager.commitAction(this.state.activePlayer.id);
       this.state.activePlayer = null;
@@ -968,12 +983,21 @@ export class GameService implements IGameService {
   }
 
   finishActivation(playerId: string): void {
+    // A Ball & Chain collision has resolved: the block engine ends a Block
+    // by finishing the activation, but the lurch only finishes its square,
+    // once everything the Block queued has come to rest.
+    const square = this.ballAndChainSquare;
+    if (square?.fanaticId === playerId) {
+      this.ballAndChainSquare = null;
+      this.flowManager.add(new FinishBallAndChainSquare(square));
+      return;
+    }
     // Both Razzle-Dazzle Actions share one activation: the bite is due after both.
     if (this.holdForSecondAction(playerId)) {
       this.blitzBlockUsed.delete(playerId);
       return;
     }
-    // A failed Bloodlust is settled before ending the activation.
+    // A failed Bloodlust is settled first: bite a Thrall or pay for it.
     if (this.takeUnsatedBloodlust(playerId)) {
       this.flowManager.add(
         new BloodlustBiteOperation(playerId, "consequences", () =>
@@ -990,6 +1014,16 @@ export class GameService implements IGameService {
       this.eventBus.emit(GameEventNames.ActionResolved, { playerId });
       return;
     }
+    // Stalling: the crowd may pelt a player who could have scored
+    if (this.takeStalling(playerId)) {
+      this.flowManager.add(
+        new CrowdTakesActionOperation(playerId, () =>
+          this.finishActivation(playerId)
+        )
+      );
+      return;
+    }
+    this.crowdRolledFor = null;
     this.blitzBlockUsed.delete(playerId);
     // Secure the Ball: "this Move Action must finish on a square containing
     // a ball otherwise a Turnover is caused". A pick-up on the ball ends the
@@ -1054,6 +1088,54 @@ export class GameService implements IGameService {
     );
     this.eventBus.emit(GameEventNames.RazzleDazzleSecondAction, { playerId });
     return true;
+  }
+
+  /** The player whose Crowd Takes Action roll this activation has made. */
+  private crowdRolledFor: string | null = null;
+
+  /**
+   * Stalling (2025 rulebook p.80), judged as the activation ends: the player
+   * held the ball and could score without dice when activated, and has not
+   * scored. A Pass or Hand-off that got rid of the ball is not Stalling;
+   * putting it down with Fumblerooski is (May 2026 FAQ). A player who
+   * Forgoes their activation is judged as they stand. Records the player
+   * for the post-game Winnings and returns true once per activation.
+   */
+  private takeStalling(playerId: string): boolean {
+    if (this.crowdRolledFor === playerId) return false;
+    if (this.state.phase !== GamePhase.PLAY) return false;
+    const player = this.getPlayerById(playerId);
+    if (!player?.gridPosition || player.status !== PlayerStatus.ACTIVE) {
+      return false;
+    }
+    const active = this.state.activePlayer;
+    const stalling =
+      active?.id === playerId
+        ? !!active.stalling &&
+          !(
+            (active.action === "pass" || active.action === "handoff") &&
+            !this.ballManager.hasBall(playerId)
+          )
+        : !this.hasPlayerActed(playerId) && this.couldScoreWithoutDice(player);
+    if (!stalling) return false;
+    this.crowdRolledFor = playerId;
+    if (!this.state.stallingPlayerIds?.includes(playerId)) {
+      this.state.stallingPlayerIds = [
+        ...(this.state.stallingPlayerIds ?? []),
+        playerId,
+      ];
+    }
+    return true;
+  }
+
+  /** Whether this ball carrier could score now without rolling any dice. */
+  private couldScoreWithoutDice(player: Player): boolean {
+    return canScoreWithoutDice({
+      player,
+      state: this.state,
+      players: [...this.team1.players, ...this.team2.players],
+      side: player.teamId === this.team1.id ? 1 : 2,
+    });
   }
 
   /** True once per failed Bloodlust activation; clears the mark. */
@@ -2630,6 +2712,13 @@ export class GameService implements IGameService {
       }
       if (ctx.refused) return false;
     }
+    // Stalling is judged from the moment of activation, so a re-declaration
+    // (Move then Block) keeps what the first one saw
+    const prior = this.state.activePlayer;
+    const stalling =
+      prior?.id === playerId && prior.stalling !== undefined
+        ? prior.stalling
+        : !!declaring && this.couldScoreWithoutDice(declaring);
     if (
       !this.playerActionManager.declareAction(
         playerId,
@@ -2638,6 +2727,9 @@ export class GameService implements IGameService {
       )
     ) {
       return false;
+    }
+    if (this.state.activePlayer?.id === playerId) {
+      this.state.activePlayer.stalling = stalling;
     }
     const declared = this.state.activePlayer!;
     if (firstAction) {
@@ -2855,10 +2947,10 @@ export class GameService implements IGameService {
   }
 
   /**
-   * Ball & Chain Special Action (Fanatic): the player lurches up to its MA in a
-   * chosen facing (a cardinal direction — an End Zone or a Sideline), deviating
-   * each square by the Throw-in Template. Legal only as the declared
-   * "ballAndChain" action.
+   * Ball & Chain Special Action (Fanatic): the player lurches one square in a
+   * chosen facing (a cardinal direction: an End Zone or a Sideline), deviated
+   * by the Throw-in Template. Each call is one square, up to MA and then two
+   * Rushes. Legal only as the declared "ballAndChain" action.
    */
   public async ballAndChain(
     fanaticId: string,
@@ -2881,6 +2973,21 @@ export class GameService implements IGameService {
     this.flowManager.add(
       new BallAndChainOperation(fanaticId, facingX, facingY)
     );
+  }
+
+  /** The lurch square whose collision the block engine is resolving. */
+  private ballAndChainSquare: BallAndChainSquare | null = null;
+
+  public async ballAndChainCollision(
+    square: BallAndChainSquare,
+    targetId: string
+  ): Promise<void> {
+    this.ballAndChainSquare = square;
+    if (square.pushedDownId) {
+      await this.blockManager.startBallAndChainPush(square.fanaticId, targetId);
+    } else {
+      await this.blockManager.startBallAndChainBlock(square.fanaticId, targetId);
+    }
   }
 
   /**

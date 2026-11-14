@@ -4,10 +4,17 @@
  * come to rest before the Fanatic moves on. The rolls used to wait until the
  * whole lurch was over, so a player hit twice could be Knocked Out by the
  * first roll and then left off the pitch, Stunned, by the second.
+ *
+ * Each `ball-and-chain` command is one square. `lurchAll` steers East for
+ * the Fanatic's MA, and each block's chooser takes their best die.
  */
 import { describe, expect, it } from "vitest";
 import { TRAIT_RULE_SCENARIOS } from "../../src/data/ruleScenarios/traits";
 import { HeadlessGame } from "../../src/headless/HeadlessGame";
+import { CommandResponse } from "../../src/headless/protocol";
+import { answerDecision } from "../../src/game/rules-lab/runner";
+import { BlockResultType } from "../../src/services/BlockResolutionService";
+import { GamePhase } from "../../src/types/GameState";
 import { checkInvariants } from "../../src/simulation/invariants";
 import { GameEventNames } from "../../src/types/events";
 import { PlayerStatus } from "../../src/types/Player";
@@ -19,6 +26,69 @@ const config = TRAIT_RULE_SCENARIOS.find(
   (e) => e.skill === SkillType.BALL_AND_CHAIN
 )!.configs.find((c) => c.id === "ball-and-chain-block")!;
 const FANATIC = config.setup.team1Placements[0].playerIndex;
+
+/** Best to worst for the Fanatic; the other coach picks from the far end. */
+const FANATIC_PRIORITY: BlockResultType[] = [
+  "pow",
+  "pow-dodge",
+  "push",
+  "both-down",
+  "skull",
+];
+
+/**
+ * Lurch East one square at a time for the Fanatic's MA, answering every
+ * decision on the way: the block's chooser takes their best die, pushes go
+ * to the first offered square, and re-rolls are declined.
+ */
+async function lurchAll(
+  game: HeadlessGame,
+  fanaticId: string
+): Promise<CommandResponse[]> {
+  const fanatic = game.ctx.gameService.getPlayerById(fanaticId)!;
+  const team = fanatic.teamId;
+  const responses: CommandResponse[] = [];
+  for (let square = 0; square < fanatic.stats.MA; square++) {
+    const state = game.ctx.gameService.getState();
+    if (
+      state.phase !== GamePhase.PLAY ||
+      state.activeTeamId !== team ||
+      game.ctx.gameService.hasPlayerActed(fanaticId)
+    ) {
+      break;
+    }
+    let response = await game.execute({
+      type: "ball-and-chain",
+      playerId: fanaticId,
+      x: 1,
+      y: 0,
+    });
+    responses.push(response);
+    while (response.pendingDecision) {
+      response = await game.execute(
+        answerDecision(response.pendingDecision, game, {
+          acceptRerolls: false,
+          custom: (pending) => {
+            if (pending.type !== "block-dice") return undefined;
+            const order =
+              pending.chooserTeamId === team
+                ? FANATIC_PRIORITY
+                : [...FANATIC_PRIORITY].reverse();
+            const type = order.find((t) =>
+              pending.options.some((o) => o.type === t)
+            );
+            return {
+              type: "choose-block-result",
+              index: pending.options.findIndex((o) => o.type === type),
+            };
+          },
+        })!
+      );
+      responses.push(response);
+    }
+  }
+  return responses;
+}
 
 /** Six opponents packed in front of the Fanatic, which lurches at them. */
 async function lurch(
@@ -59,19 +129,15 @@ async function lurch(
     action: "ballAndChain",
   });
   const before = game.snapshot();
-  const response = await game.execute({
-    type: "ball-and-chain",
-    playerId: fanatic.id,
-    x: 1,
-    y: 0,
-  });
+  const responses = await lurchAll(game, fanatic.id);
+  const response = responses[responses.length - 1];
   // In order: each square the Fanatic lurches into, each player it knocks
   // down or pushes, and each Armour and Injury Roll
   const name = (id: string) =>
     [...game.ctx.team1.players, ...game.ctx.team2.players].find(
       (p) => p.id === id
     )?.playerName;
-  const trail = response.events.flatMap((e) => {
+  const trail = responses.flatMap((r) => r.events).flatMap((e) => {
     const id = (e.data as { playerId?: string }).playerId;
     if (e.name === GameEventNames.PlayerKnockedDown && id !== fanatic.id)
       return [`down ${name(id!)}`];
@@ -103,15 +169,19 @@ async function lurch(
 
 /**
  * A player the Fanatic hit whose Armour Roll had not come by its next
- * lurch, or by the end. A knockdown owes one, and so does a push of a player already
- * down; pushing a Standing player does not.
+ * lurch, or by the end. A knockdown owes one, and so does pushing the player
+ * already down in the square the Fanatic entered; pushing a Standing player,
+ * or chain-pushing a downed one further along, does not. A chain lands
+ * innermost first, so the square's own player is the last one pushed.
  */
 function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
   const down = new Set(proneAtStart);
   const owed = new Set<string>();
+  let pushedDown: string | null = null;
   for (const step of trail) {
     if (step.startsWith("lurch")) {
       if (owed.size > 0) return [...owed][0];
+      if (pushedDown) return pushedDown;
       continue;
     }
     const [kind, ...rest] = step.split(" ");
@@ -119,11 +189,14 @@ function unresolvedHit(trail: string[], proneAtStart: string[]): string | null {
     if (kind === "down") {
       down.add(who);
       owed.add(who);
-    } else if (kind === "pushed" && down.has(who)) owed.add(who);
-    else if (kind === "armour") owed.delete(who);
+    } else if (kind === "pushed" && down.has(who)) pushedDown = who;
+    else if (kind === "armour") {
+      owed.delete(who);
+      if (pushedDown === who) pushedDown = null;
+    }
   }
   // The last hit too, a fall straight after it included
-  return owed.size > 0 ? [...owed][0] : null;
+  return owed.size > 0 ? [...owed][0] : pushedDown;
 }
 
 describe("a Ball & Chain lurch through a pile of players", () => {
@@ -143,9 +216,10 @@ describe("a Ball & Chain lurch through a pile of players", () => {
     expect(hitTwice).toBeGreaterThanOrEqual(5);
   });
 
-  it("rolls Armour for a Prone player with nowhere to be pushed", async () => {
+  it("chain-pushes a boxed-in Prone player, then rolls their Armour", async () => {
     // A straight first lurch hits (11,5). The row behind is full, so the
-    // player stays put, and the Armour Roll comes before the next lurch.
+    // player is chain-pushed into (12,5), and their Armour Roll comes before
+    // the next lurch. The chained player takes none.
     let boxedIn = 0;
     for (let seed = 1; seed <= 150 && boxedIn < 3; seed++) {
       const [first, ...rest] = (await lurch(seed, PlayerStatus.PRONE)).trail;
@@ -154,9 +228,14 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       // Hitting a Prone player never ends the lurch: the Fanatic goes on
       const next = rest.findIndex((step) => step.startsWith("lurch"));
       expect(next, `seed ${seed}`).toBeGreaterThanOrEqual(0);
-      const square = rest.slice(0, next);
-      expect(square, `seed ${seed}`).toContain("armour Human Lineman #2");
-      expect(square, `seed ${seed}`).not.toContain("pushed Human Lineman #2");
+      const square = rest
+        .slice(0, next)
+        .filter((step) => !step.startsWith("injury"));
+      expect(square, `seed ${seed}`).toEqual([
+        "pushed Human Lineman #5",
+        "pushed Human Lineman #2",
+        "armour Human Lineman #2",
+      ]);
     }
     expect(boxedIn).toBe(3);
   });
@@ -221,12 +300,11 @@ describe("a Ball & Chain lurch through a pile of players", () => {
       action: "ballAndChain",
     });
     const before = game.snapshot();
-    const response = await game.execute({
-      type: "ball-and-chain",
-      playerId: fanatic.id,
-      x: 1,
-      y: 0,
-    });
+    const responses = await lurchAll(game, fanatic.id);
+    const response = {
+      ...responses[responses.length - 1],
+      events: responses.flatMap((r) => r.events),
+    };
     const scoredAt = response.events.findIndex(
       (e) => e.name === GameEventNames.Touchdown
     );

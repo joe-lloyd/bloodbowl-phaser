@@ -125,21 +125,28 @@ beforeEach(() => {
 });
 
 describe("the winnings formula", () => {
-  it("pays half the Fan Attendance plus the team's touchdowns, times 10,000", () => {
-    expect(winningsFor(8, 2)).toBe(60_000);
-    expect(winningsFor(8, 1)).toBe(50_000);
-    expect(winningsFor(8, 0)).toBe(40_000);
+  it("pays half the Fan Attendance plus the team's touchdowns, plus 1 for not Stalling, times 10,000", () => {
+    expect(winningsFor(8, 2, false)).toBe(70_000);
+    expect(winningsFor(8, 1, false)).toBe(60_000);
+    expect(winningsFor(8, 0, false)).toBe(50_000);
   });
 
-  it("keeps the half of an odd Fan Attendance: 3.5 pays 35,000", () => {
-    expect(winningsFor(7, 0)).toBe(35_000);
-    expect(winningsFor(7, 3)).toBe(65_000);
+  it("drops the +1 when a player on the team was deemed to be Stalling", () => {
+    expect(winningsFor(8, 2, true)).toBe(60_000);
+    expect(winningsFor(8, 0, true)).toBe(40_000);
+  });
+
+  it("pays the rulebook's worked example: 7 / 2 + 2 + 1 = 65,000", () => {
+    expect(winningsFor(7, 2, false)).toBe(65_000);
+    expect(winningsFor(7, 0, true)).toBe(35_000);
   });
 
   it("pays winner, loser and draw by the same formula", () => {
-    expect(fixtureWinnings({ home: 3, away: 2 }, 0, 0)).toEqual({
+    expect(
+      fixtureWinnings({ home: 3, away: 2 }, 0, 0, { home: false, away: true })
+    ).toEqual({
       fanFactor: { home: 3, away: 2 },
-      home: 25_000,
+      home: 35_000,
       away: 25_000,
     });
   });
@@ -153,7 +160,7 @@ describe("the winnings formula", () => {
 });
 
 describe("league winnings in the Treasury", () => {
-  it("pays the worked example from a played game: 60,000 and 50,000", async () => {
+  it("pays the worked example from a played game: 70,000 and 60,000", async () => {
     // Team A: 2 Dedicated Fans, rolls a 2. Team B: 1, rolls a 3.
     const home = libraryTeam("team-a", 2, 100_000);
     const away = libraryTeam("team-b", 1, 50_000);
@@ -191,16 +198,37 @@ describe("league winnings in the Treasury", () => {
       }
     );
 
-    expect(treasuryOf("team-a")).toBe(160_000);
-    expect(treasuryOf("team-b")).toBe(100_000);
+    expect(treasuryOf("team-a")).toBe(170_000);
+    expect(treasuryOf("team-b")).toBe(110_000);
     const fixture = competition.fixtures.find(
       (f) => f.id === context.fixtureId
     );
     expect(fixture?.result?.winnings).toEqual({
       fanFactor: { home: 4, away: 4 },
-      home: 60_000,
-      away: 50_000,
+      home: 70_000,
+      away: 60_000,
     });
+  });
+
+  it("pays a side that Stalled without the +1", async () => {
+    const home = libraryTeam("stall-a", 1, 0);
+    const away = libraryTeam("stall-b", 1, 0);
+    const context = await league("stall", [home, away]);
+
+    await recordCompetitionFixture(
+      context,
+      1,
+      0,
+      { home: structuredClone(home), away: structuredClone(away) },
+      undefined,
+      {
+        fanFactors: { home: 2, away: 2 },
+        stalled: { home: true, away: false },
+      }
+    );
+
+    expect(treasuryOf("stall-a")).toBe(30_000);
+    expect(treasuryOf("stall-b")).toBe(30_000);
   });
 
   it("pays a result recorded by score only, rolling The Fans on fixed dice", async () => {
@@ -212,8 +240,8 @@ describe("league winnings in the Treasury", () => {
       rng: fixedDice(4, 6), // D3 2 for Team A, D3 3 for Team B
     });
 
-    expect(treasuryOf("score-a")).toBe(160_000);
-    expect(treasuryOf("score-b")).toBe(100_000);
+    expect(treasuryOf("score-a")).toBe(170_000);
+    expect(treasuryOf("score-b")).toBe(110_000);
   });
 
   it("pays once when the result is recorded again or the page reloads", async () => {
@@ -236,8 +264,8 @@ describe("league winnings in the Treasury", () => {
       rng: fixedDice(6, 6),
     });
 
-    expect(treasuryOf("once-a")).toBe(160_000);
-    expect(treasuryOf("once-b")).toBe(100_000);
+    expect(treasuryOf("once-a")).toBe(170_000);
+    expect(treasuryOf("once-b")).toBe(110_000);
   });
 
   it("keeps the winnings when the results screen saves its kick-off copy", async () => {
@@ -258,7 +286,7 @@ describe("league winnings in the Treasury", () => {
     keepRecordedResult(matchCopy);
     saveTeam(matchCopy);
 
-    expect(getTeamById("keep-a")?.treasury).toBe(160_000);
+    expect(getTeamById("keep-a")?.treasury).toBe(170_000);
   });
 
   it("pays a penalty-free set-up concession by the normal formula", async () => {
@@ -276,8 +304,8 @@ describe("league winnings in the Treasury", () => {
       { fanFactors: { home: 2, away: 3 } }
     );
 
-    expect(treasuryOf("concede-a")).toBe(25_000);
-    expect(treasuryOf("concede-b")).toBe(25_000);
+    expect(treasuryOf("concede-a")).toBe(35_000);
+    expect(treasuryOf("concede-b")).toBe(35_000);
   });
 });
 

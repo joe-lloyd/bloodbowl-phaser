@@ -17,7 +17,7 @@ import {
   keepRecordedResult,
   recordCompetitionFixture,
 } from "../../../competition/resultRecording";
-import { earnsWinnings } from "../../../game/rules/winnings";
+import { earnsWinnings, stalledSides } from "../../../game/rules/winnings";
 import { hudButtonClass, Panel } from "../componentWarehouse/HudKit";
 import { injuryLabel, playerLabel } from "./turnSummary";
 import { CompetitionContext } from "../../../competition/types";
@@ -147,6 +147,7 @@ export function MatchResultsScreen({
           home: state.fanFactors[homeId] ?? 0,
           away: state.fanFactors[awayId] ?? 0,
         },
+        stalled: stalledSides(state.stallingPlayerIds, home, away),
       }
     )
       .then((competition) => {
@@ -712,7 +713,7 @@ function WinningsPanel({
           )
           .join(", ")}
         ). Each team earns half the Fan Attendance plus its own touchdowns,
-        times 10,000 gp.
+        plus 1 if none of its players was Stalling, times 10,000 gp.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {teams.map((team) => (

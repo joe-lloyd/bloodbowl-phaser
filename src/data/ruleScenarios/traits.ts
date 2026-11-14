@@ -1156,7 +1156,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ball-and-chain-block",
         name: "Ball & Chain lurches into a Standing player",
         description:
-          "The Fanatic (ST 7) swings toward an End Zone and automatically Blocks the first Standing player it bumps into — its own action, no dodge required.",
+          "The Fanatic (ST 7) swings toward an End Zone and Blocks the first Standing player it lurches into: a normal Block Action, so its coach picks the die and may re-roll it. Each command is one square of the Throw-in Template.",
         // The Goblin Fanatic (index 6) is the real thing: Ball & Chain,
         // ST 7, MA 3, No Ball and Secret Weapon all from the roster.
         setup: playSetup({
@@ -1164,7 +1164,7 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
           team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
           team2Placements: [
             // A wall directly East, so any of the three template arrows lands
-            // the Fanatic on a Standing opponent → an automatic Block.
+            // the Fanatic on a Standing opponent → a Block.
             { playerIndex: 0, x: 11, y: 4 },
             { playerIndex: 1, x: 11, y: 5 },
             { playerIndex: 2, x: 11, y: 6 },
@@ -1189,15 +1189,226 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
               skillTriggered(r, SkillType.BALL_AND_CHAIN) &&
               sawEvent(
                 r,
-                GameEventNames.DiceRoll,
+                GameEventNames.BlockDiceRolled,
                 (d) =>
-                  (d as { rollType?: string }).rollType === "Ball & Chain Block"
+                  (d as { attackerId?: string }).attackerId ===
+                  playerOf(r, "team1:6").id
               ),
             verify: (r) =>
               assert(
-                skillTriggered(r, SkillType.BALL_AND_CHAIN),
-                "the Ball & Chain action must have fired"
+                r.decisions.some((d) => d.type === "block-dice"),
+                "the Fanatic's coach must be offered the block dice"
               ),
+          },
+        ],
+      },
+      {
+        id: "ball-and-chain-stand-firm",
+        name: "Ball & Chain into a Stand Firm player",
+        description:
+          "The Fanatic lurches into a Pump Wagon, which Stands Firm against the push. The May 2026 FAQ: the Fanatic stays in the square it started in, and the square still counts as one square of movement.",
+        // The Snotling Pump Wagon (index 0) has Stand Firm from its roster
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
+          team2Roster: RosterName.SNOTLING,
+          team2Placements: [{ playerIndex: 0, x: 11, y: 5 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:6",
+            action: "ballAndChain",
+          },
+          { type: "ball-and-chain", playerId: "team1:6", x: 1, y: 0 },
+        ],
+        decisionPolicy: { preferBlockResult: "push", acceptReactions: true },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "stood-firm",
+            name: "Stand Firm holds: the Fanatic stays where it started",
+            matches: (r) =>
+              skillTriggered(r, SkillType.STAND_FIRM) &&
+              playerAt(r, "team1:6", { x: 10, y: 5 }) &&
+              playerAt(r, "team2:0", { x: 11, y: 5 }),
+            verify: (r) => {
+              const fanatic = playerOf(r, "team1:6");
+              assert(
+                r.game.ctx.gameService.getMovementUsed(fanatic.id) === 1,
+                "the refused square still counts as one square of movement"
+              );
+              assert(!turnoverHappened(r), "a refused push is no Turnover");
+            },
+          },
+        ],
+      },
+      {
+        id: "ball-and-chain-chain-push",
+        name: "Ball & Chain chain-pushes a boxed-in player",
+        description:
+          "The Fanatic lurches into a Lineman with every square behind them filled. The push goes through the normal engine: the Fanatic's coach pushes the Lineman into a team-mate, picks where that one goes, and the Fanatic moves into the emptied square with no follow-up choice.",
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [{ playerIndex: 6, x: 10, y: 5 }],
+          team2Placements: [
+            { playerIndex: 0, x: 11, y: 5 },
+            { playerIndex: 1, x: 12, y: 4 },
+            { playerIndex: 2, x: 12, y: 5 },
+            { playerIndex: 3, x: 12, y: 6 },
+          ],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:6",
+            action: "ballAndChain",
+          },
+          { type: "ball-and-chain", playerId: "team1:6", x: 1, y: 0 },
+        ],
+        decisionPolicy: { preferBlockResult: "push" },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "chain-push",
+            name: "Two push directions, and the Fanatic moves in",
+            matches: (r) =>
+              r.decisions.filter((d) => d.type === "push-direction").length ===
+                2 && playerAt(r, "team1:6", { x: 11, y: 5 }),
+            verify: (r) =>
+              assert(
+                !r.decisions.some((d) => d.type === "follow-up"),
+                "the Fanatic moves in without a follow-up choice"
+              ),
+          },
+        ],
+      },
+      {
+        id: "ball-and-chain-team-mate",
+        name: "Ball & Chain into a team-mate",
+        description:
+          "The Fanatic lurches into its own Goblin. It Blocks them all the same, and its coach chooses the result. A team-mate Knocked Down in their own team's turn is a Turnover.",
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [
+            { playerIndex: 6, x: 10, y: 5 },
+            { playerIndex: 1, x: 11, y: 4 },
+            { playerIndex: 2, x: 11, y: 5 },
+            { playerIndex: 3, x: 11, y: 6 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:6",
+            action: "ballAndChain",
+          },
+          { type: "ball-and-chain", playerId: "team1:6", x: 1, y: 0 },
+        ],
+        decisionPolicy: { preferBlockResult: "pow" },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "team-mate-down",
+            name: "The team-mate goes down: a Turnover",
+            matches: (r) =>
+              r.decisions.some(
+                (d) =>
+                  d.type === "block-dice" &&
+                  d.chooserTeamId === r.game.ctx.team1.id
+              ) &&
+              ["team1:1", "team1:2", "team1:3"].some((ref) =>
+                playerDown(r, ref)
+              ),
+            verify: (r) =>
+              assert(
+                turnoverHappened(r),
+                "knocking a team-mate down is a Turnover"
+              ),
+          },
+        ],
+      },
+      {
+        id: "ball-and-chain-rush",
+        name: "Ball & Chain Rushes past its MA",
+        description:
+          "Five squares East across an empty pitch: three for MA 3, then two Rushes. A failed Rush still moves into the square first, then the Fanatic Falls Over there: an Injury Roll with no Armour Roll, Stunned counting as Knocked-out.",
+        setup: playSetup({
+          team1Roster: RosterName.GOBLIN,
+          team1Placements: [
+            { playerIndex: 6, x: 5, y: 5 },
+            // A bystander keeps the turn going once the Fanatic is done
+            { playerIndex: 3, x: 1, y: 9 },
+          ],
+          team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
+          ballPosition: { x: 1, y: 1 },
+        }),
+        script: [
+          {
+            type: "declare-action",
+            playerId: "team1:6",
+            action: "ballAndChain",
+          },
+          ...[1, 2, 3, 4, 5].map(
+            () =>
+              ({
+                type: "ball-and-chain",
+                playerId: "team1:6",
+                x: 1,
+                y: 0,
+              }) as const
+          ),
+        ],
+        decisionPolicy: { acceptRerolls: false },
+        seedSearch: { from: 1, limit: 500 },
+        outcomes: [
+          {
+            id: "rushed",
+            name: "Both Rushes made: five squares, and the activation ends",
+            matches: (r) =>
+              playerStanding(r, "team1:6") &&
+              r.game.ctx.gameService.getMovementUsed(
+                playerOf(r, "team1:6").id
+              ) === 5,
+            verify: (r) =>
+              assert(
+                r.game.ctx.gameService.hasPlayerActed(
+                  playerOf(r, "team1:6").id
+                ),
+                "the activation ends once MA and both Rushes are spent"
+              ),
+          },
+          {
+            id: "fell-over",
+            name: "A Rush fails: in the square, then Falls Over",
+            matches: (r) =>
+              playerDown(r, "team1:6") &&
+              sawEvent(
+                r,
+                GameEventNames.DiceRoll,
+                (d) =>
+                  (d as { description?: string }).description?.startsWith(
+                    "Injury Roll (Fanatic"
+                  ) ?? false
+              ),
+            verify: (r) => {
+              assert(turnoverHappened(r), "falling over is a Turnover");
+              assert(
+                !sawEvent(
+                  r,
+                  GameEventNames.DiceRoll,
+                  (d) =>
+                    (d as { description?: string }).description?.startsWith(
+                      "Armour Roll (Fanatic"
+                    ) ?? false
+                ),
+                "a Ball & Chain player takes no Armour Roll"
+              );
+            },
           },
         ],
       },
@@ -1205,10 +1416,10 @@ export const TRAIT_RULE_SCENARIOS: RuleScenarioEntry[] = [
         id: "ball-and-chain-crowd",
         name: "Ball & Chain lurches off the pitch",
         description:
-          "Swinging toward the Sideline, the Fanatic can wander off the pitch and be hurt by the Crowd — a Turnover.",
+          "Swinging toward the Sideline from the edge, the Fanatic lurches off the pitch. The May 2026 FAQ: that counts as being Pushed into the Crowd, a Turnover, and a Stunned result goes to the Reserves rather than Knocked-out.",
         setup: playSetup({
           team1Roster: RosterName.GOBLIN,
-          team1Placements: [{ playerIndex: 6, x: 10, y: 1 }],
+          team1Placements: [{ playerIndex: 6, x: 10, y: 0 }],
           team2Placements: [{ playerIndex: 0, x: 18, y: 9 }],
           ballPosition: { x: 1, y: 5 },
         }),

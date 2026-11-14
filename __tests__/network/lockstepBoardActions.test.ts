@@ -174,10 +174,14 @@ describe("board actions in an online match", () => {
     expect(guest.ctx.gameService.getState().activePlayer).toEqual({
       id: mover.id,
       action: "move",
+      // Not holding the ball, so not Stalling (2025 rulebook p.80)
+      stalling: false,
     });
     expect(host.ctx.gameService.getState().activePlayer).toEqual({
       id: mover.id,
       action: "move",
+      // Not holding the ball, so not Stalling (2025 rulebook p.80)
+      stalling: false,
     });
     expect(stateChecksum(host)).toBe(stateChecksum(guest));
   });

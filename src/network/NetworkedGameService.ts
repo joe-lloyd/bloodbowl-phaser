@@ -734,6 +734,8 @@ export class NetworkedGameService implements IGameService {
   startGame(_kickingTeamId: string): void {}
   startTurn(_teamId: string): void {}
   triggerTurnover(_reason: string): void {}
+  /** Engine-internal: the host's lurch resolves its own collisions. */
+  async ballAndChainCollision(): Promise<void> {}
   endDrive(): void {}
   resetDriveState(): void {}
   async rollKORecovery(): Promise<void> {}

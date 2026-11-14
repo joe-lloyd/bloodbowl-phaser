@@ -29,6 +29,7 @@ import {
 import { GameEventNames } from "../../types/events";
 import { ArmourOperation } from "../operations/ArmourOperation.js";
 import { BounceOperation } from "../operations/BounceOperation";
+import { InjuryOperation } from "../operations/InjuryOperation";
 import { CatchOperation } from "../operations/CatchOperation";
 import { CrowdInjuryOperation } from "../operations/CrowdInjuryOperation";
 import { trapdoorOpens } from "../inducements/matchInducements";
@@ -37,6 +38,7 @@ import { DiceController } from "../controllers/DiceController";
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { PileDriverOperation } from "../operations/PileDriverOperation";
+import { moveBallAndChain } from "../operations/BallAndChainOperation";
 import {
   foldBlockResult,
   foldTrigger,
@@ -114,7 +116,41 @@ class ForcedFollowUpOperation extends GameOperation {
   }
 
   async execute(context: FlowContext): Promise<void> {
+    const active = context.gameService.getState().activePlayer;
+    const attacker = context.gameService.getPlayerById(this.attackerId);
+    if (
+      attacker &&
+      active?.id === attacker.id &&
+      active.action === "ballAndChain"
+    ) {
+      await moveBallAndChain(context, attacker, this.targetSquare);
+      return;
+    }
     await context.gameService.followUpPush(this.attackerId, this.targetSquare);
+  }
+}
+
+/**
+ * Runs operations one after another, each with everything it queues: a
+ * Knocked Down player's Armour Roll and Injury, then the ball they dropped
+ * Bounces (2025 rulebook p.44). Adding them to the front one by one runs
+ * them in a different order from an idle flow, which starts the first at
+ * once, than from inside one.
+ */
+class InOrderOperation extends GameOperation {
+  public readonly name = "InOrder";
+
+  constructor(private operations: GameOperation[]) {
+    super();
+  }
+
+  async execute(context: FlowContext): Promise<void> {
+    // Added to an idle flow this starts at once: yield, so what the caller
+    // queues next (a follow-up, the end of the activation) waits behind it
+    await Promise.resolve();
+    for (const operation of this.operations) {
+      await context.flowManager.runToRest(operation);
+    }
   }
 }
 
@@ -1072,6 +1108,12 @@ export class BlockManager {
       pushCtx.preventFollowUp = true;
       pushCtx.forceFollowUp = false;
     }
+    // Ball & Chain: the Fanatic is moving into the square, not following
+    // up, so it always enters a square the push empties (Fend included)
+    if (this.isBallAndChain(attacker)) {
+      pushCtx.preventFollowUp = false;
+      pushCtx.forceFollowUp = true;
+    }
 
     // Frenzy: the blocker MUST follow up a Push Back, and — on the first block
     // only — must throw a second Block at the same player if they are still
@@ -1145,21 +1187,24 @@ export class BlockManager {
       knockDownDefender = false;
     }
     if (knockDownDefender) {
-      this.knockDownPlayer(defender);
+      this.knockDownTarget(defender);
       if (hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
         this.pileDriverTargets.set(attacker.id, defender.id);
       }
       if (flowManager) {
-        flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
         const pos = defender.gridPosition;
-        if (
+        const carried =
           pos &&
           this.state.ballPosition &&
           this.state.ballPosition.x === pos.x &&
-          this.state.ballPosition.y === pos.y
-        ) {
-          flowManager.add(new BounceOperation(pos), true);
-        }
+          this.state.ballPosition.y === pos.y;
+        flowManager.add(
+          new InOrderOperation([
+            new ArmourOperation(defender.id, attacker.id),
+            ...(carried ? [new BounceOperation(pos)] : []),
+          ]),
+          true
+        );
       }
     }
 
@@ -1432,6 +1477,77 @@ export class BlockManager {
           this.allPlayers(),
           this.state.activeTeamId
         );
+  }
+
+  /**
+   * Ball & Chain (2025 rulebook p.124): the lurching Fanatic "will
+   * automatically perform a Block Action" against the Standing player in the
+   * square it entered. "If this is a team-mate, then this player's Coach will
+   * choose which result to apply": the dice are by Strength alone, with no
+   * assists, and always the Fanatic's choice.
+   */
+  public async startBallAndChainBlock(
+    attackerId: string,
+    defenderId: string
+  ): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    const defender = this.getPlayerById(defenderId);
+    if (!attacker || !defender) return;
+    // The block dialog opens on the matchup, as when a coach declares one
+    if (attacker.teamId !== defender.teamId) {
+      this.previewBlock(attackerId, defenderId);
+      await this.startBlock(attackerId, defenderId);
+      return;
+    }
+    const { diceCount } = blockDiceForStrength(
+      attacker.stats.ST,
+      defender.stats.ST
+    );
+    this.eventBus.emit(GameEventNames.UI_BlockDialog, {
+      attackerId,
+      defenderId,
+      analysis: {
+        diceCount,
+        isUphill: false,
+        attackerST: attacker.stats.ST,
+        defenderST: defender.stats.ST,
+        attackerAssists: [],
+        defenderAssists: [],
+      },
+    });
+    await this.rollBlockDice(attackerId, defenderId, diceCount, true);
+  }
+
+  /**
+   * Ball & Chain into a Prone or Stunned player: "that player is Pushed Back
+   * and an Armour Roll is made against them". The push uses the normal
+   * engine, chain pushes included, but it is not a Block Action, so the
+   * pushed player's own push reactions do not apply. FinishBallAndChainSquare
+   * makes the Armour Roll once the push has landed.
+   */
+  public async startBallAndChainPush(
+    attackerId: string,
+    pushedId: string
+  ): Promise<void> {
+    const attacker = this.getPlayerById(attackerId);
+    const pushed = this.getPlayerById(pushedId);
+    if (!attacker?.gridPosition || !pushed?.gridPosition) return;
+    this.chain = {
+      attackerId,
+      resultType: "push",
+      knockDownDefender: false,
+      forceFollowUp: true,
+      links: [],
+    };
+    this.requestPushDecision(attacker.gridPosition, pushed);
+  }
+
+  /** Is this attacker the Fanatic mid-lurch (Ball & Chain)? */
+  private isBallAndChain(attacker: Player): boolean {
+    return (
+      this.state.activePlayer?.action === "ballAndChain" &&
+      this.state.activePlayer?.id === attacker.id
+    );
   }
 
   /** Frenzy's second block, if the target is still standing and adjacent. */
@@ -1896,8 +2012,13 @@ export class BlockManager {
       // the vacated square. Queued at the BACK so the crowd injury +
       // throw-in settle first — the ball must be at rest and the follow-up
       // answered before the activation (and possibly the turn) ends
+      const attacker = this.getPlayerById(attackerId);
       if (this.multipleBlockState?.attackerId === attackerId) {
         this.queueMultipleBlockContinuation(attackerId);
+      } else if (attacker && this.isBallAndChain(attacker)) {
+        // The Fanatic lurches on into the emptied square, no prompt
+        flowManager?.add(new ForcedFollowUpOperation(attackerId, first.from));
+        flowManager?.add(new FinishActivationOperation(this, attackerId));
       } else {
         flowManager?.add(
           new CrowdSurfFollowUpOperation(attackerId, first.from)
@@ -1927,25 +2048,25 @@ export class BlockManager {
         else if (!stripBall)
           flowManager?.context.gameService.checkForTouchdown(defender.id);
       } else if (defender) {
-        this.knockDownPlayer(defender);
+        this.knockDownTarget(defender);
         const attacker = this.getPlayerById(attackerId);
         if (attacker && hasSkill(attacker.skills, SkillType.PILE_DRIVER)) {
           this.pileDriverTargets.set(attackerId, defender.id);
         }
         if (flowManager) {
-          // A knocked-down carrier drops the ball where they landed
-          // (added after ArmourOperation so the bounce resolves first)
-          flowManager.add(
-            new ArmourOperation(first.playerId, attackerId),
-            true
-          );
-          if (
+          // Knocked Down: the Armour Roll, then a carried ball Bounces from
+          // where they landed (p.44)
+          const carried =
             this.state.ballPosition &&
             this.state.ballPosition.x === first.to.x &&
-            this.state.ballPosition.y === first.to.y
-          ) {
-            flowManager.add(new BounceOperation(first.to), true);
-          }
+            this.state.ballPosition.y === first.to.y;
+          flowManager.add(
+            new InOrderOperation([
+              new ArmourOperation(first.playerId, attackerId),
+              ...(carried ? [new BounceOperation(first.to)] : []),
+            ]),
+            true
+          );
         }
       }
     }
@@ -2023,9 +2144,17 @@ export class BlockManager {
 
     const flowManager = this.callbacks.getFlowManager?.();
     if (flowManager) {
-      // A downed carrier drops the ball, as on a Both Down.
-      if (attackerHadBall) this.dropCarrierBall(attacker, flowManager);
-      flowManager.add(new ArmourOperation(attacker.id), true);
+      // The Armour Roll, then a carried ball drops, as on a Both Down.
+      const drop = attackerHadBall
+        ? this.dropCarrierBall(attacker, flowManager)
+        : null;
+      flowManager.add(
+        new InOrderOperation([
+          new ArmourOperation(attacker.id),
+          ...(drop ? [drop] : []),
+        ]),
+        true
+      );
     }
 
     this.callbacks.onTurnover("Attacker Down (Skull)");
@@ -2088,8 +2217,15 @@ export class BlockManager {
     }
     const attackerHadBall = this.isOnBall(attacker);
 
-    if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
-    if (ctx.defenderKnockedDown) this.knockDownPlayer(defender);
+    if (ctx.placedProne) {
+      [attacker, defender].forEach((p) => {
+        p.status = PlayerStatus.PRONE;
+        this.eventBus.emit(GameEventNames.PlayerStatusChanged, p);
+      });
+    } else {
+      if (ctx.attackerKnockedDown) this.knockDownPlayer(attacker);
+      if (ctx.defenderKnockedDown) this.knockDownTarget(defender);
+    }
     if (
       ctx.defenderKnockedDown &&
       !ctx.placedProne &&
@@ -2102,26 +2238,38 @@ export class BlockManager {
     if (flowManager) {
       // A downed carrier drops the ball (prone players can't hold it) — Safe
       // Pair of Hands places it in an adjacent empty square instead of bouncing.
+      const drops: GameOperation[] = [];
       [defender, attacker].forEach((p) => {
         const down =
           p === attacker ? ctx.attackerKnockedDown : ctx.defenderKnockedDown;
-        if (down && this.isOnBall(p)) {
-          this.dropCarrierBall(p, flowManager);
-        }
+        const drop =
+          down && this.isOnBall(p) ? this.dropCarrierBall(p, flowManager) : null;
+        if (drop) drops.push(drop);
       });
 
       // Only the players actually knocked down roll armour — none at all
-      // when a rule placed them prone (Wrestle). Attacker runs first
-      // (added last to the front of the queue). On Both Down each player
-      // knocked the other down as part of the Block Action, so either can
-      // earn casualty SPP even though only the attacker declared the Block.
+      // when a rule placed them prone (Wrestle), though a Ball & Chain
+      // player Placed Prone still rolls Injury. Defender first, then any
+      // dropped ball Bounces (p.44). On Both Down each player knocked the
+      // other down as part of the Block Action, so either can earn casualty
+      // SPP even though only the attacker declared the Block.
+      const rolls: GameOperation[] = [];
       if (!ctx.placedProne) {
         if (ctx.defenderKnockedDown) {
-          flowManager.add(new ArmourOperation(defender.id, attacker.id), true);
+          rolls.push(new ArmourOperation(defender.id, attacker.id));
         }
         if (ctx.attackerKnockedDown) {
-          flowManager.add(new ArmourOperation(attacker.id, defender.id), true);
+          rolls.push(new ArmourOperation(attacker.id, defender.id));
         }
+      } else {
+        [defender, attacker].forEach((p) => {
+          if (hasSkill(p.skills, SkillType.BALL_AND_CHAIN)) {
+            rolls.push(new InjuryOperation(p.id, { stunnedIsKnockedOut: true }));
+          }
+        });
+      }
+      if (rolls.length + drops.length > 0) {
+        flowManager.add(new InOrderOperation([...rolls, ...drops]), true);
       }
     }
 
@@ -2156,12 +2304,13 @@ export class BlockManager {
   /**
    * A knocked-down carrier drops the ball. Safe Pair of Hands (2025 p.126)
    * places it in an adjacent unoccupied square instead of Bouncing; otherwise
-   * the ball Bounces from the carrier's square as normal.
+   * the ball Bounces from the carrier's square as normal: the returned
+   * operation, for the caller to queue after the Armour Roll.
    */
   private dropCarrierBall(
     player: Player,
     flowManager: import("../core/GameFlowManager").GameFlowManager
-  ): void {
+  ): GameOperation | null {
     const pos = player.gridPosition!;
     if (hasSkill(player.skills, SkillType.SAFE_PAIR_OF_HANDS)) {
       const spot = this.adjacentEmptySquare(pos);
@@ -2173,10 +2322,10 @@ export class BlockManager {
           skill: SkillType.SAFE_PAIR_OF_HANDS,
           effect: "Safe Pair of Hands: places the ball in an adjacent square",
         });
-        return;
+        return null;
       }
     }
-    flowManager.add(new BounceOperation(pos), true);
+    return new BounceOperation(pos);
   }
 
   /** First unoccupied on-pitch square adjacent to `pos` (fixed clockwise order). */
@@ -2222,6 +2371,18 @@ export class BlockManager {
     this.eventBus.emit(GameEventNames.PlayerKnockedDown, {
       playerId: player.id,
     });
+  }
+
+  /**
+   * Knock the Block's target down. A target on the active team, which only
+   * a Ball & Chain collision can block, is a Turnover: "A player on the
+   * active team is Knocked Down during their own team's turn" (p.43).
+   */
+  private knockDownTarget(defender: Player): void {
+    this.knockDownPlayer(defender);
+    if (defender.teamId === this.state.activeTeamId) {
+      this.callbacks.onTurnover("Team-mate Knocked Down");
+    }
   }
 
   private getPlayerById(playerId: string): Player | undefined {

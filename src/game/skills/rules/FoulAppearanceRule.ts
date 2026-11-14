@@ -7,15 +7,17 @@
  * immediately ends."
  *
  * `self` is the target (defender); the roll is made in the attacker's name.
- * (The Special-Action clause lands with the special-action batch.)
+ * (The Special-Action clause lands with the special-action batch.) A Ball &
+ * Chain collision "will ignore the Foul Appearance Skill" (p.124).
  */
 
-import { SkillType } from "../../../types/Skills";
+import { SkillType, hasSkill } from "../../../types/Skills";
 import { SkillRule } from "../SkillRule";
 
 export const FoulAppearanceRule: SkillRule = {
   onBlockDeclared(ctx, self) {
     if (self.id !== ctx.defender.id || !ctx.dice) return;
+    if (hasSkill(ctx.attacker.skills, SkillType.BALL_AND_CHAIN)) return;
     const roll = ctx.dice.rollD6(
       `Foul Appearance (${ctx.attacker.playerName})`,
       ctx.attacker.teamId

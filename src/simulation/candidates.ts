@@ -600,15 +600,19 @@ function stepCandidates(
       !!active.blockReplacement && !active.blockReplacementUsed;
 
     if (action === "ballAndChain" && player.status === PlayerStatus.ACTIVE) {
-      for (const dx of [-1, 0, 1]) {
-        for (const dy of [-1, 0, 1]) {
-          const facing = { x: at.x + dx, y: at.y + dy };
-          if ((dx === 0 && dy === 0) || !onPitch(facing)) continue;
-          step(
-            { type: "ball-and-chain", playerId: player.id, ...facing },
-            `${describePlayer(player)} lurches towards ${square(facing)}`
-          );
-        }
+      // The command takes a facing, one square per command: an End Zone or
+      // a Sideline
+      for (const facing of [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+      ]) {
+        const toward = { x: at.x + facing.x, y: at.y + facing.y };
+        step(
+          { type: "ball-and-chain", playerId: player.id, ...facing },
+          `${describePlayer(player)} lurches towards ${square(toward)}`
+        );
       }
     }
 

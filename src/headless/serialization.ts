@@ -90,6 +90,7 @@ export interface GameSnapshot {
     committed?: boolean;
     bloodlustUnsated?: boolean;
     grudgeMatch?: boolean;
+    stalling?: boolean;
   } | null;
   setup?: SetupState | null;
   /** Absent until the match reaches GAME_OVER. */
@@ -107,6 +108,8 @@ export interface GameSnapshot {
   veteranRerollsUsed?: string[];
   /** Teams that spent the Bribery and Corruption re-roll; absent on pre-feature saves. */
   briberyRerollsUsed?: string[];
+  /** Players deemed to be Stalling; absent on pre-feature saves (= none). */
+  stallingPlayerIds?: string[];
   /** This team turn's once-a-turn spending; absent on pre-feature saves. */
   turnUsage?: GameState["turnUsage"];
   /** The team taking a running Charge!; absent otherwise. */
@@ -239,6 +242,9 @@ export function serializeGameState(
     briberyRerollsUsed: state.briberyRerollsUsed
       ? [...state.briberyRerollsUsed]
       : undefined,
+    stallingPlayerIds: state.stallingPlayerIds
+      ? [...state.stallingPlayerIds]
+      : undefined,
     turnUsage: state.turnUsage ? structuredClone(state.turnUsage) : undefined,
     ...(state.chargeTeamId ? { chargeTeamId: state.chargeTeamId } : {}),
     raisedDead: state.raisedDead ? { ...state.raisedDead } : undefined,
@@ -332,6 +338,9 @@ export function deserializeGameState(snapshot: GameSnapshot): GameState {
       : undefined,
     briberyRerollsUsed: snapshot.briberyRerollsUsed
       ? [...snapshot.briberyRerollsUsed]
+      : undefined,
+    stallingPlayerIds: snapshot.stallingPlayerIds
+      ? [...snapshot.stallingPlayerIds]
       : undefined,
     turnUsage: snapshot.turnUsage
       ? structuredClone(snapshot.turnUsage)

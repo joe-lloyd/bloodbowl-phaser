@@ -6,7 +6,7 @@ import { InjuryOperation } from "./InjuryOperation.js";
 import { CasualtyCause } from "../rules/plagueRidden";
 import { effectiveAV } from "../kickoff/driveEffects";
 import { Player } from "../../types/Player";
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import {
   foldTrigger,
   gatherParticipants,
@@ -31,7 +31,8 @@ export async function foldArmourRoll(
     | "knockedDown"
     | "roll"
     | "armourModifier"
-  >
+  >,
+  armourSkipped = false
 ): Promise<ArmourBreakContext> {
   const { gameService, eventBus, flowManager } = context;
   const ctx: ArmourBreakContext = {
@@ -46,7 +47,11 @@ export async function foldArmourRoll(
     triggers: [],
   };
   await foldTrigger("onArmourBreak", participants, ctx);
-  placeMightyBlow(ctx, effectiveAV(roll.player, gameService.getState()));
+  placeMightyBlow(
+    ctx,
+    effectiveAV(roll.player, gameService.getState()),
+    armourSkipped
+  );
   ctx.triggers.forEach((t) => eventBus.emit(GameEventNames.SkillTriggered, t));
   return ctx;
 }
@@ -56,10 +61,15 @@ export async function foldArmourRoll(
  * rule has folded, the +N breaks armour if it can (and Iron Hard Skin has
  * not locked out modifiers), otherwise it goes to the Injury Roll.
  */
-function placeMightyBlow(ctx: ArmourBreakContext, av: number): void {
+function placeMightyBlow(
+  ctx: ArmourBreakContext,
+  av: number,
+  armourSkipped: boolean
+): void {
   const blow = ctx.mightyBlow;
   if (!blow) return;
   const wouldFlip =
+    !armourSkipped &&
     !ctx.forcedBreak &&
     ctx.roll + ctx.armourModifier < av &&
     ctx.roll + ctx.armourModifier + blow.bonus >= av;
@@ -139,15 +149,24 @@ export class ArmourOperation extends GameOperation {
       ? gameService.getPlayerById(this.causedById)
       : undefined;
 
-    eventBus.emit(
-      GameEventNames.UI_Notification,
-      `Armour Roll for ${player.playerName} (AV ${player.stats.AV}+)`
-    );
+    // Ball & Chain (2025 rulebook p.124): "if this player is Knocked Down,
+    // Falls Over or Placed Prone for any reason, immediately make an Injury
+    // Roll for them treating any result of Stunned as Knocked-out instead."
+    const armourSkipped = hasSkill(player.skills, SkillType.BALL_AND_CHAIN);
+    if (!armourSkipped) {
+      eventBus.emit(
+        GameEventNames.UI_Notification,
+        `Armour Roll for ${player.playerName} (AV ${player.stats.AV}+)`
+      );
+    }
 
     // 1. Roll 2D6 via DiceController
-    const roll = gameService
-      .getDiceController()
-      .roll2D6(`Armour Roll (${player.playerName})`, player.teamId);
+    // Still fold applicable Injury modifiers when Ball & Chain skips Armour.
+    const roll = armourSkipped
+      ? 0
+      : gameService
+          .getDiceController()
+          .roll2D6(`Armour Roll (${player.playerName})`, player.teamId);
 
     // 2. Trigger point: rules may modify the roll or force/cancel a break
     const opponents = gameService.getOpponents(player.teamId);
@@ -172,12 +191,15 @@ export class ArmourOperation extends GameOperation {
         knockedDown: true,
         roll,
         armourModifier: this.armourModifier,
-      }
+      },
+      armourSkipped
     );
-    const isBroken = armourBroken(ctx, roll, gameService);
+    const isBroken = armourSkipped || armourBroken(ctx, roll, gameService);
 
     if (isBroken) {
-      eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
+      if (!armourSkipped) {
+        eventBus.emit(GameEventNames.UI_Notification, "ARMOUR BROKEN!");
+      }
 
       // 3. Trigger Injury Operation (with any carried modifier). A failed
       // Dodge/Leap is not a Block Action, so it never arms Plague Ridden.
@@ -186,6 +208,7 @@ export class ArmourOperation extends GameOperation {
           modifier: ctx.injuryModifier,
           causedById: this.causedById,
           cause: this.fall?.cause ?? this.cause,
+          stunnedIsKnockedOut: armourSkipped,
         }),
         true
       );

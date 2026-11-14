@@ -189,10 +189,10 @@ describe("Expensive Mistakes after a recorded fixture", () => {
       rng: fixedDice(2, 2),
     });
 
-    expect(getTeamById("rich")?.treasury).toBe(630_000);
+    expect(getTeamById("rich")?.treasury).toBe(640_000);
     expect(pendingKinds("rich")).toEqual(["expensive-mistakes"]);
-    // 50,000 plus 20,000 winnings stays under the threshold
-    expect(getTeamById("poor")?.treasury).toBe(70_000);
+    // 50,000 plus 30,000 winnings stays under the threshold
+    expect(getTeamById("poor")?.treasury).toBe(80_000);
     expect(pendingKinds("poor")).toEqual([]);
   });
 
@@ -205,7 +205,7 @@ describe("Expensive Mistakes after a recorded fixture", () => {
       rng: fixedDice(2, 2),
     });
     keepRecordedResult(matchCopy);
-    expect(matchCopy.treasury).toBe(630_000);
+    expect(matchCopy.treasury).toBe(640_000);
     expect(matchCopy.pendingDevelopment?.map((entry) => entry.kind)).toEqual([
       "expensive-mistakes",
     ]);

@@ -1,11 +1,12 @@
 import { GameOperation } from "../core/GameOperation";
 import { FlowContext } from "../core/GameFlowManager";
 import { PlayerStatus } from "../../types/Player";
-import { SkillType } from "../../types/Skills";
+import { SkillType, hasSkill } from "../../types/Skills";
 import { GameEventNames } from "../../types/events";
 import { ReactionDecisionAnswer } from "../../types/decisions";
 import { FoulOperation } from "./FoulOperation";
 import { BounceOperation } from "./BounceOperation";
+import { InjuryOperation } from "./InjuryOperation";
 
 /**
  * Pile Driver (2025 rulebook p.133): "When an opposition player is Knocked
@@ -78,6 +79,11 @@ export class PileDriverOperation extends GameOperation {
     if (attacker.status === PlayerStatus.ACTIVE) {
       attacker.status = PlayerStatus.PRONE;
       context.eventBus.emit(GameEventNames.PlayerStatusChanged, attacker);
+      if (hasSkill(attacker.skills, SkillType.BALL_AND_CHAIN)) {
+        await context.flowManager.runToRest(
+          new InjuryOperation(attacker.id, { stunnedIsKnockedOut: true })
+        );
+      }
       // A player with the ball who is Placed Prone drops it, and during
       // their own activation that is a Turnover (2025 rulebook, Placed
       // Prone). A follow-up onto a loose ball can leave the blocker holding it.

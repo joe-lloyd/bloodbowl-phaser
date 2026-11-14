@@ -261,6 +261,7 @@ export enum GameEventNames {
   UI_ResumeBlitzMove = "ui:resumeBlitzMove",
   /** The Sports-Wizard's spell was picked; the pitch now picks its target. */
   UI_WizardTargeting = "ui:wizardTargeting",
+  UI_ResumeBallAndChain = "ui:resumeBallAndChain",
   UI_KeepBlockDice = "ui:keepBlockDice",
   UI_TeamRerollBlock = "ui:teamRerollBlock",
   UI_ProRerollBlockDie = "ui:proRerollBlockDie",
@@ -929,6 +930,11 @@ export interface UIEvents {
     spell: import("./decisions").WizardSpell | null;
   };
   [GameEventNames.UI_ResumeBlitzMove]: {
+    playerId: string;
+  };
+
+  /** A Ball & Chain square resolved with squares left: pick the next facing. */
+  [GameEventNames.UI_ResumeBallAndChain]: {
     playerId: string;
   };
 
