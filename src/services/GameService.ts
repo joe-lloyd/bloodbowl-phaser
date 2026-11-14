@@ -590,6 +590,18 @@ export class GameService implements IGameService {
     return this.decisionService.answer(valid);
   }
 
+  /**
+   * Answer a pending Foul assists decision with how many Offensive Assists
+   * add +1. False when none is pending or the count is out of range.
+   */
+  public answerFoulAssists(count: number): boolean {
+    const pending = this.decisionService.pending();
+    if (!pending || pending.type !== "foul-assists") return false;
+    if (!Number.isInteger(count) || count < 0 || count > pending.available)
+      return false;
+    return this.decisionService.answer({ count });
+  }
+
   /** Commit a confirmed pregame inducement selection into match state. */
   public commitInducements(
     profile: import("@/types/Inducements").InducementRuleProfile,

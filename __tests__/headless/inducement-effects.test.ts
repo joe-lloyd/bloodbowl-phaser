@@ -12,7 +12,7 @@ import { GameOperation } from "../../src/game/core/GameOperation";
 import { ClearPitchOperation } from "../../src/game/operations/EndDriveOperations";
 import { InjuryOperation } from "../../src/game/operations/InjuryOperation";
 import { RosterName } from "../../src/types/Team";
-import { forceDice } from "../utils/test-helpers";
+import { foulAddingAllAssists, forceDice } from "../utils/test-helpers";
 
 /**
  * What each Sevens inducement does once bought (docs/SEVENS_RULES.md L3,
@@ -177,7 +177,7 @@ async function spottedFoul(game: HeadlessGame, laterDice: number[] = []) {
     playerId: fouler.id,
     action: "foul",
   });
-  const response = await game.execute({
+  const response = await foulAddingAllAssists(game, {
     type: "foul",
     playerId: fouler.id,
     x: 11,

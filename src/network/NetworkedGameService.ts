@@ -200,6 +200,14 @@ export class NetworkedGameService implements IGameService {
     this.send({ type: "choose-inducement", ...answer });
     return true;
   }
+  answerFoulAssists(count: number): boolean {
+    const pending = this.pendingDecision();
+    if (pending?.type !== "foul-assists") return false;
+    if (!Number.isInteger(count) || count < 0 || count > pending.available)
+      return false;
+    this.send({ type: "choose-foul-assists", count });
+    return true;
+  }
   commitInducements(
     _profile: import("../types/Inducements").InducementRuleProfile,
     _budgets: Record<string, number>,

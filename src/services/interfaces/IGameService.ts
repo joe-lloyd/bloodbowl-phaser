@@ -58,6 +58,8 @@ export interface IGameService {
   answerInducementChoice(
     answer: import("@/types/decisions").InducementChoiceDecisionAnswer
   ): boolean;
+  /** Answer a pending Foul assists decision; false when out of range. */
+  answerFoulAssists(count: number): boolean;
 
   // Sevens inducements
   /**

@@ -8,6 +8,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
+import { foulAddingAllAssists } from "../utils/test-helpers";
 
 const descriptions = (events: { name: string; data: unknown }[]) =>
   events
@@ -79,7 +80,7 @@ describe("dice log targets", () => {
       playerId: fouler.id,
       action: "foul",
     });
-    const response = await game.execute({
+    const response = await foulAddingAllAssists(game, {
       type: "foul",
       playerId: fouler.id,
       x: 10,

@@ -161,6 +161,8 @@ describe("Pile Driver", () => {
       { type: "choose-push-direction", x: 19, y: 5 },
       { type: "choose-follow-up", followUp: true },
       { type: "use-reaction", accept: true },
+      // Both team-mates beside the defender assist the free Foul
+      { type: "choose-foul-assists", count: 2 },
     ]) {
       response = await game.execute(command);
       events.push(...response.events);

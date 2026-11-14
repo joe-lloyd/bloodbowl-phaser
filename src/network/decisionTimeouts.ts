@@ -23,6 +23,7 @@ export const DEFENDER_DECISION_SECONDS: Record<
   "push-direction": 10,
   "follow-up": 10,
   "inducement-choice": 10,
+  "foul-assists": 10,
   touchback: 10,
   "kickoff-event": 10,
 };
@@ -59,6 +60,9 @@ export function defaultAnswer(
       return { type: "use-apothecary", accept: false };
     case "follow-up":
       return { type: "choose-follow-up", followUp: false };
+    case "foul-assists":
+      // As before the choice existed: every assist adds +1
+      return { type: "choose-foul-assists", count: pending.available };
     case "touchback":
     case "kickoff-event":
     case "inducement-choice":

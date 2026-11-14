@@ -3,6 +3,7 @@ import { HeadlessGame } from "../../src/headless/HeadlessGame";
 import { Scenario } from "../../src/types/Scenario";
 import { GamePhase, SubPhase } from "../../src/types/GameState";
 import { PlayerStatus } from "../../src/types/Player";
+import { foulAddingAllAssists } from "../utils/test-helpers";
 import { SkillType } from "../../src/types/Skills";
 import { playerBoxOf } from "../../src/game/rules/playerLocation";
 import type { CommandResponse, EmittedEvent } from "../../src/headless/protocol";
@@ -61,7 +62,7 @@ async function foul(scenario: Scenario, seed: number) {
   const fouler = game.ctx.team1.players[0];
   const target = game.ctx.team2.players[0];
   await game.execute({ type: "declare-action", playerId: fouler.id, action: "foul" });
-  const response = await game.execute({ type: "foul", playerId: fouler.id, x: 11, y: 5 });
+  const response = await foulAddingAllAssists(game, { type: "foul", playerId: fouler.id, x: 11, y: 5 });
   return {
     target,
     armour: diceOf(response.events, "Foul Armour Roll"),

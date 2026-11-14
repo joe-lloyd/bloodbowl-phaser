@@ -332,6 +332,15 @@ function decisionCandidates(
       }
       return out;
     }
+    case "foul-assists":
+      // Every assist first: adding them all is the default
+      return Array.from({ length: pending.available + 1 }, (_, i) => {
+        const count = pending.available - i;
+        return one(
+          { type: "choose-foul-assists", count },
+          `Add ${count} of ${pending.available} Offensive Assists to the Foul`
+        );
+      });
     case "kickoff-event":
       // Coach-owned kickoff steps (Blitz, Charge, Quick Snap, ...) are
       // optional; confirming an untouched step and skipping it both close it.

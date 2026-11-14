@@ -39,6 +39,7 @@ import { BlockDiceDialog } from "../ui/components/hud/BlockDiceDialog";
 import { RerollDialog } from "../ui/components/hud/RerollDialog";
 import { FollowUpDialog } from "../ui/components/hud/FollowUpDialog";
 import { ReactionDialog } from "../ui/components/hud/ReactionDialog";
+import { FoulAssistsDialog } from "../ui/components/hud/FoulAssistsDialog";
 import { BiteTargetPrompt } from "../ui/components/hud/BiteTargetPrompt";
 import { InterceptionDialog } from "../ui/components/hud/InterceptionDialog";
 import { ApothecaryDialog } from "../ui/components/hud/ApothecaryDialog";
@@ -1213,6 +1214,23 @@ export const VARIANTS: Variant[] = [
           chooserTeamId: fx.team1.id,
           skill: "Stand Firm",
           prompt: "Use Stand Firm to refuse the push and stay in place?",
+        })
+      ),
+  },
+  {
+    id: "foul-assists",
+    section: "Decision dialogs",
+    title: "Foul: how many Offensive Assists to add",
+    view: (fx) => <FoulAssistsDialog eventBus={fx.bus} />,
+    drive: (fx) =>
+      later(30, () =>
+        fx.bus.emit(GameEventNames.DecisionRequested, {
+          type: "foul-assists",
+          playerId: fx.player(1, 0).id,
+          targetId: fx.player(2, 0).id,
+          chooserTeamId: fx.team1.id,
+          available: 2,
+          defensive: 1,
         })
       ),
   },

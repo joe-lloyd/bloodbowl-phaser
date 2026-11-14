@@ -191,17 +191,41 @@ export interface InducementChoiceDecisionAnswer {
   stat?: DopeStat;
 }
 
+/**
+ * A Foul's Offensive Assists are a "may" (FAQ, May 2026): before the Armour
+ * Roll the fouling coach declares how many add +1. Defensive Assists always
+ * apply. Asked only when at least one team-mate can assist.
+ */
+export interface FoulAssistsDecisionRequest {
+  type: "foul-assists";
+  /** The fouler */
+  playerId: string;
+  targetId: string;
+  chooserTeamId: string;
+  /** Offensive Assists the coach may add; never fewer than one. */
+  available: number;
+  /** Defensive Assists, which always apply. */
+  defensive: number;
+}
+
+/** How many of the available Offensive Assists add +1, 0 to `available`. */
+export interface FoulAssistsDecisionAnswer {
+  count: number;
+}
+
 export type DecisionRequest =
   | RerollDecisionRequest
   | ReactionDecisionRequest
   | BiteTargetDecisionRequest
   | InterceptionDecisionRequest
   | ApothecaryDecisionRequest
-  | InducementChoiceDecisionRequest;
+  | InducementChoiceDecisionRequest
+  | FoulAssistsDecisionRequest;
 export type DecisionAnswer =
   | RerollDecisionAnswer
   | ReactionDecisionAnswer
   | BiteTargetDecisionAnswer
   | InterceptionDecisionAnswer
   | ApothecaryDecisionAnswer
-  | InducementChoiceDecisionAnswer;
+  | InducementChoiceDecisionAnswer
+  | FoulAssistsDecisionAnswer;
