@@ -9,6 +9,8 @@ import { SkillRule } from "../SkillRule";
 export const BlockRule: SkillRule = {
   onBlockResult(ctx, self) {
     if (ctx.resultType !== "both-down") return;
+    // Wrestle places both Prone "regardless of any other Skills"
+    if (ctx.placedProne) return;
 
     if (self.id === ctx.attacker.id && ctx.attackerKnockedDown) {
       ctx.attackerKnockedDown = false;
