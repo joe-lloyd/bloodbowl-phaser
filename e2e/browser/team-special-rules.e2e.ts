@@ -83,7 +83,9 @@ test("the team builder picks a League, an alignment and a Captain", async ({
   const league = page.getByTestId("team-league");
   const rules = page.getByTestId("team-special-rules");
 
-  await roster.selectOption("Norse");
+  // A new team chooses its roster first
+  await page.getByTestId("roster-choice-Norse").click();
+  await expect(roster).toHaveValue("Norse");
   await expect(league).toHaveValue("Chaos Clash");
   await expect(rules).toHaveText("Favoured of Khorne");
   await league.selectOption("Old World Classic");
